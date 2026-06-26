@@ -113,39 +113,6 @@
   flex-shrink: 0;
 }
 
-.btn-strava {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid #fc4c02;
-  background: transparent;
-  color: #fc4c02;
-  font-size: var(--text-sm);
-  font-family: var(--font-display);
-  cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-spring);
-}
-
-.btn-strava:hover:not(:disabled) {
-  background: rgba(252, 76, 2, 0.1);
-}
-
-.btn-strava:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.btn-strava--connected {
-  background: rgba(252, 76, 2, 0.08);
-}
-
-.btn-strava--connected:hover {
-  background: rgba(252, 76, 2, 0.18);
-}
-
 .btn-today {
   height: 32px;
   padding: 0 14px;
@@ -335,23 +302,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1;
-}
-
-.event-chip--strava .event-chip__label {
-  font-style: italic;
-}
-
-.event-chip__strava-badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 100%;
-  flex-shrink: 0;
-  font-size: 10px;
-  font-weight: 700;
-  color: #fc4c02;
   line-height: 1;
 }
 
@@ -922,61 +872,6 @@
 
 .modal-completion__btn--done {
   background: rgba(255,255,255,0.04);
-}
-
-.strava-metrics {
-  border: 1px solid rgba(252, 76, 2, 0.25);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  margin-bottom: 16px;
-  background: rgba(252, 76, 2, 0.04);
-}
-
-.strava-metrics__header {
-  margin-bottom: 12px;
-}
-
-.strava-metrics__source {
-  font-size: 11px;
-  color: #fc4c02;
-  font-family: var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.strava-metrics__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 12px;
-}
-
-.strava-metric {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  color: var(--text-muted);
-}
-
-.strava-metric svg {
-  color: var(--text-muted);
-}
-
-.strava-metric__value {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.2;
-}
-
-.strava-metric__sub {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--text-secondary);
-}
-
-.strava-metric__label {
-  font-size: 11px;
-  color: var(--text-muted);
 }
 
 /* ============================================================

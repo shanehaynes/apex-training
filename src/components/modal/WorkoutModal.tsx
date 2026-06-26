@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, TrendingUp, Heart, Ruler } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, CheckCircle2, Circle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/CalendarContext';
 import { useSchedule } from '../../context/ScheduleContext';
@@ -31,8 +31,6 @@ export default function WorkoutModal() {
     document.body.style.overflow = 'hidden';
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
   }, []);
-
-  const isStrava = event.source === 'strava';
 
   const sections: { label: string; items: Exercise[] }[] = [
     ...(event.warmup?.length ? [{ label: 'Warm-Up', items: event.warmup }] : []),
@@ -120,76 +118,25 @@ export default function WorkoutModal() {
             <span className="modal-difficulty__label">{DIFFICULTY_LABELS[event.difficulty]}</span>
           </div>
 
-          {/* Completion toggle — only for scheduled events */}
-          {!isStrava && (
-            <div className="modal-completion">
-              <button
-                className={`modal-completion__btn${isCompleted ? ' modal-completion__btn--done' : ''}`}
-                onClick={() => toggleCompletion(event.id)}
-                style={isCompleted ? { borderColor: color.solid, color: color.solid } : {}}
-              >
-                {isCompleted
-                  ? <><CheckCircle2 size={15} strokeWidth={2} /> Completed</>
-                  : <><Circle size={15} strokeWidth={1.5} /> Mark as Complete</>
-                }
-              </button>
-            </div>
-          )}
+          <div className="modal-completion">
+            <button
+              className={`modal-completion__btn${isCompleted ? ' modal-completion__btn--done' : ''}`}
+              onClick={() => toggleCompletion(event.id)}
+              style={isCompleted ? { borderColor: color.solid, color: color.solid } : {}}
+            >
+              {isCompleted
+                ? <><CheckCircle2 size={15} strokeWidth={2} /> Completed</>
+                : <><Circle size={15} strokeWidth={1.5} /> Mark as Complete</>
+              }
+            </button>
+          </div>
 
           <div className="modal-body">
             {/* Description */}
             <p className="modal-description">{event.description}</p>
 
-            {/* Strava metrics */}
-            {isStrava && event.stravaData && (
-              <div className="strava-metrics">
-                <div className="strava-metrics__header">
-                  <span className="strava-metrics__source">Synced from Strava</span>
-                </div>
-                <div className="strava-metrics__grid">
-                  {event.stravaData.distance > 0 && (
-                    <div className="strava-metric">
-                      <Ruler size={14} strokeWidth={1.5} />
-                      <span className="strava-metric__value">
-                        {(event.stravaData.distance / 1000).toFixed(2)} km
-                      </span>
-                      <span className="strava-metric__label">Distance</span>
-                    </div>
-                  )}
-                  <div className="strava-metric">
-                    <Clock size={14} strokeWidth={1.5} />
-                    <span className="strava-metric__value">
-                      {formatDuration(Math.round(event.stravaData.elapsed_time / 60))}
-                    </span>
-                    <span className="strava-metric__label">Time</span>
-                  </div>
-                  {event.stravaData.total_elevation_gain > 0 && (
-                    <div className="strava-metric">
-                      <TrendingUp size={14} strokeWidth={1.5} />
-                      <span className="strava-metric__value">
-                        {Math.round(event.stravaData.total_elevation_gain)} m
-                      </span>
-                      <span className="strava-metric__label">Elevation</span>
-                    </div>
-                  )}
-                  {event.stravaData.average_heartrate && (
-                    <div className="strava-metric">
-                      <Heart size={14} strokeWidth={1.5} />
-                      <span className="strava-metric__value">
-                        {Math.round(event.stravaData.average_heartrate)} bpm
-                        {event.stravaData.max_heartrate && (
-                          <span className="strava-metric__sub"> / {Math.round(event.stravaData.max_heartrate)} max</span>
-                        )}
-                      </span>
-                      <span className="strava-metric__label">Heart Rate</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Exercise sections — only for scheduled events with exercises */}
-            {!isStrava && sections.map(section => (
+            {/* Exercise sections */}
+            {sections.map(section => (
               <div key={section.label} className="modal-section">
                 <div className="modal-section__header">
                   <span className="modal-section__line" />

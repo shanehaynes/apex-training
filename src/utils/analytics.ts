@@ -14,7 +14,6 @@ export function countByType(events: WorkoutEvent[]): Record<WorkoutType, number>
   const counts: Record<WorkoutType, number> = {
     stretching: 0, 'morning-routine': 0, weights: 0,
     climbing: 0, cardio: 0, yoga: 0, rest: 0,
-    run: 0, ride: 0, swim: 0, hike: 0, weighttraining: 0, strava: 0,
   };
   for (const e of events) counts[e.type]++;
   return counts;

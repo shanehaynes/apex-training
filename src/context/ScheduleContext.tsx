@@ -2,7 +2,6 @@ import { createContext, useContext, useMemo, useState } from 'react';
 import { parseISO, isSameDay } from 'date-fns';
 import scheduleData from '../data/schedule.json';
 import type { WorkoutEvent, Schedule } from '../types/workout';
-import { useStrava } from './StravaContext';
 
 const baseSchedule = scheduleData as Schedule;
 
@@ -26,14 +25,10 @@ function loadCompletedIds(): Set<string> {
 
 export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const [completedIds, setCompletedIds] = useState<Set<string>>(loadCompletedIds);
-  const { activities: stravaActivities } = useStrava();
 
   const events = useMemo<WorkoutEvent[]>(
-    () => [
-      ...baseSchedule.events.map(e => ({ ...e, isCompleted: completedIds.has(e.id) })),
-      ...stravaActivities,
-    ],
-    [completedIds, stravaActivities],
+    () => baseSchedule.events.map(e => ({ ...e, isCompleted: completedIds.has(e.id) })),
+    [completedIds],
   );
 
   const getEventsForDate = useMemo(
