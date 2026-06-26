@@ -1,10 +1,12 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCalendar } from '../../context/CalendarContext';
+import { useSchedule } from '../../context/ScheduleContext';
 import { formatMonthYear, formatWeekRange, formatDay } from '../../utils/dateHelpers';
 import type { CalendarView } from '../../types/workout';
 
 export default function TopNav() {
   const { state, dispatch } = useCalendar();
+  const { isSyncing } = useSchedule();
   const { currentDate, selectedView } = state;
 
   const periodLabel = selectedView === 'month'
@@ -18,6 +20,7 @@ export default function TopNav() {
       <div className="top-nav__brand">
         <span className="top-nav__logo">APEX</span>
         <span className="top-nav__sub">Training</span>
+        {isSyncing && <span className="top-nav__sync" aria-label="Syncing" title="Syncing with server" />}
       </div>
 
       <div className="top-nav__controls">
