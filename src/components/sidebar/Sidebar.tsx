@@ -46,7 +46,7 @@ export default function Sidebar() {
   const uniqueTypes = useMemo(() => getUniqueTypes(filtered), [filtered]);
   const weeklyVolume = useMemo(() => getWeeklyVolume(events, 6), [events]);
 
-  const thisWeekEnd = endOfWeek(new Date(), { weekStartsOn: 0 });
+  const thisWeekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
   const upcomingEvents = useMemo(() =>
     events
       .filter(e => {

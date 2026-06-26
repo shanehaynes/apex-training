@@ -5,7 +5,7 @@ export function getEventsByDateRange(events: WorkoutEvent[], range: DateRange, r
   if (range === 'all') return events;
   const now = referenceDate;
   const interval = range === 'week'
-    ? { start: startOfWeek(now, { weekStartsOn: 0 }), end: endOfWeek(now, { weekStartsOn: 0 }) }
+    ? { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) }
     : { start: startOfMonth(now), end: endOfMonth(now) };
   return events.filter(e => isWithinInterval(parseISO(e.date), interval));
 }
@@ -14,6 +14,7 @@ export function countByType(events: WorkoutEvent[]): Record<WorkoutType, number>
   const counts: Record<WorkoutType, number> = {
     stretching: 0, 'morning-routine': 0, weights: 0,
     climbing: 0, cardio: 0, yoga: 0, rest: 0,
+    run: 0, ride: 0, swim: 0, hike: 0, weighttraining: 0, strava: 0,
   };
   for (const e of events) counts[e.type]++;
   return counts;
@@ -41,8 +42,8 @@ export function getWeeklyVolume(events: WorkoutEvent[], weeksBack = 6): WeekVolu
   const today = new Date();
   return Array.from({ length: weeksBack }, (_, i) => {
     const weekRef = subWeeks(today, weeksBack - 1 - i);
-    const start = startOfWeek(weekRef, { weekStartsOn: 0 });
-    const end = endOfWeek(weekRef, { weekStartsOn: 0 });
+    const start = startOfWeek(weekRef, { weekStartsOn: 1 });
+    const end = endOfWeek(weekRef, { weekStartsOn: 1 });
     const weekEvents = events.filter(e => isWithinInterval(parseISO(e.date), { start, end }));
     return {
       weekLabel: format(start, 'MMM d'),

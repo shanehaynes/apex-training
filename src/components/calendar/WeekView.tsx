@@ -1,5 +1,6 @@
 import { useMemo, useEffect, useState } from 'react';
 import { format, isToday } from 'date-fns';
+import { CheckCircle2, Circle } from 'lucide-react';
 import { buildWeekDays } from '../../utils/dateHelpers';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { useSchedule } from '../../context/ScheduleContext';
@@ -24,20 +25,36 @@ interface EventBlockProps {
 
 function EventBlock({ event }: EventBlockProps) {
   const { dispatch } = useCalendar();
+  const { toggleCompletion } = useSchedule();
   const color = getWorkoutColor(event.type);
   const top = event.startTime ? ((timeToMinutes(event.startTime) - DAY_START) / 60) * SLOT_HEIGHT : 0;
   const height = Math.max((event.estimatedDuration / 60) * SLOT_HEIGHT, 32);
 
   return (
-    <button
-      className="week-event"
+    <div
+      className={`week-event${event.isCompleted ? ' week-event--done' : ''}`}
       style={{ top, height, background: color.light, borderLeft: `3px solid ${color.solid}` }}
-      onClick={() => dispatch({ type: 'SELECT_EVENT', payload: event })}
-      aria-label={event.title}
     >
-      <span className="week-event__title">{event.title}</span>
-      {event.startTime && <span className="week-event__time">{event.startTime}</span>}
-    </button>
+      <button
+        className="week-event__main"
+        onClick={() => dispatch({ type: 'SELECT_EVENT', payload: event })}
+        aria-label={event.title}
+      >
+        <span className="week-event__title">{event.title}</span>
+        {event.startTime && <span className="week-event__time">{event.startTime}</span>}
+      </button>
+      <button
+        className="week-event__check"
+        onClick={e => { e.stopPropagation(); toggleCompletion(event.id); }}
+        aria-label={event.isCompleted ? 'Mark incomplete' : 'Mark complete'}
+        title={event.isCompleted ? 'Mark incomplete' : 'Mark complete'}
+      >
+        {event.isCompleted
+          ? <CheckCircle2 size={12} strokeWidth={2} />
+          : <Circle size={12} strokeWidth={1.5} />
+        }
+      </button>
+    </div>
   );
 }
 
@@ -55,40 +72,46 @@ export default function WeekView({ currentDate }: { currentDate: Date }) {
 
   return (
     <div className="week-view">
-      <div className="week-view__header">
-        <div className="week-view__time-gutter" />
-        {days.map(day => (
-          <div key={day.toISOString()} className={`week-view__day-header ${isToday(day) ? 'week-view__day-header--today' : ''}`}>
-            <span className="week-view__dow">{format(day, 'EEE')}</span>
-            <span className={`week-view__day-num ${isToday(day) ? 'week-view__day-num--today' : ''}`}>{format(day, 'd')}</span>
+      <div className="week-view__scroll">
+        <div className="week-view__inner">
+          {/* Header lives inside scroll container so it moves with horizontal scroll */}
+          <div className="week-view__header">
+            <div className="week-view__time-gutter" />
+            {days.map(day => (
+              <div key={day.toISOString()} className={`week-view__day-header ${isToday(day) ? 'week-view__day-header--today' : ''}`}>
+                <span className="week-view__dow">{format(day, 'EEE')}</span>
+                <span className={`week-view__day-num ${isToday(day) ? 'week-view__day-num--today' : ''}`}>{format(day, 'd')}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <div className="week-view__body">
-        <div className="week-view__time-col">
-          {HOURS.map(h => (
-            <div key={h} className="week-view__hour-label">
-              {format(new Date(2020, 0, 1, h), 'h a')}
-            </div>
-          ))}
-        </div>
-        {days.map((day) => {
-          const events = getEventsForDate(day).filter(e => e.startTime);
-          return (
-            <div key={day.toISOString()} className={`week-view__day-col ${isToday(day) ? 'week-view__day-col--today' : ''}`}
-              style={{ height: HOURS.length * SLOT_HEIGHT }}>
+          {/* Body — no overflow-y; scroll delegated to .week-view__scroll */}
+          <div className="week-view__body">
+            <div className="week-view__time-col">
               {HOURS.map(h => (
-                <div key={h} className="week-view__hour-line" style={{ top: ((h - 5) * SLOT_HEIGHT) }} />
-              ))}
-              {events.map(e => <EventBlock key={e.id} event={e} />)}
-              {isToday(day) && nowTop > 0 && nowTop < HOURS.length * SLOT_HEIGHT && (
-                <div className="week-view__now-line" style={{ top: nowTop }}>
-                  <span className="week-view__now-dot" />
+                <div key={h} className="week-view__hour-label">
+                  {format(new Date(2020, 0, 1, h), 'h a')}
                 </div>
-              )}
+              ))}
             </div>
-          );
-        })}
+            {days.map((day) => {
+              const events = getEventsForDate(day).filter(e => e.startTime);
+              return (
+                <div key={day.toISOString()} className={`week-view__day-col ${isToday(day) ? 'week-view__day-col--today' : ''}`}
+                  style={{ height: HOURS.length * SLOT_HEIGHT }}>
+                  {HOURS.map(h => (
+                    <div key={h} className="week-view__hour-line" style={{ top: ((h - 5) * SLOT_HEIGHT) }} />
+                  ))}
+                  {events.map(e => <EventBlock key={e.id} event={e} />)}
+                  {isToday(day) && nowTop > 0 && nowTop < HOURS.length * SLOT_HEIGHT && (
+                    <div className="week-view__now-line" style={{ top: nowTop }}>
+                      <span className="week-view__now-dot" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );

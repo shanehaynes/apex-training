@@ -6,8 +6,8 @@ import {
 } from 'date-fns';
 
 export function buildMonthGrid(date: Date): Date[][] {
-  const start = startOfWeek(startOfMonth(date), { weekStartsOn: 0 });
-  const end = endOfWeek(endOfMonth(date), { weekStartsOn: 0 });
+  const start = startOfWeek(startOfMonth(date), { weekStartsOn: 1 });
+  const end = endOfWeek(endOfMonth(date), { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start, end });
   const weeks: Date[][] = [];
   for (let i = 0; i < days.length; i += 7) {
@@ -17,8 +17,8 @@ export function buildMonthGrid(date: Date): Date[][] {
 }
 
 export function buildWeekDays(date: Date): Date[] {
-  const start = startOfWeek(date, { weekStartsOn: 0 });
-  const end = endOfWeek(date, { weekStartsOn: 0 });
+  const start = startOfWeek(date, { weekStartsOn: 1 });
+  const end = endOfWeek(date, { weekStartsOn: 1 });
   return eachDayOfInterval({ start, end });
 }
 
@@ -43,8 +43,8 @@ export function formatMonthYear(date: Date): string {
 }
 
 export function formatWeekRange(date: Date): string {
-  const start = startOfWeek(date, { weekStartsOn: 0 });
-  const end = endOfWeek(date, { weekStartsOn: 0 });
+  const start = startOfWeek(date, { weekStartsOn: 1 });
+  const end = endOfWeek(date, { weekStartsOn: 1 });
   if (format(start, 'MMM') === format(end, 'MMM')) {
     return `${format(start, 'MMM d')} – ${format(end, 'd, yyyy')}`;
   }

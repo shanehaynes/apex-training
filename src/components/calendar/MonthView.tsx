@@ -4,7 +4,7 @@ import { buildMonthGrid } from '../../utils/dateHelpers';
 import DayCell from './DayCell';
 import { useSchedule } from '../../context/ScheduleContext';
 
-const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 interface Props {
   currentDate: Date;
@@ -17,6 +17,7 @@ export default function MonthView({ currentDate, direction }: Props) {
 
   return (
     <div className="month-view">
+      {/* Sticky header lives inside .month-view (the scroll container) */}
       <div className="month-view__dow-row">
         {DOW.map(d => <span key={d} className="month-view__dow">{d}</span>)}
       </div>

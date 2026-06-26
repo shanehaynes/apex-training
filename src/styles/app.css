@@ -18,7 +18,7 @@
 }
 
 .app-main {
-  overflow-y: auto;
+  overflow: hidden;
   padding: 0;
 }
 
@@ -113,6 +113,39 @@
   flex-shrink: 0;
 }
 
+.btn-strava {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid #fc4c02;
+  background: transparent;
+  color: #fc4c02;
+  font-size: var(--text-sm);
+  font-family: var(--font-display);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+
+.btn-strava:hover:not(:disabled) {
+  background: rgba(252, 76, 2, 0.1);
+}
+
+.btn-strava:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-strava--connected {
+  background: rgba(252, 76, 2, 0.08);
+}
+
+.btn-strava--connected:hover {
+  background: rgba(252, 76, 2, 0.18);
+}
+
 .btn-today {
   height: 32px;
   padding: 0 14px;
@@ -178,6 +211,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: auto; /* month-view owns its scroll so header stays aligned */
 }
 
 .month-view__dow-row {
@@ -189,6 +223,7 @@
   position: sticky;
   top: 0;
   z-index: 2;
+  flex-shrink: 0; /* prevent compression in flex column */
 }
 
 .month-view__dow {
@@ -271,21 +306,20 @@
 .event-chip {
   display: flex;
   align-items: center;
-  gap: 5px;
   height: 22px;
-  padding: 0 6px;
   border-radius: var(--radius-sm);
-  border: none;
-  cursor: pointer;
   width: 100%;
-  text-align: left;
   font-family: var(--font-display);
-  transition: transform var(--duration-fast) var(--ease-spring),
-              box-shadow var(--duration-fast) var(--ease-spring);
+  overflow: hidden;
+  transition: transform var(--duration-fast) var(--ease-spring);
 }
 
 .event-chip:hover {
   transform: scale(1.02);
+}
+
+.event-chip--done {
+  opacity: 0.6;
 }
 
 .event-chip__dot {
@@ -304,13 +338,87 @@
   line-height: 1;
 }
 
+.event-chip--strava .event-chip__label {
+  font-style: italic;
+}
+
+.event-chip__strava-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 100%;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fc4c02;
+  line-height: 1;
+}
+
+.event-chip__check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 100%;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity var(--duration-fast), color var(--duration-fast) var(--ease-spring);
+}
+
+.event-chip:hover .event-chip__check {
+  opacity: 1;
+}
+
+.event-chip--done .event-chip__check {
+  opacity: 1;
+  color: #22c55e;
+}
+
+.event-chip__check:hover {
+  color: var(--text-primary);
+}
+
+.event-chip__main {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 4px 0 6px;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  font-family: var(--font-display);
+}
+
+.event-chip--done .event-chip__label {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
 /* ---- Week View ---- */
 
 .week-view {
+  height: 100%;
+  overflow: hidden; /* outer clip — scroll happens on __scroll */
+}
+
+.week-view__scroll {
+  height: 100%;
+  overflow: auto; /* single scroll container for both axes */
+}
+
+.week-view__inner {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
+  min-width: 600px; /* min readable column width before horizontal scroll */
 }
 
 .week-view__header {
@@ -321,6 +429,7 @@
   position: sticky;
   top: 0;
   z-index: 2;
+  /* header is inside .week-view__scroll so horizontal scroll carries it */
 }
 
 .week-view__time-gutter {
@@ -368,8 +477,7 @@
 .week-view__body {
   display: grid;
   grid-template-columns: 52px repeat(7, 1fr);
-  overflow-y: auto;
-  flex: 1;
+  /* no overflow — delegated to .week-view__scroll */
 }
 
 .week-view__time-col {
@@ -411,8 +519,31 @@
   left: 4px;
   right: 4px;
   border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  overflow: hidden;
+  transition: transform var(--duration-fast) var(--ease-spring),
+              box-shadow var(--duration-fast) var(--ease-spring);
+  z-index: 1;
+  font-family: var(--font-display);
+}
+
+.week-event:hover {
+  transform: scale(1.01);
+  z-index: 2;
+}
+
+.week-event--done {
+  opacity: 0.5;
+}
+
+.week-event__main {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 4px 4px 6px;
+  background: transparent;
   border: none;
-  padding: 4px 6px;
   cursor: pointer;
   text-align: left;
   font-family: var(--font-display);
@@ -420,14 +551,6 @@
   flex-direction: column;
   gap: 2px;
   overflow: hidden;
-  transition: transform var(--duration-fast) var(--ease-spring),
-              box-shadow var(--duration-fast) var(--ease-spring);
-  z-index: 1;
-}
-
-.week-event:hover {
-  transform: scale(1.01);
-  z-index: 2;
 }
 
 .week-event__title {
@@ -439,9 +562,41 @@
   text-overflow: ellipsis;
 }
 
+.week-event--done .week-event__title {
+  text-decoration: line-through;
+}
+
 .week-event__time {
   font-size: 10px;
   color: var(--text-secondary);
+}
+
+.week-event__check {
+  width: 22px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity var(--duration-fast), color var(--duration-fast);
+  padding: 0;
+}
+
+.week-event:hover .week-event__check {
+  opacity: 1;
+}
+
+.week-event--done .week-event__check {
+  opacity: 1;
+  color: #22c55e;
+}
+
+.week-event__check:hover {
+  color: var(--text-primary);
 }
 
 .week-view__now-line {
@@ -739,6 +894,89 @@
   border: 1px solid var(--border-subtle);
   border-radius: 20px;
   padding: 3px 10px;
+}
+
+.modal-completion {
+  padding: 0 24px 16px;
+}
+
+.modal-completion__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-family: var(--font-display);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+
+.modal-completion__btn:hover {
+  background: var(--bg-elevated);
+}
+
+.modal-completion__btn--done {
+  background: rgba(255,255,255,0.04);
+}
+
+.strava-metrics {
+  border: 1px solid rgba(252, 76, 2, 0.25);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  background: rgba(252, 76, 2, 0.04);
+}
+
+.strava-metrics__header {
+  margin-bottom: 12px;
+}
+
+.strava-metrics__source {
+  font-size: 11px;
+  color: #fc4c02;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.strava-metrics__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 12px;
+}
+
+.strava-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--text-muted);
+}
+
+.strava-metric svg {
+  color: var(--text-muted);
+}
+
+.strava-metric__value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.strava-metric__sub {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.strava-metric__label {
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 /* ============================================================
