@@ -1,905 +1,103 @@
 {
-  "version": "1.0",
-  "lastUpdated": "2026-06-25",
+  "version": "1.1",
+  "lastUpdated": "2026-06-26",
   "events": [
-    {
-      "id": "w1-mon-morning",
-      "type": "morning-routine",
-      "title": "Morning Mobility",
-      "subtitle": "Wake Up & Move",
-      "date": "2026-06-22",
-      "startTime": "6:30 AM",
-      "endTime": "7:00 AM",
-      "estimatedDuration": 30,
-      "description": "Start the week with intention. This morning flow targets the hips, thoracic spine, and shoulders — the three areas that take the most abuse from sitting and sleeping. Move slowly, breathe deeply, and set the tone for the week ahead.",
-      "exercises": [
-        { "id": "mr-1", "name": "Sun Salutation A", "category": "mobility", "sets": 5, "duration": "60s each", "notes": "Flow with breath. Inhale up, exhale fold." },
-        { "id": "mr-2", "name": "Hip 90/90 Stretch", "category": "stretch", "duration": "90s each side", "notes": "Sit tall, don't round the lower back." },
-        { "id": "mr-3", "name": "Thoracic Rotation", "category": "mobility", "sets": 3, "reps": "10 each side", "notes": "Keep hips square to the floor." },
-        { "id": "mr-4", "name": "Neck Circles", "category": "mobility", "duration": "60s", "notes": "Slow and controlled." },
-        { "id": "mr-5", "name": "Box Breathing", "category": "mobility", "sets": 5, "duration": "4-4-4-4 cadence", "notes": "Inhale 4, hold 4, exhale 4, hold 4." }
-      ],
-      "difficulty": 1,
-      "location": "Home",
-      "tags": ["mobility", "morning", "breathwork"],
-      "isCompleted": false,
-      "isRecurring": true,
-      "recurringPattern": { "frequency": "weekly", "daysOfWeek": [1, 3, 5] }
-    },
-    {
-      "id": "w1-mon-weights",
-      "type": "weights",
-      "title": "Upper Body Strength",
-      "subtitle": "Push Focus — Chest & Shoulders",
-      "date": "2026-06-22",
-      "startTime": "5:30 PM",
-      "endTime": "6:45 PM",
-      "estimatedDuration": 75,
-      "description": "Heavy push day. The focus is on compound pressing movements to build raw strength in the chest, shoulders, and triceps. Keep rest periods strict — 90 seconds between working sets. The goal today is to add 5 lbs to last week's bench.",
-      "warmup": [
-        { "id": "wu-1", "name": "Band Pull-Aparts", "category": "mobility", "sets": 3, "reps": "20", "notes": "Keep arms straight, squeeze shoulder blades." },
-        { "id": "wu-2", "name": "Rotator Cuff Circles", "category": "mobility", "duration": "60s each arm" },
-        { "id": "wu-3", "name": "Incline Push-Up", "category": "strength", "sets": 2, "reps": "15", "notes": "Activate chest before loading." }
-      ],
-      "exercises": [
-        { "id": "ub-1", "name": "Barbell Bench Press", "category": "strength", "sets": 4, "reps": "5", "weight": "185 lbs", "restPeriod": "3 min", "notes": "Feet flat, arch controlled, bar to lower chest.", "muscleGroups": ["chest", "triceps", "front delt"] },
-        { "id": "ub-2", "name": "Overhead Press", "category": "strength", "sets": 4, "reps": "6", "weight": "115 lbs", "restPeriod": "2 min", "notes": "Brace core hard, press through the ceiling.", "muscleGroups": ["shoulders", "triceps", "upper chest"] },
-        { "id": "ub-3", "name": "Incline Dumbbell Press", "category": "strength", "sets": 3, "reps": "10-12", "weight": "65 lbs each", "restPeriod": "90s", "muscleGroups": ["upper chest", "front delt"] },
-        { "id": "ub-4", "name": "Cable Chest Fly", "category": "strength", "sets": 3, "reps": "12-15", "weight": "40 lbs", "restPeriod": "60s", "notes": "Full stretch at the bottom, squeeze at the top.", "muscleGroups": ["chest"] },
-        { "id": "ub-5", "name": "Skull Crushers", "category": "strength", "sets": 3, "reps": "12", "weight": "75 lbs", "restPeriod": "60s", "muscleGroups": ["triceps"] },
-        { "id": "ub-6", "name": "Face Pulls", "category": "strength", "sets": 4, "reps": "20", "weight": "30 lbs", "restPeriod": "45s", "notes": "Shoulder health non-negotiable — don't skip.", "muscleGroups": ["rear delt", "rotator cuff"] }
-      ],
-      "cooldown": [
-        { "id": "cd-1", "name": "Doorframe Chest Stretch", "category": "stretch", "duration": "90s each side" },
-        { "id": "cd-2", "name": "Tricep Overhead Stretch", "category": "stretch", "duration": "60s each arm" }
-      ],
-      "difficulty": 4,
-      "location": "Garage Gym",
-      "tags": ["upper body", "push", "hypertrophy", "chest", "shoulders"],
-      "equipment": ["barbell", "bench", "dumbbells", "cables", "EZ bar"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w1-mon-stretch",
-      "type": "stretching",
-      "title": "Nightly Recovery",
-      "subtitle": "End-of-Day Unwind",
-      "date": "2026-06-22",
-      "startTime": "9:30 PM",
-      "endTime": "9:55 PM",
-      "estimatedDuration": 25,
-      "description": "The hardest part of training isn't the workouts — it's the recovery. This nightly sequence targets the posterior chain and chest after a heavy push day, helping flush lactic acid and improve sleep quality.",
-      "exercises": [
-        { "id": "ns-1", "name": "Supine Hamstring Stretch", "category": "stretch", "duration": "90s each leg", "notes": "Use a strap or towel. Don't force the knee straight." },
-        { "id": "ns-2", "name": "Pigeon Pose", "category": "stretch", "duration": "2 min each side", "notes": "Let the hip melt into the floor." },
-        { "id": "ns-3", "name": "Chest Opener (Floor)", "category": "stretch", "duration": "2 min", "notes": "Arms in goalpost. Let gravity do the work." },
-        { "id": "ns-4", "name": "Cross-Body Shoulder Stretch", "category": "stretch", "duration": "60s each side" },
-        { "id": "ns-5", "name": "Supine Spinal Twist", "category": "stretch", "duration": "90s each side", "notes": "Both shoulders stay on the ground." }
-      ],
-      "difficulty": 1,
-      "location": "Home",
-      "tags": ["recovery", "flexibility", "sleep"],
-      "isCompleted": false,
-      "isRecurring": true,
-      "recurringPattern": { "frequency": "daily", "endDate": "2026-08-03" }
-    },
-    {
-      "id": "w1-tue-climbing",
-      "type": "climbing",
-      "title": "Climbing Session",
-      "subtitle": "Technique & Project Work",
-      "date": "2026-06-23",
-      "startTime": "6:00 PM",
-      "endTime": "8:00 PM",
-      "estimatedDuration": 120,
-      "description": "Tuesday evenings at the gym. Warm up on slabs and easy traversing, then move into your 5.11 project. Focus on footwork precision and reading sequences before pulling on. The goal this session is to link the crux section on the overhang problem.",
-      "warmup": [
-        { "id": "clw-1", "name": "Easy Traversing", "category": "skill", "duration": "15 min", "notes": "Slab and vertical only. No overhang until warm." },
-        { "id": "clw-2", "name": "Finger Flexor Warm-Up", "category": "mobility", "sets": 3, "duration": "30s open hand hang, 50% intensity", "notes": "Half-crimp position. Stop if anything pops." }
-      ],
-      "exercises": [
-        { "id": "cl-1", "name": "5.9 Routes — Volume Laps", "category": "skill", "sets": 4, "notes": "Focus on quiet feet and straight arms." },
-        { "id": "cl-2", "name": "5.10b/c Routes", "category": "skill", "sets": 3, "notes": "Read the route from the ground before starting." },
-        { "id": "cl-3", "name": "5.11a Project", "category": "skill", "reps": "3 attempts", "notes": "Rest 10+ minutes between attempts. Film one attempt for review." },
-        { "id": "cl-4", "name": "Hangboard — Max Hangs", "category": "strength", "sets": 5, "duration": "10s on, 3 min rest", "weight": "BW – 10 lbs (assisted)", "notes": "Half-crimp, 20mm edge.", "muscleGroups": ["finger flexors", "forearms"] }
-      ],
-      "cooldown": [
-        { "id": "clcd-1", "name": "Forearm Antagonist Work", "category": "strength", "sets": 3, "reps": "15", "notes": "Rubber band finger extensions. Injury prevention." },
-        { "id": "clcd-2", "name": "Wrist Circles & Flexion Stretch", "category": "stretch", "duration": "2 min" }
-      ],
-      "difficulty": 3,
-      "location": "Movement Lab Climbing Gym",
-      "tags": ["climbing", "technique", "finger strength", "project"],
-      "equipment": ["climbing shoes", "chalk bag", "harness"],
-      "isCompleted": false,
-      "isRecurring": true,
-      "recurringPattern": { "frequency": "weekly", "daysOfWeek": [2, 5] }
-    },
-    {
-      "id": "w1-tue-stretch",
-      "type": "stretching",
-      "title": "Nightly Recovery",
-      "subtitle": "Post-Climb Forearm & Hip Work",
-      "date": "2026-06-23",
-      "startTime": "9:30 PM",
-      "endTime": "9:55 PM",
-      "estimatedDuration": 25,
-      "description": "After climbing, the forearms and fingers need specific attention. This version of the nightly routine adds dedicated forearm and finger flexor work alongside the standard hip and back sequence.",
-      "exercises": [
-        { "id": "ns-tc-1", "name": "Prayer Stretch (Wrist Flexion)", "category": "stretch", "duration": "90s", "notes": "Palms together, press down. Feel it in the forearms." },
-        { "id": "ns-tc-2", "name": "Reverse Prayer Stretch", "category": "stretch", "duration": "90s" },
-        { "id": "ns-tc-3", "name": "Pigeon Pose", "category": "stretch", "duration": "2 min each side" },
-        { "id": "ns-tc-4", "name": "Supine Spinal Twist", "category": "stretch", "duration": "90s each side" },
-        { "id": "ns-tc-5", "name": "Child's Pose with Lat Stretch", "category": "stretch", "duration": "2 min", "notes": "Walk hands to each side to hit the lats." }
-      ],
-      "difficulty": 1,
-      "location": "Home",
-      "tags": ["recovery", "flexibility", "climbing recovery", "forearms"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w1-wed-morning",
-      "type": "morning-routine",
-      "title": "Morning Mobility",
-      "subtitle": "Midweek Reset",
-      "date": "2026-06-24",
-      "startTime": "6:30 AM",
-      "endTime": "7:00 AM",
-      "estimatedDuration": 30,
-      "description": "Midweek morning flow. Body is carrying some fatigue — move mindfully and don't push range of motion. The goal is circulation and mental clarity, not flexibility gains.",
-      "exercises": [
-        { "id": "mr-w-1", "name": "Cat-Cow", "category": "mobility", "sets": 3, "reps": "10", "notes": "Sync with breath." },
-        { "id": "mr-w-2", "name": "World's Greatest Stretch", "category": "mobility", "sets": 3, "reps": "5 each side", "notes": "Step into lunge, rotate, reach sky." },
-        { "id": "mr-w-3", "name": "Hip Flexor Stretch", "category": "stretch", "duration": "90s each side" },
-        { "id": "mr-w-4", "name": "Inchworm", "category": "mobility", "sets": 2, "reps": "8" },
-        { "id": "mr-w-5", "name": "Box Breathing", "category": "mobility", "sets": 5, "duration": "4-4-4-4 cadence" }
-      ],
-      "difficulty": 1,
-      "location": "Home",
-      "tags": ["mobility", "morning", "recovery"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w1-wed-weights",
-      "type": "weights",
-      "title": "Lower Body Strength",
-      "subtitle": "Squat & Posterior Chain",
-      "date": "2026-06-24",
-      "startTime": "5:30 PM",
-      "endTime": "6:50 PM",
-      "estimatedDuration": 80,
-      "description": "The king of leg days. Heavy back squats are the centerpiece — everything else supports and complements them. Posterior chain work (RDL, GHD) ensures balanced development and protects the knees. This is the session that builds the base for everything else.",
-      "warmup": [
-        { "id": "lbw-1", "name": "Goblet Squat", "category": "strength", "sets": 3, "reps": "10", "weight": "35 lbs", "notes": "Elbows inside knees, chest tall." },
-        { "id": "lbw-2", "name": "Hip Circle Activation", "category": "mobility", "sets": 2, "reps": "10 each direction" },
-        { "id": "lbw-3", "name": "Ankle Mobility Drill", "category": "mobility", "duration": "2 min", "notes": "Knee-over-toe, heel stays down." }
-      ],
-      "exercises": [
-        { "id": "lb-1", "name": "Back Squat", "category": "strength", "sets": 5, "reps": "4", "weight": "225 lbs", "restPeriod": "3 min", "notes": "High bar, break parallel, knees track toes.", "muscleGroups": ["quads", "glutes", "core"] },
-        { "id": "lb-2", "name": "Romanian Deadlift", "category": "strength", "sets": 4, "reps": "8", "weight": "185 lbs", "restPeriod": "2 min", "notes": "Push hips back, bar stays close to legs.", "muscleGroups": ["hamstrings", "glutes", "lower back"] },
-        { "id": "lb-3", "name": "Bulgarian Split Squat", "category": "strength", "sets": 3, "reps": "10 each leg", "weight": "50 lbs each", "restPeriod": "90s", "notes": "Front foot far enough forward to stay vertical shin.", "muscleGroups": ["quads", "glutes", "hip flexors"] },
-        { "id": "lb-4", "name": "Leg Press", "category": "strength", "sets": 3, "reps": "15", "weight": "320 lbs", "restPeriod": "90s", "notes": "High foot placement for glute emphasis.", "muscleGroups": ["quads", "glutes"] },
-        { "id": "lb-5", "name": "Standing Calf Raises", "category": "strength", "sets": 4, "reps": "20", "weight": "BW + 45 lb plate", "restPeriod": "60s", "notes": "Full range — all the way down, pause at top.", "muscleGroups": ["calves"] }
-      ],
-      "cooldown": [
-        { "id": "lbcd-1", "name": "Couch Stretch", "category": "stretch", "duration": "2 min each side", "notes": "Hip flexors are tight after heavy squats." },
-        { "id": "lbcd-2", "name": "Standing Hamstring Stretch", "category": "stretch", "duration": "90s each leg" }
-      ],
-      "difficulty": 5,
-      "location": "Garage Gym",
-      "tags": ["lower body", "squat", "strength", "posterior chain"],
-      "equipment": ["barbell", "squat rack", "leg press machine"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w1-wed-stretch",
-      "type": "stretching",
-      "title": "Nightly Recovery",
-      "subtitle": "Post-Leg Day Deep Tissue",
-      "date": "2026-06-24",
-      "startTime": "9:30 PM",
-      "endTime": "9:55 PM",
-      "estimatedDuration": 25,
-      "description": "Legs are cooked after squats and RDLs. Extra time on the quads and hip flexors tonight. The goal is to reduce DOMS tomorrow morning.",
-      "exercises": [
-        { "id": "ns-leg-1", "name": "Reclined Pigeon Pose", "category": "stretch", "duration": "2 min each side" },
-        { "id": "ns-leg-2", "name": "Supine Hamstring Stretch", "category": "stretch", "duration": "90s each leg" },
-        { "id": "ns-leg-3", "name": "Quad Stretch (Side-Lying)", "category": "stretch", "duration": "90s each leg" },
-        { "id": "ns-leg-4", "name": "Happy Baby Pose", "category": "stretch", "duration": "2 min" },
-        { "id": "ns-leg-5", "name": "Supine Spinal Twist", "category": "stretch", "duration": "90s each side" }
-      ],
-      "difficulty": 1,
-      "location": "Home",
-      "tags": ["recovery", "flexibility", "legs"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w1-thu-cardio",
-      "type": "cardio",
-      "title": "Zone 2 Run",
-      "subtitle": "Aerobic Base Building",
-      "date": "2026-06-25",
-      "startTime": "6:15 AM",
-      "endTime": "7:15 AM",
-      "estimatedDuration": 60,
-      "description": "Zone 2 running builds the aerobic engine that underpins all other training. Keep your heart rate between 130–145 BPM — you should be able to hold a conversation. If you can't, slow down. Consistency over weeks is what moves the needle here.",
-      "exercises": [
-        { "id": "run-1", "name": "Easy Warm-Up Walk", "category": "cardio", "duration": "5 min" },
-        { "id": "run-2", "name": "Zone 2 Run", "category": "cardio", "duration": "50 min", "notes": "Target HR: 130–145 BPM. Pace is secondary — let HR dictate speed." },
-        { "id": "run-3", "name": "Cool-Down Walk", "category": "cardio", "duration": "5 min" }
-      ],
-      "difficulty": 2,
-      "location": "Neighborhood / Trail",
-      "tags": ["cardio", "zone 2", "aerobic", "running", "endurance"],
-      "equipment": ["running shoes", "HR monitor"],
-      "isCompleted": false,
-      "isRecurring": true,
-      "recurringPattern": { "frequency": "weekly", "daysOfWeek": [4] }
-    },
-    {
-      "id": "w1-thu-stretch",
-      "type": "stretching",
-      "title": "Nightly Recovery",
-      "subtitle": "Post-Run Leg Reset",
-      "date": "2026-06-25",
-      "startTime": "9:30 PM",
-      "endTime": "9:55 PM",
-      "estimatedDuration": 25,
-      "description": "Standard nightly sequence with extra calf and IT band work after the run.",
-      "exercises": [
-        { "id": "ns-r-1", "name": "Standing Calf Stretch", "category": "stretch", "duration": "90s each leg" },
-        { "id": "ns-r-2", "name": "IT Band Stretch (Standing)", "category": "stretch", "duration": "60s each side" },
-        { "id": "ns-r-3", "name": "Supine Hamstring Stretch", "category": "stretch", "duration": "90s each leg" },
-        { "id": "ns-r-4", "name": "Pigeon Pose", "category": "stretch", "duration": "2 min each side" },
-        { "id": "ns-r-5", "name": "Supine Spinal Twist", "category": "stretch", "duration": "90s each side" }
-      ],
-      "difficulty": 1,
-      "location": "Home",
-      "tags": ["recovery", "flexibility", "run recovery"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w1-fri-morning",
-      "type": "morning-routine",
-      "title": "Morning Mobility",
-      "subtitle": "Pre-Climb Activation",
-      "date": "2026-06-26",
-      "startTime": "6:30 AM",
-      "endTime": "7:00 AM",
-      "estimatedDuration": 30,
-      "description": "Friday morning — climbing tonight. This version of the morning routine includes shoulder and finger prep to set up a great evening session.",
-      "exercises": [
-        { "id": "mr-f-1", "name": "Shoulder CARs", "category": "mobility", "sets": 3, "reps": "5 each direction", "notes": "Controlled articular rotations. Full range, zero compensation." },
-        { "id": "mr-f-2", "name": "Scapular Push-Ups", "category": "mobility", "sets": 3, "reps": "12" },
-        { "id": "mr-f-3", "name": "Hip 90/90 Stretch", "category": "stretch", "duration": "90s each side" },
-        { "id": "mr-f-4", "name": "Thoracic Rotation", "category": "mobility", "sets": 3, "reps": "10 each side" },
-        { "id": "mr-f-5", "name": "Box Breathing", "category": "mobility", "sets": 5, "duration": "4-4-4-4 cadence" }
-      ],
-      "difficulty": 1,
-      "location": "Home",
-      "tags": ["mobility", "morning", "pre-climb prep"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w1-fri-climbing",
-      "type": "climbing",
-      "title": "Climbing Session",
-      "subtitle": "Volume Day — Movement Quality",
-      "date": "2026-06-26",
-      "startTime": "6:00 PM",
-      "endTime": "8:00 PM",
-      "estimatedDuration": 120,
-      "description": "Second climb of the week. Today is less about projecting and more about volume and movement quality. Pick routes that feel moderate and focus on eliminating bad habits — don't barn-door, use your feet, and keep your hips close to the wall on overhangs.",
-      "warmup": [
-        { "id": "clfw-1", "name": "Easy Traversing", "category": "skill", "duration": "15 min", "notes": "Footwork only. Move feet three times for every hand move." }
-      ],
-      "exercises": [
-        { "id": "clf-1", "name": "5.9 Routes — Footwork Drills", "category": "skill", "sets": 4, "notes": "Climb with one hand, other behind back on easy sections." },
-        { "id": "clf-2", "name": "5.10a/b Routes — Volume", "category": "skill", "sets": 5, "notes": "No falls. Downclimb when possible." },
-        { "id": "clf-3", "name": "5.10d Route — Onsight Attempt", "category": "skill", "reps": "1 attempt", "notes": "Read thoroughly from the ground. Commit to sequences." },
-        { "id": "clf-4", "name": "Circuit Board — Pull Strength", "category": "strength", "sets": 4, "reps": "8", "notes": "Bent-arm pulling. Feet on the board.", "muscleGroups": ["lats", "biceps", "rhomboids"] }
-      ],
-      "cooldown": [
-        { "id": "clfcd-1", "name": "Antagonist Push-Ups", "category": "strength", "sets": 3, "reps": "15" },
-        { "id": "clfcd-2", "name": "Wrist & Forearm Stretch Series", "category": "stretch", "duration": "3 min" }
-      ],
-      "difficulty": 3,
-      "location": "Movement Lab Climbing Gym",
-      "tags": ["climbing", "volume", "technique", "movement"],
-      "equipment": ["climbing shoes", "chalk bag"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w1-fri-stretch",
-      "type": "stretching",
-      "title": "Nightly Recovery",
-      "subtitle": "End of Week Wind-Down",
-      "date": "2026-06-26",
-      "startTime": "9:30 PM",
-      "endTime": "9:55 PM",
-      "estimatedDuration": 25,
-      "description": "End of a big week. Tonight's sequence is unhurried — hold each pose longer, breathe slower. Let the body fully absorb five days of training.",
-      "exercises": [
-        { "id": "ns-fw-1", "name": "Legs Up the Wall", "category": "stretch", "duration": "5 min", "notes": "Passive. Let gravity drain the legs." },
-        { "id": "ns-fw-2", "name": "Pigeon Pose", "category": "stretch", "duration": "3 min each side" },
-        { "id": "ns-fw-3", "name": "Chest Opener", "category": "stretch", "duration": "2 min" },
-        { "id": "ns-fw-4", "name": "Supine Spinal Twist", "category": "stretch", "duration": "2 min each side" },
-        { "id": "ns-fw-5", "name": "Savasana / Body Scan", "category": "mobility", "duration": "5 min", "notes": "Lie still. Systematically relax every muscle group." }
-      ],
-      "difficulty": 1,
-      "location": "Home",
-      "tags": ["recovery", "flexibility", "end of week"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w1-sat-weights",
-      "type": "weights",
-      "title": "Pull Day",
-      "subtitle": "Back & Biceps",
-      "date": "2026-06-27",
-      "startTime": "9:00 AM",
-      "endTime": "10:15 AM",
-      "estimatedDuration": 75,
-      "description": "Weekend morning lift — the reward for a disciplined week. Pull day targets the back and biceps. After two climbing sessions, the lats are already primed. Use that mind-muscle connection and go heavier than you think you can.",
-      "warmup": [
-        { "id": "puw-1", "name": "Face Pulls", "category": "strength", "sets": 3, "reps": "20", "weight": "25 lbs", "notes": "High elbows, external rotation." },
-        { "id": "puw-2", "name": "Band Pull-Aparts", "category": "mobility", "sets": 3, "reps": "20" }
-      ],
-      "exercises": [
-        { "id": "pu-1", "name": "Weighted Pull-Ups", "category": "strength", "sets": 5, "reps": "5", "weight": "BW + 35 lbs", "restPeriod": "3 min", "notes": "Dead hang start, chin over bar finish.", "muscleGroups": ["lats", "biceps", "rear delt"] },
-        { "id": "pu-2", "name": "Barbell Row", "category": "strength", "sets": 4, "reps": "6", "weight": "175 lbs", "restPeriod": "2 min", "notes": "Hinge at 45°, row to lower sternum.", "muscleGroups": ["lats", "rhomboids", "biceps"] },
-        { "id": "pu-3", "name": "Seated Cable Row", "category": "strength", "sets": 3, "reps": "12", "weight": "120 lbs", "restPeriod": "90s", "muscleGroups": ["mid back", "lats"] },
-        { "id": "pu-4", "name": "Dumbbell Curl", "category": "strength", "sets": 4, "reps": "10", "weight": "40 lbs each", "restPeriod": "60s", "notes": "Supinate at the top.", "muscleGroups": ["biceps"] },
-        { "id": "pu-5", "name": "Hammer Curl", "category": "strength", "sets": 3, "reps": "12", "weight": "35 lbs each", "restPeriod": "60s", "muscleGroups": ["brachialis", "brachioradialis"] },
-        { "id": "pu-6", "name": "Lat Pulldown (Close Grip)", "category": "strength", "sets": 3, "reps": "15", "weight": "130 lbs", "restPeriod": "60s", "muscleGroups": ["lats", "biceps"] }
-      ],
-      "difficulty": 4,
-      "location": "Garage Gym",
-      "tags": ["upper body", "pull", "back", "biceps"],
-      "equipment": ["barbell", "cable machine", "dumbbells", "pull-up bar"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w1-sat-stretch",
-      "type": "stretching",
-      "title": "Nightly Recovery",
-      "date": "2026-06-27",
-      "startTime": "9:30 PM",
-      "endTime": "9:55 PM",
-      "estimatedDuration": 25,
-      "description": "Standard nightly recovery sequence.",
-      "exercises": [
-        { "id": "ns-s-1", "name": "Supine Hamstring Stretch", "category": "stretch", "duration": "90s each leg" },
-        { "id": "ns-s-2", "name": "Pigeon Pose", "category": "stretch", "duration": "2 min each side" },
-        { "id": "ns-s-3", "name": "Chest Opener", "category": "stretch", "duration": "90s" },
-        { "id": "ns-s-4", "name": "Child's Pose", "category": "stretch", "duration": "2 min" },
-        { "id": "ns-s-5", "name": "Supine Spinal Twist", "category": "stretch", "duration": "90s each side" }
-      ],
-      "difficulty": 1,
-      "location": "Home",
-      "tags": ["recovery", "flexibility"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w1-sun-rest",
-      "type": "rest",
-      "title": "Active Recovery",
-      "subtitle": "Rest & Regenerate",
-      "date": "2026-06-28",
-      "estimatedDuration": 30,
-      "description": "Rest day is not an off day — it's when adaptation happens. Today: walk outside, eat well, hydrate aggressively, and get 8+ hours of sleep tonight. The only structured movement is a short walk and the nightly stretch.",
-      "exercises": [
-        { "id": "rest-1", "name": "20-Minute Walk", "category": "cardio", "duration": "20 min", "notes": "Outside if possible. No pace target — just move." },
-        { "id": "rest-2", "name": "Hydration Goal", "category": "mobility", "notes": "3L of water minimum." }
-      ],
-      "difficulty": 1,
-      "location": "Outdoors",
-      "tags": ["rest", "recovery", "active recovery"],
-      "isCompleted": false,
-      "isRecurring": true,
-      "recurringPattern": { "frequency": "weekly", "daysOfWeek": [0] }
-    },
-    {
-      "id": "w1-sun-stretch",
-      "type": "stretching",
-      "title": "Nightly Recovery",
-      "date": "2026-06-28",
-      "startTime": "9:30 PM",
-      "endTime": "9:55 PM",
-      "estimatedDuration": 25,
-      "description": "End of the recovery day. Full body stretch — take your time.",
-      "exercises": [
-        { "id": "ns-su-1", "name": "Pigeon Pose", "category": "stretch", "duration": "3 min each side" },
-        { "id": "ns-su-2", "name": "Supine Hamstring Stretch", "category": "stretch", "duration": "90s each leg" },
-        { "id": "ns-su-3", "name": "Chest Opener", "category": "stretch", "duration": "2 min" },
-        { "id": "ns-su-4", "name": "Supine Spinal Twist", "category": "stretch", "duration": "2 min each side" },
-        { "id": "ns-su-5", "name": "Box Breathing", "category": "mobility", "sets": 5, "duration": "4-4-4-4 cadence" }
-      ],
-      "difficulty": 1,
-      "location": "Home",
-      "tags": ["recovery", "flexibility"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w2-mon-morning",
-      "type": "morning-routine",
-      "title": "Morning Mobility",
-      "subtitle": "Week 2 Kickoff",
-      "date": "2026-06-29",
-      "startTime": "6:30 AM",
-      "endTime": "7:00 AM",
-      "estimatedDuration": 30,
-      "description": "New week. Same commitment. Morning mobility resets the nervous system and gets you out of your head before the day begins.",
-      "exercises": [
-        { "id": "mr-w2-1", "name": "Sun Salutation A", "category": "mobility", "sets": 5, "duration": "60s each" },
-        { "id": "mr-w2-2", "name": "Hip 90/90 Stretch", "category": "stretch", "duration": "90s each side" },
-        { "id": "mr-w2-3", "name": "Thoracic Rotation", "category": "mobility", "sets": 3, "reps": "10 each side" },
-        { "id": "mr-w2-4", "name": "Neck Rolls", "category": "mobility", "duration": "60s" },
-        { "id": "mr-w2-5", "name": "Box Breathing", "category": "mobility", "sets": 5, "duration": "4-4-4-4 cadence" }
-      ],
-      "difficulty": 1,
-      "location": "Home",
-      "tags": ["mobility", "morning"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w2-mon-weights",
-      "type": "weights",
-      "title": "Upper Body Strength",
-      "subtitle": "Push Focus — Week 2",
-      "date": "2026-06-29",
-      "startTime": "5:30 PM",
-      "endTime": "6:45 PM",
-      "estimatedDuration": 75,
-      "description": "Push day week 2. Target 190 lbs on bench — 5 lb progression from last Monday. Everything else stays the same weight until the primary lift moves.",
-      "warmup": [
-        { "id": "wu-w2-1", "name": "Band Pull-Aparts", "category": "mobility", "sets": 3, "reps": "20" },
-        { "id": "wu-w2-2", "name": "Incline Push-Up", "category": "strength", "sets": 2, "reps": "15" }
-      ],
-      "exercises": [
-        { "id": "ub-w2-1", "name": "Barbell Bench Press", "category": "strength", "sets": 4, "reps": "5", "weight": "190 lbs", "restPeriod": "3 min", "notes": "+5 lbs from last week. Grind if needed.", "muscleGroups": ["chest", "triceps", "front delt"] },
-        { "id": "ub-w2-2", "name": "Overhead Press", "category": "strength", "sets": 4, "reps": "6", "weight": "115 lbs", "restPeriod": "2 min", "muscleGroups": ["shoulders", "triceps"] },
-        { "id": "ub-w2-3", "name": "Incline Dumbbell Press", "category": "strength", "sets": 3, "reps": "10-12", "weight": "65 lbs each", "restPeriod": "90s", "muscleGroups": ["upper chest"] },
-        { "id": "ub-w2-4", "name": "Cable Chest Fly", "category": "strength", "sets": 3, "reps": "12-15", "weight": "40 lbs", "restPeriod": "60s", "muscleGroups": ["chest"] },
-        { "id": "ub-w2-5", "name": "Skull Crushers", "category": "strength", "sets": 3, "reps": "12", "weight": "75 lbs", "restPeriod": "60s", "muscleGroups": ["triceps"] },
-        { "id": "ub-w2-6", "name": "Face Pulls", "category": "strength", "sets": 4, "reps": "20", "weight": "30 lbs", "restPeriod": "45s", "muscleGroups": ["rear delt", "rotator cuff"] }
-      ],
-      "difficulty": 4,
-      "location": "Garage Gym",
-      "tags": ["upper body", "push", "chest", "shoulders"],
-      "equipment": ["barbell", "bench", "dumbbells", "cables", "EZ bar"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w2-mon-stretch",
-      "type": "stretching",
-      "title": "Nightly Recovery",
-      "date": "2026-06-29",
-      "startTime": "9:30 PM",
-      "endTime": "9:55 PM",
-      "estimatedDuration": 25,
-      "description": "Standard nightly recovery sequence.",
-      "exercises": [
-        { "id": "ns-w2m-1", "name": "Supine Hamstring Stretch", "category": "stretch", "duration": "90s each leg" },
-        { "id": "ns-w2m-2", "name": "Pigeon Pose", "category": "stretch", "duration": "2 min each side" },
-        { "id": "ns-w2m-3", "name": "Chest Opener", "category": "stretch", "duration": "90s" },
-        { "id": "ns-w2m-4", "name": "Supine Spinal Twist", "category": "stretch", "duration": "90s each side" }
-      ],
-      "difficulty": 1,
-      "location": "Home",
-      "tags": ["recovery", "flexibility"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w2-tue-climbing",
-      "type": "climbing",
-      "title": "Climbing Session",
-      "subtitle": "Project Day — Push Your Limit",
-      "date": "2026-06-30",
-      "startTime": "6:00 PM",
-      "endTime": "8:00 PM",
-      "estimatedDuration": 120,
-      "description": "Tuesday project session. This week's goal: send the 5.11a that's been a nemesis. Come in rested and mentally sharp. Visualize the crux sequence before you rope up.",
-      "warmup": [
-        { "id": "clw2-1", "name": "Easy Traversing", "category": "skill", "duration": "15 min" },
-        { "id": "clw2-2", "name": "Finger Flexor Warm-Up", "category": "mobility", "sets": 3, "duration": "30s open hand hang" }
-      ],
-      "exercises": [
-        { "id": "cl-w2-1", "name": "5.9 Routes", "category": "skill", "sets": 3, "notes": "Warm-up only. Don't fatigue." },
-        { "id": "cl-w2-2", "name": "5.10c Route", "category": "skill", "sets": 2 },
-        { "id": "cl-w2-3", "name": "5.11a Project — Send Attempt", "category": "skill", "reps": "4 attempts", "notes": "Rest fully between attempts. This is the day." },
-        { "id": "cl-w2-4", "name": "Hangboard — Repeaters", "category": "strength", "sets": 6, "duration": "7s on, 3s off × 6, then 3 min rest", "notes": "20mm edge, half crimp.", "muscleGroups": ["finger flexors", "forearms"] }
-      ],
-      "cooldown": [
-        { "id": "clcd-w2-1", "name": "Antagonist Work", "category": "strength", "sets": 3, "reps": "15" },
-        { "id": "clcd-w2-2", "name": "Forearm Stretch Series", "category": "stretch", "duration": "3 min" }
-      ],
-      "difficulty": 4,
-      "location": "Movement Lab Climbing Gym",
-      "tags": ["climbing", "project", "5.11", "finger strength"],
-      "equipment": ["climbing shoes", "chalk bag", "harness"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w2-tue-stretch",
-      "type": "stretching",
-      "title": "Nightly Recovery",
-      "date": "2026-06-30",
-      "startTime": "9:30 PM",
-      "endTime": "9:55 PM",
-      "estimatedDuration": 25,
-      "description": "Post-climb recovery. Forearms and fingers first tonight.",
-      "exercises": [
-        { "id": "ns-w2t-1", "name": "Prayer Stretch", "category": "stretch", "duration": "90s" },
-        { "id": "ns-w2t-2", "name": "Reverse Prayer Stretch", "category": "stretch", "duration": "90s" },
-        { "id": "ns-w2t-3", "name": "Pigeon Pose", "category": "stretch", "duration": "2 min each side" },
-        { "id": "ns-w2t-4", "name": "Supine Spinal Twist", "category": "stretch", "duration": "90s each side" }
-      ],
-      "difficulty": 1,
-      "location": "Home",
-      "tags": ["recovery", "climbing recovery"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w2-wed-morning",
-      "type": "morning-routine",
-      "title": "Morning Mobility",
-      "date": "2026-07-01",
-      "startTime": "6:30 AM",
-      "endTime": "7:00 AM",
-      "estimatedDuration": 30,
-      "description": "Midweek mobility. Keep it gentle — heavy legs coming this afternoon.",
-      "exercises": [
-        { "id": "mr-w2w-1", "name": "Cat-Cow", "category": "mobility", "sets": 3, "reps": "10" },
-        { "id": "mr-w2w-2", "name": "World's Greatest Stretch", "category": "mobility", "sets": 3, "reps": "5 each side" },
-        { "id": "mr-w2w-3", "name": "Hip Flexor Stretch", "category": "stretch", "duration": "90s each side" },
-        { "id": "mr-w2w-4", "name": "Box Breathing", "category": "mobility", "sets": 5, "duration": "4-4-4-4 cadence" }
-      ],
-      "difficulty": 1,
-      "location": "Home",
-      "tags": ["mobility", "morning"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w2-wed-weights",
-      "type": "weights",
-      "title": "Lower Body Strength",
-      "subtitle": "Squat — Week 2",
-      "date": "2026-07-01",
-      "startTime": "5:30 PM",
-      "endTime": "6:50 PM",
-      "estimatedDuration": 80,
-      "description": "Back squats week 2: 230 lbs. Romanian deadlifts same weight, everything else holds. Posterior chain is the priority.",
-      "warmup": [
-        { "id": "lbw-w2-1", "name": "Goblet Squat", "category": "strength", "sets": 3, "reps": "10", "weight": "35 lbs" },
-        { "id": "lbw-w2-2", "name": "Hip Circle Activation", "category": "mobility", "sets": 2, "reps": "10 each direction" }
-      ],
-      "exercises": [
-        { "id": "lb-w2-1", "name": "Back Squat", "category": "strength", "sets": 5, "reps": "4", "weight": "230 lbs", "restPeriod": "3 min", "notes": "+5 lbs. Stay patient between sets.", "muscleGroups": ["quads", "glutes", "core"] },
-        { "id": "lb-w2-2", "name": "Romanian Deadlift", "category": "strength", "sets": 4, "reps": "8", "weight": "185 lbs", "restPeriod": "2 min", "muscleGroups": ["hamstrings", "glutes"] },
-        { "id": "lb-w2-3", "name": "Bulgarian Split Squat", "category": "strength", "sets": 3, "reps": "10 each", "weight": "50 lbs each", "restPeriod": "90s", "muscleGroups": ["quads", "glutes"] },
-        { "id": "lb-w2-4", "name": "Leg Press", "category": "strength", "sets": 3, "reps": "15", "weight": "320 lbs", "restPeriod": "90s", "muscleGroups": ["quads", "glutes"] },
-        { "id": "lb-w2-5", "name": "Standing Calf Raises", "category": "strength", "sets": 4, "reps": "20", "weight": "BW + 45 lb plate", "restPeriod": "60s", "muscleGroups": ["calves"] }
-      ],
-      "difficulty": 5,
-      "location": "Garage Gym",
-      "tags": ["lower body", "squat", "strength"],
-      "equipment": ["barbell", "squat rack", "leg press machine"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w2-thu-cardio",
-      "type": "cardio",
-      "title": "Zone 2 Run",
-      "subtitle": "Aerobic Base — Week 2",
-      "date": "2026-07-02",
-      "startTime": "6:15 AM",
-      "endTime": "7:15 AM",
-      "estimatedDuration": 60,
-      "description": "Same run, same zone. The gains compound invisibly over weeks. Trust the process.",
-      "exercises": [
-        { "id": "run-w2-1", "name": "Warm-Up Walk", "category": "cardio", "duration": "5 min" },
-        { "id": "run-w2-2", "name": "Zone 2 Run", "category": "cardio", "duration": "50 min", "notes": "HR: 130–145 BPM." },
-        { "id": "run-w2-3", "name": "Cool-Down Walk", "category": "cardio", "duration": "5 min" }
-      ],
-      "difficulty": 2,
-      "location": "Trail",
-      "tags": ["cardio", "zone 2", "endurance"],
-      "equipment": ["running shoes", "HR monitor"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w2-fri-climbing",
-      "type": "climbing",
-      "title": "Climbing Session",
-      "subtitle": "Movement Quality Day",
-      "date": "2026-07-03",
-      "startTime": "6:00 PM",
-      "endTime": "8:00 PM",
-      "estimatedDuration": 120,
-      "description": "Volume and movement quality. No projecting tonight — focus on body positioning and reading routes. Every session where you prioritize technique over sending is an investment.",
-      "warmup": [
-        { "id": "clffw-1", "name": "Easy Traversing", "category": "skill", "duration": "15 min" }
-      ],
-      "exercises": [
-        { "id": "clf-w2-1", "name": "5.9 Routes — Technique Focus", "category": "skill", "sets": 4 },
-        { "id": "clf-w2-2", "name": "5.10b Routes — Volume", "category": "skill", "sets": 5 },
-        { "id": "clf-w2-3", "name": "5.10d Onsight Attempt", "category": "skill", "reps": "1 attempt" },
-        { "id": "clf-w2-4", "name": "Bouldering V1–V3", "category": "skill", "duration": "30 min", "notes": "Problem-solve. Explore movement." }
-      ],
-      "cooldown": [
-        { "id": "clfcd-w2-1", "name": "Antagonist Push-Ups", "category": "strength", "sets": 3, "reps": "15" },
-        { "id": "clfcd-w2-2", "name": "Forearm Stretch Series", "category": "stretch", "duration": "3 min" }
-      ],
-      "difficulty": 3,
-      "location": "Movement Lab Climbing Gym",
-      "tags": ["climbing", "technique", "volume"],
-      "equipment": ["climbing shoes", "chalk bag"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w2-sat-weights",
-      "type": "weights",
-      "title": "Pull Day",
-      "subtitle": "Back & Biceps — Week 2",
-      "date": "2026-07-04",
-      "startTime": "9:00 AM",
-      "endTime": "10:15 AM",
-      "estimatedDuration": 75,
-      "description": "Pull day week 2. Weighted pull-ups: 40 lbs. The back responds to volume — squeeze every rep.",
-      "warmup": [
-        { "id": "puw-w2-1", "name": "Face Pulls", "category": "strength", "sets": 3, "reps": "20", "weight": "25 lbs" },
-        { "id": "puw-w2-2", "name": "Band Pull-Aparts", "category": "mobility", "sets": 3, "reps": "20" }
-      ],
-      "exercises": [
-        { "id": "pu-w2-1", "name": "Weighted Pull-Ups", "category": "strength", "sets": 5, "reps": "5", "weight": "BW + 40 lbs", "restPeriod": "3 min", "muscleGroups": ["lats", "biceps"] },
-        { "id": "pu-w2-2", "name": "Barbell Row", "category": "strength", "sets": 4, "reps": "6", "weight": "180 lbs", "restPeriod": "2 min", "muscleGroups": ["lats", "rhomboids"] },
-        { "id": "pu-w2-3", "name": "Seated Cable Row", "category": "strength", "sets": 3, "reps": "12", "weight": "125 lbs", "restPeriod": "90s", "muscleGroups": ["mid back"] },
-        { "id": "pu-w2-4", "name": "Dumbbell Curl", "category": "strength", "sets": 4, "reps": "10", "weight": "40 lbs each", "restPeriod": "60s", "muscleGroups": ["biceps"] },
-        { "id": "pu-w2-5", "name": "Hammer Curl", "category": "strength", "sets": 3, "reps": "12", "weight": "35 lbs each", "restPeriod": "60s", "muscleGroups": ["brachialis"] },
-        { "id": "pu-w2-6", "name": "Lat Pulldown", "category": "strength", "sets": 3, "reps": "15", "weight": "135 lbs", "restPeriod": "60s", "muscleGroups": ["lats"] }
-      ],
-      "difficulty": 4,
-      "location": "Garage Gym",
-      "tags": ["upper body", "pull", "back", "biceps"],
-      "equipment": ["barbell", "cable machine", "dumbbells", "pull-up bar"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w2-sun-rest",
-      "type": "rest",
-      "title": "Active Recovery",
-      "subtitle": "Rest & Regenerate",
-      "date": "2026-07-05",
-      "estimatedDuration": 30,
-      "description": "Rest day. Walk, hydrate, eat well, sleep. The body adapts when you're not training.",
-      "exercises": [
-        { "id": "rest-w2-1", "name": "20-Minute Walk", "category": "cardio", "duration": "20 min" }
-      ],
-      "difficulty": 1,
-      "location": "Outdoors",
-      "tags": ["rest", "recovery"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w3-mon-morning",
-      "type": "morning-routine",
-      "title": "Morning Mobility",
-      "date": "2026-07-06",
-      "startTime": "6:30 AM",
-      "endTime": "7:00 AM",
-      "estimatedDuration": 30,
-      "description": "Week 3 opens. Three weeks of consistency builds a habit. The morning routine should feel automatic by now.",
-      "exercises": [
-        { "id": "mr-w3-1", "name": "Sun Salutation A", "category": "mobility", "sets": 5, "duration": "60s each" },
-        { "id": "mr-w3-2", "name": "Hip 90/90 Stretch", "category": "stretch", "duration": "90s each side" },
-        { "id": "mr-w3-3", "name": "Thoracic Rotation", "category": "mobility", "sets": 3, "reps": "10 each side" },
-        { "id": "mr-w3-4", "name": "Box Breathing", "category": "mobility", "sets": 5, "duration": "4-4-4-4 cadence" }
-      ],
-      "difficulty": 1,
-      "location": "Home",
-      "tags": ["mobility", "morning"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w3-mon-weights",
-      "type": "weights",
-      "title": "Upper Body Strength",
-      "subtitle": "Push Focus — Week 3",
-      "date": "2026-07-06",
-      "startTime": "5:30 PM",
-      "endTime": "6:45 PM",
-      "estimatedDuration": 75,
-      "description": "Bench target: 195 lbs. Three weeks of linear progression. If this goes up, everything is working.",
-      "warmup": [
-        { "id": "wu-w3-1", "name": "Band Pull-Aparts", "category": "mobility", "sets": 3, "reps": "20" },
-        { "id": "wu-w3-2", "name": "Incline Push-Up", "category": "strength", "sets": 2, "reps": "15" }
-      ],
-      "exercises": [
-        { "id": "ub-w3-1", "name": "Barbell Bench Press", "category": "strength", "sets": 4, "reps": "5", "weight": "195 lbs", "restPeriod": "3 min", "notes": "If set 4 is a grind, hold weight here next week.", "muscleGroups": ["chest", "triceps"] },
-        { "id": "ub-w3-2", "name": "Overhead Press", "category": "strength", "sets": 4, "reps": "6", "weight": "120 lbs", "restPeriod": "2 min", "notes": "+5 lbs on OHP this week.", "muscleGroups": ["shoulders", "triceps"] },
-        { "id": "ub-w3-3", "name": "Incline Dumbbell Press", "category": "strength", "sets": 3, "reps": "10-12", "weight": "70 lbs each", "restPeriod": "90s", "muscleGroups": ["upper chest"] },
-        { "id": "ub-w3-4", "name": "Cable Chest Fly", "category": "strength", "sets": 3, "reps": "12-15", "weight": "42.5 lbs", "restPeriod": "60s", "muscleGroups": ["chest"] },
-        { "id": "ub-w3-5", "name": "Skull Crushers", "category": "strength", "sets": 3, "reps": "12", "weight": "80 lbs", "restPeriod": "60s", "muscleGroups": ["triceps"] },
-        { "id": "ub-w3-6", "name": "Face Pulls", "category": "strength", "sets": 4, "reps": "20", "weight": "32.5 lbs", "restPeriod": "45s", "muscleGroups": ["rear delt"] }
-      ],
-      "difficulty": 4,
-      "location": "Garage Gym",
-      "tags": ["upper body", "push", "chest", "shoulders"],
-      "equipment": ["barbell", "bench", "dumbbells", "cables"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w3-tue-climbing",
-      "type": "climbing",
-      "title": "Climbing Session",
-      "subtitle": "Crack & Slab Day",
-      "date": "2026-07-07",
-      "startTime": "6:00 PM",
-      "endTime": "8:00 PM",
-      "estimatedDuration": 120,
-      "description": "Step outside your comfort zone. Spend the majority of tonight on crack and slab terrain — both require completely different technique than steep sport routes. Uncomfortable = growth.",
-      "warmup": [
-        { "id": "clw3-1", "name": "Easy Traversing", "category": "skill", "duration": "15 min" }
-      ],
-      "exercises": [
-        { "id": "cl-w3-1", "name": "Slab Routes 5.8–5.10a", "category": "skill", "sets": 5, "notes": "Trust your feet. Look down, not up. Tiny holds count." },
-        { "id": "cl-w3-2", "name": "Hand Crack Practice", "category": "skill", "duration": "30 min", "notes": "Thumb down, rotate wrist, cam the hand. Pain is temporary." },
-        { "id": "cl-w3-3", "name": "5.10d Mixed Route", "category": "skill", "reps": "2 attempts" },
-        { "id": "cl-w3-4", "name": "Campus Board — Low Rungs", "category": "strength", "sets": 5, "reps": "1-3-5 ladders", "notes": "Explosive pull, controlled movement.", "muscleGroups": ["lats", "biceps", "finger flexors"] }
-      ],
-      "cooldown": [
-        { "id": "clcd-w3-1", "name": "Antagonist Work", "category": "strength", "sets": 3, "reps": "15" },
-        { "id": "clcd-w3-2", "name": "Forearm Stretch Series", "category": "stretch", "duration": "3 min" }
-      ],
-      "difficulty": 4,
-      "location": "Movement Lab Climbing Gym",
-      "tags": ["climbing", "crack", "slab", "technique"],
-      "equipment": ["climbing shoes", "chalk bag", "harness"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w3-wed-weights",
-      "type": "weights",
-      "title": "Lower Body Strength",
-      "subtitle": "Squat — Week 3",
-      "date": "2026-07-08",
-      "startTime": "5:30 PM",
-      "endTime": "6:50 PM",
-      "estimatedDuration": 80,
-      "description": "235 lbs on the bar. Every plate added here is real strength. The movement is the same — just heavier.",
-      "warmup": [
-        { "id": "lbw-w3-1", "name": "Goblet Squat", "category": "strength", "sets": 3, "reps": "10", "weight": "35 lbs" }
-      ],
-      "exercises": [
-        { "id": "lb-w3-1", "name": "Back Squat", "category": "strength", "sets": 5, "reps": "4", "weight": "235 lbs", "restPeriod": "3 min", "muscleGroups": ["quads", "glutes", "core"] },
-        { "id": "lb-w3-2", "name": "Romanian Deadlift", "category": "strength", "sets": 4, "reps": "8", "weight": "190 lbs", "restPeriod": "2 min", "muscleGroups": ["hamstrings", "glutes"] },
-        { "id": "lb-w3-3", "name": "Bulgarian Split Squat", "category": "strength", "sets": 3, "reps": "10 each", "weight": "55 lbs each", "restPeriod": "90s", "muscleGroups": ["quads", "glutes"] },
-        { "id": "lb-w3-4", "name": "Leg Press", "category": "strength", "sets": 3, "reps": "15", "weight": "330 lbs", "restPeriod": "90s", "muscleGroups": ["quads"] },
-        { "id": "lb-w3-5", "name": "Standing Calf Raises", "category": "strength", "sets": 4, "reps": "20", "weight": "BW + 45 lb plate", "restPeriod": "60s", "muscleGroups": ["calves"] }
-      ],
-      "difficulty": 5,
-      "location": "Garage Gym",
-      "tags": ["lower body", "squat", "strength"],
-      "equipment": ["barbell", "squat rack"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w3-thu-cardio",
-      "type": "cardio",
-      "title": "Zone 2 Run",
-      "subtitle": "Aerobic Base — Week 3",
-      "date": "2026-07-09",
-      "startTime": "6:15 AM",
-      "endTime": "7:15 AM",
-      "estimatedDuration": 60,
-      "description": "Third consecutive week of Zone 2 work. The body is beginning to adapt — you may notice your pace at the same HR is starting to creep up. That's the aerobic engine getting built.",
-      "exercises": [
-        { "id": "run-w3-1", "name": "Warm-Up Walk", "category": "cardio", "duration": "5 min" },
-        { "id": "run-w3-2", "name": "Zone 2 Run", "category": "cardio", "duration": "50 min", "notes": "HR: 130–145 BPM. Note your pace at the 30-min mark." },
-        { "id": "run-w3-3", "name": "Cool-Down Walk", "category": "cardio", "duration": "5 min" }
-      ],
-      "difficulty": 2,
-      "location": "Trail",
-      "tags": ["cardio", "zone 2", "endurance"],
-      "equipment": ["running shoes", "HR monitor"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w3-fri-climbing",
-      "type": "climbing",
-      "title": "Climbing Session",
-      "subtitle": "Outdoor Prep — Movement Reading",
-      "date": "2026-07-10",
-      "startTime": "6:00 PM",
-      "endTime": "8:00 PM",
-      "estimatedDuration": 120,
-      "description": "Prep session for an upcoming outdoor day. Focus on reading routes from a distance, efficiency of movement, and building confidence on vertical terrain that will translate to rock.",
-      "warmup": [
-        { "id": "clo3w-1", "name": "Easy Traversing", "category": "skill", "duration": "15 min" }
-      ],
-      "exercises": [
-        { "id": "cl-o3-1", "name": "5.9–5.10a Volume Laps", "category": "skill", "sets": 5 },
-        { "id": "cl-o3-2", "name": "5.10d Onsight Practice", "category": "skill", "reps": "2 attempts", "notes": "Read from the ground. No beta from others." },
-        { "id": "cl-o3-3", "name": "Bouldering V2–V4", "category": "skill", "duration": "40 min", "notes": "Try hard on movement problems. Fall is fine." }
-      ],
-      "cooldown": [
-        { "id": "clcd-o3-1", "name": "Antagonist Work", "category": "strength", "sets": 3, "reps": "15" },
-        { "id": "clcd-o3-2", "name": "Forearm Stretch Series", "category": "stretch", "duration": "3 min" }
-      ],
-      "difficulty": 3,
-      "location": "Movement Lab Climbing Gym",
-      "tags": ["climbing", "outdoor prep", "movement"],
-      "equipment": ["climbing shoes", "chalk bag"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w3-sat-yoga",
-      "type": "yoga",
-      "title": "Yoga & Mobility",
-      "subtitle": "Full Body Flow",
-      "date": "2026-07-11",
-      "startTime": "8:00 AM",
-      "endTime": "9:00 AM",
-      "estimatedDuration": 60,
-      "description": "Replacing the Saturday lift this week with a full-length yoga and mobility session. After three heavy weeks, the body benefits from a different kind of stress — controlled movement through full range of motion, breath synchronization, and parasympathetic activation.",
-      "exercises": [
-        { "id": "yg-1", "name": "Sun Salutation A × 5", "category": "mobility", "duration": "15 min" },
-        { "id": "yg-2", "name": "Sun Salutation B × 3", "category": "mobility", "duration": "10 min" },
-        { "id": "yg-3", "name": "Standing Flow Sequence", "category": "mobility", "duration": "15 min", "notes": "Warrior 1, 2, Triangle, Half Moon, Reverse Warrior" },
-        { "id": "yg-4", "name": "Hip Opening Sequence", "category": "stretch", "duration": "10 min", "notes": "Lizard, Pigeon, Yin hold" },
-        { "id": "yg-5", "name": "Supine Cool-Down", "category": "stretch", "duration": "10 min", "notes": "Bridge, Reclined Pigeon, Spinal Twist, Savasana" }
-      ],
-      "difficulty": 2,
-      "location": "Home",
-      "tags": ["yoga", "mobility", "flexibility", "recovery"],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w3-sun-rest",
-      "type": "rest",
-      "title": "Active Recovery",
-      "date": "2026-07-12",
-      "estimatedDuration": 30,
-      "description": "End of week 3. Rest, reflect on progress, prepare for week 4.",
-      "exercises": [
-        { "id": "rest-w3-1", "name": "20-Minute Walk", "category": "cardio", "duration": "20 min" }
-      ],
-      "difficulty": 1,
-      "location": "Outdoors",
-      "tags": ["rest", "recovery"],
-      "isCompleted": false,
-      "isRecurring": false
-    }
+
+    { "id": "w1-mon-morning", "type": "morning-routine", "title": "Morning Movement Routine", "subtitle": "Neurological Wake-Up & Movement Priming", "date": "2026-06-22", "startTime": "6:30 AM", "endTime": "6:40 AM", "estimatedDuration": 10, "description": "Designed to complement the nightly stretch routine and daily 2+ mile walk. No overlap with the nightly routine — this does different work. Sequence is non-negotiable: neurological activation before movement, postural chain top-and-bottom before loading, joint preparation before hanging. The glutes must fire before the walk.", "exercises": [ { "id": "mr-1", "name": "Glute Squeeze Holds", "category": "mobility", "sets": 10, "duration": "10s on, 5s off", "notes": "Lying flat on your back, immediately upon getting up. Pure isometric — no movement, no bridging. Isolate the contraction; hamstrings and lower back stay quiet. If they engage first, the glutes are still inhibited." }, { "id": "mr-2", "name": "Chin Tucks Against Wall", "category": "mobility", "duration": "60s (hold 5s, repeat)", "notes": "Back against wall, heels 2–3 inches out. Chin straight back — not down — until skull contacts wall. Movement is horizontal. Feel mild contraction at base of skull, not a stretch." }, { "id": "mr-3", "name": "Deep Squat", "category": "mobility", "reps": "10–20", "duration": "~2 min", "notes": "Feet shoulder-width, toes out 30°. Pause 2–3 sec at bottom. Heels flat. Hands in prayer to pry knees out. Bottom position should feel like arriving somewhere, not surviving somewhere." }, { "id": "mr-4", "name": "Dive Bomber Push-Ups", "category": "strength", "reps": "8–10", "duration": "~1 min", "notes": "Start in downward dog. Sweep chest forward and down in an arc, finish hips low chest up. Reverse the arc. Engage anterior core through the forward sweep — do not let lower back go slack." }, { "id": "mr-5", "name": "Hangboard Warm-Up", "category": "skill", "sets": 4, "duration": "10s on, 5s off per hang", "weight": "35–40mm or jug, open hand", "notes": "4–5/10 intensity. Almost nothing. Tendon priming only — increasing blood flow to pulleys, not training them." }, { "id": "mr-6", "name": "Hangboard Main Block", "category": "skill", "sets": 6, "duration": "10s on, 5s off per hang", "weight": "20–25mm, open hand + 3-finger drag (alternate)", "notes": "5–6/10 intensity. No full crimp. No minimum edges. No two-finger pockets. If forearms feel pumped, edges were too small." } ], "difficulty": 1, "location": "Home", "tags": ["morning", "mobility", "hangboard", "glute activation", "postural correction"], "equipment": ["hangboard", "resistance band"], "isCompleted": false, "isRecurring": true, "recurringPattern": { "frequency": "daily", "endDate": "2026-08-03" } },
+
+    { "id": "w1-mon-weights", "type": "weights", "title": "Upper Body Strength", "subtitle": "Push Focus — Chest & Shoulders", "date": "2026-06-22", "startTime": "5:30 PM", "endTime": "6:45 PM", "estimatedDuration": 75, "description": "Heavy push day. Compound pressing to build raw strength in chest, shoulders, and triceps. Keep rest periods strict — 90 seconds between working sets. Goal today is to add 5 lbs to last week's bench.", "warmup": [ { "id": "ub-wu-1", "name": "Band Pull-Aparts", "category": "mobility", "sets": 3, "reps": "20", "notes": "Keep arms straight, squeeze shoulder blades." }, { "id": "ub-wu-2", "name": "Rotator Cuff Circles", "category": "mobility", "duration": "60s each arm" }, { "id": "ub-wu-3", "name": "Incline Push-Up", "category": "strength", "sets": 2, "reps": "15" } ], "exercises": [ { "id": "ub-1", "name": "Barbell Bench Press", "category": "strength", "sets": 4, "reps": "5", "weight": "185 lbs", "restPeriod": "3 min", "notes": "Feet flat, arch controlled, bar to lower chest.", "muscleGroups": ["chest", "triceps", "front delt"] }, { "id": "ub-2", "name": "Overhead Press", "category": "strength", "sets": 4, "reps": "6", "weight": "115 lbs", "restPeriod": "2 min", "notes": "Brace core hard, press through the ceiling.", "muscleGroups": ["shoulders", "triceps", "upper chest"] }, { "id": "ub-3", "name": "Incline Dumbbell Press", "category": "strength", "sets": 3, "reps": "10–12", "weight": "65 lbs each", "restPeriod": "90s", "muscleGroups": ["upper chest", "front delt"] }, { "id": "ub-4", "name": "Cable Chest Fly", "category": "strength", "sets": 3, "reps": "12–15", "weight": "40 lbs", "restPeriod": "60s", "notes": "Full stretch at the bottom, squeeze at the top.", "muscleGroups": ["chest"] }, { "id": "ub-5", "name": "Skull Crushers", "category": "strength", "sets": 3, "reps": "12", "weight": "75 lbs", "restPeriod": "60s", "muscleGroups": ["triceps"] }, { "id": "ub-6", "name": "Face Pulls", "category": "strength", "sets": 4, "reps": "20", "weight": "30 lbs", "restPeriod": "45s", "notes": "Shoulder health non-negotiable — don't skip.", "muscleGroups": ["rear delt", "rotator cuff"] } ], "cooldown": [ { "id": "ub-cd-1", "name": "Doorframe Chest Stretch", "category": "stretch", "duration": "90s each side" }, { "id": "ub-cd-2", "name": "Tricep Overhead Stretch", "category": "stretch", "duration": "60s each arm" } ], "difficulty": 4, "location": "Garage Gym", "tags": ["upper body", "push", "chest", "shoulders"], "equipment": ["barbell", "bench", "dumbbells", "cables", "EZ bar"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w1-mon-stretch", "type": "stretching", "title": "Nightly Stretch — Upper", "subtitle": "Core Block + Forearms, Shoulders & Rotator Cuff", "date": "2026-06-22", "startTime": "9:30 PM", "endTime": "10:00 PM", "estimatedDuration": 30, "description": "Core block first — sequence is non-negotiable. Thoracic work precedes psoas release so the pelvis receives the benefit of a more mobile thoracic spine. Upper add-on hits climbing-critical soft tissue: forearm extensors and flexors, lat internal rotation bias, posterior capsule, and pec minor.", "exercises": [ { "id": "ns-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)", "notes": "Segment by segment at mid-thoracic. Hips stay on ground. Hands clasped behind head, elbows in. Let gravity extend you — do not force. Work 3–4 vertebral levels." }, { "id": "ns-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side", "notes": "Low lunge, rear knee down. Squeeze rear glute hard to posteriorly tilt pelvis BEFORE sinking. Glute-driven tilt targets psoas; passive sinking misses it entirely." }, { "id": "ns-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Both shins at 90°. Hinge forward over front leg with flat back — spine lengthening, not rounding. Addresses hip capsule restriction, distinct from flexor tightness." }, { "id": "ns-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min", "notes": "Feet shoulder-width, toes out 30°. Heels flat. Hands in prayer to pry knees out. Hang passively at the bottom." }, { "id": "ns-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "On back, cross ankle above opposite knee. Pull bottom leg toward chest. Maintain flexed ankle to protect the knee joint." }, { "id": "ns-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min", "notes": "5 seconds each direction. In cow, emphasize thoracic extension — lumbar extension is the default and adds nothing. Use this to close the core block." }, { "id": "ns-upper-1", "name": "Wrist Flexor Stretch — Palms-Down Gorilla", "category": "stretch", "duration": "2 min", "notes": "Hands flat on floor, fingers pointing back toward knees, arms straight. Lean back slowly. Targets forearm extensors — equally loaded on crimps and slopers as the flexors." }, { "id": "ns-upper-2", "name": "Wrist Extensor Stretch — Palm-Up Prayer", "category": "stretch", "duration": "2 min", "notes": "Palms together in prayer, elbows out. Then reverse: backs of hands together, fingers pointing down. Hold the sticky spots in the finger flexor tendons." }, { "id": "ns-upper-3", "name": "Lat Doorframe Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Grab doorframe above head height. Step through, let bodyweight traction the lat. Feel it deep along the side of the torso — not in the shoulder. Counters internal rotation bias from climbing volume." }, { "id": "ns-upper-4", "name": "Posterior Rotator Cuff Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Lie on side, elbow at shoulder height bent 90°. Other hand slowly rotates forearm toward floor. No forcing. Posterior capsule tightening is the most common overuse pattern in climbers." }, { "id": "ns-upper-5", "name": "Chest Opener / Pec Stretch", "category": "stretch", "duration": "2 min", "notes": "Doorframe at 90°, lean through. Or foam roller lengthwise along spine, arms in T. Pec minor is the driver of anterior shoulder rounding in climbers." } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "upper body", "forearms", "climbing recovery"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w1-tue-climbing", "type": "climbing", "title": "Climbing Session", "subtitle": "Technique & Project Work", "date": "2026-06-23", "startTime": "6:00 PM", "endTime": "8:00 PM", "estimatedDuration": 120, "description": "Tuesday evenings at the gym. Warm up on slabs and easy traversing, then move into your 5.11 project. Focus on footwork precision and reading sequences before pulling on. Goal this session: link the crux section on the overhang problem.", "warmup": [ { "id": "cl-wu-1", "name": "Easy Traversing", "category": "skill", "duration": "15 min", "notes": "Slab and vertical only. No overhang until warm." }, { "id": "cl-wu-2", "name": "Finger Flexor Warm-Up", "category": "mobility", "sets": 3, "duration": "30s open hand hang, 50% intensity", "notes": "Half-crimp position. Stop if anything pops." } ], "exercises": [ { "id": "cl-1", "name": "5.9 Routes — Volume Laps", "category": "skill", "sets": 4, "notes": "Focus on quiet feet and straight arms." }, { "id": "cl-2", "name": "5.10b/c Routes", "category": "skill", "sets": 3, "notes": "Read the route from the ground before starting." }, { "id": "cl-3", "name": "5.11a Project", "category": "skill", "reps": "3 attempts", "notes": "Rest 10+ min between attempts. Film one attempt for review." }, { "id": "cl-4", "name": "Hangboard — Max Hangs", "category": "strength", "sets": 5, "duration": "10s on, 3 min rest", "weight": "BW – 10 lbs (assisted)", "notes": "Half-crimp, 20mm edge.", "muscleGroups": ["finger flexors", "forearms"] } ], "cooldown": [ { "id": "cl-cd-1", "name": "Antagonist Finger Extensions", "category": "strength", "sets": 3, "reps": "15", "notes": "Rubber band. Injury prevention — don't skip." }, { "id": "cl-cd-2", "name": "Wrist Circles & Flexion Stretch", "category": "stretch", "duration": "2 min" } ], "difficulty": 3, "location": "Movement Lab Climbing Gym", "tags": ["climbing", "technique", "finger strength", "project"], "equipment": ["climbing shoes", "chalk bag", "harness"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w1-tue-stretch", "type": "stretching", "title": "Nightly Stretch — Lower", "subtitle": "Core Block + Hamstrings, Adductors & Ankle", "date": "2026-06-23", "startTime": "9:30 PM", "endTime": "9:59 PM", "estimatedDuration": 29, "description": "Lower nights hit the ski chain. Hamstrings, adductors, ankle dorsiflexion, and quad length. Core block first — always. Bent-knee hamstring hinge removes the sciatic nerve from the equation and isolates the muscle belly.", "exercises": [ { "id": "ns2-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)", "notes": "Segment by segment at mid-thoracic. Hips stay on ground. Hands clasped behind head, elbows in. Let gravity extend you." }, { "id": "ns2-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side", "notes": "Squeeze rear glute hard to posteriorly tilt pelvis BEFORE sinking. Glute-driven tilt targets psoas; passive sinking misses it." }, { "id": "ns2-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Both shins at 90°. Hinge forward with flat back — spine lengthens, not rounds." }, { "id": "ns2-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min", "notes": "Feet shoulder-width, toes out 30°. Heels flat. Hands in prayer. Hang passively." }, { "id": "ns2-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "On back, cross ankle above opposite knee. Pull bottom leg toward chest. Flexed ankle protects the knee." }, { "id": "ns2-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min", "notes": "5 seconds each direction. Emphasize thoracic extension in cow." }, { "id": "ns2-lower-1", "name": "Standing Hamstring — Bent-Knee Hinge", "category": "stretch", "duration": "2 min/side", "notes": "Foot on elevated surface, leg slightly bent. Hinge at the hip — not rounding the spine. Bent knee isolates the muscle belly, removes sciatic nerve." }, { "id": "ns2-lower-2", "name": "Adductor Stretch — Lateral Squat", "category": "stretch", "duration": "90 sec/side", "notes": "Wide stance, one knee on ground, shift laterally. Critical for high steps and heel hooks in climbing, wide-stance couloir work skiing." }, { "id": "ns2-lower-3", "name": "Calf / Ankle Dorsiflexion Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Facing wall, toes propped, lean shin forward. Insufficient dorsiflexion shifts weight back in ski boot and burns quads prematurely." }, { "id": "ns2-lower-4", "name": "Kneeling Quad / Hip Flexor Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Kneeling lunge, rear knee down. Grab rear ankle. Do NOT posteriorly tilt — let hips settle naturally. Goal is quad length, not hip flexor retraining." } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "lower body", "hamstrings", "ankle"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w1-wed-morning", "type": "morning-routine", "title": "Morning Movement Routine", "subtitle": "Neurological Wake-Up & Movement Priming", "date": "2026-06-24", "startTime": "6:30 AM", "endTime": "6:40 AM", "estimatedDuration": 10, "description": "Same sequence every morning. Fixed means fixed — the routine works because it is the same every day. The moment it becomes negotiable it stops functioning as a morning anchor.", "exercises": [ { "id": "mr-w-1", "name": "Glute Squeeze Holds", "category": "mobility", "sets": 10, "duration": "10s on, 5s off", "notes": "Lying flat. Pure isometric. Hamstrings and lower back stay quiet." }, { "id": "mr-w-2", "name": "Chin Tucks Against Wall", "category": "mobility", "duration": "60s", "notes": "Chin straight back — not down. Feel contraction at base of skull." }, { "id": "mr-w-3", "name": "Deep Squat", "category": "mobility", "reps": "10–20", "duration": "~2 min", "notes": "Toes out 30°. Pause 2–3 sec at bottom. Heels flat." }, { "id": "mr-w-4", "name": "Dive Bomber Push-Ups", "category": "strength", "reps": "8–10", "duration": "~1 min", "notes": "Downward dog start. Sweep arc forward, reverse. Engage anterior core throughout." }, { "id": "mr-w-5", "name": "Hangboard Warm-Up", "category": "skill", "sets": 4, "duration": "10s on, 5s off", "weight": "35–40mm or jug, open hand", "notes": "4–5/10 only." }, { "id": "mr-w-6", "name": "Hangboard Main Block", "category": "skill", "sets": 6, "duration": "10s on, 5s off", "weight": "20–25mm, open hand + 3-finger drag (alternate)", "notes": "5–6/10. No full crimp." } ], "difficulty": 1, "location": "Home", "tags": ["morning", "mobility", "hangboard", "glute activation"], "equipment": ["hangboard"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w1-wed-weights", "type": "weights", "title": "Lower Body Strength", "subtitle": "Squat & Posterior Chain", "date": "2026-06-24", "startTime": "5:30 PM", "endTime": "6:50 PM", "estimatedDuration": 80, "description": "Heavy back squats are the centerpiece. Posterior chain work ensures balanced development and protects the knees. This is the session that builds the base for everything else.", "warmup": [ { "id": "lb-wu-1", "name": "Goblet Squat", "category": "strength", "sets": 3, "reps": "10", "weight": "35 lbs" }, { "id": "lb-wu-2", "name": "Hip Circle Activation", "category": "mobility", "sets": 2, "reps": "10 each direction" }, { "id": "lb-wu-3", "name": "Ankle Mobility Drill", "category": "mobility", "duration": "2 min", "notes": "Knee-over-toe, heel stays down." } ], "exercises": [ { "id": "lb-1", "name": "Back Squat", "category": "strength", "sets": 5, "reps": "4", "weight": "225 lbs", "restPeriod": "3 min", "notes": "High bar, break parallel, knees track toes.", "muscleGroups": ["quads", "glutes", "core"] }, { "id": "lb-2", "name": "Romanian Deadlift", "category": "strength", "sets": 4, "reps": "8", "weight": "185 lbs", "restPeriod": "2 min", "notes": "Push hips back, bar stays close to legs.", "muscleGroups": ["hamstrings", "glutes", "lower back"] }, { "id": "lb-3", "name": "Bulgarian Split Squat", "category": "strength", "sets": 3, "reps": "10 each leg", "weight": "50 lbs each", "restPeriod": "90s", "muscleGroups": ["quads", "glutes"] }, { "id": "lb-4", "name": "Leg Press", "category": "strength", "sets": 3, "reps": "15", "weight": "320 lbs", "restPeriod": "90s", "muscleGroups": ["quads", "glutes"] }, { "id": "lb-5", "name": "Standing Calf Raises", "category": "strength", "sets": 4, "reps": "20", "weight": "BW + 45 lb plate", "restPeriod": "60s", "muscleGroups": ["calves"] } ], "difficulty": 5, "location": "Garage Gym", "tags": ["lower body", "squat", "strength", "posterior chain"], "equipment": ["barbell", "squat rack", "leg press machine"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w1-wed-stretch", "type": "stretching", "title": "Nightly Stretch — Spine & Hip", "subtitle": "Core Block + Thoracic Rotation & Hip External Rotation", "date": "2026-06-24", "startTime": "9:30 PM", "endTime": "10:00 PM", "estimatedDuration": 30, "description": "Spine/Hip nights go deeper into thoracic rotation and hip external rotation. Thread-the-needle targets the most limited and most important movement plane for climbing. Pigeon drives ski turn initiation and reduces compensatory knee torque.", "exercises": [ { "id": "ns3-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)", "notes": "Segment by segment, mid-thoracic. Hips on ground. Let gravity extend you." }, { "id": "ns3-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side", "notes": "Squeeze rear glute to posteriorly tilt pelvis BEFORE sinking." }, { "id": "ns3-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Flat back forward hinge. Spine lengthens." }, { "id": "ns3-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min", "notes": "Toes out 30°. Heels flat. Hang passively." }, { "id": "ns3-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Flexed ankle protects the knee." }, { "id": "ns3-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min", "notes": "Emphasize thoracic extension in cow. 5 sec each direction." }, { "id": "ns3-spine-1", "name": "Thread-the-Needle", "category": "stretch", "duration": "90 sec/side", "notes": "Quadruped. Thread one arm under body, rotate, shoulder rests on ground. Look up at ceiling on open side. Thoracic transverse rotation — allows torso to flag and counter-rotate on steep terrain." }, { "id": "ns3-spine-2", "name": "Supine Spinal Twist", "category": "stretch", "duration": "2 min/side", "notes": "On back, one knee drawn across body. Opposite shoulder stays flat. Look away from knee. Use prop under knee if spine won't relax. Passive — not a strength exercise." }, { "id": "ns3-spine-3", "name": "Pigeon Pose", "category": "stretch", "duration": "2 min/side", "notes": "Full pigeon: front shin on ground, torso can fold forward. Hip external rotation and glute depth. Drives ski turn initiation, reduces medial knee stress." }, { "id": "ns3-spine-4", "name": "Child's Pose with Lateral Reach", "category": "stretch", "duration": "60 sec/side", "notes": "Kneel back to heels, walk hands to one side. Opens lat and intercostal — the space between ribs that tightens under pack weight and sustained vertical pulling." } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "thoracic", "hip rotation", "spine"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w1-thu-cardio", "type": "cardio", "title": "Zone 2 Run", "subtitle": "Aerobic Base Building", "date": "2026-06-25", "startTime": "6:15 AM", "endTime": "7:15 AM", "estimatedDuration": 60, "description": "Zone 2 running builds the aerobic engine that underpins all other training. Keep heart rate between 130–145 BPM — you should be able to hold a conversation. If you can't, slow down. Consistency over weeks is what moves the needle.", "exercises": [ { "id": "run-1", "name": "Easy Warm-Up Walk", "category": "cardio", "duration": "5 min" }, { "id": "run-2", "name": "Zone 2 Run", "category": "cardio", "duration": "50 min", "notes": "Target HR: 130–145 BPM. Pace is secondary — let HR dictate speed." }, { "id": "run-3", "name": "Cool-Down Walk", "category": "cardio", "duration": "5 min" } ], "difficulty": 2, "location": "Neighborhood / Trail", "tags": ["cardio", "zone 2", "aerobic", "running"], "equipment": ["running shoes", "HR monitor"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w1-thu-stretch", "type": "stretching", "title": "Nightly Stretch — Upper", "subtitle": "Core Block + Forearms, Shoulders & Rotator Cuff", "date": "2026-06-25", "startTime": "9:30 PM", "endTime": "10:00 PM", "estimatedDuration": 30, "description": "Second upper session of the week. Forearm extensor and flexor balance reduces tendinopathy risk. Posterior capsule is the most neglected soft tissue in the climbing upper body.", "exercises": [ { "id": "ns4-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)", "notes": "Mid-thoracic, segment by segment. Let gravity extend you." }, { "id": "ns4-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side", "notes": "Glute squeeze to posteriorly tilt pelvis BEFORE sinking." }, { "id": "ns4-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Flat back forward hinge." }, { "id": "ns4-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min", "notes": "Heels flat. Hang passively." }, { "id": "ns4-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Flexed ankle protects the knee." }, { "id": "ns4-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min", "notes": "Emphasize thoracic extension in cow." }, { "id": "ns4-upper-1", "name": "Wrist Flexor Stretch — Palms-Down Gorilla", "category": "stretch", "duration": "2 min", "notes": "Hands flat on floor, fingers back toward knees. Lean back. Targets forearm extensors." }, { "id": "ns4-upper-2", "name": "Wrist Extensor Stretch — Palm-Up Prayer", "category": "stretch", "duration": "2 min", "notes": "Prayer position, elbows out. Reverse: backs of hands together. Hold the sticky spots." }, { "id": "ns4-upper-3", "name": "Lat Doorframe Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Feel it deep along torso, not in shoulder. Counters internal rotation bias from climbing." }, { "id": "ns4-upper-4", "name": "Posterior Rotator Cuff Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Lie on side, elbow at shoulder height. Rotate forearm toward floor slowly. No forcing." }, { "id": "ns4-upper-5", "name": "Chest Opener / Pec Stretch", "category": "stretch", "duration": "2 min", "notes": "Doorframe at 90° or foam roller lengthwise. Pec minor is the driver of anterior shoulder rounding." } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "upper body", "forearms"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w1-fri-morning", "type": "morning-routine", "title": "Morning Movement Routine", "subtitle": "Neurological Wake-Up & Movement Priming", "date": "2026-06-26", "startTime": "6:30 AM", "endTime": "6:40 AM", "estimatedDuration": 10, "description": "Same sequence every morning. Glutes must fire before the walk. The walk is downstream of this.", "exercises": [ { "id": "mr-f-1", "name": "Glute Squeeze Holds", "category": "mobility", "sets": 10, "duration": "10s on, 5s off", "notes": "Lying flat. Pure isometric." }, { "id": "mr-f-2", "name": "Chin Tucks Against Wall", "category": "mobility", "duration": "60s", "notes": "Chin straight back. Contraction at base of skull." }, { "id": "mr-f-3", "name": "Deep Squat", "category": "mobility", "reps": "10–20", "duration": "~2 min", "notes": "Pause 2–3 sec at bottom." }, { "id": "mr-f-4", "name": "Dive Bomber Push-Ups", "category": "strength", "reps": "8–10", "duration": "~1 min", "notes": "Arc forward and back. Anterior core engaged." }, { "id": "mr-f-5", "name": "Hangboard Warm-Up", "category": "skill", "sets": 4, "duration": "10s on, 5s off", "weight": "35–40mm, open hand", "notes": "4–5/10 only." }, { "id": "mr-f-6", "name": "Hangboard Main Block", "category": "skill", "sets": 6, "duration": "10s on, 5s off", "weight": "20–25mm, open hand + 3-finger drag", "notes": "No full crimp." } ], "difficulty": 1, "location": "Home", "tags": ["morning", "mobility", "hangboard"], "equipment": ["hangboard"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w1-fri-climbing", "type": "climbing", "title": "Climbing Session", "subtitle": "Volume Day — Movement Quality", "date": "2026-06-26", "startTime": "6:00 PM", "endTime": "8:00 PM", "estimatedDuration": 120, "description": "Volume and movement quality day. No projecting — focus on body positioning and reading routes. Every session that prioritizes technique over sending is an investment.", "warmup": [ { "id": "clf-wu-1", "name": "Easy Traversing", "category": "skill", "duration": "15 min", "notes": "Footwork only. Move feet three times for every hand move." } ], "exercises": [ { "id": "clf-1", "name": "5.9 Routes — Footwork Drills", "category": "skill", "sets": 4, "notes": "One hand behind back on easy sections." }, { "id": "clf-2", "name": "5.10a/b Routes — Volume", "category": "skill", "sets": 5, "notes": "No falls. Downclimb when possible." }, { "id": "clf-3", "name": "5.10d Route — Onsight Attempt", "category": "skill", "reps": "1 attempt", "notes": "Read from the ground. Commit to sequences." }, { "id": "clf-4", "name": "Circuit Board — Pull Strength", "category": "strength", "sets": 4, "reps": "8", "notes": "Bent-arm pulling. Feet on the board.", "muscleGroups": ["lats", "biceps", "rhomboids"] } ], "cooldown": [ { "id": "clf-cd-1", "name": "Antagonist Push-Ups", "category": "strength", "sets": 3, "reps": "15" }, { "id": "clf-cd-2", "name": "Wrist & Forearm Stretch Series", "category": "stretch", "duration": "3 min" } ], "difficulty": 3, "location": "Movement Lab Climbing Gym", "tags": ["climbing", "volume", "technique"], "equipment": ["climbing shoes", "chalk bag"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w1-fri-stretch", "type": "stretching", "title": "Nightly Stretch — Lower", "subtitle": "Core Block + Hamstrings, Adductors & Ankle", "date": "2026-06-26", "startTime": "9:30 PM", "endTime": "9:59 PM", "estimatedDuration": 29, "description": "Second lower session of the week. Without adequate ankle dorsiflexion, the ski boot compensates — shortens effective leverage and burns out quads faster. Daily volume is required to move restricted ankle ROM.", "exercises": [ { "id": "ns5-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)", "notes": "Mid-thoracic, segment by segment." }, { "id": "ns5-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side", "notes": "Glute squeeze BEFORE sinking." }, { "id": "ns5-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Flat back hinge." }, { "id": "ns5-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min", "notes": "Hang passively." }, { "id": "ns5-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Flexed ankle." }, { "id": "ns5-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min", "notes": "Thoracic extension in cow." }, { "id": "ns5-lower-1", "name": "Standing Hamstring — Bent-Knee Hinge", "category": "stretch", "duration": "2 min/side", "notes": "Foot elevated, leg slightly bent. Hinge at hip. Bent knee isolates muscle belly." }, { "id": "ns5-lower-2", "name": "Adductor Stretch — Lateral Squat", "category": "stretch", "duration": "90 sec/side", "notes": "Wide stance, shift laterally. Adductors consistently undertrained and overly tight in climbers." }, { "id": "ns5-lower-3", "name": "Calf / Ankle Dorsiflexion Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Toes propped against wall, lean shin forward." }, { "id": "ns5-lower-4", "name": "Kneeling Quad / Hip Flexor Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Do NOT posteriorly tilt. Let hips settle naturally. Goal is quad length." } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "lower body", "ankle"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w1-sat-weights", "type": "weights", "title": "Pull Day", "subtitle": "Back & Biceps", "date": "2026-06-27", "startTime": "9:00 AM", "endTime": "10:15 AM", "estimatedDuration": 75, "description": "Weekend morning lift. Pull day targets the back and biceps. After two climbing sessions, the lats are already primed. Use that mind-muscle connection and go heavier than you think you can.", "warmup": [ { "id": "pu-wu-1", "name": "Face Pulls", "category": "strength", "sets": 3, "reps": "20", "weight": "25 lbs" }, { "id": "pu-wu-2", "name": "Band Pull-Aparts", "category": "mobility", "sets": 3, "reps": "20" } ], "exercises": [ { "id": "pu-1", "name": "Weighted Pull-Ups", "category": "strength", "sets": 5, "reps": "5", "weight": "BW + 35 lbs", "restPeriod": "3 min", "notes": "Dead hang start, chin over bar.", "muscleGroups": ["lats", "biceps", "rear delt"] }, { "id": "pu-2", "name": "Barbell Row", "category": "strength", "sets": 4, "reps": "6", "weight": "175 lbs", "restPeriod": "2 min", "notes": "Hinge at 45°, row to lower sternum.", "muscleGroups": ["lats", "rhomboids", "biceps"] }, { "id": "pu-3", "name": "Seated Cable Row", "category": "strength", "sets": 3, "reps": "12", "weight": "120 lbs", "restPeriod": "90s", "muscleGroups": ["mid back", "lats"] }, { "id": "pu-4", "name": "Dumbbell Curl", "category": "strength", "sets": 4, "reps": "10", "weight": "40 lbs each", "restPeriod": "60s", "muscleGroups": ["biceps"] }, { "id": "pu-5", "name": "Hammer Curl", "category": "strength", "sets": 3, "reps": "12", "weight": "35 lbs each", "restPeriod": "60s", "muscleGroups": ["brachialis"] }, { "id": "pu-6", "name": "Lat Pulldown (Close Grip)", "category": "strength", "sets": 3, "reps": "15", "weight": "130 lbs", "restPeriod": "60s", "muscleGroups": ["lats", "biceps"] } ], "difficulty": 4, "location": "Garage Gym", "tags": ["upper body", "pull", "back", "biceps"], "equipment": ["barbell", "cable machine", "dumbbells", "pull-up bar"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w1-sat-stretch", "type": "stretching", "title": "Nightly Stretch — Spine & Hip", "subtitle": "Core Block + Thoracic Rotation & Hip External Rotation", "date": "2026-06-27", "startTime": "9:30 PM", "endTime": "10:00 PM", "estimatedDuration": 30, "description": "Second spine/hip session of the week. Pigeon pose is distinct from the flexor work in the psoas lunge — it targets external hip rotation specifically, which drives ski turn initiation.", "exercises": [ { "id": "ns6-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)", "notes": "Let gravity extend you." }, { "id": "ns6-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side", "notes": "Glute-driven posterior tilt BEFORE sinking." }, { "id": "ns6-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Flat back forward hinge." }, { "id": "ns6-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min", "notes": "Hang passively." }, { "id": "ns6-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Flexed ankle." }, { "id": "ns6-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min", "notes": "Thoracic extension in cow." }, { "id": "ns6-spine-1", "name": "Thread-the-Needle", "category": "stretch", "duration": "90 sec/side", "notes": "Quadruped. Thread arm under, shoulder to ground. Look up on open side." }, { "id": "ns6-spine-2", "name": "Supine Spinal Twist", "category": "stretch", "duration": "2 min/side", "notes": "Opposite shoulder stays flat. Look away from knee. Passive." }, { "id": "ns6-spine-3", "name": "Pigeon Pose", "category": "stretch", "duration": "2 min/side", "notes": "Front shin on ground. Torso can fold forward over it. External hip rotation — distinct from psoas lunge." }, { "id": "ns6-spine-4", "name": "Child's Pose with Lateral Reach", "category": "stretch", "duration": "60 sec/side", "notes": "Walk hands to one side. Targets ribs that tighten under pack weight." } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "thoracic", "hip rotation"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w1-sun-rest", "type": "rest", "title": "Active Recovery", "subtitle": "Rest & Regenerate", "date": "2026-06-28", "estimatedDuration": 30, "description": "Rest day is not an off day — it's when adaptation happens. Walk outside, eat well, hydrate aggressively, 8+ hours of sleep. The walk is part of the training program — 2+ miles with primed glutes trains the correct motor pattern.", "exercises": [ { "id": "rest-1", "name": "2+ Mile Walk", "category": "cardio", "duration": "30–45 min", "notes": "Outside. This is where the postural correction actually happens — not in the morning routine alone, but in the 10 minutes priming miles of reinforcement." } ], "difficulty": 1, "location": "Outdoors", "tags": ["rest", "recovery", "walking"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w1-sun-stretch", "type": "stretching", "title": "Nightly Stretch — Lower (Short)", "subtitle": "Core Block + 2 Lower Stretches", "date": "2026-06-28", "startTime": "9:30 PM", "endTime": "9:53 PM", "estimatedDuration": 23, "description": "Sunday is a shortened session — intentional programming, not a concession. After 6 consecutive nights of structured stretching, reduced load is part of the plan. Core block plus the two most critical lower stretches only.", "exercises": [ { "id": "ns7-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)", "notes": "Let gravity extend you." }, { "id": "ns7-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side", "notes": "Glute-driven posterior tilt BEFORE sinking." }, { "id": "ns7-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Flat back forward hinge." }, { "id": "ns7-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min", "notes": "Hang passively." }, { "id": "ns7-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Flexed ankle." }, { "id": "ns7-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min", "notes": "Close the core block." }, { "id": "ns7-lower-1", "name": "Standing Hamstring — Bent-Knee Hinge", "category": "stretch", "duration": "2 min/side", "notes": "Foot elevated. Hinge at hip, not spine." }, { "id": "ns7-lower-2", "name": "Adductor Stretch — Lateral Squat", "category": "stretch", "duration": "90 sec/side", "notes": "Wide stance, shift laterally." } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "short session"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w2-mon-morning", "type": "morning-routine", "title": "Morning Movement Routine", "subtitle": "Neurological Wake-Up & Movement Priming", "date": "2026-06-29", "startTime": "6:30 AM", "endTime": "6:40 AM", "estimatedDuration": 10, "description": "Week 2. Same sequence, every day. Fixed means fixed.", "exercises": [ { "id": "mr-w2-1", "name": "Glute Squeeze Holds", "category": "mobility", "sets": 10, "duration": "10s on, 5s off", "notes": "Lying flat. Pure isometric." }, { "id": "mr-w2-2", "name": "Chin Tucks Against Wall", "category": "mobility", "duration": "60s", "notes": "Chin straight back." }, { "id": "mr-w2-3", "name": "Deep Squat", "category": "mobility", "reps": "10–20", "duration": "~2 min" }, { "id": "mr-w2-4", "name": "Dive Bomber Push-Ups", "category": "strength", "reps": "8–10", "duration": "~1 min" }, { "id": "mr-w2-5", "name": "Hangboard Warm-Up", "category": "skill", "sets": 4, "duration": "10s on, 5s off", "weight": "35–40mm, open hand", "notes": "4–5/10 only." }, { "id": "mr-w2-6", "name": "Hangboard Main Block", "category": "skill", "sets": 6, "duration": "10s on, 5s off", "weight": "20–25mm, open hand + 3-finger drag", "notes": "No full crimp." } ], "difficulty": 1, "location": "Home", "tags": ["morning", "mobility", "hangboard"], "equipment": ["hangboard"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w2-mon-weights", "type": "weights", "title": "Upper Body Strength", "subtitle": "Push Focus — Week 2", "date": "2026-06-29", "startTime": "5:30 PM", "endTime": "6:45 PM", "estimatedDuration": 75, "description": "Bench target: 190 lbs. Five pound progression from last Monday. Everything else holds until the primary lift moves.", "warmup": [ { "id": "ub-w2-wu-1", "name": "Band Pull-Aparts", "category": "mobility", "sets": 3, "reps": "20" }, { "id": "ub-w2-wu-2", "name": "Incline Push-Up", "category": "strength", "sets": 2, "reps": "15" } ], "exercises": [ { "id": "ub-w2-1", "name": "Barbell Bench Press", "category": "strength", "sets": 4, "reps": "5", "weight": "190 lbs", "restPeriod": "3 min", "notes": "+5 lbs. Grind if needed.", "muscleGroups": ["chest", "triceps"] }, { "id": "ub-w2-2", "name": "Overhead Press", "category": "strength", "sets": 4, "reps": "6", "weight": "115 lbs", "restPeriod": "2 min", "muscleGroups": ["shoulders", "triceps"] }, { "id": "ub-w2-3", "name": "Incline Dumbbell Press", "category": "strength", "sets": 3, "reps": "10–12", "weight": "65 lbs each", "restPeriod": "90s", "muscleGroups": ["upper chest"] }, { "id": "ub-w2-4", "name": "Cable Chest Fly", "category": "strength", "sets": 3, "reps": "12–15", "weight": "40 lbs", "restPeriod": "60s", "muscleGroups": ["chest"] }, { "id": "ub-w2-5", "name": "Skull Crushers", "category": "strength", "sets": 3, "reps": "12", "weight": "75 lbs", "restPeriod": "60s", "muscleGroups": ["triceps"] }, { "id": "ub-w2-6", "name": "Face Pulls", "category": "strength", "sets": 4, "reps": "20", "weight": "30 lbs", "restPeriod": "45s", "muscleGroups": ["rear delt"] } ], "difficulty": 4, "location": "Garage Gym", "tags": ["upper body", "push", "chest"], "equipment": ["barbell", "bench", "dumbbells", "cables"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w2-mon-stretch", "type": "stretching", "title": "Nightly Stretch — Upper", "subtitle": "Core Block + Forearms, Shoulders & Rotator Cuff", "date": "2026-06-29", "startTime": "9:30 PM", "endTime": "10:00 PM", "estimatedDuration": 30, "description": "Week 2. Upper add-on. Core block non-negotiable first.", "exercises": [ { "id": "ns8-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)", "notes": "Let gravity extend you." }, { "id": "ns8-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side", "notes": "Glute squeeze BEFORE sinking." }, { "id": "ns8-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns8-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min" }, { "id": "ns8-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns8-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min" }, { "id": "ns8-upper-1", "name": "Wrist Flexor Stretch — Palms-Down Gorilla", "category": "stretch", "duration": "2 min", "notes": "Fingers pointing back toward knees. Lean back." }, { "id": "ns8-upper-2", "name": "Wrist Extensor Stretch — Palm-Up Prayer", "category": "stretch", "duration": "2 min", "notes": "Prayer, then reverse. Hold sticky spots." }, { "id": "ns8-upper-3", "name": "Lat Doorframe Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Deep along torso, not shoulder." }, { "id": "ns8-upper-4", "name": "Posterior Rotator Cuff Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Lie on side. Rotate forearm slowly toward floor." }, { "id": "ns8-upper-5", "name": "Chest Opener / Pec Stretch", "category": "stretch", "duration": "2 min", "notes": "Doorframe or foam roller. Pec minor target." } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "upper body", "forearms"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w2-tue-climbing", "type": "climbing", "title": "Climbing Session", "subtitle": "Project Day — Push Your Limit", "date": "2026-06-30", "startTime": "6:00 PM", "endTime": "8:00 PM", "estimatedDuration": 120, "description": "Tuesday project session. Goal: send the 5.11a. Come in rested and mentally sharp. Visualize the crux sequence before you rope up. Rest fully between attempts.", "warmup": [ { "id": "cl-w2-wu-1", "name": "Easy Traversing", "category": "skill", "duration": "15 min" }, { "id": "cl-w2-wu-2", "name": "Finger Flexor Warm-Up", "category": "mobility", "sets": 3, "duration": "30s open hand hang" } ], "exercises": [ { "id": "cl-w2-1", "name": "5.9 Routes", "category": "skill", "sets": 3, "notes": "Warm-up only." }, { "id": "cl-w2-2", "name": "5.10c Route", "category": "skill", "sets": 2 }, { "id": "cl-w2-3", "name": "5.11a Project — Send Attempt", "category": "skill", "reps": "4 attempts", "notes": "Rest fully between. This is the day." }, { "id": "cl-w2-4", "name": "Hangboard — Repeaters", "category": "strength", "sets": 6, "duration": "7s on, 3s off × 6, then 3 min rest", "notes": "20mm edge, half crimp.", "muscleGroups": ["finger flexors"] } ], "cooldown": [ { "id": "cl-w2-cd-1", "name": "Antagonist Finger Extensions", "category": "strength", "sets": 3, "reps": "15" }, { "id": "cl-w2-cd-2", "name": "Forearm Stretch Series", "category": "stretch", "duration": "3 min" } ], "difficulty": 4, "location": "Movement Lab Climbing Gym", "tags": ["climbing", "project", "5.11"], "equipment": ["climbing shoes", "chalk bag", "harness"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w2-tue-stretch", "type": "stretching", "title": "Nightly Stretch — Lower", "subtitle": "Core Block + Hamstrings, Adductors & Ankle", "date": "2026-06-30", "startTime": "9:30 PM", "endTime": "9:59 PM", "estimatedDuration": 29, "description": "Lower night. Adductors are consistently undertrained and overly tight in climbers — don't rush through them.", "exercises": [ { "id": "ns9-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)" }, { "id": "ns9-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side", "notes": "Glute squeeze BEFORE sinking." }, { "id": "ns9-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns9-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min" }, { "id": "ns9-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns9-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min" }, { "id": "ns9-lower-1", "name": "Standing Hamstring — Bent-Knee Hinge", "category": "stretch", "duration": "2 min/side", "notes": "Hinge at hip. Bent knee isolates muscle belly." }, { "id": "ns9-lower-2", "name": "Adductor Stretch — Lateral Squat", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns9-lower-3", "name": "Calf / Ankle Dorsiflexion Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Toes propped, lean shin." }, { "id": "ns9-lower-4", "name": "Kneeling Quad / Hip Flexor Stretch", "category": "stretch", "duration": "90 sec/side", "notes": "Do NOT posteriorly tilt." } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "lower body"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w2-wed-morning", "type": "morning-routine", "title": "Morning Movement Routine", "subtitle": "Neurological Wake-Up & Movement Priming", "date": "2026-07-01", "startTime": "6:30 AM", "endTime": "6:40 AM", "estimatedDuration": 10, "description": "Same sequence. Heavy legs coming this afternoon — keep it controlled.", "exercises": [ { "id": "mr-w2w-1", "name": "Glute Squeeze Holds", "category": "mobility", "sets": 10, "duration": "10s on, 5s off" }, { "id": "mr-w2w-2", "name": "Chin Tucks Against Wall", "category": "mobility", "duration": "60s" }, { "id": "mr-w2w-3", "name": "Deep Squat", "category": "mobility", "reps": "10–20", "duration": "~2 min" }, { "id": "mr-w2w-4", "name": "Dive Bomber Push-Ups", "category": "strength", "reps": "8–10", "duration": "~1 min" }, { "id": "mr-w2w-5", "name": "Hangboard Warm-Up", "category": "skill", "sets": 4, "duration": "10s on, 5s off", "weight": "35–40mm, open hand" }, { "id": "mr-w2w-6", "name": "Hangboard Main Block", "category": "skill", "sets": 6, "duration": "10s on, 5s off", "weight": "20–25mm, open hand + 3-finger drag" } ], "difficulty": 1, "location": "Home", "tags": ["morning", "mobility", "hangboard"], "equipment": ["hangboard"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w2-wed-weights", "type": "weights", "title": "Lower Body Strength", "subtitle": "Squat — Week 2", "date": "2026-07-01", "startTime": "5:30 PM", "endTime": "6:50 PM", "estimatedDuration": 80, "description": "Back squats week 2: 230 lbs. Romanian deadlifts same weight. Posterior chain is the priority.", "warmup": [ { "id": "lb-w2-wu-1", "name": "Goblet Squat", "category": "strength", "sets": 3, "reps": "10", "weight": "35 lbs" }, { "id": "lb-w2-wu-2", "name": "Hip Circle Activation", "category": "mobility", "sets": 2, "reps": "10 each direction" } ], "exercises": [ { "id": "lb-w2-1", "name": "Back Squat", "category": "strength", "sets": 5, "reps": "4", "weight": "230 lbs", "restPeriod": "3 min", "notes": "+5 lbs.", "muscleGroups": ["quads", "glutes", "core"] }, { "id": "lb-w2-2", "name": "Romanian Deadlift", "category": "strength", "sets": 4, "reps": "8", "weight": "185 lbs", "restPeriod": "2 min", "muscleGroups": ["hamstrings", "glutes"] }, { "id": "lb-w2-3", "name": "Bulgarian Split Squat", "category": "strength", "sets": 3, "reps": "10 each", "weight": "50 lbs each", "restPeriod": "90s", "muscleGroups": ["quads", "glutes"] }, { "id": "lb-w2-4", "name": "Leg Press", "category": "strength", "sets": 3, "reps": "15", "weight": "320 lbs", "restPeriod": "90s", "muscleGroups": ["quads"] }, { "id": "lb-w2-5", "name": "Standing Calf Raises", "category": "strength", "sets": 4, "reps": "20", "weight": "BW + 45 lb plate", "restPeriod": "60s", "muscleGroups": ["calves"] } ], "difficulty": 5, "location": "Garage Gym", "tags": ["lower body", "squat", "strength"], "equipment": ["barbell", "squat rack"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w2-wed-stretch", "type": "stretching", "title": "Nightly Stretch — Spine & Hip", "subtitle": "Core Block + Thoracic Rotation & Hip External Rotation", "date": "2026-07-01", "startTime": "9:30 PM", "endTime": "10:00 PM", "estimatedDuration": 30, "description": "Spine/Hip night. Thoracic transverse rotation is the most limited and most important movement plane for climbing.", "exercises": [ { "id": "ns10-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)" }, { "id": "ns10-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side", "notes": "Glute squeeze BEFORE sinking." }, { "id": "ns10-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns10-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min" }, { "id": "ns10-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns10-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min" }, { "id": "ns10-spine-1", "name": "Thread-the-Needle", "category": "stretch", "duration": "90 sec/side", "notes": "Quadruped. Thread arm under, shoulder to ground." }, { "id": "ns10-spine-2", "name": "Supine Spinal Twist", "category": "stretch", "duration": "2 min/side", "notes": "Opposite shoulder flat. Passive." }, { "id": "ns10-spine-3", "name": "Pigeon Pose", "category": "stretch", "duration": "2 min/side", "notes": "Front shin on ground. Fold torso forward." }, { "id": "ns10-spine-4", "name": "Child's Pose with Lateral Reach", "category": "stretch", "duration": "60 sec/side", "notes": "Walk hands to each side." } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "thoracic", "hip rotation"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w2-thu-cardio", "type": "cardio", "title": "Zone 2 Run", "subtitle": "Aerobic Base — Week 2", "date": "2026-07-02", "startTime": "6:15 AM", "endTime": "7:15 AM", "estimatedDuration": 60, "description": "Same run, same zone. The gains compound invisibly over weeks. Trust the process.", "exercises": [ { "id": "run-w2-1", "name": "Warm-Up Walk", "category": "cardio", "duration": "5 min" }, { "id": "run-w2-2", "name": "Zone 2 Run", "category": "cardio", "duration": "50 min", "notes": "HR: 130–145 BPM." }, { "id": "run-w2-3", "name": "Cool-Down Walk", "category": "cardio", "duration": "5 min" } ], "difficulty": 2, "location": "Trail", "tags": ["cardio", "zone 2", "endurance"], "equipment": ["running shoes", "HR monitor"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w2-thu-stretch", "type": "stretching", "title": "Nightly Stretch — Upper", "subtitle": "Core Block + Forearms, Shoulders & Rotator Cuff", "date": "2026-07-02", "startTime": "9:30 PM", "endTime": "10:00 PM", "estimatedDuration": 30, "description": "Upper night. Extensor and flexor balance reduces tendinopathy risk. Wrist mobility matters for mantles and compression.", "exercises": [ { "id": "ns11-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)" }, { "id": "ns11-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side" }, { "id": "ns11-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns11-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min" }, { "id": "ns11-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns11-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min" }, { "id": "ns11-upper-1", "name": "Wrist Flexor Stretch — Palms-Down Gorilla", "category": "stretch", "duration": "2 min" }, { "id": "ns11-upper-2", "name": "Wrist Extensor Stretch — Palm-Up Prayer", "category": "stretch", "duration": "2 min" }, { "id": "ns11-upper-3", "name": "Lat Doorframe Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns11-upper-4", "name": "Posterior Rotator Cuff Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns11-upper-5", "name": "Chest Opener / Pec Stretch", "category": "stretch", "duration": "2 min" } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "upper body"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w2-fri-climbing", "type": "climbing", "title": "Climbing Session", "subtitle": "Movement Quality Day", "date": "2026-07-03", "startTime": "6:00 PM", "endTime": "8:00 PM", "estimatedDuration": 120, "description": "Volume and movement quality. No projecting — focus on body positioning and reading routes.", "warmup": [ { "id": "clf-w2-wu-1", "name": "Easy Traversing", "category": "skill", "duration": "15 min" } ], "exercises": [ { "id": "clf-w2-1", "name": "5.9 Routes — Technique Focus", "category": "skill", "sets": 4 }, { "id": "clf-w2-2", "name": "5.10b Routes — Volume", "category": "skill", "sets": 5 }, { "id": "clf-w2-3", "name": "5.10d Onsight Attempt", "category": "skill", "reps": "1 attempt" }, { "id": "clf-w2-4", "name": "Bouldering V1–V3", "category": "skill", "duration": "30 min", "notes": "Problem-solve. Explore movement." } ], "cooldown": [ { "id": "clf-w2-cd-1", "name": "Antagonist Push-Ups", "category": "strength", "sets": 3, "reps": "15" }, { "id": "clf-w2-cd-2", "name": "Forearm Stretch Series", "category": "stretch", "duration": "3 min" } ], "difficulty": 3, "location": "Movement Lab Climbing Gym", "tags": ["climbing", "technique", "volume"], "equipment": ["climbing shoes", "chalk bag"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w2-fri-stretch", "type": "stretching", "title": "Nightly Stretch — Lower", "subtitle": "Core Block + Hamstrings, Adductors & Ankle", "date": "2026-07-03", "startTime": "9:30 PM", "endTime": "9:59 PM", "estimatedDuration": 29, "description": "Lower night. Ankle dorsiflexion is a daily-volume target — it takes consistent work to move restricted ROM.", "exercises": [ { "id": "ns12-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)" }, { "id": "ns12-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side" }, { "id": "ns12-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns12-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min" }, { "id": "ns12-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns12-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min" }, { "id": "ns12-lower-1", "name": "Standing Hamstring — Bent-Knee Hinge", "category": "stretch", "duration": "2 min/side" }, { "id": "ns12-lower-2", "name": "Adductor Stretch — Lateral Squat", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns12-lower-3", "name": "Calf / Ankle Dorsiflexion Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns12-lower-4", "name": "Kneeling Quad / Hip Flexor Stretch", "category": "stretch", "duration": "90 sec/side" } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "lower body"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w2-sat-weights", "type": "weights", "title": "Pull Day", "subtitle": "Back & Biceps — Week 2", "date": "2026-07-04", "startTime": "9:00 AM", "endTime": "10:15 AM", "estimatedDuration": 75, "description": "Pull day week 2. Weighted pull-ups: 40 lbs.", "warmup": [ { "id": "pu-w2-wu-1", "name": "Face Pulls", "category": "strength", "sets": 3, "reps": "20", "weight": "25 lbs" }, { "id": "pu-w2-wu-2", "name": "Band Pull-Aparts", "category": "mobility", "sets": 3, "reps": "20" } ], "exercises": [ { "id": "pu-w2-1", "name": "Weighted Pull-Ups", "category": "strength", "sets": 5, "reps": "5", "weight": "BW + 40 lbs", "restPeriod": "3 min", "muscleGroups": ["lats", "biceps"] }, { "id": "pu-w2-2", "name": "Barbell Row", "category": "strength", "sets": 4, "reps": "6", "weight": "180 lbs", "restPeriod": "2 min", "muscleGroups": ["lats", "rhomboids"] }, { "id": "pu-w2-3", "name": "Seated Cable Row", "category": "strength", "sets": 3, "reps": "12", "weight": "125 lbs", "restPeriod": "90s", "muscleGroups": ["mid back"] }, { "id": "pu-w2-4", "name": "Dumbbell Curl", "category": "strength", "sets": 4, "reps": "10", "weight": "40 lbs each", "restPeriod": "60s", "muscleGroups": ["biceps"] }, { "id": "pu-w2-5", "name": "Hammer Curl", "category": "strength", "sets": 3, "reps": "12", "weight": "35 lbs each", "restPeriod": "60s", "muscleGroups": ["brachialis"] }, { "id": "pu-w2-6", "name": "Lat Pulldown", "category": "strength", "sets": 3, "reps": "15", "weight": "135 lbs", "restPeriod": "60s", "muscleGroups": ["lats"] } ], "difficulty": 4, "location": "Garage Gym", "tags": ["upper body", "pull", "back", "biceps"], "equipment": ["barbell", "cable machine", "dumbbells", "pull-up bar"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w2-sat-stretch", "type": "stretching", "title": "Nightly Stretch — Spine & Hip", "subtitle": "Core Block + Thoracic Rotation & Hip External Rotation", "date": "2026-07-04", "startTime": "9:30 PM", "endTime": "10:00 PM", "estimatedDuration": 30, "description": "Spine/Hip night. Child's pose with lateral reach targets the space between ribs that tightens under pack weight and sustained vertical pulling.", "exercises": [ { "id": "ns13-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)" }, { "id": "ns13-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side" }, { "id": "ns13-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns13-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min" }, { "id": "ns13-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns13-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min" }, { "id": "ns13-spine-1", "name": "Thread-the-Needle", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns13-spine-2", "name": "Supine Spinal Twist", "category": "stretch", "duration": "2 min/side" }, { "id": "ns13-spine-3", "name": "Pigeon Pose", "category": "stretch", "duration": "2 min/side" }, { "id": "ns13-spine-4", "name": "Child's Pose with Lateral Reach", "category": "stretch", "duration": "60 sec/side" } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "thoracic", "hip"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w2-sun-rest", "type": "rest", "title": "Active Recovery", "date": "2026-07-05", "estimatedDuration": 30, "description": "Rest day. Walk, hydrate, eat well, sleep. The body adapts when you're not training.", "exercises": [ { "id": "rest-w2-1", "name": "2+ Mile Walk", "category": "cardio", "duration": "30–45 min" } ], "difficulty": 1, "location": "Outdoors", "tags": ["rest", "recovery", "walking"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w2-sun-stretch", "type": "stretching", "title": "Nightly Stretch — Lower (Short)", "subtitle": "Core Block + 2 Lower Stretches", "date": "2026-07-05", "startTime": "9:30 PM", "endTime": "9:53 PM", "estimatedDuration": 23, "description": "Sunday shortened session. Diminishing returns are real past a weekly volume that is already high. Core plus the two most critical lower stretches.", "exercises": [ { "id": "ns14-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)" }, { "id": "ns14-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side" }, { "id": "ns14-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns14-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min" }, { "id": "ns14-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns14-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min" }, { "id": "ns14-lower-1", "name": "Standing Hamstring — Bent-Knee Hinge", "category": "stretch", "duration": "2 min/side" }, { "id": "ns14-lower-2", "name": "Adductor Stretch — Lateral Squat", "category": "stretch", "duration": "90 sec/side" } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "short session"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w3-mon-morning", "type": "morning-routine", "title": "Morning Movement Routine", "subtitle": "Neurological Wake-Up & Movement Priming", "date": "2026-07-06", "startTime": "6:30 AM", "endTime": "6:40 AM", "estimatedDuration": 10, "description": "Week 3. Three weeks of consistency builds a habit. The morning routine should feel automatic by now.", "exercises": [ { "id": "mr-w3-1", "name": "Glute Squeeze Holds", "category": "mobility", "sets": 10, "duration": "10s on, 5s off" }, { "id": "mr-w3-2", "name": "Chin Tucks Against Wall", "category": "mobility", "duration": "60s" }, { "id": "mr-w3-3", "name": "Deep Squat", "category": "mobility", "reps": "10–20", "duration": "~2 min" }, { "id": "mr-w3-4", "name": "Dive Bomber Push-Ups", "category": "strength", "reps": "8–10", "duration": "~1 min" }, { "id": "mr-w3-5", "name": "Hangboard Warm-Up", "category": "skill", "sets": 4, "duration": "10s on, 5s off", "weight": "35–40mm, open hand" }, { "id": "mr-w3-6", "name": "Hangboard Main Block", "category": "skill", "sets": 6, "duration": "10s on, 5s off", "weight": "20–25mm, open hand + 3-finger drag" } ], "difficulty": 1, "location": "Home", "tags": ["morning", "mobility", "hangboard"], "equipment": ["hangboard"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w3-mon-weights", "type": "weights", "title": "Upper Body Strength", "subtitle": "Push Focus — Week 3", "date": "2026-07-06", "startTime": "5:30 PM", "endTime": "6:45 PM", "estimatedDuration": 75, "description": "Bench target: 195 lbs. Three weeks of linear progression. If this goes up, everything is working.", "warmup": [ { "id": "ub-w3-wu-1", "name": "Band Pull-Aparts", "category": "mobility", "sets": 3, "reps": "20" }, { "id": "ub-w3-wu-2", "name": "Incline Push-Up", "category": "strength", "sets": 2, "reps": "15" } ], "exercises": [ { "id": "ub-w3-1", "name": "Barbell Bench Press", "category": "strength", "sets": 4, "reps": "5", "weight": "195 lbs", "restPeriod": "3 min", "notes": "If set 4 is a grind, hold weight here next week.", "muscleGroups": ["chest", "triceps"] }, { "id": "ub-w3-2", "name": "Overhead Press", "category": "strength", "sets": 4, "reps": "6", "weight": "120 lbs", "restPeriod": "2 min", "notes": "+5 lbs.", "muscleGroups": ["shoulders", "triceps"] }, { "id": "ub-w3-3", "name": "Incline Dumbbell Press", "category": "strength", "sets": 3, "reps": "10–12", "weight": "70 lbs each", "restPeriod": "90s", "muscleGroups": ["upper chest"] }, { "id": "ub-w3-4", "name": "Cable Chest Fly", "category": "strength", "sets": 3, "reps": "12–15", "weight": "42.5 lbs", "restPeriod": "60s", "muscleGroups": ["chest"] }, { "id": "ub-w3-5", "name": "Skull Crushers", "category": "strength", "sets": 3, "reps": "12", "weight": "80 lbs", "restPeriod": "60s", "muscleGroups": ["triceps"] }, { "id": "ub-w3-6", "name": "Face Pulls", "category": "strength", "sets": 4, "reps": "20", "weight": "32.5 lbs", "restPeriod": "45s", "muscleGroups": ["rear delt"] } ], "difficulty": 4, "location": "Garage Gym", "tags": ["upper body", "push", "chest"], "equipment": ["barbell", "bench", "dumbbells", "cables"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w3-mon-stretch", "type": "stretching", "title": "Nightly Stretch — Upper", "subtitle": "Core Block + Forearms, Shoulders & Rotator Cuff", "date": "2026-07-06", "startTime": "9:30 PM", "endTime": "10:00 PM", "estimatedDuration": 30, "description": "Upper night, week 3. By now the wrist flexor and extensor stretches should be reaching genuinely sticky tissue — the adaptation is beginning.", "exercises": [ { "id": "ns15-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)" }, { "id": "ns15-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side" }, { "id": "ns15-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns15-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min" }, { "id": "ns15-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns15-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min" }, { "id": "ns15-upper-1", "name": "Wrist Flexor Stretch — Palms-Down Gorilla", "category": "stretch", "duration": "2 min" }, { "id": "ns15-upper-2", "name": "Wrist Extensor Stretch — Palm-Up Prayer", "category": "stretch", "duration": "2 min" }, { "id": "ns15-upper-3", "name": "Lat Doorframe Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns15-upper-4", "name": "Posterior Rotator Cuff Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns15-upper-5", "name": "Chest Opener / Pec Stretch", "category": "stretch", "duration": "2 min" } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "upper body"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w3-tue-climbing", "type": "climbing", "title": "Climbing Session", "subtitle": "Crack & Slab Day", "date": "2026-07-07", "startTime": "6:00 PM", "endTime": "8:00 PM", "estimatedDuration": 120, "description": "Step outside your comfort zone. Spend the majority of tonight on crack and slab terrain. Uncomfortable = growth.", "warmup": [ { "id": "cl-w3-wu-1", "name": "Easy Traversing", "category": "skill", "duration": "15 min" } ], "exercises": [ { "id": "cl-w3-1", "name": "Slab Routes 5.8–5.10a", "category": "skill", "sets": 5, "notes": "Trust your feet. Look down, not up." }, { "id": "cl-w3-2", "name": "Hand Crack Practice", "category": "skill", "duration": "30 min", "notes": "Thumb down, rotate wrist, cam the hand." }, { "id": "cl-w3-3", "name": "5.10d Mixed Route", "category": "skill", "reps": "2 attempts" }, { "id": "cl-w3-4", "name": "Campus Board — Low Rungs", "category": "strength", "sets": 5, "reps": "1-3-5 ladders", "muscleGroups": ["lats", "biceps", "finger flexors"] } ], "cooldown": [ { "id": "cl-w3-cd-1", "name": "Antagonist Push-Ups", "category": "strength", "sets": 3, "reps": "15" }, { "id": "cl-w3-cd-2", "name": "Forearm Stretch Series", "category": "stretch", "duration": "3 min" } ], "difficulty": 4, "location": "Movement Lab Climbing Gym", "tags": ["climbing", "crack", "slab", "technique"], "equipment": ["climbing shoes", "chalk bag", "harness"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w3-tue-stretch", "type": "stretching", "title": "Nightly Stretch — Lower", "subtitle": "Core Block + Hamstrings, Adductors & Ankle", "date": "2026-07-07", "startTime": "9:30 PM", "endTime": "9:59 PM", "estimatedDuration": 29, "description": "Lower night, week 3. Month 1 territory — chronic baseline flexibility beginning to shift. Ankle and thoracic rotation most responsive.", "exercises": [ { "id": "ns16-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)" }, { "id": "ns16-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side" }, { "id": "ns16-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns16-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min" }, { "id": "ns16-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns16-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min" }, { "id": "ns16-lower-1", "name": "Standing Hamstring — Bent-Knee Hinge", "category": "stretch", "duration": "2 min/side" }, { "id": "ns16-lower-2", "name": "Adductor Stretch — Lateral Squat", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns16-lower-3", "name": "Calf / Ankle Dorsiflexion Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns16-lower-4", "name": "Kneeling Quad / Hip Flexor Stretch", "category": "stretch", "duration": "90 sec/side" } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "lower body"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w3-wed-weights", "type": "weights", "title": "Lower Body Strength", "subtitle": "Squat — Week 3", "date": "2026-07-08", "startTime": "5:30 PM", "endTime": "6:50 PM", "estimatedDuration": 80, "description": "235 lbs on the bar. Every plate added here is real strength.", "warmup": [ { "id": "lb-w3-wu-1", "name": "Goblet Squat", "category": "strength", "sets": 3, "reps": "10", "weight": "35 lbs" } ], "exercises": [ { "id": "lb-w3-1", "name": "Back Squat", "category": "strength", "sets": 5, "reps": "4", "weight": "235 lbs", "restPeriod": "3 min", "muscleGroups": ["quads", "glutes", "core"] }, { "id": "lb-w3-2", "name": "Romanian Deadlift", "category": "strength", "sets": 4, "reps": "8", "weight": "190 lbs", "restPeriod": "2 min", "muscleGroups": ["hamstrings", "glutes"] }, { "id": "lb-w3-3", "name": "Bulgarian Split Squat", "category": "strength", "sets": 3, "reps": "10 each", "weight": "55 lbs each", "restPeriod": "90s", "muscleGroups": ["quads", "glutes"] }, { "id": "lb-w3-4", "name": "Leg Press", "category": "strength", "sets": 3, "reps": "15", "weight": "330 lbs", "restPeriod": "90s", "muscleGroups": ["quads"] }, { "id": "lb-w3-5", "name": "Standing Calf Raises", "category": "strength", "sets": 4, "reps": "20", "weight": "BW + 45 lb plate", "restPeriod": "60s", "muscleGroups": ["calves"] } ], "difficulty": 5, "location": "Garage Gym", "tags": ["lower body", "squat", "strength"], "equipment": ["barbell", "squat rack"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w3-wed-stretch", "type": "stretching", "title": "Nightly Stretch — Spine & Hip", "subtitle": "Core Block + Thoracic Rotation & Hip External Rotation", "date": "2026-07-08", "startTime": "9:30 PM", "endTime": "10:00 PM", "estimatedDuration": 30, "description": "Spine/Hip night, week 3. Pigeon and thread-the-needle are the two non-negotiables for climbing and skiing performance.", "exercises": [ { "id": "ns17-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)" }, { "id": "ns17-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side" }, { "id": "ns17-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns17-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min" }, { "id": "ns17-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns17-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min" }, { "id": "ns17-spine-1", "name": "Thread-the-Needle", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns17-spine-2", "name": "Supine Spinal Twist", "category": "stretch", "duration": "2 min/side" }, { "id": "ns17-spine-3", "name": "Pigeon Pose", "category": "stretch", "duration": "2 min/side" }, { "id": "ns17-spine-4", "name": "Child's Pose with Lateral Reach", "category": "stretch", "duration": "60 sec/side" } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "thoracic", "hip"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w3-thu-cardio", "type": "cardio", "title": "Zone 2 Run", "subtitle": "Aerobic Base — Week 3", "date": "2026-07-09", "startTime": "6:15 AM", "endTime": "7:15 AM", "estimatedDuration": 60, "description": "Third consecutive week. The aerobic engine is building — pace at the same HR may be starting to creep up. That is the adaptation.", "exercises": [ { "id": "run-w3-1", "name": "Warm-Up Walk", "category": "cardio", "duration": "5 min" }, { "id": "run-w3-2", "name": "Zone 2 Run", "category": "cardio", "duration": "50 min", "notes": "HR: 130–145 BPM. Note pace at 30-min mark." }, { "id": "run-w3-3", "name": "Cool-Down Walk", "category": "cardio", "duration": "5 min" } ], "difficulty": 2, "location": "Trail", "tags": ["cardio", "zone 2", "endurance"], "equipment": ["running shoes", "HR monitor"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w3-thu-stretch", "type": "stretching", "title": "Nightly Stretch — Upper", "subtitle": "Core Block + Forearms, Shoulders & Rotator Cuff", "date": "2026-07-09", "startTime": "9:30 PM", "endTime": "10:00 PM", "estimatedDuration": 30, "description": "Upper night. Posterior capsule tightening is the most common overuse pattern in climbers. Don't skip.", "exercises": [ { "id": "ns18-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)" }, { "id": "ns18-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side" }, { "id": "ns18-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns18-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min" }, { "id": "ns18-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns18-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min" }, { "id": "ns18-upper-1", "name": "Wrist Flexor Stretch — Palms-Down Gorilla", "category": "stretch", "duration": "2 min" }, { "id": "ns18-upper-2", "name": "Wrist Extensor Stretch — Palm-Up Prayer", "category": "stretch", "duration": "2 min" }, { "id": "ns18-upper-3", "name": "Lat Doorframe Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns18-upper-4", "name": "Posterior Rotator Cuff Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns18-upper-5", "name": "Chest Opener / Pec Stretch", "category": "stretch", "duration": "2 min" } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "upper body"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w3-fri-climbing", "type": "climbing", "title": "Climbing Session", "subtitle": "Outdoor Prep — Movement Reading", "date": "2026-07-10", "startTime": "6:00 PM", "endTime": "8:00 PM", "estimatedDuration": 120, "description": "Prep for an upcoming outdoor day. Focus on reading routes from a distance, efficiency of movement, and confidence on vertical terrain.", "warmup": [ { "id": "cl-w3f-wu-1", "name": "Easy Traversing", "category": "skill", "duration": "15 min" } ], "exercises": [ { "id": "cl-w3f-1", "name": "5.9–5.10a Volume Laps", "category": "skill", "sets": 5 }, { "id": "cl-w3f-2", "name": "5.10d Onsight Practice", "category": "skill", "reps": "2 attempts", "notes": "Read from the ground. No beta." }, { "id": "cl-w3f-3", "name": "Bouldering V2–V4", "category": "skill", "duration": "40 min", "notes": "Try hard on movement problems." } ], "cooldown": [ { "id": "cl-w3f-cd-1", "name": "Antagonist Push-Ups", "category": "strength", "sets": 3, "reps": "15" }, { "id": "cl-w3f-cd-2", "name": "Forearm Stretch Series", "category": "stretch", "duration": "3 min" } ], "difficulty": 3, "location": "Movement Lab Climbing Gym", "tags": ["climbing", "outdoor prep", "movement"], "equipment": ["climbing shoes", "chalk bag"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w3-fri-stretch", "type": "stretching", "title": "Nightly Stretch — Lower", "subtitle": "Core Block + Hamstrings, Adductors & Ankle", "date": "2026-07-10", "startTime": "9:30 PM", "endTime": "9:59 PM", "estimatedDuration": 29, "description": "Lower night. Adductors are required for high steps and heel hooks in climbing, and wide-stance couloir positions in skiing.", "exercises": [ { "id": "ns19-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)" }, { "id": "ns19-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side" }, { "id": "ns19-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns19-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min" }, { "id": "ns19-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns19-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min" }, { "id": "ns19-lower-1", "name": "Standing Hamstring — Bent-Knee Hinge", "category": "stretch", "duration": "2 min/side" }, { "id": "ns19-lower-2", "name": "Adductor Stretch — Lateral Squat", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns19-lower-3", "name": "Calf / Ankle Dorsiflexion Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns19-lower-4", "name": "Kneeling Quad / Hip Flexor Stretch", "category": "stretch", "duration": "90 sec/side" } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "lower body"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w3-sat-yoga", "type": "yoga", "title": "Yoga & Mobility", "subtitle": "Full Body Flow", "date": "2026-07-11", "startTime": "8:00 AM", "endTime": "9:00 AM", "estimatedDuration": 60, "description": "Replacing the Saturday lift this week with a full-length yoga and mobility session. After three heavy weeks, the body benefits from controlled movement through full range of motion, breath synchronization, and parasympathetic activation.", "exercises": [ { "id": "yg-1", "name": "Sun Salutation A × 5", "category": "mobility", "duration": "15 min" }, { "id": "yg-2", "name": "Sun Salutation B × 3", "category": "mobility", "duration": "10 min" }, { "id": "yg-3", "name": "Standing Flow Sequence", "category": "mobility", "duration": "15 min", "notes": "Warrior 1, 2, Triangle, Half Moon, Reverse Warrior" }, { "id": "yg-4", "name": "Hip Opening Sequence", "category": "stretch", "duration": "10 min", "notes": "Lizard, Pigeon, Yin hold" }, { "id": "yg-5", "name": "Supine Cool-Down", "category": "stretch", "duration": "10 min", "notes": "Bridge, Reclined Pigeon, Spinal Twist, Savasana" } ], "difficulty": 2, "location": "Home", "tags": ["yoga", "mobility", "flexibility", "recovery"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w3-sat-stretch", "type": "stretching", "title": "Nightly Stretch — Spine & Hip", "subtitle": "Core Block + Thoracic Rotation & Hip External Rotation", "date": "2026-07-11", "startTime": "9:30 PM", "endTime": "10:00 PM", "estimatedDuration": 30, "description": "Spine/Hip night, week 3. End of a full block. Unhurried tonight — hold each pose longer, breathe slower.", "exercises": [ { "id": "ns20-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)" }, { "id": "ns20-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side" }, { "id": "ns20-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns20-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min" }, { "id": "ns20-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns20-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min" }, { "id": "ns20-spine-1", "name": "Thread-the-Needle", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns20-spine-2", "name": "Supine Spinal Twist", "category": "stretch", "duration": "2 min/side" }, { "id": "ns20-spine-3", "name": "Pigeon Pose", "category": "stretch", "duration": "2 min/side" }, { "id": "ns20-spine-4", "name": "Child's Pose with Lateral Reach", "category": "stretch", "duration": "60 sec/side" } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "thoracic", "hip"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w3-sun-rest", "type": "rest", "title": "Active Recovery", "date": "2026-07-12", "estimatedDuration": 30, "description": "End of week 3. Rest, reflect on progress, prepare for week 4.", "exercises": [ { "id": "rest-w3-1", "name": "2+ Mile Walk", "category": "cardio", "duration": "30–45 min" } ], "difficulty": 1, "location": "Outdoors", "tags": ["rest", "recovery", "walking"], "isCompleted": false, "isRecurring": false },
+
+    { "id": "w3-sun-stretch", "type": "stretching", "title": "Nightly Stretch — Lower (Short)", "subtitle": "Core Block + 2 Lower Stretches", "date": "2026-07-12", "startTime": "9:30 PM", "endTime": "9:53 PM", "estimatedDuration": 23, "description": "Sunday shortened session. Six nights already done. Reduced load is part of the programming.", "exercises": [ { "id": "ns21-core-1", "name": "Thoracic Extension over Foam Roller", "category": "stretch", "duration": "4 min (~60 sec/level)" }, { "id": "ns21-core-2", "name": "Psoas Lunge with Posterior Pelvic Tilt", "category": "stretch", "duration": "2–3 min/side" }, { "id": "ns21-core-3", "name": "90/90 Hip Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns21-core-4", "name": "Deep Squat Hold", "category": "stretch", "duration": "2 min" }, { "id": "ns21-core-5", "name": "Supine Figure-4 Glute Stretch", "category": "stretch", "duration": "90 sec/side" }, { "id": "ns21-core-6", "name": "Cat-Cow", "category": "mobility", "sets": 5, "duration": "2 min" }, { "id": "ns21-lower-1", "name": "Standing Hamstring — Bent-Knee Hinge", "category": "stretch", "duration": "2 min/side" }, { "id": "ns21-lower-2", "name": "Adductor Stretch — Lateral Squat", "category": "stretch", "duration": "90 sec/side" } ], "difficulty": 1, "location": "Home", "tags": ["stretching", "recovery", "short session"], "equipment": ["foam roller"], "isCompleted": false, "isRecurring": false }
+
   ]
 }
