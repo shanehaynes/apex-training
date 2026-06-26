@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCalendar } from '../../context/CalendarContext';
-import { formatMonthYear, formatWeekRange } from '../../utils/dateHelpers';
+import { formatMonthYear, formatWeekRange, formatDay } from '../../utils/dateHelpers';
 import type { CalendarView } from '../../types/workout';
 
 export default function TopNav() {
@@ -9,7 +9,9 @@ export default function TopNav() {
 
   const periodLabel = selectedView === 'month'
     ? formatMonthYear(currentDate)
-    : formatWeekRange(currentDate);
+    : selectedView === 'week'
+    ? formatWeekRange(currentDate)
+    : formatDay(currentDate);
 
   return (
     <nav className="top-nav">

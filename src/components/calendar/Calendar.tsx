@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useCalendar } from '../../context/CalendarContext';
 import MonthView from './MonthView';
 import WeekView from './WeekView';
+import DayView from './DayView';
 
 export default function Calendar() {
   const { state } = useCalendar();
@@ -11,10 +12,13 @@ export default function Calendar() {
 
   return (
     <div className="calendar">
-      {state.selectedView === 'month'
-        ? <MonthView currentDate={state.currentDate} direction={direction} />
-        : <WeekView currentDate={state.currentDate} />
-      }
+      {state.selectedView === 'month' ? (
+        <MonthView currentDate={state.currentDate} direction={direction} />
+      ) : state.selectedView === 'week' ? (
+        <WeekView currentDate={state.currentDate} />
+      ) : (
+        <DayView currentDate={state.currentDate} />
+      )}
     </div>
   );
 }

@@ -57,7 +57,7 @@ export interface Schedule {
 
 export type DateRange = 'week' | 'month' | 'all';
 
-export type CalendarView = 'month' | 'week';
+export type CalendarView = 'month' | 'week' | 'day';
 
 export interface WeekVolume {
   weekLabel: string;

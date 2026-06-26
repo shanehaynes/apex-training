@@ -42,6 +42,10 @@ export function formatMonthYear(date: Date): string {
   return format(date, 'MMMM yyyy');
 }
 
+export function formatDay(date: Date): string {
+  return format(date, 'EEE, MMM d');
+}
+
 export function formatWeekRange(date: Date): string {
   const start = startOfWeek(date, { weekStartsOn: 1 });
   const end = endOfWeek(date, { weekStartsOn: 1 });
