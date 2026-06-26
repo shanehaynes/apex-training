@@ -175,24 +175,23 @@
 /* ---- Month View ---- */
 
 .month-view {
-  display: flex;
-  flex-direction: column;
   height: 100%;
-  overflow: auto; /* month-view owns its scroll so header stays aligned */
+  overflow: hidden; /* grid owns its own height — scroll only on small screens */
 }
 
-.month-view__dow-row {
+/*
+ * Single unified grid: DOW labels are the first 7 items, day cells follow.
+ * This guarantees headers and columns share identical column tracks.
+ * grid-template-rows is set inline by MonthView to: auto repeat(N, 1fr)
+ * so the header row is natural height and date rows share the rest equally.
+ */
+.month-view__grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  padding: 0 0;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-elevated);
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  flex-shrink: 0; /* prevent compression in flex column */
+  height: 100%;
 }
 
+/* DOW label cells — first row of the unified grid */
 .month-view__dow {
   font-size: 11px;
   font-weight: 500;
@@ -201,26 +200,38 @@
   color: var(--text-muted);
   text-align: center;
   padding: 10px 0;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
 }
 
-.month-view__grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  flex: 1;
+.month-view__dow:last-child {
+  border-right: none;
 }
 
 /* ---- Day Cell ---- */
 
 .day-cell {
-  min-height: 120px;
+  min-height: 0; /* let the grid's 1fr rows control height */
   padding: 8px 6px 6px;
   border-right: 1px solid var(--border-subtle);
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
   gap: 3px;
+  overflow: hidden;
   cursor: default;
   transition: background var(--duration-fast);
+}
+
+/* On small screens, fall back to fixed min-height and allow scroll */
+@media (max-height: 600px), (max-width: 640px) {
+  .month-view {
+    overflow: auto;
+  }
+  .day-cell {
+    min-height: 90px;
+  }
 }
 
 .day-cell:hover {
