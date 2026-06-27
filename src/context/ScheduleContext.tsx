@@ -102,7 +102,21 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const getEventsForDate = useMemo(
-    () => (date: Date) => events.filter(e => isSameDay(parseISO(e.date), date)),
+    () => (date: Date) => {
+      const parseTime = (t?: string) => {
+        if (!t) return Infinity;
+        const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+        if (!m) return Infinity;
+        let h = parseInt(m[1]);
+        const min = parseInt(m[2]);
+        if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+        if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+        return h * 60 + min;
+      };
+      return events
+        .filter(e => isSameDay(parseISO(e.date), date))
+        .sort((a, b) => parseTime(a.startTime) - parseTime(b.startTime));
+    },
     [events],
   );
 
