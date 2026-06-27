@@ -13,7 +13,7 @@ export function getEventsByDateRange(events: WorkoutEvent[], range: DateRange, r
 export function countByType(events: WorkoutEvent[]): Record<WorkoutType, number> {
   const counts: Record<WorkoutType, number> = {
     stretching: 0, 'morning-routine': 0, weights: 0,
-    climbing: 0, cardio: 0, yoga: 0, rest: 0,
+    climbing: 0, cardio: 0, yoga: 0,
   };
   for (const e of events) counts[e.type]++;
   return counts;
