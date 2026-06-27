@@ -1,11 +1,41 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { parseISO, isSameDay } from 'date-fns';
+import { parseISO, isSameDay, addDays, format } from 'date-fns';
 import scheduleData from '../data/schedule.json';
 import { supabase } from '../lib/supabaseClient';
 import type { CompletionRow, CompletionLogRow } from '../lib/supabaseClient';
 import type { WorkoutEvent, Schedule } from '../types/workout';
 
 const baseSchedule = scheduleData as Schedule;
+
+function expandRecurringEvents(rawEvents: WorkoutEvent[]): WorkoutEvent[] {
+  const existingDatesPerType = new Map<string, Set<string>>();
+  for (const e of rawEvents) {
+    const key = e.type;
+    if (!existingDatesPerType.has(key)) existingDatesPerType.set(key, new Set());
+    existingDatesPerType.get(key)!.add(e.date);
+  }
+
+  const expanded: WorkoutEvent[] = [...rawEvents];
+
+  for (const base of rawEvents) {
+    if (!base.isRecurring || base.recurringPattern?.frequency !== 'daily') continue;
+    const endDate = base.recurringPattern?.endDate;
+    if (!endDate) continue;
+
+    let cursor = addDays(parseISO(base.date), 1);
+    const end = parseISO(endDate);
+    while (cursor <= end) {
+      const dateStr = format(cursor, 'yyyy-MM-dd');
+      if (!existingDatesPerType.get(base.type)?.has(dateStr)) {
+        expanded.push({ ...base, id: `${base.id}__${dateStr}`, date: dateStr, isCompleted: false });
+        existingDatesPerType.get(base.type)!.add(dateStr);
+      }
+      cursor = addDays(cursor, 1);
+    }
+  }
+
+  return expanded.sort((a, b) => a.date.localeCompare(b.date));
+}
 
 const LS_KEY = 'apex-completed';
 
@@ -40,9 +70,14 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   // without needing to be re-created every time events changes.
   const eventsRef = useRef<WorkoutEvent[]>([]);
 
+  const allEvents = useMemo(
+    () => expandRecurringEvents(baseSchedule.events as WorkoutEvent[]),
+    [],
+  );
+
   const events = useMemo<WorkoutEvent[]>(
-    () => baseSchedule.events.map(e => ({ ...e, isCompleted: completedIds.has(e.id) })),
-    [completedIds],
+    () => allEvents.map(e => ({ ...e, isCompleted: completedIds.has(e.id) })),
+    [allEvents, completedIds],
   );
   eventsRef.current = events;
 
