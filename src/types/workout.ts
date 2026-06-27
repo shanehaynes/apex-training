@@ -4,8 +4,7 @@ export type WorkoutType =
   | 'weights'
   | 'climbing'
   | 'cardio'
-  | 'yoga'
-  | 'rest';
+  | 'yoga';
 
 export interface Exercise {
   id: string;

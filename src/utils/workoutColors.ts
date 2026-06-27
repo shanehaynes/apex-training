@@ -2,10 +2,10 @@ import type { WorkoutType, WorkoutColorConfig } from '../types/workout';
 
 export const WORKOUT_COLORS: Record<WorkoutType, WorkoutColorConfig> = {
   'stretching': {
-    solid:  '#0f2744',
-    light:  'rgba(15, 39, 68, 0.25)',
-    glow:   '0 0 20px rgba(15, 39, 68, 0.6)',
-    border: '#1a4a80',
+    solid:  '#4a3f6b',
+    light:  'rgba(74, 63, 107, 0.2)',
+    glow:   '0 0 20px rgba(74, 63, 107, 0.35)',
+    border: '#6d5fad',
     label:  'Stretching',
   },
   'morning-routine': {
@@ -42,13 +42,6 @@ export const WORKOUT_COLORS: Record<WorkoutType, WorkoutColorConfig> = {
     glow:   '0 0 20px rgba(42, 125, 125, 0.35)',
     border: '#2a9d8f',
     label:  'Yoga & Mobility',
-  },
-  'rest': {
-    solid:  '#4a3f6b',
-    light:  'rgba(74, 63, 107, 0.2)',
-    glow:   '0 0 20px rgba(74, 63, 107, 0.35)',
-    border: '#6d5fad',
-    label:  'Rest & Recovery',
   },
 };
 
