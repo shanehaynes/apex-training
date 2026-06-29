@@ -94,7 +94,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'X-WR-CALNAME:Apex Training',
-    'X-WR-TIMEZONE:America/Los_Angeles',
   ];
 
   for (const ev of events) {
@@ -128,8 +127,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     lines.push(`DTSTAMP:${stamp}Z`);
 
     if (hasTime) {
-      lines.push(`DTSTART;TZID=America/Los_Angeles:${dtstart}`);
-      lines.push(`DTEND;TZID=America/Los_Angeles:${dtend}`);
+      lines.push(`DTSTART:${dtstart}`);
+      lines.push(`DTEND:${dtend}`);
     } else {
       lines.push(`DTSTART;VALUE=DATE:${dtstart}`);
       lines.push(`DTEND;VALUE=DATE:${dtend}`);
