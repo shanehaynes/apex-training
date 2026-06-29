@@ -212,13 +212,14 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   // ── Realtime: re-fetch whenever events or exceptions change ────────────────
 
   useEffect(() => {
-    if (!supabase) return;
-    const channel = supabase
+    const sb = supabase;
+    if (!sb) return;
+    const channel = sb
       .channel('schedule-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_events' }, loadEvents)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'recurring_exceptions' }, loadEvents)
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { sb.removeChannel(channel); };
   }, [loadEvents]);
 
   // ── Completion sync ────────────────────────────────────────────────────────
