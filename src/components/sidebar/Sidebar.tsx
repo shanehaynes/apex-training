@@ -129,11 +129,11 @@ export default function Sidebar() {
         <h3 className="sidebar__subheading">Weekly Volume</h3>
         <ResponsiveContainer width="100%" height={100}>
           <BarChart data={weeklyVolume} barSize={16}>
-            <XAxis dataKey="weekLabel" tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="weekLabel" tick={{ fill: '#8a7f7c', fontSize: 10 }} axisLine={false} tickLine={false} />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
             <Bar dataKey="count" radius={[3, 3, 0, 0]}>
               {weeklyVolume.map((entry, i) => (
-                <Cell key={i} fill={entry.count > 0 ? '#3b82f6' : '#1f2d45'} />
+                <Cell key={i} fill={entry.count > 0 ? '#f97316' : '#2e2a25'} />
               ))}
             </Bar>
           </BarChart>
