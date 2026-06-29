@@ -19,16 +19,29 @@ function escapeIcs(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 }
 
+// Parses "5:30 PM", "17:30", "5:30 pm", etc. → { h: 17, m: 30 }
+function parseTime(timeStr: string): { h: number; m: number } | null {
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!match) return null;
+  let h = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  const meridiem = match[3]?.toUpperCase();
+  if (meridiem === 'PM' && h !== 12) h += 12;
+  if (meridiem === 'AM' && h === 12) h = 0;
+  return { h, m };
+}
+
 function toIcsDate(dateStr: string, timeStr: string | null): string {
-  // dateStr: "YYYY-MM-DD", timeStr: "HH:MM" or null
   const d = dateStr.replace(/-/g, '');
-  if (!timeStr) return `${d}`;
-  const t = timeStr.replace(':', '') + '00';
+  if (!timeStr) return d;
+  const parsed = parseTime(timeStr);
+  if (!parsed) return d;
+  const t = String(parsed.h).padStart(2, '0') + String(parsed.m).padStart(2, '0') + '00';
   return `${d}T${t}`;
 }
 
 function dtstamp(): string {
-  return new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  return new Date().toISOString().replace(/[-:.]/g, '').slice(0, 15) + 'Z';
 }
 
 // Map JS day-of-week (0=Sun) to iCal BYDAY abbreviation
@@ -76,12 +89,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (ev.end_time) {
       dtend = toIcsDate(ev.date, ev.end_time);
     } else if (hasTime) {
-      // Use estimated duration to compute end time
-      const [h, m] = ev.start_time!.split(':').map(Number);
-      const totalMin = h * 60 + m + ev.estimated_duration;
-      const eh = String(Math.floor(totalMin / 60) % 24).padStart(2, '0');
-      const em = String(totalMin % 60).padStart(2, '0');
-      dtend = toIcsDate(ev.date, `${eh}:${em}`);
+      const parsed = parseTime(ev.start_time!);
+      if (parsed) {
+        const totalMin = parsed.h * 60 + parsed.m + ev.estimated_duration;
+        const eh = String(Math.floor(totalMin / 60) % 24).padStart(2, '0');
+        const em = String(totalMin % 60).padStart(2, '0');
+        dtend = toIcsDate(ev.date, `${eh}:${em}`);
+      } else {
+        dtend = toIcsDate(ev.date, null);
+      }
     } else {
       // All-day: DTEND is next day
       const d = new Date(ev.date + 'T00:00:00');
