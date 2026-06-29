@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import TopNav from './TopNav';
 import Calendar from '../calendar/Calendar';
-import Sidebar from '../sidebar/Sidebar';
+import ChatSidebar from '../sidebar/ChatSidebar';
 import WorkoutModal from '../modal/WorkoutModal';
 import MobileBottomNav from './MobileBottomNav';
 import { useCalendar } from '../../context/CalendarContext';
@@ -29,7 +29,7 @@ export default function AppShell() {
           <Calendar />
         </main>
         <aside className="app-sidebar">
-          <Sidebar />
+          <ChatSidebar />
         </aside>
       </div>
       {isMobile && (
