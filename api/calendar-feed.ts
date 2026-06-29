@@ -138,6 +138,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   });
 
   res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
-  res.setHeader('Cache-Control', 'public, max-age=900'); // 15 min cache
+  res.setHeader('Content-Disposition', 'attachment; filename="apex-training.ics"');
+  res.setHeader('Cache-Control', 'public, max-age=900');
   res.status(200).send(folded.join('\r\n'));
 }
