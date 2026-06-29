@@ -1,21 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  /* Application palette */
-  --bg-primary:    #0a0e17;
-  --bg-surface:    #111827;
-  --bg-elevated:   #1a2236;
-  --border-subtle: #1f2d45;
+  /* Application palette — warm charcoal */
+  --bg-primary:    #0d0c0b;
+  --bg-surface:    #161412;
+  --bg-elevated:   #201e1b;
+  --border-subtle: #2e2a25;
   --text-primary:  #f1f5f9;
-  --text-secondary:#94a3b8;
-  --text-muted:    #475569;
-  --accent-primary:#3b82f6;
+  --text-secondary:#a09590;
+  --text-muted:    #8a7f7c;
+  --accent-primary:#e8e2d9;  /* warm off-white — today bubbles, active toggles, focus rings */
 
   /* Workout type colors */
-  --color-stretching-solid:  #0f2744;
-  --color-stretching-light:  rgba(15, 39, 68, 0.25);
-  --color-stretching-glow:   0 0 20px rgba(15, 39, 68, 0.6);
-  --color-stretching-border: #1a4a80;
+  --color-stretching-solid:  #4a3f6b;
+  --color-stretching-light:  rgba(74, 63, 107, 0.2);
+  --color-stretching-glow:   0 0 20px rgba(74, 63, 107, 0.35);
+  --color-stretching-border: #6d5fad;
 
   --color-morning-solid:     #f97316;
   --color-morning-light:     rgba(249, 115, 22, 0.15);
@@ -48,8 +48,9 @@
   --color-rest-border:       #6d5fad;
 
   /* Typography */
-  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+  --font-display:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-wordmark: 'Barlow Condensed', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:     'JetBrains Mono', 'Fira Code', monospace;
 
   --text-xs:   0.75rem;
   --text-sm:   0.875rem;
