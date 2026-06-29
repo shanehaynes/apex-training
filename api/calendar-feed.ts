@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 interface WorkoutEventRow {
   id: string;
+  type: string;
   title: string;
   date: string;
   start_time: string | null;
@@ -60,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { data, error } = await supabase
     .from('workout_events')
-    .select('id, title, date, start_time, end_time, estimated_duration, location, is_recurring, recurring_frequency, recurring_days, recurring_end_date')
+    .select('id, type, title, date, start_time, end_time, estimated_duration, location, is_recurring, recurring_frequency, recurring_days, recurring_end_date')
     .order('date', { ascending: true });
 
   if (error) {
@@ -69,6 +70,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const events = (data ?? []) as WorkoutEventRow[];
+
+  // Build a set of (type, date) pairs covered by recurring events so we can
+  // skip individual rows that would duplicate them — mirrors the app's expandRecurringEvents logic.
+  const recurringCoverage = new Set<string>();
+  for (const ev of events) {
+    if (!ev.is_recurring || !ev.recurring_end_date || ev.recurring_frequency !== 'daily') continue;
+    const start = new Date(ev.date + 'T00:00:00');
+    const end = new Date(ev.recurring_end_date + 'T00:00:00');
+    const cursor = new Date(start);
+    cursor.setDate(cursor.getDate() + 1);
+    while (cursor <= end) {
+      recurringCoverage.add(`${ev.type}__${cursor.toISOString().slice(0, 10)}`);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+
   const stamp = dtstamp();
   const lines: string[] = [
     'BEGIN:VCALENDAR',
@@ -81,6 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   ];
 
   for (const ev of events) {
+    if (!ev.is_recurring && recurringCoverage.has(`${ev.type}__${ev.date}`)) continue;
     const hasTime = !!ev.start_time;
     const dtstart = toIcsDate(ev.date, ev.start_time);
     const uid = `${ev.id}@apex-training`;
