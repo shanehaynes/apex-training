@@ -21,19 +21,25 @@ const DAY_START = 5 * 60; // 5 AM in minutes
 
 interface EventBlockProps {
   event: WorkoutEvent;
+  colIndex: number;
+  colCount: number;
 }
 
-function EventBlock({ event }: EventBlockProps) {
+function EventBlock({ event, colIndex, colCount }: EventBlockProps) {
   const { dispatch } = useCalendar();
   const { toggleCompletion } = useSchedule();
   const color = getWorkoutColor(event.type);
   const top = event.startTime ? ((timeToMinutes(event.startTime) - DAY_START) / 60) * SLOT_HEIGHT : 0;
-  const height = Math.max((event.estimatedDuration / 60) * SLOT_HEIGHT, 32);
+  const height = Math.max((event.estimatedDuration / 60) * SLOT_HEIGHT, 44);
+
+  const GAP = 4;
+  const colWidth = `calc((100% - ${GAP * (colCount + 1)}px) / ${colCount})`;
+  const leftOffset = `calc(${GAP}px + (${colWidth} + ${GAP}px) * ${colIndex})`;
 
   return (
     <div
       className={`week-event${event.isCompleted ? ' week-event--done' : ''}`}
-      style={{ top, height, background: color.light, borderLeft: `3px solid ${color.solid}` }}
+      style={{ top, height, background: color.light, borderLeft: `3px solid ${color.solid}`, left: leftOffset, right: GAP, width: colWidth }}
     >
       <button
         className="week-event__main"
@@ -95,13 +101,44 @@ export default function WeekView({ currentDate }: { currentDate: Date }) {
             </div>
             {days.map((day) => {
               const events = getEventsForDate(day).filter(e => e.startTime);
+              // Assign columns to overlapping events
+              const columns: number[] = [];
+              const colCounts: number[] = [];
+              events.forEach((e, i) => {
+                const startA = timeToMinutes(e.startTime!);
+                const endA = startA + e.estimatedDuration;
+                // Find which columns are taken by events that overlap with e
+                const taken = new Set<number>();
+                events.forEach((other, j) => {
+                  if (j >= i) return;
+                  const startB = timeToMinutes(other.startTime!);
+                  const endB = startB + other.estimatedDuration;
+                  if (startA < endB && endA > startB) taken.add(columns[j]);
+                });
+                let col = 0;
+                while (taken.has(col)) col++;
+                columns[i] = col;
+              });
+              // Compute colCount per event: max column index among all events that overlap with it, +1
+              events.forEach((e, i) => {
+                const startA = timeToMinutes(e.startTime!);
+                const endA = startA + e.estimatedDuration;
+                let maxCol = columns[i];
+                events.forEach((other, j) => {
+                  if (i === j) return;
+                  const startB = timeToMinutes(other.startTime!);
+                  const endB = startB + other.estimatedDuration;
+                  if (startA < endB && endA > startB) maxCol = Math.max(maxCol, columns[j]);
+                });
+                colCounts[i] = maxCol + 1;
+              });
               return (
                 <div key={day.toISOString()} className={`week-view__day-col ${isToday(day) ? 'week-view__day-col--today' : ''}`}
                   style={{ height: HOURS.length * SLOT_HEIGHT }}>
                   {HOURS.map(h => (
                     <div key={h} className="week-view__hour-line" style={{ top: ((h - 5) * SLOT_HEIGHT) }} />
                   ))}
-                  {events.map(e => <EventBlock key={e.id} event={e} />)}
+                  {events.map((e, i) => <EventBlock key={e.id} event={e} colIndex={columns[i]} colCount={colCounts[i]} />)}
                   {isToday(day) && nowTop > 0 && nowTop < HOURS.length * SLOT_HEIGHT && (
                     <div className="week-view__now-line" style={{ top: nowTop }}>
                       <span className="week-view__now-dot" />

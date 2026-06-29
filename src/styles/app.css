@@ -476,8 +476,6 @@
 
 .week-event {
   position: absolute;
-  left: 4px;
-  right: 4px;
   border-radius: var(--radius-sm);
   display: flex;
   flex-direction: row;
@@ -509,7 +507,8 @@
   font-family: var(--font-display);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  justify-content: flex-start;
+  gap: 1px;
   overflow: hidden;
 }
 
