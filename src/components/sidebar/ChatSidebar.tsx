@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, useEffect } from 'react';
 import { format, parseISO, startOfWeek, endOfWeek, subWeeks, isWithinInterval } from 'date-fns';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useChat } from '../../hooks/useChat';
-import { Send, Square } from 'lucide-react';
+import { Send, Square, NotebookPen } from 'lucide-react';
 
 function buildSystemPrompt(
   todayEvents: ReturnType<ReturnType<typeof useSchedule>['getEventsForDate']>,
@@ -19,7 +19,6 @@ function buildSystemPrompt(
         return `• ${e.title} (${e.estimatedDuration} min)${time}${done}`;
       }).join('\n');
 
-  // Build this week's schedule
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
   const thisWeek = allEvents.filter(e => {
@@ -35,7 +34,6 @@ function buildSystemPrompt(
         return `${done} ${dayLabel} — ${e.title} (${e.estimatedDuration} min)`;
       }).join('\n');
 
-  // Last 4 weeks completion rate
   const pastEvents: typeof allEvents = [];
   for (let i = 1; i <= 4; i++) {
     const ref = subWeeks(today, i);
@@ -76,7 +74,6 @@ export default function ChatSidebar() {
   const { events, getEventsForDate } = useSchedule();
   const { messages, isLoading, streamingContent, sendMessage, triggerInitial, abort } = useChat();
   const [input, setInput] = useState('');
-  const [initialized, setInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -87,12 +84,7 @@ export default function ChatSidebar() {
     [todayEvents, events, today],
   );
 
-  useEffect(() => {
-    if (!initialized) {
-      setInitialized(true);
-      triggerInitial(systemPrompt);
-    }
-  }, [initialized, triggerInitial, systemPrompt]);
+  const isEmpty = messages.length === 0 && !isLoading;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -112,7 +104,6 @@ export default function ChatSidebar() {
     }
   };
 
-  const displayMessages = [...messages];
   const isStreaming = isLoading && streamingContent;
 
   return (
@@ -123,7 +114,13 @@ export default function ChatSidebar() {
       </div>
 
       <div className="chat-sidebar__messages">
-        {displayMessages.map((msg, i) => (
+        {isEmpty && (
+          <div className="chat-empty">
+            <p className="chat-empty__hint">Ask anything, or get your daily briefing below.</p>
+          </div>
+        )}
+
+        {messages.map((msg, i) => (
           <div key={i} className={`chat-msg chat-msg--${msg.role}`}>
             <p className="chat-msg__text">{msg.content}</p>
           </div>
@@ -144,6 +141,17 @@ export default function ChatSidebar() {
         )}
 
         <div ref={messagesEndRef} />
+      </div>
+
+      <div className="chat-sidebar__actions">
+        <button
+          className="chat-notes-btn"
+          onClick={() => triggerInitial(systemPrompt)}
+          disabled={isLoading}
+        >
+          <NotebookPen size={13} />
+          Coach's Notes
+        </button>
       </div>
 
       <div className="chat-sidebar__input-row">
