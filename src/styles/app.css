@@ -62,12 +62,6 @@
   color: var(--text-primary);
 }
 
-.top-nav__sub {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  font-weight: 400;
-  letter-spacing: 0.02em;
-}
 
 
 .top-nav__controls {
@@ -1166,9 +1160,6 @@
   }
 
   /* Top nav — compact */
-  .top-nav__sub {
-    display: none;
-  }
   .nav-period {
     font-size: var(--text-base);
     min-width: 130px;

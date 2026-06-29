@@ -17,7 +17,6 @@ export default function TopNav() {
     <nav className="top-nav">
       <div className="top-nav__brand">
         <span className="top-nav__logo">APEX</span>
-        <span className="top-nav__sub">Training</span>
       </div>
 
       <div className="top-nav__controls">
