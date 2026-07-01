@@ -4,9 +4,7 @@ import scheduleData from '../data/schedule.json';
 import { supabase } from '../lib/supabaseClient';
 import type {
   CompletionRow,
-  CompletionLogRow,
   WorkoutEventRow,
-  EventMutationLogRow,
 } from '../lib/supabaseClient';
 import type { WorkoutEvent, Schedule, WorkoutType } from '../types/workout';
 
@@ -308,7 +306,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       completed_at:     isNowCompleted ? new Date().toISOString() : null,
       updated_at:       new Date().toISOString(),
     };
-    const logRow: CompletionLogRow = {
+    const logRow = {
       event_id:         id,
       event_date:       event.date,
       event_type:       event.type,
@@ -317,22 +315,16 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       action:           isNowCompleted ? 'complete' : 'uncomplete',
     };
 
-    Promise.all([
-      supabase.from('workout_completions').upsert(completionRow),
-      supabase.from('workout_completion_log').insert(logRow),
-    ]).then(([{ error: upsertErr }, { error: logErr }]) => {
-      if (upsertErr) console.warn('[apex] Completion upsert failed:', upsertErr.message);
-      if (logErr)    console.warn('[apex] Completion log failed:', logErr.message);
-    });
+    fetch('/api/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ completionRow, logRow }),
+    }).then(async res => {
+      if (!res.ok) console.warn('[apex] Completion sync failed:', await res.text());
+    }).catch(err => console.warn('[apex] Completion sync failed:', err));
   };
 
   // ── Mutation helpers ───────────────────────────────────────────────────────
-
-  async function logMutation(entry: EventMutationLogRow) {
-    if (!supabase) return;
-    const { error } = await supabase.from('event_mutations_log').insert(entry);
-    if (error) console.warn('[apex] Mutation log failed:', error.message);
-  }
 
   const createEvent = useCallback(async (input: CreateEventInput): Promise<{ id: string } | null> => {
     if (!supabase) return null;
@@ -356,10 +348,13 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       isRecurring:       false,
     };
 
-    const { error } = await supabase.from('workout_events').insert(eventToRow(newEvent));
-    if (error) { console.warn('[apex] createEvent failed:', error.message); return null; }
+    const res = await fetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(eventToRow(newEvent)),
+    });
+    if (!res.ok) { console.warn('[apex] createEvent failed:', await res.text()); return null; }
 
-    await logMutation({ operation: 'create', event_id: id, event_title: input.title, event_date: input.date });
     return { id };
   }, []);
 
@@ -385,20 +380,20 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     if (fields.warmup            !== undefined) dbFields.warmup              = fields.warmup as unknown[];
     if (fields.cooldown          !== undefined) dbFields.cooldown            = fields.cooldown as unknown[];
 
-    const { error } = await supabase
-      .from('workout_events')
-      .update({ ...dbFields, updated_at: new Date().toISOString() })
-      .eq('id', baseId);
-
-    if (error) { console.warn('[apex] updateEvent failed:', error.message); return false; }
-
-    await logMutation({
-      operation:   'update',
-      event_id:    baseId,
-      event_title: fields.title ?? current?.title ?? baseId,
-      event_date:  fields.date ?? current?.date,
-      diff:        { before: current ?? {}, after: fields },
+    const res = await fetch(`/api/events?id=${encodeURIComponent(baseId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: dbFields,
+        log: {
+          event_title: fields.title ?? current?.title ?? baseId,
+          event_date:  fields.date ?? current?.date,
+          diff:        { before: current ?? {}, after: fields },
+        },
+      }),
     });
+
+    if (!res.ok) { console.warn('[apex] updateEvent failed:', await res.text()); return false; }
     return true;
   }, []);
 
@@ -408,10 +403,13 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     const event = eventsRef.current.find(e => e.id === id);
     const baseId = id.includes('__') ? id.split('__')[0] : id;
 
-    const { error } = await supabase.from('workout_events').delete().eq('id', baseId);
-    if (error) { console.warn('[apex] deleteEvent failed:', error.message); return false; }
+    const res = await fetch(`/api/events?id=${encodeURIComponent(baseId)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ log: { event_title: event?.title ?? baseId, event_date: event?.date } }),
+    });
 
-    await logMutation({ operation: 'delete', event_id: baseId, event_title: event?.title ?? baseId, event_date: event?.date });
+    if (!res.ok) { console.warn('[apex] deleteEvent failed:', await res.text()); return false; }
     return true;
   }, []);
 
@@ -419,13 +417,13 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) return false;
 
     const event = eventsRef.current.find(e => e.id === baseId || e.id.startsWith(baseId));
-    const { error } = await supabase
-      .from('recurring_exceptions')
-      .insert({ event_id: baseId, skipped_date: date });
+    const res = await fetch('/api/event-instances', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventId: baseId, date, eventTitle: event?.title ?? baseId }),
+    });
 
-    if (error) { console.warn('[apex] deleteEventInstance failed:', error.message); return false; }
-
-    await logMutation({ operation: 'delete_instance', event_id: baseId, event_title: event?.title ?? baseId, event_date: date });
+    if (!res.ok) { console.warn('[apex] deleteEventInstance failed:', await res.text()); return false; }
     return true;
   }, []);
 
