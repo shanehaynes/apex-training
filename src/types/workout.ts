@@ -41,6 +41,13 @@ export interface WorkoutEvent {
   isCompleted: boolean;
   completedAt?: string;
   isRecurring: boolean;
+  /**
+   * Canonical RFC 5545 RRULE value string (no 'RRULE:' prefix), e.g.
+   * 'FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20261231'. Parsed and expanded by
+   * src/lib/recurrence/. Source of truth for the recurrence pattern.
+   */
+  recurrenceRule?: string;
+  /** @deprecated Superseded by recurrenceRule — kept for legacy row display only. */
   recurringPattern?: {
     frequency: 'daily' | 'weekly' | 'custom';
     daysOfWeek?: number[];

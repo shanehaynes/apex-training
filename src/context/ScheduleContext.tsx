@@ -7,43 +7,58 @@ import type {
   WorkoutEventRow,
 } from '../lib/supabaseClient';
 import type { WorkoutEvent, Schedule, WorkoutType } from '../types/workout';
+import { parseRRule, expandRecurrence, ruleFromLegacyColumns } from '../lib/recurrence';
 
 // ─── Recurring expansion ──────────────────────────────────────────────────────
 
-function expandRecurringEvents(
+// Open-ended rules (no COUNT/UNTIL) are capped this far past today.
+const OPEN_ENDED_HORIZON_DAYS = 366;
+
+export function expandRecurringEvents(
   rawEvents: WorkoutEvent[],
   exceptions: Set<string>, // `${event_id}__${date}` pairs to skip
 ): WorkoutEvent[] {
-  const existingDatesPerType = new Map<string, Set<string>>();
-  for (const e of rawEvents) {
-    if (!existingDatesPerType.has(e.type)) existingDatesPerType.set(e.type, new Set());
-    existingDatesPerType.get(e.type)!.add(e.date);
-  }
-
   const expanded: WorkoutEvent[] = [...rawEvents];
+  const rangeEnd = format(addDays(new Date(), OPEN_ENDED_HORIZON_DAYS), 'yyyy-MM-dd');
 
   for (const base of rawEvents) {
-    if (!base.isRecurring || base.recurringPattern?.frequency !== 'daily') continue;
-    const endDate = base.recurringPattern?.endDate;
-    if (!endDate) continue;
+    if (!base.isRecurring || !base.recurrenceRule) continue;
 
-    let cursor = addDays(parseISO(base.date), 1);
-    const end = parseISO(endDate);
-    while (cursor <= end) {
-      const dateStr = format(cursor, 'yyyy-MM-dd');
-      const instanceKey = `${base.id}__${dateStr}`;
-      if (
-        !existingDatesPerType.get(base.type)?.has(dateStr) &&
-        !exceptions.has(instanceKey)
-      ) {
-        expanded.push({ ...base, id: instanceKey, date: dateStr, isCompleted: false });
-        existingDatesPerType.get(base.type)!.add(dateStr);
-      }
-      cursor = addDays(cursor, 1);
+    let rule;
+    try {
+      rule = parseRRule(base.recurrenceRule);
+    } catch (err) {
+      console.warn(`[apex] Skipping event ${base.id} — invalid recurrence rule "${base.recurrenceRule}":`, err);
+      continue;
+    }
+
+    // Exceptions are keyed per series (`${event_id}__${date}`), so an
+    // unrelated event that happens to share a type/date never suppresses
+    // this series' occurrences.
+    const exdates = new Set<string>();
+    const prefix = `${base.id}__`;
+    for (const key of exceptions) {
+      if (key.startsWith(prefix)) exdates.add(key.slice(prefix.length));
+    }
+
+    for (const dateStr of expandRecurrence(rule, base.date, exdates, rangeEnd)) {
+      expanded.push({ ...base, id: `${base.id}__${dateStr}`, date: dateStr, isCompleted: false });
     }
   }
 
   return expanded.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Seed events from schedule.json predate recurrenceRule — derive it from the
+// legacy recurringPattern shape so the fallback path expands identically.
+function normalizeSeedEvent(e: WorkoutEvent): WorkoutEvent {
+  if (!e.isRecurring || e.recurrenceRule || !e.recurringPattern) return e;
+  const rule = ruleFromLegacyColumns(
+    e.recurringPattern.frequency,
+    e.recurringPattern.daysOfWeek ?? null,
+    e.recurringPattern.endDate ?? null,
+  );
+  return rule ? { ...e, recurrenceRule: rule } : e;
 }
 
 // ─── Row ↔ WorkoutEvent mapping ───────────────────────────────────────────────
@@ -69,6 +84,11 @@ function rowToEvent(row: WorkoutEventRow): WorkoutEvent {
     equipment:         row.equipment ?? [],
     isCompleted:       false,
     isRecurring:       row.is_recurring,
+    // recurrence_rule is canonical; rows the SQL backfill hasn't reached fall
+    // back to a rule derived from the deprecated columns (null for 'custom').
+    recurrenceRule:    row.recurrence_rule
+      ?? ruleFromLegacyColumns(row.recurring_frequency, row.recurring_days, row.recurring_end_date)
+      ?? undefined,
     recurringPattern:  row.recurring_frequency
       ? {
           frequency:  row.recurring_frequency as 'daily' | 'weekly' | 'custom',
@@ -101,6 +121,7 @@ export function eventToRow(
     tags:                e.tags ?? [],
     equipment:           e.equipment ?? [],
     is_recurring:        e.isRecurring,
+    recurrence_rule:     e.recurrenceRule ?? null,
     recurring_frequency: e.recurringPattern?.frequency ?? null,
     recurring_days:      e.recurringPattern?.daysOfWeek ?? null,
     recurring_end_date:  e.recurringPattern?.endDate ?? null,
@@ -176,7 +197,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   const loadEvents = useCallback(async () => {
     if (!supabase) {
-      setBaseEvents((scheduleData as Schedule).events as WorkoutEvent[]);
+      setBaseEvents(((scheduleData as Schedule).events as WorkoutEvent[]).map(normalizeSeedEvent));
       setIsEventsLoading(false);
       return;
     }
@@ -188,7 +209,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
     if (eventsRes.error) {
       console.warn('[apex] Failed to load workout_events:', eventsRes.error.message);
-      setBaseEvents((scheduleData as Schedule).events as WorkoutEvent[]);
+      setBaseEvents(((scheduleData as Schedule).events as WorkoutEvent[]).map(normalizeSeedEvent));
     } else {
       setBaseEvents((eventsRes.data as WorkoutEventRow[]).map(rowToEvent));
     }

@@ -47,8 +47,13 @@ export interface WorkoutEventRow {
   tags: string[];
   equipment: string[];
   is_recurring: boolean;
+  /** Canonical RFC 5545 RRULE value (no 'RRULE:' prefix) — see src/lib/recurrence/. */
+  recurrence_rule: string | null;
+  /** @deprecated Superseded by recurrence_rule. */
   recurring_frequency: string | null;
+  /** @deprecated Superseded by recurrence_rule. */
   recurring_days: number[] | null;
+  /** @deprecated Superseded by recurrence_rule. */
   recurring_end_date: string | null;
   created_at: string;
   updated_at: string;

@@ -20,6 +20,7 @@ interface WorkoutEventRow {
   tags: string[];
   equipment: string[];
   is_recurring: boolean;
+  recurrence_rule: string | null;
   recurring_frequency: string | null;
   recurring_days: number[] | null;
   recurring_end_date: string | null;
