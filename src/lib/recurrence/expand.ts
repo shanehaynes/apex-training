@@ -1,6 +1,6 @@
-import type { RecurrenceRule, Weekday } from './types';
-import { validateRRule, isValidIsoDate, daysInMonth } from './validate';
-import { WEEKDAYS } from './types';
+import type { RecurrenceRule, Weekday } from './types.js';
+import { validateRRule, isValidIsoDate, daysInMonth } from './validate.js';
+import { WEEKDAYS } from './types.js';
 
 const DAY_MS = 86_400_000;
 

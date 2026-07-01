@@ -1,5 +1,5 @@
-import type { RecurrenceRule } from './types';
-import { WEEKDAYS } from './types';
+import type { RecurrenceRule } from './types.js';
+import { WEEKDAYS } from './types.js';
 
 const FREQS = ['DAILY', 'WEEKLY', 'MONTHLY'] as const;
 

@@ -1,5 +1,5 @@
-import type { Weekday } from './types';
-import { WEEKDAYS } from './types';
+import type { Weekday } from './types.js';
+import { WEEKDAYS } from './types.js';
 
 /**
  * Derives a canonical RRULE value string from the deprecated

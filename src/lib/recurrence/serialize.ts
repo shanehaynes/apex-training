@@ -1,5 +1,5 @@
-import type { RecurrenceRule } from './types';
-import { validateRRule } from './validate';
+import type { RecurrenceRule } from './types.js';
+import { validateRRule } from './validate.js';
 
 /**
  * Serializes a RecurrenceRule to its canonical RRULE value string (no

@@ -1,5 +1,5 @@
-import type { RecurrenceRule, Weekday } from './types';
-import { validateRRule, isValidIsoDate } from './validate';
+import type { RecurrenceRule, Weekday } from './types.js';
+import { validateRRule, isValidIsoDate } from './validate.js';
 
 const KNOWN_KEYS = ['FREQ', 'INTERVAL', 'BYDAY', 'BYMONTHDAY', 'COUNT', 'UNTIL'] as const;
 type KnownKey = (typeof KNOWN_KEYS)[number];
