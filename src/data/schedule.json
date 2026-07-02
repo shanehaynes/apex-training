@@ -1,6 +1,6 @@
 {
   "version": "1.1",
-  "lastUpdated": "2026-06-27",
+  "lastUpdated": "2026-07-02",
   "events": [
     {
       "id": "w1-mon-morning",
@@ -35066,6 +35066,569 @@
       ],
       "isCompleted": false,
       "isRecurring": false
+    },
+    {
+      "id": "stuart-mon-climbing-arc",
+      "type": "climbing",
+      "title": "Climbing \u2014 ARC Training",
+      "subtitle": "Aerobic Restoration & Capillarization",
+      "date": "2026-07-06",
+      "startTime": "4:00 PM",
+      "endTime": "5:00 PM",
+      "estimatedDuration": 60,
+      "description": "ARC targets the vascular and oxidative infrastructure of the forearm \u2014 capillary density and lactate clearance. Pump, not strength, is the primary outdoor failure mode this addresses. Technique work happens first, while completely fresh.",
+      "warmup": [
+        {
+          "id": "stuart-arc-wu-1",
+          "name": "Prone YTWs",
+          "category": "mobility",
+          "sets": 3,
+          "notes": "No weight. Lower trap and rhomboids \u2014 counters lat dominance from climbing. Do not add weight until the movement pattern is clean and consistent."
+        },
+        {
+          "id": "stuart-arc-wu-2",
+          "name": "Face Pulls with External Rotation",
+          "category": "mobility",
+          "sets": 3,
+          "weight": "Light band",
+          "notes": "Counters internal rotation bias. Shoulder longevity."
+        }
+      ],
+      "exercises": [
+        {
+          "id": "stuart-arc-1",
+          "name": "Technique Practice (fresh)",
+          "category": "skill",
+          "duration": "15 min",
+          "notes": "BEFORE ARC, not after \u2014 full cognitive and physical resources available. Drop knees, flagging, hip positioning, reading sequences. Pick one or two movement patterns to drill, not projecting."
+        },
+        {
+          "id": "stuart-arc-2",
+          "name": "ARC Traversing",
+          "category": "cardio",
+          "duration": "30\u201340 min",
+          "weight": "40\u201350% effort",
+          "notes": "INTENSITY RULE: must be able to speak full sentences throughout. Forearms flushed and warm, never tight or pumped \u2014 the moment they tighten, intensity is too high. At Yale (bouldering only): set a timer and traverse the easiest wall continuously, not picking interesting problems."
+        }
+      ],
+      "difficulty": 2,
+      "location": "Yale Climbing Wall",
+      "tags": [
+        "climbing",
+        "ARC",
+        "endurance",
+        "technique",
+        "pump capacity"
+      ],
+      "equipment": [
+        "climbing shoes",
+        "chalk"
+      ],
+      "isCompleted": false,
+      "isRecurring": true,
+      "recurrenceRule": "FREQ=WEEKLY;BYDAY=MO;UNTIL=20260927"
+    },
+    {
+      "id": "stuart-tue-weights-a",
+      "type": "weights",
+      "title": "Weights \u2014 Session A: Pull / Hinge / Clean",
+      "subtitle": "Stuart Program \u2014 Phase 1",
+      "date": "2026-07-07",
+      "startTime": "5:30 PM",
+      "endTime": "6:45 PM",
+      "estimatedDuration": 70,
+      "description": "75\u201380% effort, not 100%. Bar moves fast and under control on cleans \u2014 you could add weight but won't. Pulling system worked but not torched; you should leave with energy remaining. Every session begins with the glute activation warmup before any lower body loading.",
+      "warmup": [
+        {
+          "id": "stuart-warm-1",
+          "name": "Banded Glute Bridges",
+          "category": "mobility",
+          "sets": 2,
+          "reps": "10",
+          "notes": "PRIMARY CORRECTIVE ENTRY POINT. Band above knees. Activates glutes neurologically before any lower body loading. Non-negotiable sequencing \u2014 do not skip or abbreviate."
+        },
+        {
+          "id": "stuart-warm-2",
+          "name": "Dead Bug",
+          "category": "mobility",
+          "sets": 2,
+          "reps": "8 slow",
+          "notes": "Lumbar imprinted flat throughout. Establish posterior pelvic tilt before each rep. Anterior core in neutral pelvis."
+        },
+        {
+          "id": "stuart-warm-3",
+          "name": "Neck Curls",
+          "category": "mobility",
+          "reps": "10 fwd/back",
+          "notes": "Cervical spine preparation. Completes postural chain top and bottom."
+        },
+        {
+          "id": "stuart-warm-4",
+          "name": "Fire Hydrants",
+          "category": "mobility",
+          "reps": "10 each leg",
+          "notes": "Hip abductor activation. Glute medius primer before loaded single-leg work."
+        },
+        {
+          "id": "stuart-warm-5",
+          "name": "3-Point Plank",
+          "category": "mobility",
+          "sets": 8,
+          "reps": "full rounds",
+          "notes": "Anti-extension stability. One limb removed from plank position, cycling all four."
+        },
+        {
+          "id": "stuart-warm-6",
+          "name": "Toes to Bar",
+          "category": "strength",
+          "reps": "6",
+          "notes": "Anterior chain integration. Hip flexor and lat activation under hang."
+        },
+        {
+          "id": "stuart-warm-7",
+          "name": "Side Plank Twist",
+          "category": "strength",
+          "weight": "35 lbs",
+          "reps": "10 each side",
+          "notes": "Lateral anti-flexion with rotation. Oblique and quadratus lumborum."
+        },
+        {
+          "id": "stuart-warm-8",
+          "name": "Pallof Press Hold",
+          "category": "mobility",
+          "sets": 3,
+          "duration": "20\u201330 sec each",
+          "notes": "Anti-rotation under asymmetric load. Directly addresses hip-dropping pattern on steep terrain. Light weight, pure isometric."
+        },
+        {
+          "id": "stuart-warm-9",
+          "name": "Cable Chop",
+          "category": "strength",
+          "sets": 3,
+          "reps": "10 each, light",
+          "notes": "Rotational core primer. Neural primer before loading, not a finisher."
+        }
+      ],
+      "exercises": [
+        {
+          "id": "stuart-a-1",
+          "name": "Clean and Jerk",
+          "category": "strength",
+          "sets": 4,
+          "reps": "pyramid to 3\u20135",
+          "weight": "~115 lbs (85% max)",
+          "notes": "Bar moves fast or don't add weight. Overhead squat follows immediately after the jerk on each set while the pattern is warm \u2014 best full-body neural primer available."
+        },
+        {
+          "id": "stuart-a-2",
+          "name": "Overhead Squat (immediately post-jerk)",
+          "category": "skill",
+          "sets": 3,
+          "reps": "5",
+          "weight": "Light / 95 lbs",
+          "notes": "Movement quality drill, not strength work. Slow descent, pause at bottom, torso upright. If position breaks, reduce weight \u2014 do not programme as a separate strength exercise."
+        },
+        {
+          "id": "stuart-a-3",
+          "name": "Weighted Pull-Ups",
+          "category": "strength",
+          "sets": 4,
+          "reps": "4\u20136",
+          "weight": "~35 lbs",
+          "notes": "3-second eccentric every rep \u2014 this is where the tendon stimulus lives. Wall slides between each set: 5 reps, back straight against wall. Elbow at 80% means stopping at 4 sets, not grinding a fifth with degraded mechanics."
+        },
+        {
+          "id": "stuart-a-4",
+          "name": "Chest-Supported Dumbbell Row",
+          "category": "strength",
+          "sets": 4,
+          "reps": "6\u20138",
+          "weight": "Moderate \u2014 progress weekly",
+          "notes": "PRIMARY HORIZONTAL PULL \u2014 treat as seriously as pull-ups. Prone on incline bench. Elbows track back at 45 degrees, row to lower ribcage. Feel the mid-trap and rhomboids, not the biceps."
+        },
+        {
+          "id": "stuart-a-5",
+          "name": "Pistol Squats",
+          "category": "strength",
+          "sets": 3,
+          "reps": "5 each",
+          "weight": "15\u201320 lbs",
+          "notes": "Fixed prescription \u2014 not 'whatever legs remain.' Full depth, heel flat, controlled descent. Reduce load before reducing depth. Hips warm from triple extension work."
+        },
+        {
+          "id": "stuart-a-6",
+          "name": "Copenhagen Plank",
+          "category": "mobility",
+          "sets": 3,
+          "duration": "20\u201330 sec each",
+          "notes": "Glute medius, hip adductor-abductor balance, pelvic frontal plane stability. Hips warm from pistols. Do not let hips sag."
+        },
+        {
+          "id": "stuart-ant-1",
+          "name": "Wrist Twist + Reverse Wrist Curl",
+          "category": "mobility",
+          "sets": 3,
+          "reps": "15",
+          "weight": "15 lbs",
+          "notes": "ELBOW MAINTENANCE \u2014 non-negotiable regardless of how the session went. Phase 1 (Weeks 1\u20133): isometric holds + wrist twist + reverse wrist curl only. Add Tyler Twists at Week 4 if elbow response has been clean."
+        },
+        {
+          "id": "stuart-ant-2",
+          "name": "Band External Rotation",
+          "category": "mobility",
+          "sets": 3,
+          "reps": "15 each",
+          "weight": "Light band",
+          "notes": "Side-lying or standing. Counters internal rotation bias from climbing volume. Shoulder longevity. This is 90 seconds \u2014 do not skip it."
+        },
+        {
+          "id": "stuart-a-7",
+          "name": "Hammer Curls",
+          "category": "strength",
+          "sets": 3,
+          "reps": "8\u201310",
+          "weight": "Moderate",
+          "notes": "Session A only \u2014 once per week. Brachialis recruitment is more relevant to the lock-off position than standard curls. Controlled eccentric, not a finisher grind."
+        }
+      ],
+      "difficulty": 4,
+      "location": "Yale Weight Room",
+      "tags": [
+        "strength",
+        "pull",
+        "hinge",
+        "olympic lift",
+        "glute activation",
+        "elbow protocol"
+      ],
+      "equipment": [
+        "barbell",
+        "pull-up bar",
+        "dumbbells",
+        "resistance band",
+        "cable machine"
+      ],
+      "isCompleted": false,
+      "isRecurring": true,
+      "recurrenceRule": "FREQ=WEEKLY;BYDAY=TU;UNTIL=20260927"
+    },
+    {
+      "id": "stuart-thu-climbing-skill",
+      "type": "climbing",
+      "title": "Climbing \u2014 Skill / Project Day",
+      "subtitle": "Stuart Program \u2014 Phase 1",
+      "date": "2026-07-09",
+      "startTime": "4:00 PM",
+      "endTime": "5:15 PM",
+      "estimatedDuration": 70,
+      "description": "This is where grade improvement actually happens. ARC builds the capacity to be here repeatedly; the weight room keeps you healthy enough to show up. Skill work happens first while fresh, then full-effort pushing at or above limit.",
+      "warmup": [
+        {
+          "id": "stuart-thu-wu-1",
+          "name": "Prone YTWs",
+          "category": "mobility",
+          "sets": 3,
+          "notes": "Same climbing-specific warmup as Monday. Scapular stabilizers primed before loading the shoulder on hard moves."
+        },
+        {
+          "id": "stuart-thu-wu-2",
+          "name": "Face Pulls with External Rotation",
+          "category": "mobility",
+          "sets": 3,
+          "weight": "Light band"
+        }
+      ],
+      "exercises": [
+        {
+          "id": "stuart-thu-1",
+          "name": "Skill Work",
+          "category": "skill",
+          "duration": "20\u201330 min",
+          "weight": "Below project grade",
+          "notes": "Hip positioning, drop knees, flagging, reading \u2014 while fresh, not after best attempts are burned. Pick the movement pattern that failed on the last outdoor objective and drill it here."
+        },
+        {
+          "id": "stuart-thu-2",
+          "name": "Project / Push",
+          "category": "skill",
+          "duration": "30\u201340 min",
+          "weight": "Full effort",
+          "notes": "The strength and technique ceiling work \u2014 contact strength and body positioning on steep terrain. Rest fully between attempts, 3\u20135 minutes. Quality over quantity."
+        }
+      ],
+      "cooldown": [
+        {
+          "id": "stuart-thu-cd-1",
+          "name": "Easy Traversing",
+          "category": "cardio",
+          "duration": "5\u201310 min",
+          "weight": "Very low intensity",
+          "notes": "Flush the forearms. Not a second ARC session \u2014 just active recovery before leaving."
+        }
+      ],
+      "difficulty": 4,
+      "location": "Yale Climbing Wall",
+      "tags": [
+        "climbing",
+        "project",
+        "technique",
+        "grade progression"
+      ],
+      "equipment": [
+        "climbing shoes",
+        "chalk"
+      ],
+      "isCompleted": false,
+      "isRecurring": true,
+      "recurrenceRule": "FREQ=WEEKLY;BYDAY=TH;UNTIL=20260927"
+    },
+    {
+      "id": "stuart-fri-weights-b",
+      "type": "weights",
+      "title": "Weights \u2014 Session B: Push / Squat / Posterior Chain",
+      "subtitle": "Stuart Program \u2014 Phase 1",
+      "date": "2026-07-10",
+      "startTime": "5:00 PM",
+      "endTime": "6:20 PM",
+      "estimatedDuration": 80,
+      "description": "75\u201380% effort. Legs worked, shoulders loaded but stable. Upper body push emphasis is lower today \u2014 legs from Thursday climbing will be fresher than the pulling system was on Tuesday.",
+      "warmup": [
+        {
+          "id": "stuart-warm-1",
+          "name": "Banded Glute Bridges",
+          "category": "mobility",
+          "sets": 2,
+          "reps": "10",
+          "notes": "PRIMARY CORRECTIVE ENTRY POINT. Band above knees. Activates glutes neurologically before any lower body loading. Non-negotiable sequencing \u2014 do not skip or abbreviate."
+        },
+        {
+          "id": "stuart-warm-2",
+          "name": "Dead Bug",
+          "category": "mobility",
+          "sets": 2,
+          "reps": "8 slow",
+          "notes": "Lumbar imprinted flat throughout. Establish posterior pelvic tilt before each rep. Anterior core in neutral pelvis."
+        },
+        {
+          "id": "stuart-warm-3",
+          "name": "Neck Curls",
+          "category": "mobility",
+          "reps": "10 fwd/back",
+          "notes": "Cervical spine preparation. Completes postural chain top and bottom."
+        },
+        {
+          "id": "stuart-warm-4",
+          "name": "Fire Hydrants",
+          "category": "mobility",
+          "reps": "10 each leg",
+          "notes": "Hip abductor activation. Glute medius primer before loaded single-leg work."
+        },
+        {
+          "id": "stuart-warm-5",
+          "name": "3-Point Plank",
+          "category": "mobility",
+          "sets": 8,
+          "reps": "full rounds",
+          "notes": "Anti-extension stability. One limb removed from plank position, cycling all four."
+        },
+        {
+          "id": "stuart-warm-6",
+          "name": "Toes to Bar",
+          "category": "strength",
+          "reps": "6",
+          "notes": "Anterior chain integration. Hip flexor and lat activation under hang."
+        },
+        {
+          "id": "stuart-warm-7",
+          "name": "Side Plank Twist",
+          "category": "strength",
+          "weight": "35 lbs",
+          "reps": "10 each side",
+          "notes": "Lateral anti-flexion with rotation. Oblique and quadratus lumborum."
+        },
+        {
+          "id": "stuart-warm-8",
+          "name": "Pallof Press Hold",
+          "category": "mobility",
+          "sets": 3,
+          "duration": "20\u201330 sec each",
+          "notes": "Anti-rotation under asymmetric load. Directly addresses hip-dropping pattern on steep terrain. Light weight, pure isometric."
+        },
+        {
+          "id": "stuart-warm-9",
+          "name": "Cable Chop",
+          "category": "strength",
+          "sets": 3,
+          "reps": "10 each, light",
+          "notes": "Rotational core primer. Neural primer before loading, not a finisher."
+        }
+      ],
+      "exercises": [
+        {
+          "id": "stuart-b-1",
+          "name": "Back Squat",
+          "category": "strength",
+          "sets": 4,
+          "reps": "pyramid 4\u20136",
+          "weight": "~240 lbs (85% max)",
+          "notes": "Goblet squat 2x5 with pause at bottom as warmup finisher before loading the bar. Controlled descent, heels flat, knees track toes. Four quality sets at 85% outperforms five sets to failure."
+        },
+        {
+          "id": "stuart-b-2",
+          "name": "Single-Leg RDL",
+          "category": "strength",
+          "sets": 3,
+          "reps": "6 each",
+          "weight": "DB or barbell, moderate",
+          "notes": "CORRECTIVE INTEGRATION \u2014 targets glute medius and posterior glute specifically. Pause and squeeze the glute hard at the top. Feel the glute contract, not the hamstring."
+        },
+        {
+          "id": "stuart-b-3",
+          "name": "Nordic Hamstring Curls",
+          "category": "strength",
+          "sets": 3,
+          "reps": "5",
+          "weight": "Bodyweight",
+          "notes": "4\u20135 second eccentric \u2014 slow is the point. Ankles anchored under a bar or partner. Progress to 3x8 before adding any resistance."
+        },
+        {
+          "id": "stuart-b-4",
+          "name": "Ring Dips",
+          "category": "strength",
+          "sets": 4,
+          "reps": "5\u20136",
+          "weight": "~45\u201350 lbs",
+          "notes": "PRIMARY PUSH \u2014 replaces bench press. Full depth (upper arm below parallel), full lockout. Instability is the training stimulus \u2014 do not grip the rings against your body."
+        },
+        {
+          "id": "stuart-b-5",
+          "name": "Landmine Press + Reach",
+          "category": "strength",
+          "sets": 3,
+          "reps": "8 each",
+          "weight": "Moderate",
+          "notes": "Full protraction at the top \u2014 the serratus benefit lives in the last few inches. Scapula should visibly wing forward at end range."
+        },
+        {
+          "id": "stuart-b-6",
+          "name": "Calf Raises (single leg)",
+          "category": "strength",
+          "sets": 3,
+          "reps": "5",
+          "weight": "40 lbs",
+          "notes": "Full range \u2014 heel drops below platform level at the bottom. Approach fitness and descent load management live here."
+        },
+        {
+          "id": "stuart-b-7",
+          "name": "Tib Raises",
+          "category": "strength",
+          "sets": 3,
+          "reps": "13",
+          "weight": "Bodyweight",
+          "notes": "Between each calf set. Tibialis anterior \u2014 most climbers ignore this until shin splints show up on a long approach."
+        },
+        {
+          "id": "stuart-b-8",
+          "name": "Hanging Leg Raises",
+          "category": "strength",
+          "sets": 3,
+          "reps": "10\u201312",
+          "weight": "Bodyweight",
+          "notes": "Slow and controlled. Full hang. Anterior chain integration under hip flexion load \u2014 the demand pattern when feet cut on steep terrain. Do not kip."
+        },
+        {
+          "id": "stuart-b-9",
+          "name": "Front Lever Negatives (optional)",
+          "category": "strength",
+          "sets": 3,
+          "reps": "5",
+          "weight": "Bodyweight tuck",
+          "notes": "OPTIONAL when time-limited. Tuck position, 5-second lowering from horizontal to hang. 6\u201312 month project. FIRST to drop when session needs to finish under 70 min \u2014 never drop the antagonist block to fit these in."
+        },
+        {
+          "id": "stuart-ant-1",
+          "name": "Wrist Twist + Reverse Wrist Curl",
+          "category": "mobility",
+          "sets": 3,
+          "reps": "15",
+          "weight": "15 lbs",
+          "notes": "ELBOW MAINTENANCE \u2014 non-negotiable regardless of how the session went. Phase 1 (Weeks 1\u20133): isometric holds + wrist twist + reverse wrist curl only. Add Tyler Twists at Week 4 if elbow response has been clean."
+        },
+        {
+          "id": "stuart-ant-2",
+          "name": "Band External Rotation",
+          "category": "mobility",
+          "sets": 3,
+          "reps": "15 each",
+          "weight": "Light band",
+          "notes": "Side-lying or standing. Counters internal rotation bias from climbing volume. Shoulder longevity. This is 90 seconds \u2014 do not skip it."
+        }
+      ],
+      "difficulty": 4,
+      "location": "Yale Weight Room",
+      "tags": [
+        "strength",
+        "push",
+        "squat",
+        "posterior chain",
+        "glute activation",
+        "elbow protocol"
+      ],
+      "equipment": [
+        "barbell",
+        "rings",
+        "dumbbells",
+        "landmine attachment",
+        "resistance band"
+      ],
+      "isCompleted": false,
+      "isRecurring": true,
+      "recurrenceRule": "FREQ=WEEKLY;BYDAY=FR;UNTIL=20260927"
+    },
+    {
+      "id": "stuart-daily-hangboard",
+      "type": "morning-routine",
+      "title": "Morning Hangboard \u2014 Elbow-Safe Priming",
+      "subtitle": "Stuart Program \u2014 Phase 1",
+      "date": "2026-07-06",
+      "startTime": "6:30 AM",
+      "endTime": "6:40 AM",
+      "estimatedDuration": 10,
+      "description": "Collagen synthesis priming, not a training session \u2014 increasing blood flow to pulleys and flexor tendons at low load. Treat it as a musician's scales before performance: preparing the instrument, not practicing. Outside the weekly training budget. No full crimp, no minimum edges, no two-finger pockets \u2014 dedicated finger strength sessions are a Phase 2 addition, not now given elbow history.",
+      "exercises": [
+        {
+          "id": "stuart-hb-1",
+          "name": "Warm-Up Hangs",
+          "category": "skill",
+          "sets": 4,
+          "duration": "10s on / 5s off",
+          "weight": "35\u201340mm or jug, open hand",
+          "notes": "4\u20135/10 intensity \u2014 almost nothing."
+        },
+        {
+          "id": "stuart-hb-2",
+          "name": "Main Block Hangs",
+          "category": "skill",
+          "sets": 6,
+          "duration": "10s on / 5s off, alternate grips each hang",
+          "weight": "20\u201325mm, open hand + 3-finger drag",
+          "notes": "5\u20136/10 intensity, warm and ready. If forearms feel pumped after this block, edges were too small or intensity too high."
+        }
+      ],
+      "difficulty": 1,
+      "location": "Home",
+      "tags": [
+        "hangboard",
+        "finger health",
+        "elbow protocol",
+        "morning"
+      ],
+      "equipment": [
+        "hangboard"
+      ],
+      "isCompleted": false,
+      "isRecurring": true,
+      "recurrenceRule": "FREQ=DAILY;UNTIL=20260927"
     }
   ]
 }

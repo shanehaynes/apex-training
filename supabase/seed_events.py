@@ -59,6 +59,7 @@ def map_event(e: dict) -> dict:
         "tags":                e.get("tags") or [],
         "equipment":           e.get("equipment") or [],
         "is_recurring":        bool(e.get("isRecurring")),
+        "recurrence_rule":     e.get("recurrenceRule"),
         "recurring_frequency": rp.get("frequency"),
         "recurring_days":      rp.get("daysOfWeek"),
         "recurring_end_date":  rp.get("endDate"),
