@@ -496,6 +496,18 @@
   opacity: 0.5;
 }
 
+.week-event--compact .week-event__main {
+  padding: 2px 4px 2px 6px;
+  justify-content: center;
+}
+
+.week-event--compact .week-event__title {
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .week-event__main {
   flex: 1;
   min-width: 0;

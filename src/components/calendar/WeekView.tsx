@@ -30,7 +30,9 @@ function EventBlock({ event, colIndex, colCount }: EventBlockProps) {
   const { toggleCompletion } = useSchedule();
   const color = getWorkoutColor(event.type);
   const top = event.startTime ? ((timeToMinutes(event.startTime) - DAY_START) / 60) * SLOT_HEIGHT : 0;
-  const height = Math.max((event.estimatedDuration / 60) * SLOT_HEIGHT, 44);
+  const height = (event.estimatedDuration / 60) * SLOT_HEIGHT;
+  // Compact mode: not enough vertical room to stack title + time
+  const compact = height < 28;
 
   const GAP = 4;
   const colWidth = `calc((100% - ${GAP * (colCount + 1)}px) / ${colCount})`;
@@ -38,16 +40,16 @@ function EventBlock({ event, colIndex, colCount }: EventBlockProps) {
 
   return (
     <div
-      className={`week-event${event.isCompleted ? ' week-event--done' : ''}`}
-      style={{ top, height, background: color.light, borderLeft: `3px solid ${color.solid}`, left: leftOffset, right: GAP, width: colWidth }}
+      className={`week-event${event.isCompleted ? ' week-event--done' : ''}${compact ? ' week-event--compact' : ''}`}
+      style={{ top, height: Math.max(height, 14), background: color.light, borderLeft: `3px solid ${color.solid}`, left: leftOffset, right: GAP, width: colWidth }}
     >
       <button
         className="week-event__main"
         onClick={() => dispatch({ type: 'SELECT_EVENT', payload: event })}
         aria-label={event.title}
       >
-        <span className="week-event__title">{event.title}</span>
-        {event.startTime && <span className="week-event__time">{event.startTime}</span>}
+        <span className="week-event__title">{event.title}{compact && event.startTime ? ` · ${event.startTime}` : ''}</span>
+        {!compact && event.startTime && <span className="week-event__time">{event.startTime}</span>}
       </button>
       <button
         className="week-event__check"
