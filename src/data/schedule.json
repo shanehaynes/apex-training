@@ -629,52 +629,6 @@
       "isRecurring": false
     },
     {
-      "id": "w1-thu-cardio",
-      "type": "cardio",
-      "title": "Zone 2 Run",
-      "subtitle": "Aerobic Base Building",
-      "date": "2026-06-25",
-      "startTime": "6:15 AM",
-      "endTime": "7:15 AM",
-      "estimatedDuration": 60,
-      "description": "Zone 2 running builds the aerobic engine that underpins all other training. Keep heart rate between 130\u2013145 BPM \u2014 you should be able to hold a conversation. If you can't, slow down. Consistency over weeks is what moves the needle.",
-      "exercises": [
-        {
-          "id": "run-1",
-          "name": "Easy Warm-Up Walk",
-          "category": "cardio",
-          "duration": "5 min"
-        },
-        {
-          "id": "run-2",
-          "name": "Zone 2 Run",
-          "category": "cardio",
-          "duration": "50 min",
-          "notes": "Target HR: 130\u2013145 BPM. Pace is secondary \u2014 let HR dictate speed."
-        },
-        {
-          "id": "run-3",
-          "name": "Cool-Down Walk",
-          "category": "cardio",
-          "duration": "5 min"
-        }
-      ],
-      "difficulty": 2,
-      "location": "Neighborhood / Trail",
-      "tags": [
-        "cardio",
-        "zone 2",
-        "aerobic",
-        "running"
-      ],
-      "equipment": [
-        "running shoes",
-        "HR monitor"
-      ],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
       "id": "w1-thu-stretch",
       "type": "stretching",
       "title": "Nightly Stretch \u2014 Upper",
@@ -1754,51 +1708,6 @@
       "isRecurring": false
     },
     {
-      "id": "w2-thu-cardio",
-      "type": "cardio",
-      "title": "Zone 2 Run",
-      "subtitle": "Aerobic Base \u2014 Week 2",
-      "date": "2026-07-02",
-      "startTime": "6:15 AM",
-      "endTime": "7:15 AM",
-      "estimatedDuration": 60,
-      "description": "Same run, same zone. The gains compound invisibly over weeks. Trust the process.",
-      "exercises": [
-        {
-          "id": "run-w2-1",
-          "name": "Warm-Up Walk",
-          "category": "cardio",
-          "duration": "5 min"
-        },
-        {
-          "id": "run-w2-2",
-          "name": "Zone 2 Run",
-          "category": "cardio",
-          "duration": "50 min",
-          "notes": "HR: 130\u2013145 BPM."
-        },
-        {
-          "id": "run-w2-3",
-          "name": "Cool-Down Walk",
-          "category": "cardio",
-          "duration": "5 min"
-        }
-      ],
-      "difficulty": 2,
-      "location": "Trail",
-      "tags": [
-        "cardio",
-        "zone 2",
-        "endurance"
-      ],
-      "equipment": [
-        "running shoes",
-        "HR monitor"
-      ],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
       "id": "w2-thu-stretch",
       "type": "stretching",
       "title": "Nightly Stretch \u2014 Upper",
@@ -2795,51 +2704,6 @@
       ],
       "equipment": [
         "foam roller"
-      ],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
-      "id": "w3-thu-cardio",
-      "type": "cardio",
-      "title": "Zone 2 Run",
-      "subtitle": "Aerobic Base \u2014 Week 3",
-      "date": "2026-07-09",
-      "startTime": "6:15 AM",
-      "endTime": "7:15 AM",
-      "estimatedDuration": 60,
-      "description": "Third consecutive week. The aerobic engine is building \u2014 pace at the same HR may be starting to creep up. That is the adaptation.",
-      "exercises": [
-        {
-          "id": "run-w3-1",
-          "name": "Warm-Up Walk",
-          "category": "cardio",
-          "duration": "5 min"
-        },
-        {
-          "id": "run-w3-2",
-          "name": "Zone 2 Run",
-          "category": "cardio",
-          "duration": "50 min",
-          "notes": "HR: 130\u2013145 BPM. Note pace at 30-min mark."
-        },
-        {
-          "id": "run-w3-3",
-          "name": "Cool-Down Walk",
-          "category": "cardio",
-          "duration": "5 min"
-        }
-      ],
-      "difficulty": 2,
-      "location": "Trail",
-      "tags": [
-        "cardio",
-        "zone 2",
-        "endurance"
-      ],
-      "equipment": [
-        "running shoes",
-        "HR monitor"
       ],
       "isCompleted": false,
       "isRecurring": false
