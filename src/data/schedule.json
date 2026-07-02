@@ -2956,62 +2956,6 @@
       "isRecurring": false
     },
     {
-      "id": "w3-sat-yoga",
-      "type": "yoga",
-      "title": "Yoga & Mobility",
-      "subtitle": "Full Body Flow",
-      "date": "2026-07-11",
-      "startTime": "8:00 AM",
-      "endTime": "9:00 AM",
-      "estimatedDuration": 60,
-      "description": "Replacing the Saturday lift this week with a full-length yoga and mobility session. After three heavy weeks, the body benefits from controlled movement through full range of motion, breath synchronization, and parasympathetic activation.",
-      "exercises": [
-        {
-          "id": "yg-1",
-          "name": "Sun Salutation A \u00d7 5",
-          "category": "mobility",
-          "duration": "15 min"
-        },
-        {
-          "id": "yg-2",
-          "name": "Sun Salutation B \u00d7 3",
-          "category": "mobility",
-          "duration": "10 min"
-        },
-        {
-          "id": "yg-3",
-          "name": "Standing Flow Sequence",
-          "category": "mobility",
-          "duration": "15 min",
-          "notes": "Warrior 1, 2, Triangle, Half Moon, Reverse Warrior"
-        },
-        {
-          "id": "yg-4",
-          "name": "Hip Opening Sequence",
-          "category": "stretch",
-          "duration": "10 min",
-          "notes": "Lizard, Pigeon, Yin hold"
-        },
-        {
-          "id": "yg-5",
-          "name": "Supine Cool-Down",
-          "category": "stretch",
-          "duration": "10 min",
-          "notes": "Bridge, Reclined Pigeon, Spinal Twist, Savasana"
-        }
-      ],
-      "difficulty": 2,
-      "location": "Home",
-      "tags": [
-        "yoga",
-        "mobility",
-        "flexibility",
-        "recovery"
-      ],
-      "isCompleted": false,
-      "isRecurring": false
-    },
-    {
       "id": "w3-sat-stretch",
       "type": "stretching",
       "title": "Nightly Stretch \u2014 Spine & Hip",
