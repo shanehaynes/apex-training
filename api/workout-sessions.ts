@@ -41,7 +41,7 @@ interface RemovedSetKey {
 }
 
 interface Body {
-  action?: 'start' | 'save' | 'finish';
+  action?: 'start' | 'save' | 'finish' | 'cancel';
   eventId?: string;
   eventDate?: string;
   setLogs?: SetLogRow[];
@@ -193,6 +193,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     res.status(200).json({ ok: true, totalDurationSeconds: totalSeconds });
+    return;
+  }
+
+  // ── cancel: forget the session entirely — no resume, no history ────────────
+  if (body.action === 'cancel') {
+    const results = await Promise.all([
+      supabase.from('workout_set_logs').delete().eq('event_id', eventId).eq('event_date', eventDate),
+      supabase.from('workout_cardio_logs').delete().eq('event_id', eventId).eq('event_date', eventDate),
+      supabase.from('workout_sessions').delete().eq('event_id', eventId).eq('event_date', eventDate),
+    ]);
+    const failed = results.find(r => r.error);
+    if (failed?.error) {
+      console.error('[api/workout-sessions] cancel failed:', failed.error.message);
+      res.status(500).send('Failed to cancel session');
+      return;
+    }
+
+    res.status(200).json({ ok: true });
     return;
   }
 

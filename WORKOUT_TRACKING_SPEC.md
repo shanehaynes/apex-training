@@ -423,3 +423,13 @@ Resolve these before or during implementation — don't guess:
 - "Start Workout" / "View Workout" button in `WorkoutModal.tsx` (before Mark as
   Complete, per Section 4.1); `trackingSession` state in `CalendarContext.tsx`;
   `setCompletion` in `ScheduleContext.tsx`; tracker styles in `src/styles/app.css`.
+
+### Post-v1 additions
+
+- **Cancel workout (2026-07-02):** a confirmed destructive action at the bottom of the
+  tracker. `action: 'cancel'` deletes the session row and all set/cardio logs for the
+  occurrence — nothing to resume; a later "Start Workout" begins a fresh session. Pending
+  autosaves are suppressed the moment cancel is confirmed so a queued debounce can't
+  re-create rows after the delete. Cancelling a previously *finished* session also
+  un-completes the event (finish is what completed it); a never-finished session leaves
+  the completion flag untouched.

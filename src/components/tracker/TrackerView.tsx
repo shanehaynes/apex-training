@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, CheckCircle2, Flag } from 'lucide-react';
+import { ChevronLeft, CheckCircle2, Flag, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/CalendarContext';
 import { useSchedule } from '../../context/ScheduleContext';
@@ -45,12 +45,17 @@ export default function TrackerView() {
   const [elapsed, setElapsed] = useState(0);
   const [confirmCount, setConfirmCount] = useState<number | null>(null);
   const [isFinishing, setIsFinishing] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const groupsRef = useRef<TrackedSectionGroup[]>([]);
   const dirtySetsRef = useRef<Set<string>>(new Set());   // `${section}|${exerciseId}|${setNumber}`
   const dirtyCardioRef = useRef<Set<string>>(new Set()); // `${section}|${exerciseId}`
   const removedRef = useRef<RemovedSetKey[]>([]);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Set the moment a cancel is confirmed: blocks the debounced autosave and
+  // the visibilitychange flush from re-creating rows after the delete.
+  const cancelledRef = useRef(false);
 
   if (groups) groupsRef.current = groups;
 
@@ -120,7 +125,7 @@ export default function TrackerView() {
 
   const flushSave = useCallback(async () => {
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
-    if (!event || !supabase) return;
+    if (!event || !supabase || cancelledRef.current) return;
 
     const setLogs: SetLogRow[] = [];
     for (const key of dirtySetsRef.current) {
@@ -222,11 +227,48 @@ export default function TrackerView() {
     scheduleSave();
   };
 
-  // ── Finish / close ──────────────────────────────────────────────────────────
+  // ── Finish / cancel / close ─────────────────────────────────────────────────
 
   const close = async () => {
     await flushSave();
     dispatch({ type: 'STOP_TRACKING' });
+  };
+
+  const cancelWorkout = async () => {
+    if (!event || isCancelling) return;
+
+    cancelledRef.current = true;
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
+    dirtySetsRef.current = new Set();
+    dirtyCardioRef.current = new Set();
+    removedRef.current = [];
+
+    setIsCancelling(true);
+    try {
+      if (supabase) {
+        const res = await fetch('/api/workout-sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'cancel', eventId: event.id, eventDate: event.date }),
+        });
+        if (!res.ok) {
+          console.warn('[apex] Cancel failed:', await res.text());
+          cancelledRef.current = false;
+          setIsCancelling(false);
+          setConfirmCancel(false);
+          return;
+        }
+      }
+      // A finished session set the completion flag — forgetting the workout
+      // forgets that too. A never-finished session never completed anything.
+      if (isFinished) setCompletion(event.id, false);
+      dispatch({ type: 'STOP_TRACKING' });
+    } catch (err) {
+      console.warn('[apex] Cancel failed:', err);
+      cancelledRef.current = false;
+      setIsCancelling(false);
+      setConfirmCancel(false);
+    }
   };
 
   const finish = async () => {
@@ -234,6 +276,7 @@ export default function TrackerView() {
 
     const autofillRows = collectUntouchedPlanned(event.id, event.date, groups);
     if (confirmCount === null && autofillRows.length > 0) {
+      setConfirmCancel(false);
       setConfirmCount(autofillRows.length);
       return;
     }
@@ -319,6 +362,15 @@ export default function TrackerView() {
             </div>
           ))
         )}
+        {groups && (
+          <button
+            className="tracker-cancel"
+            onClick={() => { setConfirmCount(null); setConfirmCancel(true); }}
+            disabled={isFinishing || isCancelling}
+          >
+            <Trash2 size={14} strokeWidth={1.5} /> Cancel workout
+          </button>
+        )}
       </div>
 
       {confirmCount !== null && !isFinishing && (
@@ -329,6 +381,20 @@ export default function TrackerView() {
           <button className="tracker-confirm__cancel" onClick={() => setConfirmCount(null)}>Keep going</button>
           <button className="tracker-confirm__go" style={{ background: color.solid }} onClick={finish}>
             Finish anyway
+          </button>
+        </div>
+      )}
+
+      {confirmCancel && (
+        <div className="tracker-confirm">
+          <span className="tracker-confirm__msg">
+            Cancel this workout? Everything logged for this session is deleted — it can't be resumed.
+          </span>
+          <button className="tracker-confirm__cancel" onClick={() => setConfirmCancel(false)} disabled={isCancelling}>
+            Keep going
+          </button>
+          <button className="tracker-confirm__go tracker-confirm__go--danger" onClick={cancelWorkout} disabled={isCancelling}>
+            {isCancelling ? 'Discarding…' : 'Discard workout'}
           </button>
         </div>
       )}

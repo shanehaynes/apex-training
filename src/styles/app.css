@@ -2159,6 +2159,45 @@
   opacity: 0.85;
 }
 
+.tracker-confirm__go--danger {
+  background: #b91c1c;
+}
+
+.tracker-confirm__go:disabled,
+.tracker-confirm__cancel:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tracker-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  align-self: center;
+  margin-top: 8px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-family: var(--font-display);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.tracker-cancel:hover:not(:disabled) {
+  color: #ef4444;
+  border-color: #b91c1c;
+}
+
+.tracker-cancel:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 @media (max-width: 640px) {
   .tracker-set__planned {
     width: 84px;
