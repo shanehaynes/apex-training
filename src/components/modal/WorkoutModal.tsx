@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Calendar, Clock, MapPin, CheckCircle2, Circle } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/CalendarContext';
 import { useSchedule } from '../../context/ScheduleContext';
@@ -119,6 +119,14 @@ export default function WorkoutModal() {
           </div>
 
           <div className="modal-completion">
+            <button
+              className="modal-completion__btn modal-completion__btn--start"
+              style={{ borderColor: color.solid }}
+              onClick={() => dispatch({ type: 'START_TRACKING', payload: event })}
+            >
+              <Play size={15} strokeWidth={2} />
+              {isCompleted ? 'View Workout' : 'Start Workout'}
+            </button>
             <button
               className={`modal-completion__btn${isCompleted ? ' modal-completion__btn--done' : ''}`}
               onClick={() => toggleCompletion(event.id)}

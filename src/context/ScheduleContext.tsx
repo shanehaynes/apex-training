@@ -174,6 +174,8 @@ interface ScheduleContextValue {
   getEventsForDate: (date: Date) => WorkoutEvent[];
   getEventsForRange: (start: Date, end: Date) => WorkoutEvent[];
   toggleCompletion: (id: string) => void;
+  /** Idempotent completion set — no-op when already in the desired state. */
+  setCompletion: (id: string, completed: boolean) => void;
   createEvent: (input: CreateEventInput) => Promise<{ id: string } | null>;
   updateEvent: (input: UpdateEventInput) => Promise<boolean>;
   deleteEvent: (id: string) => Promise<boolean>;
@@ -303,11 +305,10 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   // ── Completion toggle ──────────────────────────────────────────────────────
 
-  const toggleCompletion = (id: string) => {
+  const applyCompletion = (id: string, isNowCompleted: boolean) => {
     const event = eventsRef.current.find(e => e.id === id);
     if (!event) return;
 
-    const isNowCompleted = !completedIds.has(id);
     setCompletedIds(prev => {
       const next = new Set(prev);
       isNowCompleted ? next.add(id) : next.delete(id);
@@ -343,6 +344,15 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }).then(async res => {
       if (!res.ok) console.warn('[apex] Completion sync failed:', await res.text());
     }).catch(err => console.warn('[apex] Completion sync failed:', err));
+  };
+
+  const toggleCompletion = (id: string) => {
+    applyCompletion(id, !completedIds.has(id));
+  };
+
+  const setCompletion = (id: string, completed: boolean) => {
+    if (completedIds.has(id) === completed) return;
+    applyCompletion(id, completed);
   };
 
   // ── Mutation helpers ───────────────────────────────────────────────────────
@@ -456,6 +466,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       getEventsForDate,
       getEventsForRange,
       toggleCompletion,
+      setCompletion,
       createEvent,
       updateEvent,
       deleteEvent,

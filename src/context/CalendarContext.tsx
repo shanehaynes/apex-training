@@ -6,6 +6,12 @@ interface CalendarState {
   currentDate: Date;
   selectedView: CalendarView;
   selectedEvent: WorkoutEvent | null;
+  // Deliberately not a selectedView arm: AppShell force-resets selectedView
+  // by viewport width, which would kick a tracker "view" back to the
+  // calendar mid-workout on mobile. The event snapshot is the occurrence
+  // (expanded `base__date` id for recurring events), so id + date pin the
+  // exact instance being tracked.
+  trackingSession: WorkoutEvent | null;
 }
 
 type CalendarAction =
@@ -15,7 +21,9 @@ type CalendarAction =
   | { type: 'GO_TO_DATE'; payload: Date }
   | { type: 'SET_VIEW'; payload: CalendarView }
   | { type: 'SELECT_EVENT'; payload: WorkoutEvent }
-  | { type: 'CLEAR_EVENT' };
+  | { type: 'CLEAR_EVENT' }
+  | { type: 'START_TRACKING'; payload: WorkoutEvent }
+  | { type: 'STOP_TRACKING' };
 
 function reducer(state: CalendarState, action: CalendarAction): CalendarState {
   switch (action.type) {
@@ -47,6 +55,10 @@ function reducer(state: CalendarState, action: CalendarAction): CalendarState {
       return { ...state, selectedEvent: action.payload };
     case 'CLEAR_EVENT':
       return { ...state, selectedEvent: null };
+    case 'START_TRACKING':
+      return { ...state, trackingSession: action.payload, selectedEvent: null };
+    case 'STOP_TRACKING':
+      return { ...state, trackingSession: null };
     default:
       return state;
   }
@@ -64,6 +76,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     currentDate: new Date(),
     selectedView: 'month',
     selectedEvent: null,
+    trackingSession: null,
   });
   return <CalendarContext.Provider value={{ state, dispatch }}>{children}</CalendarContext.Provider>;
 }

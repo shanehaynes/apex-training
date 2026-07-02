@@ -3,6 +3,7 @@ import TopNav from './TopNav';
 import Calendar from '../calendar/Calendar';
 import ChatSidebar from '../sidebar/ChatSidebar';
 import WorkoutModal from '../modal/WorkoutModal';
+import TrackerView from '../tracker/TrackerView';
 import MobileBottomNav from './MobileBottomNav';
 import { useCalendar } from '../../context/CalendarContext';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
@@ -36,6 +37,7 @@ export default function AppShell() {
         <MobileBottomNav activeTab={mobileTab} onChange={setMobileTab} />
       )}
       {state.selectedEvent && <WorkoutModal />}
+      {state.trackingSession && <TrackerView />}
     </div>
   );
 }

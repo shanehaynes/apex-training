@@ -59,6 +59,50 @@ export interface WorkoutEventRow {
   updated_at: string;
 }
 
+// ─── Phase 4: workout tracking rows ──────────────────────────────────────────
+// event_id follows the workout_completions convention: for recurring
+// occurrences it is the expanded `${baseId}__${date}` id.
+
+export interface WorkoutSessionRow {
+  id: string;
+  event_id: string;
+  event_date: string;
+  started_at: string;
+  finished_at: string | null;
+  total_duration_seconds: number | null;
+  updated_at: string;
+}
+
+export type TrackedSection = 'warmup' | 'exercise' | 'cooldown';
+
+export interface SetLogRow {
+  event_id: string;
+  event_date: string;
+  section: TrackedSection;
+  exercise_id: string;
+  exercise_name: string;
+  set_number: number;
+  planned_weight: string | null;
+  planned_reps: string | null;
+  planned_duration: string | null;
+  actual_weight: string | null;
+  actual_reps: string | null;
+  actual_duration: string | null;
+  is_autofilled: boolean;
+}
+
+export interface CardioLogRow {
+  event_id: string;
+  event_date: string;
+  section: TrackedSection;
+  exercise_id: string;
+  exercise_name: string;
+  duration_minutes: number | null;
+  distance: string | null;
+  elevation_gain: string | null;
+  avg_heart_rate: number | null;
+}
+
 export interface RecurringExceptionRow {
   id: string;
   event_id: string;

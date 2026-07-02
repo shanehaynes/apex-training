@@ -6,6 +6,18 @@ export type WorkoutType =
   | 'cardio'
   | 'yoga';
 
+/**
+ * Per-set planned target, for ramps/pyramids where sets differ. When absent,
+ * the tracker synthesizes uniform targets from the legacy sets/reps/weight/
+ * duration fields (see src/lib/tracking/plan.ts) — no backfill required.
+ */
+export interface PlannedSet {
+  setNumber: number;
+  targetWeight?: string;
+  targetReps?: string;
+  targetDuration?: string;
+}
+
 export interface Exercise {
   id: string;
   name: string;
@@ -18,6 +30,7 @@ export interface Exercise {
   notes?: string;
   imageUrl?: string;
   muscleGroups?: string[];
+  plannedSets?: PlannedSet[];
 }
 
 export interface WorkoutEvent {
