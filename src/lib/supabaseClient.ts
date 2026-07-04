@@ -70,6 +70,8 @@ export interface WorkoutSessionRow {
   started_at: string;
   finished_at: string | null;
   total_duration_seconds: number | null;
+  /** AI-generated post-workout summary, saved once at Finish. */
+  coach_summary: string | null;
   updated_at: string;
 }
 

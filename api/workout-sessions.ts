@@ -41,7 +41,7 @@ interface RemovedSetKey {
 }
 
 interface Body {
-  action?: 'start' | 'save' | 'finish' | 'cancel';
+  action?: 'start' | 'save' | 'finish' | 'cancel' | 'summary';
   eventId?: string;
   eventDate?: string;
   setLogs?: SetLogRow[];
@@ -49,6 +49,8 @@ interface Body {
   removedSets?: RemovedSetKey[];
   /** finish only: zero-fill rows for planned sets never logged (is_autofilled). */
   autofillRows?: SetLogRow[];
+  /** summary only: AI-generated coach summary text to persist on the session. */
+  coachSummary?: string;
 }
 
 const SET_LOG_CONFLICT = 'event_id,event_date,section,exercise_id,set_number';
@@ -193,6 +195,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     res.status(200).json({ ok: true, totalDurationSeconds: totalSeconds });
+    return;
+  }
+
+  // ── summary: persist the AI coach summary generated client-side at Finish ──
+  if (body.action === 'summary') {
+    if (typeof body.coachSummary !== 'string' || !body.coachSummary.trim()) {
+      res.status(400).send('Missing coachSummary');
+      return;
+    }
+    const { error: summaryErr } = await supabase
+      .from('workout_sessions')
+      .update({ coach_summary: body.coachSummary, updated_at: new Date().toISOString() })
+      .eq('event_id', eventId)
+      .eq('event_date', eventDate);
+    if (summaryErr) {
+      console.error('[api/workout-sessions] summary update failed:', summaryErr.message);
+      res.status(500).send('Failed to save summary');
+      return;
+    }
+
+    res.status(200).json({ ok: true });
     return;
   }
 

@@ -9,14 +9,22 @@ import type { CardioLogRow, SetLogRow, WorkoutSessionRow, TrackedSection } from 
 import { getWorkoutColor } from '../../utils/workoutColors';
 import {
   buildTrackerModel,
+  buildLastPerformance,
   collectUntouchedPlanned,
   makeExtraSet,
+  setExerciseNames,
+  cardioExerciseNames,
   setToRow,
   cardioToRow,
 } from '../../lib/tracking/plan';
-import type { TrackedSectionGroup } from '../../lib/tracking/plan';
+import type { LastPerformance, TrackedSectionGroup } from '../../lib/tracking/plan';
+import { computeSessionPRs } from '../../lib/tracking/records';
+import type { PersonalRecord } from '../../lib/tracking/records';
+import { buildSessionRecap, generateCoachSummary } from '../../lib/coach/summary';
 import TrackerExercise from './TrackerExercise';
 import type { SetField, CardioField } from './TrackerExercise';
+import WorkoutSummary from './WorkoutSummary';
+import type { CoachStatus } from './WorkoutSummary';
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
@@ -35,23 +43,35 @@ interface RemovedSetKey {
   setNumber: number;
 }
 
+interface SummaryState {
+  prs: PersonalRecord[];
+  coachText: string | null;
+  coachStatus: CoachStatus;
+}
+
 export default function TrackerView() {
   const { state, dispatch } = useCalendar();
   const { setCompletion } = useSchedule();
   const event = state.trackingSession;
 
   const [groups, setGroups] = useState<TrackedSectionGroup[] | null>(null);
-  const [session, setSession] = useState<Pick<WorkoutSessionRow, 'started_at' | 'finished_at' | 'total_duration_seconds'> | null>(null);
+  const [lastByName, setLastByName] = useState<Map<string, LastPerformance>>(() => new Map());
+  const [session, setSession] = useState<Pick<WorkoutSessionRow, 'started_at' | 'finished_at' | 'total_duration_seconds' | 'coach_summary'> | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [confirmCount, setConfirmCount] = useState<number | null>(null);
   const [isFinishing, setIsFinishing] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [summary, setSummary] = useState<SummaryState | null>(null);
 
   const groupsRef = useRef<TrackedSectionGroup[]>([]);
   const dirtySetsRef = useRef<Set<string>>(new Set());   // `${section}|${exerciseId}|${setNumber}`
   const dirtyCardioRef = useRef<Set<string>>(new Set()); // `${section}|${exerciseId}`
   const removedRef = useRef<RemovedSetKey[]>([]);
+  // Raw prior set/cardio logs for this event's exercises — feed client-side
+  // PR detection at Finish (never sent through the AI).
+  const historyRef = useRef<SetLogRow[]>([]);
+  const cardioHistoryRef = useRef<CardioLogRow[]>([]);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Set the moment a cancel is confirmed: blocks the debounced autosave and
   // the visibilitychange flush from re-creating rows after the delete.
@@ -71,12 +91,39 @@ export default function TrackerView() {
     (async () => {
       if (!supabase) {
         // No backend configured — track in memory only, like completions do.
-        setSession({ started_at: new Date().toISOString(), finished_at: null, total_duration_seconds: null });
+        setSession({ started_at: new Date().toISOString(), finished_at: null, total_duration_seconds: null, coach_summary: null });
         setGroups(buildTrackerModel(event));
         return;
       }
 
-      const [startRes, setsRes, cardioRes] = await Promise.all([
+      // Previous actuals for this event's set-tracked exercises, matched by
+      // name so history follows an exercise across events. Ordered desc so a
+      // truncated result still contains the most recent sessions.
+      const names = setExerciseNames(event);
+      const historyQuery = names.length
+        ? supabase
+            .from('workout_set_logs')
+            .select('*')
+            .in('exercise_name', names)
+            .lt('event_date', event.date)
+            .eq('is_autofilled', false)
+            .order('event_date', { ascending: false })
+            .limit(500)
+        : Promise.resolve({ data: [] as SetLogRow[] });
+
+      // Prior cardio actuals, for distance/elevation PR detection.
+      const cardioNames = cardioExerciseNames(event);
+      const cardioHistoryQuery = cardioNames.length
+        ? supabase
+            .from('workout_cardio_logs')
+            .select('*')
+            .in('exercise_name', cardioNames)
+            .lt('event_date', event.date)
+            .order('event_date', { ascending: false })
+            .limit(500)
+        : Promise.resolve({ data: [] as CardioLogRow[] });
+
+      const [startRes, setsRes, cardioRes, historyRes, cardioHistoryRes] = await Promise.all([
         fetch('/api/workout-sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -84,9 +131,11 @@ export default function TrackerView() {
         }).then(r => (r.ok ? r.json() : Promise.reject(new Error(`start failed: ${r.status}`)))),
         supabase.from('workout_set_logs').select('*').eq('event_id', event.id).eq('event_date', event.date),
         supabase.from('workout_cardio_logs').select('*').eq('event_id', event.id).eq('event_date', event.date),
+        historyQuery,
+        cardioHistoryQuery,
       ]).catch(err => {
         console.warn('[apex] Tracker load failed:', err);
-        return [null, null, null] as const;
+        return [null, null, null, null, null] as const;
       });
 
       if (cancelled) return;
@@ -94,8 +143,11 @@ export default function TrackerView() {
       if (startRes?.session) {
         setSession(startRes.session as WorkoutSessionRow);
       } else {
-        setSession({ started_at: new Date().toISOString(), finished_at: null, total_duration_seconds: null });
+        setSession({ started_at: new Date().toISOString(), finished_at: null, total_duration_seconds: null, coach_summary: null });
       }
+      historyRef.current = (historyRes?.data ?? []) as SetLogRow[];
+      cardioHistoryRef.current = (cardioHistoryRes?.data ?? []) as CardioLogRow[];
+      setLastByName(buildLastPerformance(historyRef.current));
       setGroups(buildTrackerModel(
         event,
         (setsRes?.data ?? []) as SetLogRow[],
@@ -271,6 +323,33 @@ export default function TrackerView() {
     }
   };
 
+  // Generate the coach text for an already-open summary popup, then persist
+  // it so reopening the finished session shows the same summary for free.
+  const generateAndSaveSummary = (
+    groupsSnapshot: TrackedSectionGroup[],
+    prs: PersonalRecord[],
+    durationSeconds: number | null,
+  ) => {
+    if (!event) return;
+    const recap = buildSessionRecap(event, groupsSnapshot, durationSeconds, prs);
+    generateCoachSummary(recap)
+      .then(text => {
+        setSummary(prev => prev && { ...prev, coachText: text, coachStatus: 'ready' });
+        setSession(prev => prev && { ...prev, coach_summary: text });
+        if (supabase) {
+          fetch('/api/workout-sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'summary', eventId: event.id, eventDate: event.date, coachSummary: text }),
+          }).catch(err => console.warn('[apex] Saving coach summary failed:', err));
+        }
+      })
+      .catch(err => {
+        console.warn('[apex] Coach summary generation failed:', err);
+        setSummary(prev => prev && { ...prev, coachStatus: 'unavailable' });
+      });
+  };
+
   const finish = async () => {
     if (!event || !groups || isFinishing) return;
 
@@ -284,6 +363,7 @@ export default function TrackerView() {
     setIsFinishing(true);
     try {
       await flushSave();
+      let totalSeconds: number | null = elapsed;
       if (supabase) {
         const res = await fetch('/api/workout-sessions', {
           method: 'POST',
@@ -296,13 +376,40 @@ export default function TrackerView() {
           setConfirmCount(null);
           return;
         }
+        const data = await res.json().catch(() => null);
+        if (typeof data?.totalDurationSeconds === 'number') totalSeconds = data.totalDurationSeconds;
       }
       setCompletion(event.id, true);
-      dispatch({ type: 'STOP_TRACKING' });
+      setSession(prev => prev && {
+        ...prev,
+        finished_at: new Date().toISOString(),
+        total_duration_seconds: totalSeconds,
+      });
+      setIsFinishing(false);
+      setConfirmCount(null);
+
+      // Summary popup before returning to the calendar: PRs are computed
+      // here, client-side; the coach text streams in behind the popup.
+      const prs = computeSessionPRs(groupsRef.current, historyRef.current, cardioHistoryRef.current);
+      setSummary({ prs, coachText: null, coachStatus: 'loading' });
+      generateAndSaveSummary(groupsRef.current, prs, totalSeconds);
     } catch (err) {
       console.warn('[apex] Finish failed:', err);
       setIsFinishing(false);
       setConfirmCount(null);
+    }
+  };
+
+  // Reopen the summary on an already-finished session — saved coach text,
+  // freshly recomputed PRs (history still predates this event's date).
+  const openSavedSummary = () => {
+    if (!groups) return;
+    const prs = computeSessionPRs(groupsRef.current, historyRef.current, cardioHistoryRef.current);
+    if (session?.coach_summary) {
+      setSummary({ prs, coachText: session.coach_summary, coachStatus: 'ready' });
+    } else {
+      setSummary({ prs, coachText: null, coachStatus: 'loading' });
+      generateAndSaveSummary(groupsRef.current, prs, session?.total_duration_seconds ?? null);
     }
   };
 
@@ -322,9 +429,15 @@ export default function TrackerView() {
           {formatElapsed(elapsed)}
         </span>
         {isFinished ? (
-          <span className="tracker-header__done-badge" style={{ color: color.solid }}>
+          <button
+            className="tracker-header__done-badge tracker-header__done-badge--button"
+            style={{ color: color.solid }}
+            onClick={openSavedSummary}
+            disabled={!groups}
+            title="View workout summary"
+          >
             <CheckCircle2 size={15} strokeWidth={2} /> Done
-          </span>
+          </button>
         ) : (
           <button
             className="tracker-header__finish"
@@ -353,6 +466,7 @@ export default function TrackerView() {
                   key={tracked.exercise.id}
                   tracked={tracked}
                   accentColor={color.solid}
+                  last={lastByName.get(tracked.exercise.name)}
                   onSetChange={(setNumber, field, value) => onSetChange(group.section, tracked.exercise.id, setNumber, field, value)}
                   onCardioChange={(field, value) => onCardioChange(group.section, tracked.exercise.id, field, value)}
                   onAddSet={() => onAddSet(group.section, tracked.exercise.id)}
@@ -383,6 +497,20 @@ export default function TrackerView() {
             Finish anyway
           </button>
         </div>
+      )}
+
+      {summary && groups && (
+        <WorkoutSummary
+          event={event}
+          accentColor={color.solid}
+          durationSeconds={session?.total_duration_seconds ?? null}
+          groups={groups}
+          prs={summary.prs}
+          coachText={summary.coachText}
+          coachStatus={summary.coachStatus}
+          onClose={() => setSummary(null)}
+          onDone={() => { setSummary(null); dispatch({ type: 'STOP_TRACKING' }); }}
+        />
       )}
 
       {confirmCancel && (

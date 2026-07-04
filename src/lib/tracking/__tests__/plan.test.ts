@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   resolvePlannedSets,
   buildTrackerModel,
+  buildLastPerformance,
   collectUntouchedPlanned,
+  setExerciseNames,
   setToRow,
   cardioToRow,
   makeExtraSet,
@@ -160,6 +162,51 @@ describe('collectUntouchedPlanned', () => {
     const groups = buildTrackerModel(makeEvent(), saved);
     const rows = collectUntouchedPlanned('eid', '2026-07-06', groups);
     expect(rows.some(r => r.exercise_id === 'ub-cd-1')).toBe(false);
+  });
+});
+
+describe('setExerciseNames', () => {
+  it('collects non-cardio names across sections, deduped', () => {
+    const event = makeEvent({ cooldown: [stretch] }); // same stretch as warmup
+    expect(setExerciseNames(event)).toEqual(['Doorway Pec Stretch', 'Bench Press']);
+  });
+});
+
+describe('buildLastPerformance', () => {
+  const historyRow = (over: Partial<SetLogRow>): SetLogRow => ({
+    event_id: 'w1-mon-weights__2026-06-26', event_date: '2026-06-26', section: 'exercise',
+    exercise_id: 'ub-1', exercise_name: 'Bench Press', set_number: 1,
+    planned_weight: '185lb', planned_reps: '5', planned_duration: null,
+    actual_weight: '185', actual_reps: '5', actual_duration: null,
+    is_autofilled: false,
+    ...over,
+  });
+
+  it('keeps only the most recent date per exercise name, regardless of row order', () => {
+    const map = buildLastPerformance([
+      historyRow({ event_date: '2026-06-19', actual_weight: '175' }),
+      historyRow({ event_date: '2026-06-26', actual_weight: '185' }),
+      historyRow({ event_date: '2026-06-26', set_number: 2, actual_reps: '4' }),
+      historyRow({ event_date: '2026-06-19', set_number: 3, actual_weight: '175' }),
+    ]);
+    const bench = map.get('Bench Press')!;
+    expect(bench.date).toBe('2026-06-26');
+    expect(bench.sets.get(1)).toMatchObject({ weight: '185', reps: '5' });
+    expect(bench.sets.get(2)).toMatchObject({ reps: '4' });
+    expect(bench.sets.has(3)).toBe(false); // older session's set never bleeds in
+  });
+
+  it('ignores autofilled zero-fills and rows with no actuals', () => {
+    const map = buildLastPerformance([
+      historyRow({ event_date: '2026-06-28', is_autofilled: true }),
+      historyRow({ event_date: '2026-06-27', actual_weight: null, actual_reps: null, actual_duration: null }),
+      historyRow({ event_date: '2026-06-20' }),
+    ]);
+    expect(map.get('Bench Press')!.date).toBe('2026-06-20');
+  });
+
+  it('returns an empty map for no history', () => {
+    expect(buildLastPerformance([]).size).toBe(0);
   });
 });
 

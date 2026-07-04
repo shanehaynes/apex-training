@@ -1,6 +1,7 @@
 import { Plus, X } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import type { PlannedSet } from '../../types/workout';
-import type { TrackedExercise, TrackedSet, CardioActuals } from '../../lib/tracking/plan';
+import type { TrackedExercise, TrackedSet, CardioActuals, LastPerformance, LastSetActuals } from '../../lib/tracking/plan';
 import { resolvePlannedSets } from '../../lib/tracking/plan';
 
 export type SetField = 'actualWeight' | 'actualReps' | 'actualDuration';
@@ -9,6 +10,8 @@ export type CardioField = keyof Omit<CardioActuals, 'isLogged'>;
 interface Props {
   tracked: TrackedExercise;
   accentColor: string;
+  /** Actuals from the most recent prior session for this exercise, if any. */
+  last?: LastPerformance;
   onSetChange: (setNumber: number, field: SetField, value: string) => void;
   onCardioChange: (field: CardioField, value: string) => void;
   onAddSet: () => void;
@@ -23,6 +26,14 @@ function plannedLabel(p: PlannedSet): string {
   return parts.length ? parts.join(' ') : '—';
 }
 
+function lastLabel(last: LastSetActuals): string {
+  const parts: string[] = [];
+  if (last.weight) parts.push(last.weight);
+  if (last.reps) parts.push(`× ${last.reps}`);
+  if (last.duration) parts.push(last.duration);
+  return parts.join(' ');
+}
+
 // Which actual inputs an exercise gets, derived from the union of its
 // planned targets (reps as the fallback so every set has something to log).
 function inputFields(tracked: TrackedExercise): SetField[] {
@@ -35,36 +46,73 @@ function inputFields(tracked: TrackedExercise): SetField[] {
   return fields;
 }
 
-const FIELD_PLACEHOLDER: Record<SetField, string> = {
+const FIELD_LABEL: Record<SetField, string> = {
   actualWeight: 'weight',
   actualReps: 'reps',
   actualDuration: 'time',
 };
 
+const FIELD_CLASS: Record<SetField, string> = {
+  actualWeight: 'tracker-input--weight',
+  actualReps: 'tracker-input--reps',
+  actualDuration: 'tracker-input--time',
+};
+
+const LAST_FIELD: Record<SetField, keyof LastSetActuals> = {
+  actualWeight: 'weight',
+  actualReps: 'reps',
+  actualDuration: 'duration',
+};
+
 function SetRow({
   set,
   fields,
+  last,
+  showLast,
+  lastDate,
   onChange,
   onRemove,
 }: {
   set: TrackedSet;
   fields: SetField[];
+  last?: LastSetActuals;
+  showLast: boolean;
+  lastDate?: string;
   onChange: (field: SetField, value: string) => void;
   onRemove?: () => void;
 }) {
+  const fillFromLast = () => {
+    if (!last) return;
+    for (const field of fields) {
+      const value = last[LAST_FIELD[field]];
+      if (value) onChange(field, value);
+    }
+  };
+
   return (
     <div className="tracker-set">
       <span className="tracker-set__num">{set.setNumber}</span>
       <span className="tracker-set__planned">{set.isExtra ? 'extra' : plannedLabel(set.planned)}</span>
+      {showLast && (last ? (
+        <button
+          type="button"
+          className="tracker-set__last"
+          title={lastDate ? `Last logged ${lastDate} — tap to fill` : 'Tap to fill'}
+          onClick={fillFromLast}
+        >
+          {lastLabel(last)}
+        </button>
+      ) : (
+        <span className="tracker-set__last tracker-set__last--empty">—</span>
+      ))}
       <div className="tracker-set__inputs">
         {fields.map(field => (
           <input
             key={field}
-            className="tracker-input"
+            className={`tracker-input ${FIELD_CLASS[field]}`}
             type="text"
             inputMode={field === 'actualDuration' ? 'text' : 'decimal'}
-            placeholder={FIELD_PLACEHOLDER[field]}
-            aria-label={`Set ${set.setNumber} ${FIELD_PLACEHOLDER[field]}`}
+            aria-label={`Set ${set.setNumber} ${FIELD_LABEL[field]}`}
             value={set[field]}
             onChange={e => onChange(field, e.target.value)}
           />
@@ -91,12 +139,16 @@ const CARDIO_FIELDS: { field: CardioField; label: string; placeholder: string; i
 export default function TrackerExercise({
   tracked,
   accentColor,
+  last,
   onSetChange,
   onCardioChange,
   onAddSet,
   onRemoveSet,
 }: Props) {
   const { exercise } = tracked;
+  const fields = inputFields(tracked);
+  const showLast = !!last;
+  const lastDate = last ? format(parseISO(last.date), 'MMM d') : undefined;
 
   return (
     <div className="tracker-exercise">
@@ -128,11 +180,27 @@ export default function TrackerExercise({
         </div>
       ) : (
         <>
+          <div className="tracker-set tracker-set--head" aria-hidden="true">
+            <span className="tracker-set__num">#</span>
+            <span className="tracker-set__planned">target</span>
+            {showLast && <span className="tracker-set__last">prev</span>}
+            <div className="tracker-set__inputs">
+              {fields.map(field => (
+                <span key={field} className={`tracker-input-label ${FIELD_CLASS[field]}`}>
+                  {FIELD_LABEL[field]}
+                </span>
+              ))}
+            </div>
+            <span className="tracker-set__remove tracker-set__remove--spacer" />
+          </div>
           {tracked.sets.map(set => (
             <SetRow
               key={set.setNumber}
               set={set}
-              fields={inputFields(tracked)}
+              fields={fields}
+              last={last?.sets.get(set.setNumber)}
+              showLast={showLast}
+              lastDate={lastDate}
               onChange={(field, value) => onSetChange(set.setNumber, field, value)}
               onRemove={set.isExtra ? () => onRemoveSet(set.setNumber) : undefined}
             />

@@ -155,6 +155,67 @@ export function buildTrackerModel(
     .filter(group => group.exercises.length > 0);
 }
 
+// ─── Last performance (previous session actuals) ─────────────────────────────
+
+export interface LastSetActuals {
+  weight: string;
+  reps: string;
+  duration: string;
+}
+
+export interface LastPerformance {
+  /** event_date of the most recent prior session with real logs. */
+  date: string;
+  sets: Map<number, LastSetActuals>;
+}
+
+/** Names of every set-tracked (non-cardio) exercise in the event, deduped. */
+export function setExerciseNames(event: WorkoutEvent): string[] {
+  const names = new Set<string>();
+  for (const { pick } of SECTION_SOURCES) {
+    for (const exercise of pick(event)) {
+      if (exercise.category !== 'cardio') names.add(exercise.name);
+    }
+  }
+  return [...names];
+}
+
+/** Names of every cardio exercise in the event, deduped. */
+export function cardioExerciseNames(event: WorkoutEvent): string[] {
+  const names = new Set<string>();
+  for (const { pick } of SECTION_SOURCES) {
+    for (const exercise of pick(event)) {
+      if (exercise.category === 'cardio') names.add(exercise.name);
+    }
+  }
+  return [...names];
+}
+
+/**
+ * Most recent prior actuals per exercise name. Matched by name (not id) so
+ * history follows an exercise across different events; autofilled zero-fills
+ * and empty rows are ignored — a skipped set is not a performance.
+ */
+export function buildLastPerformance(rows: SetLogRow[]): Map<string, LastPerformance> {
+  const byName = new Map<string, LastPerformance>();
+  for (const row of rows) {
+    if (row.is_autofilled) continue;
+    if (!row.actual_weight && !row.actual_reps && !row.actual_duration) continue;
+    const existing = byName.get(row.exercise_name);
+    if (existing && row.event_date < existing.date) continue;
+    const entry = existing && row.event_date === existing.date
+      ? existing
+      : { date: row.event_date, sets: new Map<number, LastSetActuals>() };
+    entry.sets.set(row.set_number, {
+      weight: row.actual_weight ?? '',
+      reps: row.actual_reps ?? '',
+      duration: row.actual_duration ?? '',
+    });
+    byName.set(row.exercise_name, entry);
+  }
+  return byName;
+}
+
 // ─── Serialization back to rows ───────────────────────────────────────────────
 
 export function setToRow(
