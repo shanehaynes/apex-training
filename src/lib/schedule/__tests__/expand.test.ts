@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { parseISO, addDays, format } from 'date-fns';
-import { expandRecurringEvents } from '../ScheduleContext';
-import scheduleData from '../../data/schedule.json';
-import type { WorkoutEvent, Schedule } from '../../types/workout';
+import { expandRecurringEvents } from '../expand';
+import scheduleData from '../../../data/schedule.json';
+import type { WorkoutEvent, Schedule } from '../../../types/workout';
 
 function makeEvent(overrides: Partial<WorkoutEvent> & Pick<WorkoutEvent, 'id' | 'date'>): WorkoutEvent {
   return {

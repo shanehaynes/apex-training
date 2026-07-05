@@ -1,6 +1,7 @@
 import { format, parseISO } from 'date-fns';
 import type { CardioLogRow, SetLogRow } from '../db/types';
 import type { TrackedSectionGroup } from './plan';
+import { formatSeconds } from '../time';
 
 // ─── Personal records ─────────────────────────────────────────────────────────
 // Pure PR detection over set/cardio logs — computed client-side, never by the
@@ -341,15 +342,7 @@ export function computeSessionPRs(
 
 // ─── Display ──────────────────────────────────────────────────────────────────
 
-/** "90s" under a minute, "2:30" beyond, "1:05:00" beyond an hour. */
-export function formatSeconds(total: number): string {
-  const s = Math.round(total);
-  if (s < 60) return `${s}s`;
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const ss = String(s % 60).padStart(2, '0');
-  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
-}
+export { formatSeconds } from '../time';
 
 function quantityLabel(value: number, unit: string): string {
   return unit ? `${value} ${unit}` : String(value);

@@ -1,150 +1,14 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { parseISO, isSameDay, addDays, format } from 'date-fns';
+import { parseISO, isSameDay } from 'date-fns';
 import scheduleData from '../data/schedule.json';
 import { deleteJson, patchJson, postJson } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
-import type {
-  CompletionRow,
-  WorkoutEventRow,
-} from '../lib/db/types';
+import type { CompletionRow, WorkoutEventRow } from '../lib/db/types';
 import type { WorkoutEvent, Schedule, WorkoutType } from '../types/workout';
-import { parseRRule, expandRecurrence, ruleFromLegacyColumns } from '../lib/recurrence';
-
-// ─── Recurring expansion ──────────────────────────────────────────────────────
-
-// Open-ended rules (no COUNT/UNTIL) are capped this far past today.
-const OPEN_ENDED_HORIZON_DAYS = 366;
-
-export function expandRecurringEvents(
-  rawEvents: WorkoutEvent[],
-  exceptions: Set<string>, // `${event_id}__${date}` pairs to skip
-): WorkoutEvent[] {
-  const expanded: WorkoutEvent[] = [...rawEvents];
-  const rangeEnd = format(addDays(new Date(), OPEN_ENDED_HORIZON_DAYS), 'yyyy-MM-dd');
-
-  for (const base of rawEvents) {
-    if (!base.isRecurring || !base.recurrenceRule) continue;
-
-    let rule;
-    try {
-      rule = parseRRule(base.recurrenceRule);
-    } catch (err) {
-      console.warn(`[apex] Skipping event ${base.id} — invalid recurrence rule "${base.recurrenceRule}":`, err);
-      continue;
-    }
-
-    // Exceptions are keyed per series (`${event_id}__${date}`), so an
-    // unrelated event that happens to share a type/date never suppresses
-    // this series' occurrences.
-    const exdates = new Set<string>();
-    const prefix = `${base.id}__`;
-    for (const key of exceptions) {
-      if (key.startsWith(prefix)) exdates.add(key.slice(prefix.length));
-    }
-
-    for (const dateStr of expandRecurrence(rule, base.date, exdates, rangeEnd)) {
-      expanded.push({ ...base, id: `${base.id}__${dateStr}`, date: dateStr, isCompleted: false });
-    }
-  }
-
-  return expanded.sort((a, b) => a.date.localeCompare(b.date));
-}
-
-// Seed events from schedule.json predate recurrenceRule — derive it from the
-// legacy recurringPattern shape so the fallback path expands identically.
-function normalizeSeedEvent(e: WorkoutEvent): WorkoutEvent {
-  if (!e.isRecurring || e.recurrenceRule || !e.recurringPattern) return e;
-  const rule = ruleFromLegacyColumns(
-    e.recurringPattern.frequency,
-    e.recurringPattern.daysOfWeek ?? null,
-    e.recurringPattern.endDate ?? null,
-  );
-  return rule ? { ...e, recurrenceRule: rule } : e;
-}
-
-// ─── Row ↔ WorkoutEvent mapping ───────────────────────────────────────────────
-
-function rowToEvent(row: WorkoutEventRow): WorkoutEvent {
-  return {
-    id:                row.id,
-    type:              row.type as WorkoutType,
-    title:             row.title,
-    subtitle:          row.subtitle ?? undefined,
-    date:              row.date,
-    startTime:         row.start_time ?? undefined,
-    endTime:           row.end_time ?? undefined,
-    estimatedDuration: row.estimated_duration,
-    description:       row.description,
-    warmup:            (row.warmup ?? []) as WorkoutEvent['warmup'],
-    exercises:         (row.exercises ?? []) as WorkoutEvent['exercises'],
-    cooldown:          (row.cooldown ?? []) as WorkoutEvent['cooldown'],
-    difficulty:        row.difficulty as WorkoutEvent['difficulty'],
-    location:          row.location ?? undefined,
-    coverImageUrl:     row.cover_image_url ?? undefined,
-    tags:              row.tags ?? [],
-    equipment:         row.equipment ?? [],
-    isCompleted:       false,
-    isRecurring:       row.is_recurring,
-    // recurrence_rule is canonical; rows the SQL backfill hasn't reached fall
-    // back to a rule derived from the deprecated columns (null for 'custom').
-    recurrenceRule:    row.recurrence_rule
-      ?? ruleFromLegacyColumns(row.recurring_frequency, row.recurring_days, row.recurring_end_date)
-      ?? undefined,
-    recurringPattern:  row.recurring_frequency
-      ? {
-          frequency:  row.recurring_frequency as 'daily' | 'weekly' | 'custom',
-          daysOfWeek: row.recurring_days ?? undefined,
-          endDate:    row.recurring_end_date ?? undefined,
-        }
-      : undefined,
-  };
-}
-
-export function eventToRow(
-  e: Partial<WorkoutEvent> & Pick<WorkoutEvent, 'id' | 'type' | 'title' | 'date' | 'estimatedDuration' | 'difficulty' | 'isRecurring' | 'exercises' | 'tags' | 'description' | 'isCompleted'>,
-): Omit<WorkoutEventRow, 'created_at' | 'updated_at'> {
-  return {
-    id:                  e.id,
-    type:                e.type,
-    title:               e.title,
-    subtitle:            e.subtitle ?? null,
-    date:                e.date,
-    start_time:          e.startTime ?? null,
-    end_time:            e.endTime ?? null,
-    estimated_duration:  e.estimatedDuration,
-    description:         e.description,
-    warmup:              (e.warmup ?? []) as unknown[],
-    exercises:           (e.exercises ?? []) as unknown[],
-    cooldown:            (e.cooldown ?? []) as unknown[],
-    difficulty:          e.difficulty,
-    location:            e.location ?? null,
-    cover_image_url:     e.coverImageUrl ?? null,
-    tags:                e.tags ?? [],
-    equipment:           e.equipment ?? [],
-    is_recurring:        e.isRecurring,
-    recurrence_rule:     e.recurrenceRule ?? null,
-    recurring_frequency: e.recurringPattern?.frequency ?? null,
-    recurring_days:      e.recurringPattern?.daysOfWeek ?? null,
-    recurring_end_date:  e.recurringPattern?.endDate ?? null,
-  };
-}
-
-// ─── Completion persistence ───────────────────────────────────────────────────
-
-const LS_KEY = 'apex-completed';
-
-function lsLoad(): Set<string> {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function lsSave(ids: Set<string>) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify([...ids])); } catch {}
-}
+import { expandRecurringEvents, normalizeSeedEvent } from '../lib/schedule/expand';
+import { buildCompletionRows, eventFieldsToRow, eventToRow, rowToEvent } from '../lib/schedule/mapping';
+import { loadCompletedIds, saveCompletedIds } from '../lib/schedule/localCompletion';
+import { timeToMinutes } from '../lib/time';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -190,7 +54,7 @@ const ScheduleContext = createContext<ScheduleContextValue | null>(null);
 export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const [baseEvents, setBaseEvents] = useState<WorkoutEvent[]>([]);
   const [exceptions, setExceptions] = useState<Set<string>>(new Set());
-  const [completedIds, setCompletedIds] = useState<Set<string>>(lsLoad);
+  const [completedIds, setCompletedIds] = useState<Set<string>>(loadCompletedIds);
   const [isSyncing, setIsSyncing] = useState(!!supabase);
   const [isEventsLoading, setIsEventsLoading] = useState(!!supabase);
 
@@ -258,7 +122,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         } else {
           const serverIds = new Set((data as Pick<CompletionRow, 'event_id'>[]).map(r => r.event_id));
           setCompletedIds(serverIds);
-          lsSave(serverIds);
+          saveCompletedIds(serverIds);
         }
         setIsSyncing(false);
       });
@@ -279,22 +143,11 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   // ── Queries ────────────────────────────────────────────────────────────────
 
-  const parseTime = (t?: string): number => {
-    if (!t) return Infinity;
-    const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
-    if (!m) return Infinity;
-    let h = parseInt(m[1]);
-    const min = parseInt(m[2]);
-    if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
-    if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
-    return h * 60 + min;
-  };
-
   const getEventsForDate = useMemo(
     () => (date: Date) =>
       events
         .filter(e => isSameDay(parseISO(e.date), date))
-        .sort((a, b) => parseTime(a.startTime) - parseTime(b.startTime)),
+        .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime)),
     [events],
   );
 
@@ -312,33 +165,15 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
     setCompletedIds(prev => {
       const next = new Set(prev);
-      isNowCompleted ? next.add(id) : next.delete(id);
-      lsSave(next);
+      if (isNowCompleted) next.add(id);
+      else next.delete(id);
+      saveCompletedIds(next);
       return next;
     });
 
     if (!supabase) return;
 
-    const completionRow: CompletionRow = {
-      event_id:         id,
-      event_date:       event.date,
-      event_type:       event.type,
-      event_title:      event.title,
-      duration_minutes: event.estimatedDuration ?? null,
-      is_completed:     isNowCompleted,
-      completed_at:     isNowCompleted ? new Date().toISOString() : null,
-      updated_at:       new Date().toISOString(),
-    };
-    const logRow = {
-      event_id:         id,
-      event_date:       event.date,
-      event_type:       event.type,
-      event_title:      event.title,
-      duration_minutes: event.estimatedDuration ?? null,
-      action:           isNowCompleted ? 'complete' : 'uncomplete',
-    };
-
-    postJson('/api/completions', { completionRow, logRow }, 'Completion sync').catch(() => {});
+    postJson('/api/completions', buildCompletionRows(event, isNowCompleted), 'Completion sync').catch(() => {});
   };
 
   const toggleCompletion = (id: string) => {
@@ -388,25 +223,9 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     const current = eventsRef.current.find(e => e.id === id);
     const baseId = id.includes('__') ? id.split('__')[0] : id;
 
-    const dbFields: Partial<WorkoutEventRow> = {};
-    if (fields.title             !== undefined) dbFields.title               = fields.title;
-    if (fields.type              !== undefined) dbFields.type                = fields.type;
-    if (fields.date              !== undefined) dbFields.date                = fields.date;
-    if (fields.startTime         !== undefined) dbFields.start_time          = fields.startTime ?? null;
-    if (fields.endTime           !== undefined) dbFields.end_time            = fields.endTime ?? null;
-    if (fields.estimatedDuration !== undefined) dbFields.estimated_duration  = fields.estimatedDuration;
-    if (fields.description       !== undefined) dbFields.description         = fields.description;
-    if (fields.location          !== undefined) dbFields.location            = fields.location ?? null;
-    if (fields.difficulty        !== undefined) dbFields.difficulty          = fields.difficulty;
-    if (fields.tags              !== undefined) dbFields.tags                = fields.tags;
-    if (fields.equipment         !== undefined) dbFields.equipment           = fields.equipment;
-    if (fields.exercises         !== undefined) dbFields.exercises           = fields.exercises as unknown[];
-    if (fields.warmup            !== undefined) dbFields.warmup              = fields.warmup as unknown[];
-    if (fields.cooldown          !== undefined) dbFields.cooldown            = fields.cooldown as unknown[];
-
     try {
       await patchJson(`/api/events?id=${encodeURIComponent(baseId)}`, {
-        fields: dbFields,
+        fields: eventFieldsToRow(fields),
         log: {
           event_title: fields.title ?? current?.title ?? baseId,
           event_date:  fields.date ?? current?.date,

@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import { parseRRule, serializeRRule, ruleFromLegacyColumns } from '../src/lib/recurrence/index.js';
 import type { RecurrenceRule } from '../src/lib/recurrence/index.js';
+import { parseTimeOfDay } from '../src/lib/time.js';
 
 export interface FeedEventRow {
   id: string;
@@ -28,25 +29,13 @@ function escapeIcs(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 }
 
-// Parses "5:30 PM", "17:30", "5:30 pm", etc. → { h: 17, m: 30 }
-function parseTime(timeStr: string): { h: number; m: number } | null {
-  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
-  if (!match) return null;
-  let h = parseInt(match[1], 10);
-  const m = parseInt(match[2], 10);
-  const meridiem = match[3]?.toUpperCase();
-  if (meridiem === 'PM' && h !== 12) h += 12;
-  if (meridiem === 'AM' && h === 12) h = 0;
-  return { h, m };
-}
-
 // All event datetimes are FLOATING (no Z, no TZID) so they display at the
 // same wall-clock time on every device — see commit fb62d6a. Do not add
 // timezone qualifiers here.
 function toIcsDate(dateStr: string, timeStr: string | null): string {
   const d = dateStr.replace(/-/g, '');
   if (!timeStr) return d;
-  const parsed = parseTime(timeStr);
+  const parsed = parseTimeOfDay(timeStr);
   if (!parsed) return d;
   const t = String(parsed.h).padStart(2, '0') + String(parsed.m).padStart(2, '0') + '00';
   return `${d}T${t}`;
@@ -98,7 +87,7 @@ export function buildIcs(events: FeedEventRow[], exceptions: FeedExceptionRow[])
     if (ev.end_time) {
       dtend = toIcsDate(ev.date, ev.end_time);
     } else if (hasTime) {
-      const parsed = parseTime(ev.start_time!);
+      const parsed = parseTimeOfDay(ev.start_time!);
       if (parsed) {
         const totalMin = parsed.h * 60 + parsed.m + ev.estimated_duration;
         const eh = String(Math.floor(totalMin / 60) % 24).padStart(2, '0');
