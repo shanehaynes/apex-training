@@ -1,80 +1,9 @@
 import { useRef, useState, useMemo, useEffect } from 'react';
-import { format, parseISO, startOfWeek, endOfWeek, subWeeks, isWithinInterval } from 'date-fns';
 import { useSchedule } from '../../context/ScheduleContext';
-import type { CreateEventInput, UpdateEventInput } from '../../context/ScheduleContext';
 import { useChat } from '../../hooks/useChat';
-import { baseIdOf } from '../../lib/schedule/occurrence';
-import type { WorkoutType } from '../../types/workout';
+import { buildSystemPrompt } from '../../lib/coach/prompt';
+import { findCoachTool } from '../../lib/coach/tools';
 import { Send, Square, NotebookPen, Check, X } from 'lucide-react';
-
-// ─── System prompt ────────────────────────────────────────────────────────────
-
-function buildSystemPrompt(
-  todayEvents: ReturnType<ReturnType<typeof useSchedule>['getEventsForDate']>,
-  allEvents: ReturnType<typeof useSchedule>['events'],
-  today: Date,
-): string {
-  const dayName = format(today, 'EEEE, MMMM d, yyyy');
-
-  // Include IDs so Claude can reference them in tool calls
-  const todayStr = todayEvents.length === 0
-    ? 'No workouts scheduled.'
-    : todayEvents.map(e => {
-        const time = e.startTime ? ` at ${e.startTime}` : '';
-        const done = e.isCompleted ? ' ✓' : '';
-        return `• [${e.id}] ${e.title} (${e.estimatedDuration} min)${time}${done}`;
-      }).join('\n');
-
-  const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-  const weekEnd   = endOfWeek(today,   { weekStartsOn: 1 });
-  const thisWeek  = allEvents.filter(e => {
-    const d = parseISO(e.date);
-    return isWithinInterval(d, { start: weekStart, end: weekEnd });
-  });
-
-  const weekStr = thisWeek.length === 0
-    ? 'No workouts this week.'
-    : thisWeek.map(e => {
-        const dayLabel = format(parseISO(e.date), 'EEE MMM d');
-        const done = e.isCompleted ? '✓' : '○';
-        return `${done} [${e.id}] ${dayLabel} — ${e.title} (${e.estimatedDuration} min)`;
-      }).join('\n');
-
-  const pastEvents: typeof allEvents = [];
-  for (let i = 1; i <= 4; i++) {
-    const ref = subWeeks(today, i);
-    const s  = startOfWeek(ref, { weekStartsOn: 1 });
-    const en = endOfWeek(ref,   { weekStartsOn: 1 });
-    pastEvents.push(...allEvents.filter(e => {
-      const d = parseISO(e.date);
-      return isWithinInterval(d, { start: s, end: en });
-    }));
-  }
-  const completedPast  = pastEvents.filter(e => e.isCompleted).length;
-  const completionRate = pastEvents.length > 0
-    ? Math.round((completedPast / pastEvents.length) * 100)
-    : 0;
-
-  return `You are a terse, high-signal fitness coach in the user's training app. You have live schedule access and can create, update, or delete events via tools.
-
-Today: ${dayName}
-
-TODAY (IDs in brackets):
-${todayStr}
-
-THIS WEEK (IDs in brackets):
-${weekStr}
-
-LAST 4 WEEKS: ${completedPast}/${pastEvents.length} completed (${completionRate}%)
-
-STYLE:
-- Maximum information per word. No filler, no affirmations, no "Great question!", no restating what the user said.
-- Skip pleasantries. Lead with the answer or the action.
-- Numbers and specifics over vague encouragement.
-- Short sentences. Fragments fine.
-- Daily briefing: 2–3 tight sentences max.
-- Use tools with the exact bracketed IDs. For recurring events (IDs with "__"): confirm scope (one instance vs. full series) before calling delete_event.`;
-}
 
 // ─── Confirmation card ────────────────────────────────────────────────────────
 
@@ -135,69 +64,13 @@ export default function ChatSidebar() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent, pendingAction]);
 
-  // ── Mutation executor (called on Confirm) ──────────────────────────────────
+  // ── Mutation executor (called on Confirm) — dispatches to the registry ─────
 
   const buildExecutor = () => async (): Promise<string> => {
     if (!pendingAction) return 'No action.';
-    const { toolName, input: toolInput } = pendingAction;
-
-    if (toolName === 'delete_event') {
-      const { event_id, scope, date } = toolInput as {
-        event_id: string; scope: 'instance' | 'all'; date?: string;
-      };
-      // Recurring instances have synthetic occurrence ids (`base__date`).
-      const baseId = baseIdOf(event_id);
-
-      if (scope === 'instance' && date) {
-        const ok = await deleteEventInstance(baseId, date);
-        return ok ? 'Deleted that instance successfully.' : 'Failed to delete the instance.';
-      } else {
-        const ok = await deleteEvent(event_id);
-        return ok ? 'Deleted the event successfully.' : 'Failed to delete the event.';
-      }
-    }
-
-    if (toolName === 'create_event') {
-      const { type, title, date, estimated_duration, start_time, difficulty, description, location, tags, equipment } =
-        toolInput as {
-          type: WorkoutType; title: string; date: string; estimated_duration: number;
-          start_time?: string; difficulty?: number; description?: string;
-          location?: string; tags?: string[]; equipment?: string[];
-        };
-      const input: CreateEventInput = {
-        type, title, date,
-        estimatedDuration: estimated_duration,
-        startTime:   start_time,
-        difficulty:  difficulty as 1 | 2 | 3 | 4 | 5 | undefined,
-        description, location, tags, equipment,
-      };
-      const result = await createEvent(input);
-      return result ? `Created "${title}" on ${date}.` : 'Failed to create the event.';
-    }
-
-    if (toolName === 'update_event') {
-      const { event_id, changes } = toolInput as {
-        event_id: string;
-        changes: {
-          title?: string; date?: string; start_time?: string; end_time?: string;
-          estimated_duration?: number; description?: string; location?: string; difficulty?: number;
-        };
-      };
-      const fields: UpdateEventInput['fields'] = {
-        ...(changes.title              !== undefined && { title: changes.title }),
-        ...(changes.date               !== undefined && { date: changes.date }),
-        ...(changes.start_time         !== undefined && { startTime: changes.start_time }),
-        ...(changes.end_time           !== undefined && { endTime: changes.end_time }),
-        ...(changes.estimated_duration !== undefined && { estimatedDuration: changes.estimated_duration }),
-        ...(changes.description        !== undefined && { description: changes.description }),
-        ...(changes.location           !== undefined && { location: changes.location }),
-        ...(changes.difficulty         !== undefined && { difficulty: changes.difficulty as 1|2|3|4|5 }),
-      };
-      const ok = await updateEvent({ id: event_id, fields });
-      return ok ? 'Updated the event successfully.' : 'Failed to update the event.';
-    }
-
-    return 'Unknown action.';
+    const tool = findCoachTool(pendingAction.toolName);
+    if (!tool) return 'Unknown action.';
+    return tool.execute(pendingAction.input, { createEvent, updateEvent, deleteEvent, deleteEventInstance });
   };
 
   // ── Input handlers ─────────────────────────────────────────────────────────

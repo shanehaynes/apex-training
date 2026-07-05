@@ -4,7 +4,8 @@ import scheduleData from '../data/schedule.json';
 import { deleteJson, patchJson, postJson } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
 import type { CompletionRow, WorkoutEventRow } from '../lib/db/types';
-import type { WorkoutEvent, Schedule, WorkoutType } from '../types/workout';
+import type { WorkoutEvent, Schedule } from '../types/workout';
+import type { CreateEventInput, UpdateEventInput } from '../lib/schedule/types';
 import { expandRecurringEvents, normalizeSeedEvent } from '../lib/schedule/expand';
 import { buildCompletionRows, eventFieldsToRow, eventToRow, rowToEvent } from '../lib/schedule/mapping';
 import { loadCompletedIds, saveCompletedIds } from '../lib/schedule/localCompletion';
@@ -12,26 +13,6 @@ import { baseIdOf, makeOccurrenceId } from '../lib/schedule/occurrence';
 import { timeToMinutes } from '../lib/time';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
-
-export interface CreateEventInput {
-  type: WorkoutType;
-  title: string;
-  date: string;
-  estimatedDuration: number;
-  difficulty?: 1 | 2 | 3 | 4 | 5;
-  startTime?: string;
-  endTime?: string;
-  description?: string;
-  location?: string;
-  tags?: string[];
-  equipment?: string[];
-  exercises?: WorkoutEvent['exercises'];
-}
-
-export interface UpdateEventInput {
-  id: string;
-  fields: Partial<Omit<WorkoutEvent, 'id' | 'isCompleted'>>;
-}
 
 interface ScheduleContextValue {
   events: WorkoutEvent[];

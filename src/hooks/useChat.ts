@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
-import Anthropic from '@anthropic-ai/sdk';
+import { findCoachTool } from '../lib/coach/tools';
+import type { ChatWireEvent } from '../lib/coach/wire';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -8,7 +9,8 @@ export interface DisplayMessage {
   content: string;
 }
 
-// Matches what the Anthropic API actually accepts in the messages array.
+// Matches what the Anthropic API accepts in the messages array — the shapes
+// are forwarded verbatim by /api/chat.
 type TextBlock    = { type: 'text'; text: string };
 type ToolUseBlock = { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> };
 type ToolResultBlock = { type: 'tool_result'; tool_use_id: string; content: string };
@@ -29,123 +31,6 @@ export interface PendingAction {
   displayLabel: string;
 }
 
-// ─── Tool definitions ─────────────────────────────────────────────────────────
-
-const TOOLS: Anthropic.Tool[] = [
-  {
-    name: 'delete_event',
-    description:
-      'Delete a workout event from the schedule. ' +
-      'For recurring events always ask the user first: delete just this one instance, or the entire series? ' +
-      'Use scope="instance" + date for a single occurrence; scope="all" to remove the whole event.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        event_id: {
-          type: 'string',
-          description: 'The event ID shown in [brackets] in the schedule.',
-        },
-        scope: {
-          type: 'string',
-          enum: ['instance', 'all'],
-          description:
-            '"instance" = skip only this date (recurring events only). ' +
-            '"all" = delete the event (or entire series) permanently.',
-        },
-        date: {
-          type: 'string',
-          description: 'YYYY-MM-DD date of the instance to skip. Required when scope is "instance".',
-        },
-        event_title: {
-          type: 'string',
-          description: 'Human-readable event title — shown in the confirmation card.',
-        },
-        event_date_display: {
-          type: 'string',
-          description: 'Human-readable date — shown in the confirmation card, e.g. "Monday June 29".',
-        },
-      },
-      required: ['event_id', 'scope', 'event_title'],
-    },
-  },
-  {
-    name: 'create_event',
-    description: 'Add a new workout event to the schedule.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        type: {
-          type: 'string',
-          enum: ['stretching', 'morning-routine', 'weights', 'climbing', 'cardio', 'yoga'],
-        },
-        title: { type: 'string' },
-        date: { type: 'string', description: 'YYYY-MM-DD' },
-        estimated_duration: { type: 'number', description: 'Minutes' },
-        start_time: { type: 'string', description: 'e.g. "6:30 AM"' },
-        difficulty: { type: 'number', description: '1–5' },
-        description: { type: 'string' },
-        location: { type: 'string' },
-        tags: { type: 'array', items: { type: 'string' } },
-        equipment: { type: 'array', items: { type: 'string' } },
-      },
-      required: ['type', 'title', 'date', 'estimated_duration'],
-    },
-  },
-  {
-    name: 'update_event',
-    description:
-      'Update fields on an existing workout event. ' +
-      'For recurring event instances (id contains "__"), this updates the base event and affects all future occurrences.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        event_id: { type: 'string', description: 'The event ID.' },
-        event_title: { type: 'string', description: 'Current title — shown in the confirmation card.' },
-        changes: {
-          type: 'object',
-          description: 'Only include fields that should change.',
-          properties: {
-            title:              { type: 'string' },
-            date:               { type: 'string', description: 'YYYY-MM-DD' },
-            start_time:         { type: 'string' },
-            end_time:           { type: 'string' },
-            estimated_duration: { type: 'number' },
-            description:        { type: 'string' },
-            location:           { type: 'string' },
-            difficulty:         { type: 'number' },
-          },
-        },
-      },
-      required: ['event_id', 'event_title', 'changes'],
-    },
-  },
-];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function buildDisplayLabel(toolName: string, input: Record<string, unknown>): string {
-  if (toolName === 'delete_event') {
-    const scope = input.scope === 'instance' ? '(this instance)' : '(entire series)';
-    const date  = (input.event_date_display as string | undefined) ?? (input.date as string | undefined) ?? '';
-    return `Delete: ${input.event_title}${date ? ' · ' + date : ''} ${scope}`;
-  }
-  if (toolName === 'create_event') {
-    return `Create: ${input.title} · ${input.type} · ${input.date}`;
-  }
-  if (toolName === 'update_event') {
-    const keys = Object.keys((input.changes as Record<string, unknown>) ?? {}).join(', ');
-    return `Update: ${input.event_title} (${keys})`;
-  }
-  return toolName;
-}
-
-// ─── Client ───────────────────────────────────────────────────────────────────
-
-const client = new Anthropic({
-  apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY as string,
-  dangerouslyAllowBrowser: true,
-});
-
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useChat() {
@@ -156,52 +41,56 @@ export function useChat() {
   const [streamingContent, setStreamingContent] = useState('');
   const abortRef = useRef<(() => void) | null>(null);
 
-  // ── Core streaming helper ──────────────────────────────────────────────────
+  // ── Core streaming helper — reads NDJSON wire events from /api/chat ───────
 
   async function streamResponse(
     msgs: ApiMessage[],
     systemPrompt: string,
     withTools: boolean,
   ): Promise<{ text: string; toolUse: ToolUseBlock | null }> {
-    const stream = client.messages.stream({
-      model:    'claude-opus-4-8',
-      max_tokens: 1024,
-      thinking:  { type: 'adaptive' },
-      system:    systemPrompt,
-      messages:  msgs as Anthropic.MessageParam[],
-      ...(withTools ? { tools: TOOLS } : {}),
-    });
+    const controller = new AbortController();
+    abortRef.current = () => controller.abort();
 
-    abortRef.current = () => stream.abort();
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: msgs, system: systemPrompt, withTools }),
+      signal: controller.signal,
+    });
+    if (!res.ok || !res.body) throw new Error(`chat request failed: ${res.status}`);
 
     let textAccumulated = '';
-    let currentTool: { id: string; name: string; json: string } | null = null;
-    let finishedTool: ToolUseBlock | null = null;
+    let toolUse: ToolUseBlock | null = null;
 
-    for await (const event of stream) {
-      if (event.type === 'content_block_start') {
-        if (event.content_block.type === 'tool_use') {
-          currentTool = { id: event.content_block.id, name: event.content_block.name, json: '' };
-        }
-      } else if (event.type === 'content_block_delta') {
-        if (event.delta.type === 'text_delta') {
-          textAccumulated += event.delta.text;
-          setStreamingContent(textAccumulated);
-        } else if (event.delta.type === 'input_json_delta' && currentTool) {
-          currentTool.json += event.delta.partial_json;
-        }
-      } else if (event.type === 'content_block_stop' && currentTool) {
-        finishedTool = {
-          type:  'tool_use',
-          id:    currentTool.id,
-          name:  currentTool.name,
-          input: JSON.parse(currentTool.json || '{}') as Record<string, unknown>,
-        };
-        currentTool = null;
+    const handleLine = (line: string) => {
+      if (!line.trim()) return;
+      const event = JSON.parse(line) as ChatWireEvent;
+      if (event.type === 'text') {
+        textAccumulated += event.delta;
+        setStreamingContent(textAccumulated);
+      } else if (event.type === 'tool_use') {
+        toolUse = { type: 'tool_use', id: event.id, name: event.name, input: event.input };
+      } else if (event.type === 'error') {
+        throw new Error(event.message);
+      }
+    };
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let newline;
+      while ((newline = buffer.indexOf('\n')) !== -1) {
+        handleLine(buffer.slice(0, newline));
+        buffer = buffer.slice(newline + 1);
       }
     }
+    handleLine(buffer);
 
-    return { text: textAccumulated, toolUse: finishedTool };
+    return { text: textAccumulated, toolUse };
   }
 
   // ── sendMessage ────────────────────────────────────────────────────────────
@@ -243,7 +132,7 @@ export function useChat() {
           toolUseId:    toolUse.id,
           toolName:     toolUse.name,
           input:        toolUse.input,
-          displayLabel: buildDisplayLabel(toolUse.name, toolUse.input),
+          displayLabel: findCoachTool(toolUse.name)?.displayLabel(toolUse.input) ?? toolUse.name,
         });
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: text }]);
@@ -344,7 +233,7 @@ export function useChat() {
       setMessages([{ role: 'assistant', content: text }]);
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') {
-        setMessages([{ role: 'assistant', content: "Couldn't reach the coaching server. Check your API key in .env.local." }]);
+        setMessages([{ role: 'assistant', content: "Couldn't reach the coaching server. Check ANTHROPIC_API_KEY on the server." }]);
       }
     } finally {
       setIsLoading(false);

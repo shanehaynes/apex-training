@@ -1,22 +1,15 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { format, parseISO } from 'date-fns';
+import { postJson } from '../api';
 import type { WorkoutEvent } from '../../types/workout';
 import type { TrackedSectionGroup } from '../tracking/plan';
 import { describeRecord } from '../tracking/records';
 import type { PersonalRecord } from '../tracking/records';
 
 // ─── Post-workout coach summary ───────────────────────────────────────────────
-// One-shot generation at Finish. PRs arrive pre-computed (see
+// One-shot generation at Finish, proxied through /api/coach-summary so the
+// Anthropic key stays server-side. PRs arrive pre-computed (see
 // lib/tracking/records.ts) — the model narrates them, it never queries or
 // derives them, keeping token spend to a single small completion.
-
-const SYSTEM_PROMPT =
-  "You are the user's personal training coach reviewing a workout they just finished. " +
-  'Write a brief, punchy summary: 2-4 sentences. Acknowledge the work, call out any ' +
-  'personal records listed in the recap (they are pre-computed and verified — never ' +
-  'invent records that are not listed), and make one pointed observation, e.g. skipped ' +
-  'sets, a big jump versus last time, or a strong finish. Speak directly to the user in ' +
-  'second person. Plain prose only: no greeting, no sign-off, no markdown, no bullet points.';
 
 function setLine(weight: string, reps: string, duration: string): string {
   const parts: string[] = [];
@@ -79,27 +72,12 @@ export function buildSessionRecap(
 }
 
 /**
- * Generate the coach's written summary. Throws when no API key is configured
- * or the request fails — the summary popup degrades to PRs + the completed
- * list in that case.
+ * Generate the coach's written summary via /api/coach-summary. Throws when
+ * the request fails or comes back empty — the summary popup degrades to
+ * PRs + the completed list in that case.
  */
 export async function generateCoachSummary(recap: string): Promise<string> {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined;
-  if (!apiKey) throw new Error('VITE_ANTHROPIC_API_KEY not configured');
-
-  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-  const response = await client.messages.create({
-    model: 'claude-opus-4-8',
-    max_tokens: 300,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: recap }],
-  });
-
-  const text = response.content
-    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-    .map(block => block.text)
-    .join('')
-    .trim();
-  if (!text) throw new Error('Empty summary response');
-  return text;
+  const data = await postJson<{ text?: string }>('/api/coach-summary', { recap }, 'Coach summary');
+  if (!data?.text) throw new Error('Empty summary response');
+  return data.text;
 }
