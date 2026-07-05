@@ -4,8 +4,7 @@ import type { WorkoutEvent } from '../../types/workout';
 import type { TrackedSectionGroup, TrackedSet, CardioActuals } from '../../lib/tracking/plan';
 import { describeRecord } from '../../lib/tracking/records';
 import type { PersonalRecord } from '../../lib/tracking/records';
-
-export type CoachStatus = 'loading' | 'ready' | 'unavailable';
+import type { CoachStatus } from '../../hooks/useWorkoutSession';
 
 interface Props {
   event: WorkoutEvent;
