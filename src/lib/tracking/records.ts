@@ -1,5 +1,5 @@
 import { format, parseISO } from 'date-fns';
-import type { CardioLogRow, SetLogRow } from '../supabaseClient';
+import type { CardioLogRow, SetLogRow } from '../db/types';
 import type { TrackedSectionGroup } from './plan';
 
 // ─── Personal records ─────────────────────────────────────────────────────────

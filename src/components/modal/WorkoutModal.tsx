@@ -16,13 +16,6 @@ export default function WorkoutModal() {
   const { state, dispatch } = useCalendar();
   const { events, toggleCompletion } = useSchedule();
   const event = state.selectedEvent;
-  if (!event) return null;
-
-  // Always read live completion state from ScheduleContext rather than the
-  // snapshot stored in CalendarContext's selectedEvent.
-  const isCompleted = events.find(e => e.id === event.id)?.isCompleted ?? event.isCompleted;
-
-  const color = getWorkoutColor(event.type);
   const close = () => dispatch({ type: 'CLEAR_EVENT' });
 
   useEffect(() => {
@@ -31,6 +24,14 @@ export default function WorkoutModal() {
     document.body.style.overflow = 'hidden';
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
   }, []);
+
+  if (!event) return null;
+
+  // Always read live completion state from ScheduleContext rather than the
+  // snapshot stored in CalendarContext's selectedEvent.
+  const isCompleted = events.find(e => e.id === event.id)?.isCompleted ?? event.isCompleted;
+
+  const color = getWorkoutColor(event.type);
 
   const sections: { label: string; items: Exercise[] }[] = [
     ...(event.warmup?.length ? [{ label: 'Warm-Up', items: event.warmup }] : []),

@@ -1,5 +1,5 @@
 import type { Exercise, PlannedSet, WorkoutEvent } from '../../types/workout';
-import type { CardioLogRow, SetLogRow, TrackedSection } from '../supabaseClient';
+import type { CardioLogRow, SetLogRow, TrackedSection } from '../db/types';
 
 // ─── Tracker form model ───────────────────────────────────────────────────────
 // Pure builders that turn a WorkoutEvent (plan) plus previously-saved rows

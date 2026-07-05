@@ -12,7 +12,7 @@ import {
 import { buildTrackerModel } from '../plan';
 import type { TrackedSectionGroup } from '../plan';
 import type { Exercise, WorkoutEvent } from '../../../types/workout';
-import type { CardioLogRow, SetLogRow } from '../../supabaseClient';
+import type { CardioLogRow, SetLogRow } from '../../db/types';
 
 const bench: Exercise = {
   id: 'ub-1',

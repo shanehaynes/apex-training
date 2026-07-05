@@ -1,41 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
+import type { CardioLogRow, SetLogRow, TrackedSection } from '../src/lib/db/types.js';
 
 // Single endpoint for the workout tracker's writes, discriminated by
 // body.action — Vercel file routing maps one file to one path, and the
 // catch-all rewrite in vercel.json would swallow /api/workout-sessions/*
 // sub-paths. Reads go through the anon client (SELECT-only RLS policies).
 
-interface SetLogRow {
-  event_id: string;
-  event_date: string;
-  section: 'warmup' | 'exercise' | 'cooldown';
-  exercise_id: string;
-  exercise_name: string;
-  set_number: number;
-  planned_weight: string | null;
-  planned_reps: string | null;
-  planned_duration: string | null;
-  actual_weight: string | null;
-  actual_reps: string | null;
-  actual_duration: string | null;
-  is_autofilled: boolean;
-}
-
-interface CardioLogRow {
-  event_id: string;
-  event_date: string;
-  section: 'warmup' | 'exercise' | 'cooldown';
-  exercise_id: string;
-  exercise_name: string;
-  duration_minutes: number | null;
-  distance: string | null;
-  elevation_gain: string | null;
-  avg_heart_rate: number | null;
-}
-
 interface RemovedSetKey {
-  section: 'warmup' | 'exercise' | 'cooldown';
+  section: TrackedSection;
   exerciseId: string;
   setNumber: number;
 }

@@ -1,25 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
-
-interface CompletionRow {
-  event_id: string;
-  event_date: string;
-  event_type: string;
-  event_title: string;
-  duration_minutes: number | null;
-  is_completed: boolean;
-  completed_at: string | null;
-  updated_at: string;
-}
-
-interface CompletionLogRow {
-  event_id: string;
-  event_date: string;
-  event_type: string;
-  event_title: string;
-  duration_minutes: number | null;
-  action: 'complete' | 'uncomplete';
-}
+import type { CompletionLogRow, CompletionRow } from '../src/lib/db/types.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

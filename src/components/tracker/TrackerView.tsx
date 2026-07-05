@@ -5,7 +5,7 @@ import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/CalendarContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { supabase } from '../../lib/supabaseClient';
-import type { CardioLogRow, SetLogRow, WorkoutSessionRow, TrackedSection } from '../../lib/supabaseClient';
+import type { CardioLogRow, SetLogRow, WorkoutSessionRow, TrackedSection } from '../../lib/db/types';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import {
   buildTrackerModel,

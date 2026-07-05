@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import type {
   CompletionRow,
   WorkoutEventRow,
-} from '../lib/supabaseClient';
+} from '../lib/db/types';
 import type { WorkoutEvent, Schedule, WorkoutType } from '../types/workout';
 import { parseRRule, expandRecurrence, ruleFromLegacyColumns } from '../lib/recurrence';
 

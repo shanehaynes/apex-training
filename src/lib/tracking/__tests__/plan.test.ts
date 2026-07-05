@@ -10,7 +10,7 @@ import {
   makeExtraSet,
 } from '../plan';
 import type { Exercise, WorkoutEvent } from '../../../types/workout';
-import type { CardioLogRow, SetLogRow } from '../../supabaseClient';
+import type { CardioLogRow, SetLogRow } from '../../db/types';
 
 const strength: Exercise = {
   id: 'ub-1',
