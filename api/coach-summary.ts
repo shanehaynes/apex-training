@@ -20,7 +20,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // VITE_ fallback: the pre-proxy deployments configured the key under the
+  // VITE_ name. Server-side it is a plain env var — safe as long as no
+  // client code references it via import.meta.env (none does).
+  const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.VITE_ANTHROPIC_API_KEY;
   if (!apiKey) {
     res.status(500).send('ANTHROPIC_API_KEY not configured');
     return;
