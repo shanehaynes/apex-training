@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { parseISO, isSameDay, addDays, format } from 'date-fns';
 import scheduleData from '../data/schedule.json';
+import { deleteJson, patchJson, postJson } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
 import type {
   CompletionRow,
@@ -337,13 +338,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       action:           isNowCompleted ? 'complete' : 'uncomplete',
     };
 
-    fetch('/api/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ completionRow, logRow }),
-    }).then(async res => {
-      if (!res.ok) console.warn('[apex] Completion sync failed:', await res.text());
-    }).catch(err => console.warn('[apex] Completion sync failed:', err));
+    postJson('/api/completions', { completionRow, logRow }, 'Completion sync').catch(() => {});
   };
 
   const toggleCompletion = (id: string) => {
@@ -379,14 +374,12 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       isRecurring:       false,
     };
 
-    const res = await fetch('/api/events', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(eventToRow(newEvent)),
-    });
-    if (!res.ok) { console.warn('[apex] createEvent failed:', await res.text()); return null; }
-
-    return { id };
+    try {
+      await postJson('/api/events', eventToRow(newEvent), 'Creating event');
+      return { id };
+    } catch {
+      return null;
+    }
   }, []);
 
   const updateEvent = useCallback(async ({ id, fields }: UpdateEventInput): Promise<boolean> => {
@@ -411,21 +404,19 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     if (fields.warmup            !== undefined) dbFields.warmup              = fields.warmup as unknown[];
     if (fields.cooldown          !== undefined) dbFields.cooldown            = fields.cooldown as unknown[];
 
-    const res = await fetch(`/api/events?id=${encodeURIComponent(baseId)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    try {
+      await patchJson(`/api/events?id=${encodeURIComponent(baseId)}`, {
         fields: dbFields,
         log: {
           event_title: fields.title ?? current?.title ?? baseId,
           event_date:  fields.date ?? current?.date,
           diff:        { before: current ?? {}, after: fields },
         },
-      }),
-    });
-
-    if (!res.ok) { console.warn('[apex] updateEvent failed:', await res.text()); return false; }
-    return true;
+      }, 'Updating event');
+      return true;
+    } catch {
+      return false;
+    }
   }, []);
 
   const deleteEvent = useCallback(async (id: string): Promise<boolean> => {
@@ -434,28 +425,26 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     const event = eventsRef.current.find(e => e.id === id);
     const baseId = id.includes('__') ? id.split('__')[0] : id;
 
-    const res = await fetch(`/api/events?id=${encodeURIComponent(baseId)}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ log: { event_title: event?.title ?? baseId, event_date: event?.date } }),
-    });
-
-    if (!res.ok) { console.warn('[apex] deleteEvent failed:', await res.text()); return false; }
-    return true;
+    try {
+      await deleteJson(`/api/events?id=${encodeURIComponent(baseId)}`, 'Deleting event', {
+        log: { event_title: event?.title ?? baseId, event_date: event?.date },
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }, []);
 
   const deleteEventInstance = useCallback(async (baseId: string, date: string): Promise<boolean> => {
     if (!supabase) return false;
 
     const event = eventsRef.current.find(e => e.id === baseId || e.id.startsWith(baseId));
-    const res = await fetch('/api/event-instances', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ eventId: baseId, date, eventTitle: event?.title ?? baseId }),
-    });
-
-    if (!res.ok) { console.warn('[apex] deleteEventInstance failed:', await res.text()); return false; }
-    return true;
+    try {
+      await postJson('/api/event-instances', { eventId: baseId, date, eventTitle: event?.title ?? baseId }, 'Deleting instance');
+      return true;
+    } catch {
+      return false;
+    }
   }, []);
 
   return (

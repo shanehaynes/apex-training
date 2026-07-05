@@ -5,6 +5,7 @@ import ChatSidebar from '../sidebar/ChatSidebar';
 import WorkoutModal from '../modal/WorkoutModal';
 import TrackerView from '../tracker/TrackerView';
 import MobileBottomNav from './MobileBottomNav';
+import Toasts from './Toasts';
 import { useCalendar } from '../../context/CalendarContext';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import type { MobileTab } from './MobileBottomNav';
@@ -38,6 +39,7 @@ export default function AppShell() {
       )}
       {state.selectedEvent && <WorkoutModal />}
       {state.trackingSession && <TrackerView />}
+      <Toasts />
     </div>
   );
 }

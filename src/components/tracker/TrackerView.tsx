@@ -4,6 +4,7 @@ import { ChevronLeft, CheckCircle2, Flag, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/CalendarContext';
 import { useSchedule } from '../../context/ScheduleContext';
+import { postJson } from '../../lib/api';
 import { supabase } from '../../lib/supabaseClient';
 import type { CardioLogRow, SetLogRow, WorkoutSessionRow, TrackedSection } from '../../lib/db/types';
 import { getWorkoutColor } from '../../utils/workoutColors';
@@ -124,11 +125,11 @@ export default function TrackerView() {
         : Promise.resolve({ data: [] as CardioLogRow[] });
 
       const [startRes, setsRes, cardioRes, historyRes, cardioHistoryRes] = await Promise.all([
-        fetch('/api/workout-sessions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'start', eventId: event.id, eventDate: event.date }),
-        }).then(r => (r.ok ? r.json() : Promise.reject(new Error(`start failed: ${r.status}`)))),
+        postJson<{ session: WorkoutSessionRow }>(
+          '/api/workout-sessions',
+          { action: 'start', eventId: event.id, eventDate: event.date },
+          'Starting session',
+        ),
         supabase.from('workout_set_logs').select('*').eq('event_id', event.id).eq('event_date', event.date),
         supabase.from('workout_cardio_logs').select('*').eq('event_id', event.id).eq('event_date', event.date),
         historyQuery,
@@ -206,16 +207,11 @@ export default function TrackerView() {
     dirtyCardioRef.current = new Set();
     removedRef.current = [];
 
-    try {
-      const res = await fetch('/api/workout-sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'save', eventId: event.id, eventDate: event.date, setLogs, cardioLogs, removedSets }),
-      });
-      if (!res.ok) console.warn('[apex] Tracker autosave failed:', await res.text());
-    } catch (err) {
-      console.warn('[apex] Tracker autosave failed:', err);
-    }
+    await postJson(
+      '/api/workout-sessions',
+      { action: 'save', eventId: event.id, eventDate: event.date, setLogs, cardioLogs, removedSets },
+      'Autosave',
+    ).catch(() => {});
   }, [event?.id, event?.date]);
 
   const scheduleSave = useCallback(() => {
@@ -298,25 +294,17 @@ export default function TrackerView() {
     setIsCancelling(true);
     try {
       if (supabase) {
-        const res = await fetch('/api/workout-sessions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'cancel', eventId: event.id, eventDate: event.date }),
-        });
-        if (!res.ok) {
-          console.warn('[apex] Cancel failed:', await res.text());
-          cancelledRef.current = false;
-          setIsCancelling(false);
-          setConfirmCancel(false);
-          return;
-        }
+        await postJson(
+          '/api/workout-sessions',
+          { action: 'cancel', eventId: event.id, eventDate: event.date },
+          'Discarding workout',
+        );
       }
       // A finished session set the completion flag — forgetting the workout
       // forgets that too. A never-finished session never completed anything.
       if (isFinished) setCompletion(event.id, false);
       dispatch({ type: 'STOP_TRACKING' });
-    } catch (err) {
-      console.warn('[apex] Cancel failed:', err);
+    } catch {
       cancelledRef.current = false;
       setIsCancelling(false);
       setConfirmCancel(false);
@@ -337,11 +325,11 @@ export default function TrackerView() {
         setSummary(prev => prev && { ...prev, coachText: text, coachStatus: 'ready' });
         setSession(prev => prev && { ...prev, coach_summary: text });
         if (supabase) {
-          fetch('/api/workout-sessions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'summary', eventId: event.id, eventDate: event.date, coachSummary: text }),
-          }).catch(err => console.warn('[apex] Saving coach summary failed:', err));
+          postJson(
+            '/api/workout-sessions',
+            { action: 'summary', eventId: event.id, eventDate: event.date, coachSummary: text },
+            'Saving coach summary',
+          ).catch(() => {});
         }
       })
       .catch(err => {
@@ -365,18 +353,11 @@ export default function TrackerView() {
       await flushSave();
       let totalSeconds: number | null = elapsed;
       if (supabase) {
-        const res = await fetch('/api/workout-sessions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'finish', eventId: event.id, eventDate: event.date, autofillRows }),
-        });
-        if (!res.ok) {
-          console.warn('[apex] Finish failed:', await res.text());
-          setIsFinishing(false);
-          setConfirmCount(null);
-          return;
-        }
-        const data = await res.json().catch(() => null);
+        const data = await postJson<{ totalDurationSeconds?: number }>(
+          '/api/workout-sessions',
+          { action: 'finish', eventId: event.id, eventDate: event.date, autofillRows },
+          'Finishing workout',
+        );
         if (typeof data?.totalDurationSeconds === 'number') totalSeconds = data.totalDurationSeconds;
       }
       setCompletion(event.id, true);
@@ -393,8 +374,7 @@ export default function TrackerView() {
       const prs = computeSessionPRs(groupsRef.current, historyRef.current, cardioHistoryRef.current);
       setSummary({ prs, coachText: null, coachStatus: 'loading' });
       generateAndSaveSummary(groupsRef.current, prs, totalSeconds);
-    } catch (err) {
-      console.warn('[apex] Finish failed:', err);
+    } catch {
       setIsFinishing(false);
       setConfirmCount(null);
     }
