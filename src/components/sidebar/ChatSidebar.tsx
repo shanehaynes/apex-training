@@ -3,6 +3,7 @@ import { format, parseISO, startOfWeek, endOfWeek, subWeeks, isWithinInterval } 
 import { useSchedule } from '../../context/ScheduleContext';
 import type { CreateEventInput, UpdateEventInput } from '../../context/ScheduleContext';
 import { useChat } from '../../hooks/useChat';
+import { baseIdOf } from '../../lib/schedule/occurrence';
 import type { WorkoutType } from '../../types/workout';
 import { Send, Square, NotebookPen, Check, X } from 'lucide-react';
 
@@ -144,8 +145,8 @@ export default function ChatSidebar() {
       const { event_id, scope, date } = toolInput as {
         event_id: string; scope: 'instance' | 'all'; date?: string;
       };
-      // Recurring instances have synthetic IDs like `base__date`; the base ID is before `__`
-      const baseId = event_id.includes('__') ? event_id.split('__')[0] : event_id;
+      // Recurring instances have synthetic occurrence ids (`base__date`).
+      const baseId = baseIdOf(event_id);
 
       if (scope === 'instance' && date) {
         const ok = await deleteEventInstance(baseId, date);

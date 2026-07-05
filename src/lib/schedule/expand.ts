@@ -1,6 +1,7 @@
 import { addDays, format } from 'date-fns';
 import type { WorkoutEvent } from '../../types/workout';
 import { parseRRule, expandRecurrence, ruleFromLegacyColumns } from '../recurrence';
+import { baseIdOf, makeOccurrenceId, occurrenceDateOf } from './occurrence';
 
 // ─── Recurring expansion ──────────────────────────────────────────────────────
 // Pure: turns base events + exception keys into the flat occurrence list the
@@ -11,7 +12,7 @@ const OPEN_ENDED_HORIZON_DAYS = 366;
 
 export function expandRecurringEvents(
   rawEvents: WorkoutEvent[],
-  exceptions: Set<string>, // `${event_id}__${date}` pairs to skip
+  exceptions: Set<string>, // occurrence ids (see ./occurrence) to skip
 ): WorkoutEvent[] {
   const expanded: WorkoutEvent[] = [...rawEvents];
   const rangeEnd = format(addDays(new Date(), OPEN_ENDED_HORIZON_DAYS), 'yyyy-MM-dd');
@@ -27,17 +28,18 @@ export function expandRecurringEvents(
       continue;
     }
 
-    // Exceptions are keyed per series (`${event_id}__${date}`), so an
-    // unrelated event that happens to share a type/date never suppresses
-    // this series' occurrences.
+    // Exceptions are keyed per series (occurrence ids), so an unrelated
+    // event that happens to share a type/date never suppresses this
+    // series' occurrences.
     const exdates = new Set<string>();
-    const prefix = `${base.id}__`;
     for (const key of exceptions) {
-      if (key.startsWith(prefix)) exdates.add(key.slice(prefix.length));
+      if (baseIdOf(key) !== base.id) continue;
+      const date = occurrenceDateOf(key);
+      if (date) exdates.add(date);
     }
 
     for (const dateStr of expandRecurrence(rule, base.date, exdates, rangeEnd)) {
-      expanded.push({ ...base, id: `${base.id}__${dateStr}`, date: dateStr, isCompleted: false });
+      expanded.push({ ...base, id: makeOccurrenceId(base.id, dateStr), date: dateStr, isCompleted: false });
     }
   }
 

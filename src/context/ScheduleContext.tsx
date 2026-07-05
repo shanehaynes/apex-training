@@ -8,6 +8,7 @@ import type { WorkoutEvent, Schedule, WorkoutType } from '../types/workout';
 import { expandRecurringEvents, normalizeSeedEvent } from '../lib/schedule/expand';
 import { buildCompletionRows, eventFieldsToRow, eventToRow, rowToEvent } from '../lib/schedule/mapping';
 import { loadCompletedIds, saveCompletedIds } from '../lib/schedule/localCompletion';
+import { baseIdOf, makeOccurrenceId } from '../lib/schedule/occurrence';
 import { timeToMinutes } from '../lib/time';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
@@ -84,7 +85,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     if (!exceptionsRes.error && exceptionsRes.data) {
       const exSet = new Set(
         (exceptionsRes.data as { event_id: string; skipped_date: string }[]).map(
-          r => `${r.event_id}__${r.skipped_date}`,
+          r => makeOccurrenceId(r.event_id, r.skipped_date),
         ),
       );
       setExceptions(exSet);
@@ -221,7 +222,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) return false;
 
     const current = eventsRef.current.find(e => e.id === id);
-    const baseId = id.includes('__') ? id.split('__')[0] : id;
+    const baseId = baseIdOf(id);
 
     try {
       await patchJson(`/api/events?id=${encodeURIComponent(baseId)}`, {
@@ -242,7 +243,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) return false;
 
     const event = eventsRef.current.find(e => e.id === id);
-    const baseId = id.includes('__') ? id.split('__')[0] : id;
+    const baseId = baseIdOf(id);
 
     try {
       await deleteJson(`/api/events?id=${encodeURIComponent(baseId)}`, 'Deleting event', {
