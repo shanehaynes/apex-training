@@ -84,6 +84,7 @@ function cardioHistoryRow(overrides: Partial<CardioLogRow>): CardioLogRow {
     distance: '5 mi',
     elevation_gain: '800 ft',
     avg_heart_rate: 145,
+    is_autofilled: false,
     ...overrides,
   };
 }

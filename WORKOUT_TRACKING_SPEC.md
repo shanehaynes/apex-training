@@ -433,3 +433,17 @@ Resolve these before or during implementation — don't guess:
   re-create rows after the delete. Cancelling a previously *finished* session also
   un-completes the event (finish is what completed it); a never-finished session leaves
   the completion flag untouched.
+
+- **Quick complete (2026-07-05):** the "Mark as Complete" toggle (modal button, calendar
+  chips) now also logs the whole plan as done at its recommended targets. Toggle ON fires
+  `action: 'quick-complete'`: every planned set gets a `workout_set_logs` row with actuals
+  copied from the planned targets, every cardio exercise gets a `workout_cardio_logs` row
+  at its planned duration (a range like "30–40 min" logs its floor; distance/HR are never
+  invented), and the session is upserted + stamped finished at `estimatedDuration`. All
+  rows carry `is_autofilled = true` (column added to cardio logs in
+  `phase6_quick_complete.sql`), so PR and last-performance detection ignore them, and all
+  upserts use `ignoreDuplicates` so hand-logged rows — including a partially tracked
+  session — are never overwritten. Toggle OFF fires `action: 'quick-uncomplete'`: deletes
+  the autofilled rows, keeps hand-entered ones, and drops the session row only when no
+  logs remain. The tracker's Finish path still goes through `setCompletion` and is
+  unaffected — real actuals are never plan-filled.

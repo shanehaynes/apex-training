@@ -98,6 +98,7 @@ export interface CardioLogRow {
   distance: string | null;
   elevation_gain: string | null;
   avg_heart_rate: number | null;
+  is_autofilled: boolean;
 }
 
 export interface RecurringExceptionRow {

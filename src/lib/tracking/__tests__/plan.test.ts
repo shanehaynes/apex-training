@@ -3,7 +3,9 @@ import {
   resolvePlannedSets,
   buildTrackerModel,
   buildLastPerformance,
+  buildQuickCompleteLogs,
   collectUntouchedPlanned,
+  plannedCardioMinutes,
   setExerciseNames,
   setToRow,
   cardioToRow,
@@ -122,6 +124,7 @@ describe('buildTrackerModel', () => {
       event_id: 'e', event_date: '2026-07-06', section: 'exercise',
       exercise_id: 'run-1', exercise_name: 'Zone 2 Run',
       duration_minutes: 45.5, distance: '5 mi', elevation_gain: null, avg_heart_rate: 142,
+      is_autofilled: false,
     }];
     const groups = buildTrackerModel(makeEvent(), [], saved);
     const run = groups[1].exercises[1];
@@ -207,6 +210,73 @@ describe('buildLastPerformance', () => {
 
   it('returns an empty map for no history', () => {
     expect(buildLastPerformance([]).size).toBe(0);
+  });
+});
+
+describe('plannedCardioMinutes', () => {
+  it('parses plain, ranged, approximate, and hour durations', () => {
+    expect(plannedCardioMinutes('45 min')).toBe(45);
+    expect(plannedCardioMinutes('30–40 min')).toBe(30); // range logs its floor
+    expect(plannedCardioMinutes('~2 min')).toBe(2);
+    expect(plannedCardioMinutes('1 hr')).toBe(60);
+    expect(plannedCardioMinutes('90s')).toBe(1.5);
+  });
+
+  it('returns null for missing or unparseable values', () => {
+    expect(plannedCardioMinutes(undefined)).toBeNull();
+    expect(plannedCardioMinutes('easy spin')).toBeNull();
+  });
+});
+
+describe('buildQuickCompleteLogs', () => {
+  it('logs every planned set at its targets, flagged autofilled', () => {
+    const { setLogs } = buildQuickCompleteLogs(makeEvent());
+    // 1 warmup stretch set + 3 bench sets; cardio is separate
+    expect(setLogs).toHaveLength(4);
+    expect(setLogs.every(r => r.is_autofilled)).toBe(true);
+
+    const bench = setLogs.filter(r => r.exercise_id === 'ub-1');
+    expect(bench.map(r => r.set_number)).toEqual([1, 2, 3]);
+    expect(bench[0]).toMatchObject({
+      event_id: 'w1-mon-weights__2026-07-06',
+      event_date: '2026-07-06',
+      section: 'exercise',
+      planned_weight: '185lb', actual_weight: '185lb',
+      planned_reps: '5', actual_reps: '5',
+      planned_duration: null, actual_duration: null,
+    });
+
+    const stretchRow = setLogs.find(r => r.exercise_id === 'ub-cd-1');
+    expect(stretchRow).toMatchObject({
+      section: 'warmup',
+      planned_duration: '60s', actual_duration: '60s',
+      actual_weight: null, actual_reps: null,
+    });
+  });
+
+  it('honors authored plannedSets (ramps) over legacy synthesis', () => {
+    const ramp: Exercise = {
+      ...strength,
+      plannedSets: [
+        { setNumber: 1, targetWeight: '135lb', targetReps: '5' },
+        { setNumber: 2, targetWeight: '185lb', targetReps: '3' },
+      ],
+    };
+    const { setLogs } = buildQuickCompleteLogs(makeEvent({ warmup: [], exercises: [ramp] }));
+    expect(setLogs.map(r => r.actual_weight)).toEqual(['135lb', '185lb']);
+  });
+
+  it('logs cardio at its planned duration with no invented metrics', () => {
+    const { cardioLogs } = buildQuickCompleteLogs(makeEvent());
+    expect(cardioLogs).toHaveLength(1);
+    expect(cardioLogs[0]).toMatchObject({
+      exercise_id: 'run-1',
+      duration_minutes: 45,
+      distance: null,
+      elevation_gain: null,
+      avg_heart_rate: null,
+      is_autofilled: true,
+    });
   });
 });
 

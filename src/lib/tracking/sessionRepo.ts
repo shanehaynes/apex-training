@@ -2,7 +2,7 @@ import { postJson } from '../api';
 import { supabase } from '../supabaseClient';
 import type { CardioLogRow, SetLogRow, TrackedSection, WorkoutSessionRow } from '../db/types';
 import type { WorkoutEvent } from '../../types/workout';
-import { cardioExerciseNames, setExerciseNames } from './plan';
+import { buildQuickCompleteLogs, cardioExerciseNames, setExerciseNames } from './plan';
 
 // Data access for the workout tracker — the one module that knows where
 // tracking data lives. Reads go straight to Supabase on the anon client
@@ -56,7 +56,8 @@ export async function loadSession(event: WorkoutEvent): Promise<TrackerSessionDa
         .limit(500)
     : Promise.resolve({ data: [] as SetLogRow[] });
 
-  // Prior cardio actuals, for distance/elevation PR detection.
+  // Prior cardio actuals, for distance/elevation PR detection. Autofilled
+  // rows (quick-complete plan-fills) are not performances, like set logs.
   const cardioNames = cardioExerciseNames(event);
   const cardioHistoryQuery = cardioNames.length
     ? supabase
@@ -64,6 +65,7 @@ export async function loadSession(event: WorkoutEvent): Promise<TrackerSessionDa
         .select('*')
         .in('exercise_name', cardioNames)
         .lt('event_date', event.date)
+        .eq('is_autofilled', false)
         .order('event_date', { ascending: false })
         .limit(500)
     : Promise.resolve({ data: [] as CardioLogRow[] });
@@ -125,6 +127,30 @@ export async function finishSession(
 export async function cancelSession(eventId: string, eventDate: string): Promise<void> {
   if (!supabase) return;
   await postJson('/api/workout-sessions', { action: 'cancel', eventId, eventDate }, 'Discarding workout');
+}
+
+/**
+ * "Mark as Complete" quick path: log every exercise at its planned targets
+ * and stamp the session finished at the recommended duration. Server-side
+ * upserts ignore duplicates, so hand-logged rows are never overwritten.
+ */
+export async function quickCompleteSession(event: WorkoutEvent): Promise<void> {
+  if (!supabase) return;
+  const { setLogs, cardioLogs } = buildQuickCompleteLogs(event);
+  await postJson('/api/workout-sessions', {
+    action: 'quick-complete',
+    eventId: event.id,
+    eventDate: event.date,
+    durationSeconds: event.estimatedDuration * 60,
+    setLogs,
+    cardioLogs,
+  }, 'Quick-completing workout');
+}
+
+/** Undo the quick path: delete system-filled rows, keep hand-entered logs. */
+export async function quickUncompleteSession(eventId: string, eventDate: string): Promise<void> {
+  if (!supabase) return;
+  await postJson('/api/workout-sessions', { action: 'quick-uncomplete', eventId, eventDate }, 'Un-completing workout');
 }
 
 /** Persist the AI coach summary — fire-and-forget. */

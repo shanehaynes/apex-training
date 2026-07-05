@@ -1,5 +1,6 @@
 import type { Exercise, PlannedSet, WorkoutEvent } from '../../types/workout';
 import type { CardioLogRow, SetLogRow, TrackedSection } from '../db/types';
+import { parseDurationSeconds } from './records';
 
 // ─── Tracker form model ───────────────────────────────────────────────────────
 // Pure builders that turn a WorkoutEvent (plan) plus previously-saved rows
@@ -259,6 +260,7 @@ export function cardioToRow(
     distance: c.distance || null,
     elevation_gain: c.elevationGain || null,
     avg_heart_rate: Number.isFinite(hrNum) ? hrNum : null,
+    is_autofilled: false,
   };
 }
 
@@ -289,4 +291,75 @@ export function collectUntouchedPlanned(
     }
   }
   return rows;
+}
+
+// ─── Quick complete (the "Mark as Complete" toggle) ──────────────────────────
+
+/**
+ * Planned cardio duration in minutes: "45 min" → 45, "30–40 min" → 30 (a
+ * range logs its floor), "~2 min" → 2, "1 hr" → 60. Null when nothing
+ * parses — the row still marks the exercise done.
+ */
+export function plannedCardioMinutes(duration: string | undefined): number | null {
+  if (!duration) return null;
+  const cleaned = duration
+    .trim()
+    .replace(/^[~≈]\s*/, '')
+    .replace(/^(\d+(?:\.\d+)?)\s*[–—-]\s*\d+(?:\.\d+)?/, '$1');
+  const seconds = parseDurationSeconds(cleaned);
+  return seconds !== null ? Math.round((seconds / 60) * 100) / 100 : null;
+}
+
+/**
+ * Every exercise in the event logged at its planned (recommended) targets:
+ * per-set weight/reps/duration for set work, planned duration for cardio.
+ * Rows are flagged is_autofilled so hand-entered logs always win the upsert
+ * (ignoreDuplicates server-side), PR and last-performance detection ignore
+ * them, and un-marking can delete exactly what the toggle created.
+ */
+export function buildQuickCompleteLogs(
+  event: WorkoutEvent,
+): { setLogs: SetLogRow[]; cardioLogs: CardioLogRow[] } {
+  const setLogs: SetLogRow[] = [];
+  const cardioLogs: CardioLogRow[] = [];
+
+  for (const { section, pick } of SECTION_SOURCES) {
+    for (const exercise of pick(event)) {
+      if (exercise.category === 'cardio') {
+        cardioLogs.push({
+          event_id: event.id,
+          event_date: event.date,
+          section,
+          exercise_id: exercise.id,
+          exercise_name: exercise.name,
+          duration_minutes: plannedCardioMinutes(exercise.duration),
+          distance: null,
+          elevation_gain: null,
+          avg_heart_rate: null,
+          is_autofilled: true,
+        });
+        continue;
+      }
+
+      for (const planned of resolvePlannedSets(exercise)) {
+        setLogs.push({
+          event_id: event.id,
+          event_date: event.date,
+          section,
+          exercise_id: exercise.id,
+          exercise_name: exercise.name,
+          set_number: planned.setNumber,
+          planned_weight: planned.targetWeight ?? null,
+          planned_reps: planned.targetReps ?? null,
+          planned_duration: planned.targetDuration ?? null,
+          actual_weight: planned.targetWeight ?? null,
+          actual_reps: planned.targetReps ?? null,
+          actual_duration: planned.targetDuration ?? null,
+          is_autofilled: true,
+        });
+      }
+    }
+  }
+
+  return { setLogs, cardioLogs };
 }

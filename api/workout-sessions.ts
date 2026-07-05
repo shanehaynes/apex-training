@@ -14,7 +14,7 @@ interface RemovedSetKey {
 }
 
 interface Body {
-  action?: 'start' | 'save' | 'finish' | 'cancel' | 'summary';
+  action?: 'start' | 'save' | 'finish' | 'cancel' | 'summary' | 'quick-complete' | 'quick-uncomplete';
   eventId?: string;
   eventDate?: string;
   setLogs?: SetLogRow[];
@@ -24,6 +24,8 @@ interface Body {
   autofillRows?: SetLogRow[];
   /** summary only: AI-generated coach summary text to persist on the session. */
   coachSummary?: string;
+  /** quick-complete only: recommended session length to stamp on the session. */
+  durationSeconds?: number;
 }
 
 const SET_LOG_CONFLICT = 'event_id,event_date,section,exercise_id,set_number';
@@ -186,6 +188,112 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error('[api/workout-sessions] summary update failed:', summaryErr.message);
       res.status(500).send('Failed to save summary');
       return;
+    }
+
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  // ── quick-complete: "Mark as Complete" logs the whole plan as done ────────
+  // Set/cardio rows arrive pre-built at planned targets (is_autofilled).
+  // Every upsert ignores duplicates, so anything hand-logged — including a
+  // partially tracked session — is never overwritten.
+  if (body.action === 'quick-complete') {
+    const now = new Date().toISOString();
+
+    const { error: sessionErr } = await supabase
+      .from('workout_sessions')
+      .upsert(
+        { event_id: eventId, event_date: eventDate, started_at: now },
+        { onConflict: 'event_id,event_date', ignoreDuplicates: true },
+      );
+    if (sessionErr) {
+      console.error('[api/workout-sessions] quick-complete session upsert failed:', sessionErr.message);
+      res.status(500).send('Failed to quick-complete session');
+      return;
+    }
+
+    // Stamp unfinished sessions with the recommended duration; a genuinely
+    // tracked-and-finished session keeps its measured time.
+    const { error: finishErr } = await supabase
+      .from('workout_sessions')
+      .update({
+        finished_at: now,
+        total_duration_seconds: typeof body.durationSeconds === 'number' ? Math.round(body.durationSeconds) : null,
+        updated_at: now,
+      })
+      .eq('event_id', eventId)
+      .eq('event_date', eventDate)
+      .is('finished_at', null);
+    if (finishErr) {
+      console.error('[api/workout-sessions] quick-complete finish failed:', finishErr.message);
+      res.status(500).send('Failed to quick-complete session');
+      return;
+    }
+
+    const ops: PromiseLike<{ error: { message: string } | null }>[] = [];
+    if (body.setLogs?.length) {
+      ops.push(supabase
+        .from('workout_set_logs')
+        .upsert(
+          body.setLogs.map(r => ({ ...r, is_autofilled: true, updated_at: now })),
+          { onConflict: SET_LOG_CONFLICT, ignoreDuplicates: true },
+        ));
+    }
+    if (body.cardioLogs?.length) {
+      ops.push(supabase
+        .from('workout_cardio_logs')
+        .upsert(
+          body.cardioLogs.map(r => ({ ...r, is_autofilled: true, updated_at: now })),
+          { onConflict: CARDIO_CONFLICT, ignoreDuplicates: true },
+        ));
+    }
+    const results = await Promise.all(ops);
+    const failed = results.find(r => r.error);
+    if (failed?.error) {
+      console.error('[api/workout-sessions] quick-complete logs failed:', failed.error.message);
+      res.status(500).send('Failed to log planned work');
+      return;
+    }
+
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  // ── quick-uncomplete: undo the toggle — drop only system-filled rows ──────
+  // Hand-entered logs survive. Note zero-fills from a real Finish share the
+  // is_autofilled flag and are dropped too; re-finishing recreates them.
+  if (body.action === 'quick-uncomplete') {
+    const deletes = await Promise.all([
+      supabase.from('workout_set_logs').delete()
+        .eq('event_id', eventId).eq('event_date', eventDate).eq('is_autofilled', true),
+      supabase.from('workout_cardio_logs').delete()
+        .eq('event_id', eventId).eq('event_date', eventDate).eq('is_autofilled', true),
+    ]);
+    const failedDelete = deletes.find(r => r.error);
+    if (failedDelete?.error) {
+      console.error('[api/workout-sessions] quick-uncomplete delete failed:', failedDelete.error.message);
+      res.status(500).send('Failed to remove quick-completed logs');
+      return;
+    }
+
+    // A session with no logs left was created by the toggle — drop it so the
+    // tracker starts fresh instead of resuming a phantom finished session.
+    const [setsLeft, cardioLeft] = await Promise.all([
+      supabase.from('workout_set_logs').select('id', { count: 'exact', head: true })
+        .eq('event_id', eventId).eq('event_date', eventDate),
+      supabase.from('workout_cardio_logs').select('id', { count: 'exact', head: true })
+        .eq('event_id', eventId).eq('event_date', eventDate),
+    ]);
+    if ((setsLeft.count ?? 0) === 0 && (cardioLeft.count ?? 0) === 0) {
+      const { error: sessionErr } = await supabase
+        .from('workout_sessions').delete()
+        .eq('event_id', eventId).eq('event_date', eventDate);
+      if (sessionErr) {
+        console.error('[api/workout-sessions] quick-uncomplete session delete failed:', sessionErr.message);
+        res.status(500).send('Failed to remove quick-completed session');
+        return;
+      }
     }
 
     res.status(200).json({ ok: true });

@@ -9,6 +9,7 @@ import type { CreateEventInput, UpdateEventInput } from '../lib/schedule/types';
 import { expandRecurringEvents, normalizeSeedEvent } from '../lib/schedule/expand';
 import { buildCompletionRows, eventFieldsToRow, eventToRow, rowToEvent } from '../lib/schedule/mapping';
 import { loadCompletedIds, saveCompletedIds } from '../lib/schedule/localCompletion';
+import { quickCompleteSession, quickUncompleteSession } from '../lib/tracking/sessionRepo';
 import { baseIdOf, makeOccurrenceId } from '../lib/schedule/occurrence';
 import { timeToMinutes } from '../lib/time';
 
@@ -158,8 +159,16 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     postJson('/api/completions', buildCompletionRows(event, isNowCompleted), 'Completion sync').catch(() => {});
   };
 
+  // The explicit "Mark as Complete" toggle also logs (or un-logs) the whole
+  // plan at its recommended targets. The tracker's Finish path goes through
+  // setCompletion instead — it has real actuals and must not be plan-filled.
   const toggleCompletion = (id: string) => {
-    applyCompletion(id, !completedIds.has(id));
+    const isNowCompleted = !completedIds.has(id);
+    const event = eventsRef.current.find(e => e.id === id);
+    applyCompletion(id, isNowCompleted);
+    if (!event) return;
+    if (isNowCompleted) quickCompleteSession(event).catch(() => {});
+    else quickUncompleteSession(event.id, event.date).catch(() => {});
   };
 
   const setCompletion = (id: string, completed: boolean) => {
