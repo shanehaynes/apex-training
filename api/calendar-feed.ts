@@ -23,6 +23,11 @@ export interface FeedEventRow {
 export interface FeedExceptionRow {
   event_id: string;
   skipped_date: string; // 'YYYY-MM-DD'
+  // Set when the occurrence was rescheduled rather than removed — it becomes
+  // an EXDATE plus a standalone VEVENT at the overridden date/time.
+  override_date?: string | null;
+  override_start_time?: string | null;
+  override_end_time?: string | null;
 }
 
 function escapeIcs(value: string): string {
@@ -68,6 +73,29 @@ export function buildIcs(events: FeedEventRow[], exceptions: FeedExceptionRow[])
     exdatesByEvent.set(ex.event_id, list);
   }
 
+  // Rescheduled occurrences: the original slot is vacated by its EXDATE
+  // (above); the occurrence itself is re-emitted as a one-off VEVENT at the
+  // overridden date/time.
+  const byId = new Map(events.map(e => [e.id, e]));
+  const movedEvents: FeedEventRow[] = [];
+  for (const ex of exceptions) {
+    if (!ex.override_date && !ex.override_start_time && !ex.override_end_time) continue;
+    const base = byId.get(ex.event_id);
+    if (!base) continue;
+    movedEvents.push({
+      ...base,
+      id:         `${base.id}__${ex.skipped_date}`,
+      date:       ex.override_date ?? ex.skipped_date,
+      start_time: ex.override_start_time ?? base.start_time,
+      end_time:   ex.override_end_time ?? base.end_time,
+      is_recurring: false,
+      recurrence_rule: null,
+      recurring_frequency: null,
+      recurring_days: null,
+      recurring_end_date: null,
+    });
+  }
+
   const stamp = dtstamp();
   const lines: string[] = [
     'BEGIN:VCALENDAR',
@@ -78,7 +106,7 @@ export function buildIcs(events: FeedEventRow[], exceptions: FeedExceptionRow[])
     'X-WR-CALNAME:Apex Training',
   ];
 
-  for (const ev of events) {
+  for (const ev of [...events, ...movedEvents]) {
     const hasTime = !!ev.start_time;
     const dtstart = toIcsDate(ev.date, ev.start_time);
     const uid = `${ev.id}@apex-training`;
@@ -182,7 +210,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .from('workout_events')
       .select('id, type, title, date, start_time, end_time, estimated_duration, location, is_recurring, recurrence_rule, recurring_frequency, recurring_days, recurring_end_date')
       .order('date', { ascending: true }),
-    supabase.from('recurring_exceptions').select('event_id, skipped_date'),
+    supabase.from('recurring_exceptions').select('event_id, skipped_date, override_date, override_start_time, override_end_time'),
   ]);
 
   if (eventsRes.error) {

@@ -22,3 +22,13 @@ export interface UpdateEventInput {
   id: string;
   fields: Partial<Omit<WorkoutEvent, 'id' | 'isCompleted'>>;
 }
+
+/**
+ * Date/time override for a single occurrence of a recurring series. Only the
+ * fields present are overridden; the rest fall back to the base event.
+ */
+export interface OccurrenceOverride {
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+}

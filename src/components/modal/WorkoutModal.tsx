@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play } from 'lucide-react';
@@ -7,6 +7,7 @@ import { useCalendar } from '../../context/CalendarContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { formatEventTime, formatDuration } from '../../utils/dateHelpers';
+import { timeToMinutes, toDisplayTime, toInputTime } from '../../lib/time';
 import ExerciseCard from './ExerciseCard';
 import type { Exercise } from '../../types/workout';
 
@@ -14,9 +15,12 @@ const DIFFICULTY_LABELS = ['', 'Easy', 'Moderate', 'Challenging', 'Hard', 'Maxim
 
 export default function WorkoutModal() {
   const { state, dispatch } = useCalendar();
-  const { events, toggleCompletion } = useSchedule();
+  const { events, toggleCompletion, rescheduleEvent } = useSchedule();
   const event = state.selectedEvent;
   const close = () => dispatch({ type: 'CLEAR_EVENT' });
+
+  const [editingDate, setEditingDate] = useState(false);
+  const [editingTime, setEditingTime] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
@@ -27,9 +31,31 @@ export default function WorkoutModal() {
 
   if (!event) return null;
 
-  // Always read live completion state from ScheduleContext rather than the
-  // snapshot stored in CalendarContext's selectedEvent.
-  const isCompleted = events.find(e => e.id === event.id)?.isCompleted ?? event.isCompleted;
+  // Always read live state from ScheduleContext rather than the snapshot
+  // stored in CalendarContext's selectedEvent — date/time edits and
+  // completion toggles land there first.
+  const live = events.find(e => e.id === event.id) ?? event;
+  const isCompleted = live.isCompleted;
+
+  const commitDate = (value: string) => {
+    setEditingDate(false);
+    if (!value || value === live.date) return;
+    rescheduleEvent(event.id, { date: value });
+  };
+
+  const commitStartTime = (value: string) => {
+    const stored = toDisplayTime(value);
+    if (!stored || stored === live.startTime) return;
+    rescheduleEvent(event.id, { startTime: stored });
+  };
+
+  const commitEndTime = (value: string) => {
+    const stored = toDisplayTime(value);
+    if (!stored || stored === live.endTime) return;
+    // An end at or before the start would render a negative range — ignore it.
+    if (live.startTime && timeToMinutes(stored) <= timeToMinutes(live.startTime)) return;
+    rescheduleEvent(event.id, { endTime: stored });
+  };
 
   const color = getWorkoutColor(event.type);
 
@@ -85,15 +111,69 @@ export default function WorkoutModal() {
 
           {/* Difficulty & duration */}
           <div className="modal-meta-strip">
-            <span className="modal-meta-item">
-              <Calendar size={14} strokeWidth={1.5} />
-              {format(parseISO(event.date), 'EEEE, MMM d')}
-            </span>
-            {event.startTime && (
+            {editingDate ? (
               <span className="modal-meta-item">
-                <Clock size={14} strokeWidth={1.5} />
-                {formatEventTime(event.startTime, event.endTime)}
+                <Calendar size={14} strokeWidth={1.5} />
+                <input
+                  type="date"
+                  className="modal-meta-input"
+                  autoFocus
+                  defaultValue={live.date}
+                  onBlur={e => commitDate(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') { e.stopPropagation(); setEditingDate(false); }
+                  }}
+                />
               </span>
+            ) : (
+              <button
+                className="modal-meta-item modal-meta-item--edit"
+                onClick={() => setEditingDate(true)}
+                title="Change date"
+              >
+                <Calendar size={14} strokeWidth={1.5} />
+                {format(parseISO(live.date), 'EEEE, MMM d')}
+              </button>
+            )}
+            {editingTime ? (
+              <span
+                className="modal-meta-item"
+                onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setEditingTime(false); }}
+              >
+                <Clock size={14} strokeWidth={1.5} />
+                <input
+                  type="time"
+                  className="modal-meta-input"
+                  autoFocus
+                  defaultValue={toInputTime(live.startTime)}
+                  onBlur={e => commitStartTime(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') { e.stopPropagation(); setEditingTime(false); }
+                  }}
+                />
+                <span>–</span>
+                <input
+                  type="time"
+                  className="modal-meta-input"
+                  defaultValue={toInputTime(live.endTime)}
+                  onBlur={e => commitEndTime(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') { e.stopPropagation(); setEditingTime(false); }
+                  }}
+                />
+              </span>
+            ) : (
+              <button
+                className="modal-meta-item modal-meta-item--edit"
+                onClick={() => setEditingTime(true)}
+                title="Change time"
+              >
+                <Clock size={14} strokeWidth={1.5} />
+                {live.startTime ? formatEventTime(live.startTime, live.endTime) : 'Add time'}
+              </button>
             )}
             <span className="modal-meta-item">
               <Clock size={14} strokeWidth={1.5} />

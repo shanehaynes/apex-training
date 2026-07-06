@@ -733,6 +733,31 @@
   color: var(--text-secondary);
 }
 
+.modal-meta-item--edit {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  border-bottom: 1px dashed transparent;
+}
+
+.modal-meta-item--edit:hover {
+  color: var(--text-primary);
+  border-bottom-color: var(--border-subtle);
+}
+
+.modal-meta-input {
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color-scheme: dark;
+}
+
 .modal-difficulty {
   display: flex;
   align-items: center;

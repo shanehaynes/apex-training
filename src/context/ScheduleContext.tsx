@@ -3,14 +3,14 @@ import { parseISO, isSameDay } from 'date-fns';
 import scheduleData from '../data/schedule.json';
 import { deleteJson, patchJson, postJson } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
-import type { CompletionRow, WorkoutEventRow } from '../lib/db/types';
+import type { CompletionRow, RecurringExceptionRow, WorkoutEventRow } from '../lib/db/types';
 import type { WorkoutEvent, Schedule } from '../types/workout';
-import type { CreateEventInput, UpdateEventInput } from '../lib/schedule/types';
+import type { CreateEventInput, OccurrenceOverride, UpdateEventInput } from '../lib/schedule/types';
 import { expandRecurringEvents, normalizeSeedEvent } from '../lib/schedule/expand';
 import { buildCompletionRows, eventFieldsToRow, eventToRow, rowToEvent } from '../lib/schedule/mapping';
 import { loadCompletedIds, saveCompletedIds } from '../lib/schedule/localCompletion';
 import { quickCompleteSession, quickUncompleteSession } from '../lib/tracking/sessionRepo';
-import { baseIdOf, makeOccurrenceId } from '../lib/schedule/occurrence';
+import { baseIdOf, makeOccurrenceId, occurrenceDateOf } from '../lib/schedule/occurrence';
 import { timeToMinutes } from '../lib/time';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
@@ -28,6 +28,12 @@ interface ScheduleContextValue {
   updateEvent: (input: UpdateEventInput) => Promise<boolean>;
   deleteEvent: (id: string) => Promise<boolean>;
   deleteEventInstance: (baseId: string, date: string) => Promise<boolean>;
+  /**
+   * Move a single event to a new date and/or time. One-off events are patched
+   * directly; a recurring occurrence gets a per-occurrence override so the
+   * rest of the series is untouched.
+   */
+  rescheduleEvent: (id: string, fields: OccurrenceOverride) => Promise<boolean>;
 }
 
 const ScheduleContext = createContext<ScheduleContextValue | null>(null);
@@ -36,12 +42,14 @@ const ScheduleContext = createContext<ScheduleContextValue | null>(null);
 
 export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const [baseEvents, setBaseEvents] = useState<WorkoutEvent[]>([]);
-  const [exceptions, setExceptions] = useState<Set<string>>(new Set());
+  const [exceptions, setExceptions] = useState<Map<string, OccurrenceOverride | null>>(new Map());
   const [completedIds, setCompletedIds] = useState<Set<string>>(loadCompletedIds);
   const [isSyncing, setIsSyncing] = useState(!!supabase);
   const [isEventsLoading, setIsEventsLoading] = useState(!!supabase);
 
   const eventsRef = useRef<WorkoutEvent[]>([]);
+  const baseEventsRef = useRef<WorkoutEvent[]>([]);
+  const exceptionsRef = useRef<Map<string, OccurrenceOverride | null>>(new Map());
 
   // ── Fetch events from Supabase (or fall back to JSON) ──────────────────────
 
@@ -54,7 +62,9 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
     const [eventsRes, exceptionsRes] = await Promise.all([
       supabase.from('workout_events').select('*').order('date'),
-      supabase.from('recurring_exceptions').select('event_id, skipped_date'),
+      // select('*') so rows load (as plain skips) even before the phase7
+      // override-columns migration has been applied.
+      supabase.from('recurring_exceptions').select('*'),
     ]);
 
     if (eventsRes.error) {
@@ -65,12 +75,21 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (!exceptionsRes.error && exceptionsRes.data) {
-      const exSet = new Set(
-        (exceptionsRes.data as { event_id: string; skipped_date: string }[]).map(
-          r => makeOccurrenceId(r.event_id, r.skipped_date),
-        ),
-      );
-      setExceptions(exSet);
+      const exMap = new Map<string, OccurrenceOverride | null>();
+      for (const r of exceptionsRes.data as RecurringExceptionRow[]) {
+        const hasOverride = r.override_date || r.override_start_time || r.override_end_time;
+        exMap.set(
+          makeOccurrenceId(r.event_id, r.skipped_date),
+          hasOverride
+            ? {
+                date:      r.override_date ?? undefined,
+                startTime: r.override_start_time ?? undefined,
+                endTime:   r.override_end_time ?? undefined,
+              }
+            : null,
+        );
+      }
+      setExceptions(exMap);
     }
 
     setIsEventsLoading(false);
@@ -123,6 +142,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     [allExpanded, completedIds],
   );
   eventsRef.current = events;
+  baseEventsRef.current = baseEvents;
+  exceptionsRef.current = exceptions;
 
   // ── Queries ────────────────────────────────────────────────────────────────
 
@@ -245,6 +266,39 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const rescheduleEvent = useCallback(async (id: string, fields: OccurrenceOverride): Promise<boolean> => {
+    if (!supabase) return false;
+    if (fields.date === undefined && fields.startTime === undefined && fields.endTime === undefined) return true;
+
+    const event = eventsRef.current.find(e => e.id === id);
+    if (!event) return false;
+
+    if (!event.isRecurring) {
+      return updateEvent({ id, fields });
+    }
+
+    // A recurring occurrence: write a per-occurrence override keyed at the
+    // occurrence's original generated date (the base anchor date for the base
+    // row itself), merged over any earlier override so repeated edits stack.
+    const baseId = baseIdOf(id);
+    const keyDate = occurrenceDateOf(id)
+      ?? baseEventsRef.current.find(e => e.id === baseId)?.date
+      ?? event.date;
+    const existing = exceptionsRef.current.get(makeOccurrenceId(baseId, keyDate));
+
+    try {
+      await postJson('/api/event-instances', {
+        eventId: baseId,
+        date: keyDate,
+        eventTitle: event.title,
+        overrides: { ...existing, ...fields },
+      }, 'Rescheduling occurrence');
+      return true;
+    } catch {
+      return false;
+    }
+  }, [updateEvent]);
+
   const deleteEventInstance = useCallback(async (baseId: string, date: string): Promise<boolean> => {
     if (!supabase) return false;
 
@@ -270,6 +324,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       updateEvent,
       deleteEvent,
       deleteEventInstance,
+      rescheduleEvent,
     }}>
       {children}
     </ScheduleContext.Provider>

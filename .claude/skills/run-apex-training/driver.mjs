@@ -23,8 +23,8 @@ const SHOTS = join(dirname(fileURLToPath(import.meta.url)), 'screenshots');
 mkdirSync(SHOTS, { recursive: true });
 
 const mode = process.argv[2];
-if (!['smoke', 'tracker', 'today'].includes(mode)) {
-  console.error('usage: driver.mjs <smoke|tracker|today>');
+if (!['smoke', 'tracker', 'today', 'reschedule'].includes(mode)) {
+  console.error('usage: driver.mjs <smoke|tracker|today|reschedule>');
   process.exit(2);
 }
 
@@ -139,6 +139,33 @@ try {
   await page.waitForSelector('.modal-completion__btn--start', { timeout: 10000 });
   await settle(300);
   await shot('event-modal');
+
+  if (mode === 'reschedule') {
+    // The date chip swaps to a native date input on click.
+    const chips = await page.$$('.modal-meta-item--edit');
+    if (chips.length < 2) errors.push(`assert: expected date + time edit chips, found ${chips.length}`);
+
+    await chips[0].click();
+    const dateInput = await page.waitForSelector('.modal-meta-input[type="date"]', { timeout: 5000 });
+    await shot('reschedule-date-editing');
+    // Escape cancels without committing and restores the text display.
+    await dateInput.press('Escape');
+    await settle(200);
+    if (!(await page.$('.modal-meta-item--edit'))) errors.push('assert: Escape should restore the date display');
+    if (await page.$('.modal-backdrop') === null) errors.push('assert: Escape in the input must not close the modal');
+
+    // The time chip swaps to start/end time inputs on click.
+    await (await page.$$('.modal-meta-item--edit'))[1].click();
+    await page.waitForSelector('.modal-meta-input[type="time"]', { timeout: 5000 });
+    const timeInputs = await page.$$('.modal-meta-input[type="time"]');
+    if (timeInputs.length !== 2) errors.push(`assert: expected 2 time inputs, found ${timeInputs.length}`);
+    await shot('reschedule-time-editing');
+
+    console.log('console/assert errors:', errors.length ? errors : 'none');
+    process.exitCode = errors.length ? 1 : 0;
+    await browser.close();
+    process.exit();
+  }
 
   if (mode === 'tracker') {
     await page.click('.modal-completion__btn--start');

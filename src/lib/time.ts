@@ -20,6 +20,23 @@ export function timeToMinutes(timeStr?: string): number {
   return parsed ? parsed.h * 60 + parsed.m : Infinity;
 }
 
+/** Stored time ("5:30 PM" or "17:30") → <input type="time"> value ("17:30"); '' when absent/unparseable. */
+export function toInputTime(timeStr?: string): string {
+  if (!timeStr) return '';
+  const parsed = parseTimeOfDay(timeStr.trim());
+  if (!parsed) return '';
+  return `${String(parsed.h).padStart(2, '0')}:${String(parsed.m).padStart(2, '0')}`;
+}
+
+/** <input type="time"> value ("17:30") → the stored display convention ("5:30 PM"); null when unparseable. */
+export function toDisplayTime(hhmm: string): string | null {
+  const parsed = parseTimeOfDay(hhmm);
+  if (!parsed) return null;
+  const meridiem = parsed.h < 12 ? 'AM' : 'PM';
+  const h12 = parsed.h % 12 === 0 ? 12 : parsed.h % 12;
+  return `${h12}:${String(parsed.m).padStart(2, '0')} ${meridiem}`;
+}
+
 /** Workout timer format: "05:30", "1:05:30" — always-padded mm:ss. */
 export function formatElapsed(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600);

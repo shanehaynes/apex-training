@@ -76,12 +76,19 @@ CREATE TABLE IF NOT EXISTS workout_events (
 CREATE INDEX IF NOT EXISTS idx_we_date ON workout_events (date);
 CREATE INDEX IF NOT EXISTS idx_we_type ON workout_events (type, date);
 
--- Skipped instances of recurring events (e.g. "delete just this Tuesday").
--- When expanding recurring events, any date present here is excluded.
+-- Per-occurrence exceptions for recurring events. All overrides NULL means
+-- the occurrence at skipped_date is removed ("delete just this Tuesday").
+-- Any override set means the occurrence originally generated at skipped_date
+-- is displayed at override_date (or skipped_date when only the time changed)
+-- with the overridden start/end times; it keeps its `${baseId}__${skipped_date}`
+-- id so completion state and later edits survive moves.
 CREATE TABLE IF NOT EXISTS recurring_exceptions (
   id          UUID  PRIMARY KEY DEFAULT gen_random_uuid(),
   event_id    TEXT  NOT NULL REFERENCES workout_events (id) ON DELETE CASCADE,
   skipped_date DATE NOT NULL,
+  override_date       DATE,
+  override_start_time TEXT,
+  override_end_time   TEXT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (event_id, skipped_date)
 );
@@ -91,7 +98,7 @@ CREATE INDEX IF NOT EXISTS idx_re_event ON recurring_exceptions (event_id);
 -- Append-only log of every AI-driven mutation (audit trail).
 CREATE TABLE IF NOT EXISTS event_mutations_log (
   id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  operation    TEXT        NOT NULL CHECK (operation IN ('create','update','delete','delete_instance')),
+  operation    TEXT        NOT NULL CHECK (operation IN ('create','update','delete','delete_instance','update_instance')),
   event_id     TEXT        NOT NULL,
   event_title  TEXT        NOT NULL,
   event_date   DATE,

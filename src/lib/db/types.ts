@@ -101,15 +101,21 @@ export interface CardioLogRow {
   is_autofilled: boolean;
 }
 
+// All overrides NULL = the occurrence at skipped_date is removed. Any
+// override set = that occurrence is displayed at override_date (or
+// skipped_date when only the time changed) with the overridden times.
 export interface RecurringExceptionRow {
   id: string;
   event_id: string;
   skipped_date: string;
+  override_date: string | null;
+  override_start_time: string | null;
+  override_end_time: string | null;
   created_at: string;
 }
 
 export interface EventMutationLogRow {
-  operation: 'create' | 'update' | 'delete' | 'delete_instance';
+  operation: 'create' | 'update' | 'delete' | 'delete_instance' | 'update_instance';
   event_id: string;
   event_title: string;
   event_date?: string;

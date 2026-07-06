@@ -26,7 +26,7 @@ describe('expandRecurringEvents', () => {
       isRecurring: true,
       recurrenceRule: 'FREQ=WEEKLY;BYDAY=MO,WE;UNTIL=20260920',
     });
-    const out = expandRecurringEvents([base], new Set());
+    const out = expandRecurringEvents([base], new Map());
     expect(out.map(e => e.date)).toEqual([
       '2026-09-07', // base event itself
       '2026-09-09', '2026-09-14', '2026-09-16',
@@ -40,8 +40,52 @@ describe('expandRecurringEvents', () => {
       isRecurring: true,
       recurrenceRule: 'FREQ=DAILY;UNTIL=20260904',
     });
-    const out = expandRecurringEvents([base], new Set(['daily__2026-09-03']));
+    const out = expandRecurringEvents([base], new Map([['daily__2026-09-03', null]]));
     expect(out.map(e => e.date)).toEqual(['2026-09-01', '2026-09-02', '2026-09-04']);
+  });
+
+  it('re-emits a moved occurrence at its override date under the original-date id', () => {
+    const base = makeEvent({
+      id: 'daily', date: '2026-09-01', startTime: '9:00 AM',
+      isRecurring: true,
+      recurrenceRule: 'FREQ=DAILY;UNTIL=20260904',
+    });
+    const out = expandRecurringEvents([base], new Map([
+      ['daily__2026-09-03', { date: '2026-09-10', startTime: '6:00 PM' }],
+    ]));
+    expect(out.map(e => e.date)).toEqual(['2026-09-01', '2026-09-02', '2026-09-04', '2026-09-10']);
+    const moved = out.find(e => e.date === '2026-09-10')!;
+    expect(moved.id).toBe('daily__2026-09-03');
+    expect(moved.startTime).toBe('6:00 PM');
+  });
+
+  it('a time-only override keeps the occurrence on its original date', () => {
+    const base = makeEvent({
+      id: 'daily', date: '2026-09-01', startTime: '9:00 AM', endTime: '10:00 AM',
+      isRecurring: true,
+      recurrenceRule: 'FREQ=DAILY;UNTIL=20260903',
+    });
+    const out = expandRecurringEvents([base], new Map([
+      ['daily__2026-09-02', { startTime: '7:00 AM' }],
+    ]));
+    expect(out.map(e => e.date)).toEqual(['2026-09-01', '2026-09-02', '2026-09-03']);
+    const retimed = out.find(e => e.id === 'daily__2026-09-02')!;
+    expect(retimed.startTime).toBe('7:00 AM');
+    expect(retimed.endTime).toBe('10:00 AM'); // unset override fields fall back to base
+  });
+
+  it('an override keyed at the base date reschedules the base row itself, not the series', () => {
+    const base = makeEvent({
+      id: 'daily', date: '2026-09-01',
+      isRecurring: true,
+      recurrenceRule: 'FREQ=DAILY;UNTIL=20260903',
+    });
+    const out = expandRecurringEvents([base], new Map([
+      ['daily__2026-09-01', { date: '2026-09-05' }],
+    ]));
+    // Generated occurrences still expand from the original anchor.
+    expect(out.map(e => e.date)).toEqual(['2026-09-02', '2026-09-03', '2026-09-05']);
+    expect(out.find(e => e.date === '2026-09-05')!.id).toBe('daily'); // base id, no duplicate emission
   });
 
   it('regression for Finding #5: an unrelated same-type one-off no longer suppresses the series', () => {
@@ -51,7 +95,7 @@ describe('expandRecurringEvents', () => {
       recurrenceRule: 'FREQ=DAILY;UNTIL=20260903',
     });
     const oneOff = makeEvent({ id: 'solo', date: '2026-09-02' }); // same type, same date as an occurrence
-    const out = expandRecurringEvents([recurring, oneOff], new Set());
+    const out = expandRecurringEvents([recurring, oneOff], new Map());
     const sept2 = out.filter(e => e.date === '2026-09-02');
     expect(sept2.map(e => e.id).sort()).toEqual(['series__2026-09-02', 'solo']);
   });
@@ -59,14 +103,14 @@ describe('expandRecurringEvents', () => {
   it('an exception for one series does not affect another series on the same date', () => {
     const a = makeEvent({ id: 'a', date: '2026-09-01', isRecurring: true, recurrenceRule: 'FREQ=DAILY;UNTIL=20260903' });
     const b = makeEvent({ id: 'b', date: '2026-09-01', type: 'yoga', isRecurring: true, recurrenceRule: 'FREQ=DAILY;UNTIL=20260903' });
-    const out = expandRecurringEvents([a, b], new Set(['a__2026-09-02']));
+    const out = expandRecurringEvents([a, b], new Map([['a__2026-09-02', null]]));
     expect(out.find(e => e.id === 'a__2026-09-02')).toBeUndefined();
     expect(out.find(e => e.id === 'b__2026-09-02')).toBeDefined();
   });
 
   it('skips events with an invalid rule instead of throwing', () => {
     const bad = makeEvent({ id: 'bad', date: '2026-09-01', isRecurring: true, recurrenceRule: 'FREQ=CUSTOM' });
-    const out = expandRecurringEvents([bad], new Set());
+    const out = expandRecurringEvents([bad], new Map());
     expect(out).toHaveLength(1); // just the base event, no expansion, no crash
   });
 
@@ -106,7 +150,7 @@ describe('expandRecurringEvents', () => {
     // events authored directly with a canonical recurrenceRule (e.g. WEEKLY series)
     // are out of scope for this legacy-algorithm comparison by definition.
     const legacyOnly = normalized.filter(e => e.recurringPattern?.frequency === 'daily');
-    const engineIds = expandRecurringEvents(legacyOnly, new Set())
+    const engineIds = expandRecurringEvents(legacyOnly, new Map())
       .filter(e => e.id.includes('__'))
       .map(e => e.id)
       .sort();

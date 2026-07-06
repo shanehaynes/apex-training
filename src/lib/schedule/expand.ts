@@ -1,5 +1,6 @@
 import { addDays, format } from 'date-fns';
 import type { WorkoutEvent } from '../../types/workout';
+import type { OccurrenceOverride } from './types';
 import { parseRRule, expandRecurrence, ruleFromLegacyColumns } from '../recurrence';
 import { baseIdOf, makeOccurrenceId, occurrenceDateOf } from './occurrence';
 
@@ -10,14 +11,31 @@ import { baseIdOf, makeOccurrenceId, occurrenceDateOf } from './occurrence';
 // Open-ended rules (no COUNT/UNTIL) are capped this far past today.
 const OPEN_ENDED_HORIZON_DAYS = 366;
 
+function applyOverride(e: WorkoutEvent, override: OccurrenceOverride | null | undefined): WorkoutEvent {
+  if (!override) return e;
+  return {
+    ...e,
+    date:      override.date ?? e.date,
+    startTime: override.startTime ?? e.startTime,
+    endTime:   override.endTime ?? e.endTime,
+  };
+}
+
 export function expandRecurringEvents(
   rawEvents: WorkoutEvent[],
-  exceptions: Set<string>, // occurrence ids (see ./occurrence) to skip
+  // Keyed by occurrence id (see ./occurrence): null = skip the occurrence,
+  // an override = display it at the overridden date/time instead.
+  exceptions: Map<string, OccurrenceOverride | null>,
 ): WorkoutEvent[] {
-  const expanded: WorkoutEvent[] = [...rawEvents];
+  const expanded: WorkoutEvent[] = [];
   const rangeEnd = format(addDays(new Date(), OPEN_ENDED_HORIZON_DAYS), 'yyyy-MM-dd');
 
   for (const base of rawEvents) {
+    // The base row itself: a series anchor rescheduled "this occurrence only"
+    // carries an override keyed at its own date. (Skips never remove the base
+    // row — matching pre-override behavior.)
+    expanded.push(applyOverride(base, exceptions.get(makeOccurrenceId(base.id, base.date))));
+
     if (!base.isRecurring || !base.recurrenceRule) continue;
 
     let rule;
@@ -30,16 +48,29 @@ export function expandRecurringEvents(
 
     // Exceptions are keyed per series (occurrence ids), so an unrelated
     // event that happens to share a type/date never suppresses this
-    // series' occurrences.
+    // series' occurrences. Moves suppress the generated occurrence too —
+    // the moved copy is re-emitted below.
     const exdates = new Set<string>();
-    for (const key of exceptions) {
+    const moves: [string, OccurrenceOverride][] = [];
+    for (const [key, override] of exceptions) {
       if (baseIdOf(key) !== base.id) continue;
       const date = occurrenceDateOf(key);
-      if (date) exdates.add(date);
+      if (!date) continue;
+      exdates.add(date);
+      if (override && date !== base.date) moves.push([date, override]);
     }
 
     for (const dateStr of expandRecurrence(rule, base.date, exdates, rangeEnd)) {
       expanded.push({ ...base, id: makeOccurrenceId(base.id, dateStr), date: dateStr, isCompleted: false });
+    }
+
+    // Moved occurrences keep their original-date id, so completion state and
+    // later edits stay keyed to the same occurrence across moves.
+    for (const [origDate, override] of moves) {
+      expanded.push(applyOverride(
+        { ...base, id: makeOccurrenceId(base.id, origDate), date: origDate, isCompleted: false },
+        override,
+      ));
     }
   }
 
