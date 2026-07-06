@@ -39,12 +39,14 @@ Then drive it:
 ```bash
 node .claude/skills/run-apex-training/driver.mjs smoke     # calendar + event modal
 node .claude/skills/run-apex-training/driver.mjs tracker   # full workout-tracker flow
+node .claude/skills/run-apex-training/driver.mjs today     # Today-button disabled state
 ```
 
 | mode | what it does |
 |---|---|
 | `smoke` | Loads the calendar, screenshots it, opens the first event's modal, screenshots that. |
 | `tracker` | `smoke`, then clicks Start Workout, screenshots the tracker (desktop), taps a "prev" value to autofill a set input, screenshots again, then re-screenshots at a 390px mobile viewport. |
+| `today` | Asserts the top-nav Today button is disabled on the current period, enabled after paging forward, and that clicking it returns to (and re-disables on) the current period. Screenshots each state. |
 
 Screenshots land in `.claude/skills/run-apex-training/screenshots/`
 (gitignored). The driver prints each path, reports page console errors,

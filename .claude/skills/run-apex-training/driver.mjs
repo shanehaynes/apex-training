@@ -23,8 +23,8 @@ const SHOTS = join(dirname(fileURLToPath(import.meta.url)), 'screenshots');
 mkdirSync(SHOTS, { recursive: true });
 
 const mode = process.argv[2];
-if (!['smoke', 'tracker'].includes(mode)) {
-  console.error('usage: driver.mjs <smoke|tracker>');
+if (!['smoke', 'tracker', 'today'].includes(mode)) {
+  console.error('usage: driver.mjs <smoke|tracker|today>');
   process.exit(2);
 }
 
@@ -109,6 +109,31 @@ try {
   await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: 30000 });
   await page.waitForSelector('.event-chip__main', { timeout: 20000 });
   await shot('calendar');
+
+  if (mode === 'today') {
+    const todayState = () => page.$eval('.btn-today', el => el.disabled);
+    const period = () => page.$eval('.nav-period', el => el.textContent);
+
+    if (!await todayState()) errors.push('assert: Today should be disabled on the current period');
+    await shot('today-disabled');
+
+    await page.click('.nav-arrow[aria-label="Next"]');
+    await settle(300);
+    if (await todayState()) errors.push('assert: Today should be enabled after paging forward');
+    await shot('today-enabled');
+
+    const away = await period();
+    await page.click('.btn-today');
+    await settle(300);
+    if (await period() === away) errors.push('assert: clicking Today should return to the current period');
+    if (!await todayState()) errors.push('assert: Today should be disabled again after clicking it');
+    await shot('today-after-click');
+
+    console.log('console/assert errors:', errors.length ? errors : 'none');
+    process.exitCode = errors.length ? 1 : 0;
+    await browser.close();
+    process.exit();
+  }
 
   await page.click('.event-chip__main');
   await page.waitForSelector('.modal-completion__btn--start', { timeout: 10000 });

@@ -1,6 +1,6 @@
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  eachDayOfInterval, isSameDay, isSameMonth, isToday,
+  eachDayOfInterval, isSameDay, isSameMonth, isSameWeek, isToday,
   isPast, format, addMonths, subMonths, addWeeks, subWeeks,
   parseISO, startOfDay,
 } from 'date-fns';
@@ -57,4 +57,11 @@ export function formatWeekRange(date: Date): string {
 
 export function toDateString(date: Date): string {
   return format(date, 'yyyy-MM-dd');
+}
+
+export function isCurrentPeriod(date: Date, view: 'month' | 'week' | 'day'): boolean {
+  const now = new Date();
+  if (view === 'month') return isSameMonth(date, now);
+  if (view === 'week') return isSameWeek(date, now, { weekStartsOn: 1 });
+  return isSameDay(date, now);
 }

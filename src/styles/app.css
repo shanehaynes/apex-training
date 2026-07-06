@@ -125,10 +125,17 @@
   transition: all var(--duration-fast) var(--ease-spring);
 }
 
-.btn-today:hover {
+.btn-today:hover:not(:disabled) {
   background: var(--bg-elevated);
   color: var(--text-primary);
   border-color: var(--accent-primary);
+}
+
+.btn-today:disabled {
+  color: var(--text-muted);
+  opacity: 0.55;
+  border-color: transparent;
+  cursor: default;
 }
 
 .view-toggle {

@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCalendar } from '../../context/CalendarContext';
-import { formatMonthYear, formatWeekRange, formatDay } from '../../utils/dateHelpers';
+import { formatMonthYear, formatWeekRange, formatDay, isCurrentPeriod } from '../../utils/dateHelpers';
 import type { CalendarView } from '../../types/workout';
 
 export default function TopNav() {
@@ -31,7 +31,13 @@ export default function TopNav() {
       </div>
 
       <div className="top-nav__right">
-        <button className="btn-today" onClick={() => dispatch({ type: 'GO_TO_TODAY' })}>Today</button>
+        <button
+          className="btn-today"
+          onClick={() => dispatch({ type: 'GO_TO_TODAY' })}
+          disabled={isCurrentPeriod(currentDate, selectedView)}
+        >
+          Today
+        </button>
         <div className="view-toggle">
           {(['month', 'week'] as CalendarView[]).map(view => (
             <button
