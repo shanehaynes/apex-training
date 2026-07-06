@@ -274,7 +274,18 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     if (!event) return false;
 
     if (!event.isRecurring) {
-      return updateEvent({ id, fields });
+      const ok = await updateEvent({ id, fields });
+      // Apply locally on success — the realtime refetch reconciles later, but
+      // the UI must not depend on it arriving.
+      if (ok) {
+        setBaseEvents(prev => prev.map(e => e.id !== id ? e : {
+          ...e,
+          date:      fields.date ?? e.date,
+          startTime: fields.startTime ?? e.startTime,
+          endTime:   fields.endTime ?? e.endTime,
+        }));
+      }
+      return ok;
     }
 
     // A recurring occurrence: write a per-occurrence override keyed at the
@@ -284,15 +295,17 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     const keyDate = occurrenceDateOf(id)
       ?? baseEventsRef.current.find(e => e.id === baseId)?.date
       ?? event.date;
-    const existing = exceptionsRef.current.get(makeOccurrenceId(baseId, keyDate));
+    const key = makeOccurrenceId(baseId, keyDate);
+    const merged = { ...exceptionsRef.current.get(key), ...fields };
 
     try {
       await postJson('/api/event-instances', {
         eventId: baseId,
         date: keyDate,
         eventTitle: event.title,
-        overrides: { ...existing, ...fields },
+        overrides: merged,
       }, 'Rescheduling occurrence');
+      setExceptions(prev => new Map(prev).set(key, merged));
       return true;
     } catch {
       return false;
