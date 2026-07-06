@@ -1,6 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk';
-import { baseIdOf } from '../schedule/occurrence.js';
-import type { CreateEventInput, UpdateEventInput } from '../schedule/types.js';
+import { baseIdOf, isOccurrenceId } from '../schedule/occurrence.js';
+import type { CreateEventInput, OccurrenceOverride, UpdateEventInput } from '../schedule/types.js';
 import type { WorkoutType } from '../../types/workout.js';
 
 // The coach's tool registry: each tool's Anthropic schema, its
@@ -15,6 +15,7 @@ export interface CoachToolDeps {
   updateEvent(input: UpdateEventInput): Promise<boolean>;
   deleteEvent(id: string): Promise<boolean>;
   deleteEventInstance(baseId: string, date: string): Promise<boolean>;
+  rescheduleEvent(id: string, fields: OccurrenceOverride): Promise<boolean>;
 }
 
 export interface CoachToolDef {
@@ -132,7 +133,9 @@ const updateEventTool: CoachToolDef = {
     name: 'update_event',
     description:
       'Update fields on an existing workout event. ' +
-      'For recurring event instances (id contains "__"), this updates the base event and affects all future occurrences.',
+      'For recurring event instances (id contains "__"): date/start_time/end_time changes move only that ' +
+      'occurrence; other fields cannot be edited on an instance id — use the base id (before "__") to ' +
+      'change the whole series.',
     input_schema: {
       type: 'object',
       properties: {
@@ -168,6 +171,26 @@ const updateEventTool: CoachToolDef = {
         estimated_duration?: number; description?: string; location?: string; difficulty?: number;
       };
     };
+    if (isOccurrenceId(event_id)) {
+      const rescheduleKeys = ['date', 'start_time', 'end_time'];
+      const otherKeys = Object.keys(changes).filter(k => !rescheduleKeys.includes(k));
+      if (otherKeys.length > 0) {
+        return (
+          `Cannot change ${otherKeys.join(', ')} on a single occurrence of a recurring event. ` +
+          `Only date, start_time, and end_time can be changed per-occurrence; ` +
+          `to edit the whole series, use the base event ID "${baseIdOf(event_id)}".`
+        );
+      }
+      const ok = await deps.rescheduleEvent(event_id, {
+        ...(changes.date       !== undefined && { date: changes.date }),
+        ...(changes.start_time !== undefined && { startTime: changes.start_time }),
+        ...(changes.end_time   !== undefined && { endTime: changes.end_time }),
+      });
+      return ok
+        ? 'Rescheduled that occurrence successfully (the rest of the series is unchanged).'
+        : 'Failed to reschedule the occurrence.';
+    }
+
     const fields: UpdateEventInput['fields'] = {
       ...(changes.title              !== undefined && { title: changes.title }),
       ...(changes.date               !== undefined && { date: changes.date }),

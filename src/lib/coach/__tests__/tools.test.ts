@@ -8,6 +8,7 @@ function makeDeps(overrides: Partial<CoachToolDeps> = {}): CoachToolDeps {
     updateEvent: vi.fn(async () => true),
     deleteEvent: vi.fn(async () => true),
     deleteEventInstance: vi.fn(async () => true),
+    rescheduleEvent: vi.fn(async () => true),
     ...overrides,
   };
 }
@@ -69,6 +70,54 @@ describe('coach tool registry', () => {
       id: 'abc',
       fields: { startTime: '6:00 AM', difficulty: 4 },
     });
+    expect(deps.rescheduleEvent).not.toHaveBeenCalled();
+  });
+
+  it('update_event routes date/time-only changes on an occurrence id through rescheduleEvent', async () => {
+    const deps = makeDeps();
+    const result = await findCoachTool('update_event')!.execute(
+      {
+        event_id: 'base__2026-07-06',
+        event_title: 'Yoga',
+        changes: { date: '2026-07-07', start_time: '6:00 AM' },
+      },
+      deps,
+    );
+    expect(deps.rescheduleEvent).toHaveBeenCalledWith('base__2026-07-06', {
+      date: '2026-07-07',
+      startTime: '6:00 AM',
+    });
+    expect(deps.updateEvent).not.toHaveBeenCalled();
+    expect(result).toMatch(/occurrence/i);
+  });
+
+  it('update_event rejects non-schedule fields on an occurrence id without mutating anything', async () => {
+    const deps = makeDeps();
+    const result = await findCoachTool('update_event')!.execute(
+      {
+        event_id: 'base__2026-07-06',
+        event_title: 'Yoga',
+        changes: { title: 'Hot Yoga', start_time: '6:00 AM' },
+      },
+      deps,
+    );
+    expect(deps.rescheduleEvent).not.toHaveBeenCalled();
+    expect(deps.updateEvent).not.toHaveBeenCalled();
+    expect(result).toContain('title');
+    expect(result).toContain('"base"');
+  });
+
+  it('update_event keeps whole-series behavior for base ids', async () => {
+    const deps = makeDeps();
+    await findCoachTool('update_event')!.execute(
+      { event_id: 'base', event_title: 'Yoga', changes: { title: 'Hot Yoga', date: '2026-07-07' } },
+      deps,
+    );
+    expect(deps.updateEvent).toHaveBeenCalledWith({
+      id: 'base',
+      fields: { title: 'Hot Yoga', date: '2026-07-07' },
+    });
+    expect(deps.rescheduleEvent).not.toHaveBeenCalled();
   });
 
   it('builds human-readable confirmation labels', () => {

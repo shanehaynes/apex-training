@@ -41,7 +41,7 @@ function ConfirmCard({ label, onConfirm, onCancel, disabled }: ConfirmCardProps)
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ChatSidebar() {
-  const { events, getEventsForDate, createEvent, updateEvent, deleteEvent, deleteEventInstance } = useSchedule();
+  const { events, getEventsForDate, createEvent, updateEvent, deleteEvent, deleteEventInstance, rescheduleEvent } = useSchedule();
   const {
     messages, isLoading, streamingContent,
     pendingAction, sendMessage, confirmAction, cancelAction, triggerInitial, abort,
@@ -70,7 +70,7 @@ export default function ChatSidebar() {
     if (!pendingAction) return 'No action.';
     const tool = findCoachTool(pendingAction.toolName);
     if (!tool) return 'Unknown action.';
-    return tool.execute(pendingAction.input, { createEvent, updateEvent, deleteEvent, deleteEventInstance });
+    return tool.execute(pendingAction.input, { createEvent, updateEvent, deleteEvent, deleteEventInstance, rescheduleEvent });
   };
 
   // ── Input handlers ─────────────────────────────────────────────────────────
