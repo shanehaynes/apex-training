@@ -8,6 +8,7 @@ import { useSchedule } from '../../context/ScheduleContext';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { formatEventTime, formatDuration } from '../../utils/dateHelpers';
 import { timeToMinutes, toDisplayTime, toInputTime } from '../../lib/time';
+import { notify } from '../../lib/notify';
 import ExerciseCard from './ExerciseCard';
 import type { Exercise } from '../../types/workout';
 
@@ -46,14 +47,20 @@ export default function WorkoutModal() {
   const commitStartTime = (value: string) => {
     const stored = toDisplayTime(value);
     if (!stored || stored === live.startTime) return;
+    if (live.endTime && timeToMinutes(stored) >= timeToMinutes(live.endTime)) {
+      notify('Start time must be before the end time');
+      return;
+    }
     rescheduleEvent(event.id, { startTime: stored });
   };
 
   const commitEndTime = (value: string) => {
     const stored = toDisplayTime(value);
     if (!stored || stored === live.endTime) return;
-    // An end at or before the start would render a negative range — ignore it.
-    if (live.startTime && timeToMinutes(stored) <= timeToMinutes(live.startTime)) return;
+    if (live.startTime && timeToMinutes(stored) <= timeToMinutes(live.startTime)) {
+      notify('End time must be after the start time');
+      return;
+    }
     rescheduleEvent(event.id, { endTime: stored });
   };
 
