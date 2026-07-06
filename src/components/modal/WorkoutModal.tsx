@@ -7,7 +7,7 @@ import { useCalendar } from '../../context/CalendarContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { formatEventTime, formatDuration } from '../../utils/dateHelpers';
-import { timeToMinutes, toDisplayTime, toInputTime } from '../../lib/time';
+import { minutesToDisplayTime, timeToMinutes, toDisplayTime, toInputTime } from '../../lib/time';
 import { notify } from '../../lib/notify';
 import ExerciseCard from './ExerciseCard';
 import type { Exercise } from '../../types/workout';
@@ -47,11 +47,14 @@ export default function WorkoutModal() {
   const commitStartTime = (value: string) => {
     const stored = toDisplayTime(value);
     if (!stored || stored === live.startTime) return;
-    if (live.endTime && timeToMinutes(stored) >= timeToMinutes(live.endTime)) {
-      notify('Start time must be before the end time');
-      return;
+    const fields: { startTime: string; endTime?: string } = { startTime: stored };
+    // Calendar-style: moving the start drags the end along, preserving the
+    // event's duration (capped at the end of the day).
+    if (live.startTime && live.endTime) {
+      const duration = timeToMinutes(live.endTime) - timeToMinutes(live.startTime);
+      fields.endTime = minutesToDisplayTime(timeToMinutes(stored) + duration);
     }
-    rescheduleEvent(event.id, { startTime: stored });
+    rescheduleEvent(event.id, fields);
   };
 
   const commitEndTime = (value: string) => {

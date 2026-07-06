@@ -28,6 +28,15 @@ export function toInputTime(timeStr?: string): string {
   return `${String(parsed.h).padStart(2, '0')}:${String(parsed.m).padStart(2, '0')}`;
 }
 
+/** Minutes since midnight (clamped to the same day) → the stored display convention ("5:30 PM"). */
+export function minutesToDisplayTime(totalMinutes: number): string {
+  const m = Math.max(0, Math.min(Math.round(totalMinutes), 23 * 60 + 59));
+  const h = Math.floor(m / 60);
+  const meridiem = h < 12 ? 'AM' : 'PM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m % 60).padStart(2, '0')} ${meridiem}`;
+}
+
 /** <input type="time"> value ("17:30") → the stored display convention ("5:30 PM"); null when unparseable. */
 export function toDisplayTime(hhmm: string): string | null {
   const parsed = parseTimeOfDay(hhmm);
