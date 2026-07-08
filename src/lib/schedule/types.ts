@@ -1,4 +1,4 @@
-import type { WorkoutEvent, WorkoutType } from '../../types/workout';
+import type { ExerciseDefinition, WorkoutEvent, WorkoutType } from '../../types/workout';
 
 // Inputs for schedule mutations — shared by ScheduleContext (which
 // implements them) and the coach tool registry (which invokes them).
@@ -21,6 +21,15 @@ export interface CreateEventInput {
 export interface UpdateEventInput {
   id: string;
   fields: Partial<Omit<WorkoutEvent, 'id' | 'isCompleted'>>;
+}
+
+/** A new exercise library entry. id defaults to a slug of canonicalName. */
+export type CreateDefinitionInput =
+  Pick<ExerciseDefinition, 'canonicalName' | 'category'> & Partial<Omit<ExerciseDefinition, 'canonicalName' | 'category'>>;
+
+export interface UpdateDefinitionInput {
+  id: string;
+  fields: Partial<Omit<ExerciseDefinition, 'id'>>;
 }
 
 /**

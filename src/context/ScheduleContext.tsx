@@ -5,9 +5,9 @@ import { deleteJson, patchJson, postJson } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
 import type { CompletionRow, ExerciseDefinitionRow, RecurringExceptionRow, WorkoutEventRow } from '../lib/db/types';
 import type { ExerciseDefinition, WorkoutEvent, Schedule } from '../types/workout';
-import type { CreateEventInput, OccurrenceOverride, UpdateEventInput } from '../lib/schedule/types';
+import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, UpdateDefinitionInput, UpdateEventInput } from '../lib/schedule/types';
 import { expandRecurringEvents, normalizeSeedEvent } from '../lib/schedule/expand';
-import { resolveEventExercises, rowToDefinition } from '../lib/schedule/definitions';
+import { definitionFieldsToRow, resolveEventExercises, rowToDefinition, slugifyName } from '../lib/schedule/definitions';
 import { buildCompletionRows, eventFieldsToRow, eventToRow, rowToEvent } from '../lib/schedule/mapping';
 import { loadCompletedIds, saveCompletedIds } from '../lib/schedule/localCompletion';
 import { quickCompleteSession, quickUncompleteSession } from '../lib/tracking/sessionRepo';
@@ -37,6 +37,10 @@ interface ScheduleContextValue {
    * rest of the series is untouched.
    */
   rescheduleEvent: (id: string, fields: OccurrenceOverride) => Promise<boolean>;
+  /** Add a movement to the exercise library. */
+  createDefinition: (input: CreateDefinitionInput) => Promise<{ id: string } | null>;
+  /** Edit library-tier fields; a canonicalName change auto-appends the old name as an alias server-side. */
+  updateDefinition: (input: UpdateDefinitionInput) => Promise<boolean>;
 }
 
 const ScheduleContext = createContext<ScheduleContextValue | null>(null);
@@ -332,6 +336,43 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }
   }, [updateEvent]);
 
+  const createDefinition = useCallback(async (input: CreateDefinitionInput): Promise<{ id: string } | null> => {
+    if (!supabase) return null;
+
+    const def = {
+      id: input.id ?? slugifyName(input.canonicalName),
+      aliases: [], muscleGroups: [], equipment: [], isUnilateral: false,
+      ...input,
+    };
+    try {
+      await postJson('/api/exercise-definitions', { id: def.id, ...definitionFieldsToRow(def) }, 'Creating exercise');
+      // Optimistic: entries referencing the new definition resolve immediately;
+      // the realtime refetch reconciles later.
+      setDefinitions(prev => new Map(prev).set(def.id, def));
+      return { id: def.id };
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const updateDefinition = useCallback(async ({ id, fields }: UpdateDefinitionInput): Promise<boolean> => {
+    if (!supabase) return false;
+
+    const current = definitions.get(id);
+    try {
+      await patchJson(`/api/exercise-definitions?id=${encodeURIComponent(id)}`, {
+        fields: definitionFieldsToRow(fields),
+        log: {
+          definition_name: fields.canonicalName ?? current?.canonicalName ?? id,
+          diff: { before: current ?? {}, after: fields },
+        },
+      }, 'Updating exercise');
+      return true;
+    } catch {
+      return false;
+    }
+  }, [definitions]);
+
   const deleteEventInstance = useCallback(async (baseId: string, date: string): Promise<boolean> => {
     if (!supabase) return false;
 
@@ -359,6 +400,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       deleteEvent,
       deleteEventInstance,
       rescheduleEvent,
+      createDefinition,
+      updateDefinition,
     }}>
       {children}
     </ScheduleContext.Provider>

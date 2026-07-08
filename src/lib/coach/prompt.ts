@@ -1,14 +1,16 @@
 import { format, parseISO, startOfWeek, endOfWeek, subWeeks, isWithinInterval } from 'date-fns';
-import type { WorkoutEvent } from '../../types/workout';
+import type { ExerciseDefinition, WorkoutEvent } from '../../types/workout';
 
 // The coach's system prompt: live schedule context (with bracketed ids the
-// tools reference) plus a 4-week completion-rate summary. Pure — computed
-// client-side from ScheduleContext data, unit-testable without React.
+// tools reference), the exercise-library name list, plus a 4-week
+// completion-rate summary. Pure — computed client-side from ScheduleContext
+// data, unit-testable without React.
 
 export function buildSystemPrompt(
   todayEvents: WorkoutEvent[],
   allEvents: WorkoutEvent[],
   today: Date,
+  definitions: Iterable<ExerciseDefinition> = [],
 ): string {
   const dayName = format(today, 'EEEE, MMMM d, yyyy');
 
@@ -51,6 +53,18 @@ export function buildSystemPrompt(
     ? Math.round((completedPast / pastEvents.length) * 100)
     : 0;
 
+  // Inline while the library is small (~69 names). If it outgrows ~150,
+  // switch to a search_exercises tool instead (spec §8 Q6).
+  const libraryNames = [...definitions]
+    .filter(d => !d.archivedAt)
+    .map(d => d.canonicalName)
+    .sort((a, b) => a.localeCompare(b));
+  const librarySection = libraryNames.length === 0 ? '' : `
+
+EXERCISE LIBRARY (canonical names):
+${libraryNames.join(' · ')}
+When adding exercises to events, use EXACTLY these names to reference them. Any other name creates a NEW library entry — do that only for a genuinely new movement, never as a variant spelling of one above. Renaming or editing form cues on a library entry: use update_exercise_definition (propagates everywhere).`;
+
   return `You are a terse, high-signal fitness coach in the user's training app. You have live schedule access and can create, update, or delete events via tools.
 
 Today: ${dayName}
@@ -61,7 +75,7 @@ ${todayStr}
 THIS WEEK (IDs in brackets):
 ${weekStr}
 
-LAST 4 WEEKS: ${completedPast}/${pastEvents.length} completed (${completionRate}%)
+LAST 4 WEEKS: ${completedPast}/${pastEvents.length} completed (${completionRate}%)${librarySection}
 
 EXERCISE AUTHORING RULES (when creating or editing events):
 - One movement per exercise entry. Never combine two movements into one entry (e.g. "Wrist Twist + Reverse Wrist Curl" must be two entries). Named single lifts like Clean and Jerk stay one entry.

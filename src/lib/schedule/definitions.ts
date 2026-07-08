@@ -61,6 +61,55 @@ export function resolveEventExercises(event: WorkoutEvent, defs: Map<string, Exe
 
 const normalize = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase();
 
+/** Slug for a new definition id, e.g. "90/90 Hip Stretch" → "90-90-hip-stretch". */
+export function slugifyName(name: string): string {
+  return normalize(name).replace(/[^a-z0-9]+/g, '-').replace(/-{2,}/g, '-').replace(/^-|-$/g, '');
+}
+
+/**
+ * Exact (case/whitespace-insensitive) match of a name against every
+ * definition's canonical name and aliases. Deliberately no fuzzy matching —
+ * a wrong merge corrupts shared notes and fuses PR histories; unmatched
+ * names surface to the user as "new exercise" instead (spec §5).
+ */
+export function matchDefinitionByName(
+  name: string,
+  defs: Iterable<ExerciseDefinition>,
+): ExerciseDefinition | undefined {
+  const wanted = normalize(name);
+  for (const def of defs) {
+    if (normalize(def.canonicalName) === wanted) return def;
+    if (def.aliases.some(a => normalize(a) === wanted)) return def;
+  }
+  return undefined;
+}
+
+/** camelCase definition fields → snake_case row columns, for API payloads. */
+export function definitionFieldsToRow(fields: Partial<ExerciseDefinition>): Record<string, unknown> {
+  const map: Record<string, string> = {
+    canonicalName: 'canonical_name',
+    aliases: 'aliases',
+    category: 'category',
+    muscleGroups: 'muscle_groups',
+    equipment: 'equipment',
+    imageUrl: 'image_url',
+    techniqueNotes: 'technique_notes',
+    isUnilateral: 'is_unilateral',
+    defaultSets: 'default_sets',
+    defaultReps: 'default_reps',
+    defaultDuration: 'default_duration',
+    defaultWeight: 'default_weight',
+    defaultRest: 'default_rest',
+    archivedAt: 'archived_at',
+  };
+  const row: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    if (key === 'id' || value === undefined) continue;
+    row[map[key] ?? key] = value;
+  }
+  return row;
+}
+
 export interface AliasIndex {
   /** normalize(any known spelling) → canonical name */
   toCanonical: Map<string, string>;
