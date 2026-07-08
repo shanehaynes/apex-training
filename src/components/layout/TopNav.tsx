@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dumbbell } from 'lucide-react';
 import { useCalendar } from '../../context/CalendarContext';
 import { formatMonthYear, formatWeekRange, formatDay, isCurrentPeriod } from '../../utils/dateHelpers';
 import type { CalendarView } from '../../types/workout';
@@ -31,6 +31,14 @@ export default function TopNav() {
       </div>
 
       <div className="top-nav__right">
+        <button
+          className="btn-library"
+          onClick={() => dispatch({ type: 'OPEN_LIBRARY' })}
+          title="Exercise library"
+        >
+          <Dumbbell size={14} strokeWidth={1.5} />
+          <span className="btn-library__label">Library</span>
+        </button>
         <button
           className="btn-today"
           onClick={() => dispatch({ type: 'GO_TO_TODAY' })}

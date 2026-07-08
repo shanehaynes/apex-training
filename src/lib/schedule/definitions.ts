@@ -1,5 +1,6 @@
 import type { Exercise, ExerciseCategory, ExerciseDefinition, WorkoutEvent } from '../../types/workout';
 import type { ExerciseDefinitionRow } from '../db/types';
+import { baseIdOf } from './occurrence';
 
 // ─── Exercise definition resolution ───────────────────────────────────────────
 // Pure helpers implementing EXERCISE_LIBRARY_SPEC.md §2.2/§2.3: event entries
@@ -44,6 +45,20 @@ export function resolveExercise(entry: Exercise, defs: Map<string, ExerciseDefin
     imageUrl: def.imageUrl ?? entry.imageUrl,
     techniqueNotes: def.techniqueNotes,
   };
+}
+
+/**
+ * How many distinct workouts reference a definition — the blast radius shown
+ * before shared edits. Occurrences of a recurring series collapse to their
+ * base event, so a series counts once.
+ */
+export function countDefinitionReferences(definitionId: string, events: WorkoutEvent[]): number {
+  const bases = new Set<string>();
+  for (const event of events) {
+    const all = [...(event.warmup ?? []), ...event.exercises, ...(event.cooldown ?? [])];
+    if (all.some(e => e.definitionId === definitionId)) bases.add(baseIdOf(event.id));
+  }
+  return bases.size;
 }
 
 /** Event with every section's entries resolved. Returns the event unchanged when there is nothing to resolve. */

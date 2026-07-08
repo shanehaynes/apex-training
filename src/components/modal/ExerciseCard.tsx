@@ -1,3 +1,4 @@
+import { useCalendar } from '../../context/CalendarContext';
 import type { Exercise } from '../../types/workout';
 
 interface Props {
@@ -6,6 +7,7 @@ interface Props {
 }
 
 export default function ExerciseCard({ exercise, accentColor }: Props) {
+  const { dispatch } = useCalendar();
   const meta: string[] = [];
   if (exercise.sets && exercise.reps) meta.push(`${exercise.sets} × ${exercise.reps}`);
   else if (exercise.sets) meta.push(`${exercise.sets} sets`);
@@ -27,7 +29,17 @@ export default function ExerciseCard({ exercise, accentColor }: Props) {
         />
       )}
       <div className="exercise-card__content">
-        <span className="exercise-card__name">{exercise.name}</span>
+        {exercise.definitionId ? (
+          <button
+            className="exercise-card__name exercise-card__name--link"
+            onClick={() => dispatch({ type: 'OPEN_LIBRARY', payload: exercise.definitionId })}
+            title="Open in exercise library"
+          >
+            {exercise.name}
+          </button>
+        ) : (
+          <span className="exercise-card__name">{exercise.name}</span>
+        )}
         {meta.length > 0 && (
           <span className="exercise-card__meta" style={{ color: accentColor }}>
             {meta.join('  ·  ')}

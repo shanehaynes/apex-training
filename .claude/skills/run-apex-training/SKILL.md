@@ -47,6 +47,7 @@ node .claude/skills/run-apex-training/driver.mjs today     # Today-button disabl
 | `smoke` | Loads the calendar, screenshots it, opens the first event's modal, screenshots that. |
 | `tracker` | `smoke`, then clicks Start Workout, screenshots the tracker (desktop), taps a "prev" value to autofill a set input, screenshots again, then re-screenshots at a 390px mobile viewport. |
 | `today` | Asserts the top-nav Today button is disabled on the current period, enabled after paging forward, and that clicking it returns to (and re-disables on) the current period. Screenshots each state. |
+| `library` | Opens the exercise library from the top nav; screenshots the list, the first exercise's detail (stubbed history renders the PR card + trend chart), and the definition editor; then asserts the exercise-name deep link from the workout modal lands on the detail page. |
 
 Screenshots land in `.claude/skills/run-apex-training/screenshots/`
 (gitignored). The driver prints each path, reports page console errors,

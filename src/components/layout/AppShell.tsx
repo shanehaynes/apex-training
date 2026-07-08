@@ -4,6 +4,7 @@ import Calendar from '../calendar/Calendar';
 import ChatSidebar from '../sidebar/ChatSidebar';
 import WorkoutModal from '../modal/WorkoutModal';
 import TrackerView from '../tracker/TrackerView';
+import LibraryView from '../library/LibraryView';
 import MobileBottomNav from './MobileBottomNav';
 import Toasts from './Toasts';
 import { useCalendar } from '../../context/CalendarContext';
@@ -39,6 +40,7 @@ export default function AppShell() {
       )}
       {state.selectedEvent && <WorkoutModal />}
       {state.trackingSession && <TrackerView />}
+      {state.libraryOpen && <LibraryView />}
       <Toasts />
     </div>
   );

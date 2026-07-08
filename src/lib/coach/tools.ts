@@ -1,6 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { baseIdOf, isOccurrenceId } from '../schedule/occurrence.js';
-import { matchDefinitionByName } from '../schedule/definitions.js';
+import { countDefinitionReferences, matchDefinitionByName } from '../schedule/definitions.js';
 import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, UpdateDefinitionInput, UpdateEventInput } from '../schedule/types.js';
 import type { Exercise, ExerciseDefinition, WorkoutEvent, WorkoutType } from '../../types/workout.js';
 
@@ -384,12 +384,8 @@ const updateExerciseDefinitionTool: CoachToolDef = {
     if (ctx) {
       const def = matchDefinitionByName(String(input.name ?? ''), ctx.definitions.values());
       if (def) {
-        const touched = new Set<string>();
-        for (const event of ctx.events) {
-          const all = [...(event.warmup ?? []), ...event.exercises, ...(event.cooldown ?? [])];
-          if (all.some(e => e.definitionId === def.id)) touched.add(baseIdOf(event.id));
-        }
-        radius = ` — affects ${touched.size} workout${touched.size === 1 ? '' : 's'}`;
+        const count = countDefinitionReferences(def.id, ctx.events);
+        radius = ` — affects ${count} workout${count === 1 ? '' : 's'}`;
       }
     }
     return `Edit exercise: ${input.name} (${keys})${radius}`;

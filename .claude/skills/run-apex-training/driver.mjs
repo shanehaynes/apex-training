@@ -23,8 +23,8 @@ const SHOTS = join(dirname(fileURLToPath(import.meta.url)), 'screenshots');
 mkdirSync(SHOTS, { recursive: true });
 
 const mode = process.argv[2];
-if (!['smoke', 'tracker', 'today', 'reschedule'].includes(mode)) {
-  console.error('usage: driver.mjs <smoke|tracker|today|reschedule>');
+if (!['smoke', 'tracker', 'today', 'reschedule', 'library'].includes(mode)) {
+  console.error('usage: driver.mjs <smoke|tracker|today|reschedule|library>');
   process.exit(2);
 }
 
@@ -77,6 +77,20 @@ page.on('request', req => {
   // which decodeURIComponent does NOT translate — swap them first.
   if (url.includes('workout_set_logs')) {
     const decoded = decodeURIComponent(url.replace(/\+/g, ' '));
+    // Library detail history: exercise_name filter without the tracker's
+    // event_date=lt. bound. Fabricate three sessions of growing holds so the
+    // PR card, trend chart, and session list all render.
+    if (decoded.includes('exercise_name=in.') && !decoded.includes('event_date=lt.')) {
+      const m = decoded.match(/exercise_name=in\.\(([^)]*)\)/);
+      const name = m ? m[1].split(',')[0].replace(/^"|"$/g, '').trim() : 'Exercise';
+      return json(req, ['2000-01-01', '2000-01-08', '2000-01-15'].map((event_date, i) => ({
+        event_id: `driver-hist-${i}`, event_date, section: 'exercise',
+        exercise_id: 'hist', exercise_name: name, set_number: 1,
+        planned_weight: null, planned_reps: null, planned_duration: null,
+        actual_weight: null, actual_reps: null, actual_duration: `${45 + i * 15}s`,
+        is_autofilled: false,
+      })));
+    }
     if (decoded.includes('event_date=lt.')) {
       const m = decoded.match(/exercise_name=in\.\(([^)]*)\)/);
       const names = m ? m[1].split(',').map(s => s.replace(/^"|"$/g, '').trim()) : [];
@@ -130,6 +144,40 @@ try {
     await shot('today-after-click');
 
     console.log('console/assert errors:', errors.length ? errors : 'none');
+    process.exitCode = errors.length ? 1 : 0;
+    await browser.close();
+    process.exit();
+  }
+
+  if (mode === 'library') {
+    await page.click('.btn-library');
+    await page.waitForSelector('.library-row', { timeout: 10000 });
+    await settle(300);
+    await shot('library-list');
+
+    await page.click('.library-row');
+    await page.waitForSelector('.library-detail', { timeout: 10000 });
+    await settle(500);
+    await shot('library-detail');
+
+    await page.click('.library-edit-btn');
+    await page.waitForSelector('.library-editor', { timeout: 5000 });
+    await settle(300);
+    await shot('library-editor');
+    await page.click('.library-editor__cancel');
+    await settle(200);
+
+    // Deep link: an exercise name in the workout modal opens its detail page.
+    await page.click('.library-close');
+    await settle(300);
+    await page.click('.event-chip__main');
+    await page.waitForSelector('.exercise-card__name--link', { timeout: 10000 });
+    await page.click('.exercise-card__name--link');
+    await page.waitForSelector('.library-detail', { timeout: 10000 });
+    await settle(500);
+    await shot('library-deeplink');
+
+    console.log('console errors:', errors.length ? errors : 'none');
     process.exitCode = errors.length ? 1 : 0;
     await browser.close();
     process.exit();

@@ -152,7 +152,7 @@ function keepBetterValue(map: Map<string, BestValue>, key: string, candidate: Be
  * otherwise its rep count alone (reps). A weighted exercise never earns
  * duration or rep-count PRs.
  */
-function classifySet(weight: string | null, reps: string | null, duration: string | null):
+export function classifySet(weight: string | null, reps: string | null, duration: string | null):
   | { kind: 'oneRM'; weight: number; reps: number; oneRM: number }
   | { kind: 'duration'; seconds: number }
   | { kind: 'reps'; reps: number }

@@ -12,6 +12,10 @@ interface CalendarState {
   // (expanded `base__date` id for recurring events), so id + date pin the
   // exact instance being tracked.
   trackingSession: WorkoutEvent | null;
+  /** Exercise library overlay (same full-screen pattern as the tracker). */
+  libraryOpen: boolean;
+  /** Definition id to open the library on (deep link from an exercise name). */
+  librarySelection: string | null;
 }
 
 type CalendarAction =
@@ -23,7 +27,9 @@ type CalendarAction =
   | { type: 'SELECT_EVENT'; payload: WorkoutEvent }
   | { type: 'CLEAR_EVENT' }
   | { type: 'START_TRACKING'; payload: WorkoutEvent }
-  | { type: 'STOP_TRACKING' };
+  | { type: 'STOP_TRACKING' }
+  | { type: 'OPEN_LIBRARY'; payload?: string }
+  | { type: 'CLOSE_LIBRARY' };
 
 function reducer(state: CalendarState, action: CalendarAction): CalendarState {
   switch (action.type) {
@@ -59,6 +65,10 @@ function reducer(state: CalendarState, action: CalendarAction): CalendarState {
       return { ...state, trackingSession: action.payload, selectedEvent: null };
     case 'STOP_TRACKING':
       return { ...state, trackingSession: null };
+    case 'OPEN_LIBRARY':
+      return { ...state, libraryOpen: true, librarySelection: action.payload ?? null };
+    case 'CLOSE_LIBRARY':
+      return { ...state, libraryOpen: false, librarySelection: null };
     default:
       return state;
   }
@@ -77,6 +87,8 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     selectedView: 'month',
     selectedEvent: null,
     trackingSession: null,
+    libraryOpen: false,
+    librarySelection: null,
   });
   return <CalendarContext.Provider value={{ state, dispatch }}>{children}</CalendarContext.Provider>;
 }
