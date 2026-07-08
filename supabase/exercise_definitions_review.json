@@ -1,0 +1,2779 @@
+{
+  "generated_at": "2026-07-08T18:23:36+00:00",
+  "sources": {
+    "supabase_events": 350,
+    "seed_events": 351
+  },
+  "instructions": "Review each definition; to merge duplicates, delete one entry and add its canonical_name + aliases to the survivor's aliases. The apply script ignores the 'review' blocks.",
+  "near_duplicate_suggestions": [
+    {
+      "a": "ARC Traversing",
+      "b": "Easy Traversing",
+      "similarity": 0.83
+    },
+    {
+      "a": "Deep Squat Hold",
+      "b": "Deep Squat",
+      "similarity": 0.8
+    }
+  ],
+  "definitions": [
+    {
+      "id": "thoracic-extension-over-foam-roller",
+      "canonical_name": "Thoracic Extension over Foam Roller",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Segment by segment at mid-thoracic. Hips stay on ground. Hands clasped behind head, elbows in. Let gravity extend you — do not force. Work 3–4 vertebral levels.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "4 min (~60 sec/level)",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 688,
+        "by_source": {
+          "supabase": 344,
+          "seed": 344
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Let gravity extend you.",
+              "count": 190
+            },
+            {
+              "value": "Segment by segment at mid-thoracic. Hips stay on ground. Hands clasped behind head, elbows in. Let gravity extend you — do not force. Work 3–4 vertebral levels.",
+              "count": 96
+            },
+            {
+              "value": "Segment by segment at mid-thoracic. Hips stay on ground. Hands clasped behind head, elbows in. Let gravity extend you.",
+              "count": 94
+            },
+            {
+              "value": "Mid-thoracic, segment by segment.",
+              "count": 94
+            },
+            {
+              "value": "Segment by segment, mid-thoracic. Hips on ground. Let gravity extend you.",
+              "count": 94
+            },
+            {
+              "value": "Mid-thoracic, segment by segment. Let gravity extend you.",
+              "count": 94
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "4 min (~60 sec/level)"
+            },
+            "count": 688
+          }
+        ]
+      }
+    },
+    {
+      "id": "psoas-lunge-with-posterior-pelvic-tilt",
+      "canonical_name": "Psoas Lunge with Posterior Pelvic Tilt",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Low lunge, rear knee down. Squeeze rear glute hard to posteriorly tilt pelvis BEFORE sinking. Glute-driven tilt targets psoas; passive sinking misses it entirely.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "2–3 min/side",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 688,
+        "by_source": {
+          "supabase": 344,
+          "seed": 344
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Glute-driven posterior tilt BEFORE sinking.",
+              "count": 188
+            },
+            {
+              "value": "Glute squeeze BEFORE sinking.",
+              "count": 100
+            },
+            {
+              "value": "Low lunge, rear knee down. Squeeze rear glute hard to posteriorly tilt pelvis BEFORE sinking. Glute-driven tilt targets psoas; passive sinking misses it entirely.",
+              "count": 96
+            },
+            {
+              "value": "Squeeze rear glute hard to posteriorly tilt pelvis BEFORE sinking. Glute-driven tilt targets psoas; passive sinking misses it.",
+              "count": 94
+            },
+            {
+              "value": "Squeeze rear glute to posteriorly tilt pelvis BEFORE sinking.",
+              "count": 94
+            },
+            {
+              "value": "Glute squeeze to posteriorly tilt pelvis BEFORE sinking.",
+              "count": 94
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "2–3 min/side"
+            },
+            "count": 688
+          }
+        ]
+      }
+    },
+    {
+      "id": "90-90-hip-stretch",
+      "canonical_name": "90/90 Hip Stretch",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Both shins at 90°. Hinge forward over front leg with flat back — spine lengthening, not rounding. Addresses hip capsule restriction, distinct from flexor tightness.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "90 sec/side",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 688,
+        "by_source": {
+          "supabase": 344,
+          "seed": 344
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Flat back forward hinge.",
+              "count": 282
+            },
+            {
+              "value": "Both shins at 90°. Hinge forward over front leg with flat back — spine lengthening, not rounding. Addresses hip capsule restriction, distinct from flexor tightness.",
+              "count": 96
+            },
+            {
+              "value": "Both shins at 90°. Hinge forward with flat back — spine lengthens, not rounds.",
+              "count": 94
+            },
+            {
+              "value": "Flat back hinge.",
+              "count": 94
+            },
+            {
+              "value": "Flat back forward hinge. Spine lengthens.",
+              "count": 94
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "90 sec/side"
+            },
+            "count": 688
+          }
+        ]
+      }
+    },
+    {
+      "id": "deep-squat-hold",
+      "canonical_name": "Deep Squat Hold",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Feet shoulder-width, toes out 30°. Heels flat. Hands in prayer to pry knees out. Hang passively at the bottom.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "2 min",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 688,
+        "by_source": {
+          "supabase": 344,
+          "seed": 344
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Hang passively.",
+              "count": 282
+            },
+            {
+              "value": "Feet shoulder-width, toes out 30°. Heels flat. Hands in prayer to pry knees out. Hang passively at the bottom.",
+              "count": 96
+            },
+            {
+              "value": "Feet shoulder-width, toes out 30°. Heels flat. Hands in prayer. Hang passively.",
+              "count": 94
+            },
+            {
+              "value": "Toes out 30°. Heels flat. Hang passively.",
+              "count": 94
+            },
+            {
+              "value": "Heels flat. Hang passively.",
+              "count": 94
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "2 min"
+            },
+            "count": 688
+          }
+        ]
+      }
+    },
+    {
+      "id": "supine-figure-4-glute-stretch",
+      "canonical_name": "Supine Figure-4 Glute Stretch",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "On back, cross ankle above opposite knee. Pull bottom leg toward chest. Maintain flexed ankle to protect the knee joint.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "90 sec/side",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 688,
+        "by_source": {
+          "supabase": 344,
+          "seed": 344
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Flexed ankle.",
+              "count": 282
+            },
+            {
+              "value": "Flexed ankle protects the knee.",
+              "count": 188
+            },
+            {
+              "value": "On back, cross ankle above opposite knee. Pull bottom leg toward chest. Maintain flexed ankle to protect the knee joint.",
+              "count": 96
+            },
+            {
+              "value": "On back, cross ankle above opposite knee. Pull bottom leg toward chest. Flexed ankle protects the knee.",
+              "count": 94
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "90 sec/side"
+            },
+            "count": 688
+          }
+        ]
+      }
+    },
+    {
+      "id": "cat-cow",
+      "canonical_name": "Cat-Cow",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "5 seconds each direction. In cow, emphasize thoracic extension — lumbar extension is the default and adds nothing. Use this to close the core block.",
+      "is_unilateral": false,
+      "default_sets": 5,
+      "default_reps": null,
+      "default_duration": "2 min",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 688,
+        "by_source": {
+          "supabase": 344,
+          "seed": 344
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Thoracic extension in cow.",
+              "count": 188
+            },
+            {
+              "value": "5 seconds each direction. In cow, emphasize thoracic extension — lumbar extension is the default and adds nothing. Use this to close the core block.",
+              "count": 96
+            },
+            {
+              "value": "5 seconds each direction. Emphasize thoracic extension in cow.",
+              "count": 94
+            },
+            {
+              "value": "Close the core block.",
+              "count": 94
+            },
+            {
+              "value": "Emphasize thoracic extension in cow. 5 sec each direction.",
+              "count": 94
+            },
+            {
+              "value": "Emphasize thoracic extension in cow.",
+              "count": 94
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "2 min",
+              "sets": 5
+            },
+            "count": 688
+          }
+        ]
+      }
+    },
+    {
+      "id": "standing-hamstring-bent-knee-hinge",
+      "canonical_name": "Standing Hamstring — Bent-Knee Hinge",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Foot on elevated surface, leg slightly bent. Hinge at the hip — not rounding the spine. Bent knee isolates the muscle belly, removes sciatic nerve.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "2 min/side",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 294,
+        "by_source": {
+          "supabase": 147,
+          "seed": 147
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Foot on elevated surface, leg slightly bent. Hinge at the hip — not rounding the spine. Bent knee isolates the muscle belly, removes sciatic nerve.",
+              "count": 94
+            },
+            {
+              "value": "Foot elevated, leg slightly bent. Hinge at hip. Bent knee isolates muscle belly.",
+              "count": 94
+            },
+            {
+              "value": "Foot elevated. Hinge at hip, not spine.",
+              "count": 94
+            },
+            {
+              "value": "Hinge at hip. Bent knee isolates muscle belly.",
+              "count": 2
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "2 min/side"
+            },
+            "count": 294
+          }
+        ]
+      }
+    },
+    {
+      "id": "adductor-stretch-lateral-squat",
+      "canonical_name": "Adductor Stretch — Lateral Squat",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Wide stance, one knee on ground, shift laterally. Critical for high steps and heel hooks in climbing, wide-stance couloir work skiing.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "90 sec/side",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 294,
+        "by_source": {
+          "supabase": 147,
+          "seed": 147
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Wide stance, one knee on ground, shift laterally. Critical for high steps and heel hooks in climbing, wide-stance couloir work skiing.",
+              "count": 94
+            },
+            {
+              "value": "Wide stance, shift laterally. Adductors consistently undertrained and overly tight in climbers.",
+              "count": 94
+            },
+            {
+              "value": "Wide stance, shift laterally.",
+              "count": 94
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "90 sec/side"
+            },
+            "count": 294
+          }
+        ]
+      }
+    },
+    {
+      "id": "wrist-flexor-stretch-palms-down-gorilla",
+      "canonical_name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Hands flat on floor, fingers pointing back toward knees, arms straight. Lean back slowly. Targets forearm extensors — equally loaded on crimps and slopers as the flexors.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "2 min",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 198,
+        "by_source": {
+          "supabase": 99,
+          "seed": 99
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Hands flat on floor, fingers pointing back toward knees, arms straight. Lean back slowly. Targets forearm extensors — equally loaded on crimps and slopers as the flexors.",
+              "count": 96
+            },
+            {
+              "value": "Hands flat on floor, fingers back toward knees. Lean back. Targets forearm extensors.",
+              "count": 94
+            },
+            {
+              "value": "Fingers pointing back toward knees. Lean back.",
+              "count": 2
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "2 min"
+            },
+            "count": 198
+          }
+        ]
+      }
+    },
+    {
+      "id": "wrist-extensor-stretch-palm-up-prayer",
+      "canonical_name": "Wrist Extensor Stretch — Palm-Up Prayer",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Palms together in prayer, elbows out. Then reverse: backs of hands together, fingers pointing down. Hold the sticky spots in the finger flexor tendons.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "2 min",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 198,
+        "by_source": {
+          "supabase": 99,
+          "seed": 99
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Palms together in prayer, elbows out. Then reverse: backs of hands together, fingers pointing down. Hold the sticky spots in the finger flexor tendons.",
+              "count": 96
+            },
+            {
+              "value": "Prayer position, elbows out. Reverse: backs of hands together. Hold the sticky spots.",
+              "count": 94
+            },
+            {
+              "value": "Prayer, then reverse. Hold sticky spots.",
+              "count": 2
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "2 min"
+            },
+            "count": 198
+          }
+        ]
+      }
+    },
+    {
+      "id": "lat-doorframe-stretch",
+      "canonical_name": "Lat Doorframe Stretch",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Grab doorframe above head height. Step through, let bodyweight traction the lat. Feel it deep along the side of the torso — not in the shoulder. Counters internal rotation bias from climbing volume.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "90 sec/side",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 198,
+        "by_source": {
+          "supabase": 99,
+          "seed": 99
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Grab doorframe above head height. Step through, let bodyweight traction the lat. Feel it deep along the side of the torso — not in the shoulder. Counters internal rotation bias from climbing volume.",
+              "count": 96
+            },
+            {
+              "value": "Feel it deep along torso, not in shoulder. Counters internal rotation bias from climbing.",
+              "count": 94
+            },
+            {
+              "value": "Deep along torso, not shoulder.",
+              "count": 2
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "90 sec/side"
+            },
+            "count": 198
+          }
+        ]
+      }
+    },
+    {
+      "id": "posterior-rotator-cuff-stretch",
+      "canonical_name": "Posterior Rotator Cuff Stretch",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Lie on side, elbow at shoulder height bent 90°. Other hand slowly rotates forearm toward floor. No forcing. Posterior capsule tightening is the most common overuse pattern in climbers.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "90 sec/side",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 198,
+        "by_source": {
+          "supabase": 99,
+          "seed": 99
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Lie on side, elbow at shoulder height bent 90°. Other hand slowly rotates forearm toward floor. No forcing. Posterior capsule tightening is the most common overuse pattern in climbers.",
+              "count": 96
+            },
+            {
+              "value": "Lie on side, elbow at shoulder height. Rotate forearm toward floor slowly. No forcing.",
+              "count": 94
+            },
+            {
+              "value": "Lie on side. Rotate forearm slowly toward floor.",
+              "count": 2
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "90 sec/side"
+            },
+            "count": 198
+          }
+        ]
+      }
+    },
+    {
+      "id": "chest-opener-pec-stretch",
+      "canonical_name": "Chest Opener / Pec Stretch",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Doorframe at 90°, lean through. Or foam roller lengthwise along spine, arms in T. Pec minor is the driver of anterior shoulder rounding in climbers.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "2 min",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 198,
+        "by_source": {
+          "supabase": 99,
+          "seed": 99
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Doorframe at 90°, lean through. Or foam roller lengthwise along spine, arms in T. Pec minor is the driver of anterior shoulder rounding in climbers.",
+              "count": 96
+            },
+            {
+              "value": "Doorframe at 90° or foam roller lengthwise. Pec minor is the driver of anterior shoulder rounding.",
+              "count": 94
+            },
+            {
+              "value": "Doorframe or foam roller. Pec minor target.",
+              "count": 2
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "2 min"
+            },
+            "count": 198
+          }
+        ]
+      }
+    },
+    {
+      "id": "calf-ankle-dorsiflexion-stretch",
+      "canonical_name": "Calf / Ankle Dorsiflexion Stretch",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Facing wall, toes propped, lean shin forward. Insufficient dorsiflexion shifts weight back in ski boot and burns quads prematurely.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "90 sec/side",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 196,
+        "by_source": {
+          "supabase": 98,
+          "seed": 98
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Facing wall, toes propped, lean shin forward. Insufficient dorsiflexion shifts weight back in ski boot and burns quads prematurely.",
+              "count": 94
+            },
+            {
+              "value": "Toes propped against wall, lean shin forward.",
+              "count": 94
+            },
+            {
+              "value": "Toes propped, lean shin.",
+              "count": 2
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "90 sec/side"
+            },
+            "count": 196
+          }
+        ]
+      }
+    },
+    {
+      "id": "kneeling-quad-hip-flexor-stretch",
+      "canonical_name": "Kneeling Quad / Hip Flexor Stretch",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Kneeling lunge, rear knee down. Grab rear ankle. Do NOT posteriorly tilt — let hips settle naturally. Goal is quad length, not hip flexor retraining.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "90 sec/side",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 196,
+        "by_source": {
+          "supabase": 98,
+          "seed": 98
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Kneeling lunge, rear knee down. Grab rear ankle. Do NOT posteriorly tilt — let hips settle naturally. Goal is quad length, not hip flexor retraining.",
+              "count": 94
+            },
+            {
+              "value": "Do NOT posteriorly tilt. Let hips settle naturally. Goal is quad length.",
+              "count": 94
+            },
+            {
+              "value": "Do NOT posteriorly tilt.",
+              "count": 2
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "90 sec/side"
+            },
+            "count": 196
+          }
+        ]
+      }
+    },
+    {
+      "id": "thread-the-needle",
+      "canonical_name": "Thread-the-Needle",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Quadruped. Thread one arm under body, rotate, shoulder rests on ground. Look up at ceiling on open side. Thoracic transverse rotation — allows torso to flag and counter-rotate on steep terrain.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "90 sec/side",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 196,
+        "by_source": {
+          "supabase": 98,
+          "seed": 98
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Quadruped. Thread one arm under body, rotate, shoulder rests on ground. Look up at ceiling on open side. Thoracic transverse rotation — allows torso to flag and counter-rotate on steep terrain.",
+              "count": 94
+            },
+            {
+              "value": "Quadruped. Thread arm under, shoulder to ground. Look up on open side.",
+              "count": 94
+            },
+            {
+              "value": "Quadruped. Thread arm under, shoulder to ground.",
+              "count": 2
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "90 sec/side"
+            },
+            "count": 196
+          }
+        ]
+      }
+    },
+    {
+      "id": "supine-spinal-twist",
+      "canonical_name": "Supine Spinal Twist",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "On back, one knee drawn across body. Opposite shoulder stays flat. Look away from knee. Use prop under knee if spine won't relax. Passive — not a strength exercise.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "2 min/side",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 196,
+        "by_source": {
+          "supabase": 98,
+          "seed": 98
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "On back, one knee drawn across body. Opposite shoulder stays flat. Look away from knee. Use prop under knee if spine won't relax. Passive — not a strength exercise.",
+              "count": 94
+            },
+            {
+              "value": "Opposite shoulder stays flat. Look away from knee. Passive.",
+              "count": 94
+            },
+            {
+              "value": "Opposite shoulder flat. Passive.",
+              "count": 2
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "2 min/side"
+            },
+            "count": 196
+          }
+        ]
+      }
+    },
+    {
+      "id": "pigeon-pose",
+      "canonical_name": "Pigeon Pose",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Full pigeon: front shin on ground, torso can fold forward. Hip external rotation and glute depth. Drives ski turn initiation, reduces medial knee stress.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "2 min/side",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 196,
+        "by_source": {
+          "supabase": 98,
+          "seed": 98
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Full pigeon: front shin on ground, torso can fold forward. Hip external rotation and glute depth. Drives ski turn initiation, reduces medial knee stress.",
+              "count": 94
+            },
+            {
+              "value": "Front shin on ground. Torso can fold forward over it. External hip rotation — distinct from psoas lunge.",
+              "count": 94
+            },
+            {
+              "value": "Front shin on ground. Fold torso forward.",
+              "count": 2
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "2 min/side"
+            },
+            "count": 196
+          }
+        ]
+      }
+    },
+    {
+      "id": "child-s-pose-with-lateral-reach",
+      "canonical_name": "Child's Pose with Lateral Reach",
+      "aliases": [],
+      "category": "stretch",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Kneel back to heels, walk hands to one side. Opens lat and intercostal — the space between ribs that tightens under pack weight and sustained vertical pulling.",
+      "is_unilateral": true,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "60 sec/side",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 196,
+        "by_source": {
+          "supabase": 98,
+          "seed": 98
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Kneel back to heels, walk hands to one side. Opens lat and intercostal — the space between ribs that tightens under pack weight and sustained vertical pulling.",
+              "count": 94
+            },
+            {
+              "value": "Walk hands to one side. Targets ribs that tighten under pack weight.",
+              "count": 94
+            },
+            {
+              "value": "Walk hands to each side.",
+              "count": 2
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "60 sec/side"
+            },
+            "count": 196
+          }
+        ]
+      }
+    },
+    {
+      "id": "weighted-pull-ups",
+      "canonical_name": "Weighted Pull-Ups",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [
+        "lats",
+        "biceps",
+        "rear delt"
+      ],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Dead hang, brace whole body, scapulae set before you pull, drive from the lats not the arms, hold hollow position throughout, full range every rep, control the 3-second eccentric, same brace on the way down.",
+      "is_unilateral": false,
+      "default_sets": 5,
+      "default_reps": "5",
+      "default_duration": null,
+      "default_weight": "BW + 35 lbs",
+      "default_rest": "3 min",
+      "review": {
+        "occurrences": 5,
+        "by_source": {
+          "supabase": 2,
+          "seed": 3
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "Dead hang start, chin over bar.",
+              "count": 2
+            },
+            {
+              "value": "Dead hang, brace whole body, scapulae set before you pull, drive from the lats not the arms, hold hollow position throughout, full range every rep, control the 3-second eccentric, same brace on the way down.",
+              "count": 2
+            }
+          ],
+          "muscleGroups": [
+            {
+              "value": [
+                "lats",
+                "biceps",
+                "rear delt"
+              ],
+              "count": 2
+            },
+            {
+              "value": [
+                "lats",
+                "biceps"
+              ],
+              "count": 1
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "5",
+              "restPeriod": "3 min",
+              "sets": 5,
+              "weight": "BW + 35 lbs"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "reps": "4–6",
+              "sets": 4,
+              "weight": "~35 lbs"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "reps": "5",
+              "restPeriod": "3 min",
+              "sets": 5,
+              "weight": "BW + 40 lbs"
+            },
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "banded-glute-bridges",
+      "canonical_name": "Banded Glute Bridges",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "PRIMARY CORRECTIVE ENTRY POINT. Band above knees. Activates glutes neurologically before any lower body loading. Non-negotiable sequencing — do not skip or abbreviate.",
+      "is_unilateral": false,
+      "default_sets": 2,
+      "default_reps": "10",
+      "default_duration": null,
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 4,
+        "by_source": {
+          "supabase": 2,
+          "seed": 2
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "10",
+              "sets": 2
+            },
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "dead-bug",
+      "canonical_name": "Dead Bug",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Lumbar imprinted flat throughout. Establish posterior pelvic tilt before each rep. Anterior core in neutral pelvis.",
+      "is_unilateral": false,
+      "default_sets": 2,
+      "default_reps": "8 slow",
+      "default_duration": null,
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 4,
+        "by_source": {
+          "supabase": 2,
+          "seed": 2
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "8 slow",
+              "sets": 2
+            },
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "neck-curls",
+      "canonical_name": "Neck Curls",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Cervical spine preparation. Completes postural chain top and bottom.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": "10 fwd/back",
+      "default_duration": null,
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 4,
+        "by_source": {
+          "supabase": 2,
+          "seed": 2
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "10 fwd/back"
+            },
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "fire-hydrants",
+      "canonical_name": "Fire Hydrants",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Hip abductor activation. Glute medius primer before loaded single-leg work.",
+      "is_unilateral": true,
+      "default_sets": null,
+      "default_reps": "10 each leg",
+      "default_duration": null,
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 4,
+        "by_source": {
+          "supabase": 2,
+          "seed": 2
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "10 each leg"
+            },
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "3-point-plank",
+      "canonical_name": "3-Point Plank",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Anti-extension stability. One limb removed from plank position, cycling all four. One rep = one full round through all four limbs — log total rounds in the single field.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": "8",
+      "default_duration": null,
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 4,
+        "by_source": {
+          "supabase": 2,
+          "seed": 2
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "8"
+            },
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "toes-to-bar",
+      "canonical_name": "Toes to Bar",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Anterior chain integration. Hip flexor and lat activation under hang.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": "6",
+      "default_duration": null,
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 4,
+        "by_source": {
+          "supabase": 2,
+          "seed": 2
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "6"
+            },
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "side-plank-twist",
+      "canonical_name": "Side Plank Twist",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Lateral anti-flexion with rotation. Oblique and quadratus lumborum.",
+      "is_unilateral": true,
+      "default_sets": null,
+      "default_reps": "10 each side",
+      "default_duration": null,
+      "default_weight": "35 lbs",
+      "default_rest": null,
+      "review": {
+        "occurrences": 4,
+        "by_source": {
+          "supabase": 2,
+          "seed": 2
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "10 each side",
+              "weight": "35 lbs"
+            },
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "pallof-press-hold",
+      "canonical_name": "Pallof Press Hold",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Anti-rotation under asymmetric load. Directly addresses hip-dropping pattern on steep terrain. Light weight, pure isometric.",
+      "is_unilateral": true,
+      "default_sets": 3,
+      "default_reps": null,
+      "default_duration": "20–30 sec each side",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 4,
+        "by_source": {
+          "supabase": 2,
+          "seed": 2
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "20–30 sec each side",
+              "sets": 3
+            },
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "cable-chop",
+      "canonical_name": "Cable Chop",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Rotational core primer. Neural primer before loading, not a finisher.",
+      "is_unilateral": true,
+      "default_sets": 3,
+      "default_reps": "10 each side, light",
+      "default_duration": null,
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 4,
+        "by_source": {
+          "supabase": 2,
+          "seed": 2
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "10 each side, light",
+              "sets": 3
+            },
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "wrist-twist",
+      "canonical_name": "Wrist Twist",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "ELBOW MAINTENANCE — non-negotiable regardless of how the session went. Phase 1 (Weeks 1–3): isometric holds + wrist twist + reverse wrist curl only. Add Tyler Twists at Week 4 if elbow response has been clean.",
+      "is_unilateral": true,
+      "default_sets": 3,
+      "default_reps": "15 each arm",
+      "default_duration": null,
+      "default_weight": "15 lbs",
+      "default_rest": null,
+      "review": {
+        "occurrences": 4,
+        "by_source": {
+          "supabase": 2,
+          "seed": 2
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "15 each arm",
+              "sets": 3,
+              "weight": "15 lbs"
+            },
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "reverse-wrist-curl",
+      "canonical_name": "Reverse Wrist Curl",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "ELBOW MAINTENANCE — pairs with the wrist twist. Forearm supported, wrist off the edge, controlled eccentric.",
+      "is_unilateral": true,
+      "default_sets": 3,
+      "default_reps": "15 each arm",
+      "default_duration": null,
+      "default_weight": "15 lbs",
+      "default_rest": null,
+      "review": {
+        "occurrences": 4,
+        "by_source": {
+          "supabase": 2,
+          "seed": 2
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "15 each arm",
+              "sets": 3,
+              "weight": "15 lbs"
+            },
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "band-external-rotation",
+      "canonical_name": "Band External Rotation",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Side-lying or standing. Counters internal rotation bias from climbing volume. Shoulder longevity. This is 90 seconds — do not skip it.",
+      "is_unilateral": true,
+      "default_sets": 3,
+      "default_reps": "15 each arm",
+      "default_duration": null,
+      "default_weight": "Light band",
+      "default_rest": null,
+      "review": {
+        "occurrences": 4,
+        "by_source": {
+          "supabase": 2,
+          "seed": 2
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "15 each arm",
+              "sets": 3,
+              "weight": "Light band"
+            },
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "prone-ytws",
+      "canonical_name": "Prone YTWs",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "No weight. Lower trap and rhomboids — counters lat dominance from climbing. Do not add weight until the movement pattern is clean and consistent.",
+      "is_unilateral": false,
+      "default_sets": 3,
+      "default_reps": null,
+      "default_duration": null,
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 4,
+        "by_source": {
+          "supabase": 2,
+          "seed": 2
+        },
+        "divergences": {
+          "notes": [
+            {
+              "value": "No weight. Lower trap and rhomboids — counters lat dominance from climbing. Do not add weight until the movement pattern is clean and consistent.",
+              "count": 2
+            },
+            {
+              "value": "Same climbing-specific warmup as Monday. Scapular stabilizers primed before loading the shoulder on hard moves.",
+              "count": 2
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "sets": 3
+            },
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "face-pulls-with-external-rotation",
+      "canonical_name": "Face Pulls with External Rotation",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Counters internal rotation bias. Shoulder longevity.",
+      "is_unilateral": false,
+      "default_sets": 3,
+      "default_reps": null,
+      "default_duration": null,
+      "default_weight": "Light band",
+      "default_rest": null,
+      "review": {
+        "occurrences": 4,
+        "by_source": {
+          "supabase": 2,
+          "seed": 2
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "sets": 3,
+              "weight": "Light band"
+            },
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "face-pulls",
+      "canonical_name": "Face Pulls",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": null,
+      "is_unilateral": false,
+      "default_sets": 3,
+      "default_reps": "20",
+      "default_duration": null,
+      "default_weight": "25 lbs",
+      "default_rest": null,
+      "review": {
+        "occurrences": 3,
+        "by_source": {
+          "supabase": 1,
+          "seed": 2
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "20",
+              "sets": 3,
+              "weight": "25 lbs"
+            },
+            "count": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "band-pull-aparts",
+      "canonical_name": "Band Pull-Aparts",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": null,
+      "is_unilateral": false,
+      "default_sets": 3,
+      "default_reps": "20",
+      "default_duration": null,
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 3,
+        "by_source": {
+          "supabase": 1,
+          "seed": 2
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "20",
+              "sets": 3
+            },
+            "count": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "barbell-row",
+      "canonical_name": "Barbell Row",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [
+        "lats",
+        "rhomboids",
+        "biceps"
+      ],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Hinge at 45°, row to lower sternum.",
+      "is_unilateral": false,
+      "default_sets": 4,
+      "default_reps": "6",
+      "default_duration": null,
+      "default_weight": "175 lbs",
+      "default_rest": "2 min",
+      "review": {
+        "occurrences": 3,
+        "by_source": {
+          "supabase": 1,
+          "seed": 2
+        },
+        "divergences": {
+          "muscleGroups": [
+            {
+              "value": [
+                "lats",
+                "rhomboids",
+                "biceps"
+              ],
+              "count": 2
+            },
+            {
+              "value": [
+                "lats",
+                "rhomboids"
+              ],
+              "count": 1
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "6",
+              "restPeriod": "2 min",
+              "sets": 4,
+              "weight": "175 lbs"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "reps": "6",
+              "restPeriod": "2 min",
+              "sets": 4,
+              "weight": "180 lbs"
+            },
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "seated-cable-row",
+      "canonical_name": "Seated Cable Row",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [
+        "mid back",
+        "lats"
+      ],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": null,
+      "is_unilateral": false,
+      "default_sets": 3,
+      "default_reps": "12",
+      "default_duration": null,
+      "default_weight": "120 lbs",
+      "default_rest": "90s",
+      "review": {
+        "occurrences": 3,
+        "by_source": {
+          "supabase": 1,
+          "seed": 2
+        },
+        "divergences": {
+          "muscleGroups": [
+            {
+              "value": [
+                "mid back",
+                "lats"
+              ],
+              "count": 2
+            },
+            {
+              "value": [
+                "mid back"
+              ],
+              "count": 1
+            }
+          ]
+        },
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "12",
+              "restPeriod": "90s",
+              "sets": 3,
+              "weight": "120 lbs"
+            },
+            "count": 2
+          },
+          {
+            "value": {
+              "reps": "12",
+              "restPeriod": "90s",
+              "sets": 3,
+              "weight": "125 lbs"
+            },
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "dumbbell-curl",
+      "canonical_name": "Dumbbell Curl",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [
+        "biceps"
+      ],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": null,
+      "is_unilateral": true,
+      "default_sets": 4,
+      "default_reps": "10 each arm",
+      "default_duration": null,
+      "default_weight": "40 lbs each",
+      "default_rest": "60s",
+      "review": {
+        "occurrences": 3,
+        "by_source": {
+          "supabase": 1,
+          "seed": 2
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "10 each arm",
+              "restPeriod": "60s",
+              "sets": 4,
+              "weight": "40 lbs each"
+            },
+            "count": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "hammer-curl",
+      "canonical_name": "Hammer Curl",
+      "aliases": [
+        "Hammer Curls"
+      ],
+      "category": "strength",
+      "muscle_groups": [
+        "brachialis"
+      ],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": null,
+      "is_unilateral": true,
+      "default_sets": 3,
+      "default_reps": "12 each arm",
+      "default_duration": null,
+      "default_weight": "35 lbs each",
+      "default_rest": "60s",
+      "review": {
+        "occurrences": 5,
+        "by_source": {
+          "supabase": 2,
+          "seed": 3
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "12 each arm",
+              "restPeriod": "60s",
+              "sets": 3,
+              "weight": "35 lbs each"
+            },
+            "count": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "back-squat",
+      "canonical_name": "Back Squat",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Goblet squat 2x5 with pause at bottom as warmup finisher before loading the bar. Controlled descent, heels flat, knees track toes. Four quality sets at 85% outperforms five sets to failure.",
+      "is_unilateral": false,
+      "default_sets": 4,
+      "default_reps": "pyramid 4–6",
+      "default_duration": null,
+      "default_weight": "~240 lbs (85% max)",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "pyramid 4–6",
+              "sets": 4,
+              "weight": "~240 lbs (85% max)"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "single-leg-rdl",
+      "canonical_name": "Single-Leg RDL",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "CORRECTIVE INTEGRATION — targets glute medius and posterior glute specifically. Pause and squeeze the glute hard at the top. Feel the glute contract, not the hamstring.",
+      "is_unilateral": true,
+      "default_sets": 3,
+      "default_reps": "6 each leg",
+      "default_duration": null,
+      "default_weight": "DB or barbell, moderate",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "6 each leg",
+              "sets": 3,
+              "weight": "DB or barbell, moderate"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "nordic-hamstring-curls",
+      "canonical_name": "Nordic Hamstring Curls",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "4–5 second eccentric — slow is the point. Ankles anchored under a bar or partner. Progress to 3x8 before adding any resistance.",
+      "is_unilateral": false,
+      "default_sets": 3,
+      "default_reps": "5",
+      "default_duration": null,
+      "default_weight": "Bodyweight",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "5",
+              "sets": 3,
+              "weight": "Bodyweight"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "ring-dips",
+      "canonical_name": "Ring Dips",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "PRIMARY PUSH — replaces bench press. Full depth (upper arm below parallel), full lockout. Instability is the training stimulus — do not grip the rings against your body.",
+      "is_unilateral": false,
+      "default_sets": 4,
+      "default_reps": "5–6",
+      "default_duration": null,
+      "default_weight": "~45–50 lbs",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "5–6",
+              "sets": 4,
+              "weight": "~45–50 lbs"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "landmine-press-reach",
+      "canonical_name": "Landmine Press + Reach",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Full protraction at the top — the serratus benefit lives in the last few inches. Scapula should visibly wing forward at end range.",
+      "is_unilateral": true,
+      "default_sets": 3,
+      "default_reps": "8 each arm",
+      "default_duration": null,
+      "default_weight": "Moderate",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "8 each arm",
+              "sets": 3,
+              "weight": "Moderate"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "calf-raises-single-leg",
+      "canonical_name": "Calf Raises (single leg)",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Full range — heel drops below platform level at the bottom. Approach fitness and descent load management live here.",
+      "is_unilateral": true,
+      "default_sets": 3,
+      "default_reps": "5 each leg",
+      "default_duration": null,
+      "default_weight": "40 lbs",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "5 each leg",
+              "sets": 3,
+              "weight": "40 lbs"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "tib-raises",
+      "canonical_name": "Tib Raises",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Between each calf set. Tibialis anterior — most climbers ignore this until shin splints show up on a long approach.",
+      "is_unilateral": false,
+      "default_sets": 3,
+      "default_reps": "13",
+      "default_duration": null,
+      "default_weight": "Bodyweight",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "13",
+              "sets": 3,
+              "weight": "Bodyweight"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "hanging-leg-raises",
+      "canonical_name": "Hanging Leg Raises",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Slow and controlled. Full hang. Anterior chain integration under hip flexion load — the demand pattern when feet cut on steep terrain. Do not kip.",
+      "is_unilateral": false,
+      "default_sets": 3,
+      "default_reps": "10–12",
+      "default_duration": null,
+      "default_weight": "Bodyweight",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "10–12",
+              "sets": 3,
+              "weight": "Bodyweight"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "front-lever-negatives-optional",
+      "canonical_name": "Front Lever Negatives (optional)",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "OPTIONAL when time-limited. Tuck position, 5-second lowering from horizontal to hang. 6–12 month project. FIRST to drop when session needs to finish under 70 min — never drop the antagonist block to fit these in.",
+      "is_unilateral": false,
+      "default_sets": 3,
+      "default_reps": "5",
+      "default_duration": null,
+      "default_weight": "Bodyweight tuck",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "5",
+              "sets": 3,
+              "weight": "Bodyweight tuck"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "glute-squeeze-holds",
+      "canonical_name": "Glute Squeeze Holds",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Lying flat on your back, immediately upon getting up. Pure isometric — no movement, no bridging. Isolate the contraction; hamstrings and lower back stay quiet. If they engage first, the glutes are still inhibited.",
+      "is_unilateral": false,
+      "default_sets": 10,
+      "default_reps": null,
+      "default_duration": "10s on, 5s off",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "10s on, 5s off",
+              "sets": 10
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "chin-tucks-against-wall",
+      "canonical_name": "Chin Tucks Against Wall",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Back against wall, heels 2–3 inches out. Chin straight back — not down — until skull contacts wall. Movement is horizontal. Feel mild contraction at base of skull, not a stretch.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "60s (hold 5s, repeat)",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "60s (hold 5s, repeat)"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "deep-squat",
+      "canonical_name": "Deep Squat",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Feet shoulder-width, toes out 30°. Pause 2–3 sec at bottom. Heels flat. Hands in prayer to pry knees out. Bottom position should feel like arriving somewhere, not surviving somewhere.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": "10–20",
+      "default_duration": "~2 min",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "~2 min",
+              "reps": "10–20"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "hangboard-warm-up",
+      "canonical_name": "Hangboard Warm-Up",
+      "aliases": [],
+      "category": "skill",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "4–5/10 intensity. Almost nothing. Tendon priming only — increasing blood flow to pulleys, not training them.",
+      "is_unilateral": false,
+      "default_sets": 4,
+      "default_reps": null,
+      "default_duration": "10s on, 5s off per hang",
+      "default_weight": "35–40mm or jug, open hand",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "10s on, 5s off per hang",
+              "sets": 4,
+              "weight": "35–40mm or jug, open hand"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "hangboard-main-block",
+      "canonical_name": "Hangboard Main Block",
+      "aliases": [],
+      "category": "skill",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "5–6/10 intensity. No full crimp. No minimum edges. No two-finger pockets. If forearms feel pumped, edges were too small.",
+      "is_unilateral": false,
+      "default_sets": 6,
+      "default_reps": null,
+      "default_duration": "10s on, 5s off per hang",
+      "default_weight": "20–25mm, open hand + 3-finger drag (alternate)",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "10s on, 5s off per hang",
+              "sets": 6,
+              "weight": "20–25mm, open hand + 3-finger drag (alternate)"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "lat-pulldown-close-grip",
+      "canonical_name": "Lat Pulldown (Close Grip)",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [
+        "lats",
+        "biceps"
+      ],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": null,
+      "is_unilateral": false,
+      "default_sets": 3,
+      "default_reps": "15",
+      "default_duration": null,
+      "default_weight": "130 lbs",
+      "default_rest": "60s",
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "15",
+              "restPeriod": "60s",
+              "sets": 3,
+              "weight": "130 lbs"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "technique-practice-fresh",
+      "canonical_name": "Technique Practice (fresh)",
+      "aliases": [],
+      "category": "skill",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "BEFORE ARC, not after — full cognitive and physical resources available. Drop knees, flagging, hip positioning, reading sequences. Pick one or two movement patterns to drill, not projecting.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "15 min",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "15 min"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "arc-traversing",
+      "canonical_name": "ARC Traversing",
+      "aliases": [],
+      "category": "cardio",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "INTENSITY RULE: must be able to speak full sentences throughout. Forearms flushed and warm, never tight or pumped — the moment they tighten, intensity is too high. At Yale (bouldering only): set a timer and traverse the easiest wall continuously, not picking interesting problems.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "30–40 min",
+      "default_weight": "40–50% effort",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "30–40 min",
+              "weight": "40–50% effort"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "skill-work",
+      "canonical_name": "Skill Work",
+      "aliases": [],
+      "category": "skill",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Hip positioning, drop knees, flagging, reading — while fresh, not after best attempts are burned. Pick the movement pattern that failed on the last outdoor objective and drill it here.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "20–30 min",
+      "default_weight": "Below project grade",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "20–30 min",
+              "weight": "Below project grade"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "project-push",
+      "canonical_name": "Project / Push",
+      "aliases": [],
+      "category": "skill",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "The strength and technique ceiling work — contact strength and body positioning on steep terrain. Rest fully between attempts, 3–5 minutes. Quality over quantity.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "30–40 min",
+      "default_weight": "Full effort",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "30–40 min",
+              "weight": "Full effort"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "easy-traversing",
+      "canonical_name": "Easy Traversing",
+      "aliases": [],
+      "category": "cardio",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Flush the forearms. Not a second ARC session — just active recovery before leaving.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": null,
+      "default_duration": "5–10 min",
+      "default_weight": "Very low intensity",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "5–10 min",
+              "weight": "Very low intensity"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "clean-and-jerk",
+      "canonical_name": "Clean and Jerk",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Bar moves fast or don't add weight. Ido squat warm-up before the first bar work: deep squat hold, pry the knees out, shift side to side, reach overhead from the bottom. Overhead squat follows immediately after the jerk on each set while the pattern is warm — best full-body neural primer available.",
+      "is_unilateral": false,
+      "default_sets": 4,
+      "default_reps": "pyramid to 3–5",
+      "default_duration": null,
+      "default_weight": "~115 lbs (85% max)",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "pyramid to 3–5",
+              "sets": 4,
+              "weight": "~115 lbs (85% max)"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "overhead-squat-immediately-post-jerk",
+      "canonical_name": "Overhead Squat (immediately post-jerk)",
+      "aliases": [],
+      "category": "skill",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Movement quality drill, not strength work. Slow descent, pause at bottom, torso upright. If position breaks, reduce weight — do not programme as a separate strength exercise.",
+      "is_unilateral": false,
+      "default_sets": 3,
+      "default_reps": "5",
+      "default_duration": null,
+      "default_weight": "Light / 95 lbs",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "5",
+              "sets": 3,
+              "weight": "Light / 95 lbs"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "copenhagen-plank",
+      "canonical_name": "Copenhagen Plank",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Glute medius, hip adductor-abductor balance, pelvic frontal plane stability. Hips warm from the squat work. Do not let hips sag.",
+      "is_unilateral": true,
+      "default_sets": 3,
+      "default_reps": null,
+      "default_duration": "20–30 sec each side",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "20–30 sec each side",
+              "sets": 3
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "wall-arm-slides",
+      "canonical_name": "Wall Arm Slides",
+      "aliases": [],
+      "category": "mobility",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Back straight against the wall, arms slide overhead and back down without the low back arching. One set between each weighted pull-up set.",
+      "is_unilateral": false,
+      "default_sets": 4,
+      "default_reps": "5",
+      "default_duration": null,
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "5",
+              "sets": 4
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "chest-supported-dumbbell-row",
+      "canonical_name": "Chest-Supported Dumbbell Row",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "PRIMARY HORIZONTAL PULL — treat as seriously as pull-ups. Prone on incline bench. Elbows track back at 45 degrees, row to lower ribcage. Feel the mid-trap and rhomboids, not the biceps.",
+      "is_unilateral": false,
+      "default_sets": 4,
+      "default_reps": "6–8",
+      "default_duration": null,
+      "default_weight": "Moderate — progress weekly",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "6–8",
+              "sets": 4,
+              "weight": "Moderate — progress weekly"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "pistol-squats",
+      "canonical_name": "Pistol Squats",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Fixed prescription — not 'whatever legs remain.' Full depth, heel flat, controlled descent. Reduce load before reducing depth. Hips warm from triple extension work.",
+      "is_unilateral": true,
+      "default_sets": 3,
+      "default_reps": "5 each leg",
+      "default_duration": null,
+      "default_weight": "15–20 lbs",
+      "default_rest": null,
+      "review": {
+        "occurrences": 2,
+        "by_source": {
+          "supabase": 1,
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "5 each leg",
+              "sets": 3,
+              "weight": "15–20 lbs"
+            },
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "dive-bomber-push-ups",
+      "canonical_name": "Dive Bomber Push-Ups",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Start in downward dog. Sweep chest forward and down in an arc, finish hips low chest up. Reverse the arc. Engage anterior core through the forward sweep — do not let lower back go slack.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": "8–10",
+      "default_duration": "~1 min",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 1,
+        "by_source": {
+          "supabase": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "~1 min",
+              "reps": "8–10"
+            },
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "push-ups",
+      "canonical_name": "Push-Ups",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": "Standard push-ups. Hands shoulder-width, body in a straight line from head to heels. Lower until chest is just above the floor, then press back up. Keep the core braced — do not let the lower back sag.",
+      "is_unilateral": false,
+      "default_sets": null,
+      "default_reps": "8",
+      "default_duration": "~1 min",
+      "default_weight": null,
+      "default_rest": null,
+      "review": {
+        "occurrences": 1,
+        "by_source": {
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "duration": "~1 min",
+              "reps": "8"
+            },
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "lat-pulldown",
+      "canonical_name": "Lat Pulldown",
+      "aliases": [],
+      "category": "strength",
+      "muscle_groups": [
+        "lats"
+      ],
+      "equipment": [],
+      "image_url": null,
+      "technique_notes": null,
+      "is_unilateral": false,
+      "default_sets": 3,
+      "default_reps": "15",
+      "default_duration": null,
+      "default_weight": "135 lbs",
+      "default_rest": "60s",
+      "review": {
+        "occurrences": 1,
+        "by_source": {
+          "seed": 1
+        },
+        "divergences": {},
+        "prescription_variants": [
+          {
+            "value": {
+              "reps": "15",
+              "restPeriod": "60s",
+              "sets": 3,
+              "weight": "135 lbs"
+            },
+            "count": 1
+          }
+        ]
+      }
+    }
+  ]
+}
