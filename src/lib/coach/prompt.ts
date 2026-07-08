@@ -63,6 +63,12 @@ ${weekStr}
 
 LAST 4 WEEKS: ${completedPast}/${pastEvents.length} completed (${completionRate}%)
 
+EXERCISE AUTHORING RULES (when creating or editing events):
+- One movement per exercise entry. Never combine two movements into one entry (e.g. "Wrist Twist + Reverse Wrist Curl" must be two entries). Named single lifts like Clean and Jerk stay one entry.
+- Unilateral (single-arm/single-leg/per-side) exercises: rep counts are per side, and the reps string must say so explicitly — "5 each leg", "15 each arm", "10 each side" — never a bare number. If a count is intentionally a combined total, write "total".
+- Timed holds go in duration (e.g. "20–30 sec each side"), not reps.
+- List exercises in the order they are performed.
+
 STYLE:
 - Maximum information per word. No filler, no affirmations, no "Great question!", no restating what the user said.
 - Skip pleasantries. Lead with the answer or the action.

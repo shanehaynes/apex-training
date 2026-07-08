@@ -1,6 +1,6 @@
 {
   "version": "1.1",
-  "lastUpdated": "2026-07-02",
+  "lastUpdated": "2026-07-08",
   "events": [
     {
       "id": "w1-mon-morning",
@@ -661,7 +661,7 @@
           "name": "Dumbbell Curl",
           "category": "strength",
           "sets": 4,
-          "reps": "10",
+          "reps": "10 each arm",
           "weight": "40 lbs each",
           "restPeriod": "60s",
           "muscleGroups": [
@@ -673,7 +673,7 @@
           "name": "Hammer Curl",
           "category": "strength",
           "sets": 3,
-          "reps": "12",
+          "reps": "12 each arm",
           "weight": "35 lbs each",
           "restPeriod": "60s",
           "muscleGroups": [
@@ -1421,7 +1421,7 @@
           "name": "Dumbbell Curl",
           "category": "strength",
           "sets": 4,
-          "reps": "10",
+          "reps": "10 each arm",
           "weight": "40 lbs each",
           "restPeriod": "60s",
           "muscleGroups": [
@@ -1433,7 +1433,7 @@
           "name": "Hammer Curl",
           "category": "strength",
           "sets": 3,
-          "reps": "12",
+          "reps": "12 each arm",
           "weight": "35 lbs each",
           "restPeriod": "60s",
           "muscleGroups": [
@@ -33772,9 +33772,8 @@
           "id": "stuart-warm-5",
           "name": "3-Point Plank",
           "category": "mobility",
-          "sets": 8,
-          "reps": "full rounds",
-          "notes": "Anti-extension stability. One limb removed from plank position, cycling all four."
+          "reps": "8",
+          "notes": "Anti-extension stability. One limb removed from plank position, cycling all four. One rep = one full round through all four limbs \u2014 log total rounds in the single field."
         },
         {
           "id": "stuart-warm-6",
@@ -33796,7 +33795,7 @@
           "name": "Pallof Press Hold",
           "category": "mobility",
           "sets": 3,
-          "duration": "20\u201330 sec each",
+          "duration": "20\u201330 sec each side",
           "notes": "Anti-rotation under asymmetric load. Directly addresses hip-dropping pattern on steep terrain. Light weight, pure isometric."
         },
         {
@@ -33804,7 +33803,7 @@
           "name": "Cable Chop",
           "category": "strength",
           "sets": 3,
-          "reps": "10 each, light",
+          "reps": "10 each side, light",
           "notes": "Rotational core primer. Neural primer before loading, not a finisher."
         }
       ],
@@ -33816,7 +33815,7 @@
           "sets": 4,
           "reps": "pyramid to 3\u20135",
           "weight": "~115 lbs (85% max)",
-          "notes": "Bar moves fast or don't add weight. Overhead squat follows immediately after the jerk on each set while the pattern is warm \u2014 best full-body neural primer available."
+          "notes": "Bar moves fast or don't add weight. Ido squat warm-up before the first bar work: deep squat hold, pry the knees out, shift side to side, reach overhead from the bottom. Overhead squat follows immediately after the jerk on each set while the pattern is warm \u2014 best full-body neural primer available."
         },
         {
           "id": "stuart-a-2",
@@ -33828,13 +33827,29 @@
           "notes": "Movement quality drill, not strength work. Slow descent, pause at bottom, torso upright. If position breaks, reduce weight \u2014 do not programme as a separate strength exercise."
         },
         {
+          "id": "stuart-a-6",
+          "name": "Copenhagen Plank",
+          "category": "mobility",
+          "sets": 3,
+          "duration": "20\u201330 sec each side",
+          "notes": "Glute medius, hip adductor-abductor balance, pelvic frontal plane stability. Hips warm from the squat work. Do not let hips sag."
+        },
+        {
+          "id": "stuart-a-wall-slides",
+          "name": "Wall Arm Slides",
+          "category": "mobility",
+          "sets": 4,
+          "reps": "5",
+          "notes": "Back straight against the wall, arms slide overhead and back down without the low back arching. One set between each weighted pull-up set."
+        },
+        {
           "id": "stuart-a-3",
           "name": "Weighted Pull-Ups",
           "category": "strength",
           "sets": 4,
           "reps": "4\u20136",
           "weight": "~35 lbs",
-          "notes": "3-second eccentric every rep \u2014 this is where the tendon stimulus lives. Wall slides between each set: 5 reps, back straight against wall. Elbow at 80% means stopping at 4 sets, not grinding a fifth with degraded mechanics."
+          "notes": "Dead hang, brace whole body, scapulae set before you pull, drive from the lats not the arms, hold hollow position throughout, full range every rep, control the 3-second eccentric, same brace on the way down."
         },
         {
           "id": "stuart-a-4",
@@ -33850,33 +33865,34 @@
           "name": "Pistol Squats",
           "category": "strength",
           "sets": 3,
-          "reps": "5 each",
+          "reps": "5 each leg",
           "weight": "15\u201320 lbs",
           "notes": "Fixed prescription \u2014 not 'whatever legs remain.' Full depth, heel flat, controlled descent. Reduce load before reducing depth. Hips warm from triple extension work."
         },
         {
-          "id": "stuart-a-6",
-          "name": "Copenhagen Plank",
+          "id": "stuart-ant-1a",
+          "name": "Wrist Twist",
           "category": "mobility",
           "sets": 3,
-          "duration": "20\u201330 sec each",
-          "notes": "Glute medius, hip adductor-abductor balance, pelvic frontal plane stability. Hips warm from pistols. Do not let hips sag."
-        },
-        {
-          "id": "stuart-ant-1",
-          "name": "Wrist Twist + Reverse Wrist Curl",
-          "category": "mobility",
-          "sets": 3,
-          "reps": "15",
+          "reps": "15 each arm",
           "weight": "15 lbs",
           "notes": "ELBOW MAINTENANCE \u2014 non-negotiable regardless of how the session went. Phase 1 (Weeks 1\u20133): isometric holds + wrist twist + reverse wrist curl only. Add Tyler Twists at Week 4 if elbow response has been clean."
+        },
+        {
+          "id": "stuart-ant-1b",
+          "name": "Reverse Wrist Curl",
+          "category": "mobility",
+          "sets": 3,
+          "reps": "15 each arm",
+          "weight": "15 lbs",
+          "notes": "ELBOW MAINTENANCE \u2014 pairs with the wrist twist. Forearm supported, wrist off the edge, controlled eccentric."
         },
         {
           "id": "stuart-ant-2",
           "name": "Band External Rotation",
           "category": "mobility",
           "sets": 3,
-          "reps": "15 each",
+          "reps": "15 each arm",
           "weight": "Light band",
           "notes": "Side-lying or standing. Counters internal rotation bias from climbing volume. Shoulder longevity. This is 90 seconds \u2014 do not skip it."
         },
@@ -33885,7 +33901,7 @@
           "name": "Hammer Curls",
           "category": "strength",
           "sets": 3,
-          "reps": "8\u201310",
+          "reps": "8\u201310 each arm",
           "weight": "Moderate",
           "notes": "Session A only \u2014 once per week. Brachialis recruitment is more relevant to the lock-off position than standard curls. Controlled eccentric, not a finisher grind."
         }
@@ -34026,9 +34042,8 @@
           "id": "stuart-warm-5",
           "name": "3-Point Plank",
           "category": "mobility",
-          "sets": 8,
-          "reps": "full rounds",
-          "notes": "Anti-extension stability. One limb removed from plank position, cycling all four."
+          "reps": "8",
+          "notes": "Anti-extension stability. One limb removed from plank position, cycling all four. One rep = one full round through all four limbs \u2014 log total rounds in the single field."
         },
         {
           "id": "stuart-warm-6",
@@ -34050,7 +34065,7 @@
           "name": "Pallof Press Hold",
           "category": "mobility",
           "sets": 3,
-          "duration": "20\u201330 sec each",
+          "duration": "20\u201330 sec each side",
           "notes": "Anti-rotation under asymmetric load. Directly addresses hip-dropping pattern on steep terrain. Light weight, pure isometric."
         },
         {
@@ -34058,7 +34073,7 @@
           "name": "Cable Chop",
           "category": "strength",
           "sets": 3,
-          "reps": "10 each, light",
+          "reps": "10 each side, light",
           "notes": "Rotational core primer. Neural primer before loading, not a finisher."
         }
       ],
@@ -34077,7 +34092,7 @@
           "name": "Single-Leg RDL",
           "category": "strength",
           "sets": 3,
-          "reps": "6 each",
+          "reps": "6 each leg",
           "weight": "DB or barbell, moderate",
           "notes": "CORRECTIVE INTEGRATION \u2014 targets glute medius and posterior glute specifically. Pause and squeeze the glute hard at the top. Feel the glute contract, not the hamstring."
         },
@@ -34104,7 +34119,7 @@
           "name": "Landmine Press + Reach",
           "category": "strength",
           "sets": 3,
-          "reps": "8 each",
+          "reps": "8 each arm",
           "weight": "Moderate",
           "notes": "Full protraction at the top \u2014 the serratus benefit lives in the last few inches. Scapula should visibly wing forward at end range."
         },
@@ -34113,7 +34128,7 @@
           "name": "Calf Raises (single leg)",
           "category": "strength",
           "sets": 3,
-          "reps": "5",
+          "reps": "5 each leg",
           "weight": "40 lbs",
           "notes": "Full range \u2014 heel drops below platform level at the bottom. Approach fitness and descent load management live here."
         },
@@ -34145,20 +34160,29 @@
           "notes": "OPTIONAL when time-limited. Tuck position, 5-second lowering from horizontal to hang. 6\u201312 month project. FIRST to drop when session needs to finish under 70 min \u2014 never drop the antagonist block to fit these in."
         },
         {
-          "id": "stuart-ant-1",
-          "name": "Wrist Twist + Reverse Wrist Curl",
+          "id": "stuart-ant-1a",
+          "name": "Wrist Twist",
           "category": "mobility",
           "sets": 3,
-          "reps": "15",
+          "reps": "15 each arm",
           "weight": "15 lbs",
           "notes": "ELBOW MAINTENANCE \u2014 non-negotiable regardless of how the session went. Phase 1 (Weeks 1\u20133): isometric holds + wrist twist + reverse wrist curl only. Add Tyler Twists at Week 4 if elbow response has been clean."
+        },
+        {
+          "id": "stuart-ant-1b",
+          "name": "Reverse Wrist Curl",
+          "category": "mobility",
+          "sets": 3,
+          "reps": "15 each arm",
+          "weight": "15 lbs",
+          "notes": "ELBOW MAINTENANCE \u2014 pairs with the wrist twist. Forearm supported, wrist off the edge, controlled eccentric."
         },
         {
           "id": "stuart-ant-2",
           "name": "Band External Rotation",
           "category": "mobility",
           "sets": 3,
-          "reps": "15 each",
+          "reps": "15 each arm",
           "weight": "Light band",
           "notes": "Side-lying or standing. Counters internal rotation bias from climbing volume. Shoulder longevity. This is 90 seconds \u2014 do not skip it."
         }
