@@ -27,10 +27,10 @@
   --color-weights-glow:      0 0 20px rgba(139, 26, 26, 0.5);
   --color-weights-border:    #b91c1c;
 
-  --color-climbing-solid:    #5c5c5c;
-  --color-climbing-light:    rgba(92, 92, 92, 0.2);
-  --color-climbing-glow:     0 0 20px rgba(92, 92, 92, 0.35);
-  --color-climbing-border:   #78716c;
+  --color-climbing-solid:    #228b22;
+  --color-climbing-light:    rgba(34, 139, 34, 0.2);
+  --color-climbing-glow:     0 0 20px rgba(34, 139, 34, 0.45);
+  --color-climbing-border:   #2eb82e;
 
   --color-cardio-solid:      #2d6a4f;
   --color-cardio-light:      rgba(45, 106, 79, 0.2);

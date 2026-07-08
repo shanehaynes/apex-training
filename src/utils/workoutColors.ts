@@ -23,10 +23,10 @@ export const WORKOUT_COLORS: Record<WorkoutType, WorkoutColorConfig> = {
     label:  'Strength',
   },
   'climbing': {
-    solid:  '#5c5c5c',
-    light:  'rgba(92, 92, 92, 0.2)',
-    glow:   '0 0 20px rgba(92, 92, 92, 0.35)',
-    border: '#78716c',
+    solid:  '#228b22',
+    light:  'rgba(34, 139, 34, 0.2)',
+    glow:   '0 0 20px rgba(34, 139, 34, 0.45)',
+    border: '#2eb82e',
     label:  'Climbing',
   },
   'cardio': {
