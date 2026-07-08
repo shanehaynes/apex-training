@@ -18,19 +18,58 @@ export interface PlannedSet {
   targetDuration?: string;
 }
 
+export type ExerciseCategory = 'strength' | 'stretch' | 'cardio' | 'skill' | 'mobility';
+
+/**
+ * One row per movement in the exercise library (see EXERCISE_LIBRARY_SPEC.md).
+ * Owns identity + descriptive metadata, shared by every referencing event.
+ * default* fields are insert-time prefills only — copied into a new event
+ * entry, never resolved live.
+ */
+export interface ExerciseDefinition {
+  id: string;
+  canonicalName: string;
+  /** Former names + accepted spellings; history matching unions these with canonicalName. */
+  aliases: string[];
+  category: ExerciseCategory;
+  muscleGroups: string[];
+  equipment: string[];
+  imageUrl?: string;
+  techniqueNotes?: string;
+  isUnilateral: boolean;
+  defaultSets?: number;
+  defaultReps?: string;
+  defaultDuration?: string;
+  defaultWeight?: string;
+  defaultRest?: string;
+  archivedAt?: string;
+}
+
+/**
+ * An exercise entry inside a workout event: a reference into the library plus
+ * this event's prescription. name/category/imageUrl/muscleGroups are snapshots
+ * taken when the reference was made — display resolves them from the
+ * definition when definitionId is set (src/lib/schedule/definitions.ts) and
+ * falls back to the snapshots when it isn't (or the definition is missing).
+ */
 export interface Exercise {
   id: string;
+  definitionId?: string;
   name: string;
-  category: 'strength' | 'stretch' | 'cardio' | 'skill' | 'mobility';
+  category: ExerciseCategory;
+  // ── Prescription: per-event, never shared across events ──
   sets?: number;
   reps?: string;
   duration?: string;
   weight?: string;
   restPeriod?: string;
+  plannedSets?: PlannedSet[];
+  /** Day-specific intent ("last set AMRAP"). Form cues live on the definition. */
   notes?: string;
   imageUrl?: string;
   muscleGroups?: string[];
-  plannedSets?: PlannedSet[];
+  /** Populated at resolution time from the definition — never persisted on the entry. */
+  techniqueNotes?: string;
 }
 
 export interface WorkoutEvent {

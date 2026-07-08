@@ -1,8 +1,9 @@
 import { postJson } from '../api';
 import { supabase } from '../supabaseClient';
-import type { CardioLogRow, SetLogRow, TrackedSection, WorkoutSessionRow } from '../db/types';
+import type { CardioLogRow, ExerciseDefinitionRow, SetLogRow, TrackedSection, WorkoutSessionRow } from '../db/types';
 import type { WorkoutEvent } from '../../types/workout';
 import { buildQuickCompleteLogs, cardioExerciseNames, setExerciseNames } from './plan';
+import { buildAliasIndex, canonicalizeLogNames, expandNamesWithAliases, type AliasIndex } from '../schedule/definitions';
 
 // Data access for the workout tracker — the one module that knows where
 // tracking data lives. Reads go straight to Supabase on the anon client
@@ -35,16 +36,39 @@ function inMemorySession(): SessionInfo {
   return { started_at: new Date().toISOString(), finished_at: null, total_duration_seconds: null, coach_summary: null };
 }
 
+/**
+ * Alias index over the exercise library, so history fetches match every
+ * spelling a log row might carry (pre-rename names included) and grouping
+ * unifies them under the canonical name. Empty index on failure — matching
+ * degrades to today's exact-name behavior.
+ */
+async function loadAliasIndex(): Promise<AliasIndex> {
+  const { data, error } = await supabase!
+    .from('exercise_definitions')
+    .select('canonical_name,aliases');
+  if (error || !data) return buildAliasIndex([]);
+  return buildAliasIndex(
+    (data as Pick<ExerciseDefinitionRow, 'canonical_name' | 'aliases'>[]).map(r => ({
+      canonicalName: r.canonical_name,
+      aliases: r.aliases ?? [],
+    })),
+  );
+}
+
 /** Get-or-create the session and hydrate any previously-saved logs. */
 export async function loadSession(event: WorkoutEvent): Promise<TrackerSessionData> {
   if (!supabase) {
     return { session: inMemorySession(), savedSets: [], savedCardio: [], history: [], cardioHistory: [] };
   }
 
+  // Aliases must load before the history queries — they widen the name filter.
+  const aliasIndex = await loadAliasIndex().catch(() => buildAliasIndex([]));
+
   // Previous actuals for this event's set-tracked exercises, matched by
-  // name so history follows an exercise across events. Ordered desc so a
-  // truncated result still contains the most recent sessions.
-  const names = setExerciseNames(event);
+  // name (expanded to known aliases) so history follows an exercise across
+  // events and renames. Ordered desc so a truncated result still contains
+  // the most recent sessions.
+  const names = expandNamesWithAliases(setExerciseNames(event), aliasIndex);
   const historyQuery = names.length
     ? supabase
         .from('workout_set_logs')
@@ -58,7 +82,7 @@ export async function loadSession(event: WorkoutEvent): Promise<TrackerSessionDa
 
   // Prior cardio actuals, for distance/elevation PR detection. Autofilled
   // rows (quick-complete plan-fills) are not performances, like set logs.
-  const cardioNames = cardioExerciseNames(event);
+  const cardioNames = expandNamesWithAliases(cardioExerciseNames(event), aliasIndex);
   const cardioHistoryQuery = cardioNames.length
     ? supabase
         .from('workout_cardio_logs')
@@ -89,8 +113,10 @@ export async function loadSession(event: WorkoutEvent): Promise<TrackerSessionDa
     session: startRes?.session ?? inMemorySession(),
     savedSets: (setsRes?.data ?? []) as SetLogRow[],
     savedCardio: (cardioRes?.data ?? []) as CardioLogRow[],
-    history: (historyRes?.data ?? []) as SetLogRow[],
-    cardioHistory: (cardioHistoryRes?.data ?? []) as CardioLogRow[],
+    // Canonicalized in memory only: PR/last-performance grouping keys by
+    // exercise_name, so pre-rename rows must group with current ones.
+    history: canonicalizeLogNames((historyRes?.data ?? []) as SetLogRow[], aliasIndex),
+    cardioHistory: canonicalizeLogNames((cardioHistoryRes?.data ?? []) as CardioLogRow[], aliasIndex),
   };
 }
 

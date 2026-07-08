@@ -160,7 +160,10 @@ export default function TrackerExercise({
           </span>
         )}
       </div>
-      {exercise.notes && <p className="tracker-exercise__notes">{exercise.notes}</p>}
+      {exercise.techniqueNotes && <p className="tracker-exercise__notes">{exercise.techniqueNotes}</p>}
+      {exercise.notes && exercise.notes !== exercise.techniqueNotes && (
+        <p className="tracker-exercise__notes">{exercise.notes}</p>
+      )}
 
       {tracked.isCardio && tracked.cardio ? (
         <div className="tracker-cardio">

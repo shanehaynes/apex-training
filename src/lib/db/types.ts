@@ -78,6 +78,8 @@ export interface SetLogRow {
   section: TrackedSection;
   exercise_id: string;
   exercise_name: string;
+  /** Stamped on rows logged after phase 8; older rows are matched by name+alias. */
+  definition_id?: string | null;
   set_number: number;
   planned_weight: string | null;
   planned_reps: string | null;
@@ -94,6 +96,8 @@ export interface CardioLogRow {
   section: TrackedSection;
   exercise_id: string;
   exercise_name: string;
+  /** Stamped on rows logged after phase 8; older rows are matched by name+alias. */
+  definition_id?: string | null;
   duration_minutes: number | null;
   distance: string | null;
   elevation_gain: string | null;
@@ -119,6 +123,36 @@ export interface EventMutationLogRow {
   event_id: string;
   event_title: string;
   event_date?: string;
+  diff?: Record<string, unknown>;
+  triggered_by?: string;
+}
+
+// One row per movement in the exercise library (phase 8) — identity and
+// descriptive metadata shared by every referencing event entry.
+export interface ExerciseDefinitionRow {
+  id: string;
+  canonical_name: string;
+  aliases: string[];
+  category: string;
+  muscle_groups: string[];
+  equipment: string[];
+  image_url: string | null;
+  technique_notes: string | null;
+  is_unilateral: boolean;
+  default_sets: number | null;
+  default_reps: string | null;
+  default_duration: string | null;
+  default_weight: string | null;
+  default_rest: string | null;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DefinitionMutationLogRow {
+  operation: 'create' | 'update' | 'archive' | 'unarchive' | 'delete';
+  definition_id: string;
+  definition_name: string;
   diff?: Record<string, unknown>;
   triggered_by?: string;
 }

@@ -3,10 +3,11 @@ import { parseISO, isSameDay } from 'date-fns';
 import scheduleData from '../data/schedule.json';
 import { deleteJson, patchJson, postJson } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
-import type { CompletionRow, RecurringExceptionRow, WorkoutEventRow } from '../lib/db/types';
-import type { WorkoutEvent, Schedule } from '../types/workout';
+import type { CompletionRow, ExerciseDefinitionRow, RecurringExceptionRow, WorkoutEventRow } from '../lib/db/types';
+import type { ExerciseDefinition, WorkoutEvent, Schedule } from '../types/workout';
 import type { CreateEventInput, OccurrenceOverride, UpdateEventInput } from '../lib/schedule/types';
 import { expandRecurringEvents, normalizeSeedEvent } from '../lib/schedule/expand';
+import { resolveEventExercises, rowToDefinition } from '../lib/schedule/definitions';
 import { buildCompletionRows, eventFieldsToRow, eventToRow, rowToEvent } from '../lib/schedule/mapping';
 import { loadCompletedIds, saveCompletedIds } from '../lib/schedule/localCompletion';
 import { quickCompleteSession, quickUncompleteSession } from '../lib/tracking/sessionRepo';
@@ -17,6 +18,8 @@ import { timeToMinutes } from '../lib/time';
 
 interface ScheduleContextValue {
   events: WorkoutEvent[];
+  /** Exercise library, keyed by definition id. Empty offline — entries then render their snapshots. */
+  definitions: Map<string, ExerciseDefinition>;
   isSyncing: boolean;
   isEventsLoading: boolean;
   getEventsForDate: (date: Date) => WorkoutEvent[];
@@ -42,6 +45,7 @@ const ScheduleContext = createContext<ScheduleContextValue | null>(null);
 
 export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const [baseEvents, setBaseEvents] = useState<WorkoutEvent[]>([]);
+  const [definitions, setDefinitions] = useState<Map<string, ExerciseDefinition>>(new Map());
   const [exceptions, setExceptions] = useState<Map<string, OccurrenceOverride | null>>(new Map());
   const [completedIds, setCompletedIds] = useState<Set<string>>(loadCompletedIds);
   const [isSyncing, setIsSyncing] = useState(!!supabase);
@@ -60,11 +64,12 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const [eventsRes, exceptionsRes] = await Promise.all([
+    const [eventsRes, exceptionsRes, definitionsRes] = await Promise.all([
       supabase.from('workout_events').select('*').order('date'),
       // select('*') so rows load (as plain skips) even before the phase7
       // override-columns migration has been applied.
       supabase.from('recurring_exceptions').select('*'),
+      supabase.from('exercise_definitions').select('*'),
     ]);
 
     if (eventsRes.error) {
@@ -72,6 +77,13 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       setBaseEvents(((scheduleData as Schedule).events as WorkoutEvent[]).map(normalizeSeedEvent));
     } else {
       setBaseEvents((eventsRes.data as WorkoutEventRow[]).map(rowToEvent));
+    }
+
+    // Tolerated failure: entries render their embedded snapshots instead.
+    if (!definitionsRes.error && definitionsRes.data) {
+      setDefinitions(new Map(
+        (definitionsRes.data as ExerciseDefinitionRow[]).map(r => [r.id, rowToDefinition(r)]),
+      ));
     }
 
     if (!exceptionsRes.error && exceptionsRes.data) {
@@ -106,6 +118,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       .channel('schedule-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_events' }, loadEvents)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'recurring_exceptions' }, loadEvents)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'exercise_definitions' }, loadEvents)
       .subscribe();
     return () => { sb.removeChannel(channel); };
   }, [loadEvents]);
@@ -132,9 +145,16 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   // ── Derived state ──────────────────────────────────────────────────────────
 
+  // Resolve library references on the base rows (before recurrence fan-out,
+  // so each series resolves once, not per occurrence).
+  const resolvedBase = useMemo(
+    () => (definitions.size ? baseEvents.map(e => resolveEventExercises(e, definitions)) : baseEvents),
+    [baseEvents, definitions],
+  );
+
   const allExpanded = useMemo(
-    () => expandRecurringEvents(baseEvents, exceptions),
-    [baseEvents, exceptions],
+    () => expandRecurringEvents(resolvedBase, exceptions),
+    [resolvedBase, exceptions],
   );
 
   const events = useMemo<WorkoutEvent[]>(
@@ -327,6 +347,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   return (
     <ScheduleContext.Provider value={{
       events,
+      definitions,
       isSyncing,
       isEventsLoading,
       getEventsForDate,
