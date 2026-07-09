@@ -99,6 +99,64 @@ export function matchDefinitionByName(
   return undefined;
 }
 
+// ─── Entry authoring (shared by the coach tools and the UI picker) ────────────
+
+const PER_SIDE_RE = /\beach\b|\bper\s+(side|leg|arm)\b|\btotal\b/i;
+
+/** Whether a count string states its side convention ("5 each leg", "10 total"). */
+export function hasPerSideCount(text: string | null | undefined): boolean {
+  return !!text && PER_SIDE_RE.test(text);
+}
+
+/** Prescription fields an author may supply when adding an exercise to an event. */
+export interface PrescriptionOverrides {
+  sets?: number;
+  reps?: string;
+  duration?: string;
+  weight?: string;
+  restPeriod?: string;
+  notes?: string;
+}
+
+/**
+ * A new event entry referencing a definition: canonical name/category
+ * snapshots, prescription from the overrides with gaps prefilled from the
+ * definition's defaults (insert-time copy — the definition is out of the
+ * loop afterward).
+ */
+export function entryFromDefinition(
+  def: ExerciseDefinition,
+  id: string,
+  overrides: PrescriptionOverrides = {},
+): Exercise {
+  return {
+    id,
+    definitionId: def.id,
+    name: def.canonicalName,
+    category: def.category,
+    sets: overrides.sets ?? def.defaultSets,
+    reps: overrides.reps ?? def.defaultReps,
+    duration: overrides.duration ?? def.defaultDuration,
+    weight: overrides.weight ?? def.defaultWeight,
+    restPeriod: overrides.restPeriod ?? def.defaultRest,
+    notes: overrides.notes,
+  };
+}
+
+/**
+ * Entry id that collides with none of the section's existing ids. Existing
+ * entries keep their ids forever — workout_set_logs keys on exercise_id, so
+ * a changed id orphans that occurrence's logged sets.
+ */
+export function uniqueEntryId(base: string, existing: Iterable<string>): string {
+  const taken = new Set(existing);
+  if (!taken.has(base)) return base;
+  for (let n = 2; ; n++) {
+    const candidate = `${base}-${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
 /** camelCase definition fields → snake_case row columns, for API payloads. */
 export function definitionFieldsToRow(fields: Partial<ExerciseDefinition>): Record<string, unknown> {
   const map: Record<string, string> = {

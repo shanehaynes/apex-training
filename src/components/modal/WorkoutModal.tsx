@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play, Pencil } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/CalendarContext';
 import { useSchedule } from '../../context/ScheduleContext';
@@ -10,6 +10,7 @@ import { formatEventTime, formatDuration } from '../../utils/dateHelpers';
 import { minutesToDisplayTime, timeToMinutes, toDisplayTime, toInputTime } from '../../lib/time';
 import { notify } from '../../lib/notify';
 import ExerciseCard from './ExerciseCard';
+import EventExerciseEditor from './EventExerciseEditor';
 import type { Exercise } from '../../types/workout';
 
 const DIFFICULTY_LABELS = ['', 'Easy', 'Moderate', 'Challenging', 'Hard', 'Maximal'];
@@ -22,9 +23,17 @@ export default function WorkoutModal() {
 
   const [editingDate, setEditingDate] = useState(false);
   const [editingTime, setEditingTime] = useState(false);
+  const [editingExercises, setEditingExercises] = useState(false);
+  const editingExercisesRef = useRef(false);
+  editingExercisesRef.current = editingExercises;
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      // Escape backs out of exercise editing before closing the modal.
+      if (editingExercisesRef.current) setEditingExercises(false);
+      else close();
+    };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
@@ -69,10 +78,12 @@ export default function WorkoutModal() {
 
   const color = getWorkoutColor(event.type);
 
+  // From `live`, not the snapshot — exercise edits apply optimistically to
+  // ScheduleContext and must show here immediately.
   const sections: { label: string; items: Exercise[] }[] = [
-    ...(event.warmup?.length ? [{ label: 'Warm-Up', items: event.warmup }] : []),
-    { label: 'Main Work', items: event.exercises },
-    ...(event.cooldown?.length ? [{ label: 'Cool-Down', items: event.cooldown }] : []),
+    ...(live.warmup?.length ? [{ label: 'Warm-Up', items: live.warmup }] : []),
+    { label: 'Main Work', items: live.exercises },
+    ...(live.cooldown?.length ? [{ label: 'Cool-Down', items: live.cooldown }] : []),
   ];
 
   return createPortal(
@@ -235,16 +246,31 @@ export default function WorkoutModal() {
             <p className="modal-description">{event.description}</p>
 
             {/* Exercise sections */}
-            {sections.map(section => (
-              <div key={section.label} className="modal-section">
-                <div className="modal-section__header">
-                  <span className="modal-section__line" />
-                  <span className="modal-section__label">{section.label}</span>
-                  <span className="modal-section__line" />
+            {editingExercises ? (
+              <EventExerciseEditor
+                event={live}
+                accentColor={color.solid}
+                onDone={() => setEditingExercises(false)}
+              />
+            ) : (
+              <>
+                <div className="modal-edit-exercises-row">
+                  <button className="modal-edit-exercises" onClick={() => setEditingExercises(true)}>
+                    <Pencil size={12} strokeWidth={1.5} /> Edit exercises
+                  </button>
                 </div>
-                {section.items.map(ex => <ExerciseCard key={ex.id} exercise={ex} accentColor={color.solid} />)}
-              </div>
-            ))}
+                {sections.map(section => (
+                  <div key={section.label} className="modal-section">
+                    <div className="modal-section__header">
+                      <span className="modal-section__line" />
+                      <span className="modal-section__label">{section.label}</span>
+                      <span className="modal-section__line" />
+                    </div>
+                    {section.items.map(ex => <ExerciseCard key={ex.id} exercise={ex} accentColor={color.solid} />)}
+                  </div>
+                ))}
+              </>
+            )}
 
             {/* Tags */}
             {event.tags.length > 0 && (

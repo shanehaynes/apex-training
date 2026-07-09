@@ -1,6 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { baseIdOf, isOccurrenceId } from '../schedule/occurrence.js';
-import { countDefinitionReferences, matchDefinitionByName } from '../schedule/definitions.js';
+import { countDefinitionReferences, entryFromDefinition, hasPerSideCount, matchDefinitionByName } from '../schedule/definitions.js';
 import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, UpdateDefinitionInput, UpdateEventInput } from '../schedule/types.js';
 import type { Exercise, ExerciseDefinition, WorkoutEvent, WorkoutType } from '../../types/workout.js';
 
@@ -80,8 +80,6 @@ const EXERCISE_INPUT_SCHEMA = {
   },
 };
 
-const PER_SIDE_RE = /\beach\b|\bper\s+(side|leg|arm)\b|\btotal\b/i;
-
 /** Names in the input that match no library entry (case-insensitively) — i.e. would be created. */
 function unmatchedNames(inputs: ExerciseInput[], definitions: Map<string, ExerciseDefinition>): string[] {
   const out: string[] = [];
@@ -106,7 +104,7 @@ async function buildExerciseEntries(
   for (const input of inputs) {
     const def = matchDefinitionByName(input.name, deps.definitions.values());
     const counted = input.reps ?? input.duration;
-    if (def?.isUnilateral && counted && !PER_SIDE_RE.test(counted)) {
+    if (def?.isUnilateral && counted && !hasPerSideCount(counted)) {
       violations.push(`${def.canonicalName}: "${counted}" — state the count per side ("${counted} each side") or as "total".`);
     }
   }
@@ -117,13 +115,17 @@ async function buildExerciseEntries(
   const entries: Exercise[] = [];
   const created: string[] = [];
   for (const [i, input] of inputs.entries()) {
+    const overrides = {
+      sets: input.sets, reps: input.reps, duration: input.duration,
+      weight: input.weight, restPeriod: input.rest_period, notes: input.notes,
+    };
     let def = matchDefinitionByName(input.name, deps.definitions.values());
     if (!def) {
       const result = await deps.createDefinition({
         canonicalName: input.name,
         category: input.category ?? 'strength',
         muscleGroups: input.muscle_groups ?? [],
-        isUnilateral: PER_SIDE_RE.test(`${input.reps ?? ''} ${input.duration ?? ''}`),
+        isUnilateral: hasPerSideCount(`${input.reps ?? ''} ${input.duration ?? ''}`),
       });
       if (!result) return { error: `Failed to create new exercise "${input.name}".` };
       def = deps.definitions.get(result.id);
@@ -141,18 +143,7 @@ async function buildExerciseEntries(
         continue;
       }
     }
-    entries.push({
-      id: `${def.id}-${i + 1}`,
-      definitionId: def.id,
-      name: def.canonicalName,
-      category: def.category,
-      sets: input.sets ?? def.defaultSets,
-      reps: input.reps ?? def.defaultReps,
-      duration: input.duration ?? def.defaultDuration,
-      weight: input.weight ?? def.defaultWeight,
-      restPeriod: input.rest_period ?? def.defaultRest,
-      notes: input.notes,
-    });
+    entries.push(entryFromDefinition(def, `${def.id}-${i + 1}`, overrides));
   }
   return { entries, created };
 }

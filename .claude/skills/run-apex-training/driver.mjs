@@ -23,8 +23,8 @@ const SHOTS = join(dirname(fileURLToPath(import.meta.url)), 'screenshots');
 mkdirSync(SHOTS, { recursive: true });
 
 const mode = process.argv[2];
-if (!['smoke', 'tracker', 'today', 'reschedule', 'library'].includes(mode)) {
-  console.error('usage: driver.mjs <smoke|tracker|today|reschedule|library>');
+if (!['smoke', 'tracker', 'today', 'reschedule', 'library', 'edit-exercises'].includes(mode)) {
+  console.error('usage: driver.mjs <smoke|tracker|today|reschedule|library|edit-exercises>');
   process.exit(2);
 }
 
@@ -208,6 +208,49 @@ try {
     const timeInputs = await page.$$('.modal-meta-input[type="time"]');
     if (timeInputs.length !== 2) errors.push(`assert: expected 2 time inputs, found ${timeInputs.length}`);
     await shot('reschedule-time-editing');
+
+    console.log('console/assert errors:', errors.length ? errors : 'none');
+    process.exitCode = errors.length ? 1 : 0;
+    await browser.close();
+    process.exit();
+  }
+
+  if (mode === 'edit-exercises') {
+    await page.click('.modal-edit-exercises');
+    await page.waitForSelector('.editor-card', { timeout: 10000 });
+    await settle(300);
+    const cardsBefore = (await page.$$('.editor-card')).length;
+    await shot('edit-exercises-editor');
+
+    // Add via the picker into the first (Warm-Up) section.
+    await page.click('.exercise-editor__add');
+    await page.waitForSelector('.exercise-picker__row', { timeout: 10000 });
+    await page.type('.exercise-picker__input', 'plank');
+    await settle(300);
+    await shot('edit-exercises-picker');
+    const addedName = await page.$eval('.exercise-picker__row-name', el => el.textContent);
+    await page.click('.exercise-picker__row');
+    await settle(300);
+
+    const cardsAfter = (await page.$$('.editor-card')).length;
+    if (cardsAfter !== cardsBefore + 1) {
+      errors.push(`assert: expected ${cardsBefore + 1} editor cards after add, found ${cardsAfter}`);
+    }
+
+    // Edit a prescription field on the new card, then save (PATCH is stubbed;
+    // the optimistic update must surface the change in the read view).
+    const inputs = await page.$$('.editor-card:last-of-type .editor-field input');
+    if (inputs.length) { await inputs[0].click({ clickCount: 3 }); await inputs[0].type('4'); }
+    await shot('edit-exercises-added');
+
+    await page.click('.exercise-editor__save');
+    await page.waitForSelector('.exercise-card', { timeout: 10000 });
+    await settle(400);
+    const bodyText = await page.$eval('.modal-body', el => el.textContent);
+    if (addedName && !bodyText.includes(addedName)) {
+      errors.push(`assert: "${addedName}" should appear in the modal after save`);
+    }
+    await shot('edit-exercises-saved');
 
     console.log('console/assert errors:', errors.length ? errors : 'none');
     process.exitCode = errors.length ? 1 : 0;

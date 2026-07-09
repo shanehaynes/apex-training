@@ -21,6 +21,8 @@ export interface CreateEventInput {
 export interface UpdateEventInput {
   id: string;
   fields: Partial<Omit<WorkoutEvent, 'id' | 'isCompleted'>>;
+  /** Audit-log attribution; the DB defaults to 'ai', so UI edits pass 'user'. */
+  triggeredBy?: 'user' | 'ai';
 }
 
 /** A new exercise library entry. id defaults to a slug of canonicalName. */

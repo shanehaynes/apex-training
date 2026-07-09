@@ -253,7 +253,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const updateEvent = useCallback(async ({ id, fields }: UpdateEventInput): Promise<boolean> => {
+  const updateEvent = useCallback(async ({ id, fields, triggeredBy }: UpdateEventInput): Promise<boolean> => {
     if (!supabase) return false;
 
     const current = eventsRef.current.find(e => e.id === id);
@@ -266,8 +266,12 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
           event_title: fields.title ?? current?.title ?? baseId,
           event_date:  fields.date ?? current?.date,
           diff:        { before: current ?? {}, after: fields },
+          triggered_by: triggeredBy,
         },
       }, 'Updating event');
+      // Apply locally on success — the realtime refetch reconciles later, but
+      // the UI (e.g. the modal after an exercise edit) must not wait for it.
+      setBaseEvents(prev => prev.map(e => e.id !== baseId ? e : { ...e, ...fields }));
       return true;
     } catch {
       return false;

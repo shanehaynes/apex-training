@@ -6,6 +6,8 @@ interface MutationLogEntry {
   event_title: string;
   event_date?: string;
   diff?: Record<string, unknown>;
+  /** Omitted → the DB default ('ai'); UI-driven edits send 'user'. */
+  triggered_by?: string;
 }
 
 async function logMutation(
@@ -20,6 +22,7 @@ async function logMutation(
     event_title: log.event_title,
     event_date: log.event_date,
     diff: log.diff,
+    ...(log.triggered_by ? { triggered_by: log.triggered_by } : {}),
   });
   if (error) console.error('[api/events] mutation log insert failed:', error.message);
 }

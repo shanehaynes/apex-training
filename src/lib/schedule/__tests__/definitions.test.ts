@@ -3,10 +3,13 @@ import {
   buildAliasIndex,
   canonicalNameOf,
   canonicalizeLogNames,
+  entryFromDefinition,
   expandNamesWithAliases,
+  hasPerSideCount,
   resolveExercise,
   resolveEventExercises,
   rowToDefinition,
+  uniqueEntryId,
 } from '../definitions';
 import type { Exercise, ExerciseDefinition, WorkoutEvent } from '../../../types/workout';
 import type { SetLogRow } from '../../db/types';
@@ -135,6 +138,47 @@ describe('alias index', () => {
     expect(out.map(r => r.exercise_name)).toEqual(['Hammer Curl', 'Hammer Curl', 'Zercher Squat']);
     // Source rows are never mutated — append-only history stays pristine.
     expect(rows[0].exercise_name).toBe('Hammer Curls');
+  });
+});
+
+describe('entry authoring helpers', () => {
+  const dip = makeDefinition({
+    id: 'weighted-dip',
+    canonicalName: 'Weighted Dip',
+    category: 'strength',
+    defaultSets: 3,
+    defaultReps: '8',
+    defaultWeight: '25lb',
+    defaultRest: '2 min',
+  });
+
+  it('entryFromDefinition prefills prescription gaps from defaults, overrides win', () => {
+    const entry = entryFromDefinition(dip, 'weighted-dip-2', { reps: '5', notes: 'AMRAP last set' });
+    expect(entry).toMatchObject({
+      id: 'weighted-dip-2',
+      definitionId: 'weighted-dip',
+      name: 'Weighted Dip',
+      category: 'strength',
+      sets: 3,            // default
+      reps: '5',          // override wins
+      weight: '25lb',     // default
+      restPeriod: '2 min',
+      notes: 'AMRAP last set',
+    });
+  });
+
+  it('uniqueEntryId never collides with existing ids', () => {
+    expect(uniqueEntryId('weighted-dip', [])).toBe('weighted-dip');
+    expect(uniqueEntryId('weighted-dip', ['weighted-dip'])).toBe('weighted-dip-2');
+    expect(uniqueEntryId('weighted-dip', ['weighted-dip', 'weighted-dip-2'])).toBe('weighted-dip-3');
+  });
+
+  it('hasPerSideCount recognizes the per-side conventions', () => {
+    expect(hasPerSideCount('5 each leg')).toBe(true);
+    expect(hasPerSideCount('30s per side')).toBe(true);
+    expect(hasPerSideCount('10 total')).toBe(true);
+    expect(hasPerSideCount('5')).toBe(false);
+    expect(hasPerSideCount(undefined)).toBe(false);
   });
 });
 
