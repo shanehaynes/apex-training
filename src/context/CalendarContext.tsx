@@ -16,6 +16,10 @@ interface CalendarState {
   libraryOpen: boolean;
   /** Definition id to open the library on (deep link from an exercise name). */
   librarySelection: string | null;
+  /** Day whose events are shown in the day modal (YYYY-MM-DD). */
+  selectedDay: string | null;
+  /** Prefilled date for the add-event composer overlay (YYYY-MM-DD). */
+  composerDate: string | null;
 }
 
 type CalendarAction =
@@ -29,7 +33,11 @@ type CalendarAction =
   | { type: 'START_TRACKING'; payload: WorkoutEvent }
   | { type: 'STOP_TRACKING' }
   | { type: 'OPEN_LIBRARY'; payload?: string }
-  | { type: 'CLOSE_LIBRARY' };
+  | { type: 'CLOSE_LIBRARY' }
+  | { type: 'SELECT_DAY'; payload: string }
+  | { type: 'CLEAR_DAY' }
+  | { type: 'OPEN_COMPOSER'; payload: string }
+  | { type: 'CLOSE_COMPOSER' };
 
 function reducer(state: CalendarState, action: CalendarAction): CalendarState {
   switch (action.type) {
@@ -58,7 +66,9 @@ function reducer(state: CalendarState, action: CalendarAction): CalendarState {
     case 'SET_VIEW':
       return { ...state, selectedView: action.payload };
     case 'SELECT_EVENT':
-      return { ...state, selectedEvent: action.payload };
+      // Also closes the day modal — the workout modal replaces it rather than
+      // stacking a second backdrop.
+      return { ...state, selectedEvent: action.payload, selectedDay: null };
     case 'CLEAR_EVENT':
       return { ...state, selectedEvent: null };
     case 'START_TRACKING':
@@ -69,6 +79,14 @@ function reducer(state: CalendarState, action: CalendarAction): CalendarState {
       return { ...state, libraryOpen: true, librarySelection: action.payload ?? null };
     case 'CLOSE_LIBRARY':
       return { ...state, libraryOpen: false, librarySelection: null };
+    case 'SELECT_DAY':
+      return { ...state, selectedDay: action.payload };
+    case 'CLEAR_DAY':
+      return { ...state, selectedDay: null };
+    case 'OPEN_COMPOSER':
+      return { ...state, composerDate: action.payload, selectedDay: null };
+    case 'CLOSE_COMPOSER':
+      return { ...state, composerDate: null };
     default:
       return state;
   }
@@ -89,6 +107,8 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     trackingSession: null,
     libraryOpen: false,
     librarySelection: null,
+    selectedDay: null,
+    composerDate: null,
   });
   return <CalendarContext.Provider value={{ state, dispatch }}>{children}</CalendarContext.Provider>;
 }

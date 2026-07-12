@@ -11,6 +11,8 @@ import type { ExerciseCategory, ExerciseDefinition } from '../../types/workout';
 interface Props {
   onSelect: (def: ExerciseDefinition) => void;
   onClose: () => void;
+  /** Pre-selects a category filter aligned with the workout type (clearable). */
+  initialCategory?: ExerciseCategory;
 }
 
 const CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobility', 'skill', 'cardio'];
@@ -31,11 +33,12 @@ function defaultsPreview(def: ExerciseDefinition): string {
  * never fuzzy — seeing the near-matches before "Create" is what prevents
  * duplicate library entries.
  */
-export default function ExercisePicker({ onSelect, onClose }: Props) {
+export default function ExercisePicker({ onSelect, onClose, initialCategory }: Props) {
   const { definitions, createDefinition } = useSchedule();
   const [query, setQuery] = useState('');
+  const [category, setCategory] = useState<ExerciseCategory | null>(initialCategory ?? null);
   const [creating, setCreating] = useState(false);
-  const [newCategory, setNewCategory] = useState<ExerciseCategory>('strength');
+  const [newCategory, setNewCategory] = useState<ExerciseCategory>(initialCategory ?? 'strength');
   const [newUnilateral, setNewUnilateral] = useState(false);
   const [busy, setBusy] = useState(false);
   const [lastPerformed, setLastPerformed] = useState<Map<string, string>>(new Map());
@@ -63,13 +66,14 @@ export default function ExercisePicker({ onSelect, onClose }: Props) {
     const needle = query.trim().toLowerCase();
     return [...definitions.values()]
       .filter(def => !def.archivedAt)
+      .filter(def => !category || def.category === category)
       .filter(def =>
         !needle ||
         def.canonicalName.toLowerCase().includes(needle) ||
         def.aliases.some(a => a.toLowerCase().includes(needle)) ||
         def.muscleGroups.some(m => m.toLowerCase().includes(needle)))
       .sort((a, b) => a.canonicalName.localeCompare(b.canonicalName));
-  }, [definitions, query]);
+  }, [definitions, query, category]);
 
   const trimmed = query.trim();
   // Offer create only when the query is no existing name/alias — an exact
@@ -112,6 +116,24 @@ export default function ExercisePicker({ onSelect, onClose }: Props) {
           <button className="library-close" onClick={onClose} aria-label="Close picker">
             <X size={16} strokeWidth={1.5} />
           </button>
+        </div>
+
+        <div className="library-filters exercise-picker__filters">
+          <button
+            className={`library-filter ${category === null ? 'library-filter--active' : ''}`}
+            onClick={() => setCategory(null)}
+          >
+            All
+          </button>
+          {CATEGORIES.map(c => (
+            <button
+              key={c}
+              className={`library-filter ${category === c ? 'library-filter--active' : ''}`}
+              onClick={() => setCategory(c)}
+            >
+              {c.charAt(0).toUpperCase() + c.slice(1)}
+            </button>
+          ))}
         </div>
 
         <div className="exercise-picker__results">

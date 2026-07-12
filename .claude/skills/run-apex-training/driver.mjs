@@ -23,13 +23,13 @@ const SHOTS = join(dirname(fileURLToPath(import.meta.url)), 'screenshots');
 mkdirSync(SHOTS, { recursive: true });
 
 const mode = process.argv[2];
-if (!['smoke', 'tracker', 'today', 'reschedule', 'library', 'edit-exercises'].includes(mode)) {
-  console.error('usage: driver.mjs <smoke|tracker|today|reschedule|library|edit-exercises>');
+if (!['smoke', 'tracker', 'today', 'reschedule', 'library', 'edit-exercises', 'day-modal'].includes(mode)) {
+  console.error('usage: driver.mjs <smoke|tracker|today|reschedule|library|edit-exercises|day-modal>');
   process.exit(2);
 }
 
 const browser = await puppeteer.launch({
-  executablePath: '/usr/bin/google-chrome',
+  executablePath: process.env.CHROME_PATH ?? '/usr/bin/google-chrome',
   headless: 'new',
   args: ['--no-sandbox', '--disable-dev-shm-usage'],
 });
@@ -178,6 +178,93 @@ try {
     await shot('library-deeplink');
 
     console.log('console errors:', errors.length ? errors : 'none');
+    process.exitCode = errors.length ? 1 : 0;
+    await browser.close();
+    process.exit();
+  }
+
+  if (mode === 'day-modal') {
+    // Day-number click on a cell that has events opens the day overview modal.
+    await page.click('.day-cell:has(.event-chip) .day-cell__date-btn');
+    await page.waitForSelector('.day-modal__event', { timeout: 10000 });
+    await settle(300);
+    if (!(await page.$('.day-modal__date'))) errors.push('assert: day modal header should show the date');
+    if (!(await page.$('.day-modal__add'))) errors.push('assert: day modal should have an Add event button');
+    await shot('day-modal');
+
+    // Clicking an event row replaces the day modal with the workout modal.
+    await page.click('.day-modal__event');
+    await page.waitForSelector('.modal-completion__btn--start', { timeout: 10000 });
+    if (await page.$('.day-modal__list')) errors.push('assert: day modal should close when an event is selected');
+    await settle(200);
+    await shot('day-modal-event-opened');
+    await page.keyboard.press('Escape');
+    await settle(300);
+
+    // Reopen and go to the add-event composer.
+    await page.click('.day-cell:has(.event-chip) .day-cell__date-btn');
+    await page.waitForSelector('.day-modal__add', { timeout: 10000 });
+    await page.click('.day-modal__add');
+    await page.waitForSelector('.composer-type-card', { timeout: 10000 });
+    await settle(300);
+    const typeCount = (await page.$$('.composer-type-card')).length;
+    if (typeCount !== 6) errors.push(`assert: expected 6 type cards, found ${typeCount}`);
+    await shot('composer-types');
+
+    // Pick Strength → details form with the exercise sections.
+    await page.$$eval('.composer-type-card', cards => {
+      cards.find(c => c.textContent.includes('Strength')).click();
+    });
+    await page.waitForSelector('.composer-form', { timeout: 10000 });
+    await settle(300);
+    await shot('composer-form');
+
+    // The picker opens pre-filtered to the type's aligned category.
+    await page.click('.exercise-editor__add');
+    await page.waitForSelector('.exercise-picker__filters', { timeout: 10000 });
+    await settle(500);
+    const activeFilter = await page.$eval('.exercise-picker__filters .library-filter--active', el => el.textContent);
+    if (activeFilter !== 'Strength') errors.push(`assert: picker should pre-filter to Strength, got "${activeFilter}"`);
+    const strengthRows = await page.$$eval('.exercise-picker__row .library-row__category', els => els.map(e => e.textContent));
+    if (strengthRows.some(c => c !== 'strength')) errors.push(`assert: filtered picker rows should all be strength, got ${strengthRows}`);
+    await shot('composer-picker');
+
+    // Clearing to "All" surfaces the whole library. Without .env.local the
+    // app runs on the JSON seed and the library is empty — skip the pick.
+    await page.$$eval('.exercise-picker__filters .library-filter', chips => {
+      chips.find(c => c.textContent === 'All').click();
+    });
+    await settle(500);
+    const rows = await page.$$('.exercise-picker__row');
+    if (rows.length > 0) {
+      const pickedName = await page.$eval('.exercise-picker__row-name', el => el.textContent);
+      await page.click('.exercise-picker__row');
+      await settle(300);
+      const cardText = await page.$eval('.composer-exercises', el => el.textContent);
+      if (!cardText.includes(pickedName)) errors.push(`assert: "${pickedName}" should appear in the composer after picking`);
+      await shot('composer-with-exercise');
+    } else {
+      console.log('note: empty library (seed mode) — skipping exercise pick');
+      await page.keyboard.press('Escape');
+      await settle(300);
+    }
+
+    // Save. With Supabase, POST /api/events is stubbed and the composer
+    // closes; in seed mode createEvent returns null → failure toast, stays open.
+    const seedMode = rows.length === 0;
+    await page.click('.exercise-editor__save');
+    await settle(700);
+    const composerStillOpen = !!(await page.$('.composer-view'));
+    if (seedMode) {
+      if (!composerStillOpen) errors.push('assert: composer should stay open when the save fails (seed mode)');
+      const toast = await page.$eval('body', el => el.textContent.includes('Failed to save'));
+      if (!toast) errors.push('assert: seed-mode save should surface the failure toast');
+    } else if (composerStillOpen) {
+      errors.push('assert: composer should close after a successful save');
+    }
+    await shot('composer-saved');
+
+    console.log('console/assert errors:', errors.length ? errors : 'none');
     process.exitCode = errors.length ? 1 : 0;
     await browser.close();
     process.exit();

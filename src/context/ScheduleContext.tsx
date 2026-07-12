@@ -241,6 +241,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       tags:              input.tags ?? [],
       equipment:         input.equipment ?? [],
       exercises:         input.exercises ?? [],
+      warmup:            input.warmup,
+      cooldown:          input.cooldown,
       isCompleted:       false,
       isRecurring:       false,
     };

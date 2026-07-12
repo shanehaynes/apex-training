@@ -3,6 +3,8 @@ import TopNav from './TopNav';
 import Calendar from '../calendar/Calendar';
 import ChatSidebar from '../sidebar/ChatSidebar';
 import WorkoutModal from '../modal/WorkoutModal';
+import DayModal from '../modal/DayModal';
+import AddEventView from '../composer/AddEventView';
 import TrackerView from '../tracker/TrackerView';
 import LibraryView from '../library/LibraryView';
 import MobileBottomNav from './MobileBottomNav';
@@ -39,6 +41,8 @@ export default function AppShell() {
         <MobileBottomNav activeTab={mobileTab} onChange={setMobileTab} />
       )}
       {state.selectedEvent && <WorkoutModal />}
+      {state.selectedDay && <DayModal />}
+      {state.composerDate && <AddEventView />}
       {state.trackingSession && <TrackerView />}
       {state.libraryOpen && <LibraryView />}
       <Toasts />

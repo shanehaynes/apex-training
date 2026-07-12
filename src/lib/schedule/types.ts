@@ -16,6 +16,8 @@ export interface CreateEventInput {
   tags?: string[];
   equipment?: string[];
   exercises?: WorkoutEvent['exercises'];
+  warmup?: WorkoutEvent['warmup'];
+  cooldown?: WorkoutEvent['cooldown'];
 }
 
 export interface UpdateEventInput {

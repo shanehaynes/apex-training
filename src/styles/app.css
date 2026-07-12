@@ -3594,3 +3594,300 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 .exercise-picker__create-controls select { height: 32px; }
 
 .exercise-picker__unilateral { padding-bottom: 0; }
+
+/* ============================================================
+   DAY MODAL (day-number click → day's events)
+   ============================================================ */
+
+.day-cell__date-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+
+.day-cell__date-btn:hover:not(.day-cell__date--today) {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.day-cell__overflow {
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+}
+
+.day-cell__overflow:hover {
+  text-decoration: underline;
+}
+
+.day-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 20px 16px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.day-modal__weekday {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.day-modal__date {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.day-modal__count {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.day-modal__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.day-modal__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--accent-primary);
+  background: transparent;
+  color: var(--accent-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.day-modal__add:hover {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+.day-modal__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px 22px;
+}
+
+.day-modal__empty {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-align: center;
+  padding: 24px 0;
+}
+
+.day-modal__event {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: transform var(--duration-fast) var(--ease-spring), background var(--duration-fast);
+}
+
+.day-modal__event:hover {
+  background: var(--bg-surface);
+  transform: translateX(2px);
+}
+
+.day-modal__event--done {
+  opacity: 0.65;
+}
+
+.day-modal__event-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.day-modal__event-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #fff;
+}
+
+.day-modal__event-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.day-modal__event--done .day-modal__event-title {
+  text-decoration: line-through;
+}
+
+.day-modal__event-subtitle {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.day-modal__event-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.day-modal__event-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* ============================================================
+   ADD-EVENT COMPOSER (full-screen overlay)
+   ============================================================ */
+
+.composer-view {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.composer-type-phase {
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+.composer-prompt {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+}
+
+.composer-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.composer-type-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 20px 18px;
+  border: 1px solid;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform var(--duration-fast) var(--ease-spring), box-shadow var(--duration-fast);
+}
+
+.composer-type-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.composer-type-card__label {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.composer-form {
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.composer-fields {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px 16px;
+}
+
+.composer-field--wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 560px) {
+  .composer-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.composer-difficulty {
+  padding: 8px 0 0;
+}
+
+.composer-difficulty__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+
+.composer-difficulty__dot:hover {
+  transform: scale(1.2);
+}
+
+.composer-exercises {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.composer-actions {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-primary);
+  padding: 14px 0;
+}
+
+.exercise-picker__filters {
+  padding: 10px 14px 0;
+}

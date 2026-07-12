@@ -49,6 +49,10 @@ node .claude/skills/run-apex-training/driver.mjs today     # Today-button disabl
 | `today` | Asserts the top-nav Today button is disabled on the current period, enabled after paging forward, and that clicking it returns to (and re-disables on) the current period. Screenshots each state. |
 | `library` | Opens the exercise library from the top nav; screenshots the list, the first exercise's detail (stubbed history renders the PR card + trend chart), and the definition editor; then asserts the exercise-name deep link from the workout modal lands on the detail page. |
 | `edit-exercises` | Opens the first event's modal, enters exercise edit mode, adds an exercise from the picker (search "plank"), edits its sets, saves (PATCH stubbed), and asserts the added exercise renders in the read view via the optimistic update. Screenshots each step. |
+| `day-modal` | Clicks a day number to open the day-overview modal, asserts its header/Add button, checks an event row swaps in the workout modal, then walks the add-event composer: type grid → Strength form → picker pre-filtered to strength → save (stubbed POST closes the composer; in seed mode asserts the failure toast instead). |
+
+The driver launches `/usr/bin/google-chrome` by default; on macOS set
+`CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"`.
 
 Screenshots land in `.claude/skills/run-apex-training/screenshots/`
 (gitignored). The driver prints each path, reports page console errors,
