@@ -60,7 +60,12 @@ export default function AddEventView() {
   const [date, setDate] = useState(state.composerDate ?? format(new Date(), 'yyyy-MM-dd'));
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
-  const [duration, setDuration] = useState(60);
+  // String, not number: parseInt-on-change can't represent an empty field,
+  // which made the input impossible to clear. Parsed and validated on save.
+  const [duration, setDuration] = useState('60');
+  const [distance, setDistance] = useState('');
+  const [elevationGain, setElevationGain] = useState('');
+  const [avgHeartRate, setAvgHeartRate] = useState('');
   const [difficulty, setDifficulty] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
@@ -80,12 +85,14 @@ export default function AddEventView() {
     setType(t);
     // Only overwrite fields the user hasn't customized away from the previous type.
     if (!title || TYPE_ORDER.some(o => title === WORKOUT_COLORS[o].label)) setTitle(WORKOUT_COLORS[t].label);
-    setDuration(TYPE_DURATION[t]);
+    setDuration(String(TYPE_DURATION[t]));
   };
 
   const save = async () => {
     if (!type) return;
     if (!title.trim()) { notify('Give the workout a title'); return; }
+    const durationMin = parseInt(duration, 10);
+    if (!Number.isFinite(durationMin) || durationMin <= 0) { notify('Duration must be a positive number of minutes'); return; }
 
     const violations = validateUnilateral(lists, definitions);
     setErrors(violations);
@@ -95,7 +102,7 @@ export default function AddEventView() {
       type,
       title: title.trim(),
       date,
-      estimatedDuration: duration,
+      estimatedDuration: durationMin,
       difficulty,
       startTime: startTime ? toDisplayTime(startTime) ?? undefined : undefined,
       endTime: endTime ? toDisplayTime(endTime) ?? undefined : undefined,
@@ -106,6 +113,16 @@ export default function AddEventView() {
       warmup: lists.warmup.length ? lists.warmup : undefined,
       cooldown: lists.cooldown.length ? lists.cooldown : undefined,
     };
+
+    if (type === 'cardio') {
+      const hr = parseInt(avgHeartRate, 10);
+      const targets = {
+        distance: distance.trim() || undefined,
+        elevationGain: elevationGain.trim() || undefined,
+        avgHeartRate: Number.isFinite(hr) && hr > 0 ? hr : undefined,
+      };
+      if (Object.values(targets).some(v => v !== undefined)) input.cardioTargets = targets;
+    }
 
     setSaving(true);
     const result = await createEvent(input);
@@ -182,10 +199,7 @@ export default function AddEventView() {
                 min={5}
                 className="library-field__input"
                 value={duration}
-                onChange={e => {
-                  const n = parseInt(e.target.value, 10);
-                  if (Number.isFinite(n)) setDuration(n);
-                }}
+                onChange={e => setDuration(e.target.value)}
               />
             </label>
             <label className="library-field">
@@ -196,6 +210,27 @@ export default function AddEventView() {
               <span className="library-field__label">End time <em>optional</em></span>
               <input type="time" className="library-field__input" value={endTime} onChange={e => setEndTime(e.target.value)} />
             </label>
+            {type === 'cardio' && (
+              <>
+                <label className="library-field">
+                  <span className="library-field__label">Mileage <em>e.g. 5 mi</em></span>
+                  <input className="library-field__input" value={distance} onChange={e => setDistance(e.target.value)} />
+                </label>
+                <label className="library-field">
+                  <span className="library-field__label">Elevation gain <em>e.g. 800 ft</em></span>
+                  <input className="library-field__input" value={elevationGain} onChange={e => setElevationGain(e.target.value)} />
+                </label>
+                <label className="library-field">
+                  <span className="library-field__label">Avg heart rate <em>optional, bpm</em></span>
+                  <input
+                    inputMode="numeric"
+                    className="library-field__input"
+                    value={avgHeartRate}
+                    onChange={e => setAvgHeartRate(e.target.value)}
+                  />
+                </label>
+              </>
+            )}
             <label className="library-field">
               <span className="library-field__label">Location <em>optional</em></span>
               <input className="library-field__input" value={location} onChange={e => setLocation(e.target.value)} />

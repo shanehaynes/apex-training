@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play, Pencil } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play, Pencil, Route, TrendingUp, HeartPulse } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/CalendarContext';
 import { useSchedule } from '../../context/ScheduleContext';
@@ -204,6 +204,24 @@ export default function WorkoutModal() {
               <span className="modal-meta-item">
                 <MapPin size={14} strokeWidth={1.5} />
                 {event.location}
+              </span>
+            )}
+            {live.cardioTargets?.distance && (
+              <span className="modal-meta-item">
+                <Route size={14} strokeWidth={1.5} />
+                {live.cardioTargets.distance}
+              </span>
+            )}
+            {live.cardioTargets?.elevationGain && (
+              <span className="modal-meta-item">
+                <TrendingUp size={14} strokeWidth={1.5} />
+                {live.cardioTargets.elevationGain}
+              </span>
+            )}
+            {live.cardioTargets?.avgHeartRate && (
+              <span className="modal-meta-item">
+                <HeartPulse size={14} strokeWidth={1.5} />
+                {live.cardioTargets.avgHeartRate} bpm
               </span>
             )}
           </div>

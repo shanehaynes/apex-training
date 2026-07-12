@@ -72,6 +72,16 @@ export interface Exercise {
   techniqueNotes?: string;
 }
 
+/**
+ * Planned targets for a cardio session. Free-text distance/elevation match
+ * the tracker's cardio log fields ('5 mi', '800 ft'); heart rate is bpm.
+ */
+export interface CardioTargets {
+  distance?: string;
+  elevationGain?: string;
+  avgHeartRate?: number;
+}
+
 export interface WorkoutEvent {
   id: string;
   type: WorkoutType;
@@ -88,6 +98,8 @@ export interface WorkoutEvent {
   difficulty: 1 | 2 | 3 | 4 | 5;
   location?: string;
   coverImageUrl?: string;
+  /** Planned session targets for cardio events (actuals live in workout_cardio_logs). */
+  cardioTargets?: CardioTargets;
   tags: string[];
   equipment?: string[];
   isCompleted: boolean;

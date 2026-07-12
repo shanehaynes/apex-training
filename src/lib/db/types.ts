@@ -42,6 +42,8 @@ export interface WorkoutEventRow {
   tags: string[];
   equipment: string[];
   is_recurring: boolean;
+  /** Planned cardio targets jsonb (camelCase payload, like the exercise columns); optional so pre-migration rows still type-check. */
+  cardio_targets?: unknown;
   /** Canonical RFC 5545 RRULE value (no 'RRULE:' prefix) — see src/lib/recurrence/. */
   recurrence_rule: string | null;
   /** @deprecated Superseded by recurrence_rule. */

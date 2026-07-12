@@ -73,6 +73,10 @@ CREATE TABLE IF NOT EXISTS workout_events (
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Phase 9: planned cardio targets ({ distance, elevationGain, avgHeartRate }).
+-- Idempotent so re-running the schema upgrades existing databases.
+ALTER TABLE workout_events ADD COLUMN IF NOT EXISTS cardio_targets JSONB;
+
 CREATE INDEX IF NOT EXISTS idx_we_date ON workout_events (date);
 CREATE INDEX IF NOT EXISTS idx_we_type ON workout_events (type, date);
 
