@@ -267,8 +267,7 @@
 }
 
 .day-cell__date--today {
-  background: var(--accent-primary);
-  color: var(--bg-primary);
+  color: #fff;
   font-weight: 700;
 }
 
@@ -437,8 +436,8 @@
 }
 
 .week-view__day-num--today {
-  background: var(--accent-primary);
-  color: var(--bg-primary);
+  color: #fff;
+  font-weight: 700;
 }
 
 .week-view__body {
