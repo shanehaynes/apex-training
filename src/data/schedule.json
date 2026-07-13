@@ -135,7 +135,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -247,7 +246,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -353,7 +351,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -459,7 +456,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -576,7 +572,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -819,7 +814,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -928,7 +922,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -1017,7 +1010,6 @@
           "id": "ns8-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -1129,7 +1121,6 @@
           "id": "ns9-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -1231,7 +1222,6 @@
           "id": "ns10-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -1334,7 +1324,6 @@
           "id": "ns11-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -1439,7 +1428,6 @@
           "id": "ns12-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -1666,7 +1654,6 @@
           "id": "ns13-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -1765,7 +1752,6 @@
           "id": "ns14-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -1849,7 +1835,6 @@
           "id": "ns15-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -1954,7 +1939,6 @@
           "id": "ns16-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -2052,7 +2036,6 @@
           "id": "ns17-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -2151,7 +2134,6 @@
           "id": "ns18-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -2256,7 +2238,6 @@
           "id": "ns19-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -2354,7 +2335,6 @@
           "id": "ns20-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -2453,7 +2433,6 @@
           "id": "ns21-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -2537,7 +2516,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -2649,7 +2627,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -2755,7 +2732,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -2861,7 +2837,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -2978,7 +2953,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -3087,7 +3061,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -3196,7 +3169,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -3283,7 +3255,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -3395,7 +3366,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -3501,7 +3471,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -3607,7 +3576,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -3724,7 +3692,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -3833,7 +3800,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -3942,7 +3908,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -4029,7 +3994,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -4141,7 +4105,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -4247,7 +4210,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -4353,7 +4315,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -4470,7 +4431,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -4579,7 +4539,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -4688,7 +4647,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -4775,7 +4733,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -4887,7 +4844,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -4993,7 +4949,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -5099,7 +5054,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -5216,7 +5170,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -5325,7 +5278,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -5434,7 +5386,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -5521,7 +5472,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -5633,7 +5583,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -5739,7 +5688,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -5845,7 +5793,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -5962,7 +5909,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -6071,7 +6017,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -6180,7 +6125,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -6267,7 +6211,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -6379,7 +6322,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -6485,7 +6427,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -6591,7 +6532,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -6708,7 +6648,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -6817,7 +6756,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -6926,7 +6864,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -7013,7 +6950,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -7125,7 +7061,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -7231,7 +7166,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -7337,7 +7271,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -7454,7 +7387,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -7563,7 +7495,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -7672,7 +7603,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -7759,7 +7689,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -7871,7 +7800,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -7977,7 +7905,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -8083,7 +8010,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -8200,7 +8126,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -8309,7 +8234,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -8418,7 +8342,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -8505,7 +8428,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -8617,7 +8539,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -8723,7 +8644,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -8829,7 +8749,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -8946,7 +8865,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -9055,7 +8973,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -9164,7 +9081,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -9251,7 +9167,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -9363,7 +9278,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -9469,7 +9383,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -9575,7 +9488,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -9692,7 +9604,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -9801,7 +9712,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -9910,7 +9820,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -9997,7 +9906,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -10109,7 +10017,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -10215,7 +10122,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -10321,7 +10227,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -10438,7 +10343,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -10547,7 +10451,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -10656,7 +10559,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -10743,7 +10645,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -10855,7 +10756,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -10961,7 +10861,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -11067,7 +10966,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -11184,7 +11082,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -11293,7 +11190,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -11402,7 +11298,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -11489,7 +11384,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -11601,7 +11495,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -11707,7 +11600,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -11813,7 +11705,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -11930,7 +11821,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -12039,7 +11929,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -12148,7 +12037,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -12235,7 +12123,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -12347,7 +12234,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -12453,7 +12339,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -12559,7 +12444,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -12676,7 +12560,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -12785,7 +12668,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -12894,7 +12776,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -12981,7 +12862,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -13093,7 +12973,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -13199,7 +13078,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -13305,7 +13183,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -13422,7 +13299,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -13531,7 +13407,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -13640,7 +13515,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -13727,7 +13601,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -13839,7 +13712,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -13945,7 +13817,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -14051,7 +13922,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -14168,7 +14038,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -14277,7 +14146,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -14386,7 +14254,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -14473,7 +14340,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -14585,7 +14451,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -14691,7 +14556,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -14797,7 +14661,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -14914,7 +14777,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -15023,7 +14885,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -15132,7 +14993,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -15219,7 +15079,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -15331,7 +15190,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -15437,7 +15295,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -15543,7 +15400,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -15660,7 +15516,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -15769,7 +15624,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -15878,7 +15732,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -15965,7 +15818,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -16077,7 +15929,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -16183,7 +16034,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -16289,7 +16139,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -16406,7 +16255,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -16515,7 +16363,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -16624,7 +16471,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -16711,7 +16557,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -16823,7 +16668,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -16929,7 +16773,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -17035,7 +16878,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -17152,7 +16994,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -17261,7 +17102,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -17370,7 +17210,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -17457,7 +17296,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -17569,7 +17407,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -17675,7 +17512,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -17781,7 +17617,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -17898,7 +17733,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -18007,7 +17841,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -18116,7 +17949,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -18203,7 +18035,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -18315,7 +18146,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -18421,7 +18251,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -18527,7 +18356,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -18644,7 +18472,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -18753,7 +18580,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -18862,7 +18688,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -18949,7 +18774,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -19061,7 +18885,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -19167,7 +18990,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -19273,7 +19095,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -19390,7 +19211,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -19499,7 +19319,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -19608,7 +19427,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -19695,7 +19513,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -19807,7 +19624,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -19913,7 +19729,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -20019,7 +19834,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -20136,7 +19950,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -20245,7 +20058,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -20354,7 +20166,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -20441,7 +20252,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -20553,7 +20363,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -20659,7 +20468,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -20765,7 +20573,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -20882,7 +20689,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -20991,7 +20797,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -21100,7 +20905,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -21187,7 +20991,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -21299,7 +21102,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -21405,7 +21207,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -21511,7 +21312,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -21628,7 +21428,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -21737,7 +21536,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -21846,7 +21644,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -21933,7 +21730,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -22045,7 +21841,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -22151,7 +21946,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -22257,7 +22051,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -22374,7 +22167,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -22483,7 +22275,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -22592,7 +22383,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -22679,7 +22469,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -22791,7 +22580,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -22897,7 +22685,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -23003,7 +22790,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -23120,7 +22906,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -23229,7 +23014,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -23338,7 +23122,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -23425,7 +23208,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -23537,7 +23319,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -23643,7 +23424,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -23749,7 +23529,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -23866,7 +23645,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -23975,7 +23753,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -24084,7 +23861,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -24171,7 +23947,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -24283,7 +24058,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -24389,7 +24163,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -24495,7 +24268,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -24612,7 +24384,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -24721,7 +24492,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -24830,7 +24600,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -24917,7 +24686,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -25029,7 +24797,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -25135,7 +24902,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -25241,7 +25007,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -25358,7 +25123,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -25467,7 +25231,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -25576,7 +25339,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -25663,7 +25425,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -25775,7 +25536,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -25881,7 +25641,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -25987,7 +25746,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -26104,7 +25862,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -26213,7 +25970,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -26322,7 +26078,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -26409,7 +26164,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -26521,7 +26275,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -26627,7 +26380,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -26733,7 +26485,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -26850,7 +26601,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -26959,7 +26709,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -27068,7 +26817,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -27155,7 +26903,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -27267,7 +27014,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -27373,7 +27119,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -27479,7 +27224,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -27596,7 +27340,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -27705,7 +27448,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -27814,7 +27556,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -27901,7 +27642,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -28013,7 +27753,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -28119,7 +27858,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -28225,7 +27963,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -28342,7 +28079,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -28451,7 +28187,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -28560,7 +28295,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -28647,7 +28381,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -28759,7 +28492,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -28865,7 +28597,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -28971,7 +28702,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -29088,7 +28818,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -29197,7 +28926,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -29306,7 +29034,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -29393,7 +29120,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -29505,7 +29231,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -29611,7 +29336,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -29717,7 +29441,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -29834,7 +29557,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -29943,7 +29665,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -30052,7 +29773,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -30139,7 +29859,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -30251,7 +29970,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -30357,7 +30075,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -30463,7 +30180,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -30580,7 +30296,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -30689,7 +30404,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -30798,7 +30512,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -30885,7 +30598,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -30997,7 +30709,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -31103,7 +30814,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -31209,7 +30919,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -31326,7 +31035,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -31435,7 +31143,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -31544,7 +31251,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -31631,7 +31337,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -31743,7 +31448,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -31849,7 +31553,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -31955,7 +31658,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -32072,7 +31774,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -32181,7 +31882,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -32290,7 +31990,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -32377,7 +32076,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -32489,7 +32187,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -32595,7 +32292,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -32701,7 +32397,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -32818,7 +32513,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -32927,7 +32621,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -33036,7 +32729,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -33123,7 +32815,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -33235,7 +32926,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -33341,7 +33031,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -33447,7 +33136,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -33564,7 +33252,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -33673,7 +33360,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -33782,7 +33468,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -33869,7 +33554,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -33981,7 +33665,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -34087,7 +33770,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -34193,7 +33875,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -34310,7 +33991,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -34419,7 +34099,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -34528,7 +34207,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -34615,7 +34293,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -34727,7 +34404,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -34833,7 +34509,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -34939,7 +34614,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -35056,7 +34730,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -35165,7 +34838,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -35274,7 +34946,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -35361,7 +35032,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -35473,7 +35143,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -35579,7 +35248,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -35685,7 +35353,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -35802,7 +35469,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -35911,7 +35577,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -36020,7 +35685,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -36107,7 +35771,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
@@ -36219,7 +35882,6 @@
           "id": "ns2-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "5 seconds each direction. Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -36325,7 +35987,6 @@
           "id": "ns3-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow. 5 sec each direction.",
           "definitionId": "cat-cow"
@@ -36431,7 +36092,6 @@
           "id": "ns4-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Emphasize thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -36548,7 +36208,6 @@
           "id": "ns5-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -36657,7 +36316,6 @@
           "id": "ns6-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Thoracic extension in cow.",
           "definitionId": "cat-cow"
@@ -36766,7 +36424,6 @@
           "id": "ns7-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "notes": "Close the core block.",
           "definitionId": "cat-cow"
@@ -36853,7 +36510,6 @@
           "id": "ns-core-6",
           "name": "Cat-Cow",
           "category": "mobility",
-          "sets": 5,
           "duration": "2 min",
           "definitionId": "cat-cow"
         },
