@@ -20,6 +20,8 @@ interface CalendarState {
   selectedDay: string | null;
   /** Prefilled date for the add-event composer overlay (YYYY-MM-DD). */
   composerDate: string | null;
+  /** Profile overlay (same full-screen pattern as the library). */
+  profileOpen: boolean;
 }
 
 type CalendarAction =
@@ -37,7 +39,9 @@ type CalendarAction =
   | { type: 'SELECT_DAY'; payload: string }
   | { type: 'CLEAR_DAY' }
   | { type: 'OPEN_COMPOSER'; payload: string }
-  | { type: 'CLOSE_COMPOSER' };
+  | { type: 'CLOSE_COMPOSER' }
+  | { type: 'OPEN_PROFILE' }
+  | { type: 'CLOSE_PROFILE' };
 
 function reducer(state: CalendarState, action: CalendarAction): CalendarState {
   switch (action.type) {
@@ -87,6 +91,10 @@ function reducer(state: CalendarState, action: CalendarAction): CalendarState {
       return { ...state, composerDate: action.payload, selectedDay: null };
     case 'CLOSE_COMPOSER':
       return { ...state, composerDate: null };
+    case 'OPEN_PROFILE':
+      return { ...state, profileOpen: true };
+    case 'CLOSE_PROFILE':
+      return { ...state, profileOpen: false };
     default:
       return state;
   }
@@ -109,6 +117,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     librarySelection: null,
     selectedDay: null,
     composerDate: null,
+    profileOpen: false,
   });
   return <CalendarContext.Provider value={{ state, dispatch }}>{children}</CalendarContext.Provider>;
 }

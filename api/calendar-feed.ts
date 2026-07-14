@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
 import { parseRRule, serializeRRule, ruleFromLegacyColumns } from '../src/lib/recurrence/index.js';
 import type { RecurrenceRule } from '../src/lib/recurrence/index.js';
 import { parseTimeOfDay } from '../src/lib/time.js';
@@ -195,22 +195,44 @@ export function buildIcs(events: FeedEventRow[], exceptions: FeedExceptionRow[])
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const url = process.env.VITE_SUPABASE_URL;
-  const key = process.env.VITE_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    res.status(500).send('Supabase env vars not configured');
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    res.status(500).send('Supabase admin client not configured');
     return;
   }
 
-  const supabase = createClient(url, key);
+  // Calendar apps can't send auth headers, so the feed is authorized by a
+  // per-user capability token (profiles.ics_token) in the URL instead.
+  const token = typeof req.query.token === 'string' ? req.query.token : undefined;
+  if (!token) {
+    res.status(401).send('Missing feed token');
+    return;
+  }
+
+  const { data: profile, error: profileErr } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('ics_token', token)
+    .maybeSingle();
+  if (profileErr) {
+    res.status(500).send(`Supabase error: ${profileErr.message}`);
+    return;
+  }
+  if (!profile) {
+    res.status(401).send('Unknown feed token');
+    return;
+  }
 
   const [eventsRes, exceptionsRes] = await Promise.all([
     supabase
       .from('workout_events')
       .select('id, type, title, date, start_time, end_time, estimated_duration, location, is_recurring, recurrence_rule, recurring_frequency, recurring_days, recurring_end_date')
+      .eq('user_id', profile.id)
       .order('date', { ascending: true }),
-    supabase.from('recurring_exceptions').select('event_id, skipped_date, override_date, override_start_time, override_end_time'),
+    supabase
+      .from('recurring_exceptions')
+      .select('event_id, skipped_date, override_date, override_start_time, override_end_time')
+      .eq('user_id', profile.id),
   ]);
 
   if (eventsRes.error) {
@@ -229,6 +251,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="apex-training.ics"');
-  res.setHeader('Cache-Control', 'public, max-age=900');
+  res.setHeader('Cache-Control', 'private, max-age=900');
   res.status(200).send(ics);
 }

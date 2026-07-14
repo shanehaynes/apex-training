@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { requireUser } from './_lib/auth.js';
 
 // One-shot post-workout coach summary. PRs arrive pre-computed inside the
 // recap (see src/lib/tracking/records.ts) — the model narrates them, it
@@ -28,6 +29,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(500).send('ANTHROPIC_API_KEY not configured');
     return;
   }
+
+  // Auth gate: recap text arrives pre-built from the caller's own session
+  // data; the check exists to keep the Anthropic key behind a login.
+  if (!(await requireUser(req, res))) return;
 
   const body = req.body as { recap?: unknown } | undefined;
   if (typeof body?.recap !== 'string' || !body.recap.trim()) {

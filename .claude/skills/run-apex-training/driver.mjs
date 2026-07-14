@@ -13,7 +13,7 @@
 // stubbed with fabricated history so the "prev" column renders
 // deterministically. Calendar event reads pass through untouched.
 
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
@@ -23,10 +23,40 @@ const SHOTS = join(dirname(fileURLToPath(import.meta.url)), 'screenshots');
 mkdirSync(SHOTS, { recursive: true });
 
 const mode = process.argv[2];
-if (!['smoke', 'tracker', 'today', 'reschedule', 'library', 'edit-exercises', 'day-modal'].includes(mode)) {
-  console.error('usage: driver.mjs <smoke|tracker|today|reschedule|library|edit-exercises|day-modal>');
+if (!['smoke', 'tracker', 'today', 'reschedule', 'library', 'edit-exercises', 'day-modal', 'auth'].includes(mode)) {
+  console.error('usage: driver.mjs <smoke|tracker|today|reschedule|library|edit-exercises|day-modal|auth>');
   process.exit(2);
 }
+
+// ── Auth (phase 9+): the app gates everything behind a Supabase session. ────
+// Seed a fabricated session into localStorage so the gate renders the app;
+// the fake JWT never reaches the real project — REST reads get their
+// Authorization header swapped back to the anon key (below), and /auth/v1/*
+// is stubbed entirely. `auth` mode skips the seed to exercise LoginView.
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+let supabaseRef = null;
+let anonKey = null;
+try {
+  const env = readFileSync(join(repoRoot, '.env.local'), 'utf8');
+  supabaseRef = env.match(/VITE_SUPABASE_URL=https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1] ?? null;
+  anonKey = env.match(/VITE_SUPABASE_ANON_KEY=(\S+)/)?.[1] ?? null;
+} catch { /* seed mode: no .env.local, app runs offline with no auth gate */ }
+
+const DRIVER_USER = {
+  id: 'driver-user', aud: 'authenticated', role: 'authenticated',
+  email: 'driver@example.com', app_metadata: {}, user_metadata: {},
+  created_at: '2000-01-01T00:00:00Z',
+};
+const DRIVER_PROFILE = {
+  id: 'driver-user', display_name: 'Driver', avatar_key: 'goat',
+  is_template_source: false,
+  // Non-null hides the template-offer banner, which would otherwise float
+  // over the bottom calendar rows in every mode. `auth` mode nulls it to
+  // exercise the banner.
+  template_copied_at: mode === 'auth' ? null : '2000-01-01T00:00:00Z',
+  ics_token: 'driver-ics-token',
+  created_at: '2000-01-01T00:00:00Z', updated_at: '2000-01-01T00:00:00Z',
+};
 
 const browser = await puppeteer.launch({
   executablePath: process.env.CHROME_PATH ?? '/usr/bin/google-chrome',
@@ -35,6 +65,17 @@ const browser = await puppeteer.launch({
 });
 const page = await browser.newPage();
 await page.setViewport({ width: 1280, height: 950 });
+
+if (supabaseRef && mode !== 'auth') {
+  const fakeSession = {
+    access_token: 'driver-fake-jwt', token_type: 'bearer',
+    expires_in: 36000, expires_at: Math.floor(Date.now() / 1000) + 36000,
+    refresh_token: 'driver-fake-refresh', user: DRIVER_USER,
+  };
+  await page.evaluateOnNewDocument((key, session) => {
+    localStorage.setItem(key, JSON.stringify(session));
+  }, `sb-${supabaseRef}-auth-token`, fakeSession);
+}
 
 const errors = [];
 page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()); });
@@ -57,6 +98,27 @@ page.on('request', req => {
 
   if (req.method() === 'OPTIONS' && (isSupabase || url.includes('/api/'))) {
     return req.respond({ status: 204, headers: CORS, body: '' });
+  }
+
+  // Auth endpoints never reach the real project. getSession() is served
+  // from localStorage, but token refresh / getUser / signout would 401 on
+  // the fake JWT and bounce the app back to the login screen.
+  if (isSupabase && url.includes('/auth/v1/')) {
+    if (url.includes('/auth/v1/user')) return json(req, DRIVER_USER);
+    if (url.includes('/auth/v1/logout')) return req.respond({ status: 204, headers: CORS, body: '' });
+    return json(req, {
+      access_token: 'driver-fake-jwt', token_type: 'bearer', expires_in: 36000,
+      expires_at: Math.floor(Date.now() / 1000) + 36000,
+      refresh_token: 'driver-fake-refresh', user: DRIVER_USER,
+    });
+  }
+
+  // Own-profile read (RLS-scoped in production; deterministic stub here).
+  // .maybeSingle() asks PostgREST for a bare object via the Accept header —
+  // answer in kind or supabase-js hands the app an array as `data`.
+  if (isSupabase && url.includes('/rest/v1/profiles')) {
+    const wantsObject = (req.headers().accept ?? '').includes('vnd.pgrst.object');
+    return json(req, wantsObject ? DRIVER_PROFILE : [DRIVER_PROFILE]);
   }
 
   // Vercel functions don't run under `vite dev` (they'd 404 anyway) and the
@@ -109,6 +171,15 @@ page.on('request', req => {
   // Catch-all: no other write escapes to the real project.
   if (isSupabase && req.method() !== 'GET') return json(req, []);
 
+  // Passthrough REST reads: the fabricated session attaches its fake JWT,
+  // which the real PostgREST would reject wholesale — swap the anon key
+  // back in so reads behave exactly as the pre-auth driver did. (After the
+  // phase10 lockdown these reads return zero rows and the app falls back
+  // to the bundled seed — still deterministic, just seed data.)
+  if (isSupabase && anonKey) {
+    return req.continue({ headers: { ...req.headers(), authorization: `Bearer ${anonKey}` } });
+  }
+
   req.continue();
 });
 
@@ -121,6 +192,59 @@ const settle = ms => new Promise(r => setTimeout(r, ms));
 
 try {
   await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: 30000 });
+
+  if (mode === 'auth') {
+    if (!supabaseRef) {
+      console.log('note: no .env.local — offline mode has no auth gate; nothing to drive');
+      await browser.close();
+      process.exit(0);
+    }
+
+    // Signed out → login screen.
+    await page.waitForSelector('.auth-card', { timeout: 20000 });
+    const emailAuto = await page.$eval('input[name="email"]', el => el.getAttribute('autocomplete'));
+    const passAuto = await page.$eval('input[name="password"]', el => el.getAttribute('autocomplete'));
+    if (emailAuto !== 'email') errors.push(`assert: email autocomplete should be "email", got "${emailAuto}"`);
+    if (passAuto !== 'current-password') errors.push(`assert: password autocomplete should be "current-password", got "${passAuto}"`);
+    await shot('auth-login');
+
+    // Forgot-password swaps the form to reset mode.
+    await page.$$eval('.auth-link', links => links.find(l => l.textContent.includes('Forgot'))?.click());
+    await settle(300);
+    if (await page.$('input[name="password"]')) errors.push('assert: reset mode should hide the password field');
+    await shot('auth-reset');
+
+    // Seed the fabricated session and reload → signed-in app with avatar.
+    await page.evaluate((key, session) => {
+      localStorage.setItem(key, JSON.stringify(session));
+    }, `sb-${supabaseRef}-auth-token`, {
+      access_token: 'driver-fake-jwt', token_type: 'bearer', expires_in: 36000,
+      expires_at: Math.floor(Date.now() / 1000) + 36000,
+      refresh_token: 'driver-fake-refresh', user: DRIVER_USER,
+    });
+    await page.reload({ waitUntil: 'networkidle2' });
+    await page.waitForSelector('.top-nav__avatar', { timeout: 20000 });
+    // The stubbed profile has template_copied_at null in this mode.
+    if (!(await page.$('.template-offer'))) errors.push('assert: template-offer banner should show for a fresh account');
+    await shot('auth-signed-in');
+
+    await page.click('.top-nav__avatar');
+    await page.waitForSelector('.profile-view', { timeout: 10000 });
+    await settle(300);
+    const avatarCount = (await page.$$('.profile-avatar')).length;
+    if (avatarCount !== 5) errors.push(`assert: expected 5 avatar options, found ${avatarCount}`);
+    const feedUrl = await page.$eval('.profile-feed__url', el => el.value);
+    if (!feedUrl.includes('/api/calendar-feed?token=driver-ics-token')) {
+      errors.push(`assert: feed URL should carry the profile ics token, got "${feedUrl}"`);
+    }
+    await shot('auth-profile');
+
+    console.log('console/assert errors:', errors.length ? errors : 'none');
+    process.exitCode = errors.length ? 1 : 0;
+    await browser.close();
+    process.exit();
+  }
+
   await page.waitForSelector('.event-chip__main', { timeout: 20000 });
   await shot('calendar');
 

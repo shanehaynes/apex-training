@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Mountain goat: steep-terrain composure -->
+  <circle cx="64" cy="64" r="64" fill="#3f4a5a"/>
+  <path d="M46 44 Q36 30 44 16 Q44 32 54 42 Z" fill="#cfc5b4"/>
+  <path d="M82 44 Q92 30 84 16 Q84 32 74 42 Z" fill="#cfc5b4"/>
+  <path d="M64 34 L88 50 L82 88 Q64 102 46 88 L40 50 Z" fill="#efe9dd"/>
+  <path d="M56 97 Q64 114 72 97 Z" fill="#cfc5b4"/>
+  <circle cx="54" cy="60" r="4" fill="#2b2622"/>
+  <circle cx="74" cy="60" r="4" fill="#2b2622"/>
+  <path d="M59 78 Q64 85 69 78 Z" fill="#2b2622"/>
+</svg>

@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
+import { requireUser } from './_lib/auth.js';
 import type { WorkoutEventRow } from '../src/lib/db/types.js';
 
 interface MutationLogEntry {
@@ -12,11 +13,13 @@ interface MutationLogEntry {
 
 async function logMutation(
   supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
+  userId: string,
   operation: 'create' | 'update' | 'delete',
   eventId: string,
   log: MutationLogEntry,
 ) {
   const { error } = await supabase.from('event_mutations_log').insert({
+    user_id: userId,
     operation,
     event_id: eventId,
     event_title: log.event_title,
@@ -34,6 +37,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const userId = await requireUser(req, res);
+  if (!userId) return;
+
   if (req.method === 'POST') {
     const row = req.body as Omit<WorkoutEventRow, never> | undefined;
     if (!row || typeof row.id !== 'string' || typeof row.title !== 'string') {
@@ -41,14 +47,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const { error } = await supabase.from('workout_events').insert(row);
+    const { error } = await supabase.from('workout_events').insert({ ...row, user_id: userId });
     if (error) {
       console.error('[api/events] insert failed:', error.message);
       res.status(500).send('Failed to create event');
       return;
     }
 
-    await logMutation(supabase, 'create', row.id, { event_title: row.title, event_date: row.date });
+    await logMutation(supabase, userId, 'create', row.id, { event_title: row.title, event_date: row.date });
     res.status(200).json({ id: row.id });
     return;
   }
@@ -66,10 +72,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
+    // id and user_id are identity, never patchable fields.
+    const { id: _id, user_id: _uid, ...fields } = body.fields as Partial<WorkoutEventRow> & { user_id?: string };
+
     const { error } = await supabase
       .from('workout_events')
-      .update({ ...body.fields, updated_at: new Date().toISOString() })
-      .eq('id', id);
+      .update({ ...fields, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', userId);
 
     if (error) {
       console.error('[api/events] update failed:', error.message);
@@ -77,7 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    await logMutation(supabase, 'update', id, body.log);
+    await logMutation(supabase, userId, 'update', id, body.log);
     res.status(200).json({ ok: true });
     return;
   }
@@ -85,14 +95,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'DELETE') {
     const body = req.body as { log?: MutationLogEntry } | undefined;
 
-    const { error } = await supabase.from('workout_events').delete().eq('id', id);
+    const { error } = await supabase.from('workout_events').delete().eq('id', id).eq('user_id', userId);
     if (error) {
       console.error('[api/events] delete failed:', error.message);
       res.status(500).send('Failed to delete event');
       return;
     }
 
-    await logMutation(supabase, 'delete', id, body?.log ?? { event_title: id });
+    await logMutation(supabase, userId, 'delete', id, body?.log ?? { event_title: id });
     res.status(200).json({ ok: true });
     return;
   }

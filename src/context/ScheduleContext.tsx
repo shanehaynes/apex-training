@@ -22,6 +22,8 @@ interface ScheduleContextValue {
   definitions: Map<string, ExerciseDefinition>;
   isSyncing: boolean;
   isEventsLoading: boolean;
+  /** Manual refetch — for flows that must not wait on the realtime channel (e.g. template copy). */
+  refreshEvents: () => Promise<void>;
   getEventsForDate: (date: Date) => WorkoutEvent[];
   getEventsForRange: (start: Date, end: Date) => WorkoutEvent[];
   toggleCompletion: (id: string) => void;
@@ -226,7 +228,9 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const createEvent = useCallback(async (input: CreateEventInput): Promise<{ id: string } | null> => {
     if (!supabase) return null;
 
-    const id = `ai-${Date.now()}`;
+    // UUID, not a timestamp: workout_events.id is a global PK across users,
+    // so two people composing at the same millisecond must never collide.
+    const id = `ai-${crypto.randomUUID()}`;
     const newEvent: WorkoutEvent = {
       id,
       type:              input.type,
@@ -398,6 +402,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       definitions,
       isSyncing,
       isEventsLoading,
+      refreshEvents: loadEvents,
       getEventsForDate,
       getEventsForRange,
       toggleCompletion,

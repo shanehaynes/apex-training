@@ -50,6 +50,14 @@ node .claude/skills/run-apex-training/driver.mjs today     # Today-button disabl
 | `library` | Opens the exercise library from the top nav; screenshots the list, the first exercise's detail (stubbed history renders the PR card + trend chart), and the definition editor; then asserts the exercise-name deep link from the workout modal lands on the detail page. |
 | `edit-exercises` | Opens the first event's modal, enters exercise edit mode, adds an exercise from the picker (search "plank"), edits its sets, saves (PATCH stubbed), and asserts the added exercise renders in the read view via the optimistic update. Screenshots each step. |
 | `day-modal` | Clicks a day number to open the day-overview modal, asserts its header/Add button, checks an event row swaps in the workout modal, then walks the add-event composer: type grid → Strength form → picker pre-filtered to strength → save (stubbed POST closes the composer; in seed mode asserts the failure toast instead). |
+| `auth` | Signed-out login screen (asserts the password-manager `autocomplete` attributes), forgot-password mode, then seeds a fabricated session and reloads: asserts the TopNav avatar, template-offer banner, and profile overlay (5 avatar options, ICS feed URL). |
+
+Since phase 9 (multi-user), the app is gated behind Supabase Auth. In every
+mode except `auth`, the driver seeds a fabricated session into localStorage
+before page load so the gate opens; `/auth/v1/*` and `profiles` reads are
+stubbed, and passthrough REST reads get the anon key swapped back in place
+of the fake JWT (after the phase10 RLS lockdown those reads return zero rows
+and the app falls back to the bundled seed schedule).
 
 The driver launches `/usr/bin/google-chrome` by default; on macOS set
 `CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"`.

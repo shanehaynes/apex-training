@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
+import { requireUser } from './_lib/auth.js';
 
 interface InstanceBody {
   eventId?: string;
@@ -21,9 +22,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const userId = await requireUser(req, res);
+  if (!userId) return;
+
   const body = req.body as InstanceBody | undefined;
   if (!body?.eventId || !body.date) {
     res.status(400).send('Missing eventId or date');
+    return;
+  }
+
+  // The exception row attaches to a client-supplied event id — confirm the
+  // caller owns that event before touching anything.
+  const { data: parent, error: parentErr } = await supabase
+    .from('workout_events')
+    .select('id')
+    .eq('id', body.eventId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (parentErr) {
+    console.error('[api/event-instances] ownership check failed:', parentErr.message);
+    res.status(500).send('Failed to verify event');
+    return;
+  }
+  if (!parent) {
+    res.status(404).send('Event not found');
     return;
   }
 
@@ -39,6 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .from('recurring_exceptions')
       .upsert(
         {
+          user_id:             userId,
           event_id:            body.eventId,
           skipped_date:        body.date,
           override_date:       date ?? null,
@@ -55,6 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const { error: logError } = await supabase.from('event_mutations_log').insert({
+      user_id: userId,
       operation: 'update_instance',
       event_id: body.eventId,
       event_title: body.eventTitle ?? body.eventId,
@@ -69,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { error: exError } = await supabase
     .from('recurring_exceptions')
-    .insert({ event_id: body.eventId, skipped_date: body.date });
+    .insert({ user_id: userId, event_id: body.eventId, skipped_date: body.date });
 
   if (exError) {
     console.error('[api/event-instances] insert failed:', exError.message);
@@ -78,6 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { error: logError } = await supabase.from('event_mutations_log').insert({
+    user_id: userId,
     operation: 'delete_instance',
     event_id: body.eventId,
     event_title: body.eventTitle ?? body.eventId,

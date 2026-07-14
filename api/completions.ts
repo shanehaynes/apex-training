@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
+import { requireUser } from './_lib/auth.js';
 import type { CompletionLogRow, CompletionRow } from '../src/lib/db/types.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -14,6 +15,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const userId = await requireUser(req, res);
+  if (!userId) return;
+
   const body = req.body as { completionRow?: CompletionRow; logRow?: CompletionLogRow } | undefined;
   if (!body?.completionRow || !body.logRow) {
     res.status(400).send('Missing completionRow or logRow');
@@ -21,8 +25,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const [{ error: upsertErr }, { error: logErr }] = await Promise.all([
-    supabase.from('workout_completions').upsert(body.completionRow),
-    supabase.from('workout_completion_log').insert(body.logRow),
+    supabase
+      .from('workout_completions')
+      .upsert({ ...body.completionRow, user_id: userId }, { onConflict: 'user_id,event_id' }),
+    supabase.from('workout_completion_log').insert({ ...body.logRow, user_id: userId }),
   ]);
 
   if (upsertErr) console.error('[api/completions] upsert failed:', upsertErr.message);

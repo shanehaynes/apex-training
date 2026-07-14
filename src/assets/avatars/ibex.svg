@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Ibex: vertical-ground strength -->
+  <circle cx="64" cy="64" r="64" fill="#7a5c2e"/>
+  <path d="M50 48 C36 42 28 24 38 8 C34 24 44 38 56 44 Z" fill="#4a381f"/>
+  <path d="M78 48 C92 42 100 24 90 8 C94 24 84 38 72 44 Z" fill="#4a381f"/>
+  <path d="M64 42 L84 56 L78 90 Q64 100 50 90 L44 56 Z" fill="#d9b878"/>
+  <circle cx="56" cy="64" r="4" fill="#2b2016"/>
+  <circle cx="72" cy="64" r="4" fill="#2b2016"/>
+  <path d="M59 81 Q64 88 69 81 Z" fill="#2b2016"/>
+</svg>

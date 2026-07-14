@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { requireUser } from './_lib/auth.js';
 import { coachToolSchemas } from '../src/lib/coach/tools.js';
 import type { ChatWireEvent } from '../src/lib/coach/wire.js';
 
@@ -68,6 +69,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(500).send('ANTHROPIC_API_KEY not configured');
     return;
   }
+
+  // Auth gate only: the system prompt is built client-side from the caller's
+  // own RLS-filtered data, so per-user scoping is by construction. The gate
+  // stops unauthenticated callers burning the Anthropic key.
+  if (!(await requireUser(req, res))) return;
 
   const body = req.body as Body | undefined;
   if (!Array.isArray(body?.messages) || typeof body.system !== 'string') {

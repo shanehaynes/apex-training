@@ -1,8 +1,28 @@
 // Row shapes for the Supabase tables (snake_case DB columns) — the single
 // authoritative definition, shared by the browser client (src/) and the
 // Vercel serverless functions (api/, via type-only imports).
+//
+// user_id (phase 9) is optional on every row type: the client never sends
+// it (the /api/* handlers stamp it from the verified JWT) and never needs
+// to read it (RLS already scopes selects to the signed-in user).
+
+export type AvatarKey = 'goat' | 'ibex' | 'snow-leopard' | 'eagle' | 'wolf';
+
+// One row per auth user (phase 9). Client-writable fields go through
+// /api/profile; the rest are server-managed.
+export interface ProfileRow {
+  id: string;
+  display_name: string;
+  avatar_key: AvatarKey;
+  is_template_source: boolean;
+  template_copied_at: string | null;
+  ics_token: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface CompletionRow {
+  user_id?: string;
   event_id: string;
   event_date: string;
   event_type: string;
@@ -14,6 +34,7 @@ export interface CompletionRow {
 }
 
 export interface CompletionLogRow {
+  user_id?: string;
   event_id: string;
   event_date: string;
   event_type: string;
@@ -24,6 +45,7 @@ export interface CompletionLogRow {
 
 // Row shape returned by Supabase for workout_events (snake_case DB columns).
 export interface WorkoutEventRow {
+  user_id?: string;
   id: string;
   type: string;
   title: string;
@@ -61,6 +83,7 @@ export interface WorkoutEventRow {
 // occurrences it is the expanded `${baseId}__${date}` id.
 
 export interface WorkoutSessionRow {
+  user_id?: string;
   id: string;
   event_id: string;
   event_date: string;
@@ -75,6 +98,7 @@ export interface WorkoutSessionRow {
 export type TrackedSection = 'warmup' | 'exercise' | 'cooldown';
 
 export interface SetLogRow {
+  user_id?: string;
   event_id: string;
   event_date: string;
   section: TrackedSection;
@@ -93,6 +117,7 @@ export interface SetLogRow {
 }
 
 export interface CardioLogRow {
+  user_id?: string;
   event_id: string;
   event_date: string;
   section: TrackedSection;
@@ -111,6 +136,7 @@ export interface CardioLogRow {
 // override set = that occurrence is displayed at override_date (or
 // skipped_date when only the time changed) with the overridden times.
 export interface RecurringExceptionRow {
+  user_id?: string;
   id: string;
   event_id: string;
   skipped_date: string;
@@ -132,6 +158,7 @@ export interface EventMutationLogRow {
 // One row per movement in the exercise library (phase 8) — identity and
 // descriptive metadata shared by every referencing event entry.
 export interface ExerciseDefinitionRow {
+  user_id?: string;
   id: string;
   canonical_name: string;
   aliases: string[];

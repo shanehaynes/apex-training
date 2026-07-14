@@ -1,4 +1,5 @@
 import { notify } from './notify';
+import { supabase } from './supabaseClient';
 
 // Single JSON transport for the app's /api/* endpoints — one place for
 // headers, serialization, and error handling. Failures log the response
@@ -16,6 +17,18 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Authorization header for /api/* calls, from the current Supabase session.
+ * Empty in offline mode (supabase === null) or when signed out — the server
+ * then answers 401 and the shared error path below surfaces it.
+ */
+export async function authHeaders(): Promise<Record<string, string>> {
+  if (!supabase) return {};
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function requestJson<T>(
   method: 'POST' | 'PATCH' | 'DELETE',
   path: string,
@@ -26,7 +39,7 @@ async function requestJson<T>(
   try {
     res = await fetch(path, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (err) {

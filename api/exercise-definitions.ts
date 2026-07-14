@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
+import { requireUser } from './_lib/auth.js';
 import type { ExerciseDefinitionRow } from '../src/lib/db/types.js';
 
 // Exercise library mutations (EXERCISE_LIBRARY_SPEC.md §3). Writes go through
@@ -12,11 +13,13 @@ interface MutationLogEntry {
 
 async function logMutation(
   supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
+  userId: string,
   operation: 'create' | 'update' | 'archive' | 'unarchive',
   definitionId: string,
   log: MutationLogEntry,
 ) {
   const { error } = await supabase.from('definition_mutations_log').insert({
+    user_id: userId,
     operation,
     definition_id: definitionId,
     definition_name: log.definition_name,
@@ -32,6 +35,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const userId = await requireUser(req, res);
+  if (!userId) return;
+
   if (req.method === 'POST') {
     const row = req.body as Partial<ExerciseDefinitionRow> | undefined;
     if (!row || typeof row.id !== 'string' || typeof row.canonical_name !== 'string' || typeof row.category !== 'string') {
@@ -39,14 +45,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const { error } = await supabase.from('exercise_definitions').insert(row);
+    const { error } = await supabase.from('exercise_definitions').insert({ ...row, user_id: userId });
     if (error) {
       console.error('[api/exercise-definitions] insert failed:', error.message);
       res.status(500).send('Failed to create definition');
       return;
     }
 
-    await logMutation(supabase, 'create', row.id, { definition_name: row.canonical_name });
+    await logMutation(supabase, userId, 'create', row.id, { definition_name: row.canonical_name });
     res.status(200).json({ id: row.id });
     return;
   }
@@ -67,6 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .from('exercise_definitions')
       .select('canonical_name,aliases,archived_at')
       .eq('id', id)
+      .eq('user_id', userId)
       .single();
     if (fetchErr || !current) {
       res.status(404).send('Definition not found');
@@ -85,7 +92,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { error } = await supabase
       .from('exercise_definitions')
       .update({ ...fields, updated_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', userId);
     if (error) {
       console.error('[api/exercise-definitions] update failed:', error.message);
       res.status(500).send('Failed to update definition');
@@ -96,7 +104,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'archived_at' in body.fields
         ? (body.fields.archived_at ? 'archive' : 'unarchive')
         : 'update';
-    await logMutation(supabase, operation, id, body.log);
+    await logMutation(supabase, userId, operation, id, body.log);
     res.status(200).json({ ok: true });
     return;
   }

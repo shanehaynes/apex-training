@@ -7,6 +7,8 @@ import DayModal from '../modal/DayModal';
 import AddEventView from '../composer/AddEventView';
 import TrackerView from '../tracker/TrackerView';
 import LibraryView from '../library/LibraryView';
+import ProfileView from '../profile/ProfileView';
+import TemplateOfferBanner from '../profile/TemplateOfferBanner';
 import MobileBottomNav from './MobileBottomNav';
 import Toasts from './Toasts';
 import { useCalendar } from '../../context/CalendarContext';
@@ -45,6 +47,8 @@ export default function AppShell() {
       {state.composerDate && <AddEventView />}
       {state.trackingSession && <TrackerView />}
       {state.libraryOpen && <LibraryView />}
+      {state.profileOpen && <ProfileView />}
+      <TemplateOfferBanner />
       <Toasts />
     </div>
   );

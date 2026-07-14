@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Wolf: endurance in any weather -->
+  <circle cx="64" cy="64" r="64" fill="#4a3f6b"/>
+  <path d="M40 52 L34 22 L56 38 Z" fill="#9aa0ae"/>
+  <path d="M88 52 L94 22 L72 38 Z" fill="#9aa0ae"/>
+  <path d="M64 36 L90 56 L78 92 Q64 102 50 92 L38 56 Z" fill="#b9bdc7"/>
+  <path d="M64 66 L74 88 Q64 98 54 88 Z" fill="#e6e2da"/>
+  <circle cx="53" cy="60" r="4" fill="#241f33"/>
+  <circle cx="75" cy="60" r="4" fill="#241f33"/>
+  <path d="M60 76 Q64 82 68 76 Z" fill="#241f33"/>
+</svg>

@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
+import { requireUser } from './_lib/auth.js';
 import type { CardioLogRow, SetLogRow, TrackedSection } from '../src/lib/db/types.js';
 
 // Single endpoint for the workout tracker's writes, discriminated by
@@ -28,8 +29,10 @@ interface Body {
   durationSeconds?: number;
 }
 
-const SET_LOG_CONFLICT = 'event_id,event_date,section,exercise_id,set_number';
-const CARDIO_CONFLICT = 'event_id,event_date,section,exercise_id';
+// user_id leads every conflict target: a forged event_id from another user
+// can only ever upsert into the caller's own partition.
+const SET_LOG_CONFLICT = 'user_id,event_id,event_date,section,exercise_id,set_number';
+const CARDIO_CONFLICT = 'user_id,event_id,event_date,section,exercise_id';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -43,6 +46,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const userId = await requireUser(req, res);
+  if (!userId) return;
+
   const body = req.body as Body | undefined;
   if (!body?.action || !body.eventId || !body.eventDate) {
     res.status(400).send('Missing action, eventId, or eventDate');
@@ -55,8 +61,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { error: insertErr } = await supabase
       .from('workout_sessions')
       .upsert(
-        { event_id: eventId, event_date: eventDate, started_at: new Date().toISOString() },
-        { onConflict: 'event_id,event_date', ignoreDuplicates: true },
+        { user_id: userId, event_id: eventId, event_date: eventDate, started_at: new Date().toISOString() },
+        { onConflict: 'user_id,event_id,event_date', ignoreDuplicates: true },
       );
     if (insertErr) {
       console.error('[api/workout-sessions] start upsert failed:', insertErr.message);
@@ -67,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { data, error: selectErr } = await supabase
       .from('workout_sessions')
       .select('*')
-      .eq('event_id', eventId)
+      .eq('user_id', userId).eq('event_id', eventId)
       .eq('event_date', eventDate)
       .single();
     if (selectErr || !data) {
@@ -88,18 +94,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (body.setLogs?.length) {
       ops.push(supabase
         .from('workout_set_logs')
-        .upsert(body.setLogs.map(r => ({ ...r, updated_at: now })), { onConflict: SET_LOG_CONFLICT }));
+        .upsert(body.setLogs.map(r => ({ ...r, user_id: userId, updated_at: now })), { onConflict: SET_LOG_CONFLICT }));
     }
     if (body.cardioLogs?.length) {
       ops.push(supabase
         .from('workout_cardio_logs')
-        .upsert(body.cardioLogs.map(r => ({ ...r, updated_at: now })), { onConflict: CARDIO_CONFLICT }));
+        .upsert(body.cardioLogs.map(r => ({ ...r, user_id: userId, updated_at: now })), { onConflict: CARDIO_CONFLICT }));
     }
     for (const key of body.removedSets ?? []) {
       ops.push(supabase
         .from('workout_set_logs')
         .delete()
-        .eq('event_id', eventId)
+        .eq('user_id', userId).eq('event_id', eventId)
         .eq('event_date', eventDate)
         .eq('section', key.section)
         .eq('exercise_id', key.exerciseId)
@@ -123,7 +129,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { data: session, error: sessionErr } = await supabase
       .from('workout_sessions')
       .select('*')
-      .eq('event_id', eventId)
+      .eq('user_id', userId).eq('event_id', eventId)
       .eq('event_date', eventDate)
       .single();
     if (sessionErr || !session) {
@@ -145,7 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         total_duration_seconds: totalSeconds,
         updated_at: finishedAt.toISOString(),
       })
-      .eq('event_id', eventId)
+      .eq('user_id', userId).eq('event_id', eventId)
       .eq('event_date', eventDate);
     if (updateErr) {
       console.error('[api/workout-sessions] finish update failed:', updateErr.message);
@@ -159,7 +165,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { error: fillErr } = await supabase
         .from('workout_set_logs')
         .upsert(
-          body.autofillRows.map(r => ({ ...r, is_autofilled: true })),
+          body.autofillRows.map(r => ({ ...r, user_id: userId, is_autofilled: true })),
           { onConflict: SET_LOG_CONFLICT, ignoreDuplicates: true },
         );
       if (fillErr) {
@@ -182,7 +188,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { error: summaryErr } = await supabase
       .from('workout_sessions')
       .update({ coach_summary: body.coachSummary, updated_at: new Date().toISOString() })
-      .eq('event_id', eventId)
+      .eq('user_id', userId).eq('event_id', eventId)
       .eq('event_date', eventDate);
     if (summaryErr) {
       console.error('[api/workout-sessions] summary update failed:', summaryErr.message);
@@ -204,8 +210,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { error: sessionErr } = await supabase
       .from('workout_sessions')
       .upsert(
-        { event_id: eventId, event_date: eventDate, started_at: now },
-        { onConflict: 'event_id,event_date', ignoreDuplicates: true },
+        { user_id: userId, event_id: eventId, event_date: eventDate, started_at: now },
+        { onConflict: 'user_id,event_id,event_date', ignoreDuplicates: true },
       );
     if (sessionErr) {
       console.error('[api/workout-sessions] quick-complete session upsert failed:', sessionErr.message);
@@ -222,7 +228,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         total_duration_seconds: typeof body.durationSeconds === 'number' ? Math.round(body.durationSeconds) : null,
         updated_at: now,
       })
-      .eq('event_id', eventId)
+      .eq('user_id', userId).eq('event_id', eventId)
       .eq('event_date', eventDate)
       .is('finished_at', null);
     if (finishErr) {
@@ -236,7 +242,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ops.push(supabase
         .from('workout_set_logs')
         .upsert(
-          body.setLogs.map(r => ({ ...r, is_autofilled: true, updated_at: now })),
+          body.setLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })),
           { onConflict: SET_LOG_CONFLICT, ignoreDuplicates: true },
         ));
     }
@@ -244,7 +250,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ops.push(supabase
         .from('workout_cardio_logs')
         .upsert(
-          body.cardioLogs.map(r => ({ ...r, is_autofilled: true, updated_at: now })),
+          body.cardioLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })),
           { onConflict: CARDIO_CONFLICT, ignoreDuplicates: true },
         ));
     }
@@ -266,9 +272,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (body.action === 'quick-uncomplete') {
     const deletes = await Promise.all([
       supabase.from('workout_set_logs').delete()
-        .eq('event_id', eventId).eq('event_date', eventDate).eq('is_autofilled', true),
+        .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate).eq('is_autofilled', true),
       supabase.from('workout_cardio_logs').delete()
-        .eq('event_id', eventId).eq('event_date', eventDate).eq('is_autofilled', true),
+        .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate).eq('is_autofilled', true),
     ]);
     const failedDelete = deletes.find(r => r.error);
     if (failedDelete?.error) {
@@ -281,14 +287,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // tracker starts fresh instead of resuming a phantom finished session.
     const [setsLeft, cardioLeft] = await Promise.all([
       supabase.from('workout_set_logs').select('id', { count: 'exact', head: true })
-        .eq('event_id', eventId).eq('event_date', eventDate),
+        .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate),
       supabase.from('workout_cardio_logs').select('id', { count: 'exact', head: true })
-        .eq('event_id', eventId).eq('event_date', eventDate),
+        .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate),
     ]);
     if ((setsLeft.count ?? 0) === 0 && (cardioLeft.count ?? 0) === 0) {
       const { error: sessionErr } = await supabase
         .from('workout_sessions').delete()
-        .eq('event_id', eventId).eq('event_date', eventDate);
+        .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate);
       if (sessionErr) {
         console.error('[api/workout-sessions] quick-uncomplete session delete failed:', sessionErr.message);
         res.status(500).send('Failed to remove quick-completed session');
@@ -303,9 +309,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ── cancel: forget the session entirely — no resume, no history ────────────
   if (body.action === 'cancel') {
     const results = await Promise.all([
-      supabase.from('workout_set_logs').delete().eq('event_id', eventId).eq('event_date', eventDate),
-      supabase.from('workout_cardio_logs').delete().eq('event_id', eventId).eq('event_date', eventDate),
-      supabase.from('workout_sessions').delete().eq('event_id', eventId).eq('event_date', eventDate),
+      supabase.from('workout_set_logs').delete().eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate),
+      supabase.from('workout_cardio_logs').delete().eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate),
+      supabase.from('workout_sessions').delete().eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate),
     ]);
     const failed = results.find(r => r.error);
     if (failed?.error) {

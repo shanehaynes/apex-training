@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { authHeaders } from '../lib/api';
 import { findCoachTool } from '../lib/coach/tools';
 import type { ChatWireEvent } from '../lib/coach/wire';
 
@@ -53,7 +54,7 @@ export function useChat() {
 
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
       body: JSON.stringify({ messages: msgs, system: systemPrompt, withTools }),
       signal: controller.signal,
     });

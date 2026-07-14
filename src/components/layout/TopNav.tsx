@@ -1,10 +1,13 @@
 import { ChevronLeft, ChevronRight, Dumbbell } from 'lucide-react';
 import { useCalendar } from '../../context/CalendarContext';
+import { useAuth } from '../../context/AuthContext';
+import { avatarSrc, AVATARS } from '../../lib/profile/avatars';
 import { formatMonthYear, formatWeekRange, formatDay, isCurrentPeriod } from '../../utils/dateHelpers';
 import type { CalendarView } from '../../types/workout';
 
 export default function TopNav() {
   const { state, dispatch } = useCalendar();
+  const { status, profile } = useAuth();
   const { currentDate, selectedView } = state;
 
   const periodLabel = selectedView === 'month'
@@ -16,6 +19,19 @@ export default function TopNav() {
   return (
     <nav className="top-nav">
       <div className="top-nav__brand">
+        {status === 'signedIn' && (
+          <button
+            className="top-nav__avatar"
+            onClick={() => dispatch({ type: 'OPEN_PROFILE' })}
+            title={profile?.display_name || 'Profile'}
+            aria-label="Open profile"
+          >
+            <img
+              src={avatarSrc(profile?.avatar_key)}
+              alt={profile ? AVATARS[profile.avatar_key]?.label ?? 'Avatar' : 'Avatar'}
+            />
+          </button>
+        )}
         <span className="top-nav__logo">APEX</span>
         <span className="top-nav__sub">Training</span>
       </div>
