@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { authHeaders } from '../lib/api';
+import { ApiError, authHeaders } from '../lib/api';
 import { findCoachTool } from '../lib/coach/tools';
 import type { ChatWireEvent } from '../lib/coach/wire';
 
@@ -23,6 +23,14 @@ type ApiMessage = {
   role: 'assistant';
   content: string | Array<TextBlock | ToolUseBlock>;
 };
+
+/** Shown when the server answers 402: the user has no Anthropic key saved. */
+const KEY_SETUP_MESSAGE =
+  'To use the coach, add your Anthropic API key under Profile → AI Coach (the circle avatar, top left).';
+
+function isMissingKeyError(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 402;
+}
 
 export interface PendingAction {
   toolUseId: string;
@@ -58,7 +66,12 @@ export function useChat() {
       body: JSON.stringify({ messages: msgs, system: systemPrompt, withTools }),
       signal: controller.signal,
     });
-    if (!res.ok || !res.body) throw new Error(`chat request failed: ${res.status}`);
+    // ApiError keeps the status so catches can tell "no API key saved"
+    // (402) apart from a real failure. This fetch bypasses requestJson, so
+    // no toast fires — chat errors render inline in the thread.
+    if (!res.ok || !res.body) {
+      throw new ApiError(await res.text().catch(() => `chat request failed: ${res.status}`), res.status);
+    }
 
     let textAccumulated = '';
     let toolUse: ToolUseBlock | null = null;
@@ -139,7 +152,9 @@ export function useChat() {
         setMessages(prev => [...prev, { role: 'assistant', content: text }]);
       }
     } catch (err: unknown) {
-      if (err instanceof Error && err.name !== 'AbortError') {
+      if (isMissingKeyError(err)) {
+        setMessages(prev => [...prev, { role: 'assistant', content: KEY_SETUP_MESSAGE }]);
+      } else if (err instanceof Error && err.name !== 'AbortError') {
         setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I ran into an error. Please try again.' }]);
       }
     } finally {
@@ -233,8 +248,10 @@ export function useChat() {
       setApiMessages([syntheticUser, assistantMsg]);
       setMessages([{ role: 'assistant', content: text }]);
     } catch (err: unknown) {
-      if (err instanceof Error && err.name !== 'AbortError') {
-        setMessages([{ role: 'assistant', content: "Couldn't reach the coaching server. Check ANTHROPIC_API_KEY on the server." }]);
+      if (isMissingKeyError(err)) {
+        setMessages([{ role: 'assistant', content: KEY_SETUP_MESSAGE }]);
+      } else if (err instanceof Error && err.name !== 'AbortError') {
+        setMessages([{ role: 'assistant', content: "Couldn't reach the coaching server. Please try again." }]);
       }
     } finally {
       setIsLoading(false);

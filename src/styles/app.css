@@ -4218,3 +4218,23 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 }
 
 .template-offer__dismiss:hover { color: var(--text-primary); }
+
+.chat-key-setup-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-family: var(--font-display);
+  cursor: pointer;
+  transition: opacity var(--duration-fast) var(--ease-spring);
+}
+
+.chat-key-setup-btn:hover { opacity: 0.9; }

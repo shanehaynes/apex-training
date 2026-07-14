@@ -1,9 +1,11 @@
 import { useRef, useState, useMemo, useEffect } from 'react';
 import { useSchedule } from '../../context/ScheduleContext';
+import { useCalendar } from '../../context/CalendarContext';
+import { useAuth } from '../../context/AuthContext';
 import { useChat } from '../../hooks/useChat';
 import { buildSystemPrompt } from '../../lib/coach/prompt';
 import { findCoachTool } from '../../lib/coach/tools';
-import { Send, Square, NotebookPen, Check, X } from 'lucide-react';
+import { Send, Square, NotebookPen, Check, X, KeyRound } from 'lucide-react';
 
 // ─── Confirmation card ────────────────────────────────────────────────────────
 
@@ -50,6 +52,12 @@ export default function ChatSidebar() {
     messages, isLoading, streamingContent,
     pendingAction, sendMessage, confirmAction, cancelAction, triggerInitial, abort,
   } = useChat();
+  const { dispatch } = useCalendar();
+  const { anthropicKey } = useAuth();
+  // Known-missing key blocks the coach with a setup prompt; unknown (null,
+  // e.g. offline mode or status still loading) doesn't — the server's 402
+  // mapping in useChat is the backstop.
+  const needsKey = anthropicKey?.hasKey === false;
 
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -117,7 +125,23 @@ export default function ChatSidebar() {
       <div className="chat-sidebar__messages">
         {isEmpty && (
           <div className="chat-empty">
-            <p className="chat-empty__hint">Ask anything, or get your daily briefing below.</p>
+            {needsKey ? (
+              <>
+                <p className="chat-empty__hint">
+                  The coach runs on your own Anthropic API key. Add one to
+                  unlock chat and post-workout summaries.
+                </p>
+                <button
+                  className="chat-key-setup-btn"
+                  onClick={() => dispatch({ type: 'OPEN_PROFILE' })}
+                >
+                  <KeyRound size={13} />
+                  Add API key
+                </button>
+              </>
+            ) : (
+              <p className="chat-empty__hint">Ask anything, or get your daily briefing below.</p>
+            )}
           </div>
         )}
 
@@ -155,7 +179,7 @@ export default function ChatSidebar() {
         <button
           className="chat-notes-btn"
           onClick={() => triggerInitial(systemPrompt)}
-          disabled={isLoading || !!pendingAction}
+          disabled={isLoading || !!pendingAction || needsKey}
         >
           <NotebookPen size={13} />
           Coach's Notes
@@ -166,17 +190,21 @@ export default function ChatSidebar() {
         <textarea
           ref={inputRef}
           className="chat-input"
-          placeholder={pendingAction ? 'Confirm or cancel above first…' : 'Ask your coach…'}
+          placeholder={
+            needsKey ? 'Add your API key to chat…'
+            : pendingAction ? 'Confirm or cancel above first…'
+            : 'Ask your coach…'
+          }
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           rows={1}
-          disabled={isLoading || !!pendingAction}
+          disabled={isLoading || !!pendingAction || needsKey}
         />
         <button
           className="chat-send-btn"
           onClick={isLoading ? abort : handleSend}
-          disabled={!!pendingAction && !isLoading}
+          disabled={(!!pendingAction && !isLoading) || needsKey}
           aria-label={isLoading ? 'Stop' : 'Send'}
         >
           {isLoading ? <Square size={14} /> : <Send size={14} />}

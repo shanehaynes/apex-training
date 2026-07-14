@@ -1,7 +1,20 @@
-import { describe, it, expect } from 'vitest';
-import { streamToWireEvents } from '../chat';
+import { describe, it, expect, vi } from 'vitest';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import handler, { streamToWireEvents } from '../chat';
 import type { UpstreamEvent } from '../chat';
 import type { ChatWireEvent } from '../../src/lib/coach/wire';
+
+// Handler-level mocks (the streamToWireEvents suite below never hits them).
+vi.mock('../_lib/auth.js', () => ({ requireUser: vi.fn(async () => 'user-123') }));
+vi.mock('../_lib/supabaseAdmin.js', () => ({
+  getSupabaseAdmin: vi.fn(() => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+      }),
+    }),
+  })),
+}));
 
 async function* upstream(events: UpstreamEvent[]): AsyncIterable<UpstreamEvent> {
   for (const event of events) yield event;
@@ -59,5 +72,33 @@ describe('streamToWireEvents', () => {
       { type: 'content_block_stop' },
     ]);
     expect(out.map(e => e.type)).toEqual(['text', 'tool_use', 'done']);
+  });
+});
+
+describe('chat handler — per-user key gate', () => {
+  it('402s with anthropic-key-missing before any NDJSON headers when no key is stored', async () => {
+    let code: number | null = null;
+    let payload: unknown;
+    const headers: Record<string, string> = {};
+    const res = {
+      status(c: number) { code = c; return res; },
+      send(b: unknown) { payload = b; return res; },
+      json(b: unknown) { payload = b; return res; },
+      setHeader(k: string, v: string) { headers[k] = v; return res; },
+      write() { return true; },
+      end() {},
+    } as unknown as VercelResponse;
+
+    const req = {
+      method: 'POST',
+      headers: {},
+      body: { messages: [], system: 'x' },
+    } as unknown as VercelRequest;
+
+    await handler(req, res);
+
+    expect(code).toBe(402);
+    expect(payload).toBe('anthropic-key-missing');
+    expect(Object.keys(headers)).toEqual([]);
   });
 });

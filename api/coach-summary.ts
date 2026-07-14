@@ -1,11 +1,14 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireUser } from './_lib/auth.js';
+import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
+import { getAnthropicKey } from './_lib/anthropicKey.js';
 
-// One-shot post-workout coach summary. PRs arrive pre-computed inside the
-// recap (see src/lib/tracking/records.ts) — the model narrates them, it
-// never queries or derives them, keeping token spend to a single small
-// completion. Server-side so the Anthropic key stays out of the browser.
+// One-shot post-workout coach summary, running on the caller's own
+// Anthropic key (server-only user_api_keys table). PRs arrive pre-computed
+// inside the recap (see src/lib/tracking/records.ts) — the model narrates
+// them, it never queries or derives them, keeping token spend to a single
+// small completion.
 
 const SYSTEM_PROMPT =
   "You are the user's personal training coach reviewing a workout they just finished. " +
@@ -21,18 +24,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // VITE_ fallback: the pre-proxy deployments configured the key under the
-  // VITE_ name. Server-side it is a plain env var — safe as long as no
-  // client code references it via import.meta.env (none does).
-  const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.VITE_ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    res.status(500).send('ANTHROPIC_API_KEY not configured');
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    res.status(500).send('Supabase admin client not configured');
     return;
   }
 
-  // Auth gate: recap text arrives pre-built from the caller's own session
-  // data; the check exists to keep the Anthropic key behind a login.
-  if (!(await requireUser(req, res))) return;
+  const userId = await requireUser(req, res);
+  if (!userId) return;
+
+  let apiKey: string | null;
+  try {
+    apiKey = await getAnthropicKey(supabase, userId);
+  } catch (err) {
+    console.error('[api/coach-summary] key lookup failed:', err instanceof Error ? err.message : err);
+    res.status(500).send('Failed to load API key');
+    return;
+  }
+  if (!apiKey) {
+    // The summary popup degrades gracefully on this — no toast, no retry.
+    res.status(402).send('anthropic-key-missing');
+    return;
+  }
 
   const body = req.body as { recap?: unknown } | undefined;
   if (typeof body?.recap !== 'string' || !body.recap.trim()) {

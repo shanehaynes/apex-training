@@ -1,15 +1,22 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireUser } from './_lib/auth.js';
+import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
+import { getAnthropicKey } from './_lib/anthropicKey.js';
 import { coachToolSchemas } from '../src/lib/coach/schemas.js';
 import type { ChatWireEvent } from '../src/lib/coach/wire.js';
 
-// Server-side proxy for the coach chat. The Anthropic key never reaches the
-// browser; the client posts { messages, system, withTools } and reads back
+// Server-side proxy for the coach chat, running on the CALLER'S OWN
+// Anthropic key (server-only user_api_keys table — no key ever reaches the
+// browser). The client posts { messages, system, withTools } and reads back
 // newline-delimited JSON (one ChatWireEvent per line — see
 // src/lib/coach/wire.ts). Tool inputs are buffered here and emitted as one
 // complete tool_use event — simpler for the client than forwarding partial
 // JSON deltas.
+//
+// IMPORT SURFACE WARNING: this function once crashed at module load on
+// Vercel when it imported the coach executor graph. Only api/_lib and the
+// dependency-free src/lib/coach/schemas.ts may be imported here.
 
 // Structural subset of the SDK's MessageStreamEvent — keeps the translator
 // testable with plain objects.
@@ -61,19 +68,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // VITE_ fallback: the pre-proxy deployments configured the key under the
-  // VITE_ name. Server-side it is a plain env var — safe as long as no
-  // client code references it via import.meta.env (none does).
-  const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.VITE_ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    res.status(500).send('ANTHROPIC_API_KEY not configured');
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    res.status(500).send('Supabase admin client not configured');
     return;
   }
 
-  // Auth gate only: the system prompt is built client-side from the caller's
-  // own RLS-filtered data, so per-user scoping is by construction. The gate
-  // stops unauthenticated callers burning the Anthropic key.
-  if (!(await requireUser(req, res))) return;
+  // The system prompt is built client-side from the caller's own
+  // RLS-filtered data, so per-user data scoping is by construction; the
+  // verified uid here selects whose Anthropic key pays for the call.
+  const userId = await requireUser(req, res);
+  if (!userId) return;
+
+  let apiKey: string | null;
+  try {
+    apiKey = await getAnthropicKey(supabase, userId);
+  } catch (err) {
+    console.error('[api/chat] key lookup failed:', err instanceof Error ? err.message : err);
+    res.status(500).send('Failed to load API key');
+    return;
+  }
+  // 402 before any NDJSON headers — the client reads this as a plain HTTP
+  // error and shows the add-your-key setup prompt.
+  if (!apiKey) {
+    res.status(402).send('anthropic-key-missing');
+    return;
+  }
 
   const body = req.body as Body | undefined;
   if (!Array.isArray(body?.messages) || typeof body.system !== 'string') {

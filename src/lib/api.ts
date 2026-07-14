@@ -30,7 +30,7 @@ export async function authHeaders(): Promise<Record<string, string>> {
 }
 
 async function requestJson<T>(
-  method: 'POST' | 'PATCH' | 'DELETE',
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
   path: string,
   body: unknown,
   label: string,
@@ -39,7 +39,10 @@ async function requestJson<T>(
   try {
     res = await fetch(path, {
       method,
-      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+      headers: {
+        ...(method === 'GET' ? {} : { 'Content-Type': 'application/json' }),
+        ...(await authHeaders()),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (err) {
@@ -51,11 +54,18 @@ async function requestJson<T>(
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     console.warn(`[apex] ${label} failed (${res.status}):`, detail);
-    notify(`${label} failed`);
+    // 402 = the caller has no Anthropic API key saved yet — an expected
+    // state with dedicated UI (profile setup prompt), not a toast-worthy
+    // failure. Callers still get the ApiError.
+    if (res.status !== 402) notify(`${label} failed`);
     throw new ApiError(detail || `${label} failed`, res.status);
   }
 
   return res.json().catch(() => undefined) as Promise<T>;
+}
+
+export function getJson<T = unknown>(path: string, label: string): Promise<T> {
+  return requestJson<T>('GET', path, undefined, label);
 }
 
 export function postJson<T = unknown>(path: string, body: unknown, label: string): Promise<T> {

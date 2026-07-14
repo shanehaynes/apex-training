@@ -132,6 +132,13 @@ page.on('request', req => {
       },
     });
   }
+  // Key status for the AI Coach: hasAnthropicKey=true keeps the coach UI
+  // live in every mode (a false would swap in the setup prompt).
+  if (url.includes('/api/profile')) {
+    return json(req, req.method() === 'GET'
+      ? { hasAnthropicKey: true, anthropicKeyLast4: 'abcd' }
+      : { ok: true, hasAnthropicKey: true, anthropicKeyLast4: 'abcd' });
+  }
   if (url.includes('/api/')) return json(req, { ok: true });
 
   // Tracker log reads: fabricate one prior session per requested exercise so
@@ -233,9 +240,17 @@ try {
     await settle(300);
     const avatarCount = (await page.$$('.profile-avatar')).length;
     if (avatarCount !== 5) errors.push(`assert: expected 5 avatar options, found ${avatarCount}`);
-    const feedUrl = await page.$eval('.profile-feed__url', el => el.value);
-    if (!feedUrl.includes('/api/calendar-feed?token=driver-ics-token')) {
-      errors.push(`assert: feed URL should carry the profile ics token, got "${feedUrl}"`);
+    const feedUrls = await page.$$eval('.profile-feed__url', els => els.map(el => el.value));
+    if (!feedUrls.some(u => u.includes('/api/calendar-feed?token=driver-ics-token'))) {
+      errors.push(`assert: feed URL should carry the profile ics token, got "${feedUrls}"`);
+    }
+    // AI Coach section: masked key + Replace/Remove (stubbed hasKey=true).
+    if (!feedUrls.some(u => u === 'sk-ant-…abcd')) {
+      errors.push(`assert: AI Coach section should show the masked key sk-ant-…abcd, got "${feedUrls}"`);
+    }
+    const keyButtons = await page.$$eval('.profile-feed .btn-today', els => els.map(el => el.textContent.trim()));
+    if (!keyButtons.includes('Replace') || !keyButtons.includes('Remove')) {
+      errors.push(`assert: AI Coach section should have Replace and Remove buttons, got "${keyButtons}"`);
     }
     await shot('auth-profile');
 

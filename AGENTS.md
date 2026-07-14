@@ -39,7 +39,7 @@ Node 20+, npm (`package-lock.json`).
 | `src/components/` | React components by feature: `calendar/`, `tracker/`, `modal/`, `composer/`, `library/`, `sidebar/`, `layout/`. |
 | `src/context/` | `AuthContext` (session, profile, sign-in/out, password flows), `CalendarContext`, `ScheduleContext` — state distribution only, no domain logic. |
 | `src/hooks/` | `useChat` (NDJSON streaming), `useWorkoutSession`, `useMediaQuery`. |
-| `api/` | Vercel serverless functions: event/completion/session/definition writes, coach chat proxy, ICS feed. Shared service-role client in `api/_lib/supabaseAdmin.ts`. |
+| `api/` | Vercel serverless functions: event/completion/session/definition writes, coach chat proxy (runs on the caller's own Anthropic key from the server-only `user_api_keys` table — no env key), ICS feed. Shared service-role client in `api/_lib/supabaseAdmin.ts`, JWT check in `api/_lib/auth.ts`, key helpers in `api/_lib/anthropicKey.ts`. |
 | `supabase/` | `schema.sql`, ordered `migrations/`, Python seed/extract scripts. |
 | `src/data/schedule.json` | Bundled offline seed schedule (~1.3 MB). |
 

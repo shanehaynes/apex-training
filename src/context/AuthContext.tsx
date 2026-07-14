@@ -1,7 +1,7 @@
 import { createContext, useContext, useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
-import { patchJson } from '../lib/api';
+import { ApiError, getJson, patchJson } from '../lib/api';
 import { clearCompletedIds } from '../lib/schedule/localCompletion';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
 
@@ -19,10 +19,23 @@ const arrivedNeedingPassword = initialLinkType === 'invite' || initialLinkType =
 
 export type AuthStatus = 'offline' | 'loading' | 'signedOut' | 'needsPassword' | 'signedIn';
 
+/** What the browser is allowed to know about the user's Anthropic key. */
+export interface AnthropicKeyStatus {
+  hasKey: boolean;
+  last4: string | null;
+}
+
+interface KeyStatusPayload {
+  hasAnthropicKey?: boolean;
+  anthropicKeyLast4?: string | null;
+}
+
 interface AuthContextValue {
   status: AuthStatus;
   session: Session | null;
   profile: ProfileRow | null;
+  /** null = not yet loaded/unknown (don't block the coach UI on it). */
+  anthropicKey: AnthropicKeyStatus | null;
   /** Error carried by an expired/used invite or recovery link, for LoginView. */
   linkError: string | null;
   signIn: (email: string, password: string) => Promise<string | null>;
@@ -31,6 +44,9 @@ interface AuthContextValue {
   setNewPassword: (password: string) => Promise<string | null>;
   updateProfile: (fields: { displayName?: string; avatarKey?: AvatarKey }) => Promise<boolean>;
   refreshProfile: () => Promise<void>;
+  /** Save/replace the user's Anthropic API key. Returns an error message, or null on success. */
+  saveAnthropicKey: (key: string) => Promise<string | null>;
+  removeAnthropicKey: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -39,6 +55,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>(supabase ? 'loading' : 'offline');
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [anthropicKey, setAnthropicKey] = useState<AnthropicKeyStatus | null>(null);
+
+  const applyKeyStatus = useCallback((payload: KeyStatusPayload | undefined) => {
+    if (payload?.hasAnthropicKey === undefined) return;
+    setAnthropicKey({ hasKey: payload.hasAnthropicKey, last4: payload.anthropicKeyLast4 ?? null });
+  }, []);
+
+  const loadKeyStatus = useCallback(async () => {
+    try {
+      applyKeyStatus(await getJson<KeyStatusPayload>('/api/profile', 'Loading key status'));
+    } catch {
+      // Unknown stays null — the coach UI treats that as "don't block".
+    }
+  }, [applyKeyStatus]);
 
   const loadProfile = useCallback(async (userId: string) => {
     if (!supabase) return;
@@ -63,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.session) {
         setStatus(arrivedNeedingPassword ? 'needsPassword' : 'signedIn');
         loadProfile(data.session.user.id);
+        loadKeyStatus();
       } else {
         setStatus(prev => (prev === 'loading' ? 'signedOut' : prev));
       }
@@ -77,13 +108,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // screen up until the user actually submits one.
         setStatus(prev => (prev === 'needsPassword' ? prev : 'signedIn'));
         loadProfile(next.user.id);
+        loadKeyStatus();
       } else if (event === 'SIGNED_OUT') {
         setProfile(null);
+        setAnthropicKey(null);
         setStatus('signedOut');
       }
     });
     return () => { sub.subscription.unsubscribe(); };
-  }, [loadProfile]);
+  }, [loadProfile, loadKeyStatus]);
 
   const signIn = useCallback(async (email: string, password: string): Promise<string | null> => {
     if (!supabase) return 'Offline mode — no auth configured';
@@ -137,11 +170,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (session) await loadProfile(session.user.id);
   }, [session, loadProfile]);
 
+  const saveAnthropicKey = useCallback(async (key: string): Promise<string | null> => {
+    if (!supabase) return 'Offline mode — no auth configured';
+    try {
+      applyKeyStatus(await patchJson<KeyStatusPayload>(
+        '/api/profile', { anthropic_api_key: key }, 'Saving API key',
+      ));
+      return null;
+    } catch (err) {
+      // Server messages are actionable and never contain the key.
+      return err instanceof ApiError && err.message ? err.message : 'Failed to save the API key';
+    }
+  }, [applyKeyStatus]);
+
+  const removeAnthropicKey = useCallback(async (): Promise<boolean> => {
+    if (!supabase) return false;
+    try {
+      await patchJson('/api/profile', { anthropic_api_key: null }, 'Removing API key');
+      setAnthropicKey({ hasKey: false, last4: null });
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   return (
     <AuthContext.Provider value={{
       status,
       session,
       profile,
+      anthropicKey,
       linkError: initialLinkError,
       signIn,
       signOut,
@@ -149,6 +207,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setNewPassword,
       updateProfile,
       refreshProfile,
+      saveAnthropicKey,
+      removeAnthropicKey,
     }}>
       {children}
     </AuthContext.Provider>

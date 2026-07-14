@@ -74,7 +74,8 @@ cp .env.example .env.local   # then fill in the values
 | `VITE_SUPABASE_URL` | client + server | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | client | anon/public key (SELECT-only under RLS) |
 | `SUPABASE_SERVICE_ROLE_KEY` | server only | used by `api/` functions for writes |
-| `ANTHROPIC_API_KEY` | server only | used by `/api/chat` and `/api/coach-summary` |
+
+The AI coach runs on each user's own Anthropic API key, saved in-app under Profile → AI Coach (stored server-side, never exposed to the browser).
 
 **Database:** run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor, then the files in [`supabase/migrations/`](supabase/migrations/) in filename order (phase2 → phase5).
 
@@ -88,7 +89,7 @@ Plain `vite` dev does not run the serverless functions, so writes and AI feature
 
 ## ☁️ Deployment
 
-Deploys as a standard Vite app on Vercel ([vercel.json](vercel.json)). Set all four environment variables from the table above in **Settings → Environment Variables** and redeploy. Only `VITE_`-prefixed variables are exposed to the client bundle — keep the service-role and Anthropic keys unprefixed. (The legacy `VITE_ANTHROPIC_API_KEY` name still works server-side as a fallback for older deployments.)
+Deploys as a standard Vite app on Vercel ([vercel.json](vercel.json)). Set the environment variables from the table above in **Settings → Environment Variables** and redeploy. Only `VITE_`-prefixed variables are exposed to the client bundle — keep the service-role key unprefixed.
 
 To subscribe from a calendar app, add `https://<your-deployment>/api/calendar-feed` as a URL/ICS subscription.
 

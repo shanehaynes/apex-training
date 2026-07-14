@@ -62,6 +62,23 @@ rate-limited to a few emails per hour). Each invitee:
 Password managers (iCloud Keychain / Google) will offer to save the password
 at set-password time — that's what enables Face ID / Touch ID sign-in later.
 
+## Phase 11 — Per-user Anthropic API keys
+
+The coach chat and post-workout summaries now run on each user's own
+Anthropic key instead of the shared server key.
+
+1. SQL Editor → run `supabase/migrations/phase11_user_api_keys.sql`
+   (safe to run before the deploy — nothing reads the table yet).
+2. Deploy the code.
+3. **Breaking step: the coach is down for EVERY user — you included —
+   until each person saves a key** via Profile (circle avatar) → AI Coach.
+   Keys come from console.anthropic.com → Settings → API keys; they're
+   verified against Anthropic on save and stored server-side (the browser
+   only ever sees the last 4 characters).
+4. After your key works, delete `ANTHROPIC_API_KEY` (and any legacy
+   `VITE_ANTHROPIC_API_KEY`) from Vercel → Settings → Environment
+   Variables — nothing reads them anymore.
+
 ## Notes
 
 - **Free tier**: 5 users is nowhere near any limit (500 MB DB / 50K MAU).
