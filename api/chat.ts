@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireUser } from './_lib/auth.js';
-import { coachToolSchemas } from '../src/lib/coach/tools.js';
+import { coachToolSchemas } from '../src/lib/coach/schemas.js';
 import type { ChatWireEvent } from '../src/lib/coach/wire.js';
 
 // Server-side proxy for the coach chat. The Anthropic key never reaches the

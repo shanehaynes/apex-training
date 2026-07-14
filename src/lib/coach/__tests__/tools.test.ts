@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { COACH_TOOLS, coachToolSchemas, findCoachTool } from '../tools';
+import { COACH_TOOLS, findCoachTool } from '../tools';
+import { coachToolSchemas } from '../schemas';
 import type { CoachToolDeps } from '../tools';
 import type { ExerciseDefinition } from '../../../types/workout';
 
