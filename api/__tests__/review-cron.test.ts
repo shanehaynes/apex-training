@@ -4,6 +4,7 @@ import handler from '../review-cron';
 import { getAnthropicKey } from '../_lib/anthropicKey';
 import {
   createReview,
+  deleteReview,
   fetchReviewInputs,
   getReview,
   listRecipients,
@@ -25,6 +26,7 @@ vi.mock('../_lib/reviewData.js', () => ({
   listRecipients: vi.fn(),
   getReview: vi.fn(),
   createReview: vi.fn(),
+  deleteReview: vi.fn(),
   saveCommentary: vi.fn(),
   markEmailSent: vi.fn(),
   markEmailSkipped: vi.fn(),
@@ -38,6 +40,7 @@ vi.mock('@anthropic-ai/sdk', () => {
 
 const mockedListRecipients = vi.mocked(listRecipients);
 const mockedGetReview = vi.mocked(getReview);
+const mockedDeleteReview = vi.mocked(deleteReview);
 const mockedCreateReview = vi.mocked(createReview);
 const mockedFetchInputs = vi.mocked(fetchReviewInputs);
 const mockedGetKey = vi.mocked(getAnthropicKey);
@@ -260,6 +263,23 @@ describe('dry run', () => {
     const { res, statusCode } = makeRes();
     await handler(makeReq({ ...PERIOD_QUERY, dryRun: '1' }), res);
     expect(statusCode()).toBe(400);
+  });
+});
+
+describe('force regenerate', () => {
+  it('deletes the stored row for the target period, then recomputes and re-sends', async () => {
+    const { res, body } = makeRes();
+    await handler(makeReq({ ...PERIOD_QUERY, userId: 'user-1', force: '1' }), res);
+    expect(mockedDeleteReview).toHaveBeenCalledWith(expect.anything(), 'user-1', 'month', 2026, 6);
+    expect(mockedSend).toHaveBeenCalledOnce();
+    expect(body().processed?.[0]?.action).toBe('sent');
+  });
+
+  it('refuses to force without an explicit user and period', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq({ force: '1' }), res); // no userId, no explicit period
+    expect(statusCode()).toBe(400);
+    expect(mockedDeleteReview).not.toHaveBeenCalled();
   });
 });
 

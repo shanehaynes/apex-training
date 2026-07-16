@@ -193,6 +193,25 @@ export async function createReview(supabase: Admin, params: CreateReviewParams):
   return data as ReviewRow;
 }
 
+/** Remove a stored review so a forced manual run regenerates and re-sends it. */
+export async function deleteReview(
+  supabase: Admin,
+  userId: string,
+  periodType: PeriodType,
+  isoYear: number,
+  monthIndex: number | undefined,
+): Promise<void> {
+  let query = supabase
+    .from('reviews')
+    .delete()
+    .eq('user_id', userId)
+    .eq('period_type', periodType)
+    .eq('iso_year', isoYear);
+  query = monthIndex === undefined ? query.is('month_index', null) : query.eq('month_index', monthIndex);
+  const { error } = await query;
+  if (error) throw new Error(`reviews delete failed: ${error.message}`);
+}
+
 export async function saveCommentary(supabase: Admin, reviewId: string, commentary: string): Promise<void> {
   const { error } = await supabase
     .from('reviews')

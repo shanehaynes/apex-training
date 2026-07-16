@@ -4,6 +4,7 @@ import { getAnthropicKey } from './_lib/anthropicKey.js';
 import { sendReviewEmail } from './_lib/mailer.js';
 import {
   createReview,
+  deleteReview,
   fetchReviewInputs,
   getReview,
   listRecipients,
@@ -146,6 +147,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const periods = resolved;
   const forcedUserId = queryString(req, 'userId');
   const dryRun = queryString(req, 'dryRun') === '1';
+  // Regenerate: drop the stored row for one explicit user+period so it is
+  // recomputed and re-sent (e.g. after a stats or formatting fix). Same
+  // guardrails as a forced manual run — never fires on the scheduled sweep.
+  const force = queryString(req, 'force') === '1';
+  if (force && !dryRun) {
+    if (!forcedUserId || periods.length !== 1) {
+      res.status(400).send('force needs userId plus an explicit periodType/isoYear[/monthIndex]');
+      return;
+    }
+    try {
+      const [work] = periods;
+      await deleteReview(supabase, forcedUserId, work.periodType, work.isoYear, work.monthIndex);
+    } catch (err) {
+      console.error('[api/review-cron] force delete failed:', err);
+      res.status(500).send('Force delete failed');
+      return;
+    }
+  }
 
   let recipients: Recipient[];
   try {
