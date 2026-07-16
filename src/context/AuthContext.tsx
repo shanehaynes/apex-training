@@ -43,7 +43,9 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<string | null>;
   setNewPassword: (password: string) => Promise<string | null>;
-  updateProfile: (fields: { displayName?: string; avatarKey?: AvatarKey }) => Promise<boolean>;
+  updateProfile: (fields: {
+    displayName?: string; avatarKey?: AvatarKey; coachGoal?: string; coachContext?: string;
+  }) => Promise<boolean>;
   refreshProfile: () => Promise<void>;
   /** Save/replace the user's Anthropic API key. Returns an error message, or null on success. */
   saveAnthropicKey: (key: string) => Promise<string | null>;
