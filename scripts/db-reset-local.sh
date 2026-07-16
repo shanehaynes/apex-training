@@ -4,8 +4,11 @@
 # Applies schema.sql + the phaseN migrations in their real order (lexicographic
 # sorting breaks: phase10 < phase2), creating the auth users between phase8
 # and phase9 — phase9's backfill aborts unless shanehaynes.sah@gmail.com
-# exists. New timestamped migrations (supabase/migrations/<YYYYMMDDHHMMSS>_*)
-# apply last, in name order.
+# exists. Migrations use the phaseN naming on purpose: `supabase start` only
+# auto-applies <timestamp>_*.sql files, so phaseN ones are skipped there and
+# ordered here instead. Keep new migrations phaseN — a timestamped one would
+# be auto-applied by `supabase start` before this script builds the schema.
+# The trailing loop still sweeps up any stray <timestamp>_*.sql, last.
 #
 # LOCAL ONLY: connects exclusively to the running local stack's Postgres
 # container; there is no way to point this at a remote project.
@@ -55,8 +58,13 @@ run_sql_file supabase/migrations/phase9_multi_user.sql
 run_sql_file supabase/migrations/phase10_rls_lockdown.sql
 run_sql_file supabase/migrations/phase11_user_api_keys.sql
 run_sql_file supabase/migrations/phase12_reviews.sql
+run_sql_file supabase/migrations/phase13_avatars.sql
+run_sql_file supabase/migrations/phase14_avatars.sql
+run_sql_file supabase/migrations/phase15_cat_cow_single_duration.sql
+run_sql_file supabase/migrations/phase16_coach_profile_fields.sql
 
-# Post-phase migrations: Supabase CLI timestamp naming, applied in name order.
+# Fallback: apply any stray timestamped migration last, in name order. The
+# convention is phaseN (see header) so this normally matches nothing.
 for f in supabase/migrations/[0-9]*.sql; do
   [ -e "$f" ] || continue
   run_sql_file "$f"
