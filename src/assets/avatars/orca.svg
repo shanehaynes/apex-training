@@ -1,16 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <!-- Orca: apex efficiency -->
   <circle cx="64" cy="64" r="64" fill="#35637a"/>
-  <path d="M64 30 Q94 34 96 66 Q96 90 78 97 Q64 102 50 97 Q32 90 32 66 Q34 34 64 30 Z" fill="#16181d"/>
-  <path d="M64 30 Q50 32 42 42 Q36 50 34 62 Q38 40 52 34 Q58 31 64 30 Z" fill="#2c2f36"/>
-  <ellipse cx="64" cy="38" rx="3.6" ry="1.4" fill="#2c2f36"/>
-  <ellipse cx="46" cy="53" rx="10" ry="5.5" fill="#f2f2ee" transform="rotate(-24 46 53)"/>
-  <ellipse cx="82" cy="53" rx="10" ry="5.5" fill="#f2f2ee" transform="rotate(24 82 53)"/>
-  <circle cx="47" cy="53.5" r="3.2" fill="#16181d"/>
-  <circle cx="81" cy="53.5" r="3.2" fill="#16181d"/>
-  <circle cx="48.1" cy="52.4" r="1" fill="#f2f2ee"/>
-  <circle cx="82.1" cy="52.4" r="1" fill="#f2f2ee"/>
-  <path d="M46 82 Q64 74 82 82 Q80 94 64 98 Q48 94 46 82 Z" fill="#f2f2ee"/>
-  <path d="M52 88 Q64 94 76 88" stroke="#16181d" stroke-width="2" fill="none" stroke-linecap="round"/>
-  <path d="M46 82 Q64 76 82 82" stroke="#c9c9c2" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  <ellipse cx="25" cy="88" rx="13" ry="6.5" fill="#16181d" transform="rotate(38 25 88)"/>
+  <ellipse cx="103" cy="88" rx="13" ry="6.5" fill="#16181d" transform="rotate(-38 103 88)"/>
+  <path d="M64 24 Q96 28 99 60 Q100 84 88 98 Q76 108 64 108 Q52 108 40 98 Q28 84 29 60 Q32 28 64 24 Z" fill="#16181d"/>
+  <path d="M64 24 Q48 26 40 36 Q33 45 31 58 Q36 32 54 27 Q59 25 64 24 Z" fill="#2c2f36"/>
+  <ellipse cx="64" cy="34" rx="4" ry="1.6" fill="#2c2f36"/>
+  <ellipse cx="44" cy="52" rx="11" ry="5" fill="#f2f2ee" transform="rotate(-28 44 52)"/>
+  <ellipse cx="84" cy="52" rx="11" ry="5" fill="#f2f2ee" transform="rotate(28 84 52)"/>
+  <circle cx="47" cy="55" r="3" fill="#16181d"/>
+  <circle cx="81" cy="55" r="3" fill="#16181d"/>
+  <circle cx="48.1" cy="53.9" r="0.9" fill="#f2f2ee"/>
+  <circle cx="82.1" cy="53.9" r="0.9" fill="#f2f2ee"/>
+  <path d="M42 76 Q64 68 86 76 Q86 94 74 100 Q64 103 54 100 Q42 94 42 76 Z" fill="#f2f2ee"/>
+  <path d="M50 82 Q64 92 78 82 Q77 93 64 96 Q51 93 50 82 Z" fill="#8a4a52"/>
+  <path d="M52 83.5 L55 87 L58 84.5 L61 88 L64 85 L67 88 L70 84.5 L73 87 L76 83.5 Q64 92.5 52 83.5 Z" fill="#f2f2ee" transform="translate(0,-1)"/>
+  <path d="M50 82 Q64 92 78 82" stroke="#16181d" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M42 76 Q64 70 86 76" stroke="#c9c9c2" stroke-width="1.6" fill="none" stroke-linecap="round"/>
 </svg>

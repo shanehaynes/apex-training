@@ -1,17 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <!-- Golden eagle: summit perspective -->
   <circle cx="64" cy="64" r="64" fill="#2a6f6f"/>
-  <path d="M36 94 Q33 60 44 42 Q54 27 74 28 Q90 30 92 44 L92 50 Q92 58 88 63 Q80 85 60 91 Q46 95 36 94 Z" fill="#6d4620"/>
-  <path d="M36 94 Q33 60 44 42 Q50 33 61 29 Q52 44 50 60 Q48 79 53 90 Q43 95 36 94 Z" fill="#c99a3f"/>
-  <path d="M44 46 L50 42 L48 50 L54 47 L52 55 L58 52 L55 60 L60 58 L57 66 L61 65 L58 74 L62 73 L60 82 L55 84 Q50 66 55 46 Z" fill="#b9893e" opacity="0.7"/>
-  <path d="M62 40 Q74 33 87 39 L85 45 Q73 39 64 45 Z" fill="#4c3016"/>
-  <path d="M85 40 Q96 38 101 44 L100 50 Q92 52 86 50 Z" fill="#e0b93e"/>
-  <circle cx="93" cy="44.5" r="1.3" fill="#6d4620"/>
-  <path d="M99 42 Q108 43 110 48 Q111 53 105 59 L102 57 Q105 52 100 50 L96 50 Z" fill="#5a5348"/>
-  <path d="M87 50 Q94 53 100 52" stroke="#4c3016" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-  <circle cx="75" cy="47" r="5.5" fill="#e8c95c"/>
-  <circle cx="76" cy="48" r="2.8" fill="#1e1a14"/>
-  <circle cx="77" cy="46.6" r="1" fill="#f0ead8"/>
-  <path d="M70 42 Q76 39 83 42" stroke="#4c3016" stroke-width="2" fill="none" stroke-linecap="round"/>
-  <path d="M68 60 Q74 58 78 60 M66 68 Q73 66 78 68 M64 76 Q71 74 76 77" stroke="#5a3a1c" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <path d="M64 30 Q92 34 92 62 L90 74 Q86 92 64 96 Q42 92 38 74 L36 62 Q36 34 64 30 Z" fill="#6d4620"/>
+  <path d="M38 62 Q38 36 64 31 Q90 36 90 62 Q86 44 64 42 Q42 44 38 62 Z" fill="#c99a3f"/>
+  <path d="M44 50 Q54 45 64 44 Q74 45 84 50" stroke="#b9893e" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M42 52 L61 48 L59 55 L44 58 Z" fill="#4c3016"/>
+  <path d="M86 52 L67 48 L69 55 L84 58 Z" fill="#4c3016"/>
+  <circle cx="51" cy="59" r="5" fill="#e8c95c"/>
+  <circle cx="77" cy="59" r="5" fill="#e8c95c"/>
+  <circle cx="51" cy="59.5" r="2.8" fill="#1e1a14"/>
+  <circle cx="77" cy="59.5" r="2.8" fill="#1e1a14"/>
+  <circle cx="52.1" cy="58.2" r="0.9" fill="#f0ead8"/>
+  <circle cx="78.1" cy="58.2" r="0.9" fill="#f0ead8"/>
+  <path d="M57 63 Q64 60 71 63 L70 70 Q64 72 58 70 Z" fill="#e0b93e"/>
+  <circle cx="61" cy="65.5" r="1" fill="#8a6a1e"/>
+  <circle cx="67" cy="65.5" r="1" fill="#8a6a1e"/>
+  <path d="M58 70 Q64 68 70 70 Q70 80 64 85 Q58 80 58 70 Z" fill="#5a5348"/>
+  <path d="M61.5 81 Q64 85 66.5 81 Q65.5 84 64 85 Q62.5 84 61.5 81 Z" fill="#2f2d28"/>
+  <path d="M48 74 Q52 72 56 74 M72 74 Q76 72 80 74 M50 82 Q54 80 58 82 M70 82 Q74 80 78 82 M58 90 Q64 92 70 90" stroke="#5a3a1c" stroke-width="1.8" fill="none" stroke-linecap="round"/>
 </svg>
