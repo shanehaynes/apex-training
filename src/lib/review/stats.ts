@@ -53,13 +53,15 @@ const inPeriod = (date: string, period: ReviewPeriod) =>
   date >= period.startDate && date < period.endDateExclusive;
 
 /**
- * By convention a duration logged as a bare number means MINUTES (a stretch
- * or hold tracked as "2" is 2:00, not 2 seconds). The shared duration parser
- * treats a bare number as seconds, so tag it as minutes before classifying —
- * scoped to the review so the live tracker's parsing is unchanged.
+ * Legacy free-text durations logged as a bare SINGLE digit ("2") meant
+ * minutes, not the seconds the shared parser assumes — so tag those as
+ * minutes before classifying. Multi-digit bare values ("90") were already
+ * seconds and are left alone. Scoped to the review so the tracker's parsing
+ * is untouched; the segmented duration input makes new data unambiguous, so
+ * this only ever bridges pre-existing rows.
  */
 function minutesForBareDuration(value: string | null): string | null {
-  return value && /^\s*\d+(?:\.\d+)?\s*$/.test(value) ? `${value.trim()} min` : value;
+  return value && /^\s*[1-9]\s*$/.test(value) ? `${value.trim()} min` : value;
 }
 
 // ─── PR detection: single ordered scan ────────────────────────────────────────

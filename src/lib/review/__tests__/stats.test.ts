@@ -117,6 +117,19 @@ describe('computePeriodPRs', () => {
     expect(prs[0]).toMatchObject({ kind: 'duration', seconds: 120, previousSeconds: 60 });
   });
 
+  it('treats a multi-digit bare duration as seconds, not minutes', () => {
+    // "90" is 90 seconds; a later "1:30" (also 90s) ties it, so no PR.
+    const prs = computePeriodPRs(
+      [
+        makeSet('2026-04-01', 'Wall Sit', null, null, { actual_duration: '90' }),
+        makeSet('2026-05-20', 'Wall Sit', null, null, { actual_duration: '1:30' }),
+      ],
+      [],
+      MONTH,
+    );
+    expect(prs).toHaveLength(0);
+  });
+
   it('does not PR when a bare-minute value loses to an earlier colon time', () => {
     // Prior "2" = 2:00 (120s); later "1:30" = 90s is a regression, not a PR.
     const prs = computePeriodPRs(
