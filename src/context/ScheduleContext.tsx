@@ -14,7 +14,7 @@ import { quickCompleteSession, quickUncompleteSession } from '../lib/tracking/se
 import { baseIdOf, makeOccurrenceId, occurrenceDateOf } from '../lib/schedule/occurrence';
 import { timeToMinutes } from '../lib/time';
 import { registerAgentState } from '../dev/agentBridge';
-import { now } from '../lib/clock';
+import { isPastDay, now } from '../lib/clock';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -255,6 +255,10 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     // UUID, not a timestamp: workout_events.id is a global PK across users,
     // so two people composing at the same millisecond must never collide.
     const id = `ai-${crypto.randomUUID()}`;
+    // An event added to a day that has already passed is a retro-log: it was
+    // done, not planned, so it completes on creation (same effect as the
+    // "Mark as Complete" toggle, including the plan-filled session log).
+    const completedOnCreate = isPastDay(input.date);
     const newEvent: WorkoutEvent = {
       id,
       type:              input.type,
@@ -272,12 +276,21 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       warmup:            input.warmup,
       cooldown:          input.cooldown,
       cardioTargets:     input.cardioTargets,
-      isCompleted:       false,
+      isCompleted:       completedOnCreate,
       isRecurring:       false,
     };
 
     try {
       await postJson('/api/events', eventToRow(newEvent), 'Creating event');
+      if (completedOnCreate) {
+        setCompletedIds(prev => {
+          const next = new Set(prev).add(id);
+          saveCompletedIds(next);
+          return next;
+        });
+        postJson('/api/completions', buildCompletionRows(newEvent, true), 'Completion sync').catch(() => {});
+        quickCompleteSession(newEvent).catch(() => {});
+      }
       return { id };
     } catch {
       return null;

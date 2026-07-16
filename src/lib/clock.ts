@@ -11,7 +11,7 @@
  *   - `VITE_FAKE_NOW=2026-03-02T08:00:00` — env override, needs a restart.
  * Production builds compile the whole branch away.
  */
-import { addDays, isSameDay } from 'date-fns';
+import { addDays, format, isSameDay } from 'date-fns';
 
 export function now(): Date {
   if (import.meta.env.DEV && typeof window !== 'undefined') {
@@ -34,4 +34,9 @@ export function isTomorrow(date: Date): boolean {
 
 export function isPast(date: Date): boolean {
   return date.getTime() < now().getTime();
+}
+
+/** Whole-day version of isPast: true only for days strictly before today. */
+export function isPastDay(isoDate: string): boolean {
+  return isoDate < format(now(), 'yyyy-MM-dd');
 }
