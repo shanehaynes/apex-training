@@ -2144,28 +2144,48 @@ button.tracker-set__last:hover {
   width: 60px;
 }
 
-/* Duration cell: input plus the live "= 1:30" equivalence hint while typing. */
+/* Duration cell: separate minute and second fields so a bare "2" is
+   unambiguously 2:00, with a toggle to a free-text field for the rare
+   interval-style entry the two fields can't express. */
 .tracker-duration {
   position: relative;
   display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
-.tracker-duration__hint {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 2px 7px;
+.tracker-duration--split .tracker-duration__field {
+  width: 2.6em;
+  min-width: 0;
+  text-align: center;
+  font-family: var(--font-mono);
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+.tracker-duration__colon {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  user-select: none;
+}
+
+.tracker-duration__mode {
+  margin-left: 3px;
+  padding: 0 5px;
+  height: 20px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
   background: var(--bg-elevated);
-  box-shadow: var(--shadow-sm);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
   color: var(--text-secondary);
-  white-space: nowrap;
-  z-index: 5;
-  pointer-events: none;
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tracker-duration__mode:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
 }
 
 .tracker-set__remove {
@@ -3190,6 +3210,27 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 
 .library-field-row--defaults .library-field {
   min-width: 80px;
+}
+
+/* The duration default uses the segmented m:ss tracker control, which is
+   wider than a single input — give its cell room and let it fill without
+   clipping the seconds field or overrunning the neighbouring cell. */
+.library-field-row--defaults .library-field--duration {
+  flex: 1 1 170px;
+}
+
+.library-field--duration .tracker-duration {
+  width: 100%;
+}
+
+.library-field--duration .tracker-duration--split .tracker-duration__field {
+  width: 3em;
+  flex: 0 0 auto;
+}
+
+.library-field--duration .tracker-duration--custom .library-field__input {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .library-field--checkbox {

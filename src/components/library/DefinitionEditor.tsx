@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Archive, ArchiveRestore } from 'lucide-react';
 import { useSchedule } from '../../context/ScheduleContext';
 import { notify } from '../../lib/notify';
+import DurationInput from '../tracker/DurationInput';
 import type { ExerciseCategory, ExerciseDefinition } from '../../types/workout';
 
 interface Props {
@@ -163,10 +164,15 @@ export default function DefinitionEditor({ definition, referenceCount, onClose }
                 <span className="library-field__label">Reps</span>
                 <input className="library-field__input" value={defaultReps} onChange={e => setDefaultReps(e.target.value)} />
               </label>
-              <label className="library-field">
+              <div className="library-field library-field--duration">
                 <span className="library-field__label">Duration</span>
-                <input className="library-field__input" value={defaultDuration} onChange={e => setDefaultDuration(e.target.value)} />
-              </label>
+                <DurationInput
+                  className="library-field__input"
+                  ariaLabel="Default duration"
+                  value={defaultDuration}
+                  onChange={setDefaultDuration}
+                />
+              </div>
               <label className="library-field">
                 <span className="library-field__label">Weight</span>
                 <input className="library-field__input" value={defaultWeight} onChange={e => setDefaultWeight(e.target.value)} />

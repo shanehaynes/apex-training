@@ -30,30 +30,39 @@ test('tracker starts a session and renders desktop + mobile', async ({ page }) =
 test.describe('duration input', () => {
   test.use({ fakeNow: '2026-06-24T20:00:00' });
 
-  test('shows the mm:ss equivalent live and canonicalizes on commit', async ({ page }) => {
+  test('enters minutes and seconds unambiguously', async ({ page }) => {
     await gotoCalendar(page);
     await page.locator('.event-chip__main', { hasText: 'Stretch' }).first().click();
     await page.locator('.modal-completion__btn--start').click();
 
-    const input = page.locator('.tracker-duration .tracker-input').first();
-    await expect(input).toBeVisible({ timeout: 15000 });
+    const cell = page.locator('.tracker-duration').first();
+    await expect(cell).toBeVisible({ timeout: 15000 });
+    await shot(page, 'duration-split');
+    const min = cell.locator('.tracker-duration__field').nth(0);
+    const sec = cell.locator('.tracker-duration__field').nth(1);
+    const mode = cell.locator('.tracker-duration__mode');
 
-    // Seconds spelling: hint shows the equivalence while typing…
-    await input.fill('90');
-    await expect(page.locator('.tracker-duration__hint')).toHaveText('= 1:30');
-    // …and the value is rewritten to the canonical form on blur.
-    await input.blur();
-    await expect(input).toHaveValue('1:30');
-    await expect(page.locator('.tracker-duration__hint')).toHaveCount(0);
+    // The whole point: a bare "2" is two minutes, not two seconds.
+    await min.fill('2');
+    await min.blur();
+    await expect(min).toHaveValue('2');
+    await expect(sec).toHaveValue('00');
+    // Custom mode shows the committed canonical string — proves what was stored.
+    await mode.click();
+    await expect(cell.locator('.tracker-input')).toHaveValue('2:00');
+    await mode.click();
 
-    // mm:ss and unit spellings converge to the same canonical value.
-    await input.fill('2 min');
-    await input.press('Enter');
-    await expect(input).toHaveValue('2:00');
+    // Minutes and seconds combine into one canonical value.
+    await min.fill('2');
+    await sec.fill('30');
+    await sec.blur();
+    await mode.click();
+    await expect(cell.locator('.tracker-input')).toHaveValue('2:30');
 
-    // Unparseable free text is kept verbatim.
-    await input.fill('10s on 5s off');
-    await input.blur();
-    await expect(input).toHaveValue('10s on 5s off');
+    // The escape hatch keeps interval-style free text verbatim.
+    const text = cell.locator('.tracker-input');
+    await text.fill('10s on 5s off');
+    await text.blur();
+    await expect(text).toHaveValue('10s on 5s off');
   });
 });
