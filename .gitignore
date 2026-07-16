@@ -25,3 +25,8 @@ dist-ssr
 
 # Claude Code local (per-machine) settings
 .claude/settings.local.json
+
+# Playwright
+test-results/
+playwright-report/
+e2e/screenshots/

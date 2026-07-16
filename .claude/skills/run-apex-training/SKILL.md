@@ -3,124 +3,135 @@ name: run-apex-training
 description: Build, run, and drive the Apex Training web app. Use when asked to start the app, run the dev server, take a screenshot of the calendar or workout tracker UI, verify a UI change in the running app, or run its tests.
 ---
 
-Apex Training is a Vite + React workout-calendar app backed by Supabase
-(config in `.env.local`) with Vercel functions under `api/`. Drive it
-headless via `.claude/skills/run-apex-training/driver.mjs` — a
-puppeteer-core script that launches system Chrome against the dev
-server with all write-capable requests stubbed, so nothing you click
-mutates the real Supabase project.
-
+Apex Training is a Vite + React workout-calendar app backed by Supabase, with
+Vercel functions under `api/`. The agent harness (Playwright + a dev-only
+state bridge + an optional local Supabase stack) is how you run and drive it.
 All paths are relative to the repo root.
 
-## Prerequisites
+## Two profiles — the one rule
 
-- `/usr/bin/google-chrome` (present on this machine; no chromium-cli or
-  Playwright installed).
-- Node + npm (project deps via `npm install`).
-- `puppeteer-core` is NOT a project dependency — install it without
-  touching `package.json`:
+**A live browser session must never touch production Supabase.**
 
-```bash
-npm i --no-save puppeteer-core
-```
+- **Mock profile** (default, zero infrastructure): every `/api/*` request and
+  every non-GET supabase call is stubbed by `e2e/lib/intercept.mjs`, and the
+  auth session is fabricated. Safe against any `.env.local`. This is the only
+  sanctioned way to drive the app when real credentials are configured.
+- **Agent profile** (full stack, safe): `npm run dev:agent` + the LOCAL
+  Supabase stack. Real sign-in, real RLS, real writes — all into local Docker
+  Postgres. The vite API plugin (`dev/vercelApiPlugin.ts`) refuses to mount
+  against any non-localhost backend, no override.
 
-## Run (agent path)
-
-Start the dev server in the background and poll the port (don't sleep —
-first paint is fast but not instant):
+## Quick reference
 
 ```bash
-npm run dev > /tmp/apex-vite.log 2>&1 &
-timeout 30 bash -c 'until curl -sf http://localhost:5173 >/dev/null; do sleep 1; done'
+# Mock profile — no backend needed
+npm run e2e                                  # all mock Playwright specs
+node scripts/drive.mjs state schedule        # read live app state as JSON
+node scripts/drive.mjs click .btn-library shot library state calendar
+
+# Agent profile — full stack
+colima start && supabase start               # once per boot (Docker via Colima)
+npm run db:reset-local                       # reset + reseed the local DB
+npm run dev:agent                            # dev server with api/* served
+npm run e2e:live                             # live Playwright specs
+
+# Checks
+npm run agent:check                          # tsc + vitest + mock e2e (no infra)
+npm run agent:check:full                     # + DB reset + integration + live e2e
 ```
 
-Then drive it:
+Playwright is a project dev dependency; if browsers are missing:
+`npx playwright install chromium`.
 
-```bash
-node .claude/skills/run-apex-training/driver.mjs smoke     # calendar + event modal
-node .claude/skills/run-apex-training/driver.mjs tracker   # full workout-tracker flow
-node .claude/skills/run-apex-training/driver.mjs today     # Today-button disabled state
-```
+## Reading app state (preferred over screenshots)
 
-| mode | what it does |
+Dev builds expose `window.__apex.state(key?)` — JSON snapshots registered in
+`src/dev/agentBridge.ts` (compiled out of production):
+
+| key | contents |
 |---|---|
-| `smoke` | Loads the calendar, screenshots it, opens the first event's modal, screenshots that. |
-| `tracker` | `smoke`, then clicks Start Workout, screenshots the tracker (desktop), taps a "prev" value to autofill a set input, screenshots again, then re-screenshots at a 390px mobile viewport. |
-| `today` | Asserts the top-nav Today button is disabled on the current period, enabled after paging forward, and that clicking it returns to (and re-disables on) the current period. Screenshots each state. |
-| `library` | Opens the exercise library from the top nav; screenshots the list, the first exercise's detail (stubbed history renders the PR card + trend chart), and the definition editor; then asserts the exercise-name deep link from the workout modal lands on the detail page. |
-| `edit-exercises` | Opens the first event's modal, enters exercise edit mode, adds an exercise from the picker (search "plank"), edits its sets, saves (PATCH stubbed), and asserts the added exercise renders in the read view via the optimistic update. Screenshots each step. |
-| `day-modal` | Clicks a day number to open the day-overview modal, asserts its header/Add button, checks an event row swaps in the workout modal, then walks the add-event composer: type grid → Strength form → picker pre-filtered to strength → save (stubbed POST closes the composer; in seed mode asserts the failure toast instead). |
-| `auth` | Signed-out login screen (asserts the password-manager `autocomplete` attributes), forgot-password mode, then seeds a fabricated session and reloads: asserts the TopNav avatar, template-offer banner, and profile overlay (5 avatar options, ICS feed URL). |
+| `schedule` | expanded events (id/title/date/times/completed), counts, loading flags, definition ids |
+| `calendar` | currentDate, view, selected/tracking event ids, open overlays |
+| `auth` | status, user id/email, display name, Anthropic-key status |
+| `workoutSession` | active tracker session, per-set groups, elapsed, summary/PRs |
 
-Since phase 9 (multi-user), the app is gated behind Supabase Auth. In every
-mode except `auth`, the driver seeds a fabricated session into localStorage
-before page load so the gate opens; `/auth/v1/*` and `profiles` reads are
-stubbed, and passthrough REST reads get the anon key swapped back in place
-of the fake JWT (after the phase10 RLS lockdown those reads return zero rows
-and the app falls back to the bundled seed schedule).
+Use it from the drive CLI (`state <key|all>`), from specs (`apexState(page, key)`
+in `e2e/lib/fixtures.ts`), or in any browser console.
 
-The driver launches `/usr/bin/google-chrome` by default; on macOS set
-`CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"`.
+## Deterministic clock
 
-Screenshots land in `.claude/skills/run-apex-training/screenshots/`
-(gitignored). The driver prints each path, reports page console errors,
-and exits non-zero if any occurred. **Look at the screenshots** — the
-tracker ones should show set rows with `# / TARGET / PREV / …` header
-labels and fabricated prev values (`0:45`, `1:00`).
+Date-semantic logic reads `src/lib/clock.ts`. Freeze it for reproducible
+calendar output:
 
-Stop the server when done:
+- Specs: `test.use({ fakeNow: '2026-09-07T08:00:00' })` (mock fixture option)
+- Drive CLI: `APEX_FAKE_NOW=2026-09-07T08:00:00 node scripts/drive.mjs ...`
+- Live specs anchor to `2026-08-03` — inside the seeded fixture window
+  (Jul–Sep 2026). Write timestamps are never faked.
 
-```bash
-pkill -f vite   # exits non-zero even on success; ignore the code
-```
+## Playwright layout
 
-For a flow the driver doesn't cover, extend `driver.mjs` (keep the
-request-interception block — see Gotchas) rather than pointing a raw
-browser at the dev server.
+- `playwright.config.ts` — `mock` project (starts `npm run dev`) and `live`
+  project (starts `npm run dev:agent`; only defined when
+  `APEX_LOCAL_SUPABASE=1`). Both auto-start the web server, or reuse one
+  already on :5173.
+- `e2e/lib/` — `intercept.mjs` (stub layer), `session.mjs` (fabricated auth),
+  `fixtures.ts` (test fixtures: interception, session seed, `fakeNow`,
+  auto-failing on console errors).
+- `e2e/mock/` — smoke, today, clock, tracker, reschedule, day-modal, library,
+  edit-exercises, auth. Library/edit-exercises/auth self-skip in offline mode
+  (no Supabase env → empty library, no auth gate); the live project covers
+  those paths for real.
+- `e2e/live/` — full-stack flows against the local stack; seeded users
+  `agent@apex.local` (has data) and `agent2@apex.local` (empty — isolation
+  proof), password `apex-agent-password`.
+- Screenshots land in `e2e/screenshots/` (gitignored). Specs fail on any
+  page console error.
 
-## Run (human path)
+For a flow the specs don't cover: explore with `scripts/drive.mjs`, then add
+a spec next to its siblings. Never point a raw, un-intercepted browser at a
+dev server unless it's the agent profile.
 
-```bash
-npm run dev   # → http://localhost:5173, Ctrl-C to stop
-```
+## Local Supabase stack
 
-Useless headless, and every click writes to the real Supabase project.
+Docker runs via Colima on this machine (`colima start`, 4 GB). Then:
+
+- `supabase start` / `supabase stop` — the stack (API :54321, Postgres :54322,
+  Studio :54323). `supabase/config.toml` has analytics disabled (Colima
+  socket issue) and `auto_expose_new_tables = true` (parity with the prod
+  project's legacy grants).
+- `npm run db:reset-local` — drops app tables, reapplies `schema.sql` + the
+  phase migrations **in phase order** (lexicographic breaks: phase10 < phase2),
+  creates the fixture users between phase8 and phase9 (phase9 aborts without
+  the shanehaynes.sah@gmail.com auth user), applies any timestamped
+  migrations, backfills profiles, seeds fixtures (recurring events + Jul–Sep
+  2026 one-offs + the exercise library, all onto agent@apex.local).
+- `.env.agent` (committed) holds the CLI's public local-dev default keys —
+  not secrets. Prod credentials never go there; every harness script
+  (`scripts/lib/localEnv.mjs`) refuses non-localhost URLs.
 
 ## Test
 
 ```bash
-npm test        # vitest — all suites pass, ~1s
+npm test        # vitest unit suites, ~1s (integration self-skips without the stack)
 npx tsc -b      # typecheck
-npm run lint    # oxlint — has pre-existing warnings; diff against main, don't chase zero
+npm run lint    # oxlint — pre-existing warnings; diff against main, don't chase zero
 ```
 
 ## Gotchas
 
-- **The dev server talks to production Supabase.** `.env.local` holds
-  real credentials; starting/finishing/cancelling a workout in a live
-  browser writes (and cancel *deletes*) real rows. The driver stubs
-  `/api/*` and all non-GET supabase.co requests for exactly this
-  reason. Never drive the app with interception disabled.
-- **`/api/*` doesn't exist under `vite dev`.** Vercel functions aren't
-  served, so tracker fetches to `/api/workout-sessions` 404 without the
-  driver's stubs.
-- **Stubbed responses need CORS headers.** puppeteer's `req.respond`
-  answers cross-origin supabase fetches directly, so the browser
-  enforces CORS against your stub: include
-  `Access-Control-Allow-Origin: *` on every response AND answer
-  `OPTIONS` preflights with 204, or every fetch fails.
-- **`decodeURIComponent` doesn't decode `+`.** Supabase query strings
-  encode spaces as `+` (`exercise_name=in.(Glute+Squeeze+Holds,...)`);
-  replace `+` with a space before decoding or name matching silently
-  fails (symptom: the tracker's prev column never renders).
-
-## Troubleshooting
-
-- **Console spam: "blocked by CORS policy: Response to preflight
-  request doesn't pass access control check"** — a new intercepted
-  endpoint is missing the CORS headers / OPTIONS handling above.
+- **`/api/*` under plain `npm run dev`** is only served when the backend is
+  local; otherwise it 404s and the app degrades gracefully (mock specs stub it).
+- **Stubbed responses need CORS headers.** Route fulfillments answer
+  cross-origin supabase fetches directly, so the browser enforces CORS against
+  the stub: `Access-Control-Allow-Origin: *` on every response AND a 204 for
+  `OPTIONS` preflights (already handled in `e2e/lib/intercept.mjs`).
+- **`decodeURIComponent` doesn't decode `+`.** Supabase query strings encode
+  spaces as `+`; replace `+` with a space before decoding or name matching
+  silently fails (symptom: the tracker's prev column never renders).
+- **`.maybeSingle()` profile reads** ask PostgREST for a bare object via the
+  Accept header — stubs must answer in kind or supabase-js hands the app an
+  array.
+- **Vite forwards browser console to the terminal** — `[vite] (client)`
+  lines in dev-server logs are page-side messages, not server errors.
 - **`EADDRINUSE` / stale UI on relaunch** — a previous `vite` is still
-  running: `pkill -f vite` first.
-- **Driver reports `no prev button found`** — the first calendar event
-  has no set-tracked (non-cardio) exercises, or the exercise-name
-  parsing broke (see the `+` gotcha).
+  running: `pkill -f vite` first (Playwright reuses a running :5173 server).

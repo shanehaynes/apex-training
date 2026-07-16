@@ -1,9 +1,14 @@
-import { defineConfig } from 'vite'
+import { defineConfig, configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import vercelApiPlugin from './dev/vercelApiPlugin.ts'
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), vercelApiPlugin()],
+  test: {
+    // e2e/ holds Playwright specs, run via `npx playwright test` — not vitest.
+    exclude: [...configDefaults.exclude, 'e2e/**'],
+  },
   base: '/',
   build: {
     outDir: 'dist',

@@ -6,6 +6,7 @@ import { useChat } from '../../hooks/useChat';
 import { buildSystemPrompt } from '../../lib/coach/prompt';
 import { findCoachTool } from '../../lib/coach/tools';
 import { Send, Square, NotebookPen, Check, X, KeyRound } from 'lucide-react';
+import { now } from '../../lib/clock';
 
 // ─── Confirmation card ────────────────────────────────────────────────────────
 
@@ -63,7 +64,7 @@ export default function ChatSidebar() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const today = useMemo(() => new Date(), []);
+  const today = useMemo(() => now(), []);
   const todayEvents = useMemo(() => getEventsForDate(today), [getEventsForDate, today]);
   const systemPrompt = useMemo(
     () => buildSystemPrompt(todayEvents, events, today, definitions.values()),

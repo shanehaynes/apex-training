@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { format, isToday } from 'date-fns';
+import { format } from 'date-fns';
 import { CheckCircle2, Circle } from 'lucide-react';
+import { isToday } from '../../lib/clock';
 import { buildWeekDays, toDateString } from '../../utils/dateHelpers';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { useSchedule } from '../../context/ScheduleContext';

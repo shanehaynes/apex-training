@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { ApiError, getJson, patchJson } from '../lib/api';
 import { clearCompletedIds } from '../lib/schedule/localCompletion';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
+import { registerAgentState } from '../dev/agentBridge';
 
 // Invite and recovery links land with the session in the URL fragment plus a
 // `type` marker (`invite` / `recovery`). supabase-js consumes the fragment
@@ -117,6 +118,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     return () => { sub.subscription.unsubscribe(); };
   }, [loadProfile, loadKeyStatus]);
+
+  // Dev-only agent bridge: compiled out of production builds.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    return registerAgentState('auth', () => ({
+      status,
+      userId: session?.user.id ?? null,
+      email: session?.user.email ?? null,
+      displayName: profile?.display_name ?? null,
+      hasAnthropicKey: anthropicKey?.hasKey ?? null,
+      anthropicKeyLast4: anthropicKey?.last4 ?? null,
+    }));
+  }, [status, session, profile, anthropicKey]);
 
   const signIn = useCallback(async (email: string, password: string): Promise<string | null> => {
     if (!supabase) return 'Offline mode — no auth configured';

@@ -16,6 +16,7 @@ import { buildSessionRecap, generateCoachSummary } from '../lib/coach/summary';
 import { cancelSession, finishSession, loadSession, saveLogs, saveSummary } from '../lib/tracking/sessionRepo';
 import type { RemovedSetKey, SessionInfo } from '../lib/tracking/sessionRepo';
 import type { SetField, CardioField } from '../components/tracker/TrackerExercise';
+import { registerAgentState } from '../dev/agentBridge';
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
@@ -98,6 +99,30 @@ export function useWorkoutSession(
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [session]);
+
+  // Dev-only agent bridge: compiled out of production builds. Elapsed is
+  // derived from started_at at read time so the snapshot never goes stale.
+  useEffect(() => {
+    if (!import.meta.env.DEV || !event) return;
+    return registerAgentState('workoutSession', () => ({
+      eventId: event.id,
+      eventDate: event.date,
+      eventTitle: event.title,
+      session,
+      isFinished: !!session?.finished_at,
+      elapsedSeconds: !session
+        ? null
+        : session.finished_at
+        ? session.total_duration_seconds ?? 0
+        : Math.max(0, Math.floor((Date.now() - new Date(session.started_at).getTime()) / 1000)),
+      groups,
+      summary: summary && {
+        prs: summary.prs,
+        coachStatus: summary.coachStatus,
+        coachText: summary.coachText,
+      },
+    }));
+  }, [event, session, groups, summary]);
 
   // ── Autosave ────────────────────────────────────────────────────────────────
 

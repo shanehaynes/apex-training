@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useState } from 'react';
-import { format, isToday } from 'date-fns';
+import { format } from 'date-fns';
 import { CheckCircle2, Circle } from 'lucide-react';
+import { now, isToday } from '../../lib/clock';
 import { buildWeekDays } from '../../utils/dateHelpers';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { useSchedule } from '../../context/ScheduleContext';
@@ -69,10 +70,10 @@ function EventBlock({ event, colIndex, colCount }: EventBlockProps) {
 export default function WeekView({ currentDate }: { currentDate: Date }) {
   const days = useMemo(() => buildWeekDays(currentDate), [currentDate]);
   const { getEventsForDate } = useSchedule();
-  const [nowMinutes, setNowMinutes] = useState(() => new Date().getHours() * 60 + new Date().getMinutes());
+  const [nowMinutes, setNowMinutes] = useState(() => now().getHours() * 60 + now().getMinutes());
 
   useEffect(() => {
-    const id = setInterval(() => setNowMinutes(new Date().getHours() * 60 + new Date().getMinutes()), 60000);
+    const id = setInterval(() => setNowMinutes(now().getHours() * 60 + now().getMinutes()), 60000);
     return () => clearInterval(id);
   }, []);
 

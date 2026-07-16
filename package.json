@@ -5,10 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:agent": "vite --mode agent",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e": "playwright test --project=mock",
+    "e2e:live": "APEX_LOCAL_SUPABASE=1 playwright test --project=live",
+    "db:reset-local": "scripts/db-reset-local.sh",
+    "agent:check": "tsc -b && vitest run && playwright test --project=mock",
+    "agent:check:full": "npm run agent:check && npm run db:reset-local && APEX_LOCAL_SUPABASE=1 vitest run api/__tests__/integration && npm run e2e:live"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.106.0",
@@ -16,13 +22,16 @@
     "date-fns": "^4.4.0",
     "framer-motion": "^12.42.0",
     "lucide-react": "^1.21.0",
+    "nodemailer": "^6.10.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "recharts": "^3.9.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.3.1",
     "@types/node": "^24.13.2",
+    "@types/nodemailer": "^6.4.24",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vercel/node": "^5.8.22",

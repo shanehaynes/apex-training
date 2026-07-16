@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Typecheck + unit tests + lint. No browsers, no Docker — fast fail.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc -b
+      - run: npm test
+      # oxlint fails on errors only; pre-existing warnings don't block.
+      - run: npm run lint
+
+  # Playwright mock project: full UI flows with all writes stubbed.
+  e2e-mock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --project=mock
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: mock-traces
+          path: test-results/
+          retention-days: 7
+
+  # Local Supabase stack: handler integration tests (real JWTs, RLS,
+  # cross-user isolation) + live e2e through the vite API plugin.
+  full:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+      - run: ./scripts/db-reset-local.sh
+      - run: APEX_LOCAL_SUPABASE=1 npx vitest run api/__tests__/integration
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npx playwright install --with-deps chromium
+      - run: APEX_LOCAL_SUPABASE=1 npx playwright test --project=live
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: live-traces
+          path: test-results/
+          retention-days: 7

@@ -3,7 +3,8 @@ import { useSchedule } from '../../context/ScheduleContext';
 import { getEventsByDateRange, countByType, getTotalDuration, getMostActiveDay, getUniqueTypes, getWeeklyVolume } from '../../utils/analytics';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { useCalendar } from '../../context/CalendarContext';
-import { format, parseISO, isToday, isTomorrow, endOfWeek } from 'date-fns';
+import { format, parseISO, endOfWeek } from 'date-fns';
+import { now, isToday, isTomorrow } from '../../lib/clock';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import type { DateRange, WorkoutType } from '../../types/workout';
 
@@ -46,12 +47,12 @@ export default function Sidebar() {
   const uniqueTypes = useMemo(() => getUniqueTypes(filtered), [filtered]);
   const weeklyVolume = useMemo(() => getWeeklyVolume(events, 6), [events]);
 
-  const thisWeekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+  const thisWeekEnd = endOfWeek(now(), { weekStartsOn: 1 });
   const upcomingEvents = useMemo(() =>
     events
       .filter(e => {
         const d = parseISO(e.date);
-        return d >= new Date(new Date().setHours(0,0,0,0)) && d <= thisWeekEnd;
+        return d >= new Date(now().setHours(0,0,0,0)) && d <= thisWeekEnd;
       })
       .sort((a, b) => {
         const dateCompare = a.date.localeCompare(b.date);

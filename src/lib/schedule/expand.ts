@@ -26,9 +26,12 @@ export function expandRecurringEvents(
   // Keyed by occurrence id (see ./occurrence): null = skip the occurrence,
   // an override = display it at the overridden date/time instead.
   exceptions: Map<string, OccurrenceOverride | null>,
+  // Injectable so callers (and tests) control where the horizon anchors;
+  // the app passes the fake-clock-aware now().
+  currentDate: Date = new Date(),
 ): WorkoutEvent[] {
   const expanded: WorkoutEvent[] = [];
-  const rangeEnd = format(addDays(new Date(), OPEN_ENDED_HORIZON_DAYS), 'yyyy-MM-dd');
+  const rangeEnd = format(addDays(currentDate, OPEN_ENDED_HORIZON_DAYS), 'yyyy-MM-dd');
 
   for (const base of rawEvents) {
     // The base row itself: a series anchor rescheduled "this occurrence only"

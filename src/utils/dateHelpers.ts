@@ -1,9 +1,10 @@
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  eachDayOfInterval, isSameDay, isSameMonth, isSameWeek, isToday,
-  isPast, format, addMonths, subMonths, addWeeks, subWeeks,
+  eachDayOfInterval, isSameDay, isSameMonth, isSameWeek,
+  format, addMonths, subMonths, addWeeks, subWeeks,
   parseISO, startOfDay,
 } from 'date-fns';
+import { now, isToday, isPast } from '../lib/clock';
 
 export function buildMonthGrid(date: Date): Date[][] {
   const start = startOfWeek(startOfMonth(date), { weekStartsOn: 1 });
@@ -60,8 +61,8 @@ export function toDateString(date: Date): string {
 }
 
 export function isCurrentPeriod(date: Date, view: 'month' | 'week' | 'day'): boolean {
-  const now = new Date();
-  if (view === 'month') return isSameMonth(date, now);
-  if (view === 'week') return isSameWeek(date, now, { weekStartsOn: 1 });
-  return isSameDay(date, now);
+  const current = now();
+  if (view === 'month') return isSameMonth(date, current);
+  if (view === 'week') return isSameWeek(date, current, { weekStartsOn: 1 });
+  return isSameDay(date, current);
 }

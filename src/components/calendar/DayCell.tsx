@@ -1,4 +1,5 @@
-import { isToday, isSameMonth, format } from 'date-fns';
+import { isSameMonth, format } from 'date-fns';
+import { isToday } from '../../lib/clock';
 import EventChip from './EventChip';
 import { useCalendar } from '../../context/CalendarContext';
 import type { WorkoutEvent } from '../../types/workout';

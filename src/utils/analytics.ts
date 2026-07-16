@@ -1,7 +1,8 @@
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, format, parseISO, isWithinInterval } from 'date-fns';
 import type { WorkoutEvent, WorkoutType, DateRange, WeekVolume } from '../types/workout';
+import { now } from '../lib/clock';
 
-export function getEventsByDateRange(events: WorkoutEvent[], range: DateRange, referenceDate = new Date()): WorkoutEvent[] {
+export function getEventsByDateRange(events: WorkoutEvent[], range: DateRange, referenceDate = now()): WorkoutEvent[] {
   if (range === 'all') return events;
   const now = referenceDate;
   const interval = range === 'week'
@@ -38,7 +39,7 @@ export function getUniqueTypes(events: WorkoutEvent[]): number {
 }
 
 export function getWeeklyVolume(events: WorkoutEvent[], weeksBack = 6): WeekVolume[] {
-  const today = new Date();
+  const today = now();
   return Array.from({ length: weeksBack }, (_, i) => {
     const weekRef = subWeeks(today, weeksBack - 1 - i);
     const start = startOfWeek(weekRef, { weekStartsOn: 1 });

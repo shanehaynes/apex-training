@@ -6,6 +6,7 @@ import { useCalendar } from '../../context/CalendarContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { WORKOUT_COLORS } from '../../utils/workoutColors';
 import { toDisplayTime } from '../../lib/time';
+import { now } from '../../lib/clock';
 import { notify } from '../../lib/notify';
 import { ExerciseSectionsEditor, validateUnilateral, type SectionLists } from '../modal/EventExerciseEditor';
 import type { CreateEventInput } from '../../lib/schedule/types';
@@ -57,7 +58,7 @@ export default function AddEventView() {
 
   const [type, setType] = useState<WorkoutType | null>(null);
   const [title, setTitle] = useState('');
-  const [date, setDate] = useState(state.composerDate ?? format(new Date(), 'yyyy-MM-dd'));
+  const [date, setDate] = useState(state.composerDate ?? format(now(), 'yyyy-MM-dd'));
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   // String, not number: parseInt-on-change can't represent an empty field,

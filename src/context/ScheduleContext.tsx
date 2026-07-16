@@ -13,6 +13,8 @@ import { loadCompletedIds, saveCompletedIds } from '../lib/schedule/localComplet
 import { quickCompleteSession, quickUncompleteSession } from '../lib/tracking/sessionRepo';
 import { baseIdOf, makeOccurrenceId, occurrenceDateOf } from '../lib/schedule/occurrence';
 import { timeToMinutes } from '../lib/time';
+import { registerAgentState } from '../dev/agentBridge';
+import { now } from '../lib/clock';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -159,7 +161,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   );
 
   const allExpanded = useMemo(
-    () => expandRecurringEvents(resolvedBase, exceptions),
+    () => expandRecurringEvents(resolvedBase, exceptions, now()),
     [resolvedBase, exceptions],
   );
 
@@ -170,6 +172,28 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   eventsRef.current = events;
   baseEventsRef.current = baseEvents;
   exceptionsRef.current = exceptions;
+
+  // Dev-only agent bridge: compiled out of production builds.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    return registerAgentState('schedule', () => ({
+      isSyncing,
+      isEventsLoading,
+      eventCount: events.length,
+      completedCount: completedIds.size,
+      definitionIds: [...definitions.keys()],
+      events: events.map(e => ({
+        id: e.id,
+        title: e.title,
+        type: e.type,
+        date: e.date,
+        startTime: e.startTime,
+        endTime: e.endTime,
+        isCompleted: e.isCompleted,
+        isRecurring: e.isRecurring,
+      })),
+    }));
+  }, [events, definitions, completedIds, isSyncing, isEventsLoading]);
 
   // ── Queries ────────────────────────────────────────────────────────────────
 

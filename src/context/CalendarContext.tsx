@@ -1,6 +1,8 @@
-import { createContext, useContext, useReducer } from 'react';
+import { createContext, useContext, useEffect, useReducer } from 'react';
 import { addMonths, subMonths, addWeeks, subWeeks, addDays, subDays } from 'date-fns';
 import type { CalendarView, WorkoutEvent } from '../types/workout';
+import { registerAgentState } from '../dev/agentBridge';
+import { now } from '../lib/clock';
 
 interface CalendarState {
   currentDate: Date;
@@ -64,7 +66,7 @@ function reducer(state: CalendarState, action: CalendarAction): CalendarState {
           : subDays(state.currentDate, 1),
       };
     case 'GO_TO_TODAY':
-      return { ...state, currentDate: new Date() };
+      return { ...state, currentDate: now() };
     case 'GO_TO_DATE':
       return { ...state, currentDate: action.payload };
     case 'SET_VIEW':
@@ -109,7 +111,7 @@ const CalendarContext = createContext<CalendarContextValue | null>(null);
 
 export function CalendarProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, {
-    currentDate: new Date(),
+    currentDate: now(),
     selectedView: 'month',
     selectedEvent: null,
     trackingSession: null,
@@ -119,6 +121,23 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     composerDate: null,
     profileOpen: false,
   });
+
+  // Dev-only agent bridge: compiled out of production builds.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    return registerAgentState('calendar', () => ({
+      currentDate: state.currentDate.toISOString(),
+      selectedView: state.selectedView,
+      selectedEventId: state.selectedEvent?.id ?? null,
+      trackingEventId: state.trackingSession?.id ?? null,
+      libraryOpen: state.libraryOpen,
+      librarySelection: state.librarySelection,
+      selectedDay: state.selectedDay,
+      composerDate: state.composerDate,
+      profileOpen: state.profileOpen,
+    }));
+  }, [state]);
+
   return <CalendarContext.Provider value={{ state, dispatch }}>{children}</CalendarContext.Provider>;
 }
 
