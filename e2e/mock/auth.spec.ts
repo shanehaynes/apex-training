@@ -1,4 +1,4 @@
-import { test, expect, shot } from '../lib/fixtures';
+import { test, expect, shot, supabaseRef } from '../lib/fixtures';
 // @ts-expect-error plain-JS module shared with scripts/drive.mjs
 import { fabricatedSession } from '../lib/session.mjs';
 
@@ -6,8 +6,9 @@ import { fabricatedSession } from '../lib/session.mjs';
 // template-offer banner renders after sign-in.
 test.use({ sessionSeed: false, freshProfile: true });
 
-test('login gate, reset mode, fabricated session, profile view', async ({ page, supabaseRef }) => {
-  test.skip(!supabaseRef, 'offline mode has no auth gate — nothing to drive');
+test('login gate, reset mode, fabricated session, profile view', async ({ page }) => {
+  const ref = supabaseRef();
+  test.skip(!ref, 'offline mode has no auth gate — nothing to drive');
 
   // Signed out → login screen.
   await page.goto('/');
@@ -24,7 +25,7 @@ test('login gate, reset mode, fabricated session, profile view', async ({ page, 
   // Seed the fabricated session and reload → signed-in app with avatar.
   await page.evaluate(([key, session]) => {
     localStorage.setItem(key as string, JSON.stringify(session));
-  }, [`sb-${supabaseRef}-auth-token`, fabricatedSession()] as const);
+  }, [`sb-${ref}-auth-token`, fabricatedSession()] as const);
   await page.reload();
   await expect(page.locator('.top-nav__avatar')).toBeVisible({ timeout: 20000 });
   // The stubbed profile has template_copied_at null in this spec.

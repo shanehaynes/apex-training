@@ -20,8 +20,6 @@ interface ApexOptions {
 
 interface ApexFixtures {
   consoleErrors: string[];
-  /** Supabase project ref from .env.local, or null in offline mode. */
-  supabaseRef: string | null;
 }
 
 export const test = base.extend<ApexOptions & ApexFixtures>({
@@ -29,11 +27,9 @@ export const test = base.extend<ApexOptions & ApexFixtures>({
   freshProfile: [false, { option: true }],
   fakeNow: [null, { option: true }],
 
-  supabaseRef: async ({}, use) => {
-    await use(readSupabaseEnv().ref);
-  },
-
-  context: async ({ context, sessionSeed, freshProfile, fakeNow }, use) => {
+  // Note: the second fixture argument is Playwright's `use` continuation —
+  // named `provide` here so lint doesn't mistake it for a React hook.
+  context: async ({ context, sessionSeed, freshProfile, fakeNow }, provide) => {
     const { ref, anonKey } = readSupabaseEnv();
     await installIntercept(context, { anonKey, profile: driverProfile({ fresh: freshProfile }) });
     if (ref && sessionSeed) await seedFabricatedSession(context, ref);
@@ -42,16 +38,21 @@ export const test = base.extend<ApexOptions & ApexFixtures>({
         (window as unknown as { __APEX_FAKE_NOW__?: string }).__APEX_FAKE_NOW__ = v;
       }, fakeNow);
     }
-    await use(context);
+    await provide(context);
   },
 
-  consoleErrors: [async ({ page }, use) => {
+  consoleErrors: [async ({ page }, provide) => {
     const errors: string[] = [];
     page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()); });
-    await use(errors);
+    await provide(errors);
     expect.soft(errors, 'no console errors during the test').toEqual([]);
   }, { auto: true }],
 });
+
+/** Supabase project ref from .env.local, or null in offline mode. */
+export function supabaseRef(): string | null {
+  return readSupabaseEnv().ref;
+}
 
 export { expect };
 
