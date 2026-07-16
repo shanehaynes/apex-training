@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Marmot: rest as discipline -->
+  <circle cx="64" cy="64" r="64" fill="#4e6151"/>
+  <circle cx="42" cy="36" r="8" fill="#6e4c26"/>
+  <circle cx="42" cy="36" r="4.5" fill="#a37642"/>
+  <circle cx="86" cy="36" r="8" fill="#6e4c26"/>
+  <circle cx="86" cy="36" r="4.5" fill="#a37642"/>
+  <ellipse cx="64" cy="68" rx="32" ry="30" fill="#b98a54"/>
+  <path d="M40 58 Q42 42 64 40 Q86 42 88 58 Q76 48 64 48 Q52 48 40 58 Z" fill="#8a6335"/>
+  <ellipse cx="46" cy="78" rx="10" ry="8" fill="#e8d3a4"/>
+  <ellipse cx="82" cy="78" rx="10" ry="8" fill="#e8d3a4"/>
+  <ellipse cx="64" cy="80" rx="11" ry="9" fill="#e8d3a4"/>
+  <path d="M60 74 Q64 72 68 74 Q67 79 64 79 Q61 79 60 74 Z" fill="#4a3018"/>
+  <path d="M64 79 L64 84" stroke="#4a3018" stroke-width="1.8" stroke-linecap="round"/>
+  <rect x="60.2" y="84" width="3.4" height="7" rx="1.2" fill="#f4efe2"/>
+  <rect x="64.4" y="84" width="3.4" height="7" rx="1.2" fill="#f4efe2"/>
+  <circle cx="52" cy="64" r="4" fill="#2b2016"/>
+  <circle cx="76" cy="64" r="4" fill="#2b2016"/>
+  <circle cx="53.3" cy="62.7" r="1.2" fill="#f4efe2"/>
+  <circle cx="77.3" cy="62.7" r="1.2" fill="#f4efe2"/>
+  <path d="M46 59 Q51 56 56 59 M72 59 Q77 56 82 59" stroke="#8a6335" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M54 78 Q45 76 39 78 M55 82 Q47 83 42 86 M74 78 Q83 76 89 78 M73 82 Q81 83 86 86" stroke="#8a6335" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+</svg>

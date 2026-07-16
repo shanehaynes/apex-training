@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Peregrine falcon: speed when it counts -->
+  <circle cx="64" cy="64" r="64" fill="#a25b3c"/>
+  <ellipse cx="64" cy="68" rx="27" ry="26" fill="#ece7db"/>
+  <path d="M36 66 Q36 34 64 30 Q92 34 92 66 Q88 50 64 49 Q40 50 36 66 Z" fill="#3e4550"/>
+  <path d="M50 60 Q54 69 51 79 Q45 71 46 60 Z" fill="#3e4550"/>
+  <path d="M78 60 Q74 69 77 79 Q83 71 82 60 Z" fill="#3e4550"/>
+  <path d="M52 84 Q64 88 76 84 M54 90 Q64 93 74 90" stroke="#c9c2b2" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <circle cx="52" cy="55" r="5.6" fill="#e8b93e"/>
+  <circle cx="76" cy="55" r="5.6" fill="#e8b93e"/>
+  <circle cx="52" cy="55" r="3.8" fill="#17130f"/>
+  <circle cx="76" cy="55" r="3.8" fill="#17130f"/>
+  <circle cx="53.4" cy="53.6" r="1.2" fill="#f7f1e2"/>
+  <circle cx="77.4" cy="53.6" r="1.2" fill="#f7f1e2"/>
+  <path d="M59 68 Q64 65 69 68 L68 73 Q64 75 60 73 Z" fill="#e8b93e"/>
+  <circle cx="61.5" cy="69.5" r="0.9" fill="#8a6a1e"/>
+  <circle cx="66.5" cy="69.5" r="0.9" fill="#8a6a1e"/>
+  <path d="M60 73 Q64 71 68 73 Q68 79 64 82 Q60 79 60 73 Z" fill="#6a707c"/>
+  <path d="M62 79 Q64 82 66 79 Q65 81 64 82 Q63 81 62 79 Z" fill="#2c2f36"/>
+</svg>

@@ -1,10 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <!-- Ibex: vertical-ground strength -->
   <circle cx="64" cy="64" r="64" fill="#7a5c2e"/>
-  <path d="M50 48 C36 42 28 24 38 8 C34 24 44 38 56 44 Z" fill="#4a381f"/>
-  <path d="M78 48 C92 42 100 24 90 8 C94 24 84 38 72 44 Z" fill="#4a381f"/>
-  <path d="M64 42 L84 56 L78 90 Q64 100 50 90 L44 56 Z" fill="#d9b878"/>
-  <circle cx="56" cy="64" r="4" fill="#2b2016"/>
-  <circle cx="72" cy="64" r="4" fill="#2b2016"/>
-  <path d="M59 81 Q64 88 69 81 Z" fill="#2b2016"/>
+  <path d="M53 42 C38 36 26 22 31 3 C40 7 47 15 50 24 C52 31 55 35 60 40 Z" fill="#4a381f"/>
+  <path d="M75 42 C90 36 102 22 97 3 C88 7 81 15 78 24 C76 31 73 35 68 40 Z" fill="#4a381f"/>
+  <path d="M35 11 Q40 12 44 17 M39 21 Q44 22 47 26 M45 29 Q50 30 53 34" stroke="#2f2314" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <path d="M93 11 Q88 12 84 17 M89 21 Q84 22 81 26 M83 29 Q78 30 75 34" stroke="#2f2314" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <path d="M42 50 Q30 48 26 56 Q34 62 44 58 Z" fill="#b3945a"/>
+  <path d="M40 52 Q34 51 32 55 Q36 58 42 56 Z" fill="#6e5127"/>
+  <path d="M86 50 Q98 48 102 56 Q94 62 84 58 Z" fill="#b3945a"/>
+  <path d="M88 52 Q94 51 96 55 Q92 58 86 56 Z" fill="#6e5127"/>
+  <path d="M64 38 L86 52 L82 86 Q64 100 46 86 L42 52 Z" fill="#d9b878"/>
+  <path d="M64 38 L86 52 L84 62 Q64 52 44 62 L42 52 Z" fill="#c4a163"/>
+  <path d="M58 62 Q64 58 70 62 L69 80 Q64 84 59 80 Z" fill="#b98f4e"/>
+  <path d="M53 80 Q64 74 75 80 L71 92 Q64 98 57 92 Z" fill="#e8d3a4"/>
+  <path d="M60 83 Q64 81 68 83 Q67 88 64 88 Q61 88 60 83 Z" fill="#2b2016"/>
+  <path d="M64 88 L64 91 M64 91 Q61 94 58 92 M64 91 Q67 94 70 92" stroke="#2b2016" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <path d="M58 96 L62 107 L64 100 L66 107 L70 96 Q64 101 58 96 Z" fill="#5d4526"/>
+  <ellipse cx="54" cy="66" rx="5" ry="5.5" fill="#e8d3a4"/>
+  <ellipse cx="74" cy="66" rx="5" ry="5.5" fill="#e8d3a4"/>
+  <circle cx="54" cy="67" r="3.4" fill="#2b2016"/>
+  <circle cx="74" cy="67" r="3.4" fill="#2b2016"/>
+  <circle cx="55.2" cy="65.8" r="1" fill="#f4e9cf"/>
+  <circle cx="75.2" cy="65.8" r="1" fill="#f4e9cf"/>
 </svg>

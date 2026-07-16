@@ -13,7 +13,12 @@ import { getAnthropicKey, keyLast4, validateAnthropicKey } from './_lib/anthropi
 // reports { hasAnthropicKey, anthropicKeyLast4 }. The raw key is never
 // logged and never echoed back in any response.
 
-const AVATAR_KEYS = ['goat', 'ibex', 'snow-leopard', 'eagle', 'wolf'];
+const AVATAR_KEYS = [
+  'goat', 'ibex', 'snow-leopard', 'eagle', 'wolf',
+  'bighorn', 'marmot', 'raven', 'lynx', 'fox',
+  'bear', 'owl', 'falcon', 'pika', 'elk',
+  'wolverine', 'cougar', 'chamois', 'yak', 'hare',
+];
 
 async function keyStatus(supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>, userId: string) {
   const key = await getAnthropicKey(supabase, userId);

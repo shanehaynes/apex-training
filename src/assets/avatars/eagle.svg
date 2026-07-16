@@ -1,9 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <!-- Golden eagle: summit perspective -->
   <circle cx="64" cy="64" r="64" fill="#2a6f6f"/>
-  <path d="M38 54 Q36 30 62 26 Q86 24 90 44 L90 52 Q90 74 70 82 Q46 86 40 66 Z" fill="#7a4f22"/>
-  <path d="M88 44 L106 51 Q103 64 87 61 Q92 54 85 52 Z" fill="#e0b93e"/>
-  <path d="M44 38 Q62 26 86 36 L84 43 Q62 34 47 45 Z" fill="#b9893e"/>
-  <circle cx="70" cy="48" r="5.5" fill="#1e1a14"/>
-  <circle cx="72" cy="46" r="1.8" fill="#f0ead8"/>
+  <path d="M36 94 Q33 60 44 42 Q54 27 74 28 Q90 30 92 44 L92 50 Q92 58 88 63 Q80 85 60 91 Q46 95 36 94 Z" fill="#6d4620"/>
+  <path d="M36 94 Q33 60 44 42 Q50 33 61 29 Q52 44 50 60 Q48 79 53 90 Q43 95 36 94 Z" fill="#c99a3f"/>
+  <path d="M44 46 L50 42 L48 50 L54 47 L52 55 L58 52 L55 60 L60 58 L57 66 L61 65 L58 74 L62 73 L60 82 L55 84 Q50 66 55 46 Z" fill="#b9893e" opacity="0.7"/>
+  <path d="M62 40 Q74 33 87 39 L85 45 Q73 39 64 45 Z" fill="#4c3016"/>
+  <path d="M85 40 Q96 38 101 44 L100 50 Q92 52 86 50 Z" fill="#e0b93e"/>
+  <circle cx="93" cy="44.5" r="1.3" fill="#6d4620"/>
+  <path d="M99 42 Q108 43 110 48 Q111 53 105 59 L102 57 Q105 52 100 50 L96 50 Z" fill="#5a5348"/>
+  <path d="M87 50 Q94 53 100 52" stroke="#4c3016" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <circle cx="75" cy="47" r="5.5" fill="#e8c95c"/>
+  <circle cx="76" cy="48" r="2.8" fill="#1e1a14"/>
+  <circle cx="77" cy="46.6" r="1" fill="#f0ead8"/>
+  <path d="M70 42 Q76 39 83 42" stroke="#4c3016" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M68 60 Q74 58 78 60 M66 68 Q73 66 78 68 M64 76 Q71 74 76 77" stroke="#5a3a1c" stroke-width="1.8" fill="none" stroke-linecap="round"/>
 </svg>

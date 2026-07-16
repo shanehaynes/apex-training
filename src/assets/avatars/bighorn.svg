@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Bighorn ram: commitment to the line -->
+  <circle cx="64" cy="64" r="64" fill="#3e5c4f"/>
+  <path d="M54 36 A17 17 0 1 0 46 66" stroke="#c9a15f" stroke-width="12" fill="none" stroke-linecap="round"/>
+  <path d="M74 36 A17 17 0 1 1 82 66" stroke="#c9a15f" stroke-width="12" fill="none" stroke-linecap="round"/>
+  <path d="M52 40 A12 12 0 1 0 47 61" stroke="#9c7840" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M76 40 A12 12 0 1 1 81 61" stroke="#9c7840" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M64 36 L82 48 L80 82 Q64 96 48 82 L46 48 Z" fill="#a08b74"/>
+  <path d="M64 36 L82 48 L81 58 Q64 48 47 58 L46 48 Z" fill="#8a755f"/>
+  <path d="M58 60 Q64 57 70 60 L69 76 Q64 80 59 76 Z" fill="#93806a"/>
+  <path d="M54 76 Q64 71 74 76 L71 89 Q64 95 57 89 Z" fill="#e4dccd"/>
+  <path d="M60 80 Q64 78 68 80 Q67 85 64 85 Q61 85 60 80 Z" fill="#2b2420"/>
+  <path d="M64 85 L64 88 M64 88 Q61 91 58 89 M64 88 Q67 91 70 89" stroke="#2b2420" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <ellipse cx="55" cy="62" rx="4.8" ry="5.2" fill="#d8c9a8"/>
+  <ellipse cx="73" cy="62" rx="4.8" ry="5.2" fill="#d8c9a8"/>
+  <circle cx="55" cy="63" r="3.2" fill="#2b2420"/>
+  <circle cx="73" cy="63" r="3.2" fill="#2b2420"/>
+  <circle cx="56.1" cy="61.8" r="1" fill="#f2ecdd"/>
+  <circle cx="74.1" cy="61.8" r="1" fill="#f2ecdd"/>
+</svg>

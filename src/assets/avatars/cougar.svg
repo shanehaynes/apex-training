@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Cougar: power held in reserve -->
+  <circle cx="64" cy="64" r="64" fill="#526b7a"/>
+  <circle cx="44" cy="41" r="12" fill="#c9a26b"/>
+  <circle cx="44" cy="41" r="7" fill="#8a6a42"/>
+  <circle cx="84" cy="41" r="12" fill="#c9a26b"/>
+  <circle cx="84" cy="41" r="7" fill="#8a6a42"/>
+  <ellipse cx="64" cy="66" rx="30" ry="28" fill="#c9a26b"/>
+  <path d="M38 58 Q42 42 64 40 Q86 42 90 58 Q78 48 64 48 Q50 48 38 58 Z" fill="#b08c52"/>
+  <circle cx="58" cy="80" r="8.5" fill="#f0e8d8"/>
+  <circle cx="70" cy="80" r="8.5" fill="#f0e8d8"/>
+  <ellipse cx="64" cy="88" rx="7" ry="5.5" fill="#f0e8d8"/>
+  <path d="M53 74 Q50.5 78 53 82" stroke="#4a3a28" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M75 74 Q77.5 78 75 82" stroke="#4a3a28" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M59.5 74 Q64 71.5 68.5 74 Q67.5 79 64 79 Q60.5 79 59.5 74 Z" fill="#b06a55"/>
+  <path d="M64 79 L64 82 M64 82 Q60 86 56 84 M64 82 Q68 86 72 84" stroke="#2e2118" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <path d="M55 64 Q57 70 61 73 M73 64 Q71 70 67 73" stroke="#8a6a42" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <ellipse cx="53" cy="61" rx="5.4" ry="4.8" fill="#d8b355"/>
+  <ellipse cx="75" cy="61" rx="5.4" ry="4.8" fill="#d8b355"/>
+  <circle cx="53" cy="61.5" r="2.8" fill="#241c12"/>
+  <circle cx="75" cy="61.5" r="2.8" fill="#241c12"/>
+  <circle cx="54.1" cy="60.2" r="0.9" fill="#f7f0e0"/>
+  <circle cx="76.1" cy="60.2" r="0.9" fill="#f7f0e0"/>
+  <path d="M47 56 L58 55 M70 55 L81 56" stroke="#8a6a42" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <circle cx="56" cy="79" r="0.9" fill="#8a6a42"/><circle cx="59" cy="82" r="0.9" fill="#8a6a42"/>
+  <circle cx="72" cy="79" r="0.9" fill="#8a6a42"/><circle cx="69" cy="82" r="0.9" fill="#8a6a42"/>
+</svg>

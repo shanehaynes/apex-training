@@ -6,7 +6,11 @@
 // it (the /api/* handlers stamp it from the verified JWT) and never needs
 // to read it (RLS already scopes selects to the signed-in user).
 
-export type AvatarKey = 'goat' | 'ibex' | 'snow-leopard' | 'eagle' | 'wolf';
+export type AvatarKey =
+  | 'goat' | 'ibex' | 'snow-leopard' | 'eagle' | 'wolf'
+  | 'bighorn' | 'marmot' | 'raven' | 'lynx' | 'fox'
+  | 'bear' | 'owl' | 'falcon' | 'pika' | 'elk'
+  | 'wolverine' | 'cougar' | 'chamois' | 'yak' | 'hare';
 
 // One row per auth user (phase 9). Client-writable fields go through
 // /api/profile; the rest are server-managed.

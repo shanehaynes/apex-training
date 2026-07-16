@@ -1,11 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <!-- Wolf: endurance in any weather -->
   <circle cx="64" cy="64" r="64" fill="#4a3f6b"/>
-  <path d="M40 52 L34 22 L56 38 Z" fill="#9aa0ae"/>
-  <path d="M88 52 L94 22 L72 38 Z" fill="#9aa0ae"/>
-  <path d="M64 36 L90 56 L78 92 Q64 102 50 92 L38 56 Z" fill="#b9bdc7"/>
-  <path d="M64 66 L74 88 Q64 98 54 88 Z" fill="#e6e2da"/>
-  <circle cx="53" cy="60" r="4" fill="#241f33"/>
-  <circle cx="75" cy="60" r="4" fill="#241f33"/>
-  <path d="M60 76 Q64 82 68 76 Z" fill="#241f33"/>
+  <path d="M40 50 L32 18 L58 36 Z" fill="#9aa0ae"/>
+  <path d="M44 46 L38 26 L54 38 Z" fill="#4d4459"/>
+  <path d="M88 50 L96 18 L70 36 Z" fill="#9aa0ae"/>
+  <path d="M84 46 L90 26 L74 38 Z" fill="#4d4459"/>
+  <path d="M64 34 L90 54 L88 66 L94 72 L86 76 L88 86 L78 88 L74 96 Q64 102 54 96 L50 88 L40 86 L42 76 L34 72 L40 66 L38 54 Z" fill="#b9bdc7"/>
+  <path d="M64 34 L90 54 L88 62 Q76 52 64 52 Q52 52 40 62 L38 54 Z" fill="#7c8294"/>
+  <path d="M64 62 L78 84 Q64 98 50 84 Z" fill="#e6e2da"/>
+  <path d="M64 62 L70 71 Q64 75 58 71 Z" fill="#9aa0ae"/>
+  <path d="M58 81 Q64 77 70 81 Q69 88 64 88 Q59 88 58 81 Z" fill="#241f33"/>
+  <path d="M64 88 L64 91 M64 91 Q59 95 54 92 M64 91 Q69 95 74 92" stroke="#241f33" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <ellipse cx="52" cy="60" rx="5.5" ry="4.5" fill="#d8a13e"/>
+  <ellipse cx="76" cy="60" rx="5.5" ry="4.5" fill="#d8a13e"/>
+  <circle cx="52" cy="60.5" r="2.8" fill="#241f33"/>
+  <circle cx="76" cy="60.5" r="2.8" fill="#241f33"/>
+  <circle cx="53" cy="59.3" r="0.9" fill="#f0ede6"/>
+  <circle cx="77" cy="59.3" r="0.9" fill="#f0ede6"/>
+  <path d="M45 55 L58 53 M70 53 L83 55" stroke="#4d4459" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <path d="M41 72 Q45 70 48 72 M87 72 Q83 70 80 72" stroke="#9aa0ae" stroke-width="1.8" fill="none" stroke-linecap="round"/>
 </svg>
