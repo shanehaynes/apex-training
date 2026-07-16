@@ -3,6 +3,7 @@ import { format, parseISO } from 'date-fns';
 import type { PlannedSet } from '../../types/workout';
 import type { TrackedExercise, TrackedSet, CardioActuals, LastPerformance, LastSetActuals } from '../../lib/tracking/plan';
 import { resolvePlannedSets } from '../../lib/tracking/plan';
+import DurationInput from './DurationInput';
 
 export type SetField = 'actualWeight' | 'actualReps' | 'actualDuration';
 export type CardioField = keyof Omit<CardioActuals, 'isLogged'>;
@@ -106,12 +107,20 @@ function SetRow({
         <span className="tracker-set__last tracker-set__last--empty">—</span>
       ))}
       <div className="tracker-set__inputs">
-        {fields.map(field => (
+        {fields.map(field => field === 'actualDuration' ? (
+          <DurationInput
+            key={field}
+            className={`tracker-input ${FIELD_CLASS[field]}`}
+            ariaLabel={`Set ${set.setNumber} ${FIELD_LABEL[field]}`}
+            value={set[field]}
+            onChange={value => onChange(field, value)}
+          />
+        ) : (
           <input
             key={field}
             className={`tracker-input ${FIELD_CLASS[field]}`}
             type="text"
-            inputMode={field === 'actualDuration' ? 'text' : 'decimal'}
+            inputMode="decimal"
             aria-label={`Set ${set.setNumber} ${FIELD_LABEL[field]}`}
             value={set[field]}
             onChange={e => onChange(field, e.target.value)}

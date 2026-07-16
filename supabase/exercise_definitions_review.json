@@ -307,7 +307,7 @@
       "image_url": null,
       "technique_notes": "5 seconds each direction. In cow, emphasize thoracic extension — lumbar extension is the default and adds nothing. Use this to close the core block.",
       "is_unilateral": false,
-      "default_sets": 5,
+      "default_sets": null,
       "default_reps": null,
       "default_duration": "2 min",
       "default_weight": null,

@@ -92,6 +92,20 @@ export function parseDurationSeconds(value: string | null | undefined): number |
   return null;
 }
 
+/**
+ * Canonical display for a value that is entirely one duration — "90" →
+ * "1:30", "2 min" → "2:00", "45" → "45s". Null when the text carries anything
+ * beyond a single number+unit or colon time ("10s on, 5s off", "90 sec/side"),
+ * so free-form entries are never rewritten: parseDurationSeconds reads a
+ * leading duration out of such strings, but canonicalizing would drop the rest.
+ */
+export function canonicalDurationText(value: string): string | null {
+  const v = value.trim();
+  if (!/^\d+(?:\.\d+)?\s*[a-z]*$/i.test(v) && !/^\d+:\d{1,2}(?::\d{1,2})?$/.test(v)) return null;
+  const seconds = parseDurationSeconds(v);
+  return seconds === null ? null : formatSeconds(seconds);
+}
+
 const UNIT_ALIASES: Record<string, string> = {
   mi: 'mi', mile: 'mi', miles: 'mi',
   km: 'km', k: 'km',

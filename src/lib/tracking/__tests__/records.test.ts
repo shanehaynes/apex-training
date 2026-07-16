@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   parseLeadingNumber,
   parseDurationSeconds,
+  canonicalDurationText,
   parseQuantity,
   estimateOneRepMax,
   bestHistoricalOneRM,
@@ -156,6 +157,26 @@ describe('parseDurationSeconds', () => {
     expect(parseDurationSeconds('60 laps')).toBeNull();
     expect(parseDurationSeconds('')).toBeNull();
     expect(parseDurationSeconds('fast')).toBeNull();
+  });
+});
+
+describe('canonicalDurationText', () => {
+  it('converges equivalent spellings onto one canonical form', () => {
+    expect(canonicalDurationText('90')).toBe('1:30');
+    expect(canonicalDurationText('1:30')).toBe('1:30');
+    expect(canonicalDurationText('90s')).toBe('1:30');
+    expect(canonicalDurationText('2 min')).toBe('2:00');
+    expect(canonicalDurationText('1.5min')).toBe('1:30');
+    expect(canonicalDurationText('45')).toBe('45s');
+    expect(canonicalDurationText('1:05:00')).toBe('1:05:00');
+  });
+
+  it('never rewrites text that is more than one plain duration', () => {
+    expect(canonicalDurationText('10s on, 5s off')).toBeNull();
+    expect(canonicalDurationText('90 sec/side')).toBeNull();
+    expect(canonicalDurationText('60 laps')).toBeNull();
+    expect(canonicalDurationText('')).toBeNull();
+    expect(canonicalDurationText('0')).toBeNull();
   });
 });
 
