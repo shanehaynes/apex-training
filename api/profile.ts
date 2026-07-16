@@ -18,6 +18,7 @@ const AVATAR_KEYS = [
   'bighorn', 'marmot', 'raven', 'lynx', 'fox',
   'bear', 'owl', 'falcon', 'pika', 'elk',
   'wolverine', 'cougar', 'chamois', 'yak', 'hare',
+  'orca', 'seal', 'otter', 'octopus',
 ];
 
 async function keyStatus(supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>, userId: string) {

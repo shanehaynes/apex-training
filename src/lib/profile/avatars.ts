@@ -19,10 +19,14 @@ import cougarUrl from '../../assets/avatars/cougar.svg';
 import chamoisUrl from '../../assets/avatars/chamois.svg';
 import yakUrl from '../../assets/avatars/yak.svg';
 import hareUrl from '../../assets/avatars/hare.svg';
+import orcaUrl from '../../assets/avatars/orca.svg';
+import sealUrl from '../../assets/avatars/seal.svg';
+import otterUrl from '../../assets/avatars/otter.svg';
+import octopusUrl from '../../assets/avatars/octopus.svg';
 
-// The twenty profile avatars — stylized animals that embody training for
-// alpinism. Keys must stay in sync with the profiles.avatar_key CHECK
-// constraint (phase13) and the allowlist in api/profile.ts.
+// The twenty-four profile avatars — stylized animals in a flat badge
+// style. Keys must stay in sync with the profiles.avatar_key CHECK
+// constraint (phase14) and the allowlist in api/profile.ts.
 
 export const AVATARS: Record<AvatarKey, { label: string; src: string }> = {
   'goat':         { label: 'Mountain Goat',      src: goatUrl },
@@ -45,6 +49,10 @@ export const AVATARS: Record<AvatarKey, { label: string; src: string }> = {
   'chamois':      { label: 'Chamois',            src: chamoisUrl },
   'yak':          { label: 'Yak',                src: yakUrl },
   'hare':         { label: 'Snowshoe Hare',      src: hareUrl },
+  'orca':         { label: 'Orca',               src: orcaUrl },
+  'seal':         { label: 'Harbor Seal',        src: sealUrl },
+  'otter':        { label: 'River Otter',        src: otterUrl },
+  'octopus':      { label: 'Octopus',            src: octopusUrl },
 };
 
 export const AVATAR_KEYS = Object.keys(AVATARS) as AvatarKey[];

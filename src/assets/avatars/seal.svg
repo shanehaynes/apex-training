@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Harbor seal: ease in cold water -->
+  <circle cx="64" cy="64" r="64" fill="#5e8296"/>
+  <ellipse cx="64" cy="66" rx="31" ry="29" fill="#9aa8ad"/>
+  <path d="M38 74 Q42 92 64 94 Q86 92 90 74 Q90 88 78 93 Q64 97 50 93 Q38 88 38 74 Z" fill="#c4ccce"/>
+  <ellipse cx="50" cy="44" rx="3" ry="2" fill="#6b7a80"/>
+  <ellipse cx="64" cy="40" rx="2.6" ry="1.8" fill="#6b7a80"/>
+  <ellipse cx="78" cy="44" rx="3" ry="2" fill="#6b7a80"/>
+  <ellipse cx="42" cy="56" rx="2.6" ry="1.8" fill="#6b7a80"/>
+  <ellipse cx="86" cy="56" rx="2.6" ry="1.8" fill="#6b7a80"/>
+  <ellipse cx="57" cy="47" rx="2" ry="1.4" fill="#6b7a80"/>
+  <ellipse cx="71" cy="47" rx="2" ry="1.4" fill="#6b7a80"/>
+  <ellipse cx="64" cy="81" rx="13" ry="10" fill="#c4ccce"/>
+  <path d="M60 78 Q58.5 75 60.5 72.5 M68 78 Q69.5 75 67.5 72.5" stroke="#1e2226" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <path d="M58 84 Q61 87 64 84 Q67 87 70 84" stroke="#1e2226" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <circle cx="56" cy="82" r="0.9" fill="#6b7a80"/><circle cx="59" cy="85" r="0.9" fill="#6b7a80"/>
+  <circle cx="72" cy="82" r="0.9" fill="#6b7a80"/><circle cx="69" cy="85" r="0.9" fill="#6b7a80"/>
+  <path d="M52 80 Q43 78 37 80 M53 84 Q45 85 40 88 M76 80 Q85 78 91 80 M75 84 Q83 85 88 88" stroke="#e0e4e4" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <circle cx="51" cy="60" r="6" fill="#1e2226"/>
+  <circle cx="77" cy="60" r="6" fill="#1e2226"/>
+  <circle cx="53" cy="58" r="1.9" fill="#eef1f0"/>
+  <circle cx="79" cy="58" r="1.9" fill="#eef1f0"/>
+  <circle cx="48.8" cy="62.5" r="1" fill="#7d8d93"/>
+  <circle cx="74.8" cy="62.5" r="1" fill="#7d8d93"/>
+</svg>

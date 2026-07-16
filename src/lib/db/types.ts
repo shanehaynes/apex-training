@@ -10,7 +10,8 @@ export type AvatarKey =
   | 'goat' | 'ibex' | 'snow-leopard' | 'eagle' | 'wolf'
   | 'bighorn' | 'marmot' | 'raven' | 'lynx' | 'fox'
   | 'bear' | 'owl' | 'falcon' | 'pika' | 'elk'
-  | 'wolverine' | 'cougar' | 'chamois' | 'yak' | 'hare';
+  | 'wolverine' | 'cougar' | 'chamois' | 'yak' | 'hare'
+  | 'orca' | 'seal' | 'otter' | 'octopus';
 
 // One row per auth user (phase 9). Client-writable fields go through
 // /api/profile; the rest are server-managed.
