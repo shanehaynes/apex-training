@@ -226,7 +226,7 @@
   flex-direction: column;
   gap: 3px;
   overflow: hidden;
-  cursor: default;
+  cursor: pointer;
   transition: background var(--duration-fast);
 }
 

@@ -22,11 +22,11 @@ export default function DayCell({ date, currentMonth, events }: Props) {
   const openDay = () => dispatch({ type: 'SELECT_DAY', payload: format(date, 'yyyy-MM-dd') });
 
   return (
-    <div className={`day-cell ${!inMonth ? 'day-cell--adjacent' : ''}`}>
+    <div className={`day-cell ${!inMonth ? 'day-cell--adjacent' : ''}`} onClick={openDay}>
       <div className="day-cell__header">
         <button
           className={`day-cell__date-btn day-cell__date ${today ? 'day-cell__date--today' : ''}`}
-          onClick={openDay}
+          onClick={e => { e.stopPropagation(); openDay(); }}
           aria-label={`View ${format(date, 'MMMM d')}`}
         >
           {date.getDate()}
@@ -37,7 +37,7 @@ export default function DayCell({ date, currentMonth, events }: Props) {
           <EventChip key={event.id} event={event} />
         ))}
         {overflow > 0 && (
-          <button className="day-cell__overflow" onClick={openDay}>+{overflow} more</button>
+          <button className="day-cell__overflow" onClick={e => { e.stopPropagation(); openDay(); }}>+{overflow} more</button>
         )}
       </div>
     </div>
