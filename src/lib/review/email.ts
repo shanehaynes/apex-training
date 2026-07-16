@@ -1,6 +1,6 @@
 import { addDays, format, parseISO } from 'date-fns';
-import { describeDatedRecord, formatMinutes, formatNumber, formatUnitMap, shortDate } from './formats';
-import type { ReviewStats, YearlyStats } from './types';
+import { describeDatedRecord, formatMinutes, formatNumber, formatUnitMap, shortDate } from './formats.js';
+import type { ReviewStats, YearlyStats } from './types.js';
 
 // ─── Review email rendering ───────────────────────────────────────────────────
 // Pure string builders: a simple single-column HTML layout (inline styles

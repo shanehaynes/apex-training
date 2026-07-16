@@ -1,6 +1,6 @@
 import { format, parseISO } from 'date-fns';
-import { describeRecord } from '../tracking/records';
-import type { DatedPersonalRecord } from './types';
+import { describeRecord } from '../tracking/records.js';
+import type { DatedPersonalRecord } from './types.js';
 
 // Small display helpers shared by the AI recap (recap.ts) and the email
 // renderer (email.ts) so both always show identical figures.

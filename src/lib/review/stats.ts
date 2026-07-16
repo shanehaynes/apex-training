@@ -1,6 +1,6 @@
 import { differenceInCalendarDays, format, parseISO, startOfISOWeek } from 'date-fns';
-import type { CardioLogRow, CompletionRow, SetLogRow, WorkoutSessionRow } from '../db/types';
-import { classifySet, parseQuantity } from '../tracking/records';
+import type { CardioLogRow, CompletionRow, SetLogRow, WorkoutSessionRow } from '../db/types.js';
+import { classifySet, parseQuantity } from '../tracking/records.js';
 import {
   getIsoMonth,
   isoWeeksInYear,
@@ -8,7 +8,7 @@ import {
   periodLabel,
   weeksInMonth,
   yearBoundaries,
-} from './isoMonth';
+} from './isoMonth.js';
 import type {
   CardioStats,
   DatedPersonalRecord,
@@ -20,7 +20,7 @@ import type {
   ReviewStats,
   StrengthStats,
   YearlyStats,
-} from './types';
+} from './types.js';
 
 // ─── Review stats aggregation ─────────────────────────────────────────────────
 // Pure, deterministic rollups over the tracking logs. Every number in a

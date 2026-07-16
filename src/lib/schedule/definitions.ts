@@ -1,6 +1,6 @@
-import type { Exercise, ExerciseCategory, ExerciseDefinition, WorkoutEvent } from '../../types/workout';
-import type { ExerciseDefinitionRow } from '../db/types';
-import { baseIdOf } from './occurrence';
+import type { Exercise, ExerciseCategory, ExerciseDefinition, WorkoutEvent } from '../../types/workout.js';
+import type { ExerciseDefinitionRow } from '../db/types.js';
+import { baseIdOf } from './occurrence.js';
 
 // ─── Exercise definition resolution ───────────────────────────────────────────
 // Pure helpers implementing EXERCISE_LIBRARY_SPEC.md §2.2/§2.3: event entries

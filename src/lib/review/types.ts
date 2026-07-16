@@ -1,6 +1,6 @@
-import type { CompletionRow, WorkoutSessionRow, SetLogRow, CardioLogRow } from '../db/types';
-import type { PersonalRecord } from '../tracking/records';
-import type { Period } from './isoMonth';
+import type { CompletionRow, WorkoutSessionRow, SetLogRow, CardioLogRow } from '../db/types.js';
+import type { PersonalRecord } from '../tracking/records.js';
+import type { Period } from './isoMonth.js';
 
 // ─── Review period ────────────────────────────────────────────────────────────
 

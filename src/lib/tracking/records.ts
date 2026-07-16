@@ -1,7 +1,7 @@
 import { format, parseISO } from 'date-fns';
-import type { CardioLogRow, SetLogRow } from '../db/types';
-import type { TrackedSectionGroup } from './plan';
-import { formatSeconds } from '../time';
+import type { CardioLogRow, SetLogRow } from '../db/types.js';
+import type { TrackedSectionGroup } from './plan.js';
+import { formatSeconds } from '../time.js';
 
 // ─── Personal records ─────────────────────────────────────────────────────────
 // Pure PR detection over set/cardio logs — computed client-side, never by the
@@ -356,7 +356,7 @@ export function computeSessionPRs(
 
 // ─── Display ──────────────────────────────────────────────────────────────────
 
-export { formatSeconds } from '../time';
+export { formatSeconds } from '../time.js';
 
 function quantityLabel(value: number, unit: string): string {
   return unit ? `${value} ${unit}` : String(value);

@@ -1,5 +1,5 @@
-import { describeDatedRecord, formatMinutes, formatNumber, formatUnitMap, shortDate } from './formats';
-import type { ReviewStats, YearlyStats } from './types';
+import { describeDatedRecord, formatMinutes, formatNumber, formatUnitMap, shortDate } from './formats.js';
+import type { ReviewStats, YearlyStats } from './types.js';
 
 // ─── AI recap: the model's entire view of the period ─────────────────────────
 // Follows the buildSessionRecap pattern (src/lib/coach/summary.ts): every
