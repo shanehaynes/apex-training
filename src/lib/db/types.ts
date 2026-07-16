@@ -183,6 +183,24 @@ export interface ExerciseDefinitionRow {
   updated_at: string;
 }
 
+// One row per user per review period (phase 12). Server-only: RLS with no
+// policies, written and read exclusively by the review cron. `stats` holds
+// the pre-computed ReviewStats / YearlyStats JSON (src/lib/review/types.ts).
+export interface ReviewRow {
+  user_id?: string;
+  id: string;
+  period_type: 'month' | 'year';
+  iso_year: number;
+  /** 1–13 for month rows, null for year rows. */
+  month_index: number | null;
+  stats: unknown;
+  ai_commentary: string | null;
+  email_sent_at: string | null;
+  email_skipped_reason: 'no-activity' | 'no-email' | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DefinitionMutationLogRow {
   operation: 'create' | 'update' | 'archive' | 'unarchive' | 'delete';
   definition_id: string;

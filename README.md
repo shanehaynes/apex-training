@@ -74,10 +74,13 @@ cp .env.example .env.local   # then fill in the values
 | `VITE_SUPABASE_URL` | client + server | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | client | anon/public key (SELECT-only under RLS) |
 | `SUPABASE_SERVICE_ROLE_KEY` | server only | used by `api/` functions for writes |
+| `CRON_SECRET` | server only | bearer token guarding `/api/review-cron` (Vercel sends it on cron runs) |
+| `GMAIL_USER` | server only | Gmail address review emails are sent from (also the From) |
+| `GMAIL_APP_PASSWORD` | server only | 16-char [app password](https://myaccount.google.com/apppasswords) for that account (needs 2-Step Verification on) |
 
 The AI coach runs on each user's own Anthropic API key, saved in-app under Profile → AI Coach (stored server-side, never exposed to the browser).
 
-**Database:** run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor, then the files in [`supabase/migrations/`](supabase/migrations/) in filename order (phase2 → phase5).
+**Database:** run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor, then the files in [`supabase/migrations/`](supabase/migrations/) in filename order (phase2 → phase12).
 
 **Run it:**
 
@@ -92,6 +95,19 @@ Plain `vite` dev does not run the serverless functions, so writes and AI feature
 Deploys as a standard Vite app on Vercel ([vercel.json](vercel.json)). Set the environment variables from the table above in **Settings → Environment Variables** and redeploy. Only `VITE_`-prefixed variables are exposed to the client bundle — keep the service-role key unprefixed.
 
 To subscribe from a calendar app, add `https://<your-deployment>/api/calendar-feed` as a URL/ICS subscription.
+
+## 📬 Review emails
+
+A daily Vercel cron (`/api/review-cron`, 14:00 UTC) emails each user a review when a training period ends. A "month" is 4 ISO weeks (Mon–Sun) — 13 per year, with month 13 absorbing week 53 in 53-week ISO years — and the yearly review goes out in the first weeks of the new ISO year. Stats (sessions, training time, weight moved, distance, elevation, PRs) are computed deterministically in [`src/lib/review/`](src/lib/review/); users with an Anthropic key saved also get a short coach's note (per-user key, same as chat), and everyone else gets the numbers. Email is sent over Gmail SMTP ([`api/_lib/mailer.ts`](api/_lib/mailer.ts)) — no sending domain to verify. Sent reviews are recorded in the `reviews` table (phase12 migration), which doubles as the double-send guard.
+
+Setup: run `supabase/migrations/phase12_reviews.sql`, create a Gmail [app password](https://myaccount.google.com/apppasswords) (2-Step Verification must be on), and set `CRON_SECRET`, `GMAIL_USER`, and `GMAIL_APP_PASSWORD` in Vercel. To test against one account:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" \
+  "https://<your-deployment>/api/review-cron?dryRun=1&userId=<uid>&periodType=month&isoYear=2026&monthIndex=6"
+```
+
+Drop `dryRun=1` to actually generate and send that period; the normal daily run needs no parameters.
 
 ## 🧑‍💻 Development
 
