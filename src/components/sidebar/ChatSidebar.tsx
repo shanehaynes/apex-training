@@ -54,7 +54,7 @@ export default function ChatSidebar() {
     pendingAction, sendMessage, confirmAction, cancelAction, triggerInitial, abort,
   } = useChat();
   const { dispatch } = useCalendar();
-  const { anthropicKey } = useAuth();
+  const { anthropicKey, profile } = useAuth();
   // Known-missing key blocks the coach with a setup prompt; unknown (null,
   // e.g. offline mode or status still loading) doesn't — the server's 402
   // mapping in useChat is the backstop.
@@ -67,8 +67,10 @@ export default function ChatSidebar() {
   const today = useMemo(() => now(), []);
   const todayEvents = useMemo(() => getEventsForDate(today), [getEventsForDate, today]);
   const systemPrompt = useMemo(
-    () => buildSystemPrompt(todayEvents, events, today, definitions.values()),
-    [todayEvents, events, today, definitions],
+    () => buildSystemPrompt(todayEvents, events, today, definitions.values(), {
+      goal: profile?.coach_goal, context: profile?.coach_context,
+    }),
+    [todayEvents, events, today, definitions, profile],
   );
 
   const isEmpty = messages.length === 0 && !isLoading && !pendingAction;

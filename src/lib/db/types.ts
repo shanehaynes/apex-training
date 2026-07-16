@@ -19,6 +19,10 @@ export interface ProfileRow {
   id: string;
   display_name: string;
   avatar_key: AvatarKey;
+  /** Athletic goal for the AI coach ('' = not set). */
+  coach_goal: string;
+  /** Free-form athlete context for the AI coach ('' = not set). */
+  coach_context: string;
   is_template_source: boolean;
   template_copied_at: string | null;
   ics_token: string;

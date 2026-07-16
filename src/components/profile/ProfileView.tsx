@@ -6,10 +6,25 @@ import { useAuth } from '../../context/AuthContext';
 import { AVATARS, AVATAR_KEYS } from '../../lib/profile/avatars';
 import { postJson } from '../../lib/api';
 import { notify } from '../../lib/notify';
+import { useRotatingPlaceholder } from '../../hooks/useRotatingPlaceholder';
 import type { AvatarKey } from '../../lib/db/types';
 
 // Full-screen profile overlay, same pattern as LibraryView: fixed inset-0,
 // Escape closes, body scroll locked while open.
+
+// Ghost-text examples for the coach fields. The context rotation is offset
+// 4s from the goal's so the two placeholders never swap at the same moment.
+const GOAL_EXAMPLES = [
+  'Summit Everest',
+  'Win a local bodybuilding competition',
+  'Climb 5.13a',
+  'Run a sub-3-hour marathon',
+];
+const CONTEXT_EXAMPLES = [
+  'I am 54 with a history of lower back pain',
+  'I am a sprinter with shin splints',
+  'I am trying to fix a muscular asymmetry',
+];
 
 export default function ProfileView() {
   const { dispatch } = useCalendar();
@@ -21,6 +36,8 @@ export default function ProfileView() {
   const close = () => dispatch({ type: 'CLOSE_PROFILE' });
 
   const [name, setName] = useState(profile?.display_name ?? '');
+  const [goal, setGoal] = useState(profile?.coach_goal ?? '');
+  const [coachContext, setCoachContext] = useState(profile?.coach_context ?? '');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
@@ -44,6 +61,24 @@ export default function ProfileView() {
     const ok = await updateProfile({ displayName: trimmed });
     if (ok) notify('Name updated');
   };
+
+  // Unlike saveName, empty is a valid save — clearing a coach field is an edit.
+  const saveGoal = async () => {
+    const trimmed = goal.trim();
+    if (trimmed === (profile?.coach_goal ?? '')) return;
+    const ok = await updateProfile({ coachGoal: trimmed });
+    if (ok) notify('Goal updated');
+  };
+
+  const saveCoachContext = async () => {
+    const trimmed = coachContext.trim();
+    if (trimmed === (profile?.coach_context ?? '')) return;
+    const ok = await updateProfile({ coachContext: trimmed });
+    if (ok) notify('Context updated');
+  };
+
+  const goalPlaceholder = useRotatingPlaceholder(GOAL_EXAMPLES);
+  const contextPlaceholder = useRotatingPlaceholder(CONTEXT_EXAMPLES, { offsetMs: 4000 });
 
   const pickAvatar = (key: AvatarKey) => {
     if (key === profile?.avatar_key) return;
@@ -200,6 +235,34 @@ export default function ProfileView() {
 
         <section className="profile-section">
           <h3 className="profile-section__title">AI Coach</h3>
+          <p className="profile-hint">
+            Tell the coach what you're training for — it shapes every chat and
+            post-workout summary.
+          </p>
+          <label className="auth-field">
+            <span className="auth-field__label">Goal</span>
+            <input
+              className="auth-input"
+              value={goal}
+              onChange={e => setGoal(e.target.value)}
+              onBlur={saveGoal}
+              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+              maxLength={200}
+              placeholder={goalPlaceholder}
+            />
+          </label>
+          <label className="auth-field">
+            <span className="auth-field__label">Additional context</span>
+            <textarea
+              className="auth-input auth-input--textarea"
+              value={coachContext}
+              onChange={e => setCoachContext(e.target.value)}
+              onBlur={saveCoachContext}
+              maxLength={1000}
+              rows={3}
+              placeholder={contextPlaceholder}
+            />
+          </label>
           {anthropicKey === null ? (
             <p className="profile-hint">Checking key status…</p>
           ) : anthropicKey.hasKey && !isReplacingKey ? (

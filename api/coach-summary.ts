@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireUser } from './_lib/auth.js';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
 import { getAnthropicKey } from './_lib/anthropicKey.js';
+import { athleteSection } from '../src/lib/coach/prompt.js';
 
 // One-shot post-workout coach summary, running on the caller's own
 // Anthropic key (server-only user_api_keys table). PRs arrive pre-computed
@@ -53,12 +54,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  // Personalization is best-effort: a failed profile read degrades to the
+  // generic prompt rather than failing the summary.
+  let athlete = '';
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('coach_goal, coach_context')
+      .eq('id', userId)
+      .maybeSingle();
+    athlete = athleteSection(data?.coach_goal, data?.coach_context);
+  } catch (err) {
+    console.error('[api/coach-summary] profile read failed:', err instanceof Error ? err.message : err);
+  }
+
   try {
     const client = new Anthropic({ apiKey });
     const response = await client.messages.create({
       model: 'claude-opus-4-8',
       max_tokens: 300,
-      system: SYSTEM_PROMPT,
+      system: SYSTEM_PROMPT + athlete,
       messages: [{ role: 'user', content: body.recap }],
     });
 

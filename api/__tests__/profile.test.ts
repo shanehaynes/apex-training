@@ -185,3 +185,52 @@ describe('PATCH /api/profile — existing profile fields', () => {
     expect(statusCode()).toBe(400);
   });
 });
+
+describe('PATCH /api/profile — coach fields', () => {
+  it('accepts and trims coach_goal and coach_context', async () => {
+    const state: AdminState = { key: null };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', {
+      coach_goal: '  Run a sub-3-hour marathon  ',
+      coach_context: '  I am 54 with a history of lower back pain ',
+    }), res);
+    expect(statusCode()).toBe(200);
+    expect(state.profileUpdate).toMatchObject({
+      coach_goal: 'Run a sub-3-hour marathon',
+      coach_context: 'I am 54 with a history of lower back pain',
+    });
+  });
+
+  it('accepts empty strings — clearing a field is a valid edit', async () => {
+    const state: AdminState = { key: null };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { coach_goal: '', coach_context: '' }), res);
+    expect(statusCode()).toBe(200);
+    expect(state.profileUpdate).toMatchObject({ coach_goal: '', coach_context: '' });
+  });
+
+  it('400s an over-length coach_goal', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({ key: null }));
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('PATCH', { coach_goal: 'x'.repeat(201) }), res);
+    expect(statusCode()).toBe(400);
+    expect(body()).toBe('Invalid coach_goal');
+  });
+
+  it('400s an over-length coach_context', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({ key: null }));
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('PATCH', { coach_context: 'x'.repeat(1001) }), res);
+    expect(statusCode()).toBe(400);
+    expect(body()).toBe('Invalid coach_context');
+  });
+
+  it('400s non-string coach fields', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({ key: null }));
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { coach_goal: 42 }), res);
+    expect(statusCode()).toBe(400);
+  });
+});

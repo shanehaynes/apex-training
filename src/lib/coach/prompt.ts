@@ -6,11 +6,25 @@ import type { ExerciseDefinition, WorkoutEvent } from '../../types/workout';
 // completion-rate summary. Pure — computed client-side from ScheduleContext
 // data, unit-testable without React.
 
+// The user-authored profile fields (Profile → AI Coach), rendered as a
+// prompt section. Shared by the chat prompt below and api/coach-summary.ts
+// so both surfaces personalize identically. Empty when both fields are.
+export function athleteSection(goal?: string | null, context?: string | null): string {
+  const g = goal?.trim();
+  const c = context?.trim();
+  if (!g && !c) return '';
+  return `
+
+ABOUT THE ATHLETE:
+${g ? `Goal: ${g}\n` : ''}${c ? `Context: ${c}\n` : ''}Tailor programming, volume, and advice to this goal and context.`;
+}
+
 export function buildSystemPrompt(
   todayEvents: WorkoutEvent[],
   allEvents: WorkoutEvent[],
   today: Date,
   definitions: Iterable<ExerciseDefinition> = [],
+  athlete?: { goal?: string; context?: string },
 ): string {
   const dayName = format(today, 'EEEE, MMMM d, yyyy');
 
@@ -65,7 +79,7 @@ EXERCISE LIBRARY (canonical names):
 ${libraryNames.join(' · ')}
 When adding exercises to events, use EXACTLY these names to reference them. Any other name creates a NEW library entry — do that only for a genuinely new movement, never as a variant spelling of one above. Renaming or editing form cues on a library entry: use update_exercise_definition (propagates everywhere).`;
 
-  return `You are a terse, high-signal fitness coach in the user's training app. You have live schedule access and can create, update, or delete events via tools.
+  return `You are a terse, high-signal fitness coach in the user's training app. You have live schedule access and can create, update, or delete events via tools.${athleteSection(athlete?.goal, athlete?.context)}
 
 Today: ${dayName}
 

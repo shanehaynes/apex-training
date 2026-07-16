@@ -54,6 +54,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const body = req.body as {
     display_name?: unknown;
     avatar_key?: unknown;
+    coach_goal?: unknown;
+    coach_context?: unknown;
     anthropic_api_key?: unknown;
   } | undefined;
 
@@ -73,6 +75,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
     fields.avatar_key = body.avatar_key;
+  }
+
+  // Coach fields accept '' — clearing them is a valid edit.
+  if (body?.coach_goal !== undefined) {
+    if (typeof body.coach_goal !== 'string' || body.coach_goal.length > 200) {
+      res.status(400).send('Invalid coach_goal');
+      return;
+    }
+    fields.coach_goal = body.coach_goal.trim();
+  }
+
+  if (body?.coach_context !== undefined) {
+    if (typeof body.coach_context !== 'string' || body.coach_context.length > 1000) {
+      res.status(400).send('Invalid coach_context');
+      return;
+    }
+    fields.coach_context = body.coach_context.trim();
   }
 
   const hasKeyChange = body !== undefined && 'anthropic_api_key' in body;

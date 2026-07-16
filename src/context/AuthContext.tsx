@@ -161,18 +161,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [loadProfile]);
 
-  const updateProfile = useCallback(async (fields: { displayName?: string; avatarKey?: AvatarKey }): Promise<boolean> => {
+  const updateProfile = useCallback(async (fields: {
+    displayName?: string; avatarKey?: AvatarKey; coachGoal?: string; coachContext?: string;
+  }): Promise<boolean> => {
     if (!supabase) return false;
     try {
       await patchJson('/api/profile', {
         ...(fields.displayName !== undefined ? { display_name: fields.displayName } : {}),
         ...(fields.avatarKey !== undefined ? { avatar_key: fields.avatarKey } : {}),
+        ...(fields.coachGoal !== undefined ? { coach_goal: fields.coachGoal } : {}),
+        ...(fields.coachContext !== undefined ? { coach_context: fields.coachContext } : {}),
       }, 'Updating profile');
       // Optimistic local apply; the row is ours alone, no reconciliation needed.
       setProfile(prev => prev && {
         ...prev,
         ...(fields.displayName !== undefined ? { display_name: fields.displayName } : {}),
         ...(fields.avatarKey !== undefined ? { avatar_key: fields.avatarKey } : {}),
+        ...(fields.coachGoal !== undefined ? { coach_goal: fields.coachGoal } : {}),
+        ...(fields.coachContext !== undefined ? { coach_context: fields.coachContext } : {}),
       });
       return true;
     } catch {

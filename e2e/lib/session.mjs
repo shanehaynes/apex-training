@@ -39,6 +39,7 @@ export const DRIVER_USER = {
 export function driverProfile({ fresh = false } = {}) {
   return {
     id: 'driver-user', display_name: 'Driver', avatar_key: 'goat',
+    coach_goal: '', coach_context: '',
     is_template_source: false,
     template_copied_at: fresh ? null : '2000-01-01T00:00:00Z',
     ics_token: 'driver-ics-token',
