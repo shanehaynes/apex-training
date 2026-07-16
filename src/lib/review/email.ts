@@ -1,5 +1,5 @@
 import { addDays, format, parseISO } from 'date-fns';
-import { describeDatedRecord, formatMinutes, formatNumber, formatUnitMap, shortDate } from './formats.js';
+import { describeDatedRecord, formatMinutes, formatNumber, formatUnitMap, formatWeight, shortDate } from './formats.js';
 import type { ReviewStats, YearlyStats } from './types.js';
 
 // ─── Review email rendering ───────────────────────────────────────────────────
@@ -120,11 +120,11 @@ function buildSections(stats: ReviewStats): Section[] {
   const st = stats.strength;
   if (st.totalSets > 0) {
     const strength: Section = { title: 'Strength', details: [] };
-    if (st.tonnage > 0) strength.details.push(['Total weight moved', `${formatNumber(st.tonnage)} (weight × reps, as logged)`]);
+    if (st.tonnage > 0) strength.details.push(['Total weight moved', `${formatWeight(st.tonnage)} (weight × reps)`]);
     strength.details.push(['Sets · reps', `${st.totalSets} · ${formatNumber(st.totalReps)}`]);
     if (st.heaviestSet) {
       const h = st.heaviestSet;
-      strength.details.push(['Heaviest set', `${formatNumber(h.weight)} × ${h.reps} — ${h.exerciseName} (${shortDate(h.date)})`]);
+      strength.details.push(['Heaviest set', `${formatWeight(h.weight)} × ${h.reps} — ${h.exerciseName} (${shortDate(h.date)})`]);
     }
     if (st.topExercises.length > 0) {
       strength.details.push(['Most-trained', st.topExercises.map(e => `${e.exerciseName} (${e.sets})`).join(', ')]);
@@ -207,7 +207,7 @@ export function renderReviewEmail(
   const t = stats.totals;
   const tiles: Array<[string, string]> = [[String(t.sessionsCompleted), 'Sessions']];
   if (t.totalDurationMinutes > 0) tiles.push([formatMinutes(t.totalDurationMinutes), 'Training time']);
-  if (stats.strength.tonnage > 0) tiles.push([formatNumber(stats.strength.tonnage), 'Weight moved']);
+  if (stats.strength.tonnage > 0) tiles.push([formatWeight(stats.strength.tonnage), 'Weight moved']);
   if (Object.keys(stats.cardio.distanceByUnit).length > 0) tiles.push([formatUnitMap(stats.cardio.distanceByUnit), 'Distance']);
   if (Object.keys(stats.cardio.elevationByUnit).length > 0) tiles.push([formatUnitMap(stats.cardio.elevationByUnit), 'Elevation gain']);
   tiles.push([String(stats.prs.length), 'Personal records']);

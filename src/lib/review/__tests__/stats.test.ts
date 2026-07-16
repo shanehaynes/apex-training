@@ -104,6 +104,32 @@ describe('computePeriodPRs', () => {
     expect(computePeriodPRs([makeSet('2026-05-20', 'Deadlift', '140', '3')], [], MONTH)).toHaveLength(0);
   });
 
+  it('reads a bare-number duration as minutes (a stretch "2" is 2:00)', () => {
+    const prs = computePeriodPRs(
+      [
+        makeSet('2026-04-01', 'Hamstring Stretch', null, null, { actual_duration: '1' }), // 1:00
+        makeSet('2026-05-20', 'Hamstring Stretch', null, null, { actual_duration: '2' }), // 2:00 → PR
+      ],
+      [],
+      MONTH,
+    );
+    expect(prs).toHaveLength(1);
+    expect(prs[0]).toMatchObject({ kind: 'duration', seconds: 120, previousSeconds: 60 });
+  });
+
+  it('does not PR when a bare-minute value loses to an earlier colon time', () => {
+    // Prior "2" = 2:00 (120s); later "1:30" = 90s is a regression, not a PR.
+    const prs = computePeriodPRs(
+      [
+        makeSet('2026-04-01', 'Hamstring Stretch', null, null, { actual_duration: '2' }),
+        makeSet('2026-05-20', 'Hamstring Stretch', null, null, { actual_duration: '1:30' }),
+      ],
+      [],
+      MONTH,
+    );
+    expect(prs).toHaveLength(0);
+  });
+
   it('ignores bests set before the period', () => {
     const prs = computePeriodPRs(
       [makeSet('2026-03-01', 'Squat', '120', '5'), makeSet('2026-04-01', 'Squat', '130', '5')],

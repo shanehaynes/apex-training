@@ -59,7 +59,7 @@ describe('renderReviewEmail — monthly', () => {
     const { html, text } = renderReviewEmail(stats, null, 'Shane');
     for (const body of [html, text]) {
       expect(body).toContain('Bench Press');
-      expect(body).toContain('550'); // tonnage 110×5
+      expect(body).toContain('550 lb'); // tonnage 110×5, labeled pounds
       expect(body).toContain('Shane');
     }
     expect(html).toContain('month 6 of 13');

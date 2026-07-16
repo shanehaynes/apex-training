@@ -1,4 +1,4 @@
-import { describeDatedRecord, formatMinutes, formatNumber, formatUnitMap, shortDate } from './formats.js';
+import { describeDatedRecord, formatMinutes, formatNumber, formatUnitMap, formatWeight, shortDate } from './formats.js';
 import type { ReviewStats, YearlyStats } from './types.js';
 
 // ─── AI recap: the model's entire view of the period ─────────────────────────
@@ -62,12 +62,12 @@ function statsBody(stats: ReviewStats): string[] {
     lines.push('');
     lines.push('Strength:');
     if (st.tonnage > 0) {
-      lines.push(`Total weight moved: ${formatNumber(st.tonnage)} (sum of weight × reps, in units as logged)`);
+      lines.push(`Total weight moved: ${formatWeight(st.tonnage)} (sum of weight × reps)`);
     }
     lines.push(`Sets: ${st.totalSets}, reps: ${formatNumber(st.totalReps)}`);
     if (st.heaviestSet) {
       const h = st.heaviestSet;
-      lines.push(`Heaviest set: ${formatNumber(h.weight)} × ${h.reps} — ${h.exerciseName} (${shortDate(h.date)})`);
+      lines.push(`Heaviest set: ${formatWeight(h.weight)} × ${h.reps} — ${h.exerciseName} (${shortDate(h.date)})`);
     }
     if (st.topExercises.length > 0) {
       lines.push(`Most-trained: ${st.topExercises.map(e => `${e.exerciseName} (${e.sets} sets)`).join(', ')}`);

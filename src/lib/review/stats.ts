@@ -52,6 +52,16 @@ export function buildReviewPeriod(periodType: PeriodType, isoYear: number, month
 const inPeriod = (date: string, period: ReviewPeriod) =>
   date >= period.startDate && date < period.endDateExclusive;
 
+/**
+ * By convention a duration logged as a bare number means MINUTES (a stretch
+ * or hold tracked as "2" is 2:00, not 2 seconds). The shared duration parser
+ * treats a bare number as seconds, so tag it as minutes before classifying —
+ * scoped to the review so the live tracker's parsing is unchanged.
+ */
+function minutesForBareDuration(value: string | null): string | null {
+  return value && /^\s*\d+(?:\.\d+)?\s*$/.test(value) ? `${value.trim()} min` : value;
+}
+
 // ─── PR detection: single ordered scan ────────────────────────────────────────
 // The tracker computes PRs per session against all prior history
 // (computeSessionPRs); a review period needs the same semantics across many
@@ -93,7 +103,7 @@ export function computePeriodPRs(
 
     for (const row of rows) {
       if (row.is_autofilled) continue;
-      const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration);
+      const set = classifySet(row.actual_weight, row.actual_reps, minutesForBareDuration(row.actual_duration));
       if (!set) continue;
       const name = row.exercise_name;
       if (set.kind === 'oneRM') {
@@ -284,7 +294,7 @@ function computeStrengthStats(setLogs: SetLogRow[], period: ReviewPeriod): Stren
 
   for (const row of setLogs) {
     if (row.is_autofilled || !inPeriod(row.event_date, period)) continue;
-    const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration);
+    const set = classifySet(row.actual_weight, row.actual_reps, minutesForBareDuration(row.actual_duration));
     if (!set) continue;
     totalSets += 1;
     setsByExercise.set(row.exercise_name, (setsByExercise.get(row.exercise_name) ?? 0) + 1);

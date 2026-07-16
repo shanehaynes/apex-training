@@ -70,10 +70,9 @@ export interface CardioStats {
 
 export interface StrengthStats {
   /**
-   * Σ weight × reps over weighted sets. Weights are summed as bare numbers
-   * in whatever unit they were logged ("185lb" and "84 kg" both contribute
-   * their number) — the repo never normalizes weight units, so label this
-   * "total weight moved" without a unit.
+   * Σ weight × reps over weighted sets, summed as bare numbers. By convention
+   * the app treats logged weights as pounds, so this is rendered as "… lb"
+   * (see formatWeight); a stray "84 kg" entry would contribute its bare 84.
    */
   tonnage: number;
   totalSets: number;

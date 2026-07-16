@@ -9,6 +9,14 @@ export function formatNumber(n: number): string {
   return n.toLocaleString('en-US', { maximumFractionDigits: 1 });
 }
 
+/**
+ * Weights are logged as bare numbers in mixed units, but by convention the
+ * app treats them as pounds — so weight figures carry an explicit "lb".
+ */
+export function formatWeight(n: number): string {
+  return `${formatNumber(n)} lb`;
+}
+
 export function formatMinutes(totalMinutes: number): string {
   const minutes = Math.round(totalMinutes);
   const h = Math.floor(minutes / 60);
