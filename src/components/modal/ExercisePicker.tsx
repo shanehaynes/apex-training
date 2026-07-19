@@ -15,7 +15,7 @@ interface Props {
   initialCategory?: ExerciseCategory;
 }
 
-const CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobility', 'skill', 'cardio'];
+const CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobility', 'skill', 'cardio', 'climbing'];
 
 function defaultsPreview(def: ExerciseDefinition): string {
   const parts: string[] = [];

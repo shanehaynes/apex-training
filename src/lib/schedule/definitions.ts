@@ -116,6 +116,8 @@ export interface PrescriptionOverrides {
   weight?: string;
   restPeriod?: string;
   notes?: string;
+  climbStyle?: Exercise['climbStyle'];
+  grade?: string;
 }
 
 /**
@@ -140,6 +142,8 @@ export function entryFromDefinition(
     weight: overrides.weight ?? def.defaultWeight,
     restPeriod: overrides.restPeriod ?? def.defaultRest,
     notes: overrides.notes,
+    climbStyle: overrides.climbStyle,
+    grade: overrides.grade,
   };
 }
 

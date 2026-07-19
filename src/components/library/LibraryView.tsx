@@ -9,7 +9,7 @@ import { lastPerformedByCanonical } from '../../lib/library/stats';
 import ExerciseDetail from './ExerciseDetail';
 import type { ExerciseCategory, ExerciseDefinition } from '../../types/workout';
 
-const CATEGORY_FILTERS: (ExerciseCategory | 'all')[] = ['all', 'strength', 'stretch', 'mobility', 'skill', 'cardio'];
+const CATEGORY_FILTERS: (ExerciseCategory | 'all')[] = ['all', 'strength', 'stretch', 'mobility', 'skill', 'cardio', 'climbing'];
 
 export default function LibraryView() {
   const { state, dispatch } = useCalendar();

@@ -68,6 +68,11 @@ describe('resolvePlannedSets', () => {
     expect(resolvePlannedSets(stretch)).toHaveLength(1);
   });
 
+  it('gives a climbing pitch one set with the grade as its target', () => {
+    const pitch: Exercise = { id: 'pitch', name: 'Sport', category: 'climbing', climbStyle: 'sport', grade: '5.11a' };
+    expect(resolvePlannedSets(pitch)).toEqual([{ setNumber: 1, targetWeight: '5.11a' }]);
+  });
+
   it('prefers authored plannedSets over synthesis (ramps)', () => {
     const ramp: Exercise = {
       ...strength,
@@ -92,6 +97,18 @@ describe('buildTrackerModel', () => {
     expect(main.exercises[1].isCardio).toBe(true);
     expect(main.exercises[1].sets).toHaveLength(0);
     expect(main.exercises[1].cardio).not.toBeNull();
+  });
+
+  it('relabels sections for outdoor climbing events', () => {
+    const pitch: Exercise = { id: 'p1', name: 'Trad', category: 'climbing', climbStyle: 'trad', grade: '5.9' };
+    const approach: Exercise = { id: 'appr', name: 'Approach Hike', category: 'cardio', duration: '40 min' };
+    const groups = buildTrackerModel(makeEvent({
+      type: 'outdoor-climbing', warmup: [approach], exercises: [pitch], cooldown: [approach],
+    }));
+    expect(groups.map(g => g.label)).toEqual(['Approach', 'Pitches', 'Descent']);
+    expect(groups[0].exercises[0].isCardio).toBe(true);
+    expect(groups[1].exercises[0].sets).toHaveLength(1);
+    expect(groups[1].exercises[0].sets[0].planned.targetWeight).toBe('5.9');
   });
 
   it('hydrates saved set logs including extra sets beyond the plan', () => {

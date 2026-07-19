@@ -62,6 +62,7 @@ run_sql_file supabase/migrations/phase13_avatars.sql
 run_sql_file supabase/migrations/phase14_avatars.sql
 run_sql_file supabase/migrations/phase15_cat_cow_single_duration.sql
 run_sql_file supabase/migrations/phase16_coach_profile_fields.sql
+run_sql_file supabase/migrations/phase17_outdoor_climbing.sql
 
 # Fallback: apply any stray timestamped migration last, in name order. The
 # convention is phaseN (see header) so this normally matches nothing.

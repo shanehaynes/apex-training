@@ -26,6 +26,7 @@ export function rowToEvent(row: WorkoutEventRow): WorkoutEvent {
     location:          row.location ?? undefined,
     coverImageUrl:     row.cover_image_url ?? undefined,
     cardioTargets:     (row.cardio_targets ?? undefined) as WorkoutEvent['cardioTargets'],
+    climbingTargets:   (row.climbing_targets ?? undefined) as WorkoutEvent['climbingTargets'],
     tags:              row.tags ?? [],
     equipment:         row.equipment ?? [],
     isCompleted:       false,
@@ -69,6 +70,7 @@ const EVENT_FIELDS: {
   // Key omitted when unset so inserts keep working before the phase 9
   // cardio_targets column migration has been applied.
   cardioTargets:     v => (v === undefined ? {} : { cardio_targets: v }),
+  climbingTargets:   v => (v === undefined ? {} : { climbing_targets: v }),
   tags:              v => ({ tags: v ?? [] }),
   equipment:         v => ({ equipment: v ?? [] }),
   isRecurring:       v => ({ is_recurring: v as boolean }),

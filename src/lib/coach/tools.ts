@@ -62,6 +62,8 @@ interface ExerciseInput {
   weight?: string;
   rest_period?: string;
   notes?: string;
+  climb_style?: Exercise['climbStyle'];
+  grade?: string;
 }
 
 /** Names in the input that match no library entry (case-insensitively) — i.e. would be created. */
@@ -102,6 +104,7 @@ async function buildExerciseEntries(
     const overrides = {
       sets: input.sets, reps: input.reps, duration: input.duration,
       weight: input.weight, restPeriod: input.rest_period, notes: input.notes,
+      climbStyle: input.climb_style, grade: input.grade,
     };
     let def = matchDefinitionByName(input.name, deps.definitions.values());
     if (!def) {
@@ -123,6 +126,7 @@ async function buildExerciseEntries(
           category: input.category ?? 'strength',
           sets: input.sets, reps: input.reps, duration: input.duration,
           weight: input.weight, restPeriod: input.rest_period, notes: input.notes,
+          climbStyle: input.climb_style, grade: input.grade,
         });
         continue;
       }

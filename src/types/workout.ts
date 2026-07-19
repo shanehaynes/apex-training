@@ -3,8 +3,12 @@ export type WorkoutType =
   | 'morning-routine'
   | 'weights'
   | 'climbing'
+  | 'outdoor-climbing'
   | 'cardio'
   | 'yoga';
+
+/** Climbing discipline for a pitch (an exercise entry with category 'climbing'). */
+export type ClimbStyle = 'sport' | 'trad' | 'boulder' | 'ice-mixed';
 
 /**
  * Per-set planned target, for ramps/pyramids where sets differ. When absent,
@@ -18,7 +22,7 @@ export interface PlannedSet {
   targetDuration?: string;
 }
 
-export type ExerciseCategory = 'strength' | 'stretch' | 'cardio' | 'skill' | 'mobility';
+export type ExerciseCategory = 'strength' | 'stretch' | 'cardio' | 'skill' | 'mobility' | 'climbing';
 
 /**
  * One row per movement in the exercise library (see EXERCISE_LIBRARY_SPEC.md).
@@ -64,6 +68,9 @@ export interface Exercise {
   weight?: string;
   restPeriod?: string;
   plannedSets?: PlannedSet[];
+  /** Climbing pitches only: the discipline and the grade — their whole prescription. */
+  climbStyle?: ClimbStyle;
+  grade?: string;
   /** Day-specific intent ("last set AMRAP"). Form cues live on the definition. */
   notes?: string;
   imageUrl?: string;
@@ -80,6 +87,16 @@ export interface CardioTargets {
   distance?: string;
   elevationGain?: string;
   avgHeartRate?: number;
+}
+
+/**
+ * Planned session targets for an outdoor climbing event. Fields left unset
+ * are derived from the pitch list at display time (src/lib/climbing.ts) —
+ * never persisted back.
+ */
+export interface ClimbingTargets {
+  maxGrade?: string;
+  totalPitches?: number;
 }
 
 export interface WorkoutEvent {
@@ -100,6 +117,8 @@ export interface WorkoutEvent {
   coverImageUrl?: string;
   /** Planned session targets for cardio events (actuals live in workout_cardio_logs). */
   cardioTargets?: CardioTargets;
+  /** Planned session targets for outdoor climbing events. */
+  climbingTargets?: ClimbingTargets;
   tags: string[];
   equipment?: string[];
   isCompleted: boolean;

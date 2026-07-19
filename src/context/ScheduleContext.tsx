@@ -276,6 +276,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       warmup:            input.warmup,
       cooldown:          input.cooldown,
       cardioTargets:     input.cardioTargets,
+      climbingTargets:   input.climbingTargets,
       isCompleted:       completedOnCreate,
       isRecurring:       false,
     };

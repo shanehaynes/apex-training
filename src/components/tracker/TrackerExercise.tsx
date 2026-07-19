@@ -38,6 +38,9 @@ function lastLabel(last: LastSetActuals): string {
 // Which actual inputs an exercise gets, derived from the union of its
 // planned targets (reps as the fallback so every set has something to log).
 function inputFields(tracked: TrackedExercise): SetField[] {
+  // A pitch logs exactly one thing: the grade (stored in the weight column —
+  // see resolvePlannedSets).
+  if (tracked.exercise.category === 'climbing') return ['actualWeight'];
   const planned = resolvePlannedSets(tracked.exercise);
   const fields: SetField[] = [];
   if (planned.some(p => p.targetWeight)) fields.push('actualWeight');
@@ -68,6 +71,8 @@ const LAST_FIELD: Record<SetField, keyof LastSetActuals> = {
 function SetRow({
   set,
   fields,
+  labels,
+  freeText,
   last,
   showLast,
   lastDate,
@@ -76,6 +81,9 @@ function SetRow({
 }: {
   set: TrackedSet;
   fields: SetField[];
+  labels: Record<SetField, string>;
+  /** Text keyboard instead of decimal — climbing grades mix digits and letters. */
+  freeText?: boolean;
   last?: LastSetActuals;
   showLast: boolean;
   lastDate?: string;
@@ -111,7 +119,7 @@ function SetRow({
           <DurationInput
             key={field}
             className={`tracker-input ${FIELD_CLASS[field]}`}
-            ariaLabel={`Set ${set.setNumber} ${FIELD_LABEL[field]}`}
+            ariaLabel={`Set ${set.setNumber} ${labels[field]}`}
             value={set[field]}
             onChange={value => onChange(field, value)}
           />
@@ -120,8 +128,8 @@ function SetRow({
             key={field}
             className={`tracker-input ${FIELD_CLASS[field]}`}
             type="text"
-            inputMode="decimal"
-            aria-label={`Set ${set.setNumber} ${FIELD_LABEL[field]}`}
+            inputMode={freeText ? 'text' : 'decimal'}
+            aria-label={`Set ${set.setNumber} ${labels[field]}`}
             value={set[field]}
             onChange={e => onChange(field, e.target.value)}
           />
@@ -156,6 +164,8 @@ export default function TrackerExercise({
 }: Props) {
   const { exercise } = tracked;
   const fields = inputFields(tracked);
+  const isClimb = exercise.category === 'climbing';
+  const labels: Record<SetField, string> = isClimb ? { ...FIELD_LABEL, actualWeight: 'grade' } : FIELD_LABEL;
   const showLast = !!last;
   const lastDate = last ? format(parseISO(last.date), 'MMM d') : undefined;
 
@@ -199,7 +209,7 @@ export default function TrackerExercise({
             <div className="tracker-set__inputs">
               {fields.map(field => (
                 <span key={field} className={`tracker-input-label ${FIELD_CLASS[field]}`}>
-                  {FIELD_LABEL[field]}
+                  {labels[field]}
                 </span>
               ))}
             </div>
@@ -210,6 +220,8 @@ export default function TrackerExercise({
               key={set.setNumber}
               set={set}
               fields={fields}
+              labels={labels}
+              freeText={isClimb}
               last={last?.sets.get(set.setNumber)}
               showLast={showLast}
               lastDate={lastDate}

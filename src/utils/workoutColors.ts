@@ -27,7 +27,14 @@ export const WORKOUT_COLORS: Record<WorkoutType, WorkoutColorConfig> = {
     light:  'rgba(34, 139, 34, 0.2)',
     glow:   '0 0 20px rgba(34, 139, 34, 0.45)',
     border: '#2eb82e',
-    label:  'Climbing',
+    label:  'Indoor Climbing',
+  },
+  'outdoor-climbing': {
+    solid:  '#2c5f8a',
+    light:  'rgba(44, 95, 138, 0.2)',
+    glow:   '0 0 20px rgba(44, 95, 138, 0.45)',
+    border: '#4a86b8',
+    label:  'Outdoor Climbing',
   },
   'cardio': {
     solid:  '#2d6a4f',

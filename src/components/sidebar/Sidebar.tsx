@@ -14,7 +14,7 @@ const RANGE_OPTIONS: { label: string; value: DateRange }[] = [
   { label: 'All Time', value: 'all' },
 ];
 
-const TYPE_ORDER: WorkoutType[] = ['weights', 'climbing', 'morning-routine', 'stretching', 'cardio', 'yoga'];
+const TYPE_ORDER: WorkoutType[] = ['weights', 'climbing', 'outdoor-climbing', 'morning-routine', 'stretching', 'cardio', 'yoga'];
 
 function StatCard({ label, value, mono = false }: { label: string; value: string | number; mono?: boolean }) {
   return (

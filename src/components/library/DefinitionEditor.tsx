@@ -12,7 +12,7 @@ interface Props {
   onClose: () => void;
 }
 
-const CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobility', 'skill', 'cardio'];
+const CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobility', 'skill', 'cardio', 'climbing'];
 
 const splitList = (value: string) => value.split(',').map(s => s.trim()).filter(Boolean);
 

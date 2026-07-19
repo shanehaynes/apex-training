@@ -1,5 +1,6 @@
 import type { Exercise, PlannedSet, WorkoutEvent } from '../../types/workout';
 import type { CardioLogRow, SetLogRow, TrackedSection } from '../db/types';
+import { sectionLabels } from '../climbing';
 import { parseDurationSeconds } from './records';
 
 // ─── Tracker form model ───────────────────────────────────────────────────────
@@ -51,6 +52,12 @@ export interface TrackedSectionGroup {
  * reps/weight/duration strings. Old events keep working with no backfill.
  */
 export function resolvePlannedSets(exercise: Exercise): PlannedSet[] {
+  // A climbing pitch is one set whose target grade rides the free-text
+  // weight column — the whole set-log pipeline works unchanged, and PR
+  // detection never fires on it (classifySet needs weight AND reps).
+  if (exercise.category === 'climbing') {
+    return [{ setNumber: 1, targetWeight: exercise.grade }];
+  }
   if (exercise.plannedSets?.length) return exercise.plannedSets;
   const count = exercise.sets && exercise.sets > 0 ? exercise.sets : 1;
   return Array.from({ length: count }, (_, i) => ({
@@ -80,10 +87,10 @@ export function makeExtraSet(setNumber: number): TrackedSet {
 
 // ─── Model construction ───────────────────────────────────────────────────────
 
-const SECTION_SOURCES: { section: TrackedSection; label: string; pick: (e: WorkoutEvent) => Exercise[] }[] = [
-  { section: 'warmup',   label: 'Warm-Up',   pick: e => e.warmup ?? [] },
-  { section: 'exercise', label: 'Main Work', pick: e => e.exercises },
-  { section: 'cooldown', label: 'Cool-Down', pick: e => e.cooldown ?? [] },
+const SECTION_SOURCES: { section: TrackedSection; labelKey: 'warmup' | 'exercises' | 'cooldown'; pick: (e: WorkoutEvent) => Exercise[] }[] = [
+  { section: 'warmup',   labelKey: 'warmup',    pick: e => e.warmup ?? [] },
+  { section: 'exercise', labelKey: 'exercises', pick: e => e.exercises },
+  { section: 'cooldown', labelKey: 'cooldown',  pick: e => e.cooldown ?? [] },
 ];
 
 export function buildTrackerModel(
@@ -96,10 +103,11 @@ export function buildTrackerModel(
   const setsByKey = new Map(savedSets.map(r => [setKey(r.section, r.exercise_id, r.set_number), r]));
   const cardioByKey = new Map(savedCardio.map(r => [`${r.section}|${r.exercise_id}`, r]));
 
+  const labels = sectionLabels(event.type);
   return SECTION_SOURCES
-    .map(({ section, label, pick }) => ({
+    .map(({ section, labelKey, pick }) => ({
       section,
-      label,
+      label: labels[labelKey],
       exercises: pick(event).map((exercise): TrackedExercise => {
         if (exercise.category === 'cardio') {
           const row = cardioByKey.get(`${section}|${exercise.id}`);

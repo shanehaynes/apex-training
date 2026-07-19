@@ -5,17 +5,14 @@ import { useSchedule } from '../../context/ScheduleContext';
 import { baseIdOf, isOccurrenceId } from '../../lib/schedule/occurrence';
 import { entryFromDefinition, hasPerSideCount, uniqueEntryId } from '../../lib/schedule/definitions';
 import { notify } from '../../lib/notify';
+import { CLIMB_STYLES, climbStyleLabel, sectionLabels } from '../../lib/climbing';
 import ExercisePicker from './ExercisePicker';
-import type { Exercise, ExerciseCategory, ExerciseDefinition, WorkoutEvent } from '../../types/workout';
+import type { ClimbStyle, Exercise, ExerciseCategory, ExerciseDefinition, WorkoutEvent, WorkoutType } from '../../types/workout';
 
 export type SectionKey = 'warmup' | 'exercises' | 'cooldown';
 export type SectionLists = Record<SectionKey, Exercise[]>;
 
-const SECTIONS: { key: SectionKey; label: string }[] = [
-  { key: 'warmup', label: 'Warm-Up' },
-  { key: 'exercises', label: 'Main Work' },
-  { key: 'cooldown', label: 'Cool-Down' },
-];
+const SECTION_KEYS: SectionKey[] = ['warmup', 'exercises', 'cooldown'];
 
 const PRESCRIPTION_FIELDS = ['sets', 'reps', 'duration', 'weight', 'restPeriod'] as const;
 
@@ -57,6 +54,30 @@ function EditorCard({
           <X size={14} strokeWidth={1.5} />
         </button>
       </div>
+      {entry.category === 'climbing' ? (
+        <div className="editor-card__prescription">
+          <label className="editor-field">
+            <span>Style</span>
+            <select
+              value={entry.climbStyle ?? 'sport'}
+              onChange={e => {
+                const style = e.target.value as ClimbStyle;
+                onChange({ climbStyle: style, name: climbStyleLabel(style) });
+              }}
+            >
+              {CLIMB_STYLES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </label>
+          <label className="editor-field">
+            <span>Grade</span>
+            <input
+              value={entry.grade ?? ''}
+              placeholder="5.11a / V5 / WI4"
+              onChange={e => onChange({ grade: e.target.value || undefined })}
+            />
+          </label>
+        </div>
+      ) : (
       <div className="editor-card__prescription">
         <label className="editor-field">
           <span>Sets</span>
@@ -86,6 +107,7 @@ function EditorCard({
           <input value={entry.restPeriod ?? ''} onChange={e => onChange({ restPeriod: e.target.value || undefined })} />
         </label>
       </div>
+      )}
       {error && <p className="editor-card__error">{error}</p>}
     </Reorder.Item>
   );
@@ -118,6 +140,8 @@ interface SectionsProps {
   errors: Map<string, string>;
   /** Pre-selects the library picker's category filter (clearable to all). */
   pickerCategory?: ExerciseCategory;
+  /** Drives section labels and outdoor-climbing behavior (pitches, cardio approach/descent). */
+  workoutType?: WorkoutType;
 }
 
 /**
@@ -126,9 +150,23 @@ interface SectionsProps {
  * State lives in the caller — used against a saved event by the default
  * export below and against a draft by the add-event composer. Entry ids never
  * change — logged sets key on them (see uniqueEntryId).
+ *
+ * Outdoor climbing repurposes the sections: warm-up becomes the Approach and
+ * cool-down the Descent (both picked from cardio), and main work is a pitch
+ * list — one climbing entry per pitch, added directly instead of via the
+ * library picker.
  */
-export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory }: SectionsProps) {
+export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory, workoutType }: SectionsProps) {
   const [pickerSection, setPickerSection] = useState<SectionKey | null>(null);
+
+  const outdoor = workoutType === 'outdoor-climbing';
+  const labels = sectionLabels(workoutType);
+  const sections = SECTION_KEYS.map(key => ({
+    key,
+    label: labels[key],
+    pickerCategory: outdoor && key !== 'exercises' ? 'cardio' as const : pickerCategory,
+    pitchMode: outdoor && key === 'exercises',
+  }));
 
   const allIds = useMemo(
     () => Object.values(lists).flat().map(e => e.id),
@@ -137,6 +175,19 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
 
   const setSection = (key: SectionKey, entries: Exercise[]) =>
     onChange({ ...lists, [key]: entries });
+
+  const addPitch = (key: SectionKey) => {
+    // New pitches inherit the previous pitch's style — multi-pitch days
+    // rarely switch disciplines between pitches.
+    const style: ClimbStyle = lists[key].filter(e => e.category === 'climbing').at(-1)?.climbStyle ?? 'sport';
+    const entry: Exercise = {
+      id: uniqueEntryId('pitch', allIds),
+      name: climbStyleLabel(style),
+      category: 'climbing',
+      climbStyle: style,
+    };
+    setSection(key, [...lists[key], entry]);
+  };
 
   const updateEntry = (key: SectionKey, id: string, patch: Partial<Exercise>) => {
     setSection(key, lists[key].map(e => {
@@ -155,7 +206,7 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
 
   return (
     <>
-      {SECTIONS.map(({ key, label }) => (
+      {sections.map(({ key, label, pitchMode }) => (
         <div key={key} className="modal-section">
           <div className="modal-section__header">
             <span className="modal-section__line" />
@@ -178,9 +229,15 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
               />
             ))}
           </Reorder.Group>
-          <button className="exercise-editor__add" onClick={() => setPickerSection(key)}>
-            <Plus size={14} strokeWidth={1.5} /> Add exercise
-          </button>
+          {pitchMode ? (
+            <button className="exercise-editor__add" onClick={() => addPitch(key)}>
+              <Plus size={14} strokeWidth={1.5} /> Add pitch
+            </button>
+          ) : (
+            <button className="exercise-editor__add" onClick={() => setPickerSection(key)}>
+              <Plus size={14} strokeWidth={1.5} /> Add exercise
+            </button>
+          )}
         </div>
       ))}
 
@@ -188,7 +245,7 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
         <ExercisePicker
           onSelect={addFromDefinition}
           onClose={() => setPickerSection(null)}
-          initialCategory={pickerCategory}
+          initialCategory={sections.find(s => s.key === pickerSection)?.pickerCategory}
         />
       )}
     </>
@@ -241,7 +298,7 @@ export default function EventExerciseEditor({ event, accentColor, onDone }: Prop
         </p>
       )}
 
-      <ExerciseSectionsEditor lists={lists} onChange={setLists} errors={errors} />
+      <ExerciseSectionsEditor lists={lists} onChange={setLists} errors={errors} workoutType={event.type} />
 
       <div className="exercise-editor__bar">
         <button className="exercise-editor__cancel" onClick={onDone} disabled={saving}>Cancel</button>

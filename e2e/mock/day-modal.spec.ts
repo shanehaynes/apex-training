@@ -21,7 +21,7 @@ test('day modal, composer flow, and pre-filtered exercise picker', async ({ page
   // Reopen and go to the add-event composer.
   await page.locator('.day-cell:has(.event-chip) .day-cell__date-btn').first().click();
   await page.locator('.day-modal__add').click();
-  await expect(page.locator('.composer-type-card')).toHaveCount(6);
+  await expect(page.locator('.composer-type-card')).toHaveCount(7);
   await shot(page, 'composer-types');
 
   // Pick Strength → details form with the exercise sections.

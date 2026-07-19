@@ -49,7 +49,7 @@ ALTER TABLE workout_completion_log  DISABLE ROW LEVEL SECURITY;
 -- structure is complex and query patterns never need to filter inside them.
 CREATE TABLE IF NOT EXISTS workout_events (
   id                  TEXT        PRIMARY KEY,
-  type                TEXT        NOT NULL CHECK (type IN ('stretching','morning-routine','weights','climbing','cardio','yoga')),
+  type                TEXT        NOT NULL CHECK (type IN ('stretching','morning-routine','weights','climbing','outdoor-climbing','cardio','yoga')),
   title               TEXT        NOT NULL,
   subtitle            TEXT,
   date                DATE        NOT NULL,
@@ -76,6 +76,9 @@ CREATE TABLE IF NOT EXISTS workout_events (
 -- Phase 9: planned cardio targets ({ distance, elevationGain, avgHeartRate }).
 -- Idempotent so re-running the schema upgrades existing databases.
 ALTER TABLE workout_events ADD COLUMN IF NOT EXISTS cardio_targets JSONB;
+
+-- Phase 17: planned outdoor-climbing targets ({ maxGrade, totalPitches }).
+ALTER TABLE workout_events ADD COLUMN IF NOT EXISTS climbing_targets JSONB;
 
 CREATE INDEX IF NOT EXISTS idx_we_date ON workout_events (date);
 CREATE INDEX IF NOT EXISTS idx_we_type ON workout_events (type, date);

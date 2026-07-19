@@ -19,6 +19,7 @@ export interface CreateEventInput {
   warmup?: WorkoutEvent['warmup'];
   cooldown?: WorkoutEvent['cooldown'];
   cardioTargets?: WorkoutEvent['cardioTargets'];
+  climbingTargets?: WorkoutEvent['climbingTargets'];
 }
 
 export interface UpdateEventInput {

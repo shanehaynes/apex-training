@@ -18,7 +18,7 @@ export const EXERCISE_INPUT_SCHEMA = {
     type: 'object' as const,
     properties: {
       name:          { type: 'string' },
-      category:      { type: 'string', enum: ['strength', 'stretch', 'cardio', 'skill', 'mobility'], description: 'Only used when creating a new library entry.' },
+      category:      { type: 'string', enum: ['strength', 'stretch', 'cardio', 'skill', 'mobility', 'climbing'], description: 'Only used when creating a new library entry.' },
       muscle_groups: { type: 'array', items: { type: 'string' }, description: 'Only used when creating a new library entry.' },
       sets:          { type: 'number' },
       reps:          { type: 'string', description: 'Per side for unilateral movements — "5 each leg", never a bare number.' },
@@ -26,6 +26,8 @@ export const EXERCISE_INPUT_SCHEMA = {
       weight:        { type: 'string' },
       rest_period:   { type: 'string' },
       notes:         { type: 'string', description: 'Day-specific intent only — form cues live on the library entry.' },
+      climb_style:   { type: 'string', enum: ['sport', 'trad', 'boulder', 'ice-mixed'], description: 'Climbing pitches only (outdoor climbing events: one entry per pitch).' },
+      grade:         { type: 'string', description: 'Climbing pitches only — e.g. "5.11a", "V5", "WI4".' },
     },
     required: ['name'],
   },
@@ -76,7 +78,8 @@ export const createEventSchema: Anthropic.Tool = {
     properties: {
       type: {
         type: 'string',
-        enum: ['stretching', 'morning-routine', 'weights', 'climbing', 'cardio', 'yoga'],
+        enum: ['stretching', 'morning-routine', 'weights', 'climbing', 'outdoor-climbing', 'cardio', 'yoga'],
+        description: '"climbing" is indoor; "outdoor-climbing" events hold one exercise entry per pitch, with a cardio approach/descent as warmup/cooldown.',
       },
       title: { type: 'string' },
       date: { type: 'string', description: 'YYYY-MM-DD' },
@@ -132,7 +135,7 @@ export const updateExerciseDefinitionSchema: Anthropic.Tool = {
         description: 'Only include fields that should change.',
         properties: {
           canonical_name:   { type: 'string' },
-          category:         { type: 'string', enum: ['strength', 'stretch', 'cardio', 'skill', 'mobility'] },
+          category:         { type: 'string', enum: ['strength', 'stretch', 'cardio', 'skill', 'mobility', 'climbing'] },
           muscle_groups:    { type: 'array', items: { type: 'string' } },
           equipment:        { type: 'array', items: { type: 'string' } },
           technique_notes:  { type: 'string' },

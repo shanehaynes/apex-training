@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, X, Dumbbell, Mountain, HeartPulse, Flower2, Sunrise, StretchHorizontal } from 'lucide-react';
+import { ArrowLeft, X, Dumbbell, Mountain, MountainSnow, HeartPulse, Flower2, Sunrise, StretchHorizontal } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/CalendarContext';
 import { useSchedule } from '../../context/ScheduleContext';
@@ -9,14 +9,16 @@ import { toDisplayTime } from '../../lib/time';
 import { now } from '../../lib/clock';
 import { notify } from '../../lib/notify';
 import { ExerciseSectionsEditor, validateUnilateral, type SectionLists } from '../modal/EventExerciseEditor';
+import { eventPitches, maxGradeOf } from '../../lib/climbing';
 import type { CreateEventInput } from '../../lib/schedule/types';
 import type { ExerciseCategory, WorkoutType } from '../../types/workout';
 
-const TYPE_ORDER: WorkoutType[] = ['weights', 'climbing', 'cardio', 'yoga', 'stretching', 'morning-routine'];
+const TYPE_ORDER: WorkoutType[] = ['weights', 'climbing', 'outdoor-climbing', 'cardio', 'yoga', 'stretching', 'morning-routine'];
 
 const TYPE_ICONS: Record<WorkoutType, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
   'weights': Dumbbell,
   'climbing': Mountain,
+  'outdoor-climbing': MountainSnow,
   'cardio': HeartPulse,
   'yoga': Flower2,
   'stretching': StretchHorizontal,
@@ -27,6 +29,7 @@ const TYPE_ICONS: Record<WorkoutType, React.ComponentType<{ size?: number; strok
 const TYPE_CATEGORY: Record<WorkoutType, ExerciseCategory> = {
   'weights': 'strength',
   'climbing': 'skill',
+  'outdoor-climbing': 'climbing',
   'cardio': 'cardio',
   'yoga': 'mobility',
   'stretching': 'stretch',
@@ -36,6 +39,7 @@ const TYPE_CATEGORY: Record<WorkoutType, ExerciseCategory> = {
 const TYPE_DURATION: Record<WorkoutType, number> = {
   'weights': 60,
   'climbing': 90,
+  'outdoor-climbing': 240,
   'cardio': 45,
   'yoga': 45,
   'stretching': 20,
@@ -67,6 +71,8 @@ export default function AddEventView() {
   const [distance, setDistance] = useState('');
   const [elevationGain, setElevationGain] = useState('');
   const [avgHeartRate, setAvgHeartRate] = useState('');
+  const [maxGrade, setMaxGrade] = useState('');
+  const [totalPitches, setTotalPitches] = useState('');
   const [difficulty, setDifficulty] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
@@ -125,6 +131,17 @@ export default function AddEventView() {
       if (Object.values(targets).some(v => v !== undefined)) input.cardioTargets = targets;
     }
 
+    if (type === 'outdoor-climbing') {
+      // Only explicitly entered targets persist — blank fields stay derived
+      // from the pitch list wherever the event is displayed.
+      const pitches = parseInt(totalPitches, 10);
+      const targets = {
+        maxGrade: maxGrade.trim() || undefined,
+        totalPitches: Number.isFinite(pitches) && pitches > 0 ? pitches : undefined,
+      };
+      if (Object.values(targets).some(v => v !== undefined)) input.climbingTargets = targets;
+    }
+
     setSaving(true);
     const result = await createEvent(input);
     setSaving(false);
@@ -137,6 +154,12 @@ export default function AddEventView() {
   };
 
   const color = type ? WORKOUT_COLORS[type] : null;
+
+  // Live auto-derived climbing targets — shown as placeholders so the fields
+  // read as prefilled but stay derived unless the user types over them.
+  const pitches = eventPitches(lists.exercises);
+  const derivedMaxGrade = maxGradeOf(pitches.map(p => p.grade));
+  const derivedPitchCount = pitches.length;
 
   return createPortal(
     <div className="composer-view">
@@ -211,6 +234,29 @@ export default function AddEventView() {
               <span className="library-field__label">End time <em>optional</em></span>
               <input type="time" className="library-field__input" value={endTime} onChange={e => setEndTime(e.target.value)} />
             </label>
+            {type === 'outdoor-climbing' && (
+              <>
+                <label className="library-field">
+                  <span className="library-field__label">Max grade <em>auto from pitches</em></span>
+                  <input
+                    className="library-field__input"
+                    placeholder={derivedMaxGrade ?? 'e.g. 5.11a'}
+                    value={maxGrade}
+                    onChange={e => setMaxGrade(e.target.value)}
+                  />
+                </label>
+                <label className="library-field">
+                  <span className="library-field__label">Total pitches <em>auto from pitches</em></span>
+                  <input
+                    inputMode="numeric"
+                    className="library-field__input"
+                    placeholder={String(derivedPitchCount)}
+                    value={totalPitches}
+                    onChange={e => setTotalPitches(e.target.value)}
+                  />
+                </label>
+              </>
+            )}
             {type === 'cardio' && (
               <>
                 <label className="library-field">
@@ -272,6 +318,7 @@ export default function AddEventView() {
               onChange={setLists}
               errors={errors}
               pickerCategory={TYPE_CATEGORY[type]}
+              workoutType={type}
             />
           </div>
 
