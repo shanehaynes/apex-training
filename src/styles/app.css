@@ -708,6 +708,29 @@
   line-height: 1.2;
 }
 
+.modal-title--edit {
+  cursor: pointer;
+  border-bottom: 1px dashed transparent;
+  width: fit-content;
+}
+
+.modal-title--edit:hover {
+  border-bottom-color: var(--border-subtle);
+}
+
+.modal-title--input {
+  font: inherit;
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 1px 6px;
+  width: 100%;
+}
+
 .modal-subtitle {
   font-size: var(--text-sm);
   color: var(--text-secondary);
@@ -3442,7 +3465,8 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   color: var(--text-muted);
 }
 
-.editor-field input {
+.editor-field input,
+.editor-field select {
   height: 30px;
   padding: 0 8px;
   border-radius: var(--radius-md);
@@ -3456,7 +3480,8 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   transition: border-color var(--duration-fast) ease;
 }
 
-.editor-field input:focus { border-color: var(--accent-primary); }
+.editor-field input:focus,
+.editor-field select:focus { border-color: var(--accent-primary); }
 
 .editor-card__error {
   margin-top: 6px;

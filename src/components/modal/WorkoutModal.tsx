@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play, Pencil, Route, TrendingUp, HeartPulse } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play, Pencil, Route, TrendingUp, HeartPulse, Mountain, Layers } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/CalendarContext';
 import { useSchedule } from '../../context/ScheduleContext';
@@ -11,16 +11,18 @@ import { minutesToDisplayTime, timeToMinutes, toDisplayTime, toInputTime } from 
 import { notify } from '../../lib/notify';
 import ExerciseCard from './ExerciseCard';
 import EventExerciseEditor from './EventExerciseEditor';
+import { isOutdoorClimbing, resolveClimbingTargets, sectionLabels } from '../../lib/climbing';
 import type { Exercise } from '../../types/workout';
 
 const DIFFICULTY_LABELS = ['', 'Easy', 'Moderate', 'Challenging', 'Hard', 'Maximal'];
 
 export default function WorkoutModal() {
   const { state, dispatch } = useCalendar();
-  const { events, toggleCompletion, rescheduleEvent } = useSchedule();
+  const { events, toggleCompletion, rescheduleEvent, updateEvent } = useSchedule();
   const event = state.selectedEvent;
   const close = () => dispatch({ type: 'CLEAR_EVENT' });
 
+  const [editingTitle, setEditingTitle] = useState(false);
   const [editingDate, setEditingDate] = useState(false);
   const [editingTime, setEditingTime] = useState(false);
   const [editingExercises, setEditingExercises] = useState(false);
@@ -46,6 +48,13 @@ export default function WorkoutModal() {
   // completion toggles land there first.
   const live = events.find(e => e.id === event.id) ?? event;
   const isCompleted = live.isCompleted;
+
+  const commitTitle = (value: string) => {
+    setEditingTitle(false);
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === live.title) return;
+    updateEvent({ id: event.id, fields: { title: trimmed }, triggeredBy: 'user' });
+  };
 
   const commitDate = (value: string) => {
     setEditingDate(false);
@@ -80,11 +89,40 @@ export default function WorkoutModal() {
 
   // From `live`, not the snapshot — exercise edits apply optimistically to
   // ScheduleContext and must show here immediately.
+  const labels = sectionLabels(live.type);
   const sections: { label: string; items: Exercise[] }[] = [
-    ...(live.warmup?.length ? [{ label: 'Warm-Up', items: live.warmup }] : []),
-    { label: 'Main Work', items: live.exercises },
-    ...(live.cooldown?.length ? [{ label: 'Cool-Down', items: live.cooldown }] : []),
+    ...(live.warmup?.length ? [{ label: labels.warmup, items: live.warmup }] : []),
+    { label: labels.exercises, items: live.exercises },
+    ...(live.cooldown?.length ? [{ label: labels.cooldown, items: live.cooldown }] : []),
   ];
+
+  // Session metrics for outdoor climbing days: explicit targets when set,
+  // otherwise derived live from the pitch list.
+  const climbing = isOutdoorClimbing(live.type) ? resolveClimbingTargets(live) : null;
+
+  const titleBlock = editingTitle ? (
+    <input
+      id="modal-title"
+      className="modal-title modal-title--input"
+      aria-label="Workout title"
+      autoFocus
+      defaultValue={live.title}
+      onBlur={e => commitTitle(e.target.value)}
+      onKeyDown={e => {
+        if (e.key === 'Enter') e.currentTarget.blur();
+        if (e.key === 'Escape') { e.stopPropagation(); setEditingTitle(false); }
+      }}
+    />
+  ) : (
+    <h2
+      id="modal-title"
+      className="modal-title modal-title--edit"
+      onClick={() => setEditingTitle(true)}
+      title="Rename workout"
+    >
+      {live.title}
+    </h2>
+  );
 
   return createPortal(
     <AnimatePresence>
@@ -114,7 +152,7 @@ export default function WorkoutModal() {
               <div className="modal-cover__overlay" />
               <div className="modal-cover__content">
                 <span className="modal-type-badge" style={{ background: color.solid }}>{color.label}</span>
-                <h2 id="modal-title" className="modal-title">{event.title}</h2>
+                {titleBlock}
                 {event.subtitle && <p className="modal-subtitle">{event.subtitle}</p>}
               </div>
               <button className="modal-close modal-close--over-image" onClick={close} aria-label="Close"><X size={18} strokeWidth={1.5} /></button>
@@ -125,7 +163,7 @@ export default function WorkoutModal() {
                 <span className="modal-type-badge" style={{ background: color.solid }}>{color.label}</span>
                 <button className="modal-close" onClick={close} aria-label="Close"><X size={18} strokeWidth={1.5} /></button>
               </div>
-              <h2 id="modal-title" className="modal-title">{event.title}</h2>
+              {titleBlock}
               {event.subtitle && <p className="modal-subtitle">{event.subtitle}</p>}
             </div>
           )}
@@ -222,6 +260,18 @@ export default function WorkoutModal() {
               <span className="modal-meta-item">
                 <HeartPulse size={14} strokeWidth={1.5} />
                 {live.cardioTargets.avgHeartRate} bpm
+              </span>
+            )}
+            {climbing?.maxGrade && (
+              <span className="modal-meta-item">
+                <Mountain size={14} strokeWidth={1.5} />
+                Max {climbing.maxGrade}
+              </span>
+            )}
+            {climbing !== null && climbing.totalPitches > 0 && (
+              <span className="modal-meta-item">
+                <Layers size={14} strokeWidth={1.5} />
+                {climbing.totalPitches} {climbing.totalPitches === 1 ? 'pitch' : 'pitches'}
               </span>
             )}
           </div>
