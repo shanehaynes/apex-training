@@ -1,4 +1,4 @@
-import type { ClimbStyle, ClimbingTargets, Exercise, WorkoutEvent, WorkoutType } from '../types/workout';
+import type { AscentStyle, ClimbStyle, ClimbingTargets, Exercise, WorkoutEvent, WorkoutType } from '../types/workout';
 
 // ─── Climbing domain logic ────────────────────────────────────────────────────
 // Pure helpers for the outdoor-climbing event type: each exercise entry with
@@ -14,6 +14,22 @@ export const CLIMB_STYLES: { value: ClimbStyle; label: string }[] = [
 
 export function climbStyleLabel(style: ClimbStyle | undefined): string {
   return CLIMB_STYLES.find(s => s.value === style)?.label ?? 'Climb';
+}
+
+export const ASCENT_STYLES: { value: AscentStyle; label: string }[] = [
+  { value: 'flash',    label: 'Flashed' },
+  { value: 'redpoint', label: 'Redpointed' },
+  { value: 'follow',   label: 'Followed' },
+  { value: 'attempt',  label: 'Attempted' },
+];
+
+export function ascentStyleLabel(style: AscentStyle | undefined): string | undefined {
+  return ASCENT_STYLES.find(s => s.value === style)?.label;
+}
+
+/** Ascent options for a discipline: following needs a rope, so boulders drop it. */
+export function ascentStylesFor(style: ClimbStyle | undefined): { value: AscentStyle; label: string }[] {
+  return style === 'boulder' ? ASCENT_STYLES.filter(s => s.value !== 'follow') : ASCENT_STYLES;
 }
 
 // ─── Grade parsing ────────────────────────────────────────────────────────────

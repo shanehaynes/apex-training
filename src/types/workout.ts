@@ -10,6 +10,9 @@ export type WorkoutType =
 /** Climbing discipline for a pitch (an exercise entry with category 'climbing'). */
 export type ClimbStyle = 'sport' | 'trad' | 'boulder' | 'ice-mixed';
 
+/** How a pitch went. 'follow' is roped-only — boulders can't be followed. */
+export type AscentStyle = 'flash' | 'redpoint' | 'follow' | 'attempt';
+
 /**
  * Per-set planned target, for ramps/pyramids where sets differ. When absent,
  * the tracker synthesizes uniform targets from the legacy sets/reps/weight/
@@ -68,9 +71,10 @@ export interface Exercise {
   weight?: string;
   restPeriod?: string;
   plannedSets?: PlannedSet[];
-  /** Climbing pitches only: the discipline and the grade — their whole prescription. */
+  /** Climbing pitches only: discipline, grade, and how the ascent went. */
   climbStyle?: ClimbStyle;
   grade?: string;
+  ascentStyle?: AscentStyle;
   /** Day-specific intent ("last set AMRAP"). Form cues live on the definition. */
   notes?: string;
   imageUrl?: string;

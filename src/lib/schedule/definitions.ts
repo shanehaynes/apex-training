@@ -118,6 +118,7 @@ export interface PrescriptionOverrides {
   notes?: string;
   climbStyle?: Exercise['climbStyle'];
   grade?: string;
+  ascentStyle?: Exercise['ascentStyle'];
 }
 
 /**
@@ -144,6 +145,7 @@ export function entryFromDefinition(
     notes: overrides.notes,
     climbStyle: overrides.climbStyle,
     grade: overrides.grade,
+    ascentStyle: overrides.ascentStyle,
   };
 }
 

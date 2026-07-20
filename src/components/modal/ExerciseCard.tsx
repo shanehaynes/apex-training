@@ -1,5 +1,5 @@
 import { useCalendar } from '../../context/CalendarContext';
-import { climbStyleLabel } from '../../lib/climbing';
+import { ascentStyleLabel, climbStyleLabel } from '../../lib/climbing';
 import type { Exercise } from '../../types/workout';
 
 interface Props {
@@ -11,9 +11,11 @@ export default function ExerciseCard({ exercise, accentColor }: Props) {
   const { dispatch } = useCalendar();
   const meta: string[] = [];
   if (exercise.category === 'climbing') {
-    // A pitch: its whole prescription is the discipline and the grade.
+    // A pitch: its whole prescription is the discipline, grade, and ascent.
     meta.push(climbStyleLabel(exercise.climbStyle));
     if (exercise.grade) meta.push(exercise.grade);
+    const ascent = ascentStyleLabel(exercise.ascentStyle);
+    if (ascent) meta.push(ascent);
   } else {
     if (exercise.sets && exercise.reps) meta.push(`${exercise.sets} × ${exercise.reps}`);
     else if (exercise.sets) meta.push(`${exercise.sets} sets`);

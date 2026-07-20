@@ -28,6 +28,7 @@ export const EXERCISE_INPUT_SCHEMA = {
       notes:         { type: 'string', description: 'Day-specific intent only — form cues live on the library entry.' },
       climb_style:   { type: 'string', enum: ['sport', 'trad', 'boulder', 'ice-mixed'], description: 'Climbing pitches only (outdoor climbing events: one entry per pitch).' },
       grade:         { type: 'string', description: 'Climbing pitches only — e.g. "5.11a", "V5", "WI4".' },
+      ascent_style:  { type: 'string', enum: ['flash', 'redpoint', 'follow', 'attempt'], description: 'Climbing pitches only — how the ascent went. "follow" is roped-only, never on boulders.' },
     },
     required: ['name'],
   },

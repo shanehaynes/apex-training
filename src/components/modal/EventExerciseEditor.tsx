@@ -5,9 +5,9 @@ import { useSchedule } from '../../context/ScheduleContext';
 import { baseIdOf, isOccurrenceId } from '../../lib/schedule/occurrence';
 import { entryFromDefinition, hasPerSideCount, uniqueEntryId } from '../../lib/schedule/definitions';
 import { notify } from '../../lib/notify';
-import { CLIMB_STYLES, climbStyleLabel, sectionLabels } from '../../lib/climbing';
+import { CLIMB_STYLES, ascentStylesFor, climbStyleLabel, sectionLabels } from '../../lib/climbing';
 import ExercisePicker from './ExercisePicker';
-import type { ClimbStyle, Exercise, ExerciseCategory, ExerciseDefinition, WorkoutEvent, WorkoutType } from '../../types/workout';
+import type { AscentStyle, ClimbStyle, Exercise, ExerciseCategory, ExerciseDefinition, WorkoutEvent, WorkoutType } from '../../types/workout';
 
 export type SectionKey = 'warmup' | 'exercises' | 'cooldown';
 export type SectionLists = Record<SectionKey, Exercise[]>;
@@ -62,7 +62,13 @@ function EditorCard({
               value={entry.climbStyle ?? 'sport'}
               onChange={e => {
                 const style = e.target.value as ClimbStyle;
-                onChange({ climbStyle: style, name: climbStyleLabel(style) });
+                // Boulders can't be followed — a follow selection dies with the switch.
+                const clearFollow = style === 'boulder' && entry.ascentStyle === 'follow';
+                onChange({
+                  climbStyle: style,
+                  name: climbStyleLabel(style),
+                  ...(clearFollow ? { ascentStyle: undefined } : {}),
+                });
               }}
             >
               {CLIMB_STYLES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -75,6 +81,16 @@ function EditorCard({
               placeholder="5.11a / V5 / WI4"
               onChange={e => onChange({ grade: e.target.value || undefined })}
             />
+          </label>
+          <label className="editor-field">
+            <span>Ascent</span>
+            <select
+              value={entry.ascentStyle ?? ''}
+              onChange={e => onChange({ ascentStyle: (e.target.value || undefined) as AscentStyle | undefined })}
+            >
+              <option value="">—</option>
+              {ascentStylesFor(entry.climbStyle).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
           </label>
         </div>
       ) : (

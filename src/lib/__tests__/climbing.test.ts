@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { climbStyleLabel, maxGradeOf, parseGrade, resolveClimbingTargets, sectionLabels } from '../climbing';
+import { ascentStyleLabel, ascentStylesFor, climbStyleLabel, maxGradeOf, parseGrade, resolveClimbingTargets, sectionLabels } from '../climbing';
 import type { Exercise } from '../../types/workout';
 
 const pitch = (id: string, grade?: string): Exercise => ({
@@ -72,6 +72,21 @@ describe('sectionLabels', () => {
     expect(sectionLabels('outdoor-climbing')).toEqual({ warmup: 'Approach', exercises: 'Pitches', cooldown: 'Descent' });
     expect(sectionLabels('climbing')).toEqual({ warmup: 'Warm-Up', exercises: 'Main Work', cooldown: 'Cool-Down' });
     expect(sectionLabels(undefined).exercises).toBe('Main Work');
+  });
+});
+
+describe('ascent styles', () => {
+  it('offers follow on roped disciplines but not boulders', () => {
+    expect(ascentStylesFor('sport').map(s => s.value)).toEqual(['flash', 'redpoint', 'follow', 'attempt']);
+    expect(ascentStylesFor('trad').map(s => s.value)).toContain('follow');
+    expect(ascentStylesFor('ice-mixed').map(s => s.value)).toContain('follow');
+    expect(ascentStylesFor('boulder').map(s => s.value)).toEqual(['flash', 'redpoint', 'attempt']);
+    expect(ascentStylesFor(undefined).map(s => s.value)).toContain('follow');
+  });
+
+  it('labels ascents in past tense and returns undefined when unset', () => {
+    expect(ascentStyleLabel('redpoint')).toBe('Redpointed');
+    expect(ascentStyleLabel(undefined)).toBeUndefined();
   });
 });
 
