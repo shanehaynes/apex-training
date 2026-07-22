@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { parseDurationSeconds } from '../../lib/tracking/records';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { formatSeconds } from '../../lib/time';
+import { digitsToDisplay, digitsToSeconds, isPlain, MAX_DIGITS } from '../../lib/durationBuffer';
 
 interface Props {
   value: string;
@@ -9,131 +9,110 @@ interface Props {
   onChange: (value: string) => void;
 }
 
-// A value the two-field control can represent: empty, or a single clean
-// duration token ("2", "90s", "1:30", "2 min"). Anything else — "10s on 5s
-// off", "each side", "to failure" — stays free text in custom mode so the
-// field never silently drops what the user typed.
-const PLAIN_DURATION =
-  /^(\d+:\d{1,2}(:\d{1,2})?|\d+(\.\d+)?\s*(s|secs?|seconds?|m|mins?|minutes?|h|hrs?|hours?)?)$/i;
-
-const isPlain = (v: string) => v.trim() === '' || PLAIN_DURATION.test(v.trim());
-
-function toFields(value: string): { min: string; sec: string } {
-  const total = parseDurationSeconds(value);
-  if (total === null) return { min: '', sec: '' };
-  return { min: String(Math.floor(total / 60)), sec: String(total % 60).padStart(2, '0') };
-}
-
 /**
- * Duration entry as separate minutes and seconds, so a hold logged as "2" is
- * unambiguously 2:00 — the free-text field it replaced had to guess, and
- * guessed seconds. Commits the canonical formatSeconds form ("45s", "2:00")
- * that the rest of the app already reads, so nothing downstream changes. A
- * one-tap toggle drops to a raw text field for interval-style entries the two
- * fields can't express.
+ * Stopwatch-style duration entry: one field, digits fill right-to-left like a
+ * microwave (2,3,0 reads 0:02 → 0:23 → 2:30), so a single tap enters the whole
+ * duration and the display disambiguates minutes vs seconds live. Commits the
+ * canonical formatSeconds form ("45s", "2:30") the rest of the app already
+ * reads. Typing any non-digit drops the field to free text for interval-style
+ * entries ("10s on 5s off"); clearing it returns to digit entry.
  */
 export default function DurationInput({ value, ariaLabel, className, onChange }: Props) {
-  const initial = toFields(value);
-  const [custom, setCustom] = useState(() => !isPlain(value));
-  const [min, setMin] = useState(initial.min);
-  const [sec, setSec] = useState(initial.sec);
+  const [mode, setMode] = useState<'stopwatch' | 'text'>(() => (isPlain(value) ? 'stopwatch' : 'text'));
+  // null = not editing (display derives from the value prop); string = the
+  // active digit buffer while focused.
+  const [buffer, setBuffer] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Re-sync the fields when the value changes from outside (fill-from-last,
-  // reset) but not in response to our own emits.
+  // Re-derive the mode when the value changes from outside (fill-from-last,
+  // reset) but not in response to our own emits or mid-edit — a text-mode
+  // intermediate like "10" is coincidentally plain and must not bounce modes.
   const lastEmit = useRef(value);
   useEffect(() => {
-    if (custom || value === lastEmit.current) return;
-    const f = toFields(value);
-    setMin(f.min);
-    setSec(f.sec);
-    setCustom(!isPlain(value));
-  }, [value, custom]);
+    if (value === lastEmit.current || buffer !== null) return;
+    lastEmit.current = value;
+    setMode(isPlain(value) ? 'stopwatch' : 'text');
+  }, [value, buffer]);
 
-  const emit = (mRaw: string, sRaw: string) => {
-    const m = mRaw.trim();
-    const s = sRaw.trim();
-    const out = m === '' && s === '' ? '' : formatSeconds((parseInt(m || '0', 10) || 0) * 60 + (parseInt(s || '0', 10) || 0));
+  const emit = (out: string) => {
     lastEmit.current = out;
     onChange(out);
   };
 
-  if (custom) {
-    return (
-      <span className="tracker-duration tracker-duration--custom">
-        <input
-          className={className}
-          type="text"
-          aria-label={ariaLabel}
-          value={value}
-          onChange={e => onChange(e.target.value)}
-        />
-        <button
-          type="button"
-          className="tracker-duration__mode"
-          aria-label="Switch to minutes and seconds"
-          onClick={() => {
-            const f = toFields(value);
-            setMin(f.min);
-            setSec(f.sec);
-            lastEmit.current = value;
-            setCustom(false);
-          }}
-        >
-          m:ss
-        </button>
-      </span>
-    );
-  }
+  const stopwatch = mode === 'stopwatch';
+  const display = stopwatch ? (buffer === null ? value : digitsToDisplay(buffer)) : value;
 
-  const changeMin = (raw: string) => {
-    const digits = raw.replace(/\D/g, '').slice(0, 3);
-    setMin(digits);
-    emit(digits, sec);
+  // Keep the caret at the right edge while filling, matching the direction
+  // digits move; makes caret position semantically irrelevant.
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (stopwatch && buffer !== null && el && document.activeElement === el) {
+      el.setSelectionRange(el.value.length, el.value.length);
+    }
+  }, [stopwatch, buffer]);
+
+  const switchToText = (raw: string) => {
+    // Reconstruct what the user typed: the display is our formatting ("0:10"),
+    // so replace it with the raw buffer digits before the new character —
+    // typing 1,0,s yields "10s", not "0:10s". A lone trailing "." is the
+    // mobile escape hatch into text mode (the decimal keypad has no letters)
+    // and is dropped from the seed.
+    const shown = digitsToDisplay(buffer ?? '');
+    const seed = (raw.startsWith(shown) ? (buffer ?? '') + raw.slice(shown.length) : raw).replace(/\.+$/, '');
+    setMode('text');
+    setBuffer(null);
+    emit(seed);
+    // iOS only swaps the soft keyboard (decimal → text) on refocus.
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (el && document.activeElement === el) {
+        el.blur();
+        el.focus();
+      }
+    });
   };
-  const changeSec = (raw: string) => {
-    const digits = raw.replace(/\D/g, '').slice(0, 2);
-    setSec(digits);
-    emit(min, digits);
+
+  const changeStopwatch = (raw: string) => {
+    if (/[^0-9:]/.test(raw)) {
+      switchToText(raw);
+      return;
+    }
+    const digits = raw.replace(/\D/g, '').replace(/^0+/, '');
+    if (digits.length > MAX_DIGITS) return;
+    setBuffer(digits);
+    emit(digits === '' ? '' : formatSeconds(digitsToSeconds(digits)));
   };
-  // On blur, roll any 60+ seconds up into minutes and pad, so 2 / 90 reads back as 3:30.
-  const normalize = () => {
-    if (min.trim() === '' && sec.trim() === '') return;
-    const total = (parseInt(min || '0', 10) || 0) * 60 + (parseInt(sec || '0', 10) || 0);
-    setMin(String(Math.floor(total / 60)));
-    setSec(String(total % 60).padStart(2, '0'));
+
+  const changeText = (raw: string) => {
+    if (raw === '') {
+      emit('');
+      setMode('stopwatch');
+      setBuffer(inputRef.current && document.activeElement === inputRef.current ? '' : null);
+      return;
+    }
+    emit(raw);
   };
 
   return (
-    <span className="tracker-duration tracker-duration--split">
-      <input
-        className={`${className} tracker-duration__field`}
-        type="text"
-        inputMode="numeric"
-        aria-label={`${ariaLabel} minutes`}
-        placeholder="0"
-        value={min}
-        onChange={e => changeMin(e.target.value)}
-        onBlur={normalize}
-      />
-      <span className="tracker-duration__colon" aria-hidden="true">:</span>
-      <input
-        className={`${className} tracker-duration__field`}
-        type="text"
-        inputMode="numeric"
-        aria-label={`${ariaLabel} seconds`}
-        placeholder="00"
-        value={sec}
-        onChange={e => changeSec(e.target.value)}
-        onBlur={normalize}
-      />
-      <button
-        type="button"
-        className="tracker-duration__mode"
-        aria-label="Switch to free text"
-        onClick={() => setCustom(true)}
-      >
-        abc
-      </button>
-    </span>
+    <input
+      ref={inputRef}
+      className={`${className} tracker-duration`}
+      type="text"
+      inputMode={stopwatch ? 'decimal' : 'text'}
+      aria-label={ariaLabel}
+      placeholder={stopwatch ? value || '0:00' : ''}
+      value={display}
+      onChange={e => (stopwatch ? changeStopwatch(e.target.value) : changeText(e.target.value))}
+      onFocus={stopwatch ? () => setBuffer('') : undefined}
+      onBlur={stopwatch ? () => setBuffer(null) : undefined}
+      onKeyDown={e => {
+        if (e.key === 'Enter') {
+          e.currentTarget.blur();
+        } else if (stopwatch && buffer === '' && value !== '' && (e.key === 'Backspace' || e.key === 'Delete')) {
+          // Clear a stored value without having to type a throwaway digit.
+          emit('');
+        }
+      }}
+    />
   );
 }

@@ -30,39 +30,68 @@ test('tracker starts a session and renders desktop + mobile', async ({ page }) =
 test.describe('duration input', () => {
   test.use({ fakeNow: '2026-06-24T20:00:00' });
 
-  test('enters minutes and seconds unambiguously', async ({ page }) => {
+  test('fills a whole duration from one tap, stopwatch-style', async ({ page }) => {
     await gotoCalendar(page);
     await page.locator('.event-chip__main', { hasText: 'Stretch' }).first().click();
     await page.locator('.modal-completion__btn--start').click();
 
-    const cell = page.locator('.tracker-duration').first();
-    await expect(cell).toBeVisible({ timeout: 15000 });
-    await shot(page, 'duration-split');
-    const min = cell.locator('.tracker-duration__field').nth(0);
-    const sec = cell.locator('.tracker-duration__field').nth(1);
-    const mode = cell.locator('.tracker-duration__mode');
+    const field = page.locator('.tracker-duration').first();
+    await expect(field).toBeVisible({ timeout: 15000 });
+    await shot(page, 'duration-stopwatch');
 
-    // The whole point: a bare "2" is two minutes, not two seconds.
-    await min.fill('2');
-    await min.blur();
-    await expect(min).toHaveValue('2');
-    await expect(sec).toHaveValue('00');
-    // Custom mode shows the committed canonical string — proves what was stored.
-    await mode.click();
-    await expect(cell.locator('.tracker-input')).toHaveValue('2:00');
-    await mode.click();
+    // Digits fill right-to-left: 2,3,0 reads 0:02 → 0:23 → 2:30. One tap,
+    // and the display shows exactly what will be stored at every keystroke.
+    await field.click();
+    await field.press('2');
+    await expect(field).toHaveValue('0:02');
+    await field.press('3');
+    await expect(field).toHaveValue('0:23');
+    await field.press('0');
+    await expect(field).toHaveValue('2:30');
+    await field.blur();
+    await expect(field).toHaveValue('2:30');
 
-    // Minutes and seconds combine into one canonical value.
-    await min.fill('2');
-    await sec.fill('30');
-    await sec.blur();
-    await mode.click();
-    await expect(cell.locator('.tracker-input')).toHaveValue('2:30');
+    // Re-entry starts a fresh buffer (retype, not edit): the stored value
+    // moves to the placeholder, and blurring untouched keeps it.
+    await field.click();
+    await expect(field).toHaveValue('');
+    await expect(field).toHaveAttribute('placeholder', '2:30');
+    await field.blur();
+    await expect(field).toHaveValue('2:30');
 
-    // The escape hatch keeps interval-style free text verbatim.
-    const text = cell.locator('.tracker-input');
-    await text.fill('10s on 5s off');
-    await text.blur();
-    await expect(text).toHaveValue('10s on 5s off');
+    // A bare digit is that many seconds — the live display disambiguates.
+    await field.click();
+    await field.press('2');
+    await expect(field).toHaveValue('0:02');
+    await field.blur();
+    await expect(field).toHaveValue('2s');
+
+    // Overflow stays literal while typing and rolls up on commit.
+    await field.click();
+    await field.pressSequentially('90');
+    await expect(field).toHaveValue('0:90');
+    await field.blur();
+    await expect(field).toHaveValue('1:30');
+
+    // Pasted colon values stay in stopwatch mode.
+    await field.fill('2:30');
+    await field.blur();
+    await expect(field).toHaveValue('2:30');
+
+    // Typing a letter auto-switches to free text, keeping the entry verbatim.
+    await field.click();
+    await field.pressSequentially('10s on 5s off');
+    await field.blur();
+    await expect(field).toHaveValue('10s on 5s off');
+    await expect(field).toHaveAttribute('inputmode', 'text');
+
+    // Clearing the field returns to stopwatch entry.
+    await field.fill('');
+    await expect(field).toHaveAttribute('inputmode', 'decimal');
+    await expect(field).toHaveAttribute('placeholder', '0:00');
+    await field.pressSequentially('45');
+    await expect(field).toHaveValue('0:45');
+    await field.blur();
+    await expect(field).toHaveValue('45s');
   });
 });
