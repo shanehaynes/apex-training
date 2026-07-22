@@ -6,7 +6,7 @@ import { resolvePlannedSets } from '../../lib/tracking/plan';
 import DurationInput from './DurationInput';
 
 export type SetField = 'actualWeight' | 'actualReps' | 'actualDuration';
-export type CardioField = keyof Omit<CardioActuals, 'isLogged'>;
+export type CardioField = keyof Omit<CardioActuals, 'isLogged' | 'isPrefilled'>;
 
 interface Props {
   tracked: TrackedExercise;
