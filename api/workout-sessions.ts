@@ -23,6 +23,8 @@ interface Body {
   removedSets?: RemovedSetKey[];
   /** finish only: zero-fill rows for planned sets never logged (is_autofilled). */
   autofillRows?: SetLogRow[];
+  /** finish only: untouched prefilled cardio persisted at last session's values. */
+  autofillCardioRows?: CardioLogRow[];
   /** summary only: AI-generated coach summary text to persist on the session. */
   coachSummary?: string;
   /** quick-complete only: recommended session length to stamp on the session. */
@@ -171,6 +173,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (fillErr) {
         console.error('[api/workout-sessions] finish autofill failed:', fillErr.message);
         res.status(500).send('Failed to record skipped sets');
+        return;
+      }
+    }
+
+    if (body.autofillCardioRows?.length) {
+      const { error: cardioFillErr } = await supabase
+        .from('workout_cardio_logs')
+        .upsert(
+          body.autofillCardioRows.map(r => ({ ...r, user_id: userId, is_autofilled: true })),
+          { onConflict: CARDIO_CONFLICT, ignoreDuplicates: true },
+        );
+      if (cardioFillErr) {
+        console.error('[api/workout-sessions] finish cardio autofill failed:', cardioFillErr.message);
+        res.status(500).send('Failed to record prefilled cardio');
         return;
       }
     }

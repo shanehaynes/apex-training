@@ -19,6 +19,9 @@ export interface TrackedSet {
   isAutofilled: boolean;
   /** Added in the tracker beyond the plan — removable, never zero-filled. */
   isExtra: boolean;
+  /** Seeded from last session's actuals; cleared on first edit. Untouched
+   *  prefills persist at Finish flagged is_autofilled, like quick-complete. */
+  isPrefilled: boolean;
 }
 
 export interface CardioActuals {
@@ -27,6 +30,7 @@ export interface CardioActuals {
   elevationGain: string;
   avgHeartRate: string;
   isLogged: boolean;
+  isPrefilled: boolean;
 }
 
 export interface TrackedExercise {
@@ -78,6 +82,7 @@ function emptySet(planned: PlannedSet, isExtra: boolean): TrackedSet {
     isLogged: false,
     isAutofilled: false,
     isExtra,
+    isPrefilled: false,
   };
 }
 
@@ -97,6 +102,8 @@ export function buildTrackerModel(
   event: WorkoutEvent,
   savedSets: SetLogRow[] = [],
   savedCardio: CardioLogRow[] = [],
+  lastByName: Map<string, LastPerformance> = new Map(),
+  lastCardioByName: Map<string, LastCardioActuals> = new Map(),
 ): TrackedSectionGroup[] {
   const setKey = (section: string, exerciseId: string, setNumber: number) =>
     `${section}|${exerciseId}|${setNumber}`;
@@ -111,35 +118,60 @@ export function buildTrackerModel(
       exercises: pick(event).map((exercise): TrackedExercise => {
         if (exercise.category === 'cardio') {
           const row = cardioByKey.get(`${section}|${exercise.id}`);
+          const last = row ? undefined : lastCardioByName.get(exercise.name);
           return {
             section,
             exercise,
             isCardio: true,
             sets: [],
-            cardio: {
-              durationMinutes: row?.duration_minutes != null ? String(row.duration_minutes) : '',
-              distance: row?.distance ?? '',
-              elevationGain: row?.elevation_gain ?? '',
-              avgHeartRate: row?.avg_heart_rate != null ? String(row.avg_heart_rate) : '',
-              isLogged: !!row,
-            },
+            cardio: row
+              ? {
+                  durationMinutes: row.duration_minutes != null ? String(row.duration_minutes) : '',
+                  distance: row.distance ?? '',
+                  elevationGain: row.elevation_gain ?? '',
+                  avgHeartRate: row.avg_heart_rate != null ? String(row.avg_heart_rate) : '',
+                  isLogged: true,
+                  isPrefilled: false,
+                }
+              : {
+                  durationMinutes: last?.durationMinutes ?? '',
+                  distance: last?.distance ?? '',
+                  elevationGain: last?.elevationGain ?? '',
+                  avgHeartRate: last?.avgHeartRate ?? '',
+                  isLogged: false,
+                  isPrefilled: !!last,
+                },
           };
         }
 
         const planned = resolvePlannedSets(exercise);
+        const last = lastByName.get(exercise.name);
         const sets = planned.map(p => {
           const row = setsByKey.get(setKey(section, exercise.id, p.setNumber));
           const base = emptySet(p, false);
-          return row
-            ? {
-                ...base,
-                actualWeight: row.actual_weight ?? '',
-                actualReps: row.actual_reps ?? '',
-                actualDuration: row.actual_duration ?? '',
-                isLogged: true,
-                isAutofilled: row.is_autofilled,
-              }
-            : base;
+          if (row) {
+            return {
+              ...base,
+              actualWeight: row.actual_weight ?? '',
+              actualReps: row.actual_reps ?? '',
+              actualDuration: row.actual_duration ?? '',
+              isLogged: true,
+              isAutofilled: row.is_autofilled,
+            };
+          }
+          // When the plan has more sets than last time, extras inherit the
+          // highest-numbered set that was actually performed.
+          const lastSet = last && (last.sets.get(p.setNumber) ?? highestNumberedSet(last.sets));
+          if (lastSet && (lastSet.weight || lastSet.reps || lastSet.duration)) {
+            return {
+              ...base,
+              actualWeight: lastSet.weight,
+              actualReps: lastSet.reps,
+              actualDuration: lastSet.duration,
+              isPrefilled: true,
+            };
+          }
+          return base;
         });
 
         // Extra sets logged beyond the plan in a previous sitting.
@@ -225,6 +257,50 @@ export function buildLastPerformance(rows: SetLogRow[]): Map<string, LastPerform
   return byName;
 }
 
+function highestNumberedSet(sets: Map<number, LastSetActuals>): LastSetActuals | undefined {
+  let best: LastSetActuals | undefined;
+  let bestNumber = -Infinity;
+  for (const [setNumber, actuals] of sets) {
+    if (setNumber > bestNumber) {
+      bestNumber = setNumber;
+      best = actuals;
+    }
+  }
+  return best;
+}
+
+export interface LastCardioActuals {
+  /** event_date of the most recent prior session with real logs. */
+  date: string;
+  durationMinutes: string;
+  distance: string;
+  elevationGain: string;
+  avgHeartRate: string;
+}
+
+/**
+ * Most recent prior cardio actuals per exercise name — the cardio counterpart
+ * of buildLastPerformance. Duplicate cardio names in one event share the same
+ * entry. Autofilled and all-empty rows are ignored.
+ */
+export function buildLastCardio(rows: CardioLogRow[]): Map<string, LastCardioActuals> {
+  const byName = new Map<string, LastCardioActuals>();
+  for (const row of rows) {
+    if (row.is_autofilled) continue;
+    if (row.duration_minutes == null && !row.distance && !row.elevation_gain && row.avg_heart_rate == null) continue;
+    const existing = byName.get(row.exercise_name);
+    if (existing && row.event_date <= existing.date) continue;
+    byName.set(row.exercise_name, {
+      date: row.event_date,
+      durationMinutes: row.duration_minutes != null ? String(row.duration_minutes) : '',
+      distance: row.distance ?? '',
+      elevationGain: row.elevation_gain ?? '',
+      avgHeartRate: row.avg_heart_rate != null ? String(row.avg_heart_rate) : '',
+    });
+  }
+  return byName;
+}
+
 // ─── Serialization back to rows ───────────────────────────────────────────────
 
 export function setToRow(
@@ -301,6 +377,32 @@ export function collectUntouchedPlanned(
     }
   }
   return rows;
+}
+
+/**
+ * Prefilled sets/cardio never touched this sitting — persisted at Finish at
+ * last session's values, flagged is_autofilled like quick-complete so history
+ * and PR detection ignore them and prefill never compounds across sessions.
+ */
+export function collectPrefilledUntouched(
+  eventId: string,
+  eventDate: string,
+  groups: TrackedSectionGroup[],
+): { setRows: SetLogRow[]; cardioRows: CardioLogRow[] } {
+  const setRows: SetLogRow[] = [];
+  const cardioRows: CardioLogRow[] = [];
+  for (const group of groups) {
+    for (const tracked of group.exercises) {
+      for (const set of tracked.sets) {
+        if (!set.isPrefilled) continue;
+        setRows.push({ ...setToRow(eventId, eventDate, tracked, set), is_autofilled: true });
+      }
+      if (tracked.cardio?.isPrefilled) {
+        cardioRows.push({ ...cardioToRow(eventId, eventDate, tracked), is_autofilled: true });
+      }
+    }
+  }
+  return { setRows, cardioRows };
 }
 
 // ─── Quick complete (the "Mark as Complete" toggle) ──────────────────────────

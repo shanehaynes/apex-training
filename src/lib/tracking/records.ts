@@ -268,7 +268,8 @@ export function computeSessionPRs(
     for (const tracked of group.exercises) {
       const name = tracked.exercise.name;
       if (tracked.isCardio) {
-        if (!tracked.cardio) continue;
+        // Prefilled values are inherited, not performed — never PR candidates.
+        if (!tracked.cardio || tracked.cardio.isPrefilled) continue;
         const dist = parseQuantity(tracked.cardio.distance);
         if (dist && (currentDistance.get(name)?.value ?? 0) < dist.value) currentDistance.set(name, dist);
         const elev = parseQuantity(tracked.cardio.elevationGain);
@@ -276,7 +277,7 @@ export function computeSessionPRs(
         continue;
       }
       for (const set of tracked.sets) {
-        if (set.isAutofilled) continue;
+        if (set.isAutofilled || set.isPrefilled) continue;
         const classified = classifySet(set.actualWeight, set.actualReps, set.actualDuration);
         if (!classified) continue;
         if (classified.kind === 'oneRM') {

@@ -120,6 +120,7 @@ function cardioGroups(actuals: Partial<{ distance: string; elevationGain: string
     elevationGain: actuals.elevationGain ?? '',
     avgHeartRate: '',
     isLogged: true,
+    isPrefilled: false,
   };
   return groups;
 }
@@ -256,6 +257,12 @@ describe('computeSessionPRs — estimated 1RM', () => {
     expect(computeSessionPRs(groupsWith(bench, []), history)).toHaveLength(0);
     expect(computeSessionPRs(groupsWith(bench, [{ weight: 'heavy', reps: '5' }]), history)).toHaveLength(0);
   });
+
+  it('ignores prefilled sets even when their values would beat history', () => {
+    const groups = groupsWith(bench, [{ weight: '250', reps: '5' }]);
+    groups[0].exercises[0].sets = groups[0].exercises[0].sets.map(s => ({ ...s, isPrefilled: true }));
+    expect(computeSessionPRs(groups, history)).toHaveLength(0);
+  });
 });
 
 describe('computeSessionPRs — duration (no weight metric)', () => {
@@ -333,6 +340,12 @@ describe('computeSessionPRs — cardio distance & elevation', () => {
 
   it('reports nothing without prior cardio history', () => {
     expect(computeSessionPRs(cardioGroups({ distance: '5.5 mi' }), [], [])).toHaveLength(0);
+  });
+
+  it('ignores prefilled cardio even when its values would beat history', () => {
+    const groups = cardioGroups({ distance: '10 mi', elevationGain: '2,000 ft' });
+    groups[0].exercises[0].cardio!.isPrefilled = true;
+    expect(computeSessionPRs(groups, [], history)).toHaveLength(0);
   });
 });
 

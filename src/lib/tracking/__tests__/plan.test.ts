@@ -3,8 +3,10 @@ import {
   resolvePlannedSets,
   buildTrackerModel,
   buildLastPerformance,
+  buildLastCardio,
   buildQuickCompleteLogs,
   collectUntouchedPlanned,
+  collectPrefilledUntouched,
   plannedCardioMinutes,
   setExerciseNames,
   setToRow,
@@ -148,6 +150,164 @@ describe('buildTrackerModel', () => {
     expect(run.cardio).toMatchObject({
       durationMinutes: '45.5', distance: '5 mi', elevationGain: '', avgHeartRate: '142', isLogged: true,
     });
+  });
+});
+
+describe('buildTrackerModel — prefill from last performance', () => {
+  const lastBench = () => buildLastPerformance([
+    {
+      event_id: 'old__2026-06-26', event_date: '2026-06-26', section: 'exercise',
+      exercise_id: 'ub-1', exercise_name: 'Bench Press', set_number: 1,
+      planned_weight: '185lb', planned_reps: '5', planned_duration: null,
+      actual_weight: '200', actual_reps: '5', actual_duration: null,
+      is_autofilled: false,
+    },
+    {
+      event_id: 'old__2026-06-26', event_date: '2026-06-26', section: 'exercise',
+      exercise_id: 'ub-1', exercise_name: 'Bench Press', set_number: 2,
+      planned_weight: '185lb', planned_reps: '5', planned_duration: null,
+      actual_weight: '205', actual_reps: '4', actual_duration: null,
+      is_autofilled: false,
+    },
+  ]);
+
+  it('seeds set actuals from the last session, flagged isPrefilled', () => {
+    const groups = buildTrackerModel(makeEvent(), [], [], lastBench());
+    const bench = groups[1].exercises[0];
+    expect(bench.sets[0]).toMatchObject({
+      actualWeight: '200', actualReps: '5', isPrefilled: true, isLogged: false,
+    });
+    expect(bench.sets[1]).toMatchObject({ actualWeight: '205', actualReps: '4', isPrefilled: true });
+  });
+
+  it('falls back to the highest-numbered last set when the plan has more sets', () => {
+    const groups = buildTrackerModel(makeEvent(), [], [], lastBench());
+    const bench = groups[1].exercises[0]; // plan has 3 sets, last time had 2
+    expect(bench.sets[2]).toMatchObject({ actualWeight: '205', actualReps: '4', isPrefilled: true });
+  });
+
+  it('prefills stretch durations (e.g. 1:30 in the deep squat)', () => {
+    const last = buildLastPerformance([{
+      event_id: 'old__2026-06-26', event_date: '2026-06-26', section: 'warmup',
+      exercise_id: 'other-id', exercise_name: 'Doorway Pec Stretch', set_number: 1,
+      planned_weight: null, planned_reps: null, planned_duration: '60s',
+      actual_weight: null, actual_reps: null, actual_duration: '1:30',
+      is_autofilled: false,
+    }]);
+    const groups = buildTrackerModel(makeEvent(), [], [], last);
+    expect(groups[0].exercises[0].sets[0]).toMatchObject({ actualDuration: '1:30', isPrefilled: true });
+  });
+
+  it('saved rows win over prefill; no-history sets stay empty', () => {
+    const saved: SetLogRow[] = [{
+      event_id: 'e', event_date: '2026-07-06', section: 'exercise',
+      exercise_id: 'ub-1', exercise_name: 'Bench Press', set_number: 1,
+      planned_weight: '185lb', planned_reps: '5', planned_duration: null,
+      actual_weight: '190', actual_reps: '5', actual_duration: null,
+      is_autofilled: false,
+    }];
+    const groups = buildTrackerModel(makeEvent(), saved, [], lastBench());
+    const bench = groups[1].exercises[0];
+    expect(bench.sets[0]).toMatchObject({ actualWeight: '190', isLogged: true, isPrefilled: false });
+    // Stretch has no history at all → untouched
+    expect(groups[0].exercises[0].sets[0]).toMatchObject({ actualDuration: '', isPrefilled: false });
+  });
+
+  it('prefills cardio from last actuals, and saved cardio wins', () => {
+    const lastCardio = buildLastCardio([{
+      event_id: 'old__2026-06-26', event_date: '2026-06-26', section: 'exercise',
+      exercise_id: 'run-9', exercise_name: 'Zone 2 Run',
+      duration_minutes: 45, distance: '5 mi', elevation_gain: '800 ft', avg_heart_rate: 145,
+      is_autofilled: false,
+    }]);
+    const groups = buildTrackerModel(makeEvent(), [], [], new Map(), lastCardio);
+    expect(groups[1].exercises[1].cardio).toMatchObject({
+      durationMinutes: '45', distance: '5 mi', elevationGain: '800 ft', avgHeartRate: '145',
+      isPrefilled: true, isLogged: false,
+    });
+
+    const savedCardio: CardioLogRow[] = [{
+      event_id: 'e', event_date: '2026-07-06', section: 'exercise',
+      exercise_id: 'run-1', exercise_name: 'Zone 2 Run',
+      duration_minutes: 30, distance: null, elevation_gain: null, avg_heart_rate: null,
+      is_autofilled: false,
+    }];
+    const withSaved = buildTrackerModel(makeEvent(), [], savedCardio, new Map(), lastCardio);
+    expect(withSaved[1].exercises[1].cardio).toMatchObject({
+      durationMinutes: '30', isLogged: true, isPrefilled: false,
+    });
+  });
+});
+
+describe('buildLastCardio', () => {
+  const row = (over: Partial<CardioLogRow>): CardioLogRow => ({
+    event_id: 'old__2026-06-26', event_date: '2026-06-26', section: 'exercise',
+    exercise_id: 'run-1', exercise_name: 'Zone 2 Run',
+    duration_minutes: 45, distance: '5 mi', elevation_gain: '800 ft', avg_heart_rate: 145,
+    is_autofilled: false,
+    ...over,
+  });
+
+  it('keeps the most recent date per exercise name, regardless of row order', () => {
+    const map = buildLastCardio([
+      row({ event_date: '2026-06-19', distance: '4 mi' }),
+      row({ event_date: '2026-06-26', distance: '5 mi' }),
+    ]);
+    expect(map.get('Zone 2 Run')).toMatchObject({ date: '2026-06-26', distance: '5 mi' });
+  });
+
+  it('ignores autofilled and all-empty rows', () => {
+    const map = buildLastCardio([
+      row({ event_date: '2026-06-28', is_autofilled: true }),
+      row({ event_date: '2026-06-27', duration_minutes: null, distance: null, elevation_gain: null, avg_heart_rate: null }),
+      row({ event_date: '2026-06-20' }),
+    ]);
+    expect(map.get('Zone 2 Run')!.date).toBe('2026-06-20');
+    expect(buildLastCardio([]).size).toBe(0);
+  });
+});
+
+describe('collectPrefilledUntouched', () => {
+  const lastBench = buildLastPerformance([{
+    event_id: 'old__2026-06-26', event_date: '2026-06-26', section: 'exercise',
+    exercise_id: 'ub-1', exercise_name: 'Bench Press', set_number: 1,
+    planned_weight: '185lb', planned_reps: '5', planned_duration: null,
+    actual_weight: '200', actual_reps: '5', actual_duration: null,
+    is_autofilled: false,
+  }]);
+  const lastCardio = buildLastCardio([{
+    event_id: 'old__2026-06-26', event_date: '2026-06-26', section: 'exercise',
+    exercise_id: 'run-1', exercise_name: 'Zone 2 Run',
+    duration_minutes: 45, distance: '5 mi', elevation_gain: null, avg_heart_rate: null,
+    is_autofilled: false,
+  }]);
+
+  it('emits autofilled rows for untouched prefills only', () => {
+    const groups = buildTrackerModel(makeEvent(), [], [], lastBench, lastCardio);
+    // Simulate the user editing bench set 2 (clears the flag, like onSetChange)
+    const bench = groups[1].exercises[0];
+    bench.sets[1] = { ...bench.sets[1], actualReps: '6', isPrefilled: false };
+
+    const { setRows, cardioRows } = collectPrefilledUntouched('eid', '2026-07-06', groups);
+    expect(setRows.every(r => r.is_autofilled)).toBe(true);
+    expect(setRows.map(r => r.set_number).sort()).toEqual([1, 3]); // set 2 excluded
+    expect(setRows[0]).toMatchObject({ actual_weight: '200', actual_reps: '5' });
+    expect(cardioRows).toHaveLength(1);
+    expect(cardioRows[0]).toMatchObject({ duration_minutes: 45, distance: '5 mi', is_autofilled: true });
+  });
+
+  it('emits nothing when there was no prefill', () => {
+    const groups = buildTrackerModel(makeEvent());
+    const { setRows, cardioRows } = collectPrefilledUntouched('eid', '2026-07-06', groups);
+    expect(setRows).toHaveLength(0);
+    expect(cardioRows).toHaveLength(0);
+  });
+
+  it('prefilled sets are not zero-filled by collectUntouchedPlanned', () => {
+    const groups = buildTrackerModel(makeEvent(), [], [], lastBench, lastCardio);
+    const rows = collectUntouchedPlanned('eid', '2026-07-06', groups);
+    // Only the warmup stretch (no history) is zero-fillable
+    expect(rows.map(r => r.exercise_id)).toEqual(['ub-cd-1']);
   });
 });
 
@@ -320,7 +480,7 @@ describe('row serialization', () => {
   it('cardioToRow parses numerics and nulls blanks', () => {
     const groups = buildTrackerModel(makeEvent());
     const run = { ...groups[1].exercises[1] };
-    run.cardio = { durationMinutes: '42.5', distance: '', elevationGain: '900 ft', avgHeartRate: 'abc', isLogged: false };
+    run.cardio = { durationMinutes: '42.5', distance: '', elevationGain: '900 ft', avgHeartRate: 'abc', isLogged: false, isPrefilled: false };
     const row = cardioToRow('eid', '2026-07-06', run);
     expect(row).toMatchObject({
       duration_minutes: 42.5,

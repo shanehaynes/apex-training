@@ -4,7 +4,9 @@ import type { CardioLogRow, SetLogRow, TrackedSection } from '../lib/db/types';
 import {
   buildTrackerModel,
   buildLastPerformance,
+  buildLastCardio,
   collectUntouchedPlanned,
+  collectPrefilledUntouched,
   makeExtraSet,
   setToRow,
   cardioToRow,
@@ -78,8 +80,10 @@ export function useWorkoutSession(
       setSession(data.session);
       historyRef.current = data.history;
       cardioHistoryRef.current = data.cardioHistory;
-      setLastByName(buildLastPerformance(data.history));
-      setGroups(buildTrackerModel(event, data.savedSets, data.savedCardio));
+      const lastPerf = buildLastPerformance(data.history);
+      const lastCardio = buildLastCardio(data.cardioHistory);
+      setLastByName(lastPerf);
+      setGroups(buildTrackerModel(event, data.savedSets, data.savedCardio, lastPerf, lastCardio));
     });
 
     return () => { cancelled = true; };
@@ -189,7 +193,7 @@ export function useWorkoutSession(
   const onSetChange = (section: TrackedSection, exerciseId: string, setNumber: number, field: SetField, value: string) => {
     updateExercise(section, exerciseId, t => ({
       ...t,
-      sets: t.sets.map(s => (s.setNumber === setNumber ? { ...s, [field]: value } : s)),
+      sets: t.sets.map(s => (s.setNumber === setNumber ? { ...s, [field]: value, isPrefilled: false } : s)),
     }));
     dirtySetsRef.current.add(`${section}|${exerciseId}|${setNumber}`);
     scheduleSave();
@@ -198,7 +202,7 @@ export function useWorkoutSession(
   const onCardioChange = (section: TrackedSection, exerciseId: string, field: CardioField, value: string) => {
     updateExercise(section, exerciseId, t => ({
       ...t,
-      cardio: t.cardio && { ...t.cardio, [field]: value },
+      cardio: t.cardio && { ...t.cardio, [field]: value, isPrefilled: false },
     }));
     dirtyCardioRef.current.add(`${section}|${exerciseId}`);
     scheduleSave();
@@ -259,7 +263,13 @@ export function useWorkoutSession(
     setIsFinishing(true);
     try {
       await flushSave();
-      const serverSeconds = await finishSession(event.id, event.date, autofillRows);
+      const prefill = collectPrefilledUntouched(event.id, event.date, groups);
+      const serverSeconds = await finishSession(
+        event.id,
+        event.date,
+        [...autofillRows, ...prefill.setRows],
+        prefill.cardioRows,
+      );
       const totalSeconds = serverSeconds ?? elapsed;
       setCompletion(event.id, true);
       setSession(prev => prev && {

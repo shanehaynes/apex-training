@@ -139,11 +139,12 @@ export async function finishSession(
   eventId: string,
   eventDate: string,
   autofillRows: SetLogRow[],
+  autofillCardioRows: CardioLogRow[] = [],
 ): Promise<number | null> {
   if (!supabase) return null;
   const data = await postJson<{ totalDurationSeconds?: number }>(
     '/api/workout-sessions',
-    { action: 'finish', eventId, eventDate, autofillRows },
+    { action: 'finish', eventId, eventDate, autofillRows, autofillCardioRows },
     'Finishing workout',
   );
   return typeof data?.totalDurationSeconds === 'number' ? data.totalDurationSeconds : null;
