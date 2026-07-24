@@ -28,8 +28,16 @@ type ApiMessage = {
 const KEY_SETUP_MESSAGE =
   'To use the coach, add your Anthropic API key under Profile → AI Coach (the circle avatar, top left).';
 
+/** Shown when the server answers 429: the per-user chat rate limit tripped. */
+const RATE_LIMIT_MESSAGE =
+  'The coach is taking a breather — too many requests in a short window. Try again in a few minutes.';
+
 function isMissingKeyError(err: unknown): boolean {
   return err instanceof ApiError && err.status === 402;
+}
+
+function isRateLimitError(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 429;
 }
 
 export interface PendingAction {
@@ -154,6 +162,8 @@ export function useChat() {
     } catch (err: unknown) {
       if (isMissingKeyError(err)) {
         setMessages(prev => [...prev, { role: 'assistant', content: KEY_SETUP_MESSAGE }]);
+      } else if (isRateLimitError(err)) {
+        setMessages(prev => [...prev, { role: 'assistant', content: RATE_LIMIT_MESSAGE }]);
       } else if (err instanceof Error && err.name !== 'AbortError') {
         setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I ran into an error. Please try again.' }]);
       }
@@ -250,6 +260,8 @@ export function useChat() {
     } catch (err: unknown) {
       if (isMissingKeyError(err)) {
         setMessages([{ role: 'assistant', content: KEY_SETUP_MESSAGE }]);
+      } else if (isRateLimitError(err)) {
+        setMessages([{ role: 'assistant', content: RATE_LIMIT_MESSAGE }]);
       } else if (err instanceof Error && err.name !== 'AbortError') {
         setMessages([{ role: 'assistant', content: "Couldn't reach the coaching server. Please try again." }]);
       }

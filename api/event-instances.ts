@@ -1,11 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
 import { requireUser } from './_lib/auth.js';
+import { enforceAiMutationCap, enforceRateLimit } from './_lib/rateLimit.js';
 
 interface InstanceBody {
   eventId?: string;
   date?: string;
   eventTitle?: string;
+  /** Audit-log attribution; omitted → the DB default ('ai'). */
+  triggeredBy?: 'user' | 'ai';
   /** When present, reschedules the occurrence instead of skipping it. */
   overrides?: { date?: string; startTime?: string; endTime?: string };
 }
@@ -25,11 +28,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const userId = await requireUser(req, res);
   if (!userId) return;
 
+  if (!(await enforceRateLimit(supabase, res, userId, 'writes'))) return;
+
   const body = req.body as InstanceBody | undefined;
   if (!body?.eventId || !body.date) {
     res.status(400).send('Missing eventId or date');
     return;
   }
+
+  const triggeredBy = body.triggeredBy === 'user' || body.triggeredBy === 'ai' ? body.triggeredBy : undefined;
+  if (triggeredBy !== 'user' && !(await enforceAiMutationCap(supabase, res, userId))) return;
 
   // The exception row attaches to a client-supplied event id — confirm the
   // caller owns that event before touching anything.
@@ -84,6 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       event_title: body.eventTitle ?? body.eventId,
       event_date: date ?? body.date,
       diff: { occurrence_date: body.date, overrides: body.overrides },
+      ...(triggeredBy ? { triggered_by: triggeredBy } : {}),
     });
     if (logError) console.error('[api/event-instances] mutation log insert failed:', logError.message);
 
@@ -107,6 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     event_id: body.eventId,
     event_title: body.eventTitle ?? body.eventId,
     event_date: body.date,
+    ...(triggeredBy ? { triggered_by: triggeredBy } : {}),
   });
   if (logError) console.error('[api/event-instances] mutation log insert failed:', logError.message);
 

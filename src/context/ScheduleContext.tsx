@@ -33,14 +33,14 @@ interface ScheduleContextValue {
   setCompletion: (id: string, completed: boolean) => void;
   createEvent: (input: CreateEventInput) => Promise<{ id: string } | null>;
   updateEvent: (input: UpdateEventInput) => Promise<boolean>;
-  deleteEvent: (id: string) => Promise<boolean>;
-  deleteEventInstance: (baseId: string, date: string) => Promise<boolean>;
+  deleteEvent: (id: string, triggeredBy?: 'user' | 'ai') => Promise<boolean>;
+  deleteEventInstance: (baseId: string, date: string, triggeredBy?: 'user' | 'ai') => Promise<boolean>;
   /**
    * Move a single event to a new date and/or time. One-off events are patched
    * directly; a recurring occurrence gets a per-occurrence override so the
    * rest of the series is untouched.
    */
-  rescheduleEvent: (id: string, fields: OccurrenceOverride) => Promise<boolean>;
+  rescheduleEvent: (id: string, fields: OccurrenceOverride, triggeredBy?: 'user' | 'ai') => Promise<boolean>;
   /** Add a movement to the exercise library. */
   createDefinition: (input: CreateDefinitionInput) => Promise<{ id: string } | null>;
   /** Edit library-tier fields; a canonicalName change auto-appends the old name as an alias server-side. */
@@ -282,7 +282,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     };
 
     try {
-      await postJson('/api/events', eventToRow(newEvent), 'Creating event');
+      await postJson('/api/events', { ...eventToRow(newEvent), triggered_by: input.triggeredBy ?? 'user' }, 'Creating event');
       if (completedOnCreate) {
         setCompletedIds(prev => {
           const next = new Set(prev).add(id);
@@ -311,7 +311,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
           event_title: fields.title ?? current?.title ?? baseId,
           event_date:  fields.date ?? current?.date,
           diff:        { before: current ?? {}, after: fields },
-          triggered_by: triggeredBy,
+          triggered_by: triggeredBy ?? 'user',
         },
       }, 'Updating event');
       // Apply locally on success — the realtime refetch reconciles later, but
@@ -323,7 +323,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const deleteEvent = useCallback(async (id: string): Promise<boolean> => {
+  const deleteEvent = useCallback(async (id: string, triggeredBy: 'user' | 'ai' = 'user'): Promise<boolean> => {
     if (!supabase) return false;
 
     const event = eventsRef.current.find(e => e.id === id);
@@ -331,7 +331,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
     try {
       await deleteJson(`/api/events?id=${encodeURIComponent(baseId)}`, 'Deleting event', {
-        log: { event_title: event?.title ?? baseId, event_date: event?.date },
+        log: { event_title: event?.title ?? baseId, event_date: event?.date, triggered_by: triggeredBy },
       });
       return true;
     } catch {
@@ -339,7 +339,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const rescheduleEvent = useCallback(async (id: string, fields: OccurrenceOverride): Promise<boolean> => {
+  const rescheduleEvent = useCallback(async (id: string, fields: OccurrenceOverride, triggeredBy: 'user' | 'ai' = 'user'): Promise<boolean> => {
     if (!supabase) return false;
     if (fields.date === undefined && fields.startTime === undefined && fields.endTime === undefined) return true;
 
@@ -347,7 +347,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     if (!event) return false;
 
     if (!event.isRecurring) {
-      const ok = await updateEvent({ id, fields });
+      const ok = await updateEvent({ id, fields, triggeredBy });
       // Apply locally on success — the realtime refetch reconciles later, but
       // the UI must not depend on it arriving.
       if (ok) {
@@ -376,6 +376,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         eventId: baseId,
         date: keyDate,
         eventTitle: event.title,
+        triggeredBy,
         overrides: merged,
       }, 'Rescheduling occurrence');
       setExceptions(prev => new Map(prev).set(key, merged));
@@ -388,13 +389,20 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const createDefinition = useCallback(async (input: CreateDefinitionInput): Promise<{ id: string } | null> => {
     if (!supabase) return null;
 
+    // triggeredBy is request metadata, not a definition field — keep it out
+    // of the optimistic map and the row payload.
+    const { triggeredBy, ...fields } = input;
     const def = {
-      id: input.id ?? slugifyName(input.canonicalName),
+      id: fields.id ?? slugifyName(fields.canonicalName),
       aliases: [], muscleGroups: [], equipment: [], isUnilateral: false,
-      ...input,
+      ...fields,
     };
     try {
-      await postJson('/api/exercise-definitions', { id: def.id, ...definitionFieldsToRow(def) }, 'Creating exercise');
+      await postJson('/api/exercise-definitions', {
+        id: def.id,
+        ...definitionFieldsToRow(def),
+        triggered_by: triggeredBy ?? 'user',
+      }, 'Creating exercise');
       // Optimistic: entries referencing the new definition resolve immediately;
       // the realtime refetch reconciles later.
       setDefinitions(prev => new Map(prev).set(def.id, def));
@@ -404,7 +412,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const updateDefinition = useCallback(async ({ id, fields }: UpdateDefinitionInput): Promise<boolean> => {
+  const updateDefinition = useCallback(async ({ id, fields, triggeredBy }: UpdateDefinitionInput): Promise<boolean> => {
     if (!supabase) return false;
 
     const current = definitions.get(id);
@@ -414,6 +422,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         log: {
           definition_name: fields.canonicalName ?? current?.canonicalName ?? id,
           diff: { before: current ?? {}, after: fields },
+          triggered_by: triggeredBy ?? 'user',
         },
       }, 'Updating exercise');
       return true;
@@ -422,12 +431,12 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }
   }, [definitions]);
 
-  const deleteEventInstance = useCallback(async (baseId: string, date: string): Promise<boolean> => {
+  const deleteEventInstance = useCallback(async (baseId: string, date: string, triggeredBy: 'user' | 'ai' = 'user'): Promise<boolean> => {
     if (!supabase) return false;
 
     const event = eventsRef.current.find(e => e.id === baseId || e.id.startsWith(baseId));
     try {
-      await postJson('/api/event-instances', { eventId: baseId, date, eventTitle: event?.title ?? baseId }, 'Deleting instance');
+      await postJson('/api/event-instances', { eventId: baseId, date, eventTitle: event?.title ?? baseId, triggeredBy }, 'Deleting instance');
       return true;
     } catch {
       return false;

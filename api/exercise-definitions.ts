@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
 import { requireUser } from './_lib/auth.js';
+import { pickAllowed, DEFINITION_INSERT_COLUMNS, DEFINITION_PATCH_COLUMNS } from './_lib/allowlist.js';
+import { enforceAiMutationCap, enforceRateLimit } from './_lib/rateLimit.js';
 import type { ExerciseDefinitionRow } from '../src/lib/db/types.js';
 
 // Exercise library mutations (EXERCISE_LIBRARY_SPEC.md §3). Writes go through
@@ -9,6 +11,8 @@ import type { ExerciseDefinitionRow } from '../src/lib/db/types.js';
 interface MutationLogEntry {
   definition_name: string;
   diff?: Record<string, unknown>;
+  /** Omitted → the DB default ('ai'); UI-driven edits send 'user'. */
+  triggered_by?: 'ai' | 'user';
 }
 
 async function logMutation(
@@ -24,6 +28,10 @@ async function logMutation(
     definition_id: definitionId,
     definition_name: log.definition_name,
     diff: log.diff,
+    // Runtime guard, not just the type: the entry arrives in request bodies.
+    ...(log.triggered_by === 'ai' || log.triggered_by === 'user'
+      ? { triggered_by: log.triggered_by }
+      : {}),
   });
   if (error) console.error('[api/exercise-definitions] mutation log insert failed:', error.message);
 }
@@ -38,21 +46,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const userId = await requireUser(req, res);
   if (!userId) return;
 
+  if (!(await enforceRateLimit(supabase, res, userId, 'writes'))) return;
+
   if (req.method === 'POST') {
-    const row = req.body as Partial<ExerciseDefinitionRow> | undefined;
-    if (!row || typeof row.id !== 'string' || typeof row.canonical_name !== 'string' || typeof row.category !== 'string') {
+    const { triggered_by, ...row } = (req.body ?? {}) as Partial<ExerciseDefinitionRow> & { triggered_by?: unknown };
+    if (typeof row.id !== 'string' || typeof row.canonical_name !== 'string' || typeof row.category !== 'string') {
       res.status(400).send('Missing required definition fields (id, canonical_name, category)');
       return;
     }
+    const triggeredBy = triggered_by === 'user' || triggered_by === 'ai' ? triggered_by : undefined;
 
-    const { error } = await supabase.from('exercise_definitions').insert({ ...row, user_id: userId });
+    if (triggeredBy !== 'user' && !(await enforceAiMutationCap(supabase, res, userId))) return;
+
+    const { picked, rejected } = pickAllowed(row as Record<string, unknown>, DEFINITION_INSERT_COLUMNS);
+    if (rejected.length > 0) {
+      console.error('[api/exercise-definitions] insert rejected unknown fields:', rejected.join(', '));
+      res.status(400).send(`Unknown definition fields: ${rejected.join(', ')}`);
+      return;
+    }
+
+    const { error } = await supabase.from('exercise_definitions').insert({ ...picked, user_id: userId });
     if (error) {
       console.error('[api/exercise-definitions] insert failed:', error.message);
       res.status(500).send('Failed to create definition');
       return;
     }
 
-    await logMutation(supabase, userId, 'create', row.id, { definition_name: row.canonical_name });
+    await logMutation(supabase, userId, 'create', row.id, {
+      definition_name: row.canonical_name,
+      triggered_by: triggeredBy,
+    });
     res.status(200).json({ id: row.id });
     return;
   }
@@ -69,6 +92,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
+    if (body.log.triggered_by !== 'user' && !(await enforceAiMutationCap(supabase, res, userId))) return;
+
     const { data: current, error: fetchErr } = await supabase
       .from('exercise_definitions')
       .select('canonical_name,aliases,archived_at')
@@ -80,7 +105,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const fields = { ...body.fields };
+    const { picked, rejected } = pickAllowed(body.fields as Record<string, unknown>, DEFINITION_PATCH_COLUMNS);
+    if (rejected.length > 0) {
+      console.error('[api/exercise-definitions] update rejected unknown fields:', rejected.join(', '));
+      res.status(400).send(`Unknown definition fields: ${rejected.join(', ')}`);
+      return;
+    }
+
+    const fields = picked as Partial<ExerciseDefinitionRow>;
     // Renames auto-append the old canonical name as an alias, so history
     // matching never forks (spec §2.3). Never skip this.
     if (fields.canonical_name && fields.canonical_name !== current.canonical_name) {

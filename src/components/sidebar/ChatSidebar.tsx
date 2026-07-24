@@ -85,9 +85,17 @@ export default function ChatSidebar() {
     if (!pendingAction) return 'No action.';
     const tool = findCoachTool(pendingAction.toolName);
     if (!tool) return 'Unknown action.';
+    // Coach-originated mutations are stamped 'ai' here — the audit logs (and
+    // the server's daily AI cap) rely on this attribution.
     return tool.execute(pendingAction.input, {
-      createEvent, updateEvent, deleteEvent, deleteEventInstance, rescheduleEvent,
-      definitions, createDefinition, updateDefinition,
+      createEvent:         input => createEvent({ ...input, triggeredBy: 'ai' }),
+      updateEvent:         input => updateEvent({ ...input, triggeredBy: input.triggeredBy ?? 'ai' }),
+      deleteEvent:         id => deleteEvent(id, 'ai'),
+      deleteEventInstance: (baseId, date) => deleteEventInstance(baseId, date, 'ai'),
+      rescheduleEvent:     (id, fields) => rescheduleEvent(id, fields, 'ai'),
+      definitions,
+      createDefinition:    input => createDefinition({ ...input, triggeredBy: 'ai' }),
+      updateDefinition:    input => updateDefinition({ ...input, triggeredBy: input.triggeredBy ?? 'ai' }),
     });
   };
 

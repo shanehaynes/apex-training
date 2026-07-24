@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireUser } from './_lib/auth.js';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
 import { getAnthropicKey } from './_lib/anthropicKey.js';
+import { enforceRateLimit } from './_lib/rateLimit.js';
 import { athleteSection } from '../src/lib/coach/prompt.js';
 
 // One-shot post-workout coach summary, running on the caller's own
@@ -34,6 +35,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const userId = await requireUser(req, res);
   if (!userId) return;
 
+  if (!(await enforceRateLimit(supabase, res, userId, 'summary'))) return;
+
   let apiKey: string | null;
   try {
     apiKey = await getAnthropicKey(supabase, userId);
@@ -51,6 +54,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const body = req.body as { recap?: unknown } | undefined;
   if (typeof body?.recap !== 'string' || !body.recap.trim()) {
     res.status(400).send('Missing recap');
+    return;
+  }
+  if (body.recap.length > 20_000) {
+    res.status(413).send('Recap too large');
     return;
   }
 

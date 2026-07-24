@@ -88,6 +88,7 @@ describe.skipIf(!RUN)('api handlers against the local stack', () => {
     if (!RUN) return;
     await admin.from('workout_events').delete().eq('id', EVENT_ID);
     await admin.from('workout_completions').delete().eq('event_id', EVENT_ID);
+    await admin.from('api_request_counts').delete().eq('bucket', 'itest');
   });
 
   it('rejects a request without a bearer token', async () => {
@@ -102,24 +103,68 @@ describe.skipIf(!RUN)('api handlers against the local stack', () => {
     expect(captured.statusCode).toBe(401);
   });
 
-  it('creates an event stamped with the verified uid, ignoring body user_id', async () => {
+  const CLEAN_EVENT_BODY = {
+    id: EVENT_ID, type: 'weights', title: 'Integration Test Lift',
+    date: '2026-06-15', estimated_duration: 45, difficulty: 3,
+    description: '', warmup: [], exercises: [], cooldown: [],
+    tags: [], equipment: [], is_recurring: false,
+  };
+
+  it('rejects a body with a spoofed user_id (server-side allowlist)', async () => {
     const captured = makeRes();
     await eventsHandler(makeReq({
       method: 'POST',
       token: agent.token,
-      body: {
-        id: EVENT_ID, type: 'weights', title: 'Integration Test Lift',
-        date: '2026-06-15', estimated_duration: 45, difficulty: 3,
-        description: '', warmup: [], exercises: [], cooldown: [],
-        tags: [], equipment: [], is_recurring: false,
-        // A spoofed user_id must be ignored in favor of the JWT's uid.
-        user_id: agent2.userId,
-      },
+      body: { ...CLEAN_EVENT_BODY, user_id: agent2.userId },
+    }), captured.res);
+    expect(captured.statusCode).toBe(400);
+    expect(String(captured.body)).toContain('user_id');
+
+    const { data } = await admin.from('workout_events').select('id').eq('id', EVENT_ID);
+    expect(data?.length).toBe(0);
+  });
+
+  it('rejects a body smuggling an unknown column', async () => {
+    const captured = makeRes();
+    await eventsHandler(makeReq({
+      method: 'POST',
+      token: agent.token,
+      body: { ...CLEAN_EVENT_BODY, is_template_source: true },
+    }), captured.res);
+    expect(captured.statusCode).toBe(400);
+  });
+
+  it('creates a clean event stamped with the verified uid', async () => {
+    const captured = makeRes();
+    await eventsHandler(makeReq({
+      method: 'POST',
+      token: agent.token,
+      body: { ...CLEAN_EVENT_BODY, triggered_by: 'user' },
     }), captured.res);
     expect(captured.statusCode).toBe(200);
 
     const { data } = await admin.from('workout_events').select('user_id,title').eq('id', EVENT_ID).single();
     expect(data?.user_id).toBe(agent.userId);
+  });
+
+  it('bump_rate_limit counts atomically within one window', async () => {
+    const counts: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const { data, error } = await admin.rpc('bump_rate_limit', {
+        p_user_id: agent.userId, p_bucket: 'itest', p_window_seconds: 3600,
+      });
+      expect(error).toBeNull();
+      counts.push(data as number);
+    }
+    expect(counts).toEqual([1, 2, 3, 4, 5]);
+
+    const { data: rows } = await admin
+      .from('api_request_counts')
+      .select('count')
+      .eq('user_id', agent.userId)
+      .eq('bucket', 'itest');
+    expect(rows?.length).toBe(1);
+    expect(rows?.[0].count).toBe(5);
   });
 
   it('RLS: the owner reads the row, the other user reads nothing', async () => {

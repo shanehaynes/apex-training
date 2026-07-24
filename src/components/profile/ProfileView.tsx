@@ -7,6 +7,7 @@ import { AVATARS, AVATAR_KEYS } from '../../lib/profile/avatars';
 import { postJson } from '../../lib/api';
 import { notify } from '../../lib/notify';
 import { useRotatingPlaceholder } from '../../hooks/useRotatingPlaceholder';
+import CoachActivity from './CoachActivity';
 import type { AvatarKey } from '../../lib/db/types';
 
 // Full-screen profile overlay, same pattern as LibraryView: fixed inset-0,
@@ -318,6 +319,8 @@ export default function ProfileView() {
             </>
           )}
         </section>
+
+        <CoachActivity />
 
         <section className="profile-section">
           <h3 className="profile-section__title">Calendar feed</h3>

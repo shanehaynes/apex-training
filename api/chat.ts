@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireUser } from './_lib/auth.js';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
 import { getAnthropicKey } from './_lib/anthropicKey.js';
+import { enforceRateLimit } from './_lib/rateLimit.js';
 import { coachToolSchemas } from '../src/lib/coach/schemas.js';
 import type { ChatWireEvent } from '../src/lib/coach/wire.js';
 
@@ -80,6 +81,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const userId = await requireUser(req, res);
   if (!userId) return;
 
+  // 429 before any NDJSON headers so the client sees a plain HTTP error.
+  if (!(await enforceRateLimit(supabase, res, userId, 'chat'))) return;
+
   let apiKey: string | null;
   try {
     apiKey = await getAnthropicKey(supabase, userId);
@@ -99,6 +103,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!Array.isArray(body?.messages) || typeof body.system !== 'string') {
     res.status(400).send('Missing messages or system');
     return;
+  }
+
+  // Sanity bounds ~10x above legitimate usage — a request outside them is a
+  // bug or abuse, not a long conversation.
+  if (body.system.length > 100_000) {
+    res.status(413).send('System prompt too large');
+    return;
+  }
+  if (body.messages.length > 80 || JSON.stringify(body.messages).length > 400_000) {
+    res.status(413).send('Conversation too large');
+    return;
+  }
+  for (const msg of body.messages as Array<{ role?: unknown }>) {
+    if (msg?.role !== 'user' && msg?.role !== 'assistant') {
+      res.status(400).send('Invalid message role');
+      return;
+    }
   }
 
   res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');

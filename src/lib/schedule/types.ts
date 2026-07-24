@@ -8,6 +8,8 @@ export interface CreateEventInput {
   title: string;
   date: string;
   estimatedDuration: number;
+  /** Audit-log attribution; ScheduleContext defaults to 'user', the coach executor passes 'ai'. */
+  triggeredBy?: 'user' | 'ai';
   difficulty?: 1 | 2 | 3 | 4 | 5;
   startTime?: string;
   endTime?: string;
@@ -25,17 +27,21 @@ export interface CreateEventInput {
 export interface UpdateEventInput {
   id: string;
   fields: Partial<Omit<WorkoutEvent, 'id' | 'isCompleted'>>;
-  /** Audit-log attribution; the DB defaults to 'ai', so UI edits pass 'user'. */
+  /** Audit-log attribution; ScheduleContext defaults to 'user', the coach executor passes 'ai'. */
   triggeredBy?: 'user' | 'ai';
 }
 
 /** A new exercise library entry. id defaults to a slug of canonicalName. */
 export type CreateDefinitionInput =
-  Pick<ExerciseDefinition, 'canonicalName' | 'category'> & Partial<Omit<ExerciseDefinition, 'canonicalName' | 'category'>>;
+  Pick<ExerciseDefinition, 'canonicalName' | 'category'> &
+  Partial<Omit<ExerciseDefinition, 'canonicalName' | 'category'>> &
+  { triggeredBy?: 'user' | 'ai' };
 
 export interface UpdateDefinitionInput {
   id: string;
   fields: Partial<Omit<ExerciseDefinition, 'id'>>;
+  /** Audit-log attribution; ScheduleContext defaults to 'user', the coach executor passes 'ai'. */
+  triggeredBy?: 'user' | 'ai';
 }
 
 /**
