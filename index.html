@@ -4,10 +4,80 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>apex-training-src</title>
+    <title>Apex Training — Training Calendar, Workout Tracker &amp; AI Coach</title>
+    <meta
+      name="description"
+      content="Apex Training is a calendar-first training planner with recurring workouts, set-by-set tracking, personal records computed from your own history, and an AI coach that narrates your data but never invents it."
+    />
+    <link rel="canonical" href="https://apextrainingcalendar.vercel.app/" />
+    <meta name="theme-color" content="#0d0c0b" />
+
+    <meta property="og:title" content="Apex Training — Training Calendar, Workout Tracker &amp; AI Coach" />
+    <meta
+      property="og:description"
+      content="Calendar-first training planner with recurring workouts, set-by-set tracking, PRs computed from your history, and an AI coach that narrates but never invents data."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://apextrainingcalendar.vercel.app/" />
+    <meta property="og:image" content="https://apextrainingcalendar.vercel.app/og.png" />
+    <meta property="og:site_name" content="Apex Training" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Apex Training — Training Calendar, Workout Tracker &amp; AI Coach" />
+    <meta
+      name="twitter:description"
+      content="Calendar-first training planner with recurring workouts, set-by-set tracking, PRs computed from your history, and an AI coach that narrates but never invents data."
+    />
+    <meta name="twitter:image" content="https://apextrainingcalendar.vercel.app/og.png" />
+
+    <style>
+      .static-intro {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0d0c0b;
+        padding: 24px;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+      .static-intro > div {
+        max-width: 560px;
+      }
+      .static-intro h1 {
+        color: #f1f5f9;
+        font-size: 28px;
+        margin: 0 0 12px;
+      }
+      .static-intro p {
+        color: #a09590;
+        font-size: 15px;
+        line-height: 1.6;
+        margin: 0 0 12px;
+      }
+      .static-intro a {
+        color: #e8e2d9;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="static-intro">
+        <div>
+          <h1>Apex Training</h1>
+          <p>
+            A calendar-first training planner, live workout tracker, and AI coach in one app. Plan your
+            week with recurring workouts, log sets against planned targets, and track personal records
+            computed deterministically from your own history — the AI narrates your data, it never
+            invents it. Includes a standards-compliant ICS feed for subscribing from Apple or Google
+            Calendar.
+          </p>
+          <p>
+            Apex is a personal project by Shane Haynes and is currently invite-only. Source and specs:
+            <a href="https://github.com/shanehaynes/apex-training">github.com/shanehaynes/apex-training</a>.
+          </p>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
