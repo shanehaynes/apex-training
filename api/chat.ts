@@ -130,7 +130,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const client = new Anthropic({ apiKey });
     const stream = client.messages.stream({
       model: 'claude-opus-4-8',
-      max_tokens: 1024,
+      // max_tokens caps thinking + response text together on current models.
+      // At 1024, planning-heavy requests spent the whole budget on thinking
+      // and streamed zero text (stop_reason max_tokens on 14/30 eval cases).
+      max_tokens: 8192,
       thinking: { type: 'adaptive' },
       system: body.system,
       messages: body.messages as Anthropic.MessageParam[],
