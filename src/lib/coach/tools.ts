@@ -198,7 +198,7 @@ const createEventTool: CoachToolDef = {
     };
     const result = await deps.createEvent(createInput);
     return result
-      ? `Created "${title}" on ${date}.${describeCreated(created)}`
+      ? `Created "${title}" on ${date} [${result.id}].${describeCreated(created)}`
       : 'Failed to create the event.';
   },
 };

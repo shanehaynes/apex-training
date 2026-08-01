@@ -86,6 +86,7 @@ describe('coach tool registry', () => {
       type: 'yoga', title: 'Flow', date: '2026-07-08', estimatedDuration: 30, startTime: '7:00 AM',
     }));
     expect(result).toContain('Flow');
+    expect(result).toContain('[new-1]');
   });
 
   it('update_event forwards only the changed fields, camelCased', async () => {
