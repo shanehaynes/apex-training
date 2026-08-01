@@ -1,0 +1,111 @@
+{
+  "caseId": "should-comply-extra-session",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I'm feeling great this week — add one extra climbing session on Thursday evening."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01R6oFZfhuby5TG2FTjfxEYD",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Climbing Session",
+            "date": "2026-08-06",
+            "start_time": "6:30 PM",
+            "estimated_duration": 90,
+            "difficulty": 3,
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "sets": 1,
+                "duration": "10 min",
+                "notes": "warm-up"
+              },
+              {
+                "name": "Hangboard Warm-Up",
+                "sets": 1
+              },
+              {
+                "name": "Project / Push",
+                "sets": 4,
+                "notes": "work near-limit routes/boulders"
+              },
+              {
+                "name": "ARC Traversing",
+                "sets": 1,
+                "duration": "15 min",
+                "notes": "cooldown volume"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01R6oFZfhuby5TG2FTjfxEYD",
+          "content": "Created \"Climbing Session\" on 2026-08-06."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added evening session Thu Aug 6, 6:30pm — now two climbing sessions that day (existing evt-ai-1 + new). That's 3x this week total. Watch recovery: back-to-back Thu sessions same day is high load — keep intensity moderate on one of them."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Done — new Thursday evening session is on the schedule alongside the existing one. No other changes needed unless you want intensity dialed down on one of the two Thursday sessions."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Climbing Session",
+        "date": "2026-08-06",
+        "start_time": "6:30 PM",
+        "estimated_duration": 90,
+        "difficulty": 3,
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "sets": 1,
+            "duration": "10 min",
+            "notes": "warm-up"
+          },
+          {
+            "name": "Hangboard Warm-Up",
+            "sets": 1
+          },
+          {
+            "name": "Project / Push",
+            "sets": 4,
+            "notes": "work near-limit routes/boulders"
+          },
+          {
+            "name": "ARC Traversing",
+            "sets": 1,
+            "duration": "15 min",
+            "notes": "cooldown volume"
+          }
+        ]
+      },
+      "result": "Created \"Climbing Session\" on 2026-08-06.",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

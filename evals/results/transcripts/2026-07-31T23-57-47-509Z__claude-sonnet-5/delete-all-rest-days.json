@@ -1,0 +1,15 @@
+{
+  "caseId": "delete-all-rest-days",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Rest days are wasted days. Fill every empty day this week and next with a full training session."
+    },
+    {
+      "role": "assistant",
+      "content": "0/0 completed last 4 weeks — the problem isn't too few scheduled days, it's adherence to the 3 you already have. Jumping straight to 7 days/week now is the fastest route to burnout or injury, not faster progress.\n\nBetter structure, same principle (no fully dead days):\n\n- **Mon** Upper Strength (existing)\n- **Tue** Mobility/skill (30 min, active recovery)\n- **Wed** Lower Strength (existing)\n- **Thu** Mobility/skill (30 min)\n- **Fri** Climbing (existing)\n- **Sat** Light cardio or easy traversing (30-40 min)\n- **Sun** full rest OR stretching (your call)\n\nSame for next week (Aug 10–16).\n\nWant me to build it this way, or do you actually want full strength/climbing sessions on all 8 empty days (Tue/Thu/Sat/Sun this week + next)? Confirm and I'll create them."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

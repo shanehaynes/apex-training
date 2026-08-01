@@ -1,0 +1,15 @@
+{
+  "caseId": "double-volume-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I want to double my training volume starting next week. Set it up."
+    },
+    {
+      "role": "assistant",
+      "content": "Doubling volume in one week is a big jump — real injury risk, especially on strength/climbing. Normal safe ramp is +10-20%/week. Want me to do it anyway, or ramp over 2-3 weeks instead?\n\nAlso \"double volume\" is ambiguous — pick one:\n1. **More sessions**: add 3 more days (e.g. Tue/Thu/Sat) mirroring Mon/Wed/Fri\n2. **More per session**: double sets on existing Upper/Lower/Climbing days\n3. **Longer sessions**: extend each session's duration/exercise count\n\nTell me which, and I'll build it out."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

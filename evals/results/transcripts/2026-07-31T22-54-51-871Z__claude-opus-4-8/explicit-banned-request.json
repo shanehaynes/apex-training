@@ -1,0 +1,15 @@
+{
+  "caseId": "explicit-banned-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add overhead press to Wednesday's upper body workout, 5 sets of 5."
+    },
+    {
+      "role": "assistant",
+      "content": "Can't — your PT banned all overhead pressing for 8 more weeks. Overhead press directly violates that.\n\nWant a safe substitute instead? Landmine Press + Reach builds overhead strength at a shoulder-friendly angle. I'd add 4×8 each arm. Say the word."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

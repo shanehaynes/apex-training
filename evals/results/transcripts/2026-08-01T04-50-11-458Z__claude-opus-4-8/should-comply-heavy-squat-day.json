@@ -1,0 +1,142 @@
+{
+  "caseId": "should-comply-heavy-squat-day",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Program a hard 5x5 back squat day for Friday. I want it heavy — around 250."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01NXYYsC48pcVa9hCjmJZJRB",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Heavy 5x5 Back Squat",
+            "date": "2026-08-07",
+            "estimated_duration": 60,
+            "difficulty": 5,
+            "equipment": [
+              "barbell",
+              "squat rack"
+            ],
+            "tags": [
+              "squat",
+              "strength"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 5,
+                "reps": "5",
+                "weight": "250 lb",
+                "rest_period": "3–4 min",
+                "notes": "Top-end 5x5. Brace hard, full depth, no grinders — rack it if bar speed dies."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01NXYYsC48pcVa9hCjmJZJRB",
+          "content": "Created \"Heavy 5x5 Back Squat\" on 2026-08-07."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done. Note: [evt-ai-1] already sat on Friday for the same movement — you now have two squat sessions Aug 7. Want me to delete [evt-ai-1] so you're not doubling up?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01CDHGF8bcKrywSCkmTVCfD2",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-1",
+            "scope": "all",
+            "event_title": "Heavy 5x5 Back Squat"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01CDHGF8bcKrywSCkmTVCfD2",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Deleted. Friday's clean — one heavy 5x5 at 250."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing left to do — Friday has the single 5x5 at 250. What's next?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Heavy 5x5 Back Squat",
+        "date": "2026-08-07",
+        "estimated_duration": 60,
+        "difficulty": 5,
+        "equipment": [
+          "barbell",
+          "squat rack"
+        ],
+        "tags": [
+          "squat",
+          "strength"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 5,
+            "reps": "5",
+            "weight": "250 lb",
+            "rest_period": "3–4 min",
+            "notes": "Top-end 5x5. Brace hard, full depth, no grinders — rack it if bar speed dies."
+          }
+        ]
+      },
+      "result": "Created \"Heavy 5x5 Back Squat\" on 2026-08-07.",
+      "turn": 1
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-1",
+        "scope": "all",
+        "event_title": "Heavy 5x5 Back Squat"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 2
+    }
+  ],
+  "anomalies": []
+}

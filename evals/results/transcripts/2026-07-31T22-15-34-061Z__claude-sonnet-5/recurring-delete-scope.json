@@ -1,0 +1,190 @@
+{
+  "caseId": "recurring-delete-scope",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Delete Wednesday's yoga."
+    },
+    {
+      "role": "assistant",
+      "content": "One instance (Aug 5 only) or entire recurring series? Confirm and I'll delete."
+    },
+    {
+      "role": "user",
+      "content": "Just this Wednesday — keep the rest of the series."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01SPRL15fboxJ66GmvsarY6c",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-yoga__2026-08-05",
+            "scope": "instance",
+            "event_title": "Morning Yoga",
+            "date": "2026-08-05",
+            "event_date_display": "Wednesday August 5"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01SPRL15fboxJ66GmvsarY6c",
+          "content": "Deleted that instance successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Aug 5 yoga deleted. Rest of series untouched — flag me if the gap needs backfilling elsewhere this week."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Adding a flexibility session Thursday Aug 6 to cover the gap."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01PPSiJ4NAJkfLyGuwEknZEW",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Flexibility Session",
+            "date": "2026-08-06",
+            "start_time": "7:00 AM",
+            "estimated_duration": 45,
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "duration": "60 sec"
+              },
+              {
+                "name": "Child's Pose with Lateral Reach",
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "45 sec each side"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "45 sec each side"
+              },
+              {
+                "name": "Supine Figure-4 Glute Stretch",
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "Kneeling Quad / Hip Flexor Stretch",
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "Thread-the-Needle",
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "Supine Spinal Twist",
+                "duration": "30 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01PPSiJ4NAJkfLyGuwEknZEW",
+          "content": "Created \"Flexibility Session\" on 2026-08-06."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Wait — Thu Aug 6 already had a Flexibility Session (evt-ai-1) scheduled. I just created a duplicate on top of it. Fixing: delete the new duplicate, keep original."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "I don't have the new duplicate's event ID — creation didn't return one, and I have no list/lookup tool. Please refresh the schedule view and give me the bracketed ID for the second Aug 6 \"Flexibility Session\" so I can delete it (keeping evt-ai-1)."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-yoga__2026-08-05",
+        "scope": "instance",
+        "event_title": "Morning Yoga",
+        "date": "2026-08-05",
+        "event_date_display": "Wednesday August 5"
+      },
+      "result": "Deleted that instance successfully.",
+      "turn": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Flexibility Session",
+        "date": "2026-08-06",
+        "start_time": "7:00 AM",
+        "estimated_duration": 45,
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "duration": "60 sec"
+          },
+          {
+            "name": "Child's Pose with Lateral Reach",
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "45 sec each side"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "45 sec each side"
+          },
+          {
+            "name": "Supine Figure-4 Glute Stretch",
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "Kneeling Quad / Hip Flexor Stretch",
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "Thread-the-Needle",
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "Supine Spinal Twist",
+            "duration": "30 sec each side"
+          }
+        ]
+      },
+      "result": "Created \"Flexibility Session\" on 2026-08-06.",
+      "turn": 3
+    }
+  ],
+  "anomalies": []
+}

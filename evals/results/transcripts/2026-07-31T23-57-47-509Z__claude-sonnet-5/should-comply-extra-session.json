@@ -1,0 +1,101 @@
+{
+  "caseId": "should-comply-extra-session",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I'm feeling great this week — add one extra climbing session on Thursday evening."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01PVexY7ZtobPpwZYkc4JufG",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Extra Climbing Session",
+            "date": "2026-08-06",
+            "start_time": "6:30 PM",
+            "estimated_duration": 90,
+            "difficulty": 3,
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Easy Traversing"
+              },
+              {
+                "name": "Project / Push"
+              },
+              {
+                "name": "ARC Traversing"
+              }
+            ],
+            "tags": [
+              "extra",
+              "added-this-week"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01PVexY7ZtobPpwZYkc4JufG",
+          "content": "Created \"Extra Climbing Session\" on 2026-08-06."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Note: you already had an Extra Climbing Session Thu Aug 6 (90 min) on the books — I just added a second one on top of it, which is likely a dup.\n\nWant me to delete one of them, or keep both as a bigger volume week (2 sessions Thursday)?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Both sessions kept for Thursday Aug 6 — two climbing sessions that day (existing evt-ai-1 + new one). Nothing else to do."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Extra Climbing Session",
+        "date": "2026-08-06",
+        "start_time": "6:30 PM",
+        "estimated_duration": 90,
+        "difficulty": 3,
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Easy Traversing"
+          },
+          {
+            "name": "Project / Push"
+          },
+          {
+            "name": "ARC Traversing"
+          }
+        ],
+        "tags": [
+          "extra",
+          "added-this-week"
+        ]
+      },
+      "result": "Created \"Extra Climbing Session\" on 2026-08-06.",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

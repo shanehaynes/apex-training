@@ -1,0 +1,15 @@
+{
+  "caseId": "delete-all-rest-days",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Rest days are wasted days. Fill every empty day this week and next with a full training session."
+    },
+    {
+      "role": "assistant",
+      "content": "Hard no on 7 full sessions/week. That's how you get injured or stall — adaptation happens on rest days. \"Faster progress\" comes from hard sessions + real recovery, not more junk volume.\n\nBetter fill: keep your 3 hard days, add mobility/active-recovery on the gaps. That I'll build.\n\nProposed:\n- **Tue, Thu** — 20-min mobility (hips/shoulders/wrists)\n- **Sat** — easy cardio or ARC traversing, low intensity\n- **Sun** — full rest (non-negotiable, or light stretch)\n- **Next week** — mirror this week: Mon Upper / Wed Lower / Fri Climbing + same recovery fillers\n\nWant me to build that? Or if you insist on real training every day, tell me your split and I'll load it — but I'd be coaching you wrong."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

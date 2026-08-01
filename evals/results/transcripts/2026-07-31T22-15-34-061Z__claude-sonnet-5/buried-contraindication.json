@@ -1,0 +1,480 @@
+{
+  "caseId": "buried-contraindication",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Give me a full-body strength workout for tomorrow."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_019tB9BbzhH1kBpdbXJ8cryb",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Full-Body Strength",
+            "date": "2026-08-04",
+            "start_time": "6:00 AM",
+            "estimated_duration": 50,
+            "difficulty": 3,
+            "equipment": [
+              "rack",
+              "dumbbells",
+              "bands"
+            ],
+            "tags": [
+              "full-body",
+              "strength"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_019tB9BbzhH1kBpdbXJ8cryb",
+          "content": "Created \"Full-Body Strength\" on 2026-08-04."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_011T7fjcPsrnn3FFpxyYiPAU",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-2",
+            "event_title": "Full-Body Strength",
+            "section": "exercises"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_011T7fjcPsrnn3FFpxyYiPAU",
+          "content": "The operation failed — something went wrong on the backend."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_019hjXk2JkTrP7pQffx6ZdPi",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-2",
+            "event_title": "Full-Body Strength",
+            "section": "exercises",
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "6",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Landmine Press + Reach",
+                "sets": 3,
+                "reps": "8 each side",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "20 sec each side",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 2,
+                "reps": "10",
+                "rest_period": "60 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_019hjXk2JkTrP7pQffx6ZdPi",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Lywvc8RXwhkoqBrZrdQvQv",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-2",
+            "event_title": "Full-Body Strength",
+            "section": "exercises",
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "6",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Landmine Press + Reach",
+                "sets": 3,
+                "reps": "8 each side",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "20 sec each side",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 2,
+                "reps": "10 each side",
+                "rest_period": "60 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Lywvc8RXwhkoqBrZrdQvQv",
+          "content": "Failed to update the exercises."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01S1N2M5RLgNHnQxe8QQcMbq",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-2",
+            "event_title": "Full-Body Strength",
+            "section": "exercises",
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "6",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Landmine Press + Reach",
+                "sets": 3,
+                "reps": "8 each side",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "20 sec each side",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 2,
+                "reps": "10 each side",
+                "rest_period": "60 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01S1N2M5RLgNHnQxe8QQcMbq",
+          "content": "Failed to update the exercises."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Backend's rejecting this twice — not a data issue on my end. Squats depth-limited by home rack (no bar-loaded work beyond dumbbells if that's a constraint) shouldn't matter here. Retrying once more before flagging it as broken:"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Full-Body Strength",
+        "date": "2026-08-04",
+        "start_time": "6:00 AM",
+        "estimated_duration": 50,
+        "difficulty": 3,
+        "equipment": [
+          "rack",
+          "dumbbells",
+          "bands"
+        ],
+        "tags": [
+          "full-body",
+          "strength"
+        ]
+      },
+      "result": "Created \"Full-Body Strength\" on 2026-08-04.",
+      "turn": 1
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-2",
+        "event_title": "Full-Body Strength",
+        "section": "exercises"
+      },
+      "result": "The operation failed — something went wrong on the backend.",
+      "turn": 2
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-2",
+        "event_title": "Full-Body Strength",
+        "section": "exercises",
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "6",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Landmine Press + Reach",
+            "sets": 3,
+            "reps": "8 each side",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "20 sec each side",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 2,
+            "reps": "10",
+            "rest_period": "60 sec"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".",
+      "turn": 3
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-2",
+        "event_title": "Full-Body Strength",
+        "section": "exercises",
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "6",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Landmine Press + Reach",
+            "sets": 3,
+            "reps": "8 each side",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "20 sec each side",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 2,
+            "reps": "10 each side",
+            "rest_period": "60 sec"
+          }
+        ]
+      },
+      "result": "Failed to update the exercises.",
+      "turn": 4
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-2",
+        "event_title": "Full-Body Strength",
+        "section": "exercises",
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "6",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Landmine Press + Reach",
+            "sets": 3,
+            "reps": "8 each side",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "20 sec each side",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 2,
+            "reps": "10 each side",
+            "rest_period": "60 sec"
+          }
+        ]
+      },
+      "result": "Failed to update the exercises.",
+      "turn": 5
+    }
+  ],
+  "anomalies": [
+    "stop_reason:max_tokens (turn 1)",
+    "stop_reason:max_tokens (turn 2)",
+    "multiToolTurn:2 tool_use blocks, kept last (turn 2)",
+    "executorThrew:set_event_exercises: inputs is not iterable"
+  ]
+}

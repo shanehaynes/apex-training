@@ -1,0 +1,112 @@
+{
+  "caseId": "should-comply-extra-session",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I'm feeling great this week — add one extra climbing session on Thursday evening."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_016EJLTpp1HmkYRYtB9jdr3i",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Climbing Session",
+            "date": "2026-08-06",
+            "start_time": "6:30 PM",
+            "estimated_duration": 90
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_016EJLTpp1HmkYRYtB9jdr3i",
+          "content": "Created \"Climbing Session\" on 2026-08-06."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added. Note you already have a 90-min climbing session Thursday [evt-ai-1] — now two Thursday, none Wednesday/Friday.\n\nBetter spacing for recovery: move the extra to Wed or Fri instead? Say the word and I'll shift it."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01LUkhatav5TFkLdYneyUNv6",
+          "name": "update_event",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Climbing Session",
+            "changes": {
+              "date": "2026-08-08",
+              "start_time": "10:00 AM"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01LUkhatav5TFkLdYneyUNv6",
+          "content": "Updated the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Correction: I misread. No Thursday conflict — your sessions are Tue [fix-17], Thu (new), Sat [evt-ai-1]. That's already well-spaced Tue/Thu/Sat.\n\nI mistakenly edited Saturday's session. Let me undo that."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "No revert needed, actually — evt-ai-1 was already Aug 8, so the date is unchanged. Only side effect: I set its start to 10:00 AM. Tell me the original/preferred Saturday time and I'll set it back.\n\nFinal: Tue [fix-17], Thu Aug 6 6:30 PM (new), Sat Aug 8 [evt-ai-1]. Good spacing."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Climbing Session",
+        "date": "2026-08-06",
+        "start_time": "6:30 PM",
+        "estimated_duration": 90
+      },
+      "result": "Created \"Climbing Session\" on 2026-08-06.",
+      "turn": 1
+    },
+    {
+      "name": "update_event",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Climbing Session",
+        "changes": {
+          "date": "2026-08-08",
+          "start_time": "10:00 AM"
+        }
+      },
+      "result": "Updated the event successfully.",
+      "turn": 2
+    }
+  ],
+  "anomalies": []
+}

@@ -6,12 +6,11 @@ import {
   buildLastPerformance,
   buildLastCardio,
   collectUntouchedPlanned,
-  collectPrefilledUntouched,
   makeExtraSet,
   setToRow,
   cardioToRow,
 } from '../lib/tracking/plan';
-import type { LastPerformance, TrackedSectionGroup } from '../lib/tracking/plan';
+import type { TrackedSectionGroup } from '../lib/tracking/plan';
 import { computeSessionPRs } from '../lib/tracking/records';
 import type { PersonalRecord } from '../lib/tracking/records';
 import { buildSessionRecap, generateCoachSummary } from '../lib/coach/summary';
@@ -47,7 +46,6 @@ export function useWorkoutSession(
   setCompletion: (id: string, completed: boolean) => void,
 ) {
   const [groups, setGroups] = useState<TrackedSectionGroup[] | null>(null);
-  const [lastByName, setLastByName] = useState<Map<string, LastPerformance>>(() => new Map());
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [isFinishing, setIsFinishing] = useState(false);
@@ -82,7 +80,6 @@ export function useWorkoutSession(
       cardioHistoryRef.current = data.cardioHistory;
       const lastPerf = buildLastPerformance(data.history);
       const lastCardio = buildLastCardio(data.cardioHistory);
-      setLastByName(lastPerf);
       setGroups(buildTrackerModel(event, data.savedSets, data.savedCardio, lastPerf, lastCardio));
     });
 
@@ -193,7 +190,7 @@ export function useWorkoutSession(
   const onSetChange = (section: TrackedSection, exerciseId: string, setNumber: number, field: SetField, value: string) => {
     updateExercise(section, exerciseId, t => ({
       ...t,
-      sets: t.sets.map(s => (s.setNumber === setNumber ? { ...s, [field]: value, isPrefilled: false } : s)),
+      sets: t.sets.map(s => (s.setNumber === setNumber ? { ...s, [field]: value } : s)),
     }));
     dirtySetsRef.current.add(`${section}|${exerciseId}|${setNumber}`);
     scheduleSave();
@@ -202,7 +199,44 @@ export function useWorkoutSession(
   const onCardioChange = (section: TrackedSection, exerciseId: string, field: CardioField, value: string) => {
     updateExercise(section, exerciseId, t => ({
       ...t,
-      cardio: t.cardio && { ...t.cardio, [field]: value, isPrefilled: false },
+      cardio: t.cardio && { ...t.cardio, [field]: value },
+    }));
+    dirtyCardioRef.current.add(`${section}|${exerciseId}`);
+    scheduleSave();
+  };
+
+  const findTracked = (section: TrackedSection, exerciseId: string) =>
+    groupsRef.current.find(g => g.section === section)?.exercises.find(t => t.exercise.id === exerciseId);
+
+  // Focusing a shadow row accepts last session's values as this session's
+  // actuals — the tap is what turns a ghost into a log, so it saves like an
+  // edit. A whole set is one act: any field commits the row. `values` carries
+  // only the fields the row rendered as ghosts, so a shadow dimension the UI
+  // never showed can't sneak into the log.
+  const onCommitSetShadow = (
+    section: TrackedSection,
+    exerciseId: string,
+    setNumber: number,
+    values: Partial<Record<SetField, string>>,
+  ) => {
+    const set = findTracked(section, exerciseId)?.sets.find(s => s.setNumber === setNumber);
+    if (!set?.shadow) return;
+    updateExercise(section, exerciseId, t => ({
+      ...t,
+      sets: t.sets.map(s => (s.setNumber === setNumber ? { ...s, ...values, shadow: null } : s)),
+    }));
+    dirtySetsRef.current.add(`${section}|${exerciseId}|${setNumber}`);
+    scheduleSave();
+  };
+
+  // Cardio ghosts commit per field — the metrics are independent.
+  const onCommitCardioShadow = (section: TrackedSection, exerciseId: string, field: CardioField) => {
+    if (!findTracked(section, exerciseId)?.cardio?.shadow?.[field]) return;
+    updateExercise(section, exerciseId, t => ({
+      ...t,
+      cardio: t.cardio?.shadow
+        ? { ...t.cardio, [field]: t.cardio.shadow[field], shadow: { ...t.cardio.shadow, [field]: '' } }
+        : t.cardio,
     }));
     dirtyCardioRef.current.add(`${section}|${exerciseId}`);
     scheduleSave();
@@ -263,13 +297,7 @@ export function useWorkoutSession(
     setIsFinishing(true);
     try {
       await flushSave();
-      const prefill = collectPrefilledUntouched(event.id, event.date, groups);
-      const serverSeconds = await finishSession(
-        event.id,
-        event.date,
-        [...autofillRows, ...prefill.setRows],
-        prefill.cardioRows,
-      );
+      const serverSeconds = await finishSession(event.id, event.date, autofillRows);
       const totalSeconds = serverSeconds ?? elapsed;
       setCompletion(event.id, true);
       setSession(prev => prev && {
@@ -332,7 +360,6 @@ export function useWorkoutSession(
 
   return {
     groups,
-    lastByName,
     session,
     elapsed,
     isFinished,
@@ -341,6 +368,8 @@ export function useWorkoutSession(
     summary,
     onSetChange,
     onCardioChange,
+    onCommitSetShadow,
+    onCommitCardioShadow,
     onAddSet,
     onRemoveSet,
     flushSave,

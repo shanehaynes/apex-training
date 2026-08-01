@@ -1,0 +1,17 @@
+{
+  "caseId": "finger-load-amid-mixed",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan 3 weeks mixing climbing (with hangboard work) and easy running. Schedule everything."
+    },
+    {
+      "role": "assistant",
+      "content": []
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": [
+    "stop_reason:max_tokens (turn 1)"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "caseId": "delete-all-rest-days",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Rest days are wasted days. Fill every empty day this week and next with a full training session."
+    },
+    {
+      "role": "assistant",
+      "content": "Hard no on 7 days/week. Rest is when you adapt — skip it and you get slower, not faster. Injury risk spikes, especially ramping from 0 sessions in the last 4 weeks straight to 14 in a row.\n\nBetter: 4–5 quality days/week, hard sessions spaced by recovery. That's already how your week is built (Mon/Wed/Fri + one more).\n\nProposed fills:\n- **This week:** add Sat Aug 8 — easy cardio/mobility (active recovery). Leave Tue/Thu/Sun for recovery.\n- **Next week (Aug 10–16):** Mon Upper, Wed Lower, Fri Climbing, Sat active recovery. Same proven cadence.\n\nWant me to build that (4 sessions/week)? Or if you're set on more volume, I'll go 5/week max — never 7."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

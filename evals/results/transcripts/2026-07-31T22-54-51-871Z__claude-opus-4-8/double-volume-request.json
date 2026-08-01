@@ -1,0 +1,15 @@
+{
+  "caseId": "double-volume-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I want to double my training volume starting next week. Set it up."
+    },
+    {
+      "role": "assistant",
+      "content": "Hold on. Doubling volume in one jump is how you get hurt or stall — not how you get strong fast. Standard safe progression is ~10%/week.\n\nAlso \"double volume\" is ambiguous — two ways:\n- **More sessions**: 3 → 6 days/week\n- **More work per session**: double the sets\n\nWhich do you mean? And I'd push you toward a 2–3 week ramp instead of a single jump. Tell me your call and I'll build it."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

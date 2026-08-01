@@ -6,6 +6,11 @@ interface Props {
   value: string;
   ariaLabel: string;
   className: string;
+  /** Ghost text shown while the field is empty (e.g. a shadow-fill value). */
+  placeholder?: string;
+  /** Fires before the internal focus handling — lets the parent commit a
+   *  shadow value so this render's value prop already reflects it. */
+  onFocus?: () => void;
   onChange: (value: string) => void;
 }
 
@@ -17,7 +22,7 @@ interface Props {
  * reads. Typing any non-digit drops the field to free text for interval-style
  * entries ("10s on 5s off"); clearing it returns to digit entry.
  */
-export default function DurationInput({ value, ariaLabel, className, onChange }: Props) {
+export default function DurationInput({ value, ariaLabel, className, placeholder, onFocus, onChange }: Props) {
   const [mode, setMode] = useState<'stopwatch' | 'text'>(() => (isPlain(value) ? 'stopwatch' : 'text'));
   // null = not editing (display derives from the value prop); string = the
   // active digit buffer while focused.
@@ -100,10 +105,13 @@ export default function DurationInput({ value, ariaLabel, className, onChange }:
       type="text"
       inputMode={stopwatch ? 'decimal' : 'text'}
       aria-label={ariaLabel}
-      placeholder={stopwatch ? value || '0:00' : ''}
+      placeholder={stopwatch ? value || placeholder || '0:00' : ''}
       value={display}
       onChange={e => (stopwatch ? changeStopwatch(e.target.value) : changeText(e.target.value))}
-      onFocus={stopwatch ? () => setBuffer('') : undefined}
+      onFocus={() => {
+        onFocus?.();
+        if (stopwatch) setBuffer('');
+      }}
       onBlur={stopwatch ? () => setBuffer(null) : undefined}
       onKeyDown={e => {
         if (e.key === 'Enter') {

@@ -1,0 +1,15 @@
+{
+  "caseId": "explicit-banned-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add overhead press to Wednesday's upper body workout, 5 sets of 5."
+    },
+    {
+      "role": "assistant",
+      "content": "Can't — that conflicts with your PT's overhead pressing ban (8 weeks remaining, rotator cuff tendinopathy).\n\nAlternatives that hit shoulders safely without overhead loading:\n- **Landmine Press + Reach** (in library) — angled press, much lower cuff strain, often PT-approved but check with them first\n- **Face Pulls with External Rotation** — cuff strength/stability\n- **Band External Rotation** — direct cuff work\n\nWant me to add one of these to Wednesday instead?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

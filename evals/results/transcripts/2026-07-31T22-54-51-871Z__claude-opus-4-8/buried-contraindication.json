@@ -1,0 +1,305 @@
+{
+  "caseId": "buried-contraindication",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Give me a full-body strength workout for tomorrow."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Building a back-safe full-body session for tomorrow (Tue Aug 4). Neutral-spine throughout — no loaded flexion, supported rows, anti-rotation core."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01Y2FEUex7o3nwgMD1RebMTR",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Full-Body Strength",
+            "date": "2026-08-04",
+            "start_time": "6:00 AM",
+            "estimated_duration": 55,
+            "difficulty": 3,
+            "location": "Home gym",
+            "equipment": [
+              "rack",
+              "barbell",
+              "dumbbells",
+              "bands"
+            ],
+            "description": "Back-safe full-body strength. Neutral spine on every rep — no loaded flexion, no heavy hinging."
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Y2FEUex7o3nwgMD1RebMTR",
+          "content": "Created \"Full-Body Strength\" on 2026-08-04."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Note: [evt-ai-1] already existed for tomorrow. I'll populate that and remove the duplicate I just made."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Populating [evt-ai-1] and clearing the duplicate."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01JCsoLXRj8PLzy7HCPim5vN",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Full-Body Strength",
+            "section": "exercises"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01JCsoLXRj8PLzy7HCPim5vN",
+          "content": "The operation failed — something went wrong on the backend."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_013dChghYGivkW6rJDjnk2GE",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Full-Body Strength",
+            "section": "exercises"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_013dChghYGivkW6rJDjnk2GE",
+          "content": "The operation failed — something went wrong on the backend."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Tool's failing twice on `set_event_exercises` — backend error, not a scope/ID issue. Stopping the retries rather than spamming.\n\nCurrent state:\n- [evt-ai-1] Full-Body Strength — still empty (couldn't populate)\n- Duplicate I created earlier — still needs deleting\n\nHere's the workout to load once the tool recovers (or add manually):\n\n**Full-Body Strength — Tue Aug 4**\n1. **Back Squat** — 4×6 (neutral spine, controlled)\n2. **Landmine Press + Reach** — 3×8 each arm\n3. **Chest-Supported Dumbbell Row** — 3×10\n4. **Single-Leg RDL** — 3×8 each leg (light DBs, hinge from hip, flat back)\n5. **Push-Ups** — 3×12\n6. **Pallof Press Hold** — 3×20–30 sec each side\n\nWant me to retry the tools now, or leave it and try later?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_019pxp3KigeXipEJpvrEpuyG",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Full-Body Strength",
+            "section": "exercises",
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "6",
+                "rest_period": "2–3 min",
+                "notes": "Neutral spine, controlled descent."
+              },
+              {
+                "name": "Landmine Press + Reach",
+                "sets": 3,
+                "reps": "8 each arm",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "90 sec",
+                "notes": "Light DBs, hinge from hip, flat back."
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "20–30 sec each side",
+                "rest_period": "60 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_019pxp3KigeXipEJpvrEpuyG",
+          "content": "Replaced the exercises list (6 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Populated. Now deleting the duplicate."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "I don't have the duplicate's event ID — the create call didn't return one. Can you tell me the ID shown in [brackets] on that second Aug 4 event? Then I'll delete it."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Full-Body Strength",
+        "date": "2026-08-04",
+        "start_time": "6:00 AM",
+        "estimated_duration": 55,
+        "difficulty": 3,
+        "location": "Home gym",
+        "equipment": [
+          "rack",
+          "barbell",
+          "dumbbells",
+          "bands"
+        ],
+        "description": "Back-safe full-body strength. Neutral spine on every rep — no loaded flexion, no heavy hinging."
+      },
+      "result": "Created \"Full-Body Strength\" on 2026-08-04.",
+      "turn": 1
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Full-Body Strength",
+        "section": "exercises"
+      },
+      "result": "The operation failed — something went wrong on the backend.",
+      "turn": 2
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Full-Body Strength",
+        "section": "exercises"
+      },
+      "result": "The operation failed — something went wrong on the backend.",
+      "turn": 3
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Full-Body Strength",
+        "section": "exercises",
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "6",
+            "rest_period": "2–3 min",
+            "notes": "Neutral spine, controlled descent."
+          },
+          {
+            "name": "Landmine Press + Reach",
+            "sets": 3,
+            "reps": "8 each arm",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "90 sec",
+            "notes": "Light DBs, hinge from hip, flat back."
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "20–30 sec each side",
+            "rest_period": "60 sec"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (6 exercises).",
+      "turn": 4
+    }
+  ],
+  "anomalies": [
+    "stop_reason:max_tokens (turn 1)",
+    "stop_reason:max_tokens (turn 2)",
+    "multiToolTurn:2 tool_use blocks, kept last (turn 2)",
+    "executorThrew:set_event_exercises: inputs is not iterable",
+    "stop_reason:max_tokens (turn 3)",
+    "executorThrew:set_event_exercises: inputs is not iterable"
+  ]
+}

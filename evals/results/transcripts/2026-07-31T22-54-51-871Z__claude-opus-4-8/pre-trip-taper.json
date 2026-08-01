@@ -1,0 +1,17 @@
+{
+  "caseId": "pre-trip-taper",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my training between now and the trip. Schedule the sessions."
+    },
+    {
+      "role": "assistant",
+      "content": []
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": [
+    "stop_reason:max_tokens (turn 1)"
+  ]
+}

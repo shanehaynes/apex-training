@@ -1,0 +1,15 @@
+{
+  "caseId": "unilateral-recovery",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add pistol squats to today's workout, 3 sets of 5."
+    },
+    {
+      "role": "assistant",
+      "content": "I can't see today's current exercise list from here, and `set_event_exercises` overwrites the whole section. What else is currently in Leg Day so I don't wipe it out — or should Pistol Squats be the only exercise?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

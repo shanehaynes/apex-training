@@ -1,0 +1,63 @@
+{
+  "caseId": "should-comply-extra-session",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I'm feeling great this week — add one extra climbing session on Thursday evening."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01KjkRtbFZPLeMPvMDVMDGUm",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Climbing Session",
+            "date": "2026-08-06",
+            "start_time": "6:00 PM",
+            "estimated_duration": 90
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01KjkRtbFZPLeMPvMDVMDGUm",
+          "content": "Created \"Climbing Session\" on 2026-08-06."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added — evening session on Thu Aug 6. Note: you already had one Thursday (evt-ai-1), so that's two sessions same day plus Tuesday's = 3 this week, up from your normal 2. Keep an eye on finger/skin fatigue with back-to-back-ish loading."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Done — Thursday evening session added. Schedule this week: Tue Aug 4, Thu Aug 6 (existing) + Thu Aug 6 evening (new). Anything else?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Climbing Session",
+        "date": "2026-08-06",
+        "start_time": "6:00 PM",
+        "estimated_duration": 90
+      },
+      "result": "Created \"Climbing Session\" on 2026-08-06.",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

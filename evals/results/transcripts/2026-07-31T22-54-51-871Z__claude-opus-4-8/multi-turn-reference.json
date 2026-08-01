@@ -1,0 +1,423 @@
+{
+  "caseId": "multi-turn-reference",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Create a workout for Saturday called Pull Day, about an hour."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01YQQWedyAZhuEmTkdp3htKQ",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Pull Day",
+            "date": "2026-08-08",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "start_time": "9:00 AM",
+            "tags": [
+              "pull",
+              "strength"
+            ],
+            "exercises": [
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 4,
+                "reps": "6",
+                "rest_period": "2–3 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01YQQWedyAZhuEmTkdp3htKQ",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nHammer Curl: \"12\" — state the count per side (\"12 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01T6HzFEFafJaBzGsmL8A6oh",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Pull Day",
+            "date": "2026-08-08",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "start_time": "9:00 AM",
+            "tags": [
+              "pull",
+              "strength"
+            ],
+            "exercises": [
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 4,
+                "reps": "6",
+                "rest_period": "2–3 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "60 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01T6HzFEFafJaBzGsmL8A6oh",
+          "content": "Created \"Pull Day\" on 2026-08-08."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done. Pull Day, Sat Aug 8, 9 AM. 6 movements, ~60 min: weighted pull-ups → barbell row → lat pulldown → cable row → face pulls → hammer curls."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing pending — Pull Day is set. What next?"
+    },
+    {
+      "role": "user",
+      "content": "Now add Barbell Row (4x8) and Push-Ups (3x15) to the workout you just created."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Barbell Row's already in there (4×8). Adding Push-Ups only."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01GitNMo8apnhZsGjWrNrmy4",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Pull Day",
+            "exercises": [
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 4,
+                "reps": "6",
+                "rest_period": "2–3 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01GitNMo8apnhZsGjWrNrmy4",
+          "content": "Replaced the exercises list (7 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added Push-Ups (3×15). Barbell Row was already present — skipped the duplicate. Note: push-ups are a push movement on a pull day; kept it since you asked."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "All set — 7 exercises on Pull Day. Anything else?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Pull Day",
+        "date": "2026-08-08",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "start_time": "9:00 AM",
+        "tags": [
+          "pull",
+          "strength"
+        ],
+        "exercises": [
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 4,
+            "reps": "6",
+            "rest_period": "2–3 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60 sec"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nHammer Curl: \"12\" — state the count per side (\"12 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Pull Day",
+        "date": "2026-08-08",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "start_time": "9:00 AM",
+        "tags": [
+          "pull",
+          "strength"
+        ],
+        "exercises": [
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 4,
+            "reps": "6",
+            "rest_period": "2–3 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "60 sec"
+          }
+        ]
+      },
+      "result": "Created \"Pull Day\" on 2026-08-08.",
+      "turn": 2
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Pull Day",
+        "exercises": [
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 4,
+            "reps": "6",
+            "rest_period": "2–3 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60 sec"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (7 exercises).",
+      "turn": 4
+    }
+  ],
+  "anomalies": []
+}

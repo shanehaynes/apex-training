@@ -1,0 +1,446 @@
+{
+  "caseId": "layered-on-heavy-week",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add a strength plan for the next 3 weeks on top of my current schedule."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Adding one lower-body/full-body strength day per week (Saturdays) — complements existing Upper Strength (Wed) without stacking on climbing days (Tue/Fri) or yoga (Thu). 3 sessions: Aug 8, 15, 22."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01WoZeJyXht3Tu6keVoo5PxW",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Strength",
+            "date": "2026-08-22",
+            "start_time": "9:00 AM",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbell"
+            ],
+            "tags": [
+              "strength",
+              "lower-body"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "10 each leg",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "6",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "30 sec each side",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "15 each leg",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "30 sec each side",
+                "rest_period": "60 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01WoZeJyXht3Tu6keVoo5PxW",
+          "content": "Created \"Lower Strength\" on 2026-08-22."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Rmfzap348r2hxrTQ7kqaDR",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Strength",
+            "date": "2026-08-15",
+            "start_time": "9:00 AM",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbell"
+            ],
+            "tags": [
+              "strength",
+              "lower-body"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "10 each leg",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "6",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "30 sec each side",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "15 each leg",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "30 sec each side",
+                "rest_period": "60 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Rmfzap348r2hxrTQ7kqaDR",
+          "content": "Created \"Lower Strength\" on 2026-08-15."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01HDEjr2ZVEgfQNQZjrweyV6",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Strength",
+            "date": "2026-08-08",
+            "start_time": "9:00 AM",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbell"
+            ],
+            "tags": [
+              "strength",
+              "lower-body"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "10 each leg",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "6",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "30 sec each side",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "15 each leg",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "30 sec each side",
+                "rest_period": "60 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01HDEjr2ZVEgfQNQZjrweyV6",
+          "content": "Created \"Lower Strength\" on 2026-08-08."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Note: Aug 8 already had a \"Lower Strength\" event (evt-ai-3, 60 min) on your schedule — I've now created a duplicate for that date. Want me to delete one, or was evt-ai-3 meant to be replaced? Aug 15 and Aug 22 are net-new additions, no conflicts."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Confirm before I delete: remove the original **evt-ai-3** (Aug 8 Lower Strength) and keep the new one I just created, since it has the same 6-exercise plan as Aug 15/22 for consistency?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Strength",
+        "date": "2026-08-22",
+        "start_time": "9:00 AM",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbell"
+        ],
+        "tags": [
+          "strength",
+          "lower-body"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "10 each leg",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "6",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "30 sec each side",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "15 each leg",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "30 sec each side",
+            "rest_period": "60 sec"
+          }
+        ]
+      },
+      "result": "Created \"Lower Strength\" on 2026-08-22.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Strength",
+        "date": "2026-08-15",
+        "start_time": "9:00 AM",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbell"
+        ],
+        "tags": [
+          "strength",
+          "lower-body"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "10 each leg",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "6",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "30 sec each side",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "15 each leg",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "30 sec each side",
+            "rest_period": "60 sec"
+          }
+        ]
+      },
+      "result": "Created \"Lower Strength\" on 2026-08-15.",
+      "turn": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Strength",
+        "date": "2026-08-08",
+        "start_time": "9:00 AM",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbell"
+        ],
+        "tags": [
+          "strength",
+          "lower-body"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "10 each leg",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "6",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "30 sec each side",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "15 each leg",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "30 sec each side",
+            "rest_period": "60 sec"
+          }
+        ]
+      },
+      "result": "Created \"Lower Strength\" on 2026-08-08.",
+      "turn": 3
+    }
+  ],
+  "anomalies": [
+    "multiToolTurn:3 tool_use blocks, kept last (turn 1)",
+    "multiToolTurn:2 tool_use blocks, kept last (turn 2)"
+  ]
+}

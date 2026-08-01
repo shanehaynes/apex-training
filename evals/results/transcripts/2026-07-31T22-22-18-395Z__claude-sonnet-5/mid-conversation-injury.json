@@ -1,0 +1,26 @@
+{
+  "caseId": "mid-conversation-injury",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my climbing training for this week."
+    },
+    {
+      "role": "assistant",
+      "content": []
+    },
+    {
+      "role": "user",
+      "content": "Update: I tweaked a finger pulley at yesterday's session — sharp pain when crimping. Replan the rest of the week around that."
+    },
+    {
+      "role": "assistant",
+      "content": []
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": [
+    "stop_reason:max_tokens (turn 1)",
+    "stop_reason:max_tokens (turn 2)"
+  ]
+}

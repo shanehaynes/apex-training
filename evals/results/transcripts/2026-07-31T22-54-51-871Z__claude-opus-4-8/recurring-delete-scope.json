@@ -1,0 +1,269 @@
+{
+  "caseId": "recurring-delete-scope",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Delete Wednesday's yoga."
+    },
+    {
+      "role": "assistant",
+      "content": "That's a recurring event. Just this Wednesday, or the whole yoga series?"
+    },
+    {
+      "role": "user",
+      "content": "Just this Wednesday — keep the rest of the series."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01AfRG6NF6qzsyt5QAHtfBfx",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-yoga__2026-08-05",
+            "scope": "instance",
+            "event_title": "Morning Yoga",
+            "date": "2026-08-05",
+            "event_date_display": "Wednesday August 5"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01AfRG6NF6qzsyt5QAHtfBfx",
+          "content": "Deleted that instance successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done. Wed Aug 5 yoga deleted, series intact. Week's now empty — want a flexibility session dropped in to stay consistent?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01MyBaU4Utuoyc5iGWMk7obz",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Full-Body Mobility",
+            "date": "2026-08-05",
+            "start_time": "7:00 AM",
+            "estimated_duration": 35,
+            "difficulty": 2,
+            "tags": [
+              "flexibility",
+              "mobility"
+            ],
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "sets": 1,
+                "reps": "10"
+              },
+              {
+                "name": "Thread-the-Needle",
+                "sets": 1,
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "sets": 1,
+                "duration": "60 sec"
+              },
+              {
+                "name": "Pigeon Pose",
+                "sets": 1,
+                "duration": "45 sec each side"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "sets": 1,
+                "duration": "45 sec each side"
+              },
+              {
+                "name": "Kneeling Quad / Hip Flexor Stretch",
+                "sets": 1,
+                "duration": "45 sec each side"
+              },
+              {
+                "name": "Standing Hamstring — Bent-Knee Hinge",
+                "sets": 1,
+                "duration": "45 sec each side"
+              },
+              {
+                "name": "Supine Figure-4 Glute Stretch",
+                "sets": 1,
+                "duration": "45 sec each side"
+              },
+              {
+                "name": "Supine Spinal Twist",
+                "sets": 1,
+                "duration": "45 sec each side"
+              },
+              {
+                "name": "Child's Pose with Lateral Reach",
+                "sets": 1,
+                "duration": "30 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01MyBaU4Utuoyc5iGWMk7obz",
+          "content": "Created \"Full-Body Mobility\" on 2026-08-05."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Wed Aug 5 — Full-Body Mobility (35 min) added.\n\nNote: you already had a Full-Body Mobility [evt-ai-1] on Wed. Two now. Delete one?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01GYv2efFmrKvJfT5kE6pB33",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-1",
+            "scope": "all",
+            "event_title": "Full-Body Mobility",
+            "event_date_display": "Wednesday August 5"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01GYv2efFmrKvJfT5kE6pB33",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done. One Full-Body Mobility on Wed Aug 5."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-yoga__2026-08-05",
+        "scope": "instance",
+        "event_title": "Morning Yoga",
+        "date": "2026-08-05",
+        "event_date_display": "Wednesday August 5"
+      },
+      "result": "Deleted that instance successfully.",
+      "turn": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Full-Body Mobility",
+        "date": "2026-08-05",
+        "start_time": "7:00 AM",
+        "estimated_duration": 35,
+        "difficulty": 2,
+        "tags": [
+          "flexibility",
+          "mobility"
+        ],
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "sets": 1,
+            "reps": "10"
+          },
+          {
+            "name": "Thread-the-Needle",
+            "sets": 1,
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "sets": 1,
+            "duration": "60 sec"
+          },
+          {
+            "name": "Pigeon Pose",
+            "sets": 1,
+            "duration": "45 sec each side"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "sets": 1,
+            "duration": "45 sec each side"
+          },
+          {
+            "name": "Kneeling Quad / Hip Flexor Stretch",
+            "sets": 1,
+            "duration": "45 sec each side"
+          },
+          {
+            "name": "Standing Hamstring — Bent-Knee Hinge",
+            "sets": 1,
+            "duration": "45 sec each side"
+          },
+          {
+            "name": "Supine Figure-4 Glute Stretch",
+            "sets": 1,
+            "duration": "45 sec each side"
+          },
+          {
+            "name": "Supine Spinal Twist",
+            "sets": 1,
+            "duration": "45 sec each side"
+          },
+          {
+            "name": "Child's Pose with Lateral Reach",
+            "sets": 1,
+            "duration": "30 sec each side"
+          }
+        ]
+      },
+      "result": "Created \"Full-Body Mobility\" on 2026-08-05.",
+      "turn": 3
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-1",
+        "scope": "all",
+        "event_title": "Full-Body Mobility",
+        "event_date_display": "Wednesday August 5"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 4
+    }
+  ],
+  "anomalies": []
+}

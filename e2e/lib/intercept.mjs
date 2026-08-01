@@ -5,8 +5,8 @@
 // answers every request that could write — /api/* and all non-GET supabase
 // calls — with stubs, so nothing clicked in a driven session ever mutates
 // real data. Tracker log reads are stubbed with fabricated history so the
-// "prev" column renders deterministically. Calendar event reads pass through
-// with the anon key swapped back in for the fake JWT.
+// shadow-fill ghosts render deterministically. Calendar event reads pass
+// through with the anon key swapped back in for the fake JWT.
 //
 // Fulfilled responses bypass the server, so the browser enforces CORS against
 // the stub itself — every stub needs these headers, and OPTIONS preflights
@@ -22,6 +22,15 @@ const CORS = {
 
 const json = (route, body) =>
   route.fulfill({ status: 200, contentType: 'application/json', headers: CORS, body: JSON.stringify(body) });
+
+// Parse `exercise_name=in.("A","B (variant)",C)` from a decoded query string.
+// PostgREST quotes names containing reserved chars — parens, commas — so a
+// naive [^)]* match truncates at the first inner paren and drops most names.
+function parseNameFilter(decoded) {
+  const m = decoded.match(/exercise_name=in\.\((.*?)\)(?=&|$)/);
+  if (!m) return [];
+  return (m[1].match(/"[^"]*"|[^,]+/g) ?? []).map(s => s.replace(/^"|"$/g, '').trim()).filter(Boolean);
+}
 
 /**
  * Install the mock-profile stubs on a BrowserContext.
@@ -79,17 +88,16 @@ export async function installIntercept(context, { anonKey = null, profile } = {}
       return json(route, wantsObject ? profile : [profile]);
     }
 
-    // Tracker log reads: fabricate prior sessions so the prev column and the
-    // library history views render. NOTE: query strings encode spaces as '+',
-    // which decodeURIComponent does NOT translate — swap them first.
+    // Tracker log reads: fabricate prior sessions so shadow-fill ghosts and
+    // the library history views render. NOTE: query strings encode spaces as
+    // '+', which decodeURIComponent does NOT translate — swap them first.
     if (url.includes('workout_set_logs')) {
       const decoded = decodeURIComponent(url.replace(/\+/g, ' '));
       // Library detail history: exercise_name filter without the tracker's
       // event_date=lt. bound. Three sessions of growing holds so the PR card,
       // trend chart, and session list all render.
       if (decoded.includes('exercise_name=in.') && !decoded.includes('event_date=lt.')) {
-        const m = decoded.match(/exercise_name=in\.\(([^)]*)\)/);
-        const name = m ? m[1].split(',')[0].replace(/^"|"$/g, '').trim() : 'Exercise';
+        const name = parseNameFilter(decoded)[0] ?? 'Exercise';
         return json(route, ['2000-01-01', '2000-01-08', '2000-01-15'].map((event_date, i) => ({
           event_id: `driver-hist-${i}`, event_date, section: 'exercise',
           exercise_id: 'hist', exercise_name: name, set_number: 1,
@@ -99,13 +107,15 @@ export async function installIntercept(context, { anonKey = null, profile } = {}
         })));
       }
       if (decoded.includes('event_date=lt.')) {
-        const m = decoded.match(/exercise_name=in\.\(([^)]*)\)/);
-        const names = m ? m[1].split(',').map(s => s.replace(/^"|"$/g, '').trim()) : [];
+        const names = parseNameFilter(decoded);
+        // Weight, reps, AND duration so every rendered input dimension gets a
+        // ghost, whatever the exercise's planned fields are.
         return json(route, names.flatMap((name, i) => [1, 2].map(setNumber => ({
           event_id: 'driver-prev', event_date: '2000-01-01', section: 'exercise',
           exercise_id: `prev-${i}`, exercise_name: name, set_number: setNumber,
           planned_weight: null, planned_reps: null, planned_duration: null,
-          actual_weight: null, actual_reps: null, actual_duration: setNumber === 1 ? '0:45' : '1:00',
+          actual_weight: setNumber === 1 ? '100' : '105', actual_reps: '8',
+          actual_duration: setNumber === 1 ? '0:45' : '1:00',
           is_autofilled: false,
         }))));
       }

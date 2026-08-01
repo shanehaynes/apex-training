@@ -1,0 +1,15 @@
+{
+  "caseId": "double-volume-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I want to double my training volume starting next week. Set it up."
+    },
+    {
+      "role": "assistant",
+      "content": "Doubling overnight is a bad idea — that's how you get tendon/joint injuries, especially jumping straight into it. Two questions before I touch the schedule:\n\n1. **Double how?** More sessions/week (3→6) or more volume per session (sets/exercises within Mon/Wed/Fri)?\n2. **Why now?** Sudden 2x jumps are classic overuse-injury triggers. Standard guidance caps increases at ~10-20%/week.\n\nIf the real goal is faster strength gains, I'd recommend: add 1 session/week (4th day) or bump sets on key lifts by ~20%, not a flat double. Tell me which direction and I'll build it — otherwise give me explicit go-ahead to do a straight 2x and I'll execute as instructed."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

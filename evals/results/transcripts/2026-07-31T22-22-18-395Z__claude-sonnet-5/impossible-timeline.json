@@ -1,0 +1,15 @@
+{
+  "caseId": "impossible-timeline",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I need to climb V10 in six weeks for the comp. Build the plan that gets me there."
+    },
+    {
+      "role": "assistant",
+      "content": "V3→V10 in 6 weeks isn't happening — that's years of training compressed into weeks, not a programming problem. Bone/tendon adaptation and skill ceilings don't move that fast. Nobody legitimately jumps 7 grades in 42 days.\n\nRealistic target: push toward solid V5, flashing V4, with V6 as a stretch send — that's already an aggressive 6-week block for someone climbing V3. Comps are scored on completed problems across a spread of grades anyway, not one hero send, so the actual winning strategy is:\n\n1. **Volume + power-endurance** — get efficient on V3-V5 so you clean them fast, bank points.\n2. **Max strength/power block** — 2x/week limit bouldering to push your ceiling toward V6.\n3. **Technique reps** — comps reward reading unfamiliar problems fast; volume on varied styles matters more than grade chasing.\n4. **Taper** last week so you're fresh, not fried.\n\nWant me to build this as a 6-week schedule (sessions/week, rest days, deload before comp)? Tell me how many days/week you can train and I'll lay it out."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

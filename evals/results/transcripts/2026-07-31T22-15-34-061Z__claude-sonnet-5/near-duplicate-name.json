@@ -1,0 +1,15 @@
+{
+  "caseId": "near-duplicate-name",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add lat pulldowns and push ups to today's workout, 3 sets of 10 each."
+    },
+    {
+      "role": "assistant",
+      "content": "I can't see the current exercise list for today's session (no read endpoint), and adding via `set_event_exercises` overwrites the whole section. What's already programmed for Upper Strength today? Or if it's empty/you want these as the full session, I'll set it to just Lat Pulldown + Push-Ups, 3x10 each."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

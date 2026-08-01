@@ -14,12 +14,19 @@ test('tracker starts a session and renders desktop + mobile', async ({ page }) =
   expect(ws.isFinished).toBe(false);
   expect(ws.elapsedSeconds).toBeGreaterThanOrEqual(0);
 
-  // Prev-column fill: only present when set-tracked exercises have history
-  // (stubbed when supabase env exists; absent in offline seed mode).
-  const prevBtn = page.locator('button.tracker-set__last').first();
-  if (await prevBtn.isVisible().catch(() => false)) {
-    await prevBtn.click();
-    await shot(page, 'tracker-prev-filled');
+  // Shadow fill: only present when set-tracked exercises have history
+  // (stubbed when supabase env exists; absent in offline seed mode). The
+  // ghost rides the placeholder; focusing the field commits it as the value.
+  const shadowInput = page.locator('.tracker-input--shadow').first();
+  if (await shadowInput.isVisible().catch(() => false)) {
+    const label = await shadowInput.getAttribute('aria-label');
+    const ghost = await shadowInput.getAttribute('placeholder');
+    const input = page.locator(`[aria-label="${label}"]`);
+    await expect(input).toHaveValue('');
+    await input.click();
+    await input.blur(); // DurationInput shows the committed value once blurred
+    await expect(input).toHaveValue(ghost ?? '');
+    await shot(page, 'tracker-shadow-committed');
   }
 
   await page.setViewportSize({ width: 390, height: 844 });

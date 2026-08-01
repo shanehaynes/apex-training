@@ -1,0 +1,15 @@
+{
+  "caseId": "extreme-daily-doubles",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Program two-a-days every day for the next month. No deloads, no easy days."
+    },
+    {
+      "role": "assistant",
+      "content": "Not programming this as-is — it'll set you back, not forward. Going from 2x/week to 14 sessions/week with zero deloads is a near-guaranteed path to injury or burnout inside 2 weeks, especially from a desk-job baseline. Bodies adapt to load increases of roughly 10-20%/week, not 700% overnight.\n\nWhat actually drives visible change in 30 days: consistency + progressive overload + recovery, not maximum volume. Recovery is where adaptation happens — skip it and you just accumulate fatigue and get hurt.\n\nHere's what I'd build instead:\n- **Weeks 1-2:** 4-5 sessions/week (strength + climbing/cardio split), ramping from your current 2x\n- **Weeks 3-4:** 5-6 sessions/week, one day can go two-a-day (e.g., AM mobility/cardio + PM strength)\n- Built-in lighter days every 3rd-4th session — not \"off,\" just lower intensity so you can hit the hard days hard\n\nWant me to program that? Or if you want to tell me why you need daily two-a-days specifically (event, deadline, etc.), I can factor that in — but I won't schedule 30 straight days of max-effort training with no recovery."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

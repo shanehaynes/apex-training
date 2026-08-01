@@ -11,6 +11,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "e2e": "playwright test --project=mock",
+    "eval": "tsx evals/run.ts",
+    "eval:diff": "tsx evals/diff.ts",
+    "eval:label": "tsx evals/label.ts",
+    "eval:agreement": "tsx evals/agreement.ts",
     "e2e:live": "APEX_LOCAL_SUPABASE=1 playwright test --project=live",
     "db:reset-local": "scripts/db-reset-local.sh",
     "agent:check": "tsc -b && vitest run && playwright test --project=mock",
@@ -38,6 +42,7 @@
     "@vitejs/plugin-react": "^6.0.2",
     "oxlint": "^1.69.0",
     "tailwindcss": "^4.3.1",
+    "tsx": "^4.21.0",
     "typescript": "~6.0.2",
     "vite": "^8.1.0",
     "vitest": "^4.1.9"

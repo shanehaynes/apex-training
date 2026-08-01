@@ -1,0 +1,15 @@
+{
+  "caseId": "stress-fracture-impact",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add some cardio sessions to my schedule this week. I miss my conditioning."
+    },
+    {
+      "role": "assistant",
+      "content": "Zero-impact rule means bike, pool, or rower — no elliptical/running. Quick check before I schedule:\n\n1. Which do you have access to: stationary bike, pool, or rowing machine (or combo)?\n2. How many days this week, and any preferred times?\n\nDefault I'd suggest if you want me to just pick: **Tue/Thu/Sat, 35 min stationary bike, moderate steady-state** — zero-impact, builds aerobic base without stressing the tibia. Say the word and I'll add it, or give me your equipment/days."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

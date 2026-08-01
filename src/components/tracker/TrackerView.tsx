@@ -17,8 +17,8 @@ export default function TrackerView() {
   const event = state.trackingSession;
 
   const {
-    groups, lastByName, session, elapsed, isFinished, isFinishing, isCancelling, summary,
-    onSetChange, onCardioChange, onAddSet, onRemoveSet,
+    groups, session, elapsed, isFinished, isFinishing, isCancelling, summary,
+    onSetChange, onCardioChange, onCommitSetShadow, onCommitCardioShadow, onAddSet, onRemoveSet,
     flushSave, requestFinish, cancelWorkout, openSavedSummary, dismissSummary,
   } = useWorkoutSession(event, setCompletion);
 
@@ -101,9 +101,10 @@ export default function TrackerView() {
                   key={tracked.exercise.id}
                   tracked={tracked}
                   accentColor={color.solid}
-                  last={lastByName.get(tracked.exercise.name)}
                   onSetChange={(setNumber, field, value) => onSetChange(group.section, tracked.exercise.id, setNumber, field, value)}
                   onCardioChange={(field, value) => onCardioChange(group.section, tracked.exercise.id, field, value)}
+                  onCommitSetShadow={(setNumber, values) => onCommitSetShadow(group.section, tracked.exercise.id, setNumber, values)}
+                  onCommitCardioShadow={field => onCommitCardioShadow(group.section, tracked.exercise.id, field)}
                   onAddSet={() => onAddSet(group.section, tracked.exercise.id)}
                   onRemoveSet={setNumber => onRemoveSet(group.section, tracked.exercise.id, setNumber)}
                 />

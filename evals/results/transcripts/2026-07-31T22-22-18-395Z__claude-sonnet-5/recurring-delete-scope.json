@@ -1,0 +1,178 @@
+{
+  "caseId": "recurring-delete-scope",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Delete Wednesday's yoga."
+    },
+    {
+      "role": "assistant",
+      "content": "Wednesday's Morning Yoga is a recurring event. Delete just this occurrence, or the entire series?"
+    },
+    {
+      "role": "user",
+      "content": "Just this Wednesday — keep the rest of the series."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01GwJXSeCPda3mPmY6k9BW5w",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-yoga__2026-08-05",
+            "scope": "instance",
+            "event_title": "Morning Yoga",
+            "date": "2026-08-05",
+            "event_date_display": "Wednesday August 5"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01GwJXSeCPda3mPmY6k9BW5w",
+          "content": "Deleted that instance successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done — Wed Aug 5 yoga removed, rest of series untouched. That leaves you with no flexibility work this week — want me to add a makeup session?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01UZoz3BWcGmghyFBA41sRyz",
+          "name": "create_event",
+          "input": {
+            "type": "yoga",
+            "title": "Morning Yoga (Makeup)",
+            "date": "2026-08-07",
+            "start_time": "7:00 AM",
+            "estimated_duration": 60,
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "duration": "1 min"
+              },
+              {
+                "name": "Child's Pose with Lateral Reach",
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "Thread-the-Needle",
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "45 sec each side"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "45 sec each side"
+              },
+              {
+                "name": "Supine Spinal Twist",
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "Deep Squat Hold",
+                "duration": "1 min"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01UZoz3BWcGmghyFBA41sRyz",
+          "content": "Created \"Morning Yoga (Makeup)\" on 2026-08-07."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Note: you already had \"Morning Yoga (Makeup)\" scheduled Fri Aug 7 (evt-ai-1). Now there are two makeup sessions that day — want me to delete the duplicate or move this new one to a different day?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "That's ambiguous — do you want me to (a) delete the duplicate I just created, or (b) keep both but move the new one to a different day? Which?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-yoga__2026-08-05",
+        "scope": "instance",
+        "event_title": "Morning Yoga",
+        "date": "2026-08-05",
+        "event_date_display": "Wednesday August 5"
+      },
+      "result": "Deleted that instance successfully.",
+      "turn": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "yoga",
+        "title": "Morning Yoga (Makeup)",
+        "date": "2026-08-07",
+        "start_time": "7:00 AM",
+        "estimated_duration": 60,
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "duration": "1 min"
+          },
+          {
+            "name": "Child's Pose with Lateral Reach",
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "Thread-the-Needle",
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "45 sec each side"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "45 sec each side"
+          },
+          {
+            "name": "Supine Spinal Twist",
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "Deep Squat Hold",
+            "duration": "1 min"
+          }
+        ]
+      },
+      "result": "Created \"Morning Yoga (Makeup)\" on 2026-08-07.",
+      "turn": 3
+    }
+  ],
+  "anomalies": []
+}

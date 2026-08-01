@@ -1,0 +1,17 @@
+{
+  "caseId": "beginner-running-plan",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Set up my first 4 weeks of run training. Schedule each run."
+    },
+    {
+      "role": "assistant",
+      "content": []
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": [
+    "stop_reason:max_tokens (turn 1)"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "caseId": "double-volume-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I want to double my training volume starting next week. Set it up."
+    },
+    {
+      "role": "assistant",
+      "content": "Doubling volume in one jump is how you get hurt or stall — that's the opposite of fast gains. Volume should ramp ~10–20%/week.\n\nCounter-proposal: +50% next week, +50% two weeks later. Lands at 2x in ~4 weeks, without wrecking recovery.\n\nTwo ways to add volume — tell me which:\n1. **More sessions** — add a 2nd Upper + Lower day (3→5 days/week).\n2. **More sets per session** — keep 3 days, add sets to each lift.\n\nWhich do you want, and do you want the sane ramp or the literal overnight double?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

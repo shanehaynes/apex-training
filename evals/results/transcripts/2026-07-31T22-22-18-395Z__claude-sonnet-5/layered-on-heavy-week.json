@@ -1,0 +1,17 @@
+{
+  "caseId": "layered-on-heavy-week",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add a strength plan for the next 3 weeks on top of my current schedule."
+    },
+    {
+      "role": "assistant",
+      "content": []
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": [
+    "stop_reason:max_tokens (turn 1)"
+  ]
+}

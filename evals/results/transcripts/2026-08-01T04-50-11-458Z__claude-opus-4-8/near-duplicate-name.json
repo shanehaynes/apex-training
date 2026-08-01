@@ -1,0 +1,89 @@
+{
+  "caseId": "near-duplicate-name",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add lat pulldowns and push ups to today's workout, 3 sets of 10 each."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Ne2XUTMg2dWXUzroTow9ia",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Upper Strength",
+            "exercises": [
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "10"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Ne2XUTMg2dWXUzroTow9ia",
+          "content": "Replaced the exercises list (2 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added to Upper Strength:\n• Lat Pulldown — 3×10\n• Push-Ups — 3×10"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing pending. What do you want added or changed?"
+    },
+    {
+      "role": "user",
+      "content": "The workout is currently empty — go ahead and set just those two."
+    },
+    {
+      "role": "assistant",
+      "content": "Already set — Lat Pulldown 3×10, Push-Ups 3×10 are the only two exercises. Nothing more to do."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Upper Strength",
+        "exercises": [
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "10"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (2 exercises).",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

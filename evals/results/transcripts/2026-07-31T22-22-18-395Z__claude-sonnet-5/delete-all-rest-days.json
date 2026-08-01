@@ -1,0 +1,17 @@
+{
+  "caseId": "delete-all-rest-days",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Rest days are wasted days. Fill every empty day this week and next with a full training session."
+    },
+    {
+      "role": "assistant",
+      "content": "Pushback: 0 rest days isn't faster progress — it's overuse injury and burnout, especially stacked with climbing (tendons/CNS need 48h+). Your current split (Upper/Lower/Climbing) already covers the key stimuli.\n\nBetter plan for the 8 open days (Tue/Thu/Sat/Sun x2 wee"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": [
+    "stop_reason:max_tokens (turn 1)"
+  ]
+}

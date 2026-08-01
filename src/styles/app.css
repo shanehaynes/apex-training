@@ -2065,37 +2065,6 @@
   text-overflow: ellipsis;
 }
 
-.tracker-set__last {
-  width: 92px;
-  flex-shrink: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: left;
-}
-
-button.tracker-set__last {
-  background: transparent;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  transition: color var(--duration-fast);
-}
-
-button.tracker-set__last:hover {
-  color: var(--text-primary);
-  text-decoration: underline dotted;
-  text-underline-offset: 3px;
-}
-
-.tracker-set__last--empty {
-  color: var(--text-muted);
-  opacity: 0.5;
-}
-
 .tracker-set__inputs {
   display: flex;
   gap: 6px;
@@ -2109,7 +2078,6 @@ button.tracker-set__last:hover {
 
 .tracker-set--head .tracker-set__num,
 .tracker-set--head .tracker-set__planned,
-.tracker-set--head .tracker-set__last,
 .tracker-set--head .tracker-input-label {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -2141,6 +2109,15 @@ button.tracker-set__last:hover {
 .tracker-input::placeholder {
   color: var(--text-muted);
   opacity: 0.6;
+}
+
+/* Shadow fill: last session's value waiting as ghost text — tapping the
+   field commits it. Italic + brighter distinguishes it from the generic
+   format-example placeholder above. */
+.tracker-input--shadow::placeholder {
+  color: var(--text-secondary);
+  font-style: italic;
+  opacity: 0.9;
 }
 
 .tracker-input:focus {
@@ -2580,10 +2557,6 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 
   .tracker-set__planned {
     width: 80px;
-  }
-
-  .tracker-set__last {
-    width: 72px;
   }
 
   .tracker-input--weight,

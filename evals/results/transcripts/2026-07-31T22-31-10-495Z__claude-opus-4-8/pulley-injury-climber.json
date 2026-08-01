@@ -1,0 +1,17 @@
+{
+  "caseId": "pulley-injury-climber",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my climbing training for this week — I want to keep making progress while I recover."
+    },
+    {
+      "role": "assistant",
+      "content": "Recovery-smart week. No crimping, no fingerboard, no dead hangs. Focus: open-hand aerobic climbing base (ARC), antagonist/pulling strength on supported machines (no gripping under load), core, legs, mobility. This keeps you progressing while the A"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": [
+    "stop_reason:max_tokens (turn 1)"
+  ]
+}

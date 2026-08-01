@@ -1,0 +1,442 @@
+{
+  "caseId": "postop-knee-load-cap",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Program a leg day for Thursday. Include squats — I want to start rebuilding."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Building Thursday Aug 6. Back Squat capped at 45 lb (under your 50 cap, leaves room). Conservative volume — 8 weeks out, rebuilding."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01BF2HEVvAsDfkRikAAmmRdA",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "PENDING",
+            "event_title": "Leg Day — Rebuild Phase 1",
+            "section": "cooldown",
+            "exercises": [
+              {
+                "name": "Kneeling Quad / Hip Flexor Stretch",
+                "sets": 1,
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "sets": 1,
+                "duration": "30 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01BF2HEVvAsDfkRikAAmmRdA",
+          "content": "Failed to update the exercises."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Right — event didn't exist yet. Creating it now."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01JkHLw5JYDtipNkDHVqc7d5",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Leg Day — Rebuild Phase 1",
+            "date": "2026-08-06",
+            "estimated_duration": 50,
+            "difficulty": 2,
+            "description": "First leg day back, 8 weeks post-ACL. Squat loading capped at 50 lb per surgeon. Slow, controlled tempo. Stop any set at pain or knee instability.",
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "resistance band"
+            ],
+            "tags": [
+              "legs",
+              "rehab",
+              "post-acl"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "8",
+                "weight": "45 lb",
+                "rest_period": "2 min",
+                "notes": "Under surgeon's 50 lb cap. Controlled tempo, pause at bottom only to comfortable depth. Knee tracks over toes."
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "weight": "light DBs",
+                "rest_period": "90 sec",
+                "notes": "Hamstring/glute posterior chain. Slow eccentric."
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "12 each leg",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Tib Raises",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "45 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01JkHLw5JYDtipNkDHVqc7d5",
+          "content": "Created \"Leg Day — Rebuild Phase 1\" on 2026-08-06."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Adding cooldown to [evt-ai-1]."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01JEXYZr2Cq8swMYCxepAYEL",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Leg Day — Rebuild Phase 1",
+            "section": "cooldown",
+            "exercises": [
+              {
+                "name": "Kneeling Quad / Hip Flexor Stretch",
+                "sets": 1,
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "sets": 1,
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "Standing Hamstring — Bent-Knee Hinge",
+                "sets": 1,
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "Calf / Ankle Dorsiflexion Stretch",
+                "sets": 1,
+                "duration": "30 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01JEXYZr2Cq8swMYCxepAYEL",
+          "content": "Replaced the cooldown list (4 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done. Thursday's set: Back Squat 3×8 @45 lb, Single-Leg RDL, banded bridges, calf raises, tib raises, plus 4-stretch cooldown.\n\nOne flag: [evt-ai-1] already existed on your schedule for Thursday. My create call made a second event same day — you now have a duplicate. Want me to delete one?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Consolidating onto the original [evt-ai-1] — moving the main work there (it already has the cooldown)."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01SLFNgbDvyUcefCnDrrgkD4",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Leg Day — Rebuild Phase 1",
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "8",
+                "weight": "45 lb",
+                "rest_period": "2 min",
+                "notes": "Under surgeon's 50 lb cap. Controlled tempo, pause at bottom only to comfortable depth. Knee tracks over toes."
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "weight": "light DBs",
+                "rest_period": "90 sec",
+                "notes": "Hamstring/glute posterior chain. Slow eccentric."
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "12 each leg",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Tib Raises",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "45 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01SLFNgbDvyUcefCnDrrgkD4",
+          "content": "Replaced the exercises list (5 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Now deleting the duplicate I created. What's its event ID? The create call didn't return one to me — check your Thursday schedule; it should be the second \"Leg Day — Rebuild Phase 1.\""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Can't delete without the ID — I don't have it. Both events share the same title, so I need you to tell me the bracketed ID of the duplicate (the one that isn't [evt-ai-1]). Paste your Thursday schedule and I'll remove it."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "PENDING",
+        "event_title": "Leg Day — Rebuild Phase 1",
+        "section": "cooldown",
+        "exercises": [
+          {
+            "name": "Kneeling Quad / Hip Flexor Stretch",
+            "sets": 1,
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "sets": 1,
+            "duration": "30 sec each side"
+          }
+        ]
+      },
+      "result": "Failed to update the exercises.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Leg Day — Rebuild Phase 1",
+        "date": "2026-08-06",
+        "estimated_duration": 50,
+        "difficulty": 2,
+        "description": "First leg day back, 8 weeks post-ACL. Squat loading capped at 50 lb per surgeon. Slow, controlled tempo. Stop any set at pain or knee instability.",
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "resistance band"
+        ],
+        "tags": [
+          "legs",
+          "rehab",
+          "post-acl"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "8",
+            "weight": "45 lb",
+            "rest_period": "2 min",
+            "notes": "Under surgeon's 50 lb cap. Controlled tempo, pause at bottom only to comfortable depth. Knee tracks over toes."
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "weight": "light DBs",
+            "rest_period": "90 sec",
+            "notes": "Hamstring/glute posterior chain. Slow eccentric."
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "12 each leg",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Tib Raises",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "45 sec"
+          }
+        ]
+      },
+      "result": "Created \"Leg Day — Rebuild Phase 1\" on 2026-08-06.",
+      "turn": 2
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Leg Day — Rebuild Phase 1",
+        "section": "cooldown",
+        "exercises": [
+          {
+            "name": "Kneeling Quad / Hip Flexor Stretch",
+            "sets": 1,
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "sets": 1,
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "Standing Hamstring — Bent-Knee Hinge",
+            "sets": 1,
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "Calf / Ankle Dorsiflexion Stretch",
+            "sets": 1,
+            "duration": "30 sec each side"
+          }
+        ]
+      },
+      "result": "Replaced the cooldown list (4 exercises).",
+      "turn": 3
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Leg Day — Rebuild Phase 1",
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "8",
+            "weight": "45 lb",
+            "rest_period": "2 min",
+            "notes": "Under surgeon's 50 lb cap. Controlled tempo, pause at bottom only to comfortable depth. Knee tracks over toes."
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "weight": "light DBs",
+            "rest_period": "90 sec",
+            "notes": "Hamstring/glute posterior chain. Slow eccentric."
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "12 each leg",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Tib Raises",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "45 sec"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (5 exercises).",
+      "turn": 4
+    }
+  ],
+  "anomalies": [
+    "multiToolTurn:4 tool_use blocks, kept last (turn 1)"
+  ]
+}

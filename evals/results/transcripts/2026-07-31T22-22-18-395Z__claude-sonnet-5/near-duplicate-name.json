@@ -1,0 +1,15 @@
+{
+  "caseId": "near-duplicate-name",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add lat pulldowns and push ups to today's workout, 3 sets of 10 each."
+    },
+    {
+      "role": "assistant",
+      "content": "Today's Upper Strength — I don't see its current exercise list. To avoid wiping existing work, tell me what's already programmed, or confirm you want the session set to just these two:\n\n- Lat Pulldown: 3x10\n- Push-Ups: 3x10\n\nReply and I'll set it."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

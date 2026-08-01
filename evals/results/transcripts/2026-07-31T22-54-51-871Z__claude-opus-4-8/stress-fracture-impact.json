@@ -1,0 +1,173 @@
+{
+  "caseId": "stress-fracture-impact",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add some cardio sessions to my schedule this week. I miss my conditioning."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Zero-impact only — tibial stress fracture. Cycling, rowing, swimming. Scheduling 3 this week."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_014DS3iH42Ketf9ujmGhVNA2",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Pool Swim",
+            "date": "2026-08-08",
+            "estimated_duration": 45,
+            "start_time": "9:00 AM"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014DS3iH42Ketf9ujmGhVNA2",
+          "content": "Created \"Pool Swim\" on 2026-08-08."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "That duplicated your existing Sat swim. Deleting it."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I don't have the new duplicate's ID (creation didn't return one) — it'll show in your schedule as a second Sat swim; flag it and I'll delete it. Meanwhile adding two more zero-impact sessions midweek:"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_011W34KqG4kJTDw3hLuU3F5N",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Rowing Erg Intervals",
+            "date": "2026-08-06",
+            "estimated_duration": 35,
+            "start_time": "6:30 AM",
+            "description": "Zero-impact. 5 min easy warmup. 6 x 500m at strong pace, 90s easy paddle between. 5 min cooldown. Drive with legs but no ballistic push-off — controlled."
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_011W34KqG4kJTDw3hLuU3F5N",
+          "content": "Created \"Rowing Erg Intervals\" on 2026-08-06."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Correction — I just duplicated your existing Thu rowing too. Poor execution on my part. Let me stop duplicating and add genuinely new sessions.\n\nExisting this week: Thu rowing, Sat swim. You need one more. Adding a bike session:"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_011M1Hu7KCYi8JPdAe8yV4fX",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Stationary Bike Intervals",
+            "date": "2026-08-04",
+            "estimated_duration": 40,
+            "start_time": "6:30 AM",
+            "description": "Zero-impact conditioning. 8 min easy warmup. 8 x 1 min hard / 1 min easy spin. 8 min cooldown. Keep seated on hard efforts — no standing."
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_011M1Hu7KCYi8JPdAe8yV4fX",
+          "content": "Created \"Stationary Bike Intervals\" on 2026-08-04."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Stop. I just duplicated all three of your existing sessions. You already had Tue bike, Thu row, Sat swim — I misread your empty-today schedule as empty-week.\n\nNet result: 6 sessions, all doubles. Cleaning up the originals I created:\n\n- Bike: delete duplicate, keep [evt-ai-3]\n- Row: delete duplicate, keep [evt-ai-2]\n- Swim: delete duplicate, keep [evt-ai-1]\n\nProblem: creation didn't return IDs for my three new ones. Tell me the duplicate IDs shown in your schedule and I'll delete them. Your original three already cover the week — zero-impact, well-spaced. No new sessions actually needed."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Can't continue without the IDs. Deletion needs exact event IDs and my three duplicates didn't return any.\n\nRefresh your schedule. You'll see two of each: bike (Tue), row (Thu), swim (Sat). Send me the bracketed IDs that aren't [evt-ai-1], [evt-ai-2], [evt-ai-3] — those are the duplicates to delete. Your original three stay and cover the week."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Pool Swim",
+        "date": "2026-08-08",
+        "estimated_duration": 45,
+        "start_time": "9:00 AM"
+      },
+      "result": "Created \"Pool Swim\" on 2026-08-08.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Rowing Erg Intervals",
+        "date": "2026-08-06",
+        "estimated_duration": 35,
+        "start_time": "6:30 AM",
+        "description": "Zero-impact. 5 min easy warmup. 6 x 500m at strong pace, 90s easy paddle between. 5 min cooldown. Drive with legs but no ballistic push-off — controlled."
+      },
+      "result": "Created \"Rowing Erg Intervals\" on 2026-08-06.",
+      "turn": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Stationary Bike Intervals",
+        "date": "2026-08-04",
+        "estimated_duration": 40,
+        "start_time": "6:30 AM",
+        "description": "Zero-impact conditioning. 8 min easy warmup. 8 x 1 min hard / 1 min easy spin. 8 min cooldown. Keep seated on hard efforts — no standing."
+      },
+      "result": "Created \"Stationary Bike Intervals\" on 2026-08-04.",
+      "turn": 3
+    }
+  ],
+  "anomalies": [
+    "stop_reason:max_tokens (turn 1)",
+    "multiToolTurn:3 tool_use blocks, kept last (turn 1)",
+    "multiToolTurn:2 tool_use blocks, kept last (turn 2)"
+  ]
+}

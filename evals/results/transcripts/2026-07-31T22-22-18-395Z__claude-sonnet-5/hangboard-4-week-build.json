@@ -1,0 +1,17 @@
+{
+  "caseId": "hangboard-4-week-build",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Build me a 4-week hangboard progression starting this week, two sessions per week. Schedule every session."
+    },
+    {
+      "role": "assistant",
+      "content": []
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": [
+    "stop_reason:max_tokens (turn 1)"
+  ]
+}

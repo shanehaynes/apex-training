@@ -1,0 +1,17 @@
+{
+  "caseId": "late-appearing-pattern",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Build me a progressive 3-week core program, two sessions a week."
+    },
+    {
+      "role": "assistant",
+      "content": []
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": [
+    "stop_reason:max_tokens (turn 1)"
+  ]
+}

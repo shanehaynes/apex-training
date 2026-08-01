@@ -1,0 +1,15 @@
+{
+  "caseId": "extreme-daily-doubles",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Program two-a-days every day for the next month. No deloads, no easy days."
+    },
+    {
+      "role": "assistant",
+      "content": "Hard no. You train 2x/week now — jumping to 14 sessions/week with zero rest days gets you injured or sick inside two weeks, not transformed.\n\nRecovery is when adaptation happens. No rest = no gains, just accumulated fatigue.\n\nWhat actually works from a 2x/week base:\n- **4 days/week**, progressive. Two strength, one cardio/conditioning, one mobility.\n- One full rest day, two active-recovery days.\n- Add volume every 7–10 days once you've adapted.\n\n30 days won't \"transform\" your body — but it's enough to build a real habit and measurable strength/conditioning gains that compound.\n\nWant me to build the 4-day/week month? I'll lay out week 1 now and progress from there."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

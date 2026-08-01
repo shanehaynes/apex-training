@@ -1,0 +1,15 @@
+{
+  "caseId": "impossible-timeline",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I need to climb V10 in six weeks for the comp. Build the plan that gets me there."
+    },
+    {
+      "role": "assistant",
+      "content": "V3→V10 in six weeks isn't happening. That's a 7-grade jump; realistically it's 2–4 years of consistent training. Selling you a plan that \"gets you there\" would be lying.\n\nWhat six weeks *can* do: sharpen you to peak for the comp — likely a solid V4, maybe flashing V5 on comp day if technique and power come together. That wins gym comps more often than raw grade, because comps reward volume, flash bonuses, and reading beta fast.\n\nHere's the realistic build:\n\n**Structure (4 days/week):**\n- **Weeks 1–2 — Base + technique.** High-volume climbing at V2–V3, footwork drills, ARC traversing for endurance. Light hangboard intro.\n- **Weeks 3–4 — Strength + power.** Hangboard main block, limit bouldering at V4–V5, pull strength (weighted pull-ups). This is where grades move.\n- **Week 5 — Peak.** Comp-style sessions: flash volume, redpoint burns, short rest.\n- **Week 6 — Taper.** Reduce volume, keep sharpness, arrive fresh.\n\n**Weekly template:**\n- Day 1: Limit bouldering (power)\n- Day 2: Technique + volume\n- Day 3: Hangboard + pull strength\n- Day 4: Comp simulation\n\nWant me to write all six weeks into your schedule now? Tell me your available days/times and whether you have a hangboard, and I'll build it out."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

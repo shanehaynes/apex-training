@@ -19,10 +19,12 @@ export interface TrackedSet {
   isAutofilled: boolean;
   /** Added in the tracker beyond the plan — removable, never zero-filled. */
   isExtra: boolean;
-  /** Seeded from last session's actuals; cleared on first edit. Untouched
-   *  prefills persist at Finish flagged is_autofilled, like quick-complete. */
-  isPrefilled: boolean;
+  /** Last session's actuals shown as ghost text, never persisted on their
+   *  own — first focus anywhere in the row commits them into the actuals. */
+  shadow: LastSetActuals | null;
 }
+
+export type CardioShadow = Omit<LastCardioActuals, 'date'>;
 
 export interface CardioActuals {
   durationMinutes: string;
@@ -30,7 +32,9 @@ export interface CardioActuals {
   elevationGain: string;
   avgHeartRate: string;
   isLogged: boolean;
-  isPrefilled: boolean;
+  /** Ghost values like TrackedSet.shadow, but committed per field — cardio
+   *  metrics are independent enough that one tap shouldn't claim all four. */
+  shadow: CardioShadow | null;
 }
 
 export interface TrackedExercise {
@@ -82,7 +86,7 @@ function emptySet(planned: PlannedSet, isExtra: boolean): TrackedSet {
     isLogged: false,
     isAutofilled: false,
     isExtra,
-    isPrefilled: false,
+    shadow: null,
   };
 }
 
@@ -131,15 +135,22 @@ export function buildTrackerModel(
                   elevationGain: row.elevation_gain ?? '',
                   avgHeartRate: row.avg_heart_rate != null ? String(row.avg_heart_rate) : '',
                   isLogged: true,
-                  isPrefilled: false,
+                  shadow: null,
                 }
               : {
-                  durationMinutes: last?.durationMinutes ?? '',
-                  distance: last?.distance ?? '',
-                  elevationGain: last?.elevationGain ?? '',
-                  avgHeartRate: last?.avgHeartRate ?? '',
+                  durationMinutes: '',
+                  distance: '',
+                  elevationGain: '',
+                  avgHeartRate: '',
                   isLogged: false,
-                  isPrefilled: !!last,
+                  shadow: last
+                    ? {
+                        durationMinutes: last.durationMinutes,
+                        distance: last.distance,
+                        elevationGain: last.elevationGain,
+                        avgHeartRate: last.avgHeartRate,
+                      }
+                    : null,
                 },
           };
         }
@@ -163,13 +174,7 @@ export function buildTrackerModel(
           // highest-numbered set that was actually performed.
           const lastSet = last && (last.sets.get(p.setNumber) ?? highestNumberedSet(last.sets));
           if (lastSet && (lastSet.weight || lastSet.reps || lastSet.duration)) {
-            return {
-              ...base,
-              actualWeight: lastSet.weight,
-              actualReps: lastSet.reps,
-              actualDuration: lastSet.duration,
-              isPrefilled: true,
-            };
+            return { ...base, shadow: lastSet };
           }
           return base;
         });
@@ -377,32 +382,6 @@ export function collectUntouchedPlanned(
     }
   }
   return rows;
-}
-
-/**
- * Prefilled sets/cardio never touched this sitting — persisted at Finish at
- * last session's values, flagged is_autofilled like quick-complete so history
- * and PR detection ignore them and prefill never compounds across sessions.
- */
-export function collectPrefilledUntouched(
-  eventId: string,
-  eventDate: string,
-  groups: TrackedSectionGroup[],
-): { setRows: SetLogRow[]; cardioRows: CardioLogRow[] } {
-  const setRows: SetLogRow[] = [];
-  const cardioRows: CardioLogRow[] = [];
-  for (const group of groups) {
-    for (const tracked of group.exercises) {
-      for (const set of tracked.sets) {
-        if (!set.isPrefilled) continue;
-        setRows.push({ ...setToRow(eventId, eventDate, tracked, set), is_autofilled: true });
-      }
-      if (tracked.cardio?.isPrefilled) {
-        cardioRows.push({ ...cardioToRow(eventId, eventDate, tracked), is_autofilled: true });
-      }
-    }
-  }
-  return { setRows, cardioRows };
 }
 
 // ─── Quick complete (the "Mark as Complete" toggle) ──────────────────────────

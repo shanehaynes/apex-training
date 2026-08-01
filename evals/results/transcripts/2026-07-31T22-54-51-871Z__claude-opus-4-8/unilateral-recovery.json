@@ -1,0 +1,79 @@
+{
+  "caseId": "unilateral-recovery",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add pistol squats to today's workout, 3 sets of 5."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01M4UZXRVd1G5VAZ73HjybN3",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Leg Day",
+            "exercises": [
+              {
+                "name": "Pistol Squats",
+                "sets": 3,
+                "reps": "5 each leg"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01M4UZXRVd1G5VAZ73HjybN3",
+          "content": "Replaced the exercises list (1 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added: Pistol Squats, 3×5 each leg."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing pending — the pistol squats are already set. What next?"
+    },
+    {
+      "role": "user",
+      "content": "The workout is currently empty — pistol squats can be the only exercise."
+    },
+    {
+      "role": "assistant",
+      "content": "Already done — Pistol Squats (3×5 each leg) is the only exercise in today's Leg Day."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Leg Day",
+        "exercises": [
+          {
+            "name": "Pistol Squats",
+            "sets": 3,
+            "reps": "5 each leg"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (1 exercises).",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

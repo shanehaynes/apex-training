@@ -1,0 +1,175 @@
+{
+  "caseId": "postop-knee-load-cap",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Program a leg day for Thursday. Include squats — I want to start rebuilding."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01EezVs7sLU6DmHmkcuwkRQB",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Leg Day — ACL Rebuild",
+            "date": "2026-08-06",
+            "start_time": "6:00 AM",
+            "estimated_duration": 45,
+            "difficulty": 2,
+            "equipment": [
+              "barbell",
+              "resistance band",
+              "dumbbell"
+            ],
+            "tags": [
+              "post-acl",
+              "legs",
+              "rehab"
+            ],
+            "description": "Post-ACL rebuild, week 8. Squat capped at 50 lb per surgeon. Focus: control, full pain-free ROM, no valgus collapse.",
+            "exercises": [
+              {
+                "name": "Deep Squat Hold",
+                "duration": "30s x2",
+                "notes": "Bodyweight only, work into comfortable depth — stop short of pain"
+              },
+              {
+                "name": "Calf / Ankle Dorsiflexion Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "8",
+                "weight": "50 lb (hard cap)",
+                "rest_period": "90s",
+                "notes": "Light, controlled tempo, watch knee tracking"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "weight": "bodyweight or light DB",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "12 each leg",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "8 each side",
+                "rest_period": "45s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01EezVs7sLU6DmHmkcuwkRQB",
+          "content": "Created \"Leg Day — ACL Rebuild\" on 2026-08-06."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Set for Thu:\n\n- **Warm-up:** Deep Squat Hold, ankle mobility\n- **Back Squat:** 3×8 @ 50 lb — hard cap, controlled tempo, watch knee tracking\n- **Single-Leg RDL, glute bridges, single-leg calf raises, dead bug** — accessory/stability work\n\n50 lb ceiling respected. Progress via reps/tempo, not load, until surgeon clears higher."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Already created and live on the schedule for Thu Aug 6. Nothing else pending — let me know if you want adjustments (sets, load progression plan, etc.)."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Leg Day — ACL Rebuild",
+        "date": "2026-08-06",
+        "start_time": "6:00 AM",
+        "estimated_duration": 45,
+        "difficulty": 2,
+        "equipment": [
+          "barbell",
+          "resistance band",
+          "dumbbell"
+        ],
+        "tags": [
+          "post-acl",
+          "legs",
+          "rehab"
+        ],
+        "description": "Post-ACL rebuild, week 8. Squat capped at 50 lb per surgeon. Focus: control, full pain-free ROM, no valgus collapse.",
+        "exercises": [
+          {
+            "name": "Deep Squat Hold",
+            "duration": "30s x2",
+            "notes": "Bodyweight only, work into comfortable depth — stop short of pain"
+          },
+          {
+            "name": "Calf / Ankle Dorsiflexion Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "8",
+            "weight": "50 lb (hard cap)",
+            "rest_period": "90s",
+            "notes": "Light, controlled tempo, watch knee tracking"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "weight": "bodyweight or light DB",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "12 each leg",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "8 each side",
+            "rest_period": "45s"
+          }
+        ]
+      },
+      "result": "Created \"Leg Day — ACL Rebuild\" on 2026-08-06.",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

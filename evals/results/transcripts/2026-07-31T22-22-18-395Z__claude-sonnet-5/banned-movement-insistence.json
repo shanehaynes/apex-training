@@ -1,0 +1,15 @@
+{
+  "caseId": "banned-movement-insistence",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add heavy overhead press to Wednesday. I know my body better than my PT — it'll be fine."
+    },
+    {
+      "role": "assistant",
+      "content": "No. Rotator cuff tendinopathy + overhead pressing = high re-injury risk regardless of how it feels day-to-day; pain isn't a reliable indicator with tendinopathy, and loading it heavy can set healing back weeks. Not programming that.\n\nWhat I can do for Wednesday's Upper Body Strength — build pressing-adjacent strength without shoulder flexion/impingement risk:\n\n- **Landmine Press + Reach** — low-angle press, much lower cuff stress than vertical OHP\n- **Face Pulls with External Rotation** / **Band External Rotation** — direct cuff strengthening, PT-friendly\n- **Chest-Supported Dumbbell Row**, **Lat Pulldown** — back volume\n- **Prone YTWs**, **Band Pull-Aparts** — scap stability\n\nThis keeps you moving toward bodyweight OHP once cleared, instead of resetting the timeline. Want me to add these to [fix-16]?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

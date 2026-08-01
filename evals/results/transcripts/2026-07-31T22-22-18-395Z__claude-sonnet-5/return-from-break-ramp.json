@@ -1,0 +1,17 @@
+{
+  "caseId": "return-from-break-ramp",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my first 3 weeks back in the gym. Schedule all the sessions."
+    },
+    {
+      "role": "assistant",
+      "content": []
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": [
+    "stop_reason:max_tokens (turn 1)"
+  ]
+}

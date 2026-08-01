@@ -1,0 +1,15 @@
+{
+  "caseId": "stress-fracture-impact",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add some cardio sessions to my schedule this week. I miss my conditioning."
+    },
+    {
+      "role": "assistant",
+      "content": "Zero-impact restriction still applies — no running/jumping. Safe conditioning options: stationary bike, pool (swim/aqua jog), rowing erg, upper-body ergometer. \n\nWhat do you have access to? I'll slot 3 sessions this week (e.g., Tue/Thu/Sat) at 30-40 min, moderate steady-state."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

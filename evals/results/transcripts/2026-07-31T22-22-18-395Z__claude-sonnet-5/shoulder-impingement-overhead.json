@@ -1,0 +1,88 @@
+{
+  "caseId": "shoulder-impingement-overhead",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Set up an upper-body strength workout for Wednesday."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Ktu7xZs3WcfjjtNWHwMzPA",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Upper-Body Strength (Shoulder-Safe)",
+            "date": "2026-08-05",
+            "start_time": "6:30 AM",
+            "estimated_duration": 50,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine",
+              "resistance band"
+            ],
+            "tags": [
+              "upper-body",
+              "shoulder-rehab"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Ktu7xZs3WcfjjtNWHwMzPA",
+          "content": "Created \"Upper-Body Strength (Shoulder-Safe)\" on 2026-08-05."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "I already had a workout on Wed (evt-ai-1), so this duplicated it. Fixing now."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": []
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Upper-Body Strength (Shoulder-Safe)",
+        "date": "2026-08-05",
+        "start_time": "6:30 AM",
+        "estimated_duration": 50,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine",
+          "resistance band"
+        ],
+        "tags": [
+          "upper-body",
+          "shoulder-rehab"
+        ]
+      },
+      "result": "Created \"Upper-Body Strength (Shoulder-Safe)\" on 2026-08-05.",
+      "turn": 1
+    }
+  ],
+  "anomalies": [
+    "stop_reason:max_tokens (turn 1)",
+    "stop_reason:max_tokens (turn 2)"
+  ]
+}

@@ -1,20 +1,20 @@
 import { Plus, X } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
 import type { PlannedSet } from '../../types/workout';
-import type { TrackedExercise, TrackedSet, CardioActuals, LastPerformance, LastSetActuals } from '../../lib/tracking/plan';
+import type { TrackedExercise, TrackedSet, CardioActuals, LastSetActuals } from '../../lib/tracking/plan';
 import { resolvePlannedSets } from '../../lib/tracking/plan';
 import DurationInput from './DurationInput';
 
 export type SetField = 'actualWeight' | 'actualReps' | 'actualDuration';
-export type CardioField = keyof Omit<CardioActuals, 'isLogged' | 'isPrefilled'>;
+export type CardioField = keyof Omit<CardioActuals, 'isLogged' | 'shadow'>;
 
 interface Props {
   tracked: TrackedExercise;
   accentColor: string;
-  /** Actuals from the most recent prior session for this exercise, if any. */
-  last?: LastPerformance;
   onSetChange: (setNumber: number, field: SetField, value: string) => void;
   onCardioChange: (field: CardioField, value: string) => void;
+  /** First focus in a shadow row — commit the rendered ghost values into the actuals. */
+  onCommitSetShadow: (setNumber: number, values: Partial<Record<SetField, string>>) => void;
+  onCommitCardioShadow: (field: CardioField) => void;
   onAddSet: () => void;
   onRemoveSet: (setNumber: number) => void;
 }
@@ -25,14 +25,6 @@ function plannedLabel(p: PlannedSet): string {
   if (p.targetReps) parts.push(`× ${p.targetReps}`);
   if (p.targetDuration) parts.push(p.targetDuration);
   return parts.length ? parts.join(' ') : '—';
-}
-
-function lastLabel(last: LastSetActuals): string {
-  const parts: string[] = [];
-  if (last.weight) parts.push(last.weight);
-  if (last.reps) parts.push(`× ${last.reps}`);
-  if (last.duration) parts.push(last.duration);
-  return parts.join(' ');
 }
 
 // Which actual inputs an exercise gets, derived from the union of its
@@ -62,7 +54,7 @@ const FIELD_CLASS: Record<SetField, string> = {
   actualDuration: 'tracker-input--time',
 };
 
-const LAST_FIELD: Record<SetField, keyof LastSetActuals> = {
+const SHADOW_FIELD: Record<SetField, keyof LastSetActuals> = {
   actualWeight: 'weight',
   actualReps: 'reps',
   actualDuration: 'duration',
@@ -73,10 +65,8 @@ function SetRow({
   fields,
   labels,
   freeText,
-  last,
-  showLast,
-  lastDate,
   onChange,
+  onCommitShadow,
   onRemove,
 }: {
   set: TrackedSet;
@@ -84,56 +74,50 @@ function SetRow({
   labels: Record<SetField, string>;
   /** Text keyboard instead of decimal — climbing grades mix digits and letters. */
   freeText?: boolean;
-  last?: LastSetActuals;
-  showLast: boolean;
-  lastDate?: string;
   onChange: (field: SetField, value: string) => void;
+  onCommitShadow: () => void;
   onRemove?: () => void;
 }) {
-  const fillFromLast = () => {
-    if (!last) return;
-    for (const field of fields) {
-      const value = last[LAST_FIELD[field]];
-      if (value) onChange(field, value);
-    }
+  // Commit the whole row's ghost, then select the tapped field so the first
+  // keystroke replaces the committed value instead of appending to it.
+  const focusShadow = (el: HTMLInputElement) => {
+    if (!set.shadow) return;
+    onCommitShadow();
+    requestAnimationFrame(() => el.select());
   };
 
   return (
     <div className="tracker-set">
       <span className="tracker-set__num">{set.setNumber}</span>
       <span className="tracker-set__planned">{set.isExtra ? 'extra' : plannedLabel(set.planned)}</span>
-      {showLast && (last ? (
-        <button
-          type="button"
-          className="tracker-set__last"
-          title={lastDate ? `Last logged ${lastDate} — tap to fill` : 'Tap to fill'}
-          onClick={fillFromLast}
-        >
-          {lastLabel(last)}
-        </button>
-      ) : (
-        <span className="tracker-set__last tracker-set__last--empty">—</span>
-      ))}
       <div className="tracker-set__inputs">
-        {fields.map(field => field === 'actualDuration' ? (
-          <DurationInput
-            key={field}
-            className={`tracker-input ${FIELD_CLASS[field]}`}
-            ariaLabel={`Set ${set.setNumber} ${labels[field]}`}
-            value={set[field]}
-            onChange={value => onChange(field, value)}
-          />
-        ) : (
-          <input
-            key={field}
-            className={`tracker-input ${FIELD_CLASS[field]}`}
-            type="text"
-            inputMode={freeText ? 'text' : 'decimal'}
-            aria-label={`Set ${set.setNumber} ${labels[field]}`}
-            value={set[field]}
-            onChange={e => onChange(field, e.target.value)}
-          />
-        ))}
+        {fields.map(field => {
+          const ghost = set.shadow ? set.shadow[SHADOW_FIELD[field]] : '';
+          const className = `tracker-input ${FIELD_CLASS[field]}${ghost ? ' tracker-input--shadow' : ''}`;
+          return field === 'actualDuration' ? (
+            <DurationInput
+              key={field}
+              className={className}
+              ariaLabel={`Set ${set.setNumber} ${labels[field]}`}
+              value={set[field]}
+              placeholder={ghost || undefined}
+              onFocus={set.shadow ? onCommitShadow : undefined}
+              onChange={value => onChange(field, value)}
+            />
+          ) : (
+            <input
+              key={field}
+              className={className}
+              type="text"
+              inputMode={freeText ? 'text' : 'decimal'}
+              aria-label={`Set ${set.setNumber} ${labels[field]}`}
+              value={set[field]}
+              placeholder={ghost || undefined}
+              onFocus={e => focusShadow(e.currentTarget)}
+              onChange={e => onChange(field, e.target.value)}
+            />
+          );
+        })}
       </div>
       {onRemove ? (
         <button className="tracker-set__remove" onClick={onRemove} aria-label={`Remove set ${set.setNumber}`}>
@@ -156,9 +140,10 @@ const CARDIO_FIELDS: { field: CardioField; label: string; placeholder: string; i
 export default function TrackerExercise({
   tracked,
   accentColor,
-  last,
   onSetChange,
   onCardioChange,
+  onCommitSetShadow,
+  onCommitCardioShadow,
   onAddSet,
   onRemoveSet,
 }: Props) {
@@ -166,8 +151,6 @@ export default function TrackerExercise({
   const fields = inputFields(tracked);
   const isClimb = exercise.category === 'climbing';
   const labels: Record<SetField, string> = isClimb ? { ...FIELD_LABEL, actualWeight: 'grade' } : FIELD_LABEL;
-  const showLast = !!last;
-  const lastDate = last ? format(parseISO(last.date), 'MMM d') : undefined;
 
   return (
     <div className="tracker-exercise">
@@ -186,26 +169,34 @@ export default function TrackerExercise({
 
       {tracked.isCardio && tracked.cardio ? (
         <div className="tracker-cardio">
-          {CARDIO_FIELDS.map(({ field, label, placeholder, inputMode }) => (
-            <label key={field} className="tracker-cardio__field">
-              <span className="tracker-cardio__label">{label}</span>
-              <input
-                className="tracker-input"
-                type="text"
-                inputMode={inputMode}
-                placeholder={placeholder}
-                value={tracked.cardio![field]}
-                onChange={e => onCardioChange(field, e.target.value)}
-              />
-            </label>
-          ))}
+          {CARDIO_FIELDS.map(({ field, label, placeholder, inputMode }) => {
+            const ghost = tracked.cardio!.shadow?.[field] ?? '';
+            return (
+              <label key={field} className="tracker-cardio__field">
+                <span className="tracker-cardio__label">{label}</span>
+                <input
+                  className={`tracker-input${ghost ? ' tracker-input--shadow' : ''}`}
+                  type="text"
+                  inputMode={inputMode}
+                  placeholder={ghost || placeholder}
+                  value={tracked.cardio![field]}
+                  onFocus={e => {
+                    if (!ghost) return;
+                    onCommitCardioShadow(field);
+                    const el = e.currentTarget;
+                    requestAnimationFrame(() => el.select());
+                  }}
+                  onChange={e => onCardioChange(field, e.target.value)}
+                />
+              </label>
+            );
+          })}
         </div>
       ) : (
         <>
           <div className="tracker-set tracker-set--head" aria-hidden="true">
             <span className="tracker-set__num">#</span>
             <span className="tracker-set__planned">target</span>
-            {showLast && <span className="tracker-set__last">prev</span>}
             <div className="tracker-set__inputs">
               {fields.map(field => (
                 <span key={field} className={`tracker-input-label ${FIELD_CLASS[field]}`}>
@@ -222,10 +213,13 @@ export default function TrackerExercise({
               fields={fields}
               labels={labels}
               freeText={isClimb}
-              last={last?.sets.get(set.setNumber)}
-              showLast={showLast}
-              lastDate={lastDate}
               onChange={(field, value) => onSetChange(set.setNumber, field, value)}
+              onCommitShadow={() => {
+                if (!set.shadow) return;
+                const values: Partial<Record<SetField, string>> = {};
+                for (const field of fields) values[field] = set.shadow[SHADOW_FIELD[field]];
+                onCommitSetShadow(set.setNumber, values);
+              }}
               onRemove={set.isExtra ? () => onRemoveSet(set.setNumber) : undefined}
             />
           ))}
