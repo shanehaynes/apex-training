@@ -12,8 +12,9 @@ import type { ChatWireEvent } from '../src/lib/coach/wire.js';
 // browser). The client posts { messages, system, withTools } and reads back
 // newline-delimited JSON (one ChatWireEvent per line — see
 // src/lib/coach/wire.ts). Tool inputs are buffered here and emitted as one
-// complete tool_use event — simpler for the client than forwarding partial
-// JSON deltas.
+// complete tool_use event per block — simpler for the client than forwarding
+// partial JSON deltas. A response with parallel tool calls yields one
+// tool_use event per block; the client queues them all (actionQueue.ts).
 //
 // IMPORT SURFACE WARNING: this function once crashed at module load on
 // Vercel when it imported the coach executor graph. Only api/_lib and the

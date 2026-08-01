@@ -12,15 +12,20 @@ import { now } from '../../lib/clock';
 
 interface ConfirmCardProps {
   label: string;
+  /** Actions still queued behind this one (0 when it's the only one). */
+  remaining: number;
   onConfirm: () => void;
   onCancel: () => void;
   disabled: boolean;
 }
 
-function ConfirmCard({ label, onConfirm, onCancel, disabled }: ConfirmCardProps) {
+function ConfirmCard({ label, remaining, onConfirm, onCancel, disabled }: ConfirmCardProps) {
   return (
     <div className="chat-confirm-card">
-      <p className="chat-confirm-card__label">{label}</p>
+      <p className="chat-confirm-card__label">
+        {label}
+        {remaining > 0 && <span className="chat-confirm-card__queue"> · {remaining} more after this</span>}
+      </p>
       <div className="chat-confirm-card__actions">
         <button
           className="chat-confirm-card__btn chat-confirm-card__btn--cancel"
@@ -51,7 +56,7 @@ export default function ChatSidebar() {
   } = useSchedule();
   const {
     messages, isLoading, streamingContent,
-    pendingAction, sendMessage, confirmAction, cancelAction, triggerInitial, abort,
+    pendingAction, pendingActionCount, sendMessage, confirmAction, cancelAction, triggerInitial, abort,
   } = useChat();
   const { dispatch } = useCalendar();
   const { anthropicKey, profile } = useAuth();
@@ -177,6 +182,7 @@ export default function ChatSidebar() {
         {pendingAction && (
           <ConfirmCard
             label={pendingLabel}
+            remaining={pendingActionCount - 1}
             disabled={isLoading}
             onConfirm={() => confirmAction(buildExecutor(), systemPrompt)}
             onCancel={() => cancelAction(systemPrompt)}
