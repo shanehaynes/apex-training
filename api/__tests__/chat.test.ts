@@ -69,6 +69,23 @@ describe('streamToWireEvents', () => {
     expect(out[0]).toEqual({ type: 'tool_use', id: 'tu_2', name: 'create_event', input: {} });
   });
 
+  it('emits one tool_use event per block when the model calls tools in parallel', async () => {
+    const out = await collect([
+      { type: 'content_block_start', content_block: { type: 'tool_use', id: 'tu_a', name: 'delete_event' } },
+      { type: 'content_block_delta', delta: { type: 'input_json_delta', partial_json: '{"event_id":"a","scope":"all"}' } },
+      { type: 'content_block_stop' },
+      { type: 'content_block_start', content_block: { type: 'tool_use', id: 'tu_b', name: 'delete_event' } },
+      { type: 'content_block_delta', delta: { type: 'input_json_delta', partial_json: '{"event_id":"b","scope":"all"}' } },
+      { type: 'content_block_stop' },
+      { type: 'message_stop' },
+    ]);
+    expect(out).toEqual([
+      { type: 'tool_use', id: 'tu_a', name: 'delete_event', input: { event_id: 'a', scope: 'all' } },
+      { type: 'tool_use', id: 'tu_b', name: 'delete_event', input: { event_id: 'b', scope: 'all' } },
+      { type: 'done' },
+    ]);
+  });
+
   it('handles mixed text-then-tool responses in order', async () => {
     const out = await collect([
       { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Deleting it.' } },
