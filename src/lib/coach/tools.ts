@@ -197,8 +197,12 @@ const createEventTool: CoachToolDef = {
       exercises: entries,
     };
     const result = await deps.createEvent(createInput);
+    // The id is load-bearing: without it the model cannot reference the event
+    // it just created (its refreshed schedule shows a same-titled entry it may
+    // mistake for a pre-existing duplicate). Bracketed to match the schedule
+    // rendering in prompt.ts.
     return result
-      ? `Created "${title}" on ${date}.${describeCreated(created)}`
+      ? `Created "${title}" on ${date} [${result.id}].${describeCreated(created)}`
       : 'Failed to create the event.';
   },
 };
