@@ -36589,6 +36589,7 @@
           "name": "Face Pulls with External Rotation",
           "category": "mobility",
           "sets": 3,
+          "reps": "15",
           "weight": "Light band",
           "definitionId": "face-pulls-with-external-rotation"
         }
@@ -36606,7 +36607,6 @@
           "name": "ARC Traversing",
           "category": "cardio",
           "duration": "30\u201340 min",
-          "weight": "40\u201350% effort",
           "definitionId": "arc-traversing"
         }
       ],
@@ -36854,6 +36854,7 @@
           "name": "Face Pulls with External Rotation",
           "category": "mobility",
           "sets": 3,
+          "reps": "15",
           "weight": "Light band",
           "definitionId": "face-pulls-with-external-rotation"
         }
