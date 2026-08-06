@@ -5,10 +5,16 @@ import {
   EVENT_PATCH_COLUMNS,
   DEFINITION_INSERT_COLUMNS,
   DEFINITION_PATCH_COLUMNS,
+  BLOCK_INSERT_COLUMNS,
+  BLOCK_PATCH_COLUMNS,
+  OBJECTIVE_INSERT_COLUMNS,
+  OBJECTIVE_PATCH_COLUMNS,
 } from '../_lib/allowlist';
 import { eventToRow, eventFieldsToRow } from '../../src/lib/schedule/mapping';
 import { definitionFieldsToRow } from '../../src/lib/schedule/definitions';
+import { blockToRow, blockFieldsToRow, objectiveToRow, objectiveFieldsToRow } from '../../src/lib/blocks/mapping';
 import type { ExerciseDefinition } from '../../src/types/workout';
+import type { Objective, TrainingBlock } from '../../src/types/blocks';
 
 // The allowlists must accept everything the client mapping layer emits —
 // these tests pin the two together so they cannot drift silently.
@@ -56,6 +62,24 @@ const FULL_DEFINITION_FIELDS: Partial<ExerciseDefinition> = {
   archivedAt: null,
 } as Partial<ExerciseDefinition>;
 
+const FULL_BLOCK: Omit<TrainingBlock, 'id'> = {
+  objectiveId: 'obj-1',
+  name: 'Fall Aerobic Foundation',
+  intent: 'Build the base',
+  phase: 'base',
+  startDate: '2026-03-02',
+  endDateExclusive: '2026-04-27',
+  weeklyTargets: { cardioMinutes: 420, vert: { value: 8000, unit: 'ft' } },
+};
+
+const FULL_OBJECTIVE: Omit<Objective, 'id'> = {
+  name: 'Liberty Ridge',
+  targetDate: '2027-06-15',
+  discipline: 'alpine',
+  notes: 'Rainier north side',
+  status: 'active',
+};
+
 describe('pickAllowed', () => {
   it('splits allowed and rejected keys', () => {
     const { picked, rejected } = pickAllowed(
@@ -67,13 +91,21 @@ describe('pickAllowed', () => {
   });
 
   it('never allows identity or server-managed columns', () => {
-    for (const set of [EVENT_INSERT_COLUMNS, EVENT_PATCH_COLUMNS, DEFINITION_INSERT_COLUMNS, DEFINITION_PATCH_COLUMNS]) {
+    for (const set of [
+      EVENT_INSERT_COLUMNS, EVENT_PATCH_COLUMNS,
+      DEFINITION_INSERT_COLUMNS, DEFINITION_PATCH_COLUMNS,
+      BLOCK_INSERT_COLUMNS, BLOCK_PATCH_COLUMNS,
+      OBJECTIVE_INSERT_COLUMNS, OBJECTIVE_PATCH_COLUMNS,
+    ]) {
       expect(set.has('user_id')).toBe(false);
       expect(set.has('created_at')).toBe(false);
       expect(set.has('updated_at')).toBe(false);
     }
     expect(EVENT_PATCH_COLUMNS.has('id')).toBe(false);
     expect(DEFINITION_PATCH_COLUMNS.has('id')).toBe(false);
+    // Block and objective ids are server-generated UUIDs, never client-supplied.
+    expect(BLOCK_INSERT_COLUMNS.has('id')).toBe(false);
+    expect(OBJECTIVE_INSERT_COLUMNS.has('id')).toBe(false);
   });
 });
 
@@ -95,6 +127,32 @@ describe('client/server mirror', () => {
     const row = definitionFieldsToRow(FULL_DEFINITION_FIELDS);
     const { rejected: insertRejected } = pickAllowed(row, DEFINITION_INSERT_COLUMNS);
     const { rejected: patchRejected } = pickAllowed(row, DEFINITION_PATCH_COLUMNS);
+    expect(insertRejected).toEqual([]);
+    expect(patchRejected).toEqual([]);
+  });
+
+  it('accepts every column blockToRow / blockFieldsToRow emits', () => {
+    const { rejected: insertRejected } = pickAllowed(
+      blockToRow(FULL_BLOCK) as unknown as Record<string, unknown>,
+      BLOCK_INSERT_COLUMNS,
+    );
+    const { rejected: patchRejected } = pickAllowed(
+      blockFieldsToRow(FULL_BLOCK) as Record<string, unknown>,
+      BLOCK_PATCH_COLUMNS,
+    );
+    expect(insertRejected).toEqual([]);
+    expect(patchRejected).toEqual([]);
+  });
+
+  it('accepts every column objectiveToRow / objectiveFieldsToRow emits', () => {
+    const { rejected: insertRejected } = pickAllowed(
+      objectiveToRow(FULL_OBJECTIVE) as unknown as Record<string, unknown>,
+      OBJECTIVE_INSERT_COLUMNS,
+    );
+    const { rejected: patchRejected } = pickAllowed(
+      objectiveFieldsToRow(FULL_OBJECTIVE) as Record<string, unknown>,
+      OBJECTIVE_PATCH_COLUMNS,
+    );
     expect(insertRejected).toEqual([]);
     expect(patchRejected).toEqual([]);
   });

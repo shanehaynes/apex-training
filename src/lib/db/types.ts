@@ -214,3 +214,49 @@ export interface DefinitionMutationLogRow {
   diff?: Record<string, unknown>;
   triggered_by?: string;
 }
+
+// ─── Phase 19: objectives & training blocks ──────────────────────────────────
+// The semantic layer: an objective is what the training is aimed at, a block
+// is a dated stretch of training aimed at it. Block membership for a workout
+// is derived from event_date (blocks may not overlap), so no block_id column
+// exists on workout_events — see the phase19 migration for why.
+
+export interface ObjectiveRow {
+  user_id?: string;
+  id: string;
+  name: string;
+  /** null = undated aspiration. */
+  target_date: string | null;
+  discipline: 'alpine' | 'ice' | 'rock' | 'ski' | 'general' | null;
+  notes: string;
+  /** Phase 2: [{ metric, target, unit }] scored against benchmarks. Empty until then. */
+  required_capabilities: unknown[];
+  status: 'active' | 'achieved' | 'abandoned';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrainingBlockRow {
+  user_id?: string;
+  id: string;
+  objective_id: string | null;
+  name: string;
+  intent: string;
+  phase: 'base' | 'build' | 'peak' | 'taper' | 'recovery' | 'maintenance' | null;
+  /** Half-open [start_date, end_date_exclusive), both Mondays — matches Period. */
+  start_date: string;
+  end_date_exclusive: string;
+  /** WeeklyTargets jsonb (camelCase payload, like cardio_targets). */
+  weekly_targets: unknown;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BlockMutationLogRow {
+  operation: 'create' | 'update' | 'delete';
+  resource: 'block' | 'objective';
+  resource_id: string;
+  resource_name: string;
+  diff?: Record<string, unknown>;
+  triggered_by?: string;
+}

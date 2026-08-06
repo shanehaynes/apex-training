@@ -38,6 +38,7 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user();
 DROP TABLE IF EXISTS
   api_request_counts,
+  block_mutations_log, training_blocks, objectives,
   reviews, user_api_keys, profiles,
   definition_mutations_log, exercise_definitions,
   workout_cardio_logs, workout_set_logs, workout_sessions,
@@ -70,6 +71,7 @@ run_sql_file supabase/migrations/phase15_cat_cow_single_duration.sql
 run_sql_file supabase/migrations/phase16_coach_profile_fields.sql
 run_sql_file supabase/migrations/phase17_outdoor_climbing.sql
 run_sql_file supabase/migrations/phase18_rate_limits.sql
+run_sql_file supabase/migrations/phase19_training_blocks.sql
 
 # Fallback: apply any stray timestamped migration last, in name order. The
 # convention is phaseN (see header) so this normally matches nothing.

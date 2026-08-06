@@ -24,6 +24,8 @@ interface CalendarState {
   composerDate: string | null;
   /** Profile overlay (same full-screen pattern as the library). */
   profileOpen: boolean;
+  /** Training-blocks overlay (same full-screen pattern as the library). */
+  blocksOpen: boolean;
 }
 
 type CalendarAction =
@@ -43,7 +45,9 @@ type CalendarAction =
   | { type: 'OPEN_COMPOSER'; payload: string }
   | { type: 'CLOSE_COMPOSER' }
   | { type: 'OPEN_PROFILE' }
-  | { type: 'CLOSE_PROFILE' };
+  | { type: 'CLOSE_PROFILE' }
+  | { type: 'OPEN_BLOCKS' }
+  | { type: 'CLOSE_BLOCKS' };
 
 function reducer(state: CalendarState, action: CalendarAction): CalendarState {
   switch (action.type) {
@@ -97,6 +101,10 @@ function reducer(state: CalendarState, action: CalendarAction): CalendarState {
       return { ...state, profileOpen: true };
     case 'CLOSE_PROFILE':
       return { ...state, profileOpen: false };
+    case 'OPEN_BLOCKS':
+      return { ...state, blocksOpen: true };
+    case 'CLOSE_BLOCKS':
+      return { ...state, blocksOpen: false };
     default:
       return state;
   }
@@ -120,6 +128,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     selectedDay: null,
     composerDate: null,
     profileOpen: false,
+    blocksOpen: false,
   });
 
   // Dev-only agent bridge: compiled out of production builds.
@@ -135,6 +144,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
       selectedDay: state.selectedDay,
       composerDate: state.composerDate,
       profileOpen: state.profileOpen,
+      blocksOpen: state.blocksOpen,
     }));
   }, [state]);
 

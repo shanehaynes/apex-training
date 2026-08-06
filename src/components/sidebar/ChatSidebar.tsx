@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo, useEffect } from 'react';
+import { useRef, useState, useMemo, useEffect, useCallback } from 'react';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useCalendar } from '../../context/CalendarContext';
 import { useAuth } from '../../context/AuthContext';
@@ -6,6 +6,7 @@ import { useChat } from '../../hooks/useChat';
 import { buildSystemPrompt } from '../../lib/coach/prompt';
 import { findCoachTool } from '../../lib/coach/tools';
 import { Send, Square, NotebookPen, Check, X, KeyRound } from 'lucide-react';
+import { useBlockSummary } from '../../hooks/useBlockSummary';
 import { now } from '../../lib/clock';
 
 // ─── Confirmation card ────────────────────────────────────────────────────────
@@ -71,12 +72,18 @@ export default function ChatSidebar() {
 
   const today = useMemo(() => now(), []);
   const todayEvents = useMemo(() => getEventsForDate(today), [getEventsForDate, today]);
-  const systemPrompt = useMemo(
-    () => buildSystemPrompt(todayEvents, events, today, definitions.values(), {
+  const getBlockSummary = useBlockSummary();
+
+  // Built at call time, not memoized: the prompt is only ever read inside the
+  // handlers below, and the block summary needs an await. Memoizing it would
+  // mean a message sent before that await settled reached the model with no
+  // block context at all.
+  const resolveSystemPrompt = useCallback(async () => {
+    const block = await getBlockSummary();
+    return buildSystemPrompt(todayEvents, events, today, definitions.values(), {
       goal: profile?.coach_goal, context: profile?.coach_context,
-    }),
-    [todayEvents, events, today, definitions, profile],
-  );
+    }, block);
+  }, [todayEvents, events, today, definitions, profile, getBlockSummary]);
 
   const isEmpty = messages.length === 0 && !isLoading && !pendingAction;
 
@@ -113,11 +120,11 @@ export default function ChatSidebar() {
 
   // ── Input handlers ─────────────────────────────────────────────────────────
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const text = input.trim();
     if (!text || isLoading || pendingAction) return;
     setInput('');
-    sendMessage(text, systemPrompt);
+    sendMessage(text, await resolveSystemPrompt());
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -132,7 +139,7 @@ export default function ChatSidebar() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="chat-sidebar">
+    <div className="chat-sidebar" data-tour="chat">
       <div className="chat-sidebar__header">
         <span className="chat-sidebar__title">Coach</span>
         <span className="chat-sidebar__model">claude opus</span>
@@ -184,8 +191,8 @@ export default function ChatSidebar() {
             label={pendingLabel}
             remaining={pendingActionCount - 1}
             disabled={isLoading}
-            onConfirm={() => confirmAction(buildExecutor(), systemPrompt)}
-            onCancel={() => cancelAction(systemPrompt)}
+            onConfirm={async () => confirmAction(buildExecutor(), await resolveSystemPrompt())}
+            onCancel={async () => cancelAction(await resolveSystemPrompt())}
           />
         )}
 
@@ -195,7 +202,8 @@ export default function ChatSidebar() {
       <div className="chat-sidebar__actions">
         <button
           className="chat-notes-btn"
-          onClick={() => triggerInitial(systemPrompt)}
+          data-tour="chat-notes"
+          onClick={async () => triggerInitial(await resolveSystemPrompt())}
           disabled={isLoading || !!pendingAction || needsKey}
         >
           <NotebookPen size={13} />
@@ -207,6 +215,7 @@ export default function ChatSidebar() {
         <textarea
           ref={inputRef}
           className="chat-input"
+          data-tour="chat-input"
           placeholder={
             needsKey ? 'Add your API key to chat…'
             : pendingAction ? 'Confirm or cancel above first…'

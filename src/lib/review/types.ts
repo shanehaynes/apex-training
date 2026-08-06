@@ -6,13 +6,26 @@ import type { Period } from './isoMonth.js';
 
 export type PeriodType = 'month' | 'year';
 
-export interface ReviewPeriod extends Period {
+/**
+ * The minimum a date window needs in order to be aggregated by
+ * computeReviewStats. Training blocks (phase 19) are Monday-aligned ranges
+ * that satisfy this without being review periods — they have no isoYear or
+ * monthIndex. periodType stays on the base so the `stats is YearlyStats`
+ * guard in email.ts keeps narrowing.
+ */
+export interface StatsPeriod extends Period {
+  periodType: PeriodType | 'block';
+  /** Human label: "Jun 15 – Jul 12, 2026" or "2025". */
+  label: string;
+  /** Whole ISO weeks in the window. */
+  weeksInPeriod: number;
+}
+
+export interface ReviewPeriod extends StatsPeriod {
   periodType: PeriodType;
   isoYear: number;
   /** 1–13 for months, absent for years. */
   monthIndex?: number;
-  /** Human label: "Jun 15 – Jul 12, 2026" or "2025". */
-  label: string;
   /** 4 (or 5 for month 13 of a 53-week year); 52/53 for years. */
   weeksInPeriod: number;
 }
@@ -23,8 +36,8 @@ export interface ReviewPeriod extends Period {
 // canonicalized via the alias index) — PR detection needs everything that
 // came before the period, not just what happened inside it.
 
-export interface ReviewInputs {
-  period: ReviewPeriod;
+export interface PeriodInputs<P extends StatsPeriod = StatsPeriod> {
+  period: P;
   /** Completed completions with event_date inside the period. */
   completions: CompletionRow[];
   /** Sessions with event_date inside the period. */
@@ -34,6 +47,8 @@ export interface ReviewInputs {
   /** All non-autofilled cardio logs with event_date < period end, ASC. */
   cardioLogs: CardioLogRow[];
 }
+
+export type ReviewInputs = PeriodInputs<ReviewPeriod>;
 
 // ─── Computed stats ───────────────────────────────────────────────────────────
 // Stored verbatim in reviews.stats and rendered by the recap and the email —
@@ -82,8 +97,8 @@ export interface StrengthStats {
   topExercises: Array<{ exerciseName: string; sets: number }>;
 }
 
-export interface ReviewStats {
-  period: ReviewPeriod;
+export interface PeriodStats<P extends StatsPeriod = StatsPeriod> {
+  period: P;
   totals: ReviewTotals;
   cardio: CardioStats;
   strength: StrengthStats;
@@ -98,6 +113,13 @@ export interface ReviewStats {
     longestSession: { minutes: number; date: string; title: string } | null;
   };
 }
+
+/**
+ * Review-shaped stats. The alias (rather than widening PeriodStats.period)
+ * is load-bearing: email.ts and recap.ts read period.isoYear / period.monthIndex
+ * directly, so those fields must stay required here.
+ */
+export type ReviewStats = PeriodStats<ReviewPeriod>;
 
 // ─── Yearly retrospective ─────────────────────────────────────────────────────
 
