@@ -18,7 +18,7 @@ export const DEFAULT_CYCLES = 4;
 /** Recovery weeks carry reduced volume, not zero — a deload, not a layoff. */
 export const DEFAULT_RECOVERY_SCALE = 0.5;
 
-/** Matches the batch cap in api/training-blocks.ts. */
+/** Matches the batch cap in api/_lib/trainingBlocks.ts. */
 export const MAX_CYCLE_BLOCKS = 24;
 
 export interface CycleSpec {

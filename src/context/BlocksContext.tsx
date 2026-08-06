@@ -58,7 +58,12 @@ interface BlocksContextValue {
 
 const BlocksContext = createContext<BlocksContextValue | null>(null);
 
-const ENDPOINT = '/api/training-blocks';
+// Served by the events function (?resource=…): the Vercel Hobby plan caps a
+// deployment at 12 serverless functions and the repo sits at the cap, so
+// blocks/objectives multiplex through api/events.ts instead of adding a 13th.
+function endpoint(resource: 'block' | 'objective', extra?: Record<string, string>): string {
+  return `/api/events?${new URLSearchParams({ resource, ...extra })}`;
+}
 
 export function BlocksProvider({ children }: { children: React.ReactNode }) {
   const [blocks, setBlocks] = useState<TrainingBlock[]>([]);
@@ -135,7 +140,7 @@ export function BlocksProvider({ children }: { children: React.ReactNode }) {
   const createBlock = useCallback(async (input: Omit<TrainingBlock, 'id'>) => {
     validateBlock(input);
     const res = await postJson<{ id: string }>(
-      ENDPOINT,
+      endpoint('block'),
       { ...blockToRow(input), triggered_by: 'user', log: { resource_name: input.name, triggered_by: 'user' } },
       'Create block',
     );
@@ -146,7 +151,7 @@ export function BlocksProvider({ children }: { children: React.ReactNode }) {
   const createBlocks = useCallback(async (inputs: Omit<TrainingBlock, 'id'>[]) => {
     inputs.forEach(validateBlock);
     const res = await postJson<{ ids: string[] }>(
-      `${ENDPOINT}?batch=1`,
+      endpoint('block', { batch: '1' }),
       {
         rows: inputs.map(blockToRow),
         log: { resource_name: inputs[0]?.name ?? 'cycle', triggered_by: 'user' },
@@ -161,7 +166,7 @@ export function BlocksProvider({ children }: { children: React.ReactNode }) {
     const existing = blocks.find(b => b.id === id);
     if (existing) validateBlock({ ...existing, ...fields });
     await patchJson(
-      `${ENDPOINT}?id=${encodeURIComponent(id)}`,
+      endpoint('block', { id }),
       { fields: blockFieldsToRow(fields), log: { resource_name: fields.name ?? existing?.name ?? id, triggered_by: 'user' } },
       'Update block',
     );
@@ -170,7 +175,7 @@ export function BlocksProvider({ children }: { children: React.ReactNode }) {
   }, [blocks, refresh]);
 
   const deleteBlock = useCallback(async (id: string, name: string) => {
-    await deleteJson(`${ENDPOINT}?id=${encodeURIComponent(id)}`, 'Delete block', {
+    await deleteJson(endpoint('block', { id }), 'Delete block', {
       log: { resource_name: name, triggered_by: 'user' },
     });
     await refresh();
@@ -179,7 +184,7 @@ export function BlocksProvider({ children }: { children: React.ReactNode }) {
 
   const createObjective = useCallback(async (input: Omit<Objective, 'id'>) => {
     const res = await postJson<{ id: string }>(
-      `${ENDPOINT}?resource=objective`,
+      endpoint('objective'),
       { ...objectiveToRow(input), triggered_by: 'user', log: { resource_name: input.name, triggered_by: 'user' } },
       'Create objective',
     );
@@ -190,7 +195,7 @@ export function BlocksProvider({ children }: { children: React.ReactNode }) {
   const updateObjective = useCallback(async (id: string, fields: Partial<Omit<Objective, 'id'>>) => {
     const existing = objectives.find(o => o.id === id);
     await patchJson(
-      `${ENDPOINT}?resource=objective&id=${encodeURIComponent(id)}`,
+      endpoint('objective', { id }),
       { fields: objectiveFieldsToRow(fields), log: { resource_name: fields.name ?? existing?.name ?? id, triggered_by: 'user' } },
       'Update objective',
     );
@@ -199,7 +204,7 @@ export function BlocksProvider({ children }: { children: React.ReactNode }) {
   }, [objectives, refresh]);
 
   const deleteObjective = useCallback(async (id: string, name: string) => {
-    await deleteJson(`${ENDPOINT}?resource=objective&id=${encodeURIComponent(id)}`, 'Delete objective', {
+    await deleteJson(endpoint('objective', { id }), 'Delete objective', {
       log: { resource_name: name, triggered_by: 'user' },
     });
     await refresh();

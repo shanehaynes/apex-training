@@ -1,5 +1,5 @@
 // Live project: training blocks against the REAL stack — GoTrue sign-in,
-// RLS-scoped reads of training_blocks/objectives, /api/training-blocks writes
+// RLS-scoped reads of training_blocks/objectives, /api/events?resource=block writes
 // landing in Postgres, and the DB exclusion constraint surfacing as a 409.
 //
 // Prereqs: supabase start && npm run db:reset-local
@@ -185,7 +185,7 @@ test('an overlapping block is rejected by the database, not the client', async (
   const status = await page.evaluate(async () => {
     const raw = Object.keys(localStorage).find(k => k.includes('auth-token'));
     const token = raw ? JSON.parse(localStorage.getItem(raw)!).access_token : '';
-    const res = await fetch('/api/training-blocks', {
+    const res = await fetch('/api/events?resource=block', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({

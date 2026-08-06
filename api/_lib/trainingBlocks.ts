@@ -1,20 +1,22 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
-import { requireUser } from './_lib/auth.js';
+import { getSupabaseAdmin } from './supabaseAdmin.js';
+import { requireUser } from './auth.js';
 import {
   pickAllowed,
   BLOCK_INSERT_COLUMNS,
   BLOCK_PATCH_COLUMNS,
   OBJECTIVE_INSERT_COLUMNS,
   OBJECTIVE_PATCH_COLUMNS,
-} from './_lib/allowlist.js';
-import { enforceRateLimit } from './_lib/rateLimit.js';
-import { parseWeeklyTargets } from '../src/lib/blocks/targets.js';
+} from './allowlist.js';
+import { enforceRateLimit } from './rateLimit.js';
+import { parseWeeklyTargets } from '../../src/lib/blocks/targets.js';
 
-// Writes for objectives and training blocks (phase 19). One endpoint for both
-// because the vercel.json catch-all rewrite makes sub-paths cost an extra
-// function — same reason api/workout-sessions.ts discriminates on an action
-// (see its header). Here the discriminator is ?resource=block|objective.
+// Writes for objectives and training blocks (phase 19), served from
+// api/events.ts behind ?resource=block|objective rather than as its own
+// function file: the Vercel Hobby plan caps a deployment at 12 serverless
+// functions and this repo sits exactly at the cap — a 13th api/*.ts fails
+// the whole deploy. Same frugality as api/workout-sessions.ts multiplexing
+// seven actions through one function.
 //
 // enforceAiMutationCap is deliberately NOT called: nothing AI-driven writes
 // blocks yet. When a coach tool is added, gate the non-'user' path the way
@@ -185,7 +187,7 @@ async function handleBatchInsert(
   res.status(200).json({ ids });
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export async function handleTrainingBlocks(req: VercelRequest, res: VercelResponse) {
   const supabase = getSupabaseAdmin();
   if (!supabase) {
     res.status(500).send('Supabase admin client not configured');

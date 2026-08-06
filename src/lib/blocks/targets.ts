@@ -10,7 +10,7 @@ import type {
 //
 // pickAllowed (api/_lib/allowlist.ts) guards column NAMES; it cannot see
 // inside a JSONB value. This module is the shape guard, and it runs on both
-// sides — the editor form and api/training-blocks.ts — so the same rules
+// sides — the editor form and api/_lib/trainingBlocks.ts — so the same rules
 // apply whether the write came from the app or from a hand-rolled request.
 // Same split the codebase already uses: allowlist in api/, shape knowledge
 // in src/lib/.

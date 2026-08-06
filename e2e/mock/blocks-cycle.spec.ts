@@ -67,7 +67,7 @@ test('saving posts one batched request, not one per block', async ({ page }) => 
 
   const posts: string[] = [];
   page.on('request', req => {
-    if (req.url().includes('/api/training-blocks') && req.method() === 'POST') {
+    if (req.url().includes('resource=block') && req.method() === 'POST') {
       posts.push(req.url());
     }
   });

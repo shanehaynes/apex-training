@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
 import { requireUser } from './_lib/auth.js';
 import { pickAllowed, EVENT_INSERT_COLUMNS, EVENT_PATCH_COLUMNS } from './_lib/allowlist.js';
 import { enforceAiMutationCap, enforceRateLimit } from './_lib/rateLimit.js';
+import { handleTrainingBlocks } from './_lib/trainingBlocks.js';
 import type { WorkoutEventRow } from '../src/lib/db/types.js';
 
 interface MutationLogEntry {
@@ -36,6 +37,16 @@ async function logMutation(
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Training blocks and objectives share this function (?resource=block|
+  // objective) because the Vercel Hobby plan caps a deployment at 12
+  // serverless functions and the repo sits exactly at the cap — a 13th
+  // api/*.ts file fails the whole deploy. The delegate does its own auth,
+  // rate limiting, and allowlisting; nothing below this branch runs for it.
+  if (req.query.resource === 'block' || req.query.resource === 'objective') {
+    await handleTrainingBlocks(req, res);
+    return;
+  }
+
   const supabase = getSupabaseAdmin();
   if (!supabase) {
     res.status(500).send('Supabase admin client not configured');

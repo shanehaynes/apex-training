@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import handler from '../training-blocks';
+import { handleTrainingBlocks as handler } from '../_lib/trainingBlocks';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 import { requireUser } from '../_lib/auth';
 
