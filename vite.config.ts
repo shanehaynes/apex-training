@@ -7,7 +7,9 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), vercelApiPlugin()],
   test: {
     // e2e/ holds Playwright specs, run via `npx playwright test` — not vitest.
-    exclude: [...configDefaults.exclude, 'e2e/**'],
+    // .claude/ holds session worktrees whose copies of the repo would
+    // otherwise be scanned (and their e2e specs crash vitest).
+    exclude: [...configDefaults.exclude, 'e2e/**', '.claude/**'],
   },
   base: '/',
   build: {
