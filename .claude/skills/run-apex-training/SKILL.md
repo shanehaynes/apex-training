@@ -93,6 +93,26 @@ dev server unless it's the agent profile.
 
 ## Local Supabase stack
 
+**A running container is not a working one.** Docker has reported all ten
+containers healthy while GoTrue could not reach Postgres at all — a Colima VM
+left up for two weeks developed a fault in Docker's embedded DNS (127.0.0.11),
+so every sign-in returned 504. The live suite failed nine specs over 24 minutes
+and read exactly like application breakage. If live tests fail broadly,
+especially with timeouts or `TypeError: Failed to fetch`, check the stack before
+debugging the app:
+
+```bash
+npm run stack:check    # ~1.5s; exercises container DNS, Kong→GoTrue→Postgres, Kong→PostgREST
+npm run stack:fix      # same, then repairs: docker start → supabase restart → colima restart
+```
+
+`db:reset-local` and `e2e:live` both run `--fix --quiet` first, so a degraded
+stack repairs itself and says so rather than surfacing as mystery failures.
+Repair is serialised across sessions by an atomic lock, so concurrent agents
+never restart the stack under each other — and a healthy stack means nobody
+repairs at all. Do NOT `supabase stop` at the end of a session: it would kill
+another session's run, and data lives in Docker volumes either way.
+
 Docker runs via Colima on this machine (`colima start`, 4 GB). Then:
 
 - `supabase start` / `supabase stop` — the stack (API :54321, Postgres :54322,

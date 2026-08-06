@@ -16,6 +16,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# A running container is not a working one: Docker has reported every container
+# healthy while GoTrue could not reach Postgres at all. Prove the stack actually
+# works — and repair it — before spending minutes seeding into it.
+scripts/preflight-local.sh --fix --quiet || exit 1
+
 DB_CONTAINER=$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -1 || true)
 if [ -z "$DB_CONTAINER" ]; then
   echo "error: local Supabase stack is not running — run 'supabase start' first" >&2
