@@ -5,10 +5,9 @@ import { pickAllowed, MEAL_INSERT_COLUMNS, MEAL_PATCH_COLUMNS } from './allowlis
 import { enforceAiMutationCap, enforceRateLimit } from './rateLimit.js';
 import type { MealMutationLogRow, MealRow } from '../../src/lib/db/types.js';
 
-// Meal writes (phase 22) + audit trail (phase 23), served from api/events.ts
-// behind ?resource=meal rather than as its own function file: the Vercel
-// Hobby plan caps a deployment at 12 serverless functions and the repo sits
-// exactly at the cap (same frugality as the training-blocks delegate).
+// Meal writes (phase 22) + audit trail (phase 23), served as /api/meals by
+// the consolidated router (_lib/app.ts) — a delegate rather than its own
+// api/*.ts file because of the Vercel Hobby 12-function deploy cap.
 // Same shape as api/events.ts: auth → rate limit → allowlist → service-role
 // write → mutation log. The log feeds the daily AI cap now that the coach
 // has meal tools.

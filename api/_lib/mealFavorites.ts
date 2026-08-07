@@ -5,9 +5,10 @@ import { pickAllowed, MEAL_FAVORITE_COLUMNS } from './allowlist.js';
 import { enforceRateLimit } from './rateLimit.js';
 import type { MealFavoriteRow } from '../../src/lib/db/types.js';
 
-// Meal favorites (phase 24): user-only meal templates, served from
-// api/events.ts behind ?resource=meal-favorite (12-function deploy cap —
-// see the training-blocks delegate). POST upserts scoped to (user_id, id) —
+// Meal favorites (phase 24): user-only meal templates, served as
+// /api/meal-favorites by the consolidated router (_lib/app.ts) — a delegate
+// rather than its own function file (12-function deploy cap; see the
+// training-blocks delegate). POST upserts scoped to (user_id, id) —
 // the client reuses an existing favorite's id for same-title saves, so
 // "save again" overwrites instead of duplicating. No AI cap or mutation
 // log: the coach has no favorite tools, and favorites are cosmetic templates,
