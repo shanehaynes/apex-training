@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useModalChrome } from '../../hooks/useModalChrome';
 import { createPortal } from 'react-dom';
 import { Star, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -52,12 +53,7 @@ export default function AddMealView() {
   const [notes, setNotes] = useState(editing?.notes ?? '');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
-  }, []);
+  useModalChrome(close);
 
   /** Blank → undefined; otherwise a finite number ≥ 0, or NaN to flag invalid. */
   const parseGrams = (value: string): number | undefined => {

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useModalChrome } from '../../hooks/useModalChrome';
 import { X, Check, Copy, LogOut } from 'lucide-react';
 import { useCalendar } from '../../context/CalendarContext';
 import { useSchedule } from '../../context/ScheduleContext';
@@ -48,13 +49,7 @@ export default function ProfileView() {
   const [isSavingKey, setIsSavingKey] = useState(false);
   const [isReplacingKey, setIsReplacingKey] = useState(false);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useModalChrome(close);
 
   const saveName = async () => {
     const trimmed = name.trim();

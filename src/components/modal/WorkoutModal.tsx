@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { useModalChrome } from '../../hooks/useModalChrome';
 import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play, Pencil, Route, TrendingUp, HeartPulse, Mountain, Layers } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/CalendarContext';
@@ -26,20 +27,13 @@ export default function WorkoutModal() {
   const [editingDate, setEditingDate] = useState(false);
   const [editingTime, setEditingTime] = useState(false);
   const [editingExercises, setEditingExercises] = useState(false);
-  const editingExercisesRef = useRef(false);
-  editingExercisesRef.current = editingExercises;
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      // Escape backs out of exercise editing before closing the modal.
-      if (editingExercisesRef.current) setEditingExercises(false);
-      else close();
-    };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
-  }, []);
+  // Escape backs out of exercise editing before closing the modal. The hook
+  // reads the handler through a ref, so this closure is always fresh.
+  useModalChrome(() => {
+    if (editingExercises) setEditingExercises(false);
+    else close();
+  });
 
   if (!event) return null;
 
@@ -124,13 +118,13 @@ export default function WorkoutModal() {
     </h2>
   );
 
+  // No AnimatePresence: AppShell unmounts this component outright on close,
+  // so exit animations never ran — only the entry animation is real.
   return createPortal(
-    <AnimatePresence>
-      <motion.div
+    <motion.div
         className="modal-backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
         transition={{ duration: 0.2 }}
         onClick={close}
       >
@@ -141,7 +135,6 @@ export default function WorkoutModal() {
           aria-labelledby="modal-title"
           initial={{ opacity: 0, scale: 0.94, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.97 }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           onClick={e => e.stopPropagation()}
         >
@@ -350,8 +343,7 @@ export default function WorkoutModal() {
             )}
           </div>
         </motion.div>
-      </motion.div>
-    </AnimatePresence>,
+      </motion.div>,
     document.body
   );
 }

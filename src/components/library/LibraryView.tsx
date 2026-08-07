@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useModalChrome } from '../../hooks/useModalChrome';
 import { X, Search, ChevronRight, Archive } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/CalendarContext';
@@ -21,13 +22,7 @@ export default function LibraryView() {
   const [detailId, setDetailId] = useState<string | null>(state.librarySelection);
   const [lastPerformed, setLastPerformed] = useState<Map<string, string>>(new Map());
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useModalChrome(close);
 
   const aliasIndex = useMemo(() => buildAliasIndex(definitions.values()), [definitions]);
 
