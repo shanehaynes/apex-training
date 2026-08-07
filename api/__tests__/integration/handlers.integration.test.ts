@@ -67,8 +67,8 @@ describe.skipIf(!RUN)('api handlers against the local stack', () => {
       body: JSON.stringify({ email, password }),
     });
     if (!res.ok) throw new Error(`sign-in failed for ${email}: ${await res.text()}`);
-    const data = await res.json();
-    return { token: data.access_token as string, userId: data.user.id as string };
+    const data = await res.json() as { access_token: string; user: { id: string } };
+    return { token: data.access_token, userId: data.user.id };
   }
 
   beforeAll(async () => {

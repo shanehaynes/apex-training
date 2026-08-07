@@ -9,12 +9,18 @@ import { installIntercept, isExpectedConsoleError } from './intercept.mjs';
 // @ts-expect-error plain-JS module shared with scripts/drive.mjs
 import { readSupabaseEnv, seedFabricatedSession, driverProfile } from './session.mjs';
 
-interface ApexOptions {
+export interface ApexOptions {
   /** Seed the fabricated Supabase session before load (no-op offline). */
   sessionSeed: boolean;
   /** Stub the profile as a fresh account so the template banner renders. */
   freshProfile: boolean;
-  /** Freeze the app's date-semantic clock (see src/lib/clock.ts), e.g. '2026-03-02T08:00:00'. */
+  /**
+   * Freeze the app's date-semantic clock (see src/lib/clock.ts), e.g.
+   * '2026-03-02T08:00:00'. The mock project pins a default in
+   * playwright.config.ts — the bundled seed only covers 2026-06-22 through
+   * 2027-05-31, so specs reading the real clock would start failing the day
+   * it passes the seed's end. Specs still override per-test via test.use().
+   */
   fakeNow: string | null;
 }
 

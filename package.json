@@ -30,7 +30,7 @@
     "framer-motion": "^12.42.0",
     "hono": "^4.13.1",
     "lucide-react": "^1.21.0",
-    "nodemailer": "^6.10.1",
+    "nodemailer": "^9.0.5",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "recharts": "^3.9.0"
@@ -39,7 +39,7 @@
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.3.1",
     "@types/node": "^24.13.2",
-    "@types/nodemailer": "^6.4.24",
+    "@types/nodemailer": "^8.0.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vercel/node": "^5.8.22",

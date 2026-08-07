@@ -49,33 +49,24 @@ DELETE FROM auth.users;
 SQL
 
 run_sql_file supabase/schema.sql
-run_sql_file supabase/migrations/phase2_events_tables.sql
-run_sql_file supabase/migrations/phase3_enable_rls.sql
-run_sql_file supabase/migrations/phase3_recurrence_rule.sql
-run_sql_file supabase/migrations/phase4_workout_tracking.sql
-run_sql_file supabase/migrations/phase5_coach_summary.sql
-run_sql_file supabase/migrations/phase6_quick_complete.sql
-run_sql_file supabase/migrations/phase7_occurrence_overrides.sql
-run_sql_file supabase/migrations/phase8_exercise_definitions.sql
 
-echo "── creating local auth users (phase9 prerequisite)"
-node scripts/create-local-users.mjs
-
-run_sql_file supabase/migrations/phase9_multi_user.sql
-run_sql_file supabase/migrations/phase10_rls_lockdown.sql
-run_sql_file supabase/migrations/phase11_user_api_keys.sql
-run_sql_file supabase/migrations/phase12_reviews.sql
-run_sql_file supabase/migrations/phase13_avatars.sql
-run_sql_file supabase/migrations/phase14_avatars.sql
-run_sql_file supabase/migrations/phase15_cat_cow_single_duration.sql
-run_sql_file supabase/migrations/phase16_coach_profile_fields.sql
-run_sql_file supabase/migrations/phase17_outdoor_climbing.sql
-run_sql_file supabase/migrations/phase18_rate_limits.sql
-run_sql_file supabase/migrations/phase19_training_blocks.sql
-run_sql_file supabase/migrations/phase22_meals.sql
-run_sql_file supabase/migrations/phase23_meal_coach.sql
-run_sql_file supabase/migrations/phase24_meal_favorites.sql
-run_sql_file supabase/migrations/phase25_events_user_pk.sql
+# Apply every phaseN migration in numeric order via a version-sorted glob —
+# never a hand-enumerated list: the old list silently skipped phase21 because
+# nobody added it, and the [0-9]*.sql straggler glob below can't catch phaseN
+# names. sort -V orders phase2 < phase10 correctly and breaks same-number ties
+# (phase3_enable_rls before phase3_recurrence_rule) lexicographically.
+# phase9's backfill aborts unless the local auth users exist, so they are
+# created just before the first migration numbered >= 9.
+users_created=0
+while IFS= read -r f; do
+  n=$(basename "$f"); n=${n#phase}; n=${n%%[!0-9]*}
+  if [ "$users_created" -eq 0 ] && [ "$n" -ge 9 ]; then
+    echo "── creating local auth users (phase9 prerequisite)"
+    node scripts/create-local-users.mjs
+    users_created=1
+  fi
+  run_sql_file "$f"
+done < <(printf '%s\n' supabase/migrations/phase*.sql | sort -V)
 
 # Fallback: apply any stray timestamped migration last, in name order. The
 # convention is phaseN (see header) so this normally matches nothing.

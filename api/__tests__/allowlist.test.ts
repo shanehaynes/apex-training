@@ -26,7 +26,7 @@ import type { Objective, TrainingBlock } from '../../src/types/blocks';
 
 const FULL_EVENT: Parameters<typeof eventToRow>[0] = {
   id: 'evt-1',
-  type: 'strength',
+  type: 'weights',
   title: 'Upper Body',
   subtitle: 'Push focus',
   date: '2026-07-24',
@@ -41,7 +41,7 @@ const FULL_EVENT: Parameters<typeof eventToRow>[0] = {
   location: 'Gym',
   coverImageUrl: 'https://example.com/x.jpg',
   cardioTargets: { distance: '5k' },
-  climbingTargets: { pitches: 3 },
+  climbingTargets: { totalPitches: 3 },
   tags: ['push'],
   equipment: ['barbell'],
   isCompleted: false,
@@ -65,7 +65,9 @@ const FULL_DEFINITION_FIELDS: Partial<ExerciseDefinition> = {
   defaultWeight: '135 lb',
   defaultRest: '2 min',
   archivedAt: null,
-} as Partial<ExerciseDefinition>;
+  // DB rows carry SQL NULLs where the client type says `?: string` — the
+  // allowlist must accept them, so the fixture keeps the nulls via unknown.
+} as unknown as Partial<ExerciseDefinition>;
 
 const FULL_MEAL: Meal = {
   id: 'meal-1',
