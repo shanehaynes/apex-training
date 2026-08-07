@@ -127,12 +127,22 @@ export function BlocksProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const sb = supabase;
     if (!sb) return;
+    // Debounced: every write already refreshes explicitly, and its realtime
+    // echo (one event per row for batch writes) was refetching again.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { timer = null; refresh(); }, 250);
+    };
     const channel = sb
       .channel('blocks-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'training_blocks' }, refresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'objectives' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'training_blocks' }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'objectives' }, scheduleRefresh)
       .subscribe();
-    return () => { sb.removeChannel(channel); };
+    return () => {
+      if (timer) clearTimeout(timer);
+      sb.removeChannel(channel);
+    };
   }, [refresh]);
 
   // ── Writes ────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import TopNav from './TopNav';
 import Calendar from '../calendar/Calendar';
 import ChatSidebar from '../sidebar/ChatSidebar';
@@ -22,13 +22,17 @@ export default function AppShell() {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [mobileTab, setMobileTab] = useState<MobileTab>('calendar');
 
+  // Mobile is day-view only. Crossing the breakpoint remembers the desktop
+  // view so widening the window restores Week instead of resetting to Month.
+  const desktopViewRef = useRef<'month' | 'week'>('month');
   useEffect(() => {
     if (isMobile && state.selectedView !== 'day') {
+      desktopViewRef.current = state.selectedView === 'week' ? 'week' : 'month';
       dispatch({ type: 'SET_VIEW', payload: 'day' });
     } else if (!isMobile && state.selectedView === 'day') {
-      dispatch({ type: 'SET_VIEW', payload: 'month' });
+      dispatch({ type: 'SET_VIEW', payload: desktopViewRef.current });
     }
-  }, [isMobile]);
+  }, [isMobile, state.selectedView, dispatch]);
 
   return (
     <div className="app-shell">

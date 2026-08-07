@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useState } from 'react';
 import { useCalendar } from '../../context/CalendarContext';
 import MonthView from './MonthView';
 import WeekView from './WeekView';
@@ -6,9 +6,14 @@ import DayView from './DayView';
 
 export default function Calendar() {
   const { state } = useCalendar();
-  const prevDate = useRef(state.currentDate);
-  const direction = state.currentDate >= prevDate.current ? 1 : -1;
-  prevDate.current = state.currentDate;
+  // Derived state, not a render-phase ref write: under StrictMode's double
+  // render a ref would already hold the new date on the second pass and the
+  // slide direction would come out wrong.
+  const [slide, setSlide] = useState({ date: state.currentDate, direction: 1 });
+  if (state.currentDate !== slide.date) {
+    setSlide({ date: state.currentDate, direction: state.currentDate >= slide.date ? 1 : -1 });
+  }
+  const direction = slide.direction;
 
   return (
     <div className="calendar">

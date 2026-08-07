@@ -7,9 +7,9 @@ import { test, expect, shot } from '../lib/fixtures';
 async function openCycleEditor(page: import('@playwright/test').Page) {
   await page.goto('/');
   await expect(page.locator('.top-nav')).toBeVisible({ timeout: 20000 });
-  await page.locator('[data-tour="blocks"]').click();
+  await page.getByTestId('nav-blocks').click();
   await expect(page.locator('.library-header__title')).toHaveText('Training blocks');
-  await page.locator('[data-tour="new-cycle"]').click();
+  await page.getByTestId('new-cycle').click();
   await expect(page.locator('.library-header__title')).toHaveText('New cycle');
 }
 

@@ -22,7 +22,6 @@ export default function TopNav() {
         {status === 'signedIn' && (
           <button
             className="top-nav__avatar"
-            data-tour="profile"
             onClick={() => dispatch({ type: 'OPEN_PROFILE' })}
             title={profile?.display_name || 'Profile'}
             aria-label="Open profile"
@@ -50,7 +49,7 @@ export default function TopNav() {
       <div className="top-nav__right">
         <button
           className="btn-library"
-          data-tour="blocks"
+          data-testid="nav-blocks"
           onClick={() => dispatch({ type: 'OPEN_BLOCKS' })}
           title="Training blocks"
         >
@@ -59,7 +58,6 @@ export default function TopNav() {
         </button>
         <button
           className="btn-library"
-          data-tour="library"
           onClick={() => dispatch({ type: 'OPEN_LIBRARY' })}
           title="Exercise library"
         >
@@ -68,13 +66,12 @@ export default function TopNav() {
         </button>
         <button
           className="btn-today"
-          data-tour="today"
           onClick={() => dispatch({ type: 'GO_TO_TODAY' })}
           disabled={isCurrentPeriod(currentDate, selectedView)}
         >
           Today
         </button>
-        <div className="view-toggle" data-tour="view-toggle">
+        <div className="view-toggle">
           {(['month', 'week'] as CalendarView[]).map(view => (
             <button
               key={view}

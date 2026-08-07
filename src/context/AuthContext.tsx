@@ -142,9 +142,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     if (!supabase) return;
-    clearCompletedIds();
+    clearCompletedIds(session?.user.id ?? null);
     await supabase.auth.signOut();
-  }, []);
+  }, [session]);
 
   const resetPassword = useCallback(async (email: string): Promise<string | null> => {
     if (!supabase) return 'Offline mode — no auth configured';

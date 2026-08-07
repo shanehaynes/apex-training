@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useSchedule } from '../../context/ScheduleContext';
-import { postJson } from '../../lib/api';
-import { notify } from '../../lib/notify';
+import { useTemplateCopy } from '../../hooks/useTemplateCopy';
 
 // One-time offer shown to fresh accounts: copy the template user's recurring
 // workouts as a starting plan. Dismissal is local (per device) — the action
@@ -13,12 +11,11 @@ import { notify } from '../../lib/notify';
 const DISMISS_KEY = 'apex-template-offer-dismissed';
 
 export default function TemplateOfferBanner() {
-  const { profile, refreshProfile } = useAuth();
-  const { refreshEvents } = useSchedule();
+  const { profile } = useAuth();
+  const { copyTemplate, isCopying } = useTemplateCopy();
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem(DISMISS_KEY) === '1'; } catch { return false; }
   });
-  const [isCopying, setIsCopying] = useState(false);
 
   if (!profile || profile.is_template_source || profile.template_copied_at || dismissed) {
     return null;
@@ -27,21 +24,6 @@ export default function TemplateOfferBanner() {
   const dismiss = () => {
     try { localStorage.setItem(DISMISS_KEY, '1'); } catch {}
     setDismissed(true);
-  };
-
-  const copyTemplate = async () => {
-    setIsCopying(true);
-    try {
-      const result = await postJson<{ events?: number; alreadyCopied?: boolean }>(
-        '/api/template-copy', {}, 'Copying starter workouts',
-      );
-      await Promise.all([refreshEvents(), refreshProfile()]);
-      notify(result.alreadyCopied ? 'Already copied' : `Added ${result.events ?? 0} recurring workouts`);
-    } catch {
-      /* postJson already toasted */
-    } finally {
-      setIsCopying(false);
-    }
   };
 
   return (

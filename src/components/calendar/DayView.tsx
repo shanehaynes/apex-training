@@ -96,7 +96,6 @@ interface CardProps {
 
 function DayEventCard({ event, onToggle, onOpen }: CardProps) {
   const color = getWorkoutColor(event.type);
-  const isStrava = (event as WorkoutEvent & { source?: string }).source === 'strava';
 
   return (
     <div
@@ -125,7 +124,6 @@ function DayEventCard({ event, onToggle, onOpen }: CardProps) {
         className="day-event-card__check"
         onClick={e => { e.stopPropagation(); onToggle(); }}
         aria-label={event.isCompleted ? 'Mark incomplete' : 'Mark complete'}
-        disabled={isStrava}
       >
         {event.isCompleted
           ? <CheckCircle2 size={22} strokeWidth={2} />

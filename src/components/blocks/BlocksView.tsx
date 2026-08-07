@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useModalChrome } from '../../hooks/useModalChrome';
 import { ChevronRight, Plus, Repeat, Target, X } from 'lucide-react';
 import { useCalendar } from '../../context/CalendarContext';
 import { useBlocks } from '../../context/BlocksContext';
@@ -22,13 +23,7 @@ export default function BlocksView() {
   const close = () => dispatch({ type: 'CLOSE_BLOCKS' });
 
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useModalChrome(close);
 
   // The list re-reads from context after a write, so a deleted or renamed
   // block can't leave a stale detail view mounted.
@@ -81,7 +76,7 @@ export default function BlocksView() {
         <div className="library-header__actions">
           <button
             className="library-edit-btn"
-            data-tour="new-cycle"
+            data-testid="new-cycle"
             onClick={() => setMode({ kind: 'cycle' })}
             title="Lay down a repeating build/recovery cycle"
           >
@@ -89,7 +84,6 @@ export default function BlocksView() {
           </button>
           <button
             className="library-edit-btn"
-            data-tour="new-block"
             onClick={() => setMode({ kind: 'edit', block: null })}
           >
             <Plus size={14} strokeWidth={1.5} /> New block

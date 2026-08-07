@@ -163,8 +163,8 @@ export function uniqueEntryId(base: string, existing: Iterable<string>): string 
   }
 }
 
-/** camelCase definition fields → snake_case row columns, for API payloads. */
-export function definitionFieldsToRow(fields: Partial<ExerciseDefinition>): Record<string, unknown> {
+/** camelCase definition fields → snake_case row columns, for API payloads. archivedAt: null clears the column. */
+export function definitionFieldsToRow(fields: Partial<Omit<ExerciseDefinition, 'archivedAt'>> & { archivedAt?: string | null }): Record<string, unknown> {
   const map: Record<string, string> = {
     canonicalName: 'canonical_name',
     aliases: 'aliases',
