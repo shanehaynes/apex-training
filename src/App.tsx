@@ -1,4 +1,5 @@
 import { AuthProvider, useAuth } from './context/AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import { CalendarProvider } from './context/CalendarContext';
 import { MealsProvider } from './context/MealsContext';
 import { ScheduleProvider } from './context/ScheduleContext';
@@ -38,8 +39,10 @@ function AuthGate() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AuthGate />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AuthGate />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

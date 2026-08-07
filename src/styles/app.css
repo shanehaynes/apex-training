@@ -4026,6 +4026,24 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   text-align: center;
 }
 
+/* ── Error boundary (last-resort crash screen) ─────────────────────────── */
+
+.error-boundary__title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.error-boundary__body {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
 /* ============================================================
    PROFILE (avatar button, overlay, template offer)
    ============================================================ */
