@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import handler from '../profile';
+import handler from '../_lib/handlers/profile';
 import { keyLast4 } from '../_lib/anthropicKey';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 

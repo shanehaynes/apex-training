@@ -127,9 +127,13 @@ export default function vercelApiPlugin(): Plugin {
         }
 
         try {
-          const mod = await server.ssrLoadModule(`/api/${name}.ts`);
+          // Only these three remain standalone api/*.ts functions; every
+          // other /api/* route is served by the consolidated Hono router.
+          const STANDALONE = new Set(['chat', 'review-cron', 'calendar-feed']);
+          const modPath = STANDALONE.has(name) ? `/api/${name}.ts` : '/api/_lib/app.ts';
+          const mod = await server.ssrLoadModule(modPath);
           const handler = mod.default as (req: VercelishRequest, res: VercelishResponse) => Promise<void>;
-          if (typeof handler !== 'function') throw new Error(`api/${name}.ts has no default export`);
+          if (typeof handler !== 'function') throw new Error(`${modPath} has no default export`);
 
           const rawBody = await readBody(req);
           await handler(adaptRequest(req, rawBody), adaptResponse(res));

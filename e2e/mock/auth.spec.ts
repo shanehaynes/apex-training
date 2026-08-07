@@ -34,7 +34,8 @@ test('login gate, reset mode, fabricated session, profile view', async ({ page }
 
   await page.locator('.top-nav__avatar').click();
   await expect(page.locator('.profile-view')).toBeVisible();
-  await expect(page.locator('.profile-avatar')).toHaveCount(5);
+  // One tile per entry in the avatar library (src/lib/profile/avatars.ts).
+  await expect(page.locator('.profile-avatar')).toHaveCount(24);
 
   const feedUrls = await page.locator('.profile-feed__url')
     .evaluateAll(els => els.map(el => (el as HTMLInputElement).value));

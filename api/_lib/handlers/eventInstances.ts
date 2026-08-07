@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
-import { requireUser } from './_lib/auth.js';
-import { enforceAiMutationCap, enforceRateLimit } from './_lib/rateLimit.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
+import { requireUser } from '../auth.js';
+import { enforceAiMutationCap, enforceRateLimit } from '../rateLimit.js';
 
 interface InstanceBody {
   eventId?: string;

@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
-import { requireUser } from './_lib/auth.js';
-import { pickAllowed, DEFINITION_INSERT_COLUMNS, DEFINITION_PATCH_COLUMNS } from './_lib/allowlist.js';
-import { enforceAiMutationCap, enforceRateLimit } from './_lib/rateLimit.js';
-import type { ExerciseDefinitionRow } from '../src/lib/db/types.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
+import { requireUser } from '../auth.js';
+import { pickAllowed, DEFINITION_INSERT_COLUMNS, DEFINITION_PATCH_COLUMNS } from '../allowlist.js';
+import { enforceAiMutationCap, enforceRateLimit } from '../rateLimit.js';
+import type { ExerciseDefinitionRow } from '../../../src/lib/db/types.js';
 
 // Exercise library mutations (EXERCISE_LIBRARY_SPEC.md §3). Writes go through
 // the service role; every mutation appends to definition_mutations_log.

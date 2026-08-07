@@ -1,12 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
-import { requireUser } from './_lib/auth.js';
-import type { CardioLogRow, SetLogRow, TrackedSection } from '../src/lib/db/types.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
+import { requireUser } from '../auth.js';
+import type { CardioLogRow, SetLogRow, TrackedSection } from '../../../src/lib/db/types.js';
 
 // Single endpoint for the workout tracker's writes, discriminated by
-// body.action — Vercel file routing maps one file to one path, and the
-// catch-all rewrite in vercel.json would swallow /api/workout-sessions/*
-// sub-paths. Reads go through the anon client (SELECT-only RLS policies).
+// body.action (predates the consolidated router; /api/workout-sessions/*
+// sub-paths would work through it now, but the action dispatch isn't worth
+// churning). Reads go through the anon client (SELECT-only RLS policies).
 
 interface RemovedSetKey {
   section: TrackedSection;

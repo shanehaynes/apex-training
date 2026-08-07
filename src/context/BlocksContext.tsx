@@ -58,11 +58,12 @@ interface BlocksContextValue {
 
 const BlocksContext = createContext<BlocksContextValue | null>(null);
 
-// Served by the events function (?resource=…): the Vercel Hobby plan caps a
-// deployment at 12 serverless functions and the repo sits at the cap, so
-// blocks/objectives multiplex through api/events.ts instead of adding a 13th.
+// Served by the consolidated API router (api/_lib/app.ts) via the catch-all
+// function — clean paths, no per-endpoint function cost under Vercel's cap.
 function endpoint(resource: 'block' | 'objective', extra?: Record<string, string>): string {
-  return `/api/events?${new URLSearchParams({ resource, ...extra })}`;
+  const path = resource === 'block' ? '/api/blocks' : '/api/objectives';
+  const params = new URLSearchParams(extra);
+  return params.size > 0 ? `${path}?${params}` : path;
 }
 
 export function BlocksProvider({ children }: { children: React.ReactNode }) {

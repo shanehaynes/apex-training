@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
-import { requireUser } from './_lib/auth.js';
-import { cloneEventRow, collectDefinitionIds } from '../src/lib/template/clone.js';
-import type { ExerciseDefinitionRow, WorkoutEventRow } from '../src/lib/db/types.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
+import { requireUser } from '../auth.js';
+import { cloneEventRow, collectDefinitionIds } from '../../../src/lib/template/clone.js';
+import type { ExerciseDefinitionRow, WorkoutEventRow } from '../../../src/lib/db/types.js';
 
 // Copies the template user's recurring workouts (plus every exercise
 // definition they reference) onto the caller's calendar. One-time per

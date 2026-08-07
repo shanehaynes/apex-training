@@ -1,10 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireUser } from './_lib/auth.js';
-import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
-import { getAnthropicKey } from './_lib/anthropicKey.js';
-import { enforceRateLimit } from './_lib/rateLimit.js';
-import { athleteSection } from '../src/lib/coach/prompt.js';
+import { requireUser } from '../auth.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
+import { getAnthropicKey } from '../anthropicKey.js';
+import { enforceRateLimit } from '../rateLimit.js';
+import { athleteSection } from '../../../src/lib/coach/prompt.js';
 
 // One-shot post-workout coach summary, running on the caller's own
 // Anthropic key (server-only user_api_keys table). PRs arrive pre-computed

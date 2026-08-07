@@ -5,8 +5,9 @@
 // answers every request that could write — /api/* and all non-GET supabase
 // calls — with stubs, so nothing clicked in a driven session ever mutates
 // real data. Tracker log reads are stubbed with fabricated history so the
-// shadow-fill ghosts render deterministically. Calendar event reads pass
-// through with the anon key swapped back in for the fake JWT.
+// shadow-fill ghosts render deterministically. Schedule reads (events,
+// exceptions, definitions) are stubbed so the calendar always renders the
+// bundled seed, whatever project .env.local points at.
 //
 // Fulfilled responses bypass the server, so the browser enforces CORS against
 // the stub itself — every stub needs these headers, and OPTIONS preflights
@@ -30,6 +31,16 @@ function parseNameFilter(decoded) {
   const m = decoded.match(/exercise_name=in\.\((.*?)\)(?=&|$)/);
   if (!m) return [];
   return (m[1].match(/"[^"]*"|[^,]+/g) ?? []).map(s => s.replace(/^"|"$/g, '').trim()).filter(Boolean);
+}
+
+/**
+ * True for the one console error a mock session produces on purpose: the
+ * workout_events stub below answers 503 to force the bundled-seed fallback,
+ * and Chromium logs every non-2xx resource load as a console error. The
+ * error watchers (fixtures.ts, drive.mjs) skip exactly this message.
+ */
+export function isExpectedConsoleError(msg) {
+  return (msg.location()?.url ?? '').includes('/rest/v1/workout_events');
 }
 
 /**
@@ -136,10 +147,30 @@ export async function installIntercept(context, { anonKey = null, profile } = {}
     // Catch-all: no other write escapes to the real project.
     if (req.method() !== 'GET') return json(route, []);
 
-    // Passthrough REST reads: the fabricated session attaches its fake JWT,
-    // which the real PostgREST would reject wholesale — swap the anon key
-    // back in. (After the phase10 lockdown these reads return zero rows and
-    // the app falls back to the bundled seed — still deterministic.)
+    // Schedule reads never pass through. After the phase10 RLS lockdown the
+    // real project answers these with 200 and zero rows for the driver user,
+    // and ScheduleContext.loadEvents treats an empty 200 as a legitimately
+    // empty calendar — it only falls back to the bundled seed on an *error*.
+    // So answer workout_events with an error status to force that fallback
+    // deterministically (Chromium logs the non-2xx load as a console error;
+    // isExpectedConsoleError above lets the error watchers skip exactly it);
+    // exceptions and definitions stub empty, matching offline mode (entries
+    // render their embedded snapshots).
+    if (url.includes('workout_events')) {
+      return route.fulfill({
+        status: 503, contentType: 'application/json', headers: CORS,
+        body: JSON.stringify({ message: 'mock profile: forced bundled-seed fallback' }),
+      });
+    }
+    if (url.includes('recurring_exceptions') || url.includes('exercise_definitions')) {
+      return json(route, []);
+    }
+
+    // Passthrough REST reads (workout_completions, workout_sessions): the
+    // fabricated session attaches its fake JWT, which the real PostgREST
+    // would reject wholesale — swap the anon key back in. Post-phase10 RLS
+    // these return 200 with zero rows, which is both deterministic and the
+    // correct state (nothing completed, no open session).
     if (anonKey) {
       return route.continue({ headers: { ...req.headers(), authorization: `Bearer ${anonKey}` } });
     }

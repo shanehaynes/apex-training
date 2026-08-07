@@ -10,8 +10,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import eventsHandler from '../../events';
-import completionsHandler from '../../completions';
+import eventsHandler from '../../_lib/handlers/events';
+import completionsHandler from '../../_lib/handlers/completions';
 // @ts-expect-error plain-JS helper shared with the seed scripts
 import { localSupabaseEnv } from '../../../scripts/lib/localEnv.mjs';
 
