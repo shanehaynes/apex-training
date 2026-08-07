@@ -8,15 +8,30 @@
 export function pickAllowed(
   obj: Record<string, unknown>,
   allowed: ReadonlySet<string>,
+  // Server-stamped columns (user_id, updated_at, logged_at, …): a deployed
+  // client legitimately includes them in row objects, so they are dropped
+  // silently instead of 400ing — the handler re-stamps its own values.
+  ignored: ReadonlySet<string> = EMPTY_SET,
 ): { picked: Record<string, unknown>; rejected: string[] } {
   const picked: Record<string, unknown> = {};
   const rejected: string[] = [];
   for (const [key, value] of Object.entries(obj)) {
     if (allowed.has(key)) picked[key] = value;
-    else rejected.push(key);
+    else if (!ignored.has(key)) rejected.push(key);
   }
   return { picked, rejected };
 }
+
+const EMPTY_SET: ReadonlySet<string> = new Set();
+
+/** Columns the server always stamps itself — never taken from a request. */
+export const SERVER_STAMPED_COLUMNS: ReadonlySet<string> = new Set([
+  'id',
+  'user_id',
+  'created_at',
+  'updated_at',
+  'logged_at',
+]);
 
 // Mirrors what eventToRow (src/lib/schedule/mapping.ts) emits — pinned by
 // api/__tests__/allowlist.test.ts so the two can't drift. user_id,
@@ -102,3 +117,68 @@ export const OBJECTIVE_INSERT_COLUMNS: ReadonlySet<string> = new Set([
 ]);
 
 export const OBJECTIVE_PATCH_COLUMNS: ReadonlySet<string> = OBJECTIVE_INSERT_COLUMNS;
+
+// Completion toggle rows (api/completions.ts). Mirrors CompletionRow /
+// CompletionLogRow in src/lib/db/types.ts. updated_at and logged_at are
+// server-stamped; the log table's id is DB-generated. Without these lists a
+// caller could backdate or fabricate rows in workout_completion_log — the
+// append-only source of truth for analytics.
+export const COMPLETION_COLUMNS: ReadonlySet<string> = new Set([
+  'event_id',
+  'event_date',
+  'event_type',
+  'event_title',
+  'duration_minutes',
+  'is_completed',
+  'completed_at',
+]);
+
+export const COMPLETION_LOG_COLUMNS: ReadonlySet<string> = new Set([
+  'event_id',
+  'event_date',
+  'event_type',
+  'event_title',
+  'duration_minutes',
+  'action',
+]);
+
+// Tracker rows (api/workout-sessions.ts). Mirrors SetLogRow / CardioLogRow in
+// src/lib/db/types.ts — row ids are DB-generated and updated_at is stamped by
+// the handler, so neither is client-writable.
+export const SET_LOG_COLUMNS: ReadonlySet<string> = new Set([
+  'event_id',
+  'event_date',
+  'section',
+  'exercise_id',
+  'exercise_name',
+  'definition_id',
+  'set_number',
+  'planned_weight',
+  'planned_reps',
+  'planned_duration',
+  'actual_weight',
+  'actual_reps',
+  'actual_duration',
+  'is_autofilled',
+]);
+
+export const CARDIO_LOG_COLUMNS: ReadonlySet<string> = new Set([
+  'event_id',
+  'event_date',
+  'section',
+  'exercise_id',
+  'exercise_name',
+  'definition_id',
+  'duration_minutes',
+  'distance',
+  'elevation_gain',
+  'avg_heart_rate',
+  'is_autofilled',
+]);
+
+// Event ids are client-minted slugs ('w1-mon-morning', 'ai-<uuid>',
+// 'tpl-<uuid>'). The pattern matters beyond tidiness: ids are emitted into
+// the ICS feed, where a CR/LF would inject calendar content, and they key
+// occurrence ids (`${id}__${date}`). Length 128 comfortably covers every
+// generator in the app.
+export const EVENT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;

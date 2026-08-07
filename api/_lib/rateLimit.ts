@@ -2,12 +2,19 @@ import type { VercelResponse } from '@vercel/node';
 import type { getSupabaseAdmin } from './supabaseAdmin.js';
 import { sendReviewEmail } from './mailer.js';
 
-// Per-user request throttles and a daily AI-mutation cap — the volume
-// backstop for the coach. Both checks FAIL OPEN: on any storage error we
-// log loudly and allow the request, because for this app availability
-// beats strictness and the JWT auth layer is still intact. Counters live
-// in Postgres (api_request_counts + the bump_rate_limit RPC, see
-// supabase/migrations/phase18_rate_limits.sql) — no extra infra.
+// Per-user request throttles and a daily AI-mutation cap. Both checks FAIL
+// OPEN: on any storage error we log loudly and allow the request, because
+// for this app availability beats strictness and the JWT auth layer is
+// still intact. Counters live in Postgres (api_request_counts + the
+// bump_rate_limit RPC, see supabase/migrations/phase18_rate_limits.sql).
+//
+// Scope honesty: the AI cap keys off triggered_by, which the CLIENT
+// declares (tool execution happens in the browser, so the server cannot
+// verify attribution). It is a volume guard against a runaway coach loop,
+// NOT a security boundary — a caller who lies about triggered_by is only
+// contained by the per-bucket request throttles below. A server-minted
+// per-tool_use token (issued by /api/chat) is the planned fix once the
+// api/ routing consolidation lands.
 
 type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 
@@ -20,11 +27,32 @@ export const RATE_LIMITS = {
   /** Each coach message costs 2 calls (tool turn + follow-up). */
   chat:    { windowSeconds: 600,  max: 30 },
   summary: { windowSeconds: 3600, max: 10 },
-  /** Shared across events / event-instances / exercise-definitions writes. */
+  /** Shared across events / event-instances / exercise-definitions / profile writes. */
   writes:  { windowSeconds: 3600, max: 120 },
+  /** Tracker autosave (workout-sessions) — debounced saves during a long session add up. */
+  tracker: { windowSeconds: 3600, max: 600 },
+  /** ICS calendar feed, keyed by the token's resolved user. */
+  feed:    { windowSeconds: 3600, max: 120 },
 } as const;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;
+
+// Fail-open accounting: a Postgres hiccup silently disables every limiter,
+// so each occurrence is counted and logged with a stable, grep-able tag.
+// Vercel log alerts can key on "RATE-LIMIT-FAIL-OPEN".
+let failOpenCount = 0;
+
+export function rateLimitFailOpenCount(): number {
+  return failOpenCount;
+}
+
+function logFailOpen(check: string, err: unknown): void {
+  failOpenCount += 1;
+  console.error(
+    `[rateLimit] RATE-LIMIT-FAIL-OPEN #${failOpenCount} — ${check} check failed, allowing request:`,
+    err instanceof Error ? err.message : err,
+  );
+}
 
 /**
  * Fixed-window per-user limit. Returns false (with a 429 already sent)
@@ -50,7 +78,7 @@ export async function enforceRateLimit(
       return false;
     }
   } catch (err) {
-    console.error(`[rateLimit] ${bucket} check failed (allowing):`, err instanceof Error ? err.message : err);
+    logFailOpen(bucket, err);
   }
   return true;
 }
@@ -74,7 +102,7 @@ export async function enforceAiMutationCap(
     midnight.setUTCHours(0, 0, 0, 0);
     const since = midnight.toISOString();
 
-    const [events, definitions] = await Promise.all([
+    const [events, definitions, blocks] = await Promise.all([
       supabase
         .from('event_mutations_log')
         .select('*', { count: 'exact', head: true })
@@ -87,11 +115,18 @@ export async function enforceAiMutationCap(
         .eq('user_id', userId)
         .eq('triggered_by', 'ai')
         .gte('logged_at', since),
+      supabase
+        .from('block_mutations_log')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('triggered_by', 'ai')
+        .gte('logged_at', since),
     ]);
     if (events.error) throw new Error(events.error.message);
     if (definitions.error) throw new Error(definitions.error.message);
+    if (blocks.error) throw new Error(blocks.error.message);
 
-    const total = (events.count ?? 0) + (definitions.count ?? 0);
+    const total = (events.count ?? 0) + (definitions.count ?? 0) + (blocks.count ?? 0);
     if (total >= cap) {
       // total === cap only on the first blocked request of the day — the
       // equality check is the alert dedupe (good enough per-user).
@@ -101,7 +136,7 @@ export async function enforceAiMutationCap(
       return false;
     }
   } catch (err) {
-    console.error('[rateLimit] AI mutation cap check failed (allowing):', err instanceof Error ? err.message : err);
+    logFailOpen('AI mutation cap', err);
   }
   return true;
 }
