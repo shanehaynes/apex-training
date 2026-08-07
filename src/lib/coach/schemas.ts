@@ -184,6 +184,70 @@ export const updateEventSchema: Anthropic.Tool = {
   },
 };
 
+// Shared by log_meal and update_meal's changes object. Grams throughout;
+// total fat is independent of the sat/trans split (unsaturated fats make up
+// the rest), so never invent a total by summing the split.
+const MEAL_FIELD_PROPERTIES = {
+  title:           { type: 'string' as const },
+  date:            { type: 'string' as const, description: 'YYYY-MM-DD' },
+  time:            { type: 'string' as const, description: 'When eaten, e.g. "12:30 PM"' },
+  meal_type:       { type: 'string' as const, enum: ['breakfast', 'lunch', 'dinner', 'snack'] },
+  calories:        { type: 'number' as const, description: 'Only when known (e.g. from a label); omit to auto-derive 4/4/9 from the macros.' },
+  protein_g:       { type: 'number' as const },
+  carbs_g:         { type: 'number' as const },
+  fiber_g:         { type: 'number' as const },
+  sugar_g:         { type: 'number' as const },
+  fat_total_g:     { type: 'number' as const, description: 'Total fat — at least saturated + trans (unsaturated makes up the rest). Never derive it by summing the split.' },
+  fat_saturated_g: { type: 'number' as const },
+  fat_trans_g:     { type: 'number' as const },
+  notes:           { type: 'string' as const },
+};
+
+export const logMealSchema: Anthropic.Tool = {
+  name: 'log_meal',
+  description:
+    'Log a meal with its macros onto a calendar day. Grams for all macro fields. ' +
+    'Omit calories to auto-derive them (4/4/9) from protein/carbs/fat.',
+  input_schema: {
+    type: 'object',
+    properties: MEAL_FIELD_PROPERTIES,
+    required: ['title', 'date'],
+  },
+};
+
+export const updateMealSchema: Anthropic.Tool = {
+  name: 'update_meal',
+  description:
+    'Update fields on an already-logged meal. Only include fields that should change; ' +
+    'set a field to null to clear it.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      meal_id: { type: 'string', description: 'The meal ID shown in [brackets] in the meals list.' },
+      meal_title: { type: 'string', description: 'Current title — shown in the confirmation card.' },
+      changes: {
+        type: 'object',
+        description: 'Only include fields that should change.',
+        properties: MEAL_FIELD_PROPERTIES,
+      },
+    },
+    required: ['meal_id', 'meal_title', 'changes'],
+  },
+};
+
+export const deleteMealSchema: Anthropic.Tool = {
+  name: 'delete_meal',
+  description: 'Delete a logged meal.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      meal_id: { type: 'string', description: 'The meal ID shown in [brackets] in the meals list.' },
+      meal_title: { type: 'string', description: 'Human-readable title — shown in the confirmation card.' },
+    },
+    required: ['meal_id', 'meal_title'],
+  },
+};
+
 /** Schemas in registry order (must match COACH_TOOLS in tools.ts). */
 export function coachToolSchemas(): Anthropic.Tool[] {
   return [
@@ -192,5 +256,8 @@ export function coachToolSchemas(): Anthropic.Tool[] {
     updateEventSchema,
     setEventExercisesSchema,
     updateExerciseDefinitionSchema,
+    logMealSchema,
+    updateMealSchema,
+    deleteMealSchema,
   ];
 }

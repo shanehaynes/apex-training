@@ -1,10 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireUser } from './_lib/auth.js';
-import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
-import { getAnthropicKey } from './_lib/anthropicKey.js';
-import { enforceRateLimit } from './_lib/rateLimit.js';
-import { athleteSection } from '../src/lib/coach/prompt.js';
+import { requireUser } from '../auth.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
+import { getAnthropicKey } from '../anthropicKey.js';
+import { enforceRateLimit } from '../rateLimit.js';
+import { athleteSection } from '../../../src/lib/coach/prompt.js';
 
 // One-shot post-workout coach summary, running on the caller's own
 // Anthropic key (server-only user_api_keys table). PRs arrive pre-computed
@@ -17,8 +17,12 @@ const SYSTEM_PROMPT =
   'Write a brief, punchy summary: 2-4 sentences. Acknowledge the work, call out any ' +
   'personal records listed in the recap (they are pre-computed and verified — never ' +
   'invent records that are not listed), and make one pointed observation, e.g. skipped ' +
-  'sets, a big jump versus last time, or a strong finish. Speak directly to the user in ' +
-  'second person. Plain prose only: no greeting, no sign-off, no markdown, no bullet points.';
+  'sets, a big jump versus last time, or a strong finish. If the recap includes a ' +
+  'NUTRITION section, you may make the observation about fueling relative to the session ' +
+  "(e.g. solid protein for recovery, light intake before hard work) — use only what is " +
+  'listed, never invent intake, and never remark on the absence of logged meals. ' +
+  'Speak directly to the user in second person. Plain prose only: no greeting, no ' +
+  'sign-off, no markdown, no bullet points.';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

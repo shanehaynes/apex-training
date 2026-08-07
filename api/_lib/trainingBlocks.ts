@@ -11,12 +11,11 @@ import {
 import { enforceRateLimit } from './rateLimit.js';
 import { parseWeeklyTargets } from '../../src/lib/blocks/targets.js';
 
-// Writes for objectives and training blocks (phase 19), served from
-// api/events.ts behind ?resource=block|objective rather than as its own
-// function file: the Vercel Hobby plan caps a deployment at 12 serverless
-// functions and this repo sits exactly at the cap — a 13th api/*.ts fails
-// the whole deploy. Same frugality as api/workout-sessions.ts multiplexing
-// seven actions through one function.
+// Writes for objectives and training blocks (phase 19), served as
+// /api/blocks and /api/objectives by the consolidated router (_lib/app.ts),
+// which injects query.resource to pick the branch. (Originally an events.ts
+// ?resource= delegate, kept as a delegate rather than its own api/*.ts file
+// because of the Vercel Hobby 12-function deploy cap.)
 //
 // enforceAiMutationCap is deliberately NOT called: nothing AI-driven writes
 // blocks yet. When a coach tool is added, gate the non-'user' path the way

@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
-import { requireUser } from './_lib/auth.js';
-import { getAnthropicKey, keyLast4, validateAnthropicKey } from './_lib/anthropicKey.js';
-import { encryptSecret, hasEncryptionSecret } from './_lib/keyCrypto.js';
-import { enforceRateLimit } from './_lib/rateLimit.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
+import { requireUser } from '../auth.js';
+import { getAnthropicKey, keyLast4, validateAnthropicKey } from '../anthropicKey.js';
+import { encryptSecret, hasEncryptionSecret } from '../keyCrypto.js';
+import { enforceRateLimit } from '../rateLimit.js';
 
 // Profile reads/writes, same posture as every other table: the browser
 // reads profiles via RLS (own row only) and mutates through this

@@ -79,7 +79,7 @@ export default function DefinitionEditor({ definition, referenceCount, onClose }
     // dropped by the field mapper and make Restore a no-op.
     const ok = await updateDefinition({
       id: definition.id,
-      fields: { archivedAt: definition.archivedAt ? null : new Date().toISOString() } as unknown as Partial<ExerciseDefinition>,
+      fields: { archivedAt: definition.archivedAt ? null : new Date().toISOString() },
     });
     setSaving(false);
     if (ok) {

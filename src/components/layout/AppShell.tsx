@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import TopNav from './TopNav';
 import Calendar from '../calendar/Calendar';
 import ChatSidebar from '../sidebar/ChatSidebar';
 import WorkoutModal from '../modal/WorkoutModal';
 import DayModal from '../modal/DayModal';
 import AddEventView from '../composer/AddEventView';
+import AddMealView from '../composer/AddMealView';
 import TrackerView from '../tracker/TrackerView';
 import LibraryView from '../library/LibraryView';
 import BlocksView from '../blocks/BlocksView';
@@ -21,13 +22,17 @@ export default function AppShell() {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [mobileTab, setMobileTab] = useState<MobileTab>('calendar');
 
+  // Mobile is day-view only. Crossing the breakpoint remembers the desktop
+  // view so widening the window restores Week instead of resetting to Month.
+  const desktopViewRef = useRef<'month' | 'week'>('month');
   useEffect(() => {
     if (isMobile && state.selectedView !== 'day') {
+      desktopViewRef.current = state.selectedView === 'week' ? 'week' : 'month';
       dispatch({ type: 'SET_VIEW', payload: 'day' });
     } else if (!isMobile && state.selectedView === 'day') {
-      dispatch({ type: 'SET_VIEW', payload: 'month' });
+      dispatch({ type: 'SET_VIEW', payload: desktopViewRef.current });
     }
-  }, [isMobile]);
+  }, [isMobile, state.selectedView, dispatch]);
 
   return (
     <div className="app-shell">
@@ -46,6 +51,7 @@ export default function AppShell() {
       {state.selectedEvent && <WorkoutModal />}
       {state.selectedDay && <DayModal />}
       {state.composerDate && <AddEventView />}
+      {state.mealComposerDate && <AddMealView />}
       {state.trackingSession && <TrackerView />}
       {state.libraryOpen && <LibraryView />}
       {state.blocksOpen && <BlocksView />}

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import handler from '../workout-sessions';
+import handler from '../_lib/handlers/workoutSessions';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));

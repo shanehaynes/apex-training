@@ -1,4 +1,4 @@
-import { test, expect, gotoCalendar, shot } from '../lib/fixtures';
+import { test, expect, gotoCalendar, shot, supabaseRef } from '../lib/fixtures';
 
 test('day modal, composer flow, and pre-filtered exercise picker', async ({ page }) => {
   await gotoCalendar(page);
@@ -8,7 +8,7 @@ test('day modal, composer flow, and pre-filtered exercise picker', async ({ page
   await dayBtn.click();
   await expect(page.locator('.day-modal__event').first()).toBeVisible();
   await expect(page.locator('.day-modal__date'), 'day modal header shows the date').toBeVisible();
-  await expect(page.locator('.day-modal__add'), 'day modal has an Add event button').toBeVisible();
+  await expect(page.locator('.day-modal__add', { hasText: 'Add event' }), 'day modal has an Add event button').toBeVisible();
   await shot(page, 'day-modal');
 
   // Clicking an event row replaces the day modal with the workout modal.
@@ -20,7 +20,7 @@ test('day modal, composer flow, and pre-filtered exercise picker', async ({ page
 
   // Reopen and go to the add-event composer.
   await page.locator('.day-cell:has(.event-chip) .day-cell__date-btn').first().click();
-  await page.locator('.day-modal__add').click();
+  await page.locator('.day-modal__add', { hasText: 'Add event' }).click();
   await expect(page.locator('.composer-type-card')).toHaveCount(7);
   await shot(page, 'composer-types');
 
@@ -37,12 +37,13 @@ test('day modal, composer flow, and pre-filtered exercise picker', async ({ page
   expect(categories.every(c => c === 'strength'), 'filtered picker rows are all strength').toBe(true);
   await shot(page, 'composer-picker');
 
-  // Clearing to "All" surfaces the whole library. Without Supabase-backed
-  // definitions the library is empty — skip the pick, keep the save check.
+  // Clearing to "All" surfaces the whole library. The intercept stubs
+  // exercise_definitions as empty, so the library is empty in both modes —
+  // skip the pick, keep the save check. (Guarded rather than removed in case
+  // the stub grows deterministic rows later.)
   await page.locator('.exercise-picker__filters .library-filter', { hasText: /^All$/ }).click();
   const rows = page.locator('.exercise-picker__row');
-  const seedMode = (await rows.count()) === 0;
-  if (!seedMode) {
+  if ((await rows.count()) > 0) {
     const pickedName = await page.locator('.exercise-picker__row-name').first().textContent();
     await rows.first().click();
     await expect(page.locator('.composer-exercises')).toContainText(pickedName!);
@@ -51,12 +52,12 @@ test('day modal, composer flow, and pre-filtered exercise picker', async ({ page
     await page.keyboard.press('Escape');
   }
 
-  // Save. With Supabase, POST /api/events is stubbed and the composer
-  // closes; in seed mode createEvent returns null → failure toast, stays open.
+  // Save. Signed in, POST /api/events is stubbed and the composer closes;
+  // offline createEvent returns null → failure toast, stays open.
   await page.locator('.exercise-editor__save').click();
-  if (seedMode) {
+  if (!supabaseRef()) {
     await expect(page.locator('.composer-view'), 'composer stays open when the save fails').toBeVisible();
-    await expect(page.getByText('Failed to save').first(), 'seed-mode save surfaces the failure toast').toBeVisible();
+    await expect(page.getByText('Failed to save').first(), 'offline save surfaces the failure toast').toBeVisible();
   } else {
     await expect(page.locator('.composer-view'), 'composer closes after a successful save').toHaveCount(0);
   }

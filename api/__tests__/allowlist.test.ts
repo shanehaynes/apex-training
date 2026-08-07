@@ -5,6 +5,9 @@ import {
   EVENT_PATCH_COLUMNS,
   DEFINITION_INSERT_COLUMNS,
   DEFINITION_PATCH_COLUMNS,
+  MEAL_INSERT_COLUMNS,
+  MEAL_PATCH_COLUMNS,
+  MEAL_FAVORITE_COLUMNS,
   BLOCK_INSERT_COLUMNS,
   BLOCK_PATCH_COLUMNS,
   OBJECTIVE_INSERT_COLUMNS,
@@ -12,8 +15,10 @@ import {
 } from '../_lib/allowlist';
 import { eventToRow, eventFieldsToRow } from '../../src/lib/schedule/mapping';
 import { definitionFieldsToRow } from '../../src/lib/schedule/definitions';
+import { favoriteToRow, mealFieldsToRow, mealToRow } from '../../src/lib/nutrition/mapping';
 import { blockToRow, blockFieldsToRow, objectiveToRow, objectiveFieldsToRow } from '../../src/lib/blocks/mapping';
 import type { ExerciseDefinition } from '../../src/types/workout';
+import type { Meal } from '../../src/types/nutrition';
 import type { Objective, TrainingBlock } from '../../src/types/blocks';
 
 // The allowlists must accept everything the client mapping layer emits —
@@ -62,6 +67,23 @@ const FULL_DEFINITION_FIELDS: Partial<ExerciseDefinition> = {
   archivedAt: null,
 } as Partial<ExerciseDefinition>;
 
+const FULL_MEAL: Meal = {
+  id: 'meal-1',
+  title: 'Chicken burrito',
+  date: '2026-08-06',
+  time: '12:30 PM',
+  mealType: 'lunch',
+  calories: 700,
+  proteinG: 42,
+  carbsG: 55,
+  fiberG: 8,
+  sugarG: 6,
+  fatTotalG: 24,
+  fatSaturatedG: 9,
+  fatTransG: 0.5,
+  notes: 'Extra rice',
+};
+
 const FULL_BLOCK: Omit<TrainingBlock, 'id'> = {
   objectiveId: 'obj-1',
   name: 'Fall Aerobic Foundation',
@@ -94,6 +116,7 @@ describe('pickAllowed', () => {
     for (const set of [
       EVENT_INSERT_COLUMNS, EVENT_PATCH_COLUMNS,
       DEFINITION_INSERT_COLUMNS, DEFINITION_PATCH_COLUMNS,
+      MEAL_INSERT_COLUMNS, MEAL_PATCH_COLUMNS, MEAL_FAVORITE_COLUMNS,
       BLOCK_INSERT_COLUMNS, BLOCK_PATCH_COLUMNS,
       OBJECTIVE_INSERT_COLUMNS, OBJECTIVE_PATCH_COLUMNS,
     ]) {
@@ -103,6 +126,7 @@ describe('pickAllowed', () => {
     }
     expect(EVENT_PATCH_COLUMNS.has('id')).toBe(false);
     expect(DEFINITION_PATCH_COLUMNS.has('id')).toBe(false);
+    expect(MEAL_PATCH_COLUMNS.has('id')).toBe(false);
     // Block and objective ids are server-generated UUIDs, never client-supplied.
     expect(BLOCK_INSERT_COLUMNS.has('id')).toBe(false);
     expect(OBJECTIVE_INSERT_COLUMNS.has('id')).toBe(false);
@@ -120,6 +144,26 @@ describe('client/server mirror', () => {
     const { id: _id, isCompleted: _c, ...fields } = FULL_EVENT;
     const row = eventFieldsToRow(fields);
     const { rejected } = pickAllowed(row as Record<string, unknown>, EVENT_PATCH_COLUMNS);
+    expect(rejected).toEqual([]);
+  });
+
+  it('accepts every column mealToRow emits', () => {
+    const row = mealToRow(FULL_MEAL);
+    const { rejected } = pickAllowed(row as unknown as Record<string, unknown>, MEAL_INSERT_COLUMNS);
+    expect(rejected).toEqual([]);
+  });
+
+  it('accepts every column mealFieldsToRow emits for a full patch', () => {
+    const { id: _id, ...fields } = FULL_MEAL;
+    const row = mealFieldsToRow(fields);
+    const { rejected } = pickAllowed(row as Record<string, unknown>, MEAL_PATCH_COLUMNS);
+    expect(rejected).toEqual([]);
+  });
+
+  it('accepts every column favoriteToRow emits', () => {
+    const { date: _d, time: _t, ...favorite } = FULL_MEAL;
+    const row = favoriteToRow(favorite);
+    const { rejected } = pickAllowed(row as unknown as Record<string, unknown>, MEAL_FAVORITE_COLUMNS);
     expect(rejected).toEqual([]);
   });
 

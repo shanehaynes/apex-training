@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useModalChrome } from '../../hooks/useModalChrome';
 import { X, Check, Copy, LogOut } from 'lucide-react';
 import { useCalendar } from '../../context/CalendarContext';
-import { useSchedule } from '../../context/ScheduleContext';
 import { useAuth } from '../../context/AuthContext';
 import { AVATARS, AVATAR_KEYS } from '../../lib/profile/avatars';
-import { postJson } from '../../lib/api';
 import { notify } from '../../lib/notify';
 import { useRotatingPlaceholder } from '../../hooks/useRotatingPlaceholder';
+import { useTemplateCopy } from '../../hooks/useTemplateCopy';
 import CoachActivity from './CoachActivity';
 import type { AvatarKey } from '../../lib/db/types';
 
@@ -29,10 +29,9 @@ const CONTEXT_EXAMPLES = [
 
 export default function ProfileView() {
   const { dispatch } = useCalendar();
-  const { refreshEvents } = useSchedule();
   const {
     session, profile, anthropicKey, signOut, setNewPassword, updateProfile,
-    refreshProfile, saveAnthropicKey, removeAnthropicKey,
+    saveAnthropicKey, removeAnthropicKey,
   } = useAuth();
   const close = () => dispatch({ type: 'CLOSE_PROFILE' });
 
@@ -42,19 +41,13 @@ export default function ProfileView() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
-  const [isCopyingTemplate, setIsCopyingTemplate] = useState(false);
+  const { copyTemplate, isCopying: isCopyingTemplate } = useTemplateCopy();
   const [keyInput, setKeyInput] = useState('');
   const [keyMsg, setKeyMsg] = useState<string | null>(null);
   const [isSavingKey, setIsSavingKey] = useState(false);
   const [isReplacingKey, setIsReplacingKey] = useState(false);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useModalChrome(close);
 
   const saveName = async () => {
     const trimmed = name.trim();
@@ -131,21 +124,6 @@ export default function ProfileView() {
       notify('Feed URL copied');
     } catch {
       notify('Copy failed');
-    }
-  };
-
-  const copyTemplate = async () => {
-    setIsCopyingTemplate(true);
-    try {
-      const result = await postJson<{ events?: number; alreadyCopied?: boolean }>(
-        '/api/template-copy', {}, 'Copying starter workouts',
-      );
-      await Promise.all([refreshEvents(), refreshProfile()]);
-      notify(result.alreadyCopied ? 'Already copied' : `Added ${result.events ?? 0} recurring workouts`);
-    } catch {
-      /* postJson already toasted */
-    } finally {
-      setIsCopyingTemplate(false);
     }
   };
 

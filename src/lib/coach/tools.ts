@@ -2,13 +2,18 @@ import type Anthropic from '@anthropic-ai/sdk';
 import {
   createEventSchema,
   deleteEventSchema,
+  deleteMealSchema,
+  logMealSchema,
   setEventExercisesSchema,
   updateEventSchema,
   updateExerciseDefinitionSchema,
+  updateMealSchema,
 } from './schemas.js';
 import { baseIdOf, isOccurrenceId } from '../schedule/occurrence.js';
 import { countDefinitionReferences, entryFromDefinition, hasPerSideCount, matchDefinitionByName } from '../schedule/definitions.js';
+import { validateFatSplit } from '../nutrition/mapping.js';
 import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, UpdateDefinitionInput, UpdateEventInput } from '../schedule/types.js';
+import type { CreateMealInput, Meal, MealType, UpdateMealInput } from '../../types/nutrition.js';
 import type { Exercise, ExerciseDefinition, WorkoutEvent, WorkoutType } from '../../types/workout.js';
 
 // The coach's tool registry: each tool's confirmation-card label and
@@ -29,6 +34,11 @@ export interface CoachToolDeps {
   definitions: Map<string, ExerciseDefinition>;
   createDefinition(input: CreateDefinitionInput): Promise<{ id: string } | null>;
   updateDefinition(input: UpdateDefinitionInput): Promise<boolean>;
+  /** Logged meals, for update_meal's merge-validation of the fat split. */
+  meals: Meal[];
+  createMeal(input: CreateMealInput): Promise<{ id: string } | null>;
+  updateMeal(input: UpdateMealInput): Promise<boolean>;
+  deleteMeal(id: string): Promise<boolean>;
 }
 
 /**
@@ -338,12 +348,151 @@ const updateEventTool: CoachToolDef = {
   },
 };
 
+// ─── Meal tools ──────────────────────────────────────────────────────────────
+
+/** Snake_case numeric macro fields as the model supplies them. */
+interface MealFieldsInput {
+  title?: string | null;
+  date?: string | null;
+  time?: string | null;
+  meal_type?: string | null;
+  calories?: number | null;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+  fat_total_g?: number | null;
+  fat_saturated_g?: number | null;
+  fat_trans_g?: number | null;
+  notes?: string | null;
+}
+
+const MEAL_NUMERIC_KEYS = [
+  'calories', 'protein_g', 'carbs_g', 'fiber_g', 'sugar_g',
+  'fat_total_g', 'fat_saturated_g', 'fat_trans_g',
+] as const;
+
+/** Negative macro values abort with an instructive error before the DB CHECK 500s. */
+function negativeMacroError(input: MealFieldsInput): string | null {
+  const bad = MEAL_NUMERIC_KEYS.filter(k => typeof input[k] === 'number' && (input[k] as number) < 0);
+  return bad.length ? `Macro values cannot be negative: ${bad.join(', ')}.` : null;
+}
+
+const FAT_SPLIT_ERROR =
+  'fat_total_g must be at least fat_saturated_g + fat_trans_g (unsaturated fat makes up the rest). Fix and retry.';
+
+/**
+ * Snake_case tool fields → camelCase Meal fields. Only keys present in the
+ * input appear in the result; null values become present-but-undefined keys,
+ * which mealFieldsToRow turns into column clears.
+ */
+function mealFieldsFromInput(input: MealFieldsInput): Partial<Omit<Meal, 'id'>> {
+  const fields: Partial<Omit<Meal, 'id'>> = {};
+  const set = <K extends keyof Meal>(key: K, value: Meal[K] | null | undefined) => {
+    (fields as Record<string, unknown>)[key] = value ?? undefined;
+  };
+  if ('title' in input)           set('title', input.title ?? undefined);
+  if ('date' in input)            set('date', input.date ?? undefined);
+  if ('time' in input)            set('time', input.time);
+  if ('meal_type' in input)       set('mealType', input.meal_type as MealType | null);
+  if ('calories' in input)        set('calories', input.calories);
+  if ('protein_g' in input)       set('proteinG', input.protein_g);
+  if ('carbs_g' in input)         set('carbsG', input.carbs_g);
+  if ('fiber_g' in input)         set('fiberG', input.fiber_g);
+  if ('sugar_g' in input)         set('sugarG', input.sugar_g);
+  if ('fat_total_g' in input)     set('fatTotalG', input.fat_total_g);
+  if ('fat_saturated_g' in input) set('fatSaturatedG', input.fat_saturated_g);
+  if ('fat_trans_g' in input)     set('fatTransG', input.fat_trans_g);
+  if ('notes' in input)           set('notes', input.notes ?? '');
+  return fields;
+}
+
+function mealMacroSummary(input: MealFieldsInput): string {
+  const parts = [
+    input.protein_g != null ? `P ${input.protein_g}` : null,
+    input.carbs_g != null ? `C ${input.carbs_g}` : null,
+    input.fat_total_g != null ? `F ${input.fat_total_g}` : null,
+  ].filter(Boolean);
+  return parts.length ? ` · ${parts.join(' / ')}` : '';
+}
+
+const logMealTool: CoachToolDef = {
+  schema: logMealSchema,
+  displayLabel(input) {
+    return `Log meal: ${input.title} · ${input.date}${mealMacroSummary(input as MealFieldsInput)}`;
+  },
+  async execute(input, deps) {
+    const fields = input as unknown as MealFieldsInput & { title: string; date: string };
+    const negative = negativeMacroError(fields);
+    if (negative) return negative;
+    if (!validateFatSplit(fields.fat_total_g ?? undefined, fields.fat_saturated_g ?? undefined, fields.fat_trans_g ?? undefined)) {
+      return FAT_SPLIT_ERROR;
+    }
+
+    const createInput: CreateMealInput = {
+      ...mealFieldsFromInput(fields),
+      title: fields.title,
+      date: fields.date,
+      notes: fields.notes ?? '',
+    };
+    const result = await deps.createMeal(createInput);
+    // Bracketed id so the model can reference the meal it just logged.
+    return result
+      ? `Logged "${fields.title}" on ${fields.date} [${result.id}].`
+      : 'Failed to log the meal.';
+  },
+};
+
+const updateMealTool: CoachToolDef = {
+  schema: updateMealSchema,
+  displayLabel(input) {
+    const keys = Object.keys((input.changes as Record<string, unknown>) ?? {}).join(', ');
+    return `Update meal: ${input.meal_title} (${keys})`;
+  },
+  async execute(input, deps) {
+    const { meal_id, changes } = input as { meal_id: string; changes: MealFieldsInput };
+    const current = deps.meals.find(m => m.id === meal_id);
+    if (!current) {
+      return `No logged meal with id "${meal_id}". Check the MEALS list for the exact bracketed id.`;
+    }
+    const negative = negativeMacroError(changes ?? {});
+    if (negative) return negative;
+
+    const fields = mealFieldsFromInput(changes ?? {});
+    if (Object.keys(fields).length === 0) return 'No valid changes given.';
+
+    // Validate the fat split as it will exist after the merge.
+    const merged = { ...current, ...fields };
+    if (!validateFatSplit(merged.fatTotalG, merged.fatSaturatedG, merged.fatTransG)) {
+      return FAT_SPLIT_ERROR;
+    }
+
+    const ok = await deps.updateMeal({ id: meal_id, fields });
+    return ok ? 'Updated the meal successfully.' : 'Failed to update the meal.';
+  },
+};
+
+const deleteMealTool: CoachToolDef = {
+  schema: deleteMealSchema,
+  displayLabel(input) {
+    return `Delete meal: ${input.meal_title}`;
+  },
+  async execute(input, deps) {
+    const { meal_id } = input as { meal_id: string };
+    const ok = await deps.deleteMeal(meal_id);
+    return ok ? 'Deleted the meal successfully.' : 'Failed to delete the meal.';
+  },
+};
+
 export const COACH_TOOLS: CoachToolDef[] = [
   deleteEventTool,
   createEventTool,
   updateEventTool,
   setEventExercisesTool,
   updateExerciseDefinitionTool,
+  logMealTool,
+  updateMealTool,
+  deleteMealTool,
 ];
 
 

@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { parseISO, isSameDay } from 'date-fns';
-import scheduleData from '../data/schedule.json';
+import { parseISO } from 'date-fns';
 import { deleteJson, patchJson, postJson } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
 import type { CompletionRow, ExerciseDefinitionRow, RecurringExceptionRow, WorkoutEventRow } from '../lib/db/types';
@@ -10,9 +9,11 @@ import { expandRecurringEvents, normalizeSeedEvent } from '../lib/schedule/expan
 import { definitionFieldsToRow, resolveEventExercises, rowToDefinition, slugifyName } from '../lib/schedule/definitions';
 import { buildCompletionRows, eventFieldsToRow, eventToRow, rowToEvent } from '../lib/schedule/mapping';
 import { loadCompletedIds, saveCompletedIds } from '../lib/schedule/localCompletion';
+import { useAuth } from './AuthContext';
 import { quickCompleteSession, quickUncompleteSession } from '../lib/tracking/sessionRepo';
 import { baseIdOf, makeOccurrenceId, occurrenceDateOf } from '../lib/schedule/occurrence';
 import { timeToMinutes } from '../lib/time';
+import { toDateString } from '../utils/dateHelpers';
 import { registerAgentState } from '../dev/agentBridge';
 import { isPastDay, now } from '../lib/clock';
 
@@ -49,13 +50,29 @@ interface ScheduleContextValue {
 
 const ScheduleContext = createContext<ScheduleContextValue | null>(null);
 
+// Shared empty result so no-event days don't mint a fresh array per call —
+// memoized consumers (DayCell) rely on referential stability.
+const EMPTY_EVENTS: WorkoutEvent[] = [];
+
+// The 1.3 MB seed file is the offline/error fallback only. import() keeps it
+// out of the main bundle so signed-in users never download or parse it.
+async function loadSeedEvents(): Promise<WorkoutEvent[]> {
+  const seed = (await import('../data/schedule.json')).default as Schedule;
+  return (seed.events as WorkoutEvent[]).map(normalizeSeedEvent);
+}
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function ScheduleProvider({ children }: { children: React.ReactNode }) {
+  // Constant for this provider's lifetime: App keys ScheduleProvider by user
+  // id, so an account switch remounts rather than re-rendering.
+  const { session } = useAuth();
+  const userId = session?.user.id ?? null;
+
   const [baseEvents, setBaseEvents] = useState<WorkoutEvent[]>([]);
   const [definitions, setDefinitions] = useState<Map<string, ExerciseDefinition>>(new Map());
   const [exceptions, setExceptions] = useState<Map<string, OccurrenceOverride | null>>(new Map());
-  const [completedIds, setCompletedIds] = useState<Set<string>>(loadCompletedIds);
+  const [completedIds, setCompletedIds] = useState<Set<string>>(() => loadCompletedIds(userId));
   const [isSyncing, setIsSyncing] = useState(!!supabase);
   const [isEventsLoading, setIsEventsLoading] = useState(!!supabase);
 
@@ -67,7 +84,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   const loadEvents = useCallback(async () => {
     if (!supabase) {
-      setBaseEvents(((scheduleData as Schedule).events as WorkoutEvent[]).map(normalizeSeedEvent));
+      setBaseEvents(await loadSeedEvents());
       setIsEventsLoading(false);
       return;
     }
@@ -82,7 +99,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
     if (eventsRes.error) {
       console.warn('[apex] Failed to load workout_events:', eventsRes.error.message);
-      setBaseEvents(((scheduleData as Schedule).events as WorkoutEvent[]).map(normalizeSeedEvent));
+      setBaseEvents(await loadSeedEvents());
     } else {
       setBaseEvents((eventsRes.data as WorkoutEventRow[]).map(rowToEvent));
     }
@@ -122,13 +139,23 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const sb = supabase;
     if (!sb) return;
+    // Debounced: a multi-row write echoes one realtime event per row, and
+    // each refetch pulls three whole tables — collapse bursts into one.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleReload = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { timer = null; loadEvents(); }, 250);
+    };
     const channel = sb
       .channel('schedule-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_events' }, loadEvents)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'recurring_exceptions' }, loadEvents)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'exercise_definitions' }, loadEvents)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_events' }, scheduleReload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'recurring_exceptions' }, scheduleReload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'exercise_definitions' }, scheduleReload)
       .subscribe();
-    return () => { sb.removeChannel(channel); };
+    return () => {
+      if (timer) clearTimeout(timer);
+      sb.removeChannel(channel);
+    };
   }, [loadEvents]);
 
   // ── Completion sync ────────────────────────────────────────────────────────
@@ -145,7 +172,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         } else {
           const serverIds = new Set((data as Pick<CompletionRow, 'event_id'>[]).map(r => r.event_id));
           setCompletedIds(serverIds);
-          saveCompletedIds(serverIds);
+          saveCompletedIds(userId, serverIds);
         }
         setIsSyncing(false);
       });
@@ -169,9 +196,15 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     () => allExpanded.map(e => ({ ...e, isCompleted: completedIds.has(e.id) })),
     [allExpanded, completedIds],
   );
-  eventsRef.current = events;
-  baseEventsRef.current = baseEvents;
-  exceptionsRef.current = exceptions;
+
+  // Snapshots for the mutation helpers, written after commit (not during
+  // render, which is unsafe under StrictMode/concurrent rendering). Handlers
+  // only run after effects, so they always see the current values.
+  useEffect(() => {
+    eventsRef.current = events;
+    baseEventsRef.current = baseEvents;
+    exceptionsRef.current = exceptions;
+  }, [events, baseEvents, exceptions]);
 
   // Dev-only agent bridge: compiled out of production builds.
   useEffect(() => {
@@ -197,23 +230,36 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   // ── Queries ────────────────────────────────────────────────────────────────
 
-  const getEventsForDate = useMemo(
-    () => (date: Date) =>
-      events
-        .filter(e => isSameDay(parseISO(e.date), date))
-        .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime)),
-    [events],
+  // Precomputed per-day index: month view asks for every cell, and a filter
+  // with a parseISO per event per cell is O(cells × events). Sorted lists are
+  // also referentially stable per day, so memoized cells can skip re-renders.
+  const eventsByDate = useMemo(() => {
+    const byDate = new Map<string, WorkoutEvent[]>();
+    for (const e of events) {
+      const list = byDate.get(e.date);
+      if (list) list.push(e);
+      else byDate.set(e.date, [e]);
+    }
+    for (const list of byDate.values()) {
+      list.sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+    }
+    return byDate;
+  }, [events]);
+
+  const getEventsForDate = useCallback(
+    (date: Date) => eventsByDate.get(toDateString(date)) ?? EMPTY_EVENTS,
+    [eventsByDate],
   );
 
-  const getEventsForRange = useMemo(
-    () => (start: Date, end: Date) =>
+  const getEventsForRange = useCallback(
+    (start: Date, end: Date) =>
       events.filter(e => { const d = parseISO(e.date); return d >= start && d <= end; }),
     [events],
   );
 
   // ── Completion toggle ──────────────────────────────────────────────────────
 
-  const applyCompletion = (id: string, isNowCompleted: boolean) => {
+  const applyCompletion = useCallback((id: string, isNowCompleted: boolean) => {
     const event = eventsRef.current.find(e => e.id === id);
     if (!event) return;
 
@@ -221,31 +267,31 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       const next = new Set(prev);
       if (isNowCompleted) next.add(id);
       else next.delete(id);
-      saveCompletedIds(next);
+      saveCompletedIds(userId, next);
       return next;
     });
 
     if (!supabase) return;
 
     postJson('/api/completions', buildCompletionRows(event, isNowCompleted), 'Completion sync').catch(() => {});
-  };
+  }, [userId]);
 
   // The explicit "Mark as Complete" toggle also logs (or un-logs) the whole
   // plan at its recommended targets. The tracker's Finish path goes through
   // setCompletion instead — it has real actuals and must not be plan-filled.
-  const toggleCompletion = (id: string) => {
+  const toggleCompletion = useCallback((id: string) => {
     const isNowCompleted = !completedIds.has(id);
     const event = eventsRef.current.find(e => e.id === id);
     applyCompletion(id, isNowCompleted);
     if (!event) return;
     if (isNowCompleted) quickCompleteSession(event).catch(() => {});
     else quickUncompleteSession(event.id, event.date).catch(() => {});
-  };
+  }, [completedIds, applyCompletion]);
 
-  const setCompletion = (id: string, completed: boolean) => {
+  const setCompletion = useCallback((id: string, completed: boolean) => {
     if (completedIds.has(id) === completed) return;
     applyCompletion(id, completed);
-  };
+  }, [completedIds, applyCompletion]);
 
   // ── Mutation helpers ───────────────────────────────────────────────────────
 
@@ -286,7 +332,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       if (completedOnCreate) {
         setCompletedIds(prev => {
           const next = new Set(prev).add(id);
-          saveCompletedIds(next);
+          saveCompletedIds(userId, next);
           return next;
         });
         postJson('/api/completions', buildCompletionRows(newEvent, true), 'Completion sync').catch(() => {});
@@ -296,7 +342,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     } catch {
       return null;
     }
-  }, []);
+  }, [userId]);
 
   const updateEvent = useCallback(async ({ id, fields, triggeredBy }: UpdateEventInput): Promise<boolean> => {
     if (!supabase) return false;
@@ -443,25 +489,34 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Memoized so a re-render of the provider (e.g. a sync flag flip) doesn't
+  // hand every consumer a fresh object and re-render the whole tree.
+  const value = useMemo<ScheduleContextValue>(() => ({
+    events,
+    definitions,
+    isSyncing,
+    isEventsLoading,
+    refreshEvents: loadEvents,
+    getEventsForDate,
+    getEventsForRange,
+    toggleCompletion,
+    setCompletion,
+    createEvent,
+    updateEvent,
+    deleteEvent,
+    deleteEventInstance,
+    rescheduleEvent,
+    createDefinition,
+    updateDefinition,
+  }), [
+    events, definitions, isSyncing, isEventsLoading, loadEvents,
+    getEventsForDate, getEventsForRange, toggleCompletion, setCompletion,
+    createEvent, updateEvent, deleteEvent, deleteEventInstance,
+    rescheduleEvent, createDefinition, updateDefinition,
+  ]);
+
   return (
-    <ScheduleContext.Provider value={{
-      events,
-      definitions,
-      isSyncing,
-      isEventsLoading,
-      refreshEvents: loadEvents,
-      getEventsForDate,
-      getEventsForRange,
-      toggleCompletion,
-      setCompletion,
-      createEvent,
-      updateEvent,
-      deleteEvent,
-      deleteEventInstance,
-      rescheduleEvent,
-      createDefinition,
-      updateDefinition,
-    }}>
+    <ScheduleContext.Provider value={value}>
       {children}
     </ScheduleContext.Provider>
   );

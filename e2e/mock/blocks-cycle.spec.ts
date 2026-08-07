@@ -7,9 +7,9 @@ import { test, expect, shot } from '../lib/fixtures';
 async function openCycleEditor(page: import('@playwright/test').Page) {
   await page.goto('/');
   await expect(page.locator('.top-nav')).toBeVisible({ timeout: 20000 });
-  await page.locator('[data-tour="blocks"]').click();
+  await page.getByTestId('nav-blocks').click();
   await expect(page.locator('.library-header__title')).toHaveText('Training blocks');
-  await page.locator('[data-tour="new-cycle"]').click();
+  await page.getByTestId('new-cycle').click();
   await expect(page.locator('.library-header__title')).toHaveText('New cycle');
 }
 
@@ -67,7 +67,7 @@ test('saving posts one batched request, not one per block', async ({ page }) => 
 
   const posts: string[] = [];
   page.on('request', req => {
-    if (req.url().includes('resource=block') && req.method() === 'POST') {
+    if (req.url().includes('/api/blocks') && req.method() === 'POST') {
       posts.push(req.url());
     }
   });

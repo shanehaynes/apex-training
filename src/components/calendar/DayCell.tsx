@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { isSameMonth, format } from 'date-fns';
 import { isToday } from '../../lib/clock';
 import EventChip from './EventChip';
@@ -12,7 +13,11 @@ interface Props {
 
 const MAX_VISIBLE = 3;
 
-export default function DayCell({ date, currentMonth, events }: Props) {
+// memo pays off because ScheduleContext hands out referentially stable
+// per-day event arrays — an unrelated day's change skips this cell entirely.
+export default memo(DayCell);
+
+function DayCell({ date, currentMonth, events }: Props) {
   const { dispatch } = useCalendar();
   const today = isToday(date);
   const inMonth = isSameMonth(date, currentMonth);

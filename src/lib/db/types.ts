@@ -89,6 +89,55 @@ export interface WorkoutEventRow {
   updated_at: string;
 }
 
+// Row shape returned by Supabase for meals (phase 22). Numeric macro columns
+// are nullable — blank form fields stay unset rather than becoming zeros.
+export interface MealRow {
+  user_id?: string;
+  id: string;
+  title: string;
+  date: string;
+  time: string | null;
+  meal_type: string | null;
+  calories: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fiber_g: number | null;
+  sugar_g: number | null;
+  fat_total_g: number | null;
+  fat_saturated_g: number | null;
+  fat_trans_g: number | null;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Row shape for meal_favorites (phase 24): a meals row minus date/time.
+export interface MealFavoriteRow {
+  user_id?: string;
+  id: string;
+  title: string;
+  meal_type: string | null;
+  calories: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fiber_g: number | null;
+  sugar_g: number | null;
+  fat_total_g: number | null;
+  fat_saturated_g: number | null;
+  fat_trans_g: number | null;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MealMutationLogRow {
+  operation: 'create' | 'update' | 'delete';
+  meal_id: string;
+  meal_title: string;
+  diff?: Record<string, unknown>;
+  triggered_by?: string;
+}
+
 // ─── Phase 4: workout tracking rows ──────────────────────────────────────────
 // event_id follows the workout_completions convention: for recurring
 // occurrences it is the expanded `${baseId}__${date}` id.

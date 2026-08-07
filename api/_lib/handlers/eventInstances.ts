@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
-import { requireUser } from './_lib/auth.js';
-import { enforceAiMutationCap, enforceRateLimit } from './_lib/rateLimit.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
+import { requireUser } from '../auth.js';
+import { enforceAiMutationCap, enforceRateLimit } from '../rateLimit.js';
 
 interface InstanceBody {
   eventId?: string;
@@ -65,7 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Update-then-insert instead of upsert: an upsert names a specific
-    // unique constraint, and phase22 replaces (event_id, skipped_date) with
+    // unique constraint, and phase25 replaces (event_id, skipped_date) with
     // the user-prefixed (user_id, event_id, skipped_date) — this shape works
     // against both, so code and migration can deploy in either order.
     const overrideRow = {

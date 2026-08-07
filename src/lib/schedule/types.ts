@@ -39,7 +39,8 @@ export type CreateDefinitionInput =
 
 export interface UpdateDefinitionInput {
   id: string;
-  fields: Partial<Omit<ExerciseDefinition, 'id'>>;
+  /** archivedAt: explicit null clears archived_at server-side (undefined is dropped by the field mapper). */
+  fields: Partial<Omit<ExerciseDefinition, 'id' | 'archivedAt'>> & { archivedAt?: string | null };
   /** Audit-log attribution; ScheduleContext defaults to 'user', the coach executor passes 'ai'. */
   triggeredBy?: 'user' | 'ai';
 }

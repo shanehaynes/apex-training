@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useModalChrome } from '../../hooks/useModalChrome';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, X, Dumbbell, Mountain, MountainSnow, HeartPulse, Flower2, Sunrise, StretchHorizontal } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -10,6 +11,7 @@ import { now } from '../../lib/clock';
 import { notify } from '../../lib/notify';
 import { ExerciseSectionsEditor, validateUnilateral, type SectionLists } from '../modal/EventExerciseEditor';
 import { eventPitches, maxGradeOf } from '../../lib/climbing';
+import { DIFFICULTY_LABELS } from '../../utils/difficulty';
 import type { CreateEventInput } from '../../lib/schedule/types';
 import type { ExerciseCategory, WorkoutType } from '../../types/workout';
 
@@ -46,7 +48,6 @@ const TYPE_DURATION: Record<WorkoutType, number> = {
   'morning-routine': 30,
 };
 
-const DIFFICULTY_LABELS = ['', 'Easy', 'Moderate', 'Challenging', 'Hard', 'Maximal'];
 
 const EMPTY_LISTS: SectionLists = { warmup: [], exercises: [], cooldown: [] };
 
@@ -81,12 +82,7 @@ export default function AddEventView() {
   const [errors, setErrors] = useState<Map<string, string>>(new Map());
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
-  }, []);
+  useModalChrome(close);
 
   const pickType = (t: WorkoutType) => {
     setType(t);

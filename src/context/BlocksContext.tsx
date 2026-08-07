@@ -58,11 +58,12 @@ interface BlocksContextValue {
 
 const BlocksContext = createContext<BlocksContextValue | null>(null);
 
-// Served by the events function (?resource=…): the Vercel Hobby plan caps a
-// deployment at 12 serverless functions and the repo sits at the cap, so
-// blocks/objectives multiplex through api/events.ts instead of adding a 13th.
+// Served by the consolidated API router (api/_lib/app.ts) via the catch-all
+// function — clean paths, no per-endpoint function cost under Vercel's cap.
 function endpoint(resource: 'block' | 'objective', extra?: Record<string, string>): string {
-  return `/api/events?${new URLSearchParams({ resource, ...extra })}`;
+  const path = resource === 'block' ? '/api/blocks' : '/api/objectives';
+  const params = new URLSearchParams(extra);
+  return params.size > 0 ? `${path}?${params}` : path;
 }
 
 export function BlocksProvider({ children }: { children: React.ReactNode }) {
@@ -127,12 +128,22 @@ export function BlocksProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const sb = supabase;
     if (!sb) return;
+    // Debounced: every write already refreshes explicitly, and its realtime
+    // echo (one event per row for batch writes) was refetching again.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { timer = null; refresh(); }, 250);
+    };
     const channel = sb
       .channel('blocks-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'training_blocks' }, refresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'objectives' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'training_blocks' }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'objectives' }, scheduleRefresh)
       .subscribe();
-    return () => { sb.removeChannel(channel); };
+    return () => {
+      if (timer) clearTimeout(timer);
+      sb.removeChannel(channel);
+    };
   }, [refresh]);
 
   // ── Writes ────────────────────────────────────────────────────────────────

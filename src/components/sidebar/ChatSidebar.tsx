@@ -1,5 +1,6 @@
 import { useRef, useState, useMemo, useEffect, useCallback } from 'react';
 import { useSchedule } from '../../context/ScheduleContext';
+import { useMeals } from '../../context/MealsContext';
 import { useCalendar } from '../../context/CalendarContext';
 import { useAuth } from '../../context/AuthContext';
 import { useChat } from '../../hooks/useChat';
@@ -55,6 +56,7 @@ export default function ChatSidebar() {
     createEvent, updateEvent, deleteEvent, deleteEventInstance, rescheduleEvent,
     createDefinition, updateDefinition,
   } = useSchedule();
+  const { meals, getMealsForDate, createMeal, updateMeal, deleteMeal } = useMeals();
   const {
     messages, isLoading, streamingContent,
     pendingAction, pendingActionCount, sendMessage, confirmAction, cancelAction, triggerInitial, abort,
@@ -72,6 +74,7 @@ export default function ChatSidebar() {
 
   const today = useMemo(() => now(), []);
   const todayEvents = useMemo(() => getEventsForDate(today), [getEventsForDate, today]);
+  const todayMeals = useMemo(() => getMealsForDate(today), [getMealsForDate, today]);
   const getBlockSummary = useBlockSummary();
 
   // Built at call time, not memoized: the prompt is only ever read inside the
@@ -82,8 +85,8 @@ export default function ChatSidebar() {
     const block = await getBlockSummary();
     return buildSystemPrompt(todayEvents, events, today, definitions.values(), {
       goal: profile?.coach_goal, context: profile?.coach_context,
-    }, block);
-  }, [todayEvents, events, today, definitions, profile, getBlockSummary]);
+    }, block, todayMeals);
+  }, [todayEvents, events, today, definitions, profile, getBlockSummary, todayMeals]);
 
   const isEmpty = messages.length === 0 && !isLoading && !pendingAction;
 
@@ -108,6 +111,10 @@ export default function ChatSidebar() {
       definitions,
       createDefinition:    input => createDefinition({ ...input, triggeredBy: 'ai' }),
       updateDefinition:    input => updateDefinition({ ...input, triggeredBy: input.triggeredBy ?? 'ai' }),
+      meals,
+      createMeal:          input => createMeal({ ...input, triggeredBy: 'ai' }),
+      updateMeal:          input => updateMeal({ ...input, triggeredBy: input.triggeredBy ?? 'ai' }),
+      deleteMeal:          id => deleteMeal(id, 'ai'),
     });
   };
 

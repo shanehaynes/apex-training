@@ -1,10 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
-import { requireUser } from './_lib/auth.js';
-import { pickAllowed, EVENT_INSERT_COLUMNS, EVENT_PATCH_COLUMNS, EVENT_ID_PATTERN } from './_lib/allowlist.js';
-import { enforceAiMutationCap, enforceRateLimit } from './_lib/rateLimit.js';
-import { handleTrainingBlocks } from './_lib/trainingBlocks.js';
-import type { WorkoutEventRow } from '../src/lib/db/types.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
+import { requireUser } from '../auth.js';
+import { pickAllowed, EVENT_INSERT_COLUMNS, EVENT_PATCH_COLUMNS, EVENT_ID_PATTERN } from '../allowlist.js';
+import { enforceAiMutationCap, enforceRateLimit } from '../rateLimit.js';
+import { handleTrainingBlocks } from '../trainingBlocks.js';
+import { handleMeals } from '../meals.js';
+import { handleMealFavorites } from '../mealFavorites.js';
+import type { WorkoutEventRow } from '../../../src/lib/db/types.js';
 
 interface MutationLogEntry {
   event_title: string;
@@ -37,13 +39,22 @@ async function logMutation(
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Training blocks and objectives share this function (?resource=block|
-  // objective) because the Vercel Hobby plan caps a deployment at 12
-  // serverless functions and the repo sits exactly at the cap — a 13th
-  // api/*.ts file fails the whole deploy. The delegate does its own auth,
-  // rate limiting, and allowlisting; nothing below this branch runs for it.
+  // TODO(delete next release): back-compat shim for the pre-router
+  // ?resource=block|objective|meal|meal-favorite URLs, kept one release so
+  // stale SPA bundles in open tabs keep working. New code uses the clean
+  // paths (/api/blocks, /api/objectives, /api/meals, /api/meal-favorites)
+  // routed by _lib/app.ts. Each delegate does its own auth, rate limiting,
+  // and allowlisting; nothing below these branches runs for them.
   if (req.query.resource === 'block' || req.query.resource === 'objective') {
     await handleTrainingBlocks(req, res);
+    return;
+  }
+  if (req.query.resource === 'meal') {
+    await handleMeals(req, res);
+    return;
+  }
+  if (req.query.resource === 'meal-favorite') {
+    await handleMealFavorites(req, res);
     return;
   }
 

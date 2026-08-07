@@ -1,5 +1,7 @@
 import { AuthProvider, useAuth } from './context/AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import { CalendarProvider } from './context/CalendarContext';
+import { MealsProvider } from './context/MealsContext';
 import { ScheduleProvider } from './context/ScheduleContext';
 import { BlocksProvider } from './context/BlocksContext';
 import AppShell from './components/layout/AppShell';
@@ -25,9 +27,11 @@ function AuthGate() {
   return (
     <ScheduleProvider key={session?.user.id ?? 'offline'}>
       <BlocksProvider>
-        <CalendarProvider>
-          <AppShell />
-        </CalendarProvider>
+        <MealsProvider>
+          <CalendarProvider>
+            <AppShell />
+          </CalendarProvider>
+        </MealsProvider>
       </BlocksProvider>
     </ScheduleProvider>
   );
@@ -35,8 +39,10 @@ function AuthGate() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AuthGate />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AuthGate />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

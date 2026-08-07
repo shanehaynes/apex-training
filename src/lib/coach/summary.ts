@@ -1,5 +1,7 @@
 import { format, parseISO } from 'date-fns';
 import { postJson } from '../api';
+import { mealCalories, sumDayMacros } from '../nutrition/mapping';
+import type { Meal } from '../../types/nutrition';
 import type { WorkoutEvent } from '../../types/workout';
 import type { TrackedSectionGroup } from '../tracking/plan';
 import { describeRecord } from '../tracking/records';
@@ -19,12 +21,37 @@ function setLine(weight: string, reps: string, duration: string): string {
   return parts.join(' ');
 }
 
+/**
+ * The recap's NUTRITION section: the workout day's logged meals with
+ * stored-or-derived calories, plus day totals. Empty string when nothing is
+ * logged — the model must have nothing to nag about, not a "no meals" line.
+ */
+export function buildNutritionSection(meals: Meal[]): string {
+  if (meals.length === 0) return '';
+  const lines = ['', 'NUTRITION logged this day (pre-computed — narrate only, never invent intake):'];
+  for (const m of meals) {
+    const kcal = mealCalories(m);
+    const macros = [
+      kcal !== null ? `${kcal} kcal` : null,
+      m.proteinG !== undefined ? `P ${m.proteinG}` : null,
+      m.carbsG !== undefined ? `C ${m.carbsG}` : null,
+      m.fatTotalG !== undefined ? `F ${m.fatTotalG}` : null,
+    ].filter(Boolean).join(' · ');
+    const context = [m.mealType, m.time].filter(Boolean).join(', ');
+    lines.push(`- ${m.title}${context ? ` (${context})` : ''}: ${macros || 'no macros logged'}`);
+  }
+  const totals = sumDayMacros(meals);
+  lines.push(`Day totals: ${totals.calories} kcal · protein ${totals.proteinG}g · carbs ${totals.carbsG}g · fat ${totals.fatTotalG}g`);
+  return lines.join('\n');
+}
+
 /** Compact plain-text recap of the session — the user message for the model. */
 export function buildSessionRecap(
   event: WorkoutEvent,
   groups: TrackedSectionGroup[],
   durationSeconds: number | null,
   prs: PersonalRecord[],
+  meals: Meal[] = [],
 ): string {
   const lines: string[] = [];
   lines.push(`Workout: ${event.title} (${event.type})`);
@@ -67,6 +94,9 @@ export function buildSessionRecap(
   } else {
     lines.push('No personal records this session.');
   }
+
+  const nutrition = buildNutritionSection(meals);
+  if (nutrition) lines.push(nutrition);
 
   return lines.join('\n');
 }

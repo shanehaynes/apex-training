@@ -1,0 +1,74 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import handler from '../_lib/app';
+import { handleTrainingBlocks } from '../_lib/trainingBlocks';
+import eventsHandler from '../_lib/handlers/events';
+
+// The router bridges to (req, res) handlers, so mocked handlers respond the
+// same way the real ones do: by writing to res, never by returning a value.
+vi.mock('../_lib/trainingBlocks.js', () => ({
+  handleTrainingBlocks: vi.fn(async (_req: VercelRequest, res: VercelResponse) => {
+    res.status(200).json({ ok: true });
+  }),
+}));
+vi.mock('../_lib/handlers/events.js', () => ({
+  default: vi.fn(async (_req: VercelRequest, res: VercelResponse) => {
+    res.status(200).json({ ok: true });
+  }),
+}));
+
+function makeReq(method: string, url: string): VercelRequest {
+  return { method, url, headers: {}, query: {} } as unknown as VercelRequest;
+}
+
+function makeRes() {
+  let payload: unknown;
+  const res = {
+    statusCode: 200,
+    status(c: number) { res.statusCode = c; return res; },
+    send(b: unknown) { payload = b; return res; },
+    json(b: unknown) { payload = b; return res; },
+    end(b?: unknown) { if (b !== undefined) payload = b; return res; },
+    setHeader() { return res; },
+  } as unknown as VercelResponse & { statusCode: number };
+  return { res, statusCode: () => res.statusCode, body: () => payload };
+}
+
+beforeEach(() => {
+  vi.mocked(handleTrainingBlocks).mockClear();
+  vi.mocked(eventsHandler).mockClear();
+});
+
+describe('consolidated API router', () => {
+  it('dispatches /api/events to the events handler', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('POST', '/api/events'), res);
+    expect(eventsHandler).toHaveBeenCalledOnce();
+    expect(statusCode()).toBe(200);
+  });
+
+  it('routes /api/blocks to handleTrainingBlocks with query.resource injected', async () => {
+    const { res } = makeRes();
+    const req = makeReq('GET', '/api/blocks?batch=1');
+    await handler(req, res);
+    expect(handleTrainingBlocks).toHaveBeenCalledOnce();
+    expect(req.query.resource).toBe('block');
+  });
+
+  it('routes /api/objectives to handleTrainingBlocks as resource=objective', async () => {
+    const { res } = makeRes();
+    const req = makeReq('DELETE', '/api/objectives?id=abc');
+    await handler(req, res);
+    expect(handleTrainingBlocks).toHaveBeenCalledOnce();
+    expect(req.query.resource).toBe('objective');
+  });
+
+  it('404s unknown paths with the distinctive router message', async () => {
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('GET', '/api/nonexistent'), res);
+    expect(statusCode()).toBe(404);
+    expect(String(body())).toBe('No API route: /api/nonexistent');
+    expect(eventsHandler).not.toHaveBeenCalled();
+    expect(handleTrainingBlocks).not.toHaveBeenCalled();
+  });
+});

@@ -3,6 +3,7 @@ import { COACH_TOOLS, findCoachTool } from '../tools';
 import { coachToolSchemas } from '../schemas';
 import type { CoachToolDeps } from '../tools';
 import type { ExerciseDefinition } from '../../../types/workout';
+import type { Meal } from '../../../types/nutrition';
 
 function makeDefinition(overrides: Partial<ExerciseDefinition> & Pick<ExerciseDefinition, 'id' | 'canonicalName'>): ExerciseDefinition {
   return {
@@ -27,6 +28,18 @@ const pistol = makeDefinition({
 });
 const dip = makeDefinition({ id: 'weighted-dip', canonicalName: 'Weighted Dip', defaultWeight: '25lb' });
 
+const burrito: Meal = {
+  id: 'meal-1',
+  title: 'Chicken burrito',
+  date: '2026-08-06',
+  mealType: 'lunch',
+  proteinG: 40,
+  carbsG: 50,
+  fatTotalG: 25,
+  fatSaturatedG: 9,
+  notes: '',
+};
+
 function makeDeps(overrides: Partial<CoachToolDeps> = {}): CoachToolDeps {
   return {
     createEvent: vi.fn(async () => ({ id: 'new-1' })),
@@ -37,6 +50,10 @@ function makeDeps(overrides: Partial<CoachToolDeps> = {}): CoachToolDeps {
     definitions: new Map([[pistol.id, pistol], [dip.id, dip]]),
     createDefinition: vi.fn(async () => ({ id: 'zercher-squat' })),
     updateDefinition: vi.fn(async () => true),
+    meals: [burrito],
+    createMeal: vi.fn(async () => ({ id: 'meal-new' })),
+    updateMeal: vi.fn(async () => true),
+    deleteMeal: vi.fn(async () => true),
     ...overrides,
   };
 }
@@ -44,7 +61,7 @@ function makeDeps(overrides: Partial<CoachToolDeps> = {}): CoachToolDeps {
 describe('coach tool registry', () => {
   it('exposes each tool exactly once, findable by schema name', () => {
     const names = coachToolSchemas().map(s => s.name);
-    expect(names).toEqual(['delete_event', 'create_event', 'update_event', 'set_event_exercises', 'update_exercise_definition']);
+    expect(names).toEqual(['delete_event', 'create_event', 'update_event', 'set_event_exercises', 'update_exercise_definition', 'log_meal', 'update_meal', 'delete_meal']);
     for (const name of names) expect(findCoachTool(name)?.schema.name).toBe(name);
     expect(findCoachTool('nope')).toBeUndefined();
   });
@@ -302,5 +319,87 @@ describe('coach tool registry', () => {
     expect(findCoachTool('update_event')!.displayLabel({
       event_title: 'Yoga', changes: { start_time: '6:00 AM' },
     })).toBe('Update: Yoga (start_time)');
+  });
+});
+
+describe('meal tools', () => {
+  it('log_meal maps snake_case input to CreateMealInput', async () => {
+    const deps = makeDeps();
+    const result = await findCoachTool('log_meal')!.execute(
+      {
+        title: 'Salmon bowl', date: '2026-08-06', time: '7:00 PM', meal_type: 'dinner',
+        protein_g: 38, carbs_g: 45, fat_total_g: 18, fat_saturated_g: 4, notes: 'post-climb',
+      },
+      deps,
+    );
+    expect(deps.createMeal).toHaveBeenCalledWith({
+      title: 'Salmon bowl', date: '2026-08-06', time: '7:00 PM', mealType: 'dinner',
+      proteinG: 38, carbsG: 45, fatTotalG: 18, fatSaturatedG: 4, notes: 'post-climb',
+    });
+    // Bracketed id so the model can reference the meal it just logged.
+    expect(result).toBe('Logged "Salmon bowl" on 2026-08-06 [meal-new].');
+  });
+
+  it('log_meal rejects an impossible fat split and negative macros without calling deps', async () => {
+    const deps = makeDeps();
+    const split = await findCoachTool('log_meal')!.execute(
+      { title: 'x', date: '2026-08-06', fat_total_g: 5, fat_saturated_g: 9 },
+      deps,
+    );
+    expect(split).toMatch(/fat_total_g must be at least/);
+    const negative = await findCoachTool('log_meal')!.execute(
+      { title: 'x', date: '2026-08-06', protein_g: -3 },
+      deps,
+    );
+    expect(negative).toMatch(/cannot be negative: protein_g/);
+    expect(deps.createMeal).not.toHaveBeenCalled();
+  });
+
+  it('update_meal maps changes, null clears a field, and unknown ids abort', async () => {
+    const deps = makeDeps();
+    const result = await findCoachTool('update_meal')!.execute(
+      { meal_id: 'meal-1', meal_title: 'Chicken burrito', changes: { protein_g: 45, meal_type: null } },
+      deps,
+    );
+    expect(deps.updateMeal).toHaveBeenCalledWith({
+      id: 'meal-1',
+      fields: { proteinG: 45, mealType: undefined },
+    });
+    expect(result).toMatch(/Updated/);
+
+    const missing = await findCoachTool('update_meal')!.execute(
+      { meal_id: 'nope', meal_title: 'x', changes: { protein_g: 1 } },
+      deps,
+    );
+    expect(missing).toMatch(/No logged meal with id "nope"/);
+  });
+
+  it('update_meal validates the fat split against the MERGED meal', async () => {
+    const deps = makeDeps();
+    // burrito has fat_total 25 / sat 9; raising sat past the stored total must abort.
+    const result = await findCoachTool('update_meal')!.execute(
+      { meal_id: 'meal-1', meal_title: 'Chicken burrito', changes: { fat_saturated_g: 30 } },
+      deps,
+    );
+    expect(result).toMatch(/fat_total_g must be at least/);
+    expect(deps.updateMeal).not.toHaveBeenCalled();
+  });
+
+  it('delete_meal routes through deleteMeal', async () => {
+    const deps = makeDeps();
+    await findCoachTool('delete_meal')!.execute({ meal_id: 'meal-1', meal_title: 'Chicken burrito' }, deps);
+    expect(deps.deleteMeal).toHaveBeenCalledWith('meal-1');
+  });
+
+  it('builds meal confirmation labels', () => {
+    expect(findCoachTool('log_meal')!.displayLabel({
+      title: 'Salmon bowl', date: '2026-08-06', protein_g: 38, carbs_g: 45, fat_total_g: 18,
+    })).toBe('Log meal: Salmon bowl · 2026-08-06 · P 38 / C 45 / F 18');
+    expect(findCoachTool('update_meal')!.displayLabel({
+      meal_title: 'Chicken burrito', changes: { protein_g: 45 },
+    })).toBe('Update meal: Chicken burrito (protein_g)');
+    expect(findCoachTool('delete_meal')!.displayLabel({
+      meal_title: 'Chicken burrito',
+    })).toBe('Delete meal: Chicken burrito');
   });
 });

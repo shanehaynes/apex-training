@@ -1,14 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
-import { requireUser } from './_lib/auth.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
+import { requireUser } from '../auth.js';
 import {
   pickAllowed,
   COMPLETION_COLUMNS,
   COMPLETION_LOG_COLUMNS,
   SERVER_STAMPED_COLUMNS,
-} from './_lib/allowlist.js';
-import { enforceRateLimit } from './_lib/rateLimit.js';
-import type { CompletionLogRow, CompletionRow } from '../src/lib/db/types.js';
+} from '../allowlist.js';
+import { enforceRateLimit } from '../rateLimit.js';
+import type { CompletionLogRow, CompletionRow } from '../../../src/lib/db/types.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

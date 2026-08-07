@@ -7,7 +7,7 @@
 --
 -- Do NOT re-run this against an existing database. It describes the
 -- pre-auth phase-0 shape; later migrations (phase3 enables RLS, phase9
--- adds user_id, phase22 re-keys events) supersede what is below.
+-- adds user_id, phase25 re-keys events) supersede what is below.
 -- Earlier revisions of this file ended with DISABLE ROW LEVEL SECURITY
 -- statements that would have silently stripped RLS from a phase3+
 -- database if re-run — those are gone; RLS state is owned by the

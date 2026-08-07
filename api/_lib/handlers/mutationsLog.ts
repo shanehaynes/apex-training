@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
-import { requireUser } from './_lib/auth.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
+import { requireUser } from '../auth.js';
 
 // Read-only feed of the caller's mutation audit logs, merged across events,
 // definitions, and blocks/objectives — backs the "Coach activity" list in

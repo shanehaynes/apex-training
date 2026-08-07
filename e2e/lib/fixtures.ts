@@ -5,7 +5,7 @@
 
 import { test as base, expect, type Page } from '@playwright/test';
 // @ts-expect-error plain-JS module shared with scripts/drive.mjs
-import { installIntercept } from './intercept.mjs';
+import { installIntercept, isExpectedConsoleError } from './intercept.mjs';
 // @ts-expect-error plain-JS module shared with scripts/drive.mjs
 import { readSupabaseEnv, seedFabricatedSession, driverProfile } from './session.mjs';
 
@@ -43,7 +43,9 @@ export const test = base.extend<ApexOptions & ApexFixtures>({
 
   consoleErrors: [async ({ page }, provide) => {
     const errors: string[] = [];
-    page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()); });
+    page.on('console', msg => {
+      if (msg.type() === 'error' && !isExpectedConsoleError(msg)) errors.push(msg.text());
+    });
     await provide(errors);
     expect.soft(errors, 'no console errors during the test').toEqual([]);
   }, { auto: true }],
