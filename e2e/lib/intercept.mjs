@@ -123,6 +123,11 @@ export async function installIntercept(context, { anonKey = null, profile } = {}
     }
     if (url.includes('workout_cardio_logs')) return json(route, []);
 
+    // Meals + favorites: deterministic empty lists (the add-meal spec
+    // exercises the composer, not persisted rows).
+    if (url.includes('/rest/v1/meals')) return json(route, []);
+    if (url.includes('/rest/v1/meal_favorites')) return json(route, []);
+
     // Catch-all: no other write escapes to the real project.
     if (req.method() !== 'GET') return json(route, []);
 

@@ -8,7 +8,7 @@ test('day modal, composer flow, and pre-filtered exercise picker', async ({ page
   await dayBtn.click();
   await expect(page.locator('.day-modal__event').first()).toBeVisible();
   await expect(page.locator('.day-modal__date'), 'day modal header shows the date').toBeVisible();
-  await expect(page.locator('.day-modal__add'), 'day modal has an Add event button').toBeVisible();
+  await expect(page.locator('.day-modal__add', { hasText: 'Add event' }), 'day modal has an Add event button').toBeVisible();
   await shot(page, 'day-modal');
 
   // Clicking an event row replaces the day modal with the workout modal.
@@ -20,7 +20,7 @@ test('day modal, composer flow, and pre-filtered exercise picker', async ({ page
 
   // Reopen and go to the add-event composer.
   await page.locator('.day-cell:has(.event-chip) .day-cell__date-btn').first().click();
-  await page.locator('.day-modal__add').click();
+  await page.locator('.day-modal__add', { hasText: 'Add event' }).click();
   await expect(page.locator('.composer-type-card')).toHaveCount(7);
   await shot(page, 'composer-types');
 

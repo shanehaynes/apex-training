@@ -74,7 +74,7 @@ export async function enforceAiMutationCap(
     midnight.setUTCHours(0, 0, 0, 0);
     const since = midnight.toISOString();
 
-    const [events, definitions] = await Promise.all([
+    const [events, definitions, meals] = await Promise.all([
       supabase
         .from('event_mutations_log')
         .select('*', { count: 'exact', head: true })
@@ -87,11 +87,20 @@ export async function enforceAiMutationCap(
         .eq('user_id', userId)
         .eq('triggered_by', 'ai')
         .gte('logged_at', since),
+      supabase
+        .from('meal_mutations_log')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('triggered_by', 'ai')
+        .gte('logged_at', since),
     ]);
     if (events.error) throw new Error(events.error.message);
     if (definitions.error) throw new Error(definitions.error.message);
+    // Tolerated (fail open, like the outer catch): the phase23 table may not
+    // exist yet — the other two logs still enforce the cap.
+    if (meals.error) console.error('[rateLimit] meal log count failed (ignoring):', meals.error.message);
 
-    const total = (events.count ?? 0) + (definitions.count ?? 0);
+    const total = (events.count ?? 0) + (definitions.count ?? 0) + (meals.count ?? 0);
     if (total >= cap) {
       // total === cap only on the first blocked request of the day — the
       // equality check is the alert dedupe (good enough per-user).

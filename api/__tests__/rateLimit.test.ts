@@ -23,7 +23,7 @@ function makeRes() {
 
 function makeAdmin(state: {
   rpcCount?: number | Error;
-  logCounts?: { events: number; definitions: number } | Error;
+  logCounts?: { events: number; definitions: number; meals?: number } | Error;
   email?: string | null;
 }): Admin {
   return {
@@ -39,6 +39,8 @@ function makeAdmin(state: {
               if (state.logCounts instanceof Error) return { count: null, error: { message: state.logCounts.message } };
               const count = table === 'event_mutations_log'
                 ? state.logCounts?.events ?? 0
+                : table === 'meal_mutations_log'
+                ? state.logCounts?.meals ?? 0
                 : state.logCounts?.definitions ?? 0;
               return { count, error: null };
             },
@@ -89,6 +91,14 @@ describe('enforceAiMutationCap', () => {
     expect(ok).toBe(true);
     expect(statusCode()).toBeNull();
     expect(sendReviewEmail).not.toHaveBeenCalled();
+  });
+
+  it('counts meal mutations toward the cap', async () => {
+    const { res, statusCode } = makeRes();
+    // 100 + 50 + 50 = 200 — at the cap only because meals count.
+    const ok = await enforceAiMutationCap(makeAdmin({ logCounts: { events: 100, definitions: 50, meals: 50 } }), res, 'u1', 200);
+    expect(ok).toBe(false);
+    expect(statusCode()).toBe(429);
   });
 
   it('429s and emails exactly once at the first breach', async () => {

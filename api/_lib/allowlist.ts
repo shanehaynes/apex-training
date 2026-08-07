@@ -52,6 +52,35 @@ export const EVENT_PATCH_COLUMNS: ReadonlySet<string> = new Set(
   [...EVENT_INSERT_COLUMNS].filter(c => c !== 'id'),
 );
 
+// Mirrors what mealToRow (src/lib/nutrition/mapping.ts) emits — pinned by
+// api/__tests__/allowlist.test.ts.
+export const MEAL_INSERT_COLUMNS: ReadonlySet<string> = new Set([
+  'id',
+  'title',
+  'date',
+  'time',
+  'meal_type',
+  'calories',
+  'protein_g',
+  'carbs_g',
+  'fiber_g',
+  'sugar_g',
+  'fat_total_g',
+  'fat_saturated_g',
+  'fat_trans_g',
+  'notes',
+]);
+
+export const MEAL_PATCH_COLUMNS: ReadonlySet<string> = new Set(
+  [...MEAL_INSERT_COLUMNS].filter(c => c !== 'id'),
+);
+
+// Mirrors what favoriteToRow (src/lib/nutrition/mapping.ts) emits — a meals
+// row minus date/time. Pinned by api/__tests__/allowlist.test.ts.
+export const MEAL_FAVORITE_COLUMNS: ReadonlySet<string> = new Set(
+  [...MEAL_INSERT_COLUMNS].filter(c => c !== 'date' && c !== 'time'),
+);
+
 export const DEFINITION_INSERT_COLUMNS: ReadonlySet<string> = new Set([
   'id',
   'canonical_name',

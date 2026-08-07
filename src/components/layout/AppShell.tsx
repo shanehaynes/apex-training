@@ -5,6 +5,7 @@ import ChatSidebar from '../sidebar/ChatSidebar';
 import WorkoutModal from '../modal/WorkoutModal';
 import DayModal from '../modal/DayModal';
 import AddEventView from '../composer/AddEventView';
+import AddMealView from '../composer/AddMealView';
 import TrackerView from '../tracker/TrackerView';
 import LibraryView from '../library/LibraryView';
 import ProfileView from '../profile/ProfileView';
@@ -45,6 +46,7 @@ export default function AppShell() {
       {state.selectedEvent && <WorkoutModal />}
       {state.selectedDay && <DayModal />}
       {state.composerDate && <AddEventView />}
+      {state.mealComposerDate && <AddMealView />}
       {state.trackingSession && <TrackerView />}
       {state.libraryOpen && <LibraryView />}
       {state.profileOpen && <ProfileView />}

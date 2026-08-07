@@ -4321,3 +4321,234 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 }
 
 .chat-key-setup-btn:hover { opacity: 0.9; }
+
+/* ============================================================
+   MEALS (day-modal list + add-meal composer extras)
+   ============================================================ */
+
+/* Softer outline than the Add-event button so the two read as a hierarchy. */
+.day-modal__add--meal {
+  border-color: var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.day-modal__add--meal:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.day-modal__meals {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Daily totals strip: stored-or-derived kcal + macro sums for the day. */
+.day-modal__macros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.day-modal__macros-item strong {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.day-modal__meal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+/* A button (click = edit) — reset chrome, keep the row layout. */
+.day-modal__meal-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.day-modal__meal:has(.day-modal__meal-main:hover) {
+  background: var(--bg-surface);
+}
+
+.day-modal__meal-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--border-subtle);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.day-modal__meal-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.day-modal__meal-macros {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.day-modal__meal-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.day-modal__meal-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.day-modal__meal-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.day-modal__meal-delete:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+/* Meal-type segmented control in the add-meal composer. */
+.meal-type-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.meal-type-row__btn {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.meal-type-row__btn--active {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+/* ── Meal favorites (library) ── */
+
+.meal-fav-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.meal-fav-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+
+.meal-fav-chip__apply {
+  height: 30px;
+  padding: 0 6px 0 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-family: inherit;
+  cursor: pointer;
+  transition: color var(--duration-fast) ease;
+}
+
+.meal-fav-chip__apply:hover {
+  color: var(--text-primary);
+}
+
+.meal-fav-chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 30px;
+  padding-right: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--duration-fast) ease;
+}
+
+.meal-fav-chip__remove:hover {
+  color: var(--text-primary);
+}
+
+/* Tertiary action, pushed to the bar's left edge. */
+.meal-fav-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+  padding: 7px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.meal-fav-save:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { parseISO } from 'date-fns';
+import type { Meal } from '../types/nutrition';
 import type { WorkoutEvent } from '../types/workout';
 import type { CardioLogRow, SetLogRow, TrackedSection } from '../lib/db/types';
 import {
@@ -39,11 +41,13 @@ export type FinishOutcome =
  * Owns a workout-tracking session end to end: load/hydrate, in-memory edits
  * with debounced autosave (flushed on tab hide), the elapsed timer, and the
  * finish/cancel/summary lifecycle. The view renders what this returns.
- * `setCompletion` is injected so the hook stays free of ScheduleContext.
+ * `setCompletion` and `getMealsForDate` are injected so the hook stays free
+ * of ScheduleContext/MealsContext.
  */
 export function useWorkoutSession(
   event: WorkoutEvent | null,
   setCompletion: (id: string, completed: boolean) => void,
+  getMealsForDate?: (date: Date) => Meal[],
 ) {
   const [groups, setGroups] = useState<TrackedSectionGroup[] | null>(null);
   const [session, setSession] = useState<SessionInfo | null>(null);
@@ -269,7 +273,10 @@ export function useWorkoutSession(
     durationSeconds: number | null,
   ) => {
     if (!event) return;
-    const recap = buildSessionRecap(event, groupsSnapshot, durationSeconds, prs);
+    // Fueling context is the workout's day, not the wall-clock day — a
+    // retro-tracked session should read that date's meals.
+    const meals = getMealsForDate?.(parseISO(event.date)) ?? [];
+    const recap = buildSessionRecap(event, groupsSnapshot, durationSeconds, prs, meals);
     generateCoachSummary(recap)
       .then(text => {
         setSummary(prev => prev && { ...prev, coachText: text, coachStatus: 'ready' });

@@ -45,7 +45,7 @@ test('an event added to a past day is completed on creation', async ({ page }) =
 
   // Compose onto Aug 1 — two days before the frozen "today" (Aug 3).
   await page.locator('button[aria-label="View August 1"]').click();
-  await page.locator('.day-modal__add').click();
+  await page.locator('.day-modal__add', { hasText: 'Add event' }).click();
   await page.locator('.composer-type-card', { hasText: 'Strength' }).click();
   await expect(
     page.locator('.library-field', { hasText: 'Date' }).locator('input'),

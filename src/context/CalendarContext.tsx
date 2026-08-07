@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useReducer } from 'react';
 import { addMonths, subMonths, addWeeks, subWeeks, addDays, subDays } from 'date-fns';
 import type { CalendarView, WorkoutEvent } from '../types/workout';
+import type { Meal } from '../types/nutrition';
 import { registerAgentState } from '../dev/agentBridge';
 import { now } from '../lib/clock';
 
@@ -22,6 +23,10 @@ interface CalendarState {
   selectedDay: string | null;
   /** Prefilled date for the add-event composer overlay (YYYY-MM-DD). */
   composerDate: string | null;
+  /** Prefilled date for the add-meal composer overlay (YYYY-MM-DD). */
+  mealComposerDate: string | null;
+  /** Meal being edited in the composer (null = composing a new meal). */
+  editingMeal: Meal | null;
   /** Profile overlay (same full-screen pattern as the library). */
   profileOpen: boolean;
 }
@@ -42,6 +47,9 @@ type CalendarAction =
   | { type: 'CLEAR_DAY' }
   | { type: 'OPEN_COMPOSER'; payload: string }
   | { type: 'CLOSE_COMPOSER' }
+  | { type: 'OPEN_MEAL_COMPOSER'; payload: string }
+  | { type: 'OPEN_MEAL_EDITOR'; payload: Meal }
+  | { type: 'CLOSE_MEAL_COMPOSER' }
   | { type: 'OPEN_PROFILE' }
   | { type: 'CLOSE_PROFILE' };
 
@@ -93,6 +101,12 @@ function reducer(state: CalendarState, action: CalendarAction): CalendarState {
       return { ...state, composerDate: action.payload, selectedDay: null };
     case 'CLOSE_COMPOSER':
       return { ...state, composerDate: null };
+    case 'OPEN_MEAL_COMPOSER':
+      return { ...state, mealComposerDate: action.payload, editingMeal: null, selectedDay: null };
+    case 'OPEN_MEAL_EDITOR':
+      return { ...state, mealComposerDate: action.payload.date, editingMeal: action.payload, selectedDay: null };
+    case 'CLOSE_MEAL_COMPOSER':
+      return { ...state, mealComposerDate: null, editingMeal: null };
     case 'OPEN_PROFILE':
       return { ...state, profileOpen: true };
     case 'CLOSE_PROFILE':
@@ -119,6 +133,8 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     librarySelection: null,
     selectedDay: null,
     composerDate: null,
+    mealComposerDate: null,
+    editingMeal: null,
     profileOpen: false,
   });
 
@@ -134,6 +150,8 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
       librarySelection: state.librarySelection,
       selectedDay: state.selectedDay,
       composerDate: state.composerDate,
+      mealComposerDate: state.mealComposerDate,
+      editingMealId: state.editingMeal?.id ?? null,
       profileOpen: state.profileOpen,
     }));
   }, [state]);

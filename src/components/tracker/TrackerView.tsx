@@ -4,6 +4,7 @@ import { ChevronLeft, CheckCircle2, Flag, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/CalendarContext';
 import { useSchedule } from '../../context/ScheduleContext';
+import { useMeals } from '../../context/MealsContext';
 import { formatElapsed } from '../../lib/time';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { useWorkoutSession } from '../../hooks/useWorkoutSession';
@@ -14,13 +15,14 @@ import ConfirmBar from './ConfirmBar';
 export default function TrackerView() {
   const { state, dispatch } = useCalendar();
   const { setCompletion } = useSchedule();
+  const { getMealsForDate } = useMeals();
   const event = state.trackingSession;
 
   const {
     groups, session, elapsed, isFinished, isFinishing, isCancelling, summary,
     onSetChange, onCardioChange, onCommitSetShadow, onCommitCardioShadow, onAddSet, onRemoveSet,
     flushSave, requestFinish, cancelWorkout, openSavedSummary, dismissSummary,
-  } = useWorkoutSession(event, setCompletion);
+  } = useWorkoutSession(event, setCompletion, getMealsForDate);
 
   const [confirmCount, setConfirmCount] = useState<number | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
