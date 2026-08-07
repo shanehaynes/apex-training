@@ -2,10 +2,14 @@
 -- APEX TRAINING — Phase 22 Migration: user-scoped workout_events PK
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 --
--- Run BEFORE deploying the phase-22 code: api/event-instances.ts starts
--- upserting against the (user_id, event_id, skipped_date) constraint this
--- migration creates. (phase20 does not exist — the number was skipped;
--- phase21 is the previous migration.)
+-- ORDER: deploy the phase-22 code FIRST, run this migration SECOND. The
+-- previously deployed api/event-instances.ts upserts against the old
+-- (event_id, skipped_date) constraint, so dropping it here before the new
+-- code is live breaks occurrence rescheduling for the whole window. The
+-- phase-22 handler uses update-then-insert and works against either
+-- schema, so once it is deployed this migration can run at any time.
+-- (phase20 does not exist — the number was skipped; phase21 is the
+-- previous migration.)
 --
 -- Finishes what phase9 §4 started. That migration re-keyed five tables to
 -- user-prefixed primary keys — "a global PK would collide the moment a
