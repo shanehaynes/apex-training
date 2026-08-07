@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useReducer } from 'react';
+import { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
 import { addMonths, subMonths, addWeeks, subWeeks, addDays, subDays } from 'date-fns';
 import type { CalendarView, WorkoutEvent } from '../types/workout';
 import type { Meal } from '../types/nutrition';
@@ -166,7 +166,10 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [state]);
 
-  return <CalendarContext.Provider value={{ state, dispatch }}>{children}</CalendarContext.Provider>;
+  // dispatch is stable, so the value identity tracks state alone.
+  const value = useMemo(() => ({ state, dispatch }), [state]);
+
+  return <CalendarContext.Provider value={value}>{children}</CalendarContext.Provider>;
 }
 
 export function useCalendar() {
