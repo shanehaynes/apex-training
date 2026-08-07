@@ -8,6 +8,7 @@ const { modelsList } = vi.hoisted(() => ({ modelsList: vi.fn() }));
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
 vi.mock('../_lib/auth.js', () => ({ requireUser: vi.fn(async () => 'user-123') }));
+vi.mock('../_lib/rateLimit.js', () => ({ enforceRateLimit: vi.fn(async () => true) }));
 vi.mock('@anthropic-ai/sdk', () => {
   class AuthenticationError extends Error {}
   class PermissionDeniedError extends Error {}
@@ -82,6 +83,9 @@ function makeRes() {
 beforeEach(() => {
   modelsList.mockReset();
   mockedAdmin.mockReset();
+  // Most tests exercise the no-secret (plaintext, pre-encryption) path;
+  // the at-rest-encryption describe below sets its own.
+  delete process.env.API_KEY_ENCRYPTION_SECRET;
 });
 
 describe('keyLast4', () => {
@@ -163,6 +167,35 @@ describe('PATCH /api/profile — anthropic_api_key', () => {
     expect(statusCode()).toBe(200);
     expect(state.deleted).toBe(true);
     expect(body()).toMatchObject({ ok: true, hasAnthropicKey: false });
+  });
+});
+
+describe('PATCH /api/profile — at-rest key encryption', () => {
+  beforeEach(() => {
+    process.env.API_KEY_ENCRYPTION_SECRET = 'test-secret-with-plenty-of-entropy';
+  });
+
+  it('stores ciphertext, never the raw key, and still masks last4 on read', async () => {
+    modelsList.mockResolvedValue({ data: [] });
+    const state: AdminState = { key: null };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode, body } = makeRes();
+    const key = 'sk-ant-api03-good-key-value-abcd';
+    await handler(makeReq('PATCH', { anthropic_api_key: key }), res);
+    expect(statusCode()).toBe(200);
+    const stored = state.upserted?.anthropic_api_key as string;
+    expect(stored.startsWith('enc:v1:')).toBe(true);
+    expect(stored).not.toContain('sk-ant');
+    // last4 comes from the decrypted key, not the ciphertext
+    expect(body()).toMatchObject({ hasAnthropicKey: true, anthropicKeyLast4: 'abcd' });
+  });
+
+  it('reads a legacy plaintext row transparently', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({ key: 'sk-ant-api03-legacy-key-wxyz' }));
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(statusCode()).toBe(200);
+    expect(body()).toEqual({ hasAnthropicKey: true, anthropicKeyLast4: 'wxyz' });
   });
 });
 
