@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { parseISO, isSameDay } from 'date-fns';
-import scheduleData from '../data/schedule.json';
 import { deleteJson, patchJson, postJson } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
 import type { CompletionRow, ExerciseDefinitionRow, RecurringExceptionRow, WorkoutEventRow } from '../lib/db/types';
@@ -50,6 +49,13 @@ interface ScheduleContextValue {
 
 const ScheduleContext = createContext<ScheduleContextValue | null>(null);
 
+// The 1.3 MB seed file is the offline/error fallback only. import() keeps it
+// out of the main bundle so signed-in users never download or parse it.
+async function loadSeedEvents(): Promise<WorkoutEvent[]> {
+  const seed = (await import('../data/schedule.json')).default as Schedule;
+  return (seed.events as WorkoutEvent[]).map(normalizeSeedEvent);
+}
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function ScheduleProvider({ children }: { children: React.ReactNode }) {
@@ -73,7 +79,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   const loadEvents = useCallback(async () => {
     if (!supabase) {
-      setBaseEvents(((scheduleData as Schedule).events as WorkoutEvent[]).map(normalizeSeedEvent));
+      setBaseEvents(await loadSeedEvents());
       setIsEventsLoading(false);
       return;
     }
@@ -88,7 +94,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
     if (eventsRes.error) {
       console.warn('[apex] Failed to load workout_events:', eventsRes.error.message);
-      setBaseEvents(((scheduleData as Schedule).events as WorkoutEvent[]).map(normalizeSeedEvent));
+      setBaseEvents(await loadSeedEvents());
     } else {
       setBaseEvents((eventsRes.data as WorkoutEventRow[]).map(rowToEvent));
     }
