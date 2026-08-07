@@ -13,9 +13,8 @@ import { notify } from '../../lib/notify';
 import ExerciseCard from './ExerciseCard';
 import EventExerciseEditor from './EventExerciseEditor';
 import { isOutdoorClimbing, resolveClimbingTargets, sectionLabels } from '../../lib/climbing';
+import { DIFFICULTY_LABELS } from '../../utils/difficulty';
 import type { Exercise } from '../../types/workout';
-
-const DIFFICULTY_LABELS = ['', 'Easy', 'Moderate', 'Challenging', 'Hard', 'Maximal'];
 
 export default function WorkoutModal() {
   const { state, dispatch } = useCalendar();

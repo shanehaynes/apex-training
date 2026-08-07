@@ -11,6 +11,7 @@ import { now } from '../../lib/clock';
 import { notify } from '../../lib/notify';
 import { ExerciseSectionsEditor, validateUnilateral, type SectionLists } from '../modal/EventExerciseEditor';
 import { eventPitches, maxGradeOf } from '../../lib/climbing';
+import { DIFFICULTY_LABELS } from '../../utils/difficulty';
 import type { CreateEventInput } from '../../lib/schedule/types';
 import type { ExerciseCategory, WorkoutType } from '../../types/workout';
 
@@ -47,7 +48,6 @@ const TYPE_DURATION: Record<WorkoutType, number> = {
   'morning-routine': 30,
 };
 
-const DIFFICULTY_LABELS = ['', 'Easy', 'Moderate', 'Challenging', 'Hard', 'Maximal'];
 
 const EMPTY_LISTS: SectionLists = { warmup: [], exercises: [], cooldown: [] };
 

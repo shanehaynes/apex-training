@@ -6,16 +6,10 @@ import { buildWeekDays } from '../../utils/dateHelpers';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useCalendar } from '../../context/CalendarContext';
+import { timeToMinutes } from '../../lib/time';
 import type { WorkoutEvent } from '../../types/workout';
 
 const HOURS = Array.from({ length: 18 }, (_, i) => i + 5); // 5 AM – 10 PM
-
-function timeToMinutes(t: string): number {
-  const [time, period] = t.split(' ');
-  const [h, m] = time.split(':').map(Number);
-  const hours = period === 'PM' && h !== 12 ? h + 12 : period === 'AM' && h === 12 ? 0 : h;
-  return hours * 60 + (m || 0);
-}
 
 const SLOT_HEIGHT = 56; // px per hour
 const DAY_START = 5 * 60; // 5 AM in minutes
