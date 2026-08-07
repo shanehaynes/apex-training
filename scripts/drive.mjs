@@ -25,7 +25,7 @@
 
 import { mkdirSync } from 'node:fs';
 import { chromium } from '@playwright/test';
-import { installIntercept } from '../e2e/lib/intercept.mjs';
+import { installIntercept, isExpectedConsoleError } from '../e2e/lib/intercept.mjs';
 import { readSupabaseEnv, seedFabricatedSession, driverProfile } from '../e2e/lib/session.mjs';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:5173/';
@@ -73,7 +73,9 @@ if (process.env.APEX_FAKE_NOW) {
 
 const page = await context.newPage();
 const errors = [];
-page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()); });
+page.on('console', msg => {
+  if (msg.type() === 'error' && !isExpectedConsoleError(msg)) errors.push(msg.text());
+});
 
 try {
   await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 });
