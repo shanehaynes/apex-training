@@ -10,6 +10,7 @@ import { expandRecurringEvents, normalizeSeedEvent } from '../lib/schedule/expan
 import { definitionFieldsToRow, resolveEventExercises, rowToDefinition, slugifyName } from '../lib/schedule/definitions';
 import { buildCompletionRows, eventFieldsToRow, eventToRow, rowToEvent } from '../lib/schedule/mapping';
 import { loadCompletedIds, saveCompletedIds } from '../lib/schedule/localCompletion';
+import { useAuth } from './AuthContext';
 import { quickCompleteSession, quickUncompleteSession } from '../lib/tracking/sessionRepo';
 import { baseIdOf, makeOccurrenceId, occurrenceDateOf } from '../lib/schedule/occurrence';
 import { timeToMinutes } from '../lib/time';
@@ -52,10 +53,15 @@ const ScheduleContext = createContext<ScheduleContextValue | null>(null);
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function ScheduleProvider({ children }: { children: React.ReactNode }) {
+  // Constant for this provider's lifetime: App keys ScheduleProvider by user
+  // id, so an account switch remounts rather than re-rendering.
+  const { session } = useAuth();
+  const userId = session?.user.id ?? null;
+
   const [baseEvents, setBaseEvents] = useState<WorkoutEvent[]>([]);
   const [definitions, setDefinitions] = useState<Map<string, ExerciseDefinition>>(new Map());
   const [exceptions, setExceptions] = useState<Map<string, OccurrenceOverride | null>>(new Map());
-  const [completedIds, setCompletedIds] = useState<Set<string>>(loadCompletedIds);
+  const [completedIds, setCompletedIds] = useState<Set<string>>(() => loadCompletedIds(userId));
   const [isSyncing, setIsSyncing] = useState(!!supabase);
   const [isEventsLoading, setIsEventsLoading] = useState(!!supabase);
 
@@ -145,7 +151,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         } else {
           const serverIds = new Set((data as Pick<CompletionRow, 'event_id'>[]).map(r => r.event_id));
           setCompletedIds(serverIds);
-          saveCompletedIds(serverIds);
+          saveCompletedIds(userId, serverIds);
         }
         setIsSyncing(false);
       });
@@ -221,7 +227,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       const next = new Set(prev);
       if (isNowCompleted) next.add(id);
       else next.delete(id);
-      saveCompletedIds(next);
+      saveCompletedIds(userId, next);
       return next;
     });
 
@@ -286,7 +292,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       if (completedOnCreate) {
         setCompletedIds(prev => {
           const next = new Set(prev).add(id);
-          saveCompletedIds(next);
+          saveCompletedIds(userId, next);
           return next;
         });
         postJson('/api/completions', buildCompletionRows(newEvent, true), 'Completion sync').catch(() => {});
@@ -296,7 +302,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     } catch {
       return null;
     }
-  }, []);
+  }, [userId]);
 
   const updateEvent = useCallback(async ({ id, fields, triggeredBy }: UpdateEventInput): Promise<boolean> => {
     if (!supabase) return false;
