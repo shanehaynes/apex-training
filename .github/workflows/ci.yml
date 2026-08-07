@@ -17,10 +17,28 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx tsc -b
+      # npm run build = tsc -b (app, node, api, e2e projects) + vite build,
+      # so the production bundle is proven buildable on every push.
+      - run: npm run build
       - run: npm test
       # oxlint fails on errors only; pre-existing warnings don't block.
       - run: npm run lint
+      # Every root-level api/*.ts becomes its own Vercel serverless function.
+      # The 12-function cap stopped binding after the Hono consolidation
+      # (PR #3), but an accidental root-level file still deploys as a new
+      # function — new handlers belong in api/_lib/handlers/. Bump the
+      # expected count only for a deliberate new entry point.
+      - name: Guard serverless function count
+        run: |
+          expected=4  # [...path].ts, calendar-feed.ts, chat.ts, review-cron.ts
+          actual=$(find api -maxdepth 1 -name '*.ts' | wc -l)
+          if [ "$actual" -ne "$expected" ]; then
+            echo "::error::api/ has $actual root-level .ts files (expected $expected)." \
+              "New handlers belong in api/_lib/handlers/ behind the router;" \
+              "if a new standalone function is deliberate, bump 'expected' here."
+            find api -maxdepth 1 -name '*.ts'
+            exit 1
+          fi
 
   # Playwright mock project: full UI flows with all writes stubbed.
   e2e-mock:

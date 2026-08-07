@@ -140,7 +140,7 @@ describe('PATCH /api/profile — anthropic_api_key', () => {
 
   it('400s when Anthropic rejects the key, without storing it', async () => {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
-    modelsList.mockRejectedValue(new Anthropic.AuthenticationError('bad'));
+    modelsList.mockRejectedValue(new Anthropic.AuthenticationError(401, undefined, 'bad', new Headers()));
     const state: AdminState = { key: null };
     mockedAdmin.mockReturnValue(makeAdmin(state));
     const { res, statusCode, body } = makeRes();
