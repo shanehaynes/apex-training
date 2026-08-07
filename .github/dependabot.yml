@@ -1,0 +1,20 @@
+# Dependency automation (issue #20). Minor/patch updates arrive as one
+# grouped PR per week per ecosystem to keep noise down; majors and security
+# fixes still get their own PRs so they're visible individually.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
