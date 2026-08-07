@@ -49,6 +49,17 @@ export function isExpectedConsoleError(msg) {
  * `anonKey` re-authorizes passthrough REST reads (null in offline mode).
  */
 export async function installIntercept(context, { anonKey = null, profile } = {}) {
+  // The design tokens @import Google Fonts — the one external fetch in an
+  // otherwise hermetic suite, and a real flake source: Claude remote-sandbox
+  // egress proxies reset it, which failed every spec via the console-error
+  // fixture. Fulfill with empty CSS (the UI falls back to system fonts);
+  // gstatic would only be fetched by rules in that CSS, but stub it too so
+  // no font request can ever leave the suite.
+  await context.route('https://fonts.googleapis.com/**', route =>
+    route.fulfill({ status: 200, contentType: 'text/css', headers: CORS, body: '' }));
+  await context.route('https://fonts.gstatic.com/**', route =>
+    route.fulfill({ status: 200, headers: CORS, body: '' }));
+
   // Vercel functions don't run under `vite dev` (they'd 404 anyway) and the
   // real ones write to Supabase — stub the whole surface.
   await context.route('**/api/**', route => {
