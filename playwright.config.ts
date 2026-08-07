@@ -11,6 +11,11 @@ const live = !!process.env.APEX_LOCAL_SUPABASE;
 export default defineConfig({
   testDir: 'e2e',
   fullyParallel: true,
+  // Live specs share ONE local Postgres, and some of them reset whole tables
+  // to start pristine. Running their files in parallel workers would race
+  // those resets against another file's fixtures, so the live run is
+  // single-worker. Mock specs stub every request and stay fully parallel.
+  ...(live ? { workers: 1 } : {}),
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { CardioLogRow, CompletionRow, SetLogRow, WorkoutSessionRow } from '../../db/types';
 import { buildReviewPeriod, computePeriodPRs, computeReviewStats, computeYearlyStats } from '../stats';
-import type { ReviewInputs } from '../types';
+import type { ReviewInputs, StatsPeriod } from '../types';
 
 // Month 6 of ISO 2026: May 18 – Jun 14 (endExclusive Jun 15).
 const MONTH = buildReviewPeriod('month', 2026, 6);
@@ -285,6 +285,36 @@ describe('computeReviewStats', () => {
     );
     expect(stats.totals.totalDurationMinutes).toBe(90);
     expect(stats.notable.longestSession).toMatchObject({ minutes: 90, title: 'weights session' });
+  });
+
+  // Pins the phase-19 generalization: the aggregation depends only on the
+  // date window, not on the period being a review month. A training block
+  // over the same dates must produce identical numbers, or block attainment
+  // and the review email would disagree about the same training.
+  it('produces identical stats for a block period over the same dates', () => {
+    const blockPeriod: StatsPeriod = {
+      startDate: MONTH.startDate,
+      endDateExclusive: MONTH.endDateExclusive,
+      periodType: 'block',
+      label: 'a training block',
+      weeksInPeriod: MONTH.weeksInPeriod,
+    };
+    const shared = {
+      completions: [makeCompletion('2026-05-20', 'weights'), makeCompletion('2026-06-01', 'cardio')],
+      sessions: [],
+      setLogs: [makeSet('2026-05-20', 'Bench Press', '185lb', '5')],
+      cardioLogs: [makeCardio('2026-05-20', 'Trail Run', '5 mi', '800 ft')],
+    };
+
+    const asMonth = computeReviewStats({ period: MONTH, ...shared });
+    const asBlock = computeReviewStats({ period: blockPeriod, ...shared });
+
+    expect(asBlock.totals).toEqual(asMonth.totals);
+    expect(asBlock.cardio).toEqual(asMonth.cardio);
+    expect(asBlock.strength).toEqual(asMonth.strength);
+    expect(asBlock.prs).toEqual(asMonth.prs);
+    expect(asBlock.streaks).toEqual(asMonth.streaks);
+    expect(asBlock.notable).toEqual(asMonth.notable);
   });
 });
 

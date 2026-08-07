@@ -2,6 +2,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { CalendarProvider } from './context/CalendarContext';
 import { MealsProvider } from './context/MealsContext';
 import { ScheduleProvider } from './context/ScheduleContext';
+import { BlocksProvider } from './context/BlocksContext';
 import AppShell from './components/layout/AppShell';
 import LoginView from './components/auth/LoginView';
 import SetPasswordView from './components/auth/SetPasswordView';
@@ -24,11 +25,13 @@ function AuthGate() {
   // so RLS-authorized delivery never silently drops events).
   return (
     <ScheduleProvider key={session?.user.id ?? 'offline'}>
-      <MealsProvider>
-        <CalendarProvider>
-          <AppShell />
-        </CalendarProvider>
-      </MealsProvider>
+      <BlocksProvider>
+        <MealsProvider>
+          <CalendarProvider>
+            <AppShell />
+          </CalendarProvider>
+        </MealsProvider>
+      </BlocksProvider>
     </ScheduleProvider>
   );
 }

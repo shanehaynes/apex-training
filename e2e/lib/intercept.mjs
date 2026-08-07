@@ -128,6 +128,11 @@ export async function installIntercept(context, { anonKey = null, profile } = {}
     if (url.includes('/rest/v1/meals')) return json(route, []);
     if (url.includes('/rest/v1/meal_favorites')) return json(route, []);
 
+    // Phase 19. Stubbed empty rather than passed through so the blocks
+    // provider settles deterministically and the calendar specs don't see an
+    // unhandled request on load. Block-specific specs override this.
+    if (url.includes('training_blocks') || url.includes('/rest/v1/objectives')) return json(route, []);
+
     // Catch-all: no other write escapes to the real project.
     if (req.method() !== 'GET') return json(route, []);
 

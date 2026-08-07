@@ -37,7 +37,7 @@ test('add-meal composer: derived calories, fat-split validation, save', async ({
   await expect(page.locator('.meal-form'), 'composer stays open on validation failure').toBeVisible();
   await shot(page, 'meal-composer-fat-validation');
 
-  // Fix the split and save. With Supabase, POST /api/meals is stubbed and the
+  // Fix the split and save. With Supabase, the meal POST is stubbed and the
   // composer closes; offline createMeal returns null → failure toast, stays open.
   await page.getByLabel(/^Trans fat/).fill('2');
   await page.locator('.exercise-editor__save').click();

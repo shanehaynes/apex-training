@@ -102,3 +102,32 @@ export const DEFINITION_INSERT_COLUMNS: ReadonlySet<string> = new Set([
 export const DEFINITION_PATCH_COLUMNS: ReadonlySet<string> = new Set(
   [...DEFINITION_INSERT_COLUMNS].filter(c => c !== 'id'),
 );
+
+// Phase 19. Mirrors blockToRow / objectiveToRow (src/lib/blocks/mapping.ts) —
+// pinned by api/__tests__/allowlist.test.ts. Ids are server-generated UUIDs
+// (unlike events, whose ids are client slugs), so 'id' is absent from both
+// sets. weekly_targets and required_capabilities are JSONB: pickAllowed guards
+// the column NAME, and parseWeeklyTargets (src/lib/blocks/targets.ts) guards
+// what is inside it.
+export const BLOCK_INSERT_COLUMNS: ReadonlySet<string> = new Set([
+  'objective_id',
+  'name',
+  'intent',
+  'phase',
+  'start_date',
+  'end_date_exclusive',
+  'weekly_targets',
+]);
+
+export const BLOCK_PATCH_COLUMNS: ReadonlySet<string> = BLOCK_INSERT_COLUMNS;
+
+export const OBJECTIVE_INSERT_COLUMNS: ReadonlySet<string> = new Set([
+  'name',
+  'target_date',
+  'discipline',
+  'notes',
+  'required_capabilities',
+  'status',
+]);
+
+export const OBJECTIVE_PATCH_COLUMNS: ReadonlySet<string> = OBJECTIVE_INSERT_COLUMNS;

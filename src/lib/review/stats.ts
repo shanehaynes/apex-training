@@ -13,11 +13,13 @@ import type {
   CardioStats,
   DatedPersonalRecord,
   MonthLite,
+  PeriodInputs,
+  PeriodStats,
   PeriodType,
   QuantityHighlight,
   ReviewInputs,
   ReviewPeriod,
-  ReviewStats,
+  StatsPeriod,
   StrengthStats,
   YearlyStats,
 } from './types.js';
@@ -49,7 +51,7 @@ export function buildReviewPeriod(periodType: PeriodType, isoYear: number, month
   };
 }
 
-const inPeriod = (date: string, period: ReviewPeriod) =>
+const inPeriod = (date: string, period: StatsPeriod) =>
   date >= period.startDate && date < period.endDateExclusive;
 
 /**
@@ -60,7 +62,7 @@ const inPeriod = (date: string, period: ReviewPeriod) =>
  * is untouched; the segmented duration input makes new data unambiguous, so
  * this only ever bridges pre-existing rows.
  */
-function minutesForBareDuration(value: string | null): string | null {
+export function minutesForBareDuration(value: string | null): string | null {
   return value && /^\s*[1-9]\s*$/.test(value) ? `${value.trim()} min` : value;
 }
 
@@ -90,7 +92,7 @@ function groupByDateAscending<T extends { event_date: string }>(rows: T[]): Arra
 export function computePeriodPRs(
   setLogs: SetLogRow[],
   cardioLogs: CardioLogRow[],
-  period: ReviewPeriod,
+  period: StatsPeriod,
 ): DatedPersonalRecord[] {
   const prs: DatedPersonalRecord[] = [];
 
@@ -217,13 +219,13 @@ export function computePeriodPRs(
 const sessionKey = (eventId: string, eventDate: string) => `${eventId}|${eventDate}`;
 
 /** Tracked session seconds win over the completion's estimate. */
-function durationMinutesFor(completion: CompletionRow, sessionSeconds: Map<string, number>): number {
+export function durationMinutesFor(completion: CompletionRow, sessionSeconds: Map<string, number>): number {
   const seconds = sessionSeconds.get(sessionKey(completion.event_id, completion.event_date));
   if (seconds != null) return seconds / 60;
   return completion.duration_minutes ?? 0;
 }
 
-function sessionSecondsMap(sessions: WorkoutSessionRow[]): Map<string, number> {
+export function sessionSecondsMap(sessions: WorkoutSessionRow[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const s of sessions) {
     if (s.total_duration_seconds != null) map.set(sessionKey(s.event_id, s.event_date), s.total_duration_seconds);
@@ -259,7 +261,7 @@ function dominantHighlight(entries: QuantityHighlight[]): QuantityHighlight | nu
     .reduce((best, e) => (e.value > best.value ? e : best));
 }
 
-function computeCardioStats(cardioLogs: CardioLogRow[], period: ReviewPeriod): CardioStats {
+export function computeCardioStats(cardioLogs: CardioLogRow[], period: StatsPeriod): CardioStats {
   const distanceByUnit: Record<string, number> = {};
   const elevationByUnit: Record<string, number> = {};
   const distances: QuantityHighlight[] = [];
@@ -287,7 +289,7 @@ function computeCardioStats(cardioLogs: CardioLogRow[], period: ReviewPeriod): C
   };
 }
 
-function computeStrengthStats(setLogs: SetLogRow[], period: ReviewPeriod): StrengthStats {
+export function computeStrengthStats(setLogs: SetLogRow[], period: StatsPeriod): StrengthStats {
   let tonnage = 0;
   let totalSets = 0;
   let totalReps = 0;
@@ -319,7 +321,7 @@ function computeStrengthStats(setLogs: SetLogRow[], period: ReviewPeriod): Stren
   return { tonnage: Math.round(tonnage), totalSets, totalReps, heaviestSet, topExercises };
 }
 
-export function computeReviewStats(inputs: ReviewInputs): ReviewStats {
+export function computeReviewStats<P extends StatsPeriod>(inputs: PeriodInputs<P>): PeriodStats<P> {
   const { period } = inputs;
   const completions = inputs.completions.filter(c => c.is_completed && inPeriod(c.event_date, period));
   const sessions = inputs.sessions.filter(s => inPeriod(s.event_date, period));
@@ -345,7 +347,7 @@ export function computeReviewStats(inputs: ReviewInputs): ReviewStats {
   // Longest session: tracked sessions win (real stopwatch time); fall back to
   // completion estimates when nothing was tracked. Titles live on completions.
   const titleByKey = new Map(completions.map(c => [sessionKey(c.event_id, c.event_date), c.event_title]));
-  let longestSession: ReviewStats['notable']['longestSession'] = null;
+  let longestSession: PeriodStats['notable']['longestSession'] = null;
   for (const s of sessions) {
     if (s.total_duration_seconds == null) continue;
     const minutes = s.total_duration_seconds / 60;

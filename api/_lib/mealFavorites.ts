@@ -1,17 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
-import { requireUser } from './_lib/auth.js';
-import { pickAllowed, MEAL_FAVORITE_COLUMNS } from './_lib/allowlist.js';
-import { enforceRateLimit } from './_lib/rateLimit.js';
-import type { MealFavoriteRow } from '../src/lib/db/types.js';
+import { getSupabaseAdmin } from './supabaseAdmin.js';
+import { requireUser } from './auth.js';
+import { pickAllowed, MEAL_FAVORITE_COLUMNS } from './allowlist.js';
+import { enforceRateLimit } from './rateLimit.js';
+import type { MealFavoriteRow } from '../../src/lib/db/types.js';
 
-// Meal favorites (phase 24): user-only meal templates. POST upserts on the
-// id PK — the client reuses an existing favorite's id for same-title saves,
-// so "save again" overwrites instead of duplicating. No AI cap or mutation
+// Meal favorites (phase 24): user-only meal templates, served from
+// api/events.ts behind ?resource=meal-favorite (12-function deploy cap —
+// see the training-blocks delegate). POST upserts scoped to (user_id, id) —
+// the client reuses an existing favorite's id for same-title saves, so
+// "save again" overwrites instead of duplicating. No AI cap or mutation
 // log: the coach has no favorite tools, and favorites are cosmetic templates,
 // not audit-worthy data.
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export async function handleMealFavorites(req: VercelRequest, res: VercelResponse) {
   const supabase = getSupabaseAdmin();
   if (!supabase) {
     res.status(500).send('Supabase admin client not configured');

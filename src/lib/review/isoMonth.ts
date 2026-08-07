@@ -89,6 +89,16 @@ export function lastCompletedIsoYear(today: Date): number {
 export function periodLabel(p: IsoMonth | number): string {
   if (typeof p === 'number') return String(p);
   const { startDate, endDateExclusive } = monthBoundaries(p.isoYear, p.month);
+  return rangeLabel(startDate, endDateExclusive);
+}
+
+/**
+ * "Jun 15 – Jul 12, 2026", spelling out both years when the range straddles
+ * one. Takes a half-open range and renders the INCLUSIVE last day, which is
+ * what a reader expects. Shared with training blocks (src/lib/blocks/) so
+ * block labels read identically to review labels.
+ */
+export function rangeLabel(startDate: string, endDateExclusive: string): string {
   const start = parseISO(startDate);
   const end = addDays(parseISO(endDateExclusive), -1);
   return start.getFullYear() === end.getFullYear()

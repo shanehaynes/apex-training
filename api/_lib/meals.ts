@@ -1,13 +1,17 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
-import { requireUser } from './_lib/auth.js';
-import { pickAllowed, MEAL_INSERT_COLUMNS, MEAL_PATCH_COLUMNS } from './_lib/allowlist.js';
-import { enforceAiMutationCap, enforceRateLimit } from './_lib/rateLimit.js';
-import type { MealMutationLogRow, MealRow } from '../src/lib/db/types.js';
+import { getSupabaseAdmin } from './supabaseAdmin.js';
+import { requireUser } from './auth.js';
+import { pickAllowed, MEAL_INSERT_COLUMNS, MEAL_PATCH_COLUMNS } from './allowlist.js';
+import { enforceAiMutationCap, enforceRateLimit } from './rateLimit.js';
+import type { MealMutationLogRow, MealRow } from '../../src/lib/db/types.js';
 
-// Meal writes (phase 22) + audit trail (phase 23). Same shape as api/events.ts:
-// auth → rate limit → allowlist → service-role write → mutation log. The log
-// feeds the daily AI cap now that the coach has meal tools.
+// Meal writes (phase 22) + audit trail (phase 23), served from api/events.ts
+// behind ?resource=meal rather than as its own function file: the Vercel
+// Hobby plan caps a deployment at 12 serverless functions and the repo sits
+// exactly at the cap (same frugality as the training-blocks delegate).
+// Same shape as api/events.ts: auth → rate limit → allowlist → service-role
+// write → mutation log. The log feeds the daily AI cap now that the coach
+// has meal tools.
 
 interface MutationLogEntry {
   meal_title: string;
@@ -37,7 +41,7 @@ async function logMutation(
   if (error) console.error('[api/meals] mutation log insert failed:', error.message);
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export async function handleMeals(req: VercelRequest, res: VercelResponse) {
   const supabase = getSupabaseAdmin();
   if (!supabase) {
     res.status(500).send('Supabase admin client not configured');

@@ -8,6 +8,7 @@ import AddEventView from '../composer/AddEventView';
 import AddMealView from '../composer/AddMealView';
 import TrackerView from '../tracker/TrackerView';
 import LibraryView from '../library/LibraryView';
+import BlocksView from '../blocks/BlocksView';
 import ProfileView from '../profile/ProfileView';
 import TemplateOfferBanner from '../profile/TemplateOfferBanner';
 import MobileBottomNav from './MobileBottomNav';
@@ -49,6 +50,7 @@ export default function AppShell() {
       {state.mealComposerDate && <AddMealView />}
       {state.trackingSession && <TrackerView />}
       {state.libraryOpen && <LibraryView />}
+      {state.blocksOpen && <BlocksView />}
       {state.profileOpen && <ProfileView />}
       <TemplateOfferBanner />
       <Toasts />

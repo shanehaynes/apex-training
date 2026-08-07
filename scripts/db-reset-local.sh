@@ -16,6 +16,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# A running container is not a working one: Docker has reported every container
+# healthy while GoTrue could not reach Postgres at all. Prove the stack actually
+# works — and repair it — before spending minutes seeding into it.
+scripts/preflight-local.sh --fix --quiet || exit 1
+
 DB_CONTAINER=$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -1 || true)
 if [ -z "$DB_CONTAINER" ]; then
   echo "error: local Supabase stack is not running — run 'supabase start' first" >&2
@@ -33,6 +38,7 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user();
 DROP TABLE IF EXISTS
   api_request_counts,
+  block_mutations_log, training_blocks, objectives,
   reviews, user_api_keys, profiles,
   definition_mutations_log, exercise_definitions,
   workout_cardio_logs, workout_set_logs, workout_sessions,
@@ -65,6 +71,7 @@ run_sql_file supabase/migrations/phase15_cat_cow_single_duration.sql
 run_sql_file supabase/migrations/phase16_coach_profile_fields.sql
 run_sql_file supabase/migrations/phase17_outdoor_climbing.sql
 run_sql_file supabase/migrations/phase18_rate_limits.sql
+run_sql_file supabase/migrations/phase19_training_blocks.sql
 run_sql_file supabase/migrations/phase22_meals.sql
 run_sql_file supabase/migrations/phase23_meal_coach.sql
 run_sql_file supabase/migrations/phase24_meal_favorites.sql

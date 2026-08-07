@@ -45,6 +45,7 @@ src/
     schedule/        #   event expansion, row mapping, occurrence ids
     tracking/        #   tracker model, PR detection, session data access
     coach/           #   system prompt, tool registry, wire protocol
+    blocks/          #   training blocks: periods, targets vs. actuals, cycles
     db/              #   row types shared with api/ (single source of truth)
 api/                 # Vercel serverless functions (service-role writes, AI proxy)
 supabase/            # schema.sql + ordered migrations
@@ -56,6 +57,7 @@ supabase/            # schema.sql + ordered migrations
 | `POST /api/event-instances` | Skip one occurrence of a recurring event |
 | `POST /api/completions` | Completion toggles + history log |
 | `POST /api/workout-sessions` | Tracker writes: start / save / finish / cancel / summary |
+| `POST/PATCH/DELETE /api/events?resource=block\|objective` | Objectives & training blocks (weekly targets, non-overlapping Monday-aligned ranges) |
 | `POST /api/chat` | Streams the coach chat (NDJSON) via Claude, server-side key |
 | `POST /api/coach-summary` | One-shot post-workout summary |
 | `GET /api/calendar-feed` | ICS feed with RRULEs and EXDATEs (floating local times) |
@@ -80,7 +82,7 @@ cp .env.example .env.local   # then fill in the values
 
 The AI coach runs on each user's own Anthropic API key, saved in-app under Profile → AI Coach (stored server-side, never exposed to the browser).
 
-**Database:** run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor, then the files in [`supabase/migrations/`](supabase/migrations/) in filename order (phase2 → phase12).
+**Database:** run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor, then the files in [`supabase/migrations/`](supabase/migrations/) in filename order (phase2 → phase19).
 
 **Run it:**
 

@@ -1,4 +1,4 @@
-// Live meal logging: the add-meal composer writes through /api/meals into
+// Live meal logging: the add-meal composer writes through the meals API into
 // local Postgres, the day modal lists the meal with the daily totals strip,
 // and delete removes the row. Mirrors live.spec.ts's structure.
 

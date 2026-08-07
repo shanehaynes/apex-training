@@ -92,7 +92,8 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
     // people logging at the same millisecond must never collide.
     const meal: Meal = { ...fields, id: `meal-${crypto.randomUUID()}` };
     try {
-      await postJson('/api/meals', { ...mealToRow(meal), triggered_by: triggeredBy ?? 'user' }, 'Saving meal');
+      // ?resource=meal: meals ride the events function (12-function deploy cap).
+      await postJson('/api/events?resource=meal', { ...mealToRow(meal), triggered_by: triggeredBy ?? 'user' }, 'Saving meal');
       setMeals(prev => [...prev, meal]);
       return { id: meal.id };
     } catch {
@@ -105,7 +106,7 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
 
     const current = meals.find(m => m.id === id);
     try {
-      await patchJson(`/api/meals?id=${encodeURIComponent(id)}`, {
+      await patchJson(`/api/events?resource=meal&id=${encodeURIComponent(id)}`, {
         fields: mealFieldsToRow(fields),
         log: {
           meal_title: fields.title ?? current?.title ?? id,
@@ -127,7 +128,7 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
 
     const meal = meals.find(m => m.id === id);
     try {
-      await deleteJson(`/api/meals?id=${encodeURIComponent(id)}`, 'Deleting meal', {
+      await deleteJson(`/api/events?resource=meal&id=${encodeURIComponent(id)}`, 'Deleting meal', {
         log: { meal_title: meal?.title ?? id, triggered_by: triggeredBy },
       });
       setMeals(prev => prev.filter(m => m.id !== id));
@@ -142,7 +143,7 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
 
     const favorite: MealFavorite = { ...input, id: input.id ?? `mealfav-${crypto.randomUUID()}` };
     try {
-      await postJson('/api/meal-favorites', favoriteToRow(favorite), 'Saving to library');
+      await postJson('/api/events?resource=meal-favorite', favoriteToRow(favorite), 'Saving to library');
       // Optimistic replace-or-append, keeping the alphabetical order.
       setFavorites(prev =>
         [...prev.filter(f => f.id !== favorite.id), favorite].sort((a, b) => a.title.localeCompare(b.title)),
@@ -156,7 +157,7 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
   const deleteFavorite = useCallback(async (id: string): Promise<boolean> => {
     if (!supabase) return false;
     try {
-      await deleteJson(`/api/meal-favorites?id=${encodeURIComponent(id)}`, 'Removing from library');
+      await deleteJson(`/api/events?resource=meal-favorite&id=${encodeURIComponent(id)}`, 'Removing from library');
       setFavorites(prev => prev.filter(f => f.id !== id));
       return true;
     } catch {
