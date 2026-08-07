@@ -16,9 +16,12 @@ interface AdminState {
   inserted?: Record<string, unknown>;
   updated?: Record<string, unknown>;
   logged?: Record<string, unknown>;
+  /** Simulate the target row not existing (0-row update/delete). */
+  missing?: boolean;
 }
 
 function makeAdmin(state: AdminState) {
+  const affected = () => ({ data: state.missing ? [] : [{ id: 'evt-1' }], error: null });
   return {
     from(table: string) {
       return {
@@ -29,14 +32,16 @@ function makeAdmin(state: AdminState) {
         },
         update: (row: Record<string, unknown>) => ({
           eq: () => ({
-            eq: async () => {
-              state.updated = row;
-              return { error: null };
-            },
+            eq: () => ({
+              select: async () => {
+                if (!state.missing) state.updated = row;
+                return affected();
+              },
+            }),
           }),
         }),
         delete: () => ({
-          eq: () => ({ eq: async () => ({ error: null }) }),
+          eq: () => ({ eq: () => ({ select: async () => affected() }) }),
         }),
       };
     },
@@ -98,6 +103,20 @@ describe('POST /api/events — field allowlist', () => {
     expect(statusCode()).toBe(200);
     expect(state.logged).not.toHaveProperty('triggered_by');
   });
+
+  it('rejects an id that could inject ICS lines into the calendar feed', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('POST', { ...base, id: 'evil\r\nATTENDEE:mailto:x@y.z' }), res);
+    expect(statusCode()).toBe(400);
+    expect(state.inserted).toBeUndefined();
+  });
+
+  it('rejects an oversized id', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('POST', { ...base, id: 'a'.repeat(200) }), res);
+    expect(statusCode()).toBe(400);
+    expect(state.inserted).toBeUndefined();
+  });
 });
 
 describe('PATCH /api/events — field allowlist', () => {
@@ -130,5 +149,30 @@ describe('PATCH /api/events — field allowlist', () => {
     expect(statusCode()).toBe(200);
     expect(state.updated).toMatchObject({ title: 'Incline Bench' });
     expect(state.updated).toHaveProperty('updated_at');
+  });
+
+  it("404s on someone else's (or a mistyped) id without writing an audit entry", async () => {
+    state.missing = true;
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { fields: { title: 'x' }, log }, { id: 'not-mine' }), res);
+    expect(statusCode()).toBe(404);
+    expect(state.logged).toBeUndefined();
+  });
+});
+
+describe('DELETE /api/events — existence check', () => {
+  it('404s on a 0-row delete without writing an audit entry', async () => {
+    state.missing = true;
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('DELETE', { log: { event_title: 'x', triggered_by: 'user' } }, { id: 'not-mine' }), res);
+    expect(statusCode()).toBe(404);
+    expect(state.logged).toBeUndefined();
+  });
+
+  it('deletes and logs when the row exists', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('DELETE', { log: { event_title: 'Bench', triggered_by: 'user' } }, { id: 'evt-1' }), res);
+    expect(statusCode()).toBe(200);
+    expect(state.logged).toMatchObject({ operation: 'delete' });
   });
 });

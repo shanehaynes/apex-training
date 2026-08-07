@@ -64,23 +64,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    // Upsert so repeated edits of the same occurrence update one row.
-    const { error: exError } = await supabase
+    // Update-then-insert instead of upsert: an upsert names a specific
+    // unique constraint, and phase22 replaces (event_id, skipped_date) with
+    // the user-prefixed (user_id, event_id, skipped_date) — this shape works
+    // against both, so code and migration can deploy in either order.
+    const overrideRow = {
+      override_date:       date ?? null,
+      override_start_time: startTime ?? null,
+      override_end_time:   endTime ?? null,
+    };
+    const { data: existing, error: updateErr } = await supabase
       .from('recurring_exceptions')
-      .upsert(
-        {
-          user_id:             userId,
-          event_id:            body.eventId,
-          skipped_date:        body.date,
-          override_date:       date ?? null,
-          override_start_time: startTime ?? null,
-          override_end_time:   endTime ?? null,
-        },
-        { onConflict: 'event_id,skipped_date' },
-      );
+      .update(overrideRow)
+      .eq('user_id', userId)
+      .eq('event_id', body.eventId)
+      .eq('skipped_date', body.date)
+      .select('id');
+    let exError = updateErr;
+    if (!updateErr && (existing ?? []).length === 0) {
+      const { error: insertErr } = await supabase
+        .from('recurring_exceptions')
+        .insert({ user_id: userId, event_id: body.eventId, skipped_date: body.date, ...overrideRow });
+      // 23505 = a concurrent request created the row between our update and
+      // insert — apply the overrides to the winner instead of failing.
+      if (insertErr?.code === '23505') {
+        const { error: retryErr } = await supabase
+          .from('recurring_exceptions')
+          .update(overrideRow)
+          .eq('user_id', userId)
+          .eq('event_id', body.eventId)
+          .eq('skipped_date', body.date);
+        exError = retryErr;
+      } else {
+        exError = insertErr;
+      }
+    }
 
     if (exError) {
-      console.error('[api/event-instances] override upsert failed:', exError.message);
+      console.error('[api/event-instances] override write failed:', exError.message);
       res.status(500).send('Failed to reschedule instance');
       return;
     }
@@ -104,6 +125,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .from('recurring_exceptions')
     .insert({ user_id: userId, event_id: body.eventId, skipped_date: body.date });
 
+  // 23505: the occurrence is already skipped — idempotent success, and no
+  // duplicate audit entry for a skip that didn't happen now.
+  if (exError?.code === '23505') {
+    res.status(200).json({ ok: true });
+    return;
+  }
   if (exError) {
     console.error('[api/event-instances] insert failed:', exError.message);
     res.status(500).send('Failed to skip instance');
