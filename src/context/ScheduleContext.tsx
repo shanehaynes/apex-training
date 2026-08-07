@@ -181,9 +181,15 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     () => allExpanded.map(e => ({ ...e, isCompleted: completedIds.has(e.id) })),
     [allExpanded, completedIds],
   );
-  eventsRef.current = events;
-  baseEventsRef.current = baseEvents;
-  exceptionsRef.current = exceptions;
+
+  // Snapshots for the mutation helpers, written after commit (not during
+  // render, which is unsafe under StrictMode/concurrent rendering). Handlers
+  // only run after effects, so they always see the current values.
+  useEffect(() => {
+    eventsRef.current = events;
+    baseEventsRef.current = baseEvents;
+    exceptionsRef.current = exceptions;
+  }, [events, baseEvents, exceptions]);
 
   // Dev-only agent bridge: compiled out of production builds.
   useEffect(() => {

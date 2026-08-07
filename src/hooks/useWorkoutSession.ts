@@ -67,7 +67,11 @@ export function useWorkoutSession(
   // the visibilitychange flush from re-creating rows after the delete.
   const cancelledRef = useRef(false);
 
-  if (groups) groupsRef.current = groups;
+  // Written after commit, not during render (unsafe under StrictMode). The
+  // autosave timer and finish/cancel handlers fire well after effects run.
+  useEffect(() => {
+    if (groups) groupsRef.current = groups;
+  }, [groups]);
 
   const isFinished = !!session?.finished_at;
 
