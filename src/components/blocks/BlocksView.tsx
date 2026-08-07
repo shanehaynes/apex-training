@@ -81,7 +81,7 @@ export default function BlocksView() {
         <div className="library-header__actions">
           <button
             className="library-edit-btn"
-            data-tour="new-cycle"
+            data-testid="new-cycle"
             onClick={() => setMode({ kind: 'cycle' })}
             title="Lay down a repeating build/recovery cycle"
           >
@@ -89,7 +89,6 @@ export default function BlocksView() {
           </button>
           <button
             className="library-edit-btn"
-            data-tour="new-block"
             onClick={() => setMode({ kind: 'edit', block: null })}
           >
             <Plus size={14} strokeWidth={1.5} /> New block

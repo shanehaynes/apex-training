@@ -279,7 +279,7 @@ export default function CycleEditor({ onClose, onSaved }: { onClose: () => void;
           <span className="block-section__sub">three on, one off by default</span>
         </h3>
 
-        <div className="cycle-cadence" data-tour="cycle-cadence">
+        <div className="cycle-cadence">
           <label className="library-field">
             <span className="library-field__label">Weeks on</span>
             <input
@@ -392,7 +392,7 @@ export default function CycleEditor({ onClose, onSaved }: { onClose: () => void;
           )}
         </h3>
 
-        <div className="cycle-preview" data-tour="cycle-preview">
+        <div className="cycle-preview">
           {preview.error && <p className="cycle-preview__error">{preview.error}</p>}
 
           {conflict && (
