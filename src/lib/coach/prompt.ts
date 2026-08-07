@@ -1,5 +1,8 @@
 import { format, parseISO, startOfWeek, endOfWeek, subWeeks, isWithinInterval } from 'date-fns';
-import { mealCalories, sumDayMacros } from '../nutrition/mapping';
+// .js extension required: this file is in the API's runtime import graph
+// (coachSummary handler), where Node ESM resolution is strict — an
+// extensionless specifier crashes every consolidated function at cold start.
+import { mealCalories, sumDayMacros } from '../nutrition/mapping.js';
 import type { ExerciseDefinition, WorkoutEvent } from '../../types/workout';
 import type { Meal } from '../../types/nutrition';
 import type { BlockPromptSummary } from '../blocks/promptSummary';
