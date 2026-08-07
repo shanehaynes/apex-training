@@ -73,3 +73,9 @@ CREATE INDEX IF NOT EXISTS idx_eml_user_time  ON event_mutations_log (user_id, l
 CREATE INDEX IF NOT EXISTS idx_dml_user_time  ON definition_mutations_log (user_id, logged_at DESC);
 CREATE INDEX IF NOT EXISTS idx_bml_user_time  ON block_mutations_log (user_id, logged_at DESC);
 CREATE INDEX IF NOT EXISTS idx_wcl_user_time  ON workout_completion_log (user_id, logged_at DESC);
+
+-- PostgREST caches table shapes, and merge-duplicates upserts resolve
+-- against the cached PRIMARY KEY — without a reload, writes to
+-- workout_events keep emitting ON CONFLICT (id) and fail with 42P10
+-- until the cache refreshes. Applies to hosted Supabase and local alike.
+NOTIFY pgrst, 'reload schema';

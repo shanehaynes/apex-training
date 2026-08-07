@@ -94,6 +94,13 @@ FROM auth.users
 ON CONFLICT (id) DO NOTHING;
 SQL
 
+# phase25 rewrote the workout_events PK; PostgREST must reload its schema
+# cache before the seeder's merge-duplicates upserts, or they 42P10 against
+# the stale ON CONFLICT (id). The NOTIFY in phase25 already queued a reload —
+# re-notify and give it a beat to settle before writing.
+docker exec -i "$DB_CONTAINER" psql -q -U postgres -d postgres -c "NOTIFY pgrst, 'reload schema';" >/dev/null
+sleep 2
+
 echo "── seeding fixtures"
 node scripts/seed-local.mjs
 
