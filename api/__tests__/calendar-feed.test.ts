@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildIcs } from '../calendar-feed';
+import { buildIcs, foldIcsLine } from '../calendar-feed';
 import type { FeedEventRow, FeedExceptionRow } from '../calendar-feed';
 
 function makeRow(overrides: Partial<FeedEventRow> & Pick<FeedEventRow, 'id' | 'date'>): FeedEventRow {
@@ -121,5 +121,59 @@ describe('buildIcs', () => {
     const lines = unfold(buildIcs([row], []));
     expect(lines).toContain('DTSTART:20260901T234500');
     expect(lines).toContain('DTEND:20260901T001500'); // wraps past midnight (pre-existing behavior)
+  });
+
+  it('a CRLF in a title cannot inject ICS properties', () => {
+    const evil = makeRow({ id: 'x', date: '2026-09-01', title: 'Legit\r\nATTENDEE:mailto:evil@x.y' });
+    const physicalLines = buildIcs([evil], []).split('\r\n');
+    expect(physicalLines.some(l => l.startsWith('ATTENDEE'))).toBe(false);
+  });
+
+  it('a CRLF in an event id cannot inject ICS properties via UID', () => {
+    const evil = makeRow({ id: 'x\r\nATTENDEE:mailto:evil@x.y', date: '2026-09-01' });
+    const physicalLines = buildIcs([evil], []).split('\r\n');
+    expect(physicalLines.some(l => l.startsWith('ATTENDEE'))).toBe(false);
+  });
+
+  it('shifts DTEND by the start delta when only the start time is overridden', () => {
+    const base = makeRow({
+      id: 'climb', date: '2026-09-01', start_time: '6:00 PM', end_time: '8:00 PM',
+      is_recurring: true, recurrence_rule: 'FREQ=WEEKLY;BYDAY=TU;UNTIL=20261231',
+    });
+    const lines = unfold(buildIcs([base], [
+      { event_id: 'climb', skipped_date: '2026-09-08', override_start_time: '7:00 PM' },
+    ]));
+    // The moved one-off keeps its 2h length instead of ending before it starts
+    expect(lines).toContain('DTSTART:20260908T190000');
+    expect(lines).toContain('DTEND:20260908T210000');
+  });
+
+  it('an explicit end override still wins', () => {
+    const base = makeRow({
+      id: 'climb', date: '2026-09-01', start_time: '6:00 PM', end_time: '8:00 PM',
+      is_recurring: true, recurrence_rule: 'FREQ=WEEKLY;BYDAY=TU;UNTIL=20261231',
+    });
+    const lines = unfold(buildIcs([base], [
+      { event_id: 'climb', skipped_date: '2026-09-08', override_start_time: '7:00 PM', override_end_time: '7:30 PM' },
+    ]));
+    expect(lines).toContain('DTEND:20260908T193000');
+  });
+});
+
+describe('foldIcsLine', () => {
+  it('folds at 75 octets, not JS code units, without splitting characters', () => {
+    const line = 'SUMMARY:' + '💪'.repeat(40); // 4 bytes each in UTF-8
+    const folded = foldIcsLine(line);
+    for (const physical of folded.split('\r\n')) {
+      expect(Buffer.byteLength(physical, 'utf8')).toBeLessThanOrEqual(75);
+      // No lone surrogates — every physical line must round-trip UTF-8 cleanly
+      expect(Buffer.from(physical, 'utf8').toString('utf8')).toBe(physical);
+    }
+    // Unfolding restores the original content
+    expect(folded.replace(/\r\n /g, '')).toBe(line);
+  });
+
+  it('leaves short lines untouched', () => {
+    expect(foldIcsLine('BEGIN:VEVENT')).toBe('BEGIN:VEVENT');
   });
 });

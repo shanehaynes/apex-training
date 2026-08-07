@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
+import { enforceRateLimit } from './_lib/rateLimit.js';
 import { parseRRule, serializeRRule, ruleFromLegacyColumns } from '../src/lib/recurrence/index.js';
 import type { RecurrenceRule } from '../src/lib/recurrence/index.js';
 import { parseTimeOfDay } from '../src/lib/time.js';
@@ -30,8 +31,16 @@ export interface FeedExceptionRow {
   override_end_time?: string | null;
 }
 
+// A bare CR (or CRLF) in any interpolated value would end the content line
+// and inject arbitrary ICS properties into the feed, so CR is stripped
+// outright — RFC 5545 text values have no way to express it anyway.
 function escapeIcs(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  return value
+    .replace(/\r/g, '')
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\n/g, '\\n');
 }
 
 // All event datetimes are FLOATING (no Z, no TZID) so they display at the
@@ -50,6 +59,25 @@ function toIcsDate(dateStr: string, timeStr: string | null): string {
 // it is legitimately UTC per RFC 5545.
 function dtstamp(): string {
   return new Date().toISOString().replace(/[-:.]/g, '').slice(0, 15) + 'Z';
+}
+
+/**
+ * End time for a rescheduled occurrence. /api/event-instances allows a
+ * startTime-only override, and keeping the base end_time in that case
+ * produced DTEND ≤ DTSTART whenever the occurrence moved later — so when
+ * only the start moved, the end shifts by the same delta (wrapping past
+ * midnight, matching the estimated_duration DTEND behavior below).
+ */
+function shiftedEndTime(base: FeedEventRow, ex: FeedExceptionRow): string | null {
+  if (ex.override_end_time) return ex.override_end_time;
+  if (!ex.override_start_time || !base.start_time || !base.end_time) return base.end_time;
+  const oldStart = parseTimeOfDay(base.start_time);
+  const newStart = parseTimeOfDay(ex.override_start_time);
+  const oldEnd = parseTimeOfDay(base.end_time);
+  if (!oldStart || !newStart || !oldEnd) return base.end_time;
+  const delta = (newStart.h * 60 + newStart.m) - (oldStart.h * 60 + oldStart.m);
+  const shifted = (((oldEnd.h * 60 + oldEnd.m + delta) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(shifted / 60)).padStart(2, '0')}:${String(shifted % 60).padStart(2, '0')}`;
 }
 
 function parseRuleForEvent(ev: FeedEventRow): RecurrenceRule | null {
@@ -87,7 +115,7 @@ export function buildIcs(events: FeedEventRow[], exceptions: FeedExceptionRow[])
       id:         `${base.id}__${ex.skipped_date}`,
       date:       ex.override_date ?? ex.skipped_date,
       start_time: ex.override_start_time ?? base.start_time,
-      end_time:   ex.override_end_time ?? base.end_time,
+      end_time:   shiftedEndTime(base, ex),
       is_recurring: false,
       recurrence_rule: null,
       recurring_frequency: null,
@@ -132,7 +160,10 @@ export function buildIcs(events: FeedEventRow[], exceptions: FeedExceptionRow[])
     }
 
     lines.push('BEGIN:VEVENT');
-    lines.push(`UID:${uid}`);
+    // Ids are validated on insert (EVENT_ID_PATTERN in api/events.ts), but
+    // pre-validation rows exist — escape anyway so a hostile id can never
+    // break out of the UID line.
+    lines.push(`UID:${escapeIcs(uid)}`);
     lines.push(`DTSTAMP:${stamp}`);
 
     if (hasTime) {
@@ -177,21 +208,30 @@ export function buildIcs(events: FeedEventRow[], exceptions: FeedExceptionRow[])
 
   lines.push('END:VCALENDAR');
 
-  // iCalendar spec: lines must be folded at 75 octets
-  const folded = lines.map(line => {
-    if (line.length <= 75) return line;
-    const chunks: string[] = [];
-    let remaining = line;
-    chunks.push(remaining.slice(0, 75));
-    remaining = remaining.slice(75);
-    while (remaining.length > 0) {
-      chunks.push(' ' + remaining.slice(0, 74));
-      remaining = remaining.slice(74);
-    }
-    return chunks.join('\r\n');
-  });
+  return lines.map(foldIcsLine).join('\r\n');
+}
 
-  return folded.join('\r\n');
+/**
+ * RFC 5545 §3.1: content lines fold at 75 OCTETS (UTF-8 bytes, not JS code
+ * units), and a fold must not split a multi-byte character. Walking by code
+ * point keeps surrogate pairs (emoji in titles) intact.
+ */
+export function foldIcsLine(line: string): string {
+  const chunks: string[] = [];
+  let chunk = '';
+  let budget = 75;
+  for (const ch of line) {
+    const bytes = Buffer.byteLength(ch, 'utf8');
+    if (bytes > budget) {
+      chunks.push(chunk);
+      chunk = ' ';
+      budget = 74; // continuation lines lead with a space
+    }
+    chunk += ch;
+    budget -= bytes;
+  }
+  chunks.push(chunk);
+  return chunks.join('\r\n');
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -209,19 +249,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  // This is the one unauthenticated endpoint — error bodies stay generic
+  // (details go to the server log only), matching every other handler.
   const { data: profile, error: profileErr } = await supabase
     .from('profiles')
     .select('id')
     .eq('ics_token', token)
     .maybeSingle();
   if (profileErr) {
-    res.status(500).send(`Supabase error: ${profileErr.message}`);
+    console.error('[api/calendar-feed] token lookup failed:', profileErr.message);
+    res.status(500).send('Failed to load feed');
     return;
   }
   if (!profile) {
     res.status(401).send('Unknown feed token');
     return;
   }
+
+  // Keyed by the resolved user, so a leaked feed URL can't be used to
+  // hammer the database. (Bad-token guesses never reach this point and are
+  // UUIDv4-hard anyway.)
+  if (!(await enforceRateLimit(supabase, res, profile.id, 'feed'))) return;
 
   const [eventsRes, exceptionsRes] = await Promise.all([
     supabase
@@ -235,12 +283,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .eq('user_id', profile.id),
   ]);
 
-  if (eventsRes.error) {
-    res.status(500).send(`Supabase error: ${eventsRes.error.message}`);
-    return;
-  }
-  if (exceptionsRes.error) {
-    res.status(500).send(`Supabase error: ${exceptionsRes.error.message}`);
+  if (eventsRes.error || exceptionsRes.error) {
+    console.error(
+      '[api/calendar-feed] feed query failed:',
+      eventsRes.error?.message ?? exceptionsRes.error?.message,
+    );
+    res.status(500).send('Failed to load feed');
     return;
   }
 
