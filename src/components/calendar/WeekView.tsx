@@ -7,6 +7,7 @@ import { getWorkoutColor } from '../../utils/workoutColors';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useCalendar } from '../../context/CalendarContext';
 import { timeToMinutes } from '../../lib/time';
+import { layoutDayEvents } from '../../lib/schedule/weekLayout';
 import type { WorkoutEvent } from '../../types/workout';
 
 const HOURS = Array.from({ length: 18 }, (_, i) => i + 5); // 5 AM – 10 PM
@@ -98,37 +99,7 @@ export default function WeekView({ currentDate }: { currentDate: Date }) {
             </div>
             {days.map((day) => {
               const events = getEventsForDate(day).filter(e => e.startTime);
-              // Assign columns to overlapping events
-              const columns: number[] = [];
-              const colCounts: number[] = [];
-              events.forEach((e, i) => {
-                const startA = timeToMinutes(e.startTime!);
-                const endA = startA + e.estimatedDuration;
-                // Find which columns are taken by events that overlap with e
-                const taken = new Set<number>();
-                events.forEach((other, j) => {
-                  if (j >= i) return;
-                  const startB = timeToMinutes(other.startTime!);
-                  const endB = startB + other.estimatedDuration;
-                  if (startA < endB && endA > startB) taken.add(columns[j]);
-                });
-                let col = 0;
-                while (taken.has(col)) col++;
-                columns[i] = col;
-              });
-              // Compute colCount per event: max column index among all events that overlap with it, +1
-              events.forEach((e, i) => {
-                const startA = timeToMinutes(e.startTime!);
-                const endA = startA + e.estimatedDuration;
-                let maxCol = columns[i];
-                events.forEach((other, j) => {
-                  if (i === j) return;
-                  const startB = timeToMinutes(other.startTime!);
-                  const endB = startB + other.estimatedDuration;
-                  if (startA < endB && endA > startB) maxCol = Math.max(maxCol, columns[j]);
-                });
-                colCounts[i] = maxCol + 1;
-              });
+              const { columns, colCounts } = layoutDayEvents(events);
               return (
                 <div key={day.toISOString()} className={`week-view__day-col ${isToday(day) ? 'week-view__day-col--today' : ''}`}
                   style={{ height: HOURS.length * SLOT_HEIGHT }}>
