@@ -1,8 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { getSupabaseAdmin } from './supabaseAdmin.js';
+import { decryptSecret, encryptSecret, hasEncryptionSecret, isEncrypted } from './keyCrypto.js';
 
 // Per-user Anthropic API keys, stored in the server-only user_api_keys
-// table (RLS enabled, no policies — the service role is the only reader).
+// table (RLS enabled, no policies — the service role is the only reader)
+// and encrypted at rest when API_KEY_ENCRYPTION_SECRET is set (keyCrypto).
 //
 // RULE: the raw key leaves this module only via getAnthropicKey, and only
 // into the two AI handlers that construct an Anthropic client with it.
@@ -18,7 +20,25 @@ export async function getAnthropicKey(supabase: Admin, userId: string): Promise<
     .eq('user_id', userId)
     .maybeSingle();
   if (error) throw new Error(`user_api_keys lookup failed: ${error.message}`);
-  return (data?.anthropic_api_key as string | undefined) ?? null;
+  const stored = (data?.anthropic_api_key as string | undefined) ?? null;
+  if (stored === null) return null;
+
+  if (isEncrypted(stored)) {
+    // Throws on a rotated/missing secret — the caller's error path tells
+    // the user to re-save the key rather than pretending none exists.
+    return decryptSecret(stored);
+  }
+
+  // Legacy plaintext row from before the secret was configured: re-encrypt
+  // in place on first read. Best-effort — the plaintext is still returned.
+  if (hasEncryptionSecret()) {
+    const { error: upgradeErr } = await supabase
+      .from('user_api_keys')
+      .update({ anthropic_api_key: encryptSecret(stored), updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
+    if (upgradeErr) console.error('[anthropicKey] legacy key re-encrypt failed:', upgradeErr.message);
+  }
+  return stored;
 }
 
 export function keyLast4(key: string): string {

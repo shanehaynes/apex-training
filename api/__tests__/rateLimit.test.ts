@@ -23,7 +23,7 @@ function makeRes() {
 
 function makeAdmin(state: {
   rpcCount?: number | Error;
-  logCounts?: { events: number; definitions: number; meals?: number } | Error;
+  logCounts?: { events: number; definitions: number; blocks?: number; meals?: number } | Error;
   email?: string | null;
 }): Admin {
   return {
@@ -39,9 +39,11 @@ function makeAdmin(state: {
               if (state.logCounts instanceof Error) return { count: null, error: { message: state.logCounts.message } };
               const count = table === 'event_mutations_log'
                 ? state.logCounts?.events ?? 0
-                : table === 'meal_mutations_log'
-                ? state.logCounts?.meals ?? 0
-                : state.logCounts?.definitions ?? 0;
+                : table === 'definition_mutations_log'
+                  ? state.logCounts?.definitions ?? 0
+                  : table === 'block_mutations_log'
+                    ? state.logCounts?.blocks ?? 0
+                    : state.logCounts?.meals ?? 0;
               return { count, error: null };
             },
           }),
@@ -124,6 +126,16 @@ describe('enforceAiMutationCap', () => {
     const ok = await enforceAiMutationCap(makeAdmin({ logCounts: new Error('boom') }), res, 'u1', 200);
     expect(ok).toBe(true);
     expect(statusCode()).toBeNull();
+  });
+
+  it('counts block mutations toward the cap', async () => {
+    const { res, statusCode } = makeRes();
+    const ok = await enforceAiMutationCap(
+      makeAdmin({ logCounts: { events: 100, definitions: 50, blocks: 51 } }),
+      res, 'u1', 200,
+    );
+    expect(ok).toBe(false);
+    expect(statusCode()).toBe(429);
   });
 
   it('still blocks when the alert email fails', async () => {

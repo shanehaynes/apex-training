@@ -2,6 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
 import { getAnthropicKey, keyLast4, validateAnthropicKey } from '../anthropicKey.js';
+import { encryptSecret, hasEncryptionSecret } from '../keyCrypto.js';
+import { enforceRateLimit } from '../rateLimit.js';
 
 // Profile reads/writes, same posture as every other table: the browser
 // reads profiles via RLS (own row only) and mutates through this
@@ -50,6 +52,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     return;
   }
+
+  // PATCH only — the key path below calls out to Anthropic, and without a
+  // limit this endpoint doubles as a free key-validity oracle for arbitrary
+  // sk-ant-* strings.
+  if (!(await enforceRateLimit(supabase, res, userId, 'writes'))) return;
 
   const body = req.body as {
     display_name?: unknown;
@@ -126,10 +133,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
       }
 
+      if (!hasEncryptionSecret()) {
+        // Deliberately not fatal: a missing env var must not brick key
+        // saves, but every save without it stores plaintext.
+        console.error('[api/profile] API_KEY_ENCRYPTION_SECRET is not set — storing API key UNENCRYPTED');
+      }
+      const stored = hasEncryptionSecret() ? encryptSecret(key) : key;
       const { error } = await supabase
         .from('user_api_keys')
         .upsert(
-          { user_id: userId, anthropic_api_key: key, updated_at: new Date().toISOString() },
+          { user_id: userId, anthropic_api_key: stored, updated_at: new Date().toISOString() },
           { onConflict: 'user_id' },
         );
       if (error) {

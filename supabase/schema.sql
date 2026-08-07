@@ -1,6 +1,17 @@
 -- ============================================================
--- APEX TRAINING — Database Schema
--- Run this in your Supabase project's SQL editor.
+-- APEX TRAINING — Database Schema (phase 0 — FRESH PROJECTS ONLY)
+--
+-- Run this ONCE on a brand-new Supabase project, then apply
+-- supabase/migrations/ in phase order (phase2 → phase3 → … — numeric
+-- order, NOT filename sort, which puts phase10 before phase2).
+--
+-- Do NOT re-run this against an existing database. It describes the
+-- pre-auth phase-0 shape; later migrations (phase3 enables RLS, phase9
+-- adds user_id, phase25 re-keys events) supersede what is below.
+-- Earlier revisions of this file ended with DISABLE ROW LEVEL SECURITY
+-- statements that would have silently stripped RLS from a phase3+
+-- database if re-run — those are gone; RLS state is owned by the
+-- migrations alone.
 -- ============================================================
 
 -- Current completion state (one row per event, upserted on toggle)
@@ -34,11 +45,8 @@ CREATE INDEX IF NOT EXISTS idx_wcl_date  ON workout_completion_log (event_date);
 CREATE INDEX IF NOT EXISTS idx_wcl_type  ON workout_completion_log (event_type);
 CREATE INDEX IF NOT EXISTS idx_wcl_eid   ON workout_completion_log (event_id);
 
--- Disable Row Level Security for now (single-user personal site, no auth yet).
--- When user auth is added: enable RLS, add per-user policies, and move
--- the Supabase client to a Vercel Edge Function using the service-role key.
-ALTER TABLE workout_completions     DISABLE ROW LEVEL SECURITY;
-ALTER TABLE workout_completion_log  DISABLE ROW LEVEL SECURITY;
+-- RLS is left at the Postgres default here (disabled on new tables);
+-- phase3_enable_rls.sql turns it on and adds the policies.
 
 -- ============================================================
 -- PHASE 2: MUTABLE SCHEDULE
@@ -116,7 +124,3 @@ CREATE TABLE IF NOT EXISTS event_mutations_log (
 
 CREATE INDEX IF NOT EXISTS idx_eml_event ON event_mutations_log (event_id);
 CREATE INDEX IF NOT EXISTS idx_eml_date  ON event_mutations_log (logged_at);
-
-ALTER TABLE workout_events      DISABLE ROW LEVEL SECURITY;
-ALTER TABLE recurring_exceptions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE event_mutations_log  DISABLE ROW LEVEL SECURITY;

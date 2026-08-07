@@ -191,8 +191,10 @@ describe.skipIf(!RUN)('api handlers against the local stack', () => {
       query: { id: EVENT_ID },
       body: { fields: { title: 'Hijacked' }, log: { event_title: 'Hijacked' } },
     }), captured.res);
-    // The handler scopes the update by the verified uid — 0 rows affected.
-    expect(captured.statusCode).toBe(200);
+    // The handler scopes the update by the verified uid — 0 rows match, and
+    // since the Track A hardening that's an explicit 404 (previously a
+    // silent 200 that also wrote a phantom audit-log entry).
+    expect(captured.statusCode).toBe(404);
     const { data } = await admin.from('workout_events').select('title').eq('id', EVENT_ID).single();
     expect(data?.title).toBe('Integration Test Lift');
   });

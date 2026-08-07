@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
-import { pickAllowed, EVENT_INSERT_COLUMNS, EVENT_PATCH_COLUMNS } from '../allowlist.js';
+import { pickAllowed, EVENT_INSERT_COLUMNS, EVENT_PATCH_COLUMNS, EVENT_ID_PATTERN } from '../allowlist.js';
 import { enforceAiMutationCap, enforceRateLimit } from '../rateLimit.js';
 import { handleTrainingBlocks } from '../trainingBlocks.js';
 import { handleMeals } from '../meals.js';
@@ -75,6 +75,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(400).send('Missing required event fields');
       return;
     }
+    // Ids reach the ICS feed and occurrence-id composition — enforce the
+    // slug shape here so a CRLF or oversized id never lands in the table.
+    if (!EVENT_ID_PATTERN.test(row.id)) {
+      res.status(400).send('Invalid event id — use letters, digits, hyphens, underscores (max 128)');
+      return;
+    }
+    if (row.title.length > 300) {
+      res.status(400).send('Event title is too long');
+      return;
+    }
     const triggeredBy = triggered_by === 'user' || triggered_by === 'ai' ? triggered_by : undefined;
 
     // Requests not explicitly user-triggered count against the daily AI cap
@@ -126,15 +136,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const { error } = await supabase
+    // .select('id') exposes the affected rows: Supabase reports no error on
+    // a 0-row update, which used to return 200 and write a phantom audit
+    // entry for someone else's (or a mistyped) id.
+    const { data: updated, error } = await supabase
       .from('workout_events')
       .update({ ...picked, updated_at: new Date().toISOString() })
       .eq('id', id)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .select('id');
 
     if (error) {
       console.error('[api/events] update failed:', error.message);
       res.status(500).send('Failed to update event');
+      return;
+    }
+    if (!updated || updated.length === 0) {
+      res.status(404).send('Event not found');
       return;
     }
 
@@ -148,10 +166,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (body?.log?.triggered_by !== 'user' && !(await enforceAiMutationCap(supabase, res, userId))) return;
 
-    const { error } = await supabase.from('workout_events').delete().eq('id', id).eq('user_id', userId);
+    const { data: deleted, error } = await supabase
+      .from('workout_events')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select('id');
     if (error) {
       console.error('[api/events] delete failed:', error.message);
       res.status(500).send('Failed to delete event');
+      return;
+    }
+    if (!deleted || deleted.length === 0) {
+      res.status(404).send('Event not found');
       return;
     }
 

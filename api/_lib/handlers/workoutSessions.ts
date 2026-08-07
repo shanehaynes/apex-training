@@ -1,6 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
+import {
+  pickAllowed,
+  SET_LOG_COLUMNS,
+  CARDIO_LOG_COLUMNS,
+  SERVER_STAMPED_COLUMNS,
+} from '../allowlist.js';
+import { enforceRateLimit } from '../rateLimit.js';
 import type { CardioLogRow, SetLogRow, TrackedSection } from '../../../src/lib/db/types.js';
 
 // Single endpoint for the workout tracker's writes, discriminated by
@@ -34,6 +41,68 @@ interface Body {
 const SET_LOG_CONFLICT = 'user_id,event_id,event_date,section,exercise_id,set_number';
 const CARDIO_CONFLICT = 'user_id,event_id,event_date,section,exercise_id';
 
+// Far above any real workout (a heavy session logs well under 100 sets),
+// low enough that one request can't insert an unbounded batch.
+const MAX_BATCH_ROWS = 500;
+
+const SECTIONS: ReadonlySet<string> = new Set(['warmup', 'exercise', 'cooldown']);
+
+/**
+ * Allowlist + identity-check one batch of set/cardio rows. SetLogRow /
+ * CardioLogRow are compile-time types only — any authenticated caller can
+ * post arbitrary JSON here, so the shape has to be enforced at runtime:
+ * unknown columns are rejected (row ids and updated_at are server-owned)
+ * and the conflict-target fields must be present and sane. Returns the
+ * cleaned rows or sends the 400 itself and returns null.
+ */
+function prepareLogRows(
+  res: VercelResponse,
+  rows: unknown,
+  columns: ReadonlySet<string>,
+  label: string,
+  requireSetNumber: boolean,
+): Record<string, unknown>[] | null {
+  if (rows === undefined) return [];
+  if (!Array.isArray(rows)) {
+    res.status(400).send(`${label} must be an array`);
+    return null;
+  }
+  if (rows.length > MAX_BATCH_ROWS) {
+    res.status(400).send(`${label} cannot exceed ${MAX_BATCH_ROWS} rows`);
+    return null;
+  }
+
+  const prepared: Record<string, unknown>[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const raw = rows[i];
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+      res.status(400).send(`${label}[${i}] is not an object`);
+      return null;
+    }
+    const { picked, rejected } = pickAllowed(raw as Record<string, unknown>, columns, SERVER_STAMPED_COLUMNS);
+    if (rejected.length > 0) {
+      console.error(`[api/workout-sessions] ${label} rejected unknown fields:`, rejected.join(', '));
+      res.status(400).send(`${label}[${i}] has unknown fields: ${rejected.join(', ')}`);
+      return null;
+    }
+    if (
+      typeof picked.event_id !== 'string' ||
+      typeof picked.event_date !== 'string' ||
+      typeof picked.exercise_id !== 'string' ||
+      !SECTIONS.has(picked.section as string)
+    ) {
+      res.status(400).send(`${label}[${i}] is missing event_id, event_date, exercise_id, or a valid section`);
+      return null;
+    }
+    if (requireSetNumber && !Number.isInteger(picked.set_number)) {
+      res.status(400).send(`${label}[${i}] needs an integer set_number`);
+      return null;
+    }
+    prepared.push(picked);
+  }
+  return prepared;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.status(405).send('Method not allowed');
@@ -48,6 +117,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const userId = await requireUser(req, res);
   if (!userId) return;
+
+  // Its own generous bucket, not 'writes': tracker autosave fires on a
+  // debounce throughout a session and would starve event edits of quota.
+  if (!(await enforceRateLimit(supabase, res, userId, 'tracker'))) return;
 
   const body = req.body as Body | undefined;
   if (!body?.action || !body.eventId || !body.eventDate) {
@@ -88,18 +161,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── save: idempotent upsert of everything the client touched ──────────────
   if (body.action === 'save') {
+    const setLogs = prepareLogRows(res, body.setLogs, SET_LOG_COLUMNS, 'setLogs', true);
+    if (!setLogs) return;
+    const cardioLogs = prepareLogRows(res, body.cardioLogs, CARDIO_LOG_COLUMNS, 'cardioLogs', false);
+    if (!cardioLogs) return;
+    if ((body.removedSets?.length ?? 0) > MAX_BATCH_ROWS) {
+      res.status(400).send(`removedSets cannot exceed ${MAX_BATCH_ROWS} rows`);
+      return;
+    }
+
     const now = new Date().toISOString();
     const ops: PromiseLike<{ error: { message: string } | null }>[] = [];
 
-    if (body.setLogs?.length) {
+    if (setLogs.length) {
       ops.push(supabase
         .from('workout_set_logs')
-        .upsert(body.setLogs.map(r => ({ ...r, user_id: userId, updated_at: now })), { onConflict: SET_LOG_CONFLICT }));
+        .upsert(setLogs.map(r => ({ ...r, user_id: userId, updated_at: now })), { onConflict: SET_LOG_CONFLICT }));
     }
-    if (body.cardioLogs?.length) {
+    if (cardioLogs.length) {
       ops.push(supabase
         .from('workout_cardio_logs')
-        .upsert(body.cardioLogs.map(r => ({ ...r, user_id: userId, updated_at: now })), { onConflict: CARDIO_CONFLICT }));
+        .upsert(cardioLogs.map(r => ({ ...r, user_id: userId, updated_at: now })), { onConflict: CARDIO_CONFLICT }));
     }
     for (const key of body.removedSets ?? []) {
       ops.push(supabase
@@ -126,6 +208,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── finish: stamp duration + zero-fill planned sets never logged ──────────
   if (body.action === 'finish') {
+    // Validate before any write so a bad batch can't leave the session
+    // half-finished (stamped but with its zero-fills rejected).
+    const autofillRows = prepareLogRows(res, body.autofillRows, SET_LOG_COLUMNS, 'autofillRows', true);
+    if (!autofillRows) return;
+
     const { data: session, error: sessionErr } = await supabase
       .from('workout_sessions')
       .select('*')
@@ -161,11 +248,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // ignoreDuplicates: a set logged between the client building the
     // autofill list and this request landing is never overwritten with zeros.
-    if (body.autofillRows?.length) {
+    if (autofillRows.length) {
       const { error: fillErr } = await supabase
         .from('workout_set_logs')
         .upsert(
-          body.autofillRows.map(r => ({ ...r, user_id: userId, is_autofilled: true })),
+          autofillRows.map(r => ({ ...r, user_id: userId, is_autofilled: true })),
           { onConflict: SET_LOG_CONFLICT, ignoreDuplicates: true },
         );
       if (fillErr) {
@@ -183,6 +270,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (body.action === 'summary') {
     if (typeof body.coachSummary !== 'string' || !body.coachSummary.trim()) {
       res.status(400).send('Missing coachSummary');
+      return;
+    }
+    if (body.coachSummary.length > 20_000) {
+      res.status(400).send('coachSummary is too long');
       return;
     }
     const { error: summaryErr } = await supabase
@@ -205,6 +296,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Every upsert ignores duplicates, so anything hand-logged — including a
   // partially tracked session — is never overwritten.
   if (body.action === 'quick-complete') {
+    const setLogs = prepareLogRows(res, body.setLogs, SET_LOG_COLUMNS, 'setLogs', true);
+    if (!setLogs) return;
+    const cardioLogs = prepareLogRows(res, body.cardioLogs, CARDIO_LOG_COLUMNS, 'cardioLogs', false);
+    if (!cardioLogs) return;
+
+    // A 400 beats the opaque 500 that Infinity/NaN produces at the DB. A
+    // week is far beyond any recommended session length.
+    if (body.durationSeconds !== undefined &&
+        (typeof body.durationSeconds !== 'number' ||
+         !Number.isFinite(body.durationSeconds) ||
+         body.durationSeconds < 0 ||
+         body.durationSeconds > 7 * 24 * 3600)) {
+      res.status(400).send('durationSeconds must be a finite number of seconds');
+      return;
+    }
+
     const now = new Date().toISOString();
 
     const { error: sessionErr } = await supabase
@@ -238,19 +345,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const ops: PromiseLike<{ error: { message: string } | null }>[] = [];
-    if (body.setLogs?.length) {
+    if (setLogs.length) {
       ops.push(supabase
         .from('workout_set_logs')
         .upsert(
-          body.setLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })),
+          setLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })),
           { onConflict: SET_LOG_CONFLICT, ignoreDuplicates: true },
         ));
     }
-    if (body.cardioLogs?.length) {
+    if (cardioLogs.length) {
       ops.push(supabase
         .from('workout_cardio_logs')
         .upsert(
-          body.cardioLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })),
+          cardioLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })),
           { onConflict: CARDIO_CONFLICT, ignoreDuplicates: true },
         ));
     }
