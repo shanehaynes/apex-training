@@ -3,6 +3,7 @@ import { slugifyName } from '../../src/lib/schedule/definitions';
 import { baseIdOf } from '../../src/lib/schedule/occurrence';
 import type { ExerciseDefinition, WorkoutEvent } from '../../src/types/workout';
 import type { CreateEventInput } from '../../src/lib/schedule/types';
+import type { Meal } from '../../src/types/nutrition';
 
 // In-memory CoachToolDeps: the real executors from src/lib/coach/tools.ts run
 // against this state, so tool_result strings (including validation errors the
@@ -16,18 +17,23 @@ export interface MemoryState {
   events: WorkoutEvent[];
   definitions: Map<string, ExerciseDefinition>;
   createdDefinitionNames: string[];
+  /** Same array instance as deps.meals — mutated in place so both stay live. */
+  meals: Meal[];
 }
 
 export function createMemoryDeps(
   initialEvents: WorkoutEvent[],
   initialDefinitions: ExerciseDefinition[],
+  initialMeals: Meal[] = [],
 ): { deps: CoachToolDeps; state: MemoryState } {
   const state: MemoryState = {
     events: initialEvents.map(e => ({ ...e })),
     definitions: new Map(initialDefinitions.map(d => [d.id, { ...d }])),
     createdDefinitionNames: [],
+    meals: initialMeals.map(m => ({ ...m })),
   };
   let eventCounter = 0;
+  let mealCounter = 0;
 
   const deps: CoachToolDeps = {
     async createEvent(input: CreateEventInput) {
@@ -118,6 +124,35 @@ export function createMemoryDeps(
         def.aliases = [...def.aliases, def.canonicalName];
       }
       Object.assign(def, fields);
+      return true;
+    },
+
+    meals: state.meals,
+
+    async createMeal(input) {
+      // Mirror the createEvent guard: rows the production API would reject
+      // (NOT NULL title/date) fail here too, so the executor returns its
+      // "Failed to log the meal." path.
+      if (!input.title || !input.date) return null;
+      mealCounter += 1;
+      const id = `meal-ai-${mealCounter}`;
+      const { triggeredBy: _triggeredBy, ...fields } = input;
+      state.meals.push({ ...fields, id });
+      return { id };
+    },
+
+    async updateMeal({ id, fields }) {
+      const meal = state.meals.find(m => m.id === id);
+      if (!meal) return false;
+      Object.assign(meal, fields);
+      return true;
+    },
+
+    async deleteMeal(id) {
+      const index = state.meals.findIndex(m => m.id === id);
+      if (index === -1) return false;
+      // Splice, not filter: deps.meals and state.meals share this array.
+      state.meals.splice(index, 1);
       return true;
     },
   };

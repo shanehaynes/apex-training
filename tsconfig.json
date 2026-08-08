@@ -4,10 +4,7 @@
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.api.json" },
     { "path": "./tsconfig.e2e.json" },
-    { "path": "./tsconfig.node.json" }
+    { "path": "./tsconfig.node.json" },
+    { "path": "./evals/tsconfig.json" }
   ]
-  // evals/tsconfig.json is deliberately NOT referenced yet: evals/src has one
-  // type error (memoryDeps.ts missing the meal CoachToolDeps), and evals/src
-  // is Track D territory. Once Track D fixes it, add the reference here and
-  // the `npx tsc -p evals/tsconfig.json` check joins `tsc -b` for free.
 }

@@ -83,6 +83,45 @@ describe('createMemoryDeps + real executors', () => {
     expect(state.events).toHaveLength(0);
   });
 
+  it('log_meal, update_meal, and delete_meal mutate fixture state', async () => {
+    const { deps, state } = createMemoryDeps([], loadLibrary());
+    const logged = await findCoachTool('log_meal')!.execute({
+      title: 'Chicken Bowl', date: '2026-08-08', protein_g: 45, carbs_g: 60, fat_total_g: 18,
+    }, deps);
+    expect(logged).toContain('Logged "Chicken Bowl" on 2026-08-08 [meal-ai-1]');
+    expect(state.meals).toHaveLength(1);
+
+    const updated = await findCoachTool('update_meal')!.execute({
+      meal_id: 'meal-ai-1', meal_title: 'Chicken Bowl', changes: { protein_g: 50 },
+    }, deps);
+    expect(updated).toContain('Updated the meal successfully');
+    expect(state.meals[0].proteinG).toBe(50);
+
+    const deleted = await findCoachTool('delete_meal')!.execute({
+      meal_id: 'meal-ai-1', meal_title: 'Chicken Bowl',
+    }, deps);
+    expect(deleted).toContain('Deleted the meal successfully');
+    expect(state.meals).toHaveLength(0);
+    // deps.meals shares the array instance — the executor's next lookup sees the delete.
+    expect(deps.meals).toHaveLength(0);
+  });
+
+  it('update_meal validates the merged fat split, exactly like production', async () => {
+    const { deps } = createMemoryDeps([], loadLibrary(), [{
+      id: 'meal-1', title: 'Salmon Plate', date: '2026-08-08',
+      fatTotalG: 20, fatSaturatedG: 4, notes: '',
+    }]);
+    const result = await findCoachTool('update_meal')!.execute({
+      meal_id: 'meal-1', meal_title: 'Salmon Plate', changes: { fat_saturated_g: 25 },
+    }, deps);
+    expect(result).toContain('fat_total_g must be at least');
+
+    const missing = await findCoachTool('update_meal')!.execute({
+      meal_id: 'meal-nope', meal_title: 'Salmon Plate', changes: { calories: 500 },
+    }, deps);
+    expect(missing).toContain('No logged meal with id "meal-nope"');
+  });
+
   it('update_exercise_definition renames preserve the old name as an alias', async () => {
     const { deps, state } = createMemoryDeps([], loadLibrary());
     const result = await findCoachTool('update_exercise_definition')!.execute({
