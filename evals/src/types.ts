@@ -1,22 +1,20 @@
 import type { ExerciseDefinition, WorkoutEvent } from '../../src/types/workout';
+import type { Meal } from '../../src/types/nutrition';
+import type { BlockPromptSummary } from '../../src/lib/blocks/promptSummary';
+import type { ApiMessage, TextBlock, ToolResultBlock } from '../../src/lib/coach/actionQueue';
+import type { WireToolUse } from '../../src/lib/coach/wire';
 
-// Core types for the coach eval harness. The harness mirrors useChat.ts
-// exactly: one confirmed tool call per user turn, tools disabled on the
-// post-confirm re-stream, thinking blocks dropped from history.
+// Core types for the coach eval harness. The harness mirrors useChat.ts +
+// actionQueue.ts: every tool_use in a response is confirmed in order, the
+// results flush as ONE tool_result user message, tools are disabled on the
+// post-confirm re-stream, and thinking blocks are dropped from history.
 
-// ─── Conversation wire shapes (mirror useChat.ts) ────────────────────────────
+// ─── Conversation wire shapes ────────────────────────────────────────────────
+// Re-exported from the production modules so the harness cannot drift from
+// the shapes useChat.ts actually sends.
 
-export type TextBlock = { type: 'text'; text: string };
-export type ToolUseBlock = { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> };
-export type ToolResultBlock = { type: 'tool_result'; tool_use_id: string; content: string };
-
-export type ApiMessage = {
-  role: 'user';
-  content: string | ToolResultBlock[];
-} | {
-  role: 'assistant';
-  content: string | Array<TextBlock | ToolUseBlock>;
-};
+export type { ApiMessage, TextBlock, ToolResultBlock };
+export type ToolUseBlock = WireToolUse;
 
 // ─── Model abstraction ───────────────────────────────────────────────────────
 
@@ -53,6 +51,10 @@ export interface EvalCase {
     /** Defaults to the full 69-entry library. */
     definitions?: ExerciseDefinition[];
     athlete?: { goal?: string; context?: string };
+    /** Active training block — exercises prompt.ts's blockSection. */
+    block?: BlockPromptSummary | null;
+    /** Logged meals — today's render into the prompt's <meals> section. */
+    meals?: Meal[];
   };
   script: ScriptStep[];
   expect: {
@@ -114,6 +116,7 @@ export interface HarnessResult {
   toolCalls: RecordedToolCall[];
   finalEvents: WorkoutEvent[];
   finalDefinitions: ExerciseDefinition[];
+  finalMeals: Meal[];
   createdDefinitionNames: string[];
   anomalies: string[];
   usage: { inputTokens: number; outputTokens: number };
@@ -166,7 +169,9 @@ export interface RunResult {
   model: string;
   judgeModel: string;
   gitCommit: string;
-  /** sha256 of src/lib/coach/prompt.ts — detects prompt drift between runs. */
+  /** sha256 over the coach behavior surface (prompt.ts, schemas.ts, tools.ts,
+   *  model.ts) — detects drift between runs; schema/executor edits change
+   *  coach behavior as much as prompt edits do. */
   promptFileHash: string;
   cases: CaseResult[];
   aggregate: {

@@ -10,8 +10,8 @@ import type { Meal } from '../../src/types/nutrition';
 // model must recover from) are byte-identical to production. One deliberate
 // divergence from the app: createDefinition inserts into the map
 // synchronously, so entryFromDefinition resolves on the same call (the app has
-// an async gap — tools.ts:121 — and falls back to building the entry inline;
-// the resulting event entries are equivalent).
+// an async gap — see buildExerciseEntries in tools.ts — and falls back to
+// building the entry inline; the resulting event entries are equivalent).
 
 export interface MemoryState {
   events: WorkoutEvent[];
