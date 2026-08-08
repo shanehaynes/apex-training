@@ -13,7 +13,7 @@ A personal training calendar, workout tracker, and AI coach — one app for plan
 
 ## Overview
 
-Apex Training is a single-user web app: a React SPA served by Vercel, with a thin layer of serverless functions in [`api/`](api/) in front of a Supabase Postgres database. The browser reads with the anon key under SELECT-only RLS policies; every write goes through the API layer, which holds the service-role key. AI calls (chat and coach summaries) are proxied through the same API layer so the Anthropic key never reaches the browser.
+Apex Training is a small multi-user web app (invite-only, a handful of accounts): a React SPA served by Vercel, with a thin layer of serverless functions in [`api/`](api/) in front of a Supabase Postgres database. Every table is under per-user RLS — a signed-in browser reads only its own rows, and an unauthenticated one gets zero rows from every table. Writes all go through the API layer, which holds the service-role key and checks the caller's JWT. AI calls (chat and coach summaries) are proxied through the same API layer, on **each user's own Anthropic key**, stored server-side and encrypted at rest — no Anthropic key ever reaches the browser.
 
 The guiding design principle: **deterministic data is computed client-side; the AI narrates, it never derives.** Personal records, completion rates, and schedule state are calculated by pure, unit-tested modules in [`src/lib/`](src/lib/) — the coach is handed pre-computed facts and told not to invent others.
 
@@ -37,19 +37,28 @@ The tracker: planned targets, previous-session values (tap to fill), and free-te
 
 ```
 src/
-  components/        # presentational React (calendar, tracker, modal, chat, layout)
-  context/           # React state distribution only (CalendarContext, ScheduleContext)
+  components/        # presentational React (calendar, tracker, modal, chat, auth, profile)
+  context/           # React state distribution only (Auth, Schedule, Calendar, Blocks, Meals)
   hooks/             # useChat (NDJSON streaming), useWorkoutSession (tracker lifecycle)
   lib/               # pure, unit-tested domain logic
     recurrence/      #   RRULE parse/validate/serialize/expand
     schedule/        #   event expansion, row mapping, occurrence ids
     tracking/        #   tracker model, PR detection, session data access
-    coach/           #   system prompt, tool registry, wire protocol
+    coach/           #   system prompt, tool registry, wire protocol, model.ts
     blocks/          #   training blocks: periods, targets vs. actuals, cycles
+    nutrition/       #   meal parsing and macro rollups
+    review/          #   period stats + recap copy for the review emails
     db/              #   row types shared with api/ (single source of truth)
-api/                 # Vercel serverless functions (service-role writes, AI proxy)
-supabase/            # schema.sql + ordered migrations
+api/                 # 4 Vercel serverless functions (service-role writes, AI proxy)
+  [...path].ts       #   catch-all: Hono router (_lib/app.ts) → _lib/handlers/*
+  chat.ts            #   standalone: streaming coach chat
+  review-cron.ts     #   standalone: daily review-email cron
+  calendar-feed.ts   #   standalone: per-user ICS feed
+supabase/            # schema.sql + ordered phaseN migrations
+evals/               # adversarial eval suite for the coach (see evals/README.md)
 ```
+
+Only root-level `api/*.ts` files become Vercel serverless functions, and the repo deliberately keeps that at **four** — everything else routes through `[...path].ts` into [`api/_lib/handlers/`](api/_lib/handlers/). CI fails if a fifth appears (see the function-count guard in [ci.yml](.github/workflows/ci.yml)); new endpoints belong behind the router, not at the root.
 
 | Endpoint | Purpose |
 |----------|---------|
@@ -57,14 +66,19 @@ supabase/            # schema.sql + ordered migrations
 | `POST /api/event-instances` | Skip one occurrence of a recurring event |
 | `POST /api/completions` | Completion toggles + history log |
 | `POST /api/workout-sessions` | Tracker writes: start / save / finish / cancel / summary |
-| `POST/PATCH/DELETE /api/events?resource=block\|objective` | Objectives & training blocks (weekly targets, non-overlapping Monday-aligned ranges) |
-| `POST /api/chat` | Streams the coach chat (NDJSON) via Claude, server-side key |
+| `POST/PATCH/DELETE /api/blocks`, `/api/objectives` | Training blocks (weekly targets, non-overlapping Monday-aligned ranges) & objectives |
+| `POST/PATCH/DELETE /api/meals`, `POST/DELETE /api/meal-favorites` | Meal logging and saved favorites |
+| `POST/PATCH /api/exercise-definitions` | Exercise library writes (reads come from Supabase directly) |
+| `GET/PATCH /api/profile` | Profile, coach fields, and the per-user Anthropic key |
+| `POST /api/template-copy` | Seed a new account from the template user's recurring workouts |
+| `GET /api/mutations-log` | Append-only mutation history |
+| `POST /api/chat` | Streams the coach chat (NDJSON) via Claude, per-user key |
 | `POST /api/coach-summary` | One-shot post-workout summary |
-| `GET /api/calendar-feed` | ICS feed with RRULEs and EXDATEs (floating local times) |
+| `GET /api/calendar-feed` | Per-user tokened ICS feed with RRULEs and EXDATEs (floating local times) |
 
 ## 🚀 Getting started
 
-You'll need **Node 20+**, a [Supabase](https://supabase.com) project, and an [Anthropic API key](https://console.anthropic.com/settings/keys).
+You'll need **Node 20+** (CI runs 22) and a [Supabase](https://supabase.com) project. An [Anthropic API key](https://console.anthropic.com/settings/keys) is needed for the coach, but it isn't an env var — each user saves their own in the app (see below).
 
 ```bash
 npm install
@@ -79,10 +93,12 @@ cp .env.example .env.local   # then fill in the values
 | `CRON_SECRET` | server only | bearer token guarding `/api/review-cron` (Vercel sends it on cron runs) |
 | `GMAIL_USER` | server only | Gmail address review emails are sent from (also the From) |
 | `GMAIL_APP_PASSWORD` | server only | 16-char [app password](https://myaccount.google.com/apppasswords) for that account (needs 2-Step Verification on) |
+| `API_KEY_ENCRYPTION_SECRET` | server only | encrypts stored per-user Anthropic keys at rest (AES-256-GCM, [`api/_lib/keyCrypto.ts`](api/_lib/keyCrypto.ts)). Any long random string — `openssl rand -base64 32`. Leave it unset and keys are stored in plaintext, with a loud server-log warning on every save; set it later and existing rows are re-encrypted on first read. Rotating it invalidates saved keys (users just re-save) |
+| `SEED_SOURCE_USER_ID` | server only | the account whose recurring workouts seed new users via `/api/template-copy`; falls back to the `profiles` row with `is_template_source = true` |
 
-The AI coach runs on each user's own Anthropic API key, saved in-app under Profile → AI Coach (stored server-side, never exposed to the browser).
+There is **no `ANTHROPIC_API_KEY`** — the coach runs on each user's own Anthropic key, saved in-app under Profile → AI Coach, verified against Anthropic on save and stored server-side (the browser only ever sees the last 4 characters).
 
-**Database:** run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor, then the files in [`supabase/migrations/`](supabase/migrations/) in filename order (phase2 → phase19).
+**Database:** run [`supabase/schema.sql`](supabase/schema.sql) once on a fresh project, then the files in [`supabase/migrations/`](supabase/migrations/) in **numeric** phase order — phase2 → phase25, *not* filename sort, which puts phase10 before phase2. [`scripts/db-reset-local.sh`](scripts/db-reset-local.sh) does this for a local stack by globbing `phase*.sql` through `sort -V`, so new migrations must keep the `phaseN_*.sql` naming to be picked up. **Next free number: phase26.**
 
 **Run it:**
 
@@ -111,14 +127,32 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
 
 Drop `dryRun=1` to actually generate and send that period; the normal daily run needs no parameters.
 
+## 🤖 How the coach is wired
+
+Notes that are easy to get wrong when editing the AI path:
+
+- **The model id lives in exactly one place:** `COACH_MODEL` in [`src/lib/coach/model.ts`](src/lib/coach/model.ts). `api/chat.ts`, the coach-summary handler, `REVIEW_MODEL`, the chat sidebar's badge, and the eval suite's production arm all import it. A model bump is a one-line change there — never edit model strings in `api/chat.ts`, `coachSummary.ts`, `recap.ts`, or `evals/src/models.ts`.
+- **Prompt caching:** [`api/chat.ts`](api/chat.ts) sets three `ephemeral` cache breakpoints (last tool schema, system block, final message block), so each turn re-reads the tools, system prompt, and prior conversation prefix at cache-read pricing. Anything that perturbs those prefixes silently invalidates the cache — watch `usage.cache_read_input_tokens` in production after changing them.
+- **Aborts propagate upstream:** the response's `close` event trips an `AbortController` passed to `client.messages.stream()`, so hitting Stop (or closing the tab) cancels the Anthropic generation instead of letting it bill to completion.
+- **Confirmation cards resolve ids against live state.** The card labels come from looking the model-supplied `event_id`/`meal_id` up in current app state, not from the model's prose; an id that resolves to nothing is surfaced as such on the card. The `*_title` fields in the tool schemas still exist and the model still fills them, but they are display fallbacks only (used when there's no tool context — queued stream-time labels and evals). Confirm is latched synchronously by a ref, so a double-click cannot run an executor twice.
+
 ## 🧑‍💻 Development
 
 ```bash
-npm run dev        # dev server
-npm test           # vitest — pure-logic suites in src/lib + api handler tests
-npm run lint       # oxlint
-npm run build      # tsc -b + vite build
+npm run dev          # dev server
+npm test             # vitest — pure-logic suites in src/lib + api handler tests
+npm run e2e          # playwright, mock project (all writes stubbed)
+npm run lint         # oxlint
+npm run build        # tsc -b + vite build
+npm run agent:check  # the pre-push gate: tsc -b && vitest && playwright --project=mock
+npm run eval         # coach eval suite (needs ANTHROPIC_API_KEY) — see evals/README.md
 ```
+
+`tsc -b` builds **five** strict projects — app, node, api, e2e, and `evals/` — all referenced from the root [tsconfig.json](tsconfig.json), so the eval harness is typechecked in CI like everything else. Run `npm run agent:check` before pushing.
+
+[CI](.github/workflows/ci.yml) runs three jobs on every push and PR: **check** (build, unit tests, lint, a guard that fails if `api/` grows a fifth root-level function, and `npm audit --omit=dev --audit-level=high` on production deps), **e2e-mock** (Playwright against stubbed writes), and **full** (a real local Supabase stack: handler integration tests with real JWTs and RLS, plus live e2e). Dependabot ([dependabot.yml](.github/dependabot.yml)) batches weekly minor/patch updates into one PR per ecosystem and keeps majors and security fixes separate.
+
+Two e2e invariants worth knowing before you touch the suite: the mock project's clock is **pinned to 2026-09-07** (`fakeNow` in [playwright.config.ts](playwright.config.ts)) because the bundled seed schedule only covers a fixed date range — the live project has no pin, since its rows are seeded off the real clock. And skips are enforced: [`e2e/lib/skipReporter.ts`](e2e/lib/skipReporter.ts) fails CI on any skip not listed in `EXPECTED_CI_SKIPS`, so a test that quietly stops running is a build failure rather than a green check.
 
 The domain logic (recurrence expansion, tracker model synthesis, PR detection, occurrence ids, chat wire protocol, tool dispatch) is deliberately React-free and covered by the test suite — start there when changing behavior. UI changes can be verified headlessly with the driver in `.claude/skills/run-apex-training/`, which runs the app against a stubbed backend and screenshots the calendar and tracker flows.
 

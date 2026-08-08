@@ -27,8 +27,9 @@ import type {
 // ─── Review stats aggregation ─────────────────────────────────────────────────
 // Pure, deterministic rollups over the tracking logs. Every number in a
 // review email is computed here — the AI narrates these facts, it never
-// derives them (see AGENTS.md). Parsing of free-text tracker values reuses
-// src/lib/tracking/records.ts so review numbers match what the tracker shows.
+// derives them (the guiding design principle, see README.md). Parsing of
+// free-text tracker values reuses src/lib/tracking/records.ts so review
+// numbers match what the tracker shows.
 
 export function buildReviewPeriod(periodType: PeriodType, isoYear: number, monthIndex?: number): ReviewPeriod {
   if (periodType === 'month') {
