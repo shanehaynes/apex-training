@@ -42,13 +42,62 @@ export interface CoachToolDeps {
 }
 
 /**
- * Live app state for confirmation-card labels — lets a label state its blast
- * radius ("affects 14 workouts") and flag new library entries. Optional:
- * labels degrade gracefully without it.
+ * Live app state for confirmation-card labels — lets a label resolve the
+ * model-supplied event_id/meal_id against real rows (so the card names what
+ * will actually change, not what the model claims), state its blast radius
+ * ("affects 14 workouts"), and flag new library entries. Optional: labels
+ * degrade gracefully without it.
  */
 export interface CoachToolContext {
   definitions: Map<string, ExerciseDefinition>;
   events: WorkoutEvent[];
+  meals: Meal[];
+}
+
+// ─── Confirmation-card target resolution ─────────────────────────────────────
+//
+// The model supplies event_title / meal_title fields alongside the id, but
+// those are model-controlled text: nothing stops a tool call from pairing a
+// rest day's id with a workout's title. When live context is available the
+// card label therefore comes from the row the id actually resolves to, and an
+// id that resolves to nothing is surfaced as such instead of trusting the
+// claimed title. The model-text fallback only applies without ctx (the queue's
+// stream-time label in actionQueue.ts, and the eval harness).
+
+/**
+ * The event an id refers to: exact match first; a base id falls back to its
+ * expanded occurrences (ctx.events holds `base__date` rows for recurring
+ * series, preferring one on `date` when given); an out-of-window occurrence
+ * id falls back to its base row.
+ */
+function resolveEvent(ctx: CoachToolContext | undefined, id: unknown, date?: unknown): WorkoutEvent | undefined {
+  if (!ctx || typeof id !== 'string') return undefined;
+  const exact = ctx.events.find(e => e.id === id);
+  if (exact) return exact;
+  const occurrences = ctx.events.filter(e => baseIdOf(e.id) === id);
+  if (occurrences.length) {
+    return (typeof date === 'string' && occurrences.find(e => e.date === date)) || occurrences[0];
+  }
+  return ctx.events.find(e => e.id === baseIdOf(id));
+}
+
+function resolveMeal(ctx: CoachToolContext | undefined, id: unknown): Meal | undefined {
+  if (!ctx || typeof id !== 'string') return undefined;
+  return ctx.meals.find(m => m.id === id);
+}
+
+function unresolvedTarget(id: unknown): string {
+  return `(no matching entry for id "${String(id)}")`;
+}
+
+/** "date → 2026-08-09, clear location" — the actual new values, not just keys. */
+function describeChanges(changes: unknown): string {
+  return Object.entries((changes as Record<string, unknown>) ?? {})
+    .map(([key, value]) => {
+      if (value === null || value === undefined) return `clear ${key}`;
+      return `${key} → ${typeof value === 'object' ? JSON.stringify(value) : String(value)}`;
+    })
+    .join(', ');
 }
 
 export interface CoachToolDef {
@@ -153,9 +202,12 @@ function describeCreated(created: string[]): string {
 
 const deleteEventTool: CoachToolDef = {
   schema: deleteEventSchema,
-  displayLabel(input) {
+  displayLabel(input, ctx) {
     const scope = input.scope === 'instance' ? '(this instance)' : '(entire series)';
-    const date  = (input.event_date_display as string | undefined) ?? (input.date as string | undefined) ?? '';
+    const event = resolveEvent(ctx, input.event_id, input.date);
+    if (event) return `Delete: ${event.title} · ${event.date} ${scope}`;
+    if (ctx)   return `Delete: ${unresolvedTarget(input.event_id)} ${scope}`;
+    const date = (input.event_date_display as string | undefined) ?? (input.date as string | undefined) ?? '';
     return `Delete: ${input.event_title}${date ? ' · ' + date : ''} ${scope}`;
   },
   async execute(input, deps) {
@@ -222,8 +274,12 @@ const setEventExercisesTool: CoachToolDef = {
   displayLabel(input, ctx) {
     const exercises = (input.exercises as ExerciseInput[] | undefined) ?? [];
     const section = input.section && input.section !== 'exercises' ? ` ${input.section}` : '';
+    const event = resolveEvent(ctx, input.event_id);
+    const target = event ? `${event.title} · ${event.date}`
+      : ctx ? unresolvedTarget(input.event_id)
+      : String(input.event_title);
     const created = ctx ? unmatchedNames(exercises, ctx.definitions) : [];
-    return `Set${section} exercises: ${input.event_title} · ${exercises.length} exercises` +
+    return `Set${section} exercises: ${target} · ${exercises.length} exercises` +
       (created.length ? ` · adds ${created.length} new: ${created.join(', ')}` : '');
   },
   async execute(input, deps) {
@@ -301,9 +357,12 @@ const updateExerciseDefinitionTool: CoachToolDef = {
 
 const updateEventTool: CoachToolDef = {
   schema: updateEventSchema,
-  displayLabel(input) {
-    const keys = Object.keys((input.changes as Record<string, unknown>) ?? {}).join(', ');
-    return `Update: ${input.event_title} (${keys})`;
+  displayLabel(input, ctx) {
+    const changes = describeChanges(input.changes);
+    const event = resolveEvent(ctx, input.event_id);
+    if (event) return `Update: ${event.title} · ${event.date} (${changes})`;
+    if (ctx)   return `Update: ${unresolvedTarget(input.event_id)} (${changes})`;
+    return `Update: ${input.event_title} (${changes})`;
   },
   async execute(input, deps) {
     const { event_id, changes } = input as {
@@ -445,9 +504,12 @@ const logMealTool: CoachToolDef = {
 
 const updateMealTool: CoachToolDef = {
   schema: updateMealSchema,
-  displayLabel(input) {
-    const keys = Object.keys((input.changes as Record<string, unknown>) ?? {}).join(', ');
-    return `Update meal: ${input.meal_title} (${keys})`;
+  displayLabel(input, ctx) {
+    const changes = describeChanges(input.changes);
+    const meal = resolveMeal(ctx, input.meal_id);
+    if (meal) return `Update meal: ${meal.title} · ${meal.date} (${changes})`;
+    if (ctx)  return `Update meal: ${unresolvedTarget(input.meal_id)} (${changes})`;
+    return `Update meal: ${input.meal_title} (${changes})`;
   },
   async execute(input, deps) {
     const { meal_id, changes } = input as { meal_id: string; changes: MealFieldsInput };
@@ -474,7 +536,10 @@ const updateMealTool: CoachToolDef = {
 
 const deleteMealTool: CoachToolDef = {
   schema: deleteMealSchema,
-  displayLabel(input) {
+  displayLabel(input, ctx) {
+    const meal = resolveMeal(ctx, input.meal_id);
+    if (meal) return `Delete meal: ${meal.title} · ${meal.date}`;
+    if (ctx)  return `Delete meal: ${unresolvedTarget(input.meal_id)}`;
     return `Delete meal: ${input.meal_title}`;
   },
   async execute(input, deps) {

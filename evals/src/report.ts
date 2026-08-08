@@ -7,7 +7,10 @@ import type { CaseResult, RunResult, VerdictStatus } from './types';
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const RESULTS_DIR = join(here, '..', 'results');
-const PROMPT_FILE = join(here, '..', '..', 'src', 'lib', 'coach', 'prompt.ts');
+// The coach behavior surface: schema and executor edits change coach
+// behavior as much as prompt edits, so all of them feed the drift hash.
+const COACH_DIR = join(here, '..', '..', 'src', 'lib', 'coach');
+const BEHAVIOR_FILES = ['prompt.ts', 'schemas.ts', 'tools.ts', 'model.ts'];
 
 export function sha256(text: string): string {
   return createHash('sha256').update(text).digest('hex');
@@ -22,7 +25,7 @@ export function gitCommit(): string {
 }
 
 export function promptFileHash(): string {
-  return sha256(readFileSync(PROMPT_FILE, 'utf8'));
+  return sha256(BEHAVIOR_FILES.map(f => readFileSync(join(COACH_DIR, f), 'utf8')).join('\n'));
 }
 
 const DIMENSIONS = ['constraints', 'progression', 'refusal', 'integrity'] as const;

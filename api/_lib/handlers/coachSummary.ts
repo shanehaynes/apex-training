@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { getAnthropicKey } from '../anthropicKey.js';
 import { enforceRateLimit } from '../rateLimit.js';
 import { athleteSection } from '../../../src/lib/coach/prompt.js';
+import { COACH_MODEL } from '../../../src/lib/coach/model.js';
 
 // One-shot post-workout coach summary, running on the caller's own
 // Anthropic key (server-only user_api_keys table). PRs arrive pre-computed
@@ -82,7 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const client = new Anthropic({ apiKey });
     const response = await client.messages.create({
-      model: 'claude-opus-4-8',
+      model: COACH_MODEL,
       max_tokens: 300,
       system: SYSTEM_PROMPT + athlete,
       messages: [{ role: 'user', content: body.recap }],

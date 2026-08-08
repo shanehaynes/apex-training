@@ -4,8 +4,8 @@ import { makeEvent } from '../src/fixtures';
 import type { CallModel, EvalCase, ModelResponse } from '../src/types';
 
 // Harness conversation-loop semantics against a scripted fake model:
-// confirm-loop mirroring, last-tool-wins, thinking stripped, auto-continue,
-// system prompt rebuilt from mutated state.
+// confirm-loop mirroring, every-tool-confirmed queue flushing, thinking
+// stripped, auto-continue, system prompt rebuilt from mutated state.
 
 function response(blocks: ModelResponse['content'], stopReason = 'end_turn'): ModelResponse {
   return { content: blocks, stopReason, usage: { inputTokens: 100, outputTokens: 50 } };
@@ -70,7 +70,7 @@ describe('runCase', () => {
     expect(requests[1].system).toContain('Friday Strength');
   });
 
-  it('keeps only the last tool_use and records a multiToolTurn anomaly', async () => {
+  it('confirms every parallel tool_use and flushes all results as one message, like actionQueue', async () => {
     const { call } = scriptedModel([
       response([
         toolUse('tu-1', 'create_event', { type: 'weights', title: 'First', date: '2026-08-07', estimated_duration: 60 }),
@@ -79,9 +79,13 @@ describe('runCase', () => {
       response([text('Done.')]),
     ]);
     const result = await runCase(BASE_CASE, call);
-    expect(result.toolCalls).toHaveLength(1);
-    expect(result.toolCalls[0].input.title).toBe('Second');
-    expect(result.anomalies.some(a => a.startsWith('multiToolTurn'))).toBe(true);
+    expect(result.toolCalls).toHaveLength(2);
+    expect(result.toolCalls.map(c => c.input.title)).toEqual(['First', 'Second']);
+    expect(result.finalEvents).toHaveLength(2);
+    // One user message carrying a tool_result per tool_use, in order.
+    const flush = result.transcript[2];
+    expect(flush.role).toBe('user');
+    expect((flush.content as Array<{ tool_use_id?: string }>).map(b => b.tool_use_id)).toEqual(['tu-1', 'tu-2']);
   });
 
   it('records max_tokens truncation as an anomaly', async () => {
@@ -128,6 +132,30 @@ describe('runCase', () => {
     const toolResultMsg = result.transcript[2];
     expect(Array.isArray(toolResultMsg.content) && (toolResultMsg.content[0] as { content: string }).content)
       .toContain('per-side');
+  });
+
+  it('renders the training block and today\'s meals into the system prompt', async () => {
+    const { call, requests } = scriptedModel([response([text('Hi.')])]);
+    const evalCase: EvalCase = {
+      ...BASE_CASE,
+      fixture: {
+        today: '2026-08-03', events: [],
+        block: {
+          name: 'Base Building', intent: 'aerobic base', weekLabel: 'week 2 of 8',
+          rangeLabel: 'Jul 27 – Sep 20', objective: null, currentWeek: [], toDate: [],
+        },
+        meals: [
+          { id: 'm1', title: 'Overnight Oats', date: '2026-08-03', notes: '' },
+          { id: 'm2', title: 'Last Week Curry', date: '2026-07-28', notes: '' },
+        ],
+      },
+    };
+    const result = await runCase(evalCase, call);
+    expect(requests[0].system).toContain('Base Building');
+    expect(requests[0].system).toContain('Overnight Oats');
+    // Only TODAY's meals render, matching ChatSidebar's getMealsForDate(today).
+    expect(requests[0].system).not.toContain('Last Week Curry');
+    expect(result.finalMeals).toHaveLength(2);
   });
 
   it('renders athlete context into the system prompt', async () => {

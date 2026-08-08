@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { ApiMessage, CallModel, ModelResponse } from './types';
 import { coachToolSchemas } from '../../src/lib/coach/schemas';
+import { COACH_MODEL } from '../../src/lib/coach/model';
 
 // Per-model request params + pricing. The coach-under-test request shape is
 // replicated exactly from api/chat.ts: max_tokens 8192, adaptive thinking,
@@ -17,12 +18,13 @@ export interface ModelConfig {
 
 export const MODEL_CONFIGS: Record<string, ModelConfig> = {
   'claude-sonnet-5': { id: 'claude-sonnet-5', inputPerMTok: 3, outputPerMTok: 15 },
-  'claude-opus-4-8': { id: 'claude-opus-4-8', inputPerMTok: 5, outputPerMTok: 25 },
+  [COACH_MODEL]: { id: COACH_MODEL, inputPerMTok: 5, outputPerMTok: 25 },
 };
 
-/** Default for all eval-infrastructure calls (dev runs, judge). Opus is the production arm. */
+/** Default for all eval-infrastructure calls (dev runs, judge). The production arm is COACH_MODEL. */
 export const DEFAULT_MODEL = 'claude-sonnet-5';
-export const PRODUCTION_MODEL = 'claude-opus-4-8';
+/** Sourced from src/lib/coach/model.ts — a production model bump moves the eval arm automatically. */
+export const PRODUCTION_MODEL = COACH_MODEL;
 export const DEFAULT_JUDGE_MODEL = 'claude-sonnet-5';
 
 export function modelConfig(id: string): ModelConfig {

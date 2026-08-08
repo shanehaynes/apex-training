@@ -293,15 +293,16 @@ describe('coach tool registry', () => {
     const ctx = {
       definitions: makeDeps().definitions,
       events: [
-        { id: 'a', warmup: [], exercises: [{ id: 'x', name: 'Pistol Squat', category: 'skill', definitionId: 'pistol-squat' }], cooldown: [] },
-        { id: 'a__2026-07-06', exercises: [{ id: 'x', name: 'Pistol Squat', category: 'skill', definitionId: 'pistol-squat' }] },
-        { id: 'b', exercises: [{ id: 'y', name: 'Weighted Dip', category: 'strength', definitionId: 'weighted-dip' }] },
+        { id: 'a', title: 'Legs', date: '2026-07-05', warmup: [], exercises: [{ id: 'x', name: 'Pistol Squat', category: 'skill', definitionId: 'pistol-squat' }], cooldown: [] },
+        { id: 'a__2026-07-06', title: 'Legs', date: '2026-07-06', exercises: [{ id: 'x', name: 'Pistol Squat', category: 'skill', definitionId: 'pistol-squat' }] },
+        { id: 'b', title: 'Push', date: '2026-07-07', exercises: [{ id: 'y', name: 'Weighted Dip', category: 'strength', definitionId: 'weighted-dip' }] },
       ] as never[],
+      meals: [],
     };
     expect(findCoachTool('set_event_exercises')!.displayLabel(
-      { event_title: 'Legs', exercises: [{ name: 'Pistol Squat' }, { name: 'Zercher Squat' }] },
+      { event_id: 'a', event_title: 'Legs', exercises: [{ name: 'Pistol Squat' }, { name: 'Zercher Squat' }] },
       ctx,
-    )).toBe('Set exercises: Legs · 2 exercises · adds 1 new: Zercher Squat');
+    )).toBe('Set exercises: Legs · 2026-07-05 · 2 exercises · adds 1 new: Zercher Squat');
     // Occurrences collapse to their base — one workout, not two.
     expect(findCoachTool('update_exercise_definition')!.displayLabel(
       { name: 'Pistol Squats', changes: { technique_notes: 'x' } },
@@ -309,16 +310,49 @@ describe('coach tool registry', () => {
     )).toBe('Edit exercise: Pistol Squats (technique_notes) — affects 1 workout');
   });
 
-  it('builds human-readable confirmation labels', () => {
+  it('builds human-readable confirmation labels without context (model-text fallback)', () => {
     expect(findCoachTool('delete_event')!.displayLabel({
       event_title: 'Upper Body', event_date_display: 'Mon Jun 29', scope: 'instance',
     })).toBe('Delete: Upper Body · Mon Jun 29 (this instance)');
     expect(findCoachTool('create_event')!.displayLabel({
       title: 'Flow', type: 'yoga', date: '2026-07-08',
     })).toBe('Create: Flow · yoga · 2026-07-08');
+    // The changes' actual new values appear, not just the key names.
     expect(findCoachTool('update_event')!.displayLabel({
       event_title: 'Yoga', changes: { start_time: '6:00 AM' },
-    })).toBe('Update: Yoga (start_time)');
+    })).toBe('Update: Yoga (start_time → 6:00 AM)');
+  });
+
+  it('labels resolve event_id against live context, ignoring model-claimed titles', () => {
+    const ctx = {
+      definitions: makeDeps().definitions,
+      events: [
+        { id: 'evt-1', title: 'Rest Day', date: '2026-07-05' },
+        { id: 'evt-rec__2026-07-06', title: 'Morning Yoga', date: '2026-07-06' },
+        { id: 'evt-rec__2026-07-13', title: 'Morning Yoga', date: '2026-07-13' },
+      ] as never[],
+      meals: [],
+    };
+    // The model paired evt-1's id with a fabricated title — the card names the real row.
+    expect(findCoachTool('delete_event')!.displayLabel(
+      { event_id: 'evt-1', event_title: 'Old Junk Workout', scope: 'all' },
+      ctx,
+    )).toBe('Delete: Rest Day · 2026-07-05 (entire series)');
+    // A base id resolves through its expanded occurrences, preferring the given date.
+    expect(findCoachTool('delete_event')!.displayLabel(
+      { event_id: 'evt-rec', event_title: 'Yoga', scope: 'instance', date: '2026-07-13' },
+      ctx,
+    )).toBe('Delete: Morning Yoga · 2026-07-13 (this instance)');
+    // An id that matches nothing is surfaced instead of trusting the claimed title.
+    expect(findCoachTool('update_event')!.displayLabel(
+      { event_id: 'evt-nope', event_title: 'Rest Day', changes: { date: '2026-07-09' } },
+      ctx,
+    )).toBe('Update: (no matching entry for id "evt-nope") (date → 2026-07-09)');
+    // Resolved update shows the real row AND the new values.
+    expect(findCoachTool('update_event')!.displayLabel(
+      { event_id: 'evt-1', event_title: 'Whatever', changes: { date: '2026-07-09', location: null } },
+      ctx,
+    )).toBe('Update: Rest Day · 2026-07-05 (date → 2026-07-09, clear location)');
   });
 });
 
@@ -397,9 +431,25 @@ describe('meal tools', () => {
     })).toBe('Log meal: Salmon bowl · 2026-08-06 · P 38 / C 45 / F 18');
     expect(findCoachTool('update_meal')!.displayLabel({
       meal_title: 'Chicken burrito', changes: { protein_g: 45 },
-    })).toBe('Update meal: Chicken burrito (protein_g)');
+    })).toBe('Update meal: Chicken burrito (protein_g → 45)');
     expect(findCoachTool('delete_meal')!.displayLabel({
       meal_title: 'Chicken burrito',
     })).toBe('Delete meal: Chicken burrito');
+  });
+
+  it('meal labels resolve meal_id against live context, ignoring model-claimed titles', () => {
+    const ctx = { definitions: makeDeps().definitions, events: [], meals: [burrito] };
+    expect(findCoachTool('update_meal')!.displayLabel(
+      { meal_id: 'meal-1', meal_title: 'Protein Shake', changes: { protein_g: 45 } },
+      ctx,
+    )).toBe('Update meal: Chicken burrito · 2026-08-06 (protein_g → 45)');
+    expect(findCoachTool('delete_meal')!.displayLabel(
+      { meal_id: 'meal-1', meal_title: 'Protein Shake' },
+      ctx,
+    )).toBe('Delete meal: Chicken burrito · 2026-08-06');
+    expect(findCoachTool('delete_meal')!.displayLabel(
+      { meal_id: 'meal-404', meal_title: 'Chicken burrito' },
+      ctx,
+    )).toBe('Delete meal: (no matching entry for id "meal-404")');
   });
 });

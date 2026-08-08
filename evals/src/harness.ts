@@ -14,13 +14,13 @@ import type {
   TurnRecord,
 } from './types';
 
-// The conversation runner. Mirrors useChat.ts exactly:
-//   user msg → stream WITH tools → keep LAST tool_use only (useChat.ts:94;
-//   extras recorded as a multiToolTurn anomaly) → execute via the real
-//   executor against in-memory deps → tool_result → re-stream with tools OFF
-//   → next script step. Thinking blocks are dropped from history (the wire
-//   protocol has no thinking event). The system prompt is rebuilt from the
-//   mutated fixture before every call, as ChatSidebar's useMemo does.
+// The conversation runner. Mirrors useChat.ts + actionQueue.ts:
+//   user msg → stream WITH tools → confirm EVERY tool_use in emission order
+//   via the real executors against in-memory deps → flush all results as ONE
+//   tool_result user message → re-stream with tools OFF → next script step.
+//   Thinking blocks are dropped from history (the wire protocol has no
+//   thinking event). The system prompt is rebuilt from the mutated fixture
+//   before every call, as ChatSidebar's resolveSystemPrompt does.
 
 const DEFAULT_CONTINUE = 'Yes, continue.';
 
@@ -45,7 +45,7 @@ type HarnessResultContent = Array<Record<string, unknown> & { type: string }>;
 
 export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise<HarnessResult> {
   const definitions = evalCase.fixture.definitions ?? loadLibrary();
-  const { deps, state } = createMemoryDeps(evalCase.fixture.events, definitions);
+  const { deps, state } = createMemoryDeps(evalCase.fixture.events, definitions, evalCase.fixture.meals ?? []);
   const today = parseISO(evalCase.fixture.today);
   const todayStr = evalCase.fixture.today;
 
@@ -56,12 +56,16 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
   const usage = { inputTokens: 0, outputTokens: 0 };
   const startedAt = Date.now();
 
+  // All 7 production arguments — block and today's meals included, so the
+  // blockSection and <meals> prompt regions are exercised, not skipped.
   const buildSystem = (): string => buildSystemPrompt(
     state.events.filter(e => e.date === todayStr),
     state.events,
     today,
     state.definitions.values(),
     evalCase.fixture.athlete,
+    evalCase.fixture.block ?? null,
+    state.meals.filter(m => m.date === todayStr),
   );
 
   // Long thinking streams get killed by flaky networks / sleeping machines
@@ -87,8 +91,9 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
     throw lastError;
   };
 
-  // One full turn: user text → tools-on stream → optional confirm + tools-off
-  // follow-up. Returns whether a tool call was confirmed this turn.
+  // One full turn: user text → tools-on stream → confirm every tool_use →
+  // one flushed tool_result message + tools-off follow-up. Returns whether
+  // any tool call was confirmed this turn.
   const runTurn = async (userText: string): Promise<boolean> => {
     transcript.push({ role: 'user', content: userText });
     const turnStart = Date.now();
@@ -98,14 +103,10 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
     if (response.stopReason && response.stopReason !== 'end_turn' && response.stopReason !== 'tool_use') {
       anomalies.push(`stop_reason:${response.stopReason} (turn ${turns.length + 1})`);
     }
-    if (toolUses.length > 1) {
-      anomalies.push(`multiToolTurn:${toolUses.length} tool_use blocks, kept last (turn ${turns.length + 1})`);
-    }
-    const toolUse = toolUses.length ? toolUses[toolUses.length - 1] : null;
 
     const assistantContent: Array<TextBlock | ToolUseBlock> = [];
     if (text) assistantContent.push({ type: 'text', text });
-    if (toolUse) assistantContent.push(toolUse);
+    assistantContent.push(...toolUses);
     transcript.push({
       role: 'assistant',
       content: assistantContent.length === 1 && assistantContent[0].type === 'text'
@@ -114,25 +115,29 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
     });
 
     let assistantText = text;
-    if (toolUse) {
-      const tool = findCoachTool(toolUse.name);
-      let result: string;
-      if (!tool) {
-        result = `Unknown tool "${toolUse.name}".`;
-        anomalies.push(`unknownTool:${toolUse.name} (turn ${turns.length + 1})`);
-      } else {
-        try {
-          result = await tool.execute(toolUse.input, deps);
-        } catch (err) {
-          result = 'The operation failed — something went wrong on the backend.';
-          anomalies.push(`executorThrew:${toolUse.name}: ${err instanceof Error ? err.message : String(err)}`);
+    if (toolUses.length) {
+      // Every tool_use is confirmed in emission order (actionQueue.ts holds
+      // the results and flushes them as ONE user message once the last one
+      // settles — the API requires a tool_result per tool_use up front).
+      const results: Array<{ type: 'tool_result'; tool_use_id: string; content: string }> = [];
+      for (const toolUse of toolUses) {
+        const tool = findCoachTool(toolUse.name);
+        let result: string;
+        if (!tool) {
+          result = `Unknown tool "${toolUse.name}".`;
+          anomalies.push(`unknownTool:${toolUse.name} (turn ${turns.length + 1})`);
+        } else {
+          try {
+            result = await tool.execute(toolUse.input, deps);
+          } catch (err) {
+            result = 'The operation failed — something went wrong on the backend.';
+            anomalies.push(`executorThrew:${toolUse.name}: ${err instanceof Error ? err.message : String(err)}`);
+          }
         }
+        toolCalls.push({ name: toolUse.name, input: toolUse.input, result, turn: turns.length + 1 });
+        results.push({ type: 'tool_result', tool_use_id: toolUse.id, content: result });
       }
-      toolCalls.push({ name: toolUse.name, input: toolUse.input, result, turn: turns.length + 1 });
-      transcript.push({
-        role: 'user',
-        content: [{ type: 'tool_result', tool_use_id: toolUse.id, content: result }],
-      });
+      transcript.push({ role: 'user', content: results });
 
       const followup = await call(false);
       const followupBlocks = extractBlocks(followup.content);
@@ -149,7 +154,7 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
       stopReason: response.stopReason,
       latencyMs: Date.now() - turnStart,
     });
-    return toolUse !== null;
+    return toolUses.length > 0;
   };
 
   let lastTurnHadToolCall = false;
@@ -169,6 +174,7 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
     toolCalls,
     finalEvents: state.events,
     finalDefinitions: [...state.definitions.values()],
+    finalMeals: state.meals,
     createdDefinitionNames: state.createdDefinitionNames,
     anomalies,
     usage,
