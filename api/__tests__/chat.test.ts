@@ -259,14 +259,15 @@ describe('chat handler — abort propagation', () => {
     streamMock.mockImplementationOnce((...args: unknown[]) => {
       captured = (args[1] as { signal: AbortSignal }).signal;
       const signal = captured;
-      return (async function* (): AsyncGenerator<never> {
-        await new Promise((_, reject) => {
-          const fail = () => reject(new DOMException('aborted', 'AbortError'));
-          // The signal may have fired before iteration reached this body.
-          if (signal.aborted) return fail();
-          signal.addEventListener('abort', fail);
-        });
-      })();
+      // Not a generator: streamToWireEvents only needs an AsyncIterable whose
+      // first next() hangs until the abort signal rejects it.
+      const pending = new Promise<IteratorResult<never>>((_, reject) => {
+        const fail = () => reject(new DOMException('aborted', 'AbortError'));
+        // The signal may have fired before iteration starts.
+        if (signal.aborted) return fail();
+        signal.addEventListener('abort', fail);
+      });
+      return { [Symbol.asyncIterator]: () => ({ next: () => pending }) } as AsyncGenerator<never>;
     });
 
     const { res, writes, disconnect } = makeHandlerRes();

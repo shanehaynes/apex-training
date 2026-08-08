@@ -73,26 +73,39 @@ export function useWorkoutSession(
     if (groups) groupsRef.current = groups;
   }, [groups]);
 
+  // The load effect and flushSave depend on the event only through its id and
+  // date: `event` itself gets a fresh object identity on every ScheduleContext
+  // refetch/realtime reload, so depending on the object would re-run
+  // loadSession on every schedule poll. The primitives are the real reactive
+  // inputs; the ref carries the full object for the load effect (same
+  // commit-phase pattern as groupsRef above).
+  const eventRef = useRef(event);
+  useEffect(() => { eventRef.current = event; }, [event]);
+  const eventId = event?.id;
+  const eventDate = event?.date;
+
   const isFinished = !!session?.finished_at;
 
   // ── Load: get-or-create the session, hydrate any previously-saved logs ─────
 
   useEffect(() => {
-    if (!event) return;
+    if (!eventId || !eventDate) return;
+    const loadEvent = eventRef.current;
+    if (!loadEvent) return;
     let cancelled = false;
 
-    loadSession(event).then(data => {
+    loadSession(loadEvent).then(data => {
       if (cancelled) return;
       setSession(data.session);
       historyRef.current = data.history;
       cardioHistoryRef.current = data.cardioHistory;
       const lastPerf = buildLastPerformance(data.history);
       const lastCardio = buildLastCardio(data.cardioHistory);
-      setGroups(buildTrackerModel(event, data.savedSets, data.savedCardio, lastPerf, lastCardio));
+      setGroups(buildTrackerModel(loadEvent, data.savedSets, data.savedCardio, lastPerf, lastCardio));
     });
 
     return () => { cancelled = true; };
-  }, [event?.id, event?.date]);
+  }, [eventId, eventDate]);
 
   // ── Elapsed timer — derived from server started_at, immune to tab sleep ────
 
@@ -137,7 +150,7 @@ export function useWorkoutSession(
 
   const flushSave = useCallback(async () => {
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
-    if (!event || cancelledRef.current) return;
+    if (!eventId || !eventDate || cancelledRef.current) return;
 
     const setLogs: SetLogRow[] = [];
     for (const key of dirtySetsRef.current) {
@@ -147,7 +160,7 @@ export function useWorkoutSession(
         if (group.section !== section) continue;
         const tracked = group.exercises.find(t => t.exercise.id === exerciseId);
         const set = tracked?.sets.find(s => s.setNumber === setNumber);
-        if (tracked && set) setLogs.push(setToRow(event.id, event.date, tracked, set));
+        if (tracked && set) setLogs.push(setToRow(eventId, eventDate, tracked, set));
       }
     }
     const cardioLogs: CardioLogRow[] = [];
@@ -156,7 +169,7 @@ export function useWorkoutSession(
       for (const group of groupsRef.current) {
         if (group.section !== section) continue;
         const tracked = group.exercises.find(t => t.exercise.id === exerciseId);
-        if (tracked?.cardio) cardioLogs.push(cardioToRow(event.id, event.date, tracked));
+        if (tracked?.cardio) cardioLogs.push(cardioToRow(eventId, eventDate, tracked));
       }
     }
     const removedSets = removedRef.current;
@@ -166,8 +179,8 @@ export function useWorkoutSession(
     dirtyCardioRef.current = new Set();
     removedRef.current = [];
 
-    await saveLogs(event.id, event.date, { setLogs, cardioLogs, removedSets }).catch(() => {});
-  }, [event?.id, event?.date]);
+    await saveLogs(eventId, eventDate, { setLogs, cardioLogs, removedSets }).catch(() => {});
+  }, [eventId, eventDate]);
 
   const scheduleSave = useCallback(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
