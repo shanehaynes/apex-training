@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
 import { getAnthropicKey } from './_lib/anthropicKey.js';
 import { enforceRateLimit } from './_lib/rateLimit.js';
 import { coachToolSchemas } from '../src/lib/coach/schemas.js';
+import { COACH_MODEL } from '../src/lib/coach/model.js';
 import type { ChatWireEvent } from '../src/lib/coach/wire.js';
 
 // Server-side proxy for the coach chat, running on the CALLER'S OWN
@@ -62,6 +63,44 @@ interface Body {
   messages?: unknown;
   system?: unknown;
   withTools?: unknown;
+}
+
+// ─── Prompt caching ──────────────────────────────────────────────────────────
+// Caching is a prefix match over tools → system → messages. Three ephemeral
+// breakpoints (max is 4): the last tool schema (static across every tools-on
+// call), the system block (stable across a session's turns until schedule
+// data changes), and the last message block (each turn re-reads the whole
+// conversation prefix the previous turn wrote). Reads bill at ~0.1x input.
+
+/** Static tool schemas with a cache breakpoint on the last one. */
+export function cachedToolSchemas(): Anthropic.Tool[] {
+  const tools = coachToolSchemas();
+  return tools.map((tool, i) =>
+    i === tools.length - 1 ? { ...tool, cache_control: { type: 'ephemeral' as const } } : tool,
+  );
+}
+
+/**
+ * The messages array with a cache breakpoint on the final content block
+ * (string content becomes a single text block). The client always ends the
+ * array with a user message — text or tool_results — but any cacheable
+ * block shape works.
+ */
+export function withConversationBreakpoint(messages: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
+  const last = messages[messages.length - 1];
+  if (!last) return messages;
+  const cache = { cache_control: { type: 'ephemeral' as const } };
+  let content: Anthropic.MessageParam['content'];
+  if (typeof last.content === 'string') {
+    content = [{ type: 'text', text: last.content, ...cache }];
+  } else {
+    const blocks = last.content;
+    if (blocks.length === 0) return messages;
+    content = blocks.map((block, i) =>
+      i === blocks.length - 1 ? ({ ...block, ...cache } as typeof block) : block,
+    );
+  }
+  return [...messages.slice(0, -1), { ...last, content } as Anthropic.MessageParam];
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -130,15 +169,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const client = new Anthropic({ apiKey });
     const stream = client.messages.stream({
-      model: 'claude-opus-4-8',
+      model: COACH_MODEL,
       // max_tokens caps thinking + response text together on current models.
       // At 1024, planning-heavy requests spent the whole budget on thinking
       // and streamed zero text (stop_reason max_tokens on 14/30 eval cases).
       max_tokens: 8192,
       thinking: { type: 'adaptive' },
-      system: body.system,
-      messages: body.messages as Anthropic.MessageParam[],
-      ...(body.withTools ? { tools: coachToolSchemas() } : {}),
+      system: [{ type: 'text', text: body.system, cache_control: { type: 'ephemeral' } }],
+      messages: withConversationBreakpoint(body.messages as Anthropic.MessageParam[]),
+      ...(body.withTools ? { tools: cachedToolSchemas() } : {}),
     });
     await streamToWireEvents(stream as AsyncIterable<UpstreamEvent>, send);
   } catch (err) {

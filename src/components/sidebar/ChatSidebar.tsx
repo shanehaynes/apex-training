@@ -5,6 +5,7 @@ import { useCalendar } from '../../context/CalendarContext';
 import { useAuth } from '../../context/AuthContext';
 import { useChat } from '../../hooks/useChat';
 import { buildSystemPrompt } from '../../lib/coach/prompt';
+import { COACH_MODEL_DISPLAY } from '../../lib/coach/model';
 import { findCoachTool } from '../../lib/coach/tools';
 import { Send, Square, NotebookPen, Check, X, KeyRound } from 'lucide-react';
 import { useBlockSummary } from '../../hooks/useBlockSummary';
@@ -169,7 +170,7 @@ export default function ChatSidebar() {
     <div className="chat-sidebar" data-tour="chat">
       <div className="chat-sidebar__header">
         <span className="chat-sidebar__title">Coach</span>
-        <span className="chat-sidebar__model">claude opus</span>
+        <span className="chat-sidebar__model">{COACH_MODEL_DISPLAY}</span>
       </div>
 
       <div className="chat-sidebar__messages">
