@@ -88,6 +88,26 @@ export default function ChatSidebar() {
     }, block, todayMeals);
   }, [todayEvents, events, today, definitions, profile, getBlockSummary, todayMeals]);
 
+  // Confirm/Cancel/Notes/Send all await resolveSystemPrompt() (a network
+  // round-trip) BEFORE useChat flips isLoading, so `disabled={isLoading}`
+  // alone leaves a window where a double-click runs the executor twice —
+  // duplicate backend mutations and a corrupted tool_result set. The ref is
+  // the synchronous latch (state alone re-renders too late); the state
+  // disables the buttons visually.
+  const [actionBusy, setActionBusy] = useState(false);
+  const actionLatchRef = useRef(false);
+  const runExclusive = useCallback(async (fn: () => Promise<void>) => {
+    if (actionLatchRef.current) return;
+    actionLatchRef.current = true;
+    setActionBusy(true);
+    try {
+      await fn();
+    } finally {
+      actionLatchRef.current = false;
+      setActionBusy(false);
+    }
+  }, []);
+
   const isEmpty = messages.length === 0 && !isLoading && !pendingAction;
 
   useEffect(() => {
@@ -121,17 +141,17 @@ export default function ChatSidebar() {
   // Recompute the confirmation label with live app state — the stored label
   // (built at stream time in useChat, without context) is the fallback.
   const pendingLabel = pendingAction
-    ? findCoachTool(pendingAction.toolName)?.displayLabel(pendingAction.input, { definitions, events })
+    ? findCoachTool(pendingAction.toolName)?.displayLabel(pendingAction.input, { definitions, events, meals })
       ?? pendingAction.displayLabel
     : '';
 
   // ── Input handlers ─────────────────────────────────────────────────────────
 
-  const handleSend = async () => {
+  const handleSend = () => {
     const text = input.trim();
     if (!text || isLoading || pendingAction) return;
     setInput('');
-    sendMessage(text, await resolveSystemPrompt());
+    runExclusive(async () => sendMessage(text, await resolveSystemPrompt()));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -197,9 +217,9 @@ export default function ChatSidebar() {
           <ConfirmCard
             label={pendingLabel}
             remaining={pendingActionCount - 1}
-            disabled={isLoading}
-            onConfirm={async () => confirmAction(buildExecutor(), await resolveSystemPrompt())}
-            onCancel={async () => cancelAction(await resolveSystemPrompt())}
+            disabled={isLoading || actionBusy}
+            onConfirm={() => runExclusive(async () => confirmAction(buildExecutor(), await resolveSystemPrompt()))}
+            onCancel={() => runExclusive(async () => cancelAction(await resolveSystemPrompt()))}
           />
         )}
 
@@ -210,8 +230,8 @@ export default function ChatSidebar() {
         <button
           className="chat-notes-btn"
           data-tour="chat-notes"
-          onClick={async () => triggerInitial(await resolveSystemPrompt())}
-          disabled={isLoading || !!pendingAction || needsKey}
+          onClick={() => runExclusive(async () => triggerInitial(await resolveSystemPrompt()))}
+          disabled={isLoading || actionBusy || !!pendingAction || needsKey}
         >
           <NotebookPen size={13} />
           Coach's Notes
