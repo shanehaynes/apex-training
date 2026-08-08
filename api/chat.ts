@@ -166,6 +166,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-cache');
   const send = (event: ChatWireEvent) => { res.write(JSON.stringify(event) + '\n'); };
 
+  // Abort propagation: when the browser cancels the fetch (the Stop button,
+  // or a closed tab), the socket dies but the upstream Anthropic request
+  // would otherwise run — and bill — to completion. res 'close' fires on
+  // premature disconnect AND after a normal end, so the finished flag keeps
+  // the normal path from aborting a stream that already completed.
+  const upstreamAbort = new AbortController();
+  let finished = false;
+  res.on('close', () => { if (!finished) upstreamAbort.abort(); });
+
   try {
     const client = new Anthropic({ apiKey });
     const stream = client.messages.stream({
@@ -178,12 +187,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       system: [{ type: 'text', text: body.system, cache_control: { type: 'ephemeral' } }],
       messages: withConversationBreakpoint(body.messages as Anthropic.MessageParam[]),
       ...(body.withTools ? { tools: cachedToolSchemas() } : {}),
-    });
+    }, { signal: upstreamAbort.signal });
     await streamToWireEvents(stream as AsyncIterable<UpstreamEvent>, send);
   } catch (err) {
-    console.error('[api/chat] stream failed:', err);
-    send({ type: 'error', message: 'Chat request failed' });
+    if (upstreamAbort.signal.aborted) {
+      // The client went away — the abort is the intended outcome and there
+      // is nobody left to read a wire error.
+    } else {
+      console.error('[api/chat] stream failed:', err);
+      send({ type: 'error', message: 'Chat request failed' });
+    }
   }
 
+  finished = true;
   res.end();
 }

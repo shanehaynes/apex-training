@@ -116,15 +116,19 @@ function makeHandlerRes() {
   let payload: unknown;
   const headers: Record<string, string> = {};
   const writes: string[] = [];
+  const listeners: Record<string, Array<() => void>> = {};
   const res = {
     status(c: number) { code = c; return res; },
     send(b: unknown) { payload = b; return res; },
     json(b: unknown) { payload = b; return res; },
     setHeader(k: string, v: string) { headers[k] = v; return res; },
     write(chunk: string) { writes.push(chunk); return true; },
-    end() {},
+    on(event: string, cb: () => void) { (listeners[event] ??= []).push(cb); return res; },
+    end() { listeners['close']?.forEach(cb => cb()); },
   } as unknown as VercelResponse;
-  return { res, statusCode: () => code, body: () => payload, headers, writes };
+  /** Simulate the client tearing the connection down mid-stream. */
+  const disconnect = () => { listeners['close']?.forEach(cb => cb()); };
+  return { res, statusCode: () => code, body: () => payload, headers, writes, disconnect };
 }
 
 function makeHandlerReq(body: unknown): VercelRequest {
@@ -238,6 +242,57 @@ describe('chat handler — upstream request shape', () => {
     const lastContent = params.messages.at(-1)?.content as Array<{ cache_control?: unknown }>;
     expect(lastContent.at(-1)?.cache_control).toEqual({ type: 'ephemeral' });
     expect(params.tools?.at(-1)).toMatchObject({ cache_control: { type: 'ephemeral' } });
+
+    // The upstream request must carry an abort signal (see the abort suite).
+    const options = streamMock.mock.calls[0][1] as { signal?: AbortSignal };
+    expect(options?.signal).toBeInstanceOf(AbortSignal);
+  });
+});
+
+describe('chat handler — abort propagation', () => {
+  it('aborts the upstream stream when the client disconnects mid-stream, without a wire error', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+
+    // A stream that hangs until its abort signal fires, like a long
+    // generation would.
+    let captured: AbortSignal | undefined;
+    streamMock.mockImplementationOnce((...args: unknown[]) => {
+      captured = (args[1] as { signal: AbortSignal }).signal;
+      const signal = captured;
+      return (async function* (): AsyncGenerator<never> {
+        await new Promise((_, reject) => {
+          const fail = () => reject(new DOMException('aborted', 'AbortError'));
+          // The signal may have fired before iteration reached this body.
+          if (signal.aborted) return fail();
+          signal.addEventListener('abort', fail);
+        });
+      })();
+    });
+
+    const { res, writes, disconnect } = makeHandlerRes();
+    const running = handler(makeHandlerReq({ messages: [{ role: 'user', content: 'hi' }], system: 'x' }), res);
+
+    // Let the handler reach the streaming stage (`captured` is set inside
+    // the stream mock; mock.calls can't gate this — it accumulates across
+    // tests), then drop the connection.
+    while (!captured) await new Promise(r => setTimeout(r, 0));
+    disconnect();
+    await running;
+
+    expect(captured?.aborted).toBe(true);
+    expect(writes.join('')).not.toContain('"error"');
+  });
+
+  it('does not abort after a normally completed stream', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    const { res } = makeHandlerRes();
+
+    await handler(makeHandlerReq({ messages: [{ role: 'user', content: 'hi' }], system: 'x' }), res);
+
+    // res.end() fires 'close' on the double, mirroring Node — the signal
+    // must stay unaborted so the SDK doesn't cancel a finished request.
+    const options = streamMock.mock.calls.at(-1)?.[1] as { signal: AbortSignal };
+    expect(options.signal.aborted).toBe(false);
   });
 });
 
