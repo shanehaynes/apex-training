@@ -247,6 +247,27 @@ describe('chat handler — upstream request shape', () => {
     const options = streamMock.mock.calls[0][1] as { signal?: AbortSignal };
     expect(options?.signal).toBeInstanceOf(AbortSignal);
   });
+
+  it('keeps the tools+system prefix identical when tools are off, gating with tool_choice', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    const { res } = makeHandlerRes();
+
+    await handler(makeHandlerReq({
+      system: 'SYSTEM PROMPT',
+      withTools: false,
+      messages: [{ role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: 'Done.' }] }],
+    }), res);
+
+    const params = streamMock.mock.calls.at(-1)![0] as unknown as Anthropic.MessageStreamParams;
+    // Dropping the tools would invalidate the tools, system AND messages
+    // tiers, so the re-stream could never read the tools-on turn's entry.
+    expect(params.tools).toEqual(cachedToolSchemas());
+    expect(params.tool_choice).toEqual({ type: 'none' });
+    // No messages breakpoint: flipping tool_choice invalidates that tier, so
+    // the entry would be written at 1.25x and never read.
+    const lastContent = params.messages.at(-1)?.content as Array<{ cache_control?: unknown }>;
+    expect('cache_control' in lastContent.at(-1)!).toBe(false);
+  });
 });
 
 describe('chat handler — abort propagation', () => {

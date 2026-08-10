@@ -299,10 +299,18 @@ describe('coach tool registry', () => {
       ] as never[],
       meals: [],
     };
+    // 'a' is a recurring base (a__2026-07-06 is its occurrence) and the
+    // executor rewrites the shared list, so the card states the blast radius
+    // rather than one of the dates.
     expect(findCoachTool('set_event_exercises')!.displayLabel(
       { event_id: 'a', event_title: 'Legs', exercises: [{ name: 'Pistol Squat' }, { name: 'Zercher Squat' }] },
       ctx,
-    )).toBe('Set exercises: Legs · 2026-07-05 · 2 exercises · adds 1 new: Zercher Squat');
+    )).toBe('Set exercises: Legs · every occurrence (2 workouts) · 2 exercises · adds 1 new: Zercher Squat');
+    // A one-off keeps its single date.
+    expect(findCoachTool('set_event_exercises')!.displayLabel(
+      { event_id: 'b', event_title: 'Push', exercises: [{ name: 'Weighted Dip' }] },
+      ctx,
+    )).toBe('Set exercises: Push · 2026-07-07 · 1 exercises');
     // Occurrences collapse to their base — one workout, not two.
     expect(findCoachTool('update_exercise_definition')!.displayLabel(
       { name: 'Pistol Squats', changes: { technique_notes: 'x' } },
@@ -321,6 +329,20 @@ describe('coach tool registry', () => {
     expect(findCoachTool('update_event')!.displayLabel({
       event_title: 'Yoga', changes: { start_time: '6:00 AM' },
     })).toBe('Update: Yoga (start_time → 6:00 AM)');
+  });
+
+  it('bounds model-authored free text in change values', () => {
+    const long = 'Tempo intervals with a long rambling rationale the model wrote out in full';
+    const label = findCoachTool('update_event')!.displayLabel({
+      event_title: 'Run', changes: { description: long },
+    });
+    // Truncated with an ellipsis rather than dumped whole into the card.
+    expect(label).toBe('Update: Run (description → Tempo intervals with a long rambling rat…)');
+    expect(label).not.toContain('rationale');
+    // Newlines collapse and '<' is stripped, like every other model string in the UI.
+    expect(findCoachTool('update_meal')!.displayLabel({
+      meal_title: 'Bowl', changes: { notes: 'line one\n<b>line two' },
+    })).toBe('Update meal: Bowl (notes → line one b>line two)');
   });
 
   it('labels resolve event_id against live context, ignoring model-claimed titles', () => {

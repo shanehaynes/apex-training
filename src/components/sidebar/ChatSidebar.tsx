@@ -150,7 +150,10 @@ export default function ChatSidebar() {
 
   const handleSend = () => {
     const text = input.trim();
-    if (!text || isLoading || pendingAction) return;
+    // The latch ref, not actionBusy: the state lags a render behind, and
+    // clearing the input for a send runExclusive is about to drop would lose
+    // the message with no error and nothing in the thread.
+    if (!text || isLoading || actionLatchRef.current || pendingAction) return;
     setInput('');
     runExclusive(async () => sendMessage(text, await resolveSystemPrompt()));
   };
@@ -253,12 +256,12 @@ export default function ChatSidebar() {
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           rows={1}
-          disabled={isLoading || !!pendingAction || needsKey}
+          disabled={isLoading || actionBusy || !!pendingAction || needsKey}
         />
         <button
           className="chat-send-btn"
           onClick={isLoading ? abort : handleSend}
-          disabled={(!!pendingAction && !isLoading) || needsKey}
+          disabled={(!isLoading && (actionBusy || !!pendingAction)) || needsKey}
           aria-label={isLoading ? 'Stop' : 'Send'}
         >
           {isLoading ? <Square size={14} /> : <Send size={14} />}

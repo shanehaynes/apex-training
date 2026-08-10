@@ -3,9 +3,6 @@ import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
 import { pickAllowed, EVENT_INSERT_COLUMNS, EVENT_PATCH_COLUMNS, EVENT_ID_PATTERN } from '../allowlist.js';
 import { enforceAiMutationCap, enforceRateLimit } from '../rateLimit.js';
-import { handleTrainingBlocks } from '../trainingBlocks.js';
-import { handleMeals } from '../meals.js';
-import { handleMealFavorites } from '../mealFavorites.js';
 import type { WorkoutEventRow } from '../../../src/lib/db/types.js';
 
 interface MutationLogEntry {
@@ -39,25 +36,6 @@ async function logMutation(
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // TODO(delete next release): back-compat shim for the pre-router
-  // ?resource=block|objective|meal|meal-favorite URLs, kept one release so
-  // stale SPA bundles in open tabs keep working. New code uses the clean
-  // paths (/api/blocks, /api/objectives, /api/meals, /api/meal-favorites)
-  // routed by _lib/app.ts. Each delegate does its own auth, rate limiting,
-  // and allowlisting; nothing below these branches runs for them.
-  if (req.query.resource === 'block' || req.query.resource === 'objective') {
-    await handleTrainingBlocks(req, res);
-    return;
-  }
-  if (req.query.resource === 'meal') {
-    await handleMeals(req, res);
-    return;
-  }
-  if (req.query.resource === 'meal-favorite') {
-    await handleMealFavorites(req, res);
-    return;
-  }
-
   const supabase = getSupabaseAdmin();
   if (!supabase) {
     res.status(500).send('Supabase admin client not configured');

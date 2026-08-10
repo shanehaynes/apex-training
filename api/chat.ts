@@ -21,22 +21,43 @@ import type { ChatWireEvent } from '../src/lib/coach/wire.js';
 // Vercel when it imported the coach executor graph. Only api/_lib and the
 // dependency-free src/lib/coach/schemas.ts may be imported here.
 
+/** Token counters we care about — cache hit/miss is the only way to tell
+ *  whether the breakpoints below are actually earning their write premium. */
+export interface UpstreamUsage {
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
+}
+
 // Structural subset of the SDK's MessageStreamEvent — keeps the translator
 // testable with plain objects.
 export interface UpstreamEvent {
   type: string;
   content_block?: { type: string; id?: string; name?: string };
   delta?: { type: string; text?: string; partial_json?: string };
+  /** message_start carries the input + cache counters. */
+  message?: { usage?: UpstreamUsage };
+  /** message_delta carries the running output count. */
+  usage?: UpstreamUsage;
 }
 
-/** Translate the Anthropic event stream into the NDJSON wire events. */
+/**
+ * Translate the Anthropic event stream into the NDJSON wire events. Returns
+ * the merged usage from message_start/message_delta (null if the stream
+ * carried none) so the handler can log cache effectiveness.
+ */
 export async function streamToWireEvents(
   stream: AsyncIterable<UpstreamEvent>,
   emit: (event: ChatWireEvent) => void,
-): Promise<void> {
+): Promise<UpstreamUsage | null> {
   let currentTool: { id: string; name: string; json: string } | null = null;
+  let usage: UpstreamUsage | null = null;
 
   for await (const event of stream) {
+    const eventUsage = event.type === 'message_start' ? event.message?.usage : event.usage;
+    if (eventUsage) usage = { ...(usage ?? {}), ...eventUsage };
+
     if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use') {
       currentTool = { id: event.content_block.id ?? '', name: event.content_block.name ?? '', json: '' };
     } else if (event.type === 'content_block_delta') {
@@ -57,6 +78,7 @@ export async function streamToWireEvents(
   }
 
   emit({ type: 'done' });
+  return usage;
 }
 
 interface Body {
@@ -66,11 +88,27 @@ interface Body {
 }
 
 // ─── Prompt caching ──────────────────────────────────────────────────────────
-// Caching is a prefix match over tools → system → messages. Three ephemeral
-// breakpoints (max is 4): the last tool schema (static across every tools-on
-// call), the system block (stable across a session's turns until schedule
-// data changes), and the last message block (each turn re-reads the whole
-// conversation prefix the previous turn wrote). Reads bill at ~0.1x input.
+// Caching is a prefix match over tools → system → messages, and each tier is
+// invalidated by any change at or before it. Three ephemeral breakpoints
+// (max is 4): the last tool schema, the system block, and the last message
+// block. Reads bill at ~0.1x input, writes at 1.25x — so a breakpoint whose
+// entry can never be read is a pure loss, which drives two rules here:
+//
+//   1. Tools ship on EVERY request, including the post-confirm re-stream that
+//      forbids their use. Adding or removing a tool definition invalidates the
+//      tools, system AND messages tiers, so toggling them would split the
+//      conversation into two lineages that can never read each other's
+//      entries — every re-stream a guaranteed miss that still pays the write.
+//      Holding the tool list constant and switching tool_choice instead keeps
+//      the tools+system prefix identical across both calls.
+//   2. The messages breakpoint is written only on the tools-on turn. Changing
+//      tool_choice invalidates the messages tier, so the re-stream's entry has
+//      no future reader.
+//
+// Still uncached by construction: the system block embeds live schedule and
+// meal state, so any confirmed mutation invalidates system+messages on the
+// next turn. Fixing that means moving the volatile region out of `system` —
+// gate it on the usage numbers logged at the end of the handler.
 
 /** Static tool schemas with a cache breakpoint on the last one. */
 export function cachedToolSchemas(): Anthropic.Tool[] {
@@ -175,6 +213,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let finished = false;
   res.on('close', () => { if (!finished) upstreamAbort.abort(); });
 
+  const withTools = !!body.withTools;
+  const messages = body.messages as Anthropic.MessageParam[];
+
   try {
     const client = new Anthropic({ apiKey });
     const stream = client.messages.stream({
@@ -185,10 +226,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       max_tokens: 8192,
       thinking: { type: 'adaptive' },
       system: [{ type: 'text', text: body.system, cache_control: { type: 'ephemeral' } }],
-      messages: withConversationBreakpoint(body.messages as Anthropic.MessageParam[]),
-      ...(body.withTools ? { tools: cachedToolSchemas() } : {}),
+      // Constant tool list + tool_choice to gate it — see the caching note above.
+      tools: cachedToolSchemas(),
+      ...(withTools ? {} : { tool_choice: { type: 'none' as const } }),
+      messages: withTools ? withConversationBreakpoint(messages) : messages,
     }, { signal: upstreamAbort.signal });
-    await streamToWireEvents(stream as AsyncIterable<UpstreamEvent>, send);
+    const usage = await streamToWireEvents(stream as AsyncIterable<UpstreamEvent>, send);
+    if (usage) {
+      console.log('[api/chat] usage', {
+        withTools,
+        input:      usage.input_tokens ?? 0,
+        cacheRead:  usage.cache_read_input_tokens ?? 0,
+        cacheWrite: usage.cache_creation_input_tokens ?? 0,
+        output:     usage.output_tokens ?? 0,
+      });
+    }
   } catch (err) {
     if (upstreamAbort.signal.aborted) {
       // The client went away — the abort is the intended outcome and there

@@ -11,6 +11,7 @@ import {
 } from './schemas.js';
 import { baseIdOf, isOccurrenceId } from '../schedule/occurrence.js';
 import { countDefinitionReferences, entryFromDefinition, hasPerSideCount, matchDefinitionByName } from '../schedule/definitions.js';
+import { sanitizeInlineText } from './prompt.js';
 import { validateFatSplit } from '../nutrition/mapping.js';
 import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, UpdateDefinitionInput, UpdateEventInput } from '../schedule/types.js';
 import type { CreateMealInput, Meal, MealType, UpdateMealInput } from '../../types/nutrition.js';
@@ -90,12 +91,22 @@ function unresolvedTarget(id: unknown): string {
   return `(no matching entry for id "${String(id)}")`;
 }
 
-/** "date → 2026-08-09, clear location" — the actual new values, not just keys. */
+/**
+ * "date → 2026-08-09, clear location" — the actual new values, not just keys.
+ * Values are model-authored free text (update_event's description,
+ * update_meal's notes), so they get the same inline sanitize-and-bound
+ * treatment as every other model string that reaches the UI — an unbounded
+ * description would otherwise render in full inside the confirmation card.
+ */
+const CHANGE_VALUE_MAX = 40;
+
 function describeChanges(changes: unknown): string {
   return Object.entries((changes as Record<string, unknown>) ?? {})
     .map(([key, value]) => {
       if (value === null || value === undefined) return `clear ${key}`;
-      return `${key} → ${typeof value === 'object' ? JSON.stringify(value) : String(value)}`;
+      const raw = typeof value === 'object' ? JSON.stringify(value) : String(value);
+      const shown = sanitizeInlineText(raw, CHANGE_VALUE_MAX);
+      return `${key} → ${shown}${raw.length > CHANGE_VALUE_MAX ? '…' : ''}`;
     })
     .join(', ');
 }
@@ -275,9 +286,15 @@ const setEventExercisesTool: CoachToolDef = {
     const exercises = (input.exercises as ExerciseInput[] | undefined) ?? [];
     const section = input.section && input.section !== 'exercises' ? ` ${input.section}` : '';
     const event = resolveEvent(ctx, input.event_id);
-    const target = event ? `${event.title} · ${event.date}`
-      : ctx ? unresolvedTarget(input.event_id)
-      : String(input.event_title);
+    // The executor rejects occurrence ids and rewrites the whole series (one
+    // shared exercise list), so naming a single date here would understate
+    // the blast radius — a series states its occurrence count instead.
+    const occurrences = event && ctx
+      ? ctx.events.filter(e => baseIdOf(e.id) === baseIdOf(event.id)).length
+      : 0;
+    const target = !event ? (ctx ? unresolvedTarget(input.event_id) : String(input.event_title))
+      : occurrences > 1 ? `${event.title} · every occurrence (${occurrences} workouts)`
+      : `${event.title} · ${event.date}`;
     const created = ctx ? unmatchedNames(exercises, ctx.definitions) : [];
     return `Set${section} exercises: ${target} · ${exercises.length} exercises` +
       (created.length ? ` · adds ${created.length} new: ${created.join(', ')}` : '');
