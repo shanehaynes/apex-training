@@ -16,9 +16,15 @@ export interface ModelConfig {
   outputPerMTok: number;
 }
 
+// Keyed by literal model id, NOT by a computed [COACH_MODEL] key: a
+// production bump onto an id already in this table — moving the coach down a
+// tier to Sonnet is the very comparison this suite exists to inform — would
+// silently overwrite that entry's pricing with the Opus numbers, corrupting
+// every cost figure with no type or runtime error. A bump to an unpriced id
+// instead fails loudly in modelConfig() below.
 export const MODEL_CONFIGS: Record<string, ModelConfig> = {
   'claude-sonnet-5': { id: 'claude-sonnet-5', inputPerMTok: 3, outputPerMTok: 15 },
-  [COACH_MODEL]: { id: COACH_MODEL, inputPerMTok: 5, outputPerMTok: 25 },
+  'claude-opus-4-8': { id: 'claude-opus-4-8', inputPerMTok: 5, outputPerMTok: 25 },
 };
 
 /** Default for all eval-infrastructure calls (dev runs, judge). The production arm is COACH_MODEL. */
@@ -30,7 +36,10 @@ export const DEFAULT_JUDGE_MODEL = 'claude-sonnet-5';
 export function modelConfig(id: string): ModelConfig {
   const config = MODEL_CONFIGS[id];
   if (!config) {
-    throw new Error(`Unknown model "${id}". Known: ${Object.keys(MODEL_CONFIGS).join(', ')}`);
+    throw new Error(
+      `Unknown model "${id}" — add its $/MTok pricing to MODEL_CONFIGS. ` +
+      `Known: ${Object.keys(MODEL_CONFIGS).join(', ')}`,
+    );
   }
   return config;
 }
