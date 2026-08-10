@@ -29,8 +29,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # npm run build = tsc -b (app, node, api, e2e projects) + vite build,
-      # so the production bundle is proven buildable on every push.
+      # npm run build = tsc -b (app, node, api, e2e, and evals projects — all
+      # strict, all referenced from the root tsconfig.json) + vite build, so
+      # the eval harness is typechecked here too and the production bundle is
+      # proven buildable on every push.
       - run: npm run build
       - run: npm test
       # oxlint fails on errors only; pre-existing warnings don't block.
