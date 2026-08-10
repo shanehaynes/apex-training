@@ -70,7 +70,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -102,7 +102,7 @@ jobs:
       - run: supabase start
       - run: ./scripts/db-reset-local.sh
       - run: APEX_LOCAL_SUPABASE=1 npx vitest run api/__tests__/integration
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
