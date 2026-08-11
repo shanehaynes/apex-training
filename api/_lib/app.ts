@@ -19,6 +19,7 @@ import oauthApprove from './handlers/oauthApprove.js';
 import oauthToken from './handlers/oauthToken.js';
 import providerSync from './handlers/providerSync.js';
 import providerCallback from './handlers/providerCallback.js';
+import providerCron from './handlers/providerCron.js';
 import { handleTrainingBlocks } from './trainingBlocks.js';
 import { handleMeals } from './meals.js';
 import { handleMealFavorites } from './mealFavorites.js';
@@ -75,6 +76,8 @@ app.all('/oauth-token', bridge(oauthToken));
 // redirect target (browser navigation, state-token auth — no Supabase JWT).
 app.all('/provider-sync', bridge(providerSync));
 app.all('/provider-callback', bridge(providerCallback));
+// Nightly auto-sync cron target (CRON_SECRET bearer, vercel.json schedule).
+app.all('/provider-cron', bridge(providerCron));
 // Distinctive message: if /api/chat (or another standalone route) ever lands
 // here, filesystem precedence over the catch-all broke — see the plan's
 // preview-deploy curl matrix.

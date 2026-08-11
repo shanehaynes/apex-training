@@ -116,6 +116,49 @@ To subscribe from a calendar app, add `https://<your-deployment>/api/calendar-fe
 
 To query your training data from Claude, ChatGPT, or any MCP client, connect to `https://<your-deployment>/api/mcp` — setup per client in [CONNECTORS.md](CONNECTORS.md).
 
+## ⌚ Watch sync (COROS)
+
+Connect a COROS account in **Profile → COROS** (an OAuth sign-in on COROS's
+site — Apex never sees your COROS password) and a **Sync** button appears in
+the calendar toolbar. Pressing it pulls recent activities through COROS's
+official MCP server:
+
+- An activity that **matches a planned workout** (same day, compatible type)
+  asks per item: **Fill it** completes the planned event with your measured
+  data; **Keep separate** imports it as its own event. The planned event's
+  targets are never overwritten — actuals live beside them, and count toward
+  PRs like hand-logged work.
+- **Unmatched activities** import on their own as completed events.
+- Distance, elevation, average/max heart rate, and calories come along, and
+  the workout detail shows a heart-rate chart, elevation profile, and route
+  outline decoded from the activity's FIT file (drawn locally — GPS
+  coordinates are never sent to a map-tile server).
+- An import ledger guarantees **no duplicates**, ever — pressing Sync twice,
+  or after the nightly job already ran, just reports "Everything up to date."
+
+**Nightly auto-sync**: every connected account also syncs automatically once
+a day (03:30 UTC ≈ 11:30 PM Eastern). The nightly job imports unmatched
+activities by itself but **never auto-fills a planned workout** — matches
+wait for your decision, and the Sync button wears a badge with the count
+until you confirm them. Toggle the nightly sync per provider in Profile →
+COROS. Local calendar dates use the timezone your browser reported on your
+last manual sync.
+
+Support for Garmin and Apple Health is planned on the same plumbing —
+connections, dedup, matching, and the nightly job are already
+provider-generic.
+
+Setup (per deployment): run `supabase/migrations/phase27_provider_sync.sql`
+and `phase29_auto_sync.sql`, register an OAuth client with COROS
+(`node scripts/coros-spike.mjs register https://<your-domain>/api/provider-callback`),
+and set `COROS_CLIENT_ID` + `COROS_REDIRECT_URI` in Vercel. The nightly job
+reuses `CRON_SECRET`. To test the cron against one account:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" \
+  "https://<your-deployment>/api/provider-cron?dryRun=1&userId=<uid>"
+```
+
 ## 📬 Review emails
 
 A daily Vercel cron (`/api/review-cron`, 14:00 UTC) emails each user a review when a training period ends. A "month" is 4 ISO weeks (Mon–Sun) — 13 per year, with month 13 absorbing week 53 in 53-week ISO years — and the yearly review goes out in the first weeks of the new ISO year. Stats (sessions, training time, weight moved, distance, elevation, PRs) are computed deterministically in [`src/lib/review/`](src/lib/review/); users with an Anthropic key saved also get a short coach's note (per-user key, same as chat), and everyone else gets the numbers. Email is sent over Gmail SMTP ([`api/_lib/mailer.ts`](api/_lib/mailer.ts)) — no sending domain to verify. Sent reviews are recorded in the `reviews` table (phase12 migration), which doubles as the double-send guard.

@@ -66,7 +66,10 @@ describe('provider-sync handler', () => {
     const { res, body } = makeRes();
     await handler(makeReq({ action: 'status' }), res);
     expect(body()).toEqual({
-      coros: { status: 'disconnected', lastSyncedAt: null, connectedAt: null, configured: false },
+      coros: {
+        status: 'disconnected', lastSyncedAt: null, connectedAt: null,
+        configured: false, autoSync: true, pendingFillCount: 0,
+      },
     });
   });
 

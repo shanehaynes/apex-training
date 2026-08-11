@@ -7,6 +7,7 @@ import {
   connectionStatus,
   disconnect,
   getConnection,
+  setAutoSync,
   type SyncProvider,
 } from '../providers/connection.js';
 import { buildAuthorizeUrl, generatePkce, generateState, isCorosConfigured } from '../providers/coros/oauth.js';
@@ -26,10 +27,11 @@ import { buildAuthorizeUrl, generatePkce, generateState, isCorosConfigured } fro
 // arrives as a browser navigation without a Supabase JWT.
 
 interface Body {
-  action?: 'status' | 'connect-start' | 'disconnect' | 'preview' | 'apply';
+  action?: 'status' | 'connect-start' | 'disconnect' | 'preview' | 'apply' | 'set-auto-sync';
   provider?: string;
   timezone?: string;
   decisions?: unknown;
+  enabled?: unknown;
 }
 
 function parseProvider(value: unknown): SyncProvider | null {
@@ -88,6 +90,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'disconnect': {
         await disconnect(supabase, userId, provider);
         res.status(200).json({ ok: true });
+        return;
+      }
+      case 'set-auto-sync': {
+        if (typeof body.enabled !== 'boolean') {
+          res.status(400).send('enabled must be a boolean');
+          return;
+        }
+        await setAutoSync(supabase, userId, provider, body.enabled);
+        res.status(200).json({ ok: true, autoSync: body.enabled });
         return;
       }
       case 'preview':

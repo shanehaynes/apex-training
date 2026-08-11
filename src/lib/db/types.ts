@@ -332,6 +332,12 @@ export interface ProviderConnectionRow {
   /** The recorded activity-grab watermark; the imports ledger is what dedupes. */
   last_synced_at: string | null;
   connected_at: string | null;
+  /** IANA zone stamped from the browser on manual actions (phase29) — how the nightly cron places activities on calendar dates. */
+  timezone: string | null;
+  /** Per-connection opt-out for the nightly cron (phase29). */
+  auto_sync: boolean;
+  /** Matches awaiting a fill decision, set nightly, cleared by manual apply (phase29). */
+  pending_fill_count: number;
   updated_at: string;
 }
 
