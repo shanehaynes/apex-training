@@ -17,6 +17,8 @@ const EXPECTED_CI_SKIPS = new Set([
   'auth.spec.ts › login gate, reset mode, fabricated session, profile view',
   'edit-exercises.spec.ts › add an exercise via the picker and save (stubbed PATCH)',
   'library.spec.ts › library list, detail, editor, and deep link',
+  // The sync UI is auth-gated (useProviderSync fetches status only signed in).
+  'coros-sync.spec.ts › coros sync: preview, per-fill confirmation queue, one apply',
 ]);
 
 export default class SkipReporter implements Reporter {

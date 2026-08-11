@@ -29,6 +29,7 @@ export function rowToEvent(row: WorkoutEventRow): WorkoutEvent {
     climbingTargets:   (row.climbing_targets ?? undefined) as WorkoutEvent['climbingTargets'],
     tags:              row.tags ?? [],
     equipment:         row.equipment ?? [],
+    source:            (row.source ?? undefined) as WorkoutEvent['source'],
     isCompleted:       false,
     isRecurring:       row.is_recurring,
     // recurrence_rule is canonical; rows the SQL backfill hasn't reached fall
@@ -75,6 +76,9 @@ const EVENT_FIELDS: {
   equipment:         v => ({ equipment: v ?? [] }),
   isRecurring:       v => ({ is_recurring: v as boolean }),
   recurrenceRule:    v => ({ recurrence_rule: v ?? null }),
+  // Key omitted when unset so inserts keep working before the phase 27
+  // source column migration has been applied.
+  source:            v => (v === undefined ? {} : { source: v }),
 };
 
 const EVENT_FIELD_ENTRIES = Object.entries(EVENT_FIELDS) as [

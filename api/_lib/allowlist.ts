@@ -61,6 +61,7 @@ export const EVENT_INSERT_COLUMNS: ReadonlySet<string> = new Set([
   'recurring_frequency',
   'recurring_days',
   'recurring_end_date',
+  'source',
 ]);
 
 export const EVENT_PATCH_COLUMNS: ReadonlySet<string> = new Set(

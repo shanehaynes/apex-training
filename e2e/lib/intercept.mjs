@@ -91,6 +91,15 @@ export async function installIntercept(context, { anonKey = null, profile } = {}
         ? { hasAnthropicKey: true, anthropicKeyLast4: 'abcd' }
         : { ok: true, hasAnthropicKey: true, anthropicKeyLast4: 'abcd' });
     }
+    // Provider sync (COROS): unconfigured by default so the toolbar button
+    // stays hidden in every spec that doesn't opt in. The sync spec installs
+    // its own page.route (which outranks this context route) to script the
+    // connected preview/apply flow.
+    if (url.includes('/api/provider-sync')) {
+      return json(route, {
+        coros: { status: 'disconnected', lastSyncedAt: null, connectedAt: null, configured: false },
+      });
+    }
     return json(route, { ok: true });
   });
 
@@ -151,6 +160,13 @@ export async function installIntercept(context, { anonKey = null, profile } = {}
       return json(route, []);
     }
     if (url.includes('workout_cardio_logs')) return json(route, []);
+
+    // Provider stream summaries (WorkoutModal's SyncMetrics): absent in the
+    // mock profile. .maybeSingle() wants a bare object — null means no row.
+    if (url.includes('activity_streams')) {
+      const wantsObject = (req.headers()['accept'] ?? '').includes('vnd.pgrst.object');
+      return json(route, wantsObject ? null : []);
+    }
 
     // Meals + favorites: deterministic empty lists (the add-meal spec
     // exercises the composer, not persisted rows).

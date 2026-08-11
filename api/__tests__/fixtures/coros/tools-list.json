@@ -1,0 +1,271 @@
+{
+  "_captured": "2026-08-10 via scripts/coros-spike.mjs login against https://mcp.coros.com/mcp (serverInfo mcp-server 1.0.0)",
+  "tools": [
+    {
+      "name": "queryActivityLapData",
+      "description": "Query COROS lap or segment data for a specific activity. Returns only the fields shown by the COROS app for the given sport type. Use labelId and sportType from the activity list.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "labelId": { "type": "string", "description": "The activity labelId" },
+          "sportType": { "type": "integer", "description": "The sport type code, e.g. 100=running, 1200=hybrid fitness" }
+        },
+        "required": ["labelId", "sportType"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "queryCustomActivityLapData",
+      "description": "Query COROS custom lap or segment data for an exact selected time window in one activity. Use this for requests like last N minutes, final segment, or a user-specified time range, not default lap data. First identify the activity with querySportRecords so you have labelId, sportType, startTimestamp, and endTimestamp.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "labelId": { "type": "string" },
+          "sportType": { "type": "integer" },
+          "startTimestamp": { "type": "integer" },
+          "endTimestamp": { "type": "integer" }
+        },
+        "required": ["labelId", "sportType", "startTimestamp", "endTimestamp"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getActivityDetail",
+      "description": "Get detailed information about a specific COROS training activity. Returns comprehensive data including heart rate, pace/speed, elevation, cadence. You need the labelId and sportType from the activity list.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "labelId": { "type": "string", "description": "The activity labelId" },
+          "sportType": { "type": "integer", "description": "The sport type code, e.g. 100=running, 200=cycling" }
+        },
+        "required": ["labelId", "sportType"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "analyzeActivityDetail",
+      "description": "Analyze a specific COROS training activity with a coach-style summary. It first fetches the activity detail, then explains the session in plain language with optional focus such as pace, speed, or heart rate.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "labelId": { "type": "string" },
+          "sportType": { "type": "integer" },
+          "focus": { "type": "string" }
+        },
+        "required": ["labelId", "sportType", "focus"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "queryDailyHealthData",
+      "description": "Query the user's daily health data from COROS. Returns a broad daily summary including steps, calories, stress, sleep quality and duration.",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "days": { "type": "integer" } },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "querySleepData",
+      "description": "Query the user's COROS sleep data from the legacy daily data API. Returns sleep score, main sleep duration, deep/light/REM ratio, awake time, awake count, main sleep window, and nap windows. Dates are wake-up days.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "startDate": { "type": "string" },
+          "endDate": { "type": "string" },
+          "days": { "type": "integer" }
+        },
+        "required": ["startDate", "endDate", "days"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "queryDevices",
+      "description": "Query the user's bound COROS devices.",
+      "inputSchema": { "type": "object", "properties": {}, "required": [], "additionalProperties": false }
+    },
+    {
+      "name": "queryFitnessAssessmentOverview",
+      "description": "Query the user's COROS fitness assessment overview. Returns VO2max, running level, threshold pace, and race predictions.",
+      "inputSchema": { "type": "object", "properties": {}, "required": [], "additionalProperties": false }
+    },
+    {
+      "name": "queryTrainingLoadAssessment",
+      "description": "Query the user's COROS training load assessment. Returns recent daily comments, short-term load, long-term load, and load ratio.",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "days": { "type": "integer" } },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "queryRecoveryStatus",
+      "description": "Query the user's COROS recovery status. Returns current recovery percentage, recovery level, and estimated full recovery time.",
+      "inputSchema": { "type": "object", "properties": {}, "required": [], "additionalProperties": false }
+    },
+    {
+      "name": "queryMenstruationCycles",
+      "description": "Query the user's COROS menstrual cycle data.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "startDay": { "type": "integer" },
+          "endDay": { "type": "integer" }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "querySportRecords",
+      "description": "Query the user's COROS workout records with optional filters such as date range, COROS sport type codes, distance, duration, average pace, and location. Pass numeric sportTypeCodes, not sport names. COROS sport type codes from dubbo: run=[100 outdoor run,101 indoor run,102 trail run,103 track run,104 hike,105 mountain climb,106 multi-pitch sub climb], bike=[200 outdoor bike,201 indoor bike,202 e-bike,203 gravel bike,204 mountain bike,205 mountain e-bike,299 helmet bike], swim=[300 pool swim,301 open water swim], cardio-strength=[400 gym cardio,401 GPS cardio,402 strength], ski=[500 ski,501 snowboard,502 XC ski,503 alpine touring], sky=[600 fighter], water-row-fishing=[700 rowing,701 indoor row,702 whitewater,704 flatwater,705 windsurfing,706 speedsurfing,707-715 fishing], climb=[800 indoor single pitch,801 bouldering,802 outdoor climb], walk-fitness=[900 walk,901 jump rope,902 stair climbing,903 elliptical,904 yoga,905 pilates,906 boxing], ball=[1000 badminton,1001 ping pong,1002 basketball,1003 soccer,1004 pickleball,1005 tennis,1006 padel], leisure=[1100 frisbee,1101 skateboard], hybrid fitness=1200, outdoor custom=[9800-9807], indoor custom=[9900-9904], custom common=9999, multisport=[10000 triathlon,10001 free combine,10002 climb ski,10003 multi-pitch climb], track route=25301, all=65535 or omit sportTypeCodes. Returns date, sport type, location, workout time, distance or sets, average pace or speed, labelId, sportType, and activity startTimestamp/endTimestamp when available. If no date range is given, defaults to the last 7 days.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "startDate": { "type": "string", "description": "Start date in yyyyMMdd format, defaults to 7 days ago" },
+          "endDate": { "type": "string", "description": "End date in yyyyMMdd format, defaults to today" },
+          "sportTypeCodes": { "type": "array", "items": { "type": "integer", "format": "int32" } },
+          "minDistanceKm": { "type": "number" },
+          "maxDistanceKm": { "type": "number" },
+          "minDurationMinutes": { "type": "integer" },
+          "maxDurationMinutes": { "type": "integer" },
+          "maxAveragePace": { "type": "string" },
+          "locationKeyword": { "type": "string" },
+          "limit": { "type": "integer", "description": "Maximum number of records to return, default 20" }
+        },
+        "required": ["startDate", "endDate", "sportTypeCodes", "minDistanceKm", "maxDistanceKm", "minDurationMinutes", "maxDurationMinutes", "maxAveragePace", "locationKeyword", "limit"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "queryAvgHeartRate",
+      "description": "Query the user's daily average heart rate data from COROS.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "startDate": { "type": "string" },
+          "endDate": { "type": "string" },
+          "days": { "type": "integer" }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "queryRestingHeartRate",
+      "description": "Query the user's daily resting heart rate from COROS.",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "days": { "type": "integer" } },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "querySleepHrv",
+      "description": "Query the user's COROS sleep HRV. Returns the official daily sleep HRV assessment (average HRV, normal range, baseline, and evaluation) together with raw sleep HRV time-series points. Sleep HRV dates are wake-up days.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "startDate": { "type": "string" },
+          "endDate": { "type": "string" },
+          "days": { "type": "integer" }
+        },
+        "required": ["startDate", "endDate", "days"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "queryStressLevel",
+      "description": "Query the user's daily average stress level from COROS.",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "days": { "type": "integer" } },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "queryHealthCheckTimeSeries",
+      "description": "Query the user's COROS wellness check time series. Returns raw heart rate, HRV, stress, respiration rate, and SpO2 data from the latest complete wellness check.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "startDate": { "type": "string" },
+          "endDate": { "type": "string" },
+          "days": { "type": "integer" }
+        },
+        "required": ["startDate", "endDate", "days"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "queryStressTimeSeries",
+      "description": "Query the user's raw stress time series from COROS daily data.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "startDate": { "type": "string" },
+          "endDate": { "type": "string" },
+          "days": { "type": "integer" }
+        },
+        "required": ["startDate", "endDate", "days"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "queryTrainingSchedule",
+      "description": "Query the user's COROS training schedule. Returns the current week's training plan by default, or a specified date range.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "startDate": { "type": "string" },
+          "endDate": { "type": "string" }
+        },
+        "required": ["startDate", "endDate"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "queryUserInfo",
+      "description": "Query the user's basic profile information from COROS. Returns height, weight, birthday, and gender.",
+      "inputSchema": { "type": "object", "properties": {}, "required": [], "additionalProperties": false }
+    },
+    {
+      "name": "downloadActivityFitFiles",
+      "title": "Download COROS activity FIT files",
+      "description": "Download one or more COROS activity FIT files as binary resources. Pass labelId and sportType for one activity, or pass startDate/endDate in yyyyMMdd format and optional sportType to download matching activities.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "endDate": { "type": "string" },
+          "limit": { "type": "integer", "description": "Optional maximum files to return, default 5 and max 10." },
+          "startDate": { "type": "string" },
+          "labelId": { "type": "string" },
+          "sportType": { "type": "integer" }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "queryActivityFitFileDownloadUrls",
+      "title": "Query COROS activity FIT file download URLs",
+      "description": "Return one or more original COROS activity FIT file download URLs as text. Use this fallback when the MCP client cannot receive binary resources from downloadActivityFitFiles. Returned URLs count against the same daily FIT file limit.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "endDate": { "type": "string" },
+          "limit": { "type": "integer" },
+          "startDate": { "type": "string" },
+          "labelId": { "type": "string" },
+          "sportType": { "type": "integer" }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

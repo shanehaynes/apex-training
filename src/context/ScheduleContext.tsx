@@ -27,6 +27,8 @@ interface ScheduleContextValue {
   isEventsLoading: boolean;
   /** Manual refetch — for flows that must not wait on the realtime channel (e.g. template copy). */
   refreshEvents: () => Promise<void>;
+  /** Manual completion refetch — realtime doesn't cover workout_completions (e.g. provider sync). */
+  refreshCompletions: () => Promise<void>;
   getEventsForDate: (date: Date) => WorkoutEvent[];
   getEventsForRange: (start: Date, end: Date) => WorkoutEvent[];
   toggleCompletion: (id: string) => void;
@@ -160,22 +162,25 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   // ── Completion sync ────────────────────────────────────────────────────────
 
-  useEffect(() => {
+  const loadCompletions = useCallback(async () => {
     if (!supabase) return;
-    supabase
+    const { data, error } = await supabase
       .from('workout_completions')
       .select('event_id')
-      .eq('is_completed', true)
-      .then(({ data, error }) => {
-        if (error) {
-          console.warn('[apex] Completion sync failed:', error.message);
-        } else {
-          const serverIds = new Set((data as Pick<CompletionRow, 'event_id'>[]).map(r => r.event_id));
-          setCompletedIds(serverIds);
-          saveCompletedIds(userId, serverIds);
-        }
-        setIsSyncing(false);
-      });
+      .eq('is_completed', true);
+    if (error) {
+      console.warn('[apex] Completion sync failed:', error.message);
+    } else {
+      const serverIds = new Set((data as Pick<CompletionRow, 'event_id'>[]).map(r => r.event_id));
+      setCompletedIds(serverIds);
+      saveCompletedIds(userId, serverIds);
+    }
+    setIsSyncing(false);
+  }, [userId]);
+
+  useEffect(() => {
+    loadCompletions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Derived state ──────────────────────────────────────────────────────────
@@ -497,6 +502,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     isSyncing,
     isEventsLoading,
     refreshEvents: loadEvents,
+    refreshCompletions: loadCompletions,
     getEventsForDate,
     getEventsForRange,
     toggleCompletion,
@@ -509,7 +515,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     createDefinition,
     updateDefinition,
   }), [
-    events, definitions, isSyncing, isEventsLoading, loadEvents,
+    events, definitions, isSyncing, isEventsLoading, loadEvents, loadCompletions,
     getEventsForDate, getEventsForRange, toggleCompletion, setCompletion,
     createEvent, updateEvent, deleteEvent, deleteEventInstance,
     rescheduleEvent, createDefinition, updateDefinition,

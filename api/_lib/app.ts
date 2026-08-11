@@ -17,6 +17,8 @@ import oauthRegister from './handlers/oauthRegister.js';
 import oauthAuthorize from './handlers/oauthAuthorize.js';
 import oauthApprove from './handlers/oauthApprove.js';
 import oauthToken from './handlers/oauthToken.js';
+import providerSync from './handlers/providerSync.js';
+import providerCallback from './handlers/providerCallback.js';
 import { handleTrainingBlocks } from './trainingBlocks.js';
 import { handleMeals } from './meals.js';
 import { handleMealFavorites } from './mealFavorites.js';
@@ -69,6 +71,10 @@ app.all('/oauth-register', bridge(oauthRegister));
 app.all('/oauth-authorize', bridge(oauthAuthorize));
 app.all('/oauth-approve', bridge(oauthApprove));
 app.all('/oauth-token', bridge(oauthToken));
+// Fitness-provider sync (COROS): connection + activity grab, and the OAuth
+// redirect target (browser navigation, state-token auth — no Supabase JWT).
+app.all('/provider-sync', bridge(providerSync));
+app.all('/provider-callback', bridge(providerCallback));
 // Distinctive message: if /api/chat (or another standalone route) ever lands
 // here, filesystem precedence over the catch-all broke — see the plan's
 // preview-deploy curl matrix.
