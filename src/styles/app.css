@@ -4974,3 +4974,71 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   color: var(--text-primary);
   font-weight: 600;
 }
+
+/* ─── Activity stream charts (FIT time-series) ──────────────────────────── */
+
+.stream-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 8px;
+}
+
+.stream-charts__row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.stream-chart {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.stream-chart--route {
+  flex: 0 0 auto;
+}
+
+.stream-chart__title {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.stream-chart__svg {
+  display: block;
+  width: 100%;
+  height: 96px;
+  touch-action: none;
+}
+
+.stream-chart__route-svg {
+  display: block;
+  width: 108px;
+  height: 108px;
+}
+
+.stream-chart__grid {
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.stream-chart__label {
+  fill: var(--text-muted);
+  font-size: 10px;
+  font-family: var(--font-display);
+}
+
+.stream-chart__crosshair {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+}
+
+.stream-chart__readout {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  min-height: 16px;
+}

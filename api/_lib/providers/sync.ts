@@ -279,28 +279,40 @@ function parseDecisions(raw: unknown): Decision[] | null {
 
 /** Merge the richer detail payload over the list item when available. */
 async function withDetail(client: CorosClient, activity: ProviderActivity): Promise<ProviderActivity> {
+  const sportType = typeof activity.sport === 'number' ? activity.sport : undefined;
+  let enriched = activity;
   try {
     // getActivityDetail requires the numeric sportType from the records list.
-    const detail = await client.fetchActivityDetail(
-      activity.activityId,
-      typeof activity.sport === 'number' ? activity.sport : undefined,
-    );
-    if (!detail) return activity;
-    return {
-      ...activity,
-      ...Object.fromEntries(Object.entries(detail).filter(([, v]) => v !== undefined && v !== null)),
-      summaryExtras: { ...activity.summaryExtras, ...detail.summaryExtras },
-      streams: detail.streams ?? activity.streams,
-      // The list item's identity + start are authoritative.
-      activityId: activity.activityId,
-      startUtc: activity.startUtc,
-    };
+    const detail = await client.fetchActivityDetail(activity.activityId, sportType);
+    if (detail) {
+      enriched = {
+        ...activity,
+        ...Object.fromEntries(Object.entries(detail).filter(([, v]) => v !== undefined && v !== null)),
+        summaryExtras: { ...activity.summaryExtras, ...detail.summaryExtras },
+        streams: detail.streams ?? activity.streams,
+        // The list item's identity + start are authoritative.
+        activityId: activity.activityId,
+        startUtc: activity.startUtc,
+      };
+    }
   } catch (err) {
     // Detail is enrichment, not a requirement — scalars from the list
     // payload still make a useful import.
     console.error('[provider-sync] detail fetch failed, using list payload:', err instanceof Error ? err.message : err);
-    return activity;
   }
+
+  // Time-series only exist in the FIT files. Same posture: enrichment, never
+  // a blocker — a failed download (or the daily FIT limit) still imports the
+  // activity with its scalars, and streams stay null.
+  if (!enriched.streams) {
+    try {
+      const streams = await client.fetchFitStreams(activity.activityId, sportType);
+      if (streams) enriched = { ...enriched, streams };
+    } catch (err) {
+      console.error('[provider-sync] FIT streams fetch failed, importing without series:', err instanceof Error ? err.message : err);
+    }
+  }
+  return enriched;
 }
 
 const APEX_TYPE_TO_EXERCISE_CATEGORY: Record<string, Exercise['category']> = {
