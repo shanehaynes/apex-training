@@ -63,6 +63,32 @@ describe('consolidated API router', () => {
     expect(req.query.resource).toBe('objective');
   });
 
+  // Regression: Vercel's /.well-known/* rewrites hand this function the
+  // ORIGINAL url, not the rewrite destination — the entrypoint must
+  // normalize it or discovery 404s in prod (it did, 2026-08-11).
+  it('serves protected-resource metadata from the original well-known url', async () => {
+    const { res, statusCode, body } = makeRes();
+    const req = makeReq('GET', '/.well-known/oauth-protected-resource');
+    req.headers.host = 'apex.test';
+    (req.headers as Record<string, string>)['x-forwarded-proto'] = 'https';
+    await handler(req, res);
+    expect(statusCode()).toBe(200);
+    expect(body()).toMatchObject({ resource: 'https://apex.test/api/mcp' });
+  });
+
+  it('serves authorization-server metadata from the original well-known url', async () => {
+    const { res, statusCode, body } = makeRes();
+    const req = makeReq('GET', '/.well-known/oauth-authorization-server');
+    req.headers.host = 'apex.test';
+    (req.headers as Record<string, string>)['x-forwarded-proto'] = 'https';
+    await handler(req, res);
+    expect(statusCode()).toBe(200);
+    expect(body()).toMatchObject({
+      issuer: 'https://apex.test',
+      registration_endpoint: 'https://apex.test/api/oauth-register',
+    });
+  });
+
   it('404s unknown paths with the distinctive router message', async () => {
     const { res, statusCode, body } = makeRes();
     await handler(makeReq('GET', '/api/nonexistent'), res);
