@@ -79,3 +79,27 @@ export function patchJson<T = unknown>(path: string, body: unknown, label: strin
 export function deleteJson<T = unknown>(path: string, label: string, body?: unknown): Promise<T> {
   return requestJson<T>('DELETE', path, body, label);
 }
+
+// ── MCP connector tokens ──────────────────────────────────────────────────────
+
+export interface McpTokenInfo {
+  id: string;
+  name: string;
+  token_last4: string;
+  created_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+}
+
+export function listMcpTokens(): Promise<{ tokens: McpTokenInfo[] }> {
+  return getJson('/api/mcp-tokens', 'Token list');
+}
+
+/** The returned plaintext token is shown once and never retrievable again. */
+export function createMcpToken(name: string): Promise<{ id: string; token: string }> {
+  return postJson('/api/mcp-tokens', { name }, 'Token creation');
+}
+
+export function revokeMcpToken(id: string): Promise<{ ok: boolean }> {
+  return deleteJson(`/api/mcp-tokens?id=${encodeURIComponent(id)}`, 'Token revocation');
+}

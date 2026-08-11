@@ -10,6 +10,8 @@ import eventInstances from './handlers/eventInstances.js';
 import coachSummary from './handlers/coachSummary.js';
 import mutationsLog from './handlers/mutationsLog.js';
 import completions from './handlers/completions.js';
+import mcp from './handlers/mcp.js';
+import mcpTokens from './handlers/mcpTokens.js';
 import { handleTrainingBlocks } from './trainingBlocks.js';
 import { handleMeals } from './meals.js';
 import { handleMealFavorites } from './mealFavorites.js';
@@ -50,6 +52,9 @@ app.all('/event-instances', bridge(eventInstances));
 app.all('/coach-summary', bridge(coachSummary));
 app.all('/mutations-log', bridge(mutationsLog));
 app.all('/completions', bridge(completions));
+// Remote MCP server (bearer PAT auth, not Supabase JWT) + its token CRUD.
+app.all('/mcp', bridge(mcp));
+app.all('/mcp-tokens', bridge(mcpTokens));
 // Distinctive message: if /api/chat (or another standalone route) ever lands
 // here, filesystem precedence over the catch-all broke — see the plan's
 // preview-deploy curl matrix.

@@ -1,6 +1,6 @@
 import { addDays, differenceInCalendarDays, format, parseISO, startOfISOWeek } from 'date-fns';
 import type { StatsPeriod } from '../review/types';
-import { rangeLabel } from '../review/isoMonth';
+import { rangeLabel } from '../review/isoMonth.js';
 import type { TrainingBlock } from '../../types/blocks';
 
 // ─── Block date windows ───────────────────────────────────────────────────────

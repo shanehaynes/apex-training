@@ -6,7 +6,7 @@ import type {
   ObjectiveStatus,
   TrainingBlock,
 } from '../../types/blocks';
-import { parseWeeklyTargets } from './targets';
+import { parseWeeklyTargets } from './targets.js';
 
 // ─── Row ↔ domain mapping (phase 19) ─────────────────────────────────────────
 // Pure converters, mirroring src/lib/schedule/mapping.ts. The camelCase ↔
