@@ -34,7 +34,14 @@ interface Decision {
 }
 
 interface StatusResponse {
-  coros: { status: Exclude<ProviderStatus, 'unknown'>; lastSyncedAt: string | null; connectedAt: string | null; configured: boolean };
+  coros: {
+    status: Exclude<ProviderStatus, 'unknown'>;
+    lastSyncedAt: string | null;
+    connectedAt: string | null;
+    configured: boolean;
+    autoSync: boolean;
+    pendingFillCount: number;
+  };
 }
 
 function browserTimezone(): string {
@@ -48,6 +55,8 @@ export function useProviderSync() {
   const [status, setStatus] = useState<ProviderStatus>('unknown');
   const [configured, setConfigured] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [autoSync, setAutoSyncState] = useState(true);
+  const [pendingFillCount, setPendingFillCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   /** FILL proposals awaiting the user, head = the one on screen. The ref is
@@ -69,6 +78,8 @@ export function useProviderSync() {
       setStatus(data.coros?.status ?? 'unknown');
       setConfigured(data.coros?.configured ?? false);
       setLastSyncedAt(data.coros?.lastSyncedAt ?? null);
+      setAutoSyncState(data.coros?.autoSync ?? true);
+      setPendingFillCount(data.coros?.pendingFillCount ?? 0);
     } catch {
       /* postJson already toasted; leave status unknown */
     }
@@ -88,6 +99,16 @@ export function useProviderSync() {
       // No setIsConnecting(false) on success — the page is navigating away.
     } catch {
       setIsConnecting(false);
+    }
+  }, []);
+
+  const setAutoSync = useCallback(async (enabled: boolean) => {
+    // Optimistic — the checkbox answers immediately; a failure reverts.
+    setAutoSyncState(enabled);
+    try {
+      await postJson('/api/provider-sync', { action: 'set-auto-sync', provider: 'coros', enabled }, 'Auto-sync setting');
+    } catch {
+      setAutoSyncState(!enabled);
     }
   }, []);
 
@@ -125,6 +146,7 @@ export function useProviderSync() {
       const summary = parts.length ? parts.join(' · ') : 'nothing new';
       notify(`COROS: ${summary.charAt(0).toUpperCase()}${summary.slice(1)}`);
       setLastSyncedAt(new Date().toISOString());
+      setPendingFillCount(0);
     } catch {
       /* toasted */
     } finally {
@@ -193,6 +215,9 @@ export function useProviderSync() {
     status,
     configured,
     lastSyncedAt,
+    autoSync,
+    setAutoSync,
+    pendingFillCount,
     isSyncing,
     isConnecting,
     pendingFills,

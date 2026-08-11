@@ -1,7 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import type { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { fetchCompletionsInRange, fetchExpandedSchedule } from '../mcp/data.js';
-import { getFreshAccessToken, NotConnectedError, recordSync, type SyncProvider } from './connection.js';
+import {
+  getFreshAccessToken,
+  NotConnectedError,
+  recordSync,
+  setPendingFillCount,
+  stampTimezone,
+  type SyncProvider,
+} from './connection.js';
 import { CorosClient, type ProviderActivity } from './coros/client.js';
 import { mapSport } from './coros/mapSport.js';
 import { McpAuthExpiredError, McpToolError } from './mcpHttp.js';
@@ -154,6 +161,8 @@ export async function handleSyncAction(
     return;
   }
   const timezone = body.timezone;
+  // Remember the browser's zone — the nightly cron has no browser to ask.
+  await stampTimezone(supabase, userId, provider, timezone);
 
   let accessToken: string;
   try {
@@ -405,7 +414,85 @@ async function handleApply(
   // The grab is recorded even when individual activities errored — their
   // ledger rows are absent, so the 48 h overlap re-proposes them next time.
   await recordSync(supabase, userId, provider);
+  // A manual apply carries a decision for every proposal, so nothing the
+  // nightly job counted is still pending.
+  await setPendingFillCount(supabase, userId, provider, 0);
   res.status(200).json(outcome);
+}
+
+// ─── Nightly auto-sync ───────────────────────────────────────────────────────
+
+export interface AutoSyncOutcome {
+  created: number;
+  pendingFills: number;
+  errors: number;
+}
+
+/** Cap per user per night: keeps one user's backlog (and its per-activity
+ *  FIT downloads) from starving the run. Leftovers import the next night —
+ *  the ledger and watermark make that convergent. */
+const MAX_AUTO_IMPORTS = 20;
+
+/**
+ * The unattended flavor of apply. Imports every unmatched activity as a
+ * standalone completed event (the decided behavior for silent imports) but
+ * NEVER auto-fills a planned workout — fill decisions stay with the user,
+ * counted into pending_fill_count so the calendar Sync button wears a badge.
+ * The watermark advances only when nothing is pending, so an unconfirmed
+ * match can't age out of the fetch window; a manual sync earlier in the day
+ * makes tonight's run a natural no-op (everything already ledgered).
+ */
+export async function runAutoSync(
+  supabase: Admin,
+  userId: string,
+  provider: SyncProvider,
+  timezone: string,
+): Promise<AutoSyncOutcome> {
+  const accessToken = await getFreshAccessToken(supabase, userId, provider);
+  const ctx = await loadSyncContext(supabase, userId, provider, accessToken);
+  const client = new CorosClient(accessToken);
+  const outcome: AutoSyncOutcome = { created: 0, pendingFills: 0, errors: 0 };
+  const filled = new Set(ctx.ledgerFilledKeys);
+
+  for (const listItem of ctx.activities) {
+    if (ctx.ledgerActivityIds.has(listItem.activityId)) continue;
+
+    const sport = mapSport(listItem.sport);
+    const local = utcToLocal(listItem.startUtc, timezone);
+    const durationMin = Math.max(1, Math.round(listItem.durationSec / 60));
+    const match = matchActivity(
+      { localDate: local.date, startMinutes: local.minutes, durationMin, apexType: sport.type },
+      ctx.occurrences,
+      ctx.completedKeys,
+      filled,
+    );
+    if (match) {
+      // Reserve the occurrence so a second activity can't also claim it,
+      // exactly like preview does — but leave the decision to the user.
+      filled.add(occurrenceKey(match.id, match.date));
+      outcome.pendingFills += 1;
+      continue;
+    }
+    if (outcome.created >= MAX_AUTO_IMPORTS) continue;
+
+    try {
+      const activity = await withDetail(client, listItem);
+      await writeActivityRecords(supabase, userId, provider, activity, sport.label, local, null, {
+        eventId: sanitizeEventId(provider, activity.activityId),
+        type: sport.type,
+      });
+      outcome.created += 1;
+    } catch (err) {
+      console.error(`[provider-cron] auto-import failed for ${listItem.activityId}:`, err instanceof Error ? err.message : err);
+      outcome.errors += 1;
+    }
+  }
+
+  if (outcome.pendingFills === 0 && outcome.errors === 0) {
+    await recordSync(supabase, userId, provider);
+  }
+  await setPendingFillCount(supabase, userId, provider, outcome.pendingFills);
+  return outcome;
 }
 
 // ─── The per-activity write sequence ─────────────────────────────────────────

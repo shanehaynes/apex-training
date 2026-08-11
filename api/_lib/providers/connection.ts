@@ -25,6 +25,13 @@ export interface ConnectionRow {
   pending_oauth: { state?: string; codeVerifier?: string; createdAt?: string } | null;
   last_synced_at: string | null;
   connected_at: string | null;
+  /** IANA zone stamped from the browser on manual actions; the nightly cron's
+   *  only way to place activities on the user's calendar dates. */
+  timezone: string | null;
+  /** Per-connection opt-out for the nightly cron. */
+  auto_sync: boolean;
+  /** Matches awaiting a fill/keep-separate decision — the Sync-button badge. */
+  pending_fill_count: number;
 }
 
 /** Encrypt when the secret is configured; plaintext + loud log otherwise
@@ -46,7 +53,7 @@ export async function getConnection(
 ): Promise<ConnectionRow | null> {
   const { data, error } = await supabase
     .from('provider_connections')
-    .select('user_id, provider, access_token, refresh_token, token_expires_at, status, pending_oauth, last_synced_at, connected_at')
+    .select('user_id, provider, access_token, refresh_token, token_expires_at, status, pending_oauth, last_synced_at, connected_at, timezone, auto_sync, pending_fill_count')
     .eq('user_id', userId)
     .eq('provider', provider)
     .maybeSingle();
@@ -59,9 +66,64 @@ export function connectionStatus(row: ConnectionRow | null): {
   status: 'disconnected' | 'pending' | 'connected' | 'expired';
   lastSyncedAt: string | null;
   connectedAt: string | null;
+  autoSync: boolean;
+  pendingFillCount: number;
 } {
-  if (!row) return { status: 'disconnected', lastSyncedAt: null, connectedAt: null };
-  return { status: row.status, lastSyncedAt: row.last_synced_at, connectedAt: row.connected_at };
+  if (!row) return { status: 'disconnected', lastSyncedAt: null, connectedAt: null, autoSync: true, pendingFillCount: 0 };
+  return {
+    status: row.status,
+    lastSyncedAt: row.last_synced_at,
+    connectedAt: row.connected_at,
+    autoSync: row.auto_sync ?? true,
+    pendingFillCount: row.pending_fill_count ?? 0,
+  };
+}
+
+/** Remember the browser's IANA zone for the nightly cron. Best-effort. */
+export async function stampTimezone(
+  supabase: Admin, userId: string, provider: SyncProvider, timezone: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('provider_connections')
+    .update({ timezone, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('provider', provider);
+  if (error) console.error('[providers] stampTimezone failed:', error.message);
+}
+
+export async function setAutoSync(
+  supabase: Admin, userId: string, provider: SyncProvider, enabled: boolean,
+): Promise<void> {
+  const { error } = await supabase
+    .from('provider_connections')
+    .update({ auto_sync: enabled, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('provider', provider);
+  if (error) throw new Error(`setAutoSync failed: ${error.message}`);
+}
+
+export async function setPendingFillCount(
+  supabase: Admin, userId: string, provider: SyncProvider, count: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from('provider_connections')
+    .update({ pending_fill_count: count, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('provider', provider);
+  if (error) console.error('[providers] setPendingFillCount failed:', error.message);
+}
+
+/** Every connected row eligible for the nightly job, all providers. */
+export async function listAutoSyncConnections(
+  supabase: Admin,
+): Promise<{ user_id: string; provider: SyncProvider; timezone: string | null }[]> {
+  const { data, error } = await supabase
+    .from('provider_connections')
+    .select('user_id, provider, timezone')
+    .eq('status', 'connected')
+    .eq('auto_sync', true);
+  if (error) throw new Error(`auto-sync listing failed: ${error.message}`);
+  return (data ?? []) as { user_id: string; provider: SyncProvider; timezone: string | null }[];
 }
 
 /** Start the redirect dance: park state + encrypted PKCE verifier on the row. */

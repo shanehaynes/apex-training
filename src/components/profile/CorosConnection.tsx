@@ -13,7 +13,7 @@ function formatWhen(iso: string | null): string {
 }
 
 export default function CorosConnection() {
-  const { status, configured, lastSyncedAt, isConnecting, startConnect, disconnect } = useProviderSync();
+  const { status, configured, lastSyncedAt, isConnecting, startConnect, disconnect, autoSync, setAutoSync } = useProviderSync();
 
   if (!configured) return null;
 
@@ -27,6 +27,16 @@ export default function CorosConnection() {
             the Sync button above the calendar — activities matching a planned workout
             offer to fill it; everything else lands as its own event.
           </p>
+          <label className="coros-auto-sync">
+            <input
+              type="checkbox"
+              checked={autoSync}
+              onChange={e => setAutoSync(e.target.checked)}
+            />
+            Sync automatically every night (~11:30 PM ET). Unmatched activities import
+            on their own; matches to planned workouts wait for your confirmation — the
+            Sync button shows a badge when any are waiting.
+          </label>
           <button className="auth-submit" onClick={disconnect}>
             Disconnect COROS
           </button>

@@ -5042,3 +5042,35 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   font-variant-numeric: tabular-nums;
   min-height: 16px;
 }
+
+/* Nightly auto-sync toggle (Profile → COROS) and the pending-fills badge. */
+.coros-auto-sync {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 10px 0 12px;
+  cursor: pointer;
+}
+
+.coros-auto-sync input {
+  margin-top: 2px;
+  accent-color: #ea690b;
+}
+
+.sync-pending-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #ea690b;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-display);
+}

@@ -19,7 +19,7 @@ function fillPrompt(proposal: SyncProposal): string {
 
 export default function ProviderSyncControls() {
   const {
-    status, configured, isSyncing, pendingFills,
+    status, configured, isSyncing, pendingFills, pendingFillCount,
     refreshStatus, runSync, confirmFill,
   } = useProviderSync();
   const { dispatch } = useCalendar();
@@ -56,6 +56,11 @@ export default function ProviderSyncControls() {
       >
         <RefreshCw size={14} strokeWidth={1.5} className={isSyncing ? 'sync-spin' : undefined} />
         <span className="btn-library__label">{status === 'expired' ? 'Reconnect' : 'Sync'}</span>
+        {pendingFillCount > 0 && pendingFills.length === 0 && (
+          <span className="sync-pending-badge" title={`${pendingFillCount} matched ${pendingFillCount === 1 ? 'activity' : 'activities'} waiting for your confirmation`}>
+            {pendingFillCount}
+          </span>
+        )}
       </button>
 
       {head && (
