@@ -1,0 +1,165 @@
+{
+  "initialize_unauthed": {
+    "status": 401,
+    "wwwAuthenticate": "Bearer resource_metadata=\"https://mcpus.coros.com/.well-known/oauth-protected-resource/mcp\"",
+    "contentType": null,
+    "body": ""
+  },
+  "protected_resource_metadata": {
+    "status": 200,
+    "json": {
+      "resource": "https://mcpus.coros.com",
+      "authorization_servers": [
+        "https://mcpus.coros.com"
+      ],
+      "scopes_supported": [
+        "openid",
+        "mcp.tools",
+        "offline_access"
+      ],
+      "bearer_methods_supported": [
+        "header"
+      ]
+    }
+  },
+  "authorization_server_guess": "https://mcpus.coros.com",
+  "as_metadata:/.well-known/oauth-authorization-server": {
+    "status": 200,
+    "json": {
+      "issuer": "https://mcpus.coros.com",
+      "authorization_endpoint": "https://mcpus.coros.com/oauth2/authorize",
+      "device_authorization_endpoint": "https://mcpus.coros.com/oauth2/device_authorization",
+      "token_endpoint": "https://mcpus.coros.com/oauth2/token",
+      "token_endpoint_auth_methods_supported": [
+        "none",
+        "client_secret_basic",
+        "client_secret_post",
+        "client_secret_jwt",
+        "private_key_jwt",
+        "tls_client_auth",
+        "self_signed_tls_client_auth"
+      ],
+      "jwks_uri": "https://mcpus.coros.com/oauth2/jwks",
+      "response_types_supported": [
+        "code"
+      ],
+      "grant_types_supported": [
+        "authorization_code",
+        "client_credentials",
+        "refresh_token",
+        "urn:ietf:params:oauth:grant-type:device_code",
+        "urn:ietf:params:oauth:grant-type:token-exchange"
+      ],
+      "revocation_endpoint": "https://mcpus.coros.com/oauth2/revoke",
+      "revocation_endpoint_auth_methods_supported": [
+        "client_secret_basic",
+        "client_secret_post",
+        "client_secret_jwt",
+        "private_key_jwt",
+        "tls_client_auth",
+        "self_signed_tls_client_auth"
+      ],
+      "introspection_endpoint": "https://mcpus.coros.com/oauth2/introspect",
+      "introspection_endpoint_auth_methods_supported": [
+        "client_secret_basic",
+        "client_secret_post",
+        "client_secret_jwt",
+        "private_key_jwt",
+        "tls_client_auth",
+        "self_signed_tls_client_auth"
+      ],
+      "code_challenge_methods_supported": [
+        "S256"
+      ],
+      "tls_client_certificate_bound_access_tokens": true,
+      "scopes_supported": [
+        "openid",
+        "mcp.tools",
+        "offline_access"
+      ],
+      "registration_endpoint": "https://mcpus.coros.com/connect/register"
+    }
+  },
+  "as_metadata:/.well-known/openid-configuration": {
+    "status": 200,
+    "json": {
+      "issuer": "https://mcpus.coros.com",
+      "authorization_endpoint": "https://mcpus.coros.com/oauth2/authorize",
+      "device_authorization_endpoint": "https://mcpus.coros.com/oauth2/device_authorization",
+      "token_endpoint": "https://mcpus.coros.com/oauth2/token",
+      "token_endpoint_auth_methods_supported": [
+        "none",
+        "client_secret_basic",
+        "client_secret_post",
+        "client_secret_jwt",
+        "private_key_jwt",
+        "tls_client_auth",
+        "self_signed_tls_client_auth"
+      ],
+      "jwks_uri": "https://mcpus.coros.com/oauth2/jwks",
+      "userinfo_endpoint": "https://mcpus.coros.com/userinfo",
+      "end_session_endpoint": "https://mcpus.coros.com/connect/logout",
+      "response_types_supported": [
+        "code"
+      ],
+      "grant_types_supported": [
+        "authorization_code",
+        "client_credentials",
+        "refresh_token",
+        "urn:ietf:params:oauth:grant-type:device_code",
+        "urn:ietf:params:oauth:grant-type:token-exchange"
+      ],
+      "revocation_endpoint": "https://mcpus.coros.com/oauth2/revoke",
+      "revocation_endpoint_auth_methods_supported": [
+        "client_secret_basic",
+        "client_secret_post",
+        "client_secret_jwt",
+        "private_key_jwt",
+        "tls_client_auth",
+        "self_signed_tls_client_auth"
+      ],
+      "introspection_endpoint": "https://mcpus.coros.com/oauth2/introspect",
+      "introspection_endpoint_auth_methods_supported": [
+        "client_secret_basic",
+        "client_secret_post",
+        "client_secret_jwt",
+        "private_key_jwt",
+        "tls_client_auth",
+        "self_signed_tls_client_auth"
+      ],
+      "code_challenge_methods_supported": [
+        "S256"
+      ],
+      "tls_client_certificate_bound_access_tokens": true,
+      "subject_types_supported": [
+        "public"
+      ],
+      "id_token_signing_alg_values_supported": [
+        "RS256"
+      ],
+      "scopes_supported": [
+        "openid",
+        "mcp.tools",
+        "offline_access"
+      ],
+      "registration_endpoint": "https://mcpus.coros.com/connect/register"
+    }
+  },
+  "dcr_attempt": {
+    "status": 201,
+    "json": {
+      "client_id": "2e3ba86a-7e13-4bbc-ab4a-43bdddb13b1b",
+      "client_id_issued_at": 1786362628,
+      "client_name": "Apex Training (spike probe)",
+      "redirect_uris": [
+        "https://apex-training.vercel.app/api/provider-callback"
+      ],
+      "grant_types": [
+        "authorization_code",
+        "refresh_token"
+      ],
+      "scope": "offline_access openid mcp.tools",
+      "token_endpoint_auth_method": "none"
+    }
+  }
+}

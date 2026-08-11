@@ -9,6 +9,7 @@ import { useRotatingPlaceholder } from '../../hooks/useRotatingPlaceholder';
 import { useTemplateCopy } from '../../hooks/useTemplateCopy';
 import CoachActivity from './CoachActivity';
 import McpTokens from './McpTokens';
+import CorosConnection from './CorosConnection';
 import type { AvatarKey } from '../../lib/db/types';
 
 // Full-screen profile overlay, same pattern as LibraryView: fixed inset-0,
@@ -316,6 +317,8 @@ export default function ProfileView() {
         </section>
 
         <McpTokens />
+
+        <CorosConnection />
 
         {showTemplateOffer && (
           <section className="profile-section">

@@ -1,0 +1,10 @@
+{
+  "_captured": "2026-08-11 via scripts/coros-spike.mjs login — querySportRecords answers with FORMATTED TEXT (the content text is itself a JSON-quoted string), not structured JSON. Distances are km.",
+  "content": [
+    {
+      "type": "text",
+      "text": "\"Sport Records — 2026-07-12 to 2026-08-11 (3 records)\\n========================\\n\\n1. Strength — 2026-08-08\\n   Location: Strength\\n   Time Window: startTimestamp=1786217357 | endTimestamp=1786222254\\n   Duration: 1:21:35 | Sets: 1\\n | Avg HR: 125 bpm | Calories: 768 kcal\\n   LabelId: 479485294872133835 | SportType: 402\\n\\n2. Open Water Swim — 2026-08-05\\n   Location: North Kingstown Open Water\\n   Start Coordinates: 41.568001, -71.444000\\n   Time Window: startTimestamp=1785952378 | endTimestamp=1785955931\\n   Duration: 59:13 | Distance: 1.36 km\\n   Average Pace: 4:21 /km | Avg HR: 120 bpm | Calories: 648 kcal\\n   LabelId: 479414540117770543 | SportType: 301\\n\\n3. Trail Run — 2026-07-17\\n   Location: Provo Trail Run\\n   Start Coordinates: 40.431000, -111.639000\\n   Time Window: startTimestamp=1784275114 | endTimestamp=1784303560\\n   Duration: 7:54:06 | Distance: 23.40 km\\n   Average Pace: 20:15 /km | Avg HR: 109 bpm | Calories: 3165 kcal\\n   LabelId: 478978636903383047 | SportType: 102\""
+    }
+  ],
+  "isError": false
+}
