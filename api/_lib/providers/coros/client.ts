@@ -1,5 +1,6 @@
 import { McpHttpClient, McpToolError, type McpToolInfo } from '../mcpHttp.js';
 import { COROS_MCP_ENDPOINT } from './oauth.js';
+import { fetchAndExtract, firstUrlIn, type FitStreams } from './fit.js';
 
 // COROS activity access over the official remote MCP. Tool names and
 // schemas were captured live on 2026-08-10 (fixtures/coros/tools-list.json):
@@ -41,6 +42,7 @@ export interface ProviderActivity {
 
 export const SPORT_RECORDS_TOOL = 'querySportRecords';
 export const ACTIVITY_DETAIL_TOOL = 'getActivityDetail';
+export const FIT_URLS_TOOL = 'queryActivityFitFileDownloadUrls';
 
 function adaptiveFind(tools: McpToolInfo[], patterns: RegExp[]): McpToolInfo | null {
   // Names first, descriptions second — descriptions cross-reference OTHER
@@ -152,6 +154,22 @@ export class CorosClient {
     if (typeof payload === 'string') return parseDetailText(payload);
     const item = extractActivityArray(payload)[0] ?? (isRecord(payload) ? payload : null);
     return item ? normalizeActivity(item, activityId) : null;
+  }
+
+  /** HR/GPS/altitude time-series via the FIT-URL tool (the text summaries
+   *  carry no series). One file per call against COROS's daily FIT limit;
+   *  null when the tool, URL, or records are missing. */
+  async fetchFitStreams(activityId: string, sportType?: number): Promise<FitStreams | null> {
+    if (sportType === undefined) return null;
+    const tools = await this.loadTools();
+    const tool = tools.find(t => t.name === FIT_URLS_TOOL)
+      ?? adaptiveFind(tools, [/fit.{0,20}(url|download)/is]);
+    if (!tool) return null;
+
+    const payload = await this.mcp.toolCall(tool.name, { labelId: activityId, sportType, limit: 1 });
+    const url = typeof payload === 'string' ? firstUrlIn(payload) : null;
+    if (!url) return null;
+    return fetchAndExtract(url);
   }
 }
 

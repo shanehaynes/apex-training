@@ -237,6 +237,25 @@ async function login() {
     });
     console.log(`\n=== getActivityDetail ${labelId}/${sportType} (freeze into fixtures/coros/activity-detail.json) ===\n`);
     console.log(JSON.stringify(detail.result ?? detail.error, null, 2).slice(0, 20000));
+
+    // FIT streams path: URL tool → download → sanity-check the header.
+    // (Counts one file against COROS's daily FIT limit.)
+    const fitUrls = await rpc('tools/call', {
+      name: 'queryActivityFitFileDownloadUrls',
+      arguments: { labelId, sportType: Number(sportType), limit: 1 },
+    });
+    const fitFlat = JSON.stringify(fitUrls.result ?? fitUrls.error ?? {});
+    console.log(`\n=== queryActivityFitFileDownloadUrls ${labelId} ===\n`, fitFlat.slice(0, 2000));
+    const fitUrl = /https:\\?\/\\?\/[^\s"'<>\\)\]]+/.exec(fitFlat)?.[0]?.replaceAll('\\/', '/');
+    if (fitUrl) {
+      const res = await fetch(fitUrl);
+      const buf = new Uint8Array(await res.arrayBuffer());
+      // Bytes 8-11 of a FIT header spell ".FIT".
+      const magic = String.fromCharCode(...buf.slice(8, 12));
+      console.log(`\nFIT download: http ${res.status}, ${buf.byteLength} bytes, magic "${magic}" ${magic === '.FIT' ? '✓' : '✗ NOT A FIT FILE'}`);
+    } else {
+      console.log('\nNo download URL found in the FIT-URLs payload.');
+    }
   } else {
     console.log('\nNo labelId/sportType found in the records payload — no activities in the last 30 days?');
   }
