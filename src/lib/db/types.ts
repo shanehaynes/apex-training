@@ -85,6 +85,8 @@ export interface WorkoutEventRow {
   recurring_days: number[] | null;
   /** @deprecated Superseded by recurrence_rule. */
   recurring_end_date: string | null;
+  /** Provider provenance ('coros'); optional so pre-phase27 rows still type-check. Never set on recurring base rows. */
+  source?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -308,4 +310,54 @@ export interface BlockMutationLogRow {
   resource_name: string;
   diff?: Record<string, unknown>;
   triggered_by?: string;
+}
+
+// ─── Provider sync (phase 27) ────────────────────────────────────────────────
+// COROS today; provider strings widen for Garmin/Apple later.
+
+export type SyncProvider = 'coros';
+
+/** Service-role only (RLS with no policies) — the browser never sees this row,
+ *  only the status/timestamp projection returned by /api/provider-sync. */
+export interface ProviderConnectionRow {
+  user_id: string;
+  provider: SyncProvider;
+  /** keyCrypto-encrypted (enc:v1:…); null while OAuth is pending. */
+  access_token: string | null;
+  refresh_token: string | null;
+  token_expires_at: string | null;
+  status: 'pending' | 'connected' | 'expired';
+  /** { state, codeVerifier (encrypted), createdAt } during the redirect dance. */
+  pending_oauth: Record<string, unknown> | null;
+  /** The recorded activity-grab watermark; the imports ledger is what dedupes. */
+  last_synced_at: string | null;
+  connected_at: string | null;
+  updated_at: string;
+}
+
+/** Service-role only. One row per provider activity ever imported. */
+export interface ProviderActivityImportRow {
+  user_id: string;
+  provider: SyncProvider;
+  activity_id: string;
+  mode: 'created' | 'filled';
+  /** Occurrence id when filled; the coros-<activityId> event id when created. */
+  event_id: string;
+  event_date: string;
+  imported_at: string;
+}
+
+/** Measured metrics kept out of the calendar read path. Anon SELECT allowed
+ *  (per-user policy) so the event detail view can read summaries directly. */
+export interface ActivityStreamsRow {
+  user_id?: string;
+  event_id: string;
+  event_date: string;
+  provider: SyncProvider;
+  activity_id: string;
+  /** Scalars: sport, avgHr, maxHr, hrZones, calories, hrv, trainingLoad, vo2max, fileUrls… */
+  summary: Record<string, unknown>;
+  /** Series, downsampled to ≤ ~2000 points each: { hr: [[sec,bpm]…], gps: [[sec,lat,lon,ele]…] }. */
+  streams: Record<string, unknown> | null;
+  created_at: string;
 }

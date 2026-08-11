@@ -125,6 +125,8 @@ export interface WorkoutEvent {
   climbingTargets?: ClimbingTargets;
   tags: string[];
   equipment?: string[];
+  /** Fitness-provider provenance for synced events; unset = native. Never set on recurring base events. */
+  source?: 'coros' | 'garmin' | 'apple';
   isCompleted: boolean;
   completedAt?: string;
   isRecurring: boolean;

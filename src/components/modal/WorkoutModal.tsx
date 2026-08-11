@@ -12,6 +12,7 @@ import { minutesToDisplayTime, timeToMinutes, toDisplayTime, toInputTime } from 
 import { notify } from '../../lib/notify';
 import ExerciseCard from './ExerciseCard';
 import EventExerciseEditor from './EventExerciseEditor';
+import SyncMetrics from './SyncMetrics';
 import { isOutdoorClimbing, resolveClimbingTargets, sectionLabels } from '../../lib/climbing';
 import { DIFFICULTY_LABELS } from '../../utils/difficulty';
 import type { Exercise } from '../../types/workout';
@@ -267,6 +268,10 @@ export default function WorkoutModal() {
               </span>
             )}
           </div>
+
+          {/* Measured provider metrics (COROS etc.) — renders only when a
+              streams row exists for this occurrence. */}
+          <SyncMetrics eventId={event.id} eventDate={live.date} />
 
           {/* Difficulty dots */}
           <div className="modal-difficulty">

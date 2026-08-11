@@ -35,6 +35,9 @@ export const RATE_LIMITS = {
   feed:    { windowSeconds: 3600, max: 120 },
   /** Remote MCP endpoint, keyed by the access token's resolved user. */
   mcp:     { windowSeconds: 3600, max: 300 },
+  /** Provider sync (COROS): one apply writes dozens of rows, so it gets its
+   *  own bucket instead of draining the shared writes budget. */
+  providerSync: { windowSeconds: 3600, max: 60 },
 } as const;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;
