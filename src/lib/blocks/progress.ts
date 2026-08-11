@@ -5,13 +5,13 @@ import {
   computeReviewStats,
   durationMinutesFor,
   sessionSecondsMap,
-} from '../review/stats';
-import { rangeLabel } from '../review/isoMonth';
-import { parseQuantity } from '../tracking/records';
+} from '../review/stats.js';
+import { rangeLabel } from '../review/isoMonth.js';
+import { parseQuantity } from '../tracking/records.js';
 import type { WorkoutEvent } from '../../types/workout';
 import type { TrainingBlock, WeeklyTargetKey, WeeklyTargets } from '../../types/blocks';
-import { TARGET_META, targetUnit, targetValue } from './targets';
-import { blockPeriod, blockWeeks, currentWeekIndex, enumerateWeeks, weeksElapsed } from './period';
+import { TARGET_META, targetUnit, targetValue } from './targets.js';
+import { blockPeriod, blockWeeks, currentWeekIndex, enumerateWeeks, weeksElapsed } from './period.js';
 
 // ─── Block attainment ─────────────────────────────────────────────────────────
 // Targets vs. actuals for a training block. Every number here is computed

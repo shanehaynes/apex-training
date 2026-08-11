@@ -112,6 +112,13 @@ export default function vercelApiPlugin(): Plugin {
 
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
+        // OAuth discovery paths — mirror the vercel.json rewrites so MCP
+        // clients can complete the flow against the dev server.
+        if (req.url?.startsWith('/.well-known/oauth-protected-resource')) {
+          req.url = '/api/oauth-metadata?kind=resource';
+        } else if (req.url?.startsWith('/.well-known/oauth-authorization-server')) {
+          req.url = '/api/oauth-metadata?kind=server';
+        }
         if (!req.url?.startsWith('/api/')) return next();
         if (!enabled) {
           res.statusCode = 404;

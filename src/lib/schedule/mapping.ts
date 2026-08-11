@@ -1,6 +1,6 @@
 import type { CompletionLogRow, CompletionRow, WorkoutEventRow } from '../db/types';
 import type { WorkoutEvent, WorkoutType } from '../../types/workout';
-import { ruleFromLegacyColumns } from '../recurrence';
+import { ruleFromLegacyColumns } from '../recurrence/index.js';
 
 // ─── Row ↔ WorkoutEvent mapping ───────────────────────────────────────────────
 // Pure converters between the app's camelCase WorkoutEvent and the DB's

@@ -1,7 +1,8 @@
 import type { getSupabaseAdmin } from './supabaseAdmin.js';
 import type { CardioLogRow, CompletionRow, ReviewRow, SetLogRow, WorkoutSessionRow } from '../../src/lib/db/types.js';
 import { buildAliasIndex, canonicalizeLogNames } from '../../src/lib/schedule/definitions.js';
-import type { PeriodType, ReviewInputs, ReviewPeriod } from '../../src/lib/review/types.js';
+import type { PeriodInputs, PeriodType, ReviewInputs, ReviewPeriod, StatsPeriod } from '../../src/lib/review/types.js';
+import { fetchAllPages } from './pagination.js';
 
 // Data access for the review cron — the only module that knows the review
 // queries. Runs on the service-role client (no user JWT in cron context),
@@ -9,32 +10,16 @@ import type { PeriodType, ReviewInputs, ReviewPeriod } from '../../src/lib/revie
 
 type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 
-const PAGE_SIZE = 1000;
-
-interface PageResult<T> {
-  data: T[] | null;
-  error: { message: string } | null;
+/** Review-period alias; the generic fetch also serves block windows and MCP tools. */
+export function fetchReviewInputs(supabase: Admin, userId: string, period: ReviewPeriod): Promise<ReviewInputs> {
+  return fetchPeriodInputs(supabase, userId, period);
 }
 
-/**
- * Drain a query page by page. Supabase caps unbounded selects at 1000 rows,
- * and PR detection scans a user's full log history — silently truncated
- * history would fabricate PRs.
- */
-async function fetchAllPages<T>(
-  label: string,
-  page: (from: number, to: number) => PromiseLike<PageResult<T>>,
-): Promise<T[]> {
-  const rows: T[] = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await page(from, from + PAGE_SIZE - 1);
-    if (error) throw new Error(`${label} fetch failed: ${error.message}`);
-    rows.push(...(data ?? []));
-    if (!data || data.length < PAGE_SIZE) return rows;
-  }
-}
-
-export async function fetchReviewInputs(supabase: Admin, userId: string, period: ReviewPeriod): Promise<ReviewInputs> {
+export async function fetchPeriodInputs<P extends StatsPeriod>(
+  supabase: Admin,
+  userId: string,
+  period: P,
+): Promise<PeriodInputs<P>> {
   const [completions, sessions, setLogs, cardioLogs, defs] = await Promise.all([
     fetchAllPages<CompletionRow>('workout_completions', (from, to) =>
       supabase

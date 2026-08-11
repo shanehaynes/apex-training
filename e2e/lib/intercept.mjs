@@ -77,6 +77,13 @@ export async function installIntercept(context, { anonKey = null, profile } = {}
         },
       });
     }
+    // MCP connector tokens (profile section): empty list, and a fixed fake
+    // token on mint so the one-time reveal UI renders.
+    if (url.includes('/api/mcp-tokens')) {
+      return json(route, req.method() === 'POST'
+        ? { id: 'mock-token-1', token: 'apx_mock-token-not-real' }
+        : { tokens: [] });
+    }
     // Key status for the AI Coach: hasAnthropicKey=true keeps the coach UI
     // live (a false would swap in the setup prompt).
     if (url.includes('/api/profile')) {

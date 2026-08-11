@@ -10,6 +10,13 @@ import eventInstances from './handlers/eventInstances.js';
 import coachSummary from './handlers/coachSummary.js';
 import mutationsLog from './handlers/mutationsLog.js';
 import completions from './handlers/completions.js';
+import mcp from './handlers/mcp.js';
+import mcpTokens from './handlers/mcpTokens.js';
+import oauthMetadata from './handlers/oauthMetadata.js';
+import oauthRegister from './handlers/oauthRegister.js';
+import oauthAuthorize from './handlers/oauthAuthorize.js';
+import oauthApprove from './handlers/oauthApprove.js';
+import oauthToken from './handlers/oauthToken.js';
 import { handleTrainingBlocks } from './trainingBlocks.js';
 import { handleMeals } from './meals.js';
 import { handleMealFavorites } from './mealFavorites.js';
@@ -50,6 +57,18 @@ app.all('/event-instances', bridge(eventInstances));
 app.all('/coach-summary', bridge(coachSummary));
 app.all('/mutations-log', bridge(mutationsLog));
 app.all('/completions', bridge(completions));
+// Remote MCP server (bearer PAT auth, not Supabase JWT) + its token CRUD.
+app.all('/mcp', bridge(mcp));
+app.all('/mcp-tokens', bridge(mcpTokens));
+// OAuth 2.1 server for MCP connectors. Single-segment route names on
+// purpose — dev/vercelApiPlugin.ts rejects nested /api/* paths. The
+// /.well-known/* discovery paths rewrite to oauth-metadata (vercel.json in
+// prod, the dev plugin locally); only oauth-approve carries a Supabase JWT.
+app.all('/oauth-metadata', bridge(oauthMetadata));
+app.all('/oauth-register', bridge(oauthRegister));
+app.all('/oauth-authorize', bridge(oauthAuthorize));
+app.all('/oauth-approve', bridge(oauthApprove));
+app.all('/oauth-token', bridge(oauthToken));
 // Distinctive message: if /api/chat (or another standalone route) ever lands
 // here, filesystem precedence over the catch-all broke — see the plan's
 // preview-deploy curl matrix.

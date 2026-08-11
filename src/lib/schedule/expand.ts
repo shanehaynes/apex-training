@@ -1,8 +1,8 @@
 import { addDays, format } from 'date-fns';
 import type { WorkoutEvent } from '../../types/workout';
 import type { OccurrenceOverride } from './types';
-import { parseRRule, expandRecurrence, ruleFromLegacyColumns } from '../recurrence';
-import { baseIdOf, makeOccurrenceId, occurrenceDateOf } from './occurrence';
+import { parseRRule, expandRecurrence, ruleFromLegacyColumns } from '../recurrence/index.js';
+import { baseIdOf, makeOccurrenceId, occurrenceDateOf } from './occurrence.js';
 
 // ─── Recurring expansion ──────────────────────────────────────────────────────
 // Pure: turns base events + exception keys into the flat occurrence list the

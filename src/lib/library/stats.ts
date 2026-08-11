@@ -4,8 +4,8 @@ import {
   classifySet,
   estimateOneRepMax,
   parseQuantity,
-} from '../tracking/records';
-import { formatSeconds } from '../time';
+} from '../tracking/records.js';
+import { formatSeconds } from '../time.js';
 
 // ─── Per-exercise library stats ───────────────────────────────────────────────
 // Pure computation over one exercise's (pre-canonicalized) log history for the

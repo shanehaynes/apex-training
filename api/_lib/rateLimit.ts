@@ -33,6 +33,8 @@ export const RATE_LIMITS = {
   tracker: { windowSeconds: 3600, max: 600 },
   /** ICS calendar feed, keyed by the token's resolved user. */
   feed:    { windowSeconds: 3600, max: 120 },
+  /** Remote MCP endpoint, keyed by the access token's resolved user. */
+  mcp:     { windowSeconds: 3600, max: 300 },
 } as const;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;
