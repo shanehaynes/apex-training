@@ -80,12 +80,34 @@ app.all('/provider-callback', bridge(providerCallback));
 // preview-deploy curl matrix.
 app.notFound(c => c.text(`No API route: ${new URL(c.req.url).pathname}`, 404));
 
+// OAuth discovery paths. The vercel.json rewrites route /.well-known/* into
+// this function, but Vercel hands the function the ORIGINAL req.url — the
+// rewrite destination only selects the function — so the router would 404 on
+// the /api basePath. Normalize here (the dev plugin does the same for vite).
+const WELL_KNOWN: Array<[prefix: string, kind: string]> = [
+  ['/.well-known/oauth-protected-resource', 'resource'],
+  ['/.well-known/oauth-authorization-server', 'server'],
+];
+
+function normalizeWellKnown(req: VercelRequest): void {
+  for (const [prefix, kind] of WELL_KNOWN) {
+    if (req.url?.startsWith(prefix)) {
+      req.url = `/api/oauth-metadata?kind=${kind}`;
+      // The metadata handler reads req.query.kind; stamp it rather than
+      // trusting Vercel to have merged the rewrite destination's query.
+      req.query = { ...req.query, kind };
+      return;
+    }
+  }
+}
+
 // Node (req, res) entrypoint — the same callable shape Vercel invokes in
 // prod, dev/vercelApiPlugin.ts invokes in dev, and tests invoke directly.
 // (@hono/node-server v2 dropped its /vercel adapter; this is the same thing:
 // route via app.fetch, but let handlers write to the real res. Only the
 // router's own responses — the 404 — come back as a fetch Response.)
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  normalizeWellKnown(req);
   const url = `http://${req.headers.host ?? 'localhost'}${req.url ?? '/'}`;
   const response = await app.fetch(new Request(url, { method: req.method }), {
     incoming: req,
