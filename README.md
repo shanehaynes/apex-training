@@ -98,7 +98,7 @@ cp .env.example .env.local   # then fill in the values
 
 There is **no `ANTHROPIC_API_KEY`** — the coach runs on each user's own Anthropic key, saved in-app under Profile → AI Coach, verified against Anthropic on save and stored server-side (the browser only ever sees the last 4 characters).
 
-**Database:** run [`supabase/schema.sql`](supabase/schema.sql) once on a fresh project, then the files in [`supabase/migrations/`](supabase/migrations/) in **numeric** phase order — phase2 → phase25, *not* filename sort, which puts phase10 before phase2. [`scripts/db-reset-local.sh`](scripts/db-reset-local.sh) does this for a local stack by globbing `phase*.sql` through `sort -V`, so new migrations must keep the `phaseN_*.sql` naming to be picked up. **Next free number: phase26.**
+**Database:** run [`supabase/schema.sql`](supabase/schema.sql) once on a fresh project, then the files in [`supabase/migrations/`](supabase/migrations/) in **numeric** phase order — phase2 → phase28, *not* filename sort, which puts phase10 before phase2. [`scripts/db-reset-local.sh`](scripts/db-reset-local.sh) does this for a local stack by globbing `phase*.sql` through `sort -V`, so new migrations must keep the `phaseN_*.sql` naming to be picked up. **Next free number: phase29.**
 
 **Run it:**
 
@@ -113,6 +113,8 @@ Plain `vite` dev does not run the serverless functions, so writes and AI feature
 Deploys as a standard Vite app on Vercel ([vercel.json](vercel.json)). Set the environment variables from the table above in **Settings → Environment Variables** and redeploy. Only `VITE_`-prefixed variables are exposed to the client bundle — keep the service-role key unprefixed.
 
 To subscribe from a calendar app, add `https://<your-deployment>/api/calendar-feed` as a URL/ICS subscription.
+
+To query your training data from Claude, ChatGPT, or any MCP client, connect to `https://<your-deployment>/api/mcp` — setup per client in [CONNECTORS.md](CONNECTORS.md).
 
 ## 📬 Review emails
 
