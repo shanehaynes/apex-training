@@ -1,4 +1,4 @@
-import { test, expect, gotoCalendar, shot } from '../lib/fixtures';
+import { test, expect, gotoCalendar, shot, supabaseRef } from '../lib/fixtures';
 
 // COROS sync flow against a scripted /api/provider-sync. The page.route
 // installed here outranks the context-level stub in intercept.mjs (which
@@ -35,6 +35,12 @@ const PROPOSALS = [
 ];
 
 test('coros sync: preview, per-fill confirmation queue, one apply', async ({ page }) => {
+  // useProviderSync only fetches connection status once signed in, and the
+  // fabricated session needs Supabase creds in .env.local — offline seed
+  // mode (CI) has neither, so the Sync button never renders. Same skip
+  // convention as the auth/library/edit-exercises specs.
+  test.skip(!supabaseRef(), 'sync UI needs the signed-in session (offline seed mode)');
+
   let applyBody: { decisions?: Array<Record<string, unknown>> } | null = null;
 
   await page.route('**/api/provider-sync', async route => {
