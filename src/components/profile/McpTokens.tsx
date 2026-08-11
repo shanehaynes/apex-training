@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Copy, X } from 'lucide-react';
-import { createMcpToken, listMcpTokens, revokeMcpToken, type McpTokenInfo } from '../../lib/api';
+import {
+  createMcpToken,
+  disconnectMcpClient,
+  listMcpTokens,
+  revokeMcpToken,
+  type McpConnectionInfo,
+  type McpTokenInfo,
+} from '../../lib/api';
 import { notify } from '../../lib/notify';
 
 // "AI connector" profile section: mint/list/revoke the personal access
@@ -10,6 +17,7 @@ import { notify } from '../../lib/notify';
 
 export default function McpTokens() {
   const [tokens, setTokens] = useState<McpTokenInfo[]>([]);
+  const [connections, setConnections] = useState<McpConnectionInfo[]>([]);
   const [name, setName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [freshToken, setFreshToken] = useState<string | null>(null);
@@ -18,7 +26,10 @@ export default function McpTokens() {
 
   useEffect(() => {
     listMcpTokens()
-      .then(({ tokens }) => setTokens(tokens ?? []))
+      .then(({ tokens, connections }) => {
+        setTokens(tokens ?? []);
+        setConnections(connections ?? []);
+      })
       .catch(() => {}); // toast already shown by the api layer
   }, []);
 
@@ -58,6 +69,16 @@ export default function McpTokens() {
     }
   };
 
+  const disconnect = async (clientId: string) => {
+    try {
+      await disconnectMcpClient(clientId);
+      notify('Disconnected');
+      setConnections(prev => prev.filter(c => c.client_id !== clientId));
+    } catch {
+      // toast already shown
+    }
+  };
+
   const active = tokens.filter(t => !t.revoked_at);
 
   return (
@@ -88,6 +109,26 @@ export default function McpTokens() {
           Copy this token now — it won't be shown again. Send it as{' '}
           <code>Authorization: Bearer &lt;token&gt;</code>.
         </p>
+      )}
+
+      {connections.length > 0 && (
+        <ul className="profile-token-list" style={{ listStyle: 'none', padding: 0, margin: '8px 0' }}>
+          {connections.map(c => (
+            <li key={c.client_id} className="profile-feed" style={{ marginBottom: 4 }}>
+              <span className="profile-hint" style={{ flex: 1, margin: 0 }}>
+                {c.name || 'Connected app'} · signed in {c.created_at.slice(0, 10)}
+              </span>
+              <button
+                className="btn-today"
+                onClick={() => disconnect(c.client_id)}
+                title={`Disconnect ${c.name || 'app'}`}
+                aria-label={`Disconnect ${c.name || 'app'}`}
+              >
+                <X size={14} strokeWidth={1.5} />
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
 
       {active.length > 0 && (

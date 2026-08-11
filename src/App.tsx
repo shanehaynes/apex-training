@@ -7,6 +7,7 @@ import { BlocksProvider } from './context/BlocksContext';
 import AppShell from './components/layout/AppShell';
 import LoginView from './components/auth/LoginView';
 import SetPasswordView from './components/auth/SetPasswordView';
+import ConnectApproval from './components/auth/ConnectApproval';
 import './styles/global.css';
 import './styles/app.css';
 
@@ -20,6 +21,11 @@ function AuthGate() {
   }
   if (status === 'signedOut') return <LoginView />;
   if (status === 'needsPassword') return <SetPasswordView />;
+
+  // OAuth consent hand-off (see handlers/oauthAuthorize.ts): signed-in users
+  // landing on /connect get the approval card instead of the calendar. After
+  // sign-in the pathname persists, so the login → consent flow just works.
+  if (window.location.pathname === '/connect') return <ConnectApproval />;
 
   // Keyed by user id: switching accounts remounts the data layer (fresh
   // state, and the realtime channel subscribes only after a session exists,

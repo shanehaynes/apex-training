@@ -96,12 +96,14 @@ describe('/api/mcp — transport', () => {
     expect(headers.Allow).toBe('POST');
   });
 
-  it('401s with WWW-Authenticate when the token does not resolve', async () => {
+  it('401s with a WWW-Authenticate challenge carrying OAuth discovery', async () => {
     mockedResolve.mockResolvedValue(null);
     const { res, statusCode, headers } = makeRes();
     await handler(makeReq('POST', rpc('ping')), res);
     expect(statusCode()).toBe(401);
     expect(headers['WWW-Authenticate']).toContain('Bearer');
+    expect(headers['WWW-Authenticate']).toContain('resource_metadata=');
+    expect(headers['WWW-Authenticate']).toContain('/.well-known/oauth-protected-resource');
   });
 
   it('rejects JSON-RPC batch arrays (removed in 2025-06-18)', async () => {

@@ -91,8 +91,24 @@ export interface McpTokenInfo {
   revoked_at: string | null;
 }
 
-export function listMcpTokens(): Promise<{ tokens: McpTokenInfo[] }> {
+export interface McpConnectionInfo {
+  client_id: string;
+  name: string;
+  created_at: string;
+}
+
+export function listMcpTokens(): Promise<{ tokens: McpTokenInfo[]; connections?: McpConnectionInfo[] }> {
   return getJson('/api/mcp-tokens', 'Token list');
+}
+
+/** Disconnect an OAuth client: revokes all its live access + refresh tokens. */
+export function disconnectMcpClient(clientId: string): Promise<{ ok: boolean }> {
+  return deleteJson(`/api/mcp-tokens?client_id=${encodeURIComponent(clientId)}`, 'Disconnect');
+}
+
+/** Consent decision for the OAuth /connect page; returns the redirect target. */
+export function approveOauth(fields: Record<string, string>): Promise<{ redirect_to: string }> {
+  return postJson('/api/oauth-approve', fields, 'Authorization');
 }
 
 /** The returned plaintext token is shown once and never retrievable again. */
