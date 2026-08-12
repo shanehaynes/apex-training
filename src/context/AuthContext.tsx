@@ -46,6 +46,8 @@ interface AuthContextValue {
   updateProfile: (fields: {
     displayName?: string; avatarKey?: AvatarKey; coachGoal?: string; coachContext?: string;
   }) => Promise<boolean>;
+  /** Latch the welcome flow closed for good, on every device. */
+  dismissOnboarding: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   /** Save/replace the user's Anthropic API key. Returns an error message, or null on success. */
   saveAnthropicKey: (key: string) => Promise<string | null>;
@@ -188,6 +190,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Optimistic and fire-and-forget: the flow closes on click regardless. A
+  // failed PATCH just means it reappears on the next load, which beats
+  // trapping the user behind a spinner in a modal they're trying to leave.
+  const dismissOnboarding = useCallback(async () => {
+    if (!supabase) return;
+    setProfile(prev => prev && { ...prev, onboarding_dismissed_at: new Date().toISOString() });
+    try {
+      await patchJson('/api/profile', { onboarding_dismissed: true }, 'Saving');
+    } catch {
+      /* patchJson already toasted */
+    }
+  }, []);
+
   const refreshProfile = useCallback(async () => {
     if (session) await loadProfile(session.user.id);
   }, [session, loadProfile]);
@@ -228,6 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       resetPassword,
       setNewPassword,
       updateProfile,
+      dismissOnboarding,
       refreshProfile,
       saveAnthropicKey,
       removeAnthropicKey,

@@ -11,6 +11,8 @@ A personal training calendar, workout tracker, and AI coach — one app for plan
 - 🔗 **Calendar feed** — subscribe from Apple/Google Calendar via a standards-compliant ICS endpoint, recurring events and exceptions included
 - 📴 **Graceful offline mode** — no Supabase configured? Everything still works from the bundled schedule with localStorage persistence
 
+Using the app rather than working on it? [WELCOME.md](WELCOME.md) is the user guide — every feature, one short section each.
+
 ## Overview
 
 Apex Training is a small multi-user web app (invite-only, a handful of accounts): a React SPA served by Vercel, with a thin layer of serverless functions in [`api/`](api/) in front of a Supabase Postgres database. Every table is under per-user RLS — a signed-in browser reads only its own rows, and an unauthenticated one gets zero rows from every table. Writes all go through the API layer, which holds the service-role key and checks the caller's JWT. AI calls (chat and coach summaries) are proxied through the same API layer, on **each user's own Anthropic key**, stored server-side and encrypted at rest — no Anthropic key ever reaches the browser.
@@ -98,7 +100,7 @@ cp .env.example .env.local   # then fill in the values
 
 There is **no `ANTHROPIC_API_KEY`** — the coach runs on each user's own Anthropic key, saved in-app under Profile → AI Coach, verified against Anthropic on save and stored server-side (the browser only ever sees the last 4 characters).
 
-**Database:** run [`supabase/schema.sql`](supabase/schema.sql) once on a fresh project, then the files in [`supabase/migrations/`](supabase/migrations/) in **numeric** phase order — phase2 → phase28, *not* filename sort, which puts phase10 before phase2. [`scripts/db-reset-local.sh`](scripts/db-reset-local.sh) does this for a local stack by globbing `phase*.sql` through `sort -V`, so new migrations must keep the `phaseN_*.sql` naming to be picked up. **Next free number: phase29.**
+**Database:** run [`supabase/schema.sql`](supabase/schema.sql) once on a fresh project, then the files in [`supabase/migrations/`](supabase/migrations/) in **numeric** phase order — phase2 → phase30, *not* filename sort, which puts phase10 before phase2. [`scripts/db-reset-local.sh`](scripts/db-reset-local.sh) does this for a local stack by globbing `phase*.sql` through `sort -V`, so new migrations must keep the `phaseN_*.sql` naming to be picked up. **Next free number: phase31.**
 
 **Run it:**
 

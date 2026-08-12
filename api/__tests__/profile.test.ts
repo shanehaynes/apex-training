@@ -267,3 +267,39 @@ describe('PATCH /api/profile — coach fields', () => {
     expect(statusCode()).toBe(400);
   });
 });
+
+describe('PATCH /api/profile — onboarding dismissal', () => {
+  it('stamps the server clock, never a client-supplied time', async () => {
+    const state: AdminState = { key: null };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const before = Date.now();
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { onboarding_dismissed: true }), res);
+    expect(statusCode()).toBe(200);
+
+    const stamped = state.profileUpdate?.onboarding_dismissed_at as string;
+    expect(Date.parse(stamped)).toBeGreaterThanOrEqual(before);
+    expect(Date.parse(stamped)).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('rejects a client-supplied timestamp — the field is not client-writable', async () => {
+    const state: AdminState = { key: null };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { onboarding_dismissed_at: '1999-01-01T00:00:00Z' }), res);
+    // Unknown field only: nothing to update, and nothing written.
+    expect(statusCode()).toBe(400);
+    expect(state.profileUpdate).toBeUndefined();
+  });
+
+  it('400s anything but a literal true — the latch is one-way', async () => {
+    for (const value of [false, 'true', 1, null]) {
+      const state: AdminState = { key: null };
+      mockedAdmin.mockReturnValue(makeAdmin(state));
+      const { res, statusCode } = makeRes();
+      await handler(makeReq('PATCH', { onboarding_dismissed: value }), res);
+      expect(statusCode(), `onboarding_dismissed: ${JSON.stringify(value)}`).toBe(400);
+      expect(state.profileUpdate).toBeUndefined();
+    }
+  });
+});

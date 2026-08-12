@@ -5,8 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
 
 /**
- * The starter-template copy flow, shared by ProfileView and
- * TemplateOfferBanner (which had byte-identical copies of it).
+ * The starter-template copy flow, shared by the onboarding welcome flow and
+ * the getting-started checklist.
  */
 export function useTemplateCopy() {
   const { refreshProfile } = useAuth();

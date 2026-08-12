@@ -2,9 +2,10 @@ import { test, expect, shot, supabaseRef } from '../lib/fixtures';
 // @ts-expect-error plain-JS module shared with scripts/drive.mjs
 import { fabricatedSession } from '../lib/session.mjs';
 
-// Start signed out to exercise LoginView; the profile stub is "fresh" so the
-// template-offer banner renders after sign-in.
-test.use({ sessionSeed: false, freshProfile: true });
+// Start signed out to exercise LoginView. The profile stub is deliberately
+// NOT fresh — first-run onboarding is onboarding.spec.ts's job, and its modal
+// would sit over everything this spec wants to click.
+test.use({ sessionSeed: false, freshProfile: false });
 
 test('login gate, reset mode, fabricated session, profile view', async ({ page }) => {
   const ref = supabaseRef();
@@ -28,8 +29,6 @@ test('login gate, reset mode, fabricated session, profile view', async ({ page }
   }, [`sb-${ref}-auth-token`, fabricatedSession()] as const);
   await page.reload();
   await expect(page.locator('.top-nav__avatar')).toBeVisible({ timeout: 20000 });
-  // The stubbed profile has template_copied_at null in this spec.
-  await expect(page.locator('.template-offer'), 'template-offer banner shows for a fresh account').toBeVisible();
   await shot(page, 'auth-signed-in');
 
   await page.locator('.top-nav__avatar').click();

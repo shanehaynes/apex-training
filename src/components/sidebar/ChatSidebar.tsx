@@ -170,7 +170,7 @@ export default function ChatSidebar() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="chat-sidebar" data-tour="chat">
+    <div className="chat-sidebar">
       <div className="chat-sidebar__header">
         <span className="chat-sidebar__title">Coach</span>
         <span className="chat-sidebar__model">{COACH_MODEL_DISPLAY}</span>
@@ -233,7 +233,6 @@ export default function ChatSidebar() {
       <div className="chat-sidebar__actions">
         <button
           className="chat-notes-btn"
-          data-tour="chat-notes"
           onClick={() => runExclusive(async () => triggerInitial(await resolveSystemPrompt()))}
           disabled={isLoading || actionBusy || !!pendingAction || needsKey}
         >
@@ -246,7 +245,6 @@ export default function ChatSidebar() {
         <textarea
           ref={inputRef}
           className="chat-input"
-          data-tour="chat-input"
           placeholder={
             needsKey ? 'Add your API key to chat…'
             : pendingAction ? 'Confirm or cancel above first…'

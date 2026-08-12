@@ -63,6 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     avatar_key?: unknown;
     coach_goal?: unknown;
     coach_context?: unknown;
+    onboarding_dismissed?: unknown;
     anthropic_api_key?: unknown;
   } | undefined;
 
@@ -99,6 +100,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
     fields.coach_context = body.coach_context.trim();
+  }
+
+  // A one-way latch, and deliberately not a timestamp the client supplies:
+  // `true` stamps now(), and there is no way to un-dismiss. Anything else is
+  // a bug in the caller, not a request to clear the flag.
+  if (body?.onboarding_dismissed !== undefined) {
+    if (body.onboarding_dismissed !== true) {
+      res.status(400).send('Invalid onboarding_dismissed');
+      return;
+    }
+    fields.onboarding_dismissed_at = new Date().toISOString();
   }
 
   const hasKeyChange = body !== undefined && 'anthropic_api_key' in body;

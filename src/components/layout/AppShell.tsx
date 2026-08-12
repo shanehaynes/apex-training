@@ -10,7 +10,7 @@ import TrackerView from '../tracker/TrackerView';
 import LibraryView from '../library/LibraryView';
 import BlocksView from '../blocks/BlocksView';
 import ProfileView from '../profile/ProfileView';
-import TemplateOfferBanner from '../profile/TemplateOfferBanner';
+import OnboardingHost from '../onboarding/OnboardingHost';
 import MobileBottomNav from './MobileBottomNav';
 import Toasts from './Toasts';
 import { useCalendar } from '../../context/CalendarContext';
@@ -56,7 +56,7 @@ export default function AppShell() {
       {state.libraryOpen && <LibraryView />}
       {state.blocksOpen && <BlocksView />}
       {state.profileOpen && <ProfileView />}
-      <TemplateOfferBanner />
+      <OnboardingHost />
       <Toasts />
     </div>
   );
