@@ -77,12 +77,19 @@ done
 
 # The agent users were created before phase9's on_auth_user_created trigger
 # existed — give them the profiles the trigger would have created.
+#
+# onboarding_dismissed_at is stamped because these profiles are inserted
+# AFTER phase30's backfill has already run, so they would otherwise be the
+# one thing phase30 exists to prevent: established fixtures that look like
+# brand-new accounts. The welcome flow then renders over the calendar and
+# swallows the clicks of every live e2e spec. The first-run flow itself is
+# covered by e2e/mock/onboarding.spec.ts against an explicit fresh stub.
 echo "── backfilling profiles for pre-trigger users"
 docker exec -i "$DB_CONTAINER" psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres <<'SQL'
-INSERT INTO profiles (id, display_name, avatar_key)
-SELECT id, split_part(email, '@', 1), 'goat'
+INSERT INTO profiles (id, display_name, avatar_key, onboarding_dismissed_at)
+SELECT id, split_part(email, '@', 1), 'goat', now()
 FROM auth.users
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET onboarding_dismissed_at = EXCLUDED.onboarding_dismissed_at;
 SQL
 
 # phase25 rewrote the workout_events PK; PostgREST must reload its schema

@@ -1,13 +1,17 @@
 // Playwright fixtures for the mock project: every test gets the interception
-// layer (no request can mutate real data), the fabricated auth session when
-// .env.local carries Supabase creds, and an automatic no-console-errors
-// assertion at teardown.
+// layer (no request can mutate real data), a fabricated auth session against
+// the pinned fake project, and an automatic no-console-errors assertion at
+// teardown.
+//
+// The session used to depend on .env.local, which made the suite behave
+// differently for a developer who had one than for CI, which does not — see
+// MOCK_SUPABASE in session.mjs.
 
 import { test as base, expect, type Page } from '@playwright/test';
 // @ts-expect-error plain-JS module shared with scripts/drive.mjs
 import { installIntercept, isExpectedConsoleError } from './intercept.mjs';
 // @ts-expect-error plain-JS module shared with scripts/drive.mjs
-import { readSupabaseEnv, seedFabricatedSession, driverProfile } from './session.mjs';
+import { MOCK_SUPABASE, seedFabricatedSession, driverProfile } from './session.mjs';
 
 export interface ApexOptions {
   /** Seed the fabricated Supabase session before load (no-op offline). */
@@ -36,9 +40,12 @@ export const test = base.extend<ApexOptions & ApexFixtures>({
   // Note: the second fixture argument is Playwright's `use` continuation —
   // named `provide` here so lint doesn't mistake it for a React hook.
   context: async ({ context, sessionSeed, freshProfile, fakeNow }, provide) => {
-    const { ref, anonKey } = readSupabaseEnv();
+    // Pinned, not read from .env.local: specs that need an authenticated app
+    // (the profile-driven onboarding flow) would otherwise pass for whoever
+    // has a .env.local and fail in CI, which has none.
+    const { ref, anonKey } = MOCK_SUPABASE;
     await installIntercept(context, { anonKey, profile: driverProfile({ fresh: freshProfile }) });
-    if (ref && sessionSeed) await seedFabricatedSession(context, ref);
+    if (sessionSeed) await seedFabricatedSession(context, ref);
     if (fakeNow) {
       await context.addInitScript(v => {
         (window as unknown as { __APEX_FAKE_NOW__?: string }).__APEX_FAKE_NOW__ = v;
@@ -57,9 +64,14 @@ export const test = base.extend<ApexOptions & ApexFixtures>({
   }, { auto: true }],
 });
 
-/** Supabase project ref from .env.local, or null in offline mode. */
+/**
+ * The project ref the mock app is signed in against — now always the pinned
+ * fake one, never null. Specs use this to branch between signed-in and
+ * offline seed behavior; it used to depend on whether the developer had a
+ * .env.local, so the same spec took a different branch locally than in CI.
+ */
 export function supabaseRef(): string | null {
-  return readSupabaseEnv().ref;
+  return MOCK_SUPABASE.ref;
 }
 
 export { expect };
