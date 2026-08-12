@@ -4266,48 +4266,236 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   color: var(--text-muted);
 }
 
-.template-offer {
+/* ============================================================
+   ONBOARDING (welcome flow + getting-started checklist)
+   ============================================================ */
+
+/* Narrower than the default .modal: one short paragraph per card, and a
+   640px measure would set it as an awkward single line. */
+.welcome {
+  max-width: 460px;
+  padding: 28px;
+}
+
+.welcome__skip {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+
+.welcome__body { min-height: 178px; }
+
+.welcome__count {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.welcome__title {
+  margin: 10px 0 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  color: var(--text-primary);
+}
+
+.welcome__text {
+  margin: 10px 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.welcome__action {
+  margin-top: 18px;
+  height: 34px;
+  padding: 0 14px;
+  width: auto;
+}
+
+.welcome__link {
+  display: inline-block;
+  margin-top: 18px;
+  font-size: var(--text-sm);
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+.welcome__link:hover { text-decoration: underline; }
+
+.welcome__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.welcome__dots { display: flex; gap: 6px; }
+
+.welcome__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--border-subtle);
+  transition: background var(--duration-fast) var(--ease-spring);
+}
+
+.welcome__dot--active { background: var(--accent-primary); }
+
+.welcome__nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.welcome__back {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.welcome__back:hover { color: var(--text-primary); }
+
+.welcome__next {
+  margin-top: 0;
+  height: 34px;
+  padding: 0 18px;
+  width: auto;
+}
+
+/* --- checklist, shared bits --- */
+
+.setup__score {
+  margin-left: 8px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.setup__list,
+.setup__notes,
+.setup-nudge__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.setup__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.setup__row:last-child { border-bottom: none; }
+
+/* Empty when undone — an outline the tick drops into, so rows don't shift. */
+.setup__mark {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.setup__row--done .setup__mark,
+.setup-nudge__row--done .setup__mark {
+  border-color: var(--accent-primary);
+}
+
+.setup__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.setup__label {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.setup__row--done .setup__label { color: var(--text-muted); }
+
+.setup__hint {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.setup__action {
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-spring);
+}
+
+.setup__action:hover:not(:disabled) { border-color: var(--accent-primary); }
+.setup__action:disabled { opacity: 0.55; cursor: default; }
+
+.setup__notes {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+/* --- calendar nudge --- */
+
+.setup-nudge {
   position: fixed;
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 120;
-  width: min(560px, calc(100vw - 32px));
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 14px 16px;
+  width: min(400px, calc(100vw - 32px));
+  padding: 12px 14px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
 }
 
-.template-offer__text {
-  flex: 1;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  line-height: 1.45;
-}
-
-.template-offer__text strong { color: var(--text-primary); }
-
-.template-offer__actions {
+.setup-nudge__head {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
 }
 
-.template-offer__copy {
-  height: 34px;
-  margin-top: 0;
-  padding: 0 14px;
+.setup-nudge__title {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
 }
 
-.template-offer__dismiss {
-  width: 28px;
-  height: 28px;
+.setup-nudge__score {
+  flex: 1;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.setup-nudge__dismiss {
+  width: 24px;
+  height: 24px;
   border-radius: var(--radius-md);
   border: none;
   background: transparent;
@@ -4318,7 +4506,41 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   cursor: pointer;
 }
 
-.template-offer__dismiss:hover { color: var(--text-primary); }
+.setup-nudge__dismiss:hover { color: var(--text-primary); }
+
+.setup-nudge__list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.setup-nudge__row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 0;
+}
+
+.setup-nudge__label {
+  flex: 1;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.setup-nudge__row--done .setup-nudge__label {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+@media (max-width: 768px) {
+  /* Clears the mobile tab bar, which the old banner also had to dodge. */
+  .setup-nudge { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+
+  /* .modal turns into a bottom sheet here, so the footer buttons would
+     otherwise sit under the home indicator. */
+  .welcome { padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
+}
 
 .chat-key-setup-btn {
   display: inline-flex;

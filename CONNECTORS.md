@@ -10,6 +10,8 @@ Everything the server exposes is **read-only**. An assistant can never create,
 edit, or delete anything through this connection — mutations remain exclusive
 to the in-app coach, behind its per-action confirmation flow.
 
+New to Apex itself? [WELCOME.md](WELCOME.md) covers the rest of the app.
+
 For the deployment at `apextrainingcalendar.vercel.app`, the server URL is:
 
 ```

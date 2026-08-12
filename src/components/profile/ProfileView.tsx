@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { AVATARS, AVATAR_KEYS } from '../../lib/profile/avatars';
 import { notify } from '../../lib/notify';
 import { useRotatingPlaceholder } from '../../hooks/useRotatingPlaceholder';
-import { useTemplateCopy } from '../../hooks/useTemplateCopy';
+import GettingStarted from '../onboarding/GettingStarted';
 import CoachActivity from './CoachActivity';
 import McpTokens from './McpTokens';
 import CorosConnection from './CorosConnection';
@@ -43,7 +43,6 @@ export default function ProfileView() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
-  const { copyTemplate, isCopying: isCopyingTemplate } = useTemplateCopy();
   const [keyInput, setKeyInput] = useState('');
   const [keyMsg, setKeyMsg] = useState<string | null>(null);
   const [isSavingKey, setIsSavingKey] = useState(false);
@@ -129,8 +128,6 @@ export default function ProfileView() {
     }
   };
 
-  const showTemplateOffer = !!profile && !profile.is_template_source && !profile.template_copied_at;
-
   return (
     <div className="profile-view">
       <header className="library-header">
@@ -145,6 +142,10 @@ export default function ProfileView() {
       </header>
 
       <div className="profile-body">
+        {/* First: a new account's unfinished setup is the reason they opened
+            this screen. Self-hides for the template source. */}
+        <GettingStarted />
+
         <section className="profile-section">
           <h3 className="profile-section__title">Avatar</h3>
           <div className="profile-avatars">
@@ -319,19 +320,6 @@ export default function ProfileView() {
         <McpTokens />
 
         <CorosConnection />
-
-        {showTemplateOffer && (
-          <section className="profile-section">
-            <h3 className="profile-section__title">Starter plan</h3>
-            <p className="profile-hint">
-              Copy Shane's recurring workouts onto your calendar as a starting
-              place. One-time — you can edit or delete everything afterwards.
-            </p>
-            <button className="auth-submit" onClick={copyTemplate} disabled={isCopyingTemplate}>
-              {isCopyingTemplate ? 'Copying…' : "Copy Shane's recurring workouts"}
-            </button>
-          </section>
-        )}
 
         <section className="profile-section">
           <button className="profile-signout" onClick={() => signOut()}>

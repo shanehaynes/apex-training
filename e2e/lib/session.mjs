@@ -32,9 +32,10 @@ export const DRIVER_USER = {
 };
 
 /**
- * Stubbed own-profile row. `fresh: true` nulls template_copied_at so the
- * template-offer banner renders (the auth spec exercises it); everywhere else
- * it is non-null so the banner doesn't float over the bottom calendar rows.
+ * Stubbed own-profile row. `fresh: true` nulls the two first-run markers so
+ * the welcome flow and the getting-started card render (the onboarding spec
+ * exercises them); everywhere else both are non-null so neither floats over
+ * the calendar the other specs are driving.
  */
 export function driverProfile({ fresh = false } = {}) {
   return {
@@ -42,6 +43,7 @@ export function driverProfile({ fresh = false } = {}) {
     coach_goal: '', coach_context: '',
     is_template_source: false,
     template_copied_at: fresh ? null : '2000-01-01T00:00:00Z',
+    onboarding_dismissed_at: fresh ? null : '2000-01-01T00:00:00Z',
     ics_token: 'driver-ics-token',
     created_at: '2000-01-01T00:00:00Z', updated_at: '2000-01-01T00:00:00Z',
   };

@@ -25,6 +25,8 @@ export interface ProfileRow {
   coach_context: string;
   is_template_source: boolean;
   template_copied_at: string | null;
+  /** When the welcome flow was finished or skipped (null = never shown). */
+  onboarding_dismissed_at: string | null;
   ics_token: string;
   created_at: string;
   updated_at: string;
