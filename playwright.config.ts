@@ -1,5 +1,7 @@
 import { defineConfig } from '@playwright/test';
 import type { ApexOptions } from './e2e/lib/fixtures';
+// @ts-expect-error plain-JS module shared with scripts/drive.mjs
+import { MOCK_SUPABASE } from './e2e/lib/session.mjs';
 
 // Two projects:
 //   mock — vite dev + full request interception; no backend, no writes, safe
@@ -45,5 +47,17 @@ export default defineConfig<ApexOptions>({
     command: live ? 'npm run dev:agent' : 'npm run dev',
     port: 5173,
     reuseExistingServer: !process.env.CI,
+    // The mock run pins its own fake project so the app is signed-in-capable
+    // with or without a .env.local — process VITE_* vars outrank the env
+    // files, so this is what the client bundles either way. Without it the
+    // suite runs offline wherever .env.local is absent (i.e. CI), and any
+    // spec needing the profile fails. Live keeps its real dev:agent env.
+    ...(live ? {} : {
+      env: {
+        ...process.env,
+        VITE_SUPABASE_URL: MOCK_SUPABASE.url,
+        VITE_SUPABASE_ANON_KEY: MOCK_SUPABASE.anonKey,
+      },
+    }),
   },
 });

@@ -1,7 +1,7 @@
 import type { McpToolDef } from '../protocol.js';
 import { ToolInputError } from '../protocol.js';
 import { optionalEnum, optionalInt, requireDateRange, requireString } from '../args.js';
-import { fetchCanonicalHistory } from '../data.js';
+import { fetchCanonicalHistory, fetchCanonicalHistoryFor } from '../data.js';
 import { fetchPeriodInputs } from '../../reviewData.js';
 import type { CardioLogRow, SetLogRow } from '../../../../src/lib/db/types.js';
 import type { StatsPeriod } from '../../../../src/lib/review/types.js';
@@ -71,10 +71,11 @@ export const getExerciseHistoryTool: McpToolDef = {
     const rawName = requireString(args, 'exercise_name');
     const limit = optionalInt(args, 'limit', 10, 1, 50);
 
-    const { setLogs, cardioLogs, aliasIndex } = await fetchCanonicalHistory(supabase, userId);
+    // Scoped to this one exercise in the query rather than drained and
+    // filtered here — the rows discarded were the entire rest of the history.
+    const { setLogs: setRows, cardioLogs: cardioRows, aliasIndex } =
+      await fetchCanonicalHistoryFor(supabase, userId, rawName);
     const canonical = canonicalNameOf(rawName, aliasIndex);
-    const setRows = setLogs.filter(r => r.exercise_name === canonical);
-    const cardioRows = cardioLogs.filter(r => r.exercise_name === canonical);
     if (setRows.length === 0 && cardioRows.length === 0) {
       throw new ToolInputError(
         `No logged history for "${rawName}"${canonical !== rawName ? ` (resolved to "${canonical}")` : ''}. ` +

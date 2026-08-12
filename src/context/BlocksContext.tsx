@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { format } from 'date-fns';
 import { deleteJson, patchJson, postJson } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
+import { useDebouncedReload } from '../hooks/useDebouncedReload';
 import type { ObjectiveRow, TrainingBlockRow } from '../lib/db/types';
 import type { Objective, TrainingBlock } from '../types/blocks';
 import {
@@ -125,26 +126,20 @@ export function BlocksProvider({ children }: { children: React.ReactNode }) {
 
   // Realtime delivery is authorized against the phase19 SELECT policies, so
   // each user only ever receives their own row changes.
+  // Debounced: every write already refreshes explicitly, and its realtime
+  // echo (one event per row for batch writes) was refetching again.
+  const scheduleRefresh = useDebouncedReload(refresh);
+
   useEffect(() => {
     const sb = supabase;
     if (!sb) return;
-    // Debounced: every write already refreshes explicitly, and its realtime
-    // echo (one event per row for batch writes) was refetching again.
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const scheduleRefresh = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => { timer = null; refresh(); }, 250);
-    };
     const channel = sb
       .channel('blocks-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'training_blocks' }, scheduleRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'objectives' }, scheduleRefresh)
       .subscribe();
-    return () => {
-      if (timer) clearTimeout(timer);
-      sb.removeChannel(channel);
-    };
-  }, [refresh]);
+    return () => { sb.removeChannel(channel); };
+  }, [scheduleRefresh]);
 
   // ── Writes ────────────────────────────────────────────────────────────────
 

@@ -8,20 +8,20 @@ import type { NameDateRow } from './stats';
 // lists definitions, just without performance data.
 
 /**
- * Lightweight (name, date) pairs across all real logs, for the list view's
- * last-performed column. Two columns only — the full-row fetch stays
+ * Most recent log date per exercise name, for the list view's last-performed
+ * column. The phase31 aggregate does the max() server-side: this used to pull
+ * every (name, date) pair the user had ever logged — up to 20k rows over the
+ * wire on every mount — to compute a few dozen. The full-row fetch stays
  * per-exercise on the detail page.
+ *
+ * No user filter here or in the RPC call: the function defaults to auth.uid()
+ * and runs SECURITY INVOKER, so RLS scopes it exactly as the plain selects it
+ * replaces were scoped.
  */
 export async function fetchLastPerformedRows(): Promise<NameDateRow[]> {
   if (!supabase) return [];
-  const [sets, cardio] = await Promise.all([
-    supabase.from('workout_set_logs').select('exercise_name,event_date').eq('is_autofilled', false).limit(10000),
-    supabase.from('workout_cardio_logs').select('exercise_name,event_date').eq('is_autofilled', false).limit(10000),
-  ]);
-  return [
-    ...((sets.data ?? []) as NameDateRow[]),
-    ...((cardio.data ?? []) as NameDateRow[]),
-  ];
+  const { data } = await supabase.rpc('last_performed_by_name');
+  return (data ?? []) as NameDateRow[];
 }
 
 /**

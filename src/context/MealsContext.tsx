@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { format } from 'date-fns';
 import { deleteJson, patchJson, postJson } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
+import { useDebouncedReload } from '../hooks/useDebouncedReload';
 import type { MealFavoriteRow, MealRow } from '../lib/db/types';
 import type { CreateMealInput, Meal, MealFavorite, SaveMealFavoriteInput, UpdateMealInput } from '../types/nutrition';
 import { favoriteToRow, mealFieldsToRow, mealToRow, rowToFavorite, rowToMeal } from '../lib/nutrition/mapping';
@@ -60,17 +61,22 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { loadMeals(); loadFavorites(); }, [loadMeals, loadFavorites]);
 
   // Realtime: re-fetch on any change so other devices converge; local writes
-  // are applied optimistically and reconciled by the same refetch.
+  // are applied optimistically and reconciled by the same refetch. Debounced
+  // because a multi-item meal write echoes one event per row, and each reload
+  // pulls the whole table (same reason as ScheduleContext/BlocksContext).
+  const reloadMeals = useDebouncedReload(loadMeals);
+  const reloadFavorites = useDebouncedReload(loadFavorites);
+
   useEffect(() => {
     const sb = supabase;
     if (!sb) return;
     const channel = sb
       .channel('meal-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'meals' }, loadMeals)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'meal_favorites' }, loadFavorites)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'meals' }, reloadMeals)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'meal_favorites' }, reloadFavorites)
       .subscribe();
     return () => { sb.removeChannel(channel); };
-  }, [loadMeals, loadFavorites]);
+  }, [reloadMeals, reloadFavorites]);
 
   const getMealsForDate = useMemo(
     () => (date: Date) => {

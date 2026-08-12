@@ -13,7 +13,7 @@
 // the stub itself — every stub needs these headers, and OPTIONS preflights
 // need an explicit 204.
 
-import { DRIVER_USER, fabricatedSession } from './session.mjs';
+import { DRIVER_USER, MOCK_SUPABASE, fabricatedSession } from './session.mjs';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -34,13 +34,22 @@ function parseNameFilter(decoded) {
 }
 
 /**
- * True for the one console error a mock session produces on purpose: the
- * workout_events stub below answers 503 to force the bundled-seed fallback,
- * and Chromium logs every non-2xx resource load as a console error. The
- * error watchers (fixtures.ts, drive.mjs) skip exactly this message.
+ * True for the console errors a mock session produces on purpose. The error
+ * watchers (fixtures.ts, drive.mjs) skip exactly these.
+ *
+ * 1. The workout_events stub below answers 503 to force the bundled-seed
+ *    fallback, and Chromium logs every non-2xx resource load as an error.
+ * 2. Realtime is a WebSocket, and context.route intercepts HTTP only — so
+ *    the subscriptions in ScheduleContext/BlocksContext/MealsContext dial
+ *    the pinned mock host, which deliberately does not resolve. A suite with
+ *    no backend *should* fail to open a realtime socket; the alternative is
+ *    letting it reach whatever real project .env.local names, which is what
+ *    it used to do.
  */
 export function isExpectedConsoleError(msg) {
-  return (msg.location()?.url ?? '').includes('/rest/v1/workout_events');
+  const url = msg.location()?.url ?? '';
+  if (url.includes('/rest/v1/workout_events')) return true;
+  return url.includes(MOCK_SUPABASE.ref) || msg.text().includes(MOCK_SUPABASE.ref);
 }
 
 /**

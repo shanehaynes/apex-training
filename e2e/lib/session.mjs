@@ -9,9 +9,26 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
+ * The fake project the mock Playwright run pins itself to, so the suite does
+ * not depend on whether a developer happens to have a .env.local (CI does
+ * not). playwright.config.ts feeds these to the dev server, and the mock
+ * fixtures seed the session under this ref — the two must agree or the app
+ * reads a localStorage key nobody wrote and falls back to offline mode.
+ *
+ * Nothing can reach it: the host matches the intercept layer's
+ * *.supabase.co route, which fulfills every request locally.
+ */
+export const MOCK_SUPABASE = {
+  ref: 'mockproject',
+  url: 'https://mockproject.supabase.co',
+  anonKey: 'mock-anon-key-not-real',
+};
+
+/**
  * Parse VITE_SUPABASE_* out of an env file. Both fields are null when the
  * file or the vars are absent — the app then runs offline with no auth gate,
- * and the session seed is skipped.
+ * and the session seed is skipped. Used by scripts/drive.mjs, which drives a
+ * real project; the mock suite pins MOCK_SUPABASE instead.
  */
 export function readSupabaseEnv(envFile = '.env.local', root = process.cwd()) {
   try {
