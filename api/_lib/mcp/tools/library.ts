@@ -1,8 +1,7 @@
 import type { McpToolDef } from '../protocol.js';
 import { optionalBoolean, optionalInt } from '../args.js';
-import { aliasIndexOf, fetchDefinitionRows } from '../data.js';
-import { fetchAllPages } from '../../pagination.js';
-import { lastPerformedByCanonical, type NameDateRow } from '../../../../src/lib/library/stats.js';
+import { aliasIndexOf, fetchDefinitionRows, fetchLastPerformedRows } from '../data.js';
+import { lastPerformedByCanonical } from '../../../../src/lib/library/stats.js';
 
 // Exercise-library search: lets the model resolve "incline press" to the
 // canonical entry (and its aliases) before querying history.
@@ -28,30 +27,12 @@ export const searchExercisesTool: McpToolDef = {
     const defs = await fetchDefinitionRows(supabase, userId);
     const aliasIndex = aliasIndexOf(defs);
 
-    // Last-performed dates from lightweight name+date pairs (both log tables).
-    const [setNames, cardioNames] = await Promise.all([
-      fetchAllPages<NameDateRow>('workout_set_logs', (from, to) =>
-        supabase
-          .from('workout_set_logs')
-          .select('exercise_name, event_date')
-          .eq('user_id', userId)
-          .eq('is_autofilled', false)
-          .order('event_date', { ascending: true })
-          .order('id', { ascending: true })
-          .range(from, to),
-      ),
-      fetchAllPages<NameDateRow>('workout_cardio_logs', (from, to) =>
-        supabase
-          .from('workout_cardio_logs')
-          .select('exercise_name, event_date')
-          .eq('user_id', userId)
-          .eq('is_autofilled', false)
-          .order('event_date', { ascending: true })
-          .order('id', { ascending: true })
-          .range(from, to),
-      ),
-    ]);
-    const lastPerformed = lastPerformedByCanonical([...setNames, ...cardioNames], aliasIndex.toCanonical);
+    // Last-performed dates, aggregated server-side (one row per name per log
+    // table) rather than paged through every logged (name, date) pair.
+    const lastPerformed = lastPerformedByCanonical(
+      await fetchLastPerformedRows(supabase, userId),
+      aliasIndex.toCanonical,
+    );
 
     const matches = defs
       .filter(d => includeArchived || !d.archived_at)

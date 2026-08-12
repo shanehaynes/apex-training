@@ -86,28 +86,35 @@ CREATE INDEX IF NOT EXISTS idx_mml_user_time
 -- SECURITY INVOKER is deliberate. The browser calls this on the anon
 -- client, where RLS must still apply — fetchLastPerformedRows passes
 -- no user filter of its own and relies entirely on RLS. A caller
--- passing someone else's id gets zero rows. The service-role MCP
--- caller bypasses RLS and passes its own token-verified userId, the
--- same posture as every other admin query.
+-- passing someone else's id gets zero rows regardless, because RLS on
+-- the underlying tables still applies. The service-role MCP caller
+-- bypasses RLS and passes its own token-verified userId, the same
+-- posture as every other admin query.
+--
+-- p_user_id defaults to auth.uid() so the browser can call this with no
+-- argument at all, exactly like the plain selects it replaces. A
+-- service-role caller that omits it gets auth.uid() = NULL and so zero
+-- rows — the safe direction to fail.
 --
 -- Table aliases are required: unqualified column names would be
 -- ambiguous against the RETURNS TABLE output names.
 -- ------------------------------------------------------------
-CREATE OR REPLACE FUNCTION last_performed_by_name(p_user_id UUID)
+CREATE OR REPLACE FUNCTION last_performed_by_name(p_user_id UUID DEFAULT NULL)
 RETURNS TABLE (exercise_name TEXT, event_date DATE)
 LANGUAGE sql
 STABLE
 SECURITY INVOKER
 SET search_path = public
 AS $$
+  WITH target AS (SELECT coalesce(p_user_id, auth.uid()) AS uid)
   SELECT l.exercise_name, max(l.event_date)
     FROM workout_set_logs l
-   WHERE l.user_id = p_user_id AND l.is_autofilled = false
+   WHERE l.user_id = (SELECT uid FROM target) AND l.is_autofilled = false
    GROUP BY l.exercise_name
   UNION ALL
   SELECT c.exercise_name, max(c.event_date)
     FROM workout_cardio_logs c
-   WHERE c.user_id = p_user_id AND c.is_autofilled = false
+   WHERE c.user_id = (SELECT uid FROM target) AND c.is_autofilled = false
    GROUP BY c.exercise_name;
 $$;
 
