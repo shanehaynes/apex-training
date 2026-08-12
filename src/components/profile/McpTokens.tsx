@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Copy, X } from 'lucide-react';
+import { Copy, HelpCircle, X } from 'lucide-react';
 import {
   createMcpToken,
   disconnectMcpClient,
@@ -15,7 +15,12 @@ import { notify } from '../../lib/notify';
 // token is displayed exactly once, right after minting — the server stores
 // only its hash.
 
-export default function McpTokens() {
+interface Props {
+  /** Opens the illustrated setup guide (ConnectorGuide), owned by ProfileView. */
+  onShowGuide: () => void;
+}
+
+export default function McpTokens({ onShowGuide }: Props) {
   const [tokens, setTokens] = useState<McpTokenInfo[]>([]);
   const [connections, setConnections] = useState<McpConnectionInfo[]>([]);
   const [name, setName] = useState('');
@@ -83,11 +88,25 @@ export default function McpTokens() {
 
   return (
     <section className="profile-section">
-      <h3 className="profile-section__title">AI connector</h3>
+      <div className="profile-section__head">
+        <h3 className="profile-section__title">AI connector</h3>
+        <button
+          type="button"
+          className="profile-help"
+          onClick={onShowGuide}
+          aria-label="How to set up an AI connector — illustrated guide"
+          title="Setup guide"
+        >
+          <HelpCircle size={15} strokeWidth={1.6} />
+        </button>
+      </div>
       <p className="profile-hint">
         Query your training data from Claude or ChatGPT. Add this URL as a custom
         connector (or via <code>claude mcp add</code>) and authenticate with an
-        access token. Tokens are read-only.
+        access token. Tokens are read-only.{' '}
+        <button type="button" className="profile-link" onClick={onShowGuide}>
+          Step-by-step guide
+        </button>
       </p>
       <div className="profile-feed">
         <input className="auth-input profile-feed__url" value={endpointUrl} readOnly aria-label="MCP endpoint URL" />
