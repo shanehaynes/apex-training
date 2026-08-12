@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, useCal
 import { parseISO } from 'date-fns';
 import { deleteJson, patchJson, postJson } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
+import { useDebouncedReload } from '../hooks/useDebouncedReload';
 import type { CompletionRow, ExerciseDefinitionRow, RecurringExceptionRow, WorkoutEventRow } from '../lib/db/types';
 import type { ExerciseDefinition, WorkoutEvent, Schedule } from '../types/workout';
 import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, UpdateDefinitionInput, UpdateEventInput } from '../lib/schedule/types';
@@ -138,27 +139,21 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   // ── Realtime: re-fetch whenever events or exceptions change ────────────────
 
+  // Debounced: a multi-row write echoes one realtime event per row, and
+  // each refetch pulls three whole tables — collapse bursts into one.
+  const scheduleReload = useDebouncedReload(loadEvents);
+
   useEffect(() => {
     const sb = supabase;
     if (!sb) return;
-    // Debounced: a multi-row write echoes one realtime event per row, and
-    // each refetch pulls three whole tables — collapse bursts into one.
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const scheduleReload = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => { timer = null; loadEvents(); }, 250);
-    };
     const channel = sb
       .channel('schedule-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_events' }, scheduleReload)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'recurring_exceptions' }, scheduleReload)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'exercise_definitions' }, scheduleReload)
       .subscribe();
-    return () => {
-      if (timer) clearTimeout(timer);
-      sb.removeChannel(channel);
-    };
-  }, [loadEvents]);
+    return () => { sb.removeChannel(channel); };
+  }, [scheduleReload]);
 
   // ── Completion sync ────────────────────────────────────────────────────────
 
