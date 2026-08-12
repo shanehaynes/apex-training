@@ -4,7 +4,7 @@ import { enforceRateLimit } from '../rateLimit.js';
 import { resolveMcpToken } from '../mcp/tokens.js';
 import { handleMcpMessage, isJsonRpcRequest, RPC_INVALID_REQUEST, RPC_PARSE_ERROR } from '../mcp/protocol.js';
 import { MCP_TOOLS } from '../mcp/toolRegistry.js';
-import { OAUTH_SCOPE, requestOrigin } from '../oauth/common.js';
+import { OAUTH_SCOPE, publicOrigin } from '../oauth/common.js';
 
 // Remote MCP server endpoint (Streamable HTTP, stateless). One POST per
 // JSON-RPC message, application/json back — the 2025-06-18 spec allows a
@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // the RFC 9728 discovery document, which starts the sign-in flow.
     res.setHeader(
       'WWW-Authenticate',
-      `Bearer realm="apex-training", resource_metadata="${requestOrigin(req)}/.well-known/oauth-protected-resource", scope="${OAUTH_SCOPE}"`,
+      `Bearer realm="apex-training", resource_metadata="${publicOrigin(req)}/.well-known/oauth-protected-resource", scope="${OAUTH_SCOPE}"`,
     );
     res.status(401).send('Missing or invalid access token. Connect via OAuth, or mint a token in Apex Training → Profile → AI connector.');
     return;

@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { ApiError, getJson, patchJson } from '../lib/api';
 import { clearCompletedIds } from '../lib/schedule/localCompletion';
+import { publicOrigin } from '../lib/origin';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
 import { registerAgentState } from '../dev/agentBridge';
 
@@ -151,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const resetPassword = useCallback(async (email: string): Promise<string | null> => {
     if (!supabase) return 'Offline mode — no auth configured';
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
+      redirectTo: publicOrigin(),
     });
     return error ? error.message : null;
   }, []);

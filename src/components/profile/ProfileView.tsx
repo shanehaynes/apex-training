@@ -5,6 +5,7 @@ import { useCalendar } from '../../context/CalendarContext';
 import { useAuth } from '../../context/AuthContext';
 import { AVATARS, AVATAR_KEYS } from '../../lib/profile/avatars';
 import { notify } from '../../lib/notify';
+import { publicOrigin } from '../../lib/origin';
 import { useRotatingPlaceholder } from '../../hooks/useRotatingPlaceholder';
 import GettingStarted from '../onboarding/GettingStarted';
 import CoachActivity from './CoachActivity';
@@ -115,7 +116,7 @@ export default function ProfileView() {
   };
 
   const feedUrl = profile
-    ? `${window.location.origin}/api/calendar-feed?token=${profile.ics_token}`
+    ? `${publicOrigin()}/api/calendar-feed?token=${profile.ics_token}`
     : null;
 
   const copyFeedUrl = async () => {

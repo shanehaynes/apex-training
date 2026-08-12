@@ -97,6 +97,7 @@ cp .env.example .env.local   # then fill in the values
 | `GMAIL_APP_PASSWORD` | server only | 16-char [app password](https://myaccount.google.com/apppasswords) for that account (needs 2-Step Verification on) |
 | `API_KEY_ENCRYPTION_SECRET` | server only | encrypts stored per-user Anthropic keys at rest (AES-256-GCM, [`api/_lib/keyCrypto.ts`](api/_lib/keyCrypto.ts)). Any long random string — `openssl rand -base64 32`. Leave it unset and keys are stored in plaintext, with a loud server-log warning on every save; set it later and existing rows are re-encrypted on first read. Rotating it invalidates saved keys (users just re-save) |
 | `SEED_SOURCE_USER_ID` | server only | the account whose recurring workouts seed new users via `/api/template-copy`; falls back to the `profiles` row with `is_template_source = true` |
+| `VITE_PUBLIC_ORIGIN` | client + server | the canonical origin this deployment publishes as, e.g. `https://apex.example.com`. Every URL that leaves the app is built from it — the OAuth issuer and endpoints, the MCP endpoint URL, the ICS feed URL, password-reset redirects. Unset, those follow the request's `Host`, so a user on a Vercel deployment URL copies that frozen, protected host into Claude or their calendar app. Set it in production; leave it unset for local dev, e2e, and previews, which want their own host |
 
 There is **no `ANTHROPIC_API_KEY`** — the coach runs on each user's own Anthropic key, saved in-app under Profile → AI Coach, verified against Anthropic on save and stored server-side (the browser only ever sees the last 4 characters).
 
@@ -113,6 +114,8 @@ Plain `vite` dev does not run the serverless functions, so writes and AI feature
 ## ☁️ Deployment
 
 Deploys as a standard Vite app on Vercel ([vercel.json](vercel.json)). Set the environment variables from the table above in **Settings → Environment Variables** and redeploy. Only `VITE_`-prefixed variables are exposed to the client bundle — keep the service-role key unprefixed.
+
+Give users the assigned domain, never a deployment URL. Vercel Deployment Protection covers every path on a deployment URL — including `/.well-known/*`, `/api/mcp`, and `/api/calendar-feed` — so a visitor there is asked to sign in to Vercel before they ever reach the app's own login. Previews share production's env vars and therefore its database, which is why that protection is worth keeping on.
 
 To subscribe from a calendar app, add `https://<your-deployment>/api/calendar-feed` as a URL/ICS subscription.
 

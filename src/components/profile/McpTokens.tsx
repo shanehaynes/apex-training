@@ -9,6 +9,7 @@ import {
   type McpTokenInfo,
 } from '../../lib/api';
 import { notify } from '../../lib/notify';
+import { publicOrigin } from '../../lib/origin';
 
 // "AI connector" profile section: mint/list/revoke the personal access
 // tokens that authenticate the remote MCP endpoint (/api/mcp). The plaintext
@@ -22,7 +23,7 @@ export default function McpTokens() {
   const [isCreating, setIsCreating] = useState(false);
   const [freshToken, setFreshToken] = useState<string | null>(null);
 
-  const endpointUrl = `${window.location.origin}/api/mcp`;
+  const endpointUrl = `${publicOrigin()}/api/mcp`;
 
   useEffect(() => {
     listMcpTokens()

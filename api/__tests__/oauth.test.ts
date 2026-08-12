@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import metadataHandler from '../_lib/handlers/oauthMetadata';
 import registerHandler from '../_lib/handlers/oauthRegister';
@@ -7,7 +7,7 @@ import approveHandler from '../_lib/handlers/oauthApprove';
 import tokenHandler from '../_lib/handlers/oauthToken';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 import { resolveMcpToken, sha256hex } from '../_lib/mcp/tokens';
-import { parseFormBody, redirectUriMatches, sha256base64url } from '../_lib/oauth/common';
+import { parseFormBody, publicOrigin, redirectUriMatches, sha256base64url } from '../_lib/oauth/common';
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
 vi.mock('../_lib/auth.js', () => ({ requireUser: vi.fn(async () => 'user-123') }));
@@ -135,6 +135,52 @@ describe('oauth/common helpers', () => {
     });
     expect(parseFormBody('{"grant_type":"refresh_token"}')).toEqual({ grant_type: 'refresh_token' });
     expect(parseFormBody({ a: 'b', n: 1 })).toEqual({ a: 'b' });
+  });
+});
+
+// A connector stores issuer/endpoints/resource at registration time, so these
+// must not follow the host that served the request — a Vercel deployment URL
+// would pin the client to one frozen build.
+describe('publicOrigin', () => {
+  const saved = process.env.VITE_PUBLIC_ORIGIN;
+  afterEach(() => {
+    if (saved === undefined) delete process.env.VITE_PUBLIC_ORIGIN;
+    else process.env.VITE_PUBLIC_ORIGIN = saved;
+  });
+
+  it('falls back to the request host when unset (local dev, e2e)', () => {
+    delete process.env.VITE_PUBLIC_ORIGIN;
+    expect(publicOrigin(makeReq('GET', { host: 'apex.test' }))).toBe('https://apex.test');
+  });
+
+  it('pins to the configured origin regardless of the serving host', () => {
+    process.env.VITE_PUBLIC_ORIGIN = 'https://apex.example.com';
+    const preview = makeReq('GET', { host: 'apex-training-abc123-owner.vercel.app' });
+    expect(publicOrigin(preview)).toBe('https://apex.example.com');
+  });
+
+  it('keeps only the origin, dropping any path or trailing slash', () => {
+    process.env.VITE_PUBLIC_ORIGIN = 'https://apex.example.com/app/';
+    expect(publicOrigin(makeReq('GET'))).toBe('https://apex.example.com');
+  });
+
+  it('falls back rather than emitting a malformed issuer', () => {
+    process.env.VITE_PUBLIC_ORIGIN = 'not-a-url';
+    expect(publicOrigin(makeReq('GET', { host: 'apex.test' }))).toBe('https://apex.test');
+    process.env.VITE_PUBLIC_ORIGIN = 'ftp://apex.example.com';
+    expect(publicOrigin(makeReq('GET', { host: 'apex.test' }))).toBe('https://apex.test');
+  });
+
+  it('stamps the configured origin through the discovery documents', async () => {
+    process.env.VITE_PUBLIC_ORIGIN = 'https://apex.example.com';
+    const { res, body } = makeRes();
+    await metadataHandler(makeReq('GET', { query: { kind: 'server' }, host: 'apex-training-abc123-owner.vercel.app' }), res);
+    expect(body()).toMatchObject({
+      issuer: 'https://apex.example.com',
+      authorization_endpoint: 'https://apex.example.com/api/oauth-authorize',
+      token_endpoint: 'https://apex.example.com/api/oauth-token',
+      registration_endpoint: 'https://apex.example.com/api/oauth-register',
+    });
   });
 });
 
