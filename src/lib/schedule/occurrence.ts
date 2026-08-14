@@ -19,6 +19,11 @@ export function baseIdOf(id: string): string {
   return i === -1 ? id : id.slice(0, i);
 }
 
+/** True for the base id itself and for every occurrence expanded from it. */
+export function belongsToEvent(id: string, baseId: string): boolean {
+  return id === baseId || id.startsWith(`${baseId}${SEPARATOR}`);
+}
+
 /** The occurrence date, or null when `id` is not an occurrence id. */
 export function occurrenceDateOf(id: string): string | null {
   const i = id.indexOf(SEPARATOR);

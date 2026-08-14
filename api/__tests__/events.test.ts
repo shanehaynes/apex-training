@@ -18,10 +18,17 @@ interface AdminState {
   logged?: Record<string, unknown>;
   /** Simulate the target row not existing (0-row update/delete). */
   missing?: boolean;
+  /** Shape of the row the delete returns — drives the tracked-data purge. */
+  isRecurring?: boolean;
+  /** Tables the delete purged, and the ids it matched on. */
+  purged: { table: string; eventIds: string[] }[];
 }
 
 function makeAdmin(state: AdminState) {
-  const affected = () => ({ data: state.missing ? [] : [{ id: 'evt-1' }], error: null });
+  const affected = () => ({
+    data: state.missing ? [] : [{ id: 'evt-1', is_recurring: state.isRecurring ?? false }],
+    error: null,
+  });
   return {
     from(table: string) {
       return {
@@ -40,9 +47,20 @@ function makeAdmin(state: AdminState) {
             }),
           }),
         }),
-        delete: () => ({
-          eq: () => ({ eq: () => ({ select: async () => affected() }) }),
-        }),
+        // One node for both delete shapes: the event delete filters by
+        // id + user_id then selects; the tracked-data purge filters by
+        // user_id then matches event_id with .in().
+        delete: () => {
+          const node = {
+            eq: () => node,
+            in: async (_column: string, eventIds: string[]) => {
+              state.purged.push({ table, eventIds });
+              return { error: null };
+            },
+            select: async () => affected(),
+          };
+          return node;
+        },
       };
     },
   } as unknown as NonNullable<ReturnType<typeof getSupabaseAdmin>>;
@@ -67,7 +85,7 @@ function makeRes() {
 let state: AdminState;
 
 beforeEach(() => {
-  state = {};
+  state = { purged: [] };
   mockedAdmin.mockReturnValue(makeAdmin(state));
 });
 
@@ -174,5 +192,37 @@ describe('DELETE /api/events — existence check', () => {
     await handler(makeReq('DELETE', { log: { event_title: 'Bench', triggered_by: 'user' } }, { id: 'evt-1' }), res);
     expect(statusCode()).toBe(200);
     expect(state.logged).toMatchObject({ operation: 'delete' });
+  });
+
+  it('purges what a one-off workout logged — sets, cardio, session, completion', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('DELETE', { log: { event_title: 'Bench', triggered_by: 'user' } }, { id: 'evt-1' }), res);
+    expect(statusCode()).toBe(200);
+    expect(state.purged.map(p => p.table).sort()).toEqual([
+      'activity_streams',
+      'workout_cardio_logs',
+      'workout_completions',
+      'workout_sessions',
+      'workout_set_logs',
+    ]);
+    // Exact ids only: `_` is a LIKE wildcard and event ids may contain one,
+    // so a prefix match could reach a neighbouring event's rows.
+    expect(state.purged.every(p => p.eventIds.length === 1 && p.eventIds[0] === 'evt-1')).toBe(true);
+  });
+
+  it('keeps logged history when a whole recurring series is deleted', async () => {
+    state.isRecurring = true;
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('DELETE', { log: { event_title: 'Weekly squat', triggered_by: 'user' } }, { id: 'evt-1' }), res);
+    expect(statusCode()).toBe(200);
+    expect(state.purged, 'past sessions of a series really happened').toEqual([]);
+  });
+
+  it('purges nothing when the event was not the caller’s to delete', async () => {
+    state.missing = true;
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('DELETE', { log: { event_title: 'x', triggered_by: 'user' } }, { id: 'not-mine' }), res);
+    expect(statusCode()).toBe(404);
+    expect(state.purged).toEqual([]);
   });
 });

@@ -12,7 +12,7 @@ import { buildCompletionRows, eventFieldsToRow, eventToRow, rowToEvent } from '.
 import { loadCompletedIds, saveCompletedIds } from '../lib/schedule/localCompletion';
 import { useAuth } from './AuthContext';
 import { quickCompleteSession, quickUncompleteSession } from '../lib/tracking/sessionRepo';
-import { baseIdOf, makeOccurrenceId, occurrenceDateOf } from '../lib/schedule/occurrence';
+import { baseIdOf, belongsToEvent, makeOccurrenceId, occurrenceDateOf } from '../lib/schedule/occurrence';
 import { timeToMinutes } from '../lib/time';
 import { toDateString } from '../utils/dateHelpers';
 import { registerAgentState } from '../dev/agentBridge';
@@ -39,6 +39,8 @@ interface ScheduleContextValue {
   updateEvent: (input: UpdateEventInput) => Promise<boolean>;
   deleteEvent: (id: string, triggeredBy?: 'user' | 'ai') => Promise<boolean>;
   deleteEventInstance: (baseId: string, date: string, triggeredBy?: 'user' | 'ai') => Promise<boolean>;
+  /** Delete a single occurrence by the id the UI holds (base or expanded). */
+  deleteOccurrence: (id: string) => Promise<boolean>;
   /**
    * Move a single event to a new date and/or time. One-off events are patched
    * directly; a recurring occurrence gets a per-occurrence override so the
@@ -293,6 +295,23 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     applyCompletion(id, completed);
   }, [completedIds, applyCompletion]);
 
+  /**
+   * Drop cached completion flags for workouts that no longer exist. The rows
+   * themselves are deleted server-side with the event; this keeps the local
+   * cache (and localStorage) from resurrecting a checkmark if the id is ever
+   * reused.
+   */
+  const forgetCompletions = useCallback((matches: (id: string) => boolean) => {
+    setCompletedIds(prev => {
+      const stale = [...prev].filter(matches);
+      if (!stale.length) return prev;
+      const next = new Set(prev);
+      for (const id of stale) next.delete(id);
+      saveCompletedIds(userId, next);
+      return next;
+    });
+  }, [userId]);
+
   // ── Mutation helpers ───────────────────────────────────────────────────────
 
   const createEvent = useCallback(async (input: CreateEventInput): Promise<{ id: string } | null> => {
@@ -379,11 +398,15 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       await deleteJson(`/api/events?id=${encodeURIComponent(baseId)}`, 'Deleting event', {
         log: { event_title: event?.title ?? baseId, event_date: event?.date, triggered_by: triggeredBy },
       });
+      // Apply locally on success — the realtime refetch reconciles later, but
+      // the calendar must not keep showing a workout that is already gone.
+      setBaseEvents(prev => prev.filter(e => e.id !== baseId));
+      forgetCompletions(completedId => belongsToEvent(completedId, baseId));
       return true;
     } catch {
       return false;
     }
-  }, []);
+  }, [forgetCompletions]);
 
   const rescheduleEvent = useCallback(async (id: string, fields: OccurrenceOverride, triggeredBy: 'user' | 'ai' = 'user'): Promise<boolean> => {
     if (!supabase) return false;
@@ -483,11 +506,29 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     const event = eventsRef.current.find(e => e.id === baseId || e.id.startsWith(baseId));
     try {
       await postJson('/api/event-instances', { eventId: baseId, date, eventTitle: event?.title ?? baseId, triggeredBy }, 'Deleting instance');
+      // A null override is the skip marker the expansion reads — apply it
+      // locally so the occurrence leaves the calendar immediately.
+      const key = makeOccurrenceId(baseId, date);
+      setExceptions(prev => new Map(prev).set(key, null));
+      forgetCompletions(completedId => completedId === key || completedId === baseId);
       return true;
     } catch {
       return false;
     }
-  }, []);
+  }, [forgetCompletions]);
+
+  /**
+   * Delete one occurrence addressed by the id the UI holds. The exception row
+   * is keyed by the occurrence's *generated* date, which an earlier reschedule
+   * may have moved away from — resolve it the same way rescheduleEvent does
+   * rather than trusting the displayed date.
+   */
+  const deleteOccurrence = useCallback(async (id: string): Promise<boolean> => {
+    const baseId = baseIdOf(id);
+    const keyDate = occurrenceDateOf(id) ?? baseEventsRef.current.find(e => e.id === baseId)?.date;
+    if (!keyDate) return false;
+    return deleteEventInstance(baseId, keyDate);
+  }, [deleteEventInstance]);
 
   // Memoized so a re-render of the provider (e.g. a sync flag flip) doesn't
   // hand every consumer a fresh object and re-render the whole tree.
@@ -506,13 +547,14 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     updateEvent,
     deleteEvent,
     deleteEventInstance,
+    deleteOccurrence,
     rescheduleEvent,
     createDefinition,
     updateDefinition,
   }), [
     events, definitions, isSyncing, isEventsLoading, loadEvents, loadCompletions,
     getEventsForDate, getEventsForRange, toggleCompletion, setCompletion,
-    createEvent, updateEvent, deleteEvent, deleteEventInstance,
+    createEvent, updateEvent, deleteEvent, deleteEventInstance, deleteOccurrence,
     rescheduleEvent, createDefinition, updateDefinition,
   ]);
 

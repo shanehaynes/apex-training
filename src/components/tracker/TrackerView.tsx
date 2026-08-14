@@ -88,6 +88,11 @@ export default function TrackerView() {
       </header>
 
       <div className="tracker-body">
+        {isFinished && groups && (
+          <p className="tracker-finished-note">
+            This workout is finished — reps and weights are still editable, and edits save as you type.
+          </p>
+        )}
         {!groups ? (
           <p className="tracker-loading">Loading session…</p>
         ) : (

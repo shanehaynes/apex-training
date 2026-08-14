@@ -447,3 +447,26 @@ Resolve these before or during implementation — don't guess:
   the autofilled rows, keeps hand-entered ones, and drops the session row only when no
   logs remain. The tracker's Finish path still goes through `setCompletion` and is
   unaffected — real actuals are never plan-filled.
+
+- **Deleting a workout (2026-08-13):** the workout modal grew a "Delete workout" footer
+  action behind an inline confirm. A one-off event deletes outright; a recurring
+  occurrence offers "This day only" (a `recurring_exceptions` skip, via
+  `deleteOccurrence` → `/api/event-instances`) or "Whole series" (`deleteEvent` →
+  `DELETE /api/events`). Both paths apply optimistically in ScheduleContext — realtime
+  reconciles later, but the calendar must not keep showing a workout that is gone.
+
+  Deleting a workout deletes what was logged against it: `api/_lib/eventCleanup.ts`
+  purges `workout_sessions`, `workout_set_logs`, `workout_cardio_logs`,
+  `workout_completions`, and `activity_streams` for the affected occurrence id(s). Ids
+  are matched with `.in()`, never a LIKE prefix — `EVENT_ID_PATTERN` allows `_`, which is
+  a LIKE wildcard that could reach a neighbouring event's rows. Two deliberate
+  exceptions: deleting a **whole recurring series** leaves logs alone (months of sessions
+  that genuinely happened must not vanish because the series left the calendar), and the
+  append-only audit tables (`event_mutations_log`, `workout_completion_log`) plus
+  `provider_activity_imports` are never touched. A skip only purges the occurrence's own
+  ids — the bare base id is included only when the skipped date is the series anchor,
+  which is the one occurrence that keeps the base id through expansion.
+
+  Post-finish editing (Section 9.7) was already unrestricted but undiscoverable — the
+  header reads "Done" and nothing said the fields below it were live. The modal button
+  now reads "View / Edit Workout" and the tracker shows a note on finished sessions.
