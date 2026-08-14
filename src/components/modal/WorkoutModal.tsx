@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { useModalChrome } from '../../hooks/useModalChrome';
-import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play, Pencil, Route, TrendingUp, HeartPulse, Mountain, Layers } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play, Pencil, Route, TrendingUp, HeartPulse, Mountain, Layers, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/CalendarContext';
 import { useSchedule } from '../../context/ScheduleContext';
@@ -19,7 +19,7 @@ import type { Exercise } from '../../types/workout';
 
 export default function WorkoutModal() {
   const { state, dispatch } = useCalendar();
-  const { events, toggleCompletion, rescheduleEvent, updateEvent } = useSchedule();
+  const { events, toggleCompletion, rescheduleEvent, updateEvent, deleteEvent, deleteOccurrence } = useSchedule();
   const event = state.selectedEvent;
   const close = () => dispatch({ type: 'CLEAR_EVENT' });
 
@@ -27,13 +27,24 @@ export default function WorkoutModal() {
   const [editingDate, setEditingDate] = useState(false);
   const [editingTime, setEditingTime] = useState(false);
   const [editingExercises, setEditingExercises] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Escape backs out of exercise editing before closing the modal. The hook
-  // reads the handler through a ref, so this closure is always fresh.
+  // Escape backs out of exercise editing, then out of the delete confirm,
+  // before closing the modal. The hook reads the handler through a ref, so
+  // this closure is always fresh.
   useModalChrome(() => {
     if (editingExercises) setEditingExercises(false);
+    else if (confirmDelete) setConfirmDelete(false);
     else close();
   });
+
+  // The confirm is taller than the button it replaces, at the very bottom of
+  // a long modal — without this its buttons open below the fold.
+  const dangerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (confirmDelete) dangerRef.current?.scrollIntoView({ block: 'end' });
+  }, [confirmDelete]);
 
   if (!event) return null;
 
@@ -77,6 +88,23 @@ export default function WorkoutModal() {
       return;
     }
     rescheduleEvent(event.id, { endTime: stored });
+  };
+
+  // A recurring occurrence can go two ways: drop this one day, or end the
+  // whole series. A one-off has only itself to delete.
+  const removeWorkout = async (scope: 'occurrence' | 'series') => {
+    // Only a recurring event has an occurrence to peel off; for a one-off,
+    // deleting "this day" is deleting the event.
+    const thisDayOnly = scope === 'occurrence' && live.isRecurring;
+    setIsDeleting(true);
+    const ok = thisDayOnly ? await deleteOccurrence(event.id) : await deleteEvent(event.id);
+    if (ok) {
+      notify(scope === 'series' ? 'Series deleted' : 'Workout deleted');
+      close();
+      return;
+    }
+    setIsDeleting(false);
+    notify('Failed to delete — try again');
   };
 
   const color = getWorkoutColor(event.type);
@@ -292,7 +320,7 @@ export default function WorkoutModal() {
               onClick={() => dispatch({ type: 'START_TRACKING', payload: event })}
             >
               <Play size={15} strokeWidth={2} />
-              {isCompleted ? 'View Workout' : 'Start Workout'}
+              {isCompleted ? 'View / Edit Workout' : 'Start Workout'}
             </button>
             <button
               className={`modal-completion__btn${isCompleted ? ' modal-completion__btn--done' : ''}`}
@@ -343,6 +371,50 @@ export default function WorkoutModal() {
                 {event.tags.map(tag => (
                   <span key={tag} className="modal-tag">{tag}</span>
                 ))}
+              </div>
+            )}
+
+            {/* Delete — hidden while the exercise editor owns the body */}
+            {!editingExercises && (
+              <div className="modal-danger" ref={dangerRef}>
+                {confirmDelete ? (
+                  <>
+                    <p className="modal-danger__text">
+                      {live.isRecurring
+                        ? 'Delete this day only — anything logged for it goes too — or end the whole series, which leaves past sessions in your history.'
+                        : 'Delete this workout? Everything logged for it — sets, reps, weights — goes with it.'}
+                    </p>
+                    <div className="modal-danger__actions">
+                      <button
+                        className="modal-danger__btn"
+                        onClick={() => setConfirmDelete(false)}
+                        disabled={isDeleting}
+                      >
+                        Keep
+                      </button>
+                      <button
+                        className="modal-danger__btn modal-danger__btn--danger"
+                        onClick={() => removeWorkout('occurrence')}
+                        disabled={isDeleting}
+                      >
+                        {live.isRecurring ? 'This day only' : 'Delete workout'}
+                      </button>
+                      {live.isRecurring && (
+                        <button
+                          className="modal-danger__btn modal-danger__btn--danger"
+                          onClick={() => removeWorkout('series')}
+                          disabled={isDeleting}
+                        >
+                          Whole series
+                        </button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <button className="modal-delete" onClick={() => setConfirmDelete(true)}>
+                    <Trash2 size={12} strokeWidth={1.5} /> Delete workout
+                  </button>
+                )}
               </div>
             )}
           </div>

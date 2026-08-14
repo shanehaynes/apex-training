@@ -2,6 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
 import { enforceAiMutationCap, enforceRateLimit } from '../rateLimit.js';
+import { purgeTrackedEventData } from '../eventCleanup.js';
+import { makeOccurrenceId } from '../../../src/lib/schedule/occurrence.js';
 
 interface InstanceBody {
   eventId?: string;
@@ -43,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // caller owns that event before touching anything.
   const { data: parent, error: parentErr } = await supabase
     .from('workout_events')
-    .select('id')
+    .select('id,date')
     .eq('id', body.eventId)
     .eq('user_id', userId)
     .maybeSingle();
@@ -136,6 +138,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(500).send('Failed to skip instance');
     return;
   }
+
+  // The occurrence is gone from the calendar, so anything logged against it
+  // goes too. Ids follow the expansion convention: every occurrence but the
+  // series anchor carries `${baseId}__${date}`; the anchor keeps the bare id,
+  // and only the anchor ever does — so both are exact, no date filter needed.
+  const purgeIds = [makeOccurrenceId(body.eventId, body.date)];
+  if (parent.date === body.date) purgeIds.push(body.eventId);
+  await purgeTrackedEventData(supabase, userId, purgeIds);
 
   const { error: logError } = await supabase.from('event_mutations_log').insert({
     user_id: userId,

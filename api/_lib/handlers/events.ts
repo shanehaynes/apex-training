@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
 import { pickAllowed, EVENT_INSERT_COLUMNS, EVENT_PATCH_COLUMNS, EVENT_ID_PATTERN } from '../allowlist.js';
 import { enforceAiMutationCap, enforceRateLimit } from '../rateLimit.js';
+import { purgeTrackedEventData } from '../eventCleanup.js';
 import type { WorkoutEventRow } from '../../../src/lib/db/types.js';
 
 interface MutationLogEntry {
@@ -149,7 +150,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .delete()
       .eq('id', id)
       .eq('user_id', userId)
-      .select('id');
+      .select('id,is_recurring');
     if (error) {
       console.error('[api/events] delete failed:', error.message);
       res.status(500).send('Failed to delete event');
@@ -159,6 +160,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(404).send('Event not found');
       return;
     }
+
+    // A one-off event has exactly one occurrence, logged under the bare id —
+    // deleting the workout deletes what was logged against it. A recurring
+    // series keeps its logs: the whole series disappearing from the calendar
+    // must not erase months of sessions that genuinely happened.
+    if (!deleted[0]?.is_recurring) await purgeTrackedEventData(supabase, userId, [id]);
 
     await logMutation(supabase, userId, 'delete', id, body?.log ?? { event_title: id });
     res.status(200).json({ ok: true });
