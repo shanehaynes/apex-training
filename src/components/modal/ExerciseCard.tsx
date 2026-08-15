@@ -1,5 +1,6 @@
 import { useCalendar } from '../../context/CalendarContext';
 import { ascentStyleLabel, climbStyleLabel } from '../../lib/climbing';
+import { countSpecNote, stripCountSpec } from '../../lib/schedule/definitions';
 import type { Exercise } from '../../types/workout';
 
 interface Props {
@@ -17,13 +18,17 @@ export default function ExerciseCard({ exercise, accentColor }: Props) {
     const ascent = ascentStyleLabel(exercise.ascentStyle);
     if (ascent) meta.push(ascent);
   } else {
-    if (exercise.sets && exercise.reps) meta.push(`${exercise.sets} × ${exercise.reps}`);
+    // Side conventions ride below with the notes, not in the prescription.
+    const reps = stripCountSpec(exercise.reps);
+    const duration = stripCountSpec(exercise.duration);
+    if (exercise.sets && reps) meta.push(`${exercise.sets} × ${reps}`);
     else if (exercise.sets) meta.push(`${exercise.sets} sets`);
-    else if (exercise.reps) meta.push(exercise.reps);
-    if (exercise.duration) meta.push(exercise.duration);
+    else if (reps) meta.push(reps);
+    if (duration) meta.push(duration);
     if (exercise.weight) meta.push(exercise.weight);
     if (exercise.restPeriod) meta.push(`Rest ${exercise.restPeriod}`);
   }
+  const specNote = exercise.category === 'climbing' ? undefined : countSpecNote(exercise);
 
   return (
     <div className="exercise-card">
@@ -54,6 +59,7 @@ export default function ExerciseCard({ exercise, accentColor }: Props) {
             {meta.join('  ·  ')}
           </span>
         )}
+        {specNote && <span className="exercise-card__notes">{specNote}</span>}
         {exercise.notes && <span className="exercise-card__notes">{exercise.notes}</span>}
         {exercise.muscleGroups && exercise.muscleGroups.length > 0 && (
           <div className="exercise-card__muscles">

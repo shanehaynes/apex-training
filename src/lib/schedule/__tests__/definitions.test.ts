@@ -3,9 +3,11 @@ import {
   buildAliasIndex,
   canonicalNameOf,
   canonicalizeLogNames,
+  countSpecNote,
   entryFromDefinition,
   expandNamesWithAliases,
   hasPerSideCount,
+  stripCountSpec,
   resolveExercise,
   resolveEventExercises,
   rowToDefinition,
@@ -179,6 +181,45 @@ describe('entry authoring helpers', () => {
     expect(hasPerSideCount('10 total')).toBe(true);
     expect(hasPerSideCount('5')).toBe(false);
     expect(hasPerSideCount(undefined)).toBe(false);
+  });
+});
+
+describe('count conventions in display', () => {
+  it('stripCountSpec lifts the convention off the count', () => {
+    expect(stripCountSpec('10 each leg')).toBe('10');
+    expect(stripCountSpec('8–10 each arm')).toBe('8–10');
+    expect(stripCountSpec('30s per side')).toBe('30s');
+    expect(stripCountSpec('90 sec/side')).toBe('90 sec');
+    expect(stripCountSpec('2–3 min/side')).toBe('2–3 min');
+    expect(stripCountSpec('10 fwd/back')).toBe('10');
+    expect(stripCountSpec('20–30 sec each side')).toBe('20–30 sec');
+  });
+
+  it('stripCountSpec keeps the rest of the count intact', () => {
+    // "light" qualifies the load, not the count — only the convention leaves.
+    expect(stripCountSpec('10 each side, light')).toBe('10, light');
+    expect(stripCountSpec('pyramid to 3–5')).toBe('pyramid to 3–5');
+    expect(stripCountSpec('10 total')).toBe('10 total');
+    expect(stripCountSpec('5')).toBe('5');
+    expect(stripCountSpec(undefined)).toBeUndefined();
+  });
+
+  it('stripCountSpec never empties a count that is only its convention', () => {
+    expect(stripCountSpec('each side')).toBe('each side');
+  });
+
+  it('countSpecNote states the convention for the notes line', () => {
+    expect(countSpecNote({ reps: '10 each leg' })).toBe('Each leg.');
+    expect(countSpecNote({ duration: '90 sec/side' })).toBe('Each side.');
+    expect(countSpecNote({ reps: '10 fwd/back' })).toBe('Forward and back.');
+    expect(countSpecNote({ reps: '15 each arm' })).toBe('Each arm.');
+  });
+
+  it('countSpecNote deduplicates and stays silent when nothing is stated', () => {
+    expect(countSpecNote({ reps: '10 each side', duration: '30s per side' })).toBe('Each side.');
+    expect(countSpecNote({ reps: '10 each arm', duration: '30s per leg' })).toBe('Each arm. Each leg.');
+    expect(countSpecNote({ reps: '10', duration: '30s' })).toBeUndefined();
+    expect(countSpecNote({})).toBeUndefined();
   });
 });
 
