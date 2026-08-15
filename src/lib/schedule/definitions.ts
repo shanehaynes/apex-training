@@ -108,6 +108,55 @@ export function hasPerSideCount(text: string | null | undefined): boolean {
   return !!text && PER_SIDE_RE.test(text);
 }
 
+// ─── Count conventions: display ──────────────────────────────────────────────
+// Authoring requires the convention inside the count string (PER_SIDE_RE
+// above); reading it there crowds the prescription line, so display lifts it
+// out and shows it with the notes instead. Deliberately broader than
+// PER_SIDE_RE — that one guards what may be written, this one only decides
+// where a written convention is shown, so it also catches the "/side" and
+// "fwd/back" shorthands the invariant never required. Neither one rewrites
+// stored data: reps and duration keep their full text.
+
+const COUNT_SPEC_RE =
+  /(?:,\s*)?\s*(?:\beach\s+(side|leg|arm|hand)\b|\bper\s+(side|leg|arm|hand)\b|\/\s*(side|leg|arm|hand)\b|\bfwd\s*\/\s*back\b)/gi;
+
+const SPEC_NOTE: Record<string, string> = {
+  side: 'Each side.',
+  leg: 'Each leg.',
+  arm: 'Each arm.',
+  hand: 'Each hand.',
+};
+
+/**
+ * A count string with its side convention removed, for the prescription line:
+ * "90 sec/side" → "90 sec", "10 each side, light" → "10, light". Returns the
+ * input untouched when it states no convention, and never returns an empty
+ * string (a count that is nothing but its convention keeps its original text).
+ */
+export function stripCountSpec(text?: string): string | undefined {
+  if (!text) return text;
+  const stripped = text.replace(COUNT_SPEC_RE, '').replace(/\s+/g, ' ').replace(/^[,\s]+/, '').trim();
+  return stripped || text;
+}
+
+/**
+ * The side conventions stated across an entry's reps and duration, as one
+ * sentence for the notes line ("Each side."). Undefined when neither states
+ * one; deduplicated when both state the same.
+ */
+export function countSpecNote(entry: Pick<Exercise, 'reps' | 'duration'>): string | undefined {
+  const notes: string[] = [];
+  for (const text of [entry.reps, entry.duration]) {
+    if (!text) continue;
+    for (const match of text.matchAll(COUNT_SPEC_RE)) {
+      const part = (match[1] ?? match[2] ?? match[3])?.toLowerCase();
+      const note = part ? SPEC_NOTE[part] : 'Forward and back.';
+      if (note && !notes.includes(note)) notes.push(note);
+    }
+  }
+  return notes.length ? notes.join(' ') : undefined;
+}
+
 /** Prescription fields an author may supply when adding an exercise to an event. */
 export interface PrescriptionOverrides {
   sets?: number;

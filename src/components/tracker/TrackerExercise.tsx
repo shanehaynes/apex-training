@@ -2,6 +2,7 @@ import { Plus, X } from 'lucide-react';
 import type { PlannedSet } from '../../types/workout';
 import type { TrackedExercise, TrackedSet, CardioActuals, LastSetActuals } from '../../lib/tracking/plan';
 import { resolvePlannedSets } from '../../lib/tracking/plan';
+import { countSpecNote, stripCountSpec } from '../../lib/schedule/definitions';
 import DurationInput from './DurationInput';
 
 export type SetField = 'actualWeight' | 'actualReps' | 'actualDuration';
@@ -19,11 +20,14 @@ interface Props {
   onRemoveSet: (setNumber: number) => void;
 }
 
+// Side conventions are shown once with the notes, not repeated on every set.
 function plannedLabel(p: PlannedSet): string {
   const parts: string[] = [];
   if (p.targetWeight) parts.push(p.targetWeight);
-  if (p.targetReps) parts.push(`× ${p.targetReps}`);
-  if (p.targetDuration) parts.push(p.targetDuration);
+  const reps = stripCountSpec(p.targetReps);
+  if (reps) parts.push(`× ${reps}`);
+  const duration = stripCountSpec(p.targetDuration);
+  if (duration) parts.push(duration);
   return parts.length ? parts.join(' ') : '—';
 }
 
@@ -151,6 +155,7 @@ export default function TrackerExercise({
   const fields = inputFields(tracked);
   const isClimb = exercise.category === 'climbing';
   const labels: Record<SetField, string> = isClimb ? { ...FIELD_LABEL, actualWeight: 'grade' } : FIELD_LABEL;
+  const specNote = isClimb ? undefined : countSpecNote(exercise);
 
   return (
     <div className="tracker-exercise">
@@ -162,6 +167,7 @@ export default function TrackerExercise({
           </span>
         )}
       </div>
+      {specNote && <p className="tracker-exercise__notes">{specNote}</p>}
       {exercise.techniqueNotes && <p className="tracker-exercise__notes">{exercise.techniqueNotes}</p>}
       {exercise.notes && exercise.notes !== exercise.techniqueNotes && (
         <p className="tracker-exercise__notes">{exercise.notes}</p>
