@@ -6,8 +6,11 @@ import { useCalendar } from '../../context/CalendarContext';
 import { useSchedule } from '../../context/ScheduleContext';
 import { useMeals } from '../../context/MealsContext';
 import { formatElapsed } from '../../lib/time';
+import { notify } from '../../lib/notify';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { useWorkoutSession } from '../../hooks/useWorkoutSession';
+import type { TrackedSection } from '../../lib/db/types';
+import type { ExerciseDefinition } from '../../types/workout';
 import TrackerExercise from './TrackerExercise';
 import WorkoutSummary from './WorkoutSummary';
 import ConfirmBar from './ConfirmBar';
@@ -21,7 +24,7 @@ export default function TrackerView() {
   const {
     groups, session, elapsed, isFinished, isFinishing, isCancelling, summary,
     onSetChange, onCardioChange, onCommitSetShadow, onCommitCardioShadow, onAddSet, onRemoveSet,
-    flushSave, requestFinish, cancelWorkout, openSavedSummary, dismissSummary,
+    onSwapExercise, flushSave, requestFinish, cancelWorkout, openSavedSummary, dismissSummary,
   } = useWorkoutSession(event, setCompletion, getMealsForDate);
 
   const [confirmCount, setConfirmCount] = useState<number | null>(null);
@@ -45,6 +48,11 @@ export default function TrackerView() {
     } else {
       setConfirmCount(null);
     }
+  };
+
+  const handleSwap = async (section: TrackedSection, exerciseId: string, def: ExerciseDefinition) => {
+    const ok = await onSwapExercise(section, exerciseId, def);
+    notify(ok ? `Logged as ${def.canonicalName}` : 'Failed to swap — try again');
   };
 
   const handleCancelWorkout = async () => {
@@ -114,6 +122,7 @@ export default function TrackerView() {
                   onCommitCardioShadow={field => onCommitCardioShadow(group.section, tracked.exercise.id, field)}
                   onAddSet={() => onAddSet(group.section, tracked.exercise.id)}
                   onRemoveSet={setNumber => onRemoveSet(group.section, tracked.exercise.id, setNumber)}
+                  onSwap={def => handleSwap(group.section, tracked.exercise.id, def)}
                 />
               ))}
             </div>

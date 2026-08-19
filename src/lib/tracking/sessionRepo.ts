@@ -109,15 +109,57 @@ export async function loadSession(event: WorkoutEvent): Promise<TrackerSessionDa
     return [null, null, null, null, null] as const;
   });
 
+  const savedSets = (setsRes?.data ?? []) as SetLogRow[];
+  const savedCardio = (cardioRes?.data ?? []) as CardioLogRow[];
+
+  // A swapped exercise is logged under a movement the plan never names, so
+  // the history queries above missed it. Fetch the difference — one extra
+  // round trip, and only for sessions that actually carry a substitution.
+  const [extraHistory, extraCardioHistory] = await Promise.all([
+    fetchHistoryFor('workout_set_logs', extraNames(savedSets, names), event.date, aliasIndex),
+    fetchHistoryFor('workout_cardio_logs', extraNames(savedCardio, cardioNames), event.date, aliasIndex),
+  ]);
+
   return {
     session: startRes?.session ?? inMemorySession(),
-    savedSets: (setsRes?.data ?? []) as SetLogRow[],
-    savedCardio: (cardioRes?.data ?? []) as CardioLogRow[],
+    savedSets,
+    savedCardio,
     // Canonicalized in memory only: PR/last-performance grouping keys by
     // exercise_name, so pre-rename rows must group with current ones.
-    history: canonicalizeLogNames((historyRes?.data ?? []) as SetLogRow[], aliasIndex),
-    cardioHistory: canonicalizeLogNames((cardioHistoryRes?.data ?? []) as CardioLogRow[], aliasIndex),
+    history: [
+      ...canonicalizeLogNames((historyRes?.data ?? []) as SetLogRow[], aliasIndex),
+      ...(extraHistory as SetLogRow[]),
+    ],
+    cardioHistory: [
+      ...canonicalizeLogNames((cardioHistoryRes?.data ?? []) as CardioLogRow[], aliasIndex),
+      ...(extraCardioHistory as CardioLogRow[]),
+    ],
   };
+}
+
+/** Names this session logged that the plan-derived name list did not cover. */
+function extraNames(rows: { exercise_name: string }[], covered: string[]): string[] {
+  const known = new Set(covered);
+  return [...new Set(rows.map(r => r.exercise_name).filter(name => name && !known.has(name)))];
+}
+
+/** Prior non-autofilled logs for a set of exercise names, aliases included. */
+async function fetchHistoryFor(
+  table: 'workout_set_logs' | 'workout_cardio_logs',
+  names: string[],
+  before: string,
+  aliasIndex: AliasIndex,
+): Promise<{ exercise_name: string }[]> {
+  if (!supabase || !names.length) return [];
+  const { data } = await supabase
+    .from(table)
+    .select('*')
+    .in('exercise_name', expandNamesWithAliases(names, aliasIndex))
+    .lt('event_date', before)
+    .eq('is_autofilled', false)
+    .order('event_date', { ascending: false })
+    .limit(500);
+  return canonicalizeLogNames((data ?? []) as { exercise_name: string }[], aliasIndex);
 }
 
 /** Idempotent upsert of everything the user touched since the last flush. */
@@ -147,6 +189,30 @@ export async function finishSession(
     'Finishing workout',
   );
   return typeof data?.totalDurationSeconds === 'number' ? data.totalDurationSeconds : null;
+}
+
+export interface ExerciseSwap {
+  section: TrackedSection;
+  /** The plan entry's id — unchanged by the swap, since logs key on it. */
+  exerciseId: string;
+  exerciseName: string;
+  definitionId: string | null;
+}
+
+/**
+ * Relabel one exercise's logs for this event+date onto a different movement,
+ * keeping every set. The plan is untouched — a recurring series and its other
+ * occurrences keep their prescription. Resolves false when there is no
+ * backend to persist to, so callers can skip the reload.
+ */
+export async function swapLoggedExercise(
+  eventId: string,
+  eventDate: string,
+  swap: ExerciseSwap,
+): Promise<boolean> {
+  if (!supabase) return false;
+  await postJson('/api/workout-sessions', { action: 'swap-exercise', eventId, eventDate, ...swap }, 'Swapping exercise');
+  return true;
 }
 
 /** Forget the session entirely — no resume, no history. */

@@ -13,9 +13,16 @@ interface Props {
   onClose: () => void;
   /** Pre-selects a category filter aligned with the workout type (clearable). */
   initialCategory?: ExerciseCategory;
+  /**
+   * Hard limit on what can be picked — the chips, the results and the
+   * create-new category are all confined to these. Used by the tracker's
+   * swap, where the replacement has to log the same shape as what it
+   * replaces (per-set rows vs one cardio row).
+   */
+  restrictTo?: ExerciseCategory[];
 }
 
-const CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobility', 'skill', 'cardio', 'climbing'];
+const ALL_CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobility', 'skill', 'cardio', 'climbing'];
 
 function defaultsPreview(def: ExerciseDefinition): string {
   const parts: string[] = [];
@@ -33,12 +40,13 @@ function defaultsPreview(def: ExerciseDefinition): string {
  * never fuzzy — seeing the near-matches before "Create" is what prevents
  * duplicate library entries.
  */
-export default function ExercisePicker({ onSelect, onClose, initialCategory }: Props) {
+export default function ExercisePicker({ onSelect, onClose, initialCategory, restrictTo }: Props) {
   const { definitions, createDefinition } = useSchedule();
+  const categories = restrictTo?.length ? restrictTo : ALL_CATEGORIES;
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<ExerciseCategory | null>(initialCategory ?? null);
   const [creating, setCreating] = useState(false);
-  const [newCategory, setNewCategory] = useState<ExerciseCategory>(initialCategory ?? 'strength');
+  const [newCategory, setNewCategory] = useState<ExerciseCategory>(initialCategory ?? categories[0]);
   const [newUnilateral, setNewUnilateral] = useState(false);
   const [busy, setBusy] = useState(false);
   const [lastPerformed, setLastPerformed] = useState<Map<string, string>>(new Map());
@@ -66,6 +74,7 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory }: P
     const needle = query.trim().toLowerCase();
     return [...definitions.values()]
       .filter(def => !def.archivedAt)
+      .filter(def => categories.includes(def.category))
       .filter(def => !category || def.category === category)
       .filter(def =>
         !needle ||
@@ -73,7 +82,7 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory }: P
         def.aliases.some(a => a.toLowerCase().includes(needle)) ||
         def.muscleGroups.some(m => m.toLowerCase().includes(needle)))
       .sort((a, b) => a.canonicalName.localeCompare(b.canonicalName));
-  }, [definitions, query, category]);
+  }, [definitions, query, category, categories]);
 
   const trimmed = query.trim();
   // Offer create only when the query is no existing name/alias — an exact
@@ -125,7 +134,7 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory }: P
           >
             All
           </button>
-          {CATEGORIES.map(c => (
+          {categories.map(c => (
             <button
               key={c}
               className={`library-filter ${category === c ? 'library-filter--active' : ''}`}
@@ -175,7 +184,7 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory }: P
                   value={newCategory}
                   onChange={e => setNewCategory(e.target.value as ExerciseCategory)}
                 >
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <label className="library-field--checkbox exercise-picker__unilateral">
                   <input type="checkbox" checked={newUnilateral} onChange={e => setNewUnilateral(e.target.checked)} />

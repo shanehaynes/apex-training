@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { parseISO } from 'date-fns';
 import type { Meal } from '../types/nutrition';
-import type { WorkoutEvent } from '../types/workout';
+import type { ExerciseDefinition, WorkoutEvent } from '../types/workout';
 import type { CardioLogRow, SetLogRow, TrackedSection } from '../lib/db/types';
 import {
   buildTrackerModel,
   buildLastPerformance,
   buildLastCardio,
   collectUntouchedPlanned,
+  hasLoggedData,
   makeExtraSet,
   setToRow,
   cardioToRow,
@@ -16,7 +17,7 @@ import type { TrackedSectionGroup } from '../lib/tracking/plan';
 import { computeSessionPRs } from '../lib/tracking/records';
 import type { PersonalRecord } from '../lib/tracking/records';
 import { buildSessionRecap, generateCoachSummary } from '../lib/coach/summary';
-import { cancelSession, finishSession, loadSession, saveLogs, saveSummary } from '../lib/tracking/sessionRepo';
+import { cancelSession, finishSession, loadSession, saveLogs, saveSummary, swapLoggedExercise } from '../lib/tracking/sessionRepo';
 import type { RemovedSetKey, SessionInfo } from '../lib/tracking/sessionRepo';
 import type { SetField, CardioField } from '../components/tracker/TrackerExercise';
 import { registerAgentState } from '../dev/agentBridge';
@@ -280,6 +281,65 @@ export function useWorkoutSession(
     scheduleSave();
   };
 
+  /**
+   * Re-point one exercise's logs at a different movement — "I logged ring
+   * dips but actually did single-arm DB press". Sets, reps and weights stay
+   * put; only what the movement is called changes, and only for this day.
+   */
+  const onSwapExercise = async (
+    section: TrackedSection,
+    exerciseId: string,
+    def: ExerciseDefinition,
+  ): Promise<boolean> => {
+    const target = eventRef.current;
+    if (!target) return false;
+
+    // Order matters: a pending autosave carries the old name, and would write
+    // it straight back over the rows the swap just relabelled.
+    await flushSave();
+    const tracked = findTracked(section, exerciseId);
+    const hadLogs = !!tracked && hasLoggedData(tracked);
+
+    let persisted = false;
+    try {
+      persisted = await swapLoggedExercise(target.id, target.date, {
+        section,
+        exerciseId,
+        exerciseName: def.canonicalName,
+        definitionId: def.id,
+      });
+    } catch {
+      return false;
+    }
+
+    // Paint it immediately either way — offline there is nothing to reload,
+    // and the renamed model is what subsequent saves serialize.
+    updateExercise(section, exerciseId, t => {
+      const from = t.substitutedFrom ?? t.exercise.name;
+      return {
+        ...t,
+        exercise: { ...t.exercise, name: def.canonicalName, definitionId: def.id },
+        // Swapping back to the planned movement is not a substitution.
+        substitutedFrom: from === def.canonicalName ? null : from,
+      };
+    });
+
+    // Refresh the history refs — and only those. PR detection keys on the
+    // exercise name, and the swapped-in movement's prior sessions were never
+    // fetched (loadSession now widens its query to the names on this
+    // session's own rows, which the relabel just changed). Rebuilding the
+    // whole model here instead would be wrong: the model comes from saved
+    // rows, so a swap with nothing logged yet would revert on the spot.
+    if (persisted && hadLogs) {
+      const data = await loadSession(target).catch(() => null);
+      if (data) {
+        historyRef.current = data.history;
+        cardioHistoryRef.current = data.cardioHistory;
+      }
+    }
+    return true;
+  };
+
   // ── Finish / cancel / summary ───────────────────────────────────────────────
 
   // Generate the coach text for an already-open summary popup, then persist
@@ -396,6 +456,7 @@ export function useWorkoutSession(
     onCommitCardioShadow,
     onAddSet,
     onRemoveSet,
+    onSwapExercise,
     flushSave,
     requestFinish,
     cancelWorkout,

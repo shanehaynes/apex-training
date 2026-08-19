@@ -39,11 +39,17 @@ export interface CardioActuals {
 
 export interface TrackedExercise {
   section: TrackedSection;
+  /** The movement the logs belong to — the plan entry, unless this day's
+   *  logs were swapped to another exercise (see `substitutedFrom`). The id
+   *  is always the plan entry's: log rows key on it. */
   exercise: Exercise;
   /** Cardio exercises get one structured form instead of per-set rows. */
   isCardio: boolean;
   sets: TrackedSet[];
   cardio: CardioActuals | null;
+  /** Name of the planned movement when this day's logs were swapped onto a
+   *  different one; null when the logs match the plan. */
+  substitutedFrom: string | null;
 }
 
 export interface TrackedSectionGroup {
@@ -102,6 +108,24 @@ const SECTION_SOURCES: { section: TrackedSection; labelKey: 'warmup' | 'exercise
   { section: 'cooldown', labelKey: 'cooldown',  pick: e => e.cooldown ?? [] },
 ];
 
+/**
+ * A logged exercise can be swapped onto a different movement after the fact
+ * (swapLoggedExercise): the substitution is recorded on the log rows, never
+ * on the plan, so a recurring series keeps its prescription and the entry id
+ * — which every log row keys on — never moves.
+ *
+ * Detected by definition_id rather than by name: a library rename moves the
+ * plan entry's name but not the rows', and that is not a swap.
+ */
+function substitutionOf(
+  exercise: Exercise,
+  rows: { exercise_name: string; definition_id?: string | null }[],
+): Exercise | null {
+  const row = rows.find(r => r.definition_id);
+  if (!row?.definition_id || row.definition_id === (exercise.definitionId ?? null)) return null;
+  return { ...exercise, name: row.exercise_name, definitionId: row.definition_id };
+}
+
 export function buildTrackerModel(
   event: WorkoutEvent,
   savedSets: SetLogRow[] = [],
@@ -119,13 +143,23 @@ export function buildTrackerModel(
     .map(({ section, labelKey, pick }) => ({
       section,
       label: labels[labelKey],
-      exercises: pick(event).map((exercise): TrackedExercise => {
+      exercises: pick(event).map((planned_: Exercise): TrackedExercise => {
+        // Everything below reads the *substituted* movement — its name drives
+        // the ghost lookup, the rows autosave writes, and PR detection.
+        const swappedTo = substitutionOf(
+          planned_,
+          [...savedSets, ...savedCardio].filter(r => r.section === section && r.exercise_id === planned_.id),
+        );
+        const exercise = swappedTo ?? planned_;
+        const substitutedFrom = swappedTo ? planned_.name : null;
+
         if (exercise.category === 'cardio') {
           const row = cardioByKey.get(`${section}|${exercise.id}`);
           const last = row ? undefined : lastCardioByName.get(exercise.name);
           return {
             section,
             exercise,
+            substitutedFrom,
             isCardio: true,
             sets: [],
             cardio: row
@@ -195,10 +229,22 @@ export function buildTrackerModel(
         }
         sets.sort((a, b) => a.setNumber - b.setNumber);
 
-        return { section, exercise, isCardio: false, sets, cardio: null };
+        return { section, exercise, substitutedFrom, isCardio: false, sets, cardio: null };
       }),
     }))
     .filter(group => group.exercises.length > 0);
+}
+
+/**
+ * True when the exercise carries actuals — either hydrated from saved rows or
+ * typed this sitting. A swap only has rows to relabel when this holds.
+ */
+export function hasLoggedData(tracked: TrackedExercise): boolean {
+  if (tracked.cardio) {
+    const c = tracked.cardio;
+    return c.isLogged || !!(c.durationMinutes || c.distance || c.elevationGain || c.avgHeartRate);
+  }
+  return tracked.sets.some(s => s.isLogged || s.actualWeight || s.actualReps || s.actualDuration);
 }
 
 // ─── Last performance (previous session actuals) ─────────────────────────────
