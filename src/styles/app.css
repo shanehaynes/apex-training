@@ -2030,12 +2030,46 @@
   white-space: nowrap;
 }
 
+/* Sits between the name and the rest note; margin-right keeps the rest note
+   pinned to the right edge despite the header's space-between. */
+.tracker-exercise__swap {
+  display: inline-flex;
+  align-items: center;
+  margin-right: auto;
+  padding: 2px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity var(--duration-fast), color var(--duration-fast);
+}
+
+.tracker-exercise__swap:hover,
+.tracker-exercise__swap:focus-visible {
+  opacity: 1;
+  color: var(--text-primary);
+}
+
+.tracker-exercise__swapped {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
 .tracker-exercise__notes {
   font-size: var(--text-sm);
   color: var(--text-muted);
   font-style: italic;
   line-height: 1.5;
   margin-bottom: 8px;
+}
+
+.tracker-exercise__notes--warn {
+  font-style: normal;
+  color: var(--color-morning-solid);
 }
 
 .tracker-set {

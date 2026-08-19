@@ -9,8 +9,30 @@ vi.mock('../_lib/rateLimit.js', () => ({ enforceRateLimit: vi.fn(async () => tru
 
 const mockedAdmin = vi.mocked(getSupabaseAdmin);
 
+interface UpdateCall {
+  table: string;
+  patch: Record<string, unknown>;
+  filters: Record<string, unknown>;
+}
+
 interface AdminState {
   upserts: Record<string, Record<string, unknown>[]>;
+  updates: UpdateCall[];
+}
+
+/**
+ * A thenable filter chain: PostgREST builders resolve wherever the caller
+ * stops chaining, so `.eq().eq()` and `.eq().eq().eq().is()` both have to be
+ * awaitable. Records the filters so a test can assert what a write was
+ * scoped to — the user_id/event scoping is the security-relevant part.
+ */
+function updateChain(call: UpdateCall) {
+  const chain = {
+    eq(column: string, value: unknown) { call.filters[column] = value; return chain; },
+    is(column: string, value: unknown) { call.filters[column] = value; return chain; },
+    then<T>(resolve: (r: { error: null }) => T) { return Promise.resolve({ error: null }).then(resolve); },
+  };
+  return chain;
 }
 
 function makeAdmin(state: AdminState) {
@@ -21,9 +43,11 @@ function makeAdmin(state: AdminState) {
           state.upserts[table] = Array.isArray(rows) ? rows : [rows];
           return { error: null };
         },
-        update: () => ({
-          eq: () => ({ eq: () => ({ eq: () => ({ is: async () => ({ error: null }) }) }) }),
-        }),
+        update: (patch: Record<string, unknown>) => {
+          const call: UpdateCall = { table, patch, filters: {} };
+          state.updates.push(call);
+          return updateChain(call);
+        },
       };
     },
   } as unknown as NonNullable<ReturnType<typeof getSupabaseAdmin>>;
@@ -48,7 +72,7 @@ function makeRes() {
 let state: AdminState;
 
 beforeEach(() => {
-  state = { upserts: {} };
+  state = { upserts: {}, updates: [] };
   mockedAdmin.mockReturnValue(makeAdmin(state));
 });
 
@@ -111,6 +135,69 @@ describe('POST /api/workout-sessions — save row validation', () => {
     }), res);
     expect(statusCode()).toBe(400);
     expect(state.upserts['workout_set_logs']).toBeUndefined();
+  });
+});
+
+describe('POST /api/workout-sessions — swap-exercise', () => {
+  const swap = {
+    action: 'swap-exercise', eventId: 'evt-1', eventDate: '2026-08-07',
+    section: 'exercise', exerciseId: 'ring-dips',
+    exerciseName: 'Single-Arm Dumbbell Press', definitionId: 'def-db-press',
+  };
+
+  it('relabels both log tables, scoped to the caller and this one occurrence', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq(swap), res);
+    expect(statusCode()).toBe(200);
+
+    expect(state.updates.map(u => u.table).sort())
+      .toEqual(['workout_cardio_logs', 'workout_set_logs']);
+    for (const call of state.updates) {
+      expect(call.patch).toMatchObject({
+        exercise_name: 'Single-Arm Dumbbell Press',
+        definition_id: 'def-db-press',
+      });
+      // Scoped tightly enough that no other day, exercise, or user moves.
+      expect(call.filters).toEqual({
+        user_id: 'user-123',
+        event_id: 'evt-1',
+        event_date: '2026-08-07',
+        section: 'exercise',
+        exercise_id: 'ring-dips',
+      });
+    }
+  });
+
+  it('never touches the planned prescription — only the logs', async () => {
+    const { res } = makeRes();
+    await handler(makeReq(swap), res);
+    expect(state.updates.some(u => u.table === 'workout_events')).toBe(false);
+    expect(state.upserts['workout_events']).toBeUndefined();
+  });
+
+  it('trims the name and accepts a null definitionId', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq({ ...swap, exerciseName: '  Push-Up  ', definitionId: null }), res);
+    expect(statusCode()).toBe(200);
+    expect(state.updates[0].patch).toMatchObject({ exercise_name: 'Push-Up', definition_id: null });
+  });
+
+  it('400s on a bad target and writes nothing', async () => {
+    const bad: Record<string, unknown>[] = [
+      { ...swap, section: 'not-a-section' },
+      { ...swap, exerciseId: '' },
+      { ...swap, exerciseId: 42 },
+      { ...swap, exerciseName: '   ' },
+      { ...swap, exerciseName: 'x'.repeat(201) },
+      { ...swap, definitionId: { id: 'nope' } },
+    ];
+    for (const body of bad) {
+      state.updates = [];
+      const { res, statusCode } = makeRes();
+      await handler(makeReq(body), res);
+      expect(statusCode(), JSON.stringify(body)).toBe(400);
+      expect(state.updates).toHaveLength(0);
+    }
   });
 });
 

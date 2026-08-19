@@ -22,12 +22,17 @@ interface RemovedSetKey {
 }
 
 interface Body {
-  action?: 'start' | 'save' | 'finish' | 'cancel' | 'summary' | 'quick-complete' | 'quick-uncomplete';
+  action?: 'start' | 'save' | 'finish' | 'cancel' | 'summary' | 'quick-complete' | 'quick-uncomplete' | 'swap-exercise';
   eventId?: string;
   eventDate?: string;
   setLogs?: SetLogRow[];
   cardioLogs?: CardioLogRow[];
   removedSets?: RemovedSetKey[];
+  /** swap-exercise only: which logged exercise to relabel, and to what. */
+  section?: TrackedSection;
+  exerciseId?: string;
+  exerciseName?: string;
+  definitionId?: string | null;
   /** finish only: zero-fill rows for planned sets never logged (is_autofilled). */
   autofillRows?: SetLogRow[];
   /** summary only: AI-generated coach summary text to persist on the session. */
@@ -407,6 +412,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.status(500).send('Failed to remove quick-completed session');
         return;
       }
+    }
+
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  // ── swap-exercise: relabel one exercise's logs onto another movement ──────
+  // "I logged ring dips but actually did single-arm DB press." Only the log
+  // rows for this event+date move; the plan is untouched, so a recurring
+  // series keeps its prescription and the other occurrences keep theirs. The
+  // exercise_id stays put — it is what the sets are keyed on.
+  if (body.action === 'swap-exercise') {
+    const { section, exerciseId, exerciseName, definitionId } = body;
+    if (!SECTIONS.has(section as string) || typeof exerciseId !== 'string' || !exerciseId) {
+      res.status(400).send('swap-exercise needs an exerciseId and a valid section');
+      return;
+    }
+    if (typeof exerciseName !== 'string' || !exerciseName.trim() || exerciseName.length > 200) {
+      res.status(400).send('swap-exercise needs a non-empty exerciseName under 200 characters');
+      return;
+    }
+    if (definitionId !== undefined && definitionId !== null && typeof definitionId !== 'string') {
+      res.status(400).send('definitionId must be a string or null');
+      return;
+    }
+
+    const patch = {
+      exercise_name: exerciseName.trim(),
+      definition_id: definitionId ?? null,
+      updated_at: new Date().toISOString(),
+    };
+    const scope = (table: string) => supabase
+      .from(table)
+      .update(patch)
+      .eq('user_id', userId).eq('event_id', eventId)
+      .eq('event_date', eventDate)
+      .eq('section', section)
+      .eq('exercise_id', exerciseId);
+
+    const results = await Promise.all([scope('workout_set_logs'), scope('workout_cardio_logs')]);
+    const failed = results.find(r => r.error);
+    if (failed?.error) {
+      console.error('[api/workout-sessions] swap-exercise failed:', failed.error.message);
+      res.status(500).send('Failed to swap exercise');
+      return;
     }
 
     res.status(200).json({ ok: true });

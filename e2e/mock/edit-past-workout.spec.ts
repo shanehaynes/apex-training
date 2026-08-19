@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect, apexState, gotoCalendar, shot, supabaseRef } from '../lib/fixtures';
 
 interface ScheduleState { eventCount: number }
@@ -84,4 +85,131 @@ test('a finished workout keeps logging edits — reps and weights stay editable'
   await expect.poll(() => saved.length, { timeout: 10000 }).toBeGreaterThan(0);
   const values = saved.flatMap(s => s.setLogs ?? []).flatMap(r => [r.actual_reps, r.actual_weight]);
   expect(values, 'the edited value is what gets persisted').toContain('137');
+});
+
+interface SwapBody {
+  action?: string;
+  section?: string;
+  exerciseId?: string;
+  exerciseName?: string;
+  definitionId?: string | null;
+}
+
+/** Report the session finished and capture any swap the tracker posts. */
+async function stubFinishedSession(page: Page, swaps: SwapBody[]) {
+  await page.route('**/api/workout-sessions**', async route => {
+    const body = (route.request().postDataJSON() ?? {}) as SwapBody;
+    if (body.action === 'swap-exercise') swaps.push(body);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(body.action === 'start'
+        ? {
+            session: {
+              id: 'finished-session', event_id: 'e', event_date: '2026-09-07',
+              started_at: '2026-09-07T08:00:00.000Z', finished_at: '2026-09-07T09:00:00.000Z',
+              total_duration_seconds: 3600, coach_summary: null, updated_at: '',
+            },
+          }
+        : { ok: true }),
+    });
+  });
+}
+
+/**
+ * A two-entry exercise library, outranking the context-level stub that serves
+ * an empty one. Without it the picker has nothing to offer and the swap can
+ * never be driven end to end here. Single-arm DB press is unilateral on
+ * purpose — swapping onto it is what should raise the per-side reps warning.
+ */
+async function stubLibrary(page: Page) {
+  const definition = (id: string, name: string, isUnilateral: boolean) => ({
+    id, canonical_name: name, aliases: [], category: 'strength',
+    muscle_groups: ['chest'], equipment: [], image_url: null, technique_notes: null,
+    is_unilateral: isUnilateral, default_sets: 3, default_reps: isUnilateral ? '8 each arm' : '8',
+    default_duration: null, default_weight: null, default_rest: null, archived_at: null,
+    created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+  });
+  await page.route('**/exercise_definitions*', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify([
+      definition('def-db-press', 'Single-Arm Dumbbell Press', true),
+      definition('def-push-up', 'Push-Up', false),
+    ]),
+  }));
+}
+
+async function openFinishedTracker(page: Page) {
+  await gotoCalendar(page);
+  await page.locator('.event-chip__main').first().click();
+  await page.locator('.modal-completion__btn--start').click();
+  await expect(page.locator('.tracker-exercise').first()).toBeVisible({ timeout: 15000 });
+}
+
+test('the swap picker only offers movements that log the same shape', async ({ page }) => {
+  await stubFinishedSession(page, []);
+  await openFinishedTracker(page);
+
+  await page.locator('.tracker-exercise').first().locator('.tracker-exercise__swap').click();
+  await expect(page.locator('.exercise-picker')).toBeVisible();
+
+  // Cardio logs one structured row where set work logs per-set rows, so
+  // offering it here would strand the sets it replaced.
+  await expect(page.locator('.library-filter', { hasText: 'Cardio' })).toHaveCount(0);
+  await expect(page.locator('.library-filter', { hasText: 'Strength' })).toBeVisible();
+});
+
+test('a logged exercise can be swapped for the movement actually performed', async ({ page }) => {
+  const swaps: SwapBody[] = [];
+  await stubLibrary(page);
+  await stubFinishedSession(page, swaps);
+  await openFinishedTracker(page);
+
+  const exercise = page.locator('.tracker-exercise').first();
+  const plannedName = (await exercise.locator('.tracker-exercise__name').textContent())?.trim();
+  expect(plannedName).toBeTruthy();
+
+  await exercise.locator('.tracker-exercise__swap').click();
+  await expect(page.locator('.exercise-picker__row').first()).toBeVisible();
+  await page.locator('.exercise-picker__row', { hasText: 'Single-Arm Dumbbell Press' }).click();
+  await expect(page.locator('.exercise-picker')).toHaveCount(0);
+
+  // The tracker renames in place and says what the logs used to be filed under.
+  await expect(exercise.locator('.tracker-exercise__name')).toHaveText('Single-Arm Dumbbell Press');
+  await expect(exercise.locator('.tracker-exercise__swapped')).toContainText(plannedName!);
+  await shot(page, 'tracker-exercise-swapped');
+
+  if (!supabaseRef()) return; // offline every write is a no-op by design
+
+  await expect.poll(() => swaps.length, { timeout: 10000 }).toBeGreaterThan(0);
+  expect(swaps[0]).toMatchObject({
+    action: 'swap-exercise',
+    exerciseName: 'Single-Arm Dumbbell Press',
+    definitionId: 'def-db-press',
+  });
+  expect(swaps[0].exerciseId, 'the entry id is what logs key on — it must not move').toBeTruthy();
+});
+
+test('swapping onto a unilateral movement warns that the reps are now per side', async ({ page }) => {
+  await stubLibrary(page);
+  await stubFinishedSession(page, []);
+  await openFinishedTracker(page);
+
+  // The first exercise that logs reps at all — the warm-up leading the day is
+  // often a duration-only stretch.
+  const exercise = page.locator('.tracker-exercise')
+    .filter({ has: page.locator('input.tracker-input--reps') })
+    .first();
+  // A bare rep count, entered against the bilateral movement being replaced.
+  const reps = exercise.locator('input.tracker-input--reps').first();
+  await reps.click();
+  await reps.fill('10');
+
+  await exercise.locator('.tracker-exercise__swap').click();
+  await expect(page.locator('.exercise-picker__row').first()).toBeVisible();
+  await page.locator('.exercise-picker__row', { hasText: 'Single-Arm Dumbbell Press' }).click();
+
+  await expect(exercise.locator('.tracker-exercise__notes--warn')).toContainText('per side');
+  await shot(page, 'tracker-exercise-swapped-unilateral');
 });

@@ -1,8 +1,11 @@
-import { Plus, X } from 'lucide-react';
-import type { PlannedSet } from '../../types/workout';
+import { useState } from 'react';
+import { Plus, Repeat2, X } from 'lucide-react';
+import type { ExerciseCategory, ExerciseDefinition, PlannedSet } from '../../types/workout';
 import type { TrackedExercise, TrackedSet, CardioActuals, LastSetActuals } from '../../lib/tracking/plan';
 import { resolvePlannedSets } from '../../lib/tracking/plan';
-import { countSpecNote, stripCountSpec } from '../../lib/schedule/definitions';
+import { countSpecNote, hasPerSideCount, stripCountSpec } from '../../lib/schedule/definitions';
+import { useSchedule } from '../../context/ScheduleContext';
+import ExercisePicker from '../modal/ExercisePicker';
 import DurationInput from './DurationInput';
 
 export type SetField = 'actualWeight' | 'actualReps' | 'actualDuration';
@@ -18,7 +21,14 @@ interface Props {
   onCommitCardioShadow: (field: CardioField) => void;
   onAddSet: () => void;
   onRemoveSet: (setNumber: number) => void;
+  /** Re-point this exercise's logs at another movement, for this day only. */
+  onSwap: (def: ExerciseDefinition) => void;
 }
+
+// A swap has to keep the logged shape: cardio logs one structured row, every
+// other category logs per-set rows. Module-level so the picker's memo holds.
+const SET_TRACKED_CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobility', 'skill'];
+const CARDIO_CATEGORIES: ExerciseCategory[] = ['cardio'];
 
 // Side conventions are shown once with the notes, not repeated on every set.
 function plannedLabel(p: PlannedSet): string {
@@ -31,19 +41,42 @@ function plannedLabel(p: PlannedSet): string {
   return parts.length ? parts.join(' ') : '—';
 }
 
-// Which actual inputs an exercise gets, derived from the union of its
-// planned targets (reps as the fallback so every set has something to log).
-function inputFields(tracked: TrackedExercise): SetField[] {
+const FIELD_ORDER: SetField[] = ['actualWeight', 'actualReps', 'actualDuration'];
+
+/**
+ * Which actual inputs an exercise gets: the union of its planned targets, of
+ * whatever already carries a value, and — once swapped — of what the
+ * replacement movement is normally logged in. Reps is the fallback so every
+ * set has something to log.
+ *
+ * The already-has-a-value rule keeps logged data reachable no matter which
+ * plan it was entered against; without it a swap onto a loaded movement
+ * (ring dips → single-arm DB press) would have nowhere to put the weight,
+ * since the dips it replaced never prescribed one.
+ */
+function inputFields(tracked: TrackedExercise, swappedTo?: ExerciseDefinition): SetField[] {
   // A pitch logs exactly one thing: the grade (stored in the weight column —
   // see resolvePlannedSets).
   if (tracked.exercise.category === 'climbing') return ['actualWeight'];
+
+  const fields = new Set<SetField>();
   const planned = resolvePlannedSets(tracked.exercise);
-  const fields: SetField[] = [];
-  if (planned.some(p => p.targetWeight)) fields.push('actualWeight');
-  if (planned.some(p => p.targetReps)) fields.push('actualReps');
-  if (planned.some(p => p.targetDuration)) fields.push('actualDuration');
-  if (!fields.length) fields.push('actualReps');
-  return fields;
+  if (planned.some(p => p.targetWeight)) fields.add('actualWeight');
+  if (planned.some(p => p.targetReps)) fields.add('actualReps');
+  if (planned.some(p => p.targetDuration)) fields.add('actualDuration');
+
+  for (const set of tracked.sets) {
+    for (const field of FIELD_ORDER) if (set[field]) fields.add(field);
+  }
+
+  if (tracked.substitutedFrom) {
+    if (swappedTo?.defaultDuration) fields.add('actualDuration');
+    if (swappedTo?.defaultWeight || swappedTo?.category === 'strength' || !swappedTo) fields.add('actualWeight');
+    if (swappedTo?.defaultReps || swappedTo?.category === 'strength' || !swappedTo) fields.add('actualReps');
+  }
+
+  if (!fields.size) fields.add('actualReps');
+  return FIELD_ORDER.filter(f => fields.has(f));
 }
 
 const FIELD_LABEL: Record<SetField, string> = {
@@ -150,23 +183,56 @@ export default function TrackerExercise({
   onCommitCardioShadow,
   onAddSet,
   onRemoveSet,
+  onSwap,
 }: Props) {
-  const { exercise } = tracked;
-  const fields = inputFields(tracked);
+  const { definitions } = useSchedule();
+  const [picking, setPicking] = useState(false);
+
+  const { exercise, substitutedFrom } = tracked;
   const isClimb = exercise.category === 'climbing';
+  const swappedTo = substitutedFrom && exercise.definitionId ? definitions.get(exercise.definitionId) : undefined;
+  const fields = inputFields(tracked, swappedTo);
   const labels: Record<SetField, string> = isClimb ? { ...FIELD_LABEL, actualWeight: 'grade' } : FIELD_LABEL;
   const specNote = isClimb ? undefined : countSpecNote(exercise);
+
+  // Only after a swap: the reps were entered against the movement this one
+  // replaced, so a bilateral count carried onto a unilateral movement is
+  // genuinely ambiguous. On a planned unilateral entry the prescription
+  // already states the convention, and repeating it here would just nag.
+  const needsPerSideCount = !!swappedTo?.isUnilateral
+    && tracked.sets.some(s => s.actualReps && !hasPerSideCount(s.actualReps));
 
   return (
     <div className="tracker-exercise">
       <div className="tracker-exercise__header">
         <span className="tracker-exercise__name">{exercise.name}</span>
+        {!isClimb && (
+          <button
+            className="tracker-exercise__swap"
+            onClick={() => setPicking(true)}
+            aria-label={`Swap ${exercise.name} for a different exercise`}
+            title="Log this as a different exercise"
+          >
+            <Repeat2 size={14} strokeWidth={1.5} />
+          </button>
+        )}
         {exercise.restPeriod && (
           <span className="tracker-exercise__rest" style={{ color: accentColor }}>
             Rest {exercise.restPeriod}
           </span>
         )}
       </div>
+      {substitutedFrom && (
+        <p className="tracker-exercise__swapped">
+          Logged instead of {substitutedFrom} — this day only, the plan is unchanged.
+        </p>
+      )}
+      {needsPerSideCount && (
+        <p className="tracker-exercise__notes tracker-exercise__notes--warn">
+          {exercise.name} is unilateral — reps are counted per side, so check they read
+          that way (e.g. "8 each arm").
+        </p>
+      )}
       {specNote && <p className="tracker-exercise__notes">{specNote}</p>}
       {exercise.techniqueNotes && <p className="tracker-exercise__notes">{exercise.techniqueNotes}</p>}
       {exercise.notes && exercise.notes !== exercise.techniqueNotes && (
@@ -233,6 +299,14 @@ export default function TrackerExercise({
             <Plus size={13} strokeWidth={1.5} /> Add set
           </button>
         </>
+      )}
+
+      {picking && (
+        <ExercisePicker
+          onSelect={def => { setPicking(false); onSwap(def); }}
+          onClose={() => setPicking(false)}
+          restrictTo={tracked.isCardio ? CARDIO_CATEGORIES : SET_TRACKED_CATEGORIES}
+        />
       )}
     </div>
   );

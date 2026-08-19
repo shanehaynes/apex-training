@@ -6,6 +6,7 @@ import {
   buildLastCardio,
   buildQuickCompleteLogs,
   collectUntouchedPlanned,
+  hasLoggedData,
   plannedCardioMinutes,
   setExerciseNames,
   setToRow,
@@ -149,6 +150,116 @@ describe('buildTrackerModel', () => {
     expect(run.cardio).toMatchObject({
       durationMinutes: '45.5', distance: '5 mi', elevationGain: '', avgHeartRate: '142', isLogged: true,
     });
+  });
+});
+
+describe('buildTrackerModel — swapped (substituted) exercises', () => {
+  // Ring dips were planned and logged; the lifter actually did single-arm DB
+  // press and relabelled the rows afterwards.
+  const swappedRow = (overrides: Partial<SetLogRow> = {}): SetLogRow => ({
+    event_id: 'e', event_date: '2026-07-06', section: 'exercise',
+    exercise_id: 'ub-1', exercise_name: 'Single-Arm Dumbbell Press',
+    definition_id: 'def-db-press', set_number: 1,
+    planned_weight: '185lb', planned_reps: '5', planned_duration: null,
+    actual_weight: '45', actual_reps: '8 each arm', actual_duration: null,
+    is_autofilled: false,
+    ...overrides,
+  });
+
+  it('renders the logged movement, remembering what it replaced', () => {
+    const groups = buildTrackerModel(makeEvent(), [swappedRow()]);
+    const swapped = groups[1].exercises[0];
+    expect(swapped.exercise.name).toBe('Single-Arm Dumbbell Press');
+    expect(swapped.exercise.definitionId).toBe('def-db-press');
+    expect(swapped.substitutedFrom).toBe('Bench Press');
+    // The entry id never moves — every log row keys on it.
+    expect(swapped.exercise.id).toBe('ub-1');
+    expect(swapped.sets[0]).toMatchObject({ actualWeight: '45', actualReps: '8 each arm', isLogged: true });
+  });
+
+  it('leaves the planned targets on the sets — the plan is what was prescribed', () => {
+    const groups = buildTrackerModel(makeEvent(), [swappedRow()]);
+    expect(groups[1].exercises[0].sets[0].planned).toMatchObject({ targetWeight: '185lb', targetReps: '5' });
+  });
+
+  it('takes ghosts from the swapped-in movement, not the planned one', () => {
+    const last = buildLastPerformance([{
+      event_id: 'old__2026-06-26', event_date: '2026-06-26', section: 'exercise',
+      exercise_id: 'whatever', exercise_name: 'Single-Arm Dumbbell Press', set_number: 2,
+      planned_weight: null, planned_reps: null, planned_duration: null,
+      actual_weight: '40', actual_reps: '10 each arm', actual_duration: null,
+      is_autofilled: false,
+    }]);
+    const groups = buildTrackerModel(makeEvent(), [swappedRow()], [], last);
+    expect(groups[1].exercises[0].sets[1].shadow).toMatchObject({ weight: '40', reps: '10 each arm' });
+  });
+
+  it('swaps cardio logs too', () => {
+    const groups = buildTrackerModel(makeEvent(), [], [{
+      event_id: 'e', event_date: '2026-07-06', section: 'exercise',
+      exercise_id: 'run-1', exercise_name: 'Assault Bike', definition_id: 'def-bike',
+      duration_minutes: 30, distance: null, elevation_gain: null, avg_heart_rate: null,
+      is_autofilled: false,
+    }]);
+    const bike = groups[1].exercises[1];
+    expect(bike.exercise.name).toBe('Assault Bike');
+    expect(bike.substitutedFrom).toBe('Zone 2 Run');
+    expect(bike.cardio).toMatchObject({ durationMinutes: '30', isLogged: true });
+  });
+
+  it('reads a library rename as the plan catching up, not as a swap', () => {
+    // Same definition, different name: the plan entry resolved to the new
+    // canonical name while the row still carries the old one.
+    const renamed = makeEvent({
+      exercises: [{ ...strength, name: 'Barbell Bench Press', definitionId: 'def-bench' }],
+    });
+    const groups = buildTrackerModel(renamed, [swappedRow({
+      exercise_name: 'Bench Press', definition_id: 'def-bench',
+    })]);
+    expect(groups[1].exercises[0].substitutedFrom).toBeNull();
+    expect(groups[1].exercises[0].exercise.name).toBe('Barbell Bench Press');
+  });
+
+  it('ignores rows written before definition ids were stamped', () => {
+    const groups = buildTrackerModel(makeEvent(), [swappedRow({
+      exercise_name: 'Bench Press', definition_id: null,
+    })]);
+    expect(groups[1].exercises[0].substitutedFrom).toBeNull();
+  });
+});
+
+describe('hasLoggedData', () => {
+  const trackedFrom = (event = makeEvent(), sets: SetLogRow[] = [], cardio: CardioLogRow[] = []) =>
+    buildTrackerModel(event, sets, cardio)[1].exercises;
+
+  it('is false for an untouched plan', () => {
+    expect(hasLoggedData(trackedFrom()[0])).toBe(false);
+    expect(hasLoggedData(trackedFrom()[1])).toBe(false);
+  });
+
+  it('is true once a set or a cardio metric carries a value', () => {
+    const withSet = trackedFrom(makeEvent(), [{
+      event_id: 'e', event_date: '2026-07-06', section: 'exercise',
+      exercise_id: 'ub-1', exercise_name: 'Bench Press', set_number: 1,
+      planned_weight: null, planned_reps: null, planned_duration: null,
+      actual_weight: '185', actual_reps: '5', actual_duration: null,
+      is_autofilled: false,
+    }]);
+    expect(hasLoggedData(withSet[0])).toBe(true);
+
+    const withCardio = trackedFrom(makeEvent(), [], [{
+      event_id: 'e', event_date: '2026-07-06', section: 'exercise',
+      exercise_id: 'run-1', exercise_name: 'Zone 2 Run',
+      duration_minutes: 45, distance: null, elevation_gain: null, avg_heart_rate: null,
+      is_autofilled: false,
+    }]);
+    expect(hasLoggedData(withCardio[1])).toBe(true);
+  });
+
+  it('counts values typed this sitting, before anything is saved', () => {
+    const [bench] = trackedFrom();
+    const edited = { ...bench, sets: bench.sets.map((s, i) => (i ? s : { ...s, actualReps: '5' })) };
+    expect(hasLoggedData(edited)).toBe(true);
   });
 });
 
