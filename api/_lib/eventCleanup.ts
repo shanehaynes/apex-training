@@ -40,3 +40,43 @@ export async function purgeTrackedEventData(
     if (error) console.error(`[api] purge of ${table} failed for ${eventIds.join(', ')}:`, error.message);
   }));
 }
+
+/**
+ * Re-date everything logged against an occurrence that moved.
+ *
+ * expand() pins an occurrence id to the occurrence's ORIGINAL date and then
+ * applies override_date to the DISPLAYED date, while logging writes event_date
+ * from the displayed date. So rescheduling an occurrence that already has logs
+ * leaves the earlier rows behind at the old date under an id that still
+ * matches. Nothing filtering on (event_id, event_date) — the tracker,
+ * get_workout_detail — can see them, but get_exercise_history, the library
+ * stats and the review email bucket on event_date alone, where a stranded row
+ * reads as a phantom extra session on the old day.
+ *
+ * The invariant is that every tracked row for one occurrence shares a single
+ * event_date, so the update is unconditional rather than scoped to the date
+ * being moved from: it also heals rows an earlier move stranded. Because the
+ * invariant holds, the target key is always free and this can never collide
+ * with the unique constraints on (user_id, event_id, event_date, …).
+ *
+ * Best-effort for the same reason as the purge above — the override row is
+ * already written, and a failure here must not turn a successful reschedule
+ * into a 500.
+ */
+export async function migrateTrackedEventDate(
+  supabase: Admin,
+  userId: string,
+  eventIds: string[],
+  eventDate: string,
+): Promise<void> {
+  if (!eventIds.length) return;
+  await Promise.all(TRACKED_TABLES.map(async table => {
+    const { error } = await supabase
+      .from(table)
+      .update({ event_date: eventDate })
+      .eq('user_id', userId)
+      .in('event_id', eventIds)
+      .neq('event_date', eventDate);
+    if (error) console.error(`[api] event_date migrate of ${table} failed for ${eventIds.join(', ')}:`, error.message);
+  }));
+}
