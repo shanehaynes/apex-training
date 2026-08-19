@@ -1231,11 +1231,20 @@
   /* Shell layout accounts for fixed bottom nav */
   .app-shell {
     height: 100dvh;
+    /* The base rule's min-height: 100vh outranks the height above, and vh is
+       the LARGE viewport (toolbars retracted) — on a phone that's taller than
+       what's actually on screen, so the shell hangs off the bottom. */
+    min-height: 0;
     overflow: hidden;
   }
 
   .app-body {
-    height: calc(100dvh - 56px - 60px);
+    /* flex: 1 from the base rule would grow this past the height below and
+       push the row's last child (the coach input) under the fixed nav. The
+       nav is out of flow, so its height has to be reserved here — including
+       the safe-area padding it adds on notched devices. */
+    flex: none;
+    height: calc(100dvh - 56px - 60px - env(safe-area-inset-bottom, 0px));
   }
 
   /* Top nav — compact */
@@ -1251,15 +1260,24 @@
   }
 
   /* Show analytics sidebar when that tab is active */
-  .app-body[data-mobile-tab="analytics"] .app-main {
+  .app-shell[data-mobile-tab="analytics"] .app-main {
     display: none;
   }
-  .app-body[data-mobile-tab="analytics"] .app-sidebar {
+  .app-shell[data-mobile-tab="analytics"] .app-sidebar {
     display: flex;
     flex-direction: column;
     height: 100%;
-    overflow-y: auto;
+    /* The chat pane scrolls its own message list; letting this column scroll
+       too would carry the input row off the bottom of the screen again. */
+    overflow: hidden;
+    min-height: 0;
     background: var(--bg-primary);
+  }
+
+  /* Anything under 16px makes iOS zoom the page on focus, which scrolls the
+     input row back out of view. */
+  .chat-input {
+    font-size: 16px;
   }
 
   /* ── Bottom nav ── */
@@ -4660,6 +4678,10 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 @media (max-width: 768px) {
   /* Clears the mobile tab bar, which the old banner also had to dodge. */
   .setup-nudge { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+
+  /* On the coach tab it lands squarely on the input row and Coach's Notes —
+     same reason OnboardingHost hides it behind full-screen overlays. */
+  .app-shell[data-mobile-tab="analytics"] .setup-nudge { display: none; }
 
   /* .modal turns into a bottom sheet here, so the footer buttons would
      otherwise sit under the home indicator. */
