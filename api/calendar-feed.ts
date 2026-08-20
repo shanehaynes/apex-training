@@ -5,6 +5,8 @@ import { parseRRule, serializeRRule, ruleFromLegacyColumns } from '../src/lib/re
 import type { RecurrenceRule } from '../src/lib/recurrence/index.js';
 import { parseTimeOfDay } from '../src/lib/time.js';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export interface FeedEventRow {
   id: string;
   type: string;
@@ -246,6 +248,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const token = typeof req.query.token === 'string' ? req.query.token : undefined;
   if (!token) {
     res.status(401).send('Missing feed token');
+    return;
+  }
+  // profiles.ics_token is a UUID column, so Postgres throws on the comparison
+  // rather than returning no rows when the token isn't UUID-shaped. Without
+  // this, every malformed guess surfaced as a 500 and a logged error instead
+  // of the 401 it is.
+  if (!UUID_RE.test(token)) {
+    res.status(401).send('Unknown feed token');
     return;
   }
 

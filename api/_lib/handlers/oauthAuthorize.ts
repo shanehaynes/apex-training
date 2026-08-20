@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
-import { canonicalResource, redirectUriMatches, requestOrigin } from '../oauth/common.js';
+import { canonicalResource, publicOrigin, redirectUriMatches } from '../oauth/common.js';
 
 // OAuth 2.1 authorization endpoint. Validates the request, then hands off to
 // the SPA consent page (/connect) with the parameters echoed in the query —
@@ -69,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if ((q(req, 'code_challenge_method') ?? 'plain') !== 'S256') {
     return fail('invalid_request', 'Only code_challenge_method=S256 is supported');
   }
-  const origin = requestOrigin(req);
+  const origin = publicOrigin(req);
   const resource = q(req, 'resource');
   if (resource && resource !== canonicalResource(origin) && resource !== origin) {
     return fail('invalid_target', `Unknown resource; this server is ${canonicalResource(origin)}`);

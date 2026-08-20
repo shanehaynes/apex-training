@@ -1,6 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { buildIcs, foldIcsLine } from '../calendar-feed';
+import { describe, it, expect, vi } from 'vitest';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import feedHandler, { buildIcs, foldIcsLine } from '../calendar-feed';
 import type { FeedEventRow, FeedExceptionRow } from '../calendar-feed';
+import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
+
+vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
 
 function makeRow(overrides: Partial<FeedEventRow> & Pick<FeedEventRow, 'id' | 'date'>): FeedEventRow {
   return {
@@ -175,5 +179,58 @@ describe('foldIcsLine', () => {
 
   it('leaves short lines untouched', () => {
     expect(foldIcsLine('BEGIN:VEVENT')).toBe('BEGIN:VEVENT');
+  });
+});
+
+describe('feed token guard', () => {
+  function makeRes() {
+    let code: number | null = null;
+    let payload: unknown;
+    const res = {
+      status(c: number) { code = c; return res; },
+      send(b: unknown) { payload = b; return res; },
+      json(b: unknown) { payload = b; return res; },
+      setHeader() { return res; },
+      end() { return res; },
+    } as unknown as VercelResponse;
+    return { res, statusCode: () => code, body: () => payload };
+  }
+
+  const req = (query: Record<string, string>) =>
+    ({ method: 'GET', headers: {}, query } as unknown as VercelRequest);
+
+  // ics_token is a UUID column: a malformed token used to reach Postgres and
+  // come back as a 500. It must be rejected as the bad token it is, before
+  // the query — so the throwing stub below is never touched.
+  it('401s a non-UUID token without querying', async () => {
+    const db = { from() { throw new Error('should not query'); } };
+    vi.mocked(getSupabaseAdmin).mockReturnValue(db as unknown as NonNullable<ReturnType<typeof getSupabaseAdmin>>);
+    const { res, statusCode, body } = makeRes();
+    await feedHandler(req({ token: 'x' }), res);
+    expect(statusCode()).toBe(401);
+    expect(body()).toBe('Unknown feed token');
+  });
+
+  it('401s a missing token', async () => {
+    const db = { from() { throw new Error('should not query'); } };
+    vi.mocked(getSupabaseAdmin).mockReturnValue(db as unknown as NonNullable<ReturnType<typeof getSupabaseAdmin>>);
+    const { res, statusCode } = makeRes();
+    await feedHandler(req({}), res);
+    expect(statusCode()).toBe(401);
+  });
+
+  it('lets a UUID-shaped token through to the lookup', async () => {
+    let queried = false;
+    const chain = {
+      select() { return chain; },
+      eq() { return chain; },
+      maybeSingle: async () => ({ data: null, error: null }),
+    };
+    const db = { from() { queried = true; return chain; } };
+    vi.mocked(getSupabaseAdmin).mockReturnValue(db as unknown as NonNullable<ReturnType<typeof getSupabaseAdmin>>);
+    const { res, statusCode } = makeRes();
+    await feedHandler(req({ token: '3f2504e0-4f89-41d3-9a0c-0305e82c3301' }), res);
+    expect(queried).toBe(true);
+    expect(statusCode()).toBe(401); // no such profile — but it got past the shape guard
   });
 });

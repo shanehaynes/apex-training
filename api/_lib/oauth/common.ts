@@ -15,9 +15,12 @@ export const CODE_TTL_SECONDS = 60;
 export const REFRESH_TOKEN_PREFIX = 'apxr_';
 
 /**
- * Request origin, e.g. "https://apex.example.com". Trusts x-forwarded-proto
- * (Vercel sets it); local dev (no forwarded proto) falls back to http for
- * localhost and https otherwise.
+ * Origin taken from the request itself, e.g. "https://apex.example.com".
+ * Trusts x-forwarded-proto (Vercel sets it); local dev (no forwarded proto)
+ * falls back to http for localhost and https otherwise.
+ *
+ * Prefer publicOrigin() for anything a client stores — this varies with
+ * whichever host served the request.
  */
 export function requestOrigin(req: VercelRequest): string {
   const host = String(req.headers['x-forwarded-host'] ?? req.headers.host ?? 'localhost');
@@ -26,6 +29,41 @@ export function requestOrigin(req: VercelRequest): string {
     ? forwarded.split(',')[0].trim()
     : /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host) ? 'http' : 'https';
   return `${proto}://${host}`;
+}
+
+/**
+ * The canonical origin this deployment publishes as.
+ *
+ * Every OAuth identifier is derived from it — issuer, the three endpoints,
+ * and the RFC 8707 resource — and a connector records those at registration
+ * time, so they must not vary with the host that happened to serve the
+ * discovery request. Vercel deployment URLs (apex-training-<hash>.vercel.app)
+ * are per-build and frozen, so metadata minted from one pins the client to
+ * code that will never be updated, on a URL that eventually 404s.
+ *
+ * VITE_PUBLIC_ORIGIN pins it to the real domain instead. Unset — local dev,
+ * e2e, preview deployments — falls back to the request's own host, which is
+ * what those need.
+ */
+export function publicOrigin(req: VercelRequest): string {
+  return normalizeOrigin(process.env.VITE_PUBLIC_ORIGIN) ?? requestOrigin(req);
+}
+
+/** Origin part of a configured URL, or undefined if it isn't a usable one. */
+function normalizeOrigin(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    console.warn(`[oauth] VITE_PUBLIC_ORIGIN is not a URL: ${value} — falling back to the request host`);
+    return undefined;
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    console.warn(`[oauth] VITE_PUBLIC_ORIGIN is not http(s): ${value} — falling back to the request host`);
+    return undefined;
+  }
+  return url.origin;
 }
 
 /** The canonical RFC 8707 resource identifier for the MCP server. */

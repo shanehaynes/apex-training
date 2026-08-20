@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { canonicalResource, OAUTH_SCOPE, requestOrigin } from '../oauth/common.js';
+import { canonicalResource, OAUTH_SCOPE, publicOrigin } from '../oauth/common.js';
 
 // OAuth discovery documents for the MCP connector flow. Served from
 // /api/oauth-metadata and surfaced at the spec-required well-known paths via
@@ -12,7 +12,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(405).send('Method not allowed');
     return;
   }
-  const origin = requestOrigin(req);
+  const origin = publicOrigin(req);
   const kind = req.query.kind;
 
   res.setHeader('Cache-Control', 'public, max-age=3600');
