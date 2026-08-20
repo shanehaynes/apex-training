@@ -35,9 +35,9 @@ export default function AppShell() {
   }, [isMobile, state.selectedView, dispatch]);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-mobile-tab={isMobile ? mobileTab : undefined}>
       <TopNav />
-      <div className="app-body" data-mobile-tab={isMobile ? mobileTab : undefined}>
+      <div className="app-body">
         <main className="app-main">
           <Calendar />
         </main>
