@@ -54,9 +54,10 @@ refactor — which is exactly what happened once (see CONTRIBUTING.md).
   `npm run e2e:live` and `npm run db:reset-local` reset whole tables.
 - **Migration numbers.** `supabase/migrations/phaseN_*.sql` is ordered by
   `sort -V` across the directory, so `N` is repo-global. Two branches can both
-  add `phase33_*.sql`, merge cleanly, and leave an ambiguous apply order. Run
+  add `phase33_*.sql`, merge cleanly, and leave an apply order nobody chose. Run
   `scripts/next-phase.sh` and claim `N` when you open the PR, not when you
-  start.
+  start. A test fails the second PR to claim a number, but only once the first
+  has merged — the script is how you avoid the rename.
 
 ## Checks
 
