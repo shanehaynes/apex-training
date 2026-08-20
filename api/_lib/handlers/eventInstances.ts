@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
 import { enforceAiMutationCap, enforceRateLimit } from '../rateLimit.js';
-import { purgeTrackedEventData } from '../eventCleanup.js';
+import { migrateTrackedEventDate, purgeTrackedEventData } from '../eventCleanup.js';
 import { makeOccurrenceId } from '../../../src/lib/schedule/occurrence.js';
 
 interface InstanceBody {
@@ -13,6 +13,18 @@ interface InstanceBody {
   triggeredBy?: 'user' | 'ai';
   /** When present, reschedules the occurrence instead of skipping it. */
   overrides?: { date?: string; startTime?: string; endTime?: string };
+}
+
+/**
+ * Every id anything logged against one occurrence can sit under. Ids follow
+ * the expansion convention: every occurrence but the series anchor carries
+ * `${baseId}__${date}`; the anchor keeps the bare id, and only the anchor ever
+ * does — so both are exact, no date filter needed.
+ */
+function occurrenceIds(eventId: string, date: string, parentDate: string): string[] {
+  const ids = [makeOccurrenceId(eventId, date)];
+  if (parentDate === date) ids.push(eventId);
+  return ids;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -108,6 +120,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
+    // A moved workout still happened, so nothing is purged — but the logs have
+    // to follow it. The occurrence id stays pinned to the original date, so
+    // only event_date drifts, and every read path that buckets on event_date
+    // alone would otherwise report a phantom session on the old day.
+    await migrateTrackedEventDate(
+      supabase,
+      userId,
+      occurrenceIds(body.eventId, body.date, parent.date),
+      date ?? body.date,
+    );
+
     const { error: logError } = await supabase.from('event_mutations_log').insert({
       user_id: userId,
       operation: 'update_instance',
@@ -140,12 +163,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // The occurrence is gone from the calendar, so anything logged against it
-  // goes too. Ids follow the expansion convention: every occurrence but the
-  // series anchor carries `${baseId}__${date}`; the anchor keeps the bare id,
-  // and only the anchor ever does — so both are exact, no date filter needed.
-  const purgeIds = [makeOccurrenceId(body.eventId, body.date)];
-  if (parent.date === body.date) purgeIds.push(body.eventId);
-  await purgeTrackedEventData(supabase, userId, purgeIds);
+  // goes too.
+  await purgeTrackedEventData(supabase, userId, occurrenceIds(body.eventId, body.date, parent.date));
 
   const { error: logError } = await supabase.from('event_mutations_log').insert({
     user_id: userId,
