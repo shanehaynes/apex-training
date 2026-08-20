@@ -29,6 +29,28 @@ cd "$root"
 echo "── fetching origin (with prune)"
 git fetch origin --prune --quiet
 
+# Has everything this ref contains already landed on origin/main?
+#
+# Ancestry alone is not enough. The repo squash-merges (see CONTRIBUTING.md), and
+# a squash rewrites the commit, so a merged branch is never an ancestor of main —
+# `git merge-base --is-ancestor` reports every squash-merged branch as unmerged
+# and nothing would ever be retired.
+#
+# So fall back to asking what the branch would actually contribute: merge it into
+# main in memory and compare the resulting tree with main's. Identical means the
+# branch adds nothing main does not already have, which is exactly what "merged"
+# means here — and it holds however the branch landed, squash, rebase or
+# cherry-pick.
+#
+# merge-tree --write-tree needs git 2.38+; on older git, or when the merge
+# conflicts, this reports not-merged, which is the safe direction.
+landed_in_main() {
+  git merge-base --is-ancestor "$1" origin/main 2>/dev/null && return 0
+  local merged
+  merged=$(git merge-tree --write-tree origin/main "$1" 2>/dev/null) || return 1
+  [ "$merged" = "$(git rev-parse origin/main^{tree})" ]
+}
+
 primary=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
 current=$(git rev-parse --abbrev-ref HEAD)
 canonical="$root/.claude/worktrees/"
@@ -57,7 +79,7 @@ while IFS= read -r wt; do
   # Detached worktrees are compared by commit; branch ones by branch tip.
   ref=$([ "$br" = HEAD ] && git -C "$wt" rev-parse HEAD || echo "$br")
 
-  if git merge-base --is-ancestor "$ref" origin/main 2>/dev/null; then
+  if landed_in_main "$ref"; then
     case "$wt" in
       "$canonical"*)
         echo "   REMOVE $wt  ($br — merged)"
@@ -99,7 +121,7 @@ while IFS= read -r br; do
     continue
   fi
 
-  if git merge-base --is-ancestor "$br" origin/main 2>/dev/null; then
+  if landed_in_main "$br"; then
     echo "   DELETE $br (merged)"
     # -D not -d: -d compares against the upstream, which is often behind after
     # a squash-merge. The ancestry check above is the real gate.
