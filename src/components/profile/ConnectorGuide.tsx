@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { ArrowLeft, X, Copy, ShieldCheck } from 'lucide-react';
 import { notify } from '../../lib/notify';
+import { publicOrigin } from '../../lib/origin';
 import {
   APEX_CONSENT, APEX_TOKEN, CLAUDE_ADD_DIALOG, CLAUDE_CHAT, CLAUDE_CONNECTORS,
   GPT_CHAT, GPT_CREATE, GPT_DEVELOPER_MODE, type FigureSpec,
@@ -65,7 +66,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
 
 export default function ConnectorGuide({ onBack, onClose }: Props) {
   const [client, setClient] = useState<Client>('claude');
-  const endpointUrl = `${window.location.origin}/api/mcp`;
+  const endpointUrl = `${publicOrigin()}/api/mcp`;
 
   const copy = async (value: string, message: string) => {
     try {
