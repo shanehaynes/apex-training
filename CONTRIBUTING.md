@@ -133,6 +133,27 @@ those are the ones you can still collide with.
 If someone takes your number first, rename before merging. Renaming an unmerged
 migration is free; two live `phase33`s are not.
 
+A test enforces this, so you cannot merge past it by forgetting. CI runs against
+the pull_request *merge* commit, so the second PR to claim a number goes red
+before it lands, while renaming still costs nothing:
+
+```
+AssertionError: two migrations claim one phase number, so their apply order is
+decided by filename rather than by intent — rename one (scripts/next-phase.sh)
+  phase33: phase33_alpha_adds_column.sql, phase33_zebra_reads_column.sql
+```
+
+What that protects you from is quiet rather than loud. Two migrations in one slot
+never error: `db-reset-local.sh` applies the directory in `sort -V` order, which
+is deterministic but decided by the filename suffix, and production is applied by
+hand through the Supabase SQL Editor in whatever order someone pastes. Both
+orders are stable, neither was chosen, and they can disagree. If one migration
+adds a column the other reads, a database built from scratch is silently wrong on
+whichever side lost the coin toss.
+
+`phase3` is grandfathered: `enable_rls` and `recurrence_rule` are independent and
+have already run everywhere, so renaming them would buy nothing.
+
 ## Repo settings this assumes
 
 - **Auto-delete head branches on merge: on.** Without it, every merged PR leaves
