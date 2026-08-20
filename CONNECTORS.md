@@ -12,6 +12,12 @@ to the in-app coach, behind its per-action confirmation flow.
 
 New to Apex itself? [WELCOME.md](WELCOME.md) covers the rest of the app.
 
+Prefer pictures? The app carries an illustrated version of this page under
+**Profile → AI connector → ⓘ**, written for someone who has never heard of MCP:
+annotated drawings of each Claude and ChatGPT screen, a glossary, and the
+troubleshooting list below in plainer words. This file stays the reference —
+the in-app guide is the walkthrough.
+
 For the deployment at `apextrainingcalendar.vercel.app`, the server URL is:
 
 ```

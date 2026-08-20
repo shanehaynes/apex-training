@@ -9,6 +9,7 @@ import { useRotatingPlaceholder } from '../../hooks/useRotatingPlaceholder';
 import GettingStarted from '../onboarding/GettingStarted';
 import CoachActivity from './CoachActivity';
 import McpTokens from './McpTokens';
+import ConnectorGuide from './ConnectorGuide';
 import CorosConnection from './CorosConnection';
 import type { AvatarKey } from '../../lib/db/types';
 
@@ -48,7 +49,14 @@ export default function ProfileView() {
   const [isSavingKey, setIsSavingKey] = useState(false);
   const [isReplacingKey, setIsReplacingKey] = useState(false);
 
-  useModalChrome(close);
+  const [showConnectorGuide, setShowConnectorGuide] = useState(false);
+
+  // Escape backs out of the guide before it closes the profile, so the key
+  // does what the on-screen back arrow does rather than skipping a level.
+  useModalChrome(() => {
+    if (showConnectorGuide) setShowConnectorGuide(false);
+    else close();
+  });
 
   const saveName = async () => {
     const trimmed = name.trim();
@@ -127,6 +135,13 @@ export default function ProfileView() {
       notify('Copy failed');
     }
   };
+
+  // Same shape as LibraryView → ExerciseDetail: the guide takes over the
+  // overlay rather than stacking a second one, so there is only ever one
+  // Escape/body-scroll owner.
+  if (showConnectorGuide) {
+    return <ConnectorGuide onBack={() => setShowConnectorGuide(false)} onClose={close} />;
+  }
 
   return (
     <div className="profile-view">
@@ -317,7 +332,7 @@ export default function ProfileView() {
           </div>
         </section>
 
-        <McpTokens />
+        <McpTokens onShowGuide={() => setShowConnectorGuide(true)} />
 
         <CorosConnection />
 
