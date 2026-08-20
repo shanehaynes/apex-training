@@ -51,6 +51,25 @@ landed_in_main() {
   [ "$merged" = "$(git rev-parse origin/main^{tree})" ]
 }
 
+# Did this branch have an upstream that has since been deleted?
+#
+# landed_in_main answers "is this content in main" and fails safe, but it cannot
+# always tell. A squash-merged branch is not an ancestor, so it falls through to
+# the merge-tree check — and if main has since changed the same files, that merge
+# CONFLICTS and reports not-merged. #39 and #32 both hit this: merged, then main
+# moved on in git-tidy.sh and ConnectorGuide.tsx respectively, and neither branch
+# could ever be retired.
+#
+# With delete_branch_on_merge on, GitHub removes the head branch when a PR
+# merges, so a vanished upstream is good evidence the branch landed. It is only
+# evidence, not proof — closing a PR without merging, or deleting the remote
+# branch by hand, looks identical. So these are REPORTED, never auto-deleted:
+# the one thing this script must not do is destroy work that never landed.
+upstream_gone() {
+  [ -n "$(git config --get "branch.$1.merge" 2>/dev/null)" ] || return 1
+  ! git rev-parse --verify --quiet "$1@{upstream}" >/dev/null 2>&1
+}
+
 primary=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
 current=$(git rev-parse --abbrev-ref HEAD)
 canonical="$root/.claude/worktrees/"
@@ -95,6 +114,12 @@ while IFS= read -r wt; do
         kept=$((kept + 1))
         ;;
     esac
+  elif upstream_gone "$br"; then
+    echo "   REVIEW $wt"
+    echo "         ($br — upstream deleted, so it probably merged, but that"
+    echo "          cannot be proven from the history here. Check the PR, then:"
+    echo "          git worktree remove $wt && git branch -D $br)"
+    kept=$((kept + 1))
   else
     ahead=$(git rev-list --count "origin/main..$ref" 2>/dev/null || echo '?')
     echo "   KEEP  $wt"
@@ -118,6 +143,12 @@ while IFS= read -r br; do
   if printf '%s\n' "$still_checked_out" | grep -qx "$br" \
      && ! printf '%s\n' "$freed" | grep -qx "$br"; then
     echo "   KEEP  $br (checked out in a worktree)"
+    continue
+  fi
+
+  if upstream_gone "$br" && ! landed_in_main "$br"; then
+    echo "   REVIEW $br (upstream deleted; probably merged — check the PR,"
+    echo "          then: git branch -D $br)"
     continue
   fi
 
