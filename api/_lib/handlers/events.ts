@@ -4,12 +4,12 @@ import { requireUser } from '../auth.js';
 import { pickAllowed, EVENT_INSERT_COLUMNS, EVENT_PATCH_COLUMNS, EVENT_ID_PATTERN } from '../allowlist.js';
 import { enforceAiMutationCap, enforceRateLimit } from '../rateLimit.js';
 import { purgeTrackedEventData } from '../eventCleanup.js';
-import type { WorkoutEventRow } from '../../../src/lib/db/types.js';
+import type { Json, TablesInsert, WorkoutEventRow } from '../../../src/lib/db/types.js';
 
 interface MutationLogEntry {
   event_title: string;
   event_date?: string;
-  diff?: Record<string, unknown>;
+  diff?: Json;
   /** Omitted → the DB default ('ai'); UI-driven edits send 'user'. */
   triggered_by?: 'ai' | 'user';
 }
@@ -77,7 +77,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const { error } = await supabase.from('workout_events').insert({ ...picked, user_id: userId });
+    const { error } = await supabase
+      .from('workout_events')
+      .insert({ ...picked, user_id: userId } as TablesInsert<'workout_events'>);
     if (error) {
       console.error('[api/events] insert failed:', error.message);
       res.status(500).send('Failed to create event');

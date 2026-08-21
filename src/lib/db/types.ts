@@ -1,10 +1,42 @@
-// Row shapes for the Supabase tables (snake_case DB columns) — the single
-// authoritative definition, shared by the browser client (src/) and the
-// Vercel serverless functions (api/, via type-only imports).
+// Row shapes for the Supabase tables (snake_case DB columns) — shared by the
+// browser client (src/) and the Vercel serverless functions (api/, via
+// type-only imports).
 //
-// user_id (phase 9) is optional on every row type: the client never sends
-// it (the /api/* handlers stamp it from the verified JWT) and never needs
-// to read it (RLS already scopes selects to the signed-in user).
+// The COLUMN SET of every type here comes from database.types.ts, which is
+// generated from the real schema (scripts/db-types.sh). A migration that
+// adds, drops, or renames a column changes these types without anyone
+// editing them, and code that still names the old column fails to compile.
+// What this file adds is the domain view the app reasons about: literal
+// unions for columns the DB stores as plain text, structured shapes for
+// jsonb, and optionality for columns the caller never supplies.
+//
+// user_id (phase 9) is optional on every client-facing row type: the client
+// never sends it (the /api/* handlers stamp it from the verified JWT) and
+// never needs to read it (RLS already scopes selects to the signed-in user).
+
+import type { Database, Json, Tables, TablesInsert } from './database.types';
+
+export type { Json, Tables, TablesInsert, TablesUpdate } from './database.types';
+
+type TableName = keyof Database['public']['Tables'];
+
+/** Every key of O must be a column of T — a typo, or a column a migration
+ *  dropped, is a compile error at the override rather than a silent lie. */
+type ColumnsOf<T extends TableName, O> = { [K in keyof O]: K extends keyof Tables<T> ? unknown : never };
+
+/** Collapse `Omit<…> & O` into one readable object type. */
+type Flatten<X> = { [K in keyof X]: X[K] } & {};
+
+/** Domain view of a table row: the generated Row, with the columns in O
+ *  replaced by their narrower domain types. */
+type Row<T extends TableName, O extends ColumnsOf<T, O> = Record<never, never>> =
+  Flatten<Omit<Tables<T>, keyof O> & O>;
+
+/** What a caller supplies for an insert-only log table: the generated Insert
+ *  shape minus the columns the handler stamps (user_id) or the DB defaults
+ *  (id, logged_at), with the columns in O narrowed. */
+type LogRow<T extends TableName, O extends ColumnsOf<T, O> = Record<never, never>> =
+  Flatten<Omit<TablesInsert<T>, 'user_id' | 'id' | 'logged_at' | keyof O> & O>;
 
 export type AvatarKey =
   | 'goat' | 'ibex' | 'snow-leopard' | 'eagle' | 'wolf'
@@ -14,259 +46,102 @@ export type AvatarKey =
   | 'orca' | 'seal' | 'otter' | 'octopus';
 
 // One row per auth user (phase 9). Client-writable fields go through
-// /api/profile; the rest are server-managed.
-export interface ProfileRow {
-  id: string;
-  display_name: string;
-  avatar_key: AvatarKey;
-  /** Athletic goal for the AI coach ('' = not set). */
-  coach_goal: string;
-  /** Free-form athlete context for the AI coach ('' = not set). */
-  coach_context: string;
-  is_template_source: boolean;
-  template_copied_at: string | null;
-  /** When the welcome flow was finished or skipped (null = never shown). */
-  onboarding_dismissed_at: string | null;
-  ics_token: string;
-  created_at: string;
-  updated_at: string;
-}
+// /api/profile; the rest are server-managed. coach_goal / coach_context use
+// '' for "not set"; onboarding_dismissed_at null = welcome flow never shown.
+export type ProfileRow = Row<'profiles', { avatar_key: AvatarKey }>;
 
-export interface CompletionRow {
-  user_id?: string;
-  event_id: string;
-  event_date: string;
-  event_type: string;
-  event_title: string;
-  duration_minutes: number | null;
-  is_completed: boolean;
-  completed_at: string | null;
-  updated_at: string;
-}
+export type CompletionRow = Row<'workout_completions', { user_id?: string }>;
 
-export interface CompletionLogRow {
+export type CompletionLogRow = LogRow<'workout_completion_log', {
   user_id?: string;
-  event_id: string;
-  event_date: string;
-  event_type: string;
-  event_title: string;
-  duration_minutes: number | null;
   action: 'complete' | 'uncomplete';
-}
+}>;
 
-// Row shape returned by Supabase for workout_events (snake_case DB columns).
-export interface WorkoutEventRow {
+// workout_events. The exercise columns are jsonb holding camelCase payloads
+// (Exercise[]); cardio_targets / climbing_targets are the planned targets in
+// the same style. recurrence_rule is the canonical RFC 5545 RRULE value (no
+// 'RRULE:' prefix — see src/lib/recurrence/); recurring_frequency,
+// recurring_days and recurring_end_date are superseded by it.
+export type WorkoutEventRow = Row<'workout_events', {
   user_id?: string;
-  id: string;
-  type: string;
-  title: string;
-  subtitle: string | null;
-  date: string;
-  start_time: string | null;
-  end_time: string | null;
-  estimated_duration: number;
-  description: string;
   warmup: unknown[];
   exercises: unknown[];
   cooldown: unknown[];
-  difficulty: number;
-  location: string | null;
-  cover_image_url: string | null;
-  tags: string[];
-  equipment: string[];
-  is_recurring: boolean;
-  /** Planned cardio targets jsonb (camelCase payload, like the exercise columns); optional so pre-migration rows still type-check. */
+  /** Optional on the domain side: callers build rows without it. */
   cardio_targets?: unknown;
-  /** Planned outdoor-climbing targets jsonb; optional so pre-migration rows still type-check. */
+  /** Optional on the domain side: callers build rows without it. */
   climbing_targets?: unknown;
-  /** Canonical RFC 5545 RRULE value (no 'RRULE:' prefix) — see src/lib/recurrence/. */
-  recurrence_rule: string | null;
-  /** @deprecated Superseded by recurrence_rule. */
-  recurring_frequency: string | null;
-  /** @deprecated Superseded by recurrence_rule. */
-  recurring_days: number[] | null;
-  /** @deprecated Superseded by recurrence_rule. */
-  recurring_end_date: string | null;
-  /** Provider provenance ('coros'); optional so pre-phase27 rows still type-check. Never set on recurring base rows. */
+  /** Provider provenance ('coros'); never set on recurring base rows. */
   source?: string | null;
-  created_at: string;
-  updated_at: string;
-}
+}>;
 
-// Row shape returned by Supabase for meals (phase 22). Numeric macro columns
-// are nullable — blank form fields stay unset rather than becoming zeros.
-export interface MealRow {
-  user_id?: string;
-  id: string;
-  title: string;
-  date: string;
-  time: string | null;
-  meal_type: string | null;
-  calories: number | null;
-  protein_g: number | null;
-  carbs_g: number | null;
-  fiber_g: number | null;
-  sugar_g: number | null;
-  fat_total_g: number | null;
-  fat_saturated_g: number | null;
-  fat_trans_g: number | null;
-  notes: string;
-  created_at: string;
-  updated_at: string;
-}
+// meals (phase 22). Numeric macro columns are nullable — blank form fields
+// stay unset rather than becoming zeros.
+export type MealRow = Row<'meals', { user_id?: string }>;
 
-// Row shape for meal_favorites (phase 24): a meals row minus date/time.
-export interface MealFavoriteRow {
-  user_id?: string;
-  id: string;
-  title: string;
-  meal_type: string | null;
-  calories: number | null;
-  protein_g: number | null;
-  carbs_g: number | null;
-  fiber_g: number | null;
-  sugar_g: number | null;
-  fat_total_g: number | null;
-  fat_saturated_g: number | null;
-  fat_trans_g: number | null;
-  notes: string;
-  created_at: string;
-  updated_at: string;
-}
+// meal_favorites (phase 24): a meals row minus date/time.
+export type MealFavoriteRow = Row<'meal_favorites', { user_id?: string }>;
 
-export interface MealMutationLogRow {
+export type MealMutationLogRow = LogRow<'meal_mutations_log', {
   operation: 'create' | 'update' | 'delete';
-  meal_id: string;
-  meal_title: string;
-  diff?: Record<string, unknown>;
-  triggered_by?: string;
-}
+}>;
 
 // ─── Phase 4: workout tracking rows ──────────────────────────────────────────
 // event_id follows the workout_completions convention: for recurring
 // occurrences it is the expanded `${baseId}__${date}` id.
 
-export interface WorkoutSessionRow {
-  user_id?: string;
-  id: string;
-  event_id: string;
-  event_date: string;
-  started_at: string;
-  finished_at: string | null;
-  total_duration_seconds: number | null;
-  /** AI-generated post-workout summary, saved once at Finish. */
-  coach_summary: string | null;
-  updated_at: string;
-}
+// coach_summary: AI-generated post-workout summary, saved once at Finish.
+export type WorkoutSessionRow = Row<'workout_sessions', { user_id?: string }>;
 
 export type TrackedSection = 'warmup' | 'exercise' | 'cooldown';
 
-export interface SetLogRow {
+// id and updated_at are server-managed (DB default / stamped by the handler
+// on every upsert), so the client builds log rows without them.
+// definition_id is stamped on rows logged after phase 8; older rows are
+// matched by name+alias.
+export type SetLogRow = Row<'workout_set_logs', {
   user_id?: string;
-  event_id: string;
-  event_date: string;
+  id?: string;
+  updated_at?: string;
   section: TrackedSection;
-  exercise_id: string;
-  exercise_name: string;
-  /** Stamped on rows logged after phase 8; older rows are matched by name+alias. */
   definition_id?: string | null;
-  set_number: number;
-  planned_weight: string | null;
-  planned_reps: string | null;
-  planned_duration: string | null;
-  actual_weight: string | null;
-  actual_reps: string | null;
-  actual_duration: string | null;
-  is_autofilled: boolean;
-}
+}>;
 
-export interface CardioLogRow {
+export type CardioLogRow = Row<'workout_cardio_logs', {
   user_id?: string;
-  event_id: string;
-  event_date: string;
+  id?: string;
+  updated_at?: string;
   section: TrackedSection;
-  exercise_id: string;
-  exercise_name: string;
-  /** Stamped on rows logged after phase 8; older rows are matched by name+alias. */
   definition_id?: string | null;
-  duration_minutes: number | null;
-  distance: string | null;
-  elevation_gain: string | null;
-  avg_heart_rate: number | null;
-  is_autofilled: boolean;
-}
+}>;
 
 // All overrides NULL = the occurrence at skipped_date is removed. Any
 // override set = that occurrence is displayed at override_date (or
 // skipped_date when only the time changed) with the overridden times.
-export interface RecurringExceptionRow {
-  user_id?: string;
-  id: string;
-  event_id: string;
-  skipped_date: string;
-  override_date: string | null;
-  override_start_time: string | null;
-  override_end_time: string | null;
-  created_at: string;
-}
+export type RecurringExceptionRow = Row<'recurring_exceptions', { user_id?: string }>;
 
-export interface EventMutationLogRow {
+export type EventMutationLogRow = LogRow<'event_mutations_log', {
   operation: 'create' | 'update' | 'delete' | 'delete_instance' | 'update_instance';
-  event_id: string;
-  event_title: string;
-  event_date?: string;
-  diff?: Record<string, unknown>;
-  triggered_by?: string;
-}
+}>;
 
 // One row per movement in the exercise library (phase 8) — identity and
 // descriptive metadata shared by every referencing event entry.
-export interface ExerciseDefinitionRow {
-  user_id?: string;
-  id: string;
-  canonical_name: string;
-  aliases: string[];
-  category: string;
-  muscle_groups: string[];
-  equipment: string[];
-  image_url: string | null;
-  technique_notes: string | null;
-  is_unilateral: boolean;
-  default_sets: number | null;
-  default_reps: string | null;
-  default_duration: string | null;
-  default_weight: string | null;
-  default_rest: string | null;
-  archived_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
+export type ExerciseDefinitionRow = Row<'exercise_definitions', { user_id?: string }>;
 
 // One row per user per review period (phase 12). Server-only: RLS with no
 // policies, written and read exclusively by the review cron. `stats` holds
-// the pre-computed ReviewStats / YearlyStats JSON (src/lib/review/types.ts).
-export interface ReviewRow {
+// the pre-computed ReviewStats / YearlyStats JSON (src/lib/review/types.ts);
+// month_index is 1–13 for month rows, null for year rows.
+export type ReviewRow = Row<'reviews', {
   user_id?: string;
-  id: string;
   period_type: 'month' | 'year';
-  iso_year: number;
-  /** 1–13 for month rows, null for year rows. */
-  month_index: number | null;
   stats: unknown;
-  ai_commentary: string | null;
-  email_sent_at: string | null;
   email_skipped_reason: 'no-activity' | 'no-email' | null;
-  created_at: string;
-  updated_at: string;
-}
+}>;
 
-export interface DefinitionMutationLogRow {
+export type DefinitionMutationLogRow = LogRow<'definition_mutations_log', {
   operation: 'create' | 'update' | 'archive' | 'unarchive' | 'delete';
-  definition_id: string;
-  definition_name: string;
-  diff?: Record<string, unknown>;
-  triggered_by?: string;
-}
+}>;
 
 // ─── Phase 19: objectives & training blocks ──────────────────────────────────
 // The semantic layer: an objective is what the training is aimed at, a block
@@ -274,45 +149,27 @@ export interface DefinitionMutationLogRow {
 // is derived from event_date (blocks may not overlap), so no block_id column
 // exists on workout_events — see the phase19 migration for why.
 
-export interface ObjectiveRow {
+// target_date null = undated aspiration. required_capabilities (phase 2 of
+// blocks): [{ metric, target, unit }] scored against benchmarks; empty until then.
+export type ObjectiveRow = Row<'objectives', {
   user_id?: string;
-  id: string;
-  name: string;
-  /** null = undated aspiration. */
-  target_date: string | null;
   discipline: 'alpine' | 'ice' | 'rock' | 'ski' | 'general' | null;
-  notes: string;
-  /** Phase 2: [{ metric, target, unit }] scored against benchmarks. Empty until then. */
   required_capabilities: unknown[];
   status: 'active' | 'achieved' | 'abandoned';
-  created_at: string;
-  updated_at: string;
-}
+}>;
 
-export interface TrainingBlockRow {
+// Half-open [start_date, end_date_exclusive), both Mondays — matches Period.
+// weekly_targets is a WeeklyTargets jsonb (camelCase payload, like cardio_targets).
+export type TrainingBlockRow = Row<'training_blocks', {
   user_id?: string;
-  id: string;
-  objective_id: string | null;
-  name: string;
-  intent: string;
   phase: 'base' | 'build' | 'peak' | 'taper' | 'recovery' | 'maintenance' | null;
-  /** Half-open [start_date, end_date_exclusive), both Mondays — matches Period. */
-  start_date: string;
-  end_date_exclusive: string;
-  /** WeeklyTargets jsonb (camelCase payload, like cardio_targets). */
   weekly_targets: unknown;
-  created_at: string;
-  updated_at: string;
-}
+}>;
 
-export interface BlockMutationLogRow {
+export type BlockMutationLogRow = LogRow<'block_mutations_log', {
   operation: 'create' | 'update' | 'delete';
   resource: 'block' | 'objective';
-  resource_id: string;
-  resource_name: string;
-  diff?: Record<string, unknown>;
-  triggered_by?: string;
-}
+}>;
 
 // ─── Provider sync (phase 27) ────────────────────────────────────────────────
 // COROS today; provider strings widen for Garmin/Apple later.
@@ -320,52 +177,43 @@ export interface BlockMutationLogRow {
 export type SyncProvider = 'coros';
 
 /** Service-role only (RLS with no policies) — the browser never sees this row,
- *  only the status/timestamp projection returned by /api/provider-sync. */
-export interface ProviderConnectionRow {
-  user_id: string;
+ *  only the status/timestamp projection returned by /api/provider-sync.
+ *  access_token / refresh_token are keyCrypto-encrypted (enc:v1:…), null while
+ *  OAuth is pending. last_synced_at is the recorded activity-grab watermark;
+ *  the imports ledger is what dedupes. timezone is the IANA zone stamped from
+ *  the browser on manual actions (phase29) — how the nightly cron places
+ *  activities on calendar dates; auto_sync is the per-connection opt-out and
+ *  pending_fill_count the matches awaiting a fill decision (set nightly,
+ *  cleared by manual apply). */
+export type ProviderConnectionRow = Row<'provider_connections', {
   provider: SyncProvider;
-  /** keyCrypto-encrypted (enc:v1:…); null while OAuth is pending. */
-  access_token: string | null;
-  refresh_token: string | null;
-  token_expires_at: string | null;
   status: 'pending' | 'connected' | 'expired';
   /** { state, codeVerifier (encrypted), createdAt } during the redirect dance. */
   pending_oauth: Record<string, unknown> | null;
-  /** The recorded activity-grab watermark; the imports ledger is what dedupes. */
-  last_synced_at: string | null;
-  connected_at: string | null;
-  /** IANA zone stamped from the browser on manual actions (phase29) — how the nightly cron places activities on calendar dates. */
-  timezone: string | null;
-  /** Per-connection opt-out for the nightly cron (phase29). */
-  auto_sync: boolean;
-  /** Matches awaiting a fill decision, set nightly, cleared by manual apply (phase29). */
-  pending_fill_count: number;
-  updated_at: string;
-}
+}>;
 
-/** Service-role only. One row per provider activity ever imported. */
-export interface ProviderActivityImportRow {
-  user_id: string;
+/** Service-role only. One row per provider activity ever imported. event_id
+ *  is the occurrence id when filled; the coros-<activityId> event id when created. */
+export type ProviderActivityImportRow = Row<'provider_activity_imports', {
   provider: SyncProvider;
-  activity_id: string;
   mode: 'created' | 'filled';
-  /** Occurrence id when filled; the coros-<activityId> event id when created. */
-  event_id: string;
-  event_date: string;
-  imported_at: string;
-}
+}>;
 
 /** Measured metrics kept out of the calendar read path. Anon SELECT allowed
  *  (per-user policy) so the event detail view can read summaries directly. */
-export interface ActivityStreamsRow {
+export type ActivityStreamsRow = Row<'activity_streams', {
   user_id?: string;
-  event_id: string;
-  event_date: string;
   provider: SyncProvider;
-  activity_id: string;
   /** Scalars: sport, avgHr, maxHr, hrZones, calories, hrv, trainingLoad, vo2max, fileUrls… */
   summary: Record<string, unknown>;
   /** Series, downsampled to ≤ ~2000 points each: { hr: [[sec,bpm]…], gps: [[sec,lat,lon,ele]…] }. */
   streams: Record<string, unknown> | null;
-  created_at: string;
+}>;
+
+/** Bridge for storing plain-data interfaces in jsonb columns. Interfaces have
+ *  no implicit index signature, so TypeScript refuses `Exercise → Json` even
+ *  though every value we store round-trips through JSON.stringify unchanged
+ *  (microsoft/TypeScript#15300). Keep this the only unchecked Json cast. */
+export function toJson<T extends object>(value: T): Json {
+  return value as unknown as Json;
 }

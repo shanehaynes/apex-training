@@ -8,7 +8,7 @@ import {
   SERVER_STAMPED_COLUMNS,
 } from '../allowlist.js';
 import { enforceRateLimit } from '../rateLimit.js';
-import type { CardioLogRow, SetLogRow, TrackedSection } from '../../../src/lib/db/types.js';
+import type { CardioLogRow, SetLogRow, TablesInsert, TrackedSection } from '../../../src/lib/db/types.js';
 
 // Single endpoint for the workout tracker's writes, discriminated by
 // body.action (predates the consolidated router; /api/workout-sessions/*
@@ -181,12 +181,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (setLogs.length) {
       ops.push(supabase
         .from('workout_set_logs')
-        .upsert(setLogs.map(r => ({ ...r, user_id: userId, updated_at: now })), { onConflict: SET_LOG_CONFLICT }));
+        .upsert(
+          setLogs.map(r => ({ ...r, user_id: userId, updated_at: now })) as TablesInsert<'workout_set_logs'>[],
+          { onConflict: SET_LOG_CONFLICT },
+        ));
     }
     if (cardioLogs.length) {
       ops.push(supabase
         .from('workout_cardio_logs')
-        .upsert(cardioLogs.map(r => ({ ...r, user_id: userId, updated_at: now })), { onConflict: CARDIO_CONFLICT }));
+        .upsert(
+          cardioLogs.map(r => ({ ...r, user_id: userId, updated_at: now })) as TablesInsert<'workout_cardio_logs'>[],
+          { onConflict: CARDIO_CONFLICT },
+        ));
     }
     for (const key of body.removedSets ?? []) {
       ops.push(supabase
@@ -257,7 +263,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { error: fillErr } = await supabase
         .from('workout_set_logs')
         .upsert(
-          autofillRows.map(r => ({ ...r, user_id: userId, is_autofilled: true })),
+          autofillRows.map(r => ({ ...r, user_id: userId, is_autofilled: true })) as TablesInsert<'workout_set_logs'>[],
           { onConflict: SET_LOG_CONFLICT, ignoreDuplicates: true },
         );
       if (fillErr) {
@@ -354,7 +360,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ops.push(supabase
         .from('workout_set_logs')
         .upsert(
-          setLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })),
+          setLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })) as TablesInsert<'workout_set_logs'>[],
           { onConflict: SET_LOG_CONFLICT, ignoreDuplicates: true },
         ));
     }
@@ -362,7 +368,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ops.push(supabase
         .from('workout_cardio_logs')
         .upsert(
-          cardioLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })),
+          cardioLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })) as TablesInsert<'workout_cardio_logs'>[],
           { onConflict: CARDIO_CONFLICT, ignoreDuplicates: true },
         ));
     }
@@ -425,7 +431,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // exercise_id stays put — it is what the sets are keyed on.
   if (body.action === 'swap-exercise') {
     const { section, exerciseId, exerciseName, definitionId } = body;
-    if (!SECTIONS.has(section as string) || typeof exerciseId !== 'string' || !exerciseId) {
+    if (typeof section !== 'string' || !SECTIONS.has(section) || typeof exerciseId !== 'string' || !exerciseId) {
       res.status(400).send('swap-exercise needs an exerciseId and a valid section');
       return;
     }
@@ -443,15 +449,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       definition_id: definitionId ?? null,
       updated_at: new Date().toISOString(),
     };
-    const scope = (table: string) => supabase
-      .from(table)
-      .update(patch)
-      .eq('user_id', userId).eq('event_id', eventId)
-      .eq('event_date', eventDate)
-      .eq('section', section)
-      .eq('exercise_id', exerciseId);
-
-    const results = await Promise.all([scope('workout_set_logs'), scope('workout_cardio_logs')]);
+    // Both log tables, each named literally: postgrest-js types a union
+    // table name as the intersection of the two schemas, so one chain per
+    // table is what keeps the column names checked.
+    const results = await Promise.all([
+      supabase
+        .from('workout_set_logs')
+        .update(patch)
+        .eq('user_id', userId).eq('event_id', eventId)
+        .eq('event_date', eventDate)
+        .eq('section', section)
+        .eq('exercise_id', exerciseId),
+      supabase
+        .from('workout_cardio_logs')
+        .update(patch)
+        .eq('user_id', userId).eq('event_id', eventId)
+        .eq('event_date', eventDate)
+        .eq('section', section)
+        .eq('exercise_id', exerciseId),
+    ]);
     const failed = results.find(r => r.error);
     if (failed?.error) {
       console.error('[api/workout-sessions] swap-exercise failed:', failed.error.message);

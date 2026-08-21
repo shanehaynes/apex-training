@@ -1,5 +1,5 @@
 import type { getSupabaseAdmin } from './supabaseAdmin.js';
-import type { CardioLogRow, CompletionRow, ReviewRow, SetLogRow, WorkoutSessionRow } from '../../src/lib/db/types.js';
+import type { CardioLogRow, CompletionRow, Json, ReviewRow, SetLogRow, WorkoutSessionRow } from '../../src/lib/db/types.js';
 import { buildAliasIndex, canonicalizeLogNames } from '../../src/lib/schedule/definitions.js';
 import type { PeriodInputs, PeriodType, ReviewInputs, ReviewPeriod, StatsPeriod } from '../../src/lib/review/types.js';
 import { fetchAllPages } from './pagination.js';
@@ -162,7 +162,7 @@ export async function createReview(supabase: Admin, params: CreateReviewParams):
       period_type: params.periodType,
       iso_year: params.isoYear,
       month_index: params.monthIndex ?? null,
-      stats: params.stats,
+      stats: params.stats as Json,
       email_skipped_reason: params.emailSkippedReason ?? null,
     })
     .select('*')
