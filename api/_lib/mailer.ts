@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import { optionalEnv } from './env.js';
 
 // Review-email delivery over Gmail SMTP — no domain to verify, sends from the
 // owner's own Gmail. Configured with GMAIL_USER (the address) and
@@ -18,8 +19,8 @@ export interface ReviewEmail {
 let cachedTransport: Transporter | null = null;
 
 function getMailer(): { transport: Transporter; from: string } {
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD?.replace(/\s+/g, '');
+  const user = optionalEnv('GMAIL_USER');
+  const pass = optionalEnv('GMAIL_APP_PASSWORD')?.replace(/\s+/g, '');
   if (!user || !pass) {
     throw new Error('Gmail not configured (GMAIL_USER / GMAIL_APP_PASSWORD)');
   }

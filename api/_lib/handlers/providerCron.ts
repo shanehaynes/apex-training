@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
+import { optionalEnv } from '../env.js';
 import { listAutoSyncConnections, NotConnectedError } from '../providers/connection.js';
 import { runAutoSync, type AutoSyncOutcome } from '../providers/sync.js';
 
@@ -23,7 +24,7 @@ import { runAutoSync, type AutoSyncOutcome } from '../providers/sync.js';
 const MAX_USERS_PER_RUN = 25;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const secret = process.env.CRON_SECRET;
+  const secret = optionalEnv('CRON_SECRET');
   if (!secret || req.headers.authorization !== `Bearer ${secret}`) {
     res.status(401).send('Unauthorized');
     return;

@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { VercelRequest } from '@vercel/node';
+import { optionalEnv } from '../env.js';
 
 // Shared pieces of the OAuth 2.1 authorization server that fronts the MCP
 // endpoint: origin/URL derivation, PKCE S256, redirect-URI matching, and
@@ -46,7 +47,7 @@ export function requestOrigin(req: VercelRequest): string {
  * what those need.
  */
 export function publicOrigin(req: VercelRequest): string {
-  return normalizeOrigin(process.env.VITE_PUBLIC_ORIGIN) ?? requestOrigin(req);
+  return normalizeOrigin(optionalEnv('VITE_PUBLIC_ORIGIN')) ?? requestOrigin(req);
 }
 
 /** Origin part of a configured URL, or undefined if it isn't a usable one. */

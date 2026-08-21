@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
+import { optionalEnv } from '../env.js';
 import { requireUser } from '../auth.js';
 import { cloneEventRow, collectDefinitionIds } from '../../../src/lib/template/clone.js';
 import type { ExerciseDefinitionRow, WorkoutEventRow } from '../../../src/lib/db/types.js';
@@ -14,7 +15,7 @@ import type { ExerciseDefinitionRow, WorkoutEventRow } from '../../../src/lib/db
 async function resolveSourceUserId(
   supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
 ): Promise<string | null> {
-  const fromEnv = process.env.SEED_SOURCE_USER_ID;
+  const fromEnv = optionalEnv('SEED_SOURCE_USER_ID');
   if (fromEnv) return fromEnv;
   const { data } = await supabase
     .from('profiles')
