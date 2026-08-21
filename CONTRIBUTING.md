@@ -154,6 +154,27 @@ whichever side lost the coin toss.
 `phase3` is grandfathered: `enable_rls` and `recurrence_rule` are independent and
 have already run everywhere, so renaming them would buy nothing.
 
+### The schema types are generated, and checked
+
+`src/lib/db/database.types.ts` is generated from the real schema and types
+both Supabase clients; `src/lib/db/types.ts` derives the app's row types from
+it, so the column set of every row type comes from the database rather than
+from memory. A column a migration dropped or renamed fails `tsc`, not a
+production query.
+
+That only holds while the file is current. After adding a migration:
+
+```bash
+npm run db:reset-local   # build the local database from every migration
+npm run db:types         # regenerate the types from it
+```
+
+and commit the result with the migration. CI's **full** job runs
+`scripts/db-types.sh --check` against a database it has just built from
+scratch, and goes red if the committed file differs by a byte. The CLI
+version is pinned in the script because the generator's output changes
+between releases — bump it deliberately, regenerating in the same PR.
+
 ## Repo settings this assumes
 
 - **Auto-delete head branches on merge: on.** Without it, every merged PR leaves

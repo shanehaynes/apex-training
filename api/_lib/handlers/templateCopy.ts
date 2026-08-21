@@ -3,7 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
 import { cloneEventRow, collectDefinitionIds } from '../../../src/lib/template/clone.js';
-import type { ExerciseDefinitionRow, WorkoutEventRow } from '../../../src/lib/db/types.js';
+import type { ExerciseDefinitionRow, TablesInsert, WorkoutEventRow } from '../../../src/lib/db/types.js';
 
 // Copies the template user's recurring workouts (plus every exercise
 // definition they reference) onto the caller's calendar. One-time per
@@ -123,7 +123,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (events.length > 0) {
     const eventClones = events.map(row => cloneEventRow(row, `tpl-${randomUUID()}`, userId));
-    const { error } = await supabase.from('workout_events').insert(eventClones);
+    const { error } = await supabase
+      .from('workout_events')
+      .insert(eventClones as TablesInsert<'workout_events'>[]);
     if (error) {
       console.error('[api/template-copy] event insert failed:', error.message);
       await releaseLock();
