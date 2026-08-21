@@ -92,16 +92,27 @@ only copy of something may be sitting there.
 
 These are real collisions that have happened or can happen today.
 
-### The dev server is shared, and that is silent
+### The dev server port is per-worktree, so it cannot be shared
 
-`playwright.config.ts` pins `port: 5173` with `reuseExistingServer: !process.env.CI`.
+`playwright.config.ts` sets `reuseExistingServer: !process.env.CI`: if a dev
+server is already listening on the port, the e2e run uses it rather than
+starting its own. With one fixed port, session B's suite could land on session
+A's server and **test A's code** — no error, no warning.
 
-If session A has a dev server up and session B runs `npm run e2e`, **B reuses
-A's server and tests A's code.** No error, no warning; B's suite passes or fails
-against a branch B is not on.
+So there is no fixed port. `dev/port.mjs` resolves it, and `vite`, Playwright
+and `scripts/drive.mjs` all read the same answer:
 
-Until that config is fixed, only one session runs a dev server or an e2e suite
-at a time. Check with `lsof -i :5173` before starting either.
+1. `APEX_PORT`, if set (1024–65535; anything else throws).
+2. 5173 in the primary checkout, so the README stays true.
+3. Otherwise a port in 5200–5999 hashed from the worktree's directory name —
+   the same every time for that worktree, different from any other.
+
+`npm run -s port` prints yours. `strictPort` is on, so a taken port fails
+`npm run dev` loudly instead of sliding to the next free one, which nothing
+else would follow.
+
+Never `pkill -f vite`: that is every session's server, not just yours. To
+clear a stale one, `lsof -i :$(npm run -s port)` and kill that PID only.
 
 ### The local Supabase stack is shared
 
