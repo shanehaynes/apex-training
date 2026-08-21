@@ -1,4 +1,5 @@
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './context/auth';
 import ErrorBoundary from './components/ErrorBoundary';
 import { CalendarProvider } from './context/CalendarContext';
 import { MealsProvider } from './context/MealsContext';

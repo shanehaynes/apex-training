@@ -1,7 +1,7 @@
 import { CheckCircle2, Circle } from 'lucide-react';
 import { getWorkoutColor } from '../../utils/workoutColors';
-import { useCalendar } from '../../context/CalendarContext';
-import { useSchedule } from '../../context/ScheduleContext';
+import { useCalendar } from '../../context/calendar';
+import { useSchedule } from '../../context/schedule';
 import type { WorkoutEvent } from '../../types/workout';
 
 interface Props {

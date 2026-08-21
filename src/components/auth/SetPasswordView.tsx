@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/auth';
 
 // Set-a-password screen, reached two ways with an active session already in
 // place: a dashboard invite link (first login) or a password recovery link.

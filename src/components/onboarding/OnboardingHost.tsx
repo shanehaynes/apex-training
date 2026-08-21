@@ -1,5 +1,5 @@
-import { useAuth } from '../../context/AuthContext';
-import { useCalendar } from '../../context/CalendarContext';
+import { useAuth } from '../../context/auth';
+import { useCalendar } from '../../context/calendar';
 import WelcomeFlow from './WelcomeFlow';
 import { SetupNudge } from './GettingStarted';
 

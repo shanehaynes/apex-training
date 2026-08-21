@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { format, parseISO, startOfISOWeek } from 'date-fns';
-import { useBlocks } from '../../context/BlocksContext';
+import { useBlocks } from '../../context/blocks';
 import { notify } from '../../lib/notify';
 import { OBJECTIVE_DISCIPLINES } from '../../types/blocks';
 import type { ObjectiveDiscipline, TrainingBlock, WeeklyTargets } from '../../types/blocks';
