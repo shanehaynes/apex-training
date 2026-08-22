@@ -1,5 +1,6 @@
 import { defineConfig } from '@playwright/test';
 import type { ApexOptions } from './e2e/lib/fixtures';
+import { devPort } from './dev/port.mjs';
 // @ts-expect-error plain-JS module shared with scripts/drive.mjs
 import { MOCK_SUPABASE } from './e2e/lib/session.mjs';
 
@@ -10,6 +11,11 @@ import { MOCK_SUPABASE } from './e2e/lib/session.mjs';
 //          Only defined when APEX_LOCAL_SUPABASE=1; the live fixtures refuse
 //          any non-localhost backend.
 const live = !!process.env.APEX_LOCAL_SUPABASE;
+
+// Per-checkout port, the same one vite.config.ts binds (dev/port.mjs). That is
+// what makes reuseExistingServer safe below: a server already listening here
+// can only be this worktree's, so the suite never tests another session's code.
+const port = devPort();
 
 export default defineConfig<ApexOptions>({
   testDir: 'e2e',
@@ -25,7 +31,7 @@ export default defineConfig<ApexOptions>({
     ? [['list'], ['html', { open: 'never' }], ['./e2e/lib/skipReporter.ts']]
     : [['list'], ['./e2e/lib/skipReporter.ts']],
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: `http://localhost:${port}`,
     viewport: { width: 1280, height: 950 },
     trace: 'retain-on-failure',
   },
@@ -45,7 +51,7 @@ export default defineConfig<ApexOptions>({
   ],
   webServer: {
     command: live ? 'npm run dev:agent' : 'npm run dev',
-    port: 5173,
+    port,
     reuseExistingServer: !process.env.CI,
     // The mock run pins its own fake project so the app is signed-in-capable
     // with or without a .env.local — process VITE_* vars outrank the env

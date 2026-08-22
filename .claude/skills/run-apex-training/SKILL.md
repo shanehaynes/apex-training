@@ -25,6 +25,7 @@ All paths are relative to the repo root.
 
 ```bash
 # Mock profile — no backend needed
+npm run -s port                              # this checkout's dev/e2e port
 npm run e2e                                  # all mock Playwright specs
 node scripts/drive.mjs state schedule        # read live app state as JSON
 node scripts/drive.mjs click .btn-library shot library state calendar
@@ -73,7 +74,9 @@ calendar output:
 - `playwright.config.ts` — `mock` project (starts `npm run dev`) and `live`
   project (starts `npm run dev:agent`; only defined when
   `APEX_LOCAL_SUPABASE=1`). Both auto-start the web server, or reuse one
-  already on :5173.
+  already on this checkout's port — `npm run -s port`: 5173 in the primary
+  checkout, derived from the worktree directory name otherwise
+  (`dev/port.mjs`), so a reused server is always this checkout's own.
 - `e2e/lib/` — `intercept.mjs` (stub layer), `session.mjs` (fabricated auth),
   `fixtures.ts` (test fixtures: interception, session seed, `fakeNow`,
   auto-failing on console errors).
@@ -153,5 +156,7 @@ npm run lint    # oxlint — pre-existing warnings; diff against main, don't cha
   array.
 - **Vite forwards browser console to the terminal** — `[vite] (client)`
   lines in dev-server logs are page-side messages, not server errors.
-- **`EADDRINUSE` / stale UI on relaunch** — a previous `vite` is still
-  running: `pkill -f vite` first (Playwright reuses a running :5173 server).
+- **`EADDRINUSE` on relaunch** — a previous `vite` from this checkout is
+  still on its port (`strictPort` refuses to slide to the next one). Find it
+  with `lsof -i :$(npm run -s port)` and kill that PID. Never `pkill -f vite`:
+  other sessions' worktrees run their own servers on their own ports.

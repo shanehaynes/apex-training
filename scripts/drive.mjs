@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Interactive driving CLI for agents — one browser session per invocation,
-// commands executed left to right against the dev server on :5173.
+// commands executed left to right against this checkout's dev server
+// (dev/port.mjs — `npm run -s port`; APP_URL overrides).
 //
 //   node scripts/drive.mjs <command> [args] [<command> [args] ...]
 //
@@ -27,8 +28,9 @@ import { mkdirSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 import { installIntercept, isExpectedConsoleError } from '../e2e/lib/intercept.mjs';
 import { readSupabaseEnv, seedFabricatedSession, driverProfile } from '../e2e/lib/session.mjs';
+import { devPort } from '../dev/port.mjs';
 
-const APP_URL = process.env.APP_URL ?? 'http://localhost:5173/';
+const APP_URL = process.env.APP_URL ?? `http://localhost:${devPort()}/`;
 const SHOTS = 'e2e/screenshots';
 
 const ARG_COUNT = { goto: 1, wait: 1, click: 1, fill: 2, press: 1, state: 1, eval: 1, shot: 1, pause: 1 };

@@ -47,9 +47,12 @@ refactor — which is exactly what happened once (see CONTRIBUTING.md).
 
 ## Shared resources — one session at a time
 
-- **Port 5173.** `playwright.config.ts` sets `reuseExistingServer: !CI`, so if
-  another session already has a dev server up, your e2e run silently tests
-  *their* code. Check `lsof -i :5173` before `npm run dev` or `npm run e2e`.
+- **The dev port is per-worktree.** `dev/port.mjs` gives the primary checkout
+  5173 and each worktree its own port in 5200–5999; `vite`, Playwright and
+  `scripts/drive.mjs` all read it, so an e2e run can only ever reuse a server
+  from its own checkout. `npm run -s port` prints yours; `APEX_PORT` overrides.
+  Never `pkill -f vite` — that is other sessions' servers too. To clear a stale
+  one, `lsof -i :$(npm run -s port)` and kill that PID only.
 - **The local Supabase stack.** One Postgres for the whole machine.
   `npm run e2e:live` and `npm run db:reset-local` reset whole tables.
 - **Migration numbers.** `supabase/migrations/phaseN_*.sql` is ordered by
