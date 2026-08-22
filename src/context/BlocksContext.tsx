@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { deleteJson, patchJson, postJson } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
@@ -17,47 +17,12 @@ import { blockCovering } from '../lib/blocks/period';
 import { validateBlock } from '../lib/blocks/validate';
 import { registerAgentState } from '../dev/agentBridge';
 import { now } from '../lib/clock';
+import { BlocksContext, type BlocksContextValue, type BlocksSnapshot } from './blocks';
 
 // A provider rather than a bare hook: the calendar strip and the blocks view
 // can both be mounted, and a hook would fetch twice. Mirrors ScheduleContext's
 // posture — anon-client reads under RLS, all writes through /api, realtime
 // re-fetch, and a graceful empty state when Supabase isn't configured.
-
-export interface BlocksSnapshot {
-  blocks: TrainingBlock[];
-  objectives: Objective[];
-}
-
-interface BlocksContextValue {
-  blocks: TrainingBlock[];
-  objectives: Objective[];
-  isLoading: boolean;
-  /**
-   * Resolves with the loaded blocks once the initial fetch settles. Use this
-   * — not the `blocks` array — anywhere a stale-empty read would silently
-   * produce wrong output, such as building the coach's system prompt.
-   */
-  whenLoaded: () => Promise<BlocksSnapshot>;
-  /** The block covering a YYYY-MM-DD date, or null. Single-valued: blocks can't overlap. */
-  blockFor: (date: string) => TrainingBlock | null;
-  /** The block covering today. */
-  activeBlock: TrainingBlock | null;
-  objectiveFor: (block: TrainingBlock) => Objective | null;
-  refresh: () => Promise<void>;
-  createBlock: (input: Omit<TrainingBlock, 'id'>) => Promise<{ id: string } | null>;
-  /**
-   * Create several blocks atomically — all land or none do. Use this for a
-   * training cycle, where a partial write would leave a half-plan behind.
-   */
-  createBlocks: (inputs: Omit<TrainingBlock, 'id'>[]) => Promise<{ ids: string[] } | null>;
-  updateBlock: (id: string, fields: Partial<Omit<TrainingBlock, 'id'>>) => Promise<boolean>;
-  deleteBlock: (id: string, name: string) => Promise<boolean>;
-  createObjective: (input: Omit<Objective, 'id'>) => Promise<{ id: string } | null>;
-  updateObjective: (id: string, fields: Partial<Omit<Objective, 'id'>>) => Promise<boolean>;
-  deleteObjective: (id: string, name: string) => Promise<boolean>;
-}
-
-const BlocksContext = createContext<BlocksContextValue | null>(null);
 
 // Served by the consolidated API router (api/_lib/app.ts) via the catch-all
 // function — clean paths, no per-endpoint function cost under Vercel's cap.
@@ -249,10 +214,4 @@ export function BlocksProvider({ children }: { children: React.ReactNode }) {
   ]);
 
   return <BlocksContext.Provider value={value}>{children}</BlocksContext.Provider>;
-}
-
-export function useBlocks(): BlocksContextValue {
-  const ctx = useContext(BlocksContext);
-  if (!ctx) throw new Error('useBlocks must be used within a BlocksProvider');
-  return ctx;
 }

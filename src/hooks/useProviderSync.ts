@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, postJson } from '../lib/api';
 import { notify } from '../lib/notify';
-import { useAuth } from '../context/AuthContext';
-import { useSchedule } from '../context/ScheduleContext';
+import { useAuth } from '../context/auth';
+import { useSchedule } from '../context/schedule';
 
 // The COROS sync flow (useTemplateCopy shape, plus a confirmation queue).
 // runSync previews, queues every proposed FILL for a per-item yes/no —

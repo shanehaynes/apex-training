@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useCalendar } from '../../context/CalendarContext';
+import { useCalendar } from '../../context/calendar';
 import MonthView from './MonthView';
 import WeekView from './WeekView';
 import DayView from './DayView';

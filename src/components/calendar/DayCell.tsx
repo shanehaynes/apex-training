@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { isSameMonth, format } from 'date-fns';
 import { isToday } from '../../lib/clock';
 import EventChip from './EventChip';
-import { useCalendar } from '../../context/CalendarContext';
+import { useCalendar } from '../../context/calendar';
 import type { WorkoutEvent } from '../../types/workout';
 
 interface Props {

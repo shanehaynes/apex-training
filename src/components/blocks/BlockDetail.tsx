@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, X } from 'lucide-react';
-import { useSchedule } from '../../context/ScheduleContext';
-import { useBlocks } from '../../context/BlocksContext';
+import { useSchedule } from '../../context/schedule';
+import { useBlocks } from '../../context/blocks';
 import { computeBlockProgress } from '../../lib/blocks/progress';
 import type { BlockProgress } from '../../lib/blocks/progress';
 import { loadBlockLogs } from '../../lib/blocks/repo';

@@ -19,9 +19,9 @@ interface AdminState {
 // Minimal query-builder stand-in for the connection reads the handler's
 // status / connect-start / disconnect actions perform.
 function makeAdmin(state: AdminState) {
-  const table = (name: string) => ({
-    select: () => table(name),
-    eq: () => table(name),
+  const table = () => ({
+    select: () => table(),
+    eq: () => table(),
     maybeSingle: async () => ({ data: state.connections[0] ?? null, error: null }),
     upsert: async (row: Row) => { state.connections = [row]; return { error: null }; },
     delete: () => ({ eq: () => ({ eq: async () => { state.connections = []; return { error: null }; } }) }),
