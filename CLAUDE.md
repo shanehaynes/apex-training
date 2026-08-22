@@ -21,9 +21,11 @@ Start every task — including one-line fixes — with:
 scripts/git-new.sh fix/short-slug     # types: feat/ fix/ chore/ db/
 ```
 
-That branches from a freshly-fetched `origin/main` and creates a worktree under
-`.claude/worktrees/`. **Never put a worktree in `/tmp`**: it does not survive a
-reboot, and other sessions cannot find it.
+That branches from a freshly-fetched `origin/main`, creates a worktree under
+`.claude/worktrees/`, and runs `npm ci` there — `node_modules` is per-worktree
+(`--no-install` skips it). It works from inside any worktree too. **Never put a
+worktree in `/tmp`**: it does not survive a reboot, and other sessions cannot
+find it.
 
 When your PR merges, retire the branch and worktree:
 
@@ -54,7 +56,10 @@ refactor — which is exactly what happened once (see CONTRIBUTING.md).
   Never `pkill -f vite` — that is other sessions' servers too. To clear a stale
   one, `lsof -i :$(npm run -s port)` and kill that PID only.
 - **The local Supabase stack.** One Postgres for the whole machine.
-  `npm run e2e:live` and `npm run db:reset-local` reset whole tables.
+  `npm run e2e:live` and `npm run db:reset-local` reset whole tables. It is
+  not auto-migrated either: it has the schema of the last reset, which can lag
+  `main` — `scripts/db-types.sh --check` tells you. Auto-mode sessions are
+  refused the reset; ask rather than work from a stale schema.
 - **Migration numbers.** `supabase/migrations/phaseN_*.sql` is ordered by
   `sort -V` across the directory, so `N` is repo-global. Two branches can both
   add `phase33_*.sql`, merge cleanly, and leave an apply order nobody chose. Run
@@ -78,6 +83,11 @@ CI runs build, test, lint, a guard on the root-level `api/*.ts` count (new
 handlers belong in `api/_lib/handlers/`, behind the Hono router), and
 `npm audit --omit=dev`.
 
-## Commits
+## Commits and merging
 
 Commits and PRs land as Shane alone — no co-author trailers, no attribution.
+Open PRs with `gh pr create`. `main` requires branches to be up to date, so
+once one PR merges every other open PR needs `git merge origin/main && git push`
+and a fresh CI run before it can merge (CONTRIBUTING.md, "Merging more than
+one PR"). Before opening several PRs at once, dry-run them against each other
+with `git merge-tree` (same section).

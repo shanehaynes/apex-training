@@ -25,9 +25,17 @@ scripts/git-new.sh fix/stranded-event-dates
 ```
 
 That cuts a branch from a freshly-fetched `origin/main`, creates
-`.claude/worktrees/fix-stranded-event-dates/`, and prints the path to `cd` into.
+`.claude/worktrees/fix-stranded-event-dates/`, installs its dependencies, and
+prints the path to `cd` into along with the dev port that worktree will use.
+Run it from the primary checkout or from inside any worktree — it anchors on
+the primary checkout either way, so worktrees never nest.
 
-Do it by hand if you prefer, but keep the three invariants:
+`--no-install` skips the `npm ci` (a docs-only change, say). Remember what it
+skips: **`node_modules` is per-worktree.** Nothing in a fresh worktree — not
+`tsc`, not a single test — runs until it has one, and five sessions in a row
+discovering that independently is five minutes nobody needed to spend.
+
+Do it by hand if you prefer, but keep the four invariants:
 
 1. **Branch from current `origin/main`**, not from whatever the primary checkout
    happens to be sitting on.
@@ -37,6 +45,8 @@ Do it by hand if you prefer, but keep the three invariants:
    the human trying to work out where a branch went.
 3. **One worktree = one branch = one PR = one concern.** If you find a second
    thing worth fixing, cut a second worktree.
+4. **Install before you check.** `npm ci` in the new worktree, then
+   `npm run agent:check` proves the branch point is green before you change it.
 
 ### Naming
 
@@ -54,8 +64,18 @@ Do not use `claude/*` or `worktree-*`. Those encode *who* made the branch or
 
 ## Finishing work
 
-Open a PR against `main`. Squash-merge it. GitHub deletes the remote branch.
-Then retire the local side:
+Run the gate, then open the PR:
+
+```bash
+npm run agent:check       # tsc -b, vitest, oxlint, playwright (mock) — what CI's check + e2e-mock jobs run
+gh pr create --base main  # squash-merge it on GitHub; the remote branch auto-deletes
+```
+
+`gh` is how a session opens PRs and watches CI (`gh pr checks`,
+`gh api repos/…/commits/<sha>/check-runs`). Its token needs the `workflow`
+scope to push anything under `.github/workflows/` — see "Repo settings".
+
+Squash-merge it. GitHub deletes the remote branch. Then retire the local side:
 
 ```bash
 scripts/git-tidy.sh
@@ -69,6 +89,32 @@ unmerged branch.
 Run it when you finish something. The alternative is what this repo looked like
 before this document: 7 worktrees, 15 merged-but-undeleted local branches, and
 10 remote refs pointing at branches that no longer existed.
+
+### Merging more than one PR
+
+`main` requires a branch to be **up to date** before it merges (see "Repo
+settings"). So the moment one PR lands, every other open PR is "out of date" —
+not conflicted, just behind — and has to take the new `main` and re-run CI
+before it can merge. Five parallel PRs are five serial rounds of
+update → CI → merge, about ten minutes each for the `full` job, and the order
+you merge them in makes no difference.
+
+The update is a merge of `origin/main` into the branch: GitHub's **Update
+branch** button, or from the worktree:
+
+```bash
+git merge --no-edit origin/main && git push
+```
+
+A merge commit on a PR branch is fine — the PR squash-merges, so the branch's
+history never reaches `main`. Do not rebase a pushed branch for this; a
+force-push is how one session ends up re-assembling another's work by hand.
+
+The structural fix is GitHub's **merge queue** (free on public repos): you
+press merge on every green PR and the queue takes each onto the latest `main`
+and re-tests it there, one at a time, without anyone babysitting. Until it is
+switched on, the loop above is the strategy, and whoever is coordinating
+several PRs owns running it.
 
 ## Never do this
 
@@ -122,6 +168,72 @@ but that only serializes *within* a run, not *across sessions*. Two sessions
 running live e2e will corrupt each other's fixtures.
 
 One session at a time for `e2e:live` and `db:reset-local`.
+
+The stack is also **not kept current for you**. `supabase start` only
+auto-applies timestamped migrations and this repo's are `phaseN_*.sql` (see
+below), so the local database has exactly the schema of the last
+`npm run db:reset-local` — which can be several migrations behind `main`
+without anything saying so. Before trusting it (live e2e, `npm run db:types`),
+check: `scripts/db-types.sh --check` passing means the committed types match
+the local schema, which means the schema is current. If it is behind, reset
+it. An unattended (auto-mode) session is refused the reset by the permission
+classifier — a destructive action on a shared resource — so that is a human's
+job; the session should say so rather than work from a stale database.
+
+### Several branches in flight: prove they combine before the PRs open
+
+Two branches that edit adjacent lines of the same file each merge cleanly
+against `main` and conflict with *each other*, and with the flow above you find
+out after the first one lands. `git merge-tree` is a three-way merge that
+touches no working tree:
+
+```bash
+git fetch origin
+git merge-tree --write-tree --name-only origin/feat/a origin/feat/b
+# exit 1 and "CONFLICT (content): …" lines if they collide; a tree id if not
+```
+
+Run it on every pair. When a pair conflicts, **move one hunk; do not stack the
+PRs.** Put the new script line on the far side of an unchanged line, the type
+import first and the value import second — whatever keeps each side's change
+off the other's lines — and re-check. Stacking (basing B on A) only retargets
+B to `main` if A's branch is deleted in the right order, which is how #23
+merged into its base branch instead of `main` and took production down.
+
+To prove N branches combine — textually *and* semantically — fold them into a
+throwaway commit and run the checks on that:
+
+```bash
+cur=$(git rev-parse origin/feat/a)
+for b in feat/b feat/c; do
+  tree=$(git merge-tree --write-tree "$cur" "origin/$b")            # fails loudly on conflict
+  cur=$(git commit-tree "$tree" -p "$cur" -p "origin/$b" -m "throwaway")
+done
+git worktree add --detach .claude/worktrees/_combined "$cur"
+(cd .claude/worktrees/_combined && npm ci && npm run agent:check)
+git worktree remove --force .claude/worktrees/_combined
+```
+
+A clean textual merge can still fail to build — one branch tightens lint,
+another adds code the new rule rejects — and this is the only check that sees
+it before the last PR merges.
+
+### One session coordinating several agents
+
+Fanning one task out to parallel agents works with the rules above unchanged —
+one worktree, one branch, one PR per agent — plus a division of labour:
+
+- **The coordinating session owns every shared resource.** It cuts the
+  worktrees (`git-new.sh`), it alone touches the local Supabase stack and the
+  primary checkout, and it runs the cross-branch checks above before the PRs
+  open and the merge loop after.
+- **Agents verify with `npm run build`, `npm test`, and `npm run lint`**, all
+  per-worktree and safe in parallel. `npm run e2e` is fine too now that ports
+  are per-worktree; `e2e:live`, `db:reset-local`, and the integration suites
+  are not — they need the shared stack.
+- **Agents commit and push their own branch and report the SHA**; the
+  coordinator opens the PRs. An agent refused a shared-resource action by its
+  permission mode should report that, not route around it.
 
 ### Migration numbers are a global counter
 
@@ -192,7 +304,17 @@ between releases — bump it deliberately, regenerating in the same PR.
   a remote branch behind forever.
 - **Squash merge only.** Rebase and merge-commit are disabled, so `main` stays
   one commit per PR and "is this branch merged?" has an unambiguous answer.
-- **`main` protected**, requiring the CI check and blocking force-pushes.
+- **`main` protected**, requiring the `check`, `e2e-mock`, and `full` jobs,
+  blocking force-pushes, and **requiring branches to be up to date before
+  merging**. That last one is what makes parallel PRs merge serially — see
+  "Merging more than one PR" — and is the reason to turn on the next item.
+- **Merge queue: recommended, not yet on.** With it, "merge" on every green
+  PR is the whole merge loop; without it, a human runs the loop by hand.
+- **A `gh` login with the `repo` and `workflow` scopes.** Pushing a branch
+  that touches `.github/workflows/` is rejected without `workflow`. Git's
+  credential helper calls `gh` by absolute path, so pushes keep working even
+  from a shell where `gh` itself is off the `PATH` — which is also why
+  "`gh: not found`" and "my push worked" are not a contradiction.
 
 ## What went wrong, once
 
