@@ -86,8 +86,8 @@ handlers belong in `api/_lib/handlers/`, behind the Hono router), and
 ## Commits and merging
 
 Commits and PRs land as Shane alone — no co-author trailers, no attribution.
-Open PRs with `gh pr create`. `main` requires branches to be up to date, so
-once one PR merges every other open PR needs `git merge origin/main && git push`
-and a fresh CI run before it can merge (CONTRIBUTING.md, "Merging more than
-one PR"). Before opening several PRs at once, dry-run them against each other
-with `git merge-tree` (same section).
+Open PRs with `gh pr create`. `main` has a merge queue: press **Merge when
+ready** on each green PR, in any order, and the queue tests each against the
+latest `main` and squash-merges it — no updating branches by hand. Before
+opening several PRs at once, dry-run them against each other with
+`git merge-tree` (CONTRIBUTING.md, "Several branches in flight").

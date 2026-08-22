@@ -92,29 +92,32 @@ before this document: 7 worktrees, 15 merged-but-undeleted local branches, and
 
 ### Merging more than one PR
 
-`main` requires a branch to be **up to date** before it merges (see "Repo
-settings"). So the moment one PR lands, every other open PR is "out of date" —
-not conflicted, just behind — and has to take the new `main` and re-run CI
-before it can merge. Five parallel PRs are five serial rounds of
-update → CI → merge, about ten minutes each for the `full` job, and the order
-you merge them in makes no difference.
+`main` is behind a **merge queue**. Press **Merge when ready** on each green
+PR and stop there: the queue takes each one onto the latest `main` on a
+temporary `gh-readonly-queue/main/…` branch, runs the required checks there
+(which is why `ci.yml` listens for `merge_group`), squash-merges it, and moves
+on to the next. Five parallel PRs are five button presses, in any order, with
+nobody updating branches by hand.
 
-The update is a merge of `origin/main` into the branch: GitHub's **Update
-branch** button, or from the worktree:
+What the queue replaces is the loop that "Require branches to be up to date"
+used to impose: after each merge every other open PR went "behind" — not
+conflicted, just behind — and had to take the new `main` and re-run CI before
+it could merge, so five PRs were five serial rounds of update → CI → merge.
+The queue gives the same guarantee (every PR is tested against the `main` it
+will actually land on) without the babysitting. If it is ever switched off,
+that loop is the fallback:
 
 ```bash
-git merge --no-edit origin/main && git push
+git merge --no-edit origin/main && git push   # GitHub's "Update branch" does the same
 ```
 
-A merge commit on a PR branch is fine — the PR squash-merges, so the branch's
-history never reaches `main`. Do not rebase a pushed branch for this; a
-force-push is how one session ends up re-assembling another's work by hand.
+A merge commit on a PR branch is fine either way — the PR squash-merges, so
+the branch's history never reaches `main`. Do not rebase a pushed branch for
+this; a force-push is how one session ends up re-assembling another's work by
+hand.
 
-The structural fix is GitHub's **merge queue** (free on public repos): you
-press merge on every green PR and the queue takes each onto the latest `main`
-and re-tests it there, one at a time, without anyone babysitting. Until it is
-switched on, the loop above is the strategy, and whoever is coordinating
-several PRs owns running it.
+A queued PR whose checks fail is dropped from the queue and the rest carry on.
+Fix it, push, queue it again.
 
 ## Never do this
 
@@ -304,12 +307,15 @@ between releases — bump it deliberately, regenerating in the same PR.
   a remote branch behind forever.
 - **Squash merge only.** Rebase and merge-commit are disabled, so `main` stays
   one commit per PR and "is this branch merged?" has an unambiguous answer.
-- **`main` protected**, requiring the `check`, `e2e-mock`, and `full` jobs,
-  blocking force-pushes, and **requiring branches to be up to date before
-  merging**. That last one is what makes parallel PRs merge serially — see
-  "Merging more than one PR" — and is the reason to turn on the next item.
-- **Merge queue: recommended, not yet on.** With it, "merge" on every green
-  PR is the whole merge loop; without it, a human runs the loop by hand.
+- **`main` protected**, requiring the `check`, `e2e-mock`, and `full` jobs
+  and blocking force-pushes. It also still requires branches to be up to date
+  before merging; the merge queue is what satisfies that now, so nobody has to.
+- **Merge queue on `main`**, as a repository ruleset: squash, one entry is
+  enough to merge (`min_entries_to_merge: 1`), up to five built in parallel,
+  "only merge non-failing PRs", 60-minute check timeout. `ci.yml` must keep
+  its `merge_group` trigger or every queued PR times out waiting for checks
+  that never start. Repository admins can bypass the ruleset, mirroring the
+  classic rule's `enforce_admins: off`.
 - **A `gh` login with the `repo` and `workflow` scopes.** Pushing a branch
   that touches `.github/workflows/` is rejected without `workflow`. Git's
   credential helper calls `gh` by absolute path, so pushes keep working even
