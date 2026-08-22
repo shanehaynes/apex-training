@@ -1,5 +1,6 @@
 import type { Database } from '../../src/lib/db/database.types.js';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { optionalEnv } from './env.js';
 
 // Server-only service-role client — bypasses RLS. Never expose this key to
 // the browser (no VITE_ prefix, so Vite never bundles it into client code).
@@ -12,8 +13,8 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 let cached: { url: string; key: string; client: SupabaseClient<Database> } | null = null;
 
 export function getSupabaseAdmin() {
-  const url = process.env.VITE_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = optionalEnv('VITE_SUPABASE_URL');
+  const key = optionalEnv('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !key) return null;
   if (cached && cached.url === url && cached.key === key) return cached.client;
 

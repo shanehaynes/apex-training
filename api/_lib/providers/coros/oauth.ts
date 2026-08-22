@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { optionalEnv, requireEnv } from '../../env.js';
 
 // OAuth 2.1 client for the official COROS remote MCP server. Verified by
 // scripts/coros-spike.mjs on 2026-08-10 (frozen in
@@ -105,16 +106,11 @@ export function generateState(): string {
 }
 
 function clientConfig(): { clientId: string; redirectUri: string } {
-  const clientId = process.env.COROS_CLIENT_ID;
-  const redirectUri = process.env.COROS_REDIRECT_URI;
-  if (!clientId || !redirectUri) {
-    throw new Error('COROS_CLIENT_ID / COROS_REDIRECT_URI are not configured');
-  }
-  return { clientId, redirectUri };
+  return { clientId: requireEnv('COROS_CLIENT_ID'), redirectUri: requireEnv('COROS_REDIRECT_URI') };
 }
 
 export function isCorosConfigured(): boolean {
-  return Boolean(process.env.COROS_CLIENT_ID && process.env.COROS_REDIRECT_URI);
+  return Boolean(optionalEnv('COROS_CLIENT_ID') && optionalEnv('COROS_REDIRECT_URI'));
 }
 
 export async function buildAuthorizeUrl(state: string, pkce: PkcePair): Promise<string> {

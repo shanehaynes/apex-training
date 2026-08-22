@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAnthropicKey } from './_lib/anthropicKey.js';
 import { sendReviewEmail } from './_lib/mailer.js';
+import { optionalEnv } from './_lib/env.js';
 import {
   createReview,
   deleteReview,
@@ -126,7 +127,7 @@ function resolvePeriods(req: VercelRequest, now: Date): WorkPeriod[] | { badRequ
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const secret = process.env.CRON_SECRET;
+  const secret = optionalEnv('CRON_SECRET');
   if (!secret || req.headers.authorization !== `Bearer ${secret}`) {
     res.status(401).send('Unauthorized');
     return;

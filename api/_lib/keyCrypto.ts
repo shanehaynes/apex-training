@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { optionalEnv } from './env.js';
 
 // At-rest encryption for stored user secrets (today: Anthropic API keys in
 // user_api_keys). RLS-with-no-policies already blocks the anon/authenticated
@@ -21,7 +22,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
 const PREFIX = 'enc:v1:';
 
 function encryptionKey(): Buffer | null {
-  const secret = process.env.API_KEY_ENCRYPTION_SECRET;
+  const secret = optionalEnv('API_KEY_ENCRYPTION_SECRET');
   if (!secret || secret.length < 16) return null;
   // sha256 turns an arbitrary-length passphrase into exactly 32 key bytes.
   return createHash('sha256').update(secret).digest();
