@@ -1,6 +1,7 @@
 import type { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { decryptSecret, encryptSecret, hasEncryptionSecret } from '../keyCrypto.js';
 import { OAuthTokenError, refreshTokens, type TokenResponse } from './coros/oauth.js';
+import type { TablesUpdate } from '../../../src/lib/db/types.js';
 
 // provider_connections access (phase27). Provider-generic on purpose: the
 // row shape, encryption, and refresh flow are identical for Garmin/Apple
@@ -161,7 +162,7 @@ export async function findPendingByState(
   return { userId: data.user_id as string, codeVerifier: unsealed(pending.codeVerifier) };
 }
 
-function tokenPatch(tokens: TokenResponse): Record<string, unknown> {
+function tokenPatch(tokens: TokenResponse): TablesUpdate<'provider_connections'> {
   return {
     access_token: sealed(tokens.access_token),
     // Rotation-safe: keep the old refresh token when the response omits one.
