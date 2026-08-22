@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from './supabaseAdmin.js';
 import { requireUser } from './auth.js';
 import { pickAllowed, MEAL_FAVORITE_COLUMNS } from './allowlist.js';
 import { enforceRateLimit } from './rateLimit.js';
-import type { MealFavoriteRow } from '../../src/lib/db/types.js';
+import type { MealFavoriteRow, TablesInsert } from '../../src/lib/db/types.js';
 
 // Meal favorites (phase 24): user-only meal templates, served as
 // /api/meal-favorites by the consolidated router (_lib/app.ts) — a delegate
@@ -46,7 +46,7 @@ export async function handleMealFavorites(req: VercelRequest, res: VercelRespons
     const { error } = await supabase
       .from('meal_favorites')
       .upsert(
-        { ...picked, user_id: userId, updated_at: new Date().toISOString() },
+        { ...picked, user_id: userId, updated_at: new Date().toISOString() } as TablesInsert<'meal_favorites'>,
         { onConflict: 'user_id,id' },
       );
     if (error) {

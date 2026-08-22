@@ -17,6 +17,7 @@
     "eval:label": "tsx evals/label.ts",
     "eval:agreement": "tsx evals/agreement.ts",
     "e2e:live": "scripts/preflight-local.sh --fix --quiet && APEX_LOCAL_SUPABASE=1 playwright test --project=live",
+    "db:types": "scripts/db-types.sh",
     "db:reset-local": "scripts/db-reset-local.sh",
     "agent:check": "tsc -b && vitest run && oxlint && playwright test --project=mock",
     "agent:check:full": "npm run agent:check && npm run db:reset-local && APEX_LOCAL_SUPABASE=1 vitest run api/__tests__/integration && npm run e2e:live",

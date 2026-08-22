@@ -1,3 +1,4 @@
+import type { Database } from '../../src/lib/db/database.types.js';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { optionalEnv } from './env.js';
 
@@ -9,7 +10,7 @@ import { optionalEnv } from './env.js';
 // Keyed on the env values rather than built once, because the env is still
 // read at call time — the integration tests swap credentials between requests
 // and must get a client pointed at the new project, not the cached one.
-let cached: { url: string; key: string; client: SupabaseClient } | null = null;
+let cached: { url: string; key: string; client: SupabaseClient<Database> } | null = null;
 
 export function getSupabaseAdmin() {
   const url = optionalEnv('VITE_SUPABASE_URL');
@@ -19,7 +20,7 @@ export function getSupabaseAdmin() {
 
   // autoRefreshToken defaults on, which starts a refresh ticker on a client
   // that never holds a session — pure overhead on a service-role client.
-  const client = createClient(url, key, {
+  const client = createClient<Database>(url, key, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
   cached = { url, key, client };

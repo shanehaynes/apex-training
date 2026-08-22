@@ -16,6 +16,7 @@ import { matchActivity, occurrenceKey } from '../../../src/lib/sync/matching.js'
 import { minutesToDisplayTime } from '../../../src/lib/time.js';
 import type { WorkoutEvent } from '../../../src/types/workout.js';
 import type { Exercise } from '../../../src/types/workout.js';
+import { toJson } from '../../../src/lib/db/types.js';
 
 // The two-phase activity grab.
 //
@@ -571,7 +572,7 @@ async function writeActivityRecords(
       estimated_duration: durationMin,
       description: '',
       warmup: [],
-      exercises: [exercise],
+      exercises: [toJson(exercise)],
       cooldown: [],
       difficulty: 3,
       tags: [],
@@ -672,7 +673,7 @@ async function writeActivityRecords(
       calories: activity.calories ?? null,
       ...activity.summaryExtras,
     },
-    streams: activity.streams ?? null,
+    streams: activity.streams ? toJson(activity.streams) : null,
     created_at: now,
   }, { onConflict: 'user_id,event_id,event_date' });
   if (streamsErr) throw new Error(`activity_streams upsert failed: ${streamsErr.message}`);

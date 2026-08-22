@@ -10,6 +10,7 @@ import {
 } from './allowlist.js';
 import { enforceRateLimit } from './rateLimit.js';
 import { parseWeeklyTargets } from '../../src/lib/blocks/targets.js';
+import type { Json, TablesInsert, TablesUpdate } from '../../src/lib/db/types.js';
 
 // Writes for objectives and training blocks (phase 19), served as
 // /api/blocks and /api/objectives by the consolidated router (_lib/app.ts),
@@ -25,10 +26,39 @@ import { parseWeeklyTargets } from '../../src/lib/blocks/targets.js';
 type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 type Resource = 'block' | 'objective';
 
-const TABLE: Record<Resource, string> = {
-  block: 'training_blocks',
-  objective: 'objectives',
-};
+// Both tables carry the id / user_id / updated_at columns these writes
+// touch, but postgrest-js types a union table name as the intersection of
+// the two schemas, so each write dispatches on the resource and names one
+// table per branch. The payloads are allowlist-filtered request bodies
+// (INSERT_COLUMNS / PATCH_COLUMNS) validated at runtime; the cast names the
+// table they are bound for so the column names are checked against it.
+type Patch = Record<string, unknown>;
+
+function insertRows(supabase: Admin, resource: Resource, rows: Patch[]) {
+  return resource === 'block'
+    ? supabase.from('training_blocks').insert(rows as TablesInsert<'training_blocks'>[]).select('id')
+    : supabase.from('objectives').insert(rows as TablesInsert<'objectives'>[]).select('id');
+}
+
+function insertRow(supabase: Admin, resource: Resource, row: Patch) {
+  return resource === 'block'
+    ? supabase.from('training_blocks').insert(row as TablesInsert<'training_blocks'>).select('id').single()
+    : supabase.from('objectives').insert(row as TablesInsert<'objectives'>).select('id').single();
+}
+
+// .eq('user_id') is the tenancy guard: the service-role client bypasses
+// RLS, so a forged id can only ever reach the caller's own partition.
+function updateRow(supabase: Admin, resource: Resource, id: string, userId: string, patch: Patch) {
+  return resource === 'block'
+    ? supabase.from('training_blocks').update(patch as TablesUpdate<'training_blocks'>).eq('id', id).eq('user_id', userId)
+    : supabase.from('objectives').update(patch as TablesUpdate<'objectives'>).eq('id', id).eq('user_id', userId);
+}
+
+function deleteRow(supabase: Admin, resource: Resource, id: string, userId: string) {
+  return resource === 'block'
+    ? supabase.from('training_blocks').delete().eq('id', id).eq('user_id', userId)
+    : supabase.from('objectives').delete().eq('id', id).eq('user_id', userId);
+}
 
 const INSERT_COLUMNS: Record<Resource, ReadonlySet<string>> = {
   block: BLOCK_INSERT_COLUMNS,
@@ -42,7 +72,7 @@ const PATCH_COLUMNS: Record<Resource, ReadonlySet<string>> = {
 
 interface MutationLogEntry {
   resource_name: string;
-  diff?: Record<string, unknown>;
+  diff?: Json;
   /** Omitted → the DB default ('ai'); UI-driven edits send 'user'. */
   triggered_by?: 'ai' | 'user';
 }
@@ -159,10 +189,7 @@ async function handleBatchInsert(
     return;
   }
 
-  const { data, error } = await supabase
-    .from(TABLE[resource])
-    .insert(prepared.map(row => ({ ...row, user_id: userId })))
-    .select('id');
+  const { data, error } = await insertRows(supabase, resource, prepared.map(row => ({ ...row, user_id: userId })));
 
   if (error) {
     const status = statusForPgError(error.code);
@@ -177,7 +204,7 @@ async function handleBatchInsert(
 
   // One log row per created resource: CoachActivity reads this as the record
   // of what changed, and a single collapsed entry would under-report.
-  const ids = (data ?? []).map(r => r.id as string);
+  const ids = (data ?? []).map(r => r.id);
   await Promise.all(ids.map((id, i) => logMutation(supabase, userId, 'create', resource, id, {
     resource_name: String(prepared[i]?.name ?? id),
     triggered_by: body.log?.triggered_by,
@@ -197,7 +224,6 @@ export async function handleTrainingBlocks(req: VercelRequest, res: VercelRespon
   if (!userId) return;
 
   const resource = req.query.resource === 'objective' ? 'objective' : 'block';
-  const table = TABLE[resource];
 
   if (!(await enforceRateLimit(supabase, res, userId, 'writes'))) return;
 
@@ -234,11 +260,7 @@ export async function handleTrainingBlocks(req: VercelRequest, res: VercelRespon
       return;
     }
 
-    const { data, error } = await supabase
-      .from(table)
-      .insert({ ...picked, user_id: userId })
-      .select('id')
-      .single();
+    const { data, error } = await insertRow(supabase, resource, { ...picked, user_id: userId });
 
     if (error) {
       const status = statusForPgError(error.code);
@@ -251,7 +273,7 @@ export async function handleTrainingBlocks(req: VercelRequest, res: VercelRespon
       return;
     }
 
-    await logMutation(supabase, userId, 'create', resource, data.id as string, {
+    await logMutation(supabase, userId, 'create', resource, data.id, {
       resource_name: row.name,
       triggered_by: log?.triggered_by ?? triggeredBy,
     });
@@ -286,13 +308,10 @@ export async function handleTrainingBlocks(req: VercelRequest, res: VercelRespon
       return;
     }
 
-    // .eq('user_id') is the tenancy guard: the service-role client bypasses
-    // RLS, so a forged id can only ever reach the caller's own partition.
-    const { error } = await supabase
-      .from(table)
-      .update({ ...picked, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('user_id', userId);
+    const { error } = await updateRow(supabase, resource, id, userId, {
+      ...picked,
+      updated_at: new Date().toISOString(),
+    });
 
     if (error) {
       const status = statusForPgError(error.code);
@@ -313,7 +332,7 @@ export async function handleTrainingBlocks(req: VercelRequest, res: VercelRespon
   if (req.method === 'DELETE') {
     const body = req.body as { log?: MutationLogEntry } | undefined;
 
-    const { error } = await supabase.from(table).delete().eq('id', id).eq('user_id', userId);
+    const { error } = await deleteRow(supabase, resource, id, userId);
     if (error) {
       console.error('[api/training-blocks] delete failed:', error.message);
       res.status(500).send(`Failed to delete the ${resource}`);

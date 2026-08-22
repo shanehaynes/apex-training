@@ -8,7 +8,7 @@ import {
   SERVER_STAMPED_COLUMNS,
 } from '../allowlist.js';
 import { enforceRateLimit } from '../rateLimit.js';
-import type { CompletionLogRow, CompletionRow } from '../../../src/lib/db/types.js';
+import type { CompletionLogRow, CompletionRow, TablesInsert } from '../../../src/lib/db/types.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -67,8 +67,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const [{ error: upsertErr }, { error: logErr }] = await Promise.all([
     supabase
       .from('workout_completions')
-      .upsert({ ...completion.picked, user_id: userId, updated_at: now }, { onConflict: 'user_id,event_id' }),
-    supabase.from('workout_completion_log').insert({ ...log.picked, user_id: userId }),
+      .upsert(
+        { ...completion.picked, user_id: userId, updated_at: now } as TablesInsert<'workout_completions'>,
+        { onConflict: 'user_id,event_id' },
+      ),
+    supabase
+      .from('workout_completion_log')
+      .insert({ ...log.picked, user_id: userId } as TablesInsert<'workout_completion_log'>),
   ]);
 
   if (upsertErr) console.error('[api/completions] upsert failed:', upsertErr.message);
