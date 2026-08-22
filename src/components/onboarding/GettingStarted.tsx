@@ -1,6 +1,6 @@
 import { Check, X } from 'lucide-react';
 import { useState } from 'react';
-import { useCalendar } from '../../context/CalendarContext';
+import { useCalendar } from '../../context/calendar';
 import { useTemplateCopy } from '../../hooks/useTemplateCopy';
 import { useOnboardingProgress, useLocalSetupProgress } from '../../hooks/useOnboardingProgress';
 import { CHECKLIST_ITEMS, EXTRA_NOTES } from '../../lib/onboarding/content';

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { buildMonthGrid } from '../../utils/dateHelpers';
 import DayCell from './DayCell';
-import { useSchedule } from '../../context/ScheduleContext';
+import { useSchedule } from '../../context/schedule';
 
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 

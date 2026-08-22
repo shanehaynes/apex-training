@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { format } from 'date-fns';
-import { useBlocks } from '../context/BlocksContext';
-import { useSchedule } from '../context/ScheduleContext';
+import { useBlocks } from '../context/blocks';
+import { useSchedule } from '../context/schedule';
 import { computeBlockProgress } from '../lib/blocks/progress';
 import { loadBlockLogs } from '../lib/blocks/repo';
 import { blockCovering, blockPeriod } from '../lib/blocks/period';

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { parseISO } from 'date-fns';
 import { deleteJson, patchJson, postJson } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
@@ -10,50 +10,14 @@ import { expandRecurringEvents, normalizeSeedEvent } from '../lib/schedule/expan
 import { definitionFieldsToRow, resolveEventExercises, rowToDefinition, slugifyName } from '../lib/schedule/definitions';
 import { buildCompletionRows, eventFieldsToRow, eventToRow, rowToEvent } from '../lib/schedule/mapping';
 import { loadCompletedIds, saveCompletedIds } from '../lib/schedule/localCompletion';
-import { useAuth } from './AuthContext';
+import { useAuth } from './auth';
 import { quickCompleteSession, quickUncompleteSession } from '../lib/tracking/sessionRepo';
 import { baseIdOf, belongsToEvent, makeOccurrenceId, occurrenceDateOf } from '../lib/schedule/occurrence';
 import { timeToMinutes } from '../lib/time';
 import { toDateString } from '../utils/dateHelpers';
 import { registerAgentState } from '../dev/agentBridge';
 import { isPastDay, now } from '../lib/clock';
-
-// ─── Public types ─────────────────────────────────────────────────────────────
-
-interface ScheduleContextValue {
-  events: WorkoutEvent[];
-  /** Exercise library, keyed by definition id. Empty offline — entries then render their snapshots. */
-  definitions: Map<string, ExerciseDefinition>;
-  isSyncing: boolean;
-  isEventsLoading: boolean;
-  /** Manual refetch — for flows that must not wait on the realtime channel (e.g. template copy). */
-  refreshEvents: () => Promise<void>;
-  /** Manual completion refetch — realtime doesn't cover workout_completions (e.g. provider sync). */
-  refreshCompletions: () => Promise<void>;
-  getEventsForDate: (date: Date) => WorkoutEvent[];
-  getEventsForRange: (start: Date, end: Date) => WorkoutEvent[];
-  toggleCompletion: (id: string) => void;
-  /** Idempotent completion set — no-op when already in the desired state. */
-  setCompletion: (id: string, completed: boolean) => void;
-  createEvent: (input: CreateEventInput) => Promise<{ id: string } | null>;
-  updateEvent: (input: UpdateEventInput) => Promise<boolean>;
-  deleteEvent: (id: string, triggeredBy?: 'user' | 'ai') => Promise<boolean>;
-  deleteEventInstance: (baseId: string, date: string, triggeredBy?: 'user' | 'ai') => Promise<boolean>;
-  /** Delete a single occurrence by the id the UI holds (base or expanded). */
-  deleteOccurrence: (id: string) => Promise<boolean>;
-  /**
-   * Move a single event to a new date and/or time. One-off events are patched
-   * directly; a recurring occurrence gets a per-occurrence override so the
-   * rest of the series is untouched.
-   */
-  rescheduleEvent: (id: string, fields: OccurrenceOverride, triggeredBy?: 'user' | 'ai') => Promise<boolean>;
-  /** Add a movement to the exercise library. */
-  createDefinition: (input: CreateDefinitionInput) => Promise<{ id: string } | null>;
-  /** Edit library-tier fields; a canonicalName change auto-appends the old name as an alias server-side. */
-  updateDefinition: (input: UpdateDefinitionInput) => Promise<boolean>;
-}
-
-const ScheduleContext = createContext<ScheduleContextValue | null>(null);
+import { ScheduleContext, type ScheduleContextValue } from './schedule';
 
 // Shared empty result so no-event days don't mint a fresh array per call —
 // memoized consumers (DayCell) rely on referential stability.
@@ -563,10 +527,4 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       {children}
     </ScheduleContext.Provider>
   );
-}
-
-export function useSchedule() {
-  const ctx = useContext(ScheduleContext);
-  if (!ctx) throw new Error('useSchedule must be used within ScheduleProvider');
-  return ctx;
 }

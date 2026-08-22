@@ -1,8 +1,8 @@
 import { useRef, useState, useMemo, useEffect, useCallback } from 'react';
-import { useSchedule } from '../../context/ScheduleContext';
-import { useMeals } from '../../context/MealsContext';
-import { useCalendar } from '../../context/CalendarContext';
-import { useAuth } from '../../context/AuthContext';
+import { useSchedule } from '../../context/schedule';
+import { useMeals } from '../../context/meals';
+import { useCalendar } from '../../context/calendar';
+import { useAuth } from '../../context/auth';
 import { useChat } from '../../hooks/useChat';
 import { buildSystemPrompt } from '../../lib/coach/prompt';
 import { COACH_MODEL_DISPLAY } from '../../lib/coach/model';

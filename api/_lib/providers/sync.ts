@@ -67,6 +67,9 @@ export function utcToLocal(iso: string, timeZone: string): LocalInstant {
 function isValidTimezone(tz: unknown): tz is string {
   if (typeof tz !== 'string' || !tz) return false;
   try {
+    // Constructing is the check: the constructor throws a RangeError for an
+    // unknown zone, and no query API accepts exactly the same names.
+    // eslint-disable-next-line no-new
     new Intl.DateTimeFormat('en-US', { timeZone: tz });
     return true;
   } catch {

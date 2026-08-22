@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { addDays, format, parseISO, startOfISOWeek } from 'date-fns';
-import { useBlocks } from '../../context/BlocksContext';
+import { useBlocks } from '../../context/blocks';
 import { notify } from '../../lib/notify';
 import { BLOCK_PHASES } from '../../types/blocks';
 import type { BlockPhase, TrainingBlock, WeeklyTargets } from '../../types/blocks';

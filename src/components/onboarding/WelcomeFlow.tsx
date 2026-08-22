@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/auth';
 import { useOnboardingActions } from '../../hooks/useOnboardingActions';
 import { WELCOME_STEPS } from '../../lib/onboarding/content';
 

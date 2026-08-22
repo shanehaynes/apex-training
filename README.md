@@ -195,7 +195,7 @@ npm run e2e          # playwright, mock project (all writes stubbed)
 npm run lint         # oxlint
 npm run db:types     # regenerate src/lib/db/database.types.ts from the local stack (after a migration)
 npm run build        # tsc -b + vite build
-npm run agent:check  # the pre-push gate: tsc -b && vitest && playwright --project=mock
+npm run agent:check  # the pre-push gate: tsc -b && vitest && oxlint && playwright --project=mock
 npm run eval         # coach eval suite (needs ANTHROPIC_API_KEY) — see evals/README.md
 ```
 

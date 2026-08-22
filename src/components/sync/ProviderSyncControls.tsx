@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Check, RefreshCw, X } from 'lucide-react';
 import { useProviderSync, type SyncProposal } from '../../hooks/useProviderSync';
-import { useCalendar } from '../../context/CalendarContext';
+import { useCalendar } from '../../context/calendar';
 import { notify } from '../../lib/notify';
 
 // The COROS toolbar button + the per-fill confirmation queue card. Mounted

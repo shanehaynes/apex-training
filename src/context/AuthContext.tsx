@@ -1,4 +1,4 @@
-import { createContext, useContext, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { ApiError, getJson, patchJson } from '../lib/api';
@@ -6,6 +6,7 @@ import { clearCompletedIds } from '../lib/schedule/localCompletion';
 import { publicOrigin } from '../lib/origin';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
 import { registerAgentState } from '../dev/agentBridge';
+import { AuthContext, type AnthropicKeyStatus, type AuthContextValue, type AuthStatus } from './auth';
 
 // Invite and recovery links land with the session in the URL fragment plus a
 // `type` marker (`invite` / `recovery`). supabase-js consumes the fragment
@@ -19,43 +20,10 @@ const initialLinkType = initialHashParams.get('type');
 const initialLinkError = initialHashParams.get('error_description');
 const arrivedNeedingPassword = initialLinkType === 'invite' || initialLinkType === 'recovery';
 
-export type AuthStatus = 'offline' | 'loading' | 'signedOut' | 'needsPassword' | 'signedIn';
-
-/** What the browser is allowed to know about the user's Anthropic key. */
-export interface AnthropicKeyStatus {
-  hasKey: boolean;
-  last4: string | null;
-}
-
 interface KeyStatusPayload {
   hasAnthropicKey?: boolean;
   anthropicKeyLast4?: string | null;
 }
-
-interface AuthContextValue {
-  status: AuthStatus;
-  session: Session | null;
-  profile: ProfileRow | null;
-  /** null = not yet loaded/unknown (don't block the coach UI on it). */
-  anthropicKey: AnthropicKeyStatus | null;
-  /** Error carried by an expired/used invite or recovery link, for LoginView. */
-  linkError: string | null;
-  signIn: (email: string, password: string) => Promise<string | null>;
-  signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<string | null>;
-  setNewPassword: (password: string) => Promise<string | null>;
-  updateProfile: (fields: {
-    displayName?: string; avatarKey?: AvatarKey; coachGoal?: string; coachContext?: string;
-  }) => Promise<boolean>;
-  /** Latch the welcome flow closed for good, on every device. */
-  dismissOnboarding: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
-  /** Save/replace the user's Anthropic API key. Returns an error message, or null on success. */
-  saveAnthropicKey: (key: string) => Promise<string | null>;
-  removeAnthropicKey: () => Promise<boolean>;
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>(supabase ? 'loading' : 'offline');
@@ -232,30 +200,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  return (
-    <AuthContext.Provider value={{
-      status,
-      session,
-      profile,
-      anthropicKey,
-      linkError: initialLinkError,
-      signIn,
-      signOut,
-      resetPassword,
-      setNewPassword,
-      updateProfile,
-      dismissOnboarding,
-      refreshProfile,
-      saveAnthropicKey,
-      removeAnthropicKey,
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
+  const value = useMemo<AuthContextValue>(() => ({
+    status,
+    session,
+    profile,
+    anthropicKey,
+    linkError: initialLinkError,
+    signIn,
+    signOut,
+    resetPassword,
+    setNewPassword,
+    updateProfile,
+    dismissOnboarding,
+    refreshProfile,
+    saveAnthropicKey,
+    removeAnthropicKey,
+  }), [
+    status, session, profile, anthropicKey, signIn, signOut, resetPassword, setNewPassword,
+    updateProfile, dismissOnboarding, refreshProfile, saveAnthropicKey, removeAnthropicKey,
+  ]);
 
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
