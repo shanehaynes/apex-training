@@ -10,6 +10,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "port": "node dev/port.mjs",
     "test": "vitest run",
     "e2e": "playwright test --project=mock",
     "eval": "tsx evals/run.ts",
