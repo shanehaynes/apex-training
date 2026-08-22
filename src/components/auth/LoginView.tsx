@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/auth';
 
 // Email + password sign-in. A real <form> with name/autocomplete attributes
 // is what makes iCloud Keychain / Google Password Manager save the login and

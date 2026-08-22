@@ -1,4 +1,4 @@
-import { useCalendar } from '../../context/CalendarContext';
+import { useCalendar } from '../../context/calendar';
 import { ascentStyleLabel, climbStyleLabel } from '../../lib/climbing';
 import { countSpecNote, stripCountSpec } from '../../lib/schedule/definitions';
 import type { Exercise } from '../../types/workout';

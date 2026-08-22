@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { deleteJson, patchJson, postJson } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
@@ -8,27 +8,13 @@ import type { CreateMealInput, Meal, MealFavorite, SaveMealFavoriteInput, Update
 import { favoriteToRow, mealFieldsToRow, mealToRow, rowToFavorite, rowToMeal } from '../lib/nutrition/mapping';
 import { timeToMinutes } from '../lib/time';
 import { registerAgentState } from '../dev/agentBridge';
+import { MealsContext, type MealsContextValue } from './meals';
 
 // Slim data layer for meals (phase 22) — deliberately separate from the
 // 400-line ScheduleContext: meals share none of its recurrence, completion,
 // or library machinery. Offline (no Supabase) there is no seed data — the
 // meal list is empty and createMeal returns null, surfacing the same
 // failure toast as event creation.
-
-interface MealsContextValue {
-  meals: Meal[];
-  getMealsForDate: (date: Date) => Meal[];
-  createMeal: (input: CreateMealInput) => Promise<{ id: string } | null>;
-  updateMeal: (input: UpdateMealInput) => Promise<boolean>;
-  deleteMeal: (id: string, triggeredBy?: 'user' | 'ai') => Promise<boolean>;
-  /** Meal templates, alphabetical. Empty offline. */
-  favorites: MealFavorite[];
-  /** Upserts: pass an existing favorite's id to overwrite it (same-title saves). */
-  saveFavorite: (input: SaveMealFavoriteInput) => Promise<{ id: string } | null>;
-  deleteFavorite: (id: string) => Promise<boolean>;
-}
-
-const MealsContext = createContext<MealsContextValue | null>(null);
 
 export function MealsProvider({ children }: { children: React.ReactNode }) {
   const [meals, setMeals] = useState<Meal[]>([]);
@@ -188,15 +174,9 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [meals, favorites]);
 
-  return (
-    <MealsContext.Provider value={{ meals, getMealsForDate, createMeal, updateMeal, deleteMeal, favorites, saveFavorite, deleteFavorite }}>
-      {children}
-    </MealsContext.Provider>
-  );
-}
+  const value = useMemo<MealsContextValue>(() => ({
+    meals, getMealsForDate, createMeal, updateMeal, deleteMeal, favorites, saveFavorite, deleteFavorite,
+  }), [meals, getMealsForDate, createMeal, updateMeal, deleteMeal, favorites, saveFavorite, deleteFavorite]);
 
-export function useMeals() {
-  const ctx = useContext(MealsContext);
-  if (!ctx) throw new Error('useMeals must be used within MealsProvider');
-  return ctx;
+  return <MealsContext.Provider value={value}>{children}</MealsContext.Provider>;
 }

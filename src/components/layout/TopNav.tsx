@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, Dumbbell, Target } from 'lucide-react';
-import { useCalendar } from '../../context/CalendarContext';
-import { useAuth } from '../../context/AuthContext';
+import { useCalendar } from '../../context/calendar';
+import { useAuth } from '../../context/auth';
 import ProviderSyncControls from '../sync/ProviderSyncControls';
 import { avatarSrc, AVATARS } from '../../lib/profile/avatars';
 import { formatMonthYear, formatWeekRange, formatDay, isCurrentPeriod } from '../../utils/dateHelpers';

@@ -5,8 +5,8 @@ import { CheckCircle2, Circle } from 'lucide-react';
 import { isToday } from '../../lib/clock';
 import { buildWeekDays, toDateString } from '../../utils/dateHelpers';
 import { getWorkoutColor } from '../../utils/workoutColors';
-import { useSchedule } from '../../context/ScheduleContext';
-import { useCalendar } from '../../context/CalendarContext';
+import { useSchedule } from '../../context/schedule';
+import { useCalendar } from '../../context/calendar';
 import type { WorkoutEvent } from '../../types/workout';
 
 interface Props {
