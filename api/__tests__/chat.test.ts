@@ -297,7 +297,7 @@ describe('chat handler — abort propagation', () => {
     // Let the handler reach the streaming stage (`captured` is set inside
     // the stream mock; mock.calls can't gate this — it accumulates across
     // tests), then drop the connection.
-    while (!captured) await new Promise(r => setTimeout(r, 0));
+    await vi.waitFor(() => { if (!captured) throw new Error('stream not started'); });
     disconnect();
     await running;
 

@@ -13,7 +13,7 @@ import ProfileView from '../profile/ProfileView';
 import OnboardingHost from '../onboarding/OnboardingHost';
 import MobileBottomNav from './MobileBottomNav';
 import Toasts from './Toasts';
-import { useCalendar } from '../../context/CalendarContext';
+import { useCalendar } from '../../context/calendar';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import type { MobileTab } from './MobileBottomNav';
 

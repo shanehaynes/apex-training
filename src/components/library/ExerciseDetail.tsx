@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, X, Pencil, Trophy } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { useSchedule } from '../../context/ScheduleContext';
+import { useSchedule } from '../../context/schedule';
 import { buildAliasIndex, canonicalizeLogNames, countDefinitionReferences } from '../../lib/schedule/definitions';
 import { fetchExerciseHistory } from '../../lib/library/repo';
 import { buildExerciseStats, formatStatDate, formatTrendValue, type ExerciseStats } from '../../lib/library/stats';

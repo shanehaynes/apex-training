@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useModalChrome } from '../../hooks/useModalChrome';
 import { ChevronRight, Plus, Repeat, Target, X } from 'lucide-react';
-import { useCalendar } from '../../context/CalendarContext';
-import { useBlocks } from '../../context/BlocksContext';
+import { useCalendar } from '../../context/calendar';
+import { useBlocks } from '../../context/blocks';
 import { blockPeriod, blockWeeks, currentWeekIndex } from '../../lib/blocks/period';
 import { now } from '../../lib/clock';
 import type { TrainingBlock } from '../../types/blocks';

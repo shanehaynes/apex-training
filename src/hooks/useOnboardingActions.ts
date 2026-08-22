@@ -1,4 +1,4 @@
-import { useCalendar } from '../context/CalendarContext';
+import { useCalendar } from '../context/calendar';
 import { useTemplateCopy } from './useTemplateCopy';
 import { useProviderSync } from './useProviderSync';
 import type { ActionKind } from '../lib/onboarding/content';

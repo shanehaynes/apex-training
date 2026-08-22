@@ -1,9 +1,40 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["react", "typescript", "oxc"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
   "rules": {
     "react/rules-of-hooks": "error",
     "react/exhaustive-deps": "warn",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+
+    // Turned off with a reason. Prefer adding to this list over per-line
+    // disables when a rule is wrong for the codebase as a whole.
+
+    // React 19's automatic JSX runtime: `React` is never in scope, by design.
+    "react/react-in-jsx-scope": "off",
+    // Sequential awaits are deliberate throughout — rate-limited provider
+    // calls, ordered seeds and migrations, per-user cron passes, polling in
+    // tests. Promise.all would be the bug.
+    "no-await-in-loop": "off",
+    // `window.__apex`, `__APEX_FAKE_NOW__`, `_vertUnits`: dangling
+    // underscores mark dev-bridge globals and deliberately namespaced fields.
+    "no-underscore-dangle": "off",
+    // `{ ...row, field }` inside map is how rows and React state are updated
+    // immutably here; in-place mutation is what the codebase avoids.
+    "oxc/no-map-spread": "off",
+    // Every hit reuses a name in a deliberately narrow scope (`_` discards,
+    // `input` in executor lambdas, destructured API payloads); none shadows a
+    // binding that is still read.
+    "no-shadow": "off",
+    // Index keys appear only on static or append-only lists (grid cells, the
+    // chat transcript, callout pins) that are never reordered or filtered.
+    "react/no-array-index-key": "off",
+    // Express-specific. dev/vercelApiPlugin.ts is a Vite connect middleware
+    // whose async handler wraps its own body in try/catch.
+    "oxc/no-async-endpoint-handlers": "off"
   }
 }

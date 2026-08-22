@@ -65,7 +65,7 @@ refactor — which is exactly what happened once (see CONTRIBUTING.md).
 ## Checks
 
 ```bash
-npm run agent:check     # tsc -b + vitest + playwright (mock)
+npm run agent:check     # tsc -b + vitest + oxlint + playwright (mock)
 npm test                # vitest only
 npm run build           # tsc -b + vite build — what CI runs
 ```

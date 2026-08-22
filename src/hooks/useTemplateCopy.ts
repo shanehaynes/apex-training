@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { postJson } from '../lib/api';
 import { notify } from '../lib/notify';
-import { useAuth } from '../context/AuthContext';
-import { useSchedule } from '../context/ScheduleContext';
+import { useAuth } from '../context/auth';
+import { useSchedule } from '../context/schedule';
 
 /**
  * The starter-template copy flow, shared by the onboarding welcome flow and

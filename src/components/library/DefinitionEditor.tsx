@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Archive, ArchiveRestore } from 'lucide-react';
-import { useSchedule } from '../../context/ScheduleContext';
+import { useSchedule } from '../../context/schedule';
 import { notify } from '../../lib/notify';
 import DurationInput from '../tracker/DurationInput';
 import type { ExerciseCategory, ExerciseDefinition } from '../../types/workout';
