@@ -61,6 +61,10 @@ refactor — which is exactly what happened once (see CONTRIBUTING.md).
   `scripts/next-phase.sh` and claim `N` when you open the PR, not when you
   start. A test fails the second PR to claim a number, but only once the first
   has merged — the script is how you avoid the rename.
+- **Generated schema types.** Both Supabase clients are typed by
+  `src/lib/db/database.types.ts`, generated from the local stack. After any
+  migration: `npm run db:reset-local && npm run db:types`, commit the result.
+  CI's full job fails on drift.
 
 ## Checks
 

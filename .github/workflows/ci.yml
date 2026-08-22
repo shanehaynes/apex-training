@@ -101,6 +101,9 @@ jobs:
           version: latest
       - run: supabase start
       - run: ./scripts/db-reset-local.sh
+      # The committed Supabase types must match a schema built from scratch by
+      # every migration in the repo — the only place that database exists.
+      - run: scripts/db-types.sh --check
       - run: APEX_LOCAL_SUPABASE=1 npx vitest run api/__tests__/integration
       - uses: actions/cache@v6
         with:
