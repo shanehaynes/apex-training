@@ -4,7 +4,7 @@ import type { ExerciseCategory, ExerciseDefinition, PlannedSet } from '../../typ
 import type { TrackedExercise, TrackedSet, CardioActuals, LastSetActuals } from '../../lib/tracking/plan';
 import { resolvePlannedSets } from '../../lib/tracking/plan';
 import { countSpecNote, hasPerSideCount, stripCountSpec } from '../../lib/schedule/definitions';
-import { useSchedule } from '../../context/ScheduleContext';
+import { useSchedule } from '../../context/schedule';
 import ExercisePicker from '../modal/ExercisePicker';
 import DurationInput from './DurationInput';
 

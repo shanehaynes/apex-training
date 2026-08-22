@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useModalChrome } from '../../hooks/useModalChrome';
 import { X, Check, Copy, LogOut } from 'lucide-react';
-import { useCalendar } from '../../context/CalendarContext';
-import { useAuth } from '../../context/AuthContext';
+import { useCalendar } from '../../context/calendar';
+import { useAuth } from '../../context/auth';
 import { AVATARS, AVATAR_KEYS } from '../../lib/profile/avatars';
 import { notify } from '../../lib/notify';
 import { publicOrigin } from '../../lib/origin';

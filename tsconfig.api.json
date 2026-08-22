@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.api.tsbuildinfo",
-    "target": "es2022",
-    "lib": ["ES2022"],
+    "target": "es2023",
+    "lib": ["ES2023"],
     "types": ["node"],
     "skipLibCheck": true,
 
@@ -20,6 +20,9 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    /* No erasableSyntaxOnly here (unlike app/node/e2e): the provider classes
+       in api/_lib/providers/ use constructor parameter properties, which the
+       flag forbids. */
     "noFallthroughCasesInSwitch": true
   },
   "include": ["api"]

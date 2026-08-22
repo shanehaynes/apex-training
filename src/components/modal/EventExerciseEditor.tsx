@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
 import { GripVertical, Plus, X } from 'lucide-react';
-import { useSchedule } from '../../context/ScheduleContext';
+import { useSchedule } from '../../context/schedule';
 import { baseIdOf, isOccurrenceId } from '../../lib/schedule/occurrence';
 import { entryFromDefinition, hasPerSideCount, uniqueEntryId } from '../../lib/schedule/definitions';
 import { notify } from '../../lib/notify';
