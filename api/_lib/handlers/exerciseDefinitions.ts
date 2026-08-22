@@ -3,14 +3,14 @@ import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
 import { pickAllowed, DEFINITION_INSERT_COLUMNS, DEFINITION_PATCH_COLUMNS } from '../allowlist.js';
 import { enforceAiMutationCap, enforceRateLimit } from '../rateLimit.js';
-import type { ExerciseDefinitionRow } from '../../../src/lib/db/types.js';
+import type { ExerciseDefinitionRow, Json, TablesInsert } from '../../../src/lib/db/types.js';
 
 // Exercise library mutations (EXERCISE_LIBRARY_SPEC.md §3). Writes go through
 // the service role; every mutation appends to definition_mutations_log.
 
 interface MutationLogEntry {
   definition_name: string;
-  diff?: Record<string, unknown>;
+  diff?: Json;
   /** Omitted → the DB default ('ai'); UI-driven edits send 'user'. */
   triggered_by?: 'ai' | 'user';
 }
@@ -65,7 +65,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const { error } = await supabase.from('exercise_definitions').insert({ ...picked, user_id: userId });
+    const { error } = await supabase
+      .from('exercise_definitions')
+      .insert({ ...picked, user_id: userId } as TablesInsert<'exercise_definitions'>);
     if (error) {
       console.error('[api/exercise-definitions] insert failed:', error.message);
       res.status(500).send('Failed to create definition');

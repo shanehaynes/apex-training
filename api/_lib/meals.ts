@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from './supabaseAdmin.js';
 import { requireUser } from './auth.js';
 import { pickAllowed, MEAL_INSERT_COLUMNS, MEAL_PATCH_COLUMNS } from './allowlist.js';
 import { enforceAiMutationCap, enforceRateLimit } from './rateLimit.js';
-import type { MealMutationLogRow, MealRow } from '../../src/lib/db/types.js';
+import type { Json, MealMutationLogRow, MealRow, TablesInsert } from '../../src/lib/db/types.js';
 
 // Meal writes (phase 22) + audit trail (phase 23), served as /api/meals by
 // the consolidated router (_lib/app.ts) — a delegate rather than its own
@@ -14,7 +14,7 @@ import type { MealMutationLogRow, MealRow } from '../../src/lib/db/types.js';
 
 interface MutationLogEntry {
   meal_title: string;
-  diff?: Record<string, unknown>;
+  diff?: Json;
   /** Omitted → the DB default ('ai'); UI-driven edits send 'user'. */
   triggered_by?: 'ai' | 'user';
 }
@@ -71,7 +71,9 @@ export async function handleMeals(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const { error } = await supabase.from('meals').insert({ ...picked, user_id: userId });
+    const { error } = await supabase
+      .from('meals')
+      .insert({ ...picked, user_id: userId } as TablesInsert<'meals'>);
     if (error) {
       console.error('[api/meals] insert failed:', error.message);
       res.status(500).send('Failed to create meal');
