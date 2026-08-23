@@ -109,12 +109,16 @@ git merge --no-edit origin/main && git push
 A merge commit on a PR branch is fine — the PR squash-merges, so the branch's
 history never reaches `main`. Do not rebase a pushed branch for this; a
 force-push is how one session ends up re-assembling another's work by hand.
+Whoever is coordinating several PRs owns running this loop.
 
-The structural fix is GitHub's **merge queue** (free on public repos): you
-press merge on every green PR and the queue takes each onto the latest `main`
-and re-tests it there, one at a time, without anyone babysitting. Until it is
-switched on, the loop above is the strategy, and whoever is coordinating
-several PRs owns running it.
+The thing that would replace the loop is GitHub's **merge queue** — press
+*Merge when ready* on every green PR and the queue tests and lands each one on
+the latest `main` by itself. It is **not available here**: GitHub offers it to
+public repositories owned by an *organization* (and to Enterprise Cloud), and
+this repository is owned by a personal account. Creating the `merge_queue`
+ruleset fails validation with an empty error for exactly that reason. `ci.yml`
+keeps its inert `merge_group` trigger so that if the repository ever moves to
+an organization, the queue is a settings change away rather than a code one.
 
 ## Never do this
 
@@ -307,9 +311,14 @@ between releases — bump it deliberately, regenerating in the same PR.
 - **`main` protected**, requiring the `check`, `e2e-mock`, and `full` jobs,
   blocking force-pushes, and **requiring branches to be up to date before
   merging**. That last one is what makes parallel PRs merge serially — see
-  "Merging more than one PR" — and is the reason to turn on the next item.
-- **Merge queue: recommended, not yet on.** With it, "merge" on every green
-  PR is the whole merge loop; without it, a human runs the loop by hand.
+  "Merging more than one PR".
+- **No merge queue — not by choice.** GitHub only offers it to
+  organization-owned public repositories and Enterprise Cloud; a
+  personal-account repository cannot enable it. If the repository is ever
+  transferred to an organization, create a ruleset on `main` with a
+  `merge_queue` rule (squash, `min_entries_to_merge: 1`, up to five built in
+  parallel, `ALLGREEN`, 60-minute check timeout) and the loop above goes away;
+  `ci.yml` already listens for `merge_group`.
 - **A `gh` login with the `repo` and `workflow` scopes.** Pushing a branch
   that touches `.github/workflows/` is rejected without `workflow`. Git's
   credential helper calls `gh` by absolute path, so pushes keep working even
