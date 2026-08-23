@@ -92,32 +92,33 @@ before this document: 7 worktrees, 15 merged-but-undeleted local branches, and
 
 ### Merging more than one PR
 
-`main` is behind a **merge queue**. Press **Merge when ready** on each green
-PR and stop there: the queue takes each one onto the latest `main` on a
-temporary `gh-readonly-queue/main/…` branch, runs the required checks there
-(which is why `ci.yml` listens for `merge_group`), squash-merges it, and moves
-on to the next. Five parallel PRs are five button presses, in any order, with
-nobody updating branches by hand.
+`main` requires a branch to be **up to date** before it merges (see "Repo
+settings"). So the moment one PR lands, every other open PR is "out of date" —
+not conflicted, just behind — and has to take the new `main` and re-run CI
+before it can merge. Five parallel PRs are five serial rounds of
+update → CI → merge, about ten minutes each for the `full` job, and the order
+you merge them in makes no difference.
 
-What the queue replaces is the loop that "Require branches to be up to date"
-used to impose: after each merge every other open PR went "behind" — not
-conflicted, just behind — and had to take the new `main` and re-run CI before
-it could merge, so five PRs were five serial rounds of update → CI → merge.
-The queue gives the same guarantee (every PR is tested against the `main` it
-will actually land on) without the babysitting. If it is ever switched off,
-that loop is the fallback:
+The update is a merge of `origin/main` into the branch: GitHub's **Update
+branch** button, or from the worktree:
 
 ```bash
-git merge --no-edit origin/main && git push   # GitHub's "Update branch" does the same
+git merge --no-edit origin/main && git push
 ```
 
-A merge commit on a PR branch is fine either way — the PR squash-merges, so
-the branch's history never reaches `main`. Do not rebase a pushed branch for
-this; a force-push is how one session ends up re-assembling another's work by
-hand.
+A merge commit on a PR branch is fine — the PR squash-merges, so the branch's
+history never reaches `main`. Do not rebase a pushed branch for this; a
+force-push is how one session ends up re-assembling another's work by hand.
+Whoever is coordinating several PRs owns running this loop.
 
-A queued PR whose checks fail is dropped from the queue and the rest carry on.
-Fix it, push, queue it again.
+The thing that would replace the loop is GitHub's **merge queue** — press
+*Merge when ready* on every green PR and the queue tests and lands each one on
+the latest `main` by itself. It is **not available here**: GitHub offers it to
+public repositories owned by an *organization* (and to Enterprise Cloud), and
+this repository is owned by a personal account. Creating the `merge_queue`
+ruleset fails validation with an empty error for exactly that reason. `ci.yml`
+keeps its inert `merge_group` trigger so that if the repository ever moves to
+an organization, the queue is a settings change away rather than a code one.
 
 ## Never do this
 
@@ -307,15 +308,17 @@ between releases — bump it deliberately, regenerating in the same PR.
   a remote branch behind forever.
 - **Squash merge only.** Rebase and merge-commit are disabled, so `main` stays
   one commit per PR and "is this branch merged?" has an unambiguous answer.
-- **`main` protected**, requiring the `check`, `e2e-mock`, and `full` jobs
-  and blocking force-pushes. It also still requires branches to be up to date
-  before merging; the merge queue is what satisfies that now, so nobody has to.
-- **Merge queue on `main`**, as a repository ruleset: squash, one entry is
-  enough to merge (`min_entries_to_merge: 1`), up to five built in parallel,
-  "only merge non-failing PRs", 60-minute check timeout. `ci.yml` must keep
-  its `merge_group` trigger or every queued PR times out waiting for checks
-  that never start. Repository admins can bypass the ruleset, mirroring the
-  classic rule's `enforce_admins: off`.
+- **`main` protected**, requiring the `check`, `e2e-mock`, and `full` jobs,
+  blocking force-pushes, and **requiring branches to be up to date before
+  merging**. That last one is what makes parallel PRs merge serially — see
+  "Merging more than one PR".
+- **No merge queue — not by choice.** GitHub only offers it to
+  organization-owned public repositories and Enterprise Cloud; a
+  personal-account repository cannot enable it. If the repository is ever
+  transferred to an organization, create a ruleset on `main` with a
+  `merge_queue` rule (squash, `min_entries_to_merge: 1`, up to five built in
+  parallel, `ALLGREEN`, 60-minute check timeout) and the loop above goes away;
+  `ci.yml` already listens for `merge_group`.
 - **A `gh` login with the `repo` and `workflow` scopes.** Pushing a branch
   that touches `.github/workflows/` is rejected without `workflow`. Git's
   credential helper calls `gh` by absolute path, so pushes keep working even
