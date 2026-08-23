@@ -13,6 +13,13 @@ export interface AnthropicKeyStatus {
   last4: string | null;
 }
 
+/** Outcome of a sign-up attempt. `pendingConfirmation` means Supabase
+ *  created the user but is holding the session until they click the email
+ *  link (email confirmations on) — the caller shows a "check your inbox". */
+export type SignUpResult =
+  | { error: string }
+  | { error: null; pendingConfirmation: boolean };
+
 export interface AuthContextValue {
   status: AuthStatus;
   session: Session | null;
@@ -22,6 +29,7 @@ export interface AuthContextValue {
   /** Error carried by an expired/used invite or recovery link, for LoginView. */
   linkError: string | null;
   signIn: (email: string, password: string) => Promise<string | null>;
+  signUp: (email: string, password: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<string | null>;
   setNewPassword: (password: string) => Promise<string | null>;

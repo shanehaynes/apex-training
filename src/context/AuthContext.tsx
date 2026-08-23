@@ -6,7 +6,9 @@ import { clearCompletedIds } from '../lib/schedule/localCompletion';
 import { publicOrigin } from '../lib/origin';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
 import { registerAgentState } from '../dev/agentBridge';
-import { AuthContext, type AnthropicKeyStatus, type AuthContextValue, type AuthStatus } from './auth';
+import {
+  AuthContext, type AnthropicKeyStatus, type AuthContextValue, type AuthStatus, type SignUpResult,
+} from './auth';
 
 // Invite and recovery links land with the session in the URL fragment plus a
 // `type` marker (`invite` / `recovery`). supabase-js consumes the fragment
@@ -111,6 +113,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return error ? error.message : null;
   }, []);
 
+  const signUp = useCallback(async (email: string, password: string): Promise<SignUpResult> => {
+    if (!supabase) return { error: 'Offline mode — no auth configured' };
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: publicOrigin() },
+    });
+    if (error) {
+      // Production has self-signup switched off in the dashboard; GoTrue's
+      // wording for that is not something a visitor should have to decode.
+      return {
+        error: /signups? not allowed/i.test(error.message)
+          ? 'Accounts are created by invitation — check your inbox for an invite link.'
+          : error.message,
+      };
+    }
+    // A session means we are signed in and onAuthStateChange takes it from
+    // here; no session means confirmations are on and the email is in flight.
+    return { error: null, pendingConfirmation: !data.session };
+  }, []);
+
   const signOut = useCallback(async () => {
     if (!supabase) return;
     clearCompletedIds(session?.user.id ?? null);
@@ -207,6 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     anthropicKey,
     linkError: initialLinkError,
     signIn,
+    signUp,
     signOut,
     resetPassword,
     setNewPassword,
@@ -216,7 +240,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     saveAnthropicKey,
     removeAnthropicKey,
   }), [
-    status, session, profile, anthropicKey, signIn, signOut, resetPassword, setNewPassword,
+    status, session, profile, anthropicKey, signIn, signUp, signOut, resetPassword, setNewPassword,
     updateProfile, dismissOnboarding, refreshProfile, saveAnthropicKey, removeAnthropicKey,
   ]);
 

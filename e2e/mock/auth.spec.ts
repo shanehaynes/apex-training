@@ -18,9 +18,23 @@ test('login gate, reset mode, fabricated session, profile view', async ({ page }
   await expect(page.locator('input[name="password"]')).toHaveAttribute('autocomplete', 'current-password');
   await shot(page, 'auth-login');
 
-  // Forgot-password swaps the form to reset mode.
+  // The toggle swaps the same form into create mode: invite-only note, the
+  // password field asks the password manager for a *new* one, no reset link.
+  await expect(page.locator('.auth-hint')).toHaveCount(0);
+  await page.locator('.auth-toggle__option', { hasText: 'Create account' }).click();
+  await expect(page.locator('.auth-hint')).toHaveText('Account creation is invite only.');
+  await expect(page.locator('input[name="password"]')).toHaveAttribute('autocomplete', 'new-password');
+  await expect(page.locator('.auth-submit')).toHaveText('Create account');
+  await expect(page.locator('.auth-link', { hasText: 'Forgot' })).toHaveCount(0);
+  await shot(page, 'auth-create');
+  await page.locator('.auth-toggle__option', { hasText: 'Sign in' }).click();
+  await expect(page.locator('.auth-hint')).toHaveCount(0);
+  await expect(page.locator('input[name="password"]')).toHaveAttribute('autocomplete', 'current-password');
+
+  // Forgot-password swaps the form to reset mode (and hides the toggle).
   await page.locator('.auth-link', { hasText: 'Forgot' }).click();
   await expect(page.locator('input[name="password"]'), 'reset mode hides the password field').toHaveCount(0);
+  await expect(page.locator('.auth-toggle')).toHaveCount(0);
   await shot(page, 'auth-reset');
 
   // Seed the fabricated session and reload → signed-in app with avatar.

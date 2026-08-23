@@ -4077,6 +4077,44 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   justify-content: center;
 }
 
+/* Sign in / Create account segmented toggle. One form underneath; only
+   the pressed half changes, so the card never grows a second panel. */
+.auth-toggle {
+  display: flex;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+}
+
+.auth-toggle__option {
+  flex: 1;
+  height: 32px;
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-family: var(--font-display);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-spring),
+              color var(--duration-fast) var(--ease-spring);
+}
+
+.auth-toggle__option:hover { color: var(--text-primary); }
+
+.auth-toggle__option[aria-pressed="true"] {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.auth-toggle__option:focus-visible {
+  outline: 1px solid var(--accent-primary);
+  outline-offset: -1px;
+}
+
 .auth-form {
   display: flex;
   flex-direction: column;
@@ -4158,6 +4196,15 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 .auth-note {
   font-size: var(--text-sm);
   color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* One-line aside (e.g. "invite only") — quieter than .auth-note. */
+.auth-hint {
+  margin: -4px 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
   text-align: center;
   line-height: 1.5;
 }
