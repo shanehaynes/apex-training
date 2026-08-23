@@ -1,21 +1,31 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/auth';
 
-// Email + password sign-in. A real <form> with name/autocomplete attributes
-// is what makes iCloud Keychain / Google Password Manager save the login and
-// offer Face ID / Touch ID unlock on return visits — don't replace it with
-// div-and-onClick. Signup is invite-only (dashboard), so there is no
-// create-account path here.
+// Email + password sign-in and create-account, one card, one form. A real
+// <form> with name/autocomplete attributes is what makes iCloud Keychain /
+// Google Password Manager save the login and offer Face ID / Touch ID unlock
+// on return visits — don't replace it with div-and-onClick.
+//
+// Accounts are invite-only (dashboard); the create side says so up front and
+// the context maps GoTrue's "signups not allowed" into plain words. The two
+// primary modes share the email/password fields and differ only in button
+// label, password autocomplete, and that one note — a segmented toggle, not
+// a second form, keeps the card from growing.
 
-type Mode = 'signIn' | 'reset' | 'resetSent';
+type Mode = 'signIn' | 'create' | 'reset' | 'resetSent' | 'confirmSent';
 
 export default function LoginView() {
-  const { signIn, resetPassword, linkError } = useAuth();
+  const { signIn, signUp, resetPassword, linkError } = useAuth();
   const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(linkError);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const switchTo = (next: Mode) => {
+    setMode(next);
+    setError(null);
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,6 +33,17 @@ export default function LoginView() {
     setError(null);
     const err = await signIn(email, password);
     if (err) setError(err);
+    setIsSubmitting(false);
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+    const result = await signUp(email, password);
+    if (result.error !== null) setError(result.error);
+    else if (result.pendingConfirmation) setMode('confirmSent');
+    // Otherwise the session landed and AuthProvider swaps this view out.
     setIsSubmitting(false);
   };
 
@@ -36,6 +57,14 @@ export default function LoginView() {
     setIsSubmitting(false);
   };
 
+  const isCreate = mode === 'create';
+  const submitHandler = isCreate ? handleCreate : mode === 'signIn' ? handleSignIn : handleReset;
+  const submitLabel = isCreate
+    ? (isSubmitting ? 'Creating…' : 'Create account')
+    : mode === 'signIn'
+      ? (isSubmitting ? 'Signing in…' : 'Sign in')
+      : (isSubmitting ? 'Sending…' : 'Send reset link');
+
   return (
     <div className="auth-screen">
       <div className="auth-card">
@@ -44,24 +73,58 @@ export default function LoginView() {
           <span className="top-nav__sub">Training</span>
         </div>
 
+        {(mode === 'signIn' || mode === 'create') && (
+          <div className="auth-toggle" role="group" aria-label="Sign in or create account">
+            <button
+              type="button"
+              className="auth-toggle__option"
+              aria-pressed={mode === 'signIn'}
+              onClick={() => switchTo('signIn')}
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              className="auth-toggle__option"
+              aria-pressed={mode === 'create'}
+              onClick={() => switchTo('create')}
+            >
+              Create account
+            </button>
+          </div>
+        )}
+
         {mode === 'resetSent' ? (
           <>
             <p className="auth-note">
               If an account exists for {email}, a password reset link is on its way.
               The link expires in 24 hours.
             </p>
-            <button type="button" className="auth-link" onClick={() => setMode('signIn')}>
+            <button type="button" className="auth-link" onClick={() => switchTo('signIn')}>
+              Back to sign in
+            </button>
+          </>
+        ) : mode === 'confirmSent' ? (
+          <>
+            <p className="auth-note">
+              Check {email} for a confirmation link to finish creating your account.
+            </p>
+            <button type="button" className="auth-link" onClick={() => switchTo('signIn')}>
               Back to sign in
             </button>
           </>
         ) : (
-          <form className="auth-form" onSubmit={mode === 'signIn' ? handleSignIn : handleReset}>
+          <form className="auth-form" onSubmit={submitHandler}>
+            {isCreate && (
+              <p className="auth-hint">Account creation is invite only.</p>
+            )}
+
             <label className="auth-field">
               <span className="auth-field__label">Email</span>
               <input
                 type="email"
                 name="email"
-                autoComplete="email"
+                autoComplete={isCreate ? 'username' : 'email'}
                 inputMode="email"
                 required
                 value={email}
@@ -70,14 +133,19 @@ export default function LoginView() {
               />
             </label>
 
-            {mode === 'signIn' && (
+            {mode !== 'reset' && (
               <label className="auth-field">
                 <span className="auth-field__label">Password</span>
                 <input
+                  // Keyed so the browser treats create/sign-in as different
+                  // fields: "new-password" is what prompts the password
+                  // manager to generate one instead of autofilling a saved one.
+                  key={isCreate ? 'new' : 'current'}
                   type="password"
                   name="password"
-                  autoComplete="current-password"
+                  autoComplete={isCreate ? 'new-password' : 'current-password'}
                   required
+                  minLength={isCreate ? 8 : undefined}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   className="auth-input"
@@ -88,17 +156,16 @@ export default function LoginView() {
             {error && <p className="auth-error">{error}</p>}
 
             <button type="submit" className="auth-submit" disabled={isSubmitting}>
-              {mode === 'signIn'
-                ? (isSubmitting ? 'Signing in…' : 'Sign in')
-                : (isSubmitting ? 'Sending…' : 'Send reset link')}
+              {submitLabel}
             </button>
 
-            {mode === 'signIn' ? (
-              <button type="button" className="auth-link" onClick={() => { setMode('reset'); setError(null); }}>
+            {mode === 'signIn' && (
+              <button type="button" className="auth-link" onClick={() => switchTo('reset')}>
                 Forgot password?
               </button>
-            ) : (
-              <button type="button" className="auth-link" onClick={() => { setMode('signIn'); setError(null); }}>
+            )}
+            {mode === 'reset' && (
+              <button type="button" className="auth-link" onClick={() => switchTo('signIn')}>
                 Back to sign in
               </button>
             )}
