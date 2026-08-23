@@ -91,3 +91,13 @@ cat <<MSG
 
    cd $dir
 MSG
+
+case "$branch" in
+  db/*)
+    # Migration numbers are a repo-global counter (CONTRIBUTING.md) — show the
+    # claims now so the collision test never fires. Claim your N when the PR
+    # opens, not when you start.
+    echo
+    "$root/scripts/next-phase.sh" || true
+    ;;
+esac
