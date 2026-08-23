@@ -59,6 +59,12 @@ All eval-infrastructure LLM calls default to `claude-sonnet-5`; the coach-model 
 
 Each result file records the model, judge model, git commit, and a hash of the coach behavior surface (`prompt.ts`, `schemas.ts`, `tools.ts`, `model.ts` — so a prompt, schema, or executor edit between runs is visible in the diff), plus per-case cost, tokens, and latency. Full transcripts land in `results/transcripts/<runId>/` and are committed — they're the labeling substrate.
 
+CI runs the suite nightly (and on `workflow_dispatch`) once the `ANTHROPIC_API_KEY` repo secret is set; until then the job reports itself skipped.
+
+## Evolving the prompt against the suite
+
+`.claude/workflows/coach-prompt-evolution.js` is a bounded, AVO-style search that uses this suite as its fitness function: variant agents each propose one edit to `prompt.ts`, every variant is scored by a full eval run in an isolated worktree, and a variant only becomes champion by **dominance** — no dimension regresses, at least one strictly improves — with the search stopping on a plateau. Each run's full lineage is saved under [lineage/](lineage/README.md). It spends real tokens (one suite run per variant per generation); invoke it deliberately, never as a routine check.
+
 ## Judge reliability
 
 The judge is an unexamined assumption until measured. The loop:
