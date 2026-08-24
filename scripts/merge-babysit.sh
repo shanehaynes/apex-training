@@ -22,6 +22,11 @@ if [ -z "$GH" ]; then
   exit 1
 fi
 
+# gh resolves *which repo* from the working directory, so anchor on the
+# checkout this script lives in — the script then works from anywhere,
+# including a fresh shell sitting in ~.
+cd "$(cd "$(dirname "$0")/.." && pwd -P)"
+
 apply=0
 interval=60
 max_minutes=90
@@ -49,6 +54,14 @@ list_prs() {
 while :; do
   actionable=0
   merged_this_pass=0
+
+  # Assign before the loop: a failure inside `<<EOF $(list_prs) EOF` would
+  # read as an empty PR list and report success while doing nothing — which
+  # is exactly how this script once behaved when run outside the repo.
+  if ! prs=$(list_prs); then
+    echo "error: could not list open PRs — gh auth, network, or repo access" >&2
+    exit 1
+  fi
 
   while IFS=$'\t' read -r number base draft state title; do
     [ -n "$number" ] || continue
@@ -113,7 +126,7 @@ while :; do
         ;;
     esac
   done <<EOF
-$(list_prs)
+$prs
 EOF
 
   if [ "$actionable" -eq 0 ]; then
