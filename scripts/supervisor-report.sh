@@ -10,6 +10,9 @@
 # in the merge loop (scripts/merge-babysit.sh runs that loop).
 set -uo pipefail
 
+# Anchor on the checkout this script lives in (so it runs from anywhere),
+# then hop to the primary checkout, which owns .claude/worktrees/.
+cd "$(cd "$(dirname "$0")/.." && pwd -P)" || exit 1
 cd "$(git rev-parse --git-common-dir)/.." || exit 1
 
 GH="${GH:-$(command -v /home/shanehaynes/bin/gh || command -v gh || true)}"
