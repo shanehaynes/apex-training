@@ -12,6 +12,13 @@ on:
   # queued PR times out waiting for checks that never start.
   merge_group:
     branches: [main]
+  # Nightly supervisor run: prove main is still green from scratch — the full
+  # job rebuilds the database from every migration, so this also catches
+  # anything that only breaks on a clean build. The evals job runs only here
+  # (and on manual dispatch), not per-PR: it spends real API tokens.
+  schedule:
+    - cron: '0 10 * * *'
+  workflow_dispatch:
 
 # The workflow only reads the repo — no job needs write access to contents,
 # packages, or PRs. Artifacts upload under this fine.
@@ -44,27 +51,10 @@ jobs:
       - run: npm test
       # oxlint fails on errors only; pre-existing warnings don't block.
       - run: npm run lint
-      # Every root-level api/*.ts becomes its own Vercel serverless function.
-      # The 12-function cap stopped binding after the Hono consolidation
-      # (PR #3), but an accidental root-level file still deploys as a new
-      # function — new handlers belong in api/_lib/handlers/. Bump the
-      # expected count only for a deliberate new entry point.
-      - name: Guard serverless function count
-        run: |
-          expected=4  # [...path].ts, calendar-feed.ts, chat.ts, review-cron.ts
-          actual=$(find api -maxdepth 1 -name '*.ts' | wc -l)
-          if [ "$actual" -ne "$expected" ]; then
-            echo "::error::api/ has $actual root-level .ts files (expected $expected)." \
-              "New handlers belong in api/_lib/handlers/ behind the router;" \
-              "if a new standalone function is deliberate, bump 'expected' here."
-            find api -maxdepth 1 -name '*.ts'
-            exit 1
-          fi
-
-      # Production dependencies must be free of high/critical advisories.
-      # Dev-only advisories don't block (they sit behind @vercel/node's dev
-      # shim and the like) — dependabot PRs handle those as fixes land.
-      - run: npm audit --omit=dev --audit-level=high
+      # Serverless function count + npm audit, in a script agent:check also
+      # runs — the guards live in one place so a branch cannot pass its local
+      # gate and still go red here.
+      - run: npm run ci:guards
 
   # Playwright mock project: full UI flows with all writes stubbed.
   e2e-mock:
@@ -124,3 +114,36 @@ jobs:
           name: live-traces
           path: test-results/
           retention-days: 7
+
+  # Coach eval suite (deterministic checkers + LLM judge). Nightly/manual
+  # only — it calls the Anthropic API, so per-PR runs would spend tokens on
+  # every push. Needs the ANTHROPIC_API_KEY repo secret; without it the job
+  # reports itself skipped rather than failing, so the schedule stays green
+  # until the secret is configured.
+  evals:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Run coach evals
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::notice::ANTHROPIC_API_KEY secret not set — evals skipped."
+            exit 0
+          fi
+          npm run eval
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: eval-results
+          path: evals/results/
+          retention-days: 30
+          if-no-files-found: ignore

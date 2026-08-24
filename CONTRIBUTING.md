@@ -109,7 +109,18 @@ git merge --no-edit origin/main && git push
 A merge commit on a PR branch is fine — the PR squash-merges, so the branch's
 history never reaches `main`. Do not rebase a pushed branch for this; a
 force-push is how one session ends up re-assembling another's work by hand.
-Whoever is coordinating several PRs owns running this loop.
+Whoever is coordinating several PRs owns running this loop — and
+
+```bash
+scripts/merge-babysit.sh          # dry run: where every open PR sits in the loop
+scripts/merge-babysit.sh --yes    # run the loop unattended until they all land
+```
+
+runs it for them: merge whatever is green and current, update-branch the rest
+(GitHub's update-branch API — a merge of `main` into the branch, never a
+rebase), wait for CI, repeat. PRs with conflicts or failing checks are
+reported and skipped, and a PR not based on `main` is never merged — that is
+the stacked-PR trap that took production down (see above about #23).
 
 The thing that would replace the loop is GitHub's **merge queue** — press
 *Merge when ready* on every green PR and the queue tests and lands each one on
@@ -137,6 +148,13 @@ that information; copying discards it.
 **Never `git reset --hard` or `git clean -fd` in a shared checkout** without
 first checking `git status` for work that exists nowhere else. Another session's
 only copy of something may be sitting there.
+
+All three rules above are now enforced mechanically, not just by prose: a
+`PreToolUse` hook (`.claude/settings.json` → `scripts/hooks/bash-guard.mjs`)
+blocks builds and commits in the primary checkout, `pkill`/`killall` on vite,
+and destructive git commands. For the destructive ones, review `git status`
+first and then re-run the exact command prefixed with `APEX_DESTRUCTIVE_OK=1`
+— the override exists so the hook makes you look, not so it stops you.
 
 ## Parallel-session hazards specific to this repo
 
@@ -221,6 +239,14 @@ git worktree remove --force .claude/worktrees/_combined
 A clean textual merge can still fail to build — one branch tightens lint,
 another adds code the new rule rejects — and this is the only check that sees
 it before the last PR merges.
+
+Both checks are scripted:
+
+```bash
+scripts/combine-check.sh                  # every open PR branch, pairwise merge-tree
+scripts/combine-check.sh feat/a feat/b    # specific branches
+scripts/combine-check.sh --check          # + fold into a combined tree, run agent:check on it
+```
 
 ### One session coordinating several agents
 

@@ -79,9 +79,19 @@ npm test                # vitest only
 npm run build           # tsc -b + vite build — what CI runs
 ```
 
-CI runs build, test, lint, a guard on the root-level `api/*.ts` count (new
-handlers belong in `api/_lib/handlers/`, behind the Hono router), and
-`npm audit --omit=dev`.
+CI runs build, test, lint, and `npm run ci:guards` — the root-level `api/*.ts`
+count (new handlers belong in `api/_lib/handlers/`, behind the Hono router)
+plus `npm audit --omit=dev`. `agent:check` runs the same guards, so a branch
+cannot pass locally and fail those in CI. A nightly scheduled run re-proves
+`main` from scratch and runs the coach evals; `scripts/supervisor-report.sh`
+prints everything that needs attention (main status, stack drift, stale
+worktrees, open PRs) in one read-only sweep.
+
+A `PreToolUse` hook ([.claude/settings.json](.claude/settings.json) →
+`scripts/hooks/bash-guard.mjs`) mechanically blocks the three rules above that
+used to be prose only: `pkill` on vite, `git reset --hard`/`git clean -f`
+(after reviewing `git status`, prefix the command with `APEX_DESTRUCTIVE_OK=1`
+to proceed), and building or committing in the primary checkout.
 
 ## Commits and merging
 
@@ -89,5 +99,8 @@ Commits and PRs land as Shane alone — no co-author trailers, no attribution.
 Open PRs with `gh pr create`. `main` requires branches to be up to date, so
 once one PR merges every other open PR needs `git merge origin/main && git push`
 and a fresh CI run before it can merge (CONTRIBUTING.md, "Merging more than
-one PR"). Before opening several PRs at once, dry-run them against each other
-with `git merge-tree` (same section).
+one PR") — `scripts/merge-babysit.sh --yes` runs that loop unattended and
+never touches a PR that isn't based on `main`. Before opening several PRs at
+once, prove they combine with `scripts/combine-check.sh` (pairwise
+`merge-tree`; `--check` also builds the combined tree and runs `agent:check`
+on it).
