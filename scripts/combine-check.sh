@@ -14,6 +14,9 @@
 # building the combined tree in a detached worktree and running the full gate.
 set -euo pipefail
 
+# Anchor on the checkout this script lives in (so it runs from anywhere),
+# then hop to the primary checkout, which owns .claude/worktrees/.
+cd "$(cd "$(dirname "$0")/.." && pwd -P)" || exit 1
 cd "$(git rev-parse --git-common-dir)/.." || exit 1
 
 check=0
