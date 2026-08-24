@@ -35,6 +35,11 @@
     "react/no-array-index-key": "off",
     // Express-specific. dev/vercelApiPlugin.ts is a Vite connect middleware
     // whose async handler wraps its own body in try/catch.
-    "oxc/no-async-endpoint-handlers": "off"
+    "oxc/no-async-endpoint-handlers": "off",
+    // New in oxlint 1.79. Every hit is either fetch-on-mount (the setState
+    // sits after an await inside a called loader — the rule can't see through
+    // the call) or a deliberate external-system sync (the workout timer,
+    // closing a detail view whose row was deleted). No cascading renders.
+    "react/set-state-in-effect": "off"
   }
 }

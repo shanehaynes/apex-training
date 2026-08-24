@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { useBlocks } from '../context/blocks';
 import { useSchedule } from '../context/schedule';
@@ -34,8 +34,10 @@ export function useBlockSummary(): () => Promise<BlockPromptSummary | null> {
 
   // Read through a ref: the returned callback is stable, but runs long after
   // the render that created it, so it must not close over a stale schedule.
+  // Synced in an effect (not during render) so a discarded concurrent render
+  // can't leave the ref pointing at a schedule that was never committed.
   const eventsRef = useRef(events);
-  eventsRef.current = events;
+  useEffect(() => { eventsRef.current = events; }, [events]);
 
   return useCallback(async () => {
     try {
