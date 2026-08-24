@@ -12,7 +12,7 @@ export function localSupabaseEnv(root = process.cwd()) {
   try {
     raw = readFileSync(file, 'utf8');
   } catch {
-    throw new Error('.env.agent not found — run `supabase start` and create it first (see AGENTS.md)');
+    throw new Error('.env.agent not found — run `supabase start` and create it first (see CONTRIBUTING.md)');
   }
   const get = key => raw.match(new RegExp(`^${key}=(\\S+)`, 'm'))?.[1];
   const url = get('VITE_SUPABASE_URL');
