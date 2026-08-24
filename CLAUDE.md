@@ -18,7 +18,7 @@ not build there, do not commit there.
 Start every task — including one-line fixes — with:
 
 ```bash
-scripts/git-new.sh fix/short-slug     # types: feat/ fix/ chore/ db/
+scripts/git-new.sh fix/short-slug "what you will touch"   # types: feat/ fix/ chore/ db/
 ```
 
 That branches from a freshly-fetched `origin/main`, creates a worktree under
@@ -26,6 +26,11 @@ That branches from a freshly-fetched `origin/main`, creates a worktree under
 (`--no-install` skips it). It works from inside any worktree too. **Never put a
 worktree in `/tmp`**: it does not survive a reboot, and other sessions cannot
 find it.
+
+The second argument is your claim: it lands in `.claude/state/claims.tsv`,
+and `git-new.sh` prints every other session's claim back at you. If one
+names the files you are about to change, coordinate before you overlap
+(CONTRIBUTING.md, "Declare what you are working on").
 
 When your PR merges, retire the branch and worktree:
 
