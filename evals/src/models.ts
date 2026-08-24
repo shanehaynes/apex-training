@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import type { ApiMessage, CallModel, ModelResponse } from './types';
 import { coachToolSchemas } from '../../src/lib/coach/schemas';
@@ -77,16 +77,31 @@ export function makeAnthropicCaller(client: Anthropic, model: string): CallModel
 
 // The shell environment wins; .env.local (gitignored) is the fallback so
 // harness sessions — which don't inherit an interactive shell's exports —
-// can run the suite too. Only this one key is read from the file: the runner
-// has no other env surface, and a general dotenv load would invite one.
+// can run the suite too. Being gitignored, .env.local never reaches a fresh
+// worktree, so a worktree falls through to the primary checkout's copy (its
+// .git file points home) — one line there covers every checkout. Only this
+// one key is read from the file: the runner has no other env surface, and a
+// general dotenv load would invite one.
 export function evalApiKey(root = process.cwd()): string | undefined {
   if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY;
+  const read = (dir: string) => {
+    try {
+      const raw = readFileSync(join(dir, '.env.local'), 'utf8');
+      return raw.match(/^ANTHROPIC_API_KEY=(\S+)\s*$/m)?.[1];
+    } catch {
+      return undefined;
+    }
+  };
+  const own = read(root);
+  if (own) return own;
   try {
-    const raw = readFileSync(join(root, '.env.local'), 'utf8');
-    return raw.match(/^ANTHROPIC_API_KEY=(\S+)\s*$/m)?.[1];
+    // A linked worktree's .git is a file: `gitdir: <primary>/.git/worktrees/<name>`.
+    const gitdir = readFileSync(join(root, '.git'), 'utf8').match(/^gitdir:\s*(.+?)\s*$/m);
+    if (gitdir) return read(resolve(root, gitdir[1], '..', '..', '..'));
   } catch {
-    return undefined;
+    // .git is a directory (primary) or absent — nowhere further to look.
   }
+  return undefined;
 }
 
 export function makeClient(): Anthropic {

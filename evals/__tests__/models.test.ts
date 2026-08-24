@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
@@ -70,5 +70,13 @@ describe('evalApiKey', () => {
     expect(evalApiKey(root)).toBeUndefined();
     rmSync(join(root, '.env.local'));
     expect(evalApiKey(root)).toBeUndefined();
+  });
+
+  it('falls through to the primary checkout from a worktree (its own .env.local never exists)', () => {
+    writeFileSync(join(root, '.env.local'), 'ANTHROPIC_API_KEY=sk-from-primary\n');
+    const worktree = join(root, '.claude', 'worktrees', 'fix-thing');
+    mkdirSync(worktree, { recursive: true });
+    writeFileSync(join(worktree, '.git'), `gitdir: ${join(root, '.git', 'worktrees', 'fix-thing')}\n`);
+    expect(evalApiKey(worktree)).toBe('sk-from-primary');
   });
 });
