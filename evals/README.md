@@ -45,7 +45,7 @@ Multi-week plans still use the `auto-continue` script step ("Yes, continue.") fo
 
 ## Running
 
-Needs `ANTHROPIC_API_KEY` in the environment (the runner calls the API directly; the app's per-user keys are irrelevant here).
+Needs `ANTHROPIC_API_KEY` in the environment, or as an `ANTHROPIC_API_KEY=` line in the gitignored `.env.local` — the shell environment wins (the runner calls the API directly; the app's per-user keys are irrelevant here).
 
 ```bash
 npm run eval                                  # full suite, default model (Sonnet)

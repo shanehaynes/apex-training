@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import type { ApiMessage, CallModel, ModelResponse } from './types';
 import { coachToolSchemas } from '../../src/lib/coach/schemas';
@@ -73,11 +75,29 @@ export function makeAnthropicCaller(client: Anthropic, model: string): CallModel
   };
 }
 
-export function makeClient(): Anthropic {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error('ANTHROPIC_API_KEY is not set. The eval runner calls the API directly.');
+// The shell environment wins; .env.local (gitignored) is the fallback so
+// harness sessions — which don't inherit an interactive shell's exports —
+// can run the suite too. Only this one key is read from the file: the runner
+// has no other env surface, and a general dotenv load would invite one.
+export function evalApiKey(root = process.cwd()): string | undefined {
+  if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY;
+  try {
+    const raw = readFileSync(join(root, '.env.local'), 'utf8');
+    return raw.match(/^ANTHROPIC_API_KEY=(\S+)\s*$/m)?.[1];
+  } catch {
+    return undefined;
   }
-  return new Anthropic();
+}
+
+export function makeClient(): Anthropic {
+  const apiKey = evalApiKey();
+  if (!apiKey) {
+    throw new Error(
+      'ANTHROPIC_API_KEY is not set — export it, or add an ANTHROPIC_API_KEY= line to .env.local. ' +
+        'The eval runner calls the API directly.',
+    );
+  }
+  return new Anthropic({ apiKey });
 }
 
 export type { ApiMessage };
