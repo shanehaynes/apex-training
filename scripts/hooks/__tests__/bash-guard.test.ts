@@ -67,6 +67,27 @@ describe('rule: look before destroying', () => {
   });
 });
 
+describe('rule: merge authority flows through the babysitter', () => {
+  it('blocks direct gh pr merge, by name, absolute path, or API', () => {
+    expect(decide('gh pr merge 61 --squash', worktree, worktree)).toMatch(/merge-babysit/);
+    expect(decide('/home/shanehaynes/bin/gh pr merge 61 --squash', worktree, worktree)).toMatch(/merge-babysit/);
+    expect(decide('gh api -X PUT repos/{owner}/{repo}/pulls/61/merge', worktree, worktree)).toMatch(/merge-babysit/);
+  });
+
+  it('blocks the agent granting itself the shipit label', () => {
+    expect(decide('gh pr edit 61 --add-label shipit', worktree, worktree)).toMatch(/authority boundary/);
+    expect(decide('gh api "repos/{owner}/{repo}/issues/61/labels" -f "labels[]=shipit"', worktree, worktree)).toMatch(/authority boundary/);
+  });
+
+  it('allows the babysitter itself, other labels, and reading PRs', () => {
+    expect(decide('scripts/merge-babysit.sh --yes', worktree, worktree)).toBeNull();
+    expect(decide('gh pr edit 61 --add-label bug', worktree, worktree)).toBeNull();
+    expect(decide('gh pr view 61 --json mergeStateStatus', worktree, worktree)).toBeNull();
+    expect(decide('gh pr list --state open', worktree, worktree)).toBeNull();
+    expect(decide('gh pr create --base main --title x --body y', worktree, worktree)).toBeNull();
+  });
+});
+
 describe('rule: the primary checkout is never a workspace', () => {
   it('blocks commits and builds when cwd is the primary', () => {
     expect(decide('git commit -m "oops"', primary, primary)).toMatch(/primary checkout/);
