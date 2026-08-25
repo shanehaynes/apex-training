@@ -31,3 +31,8 @@ test-results/
 playwright-report/
 e2e/screenshots/
 .vercel
+
+# Cross-session state the supervisor scripts write into the primary checkout
+# (merge audit log, locks) and the autonomous-merge kill switch
+.claude/state/
+.claude/AUTOMERGE_OFF
