@@ -84,7 +84,9 @@ scripts/git-tidy.sh
 That removes every worktree whose branch is fully merged into `origin/main`,
 deletes the merged local branches, and prunes dead remote-tracking refs. It
 refuses to touch a worktree with uncommitted changes, and it never deletes an
-unmerged branch.
+unmerged branch. A branch with no commits of its own is also never removed:
+"no work yet" usually means another session that just started, not one that
+finished — retiring those is a by-hand decision.
 
 Run it when you finish something. The alternative is what this repo looked like
 before this document: 7 worktrees, 15 merged-but-undeleted local branches, and
