@@ -71,6 +71,14 @@ export function effectiveDirs(command, cwd) {
 
 const PKILL_VITE = /\b(pkill|killall)\b[^|;&]*\bvite\b/;
 const DESTRUCTIVE_GIT = /\bgit\b[^|;&()]*\b(reset\s+--hard|clean\s+(-[A-Za-z]*f[A-Za-z]*\b|[^|;&]*--force))/;
+// Merging flows through scripts/merge-babysit.sh, which enforces the merge
+// policy; a direct `gh pr merge` (or the API route under it) bypasses both
+// the policy and the audit trail. `\bgh\b` also matches an absolute path.
+const GH_MERGE = /\bgh\b[^|;&]*\bpr\s+merge\b|\bgh\s+api\b[^|;&]*\/merge\b/;
+// The shipit label is the human's per-PR grant for held paths
+// (scripts/merge-policy.mjs). The agent applying it to its own PR would
+// dissolve the authority boundary the label exists to draw.
+const SHIPIT_GRANT = /--add-label[^|;&]*\bshipit\b|\bgh\s+api\b[^|;&]*\blabels\b[^|;&]*\bshipit\b/;
 // What "do not build there, do not commit there" means concretely.
 const PRIMARY_BANNED = /\bgit\s+commit\b|\bnpm\s+run\s+(build|dev(:agent)?|preview|e2e(:live)?|agent:check(:full)?)\b|\bnpx?\s+vite\b/;
 
@@ -88,6 +96,22 @@ export function decide(command, cwd, projectDir) {
       '(CONTRIBUTING.md, “Never do this”). First run `git status` and read the file list; commit anything ' +
       'that exists nowhere else to a branch. If you have looked and it is safe, re-run the exact command ' +
       'prefixed with APEX_DESTRUCTIVE_OK=1.'
+    );
+  }
+
+  if (GH_MERGE.test(command)) {
+    return (
+      'Blocked: merge through `scripts/merge-babysit.sh --yes`, which enforces the merge policy ' +
+      '(scripts/merge-policy.mjs) and leaves the audit trail. A PR the policy holds needs Shane to apply ' +
+      'the `shipit` label (CONTRIBUTING.md, “Autonomous merging”).'
+    );
+  }
+
+  if (SHIPIT_GRANT.test(command)) {
+    return (
+      'Blocked: the `shipit` label is Shane’s per-PR grant for policy-held paths — the agent applying it ' +
+      'itself would dissolve the authority boundary (CONTRIBUTING.md, “Autonomous merging”). Ask Shane to ' +
+      'label the PR.'
     );
   }
 

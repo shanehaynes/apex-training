@@ -109,3 +109,11 @@ never touches a PR that isn't based on `main`. Before opening several PRs at
 once, prove they combine with `scripts/combine-check.sh` (pairwise
 `merge-tree`; `--check` also builds the combined tree and runs `agent:check`
 on it).
+
+The babysitter is allow-listed and may merge without a human — but only what
+`scripts/merge-policy.mjs` allows. Migrations, `.github/`, `vercel.json`,
+dependency manifests, and every file of the automation itself are HELD for
+Shane, who grants one PR with the `shipit` label; the guard hook blocks
+`gh pr merge` and self-applied `shipit`, so the babysitter is the only merge
+path. Kill switch: `touch .claude/AUTOMERGE_OFF` in the primary checkout.
+Full rules: CONTRIBUTING.md, "Autonomous merging".
