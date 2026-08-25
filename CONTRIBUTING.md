@@ -131,6 +131,49 @@ ruleset fails validation with an empty error for exactly that reason. `ci.yml`
 keeps its inert `merge_group` trigger so that if the repository ever moves to
 an organization, the queue is a settings change away rather than a code one.
 
+### Autonomous merging: what the babysitter may do alone
+
+`scripts/merge-babysit.sh --yes` is allow-listed in
+[.claude/settings.json](.claude/settings.json), so an unattended Claude
+session can run the merge loop without a human pressing the button. That
+authority is bounded on four sides:
+
+- **Branch protection is the floor.** The babysitter cannot land anything the
+  required CI checks have not passed — that is GitHub's rule, not the
+  script's, and no autonomy change may weaken those checks.
+- **The merge policy is the boundary** ([scripts/merge-policy.mjs](scripts/merge-policy.mjs)):
+  a PR touching `supabase/migrations/`, `.github/`, `vercel.json`, the
+  dependency manifests, or any file of the automation itself — the policy,
+  the babysitter, the guard hooks, `.claude/settings.json`, every script that
+  file allow-lists — is `HOLD`ed, never merged. The first principle of the
+  held list: **the agent must never be able to merge an expansion of its own
+  authority.** A vitest suite pins every entry, so quietly shrinking the list
+  fails a test.
+- **A human overrides per PR** with the `shipit` label
+  (`gh pr edit N --add-label shipit`). The guard hook blocks the agent from
+  applying that label itself, and blocks direct `gh pr merge` — merging flows
+  through the babysitter or a human, nothing else. (A review approval cannot
+  be the token: `gh` acts as the repo owner, who cannot approve their own
+  PRs.)
+- **The kill switch stops everything.** `touch .claude/AUTOMERGE_OFF` in the
+  primary checkout; it is checked every pass, so it also halts a loop that is
+  already running.
+
+Every autonomous merge leaves two records: a comment on the PR and a line in
+`.claude/state/merge-log` in the primary checkout. After a run that merged
+anything, the babysitter also retires merged worktrees (`git-tidy.sh --yes`,
+only when running from the primary checkout), fast-forwards the primary
+checkout to the new `main`, and runs
+[scripts/deploy-verify.sh](scripts/deploy-verify.sh): production must serve
+the SPA and route `/api/` — the catch-all blackhole that once 404'd every API
+route (PR #25) is exactly the failure CI cannot see. A failed verification is
+an `ACTION` line and a non-zero exit, never a shrug.
+
+These guards are nets against slip-ups, not walls against an adversary — a
+sufficiently creative command line can get around a regex. The layers behind
+them are the permission classifier, branch protection, and the fact that
+every change the automation could make to itself is held for a human.
+
 ## Never do this
 
 **Never hand-assemble changes across branches in a working tree.** If branch B
