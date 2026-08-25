@@ -20,6 +20,7 @@ import oauthToken from './handlers/oauthToken.js';
 import providerSync from './handlers/providerSync.js';
 import providerCallback from './handlers/providerCallback.js';
 import providerCron from './handlers/providerCron.js';
+import version from './handlers/version.js';
 import { handleTrainingBlocks } from './trainingBlocks.js';
 import { handleMeals } from './meals.js';
 import { handleMealFavorites } from './mealFavorites.js';
@@ -78,6 +79,9 @@ app.all('/provider-sync', bridge(providerSync));
 app.all('/provider-callback', bridge(providerCallback));
 // Nightly auto-sync cron target (CRON_SECRET bearer, vercel.json schedule).
 app.all('/provider-cron', bridge(providerCron));
+// Deployed-build identity for scripts/deploy-verify.sh: the commit SHA
+// Vercel stamped on this build. Unauthenticated — the repo is public.
+app.all('/version', bridge(version));
 // Distinctive message: if /api/chat (or another standalone route) ever lands
 // here, filesystem precedence over the catch-all broke — see the plan's
 // preview-deploy curl matrix.
