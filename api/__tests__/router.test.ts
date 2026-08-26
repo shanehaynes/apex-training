@@ -89,6 +89,15 @@ describe('consolidated API router', () => {
     });
   });
 
+  it('serves /api/version through the catch-all with no auth', async () => {
+    // Real handler, not a mock — it is pure env-read, and the point is that
+    // the route is registered and answers without credentials.
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('GET', '/api/version'), res);
+    expect(statusCode()).toBe(200);
+    expect(body()).toHaveProperty('sha');
+  });
+
   it('404s unknown paths with the distinctive router message', async () => {
     const { res, statusCode, body } = makeRes();
     await handler(makeReq('GET', '/api/nonexistent'), res);

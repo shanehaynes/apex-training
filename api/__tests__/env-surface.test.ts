@@ -23,11 +23,14 @@ const API = join(ROOT, 'api');
 const ENV_MODULE = join(API, '_lib', 'env.ts');
 const ENV_EXAMPLE = join(ROOT, '.env.example');
 
-// Keys the API reads that deliberately do not appear in .env.example — there
-// are none today; every key is documented there, blank, with a comment. Add
+// Keys the API reads that deliberately do not appear in .env.example. Add
 // to this only for a variable that genuinely must not be suggested to a
 // local developer, and say why.
-const NOT_IN_ENV_EXAMPLE = new Set<string>([]);
+const NOT_IN_ENV_EXAMPLE = new Set<string>([
+  // Injected by Vercel on every deployment, never set by hand; a .env.example
+  // line would invite a local value that makes /api/version lie.
+  'VERCEL_GIT_COMMIT_SHA',
+]);
 
 function runtimeFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap(e => {

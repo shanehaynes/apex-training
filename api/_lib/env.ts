@@ -46,6 +46,10 @@ export const ENV_KEYS = [
   // Redirect URI registered with that client, e.g. https://<host>/api/provider-callback.
   // `.env.local` / Vercel project env.
   'COROS_REDIRECT_URI',
+  // Commit SHA Vercel stamps on each deployment (system variable, set by
+  // Vercel itself, never by hand). /api/version reports it so
+  // scripts/deploy-verify.sh can prove which build production serves.
+  'VERCEL_GIT_COMMIT_SHA',
 ] as const;
 
 export type EnvKey = (typeof ENV_KEYS)[number];
