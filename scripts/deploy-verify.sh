@@ -23,7 +23,12 @@ set -euo pipefail
 # Runnable from anywhere; the git questions below are about this repo.
 cd "$(cd "$(dirname "$0")/.." && pwd -P)" || exit 1
 
-url="${APEX_PROD_URL:-https://apex-training.vercel.app}"
+# NOT apex-training.vercel.app: vercel.app names are a global namespace and
+# that one belongs to a different account's project (an Expo app, also titled
+# APEX) — it 200s convincingly, which fooled the pre-SHA heuristic on its
+# first run. This repo's vercel.app aliases sit behind Vercel SSO (302), so
+# the public custom domain is the only host that can answer /api/version.
+url="${APEX_PROD_URL:-https://apextrainingcalendar.vercel.app}"
 max_minutes=8
 for arg in "$@"; do
   case "$arg" in
