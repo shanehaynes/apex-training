@@ -167,9 +167,11 @@ anything, the babysitter also retires merged worktrees (`git-tidy.sh --yes`,
 only when running from the primary checkout), fast-forwards the primary
 checkout to the new `main`, and runs
 [scripts/deploy-verify.sh](scripts/deploy-verify.sh): production must serve
-the SPA and route `/api/` — the catch-all blackhole that once 404'd every API
-route (PR #25) is exactly the failure CI cannot see. A failed verification is
-an `ACTION` line and a non-zero exit, never a shrug.
+the SPA and report the merged commit's SHA at `/api/version` (polled against
+a re-fetched `origin/main`), which both proves the new build is the one
+serving and catches the catch-all blackhole that once 404'd every API route
+(PR #25) — exactly the failure CI cannot see. A failed verification is an
+`ACTION` line and a non-zero exit, never a shrug.
 
 These guards are nets against slip-ups, not walls against an adversary — a
 sufficiently creative command line can get around a regex. The layers behind
