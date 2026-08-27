@@ -73,6 +73,24 @@ export type WorkoutEventRow = Row<'workout_events', {
   climbing_targets?: unknown;
   /** Provider provenance ('coros'); never set on recurring base rows. */
   source?: string | null;
+  /** Library linkage + scoring snapshot (phase 33); unset on non-library events. */
+  template_id?: string | null;
+  scoring_type?: string | null;
+  time_cap_minutes?: number | null;
+}>;
+
+// workout_templates (phase 33): the workout library — a workout_events row
+// minus calendar placement, plus the scoring config. Exercise columns are
+// jsonb camelCase payloads (Exercise[]), same as the event ones.
+export type WorkoutTemplateRow = Row<'workout_templates', {
+  user_id?: string;
+  warmup: unknown[];
+  exercises: unknown[];
+  cooldown: unknown[];
+  /** Optional on the domain side: callers build rows without it. */
+  cardio_targets?: unknown;
+  /** Optional on the domain side: callers build rows without it. */
+  climbing_targets?: unknown;
 }>;
 
 // meals (phase 22). Numeric macro columns are nullable — blank form fields

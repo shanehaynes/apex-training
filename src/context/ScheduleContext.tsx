@@ -3,11 +3,12 @@ import { parseISO } from 'date-fns';
 import { deleteJson, patchJson, postJson } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
 import { useDebouncedReload } from '../hooks/useDebouncedReload';
-import type { CompletionRow, ExerciseDefinitionRow, RecurringExceptionRow, WorkoutEventRow } from '../lib/db/types';
-import type { ExerciseDefinition, WorkoutEvent, Schedule } from '../types/workout';
-import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, UpdateDefinitionInput, UpdateEventInput } from '../lib/schedule/types';
+import type { CompletionRow, ExerciseDefinitionRow, RecurringExceptionRow, WorkoutEventRow, WorkoutTemplateRow } from '../lib/db/types';
+import type { ExerciseDefinition, WorkoutEvent, WorkoutTemplate, Schedule } from '../types/workout';
+import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, SaveWorkoutTemplateInput, UpdateDefinitionInput, UpdateEventInput } from '../lib/schedule/types';
 import { expandRecurringEvents, normalizeSeedEvent } from '../lib/schedule/expand';
 import { definitionFieldsToRow, resolveEventExercises, rowToDefinition, slugifyName } from '../lib/schedule/definitions';
+import { mintTemplateId, rowToTemplate, templateToRow } from '../lib/schedule/templates';
 import { buildCompletionRows, eventFieldsToRow, eventToRow, rowToEvent } from '../lib/schedule/mapping';
 import { loadCompletedIds, saveCompletedIds } from '../lib/schedule/localCompletion';
 import { useAuth } from './auth';
@@ -40,6 +41,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   const [baseEvents, setBaseEvents] = useState<WorkoutEvent[]>([]);
   const [definitions, setDefinitions] = useState<Map<string, ExerciseDefinition>>(new Map());
+  const [templates, setTemplates] = useState<Map<string, WorkoutTemplate>>(new Map());
   const [exceptions, setExceptions] = useState<Map<string, OccurrenceOverride | null>>(new Map());
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => loadCompletedIds(userId));
   const [isSyncing, setIsSyncing] = useState(!!supabase);
@@ -58,12 +60,13 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const [eventsRes, exceptionsRes, definitionsRes] = await Promise.all([
+    const [eventsRes, exceptionsRes, definitionsRes, templatesRes] = await Promise.all([
       supabase.from('workout_events').select('*').order('date'),
       // select('*') so rows load (as plain skips) even before the phase7
       // override-columns migration has been applied.
       supabase.from('recurring_exceptions').select('*'),
       supabase.from('exercise_definitions').select('*'),
+      supabase.from('workout_templates').select('*'),
     ]);
 
     if (eventsRes.error) {
@@ -77,6 +80,14 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     if (!definitionsRes.error && definitionsRes.data) {
       setDefinitions(new Map(
         (definitionsRes.data as ExerciseDefinitionRow[]).map(r => [r.id, rowToDefinition(r)]),
+      ));
+    }
+
+    // Tolerated failure (e.g. pre-phase33 deploy): the builder just shows an
+    // empty library.
+    if (!templatesRes.error && templatesRes.data) {
+      setTemplates(new Map(
+        (templatesRes.data as WorkoutTemplateRow[]).map(r => [r.id, rowToTemplate(r)]),
       ));
     }
 
@@ -117,6 +128,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_events' }, scheduleReload)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'recurring_exceptions' }, scheduleReload)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'exercise_definitions' }, scheduleReload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_templates' }, scheduleReload)
       .subscribe();
     return () => { sb.removeChannel(channel); };
   }, [scheduleReload]);
@@ -306,6 +318,9 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       cooldown:          input.cooldown,
       cardioTargets:     input.cardioTargets,
       climbingTargets:   input.climbingTargets,
+      templateId:        input.templateId,
+      scoringType:       input.scoringType,
+      timeCapMinutes:    input.timeCapMinutes,
       isCompleted:       completedOnCreate,
       isRecurring:       false,
     };
@@ -464,6 +479,40 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }
   }, [definitions]);
 
+  const saveTemplate = useCallback(async (input: SaveWorkoutTemplateInput): Promise<{ id: string } | null> => {
+    if (!supabase) return null;
+
+    // The caller resolves title reuse (matchTemplateByTitle) before saving —
+    // an omitted id here always means a genuinely new template.
+    const template: WorkoutTemplate = { ...input, id: input.id ?? mintTemplateId() };
+    try {
+      await postJson('/api/workout-templates', templateToRow(template), 'Saving to workout library');
+      // Optimistic: the builder's library list shows the save immediately;
+      // the realtime refetch reconciles later (and fills in updatedAt).
+      setTemplates(prev => new Map(prev).set(template.id, template));
+      return { id: template.id };
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const archiveTemplate = useCallback(async (id: string): Promise<boolean> => {
+    if (!supabase) return false;
+    try {
+      await patchJson(`/api/workout-templates?id=${encodeURIComponent(id)}`, {
+        archived_at: new Date().toISOString(),
+      }, 'Removing from workout library');
+      setTemplates(prev => {
+        const current = prev.get(id);
+        if (!current) return prev;
+        return new Map(prev).set(id, { ...current, archivedAt: new Date().toISOString() });
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const deleteEventInstance = useCallback(async (baseId: string, date: string, triggeredBy: 'user' | 'ai' = 'user'): Promise<boolean> => {
     if (!supabase) return false;
 
@@ -515,11 +564,15 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     rescheduleEvent,
     createDefinition,
     updateDefinition,
+    templates,
+    saveTemplate,
+    archiveTemplate,
   }), [
     events, definitions, isSyncing, isEventsLoading, loadEvents, loadCompletions,
     getEventsForDate, getEventsForRange, toggleCompletion, setCompletion,
     createEvent, updateEvent, deleteEvent, deleteEventInstance, deleteOccurrence,
     rescheduleEvent, createDefinition, updateDefinition,
+    templates, saveTemplate, archiveTemplate,
   ]);
 
   return (
