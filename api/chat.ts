@@ -4,7 +4,7 @@ import { requireUser } from './_lib/auth.js';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
 import { getAnthropicKey } from './_lib/anthropicKey.js';
 import { enforceRateLimit } from './_lib/rateLimit.js';
-import { coachToolSchemas } from '../src/lib/coach/schemas.js';
+import { builderToolSchemas, coachToolSchemas } from '../src/lib/coach/schemas.js';
 import { COACH_MODEL } from '../src/lib/coach/model.js';
 import type { ChatWireEvent } from '../src/lib/coach/wire.js';
 
@@ -85,6 +85,8 @@ interface Body {
   messages?: unknown;
   system?: unknown;
   withTools?: unknown;
+  /** 'builder' = the workout builder's draft-only tool list (see below). */
+  toolMode?: unknown;
 }
 
 // ─── Prompt caching ──────────────────────────────────────────────────────────
@@ -110,9 +112,18 @@ interface Body {
 // next turn. Fixing that means moving the volatile region out of `system` —
 // gate it on the usage numbers logged at the end of the handler.
 
-/** Static tool schemas with a cache breakpoint on the last one. */
-export function cachedToolSchemas(): Anthropic.Tool[] {
-  const tools = coachToolSchemas();
+export type ToolMode = 'chat' | 'builder';
+
+/**
+ * Static tool schemas with a cache breakpoint on the last one. Two modes,
+ * each with its own CONSTANT list: the sidebar's full registry, and the
+ * builder's single draft tool. A mode's tools+system prefix stays identical
+ * across its own turns (the caching rules above hold per mode); the builder
+ * mode's absent calendar/meal tools are what make "the coach can never
+ * apply, save, or touch the schedule from the builder" structural.
+ */
+export function cachedToolSchemas(mode: ToolMode = 'chat'): Anthropic.Tool[] {
+  const tools = mode === 'builder' ? builderToolSchemas() : coachToolSchemas();
   return tools.map((tool, i) =>
     i === tools.length - 1 ? { ...tool, cache_control: { type: 'ephemeral' as const } } : tool,
   );
@@ -214,6 +225,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.on('close', () => { if (!finished) upstreamAbort.abort(); });
 
   const withTools = !!body.withTools;
+  const toolMode: ToolMode = body.toolMode === 'builder' ? 'builder' : 'chat';
   const messages = body.messages as Anthropic.MessageParam[];
 
   try {
@@ -226,8 +238,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       max_tokens: 8192,
       thinking: { type: 'adaptive' },
       system: [{ type: 'text', text: body.system, cache_control: { type: 'ephemeral' } }],
-      // Constant tool list + tool_choice to gate it — see the caching note above.
-      tools: cachedToolSchemas(),
+      // Constant tool list (per mode) + tool_choice to gate it — see the
+      // caching note above.
+      tools: cachedToolSchemas(toolMode),
       ...(withTools ? {} : { tool_choice: { type: 'none' as const } }),
       messages: withTools ? withConversationBreakpoint(messages) : messages,
     }, { signal: upstreamAbort.signal });

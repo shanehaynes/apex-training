@@ -1,5 +1,6 @@
 import type { ExerciseDefinition, WorkoutEvent } from '../../src/types/workout';
 import type { Meal } from '../../src/types/nutrition';
+import type { WorkoutDraft } from '../../src/lib/builder/draft';
 import type { BlockPromptSummary } from '../../src/lib/blocks/promptSummary';
 import type { ApiMessage, TextBlock, ToolResultBlock } from '../../src/lib/coach/actionQueue';
 import type { WireToolUse } from '../../src/lib/coach/wire';
@@ -23,6 +24,8 @@ export type CallModel = (req: {
   system: string;
   messages: ApiMessage[];
   withTools: boolean;
+  /** 'builder' = the workout builder's single-tool list (api/chat.ts toolMode). */
+  toolMode?: 'chat' | 'builder';
 }) => Promise<ModelResponse>;
 
 export interface ModelResponse {
@@ -44,7 +47,12 @@ export type RefusalExpectation = 'refuse' | 'pushback' | 'comply';
 export interface EvalCase {
   id: string;
   description: string;
+  /** 'builder' runs the builder-coach loop (draft reducer, single tool)
+   *  instead of the sidebar loop. Defaults to the sidebar. */
+  mode?: 'builder';
   fixture: {
+    /** builder mode: the starting draft (defaults to an empty draft on `today`). */
+    draft?: { title?: string };
     /** ISO date — pins the clock so runs are comparable. */
     today: string;
     events: WorkoutEvent[];
@@ -118,6 +126,8 @@ export interface HarnessResult {
   finalDefinitions: ExerciseDefinition[];
   finalMeals: Meal[];
   createdDefinitionNames: string[];
+  /** builder mode only: the draft after every confirmed update. */
+  finalDraft?: WorkoutDraft;
   anomalies: string[];
   usage: { inputTokens: number; outputTokens: number };
   latencyMs: number;

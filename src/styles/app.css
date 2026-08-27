@@ -4442,6 +4442,80 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   margin-bottom: 8px;
 }
 
+/* ── Builder coach panel ── */
+
+/* The builder body: form column, plus the coach as a side rail on desktop
+   and a bottom sheet on phones. The view stops scrolling itself so each
+   column scrolls independently. */
+.builder-view {
+  overflow-y: hidden;
+}
+
+.builder-columns {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.builder-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.builder-coach {
+  width: 380px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.builder-coach__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.builder-coach__header .chat-sidebar__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.builder-coach__close {
+  margin-left: auto;
+}
+
+.builder-coach-toggle--on {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+@media (max-width: 768px) {
+  .builder-coach {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: 75dvh;
+    z-index: 140;
+    border-left: none;
+    border-top: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-lg);
+    animation: builder-coach-rise var(--duration-fast) var(--ease-spring);
+  }
+
+  @keyframes builder-coach-rise {
+    from { transform: translateY(24px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+}
+
 /* ── Supersets ── */
 
 /* The group letter next to an exercise name — editor, modal, and tracker. */
