@@ -62,6 +62,9 @@ export const EVENT_INSERT_COLUMNS: ReadonlySet<string> = new Set([
   'recurring_days',
   'recurring_end_date',
   'source',
+  'template_id',
+  'scoring_type',
+  'time_cap_minutes',
 ]);
 
 export const EVENT_PATCH_COLUMNS: ReadonlySet<string> = new Set(
@@ -96,6 +99,29 @@ export const MEAL_PATCH_COLUMNS: ReadonlySet<string> = new Set(
 export const MEAL_FAVORITE_COLUMNS: ReadonlySet<string> = new Set(
   [...MEAL_INSERT_COLUMNS].filter(c => c !== 'date' && c !== 'time'),
 );
+
+// Mirrors what templateToRow (src/lib/schedule/templates.ts) emits — pinned
+// by api/__tests__/allowlist.test.ts. The workout library (phase 33): a
+// workout_events row minus calendar placement, plus scoring config.
+export const WORKOUT_TEMPLATE_COLUMNS: ReadonlySet<string> = new Set([
+  'id',
+  'title',
+  'type',
+  'scoring_type',
+  'time_cap_minutes',
+  'estimated_duration',
+  'difficulty',
+  'description',
+  'warmup',
+  'exercises',
+  'cooldown',
+  'location',
+  'tags',
+  'equipment',
+  'cardio_targets',
+  'climbing_targets',
+  'archived_at',
+]);
 
 export const DEFINITION_INSERT_COLUMNS: ReadonlySet<string> = new Set([
   'id',
