@@ -1,6 +1,6 @@
 import { test, expect, gotoCalendar, shot, supabaseRef } from '../lib/fixtures';
 
-test('day modal, composer flow, and pre-filtered exercise picker', async ({ page }) => {
+test('day modal, builder flow, and pre-filtered exercise picker', async ({ page }) => {
   await gotoCalendar(page);
 
   // Day-number click on a cell that has events opens the day overview modal.
@@ -18,16 +18,19 @@ test('day modal, composer flow, and pre-filtered exercise picker', async ({ page
   await shot(page, 'day-modal-event-opened');
   await page.keyboard.press('Escape');
 
-  // Reopen and go to the add-event composer.
+  // Reopen and go to the workout builder — search-first over the library.
   await page.locator('.day-cell:has(.event-chip) .day-cell__date-btn').first().click();
   await page.locator('.day-modal__add', { hasText: 'Add event' }).click();
-  await expect(page.locator('.composer-type-card')).toHaveCount(7);
-  await shot(page, 'composer-types');
+  await expect(page.locator('.builder-search')).toBeVisible();
+  await shot(page, 'builder-search');
 
-  // Pick Strength → details form with the exercise sections.
-  await page.locator('.composer-type-card', { hasText: 'Strength' }).click();
+  // Create new → the form, defaulting to Strength with all 7 category chips.
+  await page.locator('.builder-search__create').click();
   await expect(page.locator('.composer-form')).toBeVisible();
-  await shot(page, 'composer-form');
+  await expect(page.locator('.builder-type-chip')).toHaveCount(7);
+  await expect(page.locator('.builder-type-chip--active')).toHaveText(/Strength/);
+  await page.locator('.library-field', { hasText: 'Title' }).locator('input').fill('Day Modal Spec');
+  await shot(page, 'builder-form');
 
   // The picker opens pre-filtered to the type's aligned category.
   await page.locator('.exercise-editor__add').first().click();
@@ -52,14 +55,15 @@ test('day modal, composer flow, and pre-filtered exercise picker', async ({ page
     await page.keyboard.press('Escape');
   }
 
-  // Save. Signed in, POST /api/events is stubbed and the composer closes;
-  // offline createEvent returns null → failure toast, stays open.
+  // Apply. Signed in, POST /api/workout-templates and /api/events are both
+  // stubbed and the builder closes; offline saveTemplate returns null →
+  // failure toast, stays open.
   await page.locator('.exercise-editor__save').click();
   if (!supabaseRef()) {
-    await expect(page.locator('.composer-view'), 'composer stays open when the save fails').toBeVisible();
+    await expect(page.locator('.composer-view'), 'builder stays open when the save fails').toBeVisible();
     await expect(page.getByText('Failed to save').first(), 'offline save surfaces the failure toast').toBeVisible();
   } else {
-    await expect(page.locator('.composer-view'), 'composer closes after a successful save').toHaveCount(0);
+    await expect(page.locator('.composer-view'), 'builder closes after a successful apply').toHaveCount(0);
   }
-  await shot(page, 'composer-saved');
+  await shot(page, 'builder-applied');
 });
