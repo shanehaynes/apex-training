@@ -1,6 +1,7 @@
 import { parseISO } from 'date-fns';
-import { buildSystemPrompt } from '../../src/lib/coach/prompt';
+import { buildBuilderPrompt, buildSystemPrompt } from '../../src/lib/coach/prompt';
 import { findCoachTool } from '../../src/lib/coach/tools';
+import { applyDraftUpdate, describeDraft, emptyDraft, type DraftUpdateInput } from '../../src/lib/builder/draft';
 import { createMemoryDeps } from './memoryDeps';
 import { loadLibrary } from './library';
 import type {
@@ -56,17 +57,44 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
   const usage = { inputTokens: 0, outputTokens: 0 };
   const startedAt = Date.now();
 
+  // builder mode: the sidebar loop is replaced by the builder-coach loop —
+  // the single update_workout_draft tool reducing onto a draft, exactly as
+  // BuilderCoachPanel auto-applies it. Nothing else mutates.
+  const mode = evalCase.mode ?? 'chat';
+  let draft = emptyDraft(todayStr, evalCase.fixture.draft?.title ?? '');
+
   // All 7 production arguments — block and today's meals included, so the
   // blockSection and <meals> prompt regions are exercised, not skipped.
-  const buildSystem = (): string => buildSystemPrompt(
-    state.events.filter(e => e.date === todayStr),
-    state.events,
-    today,
-    state.definitions.values(),
-    evalCase.fixture.athlete,
-    evalCase.fixture.block ?? null,
-    state.meals.filter(m => m.date === todayStr),
-  );
+  const buildSystem = (): string => mode === 'builder'
+    ? buildBuilderPrompt(describeDraft(draft), [], state.definitions.values(), today)
+    : buildSystemPrompt(
+        state.events.filter(e => e.date === todayStr),
+        state.events,
+        today,
+        state.definitions.values(),
+        evalCase.fixture.athlete,
+        evalCase.fixture.block ?? null,
+        state.meals.filter(m => m.date === todayStr),
+      );
+
+  const executeTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
+    if (mode === 'builder') {
+      if (name !== 'update_workout_draft') {
+        anomalies.push(`unknownTool:${name} (turn ${turns.length + 1})`);
+        return `Unknown tool "${name}".`;
+      }
+      const applied = applyDraftUpdate(draft, input as DraftUpdateInput, state.definitions);
+      if ('error' in applied) return applied.error;
+      draft = applied.draft;
+      return applied.summary;
+    }
+    const tool = findCoachTool(name);
+    if (!tool) {
+      anomalies.push(`unknownTool:${name} (turn ${turns.length + 1})`);
+      return `Unknown tool "${name}".`;
+    }
+    return tool.execute(input, deps);
+  };
 
   // Long thinking streams get killed by flaky networks / sleeping machines
   // ("terminated"); the SDK doesn't retry a stream that dies mid-body, so the
@@ -76,7 +104,12 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
     let lastError: unknown;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const response = await callModel({ system: buildSystem(), messages: transcript, withTools });
+        const response = await callModel({
+          system: buildSystem(),
+          messages: transcript,
+          withTools,
+          ...(mode === 'builder' ? { toolMode: 'builder' as const } : {}),
+        });
         usage.inputTokens += response.usage.inputTokens;
         usage.outputTokens += response.usage.outputTokens;
         return response;
@@ -121,18 +154,12 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
       // settles — the API requires a tool_result per tool_use up front).
       const results: Array<{ type: 'tool_result'; tool_use_id: string; content: string }> = [];
       for (const toolUse of toolUses) {
-        const tool = findCoachTool(toolUse.name);
         let result: string;
-        if (!tool) {
-          result = `Unknown tool "${toolUse.name}".`;
-          anomalies.push(`unknownTool:${toolUse.name} (turn ${turns.length + 1})`);
-        } else {
-          try {
-            result = await tool.execute(toolUse.input, deps);
-          } catch (err) {
-            result = 'The operation failed — something went wrong on the backend.';
-            anomalies.push(`executorThrew:${toolUse.name}: ${err instanceof Error ? err.message : String(err)}`);
-          }
+        try {
+          result = await executeTool(toolUse.name, toolUse.input);
+        } catch (err) {
+          result = 'The operation failed — something went wrong on the backend.';
+          anomalies.push(`executorThrew:${toolUse.name}: ${err instanceof Error ? err.message : String(err)}`);
         }
         toolCalls.push({ name: toolUse.name, input: toolUse.input, result, turn: turns.length + 1 });
         results.push({ type: 'tool_result', tool_use_id: toolUse.id, content: result });
@@ -176,6 +203,7 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
     finalDefinitions: [...state.definitions.values()],
     finalMeals: state.meals,
     createdDefinitionNames: state.createdDefinitionNames,
+    ...(mode === 'builder' ? { finalDraft: draft } : {}),
     anomalies,
     usage,
     latencyMs: Date.now() - startedAt,

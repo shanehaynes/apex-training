@@ -1,10 +1,15 @@
 import type {
-  CardioTargets, ClimbingTargets, Exercise, ScoringType,
+  CardioTargets, ClimbingTargets, Exercise, ExerciseDefinition, ScoringType,
   WorkoutEvent, WorkoutTemplate, WorkoutType,
 } from '../../types/workout';
 import type { CreateEventInput, SaveWorkoutTemplateInput, UpdateEventInput } from '../schedule/types';
 import { toDisplayTime, toInputTime } from '../time';
 import { WORKOUT_COLORS } from '../../utils/workoutColors';
+import {
+  entryFromDefinition, hasPerSideCount, matchDefinitionByName, slugifyName, uniqueEntryId,
+} from '../schedule/definitions';
+import { normalizeSupersets } from '../schedule/supersets';
+import { WEEKDAYS, type Weekday } from '../recurrence/index.js';
 import { REPEAT_OFF, repeatFromRule, repeatProblem, ruleFromRepeat, snapAnchorDate, type DraftRepeat } from './repeat';
 
 // ─── The builder's draft model ───────────────────────────────────────────────
@@ -309,4 +314,184 @@ export function eventFieldsFromDraft(
         }
       : {}),
   };
+}
+
+// ─── Coach integration ───────────────────────────────────────────────────────
+// The builder's coach thread edits the draft through exactly one tool
+// (update_workout_draft — see src/lib/coach/schemas.ts). applyDraftUpdate is
+// its executor: a pure reducer over the draft, side-effect free by design —
+// unmatched exercise names stay snapshot-only entries, and library
+// definitions are created only when the USER applies.
+
+/** One exercise as the model supplies it (EXERCISE_INPUT_SCHEMA shape). */
+export interface DraftExerciseInput {
+  name: string;
+  category?: Exercise['category'];
+  muscle_groups?: string[];
+  sets?: number;
+  reps?: string;
+  duration?: string;
+  weight?: string;
+  rest_period?: string;
+  superset?: string;
+  notes?: string;
+  climb_style?: Exercise['climbStyle'];
+  grade?: string;
+  ascent_style?: Exercise['ascentStyle'];
+}
+
+export interface DraftUpdateInput {
+  title?: string;
+  type?: WorkoutType;
+  scoring_type?: ScoringType;
+  time_cap_minutes?: number;
+  date?: string;
+  start_time?: string;
+  end_time?: string;
+  duration_minutes?: number;
+  difficulty?: number;
+  description?: string;
+  location?: string;
+  tags?: string[];
+  warmup?: DraftExerciseInput[];
+  exercises?: DraftExerciseInput[];
+  cooldown?: DraftExerciseInput[];
+  repeat?: { days?: string[]; interval_weeks?: number; until?: string; off?: boolean };
+}
+
+function draftEntriesFromInputs(
+  inputs: DraftExerciseInput[],
+  definitions: Map<string, ExerciseDefinition>,
+  takenIds: string[],
+): Exercise[] {
+  const entries: Exercise[] = [];
+  for (const input of inputs) {
+    const overrides = {
+      sets: input.sets, reps: input.reps, duration: input.duration,
+      weight: input.weight, restPeriod: input.rest_period, notes: input.notes,
+      superset: input.superset,
+      climbStyle: input.climb_style, grade: input.grade, ascentStyle: input.ascent_style,
+    };
+    const def = matchDefinitionByName(input.name, definitions.values());
+    const id = uniqueEntryId(def?.id ?? slugifyName(input.name), [...takenIds, ...entries.map(e => e.id)]);
+    entries.push(def
+      ? entryFromDefinition(def, id, overrides)
+      // No library write from the coach's draft edits: a name that matches
+      // nothing stays a snapshot entry until the user applies.
+      : { id, name: input.name, category: input.category ?? 'strength', ...overrides });
+  }
+  return normalizeSupersets(entries);
+}
+
+/**
+ * Apply one update_workout_draft call. Returns the next draft plus a
+ * tool_result line, or an instructive error (per-side counts, like the
+ * calendar tools) so the model restates instead of polluting the form.
+ */
+export function applyDraftUpdate(
+  draft: WorkoutDraft,
+  input: DraftUpdateInput,
+  definitions: Map<string, ExerciseDefinition>,
+): { draft: WorkoutDraft; summary: string } | { error: string } {
+  const sections: Array<'warmup' | 'exercises' | 'cooldown'> = ['warmup', 'exercises', 'cooldown'];
+
+  const violations: string[] = [];
+  for (const key of sections) {
+    for (const entry of input[key] ?? []) {
+      const def = matchDefinitionByName(entry.name, definitions.values());
+      const counted = entry.reps ?? entry.duration;
+      if (def?.isUnilateral && counted && !hasPerSideCount(counted)) {
+        violations.push(`${def.canonicalName}: "${counted}" — state the count per side ("${counted} each side") or as "total".`);
+      }
+    }
+  }
+  if (violations.length) {
+    return { error: `Unilateral exercises need per-side counts. Fix and retry:\n${violations.join('\n')}` };
+  }
+
+  const changed: string[] = [];
+  let next = { ...draft, lists: { ...draft.lists } };
+  const set = <K extends keyof WorkoutDraft>(key: K, value: WorkoutDraft[K], label: string) => {
+    next = { ...next, [key]: value };
+    changed.push(label);
+  };
+
+  if (typeof input.title === 'string' && input.title.trim()) set('title', input.title.trim(), 'title');
+  if (input.type && input.type in WORKOUT_COLORS) set('type', input.type, 'category');
+  if (input.scoring_type === 'strength' || input.scoring_type === 'for-time' || input.scoring_type === 'amrap') {
+    set('scoringType', input.scoring_type, 'scoring');
+  }
+  if (typeof input.time_cap_minutes === 'number' && input.time_cap_minutes > 0) {
+    set('timeCap', String(Math.round(input.time_cap_minutes)), 'time cap');
+  }
+  if (typeof input.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input.date)) set('date', input.date, 'date');
+  if (typeof input.start_time === 'string' && /^\d{2}:\d{2}$/.test(input.start_time)) set('startTime', input.start_time, 'start time');
+  if (typeof input.end_time === 'string' && /^\d{2}:\d{2}$/.test(input.end_time)) set('endTime', input.end_time, 'end time');
+  if (typeof input.duration_minutes === 'number' && input.duration_minutes > 0) {
+    set('duration', String(Math.round(input.duration_minutes)), 'duration');
+  }
+  if (typeof input.difficulty === 'number' && input.difficulty >= 1 && input.difficulty <= 5) {
+    set('difficulty', Math.round(input.difficulty) as WorkoutDraft['difficulty'], 'difficulty');
+  }
+  if (typeof input.description === 'string') set('description', input.description, 'description');
+  if (typeof input.location === 'string') set('location', input.location, 'location');
+  if (Array.isArray(input.tags)) set('tags', input.tags.filter(t => typeof t === 'string').join(', '), 'tags');
+
+  for (const key of sections) {
+    const inputs = input[key];
+    if (!inputs) continue;
+    const takenIds = sections.filter(s => s !== key).flatMap(s => next.lists[s].map(e => e.id));
+    next = { ...next, lists: { ...next.lists, [key]: draftEntriesFromInputs(inputs, definitions, takenIds) } };
+    changed.push(`${key} (${inputs.length})`);
+  }
+
+  if (input.repeat) {
+    if (input.repeat.off) {
+      set('repeat', REPEAT_OFF, 'repeat off');
+    } else {
+      const days = (input.repeat.days ?? []).filter((d): d is Weekday => (WEEKDAYS as readonly string[]).includes(d));
+      if (!days.length) return { error: 'repeat needs at least one day (MO–SU), or { off: true }.' };
+      const interval = input.repeat.interval_weeks;
+      set('repeat', {
+        enabled: true,
+        days,
+        interval: String(typeof interval === 'number' && interval >= 1 ? Math.round(interval) : 1),
+        until: typeof input.repeat.until === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input.repeat.until) ? input.repeat.until : '',
+      }, 'repeat');
+    }
+  }
+
+  if (!changed.length) return { error: 'Nothing recognized in the update — pass at least one field.' };
+  return { draft: next, summary: `Draft updated: ${changed.join(', ')}. The user reviews and presses Apply.` };
+}
+
+/** Compact text form of the live draft for the builder coach's prompt. */
+export function describeDraft(draft: WorkoutDraft): string {
+  const lines = [
+    `Title: ${draft.title || '(untitled)'}`,
+    `Category: ${WORKOUT_COLORS[draft.type].label}`,
+    `Scoring: ${draft.scoringType}${draft.scoringType === 'amrap' && draft.timeCap ? ` (cap ${draft.timeCap} min)` : ''}`,
+    `Date: ${draft.date}${draft.startTime ? ` ${draft.startTime}` : ''}${draft.endTime ? `–${draft.endTime}` : ''} · ${draft.duration || '?'} min · difficulty ${draft.difficulty}`,
+  ];
+  if (draft.repeat.enabled) {
+    lines.push(`Repeat: ${draft.repeat.custom ?? `${draft.repeat.days.join(',')} every ${draft.repeat.interval} week(s)${draft.repeat.until ? ` until ${draft.repeat.until}` : ''}`}`);
+  }
+  if (draft.location) lines.push(`Location: ${draft.location}`);
+  if (draft.tags) lines.push(`Tags: ${draft.tags}`);
+  if (draft.description) lines.push(`Description: ${draft.description}`);
+  for (const key of ['warmup', 'exercises', 'cooldown'] as const) {
+    const entries = draft.lists[key];
+    if (!entries.length) continue;
+    lines.push(`${key === 'exercises' ? 'Main work' : key === 'warmup' ? 'Warm-up' : 'Cool-down'}:`);
+    for (const e of entries) {
+      const spec = [
+        e.sets ? `${e.sets}×` : '',
+        e.reps ?? e.duration ?? '',
+        e.weight ? `@ ${e.weight}` : '',
+        e.superset ? `[superset ${e.superset}]` : '',
+      ].filter(Boolean).join(' ');
+      lines.push(`  - ${e.name}${spec ? ` — ${spec}` : ''}`);
+    }
+  }
+  return lines.join('\n');
 }

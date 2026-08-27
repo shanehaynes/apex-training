@@ -32,7 +32,12 @@ function isRateLimitError(err: unknown): boolean {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useChat() {
+export interface UseChatOptions {
+  /** 'builder' scopes the server's tool list to update_workout_draft. */
+  toolMode?: 'chat' | 'builder';
+}
+
+export function useChat({ toolMode }: UseChatOptions = {}) {
   const [messages,       setMessages]       = useState<DisplayMessage[]>([]);
   const [apiMessages,    setApiMessages]    = useState<ApiMessage[]>([]);
   // A response may carry several tool_use blocks — each is confirmed or
@@ -58,7 +63,7 @@ export function useChat() {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-      body: JSON.stringify({ messages: msgs, system: systemPrompt, withTools }),
+      body: JSON.stringify({ messages: msgs, system: systemPrompt, withTools, ...(toolMode ? { toolMode } : {}) }),
       signal: controller.signal,
     });
     // ApiError keeps the status so catches can tell "no API key saved"
