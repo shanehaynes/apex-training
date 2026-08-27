@@ -1,4 +1,4 @@
-import { test, expect, gotoCalendar, shot } from '../lib/fixtures';
+import { test, expect, apexState, gotoCalendar, shot } from '../lib/fixtures';
 
 test('edit workout opens the builder prefilled; save patches the event', async ({ page }) => {
   // Capture the PATCH the builder sends on Save changes.
@@ -11,8 +11,12 @@ test('edit workout opens the builder prefilled; save patches the event', async (
   });
   await gotoCalendar(page);
 
-  // Open an event, then the full editor.
-  await page.locator('.event-chip__main').first().click();
+  // A one-off event — recurring ones detour through the series scope chooser
+  // (covered by builder-recurrence.spec.ts).
+  const schedule = await apexState<{ events: Array<{ title: string; isRecurring: boolean }> }>(page, 'schedule');
+  const oneOff = schedule.events.find(e => !e.isRecurring);
+  expect(oneOff, 'the bundled seed has a one-off event').toBeTruthy();
+  await page.locator('.event-chip__main', { hasText: oneOff!.title }).first().click();
   const originalTitle = (await page.locator('.modal-title').textContent())!.trim();
   await page.locator('.modal-edit-workout').click();
   await expect(page.locator('.modal'), 'builder replaces the workout modal').toHaveCount(0);
