@@ -14,8 +14,8 @@ import {
   cardioToRow,
 } from '../lib/tracking/plan';
 import type { TrackedSectionGroup } from '../lib/tracking/plan';
-import { computeSessionPRs } from '../lib/tracking/records';
-import type { PersonalRecord } from '../lib/tracking/records';
+import { computeSessionPRs, computeWorkoutScorePR, sessionScoreFromRow } from '../lib/tracking/records';
+import type { PersonalRecord, ScoreHistoryRow, SessionScore, WorkoutScoreRecord } from '../lib/tracking/records';
 import { buildSessionRecap, generateCoachSummary } from '../lib/coach/summary';
 import { cancelSession, finishSession, loadSession, saveLogs, saveSummary, swapLoggedExercise } from '../lib/tracking/sessionRepo';
 import type { RemovedSetKey, SessionInfo } from '../lib/tracking/sessionRepo';
@@ -28,12 +28,18 @@ export type CoachStatus = 'loading' | 'ready' | 'unavailable';
 
 export interface SummaryState {
   prs: PersonalRecord[];
+  /** The workout-level score this session logged (scored events only). */
+  score: SessionScore | null;
+  /** Set when that score beat the template's history. */
+  scoreRecord: WorkoutScoreRecord | null;
   coachText: string | null;
   coachStatus: CoachStatus;
 }
 
 export type FinishOutcome =
   | { status: 'needs-confirm'; count: number }
+  /** A scored event needs its score (or an explicit null to skip) first. */
+  | { status: 'needs-score' }
   | { status: 'finished' }
   | { status: 'failed' }
   | { status: 'noop' };
@@ -63,6 +69,7 @@ export function useWorkoutSession(
   const removedRef = useRef<RemovedSetKey[]>([]);
   const historyRef = useRef<SetLogRow[]>([]);
   const cardioHistoryRef = useRef<CardioLogRow[]>([]);
+  const scoreHistoryRef = useRef<ScoreHistoryRow[]>([]);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Set the moment a cancel is confirmed: blocks the debounced autosave and
   // the visibilitychange flush from re-creating rows after the delete.
@@ -100,6 +107,7 @@ export function useWorkoutSession(
       setSession(data.session);
       historyRef.current = data.history;
       cardioHistoryRef.current = data.cardioHistory;
+      scoreHistoryRef.current = data.scoreHistory;
       const lastPerf = buildLastPerformance(data.history);
       const lastCardio = buildLastCardio(data.cardioHistory);
       setGroups(buildTrackerModel(loadEvent, data.savedSets, data.savedCardio, lastPerf, lastCardio));
@@ -369,8 +377,11 @@ export function useWorkoutSession(
   /**
    * Finish the session. Without `force`, untouched planned sets make this
    * return needs-confirm (they will be zero-filled) instead of finishing.
+   * A scored event (for-time/amrap with a template) then needs its score:
+   * undefined returns needs-score, a SessionScore records it, an explicit
+   * null skips it (the session finishes unscored and sets no workout PR).
    */
-  const requestFinish = async (force: boolean): Promise<FinishOutcome> => {
+  const requestFinish = async (force: boolean, score?: SessionScore | null): Promise<FinishOutcome> => {
     if (!event || !groups || isFinishing) return { status: 'noop' };
 
     const autofillRows = collectUntouchedPlanned(event.id, event.date, groups);
@@ -378,10 +389,19 @@ export function useWorkoutSession(
       return { status: 'needs-confirm', count: autofillRows.length };
     }
 
+    const scored = !!event.templateId
+      && (event.scoringType === 'for-time' || event.scoringType === 'amrap');
+    if (scored && score === undefined) return { status: 'needs-score' };
+
     setIsFinishing(true);
     try {
       await flushSave();
-      const serverSeconds = await finishSession(event.id, event.date, autofillRows);
+      const serverSeconds = await finishSession(
+        event.id,
+        event.date,
+        autofillRows,
+        scored && score ? { templateId: event.templateId!, ...score } : undefined,
+      );
       const totalSeconds = serverSeconds ?? elapsed;
       setCompletion(event.id, true);
       setSession(prev => prev && {
@@ -394,7 +414,9 @@ export function useWorkoutSession(
       // Summary popup before returning to the calendar: PRs are computed
       // here, client-side; the coach text streams in behind the popup.
       const prs = computeSessionPRs(groupsRef.current, historyRef.current, cardioHistoryRef.current);
-      setSummary({ prs, coachText: null, coachStatus: 'loading' });
+      const sessionScore = scored && score ? score : null;
+      const scoreRecord = sessionScore ? computeWorkoutScorePR(sessionScore, scoreHistoryRef.current) : null;
+      setSummary({ prs, score: sessionScore, scoreRecord, coachText: null, coachStatus: 'loading' });
       generateAndSaveSummary(groupsRef.current, prs, totalSeconds);
       return { status: 'finished' };
     } catch {
@@ -428,14 +450,17 @@ export function useWorkoutSession(
   };
 
   // Reopen the summary on an already-finished session — saved coach text,
-  // freshly recomputed PRs (history still predates this event's date).
+  // freshly recomputed PRs (history still predates this event's date), and
+  // the score straight off the saved session row.
   const openSavedSummary = () => {
     if (!groups) return;
     const prs = computeSessionPRs(groupsRef.current, historyRef.current, cardioHistoryRef.current);
+    const score = session ? sessionScoreFromRow(session) : null;
+    const scoreRecord = score ? computeWorkoutScorePR(score, scoreHistoryRef.current) : null;
     if (session?.coach_summary) {
-      setSummary({ prs, coachText: session.coach_summary, coachStatus: 'ready' });
+      setSummary({ prs, score, scoreRecord, coachText: session.coach_summary, coachStatus: 'ready' });
     } else {
-      setSummary({ prs, coachText: null, coachStatus: 'loading' });
+      setSummary({ prs, score, scoreRecord, coachText: null, coachStatus: 'loading' });
       generateAndSaveSummary(groupsRef.current, prs, session?.total_duration_seconds ?? null);
     }
   };
