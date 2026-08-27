@@ -351,6 +351,13 @@ export default function WorkoutModal() {
                   <button className="modal-edit-exercises" onClick={() => setEditingExercises(true)}>
                     <Pencil size={12} strokeWidth={1.5} /> Edit exercises
                   </button>
+                  <button
+                    className="modal-edit-workout"
+                    onClick={() => dispatch({ type: 'OPEN_EVENT_EDITOR', payload: live })}
+                    title="Open the full editor — every field, not just exercises"
+                  >
+                    <Pencil size={12} strokeWidth={1.5} /> Edit workout
+                  </button>
                 </div>
                 {sections.map(section => (
                   <div key={section.label} className="modal-section">

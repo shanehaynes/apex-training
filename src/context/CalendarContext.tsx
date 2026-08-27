@@ -49,9 +49,12 @@ function reducer(state: CalendarState, action: CalendarAction): CalendarState {
     case 'CLEAR_DAY':
       return { ...state, selectedDay: null };
     case 'OPEN_COMPOSER':
-      return { ...state, composerDate: action.payload, selectedDay: null };
+      return { ...state, composerDate: action.payload, editingWorkout: null, selectedDay: null };
+    case 'OPEN_EVENT_EDITOR':
+      // Replaces the workout modal rather than stacking over it.
+      return { ...state, composerDate: action.payload.date, editingWorkout: action.payload, selectedEvent: null, selectedDay: null };
     case 'CLOSE_COMPOSER':
-      return { ...state, composerDate: null };
+      return { ...state, composerDate: null, editingWorkout: null };
     case 'OPEN_MEAL_COMPOSER':
       return { ...state, mealComposerDate: action.payload, editingMeal: null, selectedDay: null };
     case 'OPEN_MEAL_EDITOR':
@@ -81,6 +84,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     librarySelection: null,
     selectedDay: null,
     composerDate: null,
+    editingWorkout: null,
     mealComposerDate: null,
     editingMeal: null,
     profileOpen: false,
@@ -99,6 +103,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
       librarySelection: state.librarySelection,
       selectedDay: state.selectedDay,
       composerDate: state.composerDate,
+      editingWorkoutId: state.editingWorkout?.id ?? null,
       mealComposerDate: state.mealComposerDate,
       editingMealId: state.editingMeal?.id ?? null,
       profileOpen: state.profileOpen,
