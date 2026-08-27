@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
-import { GripVertical, Plus, X } from 'lucide-react';
+import { GripVertical, Link2, Plus, X } from 'lucide-react';
 import { useSchedule } from '../../context/schedule';
 import { baseIdOf, isOccurrenceId } from '../../lib/schedule/occurrence';
 import { entryFromDefinition, hasPerSideCount, uniqueEntryId } from '../../lib/schedule/definitions';
+import { linkWithAbove, normalizeSupersets, unlink } from '../../lib/schedule/supersets';
 import { notify } from '../../lib/notify';
 import { CLIMB_STYLES, ascentStylesFor, climbStyleLabel, sectionLabels } from '../../lib/climbing';
 import ExercisePicker from './ExercisePicker';
@@ -23,12 +24,15 @@ interface Props {
 }
 
 function EditorCard({
-  entry, error, onChange, onRemove,
+  entry, error, canLink, onChange, onRemove, onToggleLink,
 }: {
   entry: Exercise;
   error?: string;
+  /** False on a section's first entry — there is nothing above to pair with. */
+  canLink: boolean;
   onChange: (patch: Partial<Exercise>) => void;
   onRemove: () => void;
+  onToggleLink: () => void;
 }) {
   const controls = useDragControls();
   return (
@@ -47,9 +51,23 @@ function EditorCard({
           <GripVertical size={14} strokeWidth={1.5} />
         </button>
         <span className="editor-card__name">{entry.name}</span>
+        {entry.superset && <span className="superset-badge">{entry.superset}</span>}
         {entry.plannedSets?.length ? (
           <span className="editor-card__ramp-hint">custom per-set targets — editing clears them</span>
         ) : null}
+        {(canLink || entry.superset) && (
+          <button
+            className={`editor-card__link${entry.superset ? ' editor-card__link--on' : ''}`}
+            onClick={onToggleLink}
+            aria-pressed={!!entry.superset}
+            aria-label={entry.superset
+              ? `Remove ${entry.name} from superset ${entry.superset}`
+              : `Superset ${entry.name} with the exercise above`}
+            title={entry.superset ? 'Leave superset' : 'Superset with above'}
+          >
+            <Link2 size={13} strokeWidth={1.5} />
+          </button>
+        )}
         <button className="editor-card__remove" onClick={onRemove} aria-label={`Remove ${entry.name}`}>
           <X size={14} strokeWidth={1.5} />
         </button>
@@ -232,16 +250,22 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
           <Reorder.Group
             axis="y"
             values={lists[key]}
-            onReorder={entries => setSection(key, entries)}
+            // Groups are adjacency: a reorder (or removal below) re-letters
+            // and clears any singleton a move left behind.
+            onReorder={entries => setSection(key, normalizeSupersets(entries))}
             className="exercise-editor__list"
           >
-            {lists[key].map(entry => (
+            {lists[key].map((entry, idx) => (
               <EditorCard
                 key={entry.id}
                 entry={entry}
                 error={errors.get(entry.id)}
+                canLink={idx > 0}
                 onChange={patch => updateEntry(key, entry.id, patch)}
-                onRemove={() => setSection(key, lists[key].filter(e => e.id !== entry.id))}
+                onRemove={() => setSection(key, normalizeSupersets(lists[key].filter(e => e.id !== entry.id)))}
+                onToggleLink={() => setSection(key, entry.superset
+                  ? unlink(lists[key], entry.id)
+                  : linkWithAbove(lists[key], entry.id))}
               />
             ))}
           </Reorder.Group>

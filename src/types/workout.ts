@@ -83,6 +83,13 @@ export interface Exercise {
   climbStyle?: ClimbStyle;
   grade?: string;
   ascentStyle?: AscentStyle;
+  /**
+   * Superset/circuit group label ("A", "B"): consecutive entries in one
+   * section sharing a label are performed together, alternating sets.
+   * Adjacency and lettering are maintained by src/lib/schedule/supersets.ts;
+   * a lone label is meaningless and gets cleared there.
+   */
+  superset?: string;
   /** Day-specific intent ("last set AMRAP"). Form cues live on the definition. */
   notes?: string;
   imageUrl?: string;
