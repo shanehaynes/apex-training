@@ -4493,6 +4493,43 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   margin-bottom: 8px;
 }
 
+/* ── Supersets ── */
+
+/* The group letter next to an exercise name — editor, modal, and tracker. */
+.superset-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.editor-card__link {
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--duration-fast);
+}
+
+.editor-card__link:hover {
+  color: var(--text-primary);
+}
+
+.editor-card__link--on {
+  color: var(--accent-primary);
+}
+
 .exercise-picker__filters {
   padding: 10px 14px 0;
 }

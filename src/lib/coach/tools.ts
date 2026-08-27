@@ -11,6 +11,7 @@ import {
 } from './schemas.js';
 import { baseIdOf, isOccurrenceId } from '../schedule/occurrence.js';
 import { countDefinitionReferences, entryFromDefinition, hasPerSideCount, matchDefinitionByName } from '../schedule/definitions.js';
+import { normalizeSupersets } from '../schedule/supersets.js';
 import { sanitizeInlineText } from './prompt.js';
 import { validateFatSplit } from '../nutrition/mapping.js';
 import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, UpdateDefinitionInput, UpdateEventInput } from '../schedule/types.js';
@@ -131,6 +132,7 @@ interface ExerciseInput {
   duration?: string;
   weight?: string;
   rest_period?: string;
+  superset?: string;
   notes?: string;
   climb_style?: Exercise['climbStyle'];
   grade?: string;
@@ -175,6 +177,7 @@ async function buildExerciseEntries(
     const overrides = {
       sets: input.sets, reps: input.reps, duration: input.duration,
       weight: input.weight, restPeriod: input.rest_period, notes: input.notes,
+      superset: input.superset,
       climbStyle: input.climb_style, grade: input.grade, ascentStyle: input.ascent_style,
     };
     let def = matchDefinitionByName(input.name, deps.definitions.values());
@@ -197,6 +200,7 @@ async function buildExerciseEntries(
           category: input.category ?? 'strength',
           sets: input.sets, reps: input.reps, duration: input.duration,
           weight: input.weight, restPeriod: input.rest_period, notes: input.notes,
+          superset: input.superset,
           climbStyle: input.climb_style, grade: input.grade, ascentStyle: input.ascent_style,
         });
         continue;
@@ -204,7 +208,9 @@ async function buildExerciseEntries(
     }
     entries.push(entryFromDefinition(def, `${def.id}-${i + 1}`, overrides));
   }
-  return { entries, created };
+  // The model's labels go through the same normalizer as the editor's: run
+  // lettering, adjacency, and no singleton groups.
+  return { entries: normalizeSupersets(entries), created };
 }
 
 function describeCreated(created: string[]): string {
