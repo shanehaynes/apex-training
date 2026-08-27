@@ -48,6 +48,18 @@ function makeAdmin(state: AdminState) {
           state.updates.push(call);
           return updateChain(call);
         },
+        // The finish action's session fetch — a minute-old started_at gives
+        // it a sane duration to compute.
+        select: () => {
+          const chain = {
+            eq: () => chain,
+            single: async () => ({
+              data: { started_at: new Date(Date.now() - 60_000).toISOString() },
+              error: null,
+            }),
+          };
+          return chain;
+        },
       };
     },
   } as unknown as NonNullable<ReturnType<typeof getSupabaseAdmin>>;
@@ -222,5 +234,60 @@ describe('POST /api/workout-sessions — quick-complete guards', () => {
     }), res);
     expect(statusCode()).toBe(200);
     expect(state.upserts['workout_set_logs'][0].is_autofilled).toBe(true);
+  });
+});
+
+describe('POST /api/workout-sessions — finish score validation', () => {
+  const finish = (score?: unknown) => makeReq({
+    action: 'finish', eventId: 'evt-1', eventDate: '2026-08-07', autofillRows: [],
+    ...(score !== undefined ? { score } : {}),
+  });
+  const sessionPatch = () => state.updates.find(u => u.table === 'workout_sessions');
+
+  it('finishes without a score exactly as before', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(finish(), res);
+    expect(statusCode()).toBe(200);
+    expect(sessionPatch()!.patch.score_type).toBeUndefined();
+  });
+
+  it('accepts a for-time score and stamps its columns, caller-scoped', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(finish({ templateId: 'wt-1', type: 'for-time', timeSeconds: 2492 }), res);
+    expect(statusCode()).toBe(200);
+    const call = sessionPatch()!;
+    expect(call.patch.template_id).toBe('wt-1');
+    expect(call.patch.score_type).toBe('for-time');
+    expect(call.patch.score_time_seconds).toBe(2492);
+    expect(call.filters.user_id).toBe('user-123');
+    expect(call.filters.event_id).toBe('evt-1');
+  });
+
+  it('accepts an amrap score, defaulting extra reps to 0', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(finish({ templateId: 'wt-1', type: 'amrap', rounds: 18 }), res);
+    expect(statusCode()).toBe(200);
+    const call = sessionPatch()!;
+    expect(call.patch.score_type).toBe('amrap');
+    expect(call.patch.score_rounds).toBe(18);
+    expect(call.patch.score_reps).toBe(0);
+    expect(call.patch.score_time_seconds).toBeUndefined();
+  });
+
+  it('400s before any write on a malformed score', async () => {
+    for (const score of [
+      { templateId: 'wt-1', type: 'for-time', timeSeconds: -5 },
+      { templateId: 'wt-1', type: 'for-time', timeSeconds: 12.5 },
+      { templateId: 'wt-1', type: 'amrap', timeSeconds: 100 },
+      { templateId: 'bad id!', type: 'for-time', timeSeconds: 100 },
+      { templateId: 'wt-1', type: 'emom', rounds: 3 },
+      null,
+    ]) {
+      state.updates = [];
+      const { res, statusCode } = makeRes();
+      await handler(finish(score), res);
+      expect(statusCode(), JSON.stringify(score)).toBe(400);
+      expect(state.updates).toEqual([]);
+    }
   });
 });

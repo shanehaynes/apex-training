@@ -2,8 +2,8 @@ import { CheckCircle2, Trophy, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { WorkoutEvent } from '../../types/workout';
 import type { TrackedSectionGroup, TrackedSet, CardioActuals } from '../../lib/tracking/plan';
-import { describeRecord } from '../../lib/tracking/records';
-import type { PersonalRecord } from '../../lib/tracking/records';
+import { describeRecord, describeWorkoutScore, formatScore } from '../../lib/tracking/records';
+import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from '../../lib/tracking/records';
 import type { CoachStatus } from '../../hooks/useWorkoutSession';
 
 interface Props {
@@ -12,6 +12,10 @@ interface Props {
   durationSeconds: number | null;
   groups: TrackedSectionGroup[];
   prs: PersonalRecord[];
+  /** Workout-level score for scored events (null = unscored session). */
+  score: SessionScore | null;
+  /** Set when the score beat the template's history — the top trophy row. */
+  scoreRecord: WorkoutScoreRecord | null;
   coachText: string | null;
   coachStatus: CoachStatus;
   /** Dismiss the popup but stay on the tracker (post-finish editing). */
@@ -49,6 +53,8 @@ export default function WorkoutSummary({
   durationSeconds,
   groups,
   prs,
+  score,
+  scoreRecord,
   coachText,
   coachStatus,
   onClose,
@@ -67,7 +73,7 @@ export default function WorkoutSummary({
             <span className="tracker-summary__heading">Workout Complete</span>
             <span className="tracker-summary__meta">
               {event.title} · {format(parseISO(event.date), 'EEE, MMM d')}
-              {duration ? ` · ${duration}` : ''}
+              {score ? ` · ${formatScore(score)}` : duration ? ` · ${duration}` : ''}
             </span>
           </div>
           <button className="tracker-summary__close" onClick={onClose} aria-label="Close summary">
@@ -92,8 +98,16 @@ export default function WorkoutSummary({
           )}
         </div>
 
-        {prs.length > 0 && (
+        {(scoreRecord || prs.length > 0) && (
           <div className="tracker-summary__prs">
+            {scoreRecord && (
+              <div className="tracker-summary__pr">
+                <Trophy size={14} strokeWidth={2} style={{ color: accentColor }} />
+                <span>
+                  <strong>{event.title}</strong> — {describeWorkoutScore(scoreRecord)}
+                </span>
+              </div>
+            )}
             {prs.map(pr => (
               <div key={`${pr.kind}|${pr.exerciseName}`} className="tracker-summary__pr">
                 <Trophy size={14} strokeWidth={2} style={{ color: accentColor }} />
