@@ -208,6 +208,9 @@ export async function installIntercept(context, { anonKey = null, profile } = {}
     if (url.includes('recurring_exceptions') || url.includes('exercise_definitions')) {
       return json(route, []);
     }
+    // Workout library (phase 33): deterministic empty list so the builder's
+    // search step settles; template-specific specs override via page.route.
+    if (url.includes('workout_templates')) return json(route, []);
 
     // Passthrough REST reads (workout_completions, workout_sessions): the
     // fabricated session attaches its fake JWT, which the real PostgREST
