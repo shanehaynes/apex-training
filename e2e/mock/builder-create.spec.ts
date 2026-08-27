@@ -13,8 +13,8 @@ const CINDY_ROW = {
   description: '5 pull-ups, 10 push-ups, 15 squats',
   warmup: [],
   exercises: [
-    { id: 'ex-1', name: 'Pull-up', category: 'strength', reps: '5' },
-    { id: 'ex-2', name: 'Push-up', category: 'strength', reps: '10' },
+    { id: 'ex-1', name: 'Pull-up', category: 'strength', reps: '5', superset: 'A' },
+    { id: 'ex-2', name: 'Push-up', category: 'strength', reps: '10', superset: 'A' },
   ],
   cooldown: [],
   location: null,
@@ -81,9 +81,25 @@ test('picking a library template fills the form and keeps its identity', async (
   await expect(page.locator('.builder-scoring__btn--active')).toHaveText('AMRAP');
   await expect(page.locator('.builder-scoring__cap input')).toHaveValue('20');
   await expect(page.locator('.composer-exercises'), 'template exercises fill the sections').toContainText('Pull-up');
-  await shot(page, 'builder-template-filled');
 
-  // Apply → both stubbed writes succeed → builder closes.
+  // The stored superset pair renders as group badges; unlink dissolves the
+  // pair (a superset of one is meaningless), relink restores it.
+  await expect(page.locator('.superset-badge')).toHaveCount(2);
+  await shot(page, 'builder-template-filled');
+  await page.locator('.editor-card__link').last().click();
+  await expect(page.locator('.superset-badge')).toHaveCount(0);
+  await page.locator('.editor-card__link').last().click();
+  await expect(page.locator('.superset-badge')).toHaveCount(2);
+
+  // Apply → both stubbed writes succeed → builder closes; the template
+  // upsert carries the group labels.
+  const templatePosts: Array<Record<string, unknown>> = [];
+  await page.route('**/api/workout-templates*', route => {
+    templatePosts.push(route.request().postDataJSON());
+    return route.fulfill({ status: 200, contentType: 'application/json', body: '{"id":"wt-cindy"}' });
+  });
   await page.locator('.exercise-editor__save').click();
   await expect(page.locator('.composer-view')).toHaveCount(0);
+  const savedExercises = templatePosts[0].exercises as Array<{ superset?: string }>;
+  expect(savedExercises.map(e => e.superset)).toEqual(['A', 'A']);
 });
