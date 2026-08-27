@@ -983,10 +983,13 @@ export type Database = {
           recurring_days: number[] | null
           recurring_end_date: string | null
           recurring_frequency: string | null
+          scoring_type: string | null
           source: string | null
           start_time: string | null
           subtitle: string | null
           tags: string[]
+          template_id: string | null
+          time_cap_minutes: number | null
           title: string
           type: string
           updated_at: string
@@ -1013,10 +1016,13 @@ export type Database = {
           recurring_days?: number[] | null
           recurring_end_date?: string | null
           recurring_frequency?: string | null
+          scoring_type?: string | null
           source?: string | null
           start_time?: string | null
           subtitle?: string | null
           tags?: string[]
+          template_id?: string | null
+          time_cap_minutes?: number | null
           title: string
           type: string
           updated_at?: string
@@ -1043,10 +1049,13 @@ export type Database = {
           recurring_days?: number[] | null
           recurring_end_date?: string | null
           recurring_frequency?: string | null
+          scoring_type?: string | null
           source?: string | null
           start_time?: string | null
           subtitle?: string | null
           tags?: string[]
+          template_id?: string | null
+          time_cap_minutes?: number | null
           title?: string
           type?: string
           updated_at?: string
@@ -1148,6 +1157,75 @@ export type Database = {
           set_number?: number
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      workout_templates: {
+        Row: {
+          archived_at: string | null
+          cardio_targets: Json | null
+          climbing_targets: Json | null
+          cooldown: Json
+          created_at: string
+          description: string
+          difficulty: number
+          equipment: string[]
+          estimated_duration: number
+          exercises: Json
+          id: string
+          location: string | null
+          scoring_type: string
+          tags: string[]
+          time_cap_minutes: number | null
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+          warmup: Json
+        }
+        Insert: {
+          archived_at?: string | null
+          cardio_targets?: Json | null
+          climbing_targets?: Json | null
+          cooldown?: Json
+          created_at?: string
+          description?: string
+          difficulty?: number
+          equipment?: string[]
+          estimated_duration: number
+          exercises?: Json
+          id: string
+          location?: string | null
+          scoring_type?: string
+          tags?: string[]
+          time_cap_minutes?: number | null
+          title: string
+          type: string
+          updated_at?: string
+          user_id: string
+          warmup?: Json
+        }
+        Update: {
+          archived_at?: string | null
+          cardio_targets?: Json | null
+          climbing_targets?: Json | null
+          cooldown?: Json
+          created_at?: string
+          description?: string
+          difficulty?: number
+          equipment?: string[]
+          estimated_duration?: number
+          exercises?: Json
+          id?: string
+          location?: string | null
+          scoring_type?: string
+          tags?: string[]
+          time_cap_minutes?: number | null
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+          warmup?: Json
         }
         Relationships: []
       }

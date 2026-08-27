@@ -30,6 +30,9 @@ export function rowToEvent(row: WorkoutEventRow): WorkoutEvent {
     tags:              row.tags ?? [],
     equipment:         row.equipment ?? [],
     source:            (row.source ?? undefined) as WorkoutEvent['source'],
+    templateId:        row.template_id ?? undefined,
+    scoringType:       (row.scoring_type ?? undefined) as WorkoutEvent['scoringType'],
+    timeCapMinutes:    row.time_cap_minutes ?? undefined,
     isCompleted:       false,
     isRecurring:       row.is_recurring,
     // recurrence_rule is canonical; rows the SQL backfill hasn't reached fall
@@ -79,6 +82,11 @@ const EVENT_FIELDS: {
   // Key omitted when unset so inserts keep working before the phase 27
   // source column migration has been applied.
   source:            v => (v === undefined ? {} : { source: v }),
+  // Keys omitted when unset so inserts keep working before the phase 33
+  // template/scoring column migration has been applied.
+  templateId:        v => (v === undefined ? {} : { template_id: v }),
+  scoringType:       v => (v === undefined ? {} : { scoring_type: v }),
+  timeCapMinutes:    v => (v === undefined ? {} : { time_cap_minutes: v }),
 };
 
 const EVENT_FIELD_ENTRIES = Object.entries(EVENT_FIELDS) as [
