@@ -20,6 +20,8 @@ interface AdminState {
   purged: { table: string; eventIds: string[] }[];
   /** Tables the reschedule re-dated, the ids matched, and the new event_date. */
   migrated: { table: string; eventIds: string[]; eventDate: unknown }[];
+  /** Tables the detach re-identified, the ids matched, and the new values. */
+  relabeled: { table: string; eventIds: string[]; values: Record<string, unknown> }[];
 }
 
 function makeAdmin(state: AdminState) {
@@ -45,6 +47,12 @@ function makeAdmin(state: AdminState) {
               neq: async () => {
                 state.migrated.push({ table, eventIds, eventDate: values.event_date });
                 return { error: null };
+              },
+              // The detach relabel awaits `.in(...)` directly (no .neq) —
+              // record it through the thenable instead.
+              then: (resolve: (v: { error: null }) => void) => {
+                state.relabeled.push({ table, eventIds, values });
+                resolve({ error: null });
               },
             }),
           };
@@ -83,7 +91,7 @@ function makeRes() {
 let state: AdminState;
 
 beforeEach(() => {
-  state = { parent: { id: 'evt-1', date: '2026-07-06' }, inserted: [], purged: [], migrated: [] };
+  state = { parent: { id: 'evt-1', date: '2026-07-06' }, inserted: [], purged: [], migrated: [], relabeled: [] };
   mockedAdmin.mockReturnValue(makeAdmin(state));
 });
 
@@ -195,5 +203,96 @@ describe('POST /api/event-instances — rescheduling one occurrence', () => {
 
     expect(statusCode()).toBe(404);
     expect(state.migrated).toEqual([]);
+  });
+});
+
+describe('POST /api/event-instances — detaching one occurrence', () => {
+  const DETACH_EVENT = {
+    id: 'ai-fresh',
+    type: 'weights',
+    title: 'Detached Day',
+    date: '2026-07-13',
+    estimated_duration: 60,
+    difficulty: 3,
+    description: '',
+    warmup: [],
+    exercises: [],
+    cooldown: [],
+    tags: [],
+    equipment: [],
+    is_recurring: false,
+    recurrence_rule: null,
+  };
+
+  it('inserts a never-recurring standalone row and relabels the occurrence logs', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq({
+      action: 'detach', eventId: 'evt-1', date: '2026-07-13', triggeredBy: 'user',
+      event: { ...DETACH_EVENT, is_recurring: true, recurrence_rule: 'FREQ=WEEKLY;BYDAY=MO' },
+    }), res);
+
+    expect(statusCode()).toBe(200);
+    const inserted = state.inserted.find(r => r.table === 'workout_events')!;
+    expect(inserted.id).toBe('ai-fresh');
+    expect(inserted.user_id).toBe('user-123');
+    // Whatever the client sent, a detached day never recurs.
+    expect(inserted.is_recurring).toBe(false);
+    expect(inserted.recurrence_rule).toBeNull();
+
+    expect(state.relabeled.map(r => r.table).sort()).toEqual(TRACKED_TABLES);
+    for (const r of state.relabeled) {
+      expect([...r.eventIds].sort()).toEqual(['evt-1__2026-07-13']);
+      expect(r.values.event_id).toBe('ai-fresh');
+      expect(r.values.event_date).toBe('2026-07-13');
+    }
+  });
+
+  it('also relabels the bare base id when detaching the series anchor', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq({
+      action: 'detach', eventId: 'evt-1', date: '2026-07-06', triggeredBy: 'user',
+      event: { ...DETACH_EVENT, date: '2026-07-06' },
+    }), res);
+
+    expect(statusCode()).toBe(200);
+    for (const r of state.relabeled) {
+      expect([...r.eventIds].sort()).toEqual(['evt-1', 'evt-1__2026-07-06']);
+    }
+  });
+
+  it('rejects an id carrying the occurrence separator', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq({
+      action: 'detach', eventId: 'evt-1', date: '2026-07-13', triggeredBy: 'user',
+      event: { ...DETACH_EVENT, id: 'ai-fresh__2026-07-13' },
+    }), res);
+
+    expect(statusCode()).toBe(400);
+    expect(state.inserted).toEqual([]);
+    expect(state.relabeled).toEqual([]);
+  });
+
+  it('rejects unknown event fields loudly', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq({
+      action: 'detach', eventId: 'evt-1', date: '2026-07-13', triggeredBy: 'user',
+      event: { ...DETACH_EVENT, is_template_source: true },
+    }), res);
+
+    expect(statusCode()).toBe(400);
+    expect(state.inserted).toEqual([]);
+  });
+
+  it('detaches nothing for an event the caller does not own', async () => {
+    state.parent = null;
+    const { res, statusCode } = makeRes();
+    await handler(makeReq({
+      action: 'detach', eventId: 'someone-elses', date: '2026-07-13', triggeredBy: 'user',
+      event: DETACH_EVENT,
+    }), res);
+
+    expect(statusCode()).toBe(404);
+    expect(state.inserted).toEqual([]);
+    expect(state.relabeled).toEqual([]);
   });
 });
