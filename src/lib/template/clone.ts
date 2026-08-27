@@ -29,13 +29,17 @@ export function collectDefinitionIds(rows: WorkoutEventRow[]): string[] {
 
 /**
  * Re-identify an event row for the target user: fresh id and owner, DB-owned
- * timestamps dropped so insert defaults restamp them.
+ * timestamps dropped so insert defaults restamp them. template_id is dropped
+ * too — it references the SOURCE user's workout_templates partition, and a
+ * dangling cross-user reference would poison the copy's score-history
+ * grouping (the scoring_type/time_cap_minutes snapshot columns are plain
+ * values, so they clone as-is).
  */
 export function cloneEventRow(
   row: WorkoutEventRow,
   newId: string,
   userId: string,
 ): Omit<WorkoutEventRow, 'created_at' | 'updated_at'> {
-  const { created_at: _created, updated_at: _updated, ...rest } = row;
+  const { created_at: _created, updated_at: _updated, template_id: _template, ...rest } = row;
   return { ...rest, id: newId, user_id: userId };
 }

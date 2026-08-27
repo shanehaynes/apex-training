@@ -25,6 +25,7 @@ export const EXERCISE_INPUT_SCHEMA = {
       duration:      { type: 'string', description: 'For timed holds, e.g. "30s each side".' },
       weight:        { type: 'string' },
       rest_period:   { type: 'string' },
+      superset:      { type: 'string', description: 'Superset/circuit group label ("A", "B"). CONSECUTIVE entries sharing a label are performed together, alternating sets. A label on a single entry is dropped.' },
       notes:         { type: 'string', description: 'Day-specific intent only — form cues live on the library entry.' },
       climb_style:   { type: 'string', enum: ['sport', 'trad', 'boulder', 'ice-mixed'], description: 'Climbing pitches only (outdoor climbing events: one entry per pitch).' },
       grade:         { type: 'string', description: 'Climbing pitches only — e.g. "5.11a", "V5", "WI4".' },
@@ -260,4 +261,55 @@ export function coachToolSchemas(): Anthropic.Tool[] {
     updateMealSchema,
     deleteMealSchema,
   ];
+}
+
+// ─── Builder mode (toolMode: 'builder') ──────────────────────────────────────
+// The workout builder embeds its own coach thread with exactly ONE tool: a
+// partial update over the draft form. The calendar/meal tools above do not
+// exist in this mode, which makes "the coach can never apply, save, or touch
+// the schedule from the builder" structural rather than prompt-enforced.
+// Executed client-side against React draft state — nothing persists until
+// the user presses Apply.
+
+export const updateWorkoutDraftSchema: Anthropic.Tool = {
+  name: 'update_workout_draft',
+  description:
+    'Update the workout draft the user is building. Partial: only the fields you pass change; ' +
+    'a passed section (warmup/exercises/cooldown) REPLACES that whole section. This edits the ' +
+    'form only — nothing is saved or scheduled until the user presses Apply, which only they can do.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      title:            { type: 'string' },
+      type:             { type: 'string', enum: ['weights', 'climbing', 'outdoor-climbing', 'cardio', 'yoga', 'stretching', 'morning-routine'] },
+      scoring_type:     { type: 'string', enum: ['strength', 'for-time', 'amrap'], description: 'What the PR means: strength = per-exercise records; for-time = fastest completion of fixed work; amrap = most rounds+reps inside the time cap.' },
+      time_cap_minutes: { type: 'number', description: 'AMRAP only: the working window in minutes.' },
+      date:             { type: 'string', description: 'YYYY-MM-DD.' },
+      start_time:       { type: 'string', description: '24h HH:MM.' },
+      end_time:         { type: 'string', description: '24h HH:MM.' },
+      duration_minutes: { type: 'number' },
+      difficulty:       { type: 'number', description: '1–5.' },
+      description:      { type: 'string' },
+      location:         { type: 'string' },
+      tags:             { type: 'array', items: { type: 'string' } },
+      warmup:           EXERCISE_INPUT_SCHEMA,
+      exercises:        EXERCISE_INPUT_SCHEMA,
+      cooldown:         EXERCISE_INPUT_SCHEMA,
+      repeat: {
+        type: 'object',
+        description: 'Weekly repeat schedule. Pass { off: true } to disable; otherwise days is required.',
+        properties: {
+          days:           { type: 'array', items: { type: 'string', enum: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] } },
+          interval_weeks: { type: 'number', description: '1 = every week, 2 = every other week…' },
+          until:          { type: 'string', description: 'YYYY-MM-DD, inclusive; omit for no end.' },
+          off:            { type: 'boolean' },
+        },
+      },
+    },
+  },
+};
+
+/** The builder thread's constant tool list — per-mode caching invariant. */
+export function builderToolSchemas(): Anthropic.Tool[] {
+  return [updateWorkoutDraftSchema];
 }

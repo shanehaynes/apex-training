@@ -1,4 +1,4 @@
-import type { ExerciseDefinition, WorkoutEvent, WorkoutType } from '../../types/workout';
+import type { ExerciseDefinition, WorkoutEvent, WorkoutTemplate, WorkoutType } from '../../types/workout';
 
 // Inputs for schedule mutations — shared by ScheduleContext (which
 // implements them) and the coach tool registry (which invokes them).
@@ -22,7 +22,27 @@ export interface CreateEventInput {
   cooldown?: WorkoutEvent['cooldown'];
   cardioTargets?: WorkoutEvent['cardioTargets'];
   climbingTargets?: WorkoutEvent['climbingTargets'];
+  /** Library linkage + scoring snapshot (phase 33), stamped by Apply. */
+  templateId?: WorkoutEvent['templateId'];
+  scoringType?: WorkoutEvent['scoringType'];
+  timeCapMinutes?: WorkoutEvent['timeCapMinutes'];
+  /**
+   * Canonical RRULE value (no 'RRULE:' prefix) — set makes the event a
+   * recurring series anchored on `date`. The anchor date must satisfy the
+   * rule's BYDAY (see snapAnchorDate in src/lib/builder/repeat.ts): the
+   * engine renders the anchor at its own date and only generates dates
+   * strictly after it.
+   */
+  recurrenceRule?: string;
 }
+
+/**
+ * A workout-library save. Omitting id mints a fresh template; the builder
+ * passes an existing id (or the case-insensitive title match's id, see
+ * matchTemplateByTitle) so "save again" overwrites instead of duplicating.
+ */
+export type SaveWorkoutTemplateInput =
+  Omit<WorkoutTemplate, 'id' | 'archivedAt' | 'updatedAt'> & { id?: string };
 
 export interface UpdateEventInput {
   id: string;

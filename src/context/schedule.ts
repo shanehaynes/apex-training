@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
-import type { ExerciseDefinition, WorkoutEvent } from '../types/workout';
-import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, UpdateDefinitionInput, UpdateEventInput } from '../lib/schedule/types';
+import type { ExerciseDefinition, WorkoutEvent, WorkoutTemplate } from '../types/workout';
+import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, SaveWorkoutTemplateInput, UpdateDefinitionInput, UpdateEventInput } from '../lib/schedule/types';
 
 // Context object + hook live apart from the provider so ScheduleContext.tsx
 // exports only a component and stays eligible for React Fast Refresh.
@@ -34,10 +34,23 @@ export interface ScheduleContextValue {
    * rest of the series is untouched.
    */
   rescheduleEvent: (id: string, fields: OccurrenceOverride, triggeredBy?: 'user' | 'ai') => Promise<boolean>;
+  /**
+   * "Edit this event only" on a recurring occurrence: materialize it as a
+   * standalone event carrying `fields`, skip it on the series, and relabel
+   * anything already logged to the new id. Permanent — the day no longer
+   * follows the series.
+   */
+  detachOccurrence: (id: string, fields: Partial<Omit<WorkoutEvent, 'id' | 'isCompleted'>>, triggeredBy?: 'user' | 'ai') => Promise<{ id: string } | null>;
   /** Add a movement to the exercise library. */
   createDefinition: (input: CreateDefinitionInput) => Promise<{ id: string } | null>;
   /** Edit library-tier fields; a canonicalName change auto-appends the old name as an alias server-side. */
   updateDefinition: (input: UpdateDefinitionInput) => Promise<boolean>;
+  /** Workout library (phase 33), keyed by template id — archived entries included; UI filters. */
+  templates: Map<string, WorkoutTemplate>;
+  /** Upsert a workout template. Omitted id mints one; the caller resolves title reuse first. */
+  saveTemplate: (input: SaveWorkoutTemplateInput) => Promise<{ id: string } | null>;
+  /** Soft-remove from the library — score history keys on the id, so never a hard delete. */
+  archiveTemplate: (id: string) => Promise<boolean>;
 }
 
 export const ScheduleContext = createContext<ScheduleContextValue | null>(null);

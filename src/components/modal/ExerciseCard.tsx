@@ -54,6 +54,11 @@ export default function ExerciseCard({ exercise, accentColor }: Props) {
         ) : (
           <span className="exercise-card__name">{exercise.name}</span>
         )}
+        {exercise.superset && (
+          <span className="superset-badge" title={`Superset ${exercise.superset} — alternate sets with its partners`}>
+            {exercise.superset}
+          </span>
+        )}
         {meta.length > 0 && (
           <span className="exercise-card__meta" style={{ color: accentColor }}>
             {meta.join('  ·  ')}
