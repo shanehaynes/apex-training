@@ -164,6 +164,7 @@ export interface PrescriptionOverrides {
   duration?: string;
   weight?: string;
   restPeriod?: string;
+  superset?: string;
   notes?: string;
   climbStyle?: Exercise['climbStyle'];
   grade?: string;
@@ -191,6 +192,7 @@ export function entryFromDefinition(
     duration: overrides.duration ?? def.defaultDuration,
     weight: overrides.weight ?? def.defaultWeight,
     restPeriod: overrides.restPeriod ?? def.defaultRest,
+    superset: overrides.superset,
     notes: overrides.notes,
     climbStyle: overrides.climbStyle,
     grade: overrides.grade,

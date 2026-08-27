@@ -1,9 +1,9 @@
-import { ChevronLeft, ChevronRight, Dumbbell, Target } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dumbbell, Plus, Target } from 'lucide-react';
 import { useCalendar } from '../../context/calendar';
 import { useAuth } from '../../context/auth';
 import ProviderSyncControls from '../sync/ProviderSyncControls';
 import { avatarSrc, AVATARS } from '../../lib/profile/avatars';
-import { formatMonthYear, formatWeekRange, formatDay, isCurrentPeriod } from '../../utils/dateHelpers';
+import { formatMonthYear, formatWeekRange, formatDay, isCurrentPeriod, toDateString } from '../../utils/dateHelpers';
 import type { CalendarView } from '../../types/workout';
 
 export default function TopNav() {
@@ -49,6 +49,15 @@ export default function TopNav() {
 
       <div className="top-nav__right">
         <ProviderSyncControls />
+        <button
+          className="btn-library btn-library--add"
+          data-testid="nav-add-workout"
+          onClick={() => dispatch({ type: 'OPEN_COMPOSER', payload: toDateString(currentDate) })}
+          title="Add workout"
+        >
+          <Plus size={14} strokeWidth={2} />
+          <span className="btn-library__label">Add</span>
+        </button>
         <button
           className="btn-library"
           data-testid="nav-blocks"
