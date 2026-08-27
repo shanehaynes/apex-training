@@ -4,7 +4,7 @@ import Calendar from '../calendar/Calendar';
 import ChatSidebar from '../sidebar/ChatSidebar';
 import WorkoutModal from '../modal/WorkoutModal';
 import DayModal from '../modal/DayModal';
-import AddEventView from '../composer/AddEventView';
+import WorkoutBuilderView from '../builder/WorkoutBuilderView';
 import AddMealView from '../composer/AddMealView';
 import TrackerView from '../tracker/TrackerView';
 import LibraryView from '../library/LibraryView';
@@ -50,7 +50,7 @@ export default function AppShell() {
       )}
       {state.selectedEvent && <WorkoutModal />}
       {state.selectedDay && <DayModal />}
-      {state.composerDate && <AddEventView />}
+      {state.composerDate && <WorkoutBuilderView />}
       {state.mealComposerDate && <AddMealView />}
       {state.trackingSession && <TrackerView />}
       {state.libraryOpen && <LibraryView />}

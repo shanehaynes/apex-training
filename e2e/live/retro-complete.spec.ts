@@ -34,6 +34,8 @@ async function deleteArtifacts() {
     }
     await admin.from('workout_events').delete().eq('id', row.id);
   }
+  // Apply also upserts the library template for the title.
+  await admin.from('workout_templates').delete().eq('title', TITLE);
 }
 
 test.beforeAll(deleteArtifacts);
@@ -46,10 +48,10 @@ test('an event added to a past day is completed on creation', async ({ page }) =
   // Compose onto Aug 1 — two days before the frozen "today" (Aug 3).
   await page.locator('button[aria-label="View August 1"]').click();
   await page.locator('.day-modal__add', { hasText: 'Add event' }).click();
-  await page.locator('.composer-type-card', { hasText: 'Strength' }).click();
+  await page.locator('.builder-search__create').click();
   await expect(
     page.locator('.library-field', { hasText: 'Date' }).locator('input'),
-    'composer inherits the clicked past day',
+    'builder inherits the clicked past day',
   ).toHaveValue('2026-08-01');
   await page.locator('.library-field', { hasText: 'Title' }).locator('input').fill(TITLE);
   await page.locator('.exercise-editor__save').click();

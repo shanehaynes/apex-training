@@ -1319,6 +1319,72 @@
     color: var(--accent-primary);
   }
 
+  /* The center add action: its own class, not a tab — it opens a menu, not
+     a view, and tab styling/indexing must not absorb it. */
+  .mobile-nav__add-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 76px;
+  }
+
+  .mobile-nav__add {
+    width: 46px;
+    height: 46px;
+    margin-top: -14px;
+    border-radius: 50%;
+    border: 1px solid #3d3530;
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    transition: transform var(--duration-fast) var(--ease-spring);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-nav__add--open {
+    transform: rotate(45deg);
+  }
+
+  .mobile-nav__add-menu {
+    position: absolute;
+    bottom: 64px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    min-width: 140px;
+  }
+
+  .mobile-nav__add-menu button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .mobile-nav__add-menu button:active {
+    background: var(--bg-elevated);
+  }
+
   /* ── Day view ── */
   .day-view {
     height: 100%;
@@ -3382,7 +3448,8 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   margin-bottom: -6px;
 }
 
-.modal-edit-exercises {
+.modal-edit-exercises,
+.modal-edit-workout {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -3397,7 +3464,8 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   transition: all var(--duration-fast) ease;
 }
 
-.modal-edit-exercises:hover {
+.modal-edit-exercises:hover,
+.modal-edit-workout:hover {
   background: var(--bg-elevated);
   color: var(--text-primary);
 }
@@ -4089,6 +4157,217 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   bottom: 0;
   background: var(--bg-primary);
   padding: 14px 0;
+}
+
+/* ── Workout builder ── */
+
+.builder-search {
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+/* .library-search grows and caps its width in the library header; here it is
+   a column-flex child and must stay a fixed-height full-width bar. */
+.builder-search .library-search {
+  flex: 0 0 auto;
+  max-width: none;
+}
+
+.builder-search__filters {
+  padding: 0;
+  flex-wrap: wrap;
+}
+
+.builder-search__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.builder-template-card {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  transition: border-color var(--duration-fast), transform var(--duration-fast) var(--ease-spring);
+}
+
+.builder-template-card:hover {
+  border-color: #3d3530;
+  transform: translateY(-1px);
+}
+
+.builder-template-card__main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  min-width: 0;
+}
+
+.builder-template-card__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.builder-template-card__name {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.builder-template-card__meta {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.builder-template-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.builder-template-card__archive {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--duration-fast);
+}
+
+.builder-template-card__archive:hover {
+  color: var(--text-primary);
+}
+
+.builder-search__empty {
+  padding: 24px 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.builder-search__create {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px;
+  border: 1px dashed #3d3530;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+  position: sticky;
+  bottom: 16px;
+}
+
+.builder-search__create:hover {
+  border-color: var(--accent-primary);
+  background: var(--bg-surface);
+}
+
+.builder-type-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.builder-type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--duration-fast), color var(--duration-fast);
+}
+
+.builder-type-chip:hover {
+  border-color: #3d3530;
+}
+
+.builder-scoring {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.builder-scoring__toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.builder-scoring__btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--duration-fast), color var(--duration-fast);
+}
+
+.builder-scoring__btn:hover {
+  border-color: #3d3530;
+}
+
+.builder-scoring__hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.builder-scoring__cap {
+  max-width: 180px;
+}
+
+.builder-series-note,
+.builder-apply-note {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-align: right;
+  margin: -8px 0 0;
 }
 
 .exercise-picker__filters {
