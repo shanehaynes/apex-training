@@ -23,7 +23,12 @@ set -euo pipefail
 # Runnable from anywhere; the git questions below are about this repo.
 cd "$(cd "$(dirname "$0")/.." && pwd -P)" || exit 1
 
-url="${APEX_PROD_URL:-https://apex-training.vercel.app}"
+# apextrainingcalendar.vercel.app is the project's real production alias
+# (`vercel inspect` lists it). apex-training.vercel.app belongs to someone
+# else's project entirely — it answers 200 HTML for every path, which the
+# old grace-period probes read as healthy and the SHA check reads as a
+# routing blackhole. Neither is telling us anything about OUR deploy.
+url="${APEX_PROD_URL:-https://apextrainingcalendar.vercel.app}"
 max_minutes=8
 for arg in "$@"; do
   case "$arg" in
