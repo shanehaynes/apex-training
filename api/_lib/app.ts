@@ -10,6 +10,7 @@ import eventInstances from './handlers/eventInstances.js';
 import coachSummary from './handlers/coachSummary.js';
 import mutationsLog from './handlers/mutationsLog.js';
 import completions from './handlers/completions.js';
+import workoutTemplates from './handlers/workoutTemplates.js';
 import mcp from './handlers/mcp.js';
 import mcpTokens from './handlers/mcpTokens.js';
 import oauthMetadata from './handlers/oauthMetadata.js';
@@ -53,6 +54,7 @@ app.all('/blocks', bridge(handleTrainingBlocks, r => { r.query.resource = 'block
 app.all('/objectives', bridge(handleTrainingBlocks, r => { r.query.resource = 'objective'; }));
 app.all('/meals', bridge(handleMeals));
 app.all('/meal-favorites', bridge(handleMealFavorites));
+app.all('/workout-templates', bridge(workoutTemplates));
 app.all('/workout-sessions', bridge(workoutSessions));
 app.all('/profile', bridge(profile));
 app.all('/exercise-definitions', bridge(exerciseDefinitions));
