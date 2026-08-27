@@ -21,8 +21,10 @@ export interface CalendarState {
   librarySelection: string | null;
   /** Day whose events are shown in the day modal (YYYY-MM-DD). */
   selectedDay: string | null;
-  /** Prefilled date for the add-event composer overlay (YYYY-MM-DD). */
+  /** Prefilled date for the workout-builder overlay (YYYY-MM-DD). */
   composerDate: string | null;
+  /** Event being edited in the builder (null = composing a new workout). */
+  editingWorkout: WorkoutEvent | null;
   /** Prefilled date for the add-meal composer overlay (YYYY-MM-DD). */
   mealComposerDate: string | null;
   /** Meal being edited in the composer (null = composing a new meal). */
@@ -48,6 +50,7 @@ export type CalendarAction =
   | { type: 'SELECT_DAY'; payload: string }
   | { type: 'CLEAR_DAY' }
   | { type: 'OPEN_COMPOSER'; payload: string }
+  | { type: 'OPEN_EVENT_EDITOR'; payload: WorkoutEvent }
   | { type: 'CLOSE_COMPOSER' }
   | { type: 'OPEN_MEAL_COMPOSER'; payload: string }
   | { type: 'OPEN_MEAL_EDITOR'; payload: Meal }
