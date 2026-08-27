@@ -25,6 +25,7 @@ export const EXERCISE_INPUT_SCHEMA = {
       duration:      { type: 'string', description: 'For timed holds, e.g. "30s each side".' },
       weight:        { type: 'string' },
       rest_period:   { type: 'string' },
+      superset:      { type: 'string', description: 'Superset/circuit group label ("A", "B"). CONSECUTIVE entries sharing a label are performed together, alternating sets. A label on a single entry is dropped.' },
       notes:         { type: 'string', description: 'Day-specific intent only — form cues live on the library entry.' },
       climb_style:   { type: 'string', enum: ['sport', 'trad', 'boulder', 'ice-mixed'], description: 'Climbing pitches only (outdoor climbing events: one entry per pitch).' },
       grade:         { type: 'string', description: 'Climbing pitches only — e.g. "5.11a", "V5", "WI4".' },

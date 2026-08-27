@@ -206,6 +206,11 @@ export default function TrackerExercise({
     <div className="tracker-exercise">
       <div className="tracker-exercise__header">
         <span className="tracker-exercise__name">{exercise.name}</span>
+        {exercise.superset && (
+          <span className="superset-badge" title={`Superset ${exercise.superset} — alternate sets with its partners`}>
+            {exercise.superset}
+          </span>
+        )}
         {!isClimb && (
           <button
             className="tracker-exercise__swap"
