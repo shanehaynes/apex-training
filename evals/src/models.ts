@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import type { ApiMessage, CallModel, ModelResponse } from './types';
-import { coachToolSchemas } from '../../src/lib/coach/schemas';
+import { builderToolSchemas, coachToolSchemas } from '../../src/lib/coach/schemas';
 import { COACH_MODEL } from '../../src/lib/coach/model';
 
 // Per-model request params + pricing. The coach-under-test request shape is
@@ -54,14 +54,16 @@ export function costUsd(model: string, usage: { inputTokens: number; outputToken
 /** Production coach request shape (api/chat.ts), against the live API. */
 export function makeAnthropicCaller(client: Anthropic, model: string): CallModel {
   modelConfig(model); // fail fast on unknown ids
-  return async ({ system, messages, withTools }): Promise<ModelResponse> => {
+  return async ({ system, messages, withTools, toolMode }): Promise<ModelResponse> => {
     const stream = client.messages.stream({
       model,
       max_tokens: 8192,
       thinking: { type: 'adaptive' },
       system,
       messages: messages as Anthropic.MessageParam[],
-      ...(withTools ? { tools: coachToolSchemas() } : {}),
+      ...(withTools
+        ? { tools: toolMode === 'builder' ? builderToolSchemas() : coachToolSchemas() }
+        : {}),
     });
     const final = await stream.finalMessage();
     return {

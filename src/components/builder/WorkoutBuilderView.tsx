@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { format, parseISO } from 'date-fns';
-import { ArrowLeft, X } from 'lucide-react';
+import { ArrowLeft, Sparkles, X } from 'lucide-react';
 import { useModalChrome } from '../../hooks/useModalChrome';
 import { useCalendar } from '../../context/calendar';
 import { useSchedule } from '../../context/schedule';
@@ -17,6 +17,7 @@ import { validateUnilateral } from '../modal/EventExerciseEditor';
 import { WORKOUT_COLORS } from '../../utils/workoutColors';
 import TemplateSearch from './TemplateSearch';
 import BuilderForm from './BuilderForm';
+import BuilderCoachPanel from './BuilderCoachPanel';
 import type { WorkoutTemplate } from '../../types/workout';
 
 /**
@@ -40,6 +41,7 @@ export default function WorkoutBuilderView() {
   const [step, setStep] = useState<'search' | 'form'>(editing ? 'form' : 'search');
   const [errors, setErrors] = useState<Map<string, string>>(new Map());
   const [saving, setSaving] = useState(false);
+  const [coachOpen, setCoachOpen] = useState(false);
 
   useModalChrome(close);
 
@@ -111,7 +113,7 @@ export default function WorkoutBuilderView() {
     : step === 'search' ? 'Add Workout' : (draft.templateId ? draft.title : 'New Workout');
 
   return createPortal(
-    <div className="composer-view builder-view">
+    <div className={`composer-view builder-view${coachOpen && step === 'form' ? ' builder-view--coach' : ''}`}>
       <header className="library-header">
         <div className="library-header__titles">
           {!editing && step === 'form' && (
@@ -123,32 +125,56 @@ export default function WorkoutBuilderView() {
           <span className="library-header__count">{format(parseISO(draft.date), 'EEEE, MMM d')}</span>
         </div>
         <div className="library-header__actions">
+          {step === 'form' && (
+            <button
+              className={`library-close builder-coach-toggle${coachOpen ? ' builder-coach-toggle--on' : ''}`}
+              onClick={() => setCoachOpen(v => !v)}
+              aria-pressed={coachOpen}
+              aria-label={coachOpen ? 'Hide coach' : 'Show coach'}
+              title={coachOpen ? 'Hide coach' : 'Ask your coach to fill the form'}
+            >
+              <Sparkles size={16} strokeWidth={1.5} />
+            </button>
+          )}
           <button className="library-close" onClick={close} aria-label="Close">
             <X size={16} strokeWidth={1.5} />
           </button>
         </div>
       </header>
 
-      {step === 'search' ? (
-        <TemplateSearch
-          templates={templates}
-          onPick={pickTemplate}
-          onCreateNew={startBlank}
-          onArchive={archiveTemplate}
-        />
-      ) : (
-        <BuilderForm
-          draft={draft}
-          setDraft={setDraft}
-          errors={errors}
-          saving={saving}
-          mode={editing ? 'edit' : 'create'}
-          isRecurringSeries={!!editing?.isRecurring}
-          accentColor={color.solid}
-          onSubmit={editing ? saveChanges : apply}
-          onCancel={close}
-        />
-      )}
+      <div className="builder-columns">
+        <div className="builder-main">
+          {step === 'search' ? (
+            <TemplateSearch
+              templates={templates}
+              onPick={pickTemplate}
+              onCreateNew={startBlank}
+              onArchive={archiveTemplate}
+            />
+          ) : (
+            <BuilderForm
+              draft={draft}
+              setDraft={setDraft}
+              errors={errors}
+              saving={saving}
+              mode={editing ? 'edit' : 'create'}
+              isRecurringSeries={!!editing?.isRecurring}
+              accentColor={color.solid}
+              onSubmit={editing ? saveChanges : apply}
+              onCancel={close}
+            />
+          )}
+        </div>
+        {coachOpen && step === 'form' && (
+          <BuilderCoachPanel
+            draft={draft}
+            setDraft={setDraft}
+            definitions={definitions}
+            templates={templates}
+            onClose={() => setCoachOpen(false)}
+          />
+        )}
+      </div>
     </div>,
     document.body,
   );
