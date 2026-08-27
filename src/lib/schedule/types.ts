@@ -26,6 +26,14 @@ export interface CreateEventInput {
   templateId?: WorkoutEvent['templateId'];
   scoringType?: WorkoutEvent['scoringType'];
   timeCapMinutes?: WorkoutEvent['timeCapMinutes'];
+  /**
+   * Canonical RRULE value (no 'RRULE:' prefix) — set makes the event a
+   * recurring series anchored on `date`. The anchor date must satisfy the
+   * rule's BYDAY (see snapAnchorDate in src/lib/builder/repeat.ts): the
+   * engine renders the anchor at its own date and only generates dates
+   * strictly after it.
+   */
+  recurrenceRule?: string;
 }
 
 /**

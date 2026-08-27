@@ -202,6 +202,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         endTime: e.endTime,
         isCompleted: e.isCompleted,
         isRecurring: e.isRecurring,
+        recurrenceRule: e.recurrenceRule,
       })),
     }));
   }, [events, definitions, completedIds, isSyncing, isEventsLoading]);
@@ -299,7 +300,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     // An event added to a day that has already passed is a retro-log: it was
     // done, not planned, so it completes on creation (same effect as the
     // "Mark as Complete" toggle, including the plan-filled session log).
-    const completedOnCreate = isPastDay(input.date);
+    // A recurring series is a plan whatever its anchor date — never that.
+    const completedOnCreate = isPastDay(input.date) && !input.recurrenceRule;
     const newEvent: WorkoutEvent = {
       id,
       type:              input.type,
@@ -322,7 +324,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       scoringType:       input.scoringType,
       timeCapMinutes:    input.timeCapMinutes,
       isCompleted:       completedOnCreate,
-      isRecurring:       false,
+      isRecurring:       !!input.recurrenceRule,
+      recurrenceRule:    input.recurrenceRule,
     };
 
     try {
@@ -479,6 +482,52 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }
   }, [definitions]);
 
+  const detachOccurrence = useCallback(async (id: string, fields: Partial<Omit<WorkoutEvent, 'id' | 'isCompleted'>>, triggeredBy: 'user' | 'ai' = 'user'): Promise<{ id: string } | null> => {
+    if (!supabase) return null;
+
+    const occurrence = eventsRef.current.find(e => e.id === id);
+    if (!occurrence) return null;
+    const baseId = baseIdOf(id);
+    // The exception row keys on the occurrence's originally generated date,
+    // which an earlier reschedule may have moved away from — resolve it the
+    // same way rescheduleEvent does rather than trusting the displayed date.
+    const keyDate = occurrenceDateOf(id)
+      ?? baseEventsRef.current.find(e => e.id === baseId)?.date
+      ?? occurrence.date;
+
+    const standalone: WorkoutEvent = {
+      ...occurrence,
+      ...fields,
+      id: `ai-${crypto.randomUUID()}`,
+      date: fields.date ?? occurrence.date,
+      isRecurring: false,
+      recurrenceRule: undefined,
+      recurringPattern: undefined,
+      isCompleted: false,
+    };
+
+    try {
+      const result = await postJson<{ id: string }>('/api/event-instances', {
+        action: 'detach',
+        eventId: baseId,
+        date: keyDate,
+        eventTitle: standalone.title,
+        triggeredBy,
+        event: eventToRow(standalone),
+      }, 'Detaching occurrence');
+      // Apply locally: the occurrence leaves the series, the standalone row
+      // appears — the realtime refetch reconciles later.
+      setExceptions(prev => new Map(prev).set(makeOccurrenceId(baseId, keyDate), null));
+      setBaseEvents(prev => [...prev, standalone]);
+      // Server-side the completion rows were relabeled to the new id; the
+      // local cache still holds the occurrence id, so re-pull rather than map.
+      loadCompletions().catch(() => {});
+      return result ?? { id: standalone.id };
+    } catch {
+      return null;
+    }
+  }, [loadCompletions]);
+
   const saveTemplate = useCallback(async (input: SaveWorkoutTemplateInput): Promise<{ id: string } | null> => {
     if (!supabase) return null;
 
@@ -562,6 +611,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     deleteEventInstance,
     deleteOccurrence,
     rescheduleEvent,
+    detachOccurrence,
     createDefinition,
     updateDefinition,
     templates,
@@ -571,7 +621,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     events, definitions, isSyncing, isEventsLoading, loadEvents, loadCompletions,
     getEventsForDate, getEventsForRange, toggleCompletion, setCompletion,
     createEvent, updateEvent, deleteEvent, deleteEventInstance, deleteOccurrence,
-    rescheduleEvent, createDefinition, updateDefinition,
+    rescheduleEvent, detachOccurrence, createDefinition, updateDefinition,
     templates, saveTemplate, archiveTemplate,
   ]);
 

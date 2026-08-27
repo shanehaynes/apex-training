@@ -63,6 +63,36 @@ export async function purgeTrackedEventData(
  * already written, and a failure here must not turn a successful reschedule
  * into a 500.
  */
+/**
+ * Re-identify everything logged against one occurrence — the detach flow:
+ * the occurrence becomes a standalone event with a fresh id, and any rows
+ * already logged under the occurrence id must follow it or the session
+ * history silently orphans. The target key (user_id, toId, event_date, …)
+ * is always free — toId is a freshly minted event id — so this can never
+ * collide with the unique constraints on the tracked tables.
+ *
+ * Best-effort for the same reason as the purge above — the standalone event
+ * and the skip exception are already written, and a failure here must not
+ * turn a successful detach into a 500.
+ */
+export async function relabelTrackedEventId(
+  supabase: Admin,
+  userId: string,
+  fromIds: string[],
+  toId: string,
+  toDate: string,
+): Promise<void> {
+  if (!fromIds.length) return;
+  await Promise.all(TRACKED_TABLES.map(async table => {
+    const { error } = await supabase
+      .from(table)
+      .update({ event_id: toId, event_date: toDate })
+      .eq('user_id', userId)
+      .in('event_id', fromIds);
+    if (error) console.error(`[api] relabel of ${table} failed for ${fromIds.join(', ')}:`, error.message);
+  }));
+}
+
 export async function migrateTrackedEventDate(
   supabase: Admin,
   userId: string,

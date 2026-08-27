@@ -1,5 +1,6 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import { Dumbbell, Mountain, MountainSnow, HeartPulse, Flower2, Sunrise, StretchHorizontal } from 'lucide-react';
+import RepeatPicker from './RepeatPicker';
 import { WORKOUT_COLORS } from '../../utils/workoutColors';
 import { DIFFICULTY_LABELS } from '../../utils/difficulty';
 import { eventPitches, maxGradeOf } from '../../lib/climbing';
@@ -29,10 +30,11 @@ interface Props {
   errors: Map<string, string>;
   saving: boolean;
   mode: 'create' | 'edit';
-  /** Editing a recurring series: schedule fields lock, edits are series-wide. */
+  /** Editing a recurring occurrence: saving asks this-event-only vs series. */
   isRecurringSeries: boolean;
   accentColor: string;
-  onSubmit: () => void;
+  /** scope arrives only in edit mode on a recurring occurrence. */
+  onSubmit: (scope?: 'occurrence' | 'series') => void;
   onCancel: () => void;
 }
 
@@ -42,6 +44,9 @@ export default function BuilderForm({
 }: Props) {
   const set = <K extends keyof WorkoutDraft>(key: K, value: WorkoutDraft[K]) =>
     setDraft(prev => ({ ...prev, [key]: value }));
+
+  const [choosingScope, setChoosingScope] = useState(false);
+  const asksScope = mode === 'edit' && isRecurringSeries;
 
   // Live auto-derived climbing targets — placeholders, so the fields read as
   // prefilled but stay derived unless the user types over them.
@@ -108,13 +113,12 @@ export default function BuilderForm({
         </label>
         <label className="library-field">
           <span className="library-field__label">
-            Date {isRecurringSeries && <em>series — move single days from the calendar</em>}
+            Date {isRecurringSeries && <em>this event only</em>}
           </span>
           <input
             type="date"
             className="library-field__input"
             value={draft.date}
-            disabled={isRecurringSeries}
             onChange={e => set('date', e.target.value)}
           />
         </label>
@@ -134,7 +138,6 @@ export default function BuilderForm({
             type="time"
             className="library-field__input"
             value={draft.startTime}
-            disabled={isRecurringSeries}
             onChange={e => set('startTime', e.target.value)}
           />
         </label>
@@ -144,10 +147,15 @@ export default function BuilderForm({
             type="time"
             className="library-field__input"
             value={draft.endTime}
-            disabled={isRecurringSeries}
             onChange={e => set('endTime', e.target.value)}
           />
         </label>
+        <RepeatPicker
+          repeat={draft.repeat}
+          onChange={r => set('repeat', r)}
+          lockOff={isRecurringSeries}
+          accentColor={accentColor}
+        />
         {draft.type === 'outdoor-climbing' && (
           <>
             <label className="library-field">
@@ -236,24 +244,48 @@ export default function BuilderForm({
         />
       </div>
 
-      {isRecurringSeries && (
-        <p className="builder-series-note">Changes here apply to every occurrence in this series.</p>
-      )}
       {mode === 'create' && (
         <p className="builder-apply-note">Apply saves this workout to your library and adds it to the calendar.</p>
       )}
 
-      <div className="exercise-editor__bar composer-actions">
-        <button className="exercise-editor__cancel" onClick={onCancel} disabled={saving}>Cancel</button>
-        <button
-          className="exercise-editor__save"
-          style={{ borderColor: accentColor }}
-          onClick={onSubmit}
-          disabled={saving}
-        >
-          {saving ? 'Saving…' : mode === 'create' ? 'Apply' : 'Save changes'}
-        </button>
-      </div>
+      {choosingScope ? (
+        <div className="exercise-editor__bar composer-actions builder-scope">
+          <span className="builder-scope__question">
+            Apply to this event only — it leaves the series for good, keeping anything logged — or to the whole series?
+          </span>
+          <button className="exercise-editor__cancel" onClick={() => setChoosingScope(false)} disabled={saving}>
+            Back
+          </button>
+          <button
+            className="exercise-editor__save"
+            style={{ borderColor: accentColor }}
+            onClick={() => onSubmit('occurrence')}
+            disabled={saving}
+          >
+            {saving ? 'Saving…' : 'This event only'}
+          </button>
+          <button
+            className="exercise-editor__save"
+            style={{ borderColor: accentColor }}
+            onClick={() => onSubmit('series')}
+            disabled={saving}
+          >
+            {saving ? 'Saving…' : 'Whole series'}
+          </button>
+        </div>
+      ) : (
+        <div className="exercise-editor__bar composer-actions">
+          <button className="exercise-editor__cancel" onClick={onCancel} disabled={saving}>Cancel</button>
+          <button
+            className="exercise-editor__save"
+            style={{ borderColor: accentColor }}
+            onClick={() => (asksScope ? setChoosingScope(true) : onSubmit())}
+            disabled={saving}
+          >
+            {saving ? 'Saving…' : mode === 'create' ? 'Apply' : 'Save changes'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
