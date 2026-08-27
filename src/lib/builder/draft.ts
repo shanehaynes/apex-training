@@ -5,6 +5,7 @@ import type {
 import type { CreateEventInput, SaveWorkoutTemplateInput, UpdateEventInput } from '../schedule/types';
 import { toDisplayTime, toInputTime } from '../time';
 import { WORKOUT_COLORS } from '../../utils/workoutColors';
+import { REPEAT_OFF, repeatFromRule, repeatProblem, ruleFromRepeat, snapAnchorDate, type DraftRepeat } from './repeat';
 
 // ─── The builder's draft model ───────────────────────────────────────────────
 // One plain object holding everything the workout builder edits, with pure
@@ -45,6 +46,8 @@ export interface WorkoutDraft {
   lists: DraftSections;
   /** Pass-through only — no builder UI edits equipment yet. */
   equipment: string[];
+  /** Repeat schedule — a calendar concern, never part of the template. */
+  repeat: DraftRepeat;
 }
 
 export const TYPE_ORDER: WorkoutType[] = [
@@ -95,6 +98,7 @@ export function emptyDraft(date: string, title = ''): WorkoutDraft {
     totalPitches: '',
     lists: EMPTY_SECTIONS,
     equipment: [],
+    repeat: REPEAT_OFF,
   };
 }
 
@@ -136,6 +140,7 @@ export function draftFromTemplate(t: WorkoutTemplate, date: string): WorkoutDraf
     totalPitches: t.climbingTargets?.totalPitches != null ? String(t.climbingTargets.totalPitches) : '',
     lists: { warmup: t.warmup ?? [], exercises: t.exercises, cooldown: t.cooldown ?? [] },
     equipment: t.equipment ?? [],
+    repeat: REPEAT_OFF,
   };
 }
 
@@ -161,6 +166,7 @@ export function draftFromEvent(e: WorkoutEvent): WorkoutDraft {
     totalPitches: e.climbingTargets?.totalPitches != null ? String(e.climbingTargets.totalPitches) : '',
     lists: { warmup: e.warmup ?? [], exercises: e.exercises, cooldown: e.cooldown ?? [] },
     equipment: e.equipment ?? [],
+    repeat: repeatFromRule(e.isRecurring ? e.recurrenceRule : undefined),
   };
 }
 
@@ -173,7 +179,7 @@ export function draftProblem(draft: WorkoutDraft): string | null {
     const cap = parseInt(draft.timeCap, 10);
     if (!Number.isFinite(cap) || cap <= 0) return 'AMRAP needs a time cap in minutes';
   }
-  return null;
+  return repeatProblem(draft.repeat, draft.date);
 }
 
 function parsedTags(draft: WorkoutDraft): string[] {
@@ -235,10 +241,12 @@ export function templateInputFromDraft(draft: WorkoutDraft): Omit<SaveWorkoutTem
 
 /** The calendar event for Apply, referencing the just-upserted template. */
 export function createInputFromDraft(draft: WorkoutDraft, templateId: string): CreateEventInput {
+  const rule = ruleFromRepeat(draft.repeat);
   return {
     type: draft.type,
     title: draft.title.trim(),
-    date: draft.date,
+    date: rule && !draft.repeat.custom ? snapAnchorDate(draft.date, draft.repeat.days) : draft.date,
+    recurrenceRule: rule,
     estimatedDuration: parseInt(draft.duration, 10),
     difficulty: draft.difficulty,
     startTime: draft.startTime ? toDisplayTime(draft.startTime) ?? undefined : undefined,
@@ -260,14 +268,22 @@ export function createInputFromDraft(draft: WorkoutDraft, templateId: string): C
 
 /**
  * Edit-mode fields for updateEvent. Only the fields the builder edits — the
- * absent keys (subtitle, coverImageUrl, source, recurrence…) stay untouched.
+ * absent keys (subtitle, coverImageUrl, source…) stay untouched.
  * includeSchedule=false skips date/times: a recurring series is edited
  * series-wide, where the anchor date must not follow the opened occurrence.
+ *
+ * Repeat: an enabled weekly picker writes the rule (series scope rewrites
+ * the pattern; a one-off with schedule becomes a series on its snapped
+ * anchor). A custom rule and a disabled picker both leave recurrence
+ * untouched — the picker can neither rewrite what it can't express nor end
+ * a series (that's the modal's delete, or an Ends date).
  */
 export function eventFieldsFromDraft(
   draft: WorkoutDraft,
   { includeSchedule }: { includeSchedule: boolean },
 ): UpdateEventInput['fields'] {
+  const rule = ruleFromRepeat(draft.repeat);
+  const writesRule = draft.repeat.enabled && !draft.repeat.custom && !!rule;
   return {
     title: draft.title.trim(),
     type: draft.type,
@@ -283,11 +299,13 @@ export function eventFieldsFromDraft(
     climbingTargets: packedClimbing(draft),
     scoringType: draft.scoringType,
     timeCapMinutes: packedTimeCap(draft),
+    ...(writesRule ? { recurrenceRule: rule } : {}),
     ...(includeSchedule
       ? {
-          date: draft.date,
+          date: writesRule ? snapAnchorDate(draft.date, draft.repeat.days) : draft.date,
           startTime: draft.startTime ? toDisplayTime(draft.startTime) ?? undefined : undefined,
           endTime: draft.endTime ? toDisplayTime(draft.endTime) ?? undefined : undefined,
+          ...(writesRule ? { isRecurring: true } : {}),
         }
       : {}),
   };

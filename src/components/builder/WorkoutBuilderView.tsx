@@ -12,6 +12,7 @@ import {
   createInputFromDraft, draftFromEvent, draftFromTemplate, draftProblem,
   emptyDraft, eventFieldsFromDraft, templateInputFromDraft, type WorkoutDraft,
 } from '../../lib/builder/draft';
+import { REPEAT_OFF } from '../../lib/builder/repeat';
 import { validateUnilateral } from '../modal/EventExerciseEditor';
 import { WORKOUT_COLORS } from '../../utils/workoutColors';
 import TemplateSearch from './TemplateSearch';
@@ -29,7 +30,7 @@ import type { WorkoutTemplate } from '../../types/workout';
  */
 export default function WorkoutBuilderView() {
   const { state, dispatch } = useCalendar();
-  const { definitions, templates, createEvent, updateEvent, saveTemplate, archiveTemplate } = useSchedule();
+  const { definitions, templates, createEvent, updateEvent, detachOccurrence, saveTemplate, archiveTemplate } = useSchedule();
   const editing = state.editingWorkout;
   const close = () => dispatch({ type: 'CLOSE_COMPOSER' });
 
@@ -78,17 +79,26 @@ export default function WorkoutBuilderView() {
     }
   };
 
-  const saveChanges = async () => {
+  const saveChanges = async (scope?: 'occurrence' | 'series') => {
     if (!editing) return;
     if (!validate()) return;
     setSaving(true);
-    // A recurring series is edited series-wide; its anchor date/times must
-    // not follow whichever occurrence happened to be opened.
-    const fields = eventFieldsFromDraft(draft, { includeSchedule: !editing.isRecurring });
-    const ok = await updateEvent({ id: editing.id, fields });
+    let ok: boolean;
+    if (editing.isRecurring && scope === 'occurrence') {
+      // Detach: the edits (schedule included) become a standalone event and
+      // this day leaves the series. The repeat picker doesn't apply — a
+      // detached day cannot itself repeat.
+      const fields = eventFieldsFromDraft({ ...draft, repeat: REPEAT_OFF }, { includeSchedule: true });
+      ok = !!(await detachOccurrence(editing.id, fields));
+    } else {
+      // Series-wide (or a plain one-off): the anchor date/times of a series
+      // must not follow whichever occurrence happened to be opened.
+      const fields = eventFieldsFromDraft(draft, { includeSchedule: !editing.isRecurring });
+      ok = await updateEvent({ id: editing.id, fields });
+    }
     setSaving(false);
     if (ok) {
-      notify('Workout updated');
+      notify(scope === 'occurrence' ? 'Saved — this day now stands alone' : 'Workout updated');
       close();
     } else {
       notify('Failed to save — try again');
