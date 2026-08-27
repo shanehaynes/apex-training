@@ -7,6 +7,14 @@ export type WorkoutType =
   | 'cardio'
   | 'yoga';
 
+/**
+ * What a PR means for a workout. 'strength' is the historical default:
+ * per-exercise records only (src/lib/tracking/records.ts). 'for-time' and
+ * 'amrap' add a workout-level score keyed on the library template id —
+ * fastest completion, and most rounds+reps inside the time cap.
+ */
+export type ScoringType = 'strength' | 'for-time' | 'amrap';
+
 /** Climbing discipline for a pitch (an exercise entry with category 'climbing'). */
 export type ClimbStyle = 'sport' | 'trad' | 'boulder' | 'ice-mixed';
 
@@ -103,6 +111,37 @@ export interface ClimbingTargets {
   totalPitches?: number;
 }
 
+/**
+ * One row in the workout library (workout_templates, phase 33): a workout
+ * minus its calendar placement, plus the scoring config that defines what a
+ * PR means for it. Applying a template stamps its id and a scoring snapshot
+ * onto the created event, which is what keeps PR history continuous across
+ * every scheduled instance of the same named workout. Archived, never
+ * deleted — score history keys on the id.
+ */
+export interface WorkoutTemplate {
+  id: string;
+  title: string;
+  type: WorkoutType;
+  scoringType: ScoringType;
+  /** AMRAP only: length of the working window, in minutes. */
+  timeCapMinutes?: number;
+  estimatedDuration: number;
+  difficulty: 1 | 2 | 3 | 4 | 5;
+  description: string;
+  warmup?: Exercise[];
+  exercises: Exercise[];
+  cooldown?: Exercise[];
+  location?: string;
+  tags: string[];
+  equipment?: string[];
+  cardioTargets?: CardioTargets;
+  climbingTargets?: ClimbingTargets;
+  archivedAt?: string;
+  /** Server-stamped on every save; the library list sorts by it. */
+  updatedAt?: string;
+}
+
 export interface WorkoutEvent {
   id: string;
   type: WorkoutType;
@@ -127,6 +166,16 @@ export interface WorkoutEvent {
   equipment?: string[];
   /** Fitness-provider provenance for synced events; unset = native. Never set on recurring base events. */
   source?: 'coros' | 'garmin' | 'apple';
+  /**
+   * Library linkage: the workout_templates id this event was applied from.
+   * A soft reference like Exercise.definitionId — the template may since be
+   * archived. Unset on events that predate the library or never used it.
+   */
+  templateId?: string;
+  /** Scoring snapshot copied from the template at Apply time. Unset = strength. */
+  scoringType?: ScoringType;
+  /** AMRAP snapshot: the time cap in minutes. */
+  timeCapMinutes?: number;
   isCompleted: boolean;
   completedAt?: string;
   isRecurring: boolean;
