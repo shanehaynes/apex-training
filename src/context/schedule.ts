@@ -34,6 +34,13 @@ export interface ScheduleContextValue {
    * rest of the series is untouched.
    */
   rescheduleEvent: (id: string, fields: OccurrenceOverride, triggeredBy?: 'user' | 'ai') => Promise<boolean>;
+  /**
+   * "Edit this event only" on a recurring occurrence: materialize it as a
+   * standalone event carrying `fields`, skip it on the series, and relabel
+   * anything already logged to the new id. Permanent — the day no longer
+   * follows the series.
+   */
+  detachOccurrence: (id: string, fields: Partial<Omit<WorkoutEvent, 'id' | 'isCompleted'>>, triggeredBy?: 'user' | 'ai') => Promise<{ id: string } | null>;
   /** Add a movement to the exercise library. */
   createDefinition: (input: CreateDefinitionInput) => Promise<{ id: string } | null>;
   /** Edit library-tier fields; a canonicalName change auto-appends the old name as an alias server-side. */
