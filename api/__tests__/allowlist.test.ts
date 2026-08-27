@@ -12,12 +12,14 @@ import {
   BLOCK_PATCH_COLUMNS,
   OBJECTIVE_INSERT_COLUMNS,
   OBJECTIVE_PATCH_COLUMNS,
+  WORKOUT_TEMPLATE_COLUMNS,
 } from '../_lib/allowlist';
 import { eventToRow, eventFieldsToRow } from '../../src/lib/schedule/mapping';
 import { definitionFieldsToRow } from '../../src/lib/schedule/definitions';
+import { templateToRow } from '../../src/lib/schedule/templates';
 import { favoriteToRow, mealFieldsToRow, mealToRow } from '../../src/lib/nutrition/mapping';
 import { blockToRow, blockFieldsToRow, objectiveToRow, objectiveFieldsToRow } from '../../src/lib/blocks/mapping';
-import type { ExerciseDefinition } from '../../src/types/workout';
+import type { ExerciseDefinition, WorkoutTemplate } from '../../src/types/workout';
 import type { Meal } from '../../src/types/nutrition';
 import type { Objective, TrainingBlock } from '../../src/types/blocks';
 
@@ -48,6 +50,29 @@ const FULL_EVENT: Parameters<typeof eventToRow>[0] = {
   isRecurring: true,
   recurrenceRule: 'FREQ=WEEKLY;BYDAY=MO',
   recurringPattern: { frequency: 'weekly', daysOfWeek: [1], endDate: '2026-12-31' },
+  templateId: 'wt-1',
+  scoringType: 'for-time',
+  timeCapMinutes: 20,
+};
+
+const FULL_TEMPLATE: WorkoutTemplate = {
+  id: 'wt-1',
+  title: 'MURPH',
+  type: 'weights',
+  scoringType: 'for-time',
+  timeCapMinutes: 60,
+  estimatedDuration: 60,
+  difficulty: 5,
+  description: 'The hero WOD',
+  warmup: [],
+  exercises: [],
+  cooldown: [],
+  location: 'Gym',
+  tags: ['hero'],
+  equipment: ['pull-up bar'],
+  cardioTargets: { distance: '2 mi' },
+  climbingTargets: { totalPitches: 0 },
+  archivedAt: undefined,
 };
 
 const FULL_DEFINITION_FIELDS: Partial<ExerciseDefinition> = {
@@ -121,6 +146,7 @@ describe('pickAllowed', () => {
       MEAL_INSERT_COLUMNS, MEAL_PATCH_COLUMNS, MEAL_FAVORITE_COLUMNS,
       BLOCK_INSERT_COLUMNS, BLOCK_PATCH_COLUMNS,
       OBJECTIVE_INSERT_COLUMNS, OBJECTIVE_PATCH_COLUMNS,
+      WORKOUT_TEMPLATE_COLUMNS,
     ]) {
       expect(set.has('user_id')).toBe(false);
       expect(set.has('created_at')).toBe(false);
@@ -166,6 +192,12 @@ describe('client/server mirror', () => {
     const { date: _d, time: _t, ...favorite } = FULL_MEAL;
     const row = favoriteToRow(favorite);
     const { rejected } = pickAllowed(row as unknown as Record<string, unknown>, MEAL_FAVORITE_COLUMNS);
+    expect(rejected).toEqual([]);
+  });
+
+  it('accepts every column templateToRow emits', () => {
+    const row = templateToRow(FULL_TEMPLATE);
+    const { rejected } = pickAllowed(row as unknown as Record<string, unknown>, WORKOUT_TEMPLATE_COLUMNS);
     expect(rejected).toEqual([]);
   });
 
