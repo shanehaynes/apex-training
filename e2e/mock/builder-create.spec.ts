@@ -33,6 +33,9 @@ test('top-nav add opens the builder; scoring selector; apply closes', async ({ p
   // Direct entry point: the builder no longer hides behind the day modal.
   await page.getByTestId('nav-add-workout').click();
   await expect(page.locator('.builder-search')).toBeVisible();
+  // The step states its job — this page schedules, it doesn't manage templates.
+  await expect(page.locator('.builder-search__intro')).toContainText('Scheduling for');
+  await expect(page.locator('.builder-search__create')).toHaveText(/Build a new workout/);
   await expect(page.locator('.builder-search__empty'), 'empty library explains itself').toBeVisible();
 
   // The typed query becomes the new workout's title.
