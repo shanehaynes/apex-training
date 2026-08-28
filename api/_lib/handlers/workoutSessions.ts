@@ -6,6 +6,7 @@ import {
   SET_LOG_COLUMNS,
   CARDIO_LOG_COLUMNS,
   SERVER_STAMPED_COLUMNS,
+  EVENT_ID_PATTERN,
 } from '../allowlist.js';
 import { enforceRateLimit } from '../rateLimit.js';
 import type { CardioLogRow, SetLogRow, TablesInsert, TrackedSection } from '../../../src/lib/db/types.js';
@@ -39,6 +40,14 @@ interface Body {
   coachSummary?: string;
   /** quick-complete only: recommended session length to stamp on the session. */
   durationSeconds?: number;
+  /** finish only: the workout-level score for a scored (for-time/amrap) event. */
+  score?: {
+    templateId?: string;
+    type?: string;
+    timeSeconds?: number;
+    rounds?: number;
+    reps?: number;
+  };
 }
 
 // user_id leads every conflict target: a forged event_id from another user
@@ -224,6 +233,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const autofillRows = prepareLogRows(res, body.autofillRows, SET_LOG_COLUMNS, 'autofillRows', true);
     if (!autofillRows) return;
 
+    // Optional workout-level score (phase 34). Shape enforced at runtime —
+    // any authenticated caller can post arbitrary JSON here, and the CHECK
+    // constraints should never be the first line of defense.
+    let scoreColumns: Record<string, string | number> = {};
+    if (body.score !== undefined) {
+      const { templateId, type, timeSeconds, rounds, reps } = body.score ?? {};
+      const posInt = (v: unknown): v is number => Number.isInteger(v) && (v as number) > 0;
+      const nonNegInt = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0;
+      const validTemplate = typeof templateId === 'string' && EVENT_ID_PATTERN.test(templateId);
+      if (validTemplate && type === 'for-time' && posInt(timeSeconds)) {
+        scoreColumns = { template_id: templateId, score_type: type, score_time_seconds: timeSeconds };
+      } else if (validTemplate && type === 'amrap' && nonNegInt(rounds) && nonNegInt(reps ?? 0)) {
+        scoreColumns = { template_id: templateId, score_type: type, score_rounds: rounds, score_reps: reps ?? 0 };
+      } else {
+        res.status(400).send('Invalid score');
+        return;
+      }
+    }
+
     const { data: session, error: sessionErr } = await supabase
       .from('workout_sessions')
       .select('*')
@@ -248,6 +276,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         finished_at: finishedAt.toISOString(),
         total_duration_seconds: totalSeconds,
         updated_at: finishedAt.toISOString(),
+        ...scoreColumns,
       })
       .eq('user_id', userId).eq('event_id', eventId)
       .eq('event_date', eventDate);

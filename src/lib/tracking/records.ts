@@ -354,6 +354,107 @@ export function computeSessionPRs(
   return prs;
 }
 
+// ─── Workout-level scores (phase 34) ─────────────────────────────────────────
+// For Time / AMRAP workouts (workout_templates.scoring_type) earn one score
+// per session, keyed on the TEMPLATE id so history follows the named workout
+// across every scheduled instance. Same rules as exercise records: pure,
+// client-side, and a first-ever score is never a PR.
+
+export type SessionScore =
+  | { type: 'for-time'; timeSeconds: number }
+  | { type: 'amrap'; rounds: number; reps: number };
+
+/** The workout_sessions columns score history reads (see sessionRepo). */
+export interface ScoreHistoryRow {
+  event_date: string;
+  score_type: string | null;
+  score_time_seconds: number | null;
+  score_rounds: number | null;
+  score_reps: number | null;
+}
+
+export interface WorkoutScoreRecord {
+  kind: 'workout-score';
+  score: SessionScore;
+  previous: SessionScore;
+  previousDate: string;
+}
+
+/** The score a session row carries, if any — also used on the live session
+ *  (SessionInfo shares the column names) when reopening a finished summary. */
+export function sessionScoreFromRow(row: Omit<ScoreHistoryRow, 'event_date'>): SessionScore | null {
+  if (row.score_type === 'for-time') {
+    return row.score_time_seconds != null && row.score_time_seconds > 0
+      ? { type: 'for-time', timeSeconds: row.score_time_seconds }
+      : null;
+  }
+  if (row.score_type === 'amrap') {
+    return row.score_rounds != null
+      ? { type: 'amrap', rounds: row.score_rounds, reps: row.score_reps ?? 0 }
+      : null;
+  }
+  return null;
+}
+
+/** a beats b: For Time is lower-is-better; AMRAP compares (rounds, reps). */
+function beats(a: SessionScore, b: SessionScore): boolean {
+  if (a.type === 'for-time' && b.type === 'for-time') return a.timeSeconds < b.timeSeconds;
+  if (a.type === 'amrap' && b.type === 'amrap') {
+    return a.rounds !== b.rounds ? a.rounds > b.rounds : a.reps > b.reps;
+  }
+  return false;
+}
+
+/** The best prior score of this type, with its date; null with no history. */
+export function bestHistoricalScore(
+  rows: ScoreHistoryRow[],
+  type: SessionScore['type'],
+): { score: SessionScore; date: string } | null {
+  let best: { score: SessionScore; date: string } | null = null;
+  for (const row of rows) {
+    if (row.score_type !== type) continue;
+    const score = sessionScoreFromRow(row);
+    if (!score) continue;
+    if (!best || beats(score, best.score)) best = { score, date: row.event_date };
+  }
+  return best;
+}
+
+/**
+ * The workout PR this session's score sets, or null — no prior history
+ * (nothing to beat) or no improvement. History rows of a different score
+ * type never compare: a template rescored mid-life starts a new lineage.
+ */
+export function computeWorkoutScorePR(
+  score: SessionScore,
+  history: ScoreHistoryRow[],
+): WorkoutScoreRecord | null {
+  const prior = bestHistoricalScore(history, score.type);
+  if (!prior || !beats(score, prior.score)) return null;
+  return { kind: 'workout-score', score, previous: prior.score, previousDate: prior.date };
+}
+
+/** Canonical short form: "41:32" for time, "18 rounds + 7" for AMRAP. */
+export function formatScore(score: SessionScore): string {
+  if (score.type === 'for-time') return formatSecondsClock(score.timeSeconds);
+  return score.reps > 0 ? `${score.rounds} rounds + ${score.reps}` : `${score.rounds} rounds`;
+}
+
+// mm:ss (or h:mm:ss) — a completion time reads as a clock, not "41m 32s".
+function formatSecondsClock(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
+  return `${h > 0 ? `${h}:` : ''}${mm}:${String(s).padStart(2, '0')}`;
+}
+
+/** "41:32, beating 44:10 on Jun 12" — the workout-PR line in the summary. */
+export function describeWorkoutScore(record: WorkoutScoreRecord): string {
+  const prevDate = format(parseISO(record.previousDate), 'MMM d');
+  return `${formatScore(record.score)}, beating ${formatScore(record.previous)} on ${prevDate}`;
+}
+
 // ─── Display ──────────────────────────────────────────────────────────────────
 
 export { formatSeconds } from '../time.js';

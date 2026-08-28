@@ -250,6 +250,11 @@ describe('duration precedence', () => {
       total_duration_seconds: 5400, // 90 min
       coach_summary: null,
       updated_at: '2026-03-03T11:30:00Z',
+      template_id: null,
+      score_type: null,
+      score_time_seconds: null,
+      score_rounds: null,
+      score_reps: null,
     };
     const progress = run(
       {
