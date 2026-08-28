@@ -1071,7 +1071,12 @@ export type Database = {
           event_id: string
           finished_at: string | null
           id: string
+          score_reps: number | null
+          score_rounds: number | null
+          score_time_seconds: number | null
+          score_type: string | null
           started_at: string
+          template_id: string | null
           total_duration_seconds: number | null
           updated_at: string
           user_id: string
@@ -1082,7 +1087,12 @@ export type Database = {
           event_id: string
           finished_at?: string | null
           id?: string
+          score_reps?: number | null
+          score_rounds?: number | null
+          score_time_seconds?: number | null
+          score_type?: string | null
           started_at: string
+          template_id?: string | null
           total_duration_seconds?: number | null
           updated_at?: string
           user_id: string
@@ -1093,7 +1103,12 @@ export type Database = {
           event_id?: string
           finished_at?: string | null
           id?: string
+          score_reps?: number | null
+          score_rounds?: number | null
+          score_time_seconds?: number | null
+          score_type?: string | null
           started_at?: string
+          template_id?: string | null
           total_duration_seconds?: number | null
           updated_at?: string
           user_id?: string

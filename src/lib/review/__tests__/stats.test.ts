@@ -82,6 +82,11 @@ function makeSession(date: string, eventId: string, seconds: number | null, summ
     total_duration_seconds: seconds,
     coach_summary: summary,
     updated_at: `${date}T11:00:00Z`,
+    template_id: null,
+    score_type: null,
+    score_time_seconds: null,
+    score_rounds: null,
+    score_reps: null,
   };
 }
 

@@ -2399,6 +2399,57 @@
   cursor: default;
 }
 
+/* Score step of Finish on for-time/amrap workouts — same bar, plus inputs. */
+.tracker-score {
+  flex-wrap: wrap;
+}
+
+.tracker-score__msg {
+  flex: 1 1 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.tracker-score__inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+}
+
+.tracker-score__field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+.tracker-score__input {
+  width: 88px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+}
+
+.tracker-score__plus {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.tracker-score__problem {
+  flex: 1 1 100%;
+  font-size: var(--text-xs);
+  color: #f87171;
+}
+
 /* Finished sessions stay editable — say so, since the header reads "Done". */
 .tracker-finished-note {
   margin: 0 0 4px;
