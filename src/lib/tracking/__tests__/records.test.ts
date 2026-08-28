@@ -362,3 +362,84 @@ describe('display helpers', () => {
     })).toBe('1000 ft elevation, up from 800 ft on Jun 1');
   });
 });
+
+// ─── Workout-level scores (phase 34) ─────────────────────────────────────────
+
+import {
+  bestHistoricalScore,
+  computeWorkoutScorePR,
+  describeWorkoutScore,
+  formatScore,
+  sessionScoreFromRow,
+  type ScoreHistoryRow,
+} from '../records';
+
+const scoreRow = (over: Partial<ScoreHistoryRow>): ScoreHistoryRow => ({
+  event_date: '2026-06-12',
+  score_type: null,
+  score_time_seconds: null,
+  score_rounds: null,
+  score_reps: null,
+  ...over,
+});
+
+describe('workout score PRs', () => {
+  it('for-time: lower is better', () => {
+    const history = [
+      scoreRow({ score_type: 'for-time', score_time_seconds: 2650 }),
+      scoreRow({ score_type: 'for-time', score_time_seconds: 2500, event_date: '2026-07-01' }),
+    ];
+    expect(bestHistoricalScore(history, 'for-time'))
+      .toEqual({ score: { type: 'for-time', timeSeconds: 2500 }, date: '2026-07-01' });
+
+    const pr = computeWorkoutScorePR({ type: 'for-time', timeSeconds: 2492 }, history);
+    expect(pr?.previous).toEqual({ type: 'for-time', timeSeconds: 2500 });
+    expect(computeWorkoutScorePR({ type: 'for-time', timeSeconds: 2500 }, history)).toBeNull();
+  });
+
+  it('amrap: rounds then reps, lexicographic', () => {
+    const history = [scoreRow({ score_type: 'amrap', score_rounds: 17, score_reps: 12 })];
+    expect(computeWorkoutScorePR({ type: 'amrap', rounds: 18, reps: 0 }, history)).not.toBeNull();
+    expect(computeWorkoutScorePR({ type: 'amrap', rounds: 17, reps: 13 }, history)).not.toBeNull();
+    expect(computeWorkoutScorePR({ type: 'amrap', rounds: 17, reps: 12 }, history)).toBeNull();
+    expect(computeWorkoutScorePR({ type: 'amrap', rounds: 16, reps: 40 }, history)).toBeNull();
+  });
+
+  it('a first-ever score is never a PR, and other score types never compare', () => {
+    expect(computeWorkoutScorePR({ type: 'for-time', timeSeconds: 100 }, [])).toBeNull();
+    const amrapHistory = [scoreRow({ score_type: 'amrap', score_rounds: 20, score_reps: 0 })];
+    expect(computeWorkoutScorePR({ type: 'for-time', timeSeconds: 100 }, amrapHistory)).toBeNull();
+  });
+
+  it('skips malformed history rows instead of guessing', () => {
+    const history = [
+      scoreRow({ score_type: 'for-time', score_time_seconds: null }),
+      scoreRow({ score_type: 'amrap', score_rounds: null }),
+    ];
+    expect(bestHistoricalScore(history, 'for-time')).toBeNull();
+    expect(bestHistoricalScore(history, 'amrap')).toBeNull();
+  });
+
+  it('reads a score off a session row', () => {
+    expect(sessionScoreFromRow(scoreRow({ score_type: 'for-time', score_time_seconds: 2492 })))
+      .toEqual({ type: 'for-time', timeSeconds: 2492 });
+    expect(sessionScoreFromRow(scoreRow({ score_type: 'amrap', score_rounds: 18, score_reps: null })))
+      .toEqual({ type: 'amrap', rounds: 18, reps: 0 });
+    expect(sessionScoreFromRow(scoreRow({}))).toBeNull();
+  });
+
+  it('formats scores as a clock and rounds + reps', () => {
+    expect(formatScore({ type: 'for-time', timeSeconds: 2492 })).toBe('41:32');
+    expect(formatScore({ type: 'for-time', timeSeconds: 3725 })).toBe('1:02:05');
+    expect(formatScore({ type: 'amrap', rounds: 18, reps: 7 })).toBe('18 rounds + 7');
+    expect(formatScore({ type: 'amrap', rounds: 18, reps: 0 })).toBe('18 rounds');
+  });
+
+  it('describes a beaten score with the previous date', () => {
+    const record = computeWorkoutScorePR(
+      { type: 'for-time', timeSeconds: 2492 },
+      [scoreRow({ score_type: 'for-time', score_time_seconds: 2650 })],
+    )!;
+    expect(describeWorkoutScore(record)).toBe('41:32, beating 44:10 on Jun 12');
+  });
+});

@@ -14,6 +14,8 @@ import type { ExerciseDefinition } from '../../types/workout';
 import TrackerExercise from './TrackerExercise';
 import WorkoutSummary from './WorkoutSummary';
 import ConfirmBar from './ConfirmBar';
+import ScorePrompt from './ScorePrompt';
+import type { SessionScore } from '../../lib/tracking/records';
 
 export default function TrackerView() {
   const { state, dispatch } = useCalendar();
@@ -29,6 +31,7 @@ export default function TrackerView() {
 
   const [confirmCount, setConfirmCount] = useState<number | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [scoreOpen, setScoreOpen] = useState(false);
 
   const color = event ? getWorkoutColor(event.type) : null;
   if (!event || !color) return null;
@@ -38,15 +41,22 @@ export default function TrackerView() {
     dispatch({ type: 'STOP_TRACKING' });
   };
 
-  const handleFinish = async () => {
+  const handleFinish = async (score?: SessionScore | null) => {
     // A visible confirm bar means the user already saw the unlogged count —
     // the next press (header button or "Finish anyway") finishes for real.
-    const result = await requestFinish(confirmCount !== null);
+    // Scored workouts then get the score step before anything is stamped.
+    const result = await requestFinish(confirmCount !== null || scoreOpen, score);
     if (result.status === 'needs-confirm') {
       setConfirmCancel(false);
+      setScoreOpen(false);
       setConfirmCount(result.count);
+    } else if (result.status === 'needs-score') {
+      setConfirmCount(null);
+      setConfirmCancel(false);
+      setScoreOpen(true);
     } else {
       setConfirmCount(null);
+      setScoreOpen(false);
     }
   };
 
@@ -87,7 +97,7 @@ export default function TrackerView() {
           <button
             className="tracker-header__finish"
             style={{ background: color.solid }}
-            onClick={handleFinish}
+            onClick={() => handleFinish()}
             disabled={!groups || isFinishing}
           >
             <Flag size={14} strokeWidth={2} /> Finish
@@ -145,7 +155,18 @@ export default function TrackerView() {
           confirmLabel="Finish anyway"
           accentColor={color.solid}
           onKeep={() => setConfirmCount(null)}
-          onConfirm={handleFinish}
+          onConfirm={() => handleFinish()}
+        />
+      )}
+
+      {scoreOpen && !isFinishing && (event.scoringType === 'for-time' || event.scoringType === 'amrap') && (
+        <ScorePrompt
+          scoringType={event.scoringType}
+          timeCapMinutes={event.timeCapMinutes}
+          elapsedSeconds={elapsed}
+          accentColor={color.solid}
+          disabled={isFinishing}
+          onSubmit={handleFinish}
         />
       )}
 
@@ -156,6 +177,8 @@ export default function TrackerView() {
           durationSeconds={session?.total_duration_seconds ?? null}
           groups={groups}
           prs={summary.prs}
+          score={summary.score}
+          scoreRecord={summary.scoreRecord}
           coachText={summary.coachText}
           coachStatus={summary.coachStatus}
           onClose={dismissSummary}

@@ -4,6 +4,7 @@ import type { CardioLogRow, ExerciseDefinitionRow, SetLogRow, TrackedSection, Wo
 import type { WorkoutEvent } from '../../types/workout';
 import { buildQuickCompleteLogs, cardioExerciseNames, setExerciseNames } from './plan';
 import { buildAliasIndex, canonicalizeLogNames, expandNamesWithAliases, type AliasIndex } from '../schedule/definitions';
+import type { ScoreHistoryRow, SessionScore } from './records';
 
 // Data access for the workout tracker — the one module that knows where
 // tracking data lives. Reads go straight to Supabase on the anon client
@@ -13,7 +14,8 @@ import { buildAliasIndex, canonicalizeLogNames, expandNamesWithAliases, type Ali
 
 export type SessionInfo = Pick<
   WorkoutSessionRow,
-  'started_at' | 'finished_at' | 'total_duration_seconds' | 'coach_summary'
+  | 'started_at' | 'finished_at' | 'total_duration_seconds' | 'coach_summary'
+  | 'template_id' | 'score_type' | 'score_time_seconds' | 'score_rounds' | 'score_reps'
 >;
 
 export interface RemovedSetKey {
@@ -30,10 +32,23 @@ export interface TrackerSessionData {
       detection at Finish (never sent through the AI). */
   history: SetLogRow[];
   cardioHistory: CardioLogRow[];
+  /** Prior finished scores for this event's template (scored events only) —
+      feeds workout-level PR detection at Finish. */
+  scoreHistory: ScoreHistoryRow[];
 }
 
 function inMemorySession(): SessionInfo {
-  return { started_at: new Date().toISOString(), finished_at: null, total_duration_seconds: null, coach_summary: null };
+  return {
+    started_at: new Date().toISOString(),
+    finished_at: null,
+    total_duration_seconds: null,
+    coach_summary: null,
+    template_id: null,
+    score_type: null,
+    score_time_seconds: null,
+    score_rounds: null,
+    score_reps: null,
+  };
 }
 
 /**
@@ -58,7 +73,7 @@ async function loadAliasIndex(): Promise<AliasIndex> {
 /** Get-or-create the session and hydrate any previously-saved logs. */
 export async function loadSession(event: WorkoutEvent): Promise<TrackerSessionData> {
   if (!supabase) {
-    return { session: inMemorySession(), savedSets: [], savedCardio: [], history: [], cardioHistory: [] };
+    return { session: inMemorySession(), savedSets: [], savedCardio: [], history: [], cardioHistory: [], scoreHistory: [] };
   }
 
   // Aliases must load before the history queries — they widen the name filter.
@@ -94,7 +109,23 @@ export async function loadSession(event: WorkoutEvent): Promise<TrackerSessionDa
         .limit(500)
     : Promise.resolve({ data: [] as CardioLogRow[] });
 
-  const [startRes, setsRes, cardioRes, historyRes, cardioHistoryRes] = await Promise.all([
+  // Prior finished scores for this template — the workout-level PR history.
+  // Keyed on template_id so every scheduled instance of the named workout
+  // (and detached days, which keep the id) contributes.
+  const scored = event.templateId && (event.scoringType === 'for-time' || event.scoringType === 'amrap');
+  const scoreHistoryQuery = scored
+    ? supabase
+        .from('workout_sessions')
+        .select('event_date,score_type,score_time_seconds,score_rounds,score_reps')
+        .eq('template_id', event.templateId!)
+        .lt('event_date', event.date)
+        .not('finished_at', 'is', null)
+        .not('score_type', 'is', null)
+        .order('event_date', { ascending: false })
+        .limit(500)
+    : Promise.resolve({ data: [] as ScoreHistoryRow[] });
+
+  const [startRes, setsRes, cardioRes, historyRes, cardioHistoryRes, scoreHistoryRes] = await Promise.all([
     postJson<{ session: WorkoutSessionRow }>(
       '/api/workout-sessions',
       { action: 'start', eventId: event.id, eventDate: event.date },
@@ -104,9 +135,10 @@ export async function loadSession(event: WorkoutEvent): Promise<TrackerSessionDa
     supabase.from('workout_cardio_logs').select('*').eq('event_id', event.id).eq('event_date', event.date),
     historyQuery,
     cardioHistoryQuery,
+    scoreHistoryQuery,
   ]).catch(err => {
     console.warn('[apex] Tracker load failed:', err);
-    return [null, null, null, null, null] as const;
+    return [null, null, null, null, null, null] as const;
   });
 
   const savedSets = (setsRes?.data ?? []) as SetLogRow[];
@@ -134,6 +166,7 @@ export async function loadSession(event: WorkoutEvent): Promise<TrackerSessionDa
       ...canonicalizeLogNames((cardioHistoryRes?.data ?? []) as CardioLogRow[], aliasIndex),
       ...(extraCardioHistory as CardioLogRow[]),
     ],
+    scoreHistory: (scoreHistoryRes?.data ?? []) as ScoreHistoryRow[],
   };
 }
 
@@ -181,11 +214,12 @@ export async function finishSession(
   eventId: string,
   eventDate: string,
   autofillRows: SetLogRow[],
+  score?: { templateId: string } & SessionScore,
 ): Promise<number | null> {
   if (!supabase) return null;
   const data = await postJson<{ totalDurationSeconds?: number }>(
     '/api/workout-sessions',
-    { action: 'finish', eventId, eventDate, autofillRows },
+    { action: 'finish', eventId, eventDate, autofillRows, ...(score ? { score } : {}) },
     'Finishing workout',
   );
   return typeof data?.totalDurationSeconds === 'number' ? data.totalDurationSeconds : null;
