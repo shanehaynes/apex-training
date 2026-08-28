@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react';
-import { Plus, Search, Timer, Trophy, X } from 'lucide-react';
+import { ChevronRight, Plus, Search, Timer, Trophy, X } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { WORKOUT_COLORS } from '../../utils/workoutColors';
 import { TYPE_ORDER } from '../../lib/builder/draft';
 import type { WorkoutTemplate, WorkoutType } from '../../types/workout';
 
 interface Props {
   templates: Map<string, WorkoutTemplate>;
+  /** The day being scheduled (yyyy-MM-dd) — every action here lands on it. */
+  date: string;
   onPick: (template: WorkoutTemplate) => void;
   onCreateNew: (title: string) => void;
   onArchive: (id: string) => Promise<boolean>;
@@ -30,7 +33,7 @@ function exerciseCount(t: WorkoutTemplate): number {
  * are seen before "Create new" invites a duplicate). Archived templates stay
  * out of the list; reapplying an archived title from the form revives it.
  */
-export default function TemplateSearch({ templates, onPick, onCreateNew, onArchive }: Props) {
+export default function TemplateSearch({ templates, date, onPick, onCreateNew, onArchive }: Props) {
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<WorkoutType | null>(null);
 
@@ -47,11 +50,18 @@ export default function TemplateSearch({ templates, onPick, onCreateNew, onArchi
 
   return (
     <div className="builder-search">
+      {/* The step's job in one line — without it this page reads as a
+          template manager rather than "put a workout on this day". */}
+      <p className="builder-search__intro">
+        Scheduling for <strong>{format(parseISO(date), 'EEEE, MMM d')}</strong> — pick
+        a saved workout, or build a new one. Repeats of the same workout share one PR history.
+      </p>
+
       <div className="library-search">
         <Search size={16} strokeWidth={1.5} />
         <input
           className="library-search__input"
-          placeholder="Search your workouts…"
+          placeholder="Find a saved workout…"
           value={query}
           onChange={e => setQuery(e.target.value)}
           autoFocus
@@ -82,6 +92,9 @@ export default function TemplateSearch({ templates, onPick, onCreateNew, onArchi
       </div>
 
       <div className="builder-search__list">
+        {rows.length > 0 && (
+          <span className="builder-search__label">Your workouts — tap to schedule</span>
+        )}
         {rows.map(t => {
           const c = WORKOUT_COLORS[t.type];
           const badge = scoringBadge(t);
@@ -99,6 +112,9 @@ export default function TemplateSearch({ templates, onPick, onCreateNew, onArchi
                   )}
                   {count > 0 && <span>{count} exercise{count === 1 ? '' : 's'}</span>}
                 </span>
+                <span className="builder-template-card__go">
+                  <ChevronRight size={14} strokeWidth={1.5} />
+                </span>
               </button>
               <button
                 className="builder-template-card__archive"
@@ -114,7 +130,7 @@ export default function TemplateSearch({ templates, onPick, onCreateNew, onArchi
         {rows.length === 0 && (
           <p className="builder-search__empty">
             {templates.size === 0
-              ? 'Nothing in your library yet — every workout you apply is saved here for next time.'
+              ? "Nothing saved yet — build this day's workout below; Apply saves it to your library for next time."
               : 'No workouts match — build it once and it will be here from now on.'}
           </p>
         )}
@@ -122,7 +138,7 @@ export default function TemplateSearch({ templates, onPick, onCreateNew, onArchi
 
       <button className="builder-search__create" onClick={() => onCreateNew(query.trim())}>
         <Plus size={16} strokeWidth={1.5} />
-        {query.trim() ? `Create “${query.trim()}”` : 'Create new workout'}
+        {query.trim() ? `Build “${query.trim()}”` : 'Build a new workout'}
       </button>
     </div>
   );

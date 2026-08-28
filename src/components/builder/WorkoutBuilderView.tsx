@@ -147,6 +147,7 @@ export default function WorkoutBuilderView() {
           {step === 'search' ? (
             <TemplateSearch
               templates={templates}
+              date={draft.date}
               onPick={pickTemplate}
               onCreateNew={startBlank}
               onArchive={archiveTemplate}
