@@ -268,6 +268,40 @@ describe('PATCH /api/profile — coach fields', () => {
   });
 });
 
+describe('PATCH /api/profile — HR-zone settings (phase 35)', () => {
+  it('accepts integer max_hr and threshold_hr', async () => {
+    const state: AdminState = { key: null };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { max_hr: 188, threshold_hr: 165 }), res);
+    expect(statusCode()).toBe(200);
+    expect(state.profileUpdate).toMatchObject({ max_hr: 188, threshold_hr: 165 });
+  });
+
+  it('accepts null — clearing a value is a valid edit', async () => {
+    const state: AdminState = { key: null };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { threshold_hr: null }), res);
+    expect(statusCode()).toBe(200);
+    expect(state.profileUpdate).toMatchObject({ threshold_hr: null });
+  });
+
+  it('400s out-of-range and non-integer values before the DB constraint would', async () => {
+    for (const body of [
+      { max_hr: 99 }, { max_hr: 251 }, { max_hr: 180.5 }, { max_hr: '180' },
+      { threshold_hr: 79 }, { threshold_hr: 231 },
+    ]) {
+      const state: AdminState = { key: null };
+      mockedAdmin.mockReturnValue(makeAdmin(state));
+      const { res, statusCode } = makeRes();
+      await handler(makeReq('PATCH', body), res);
+      expect(statusCode()).toBe(400);
+      expect(state.profileUpdate).toBeUndefined();
+    }
+  });
+});
+
 describe('PATCH /api/profile — onboarding dismissal', () => {
   it('stamps the server clock, never a client-supplied time', async () => {
     const state: AdminState = { key: null };

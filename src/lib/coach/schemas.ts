@@ -193,7 +193,7 @@ const MEAL_FIELD_PROPERTIES = {
   date:            { type: 'string' as const, description: 'YYYY-MM-DD' },
   time:            { type: 'string' as const, description: 'When eaten, e.g. "12:30 PM"' },
   meal_type:       { type: 'string' as const, enum: ['breakfast', 'lunch', 'dinner', 'snack'] },
-  calories:        { type: 'number' as const, description: 'Only when known (e.g. from a label); omit to auto-derive 4/4/9 from the macros.' },
+  calories:        { type: 'number' as const, description: 'Only when known (e.g. from a label); omit to auto-derive 4/4/9/7 from the macros.' },
   protein_g:       { type: 'number' as const },
   carbs_g:         { type: 'number' as const },
   fiber_g:         { type: 'number' as const },
@@ -201,6 +201,7 @@ const MEAL_FIELD_PROPERTIES = {
   fat_total_g:     { type: 'number' as const, description: 'Total fat — at least saturated + trans (unsaturated makes up the rest). Never derive it by summing the split.' },
   fat_saturated_g: { type: 'number' as const },
   fat_trans_g:     { type: 'number' as const },
+  alcohol_g:       { type: 'number' as const, description: 'Grams of ethanol, not drink volume — a standard US drink is about 14 g.' },
   notes:           { type: 'string' as const },
 };
 
@@ -208,7 +209,7 @@ export const logMealSchema: Anthropic.Tool = {
   name: 'log_meal',
   description:
     'Log a meal with its macros onto a calendar day. Grams for all macro fields. ' +
-    'Omit calories to auto-derive them (4/4/9) from protein/carbs/fat.',
+    'Omit calories to auto-derive them (4/4/9/7) from protein/carbs/fat/alcohol.',
   input_schema: {
     type: 'object',
     properties: MEAL_FIELD_PROPERTIES,

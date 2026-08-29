@@ -44,6 +44,42 @@ export type Database = {
         }
         Relationships: []
       }
+      analytics_tiles: {
+        Row: {
+          created_at: string
+          h: number
+          id: string
+          spec: Json
+          updated_at: string
+          user_id: string
+          w: number
+          x: number
+          y: number
+        }
+        Insert: {
+          created_at?: string
+          h?: number
+          id: string
+          spec: Json
+          updated_at?: string
+          user_id: string
+          w?: number
+          x?: number
+          y?: number
+        }
+        Update: {
+          created_at?: string
+          h?: number
+          id?: string
+          spec?: Json
+          updated_at?: string
+          user_id?: string
+          w?: number
+          x?: number
+          y?: number
+        }
+        Relationships: []
+      }
       api_request_counts: {
         Row: {
           bucket: string
@@ -280,6 +316,7 @@ export type Database = {
       }
       meal_favorites: {
         Row: {
+          alcohol_g: number | null
           calories: number | null
           carbs_g: number | null
           created_at: string
@@ -297,6 +334,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          alcohol_g?: number | null
           calories?: number | null
           carbs_g?: number | null
           created_at?: string
@@ -314,6 +352,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          alcohol_g?: number | null
           calories?: number | null
           carbs_g?: number | null
           created_at?: string
@@ -367,6 +406,7 @@ export type Database = {
       }
       meals: {
         Row: {
+          alcohol_g: number | null
           calories: number | null
           carbs_g: number | null
           created_at: string
@@ -386,6 +426,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          alcohol_g?: number | null
           calories?: number | null
           carbs_g?: number | null
           created_at?: string
@@ -405,6 +446,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          alcohol_g?: number | null
           calories?: number | null
           carbs_g?: number | null
           created_at?: string
@@ -575,8 +617,10 @@ export type Database = {
           ics_token: string
           id: string
           is_template_source: boolean
+          max_hr: number | null
           onboarding_dismissed_at: string | null
           template_copied_at: string | null
+          threshold_hr: number | null
           updated_at: string
         }
         Insert: {
@@ -588,8 +632,10 @@ export type Database = {
           ics_token?: string
           id: string
           is_template_source?: boolean
+          max_hr?: number | null
           onboarding_dismissed_at?: string | null
           template_copied_at?: string | null
+          threshold_hr?: number | null
           updated_at?: string
         }
         Update: {
@@ -601,8 +647,10 @@ export type Database = {
           ics_token?: string
           id?: string
           is_template_source?: boolean
+          max_hr?: number | null
           onboarding_dismissed_at?: string | null
           template_copied_at?: string | null
+          threshold_hr?: number | null
           updated_at?: string
         }
         Relationships: []

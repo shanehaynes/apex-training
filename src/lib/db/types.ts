@@ -93,6 +93,16 @@ export type WorkoutTemplateRow = Row<'workout_templates', {
   climbing_targets?: unknown;
 }>;
 
+// analytics_tiles (phase 35): a saved dashboard chart tile. spec is the
+// ChartSpec JSONB — the server guards the column name, specProblem
+// (src/lib/analytics/spec.ts) guards the contents, the weekly_targets
+// precedent. x/y/w/h are the react-grid-layout position, real columns so a
+// drag commit is a plain batched upsert.
+export type AnalyticsTileRow = Row<'analytics_tiles', {
+  user_id?: string;
+  spec: Record<string, unknown>;
+}>;
+
 // meals (phase 22). Numeric macro columns are nullable — blank form fields
 // stay unset rather than becoming zeros.
 export type MealRow = Row<'meals', { user_id?: string }>;

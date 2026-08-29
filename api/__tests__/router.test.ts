@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import handler from '../_lib/app';
 import { handleTrainingBlocks } from '../_lib/trainingBlocks';
 import eventsHandler from '../_lib/handlers/events';
+import analyticsTilesHandler from '../_lib/handlers/analyticsTiles';
 
 // The router bridges to (req, res) handlers, so mocked handlers respond the
 // same way the real ones do: by writing to res, never by returning a value.
@@ -12,6 +13,11 @@ vi.mock('../_lib/trainingBlocks.js', () => ({
   }),
 }));
 vi.mock('../_lib/handlers/events.js', () => ({
+  default: vi.fn(async (_req: VercelRequest, res: VercelResponse) => {
+    res.status(200).json({ ok: true });
+  }),
+}));
+vi.mock('../_lib/handlers/analyticsTiles.js', () => ({
   default: vi.fn(async (_req: VercelRequest, res: VercelResponse) => {
     res.status(200).json({ ok: true });
   }),
@@ -37,6 +43,7 @@ function makeRes() {
 beforeEach(() => {
   vi.mocked(handleTrainingBlocks).mockClear();
   vi.mocked(eventsHandler).mockClear();
+  vi.mocked(analyticsTilesHandler).mockClear();
 });
 
 describe('consolidated API router', () => {
@@ -53,6 +60,13 @@ describe('consolidated API router', () => {
     await handler(req, res);
     expect(handleTrainingBlocks).toHaveBeenCalledOnce();
     expect(req.query.resource).toBe('block');
+  });
+
+  it('dispatches /api/analytics-tiles to the analytics tiles handler', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('POST', '/api/analytics-tiles'), res);
+    expect(analyticsTilesHandler).toHaveBeenCalledOnce();
+    expect(statusCode()).toBe(200);
   });
 
   it('routes /api/objectives to handleTrainingBlocks as resource=objective', async () => {
