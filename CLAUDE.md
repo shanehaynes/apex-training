@@ -61,7 +61,9 @@ refactor — which is exactly what happened once (see CONTRIBUTING.md).
   Never `pkill -f vite` — that is other sessions' servers too. To clear a stale
   one, `lsof -i :$(npm run -s port)` and kill that PID only.
 - **The local Supabase stack.** One Postgres for the whole machine.
-  `npm run e2e:live` and `npm run db:reset-local` reset whole tables. It is
+  `npm run e2e:live` and `npm run db:reset-local` reset whole tables; both
+  take a machine-wide lock (`scripts/with-stack-lock.sh`), so a second
+  session queues behind the first instead of corrupting it. The stack is
   not auto-migrated either: it has the schema of the last reset, which can lag
   `main` — `scripts/db-types.sh --check` tells you. Auto-mode sessions are
   refused the reset; ask rather than work from a stale schema.

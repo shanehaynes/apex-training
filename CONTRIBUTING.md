@@ -256,7 +256,13 @@ There is one local Postgres. `npm run e2e:live` resets whole tables, and
 but that only serializes *within* a run, not *across sessions*. Two sessions
 running live e2e will corrupt each other's fixtures.
 
-One session at a time for `e2e:live` and `db:reset-local`.
+One session at a time for `e2e:live` and `db:reset-local` — and that is now
+mechanical, not prose: both (and `agent:check:full`) run under a machine-wide
+lock ([scripts/with-stack-lock.sh](scripts/with-stack-lock.sh), `flock` on a
+file in the primary checkout's `.claude/state/`). A second session queues,
+with a note saying who holds the lock, rather than corrupting the first one's
+fixtures; `APEX_STACK_LOCK_WAIT` bounds the wait (default 600s). Anything
+new that resets or seeds the stack should go through the same wrapper.
 
 The stack is also **not kept current for you**. `supabase start` only
 auto-applies timestamped migrations and this repo's are `phaseN_*.sql` (see
