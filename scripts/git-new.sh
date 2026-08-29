@@ -18,6 +18,7 @@
 set -euo pipefail
 
 branch=""
+intent=""
 install=1
 for arg in "$@"; do
   case "$arg" in
@@ -27,17 +28,20 @@ for arg in "$@"; do
       exit 64
       ;;
     *)
-      if [ -n "$branch" ]; then
-        echo "error: expected one branch name, got '$branch' and '$arg'" >&2
+      if [ -z "$branch" ]; then
+        branch="$arg"
+      elif [ -z "$intent" ]; then
+        intent="$arg"
+      else
+        echo "error: expected a branch and optionally an intent, got extra '$arg'" >&2
         exit 64
       fi
-      branch="$arg"
       ;;
   esac
 done
 
 if [ -z "$branch" ]; then
-  echo "usage: scripts/git-new.sh <type>/<slug> [--no-install]" >&2
+  echo "usage: scripts/git-new.sh <type>/<slug> [\"what you will touch\"] [--no-install]" >&2
   echo "       types: feat/ fix/ chore/ db/" >&2
   exit 64
 fi
@@ -79,6 +83,16 @@ if [ "$install" -eq 1 ]; then
   (cd "$dir" && npm ci --no-audit --no-fund --silent)
 fi
 
+# Record the claim. Sessions cannot see each other's uncommitted work, but
+# they can see declared intent: one line per active worktree in the primary
+# checkout's claims file. git-tidy.sh prunes claims whose worktree is gone;
+# supervisor-report.sh flags stale ones. Tabs are the field separator, so
+# they cannot appear in the intent.
+state_dir="$root/.claude/state"
+mkdir -p "$state_dir"
+printf '%s\t%s\t%s\t%s\n' "$branch" "$(date -u +%FT%TZ)" "$dir" "${intent//$'\t'/ }" \
+  >> "$state_dir/claims.tsv"
+
 # dev/port.mjs resolves the per-worktree dev/e2e port (CONTRIBUTING.md).
 port=$(cd "$dir" && node dev/port.mjs 2>/dev/null || echo "?")
 
@@ -91,6 +105,17 @@ cat <<MSG
 
    cd $dir
 MSG
+
+# Show what everyone else has claimed, right when overlap is cheapest to
+# avoid — before this session has written a line of code.
+others=$(awk -F'\t' -v me="$branch" \
+  '$1 != me { printf "   %s (since %s)%s\n", $1, $2, ($4 != "" ? " — " $4 : "") }' \
+  "$state_dir/claims.tsv" 2>/dev/null || true)
+if [ -n "$others" ]; then
+  echo
+  echo "── other sessions have claimed — check for overlap before touching the same files:"
+  printf '%s\n' "$others"
+fi
 
 case "$branch" in
   db/*)

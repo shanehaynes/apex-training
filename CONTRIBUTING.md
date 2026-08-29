@@ -84,7 +84,9 @@ scripts/git-tidy.sh
 That removes every worktree whose branch is fully merged into `origin/main`,
 deletes the merged local branches, and prunes dead remote-tracking refs. It
 refuses to touch a worktree with uncommitted changes, and it never deletes an
-unmerged branch.
+unmerged branch. A branch with no commits of its own is also never removed:
+"no work yet" usually means another session that just started, not one that
+finished — retiring those is a by-hand decision.
 
 Run it when you finish something. The alternative is what this repo looked like
 before this document: 7 worktrees, 15 merged-but-undeleted local branches, and
@@ -204,6 +206,28 @@ first and then re-run the exact command prefixed with `APEX_DESTRUCTIVE_OK=1`
 ## Parallel-session hazards specific to this repo
 
 These are real collisions that have happened or can happen today.
+
+### Declare what you are working on
+
+Sessions cannot see each other's uncommitted changes, but they can see
+declared intent. `git-new.sh` records one line per worktree in the primary
+checkout's `.claude/state/claims.tsv` — branch, when, where, and an optional
+free-text intent:
+
+```bash
+scripts/git-new.sh feat/coach-tools "touching src/lib/coach/* and prompt.ts"
+```
+
+It prints every other session's claim when it cuts your worktree — the
+moment overlap is cheapest to avoid. If another claim names the files you
+are about to change, coordinate (smaller hunks, different files) or wait;
+two branches editing the same lines merge cleanly into `main` and then
+conflict with *each other* (see "Several branches in flight" below).
+
+The registry is metadata, never work: `git-tidy.sh` prunes claims whose
+worktree is gone, and `supervisor-report.sh` flags claims older than a week
+or pointing at nothing. Trust it as a hint, not as a lock — a session that
+started by hand may not have claimed anything.
 
 ### The dev server port is per-worktree, so it cannot be shared
 

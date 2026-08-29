@@ -67,6 +67,27 @@ for wt in .claude/worktrees/*/; do
 done
 
 echo
+echo "── session claims (git-new.sh records them; git-tidy.sh prunes them)"
+claims=".claude/state/claims.tsv"
+if [ -s "$claims" ]; then
+  now=$(date +%s)
+  while IFS=$'\t' read -r br ts wt intent; do
+    [ -n "$br" ] || continue
+    claimed=$(date -d "$ts" +%s 2>/dev/null || echo "$now")
+    age_days=$(( (now - claimed) / 86400 ))
+    if [ ! -d "$wt" ]; then
+      echo "ACTION claim for $br points at a missing worktree — stale; scripts/git-tidy.sh --yes prunes it"
+    elif [ "$age_days" -ge 7 ]; then
+      echo "ACTION $br claimed ${age_days}d ago${intent:+ ($intent)} — finish it or retire it"
+    else
+      echo "   $br (${age_days}d${intent:+ — $intent})"
+    fi
+  done < "$claims"
+else
+  echo "   none recorded"
+fi
+
+echo
 echo "── open PRs"
 if [ -n "$GH" ]; then
   prs=$("$GH" pr list --state open --limit 50 \
@@ -78,6 +99,15 @@ if [ -n "$GH" ]; then
     echo "$prs"
     echo "$prs" | grep -q "BASE=" && echo "ACTION a PR above is not based on main — the stacked-PR trap; retarget it"
     echo "$prs" | grep -qE "CLEAN|BEHIND" && echo "ACTION mergeable work is waiting — run scripts/merge-babysit.sh --yes"
+    # Two open PRs can each merge cleanly into main and still conflict with
+    # each other — the serial loop only finds that out after the first lands.
+    if [ "$(printf '%s\n' "$prs" | wc -l)" -ge 2 ]; then
+      echo
+      echo "── combine check (pairwise merge-tree across open PR branches)"
+      out=$(scripts/combine-check.sh 2>/dev/null) && combined=0 || combined=1
+      printf '%s\n' "$out" | sed 's/^/   /'
+      [ "$combined" -ne 0 ] && echo "ACTION two open PRs conflict with each other — move one hunk before the first lands (CONTRIBUTING.md)"
+    fi
   fi
 else
   echo "   gh not found — skipped"
