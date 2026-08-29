@@ -40,6 +40,8 @@ export default function ProfileView() {
   const close = () => dispatch({ type: 'CLOSE_PROFILE' });
 
   const [name, setName] = useState(profile?.display_name ?? '');
+  const [maxHr, setMaxHr] = useState(profile?.max_hr != null ? String(profile.max_hr) : '');
+  const [thresholdHr, setThresholdHr] = useState(profile?.threshold_hr != null ? String(profile.threshold_hr) : '');
   const [goal, setGoal] = useState(profile?.coach_goal ?? '');
   const [coachContext, setCoachContext] = useState(profile?.coach_context ?? '');
   const [password, setPassword] = useState('');
@@ -65,6 +67,23 @@ export default function ProfileView() {
     const ok = await updateProfile({ displayName: trimmed });
     if (ok) notify('Name updated');
   };
+
+  // Blank clears (null); anything else must parse as a whole number in the
+  // handler's bounds — the API 400s out-of-range values, so pre-check here.
+  const saveHrField = (raw: string, current: number | null, bounds: [number, number], patch: (v: number | null) => Promise<boolean>, label: string) => async () => {
+    const trimmed = raw.trim();
+    const value = trimmed === '' ? null : Number(trimmed);
+    if (value === current || (value === null && current === null)) return;
+    if (value !== null && (!Number.isInteger(value) || value < bounds[0] || value > bounds[1])) {
+      notify(`${label} must be a whole number between ${bounds[0]} and ${bounds[1]}`);
+      return;
+    }
+    const ok = await patch(value);
+    if (ok) notify(`${label} ${value === null ? 'cleared' : 'updated'}`);
+  };
+
+  const saveMaxHr = saveHrField(maxHr, profile?.max_hr ?? null, [100, 250], v => updateProfile({ maxHr: v }), 'Max HR');
+  const saveThresholdHr = saveHrField(thresholdHr, profile?.threshold_hr ?? null, [80, 230], v => updateProfile({ thresholdHr: v }), 'Threshold HR');
 
   // Unlike saveName, empty is a valid save — clearing a coach field is an edit.
   const saveGoal = async () => {
@@ -198,6 +217,40 @@ export default function ProfileView() {
             <span className="auth-field__label">Email</span>
             <input className="auth-input" value={session?.user.email ?? ''} readOnly disabled />
           </label>
+        </section>
+
+        <section className="profile-section">
+          <h3 className="profile-section__title">Heart-rate zones</h3>
+          <p className="profile-section__hint">
+            Zone charts in Analytics use Friel LTHR bands when a threshold HR is
+            set, %-of-max bands otherwise. Blank a field to clear it.
+          </p>
+          <div className="library-field-row">
+            <label className="auth-field">
+              <span className="auth-field__label">Threshold HR (LTHR)</span>
+              <input
+                className="auth-input"
+                inputMode="numeric"
+                value={thresholdHr}
+                onChange={e => setThresholdHr(e.target.value)}
+                onBlur={saveThresholdHr}
+                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                placeholder="e.g. 165"
+              />
+            </label>
+            <label className="auth-field">
+              <span className="auth-field__label">Max HR</span>
+              <input
+                className="auth-input"
+                inputMode="numeric"
+                value={maxHr}
+                onChange={e => setMaxHr(e.target.value)}
+                onBlur={saveMaxHr}
+                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                placeholder="e.g. 188"
+              />
+            </label>
+          </div>
         </section>
 
         <section className="profile-section">

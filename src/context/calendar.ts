@@ -33,6 +33,8 @@ export interface CalendarState {
   profileOpen: boolean;
   /** Training-blocks overlay (same full-screen pattern as the library). */
   blocksOpen: boolean;
+  /** Analytics dashboard overlay (same full-screen pattern as the library). */
+  analyticsOpen: boolean;
 }
 
 export type CalendarAction =
@@ -58,7 +60,9 @@ export type CalendarAction =
   | { type: 'OPEN_PROFILE' }
   | { type: 'CLOSE_PROFILE' }
   | { type: 'OPEN_BLOCKS' }
-  | { type: 'CLOSE_BLOCKS' };
+  | { type: 'CLOSE_BLOCKS' }
+  | { type: 'OPEN_ANALYTICS' }
+  | { type: 'CLOSE_ANALYTICS' };
 
 export interface CalendarContextValue {
   state: CalendarState;
