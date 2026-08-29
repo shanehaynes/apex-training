@@ -23,6 +23,7 @@ export function rowToMeal(row: MealRow): Meal {
     fatTotalG:     row.fat_total_g ?? undefined,
     fatSaturatedG: row.fat_saturated_g ?? undefined,
     fatTransG:     row.fat_trans_g ?? undefined,
+    alcoholG:      row.alcohol_g ?? undefined,
     notes:         row.notes ?? '',
   };
 }
@@ -45,6 +46,7 @@ const MEAL_FIELDS: {
   fatTotalG:     v => ({ fat_total_g: v ?? null }),
   fatSaturatedG: v => ({ fat_saturated_g: v ?? null }),
   fatTransG:     v => ({ fat_trans_g: v ?? null }),
+  alcoholG:      v => ({ alcohol_g: v ?? null }),
   notes:         v => ({ notes: v ?? '' }),
 };
 
@@ -90,6 +92,7 @@ export function rowToFavorite(row: MealFavoriteRow): MealFavorite {
     fatTotalG:     row.fat_total_g ?? undefined,
     fatSaturatedG: row.fat_saturated_g ?? undefined,
     fatTransG:     row.fat_trans_g ?? undefined,
+    alcoholG:      row.alcohol_g ?? undefined,
     notes:         row.notes ?? '',
   };
 }
@@ -113,12 +116,12 @@ export function mealFieldsToRow(
 
 // ─── Derived nutrition ───────────────────────────────────────────────────────
 
-type Macros = Pick<Meal, 'proteinG' | 'carbsG' | 'fatTotalG'>;
+type Macros = Pick<Meal, 'proteinG' | 'carbsG' | 'fatTotalG' | 'alcoholG'>;
 
-/** Atwater 4/4/9 estimate from the entered macros; null when none are set. */
+/** Atwater 4/4/9/7 estimate from the entered macros; null when none are set. */
 export function derivedCalories(m: Macros): number | null {
-  if (m.proteinG === undefined && m.carbsG === undefined && m.fatTotalG === undefined) return null;
-  return Math.round((m.proteinG ?? 0) * 4 + (m.carbsG ?? 0) * 4 + (m.fatTotalG ?? 0) * 9);
+  if (m.proteinG === undefined && m.carbsG === undefined && m.fatTotalG === undefined && m.alcoholG === undefined) return null;
+  return Math.round((m.proteinG ?? 0) * 4 + (m.carbsG ?? 0) * 4 + (m.fatTotalG ?? 0) * 9 + (m.alcoholG ?? 0) * 7);
 }
 
 /** The calories a meal displays as: the manual override when set, else derived. */

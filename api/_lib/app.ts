@@ -11,6 +11,7 @@ import coachSummary from './handlers/coachSummary.js';
 import mutationsLog from './handlers/mutationsLog.js';
 import completions from './handlers/completions.js';
 import workoutTemplates from './handlers/workoutTemplates.js';
+import analyticsTiles from './handlers/analyticsTiles.js';
 import mcp from './handlers/mcp.js';
 import mcpTokens from './handlers/mcpTokens.js';
 import oauthMetadata from './handlers/oauthMetadata.js';
@@ -55,6 +56,7 @@ app.all('/objectives', bridge(handleTrainingBlocks, r => { r.query.resource = 'o
 app.all('/meals', bridge(handleMeals));
 app.all('/meal-favorites', bridge(handleMealFavorites));
 app.all('/workout-templates', bridge(workoutTemplates));
+app.all('/analytics-tiles', bridge(analyticsTiles));
 app.all('/workout-sessions', bridge(workoutSessions));
 app.all('/profile', bridge(profile));
 app.all('/exercise-definitions', bridge(exerciseDefinitions));

@@ -446,12 +446,13 @@ interface MealFieldsInput {
   fat_total_g?: number | null;
   fat_saturated_g?: number | null;
   fat_trans_g?: number | null;
+  alcohol_g?: number | null;
   notes?: string | null;
 }
 
 const MEAL_NUMERIC_KEYS = [
   'calories', 'protein_g', 'carbs_g', 'fiber_g', 'sugar_g',
-  'fat_total_g', 'fat_saturated_g', 'fat_trans_g',
+  'fat_total_g', 'fat_saturated_g', 'fat_trans_g', 'alcohol_g',
 ] as const;
 
 /** Negative macro values abort with an instructive error before the DB CHECK 500s. */
@@ -485,6 +486,7 @@ function mealFieldsFromInput(input: MealFieldsInput): Partial<Omit<Meal, 'id'>> 
   if ('fat_total_g' in input)     set('fatTotalG', input.fat_total_g);
   if ('fat_saturated_g' in input) set('fatSaturatedG', input.fat_saturated_g);
   if ('fat_trans_g' in input)     set('fatTransG', input.fat_trans_g);
+  if ('alcohol_g' in input)       set('alcoholG', input.alcohol_g);
   if ('notes' in input)           set('notes', input.notes ?? '');
   return fields;
 }

@@ -27,6 +27,9 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('framer-motion') || id.includes('react-dom') || id.includes('react/')) return 'vendor';
           if (id.includes('recharts') || id.includes('d3-')) return 'charts';
+          // The analytics dashboard grid rides the charts chunk: both load
+          // together (the analytics view is their only consumer).
+          if (id.includes('react-grid-layout') || id.includes('react-draggable') || id.includes('react-resizable')) return 'charts';
         },
       },
     },

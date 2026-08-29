@@ -87,6 +87,7 @@ export const MEAL_INSERT_COLUMNS: ReadonlySet<string> = new Set([
   'fat_total_g',
   'fat_saturated_g',
   'fat_trans_g',
+  'alcohol_g',
   'notes',
 ]);
 
@@ -121,6 +122,20 @@ export const WORKOUT_TEMPLATE_COLUMNS: ReadonlySet<string> = new Set([
   'cardio_targets',
   'climbing_targets',
   'archived_at',
+]);
+
+// Mirrors what tileToRow (src/lib/analytics/tiles.ts) emits — pinned by
+// api/__tests__/allowlist.test.ts. Analytics dashboard tiles (phase 35):
+// spec is JSONB — pickAllowed guards the column NAME, and specProblem
+// (src/lib/analytics/spec.ts) guards what is inside it, the weekly_targets
+// precedent. x/y/w/h are the grid layout, written by drag/resize commits.
+export const ANALYTICS_TILE_COLUMNS: ReadonlySet<string> = new Set([
+  'id',
+  'spec',
+  'x',
+  'y',
+  'w',
+  'h',
 ]);
 
 export const DEFINITION_INSERT_COLUMNS: ReadonlySet<string> = new Set([

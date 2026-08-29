@@ -13,6 +13,7 @@ import {
   OBJECTIVE_INSERT_COLUMNS,
   OBJECTIVE_PATCH_COLUMNS,
   WORKOUT_TEMPLATE_COLUMNS,
+  ANALYTICS_TILE_COLUMNS,
 } from '../_lib/allowlist';
 import { eventToRow, eventFieldsToRow } from '../../src/lib/schedule/mapping';
 import { definitionFieldsToRow } from '../../src/lib/schedule/definitions';
@@ -108,6 +109,7 @@ const FULL_MEAL: Meal = {
   fatTotalG: 24,
   fatSaturatedG: 9,
   fatTransG: 0.5,
+  alcoholG: 14,
   notes: 'Extra rice',
 };
 
@@ -146,7 +148,7 @@ describe('pickAllowed', () => {
       MEAL_INSERT_COLUMNS, MEAL_PATCH_COLUMNS, MEAL_FAVORITE_COLUMNS,
       BLOCK_INSERT_COLUMNS, BLOCK_PATCH_COLUMNS,
       OBJECTIVE_INSERT_COLUMNS, OBJECTIVE_PATCH_COLUMNS,
-      WORKOUT_TEMPLATE_COLUMNS,
+      WORKOUT_TEMPLATE_COLUMNS, ANALYTICS_TILE_COLUMNS,
     ]) {
       expect(set.has('user_id')).toBe(false);
       expect(set.has('created_at')).toBe(false);
@@ -199,6 +201,13 @@ describe('client/server mirror', () => {
     const row = templateToRow(FULL_TEMPLATE);
     const { rejected } = pickAllowed(row as unknown as Record<string, unknown>, WORKOUT_TEMPLATE_COLUMNS);
     expect(rejected).toEqual([]);
+  });
+
+  // The analytics tile mapper (src/lib/analytics/tiles.ts) lands with the
+  // engine PR; until then this pins the exact column set the handler
+  // accepts, so a drive-by addition here fails loudly.
+  it('pins the analytics tile columns', () => {
+    expect([...ANALYTICS_TILE_COLUMNS].sort()).toEqual(['h', 'id', 'spec', 'w', 'x', 'y']);
   });
 
   it('accepts every column definitionFieldsToRow emits', () => {
