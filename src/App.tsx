@@ -9,6 +9,8 @@ import AppShell from './components/layout/AppShell';
 import LoginView from './components/auth/LoginView';
 import SetPasswordView from './components/auth/SetPasswordView';
 import ConnectApproval from './components/auth/ConnectApproval';
+import LegalPage from './components/legal/LegalPage';
+import { LEGAL_DOCUMENTS } from './lib/legal/versions';
 import './styles/global.css';
 import './styles/app.css';
 
@@ -45,6 +47,20 @@ function AuthGate() {
 }
 
 export default function App() {
+  // /terms and /privacy render ABOVE AuthProvider, unlike the /connect route
+  // inside AuthGate: the acceptance checkbox on the sign-up and set-password
+  // screens links here, so a signed-out visitor has to be able to read them.
+  // Mounting the auth provider first would put a loading gate in front of the
+  // documents they are being asked to agree to.
+  const legal = LEGAL_DOCUMENTS.find(d => d.path === window.location.pathname);
+  if (legal) {
+    return (
+      <ErrorBoundary>
+        <LegalPage slug={legal.slug} />
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <AuthProvider>
