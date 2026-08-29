@@ -3,7 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "engines": { "node": "22.x" },
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "vite",
     "dev:agent": "vite --mode agent",
@@ -38,6 +40,7 @@
     "nodemailer": "^9.0.5",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-grid-layout": "2.2.4",
     "recharts": "^3.10.1"
   },
   "devDependencies": {

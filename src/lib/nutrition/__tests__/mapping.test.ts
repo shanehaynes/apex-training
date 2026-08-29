@@ -27,6 +27,7 @@ const FULL_MEAL: Meal = {
   fatTotalG: 24,
   fatSaturatedG: 9,
   fatTransG: 0.5,
+  alcoholG: 14,
   notes: 'Extra rice',
 };
 
@@ -44,6 +45,7 @@ const FULL_ROW: Omit<MealRow, 'created_at' | 'updated_at'> = {
   fat_total_g: 24,
   fat_saturated_g: 9,
   fat_trans_g: 0.5,
+  alcohol_g: 14,
   notes: 'Extra rice',
 };
 
@@ -93,6 +95,11 @@ describe('derivedCalories', () => {
     expect(derivedCalories({ proteinG: 40, carbsG: 50, fatTotalG: 25 })).toBe(585);
   });
 
+  it('folds alcohol in at 7 kcal/g (phase 35)', () => {
+    expect(derivedCalories({ proteinG: 40, carbsG: 50, fatTotalG: 25, alcoholG: 14 })).toBe(683);
+    expect(derivedCalories({ alcoholG: 28 })).toBe(196);
+  });
+
   it('treats missing macros as zero when at least one is set', () => {
     expect(derivedCalories({ proteinG: 30 })).toBe(120);
     expect(derivedCalories({ fatTotalG: 10 })).toBe(90);
@@ -114,7 +121,7 @@ describe('mealCalories', () => {
 
   it('falls back to the derivation', () => {
     const { calories: _c, ...noOverride } = FULL_MEAL;
-    expect(mealCalories(noOverride as Meal)).toBe(4 * 42 + 4 * 55 + 9 * 24);
+    expect(mealCalories(noOverride as Meal)).toBe(4 * 42 + 4 * 55 + 9 * 24 + 7 * 14);
   });
 
   it('is null with neither override nor macros', () => {

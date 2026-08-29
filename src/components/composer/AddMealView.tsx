@@ -25,7 +25,7 @@ const numStr = (n?: number) => (n === undefined ? '' : String(n));
  * composer, minus its type-picker phase — meal type is just a field, it
  * doesn't branch the form). Opened with state.editingMeal set, it edits that
  * meal in place. Fat total is independent of the sat/trans split; calories
- * derive 4/4/9 from the macros unless typed over.
+ * derive 4/4/9/7 from the macros (incl. alcohol) unless typed over.
  */
 export default function AddMealView() {
   const { state, dispatch } = useCalendar();
@@ -50,6 +50,7 @@ export default function AddMealView() {
   const [fatTotal, setFatTotal] = useState(numStr(editing?.fatTotalG));
   const [fatSaturated, setFatSaturated] = useState(numStr(editing?.fatSaturatedG));
   const [fatTrans, setFatTrans] = useState(numStr(editing?.fatTransG));
+  const [alcohol, setAlcohol] = useState(numStr(editing?.alcoholG));
   const [notes, setNotes] = useState(editing?.notes ?? '');
   const [saving, setSaving] = useState(false);
 
@@ -75,11 +76,12 @@ export default function AddMealView() {
       ['Total fat', parseGrams(fatTotal)],
       ['Saturated fat', parseGrams(fatSaturated)],
       ['Trans fat', parseGrams(fatTrans)],
+      ['Alcohol', parseGrams(alcohol)],
     ];
     const invalid = fields.find(([, v]) => v !== undefined && Number.isNaN(v));
     if (invalid) { notify(`${invalid[0]} must be a number of at least 0`); return null; }
 
-    const [cal, proteinG, carbsG, fiberG, sugarG, fatTotalG, fatSaturatedG, fatTransG] =
+    const [cal, proteinG, carbsG, fiberG, sugarG, fatTotalG, fatSaturatedG, fatTransG, alcoholG] =
       fields.map(([, v]) => v);
 
     if (!validateFatSplit(fatTotalG, fatSaturatedG, fatTransG)) {
@@ -92,7 +94,7 @@ export default function AddMealView() {
       mealType: mealType ?? undefined,
       calories: cal,
       proteinG, carbsG, fiberG, sugarG,
-      fatTotalG, fatSaturatedG, fatTransG,
+      fatTotalG, fatSaturatedG, fatTransG, alcoholG,
       notes: notes.trim(),
     };
   };
@@ -136,6 +138,7 @@ export default function AddMealView() {
     setFatTotal(numStr(f.fatTotalG));
     setFatSaturated(numStr(f.fatSaturatedG));
     setFatTrans(numStr(f.fatTransG));
+    setAlcohol(numStr(f.alcoholG));
     setNotes(f.notes);
   };
 
@@ -162,6 +165,7 @@ export default function AddMealView() {
     proteinG: parseGrams(protein),
     carbsG: parseGrams(carbs),
     fatTotalG: parseGrams(fatTotal),
+    alcoholG: parseGrams(alcohol),
   });
 
   return createPortal(
@@ -260,6 +264,10 @@ export default function AddMealView() {
           <label className="library-field">
             <span className="library-field__label">Trans fat (g) <em>optional</em></span>
             <input inputMode="decimal" className="library-field__input" value={fatTrans} onChange={e => setFatTrans(e.target.value)} />
+          </label>
+          <label className="library-field">
+            <span className="library-field__label">Alcohol (g) <em>optional</em></span>
+            <input inputMode="decimal" className="library-field__input" value={alcohol} onChange={e => setAlcohol(e.target.value)} />
           </label>
           <label className="library-field">
             <span className="library-field__label">Calories <em>auto from macros</em></span>
