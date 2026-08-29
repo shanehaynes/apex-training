@@ -187,6 +187,33 @@ while IFS= read -r br; do
   fi
 done < <(git for-each-ref --format='%(refname:short)' refs/heads/)
 
+# ── session claims ──────────────────────────────────────────────────────────
+# git-new.sh appends one claim per worktree to the primary checkout's
+# .claude/state/claims.tsv; retire the ones whose worktree no longer exists.
+# The claims file is metadata about work, never work itself — pruning it can
+# lose nothing.
+claims_root=$(cd "$(git rev-parse --git-common-dir)/.." && pwd -P)
+claims="$claims_root/.claude/state/claims.tsv"
+if [ -f "$claims" ]; then
+  echo
+  echo "── session claims"
+  kept_claims=$(mktemp)
+  while IFS=$'\t' read -r br ts wt intent; do
+    [ -n "$br" ] || continue
+    if [ -d "$wt" ]; then
+      echo "   KEEP  $br (since $ts${intent:+ — $intent})"
+      printf '%s\t%s\t%s\t%s\n' "$br" "$ts" "$wt" "$intent" >> "$kept_claims"
+    else
+      echo "   DROP  $br (worktree gone)"
+    fi
+  done < "$claims"
+  if [ "$apply" -eq 1 ]; then
+    mv "$kept_claims" "$claims"
+  else
+    rm -f "$kept_claims"
+  fi
+fi
+
 # ── summary ─────────────────────────────────────────────────────────────────
 echo
 if [ "$apply" -eq 1 ]; then

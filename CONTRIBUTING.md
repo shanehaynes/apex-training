@@ -207,6 +207,28 @@ first and then re-run the exact command prefixed with `APEX_DESTRUCTIVE_OK=1`
 
 These are real collisions that have happened or can happen today.
 
+### Declare what you are working on
+
+Sessions cannot see each other's uncommitted changes, but they can see
+declared intent. `git-new.sh` records one line per worktree in the primary
+checkout's `.claude/state/claims.tsv` — branch, when, where, and an optional
+free-text intent:
+
+```bash
+scripts/git-new.sh feat/coach-tools "touching src/lib/coach/* and prompt.ts"
+```
+
+It prints every other session's claim when it cuts your worktree — the
+moment overlap is cheapest to avoid. If another claim names the files you
+are about to change, coordinate (smaller hunks, different files) or wait;
+two branches editing the same lines merge cleanly into `main` and then
+conflict with *each other* (see "Several branches in flight" below).
+
+The registry is metadata, never work: `git-tidy.sh` prunes claims whose
+worktree is gone, and `supervisor-report.sh` flags claims older than a week
+or pointing at nothing. Trust it as a hint, not as a lock — a session that
+started by hand may not have claimed anything.
+
 ### The dev server port is per-worktree, so it cannot be shared
 
 `playwright.config.ts` sets `reuseExistingServer: !process.env.CI`: if a dev
@@ -236,7 +258,13 @@ There is one local Postgres. `npm run e2e:live` resets whole tables, and
 but that only serializes *within* a run, not *across sessions*. Two sessions
 running live e2e will corrupt each other's fixtures.
 
-One session at a time for `e2e:live` and `db:reset-local`.
+One session at a time for `e2e:live` and `db:reset-local` — and that is now
+mechanical, not prose: both (and `agent:check:full`) run under a machine-wide
+lock ([scripts/with-stack-lock.sh](scripts/with-stack-lock.sh), `flock` on a
+file in the primary checkout's `.claude/state/`). A second session queues,
+with a note saying who holds the lock, rather than corrupting the first one's
+fixtures; `APEX_STACK_LOCK_WAIT` bounds the wait (default 600s). Anything
+new that resets or seeds the stack should go through the same wrapper.
 
 The stack is also **not kept current for you**. `supabase start` only
 auto-applies timestamped migrations and this repo's are `phaseN_*.sql` (see

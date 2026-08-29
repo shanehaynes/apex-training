@@ -18,7 +18,7 @@ not build there, do not commit there.
 Start every task — including one-line fixes — with:
 
 ```bash
-scripts/git-new.sh fix/short-slug     # types: feat/ fix/ chore/ db/
+scripts/git-new.sh fix/short-slug "what you will touch"   # types: feat/ fix/ chore/ db/
 ```
 
 That branches from a freshly-fetched `origin/main`, creates a worktree under
@@ -26,6 +26,11 @@ That branches from a freshly-fetched `origin/main`, creates a worktree under
 (`--no-install` skips it). It works from inside any worktree too. **Never put a
 worktree in `/tmp`**: it does not survive a reboot, and other sessions cannot
 find it.
+
+The second argument is your claim: it lands in `.claude/state/claims.tsv`,
+and `git-new.sh` prints every other session's claim back at you. If one
+names the files you are about to change, coordinate before you overlap
+(CONTRIBUTING.md, "Declare what you are working on").
 
 When your PR merges, retire the branch and worktree:
 
@@ -56,7 +61,9 @@ refactor — which is exactly what happened once (see CONTRIBUTING.md).
   Never `pkill -f vite` — that is other sessions' servers too. To clear a stale
   one, `lsof -i :$(npm run -s port)` and kill that PID only.
 - **The local Supabase stack.** One Postgres for the whole machine.
-  `npm run e2e:live` and `npm run db:reset-local` reset whole tables. It is
+  `npm run e2e:live` and `npm run db:reset-local` reset whole tables; both
+  take a machine-wide lock (`scripts/with-stack-lock.sh`), so a second
+  session queues behind the first instead of corrupting it. The stack is
   not auto-migrated either: it has the schema of the last reset, which can lag
   `main` — `scripts/db-types.sh --check` tells you. Auto-mode sessions are
   refused the reset; ask rather than work from a stale schema.

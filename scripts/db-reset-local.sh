@@ -16,6 +16,15 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# The stack is shared machine-wide — self-relaunch under the cross-session
+# lock so two sessions cannot reset over each other. Re-entrant: the wrapper
+# no-ops when the calling chain already holds the lock.
+if [ "${APEX_STACK_LOCKED:-}" != 1 ]; then
+  # Not "$0": the cd above already moved to the repo root, so a caller's
+  # relative $0 may no longer resolve.
+  exec scripts/with-stack-lock.sh scripts/db-reset-local.sh "$@"
+fi
+
 # A running container is not a working one: Docker has reported every container
 # healthy while GoTrue could not reach Postgres at all. Prove the stack actually
 # works — and repair it — before spending minutes seeding into it.
