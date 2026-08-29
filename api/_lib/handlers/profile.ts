@@ -65,9 +65,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     coach_context?: unknown;
     onboarding_dismissed?: unknown;
     anthropic_api_key?: unknown;
+    max_hr?: unknown;
+    threshold_hr?: unknown;
   } | undefined;
 
-  const fields: Record<string, string> = {};
+  const fields: Record<string, string | number | null> = {};
 
   if (body?.display_name !== undefined) {
     if (typeof body.display_name !== 'string' || !body.display_name.trim() || body.display_name.length > 80) {
@@ -111,6 +113,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
     fields.onboarding_dismissed_at = new Date().toISOString();
+  }
+
+  // HR-zone settings (phase 35): nullable ints — null clears a value the
+  // user no longer stands behind. Bounds mirror the DB CHECK constraints so
+  // a bad value 400s here instead of 500ing on the constraint.
+  if (body?.max_hr !== undefined) {
+    if (body.max_hr !== null && (typeof body.max_hr !== 'number' || !Number.isInteger(body.max_hr) || body.max_hr < 100 || body.max_hr > 250)) {
+      res.status(400).send('max_hr must be an integer between 100 and 250, or null');
+      return;
+    }
+    fields.max_hr = body.max_hr;
+  }
+
+  if (body?.threshold_hr !== undefined) {
+    if (body.threshold_hr !== null && (typeof body.threshold_hr !== 'number' || !Number.isInteger(body.threshold_hr) || body.threshold_hr < 80 || body.threshold_hr > 230)) {
+      res.status(400).send('threshold_hr must be an integer between 80 and 230, or null');
+      return;
+    }
+    fields.threshold_hr = body.threshold_hr;
   }
 
   const hasKeyChange = body !== undefined && 'anthropic_api_key' in body;

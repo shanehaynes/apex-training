@@ -24,6 +24,8 @@ export interface Meal {
   fatTotalG?: number;
   fatSaturatedG?: number;
   fatTransG?: number;
+  /** Grams of ethanol (a 14 g "standard drink" is display-side); contributes 7 kcal/g to derived calories. */
+  alcoholG?: number;
   notes: string;
 }
 
