@@ -10,6 +10,9 @@
 # Safety, in order of how much it matters:
 #   - a worktree holding uncommitted changes is never touched, merged or not;
 #     another session's only copy of something may be sitting in it
+#   - a worktree whose branch has no commits of its own is never removed;
+#     "no work yet" usually means a session that just started, not one that
+#     finished (see never_diverged below)
 #   - a worktree outside .claude/worktrees/ is reported but never removed; it
 #     most likely belongs to another running session, and pulling it out from
 #     under that session mid-run loses whatever it has not committed
@@ -70,6 +73,19 @@ upstream_gone() {
   ! git rev-parse --verify --quiet "$1@{upstream}" >/dev/null 2>&1
 }
 
+# A branch whose tip is an ancestor of origin/main has no commits of its own —
+# and landed_in_main cannot tell that apart from finished work (its first
+# check is exactly this ancestry test). But this repo squash-merges, so a
+# genuinely merged branch's tip is never in main's history; an is-ancestor tip
+# means a branch that was cut and not yet committed to. Removing one pulls
+# the floor out from under a session that just started — which happened once
+# (2026-08-25: a worktree was tidied away moments after git-new created it,
+# while its session was still setting up). Removal also buys nothing: there
+# is no work in it to retire. So these are always kept, never auto-removed.
+never_diverged() {
+  git merge-base --is-ancestor "$1" origin/main 2>/dev/null
+}
+
 primary=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
 current=$(git rev-parse --abbrev-ref HEAD)
 canonical="$root/.claude/worktrees/"
@@ -98,7 +114,13 @@ while IFS= read -r wt; do
   # Detached worktrees are compared by commit; branch ones by branch tip.
   ref=$([ "$br" = HEAD ] && git -C "$wt" rev-parse HEAD || echo "$br")
 
-  if landed_in_main "$ref"; then
+  if never_diverged "$ref"; then
+    echo "   KEEP  $wt"
+    echo "         ($br — no commits of its own; probably a session that just"
+    echo "          started (git-new.sh), not one that finished. If it is truly"
+    echo "          abandoned: git worktree remove $wt && git branch -D $br)"
+    kept=$((kept + 1))
+  elif landed_in_main "$ref"; then
     case "$wt" in
       "$canonical"*)
         echo "   REMOVE $wt  ($br — merged)"
@@ -146,6 +168,11 @@ while IFS= read -r br; do
     continue
   fi
 
+  if never_diverged "$br"; then
+    echo "   KEEP  $br (no commits of its own — probably just cut; delete by hand if abandoned)"
+    continue
+  fi
+
   if upstream_gone "$br" && ! landed_in_main "$br"; then
     echo "   REVIEW $br (upstream deleted; probably merged — check the PR,"
     echo "          then: git branch -D $br)"
@@ -159,6 +186,33 @@ while IFS= read -r br; do
     [ "$apply" -eq 1 ] && git branch -D "$br" >/dev/null
   fi
 done < <(git for-each-ref --format='%(refname:short)' refs/heads/)
+
+# ── session claims ──────────────────────────────────────────────────────────
+# git-new.sh appends one claim per worktree to the primary checkout's
+# .claude/state/claims.tsv; retire the ones whose worktree no longer exists.
+# The claims file is metadata about work, never work itself — pruning it can
+# lose nothing.
+claims_root=$(cd "$(git rev-parse --git-common-dir)/.." && pwd -P)
+claims="$claims_root/.claude/state/claims.tsv"
+if [ -f "$claims" ]; then
+  echo
+  echo "── session claims"
+  kept_claims=$(mktemp)
+  while IFS=$'\t' read -r br ts wt intent; do
+    [ -n "$br" ] || continue
+    if [ -d "$wt" ]; then
+      echo "   KEEP  $br (since $ts${intent:+ — $intent})"
+      printf '%s\t%s\t%s\t%s\n' "$br" "$ts" "$wt" "$intent" >> "$kept_claims"
+    else
+      echo "   DROP  $br (worktree gone)"
+    fi
+  done < "$claims"
+  if [ "$apply" -eq 1 ]; then
+    mv "$kept_claims" "$claims"
+  else
+    rm -f "$kept_claims"
+  fi
+fi
 
 # ── summary ─────────────────────────────────────────────────────────────────
 echo
