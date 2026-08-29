@@ -37,7 +37,7 @@ export function ascentStylesFor(style: ClimbStyle | undefined): { value: AscentS
 // scales recognized: YDS routes (5.x with optional letter or +/−), V-grades
 // (boulder, VB below V0), WI/AI (ice), M (mixed).
 
-type GradeScale = 'yds' | 'boulder' | 'ice' | 'mixed';
+export type GradeScale = 'yds' | 'boulder' | 'ice' | 'mixed';
 
 /** Scale + rank for ordering, or null when the text is no recognizable grade. */
 export function parseGrade(raw: string | undefined): { scale: GradeScale; rank: number } | null {
