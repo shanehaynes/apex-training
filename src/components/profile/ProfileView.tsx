@@ -12,6 +12,7 @@ import CoachActivity from './CoachActivity';
 import McpTokens from './McpTokens';
 import ConnectorGuide from './ConnectorGuide';
 import CorosConnection from './CorosConnection';
+import AccountData from './AccountData';
 import type { AvatarKey } from '../../lib/db/types';
 
 // Full-screen profile overlay, same pattern as LibraryView: fixed inset-0,
@@ -336,6 +337,8 @@ export default function ProfileView() {
         <McpTokens onShowGuide={() => setShowConnectorGuide(true)} />
 
         <CorosConnection />
+
+        <AccountData />
 
         <section className="profile-section">
           <button className="profile-signout" onClick={() => signOut()}>

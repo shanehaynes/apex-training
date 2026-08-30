@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
-import { ApiError, getJson, patchJson } from '../lib/api';
+import { acceptTerms as postAcceptance, ApiError, getJson, patchJson } from '../lib/api';
+import type { AcceptanceStatus } from '../lib/api';
 import { clearCompletedIds } from '../lib/schedule/localCompletion';
 import { publicOrigin } from '../lib/origin';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
 import { registerAgentState } from '../dev/agentBridge';
 import {
   AuthContext, type AnthropicKeyStatus, type AuthContextValue, type AuthStatus, type SignUpResult,
+  type TermsStatus,
 } from './auth';
 
 // Invite and recovery links land with the session in the URL fragment plus a
@@ -25,6 +27,8 @@ const arrivedNeedingPassword = initialLinkType === 'invite' || initialLinkType =
 interface KeyStatusPayload {
   hasAnthropicKey?: boolean;
   anthropicKeyLast4?: string | null;
+  termsAccepted?: AcceptanceStatus | null;
+  termsCurrent?: boolean;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -32,17 +36,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [anthropicKey, setAnthropicKey] = useState<AnthropicKeyStatus | null>(null);
+  const [termsStatus, setTermsStatus] = useState<TermsStatus | null>(null);
 
   const applyKeyStatus = useCallback((payload: KeyStatusPayload | undefined) => {
     if (payload?.hasAnthropicKey === undefined) return;
     setAnthropicKey({ hasKey: payload.hasAnthropicKey, last4: payload.anthropicKeyLast4 ?? null });
   }, []);
 
+  // GET /api/profile is exempt from the server's terms gate precisely so it
+  // can answer this: it is the one call a blocked user can still make, and
+  // therefore the only way the client learns the modal is due.
   const loadKeyStatus = useCallback(async () => {
     try {
-      applyKeyStatus(await getJson<KeyStatusPayload>('/api/profile', 'Loading key status'));
+      const payload = await getJson<KeyStatusPayload>('/api/profile', 'Loading key status');
+      applyKeyStatus(payload);
+      if (payload?.termsCurrent !== undefined) {
+        setTermsStatus({ accepted: payload.termsAccepted ?? null, current: payload.termsCurrent });
+      }
     } catch {
-      // Unknown stays null — the coach UI treats that as "don't block".
+      // Both stay null — "don't block", the same posture as the key status.
+      // Safe because the modal is UX, not enforcement: requireUser 403s every
+      // gated request regardless of what the browser believes.
     }
   }, [applyKeyStatus]);
 
@@ -88,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (event === 'SIGNED_OUT') {
         setProfile(null);
         setAnthropicKey(null);
+        setTermsStatus(null);
         setStatus('signedOut');
       }
     });
@@ -212,6 +227,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [applyKeyStatus]);
 
+  // Called from three places: the sign-up form, the set-password form (the
+  // invite path, which is how accounts are actually made), and the blocking
+  // re-acceptance modal. All three land in the same append-only ledger.
+  const acceptTerms = useCallback(async (): Promise<string | null> => {
+    if (!supabase) return 'Offline mode — no auth configured';
+    try {
+      const { accepted } = await postAcceptance();
+      setTermsStatus({ accepted, current: true });
+      return null;
+    } catch (err) {
+      return err instanceof ApiError && err.message ? err.message : 'Failed to record acceptance';
+    }
+  }, []);
+
   const removeAnthropicKey = useCallback(async (): Promise<boolean> => {
     if (!supabase) return false;
     try {
@@ -228,6 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     profile,
     anthropicKey,
+    termsStatus,
     linkError: initialLinkError,
     signIn,
     signUp,
@@ -239,9 +269,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshProfile,
     saveAnthropicKey,
     removeAnthropicKey,
+    acceptTerms,
   }), [
-    status, session, profile, anthropicKey, signIn, signUp, signOut, resetPassword, setNewPassword,
-    updateProfile, dismissOnboarding, refreshProfile, saveAnthropicKey, removeAnthropicKey,
+    status, session, profile, anthropicKey, termsStatus, signIn, signUp, signOut, resetPassword,
+    setNewPassword, updateProfile, dismissOnboarding, refreshProfile, saveAnthropicKey,
+    removeAnthropicKey, acceptTerms,
   ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

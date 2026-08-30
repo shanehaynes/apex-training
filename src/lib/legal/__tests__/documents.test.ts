@@ -106,6 +106,23 @@ describe('needsAcceptance', () => {
   });
 });
 
+// e2e/lib/intercept.mjs cannot import these constants (plain .mjs, imported
+// by node from scripts/drive.mjs), so it hardcodes them. This is the pin: a
+// version bump that forgets the stub would otherwise leave every mock spec
+// blocked behind the acceptance modal, failing them all at once for a reason
+// none of their names would suggest.
+describe('the mock e2e intercept stub tracks the current versions', () => {
+  const intercept = readFileSync(join(ROOT, 'e2e/lib/intercept.mjs'), 'utf8');
+
+  it('stubs the current terms version', () => {
+    expect(intercept).toContain(`termsVersion: '${TERMS_VERSION}'`);
+  });
+
+  it('stubs the current privacy version', () => {
+    expect(intercept).toContain(`privacyVersion: '${PRIVACY_VERSION}'`);
+  });
+});
+
 describe('LEGAL_DOCUMENTS', () => {
   it('routes each document at a distinct top-level path', () => {
     const paths = LEGAL_DOCUMENTS.map(d => d.path);

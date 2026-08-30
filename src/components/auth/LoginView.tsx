@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/auth';
+import AcceptanceCheckbox from '../legal/AcceptanceCheckbox';
 
 // Email + password sign-in and create-account, one card, one form. A real
 // <form> with name/autocomplete attributes is what makes iCloud Keychain /
@@ -15,11 +16,12 @@ import { useAuth } from '../../context/auth';
 type Mode = 'signIn' | 'create' | 'reset' | 'resetSent' | 'confirmSent';
 
 export default function LoginView() {
-  const { signIn, signUp, resetPassword, linkError } = useAuth();
+  const { signIn, signUp, resetPassword, acceptTerms, linkError } = useAuth();
   const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(linkError);
+  const [accepted, setAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const switchTo = (next: Mode) => {
@@ -38,12 +40,30 @@ export default function LoginView() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Belt and braces alongside the disabled button: a form can still be
+    // submitted by pressing Enter in a field, and the button's disabled
+    // attribute is one devtools edit away. The server gate is what actually
+    // enforces this — see requireUser in api/_lib/auth.ts.
+    if (!accepted) {
+      setError('Please accept the Terms of Service and Privacy Policy to continue.');
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
     const result = await signUp(email, password);
-    if (result.error !== null) setError(result.error);
-    else if (result.pendingConfirmation) setMode('confirmSent');
-    // Otherwise the session landed and AuthProvider swaps this view out.
+    if (result.error !== null) {
+      setError(result.error);
+    } else if (result.pendingConfirmation) {
+      // No session yet (email confirmations on), so there is no JWT to write
+      // the acceptance with. The record lands on first sign-in instead, via
+      // the gate modal — the alternative would be an unauthenticated write
+      // to the ledger, which is worth less than no record at all.
+      setMode('confirmSent');
+    } else {
+      // A session landed: record the acceptance now, while the click that
+      // produced it is the thing being recorded.
+      await acceptTerms();
+    }
     setIsSubmitting(false);
   };
 
@@ -153,9 +173,22 @@ export default function LoginView() {
               </label>
             )}
 
+            {isCreate && (
+              <AcceptanceCheckbox
+                id="accept-legal-signup"
+                checked={accepted}
+                onChange={setAccepted}
+                disabled={isSubmitting}
+              />
+            )}
+
             {error && <p className="auth-error">{error}</p>}
 
-            <button type="submit" className="auth-submit" disabled={isSubmitting}>
+            <button
+              type="submit"
+              className="auth-submit"
+              disabled={isSubmitting || (isCreate && !accepted)}
+            >
               {submitLabel}
             </button>
 

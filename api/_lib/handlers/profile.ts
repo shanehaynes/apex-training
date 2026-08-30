@@ -4,6 +4,7 @@ import { requireUser } from '../auth.js';
 import { getAnthropicKey, keyLast4, validateAnthropicKey } from '../anthropicKey.js';
 import { encryptSecret, hasEncryptionSecret } from '../keyCrypto.js';
 import { enforceRateLimit } from '../rateLimit.js';
+import { isCurrent, latestAcceptance } from '../legal.js';
 
 // Profile reads/writes, same posture as every other table: the browser
 // reads profiles via RLS (own row only) and mutates through this
@@ -40,14 +41,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const userId = await requireUser(req, res);
+  // GET is exempt from the terms gate; PATCH is not. The app shell fetches
+  // this endpoint on every load to learn the key status, and it is also
+  // where it learns whether the acceptance modal is due — gating it would
+  // mean a blocked user could never be told why they are blocked.
+  const userId = await requireUser(req, res, { skipTermsGate: req.method === 'GET' });
   if (!userId) return;
 
   if (req.method === 'GET') {
     try {
-      res.status(200).json(await keyStatus(supabase, userId));
+      const [keys, accepted] = await Promise.all([
+        keyStatus(supabase, userId),
+        latestAcceptance(supabase, userId),
+      ]);
+      res.status(200).json({
+        ...keys,
+        termsAccepted: accepted,
+        termsCurrent: isCurrent(accepted),
+      });
     } catch (err) {
-      console.error('[api/profile] key status failed:', err instanceof Error ? err.message : err);
+      console.error('[api/profile] status failed:', err instanceof Error ? err.message : err);
       res.status(500).send('Failed to load key status');
     }
     return;

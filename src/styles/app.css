@@ -6610,3 +6610,99 @@ ol.legal__list { list-style: decimal outside; }
   .legal__body { font-size: var(--text-sm); }
   .legal__h2 { margin-top: 36px; }
 }
+
+/* ============================================================
+   CLICKWRAP (acceptance checkbox, terms gate, account data)
+   ============================================================ */
+
+/* The links sit inside the label, adjacent to the box — that adjacency is
+   the point (see AcceptanceCheckbox.tsx), so nothing here may move them. */
+.legal-accept {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+}
+
+.legal-accept__box {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+.legal-accept__box:disabled { cursor: default; opacity: 0.5; }
+
+.legal-accept__label {
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.legal-accept__label a {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legal-accept__versions {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.legal-accept__previous {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.legal-accept__summary {
+  list-style: none;
+  margin: 4px 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--text-sm);
+}
+
+.legal-accept__summary a {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.account-data__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-data__danger-note { margin-top: 20px; }
+
+.account-data__danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-weights-border);
+  border-color: var(--color-weights-border);
+}
+
+.account-data__danger:disabled { opacity: 0.45; }
+
+.account-data__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 14px;
+  border: 1px solid var(--color-weights-border);
+  border-radius: var(--radius-md);
+  background: var(--color-weights-light);
+}
+
+.account-data__confirm-actions { display: flex; gap: 8px; }

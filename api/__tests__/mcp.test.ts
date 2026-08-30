@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 import { resolveMcpToken } from '../_lib/mcp/tokens';
 import { SUPPORTED_PROTOCOL_VERSIONS } from '../_lib/mcp/protocol';
 import { MCP_TOOLS } from '../_lib/mcp/toolRegistry';
+import { PRIVACY_VERSION, TERMS_VERSION } from '../../src/lib/legal/versions';
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
 vi.mock('../_lib/rateLimit.js', () => ({ enforceRateLimit: vi.fn(async () => true) }));
@@ -22,17 +23,25 @@ interface TableCall {
   eq: Record<string, unknown>;
 }
 
+// The token owner must have accepted the current terms (handlers/mcp.ts), so
+// every fixture set carries a current acceptance unless a test overrides it.
+const CURRENT_ACCEPTANCE = {
+  terms_version: TERMS_VERSION,
+  privacy_version: PRIVACY_VERSION,
+  accepted_at: '2026-08-29T00:00:00.000Z',
+};
+
 function makeAdmin(fixtures: Record<string, unknown[]>, calls: TableCall[]) {
   return {
     from(table: string) {
       const call: TableCall = { table, eq: {} };
       calls.push(call);
-      const rows = fixtures[table] ?? [];
+      const rows = fixtures[table] ?? (table === 'terms_acceptances' ? [CURRENT_ACCEPTANCE] : []);
       let from = 0;
       let to = rows.length - 1;
       const builder: Record<string, unknown> = {};
       const chain = () => builder;
-      for (const m of ['select', 'order', 'gte', 'lte', 'lt', 'is', 'or']) builder[m] = chain;
+      for (const m of ['select', 'order', 'gte', 'lte', 'lt', 'is', 'or', 'limit']) builder[m] = chain;
       builder.eq = (key: string, value: unknown) => {
         call.eq[key] = value;
         return builder;
