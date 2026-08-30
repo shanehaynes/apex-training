@@ -18,6 +18,14 @@ const TYPE_ICONS: Record<WorkoutType, React.ComponentType<{ size?: number; strok
   'morning-routine': Sunrise,
 };
 
+const SPORT_OPTIONS: Array<{ value: WorkoutDraft['sport']; label: string }> = [
+  { value: '', label: 'No sport' },
+  { value: 'running', label: 'Running' },
+  { value: 'biking', label: 'Biking' },
+  { value: 'swimming', label: 'Swimming' },
+  { value: 'other', label: 'Other sport' },
+];
+
 const SCORING_OPTIONS: Array<{ value: ScoringType; label: string; hint: string }> = [
   { value: 'strength', label: 'Strength', hint: 'PRs per exercise — best weight, reps, or hold.' },
   { value: 'for-time', label: 'For Time', hint: 'Fixed work; the PR is your fastest finish.' },
@@ -76,6 +84,29 @@ export default function BuilderForm({
           );
         })}
       </div>
+
+      {draft.type !== 'climbing' && draft.type !== 'outdoor-climbing' && (
+        // Sport (phase 37): the analytics breakdown dimension. Climbing
+        // types imply it (withType), everything else picks — 'Other' marks
+        // a named workout (soccer, ski day…) the dashboard can select.
+        <div className="builder-sport" role="radiogroup" aria-label="Sport">
+          {SPORT_OPTIONS.map(o => {
+            const active = draft.sport === o.value;
+            return (
+              <button
+                key={o.value || 'none'}
+                role="radio"
+                aria-checked={active}
+                className={`builder-sport__btn${active ? ' builder-sport__btn--active' : ''}`}
+                style={active ? { borderColor: accentColor, color: accentColor } : undefined}
+                onClick={() => set('sport', o.value)}
+              >
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="builder-scoring">
         <div className="builder-scoring__toggle" role="radiogroup" aria-label="Scoring type">

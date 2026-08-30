@@ -283,6 +283,7 @@ export const updateWorkoutDraftSchema: Anthropic.Tool = {
     properties: {
       title:            { type: 'string' },
       type:             { type: 'string', enum: ['weights', 'climbing', 'outdoor-climbing', 'cardio', 'yoga', 'stretching', 'morning-routine'] },
+      sport:            { type: 'string', enum: ['running', 'biking', 'swimming', 'other'], description: "The analytics sport bucket. Climbing types set it automatically; 'other' marks a named workout for an unlisted sport (soccer, ski…). Pass null to clear." },
       scoring_type:     { type: 'string', enum: ['strength', 'for-time', 'amrap'], description: 'What the PR means: strength = per-exercise records; for-time = fastest completion of fixed work; amrap = most rounds+reps inside the time cap.' },
       time_cap_minutes: { type: 'number', description: 'AMRAP only: the working window in minutes.' },
       date:             { type: 'string', description: 'YYYY-MM-DD.' },

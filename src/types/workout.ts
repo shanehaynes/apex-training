@@ -126,10 +126,20 @@ export interface ClimbingTargets {
  * every scheduled instance of the same named workout. Archived, never
  * deleted — score history keys on the id.
  */
+/**
+ * The sport a workout belongs to (phase 37) — the analytics breakdown
+ * dimension. Picked in the builder for cardio workouts; the climbing types
+ * imply 'climbing'; 'other' marks a named workout for a sport Apex has no
+ * bucket for (the workout's title carries its identity). Unset on legacy
+ * rows — analytics shows those as "unspecified" rather than guessing.
+ */
+export type Sport = 'running' | 'biking' | 'swimming' | 'climbing' | 'other';
+
 export interface WorkoutTemplate {
   id: string;
   title: string;
   type: WorkoutType;
+  sport?: Sport;
   scoringType: ScoringType;
   /** AMRAP only: length of the working window, in minutes. */
   timeCapMinutes?: number;
@@ -152,6 +162,7 @@ export interface WorkoutTemplate {
 export interface WorkoutEvent {
   id: string;
   type: WorkoutType;
+  sport?: Sport;
   title: string;
   subtitle?: string;
   date: string;

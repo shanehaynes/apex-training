@@ -1,10 +1,11 @@
-import type { ExerciseDefinition, WorkoutEvent, WorkoutTemplate, WorkoutType } from '../../types/workout';
+import type { ExerciseDefinition, Sport, WorkoutEvent, WorkoutTemplate, WorkoutType } from '../../types/workout';
 
 // Inputs for schedule mutations — shared by ScheduleContext (which
 // implements them) and the coach tool registry (which invokes them).
 
 export interface CreateEventInput {
   type: WorkoutType;
+  sport?: Sport;
   title: string;
   date: string;
   estimatedDuration: number;

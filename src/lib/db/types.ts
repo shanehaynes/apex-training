@@ -73,6 +73,8 @@ export type WorkoutEventRow = Row<'workout_events', {
   climbing_targets?: unknown;
   /** Provider provenance ('coros'); never set on recurring base rows. */
   source?: string | null;
+  /** Sport bucket (phase 37); unset on legacy rows — analytics reads null as "unspecified". */
+  sport?: string | null;
   /** Library linkage + scoring snapshot (phase 33); unset on non-library events. */
   template_id?: string | null;
   scoring_type?: string | null;
@@ -84,6 +86,8 @@ export type WorkoutEventRow = Row<'workout_events', {
 // jsonb camelCase payloads (Exercise[]), same as the event ones.
 export type WorkoutTemplateRow = Row<'workout_templates', {
   user_id?: string;
+  /** Sport bucket (phase 37); unset on legacy rows. */
+  sport?: string | null;
   warmup: unknown[];
   exercises: unknown[];
   cooldown: unknown[];

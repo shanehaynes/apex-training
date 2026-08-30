@@ -250,7 +250,7 @@ describe('parseSportRecordsText against the live fixture', () => {
 
   it('feeds the matcher correctly end to end: sport 102 → cardio Trail Run', () => {
     const trail = parseSportRecordsText(report)[2];
-    expect(mapSport(trail.sport)).toEqual({ type: 'cardio', label: 'Trail Run' });
+    expect(mapSport(trail.sport)).toEqual({ type: 'cardio', label: 'Trail Run', sport: 'running' });
   });
 
   it('returns [] for text with no numbered entries', () => {
@@ -276,29 +276,37 @@ describe('parseDetailText', () => {
 
 describe('mapSport (dubbo codes verified against the live tool description)', () => {
   it('maps the verified numeric codes', () => {
-    expect(mapSport(100)).toEqual({ type: 'cardio', label: 'Run' });
-    expect(mapSport(102)).toEqual({ type: 'cardio', label: 'Trail Run' });
-    expect(mapSport(402)).toEqual({ type: 'weights', label: 'Strength' });
-    expect(mapSport(800)).toEqual({ type: 'climbing', label: 'Indoor Climb' });
-    expect(mapSport(801)).toEqual({ type: 'climbing', label: 'Bouldering' });
-    expect(mapSport(802)).toEqual({ type: 'outdoor-climbing', label: 'Outdoor Climb' });
-    expect(mapSport(904)).toEqual({ type: 'yoga', label: 'Yoga' });
-    expect(mapSport(905)).toEqual({ type: 'stretching', label: 'Pilates' });
-    expect(mapSport(10003)).toEqual({ type: 'outdoor-climbing', label: 'Multi-Pitch Climb' });
+    expect(mapSport(100)).toEqual({ type: 'cardio', label: 'Run', sport: 'running' });
+    expect(mapSport(102)).toEqual({ type: 'cardio', label: 'Trail Run', sport: 'running' });
+    expect(mapSport(402)).toEqual({ type: 'weights', label: 'Strength', sport: null });
+    expect(mapSport(800)).toEqual({ type: 'climbing', label: 'Indoor Climb', sport: 'climbing' });
+    expect(mapSport(801)).toEqual({ type: 'climbing', label: 'Bouldering', sport: 'climbing' });
+    expect(mapSport(802)).toEqual({ type: 'outdoor-climbing', label: 'Outdoor Climb', sport: 'climbing' });
+    expect(mapSport(904)).toEqual({ type: 'yoga', label: 'Yoga', sport: null });
+    expect(mapSport(905)).toEqual({ type: 'stretching', label: 'Pilates', sport: null });
+    expect(mapSport(10003)).toEqual({ type: 'outdoor-climbing', label: 'Multi-Pitch Climb', sport: 'climbing' });
+  });
+  it('buckets bikes and swims for the analytics sport dimension (phase 37)', () => {
+    expect(mapSport(203)).toEqual({ type: 'cardio', label: 'Gravel Bike', sport: 'biking' });
+    expect(mapSport(300)).toEqual({ type: 'cardio', label: 'Pool Swim', sport: 'swimming' });
+    expect(mapSport(301)).toEqual({ type: 'cardio', label: 'Open Water Swim', sport: 'swimming' });
+    // Walks and skis stay unbucketed — 'other' is for workouts the user names.
+    expect(mapSport(900).sport).toBeNull();
+    expect(mapSport(500).sport).toBeNull();
   });
   it('keeps endurance climb-named modes in cardio', () => {
-    expect(mapSport(105)).toEqual({ type: 'cardio', label: 'Mountain Climb' });
-    expect(mapSport(902)).toEqual({ type: 'cardio', label: 'Stair Climbing' });
-    expect(mapSport(10002)).toEqual({ type: 'cardio', label: 'Climb Ski' });
+    expect(mapSport(105)).toEqual({ type: 'cardio', label: 'Mountain Climb', sport: null });
+    expect(mapSport(902)).toEqual({ type: 'cardio', label: 'Stair Climbing', sport: null });
+    expect(mapSport(10002)).toEqual({ type: 'cardio', label: 'Climb Ski', sport: null });
   });
   it('maps label strings case-insensitively', () => {
-    expect(mapSport('trail_run')).toEqual({ type: 'cardio', label: 'Trail Run' });
-    expect(mapSport('Indoor Climb')).toEqual({ type: 'climbing', label: 'Indoor Climb' });
-    expect(mapSport('strength training')).toEqual({ type: 'weights', label: 'Strength Training' });
+    expect(mapSport('trail_run')).toEqual({ type: 'cardio', label: 'Trail Run', sport: 'running' });
+    expect(mapSport('Indoor Climb')).toEqual({ type: 'climbing', label: 'Indoor Climb', sport: 'climbing' });
+    expect(mapSport('strength training')).toEqual({ type: 'weights', label: 'Strength Training', sport: null });
   });
   it('defaults unknowns to cardio without losing the label', () => {
-    expect(mapSport(9999)).toEqual({ type: 'cardio', label: 'Activity 9999' });
-    expect(mapSport('Windsurfing')).toEqual({ type: 'cardio', label: 'Windsurfing' });
-    expect(mapSport(undefined)).toEqual({ type: 'cardio', label: 'Activity' });
+    expect(mapSport(9999)).toEqual({ type: 'cardio', label: 'Activity 9999', sport: null });
+    expect(mapSport('Windsurfing')).toEqual({ type: 'cardio', label: 'Windsurfing', sport: null });
+    expect(mapSport(undefined)).toEqual({ type: 'cardio', label: 'Activity', sport: null });
   });
 });
