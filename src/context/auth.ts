@@ -35,6 +35,8 @@ export interface AuthContextValue {
   setNewPassword: (password: string) => Promise<string | null>;
   updateProfile: (fields: {
     displayName?: string; avatarKey?: AvatarKey; coachGoal?: string; coachContext?: string;
+    /** HR-zone settings (phase 35): null clears a value. */
+    maxHr?: number | null; thresholdHr?: number | null;
   }) => Promise<boolean>;
   /** Latch the welcome flow closed for good, on every device. */
   dismissOnboarding: () => Promise<void>;

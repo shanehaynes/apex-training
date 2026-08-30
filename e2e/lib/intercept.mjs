@@ -212,6 +212,10 @@ export async function installIntercept(context, { anonKey = null, profile } = {}
     // search step settles; template-specific specs override via page.route.
     if (url.includes('workout_templates')) return json(route, []);
 
+    // Analytics dashboard (phase 35): deterministic empty tile list; specs
+    // that need saved tiles override via page.route.
+    if (url.includes('analytics_tiles')) return json(route, []);
+
     // Passthrough REST reads (workout_completions, workout_sessions): the
     // fabricated session attaches its fake JWT, which the real PostgREST
     // would reject wholesale — swap the anon key back in. Post-phase10 RLS
