@@ -12,11 +12,6 @@ updates:
       minor-and-patch:
         update-types: [minor, patch]
     open-pull-requests-limit: 5
-    ignore:
-      # TypeScript 7 (native/Go) drops the JS compiler API that Vercel's
-      # @vercel/node builder needs to compile api/ functions; revisit at 7.1.
-      - dependency-name: typescript
-        versions: [">=7.0.0"]
 
   - package-ecosystem: github-actions
     directory: /
