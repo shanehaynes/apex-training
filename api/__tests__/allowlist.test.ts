@@ -204,9 +204,6 @@ describe('client/server mirror', () => {
     expect(rejected).toEqual([]);
   });
 
-  // The analytics tile mapper (src/lib/analytics/tiles.ts) lands with the
-  // engine PR; until then this pins the exact column set the handler
-  // accepts, so a drive-by addition here fails loudly.
   it('pins the analytics tile columns', () => {
     expect([...ANALYTICS_TILE_COLUMNS].sort()).toEqual(['h', 'id', 'spec', 'w', 'x', 'y']);
   });
