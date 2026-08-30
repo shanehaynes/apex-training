@@ -8,10 +8,11 @@ import {
   makeCtx,
   makeInputs,
   makeMeal,
+  makeEvent,
   makeSession,
   makeSet,
   makeSpec,
-  makeStream,
+  makeZoneActivity,
 } from './helpers';
 
 function dataOf(result: TileResult) {
@@ -228,45 +229,105 @@ describe('computeTile — day filters', () => {
   });
 });
 
-describe('computeTile — synced activities', () => {
-  const streams = [
-    makeStream('2026-09-08', { sportLabel: 'Pool Swim', distanceMeters: 1500, durationSec: 1800, avgHr: 120 }),
-    makeStream('2026-09-10', { sportLabel: 'Trail Run', distanceMeters: 10000, durationSec: 3600, avgHr: 150 }),
+describe('computeTile — the sport dimension (phase 37)', () => {
+  // A swim, a run, and a legacy cardio row with no sport set.
+  const events = new Map([
+    makeEvent('evt-swim', 'swimming', { title: 'Pool Swim' }),
+    makeEvent('evt-run', 'running', { title: 'Morning Run' }),
+    makeEvent('evt-soccer', 'other', { title: 'Soccer' }),
+    makeEvent('evt-legacy', null, { title: 'Old cardio' }),
+  ]);
+  const cardioLogs = [
+    makeCardio('2026-09-08', 'Swim', '1500 m', null, { event_id: 'evt-swim' }),
+    makeCardio('2026-09-10', 'Run', '6 mi', null, { event_id: 'evt-run' }),
+    makeCardio('2026-09-11', 'Soccer', '4 mi', null, { event_id: 'evt-soccer' }),
+    makeCardio('2026-09-12', 'Mystery', '2 mi', null, { event_id: 'evt-legacy' }),
   ];
 
-  it('swim meters survive: synced distance is canonical meters, convertible on demand', () => {
-    const swimOnly = makeSpec({ measure: 'synced-distance', filters: { sports: ['Pool Swim'] } });
-    const data = dataOf(computeTile(swimOnly, makeInputs({ streams }), makeCtx()));
+  it('filters distance to one sport bucket via the workout column', () => {
+    const swimOnly = makeSpec({ measure: 'distance', filters: { sports: ['swimming'] } });
+    const data = dataOf(computeTile(swimOnly, makeInputs({ cardioLogs, events }), makeCtx()));
     expect(data.series[0].unit).toBe('m');
     expect(data.series[0].points[0]).toBe(1500);
-
-    const inMiles = dataOf(computeTile({ ...swimOnly, displayUnit: 'mi' }, makeInputs({ streams }), makeCtx()));
-    expect(inMiles.series[0].points[0]).toBeCloseTo(1500 / 1609.344, 5);
   });
 
-  it('groups by sport and weights synced avg HR by duration', () => {
-    const bySport = dataOf(computeTile(makeSpec({ measure: 'synced-distance', groupBy: 'sport' }), makeInputs({ streams }), makeCtx()));
-    expect(bySport.series.map(s => s.label)).toEqual(['Pool Swim', 'Trail Run']);
+  it('breaks a measure down by sport; rows without one land in "unspecified"', () => {
+    const data = dataOf(computeTile(
+      makeSpec({ measure: 'distance', groupBy: 'sport', filters: {} }, { displayUnit: 'mi' }),
+      makeInputs({ cardioLogs, events }),
+      makeCtx(),
+    ));
+    expect(data.series.map(x => x.label).sort()).toEqual(['other', 'running', 'swimming', 'unspecified']);
+  });
 
-    const avgHr = dataOf(computeTile(makeSpec({ measure: 'synced-avg-hr' }), makeInputs({ streams }), makeCtx()));
-    expect(avgHr.series[0].points[0]).toBeCloseTo((120 * 1800 + 150 * 3600) / 5400, 5);
+  it("'other' narrows to the named workout the user made (the soccer example)", () => {
+    const soccer = makeSpec({
+      measure: 'distance',
+      filters: { sports: ['other'], workoutTitles: ['soccer'] },
+    });
+    const data = dataOf(computeTile(soccer, makeInputs({ cardioLogs, events }), makeCtx()));
+    expect(data.series[0].points[0]).toBe(4);
+  });
+
+  it('recurring occurrences resolve their sport through the base event id', () => {
+    const rows = [makeCardio('2026-09-10', 'Run', '5 mi', null, { event_id: 'evt-run__2026-09-10' })];
+    const data = dataOf(computeTile(
+      makeSpec({ measure: 'distance', filters: { sports: ['running'] } }),
+      makeInputs({ cardioLogs: rows, events }),
+      makeCtx(),
+    ));
+    expect(data.series[0].points[0]).toBe(5);
+  });
+
+  it('climbing event types imply the sport even without the column', () => {
+    const completions = [makeCompletion('2026-09-09', 'outdoor-climbing')];
+    const data = dataOf(computeTile(
+      makeSpec({ measure: 'session-count', filters: { sports: ['climbing'] } }),
+      makeInputs({ completions }),
+      makeCtx(),
+    ));
+    expect(data.series[0].points[0]).toBe(1);
+  });
+
+  it('rejects incompatible sport filters at the spec level (dimmed in the builder)', () => {
+    const result = computeTile(
+      makeSpec({ measure: 'distance', filters: { sports: ['climbing'] } }),
+      makeInputs({ cardioLogs, events }),
+      makeCtx(),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problem).toContain('incompatible');
   });
 
   it('hr-zone time fans by zone from the reduced per-activity seconds', () => {
-    const zoned = [
-      makeStream('2026-09-08', { zoneSeconds: [600, 1200, 0, 0, 0] }),
-      makeStream('2026-09-10', { zoneSeconds: [0, 600, 600, 0, 0] }),
+    const zoneActivities = [
+      makeZoneActivity('2026-09-08', [600, 1200, 0, 0, 0], { eventId: 'evt-swim' }),
+      makeZoneActivity('2026-09-10', [0, 600, 600, 0, 0], { eventId: 'evt-run' }),
     ];
     const data = dataOf(computeTile(
       makeSpec({ measure: 'hr-zone-time' }),
-      makeInputs({ streams: zoned }),
+      makeInputs({ zoneActivities, events }),
       makeCtx({ hr: { maxHr: 190, thresholdHr: null } }),
     ));
-    expect(data.series.map(s => [s.label, s.points[0]])).toEqual([
+    expect(data.series.map(x => [x.label, x.points[0]])).toEqual([
       ['Z1', 10],
       ['Z2', 30],
       ['Z3', 10],
     ]);
+  });
+
+  it('hr-zone time honors the sport filter through the event join', () => {
+    const zoneActivities = [
+      makeZoneActivity('2026-09-08', [600, 0, 0, 0, 0], { eventId: 'evt-swim' }),
+      makeZoneActivity('2026-09-10', [1200, 0, 0, 0, 0], { eventId: 'evt-run' }),
+    ];
+    const data = dataOf(computeTile(
+      makeSpec({ measure: 'hr-zone-time', filters: { sports: ['running'] } }),
+      makeInputs({ zoneActivities, events }),
+      makeCtx({ hr: { maxHr: 190, thresholdHr: null } }),
+    ));
+    expect(data.series).toHaveLength(1);
+    expect(data.series[0].points[0]).toBe(20);
   });
 });
 

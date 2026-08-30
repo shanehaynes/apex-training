@@ -6925,3 +6925,20 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   margin: -4px 0 10px;
   max-width: 52ch;
 }
+
+/* Dimmed chips: incompatible with a prior selection (sport ↔ measure). */
+.an-chip--dimmed {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.an-chip--dimmed:hover {
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
+}
+
+.an-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 4px 0 8px;
+}
