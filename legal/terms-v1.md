@@ -291,7 +291,14 @@ Each version of these Terms carries a version identifier — this one is
 
 When we make a substantive change, we publish the new document, bump the version
 identifier, and **prompt you to accept the new version the next time you use
-Apex.** Access to your data through the app and the API is paused until you do.
+Apex.** Until you do, the app and the API stop returning your data.
+
+**Three things keep working while you decide**, because holding them back
+would make the prompt a lever rather than a question: **exporting your data**,
+**deleting your account**, and your **calendar feed**. You are never made to
+agree to new terms in order to leave, or to take your training history with
+you.
+
 We keep a permanent, append-only record of each acceptance: which versions you
 accepted, when, and from what IP address and browser.
 
@@ -300,7 +307,7 @@ broken links — without bumping the version or re-prompting. Continued use afte
 a change you were prompted to accept means you accept it. If you do not accept,
 your remedy is to stop using Apex and delete your account.
 
-<!-- LEGAL REVIEW: Two questions. (1) We reserve the right to decide unilaterally which changes are "substantive" enough to require re-acceptance; please advise whether that discretion is defensible or whether every change should re-prompt. (2) Is blocking access to a user's own already-stored data until they accept new terms lawful, particularly for EU users exercising data-access rights? An alternative is to allow read and export while blocking writes. -->
+<!-- LEGAL REVIEW: Two questions. (1) We reserve the right to decide unilaterally which changes are "substantive" enough to require re-acceptance; please advise whether that discretion is defensible, or whether every change should re-prompt. (2) Export, deletion and the calendar feed stay available to a user who has not accepted (this is implemented, not aspirational), but ordinary read access to their own data is blocked. Please confirm that is sufficient for an EU user exercising data-access rights, or whether all reads must stay open and only writes be blocked. -->
 
 ---
 

@@ -180,7 +180,10 @@ URL itself, so **anyone who obtains that URL can read your workout titles,
 dates, times, and locations** without signing in.
 
 **This token cannot currently be rotated.** If your feed URL leaks, there is no
-way to invalidate it short of deleting your account. We are telling you this
+way to invalidate it short of deleting your account. The feed also keeps
+serving if we publish new terms and you have not yet accepted them — a
+calendar app has no way to show you a document, and silently breaking your
+calendar seemed the worse failure. We are telling you this
 because it is a real limitation, not a theoretical one. Note also that
 subscribing in Google Calendar or iCloud means those companies fetch the feed on
 your behalf and hold a copy of its contents.
@@ -208,9 +211,10 @@ Two things behave differently from what you might assume:
   (`event_mutations_log`, `workout_completion_log`), nor the import ledger that
   stops a deleted watch activity from being re-imported.
 - **Deleting your account** removes everything, including those history tables
-  and your acceptance records. It is done by deleting your authentication
-  record, and every table in Apex is configured to delete its rows along with
-  it.
+  and your acceptance records. Almost every table is configured to delete its
+  rows automatically when your authentication record goes; one older
+  diagnostic table is not, so it is emptied explicitly first. Both happen in
+  the same request.
 
 **Account deletion is immediate and permanent. We cannot undo it.** Export your
 data first if you want a copy.
@@ -227,7 +231,13 @@ briefly until those rotate.
 
 From your profile you can, at any time:
 
-- **Export everything** — a complete JSON file of every record we hold for you.
+- **Export everything** — a JSON file of every record we hold for you, across
+  every table. Two things are deliberately left out, and the file says so
+  where they would have been: your stored Anthropic API key, and the OAuth
+  tokens for a connected watch. Both are credential material; handing you a
+  copy in a downloads folder would create a risk without giving you anything
+  you could use. Your access tokens are stored only as hashes and cannot be
+  recovered at all, though their names and usage dates are included.
 - **Delete your account** — permanently, as described above.
 - **Correct or delete individual records** — every workout, log, meal, and note
   is editable and deletable in the app.
