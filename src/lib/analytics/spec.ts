@@ -1,4 +1,4 @@
-import type { WorkoutType } from '../../types/workout';
+import type { Sport, WorkoutType } from '../../types/workout';
 import type { MealType } from '../../types/nutrition';
 import type { GradeScale } from '../climbing';
 
@@ -52,8 +52,17 @@ export interface DayFilter {
 export interface SeriesFilters {
   /** Completion event_type (set/cardio rows resolve via their completion). */
   eventTypes?: WorkoutType[];
-  /** activity_streams summary.sportLabel values — synced measures only. */
-  sports?: string[];
+  /**
+   * Sport buckets (phase 37): the workout's sport column, with climbing
+   * event types implying 'climbing'. Rows without a sport are "unspecified"
+   * and never match a sports filter.
+   */
+  sports?: Sport[];
+  /**
+   * Case-insensitive event-title matches — how 'other' narrows to the
+   * specific workouts the user made (the repeated soccer workout).
+   */
+  workoutTitles?: string[];
   /** Case-insensitive exact exercise_name matches (set/cardio rows). */
   exerciseNames?: string[];
   /** exercise_definitions.category via definition_id (set/cardio rows). */
@@ -115,7 +124,6 @@ export type MeasureSource =
   | 'set-logs'
   | 'pitch-logs'
   | 'cardio-logs'
-  | 'streams'
   | 'hr-zones'
   | 'meals';
 
@@ -147,7 +155,6 @@ export type MeasureId =
   | 'set-count' | 'rep-count' | 'tonnage' | 'est-1rm'
   | 'pitches' | 'max-grade'
   | 'distance' | 'elevation-gain' | 'cardio-time' | 'avg-hr'
-  | 'synced-distance' | 'synced-elevation' | 'synced-time' | 'synced-calories' | 'synced-avg-hr'
   | 'hr-zone-time'
   | 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber' | 'sugar' | 'alcohol' | 'meal-count';
 
@@ -164,23 +171,18 @@ function measure(def: MeasureDef): MeasureDef {
 }
 
 export const MEASURES: Record<MeasureId, MeasureDef> = {
-  'session-count':  measure({ id: 'session-count',  label: 'Sessions',            source: 'completions', unitKind: 'count',   defaultAgg: 'count', allowedAggs: COUNT_ONLY,  allowedGroupBys: ['event-type'], aggLevel: 'row' }),
-  'training-time':  measure({ id: 'training-time',  label: 'Training time',       source: 'completions', unitKind: 'minutes', defaultAgg: 'sum',   allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['event-type'], aggLevel: 'row' }),
+  'session-count':  measure({ id: 'session-count',  label: 'Sessions',            source: 'completions', unitKind: 'count',   defaultAgg: 'count', allowedAggs: COUNT_ONLY,  allowedGroupBys: ['event-type', 'sport'], aggLevel: 'row' }),
+  'training-time':  measure({ id: 'training-time',  label: 'Training time',       source: 'completions', unitKind: 'minutes', defaultAgg: 'sum',   allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['event-type', 'sport'], aggLevel: 'row' }),
   'set-count':      measure({ id: 'set-count',      label: 'Sets',                source: 'set-logs',    unitKind: 'count',   defaultAgg: 'count', allowedAggs: COUNT_ONLY,  allowedGroupBys: LOG_GROUPS, aggLevel: 'row' }),
   'rep-count':      measure({ id: 'rep-count',      label: 'Reps',                source: 'set-logs',    unitKind: 'reps',    defaultAgg: 'sum',   allowedAggs: SUM_AVG_MAX, allowedGroupBys: LOG_GROUPS, aggLevel: 'row' }),
   'tonnage':        measure({ id: 'tonnage',        label: 'Tonnage',             source: 'set-logs',    unitKind: 'weight',  defaultAgg: 'sum',   allowedAggs: SUM_AVG_MAX, allowedGroupBys: LOG_GROUPS, aggLevel: 'row' }),
   'est-1rm':        measure({ id: 'est-1rm',        label: 'Est. 1RM',            source: 'set-logs',    unitKind: 'weight',  defaultAgg: 'max',   allowedAggs: AVG_MAX,     allowedGroupBys: ['exercise'], aggLevel: 'row' }),
   'pitches':        measure({ id: 'pitches',        label: 'Pitches',             source: 'pitch-logs',  unitKind: 'count',   defaultAgg: 'count', allowedAggs: COUNT_ONLY,  allowedGroupBys: ['event-type', 'exercise'], aggLevel: 'row' }),
   'max-grade':      measure({ id: 'max-grade',      label: 'Max grade',           source: 'pitch-logs',  unitKind: 'grade',   defaultAgg: 'max',   allowedAggs: ['max'],     allowedGroupBys: NO_GROUPS, aggLevel: 'row' }),
-  'distance':       measure({ id: 'distance',       label: 'Distance',            source: 'cardio-logs', unitKind: 'length',  defaultAgg: 'sum',   allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['event-type', 'exercise', 'category', 'unit'], aggLevel: 'row' }),
-  'elevation-gain': measure({ id: 'elevation-gain', label: 'Elevation gain',      source: 'cardio-logs', unitKind: 'length',  defaultAgg: 'sum',   allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['event-type', 'exercise', 'category', 'unit'], aggLevel: 'row' }),
-  'cardio-time':    measure({ id: 'cardio-time',    label: 'Cardio time',         source: 'cardio-logs', unitKind: 'minutes', defaultAgg: 'sum',   allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['event-type', 'exercise', 'category'], aggLevel: 'row' }),
-  'avg-hr':         measure({ id: 'avg-hr',         label: 'Avg heart rate',      source: 'cardio-logs', unitKind: 'bpm',     defaultAgg: 'avg',   allowedAggs: AVG_MAX,     allowedGroupBys: ['event-type', 'exercise'], aggLevel: 'row' }),
-  'synced-distance':  measure({ id: 'synced-distance',  label: 'Distance (synced)',  source: 'streams', unitKind: 'length',  defaultAgg: 'sum', allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['sport'], aggLevel: 'row' }),
-  'synced-elevation': measure({ id: 'synced-elevation', label: 'Elevation (synced)', source: 'streams', unitKind: 'length',  defaultAgg: 'sum', allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['sport'], aggLevel: 'row' }),
-  'synced-time':      measure({ id: 'synced-time',      label: 'Time (synced)',      source: 'streams', unitKind: 'minutes', defaultAgg: 'sum', allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['sport'], aggLevel: 'row' }),
-  'synced-calories':  measure({ id: 'synced-calories',  label: 'Calories (synced)',  source: 'streams', unitKind: 'kcal',    defaultAgg: 'sum', allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['sport'], aggLevel: 'row' }),
-  'synced-avg-hr':    measure({ id: 'synced-avg-hr',    label: 'Avg HR (synced)',    source: 'streams', unitKind: 'bpm',     defaultAgg: 'avg', allowedAggs: AVG_MAX,     allowedGroupBys: ['sport'], aggLevel: 'row' }),
+  'distance':       measure({ id: 'distance',       label: 'Distance',            source: 'cardio-logs', unitKind: 'length',  defaultAgg: 'sum',   allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['event-type', 'sport', 'exercise', 'category', 'unit'], aggLevel: 'row' }),
+  'elevation-gain': measure({ id: 'elevation-gain', label: 'Elevation gain',      source: 'cardio-logs', unitKind: 'length',  defaultAgg: 'sum',   allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['event-type', 'sport', 'exercise', 'category', 'unit'], aggLevel: 'row' }),
+  'cardio-time':    measure({ id: 'cardio-time',    label: 'Cardio time',         source: 'cardio-logs', unitKind: 'minutes', defaultAgg: 'sum',   allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['event-type', 'sport', 'exercise', 'category'], aggLevel: 'row' }),
+  'avg-hr':         measure({ id: 'avg-hr',         label: 'Avg heart rate',      source: 'cardio-logs', unitKind: 'bpm',     defaultAgg: 'avg',   allowedAggs: AVG_MAX,     allowedGroupBys: ['event-type', 'sport', 'exercise'], aggLevel: 'row' }),
   'hr-zone-time':   measure({ id: 'hr-zone-time',   label: 'Time in HR zones',    source: 'hr-zones',    unitKind: 'minutes', defaultAgg: 'sum',   allowedAggs: SUM_ONLY,    allowedGroupBys: ['hr-zone', 'sport'], aggLevel: 'row' }),
   'calories':       measure({ id: 'calories',       label: 'Calories eaten',      source: 'meals',       unitKind: 'kcal',    defaultAgg: 'avg',   allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['meal-type'], aggLevel: 'day' }),
   'protein':        measure({ id: 'protein',        label: 'Protein',             source: 'meals',       unitKind: 'grams',   defaultAgg: 'avg',   allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['meal-type'], aggLevel: 'day' }),
@@ -288,11 +290,19 @@ export function specProblem(spec: ChartSpec): string | null {
         if (f.eventTypes !== undefined && !isStringArrayOf(f.eventTypes, WORKOUT_TYPES)) {
           problems.push(`series ${tag}: eventTypes must be workout types`);
         }
-        if (f.sports !== undefined && (!Array.isArray(f.sports) || !f.sports.every(x => typeof x === 'string'))) {
-          problems.push(`series ${tag}: sports must be strings`);
+        if (f.sports !== undefined && !isStringArrayOf(f.sports, SPORTS)) {
+          problems.push(`series ${tag}: sports must be from ${SPORTS.join(', ')}`);
+        } else if (f.sports?.length) {
+          if (def.source === 'meals') {
+            problems.push(`series ${tag}: meals have no sport`);
+          }
+          const blocked = f.sports.filter(sport => !sportCompatible(def.id, sport));
+          if (blocked.length) {
+            problems.push(`series ${tag}: ${def.label} is incompatible with ${blocked.join(', ')}`);
+          }
         }
-        if (f.sports?.length && def.source !== 'streams' && def.source !== 'hr-zones') {
-          problems.push(`series ${tag}: the sports filter applies only to synced measures (sport lives on synced activities)`);
+        if (f.workoutTitles !== undefined && (!Array.isArray(f.workoutTitles) || !f.workoutTitles.every(x => typeof x === 'string'))) {
+          problems.push(`series ${tag}: workoutTitles must be strings`);
         }
         if (f.exerciseNames !== undefined && (!Array.isArray(f.exerciseNames) || !f.exerciseNames.every(x => typeof x === 'string'))) {
           problems.push(`series ${tag}: exerciseNames must be strings`);
@@ -342,6 +352,28 @@ export function upgradeSpec(json: unknown): ChartSpec | null {
   if (typeof json !== 'object' || json === null || Array.isArray(json)) return null;
   const spec = json as ChartSpec;
   return specProblem(spec) === null ? spec : null;
+}
+
+export const SPORTS: readonly Sport[] = ['running', 'biking', 'swimming', 'climbing', 'other'];
+
+// ─── Measure ↔ sport compatibility ───────────────────────────────────────────
+// Some pairings are nonsense, and the tile builder DIMS the later choice
+// rather than letting the combination error (Shane's rule: a prior selection
+// constrains what follows). Encoded as blocklists so the default is
+// permissive — only pairs that can never mean anything are closed off.
+
+const SPORT_BLOCKLIST: Partial<Record<MeasureId, readonly Sport[]>> = {
+  // Climbing sessions have no distance; swims have no elevation gain.
+  distance: ['climbing'],
+  'elevation-gain': ['climbing', 'swimming'],
+  // Pitches and grades exist only on climbs.
+  pitches: ['running', 'biking', 'swimming', 'other'],
+  'max-grade': ['running', 'biking', 'swimming', 'other'],
+};
+
+/** Whether a sport filter value makes sense for a measure. */
+export function sportCompatible(measure: MeasureId, sport: Sport): boolean {
+  return !(SPORT_BLOCKLIST[measure] ?? []).includes(sport);
 }
 
 /** Max day-offset any series' dayFilter reaches — widens the fetch window. */

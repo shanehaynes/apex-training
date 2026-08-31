@@ -1,5 +1,5 @@
 import type { CardioLogRow, CompletionRow, MealRow, SetLogRow, WorkoutSessionRow } from '../../db/types';
-import type { AnalyticsInputs, ComputeContext, StreamActivity } from '../engine';
+import type { AnalyticsInputs, ComputeContext, EventLite, ZoneActivity } from '../engine';
 import type { ChartSeries, ChartSpec } from '../spec';
 
 // Row factories in the review stats.test.ts style: terse call sites, full
@@ -113,19 +113,17 @@ export function makeMeal(date: string, overrides: Partial<MealRow> = {}): MealRo
   };
 }
 
-export function makeStream(date: string, overrides: Partial<StreamActivity> = {}): StreamActivity {
-  return {
-    eventId: `evt-${date}`,
-    eventDate: date,
-    sportLabel: 'Trail Run',
-    distanceMeters: null,
-    elevationGainMeters: null,
-    durationSec: null,
-    calories: null,
-    avgHr: null,
-    zoneSeconds: null,
-    ...overrides,
-  };
+export function makeZoneActivity(
+  date: string,
+  zoneSeconds: [number, number, number, number, number],
+  overrides: Partial<ZoneActivity> = {},
+): ZoneActivity {
+  return { eventId: `evt-${date}`, eventDate: date, zoneSeconds, ...overrides };
+}
+
+/** events-map entry keyed the way completions/logs reference it. */
+export function makeEvent(id: string, sport: EventLite['sport'], overrides: Partial<EventLite> = {}): [string, EventLite] {
+  return [id, { title: `${sport ?? 'plain'} workout`, type: 'cardio', sport, ...overrides }];
 }
 
 export function makeInputs(partial: Partial<AnalyticsInputs> = {}): AnalyticsInputs {
@@ -135,8 +133,9 @@ export function makeInputs(partial: Partial<AnalyticsInputs> = {}): AnalyticsInp
     setLogs: [],
     cardioLogs: [],
     meals: [],
-    streams: [],
+    zoneActivities: [],
     categories: new Map(),
+    events: new Map(),
     ...partial,
   };
 }
