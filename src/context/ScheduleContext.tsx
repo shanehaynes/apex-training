@@ -305,6 +305,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     const newEvent: WorkoutEvent = {
       id,
       type:              input.type,
+      sport:             input.sport,
       title:             input.title,
       date:              input.date,
       estimatedDuration: input.estimatedDuration,

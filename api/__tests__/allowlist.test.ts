@@ -31,6 +31,7 @@ import type { Objective, TrainingBlock } from '../../src/types/blocks';
 const FULL_EVENT: Parameters<typeof eventToRow>[0] = {
   id: 'evt-1',
   type: 'weights',
+  sport: 'other',
   title: 'Upper Body',
   subtitle: 'Push focus',
   date: '2026-07-24',
@@ -61,6 +62,7 @@ const FULL_TEMPLATE: WorkoutTemplate = {
   id: 'wt-1',
   title: 'MURPH',
   type: 'weights',
+  sport: 'other',
   scoringType: 'for-time',
   timeCapMinutes: 60,
   estimatedDuration: 60,
