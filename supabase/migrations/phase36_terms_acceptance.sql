@@ -66,9 +66,17 @@ CREATE INDEX IF NOT EXISTS terms_acceptances_user_idx
 -- failed with "Database error deleting user" and account deletion was
 -- impossible — the audit log had quietly become undeletable in a way that
 -- broke the very promise the documents above it make.
+--
+-- SECURITY DEFINER because that auth.users lookup is not readable by every
+-- role that can reach this table: PostgREST's service_role gets "permission
+-- denied for table users" and the delete fails for the wrong reason, with an
+-- error message that sends whoever hits it chasing a permissions ghost
+-- instead of reading the sentence below. Running as the owner makes the
+-- refusal say what it means, whoever asked.
 CREATE OR REPLACE FUNCTION public.terms_acceptances_append_only()
 RETURNS trigger
 LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
 AS $$
 BEGIN
   IF TG_OP = 'DELETE' AND NOT EXISTS (SELECT 1 FROM auth.users WHERE id = OLD.user_id) THEN

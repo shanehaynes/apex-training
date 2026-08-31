@@ -63,12 +63,24 @@ const MOCK_ACCEPTANCE = {
   acceptedAt: '2026-08-29T00:00:00.000Z',
 };
 
+/** What a user who accepted an EARLIER release looks like — the state the
+ *  re-acceptance modal exists for. Selected by the staleTerms fixture. */
+const STALE_ACCEPTANCE = {
+  termsVersion: 'terms-v0',
+  privacyVersion: 'privacy-v0',
+  acceptedAt: '2026-01-15T00:00:00.000Z',
+};
+
 /**
  * Install the mock-profile stubs on a BrowserContext.
  * `profile` is the stubbed own-profile row (see driverProfile in session.mjs);
  * `anonKey` re-authorizes passthrough REST reads (null in offline mode).
  */
-export async function installIntercept(context, { anonKey = null, profile } = {}) {
+export async function installIntercept(context, { anonKey = null, profile, staleTerms = false } = {}) {
+  // `accepted` is what GET /api/profile reports back; `current` false is what
+  // raises the blocking gate in AuthGate.
+  const acceptance = staleTerms ? STALE_ACCEPTANCE : MOCK_ACCEPTANCE;
+  const termsCurrent = !staleTerms;
   // The design tokens @import Google Fonts — the one external fetch in an
   // otherwise hermetic suite, and a real flake source: Claude remote-sandbox
   // egress proxies reset it, which failed every spec via the console-error
@@ -108,7 +120,11 @@ export async function installIntercept(context, { anonKey = null, profile } = {}
     // accepted, so the blocking gate never covers the app under test. Specs
     // that want the gate install their own page.route (which outranks this).
     if (url.includes('/api/terms-acceptance')) {
-      return json(route, { accepted: MOCK_ACCEPTANCE, current: true });
+      // POST is the accept action: it always returns the CURRENT versions,
+      // which is what lets a spec click through the gate and see the app.
+      return json(route, req.method() === 'POST'
+        ? { accepted: MOCK_ACCEPTANCE, current: true }
+        : { accepted: acceptance, current: termsCurrent });
     }
     // Key status for the AI Coach: hasAnthropicKey=true keeps the coach UI
     // live (a false would swap in the setup prompt). termsCurrent is stated
@@ -119,8 +135,8 @@ export async function installIntercept(context, { anonKey = null, profile } = {}
       const status = {
         hasAnthropicKey: true,
         anthropicKeyLast4: 'abcd',
-        termsAccepted: MOCK_ACCEPTANCE,
-        termsCurrent: true,
+        termsAccepted: acceptance,
+        termsCurrent,
       };
       return json(route, req.method() === 'GET' ? status : { ok: true, ...status });
     }
