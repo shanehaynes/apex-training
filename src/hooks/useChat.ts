@@ -34,7 +34,7 @@ function isRateLimitError(err: unknown): boolean {
 
 export interface UseChatOptions {
   /** 'builder' scopes the server's tool list to update_workout_draft. */
-  toolMode?: 'chat' | 'builder';
+  toolMode?: 'chat' | 'builder' | 'analytics';
 }
 
 export function useChat({ toolMode }: UseChatOptions = {}) {

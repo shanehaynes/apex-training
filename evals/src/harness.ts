@@ -2,6 +2,8 @@ import { parseISO } from 'date-fns';
 import { buildBuilderPrompt, buildSystemPrompt } from '../../src/lib/coach/prompt';
 import { findCoachTool } from '../../src/lib/coach/tools';
 import { applyDraftUpdate, describeDraft, emptyDraft, type DraftUpdateInput } from '../../src/lib/builder/draft';
+import { applyChartDraftUpdate, describeChartDraft, emptyChartDraft, type DraftUpdateInput as ChartDraftUpdateInput } from '../../src/lib/analytics/draft';
+import { buildAnalyticsPrompt } from '../../src/lib/coach/prompt';
 import { createMemoryDeps } from './memoryDeps';
 import { loadLibrary } from './library';
 import type {
@@ -62,11 +64,14 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
   // BuilderCoachPanel auto-applies it. Nothing else mutates.
   const mode = evalCase.mode ?? 'chat';
   let draft = emptyDraft(todayStr, evalCase.fixture.draft?.title ?? '');
+  let chartDraft = emptyChartDraft();
 
   // All 7 production arguments — block and today's meals included, so the
   // blockSection and <meals> prompt regions are exercised, not skipped.
   const buildSystem = (): string => mode === 'builder'
     ? buildBuilderPrompt(describeDraft(draft), [], state.definitions.values(), today)
+    : mode === 'analytics'
+    ? buildAnalyticsPrompt(describeChartDraft(chartDraft), [], today)
     : buildSystemPrompt(
         state.events.filter(e => e.date === todayStr),
         state.events,
@@ -86,6 +91,16 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
       const applied = applyDraftUpdate(draft, input as DraftUpdateInput, state.definitions);
       if ('error' in applied) return applied.error;
       draft = applied.draft;
+      return applied.summary;
+    }
+    if (mode === 'analytics') {
+      if (name !== 'update_chart_draft') {
+        anomalies.push(`unknownTool:${name} (turn ${turns.length + 1})`);
+        return `Unknown tool "${name}".`;
+      }
+      const applied = applyChartDraftUpdate(chartDraft, input as ChartDraftUpdateInput);
+      if ('error' in applied) return applied.error;
+      chartDraft = applied.draft;
       return applied.summary;
     }
     const tool = findCoachTool(name);
@@ -108,7 +123,7 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
           system: buildSystem(),
           messages: transcript,
           withTools,
-          ...(mode === 'builder' ? { toolMode: 'builder' as const } : {}),
+          ...(mode === 'builder' || mode === 'analytics' ? { toolMode: mode } : {}),
         });
         usage.inputTokens += response.usage.inputTokens;
         usage.outputTokens += response.usage.outputTokens;
@@ -204,6 +219,7 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
     finalMeals: state.meals,
     createdDefinitionNames: state.createdDefinitionNames,
     ...(mode === 'builder' ? { finalDraft: draft } : {}),
+    ...(mode === 'analytics' ? { finalChartDraft: chartDraft } : {}),
     anomalies,
     usage,
     latencyMs: Date.now() - startedAt,

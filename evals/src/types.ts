@@ -24,8 +24,8 @@ export type CallModel = (req: {
   system: string;
   messages: ApiMessage[];
   withTools: boolean;
-  /** 'builder' = the workout builder's single-tool list (api/chat.ts toolMode). */
-  toolMode?: 'chat' | 'builder';
+  /** Scoped single-tool lists (api/chat.ts toolMode). */
+  toolMode?: 'chat' | 'builder' | 'analytics';
 }) => Promise<ModelResponse>;
 
 export interface ModelResponse {
@@ -49,7 +49,7 @@ export interface EvalCase {
   description: string;
   /** 'builder' runs the builder-coach loop (draft reducer, single tool)
    *  instead of the sidebar loop. Defaults to the sidebar. */
-  mode?: 'builder';
+  mode?: 'builder' | 'analytics';
   fixture: {
     /** builder mode: the starting draft (defaults to an empty draft on `today`). */
     draft?: { title?: string };
@@ -128,6 +128,8 @@ export interface HarnessResult {
   createdDefinitionNames: string[];
   /** builder mode only: the draft after every confirmed update. */
   finalDraft?: WorkoutDraft;
+  /** analytics mode: the chart draft after the run. */
+  finalChartDraft?: import('../../src/lib/analytics/draft').ChartDraft;
   anomalies: string[];
   usage: { inputTokens: number; outputTokens: number };
   latencyMs: number;
