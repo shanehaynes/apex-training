@@ -7,6 +7,7 @@ import { computeTile } from '../../lib/analytics/engine';
 import {
   MEASURES,
   WORKOUT_TYPES,
+  sportCompatible,
   type Aggregation,
   type ChartType,
   type DisplayUnit,
@@ -27,7 +28,7 @@ import {
 import { mintTileId, type AnalyticsTile, type TileLayout } from '../../lib/analytics/tiles';
 import TileRenderer from './TileRenderer';
 import { WORKOUT_COLORS } from '../../utils/workoutColors';
-import type { WorkoutType } from '../../types/workout';
+import type { Sport, WorkoutType } from '../../types/workout';
 import type { MealType } from '../../types/nutrition';
 import type { GradeScale } from '../../lib/climbing';
 
@@ -81,9 +82,16 @@ const MEASURE_GROUPS: Array<{ label: string; ids: MeasureId[] }> = [
   { label: 'Training', ids: ['session-count', 'training-time'] },
   { label: 'Strength', ids: ['set-count', 'rep-count', 'tonnage', 'est-1rm'] },
   { label: 'Climbing', ids: ['pitches', 'max-grade'] },
-  { label: 'Cardio (logged)', ids: ['distance', 'elevation-gain', 'cardio-time', 'avg-hr'] },
-  { label: 'Synced activities', ids: ['synced-distance', 'synced-elevation', 'synced-time', 'synced-calories', 'synced-avg-hr', 'hr-zone-time'] },
+  { label: 'Cardio', ids: ['distance', 'elevation-gain', 'cardio-time', 'avg-hr', 'hr-zone-time'] },
   { label: 'Nutrition', ids: ['calories', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'alcohol', 'meal-count'] },
+];
+
+const SPORT_OPTIONS: Array<{ value: Sport; label: string }> = [
+  { value: 'running', label: 'Running' },
+  { value: 'biking', label: 'Biking' },
+  { value: 'swimming', label: 'Swimming' },
+  { value: 'climbing', label: 'Climbing' },
+  { value: 'other', label: 'Other' },
 ];
 
 const GROUP_BY_LABELS: Record<GroupBy, string> = {
@@ -134,12 +142,15 @@ function Chips<T extends string>({ label, options, value, onSelect, clearable }:
   );
 }
 
-function MultiChips<T extends string>({ label, options, values, onToggle, colorFor }: {
+function MultiChips<T extends string>({ label, options, values, onToggle, colorFor, dimmed, dimReason }: {
   label: string;
   options: Array<{ value: T; label: string }>;
   values: T[];
   onToggle: (value: T) => void;
   colorFor?: (value: T) => string | undefined;
+  /** Incompatible with a prior selection: rendered dimmed, click is a no-op. */
+  dimmed?: (value: T) => boolean;
+  dimReason?: string;
 }) {
   return (
     <div className="an-field">
@@ -147,14 +158,17 @@ function MultiChips<T extends string>({ label, options, values, onToggle, colorF
       <div className="an-chips" aria-label={label}>
         {options.map(o => {
           const active = values.includes(o.value);
+          const off = !active && (dimmed?.(o.value) ?? false);
           const color = active ? colorFor?.(o.value) : undefined;
           return (
             <button
               key={o.value}
               aria-pressed={active}
-              className={`an-chip${active ? ' an-chip--active' : ''}`}
+              aria-disabled={off}
+              title={off ? dimReason : undefined}
+              className={`an-chip${active ? ' an-chip--active' : ''}${off ? ' an-chip--dimmed' : ''}`}
               style={color ? { borderColor: color, color } : undefined}
-              onClick={() => onToggle(o.value)}
+              onClick={() => { if (!off) onToggle(o.value); }}
             >
               {o.label}
             </button>
@@ -195,12 +209,14 @@ export default function TileBuilder({ tile, onClose }: Props) {
   const removeSeries = (id: string) =>
     setDraft(d => ({ ...d, series: d.series.filter(s => s.id !== id) }));
 
-  // Distinct chip options mined from the fetched window — the sports that
-  // actually exist beat a hardcoded sport list.
-  const sportOptions = useMemo(() => {
-    const labels = [...new Set(data.inputs.streams.map(a => a.sportLabel).filter(Boolean))].sort();
-    return labels.map(l => ({ value: l, label: l }));
-  }, [data.inputs.streams]);
+  // 'Other' narrows to the specific workouts the user made — the options
+  // are their own sport='other' workout titles.
+  const otherWorkoutOptions = useMemo(() => {
+    const titles = [...new Set(
+      [...data.inputs.events.values()].filter(e => e.sport === 'other').map(e => e.title.trim()).filter(Boolean),
+    )].sort();
+    return titles.map(t => ({ value: t, label: t }));
+  }, [data.inputs.events]);
   const categoryOptions = useMemo(() => {
     const values = [...new Set(data.inputs.categories.values())].sort();
     return values.map(v => ({ value: v, label: v }));
@@ -305,7 +321,7 @@ export default function TileBuilder({ tile, onClose }: Props) {
             series={s}
             index={index}
             removable={draft.series.length > 1}
-            sportOptions={sportOptions}
+            otherWorkoutOptions={otherWorkoutOptions}
             categoryOptions={categoryOptions}
             onPatch={patch => patchSeries(s.id, patch)}
             onRemove={() => removeSeries(s.id)}
@@ -339,20 +355,21 @@ export default function TileBuilder({ tile, onClose }: Props) {
   );
 }
 
-function SeriesEditor({ series: s, index, removable, sportOptions, categoryOptions, onPatch, onRemove }: {
+function SeriesEditor({ series: s, index, removable, otherWorkoutOptions, categoryOptions, onPatch, onRemove }: {
   series: SeriesDraft;
   index: number;
   removable: boolean;
-  sportOptions: Array<{ value: string; label: string }>;
+  otherWorkoutOptions: Array<{ value: string; label: string }>;
   categoryOptions: Array<{ value: string; label: string }>;
   onPatch: (patch: Partial<SeriesDraft>) => void;
   onRemove: () => void;
 }) {
   const def = s.measure ? MEASURES[s.measure] : null;
   const source = def?.source;
-  const showSports = source === 'streams' || source === 'hr-zones';
+  // Every workout-joined source has the sport dimension; meals don't.
+  const showSports = source !== undefined && source !== 'meals';
   const showLogFilters = source === 'set-logs' || source === 'pitch-logs' || source === 'cardio-logs';
-  const showEventTypes = showLogFilters || source === 'completions' || showSports;
+  const showEventTypes = source !== undefined && source !== 'meals';
   const [filtersOpen, setFiltersOpen] = useState(
     () => s.eventTypes.length > 0 || s.sports.length > 0 || s.exerciseNames.length > 0 ||
       s.categories.length > 0 || s.mealTypes.length > 0 || s.dayFilterTypes.length > 0,
@@ -375,17 +392,25 @@ function SeriesEditor({ series: s, index, removable, sportOptions, categoryOptio
           <div key={group.label} className="an-measure-group">
             <span className="an-measure-group__label">{group.label}</span>
             <div className="an-chips" role="radiogroup" aria-label={`${group.label} measures`}>
-              {group.ids.map(id => (
-                <button
-                  key={id}
-                  role="radio"
-                  aria-checked={s.measure === id}
-                  className={`an-chip${s.measure === id ? ' an-chip--active' : ''}`}
-                  onClick={() => onPatch({ measure: id, agg: '', groupBy: '' })}
-                >
-                  {MEASURES[id].label}
-                </button>
-              ))}
+              {group.ids.map(id => {
+                // The mirror of the sport-chip dimming: a sports filter
+                // already chosen constrains which measures still make sense.
+                const blockedBy = s.sports.filter(sport => !sportCompatible(id, sport));
+                const off = s.measure !== id && blockedBy.length > 0;
+                return (
+                  <button
+                    key={id}
+                    role="radio"
+                    aria-checked={s.measure === id}
+                    aria-disabled={off}
+                    title={off ? `Incompatible with ${blockedBy.join(', ')}` : undefined}
+                    className={`an-chip${s.measure === id ? ' an-chip--active' : ''}${off ? ' an-chip--dimmed' : ''}`}
+                    onClick={() => { if (!off) onPatch({ measure: id, agg: '', groupBy: '' }); }}
+                  >
+                    {MEASURES[id].label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ))}
@@ -433,9 +458,18 @@ function SeriesEditor({ series: s, index, removable, sportOptions, categoryOptio
                   colorFor={t => WORKOUT_COLORS[t as WorkoutType]?.border}
                   onToggle={v => onPatch({ eventTypes: toggle(s.eventTypes, v) })} />
               )}
-              {showSports && sportOptions.length > 0 && (
-                <MultiChips label="Sports" options={sportOptions} values={s.sports}
+              {showSports && (
+                <MultiChips label="Sports" options={SPORT_OPTIONS} values={s.sports}
+                  dimmed={sport => s.measure !== '' && !sportCompatible(s.measure, sport)}
+                  dimReason={def ? `Incompatible with ${def.label}` : undefined}
                   onToggle={v => onPatch({ sports: toggle(s.sports, v) })} />
+              )}
+              {showSports && s.sports.includes('other') && otherWorkoutOptions.length > 0 && (
+                <MultiChips label="Which workouts" options={otherWorkoutOptions} values={s.workoutTitles}
+                  onToggle={v => onPatch({ workoutTitles: toggle(s.workoutTitles, v) })} />
+              )}
+              {showSports && s.sports.includes('other') && otherWorkoutOptions.length === 0 && (
+                <p className="an-hint">No workouts marked “Other sport” yet — set a sport on a workout in the builder.</p>
               )}
               {showLogFilters && (
                 <label className="library-field">

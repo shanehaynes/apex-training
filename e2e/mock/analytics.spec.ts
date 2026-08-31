@@ -105,6 +105,28 @@ test('an invalid draft explains itself instead of previewing', async ({ page }) 
   await expect(page.getByTestId('tile-preview')).toBeVisible();
 });
 
+test('incompatible sport/measure pairings dim instead of erroring', async ({ page }) => {
+  await gotoCalendar(page);
+  await page.getByTestId('nav-analytics').click();
+  await page.getByTestId('analytics-new-tile').click();
+
+  // Distance chosen first → the climbing sport chip dims and won't toggle.
+  await page.getByRole('radio', { name: 'Distance', exact: true }).click();
+  await page.getByRole('button', { name: /Filters/ }).click();
+  const climbingChip = page.locator('.an-chips[aria-label="Sports"] .an-chip', { hasText: 'Climbing' });
+  await expect(climbingChip).toHaveClass(/an-chip--dimmed/);
+  // force: Playwright blocks normal clicks on aria-disabled elements — the
+  // point is that even a landed click changes nothing.
+  await climbingChip.click({ force: true });
+  await expect(climbingChip).toHaveAttribute('aria-pressed', 'false');
+
+  // The mirror: a running filter chosen first dims the climbing measures.
+  await page.locator('.an-chips[aria-label="Sports"] .an-chip', { hasText: 'Running' }).click();
+  await expect(page.getByRole('radio', { name: 'Pitches', exact: true })).toHaveClass(/an-chip--dimmed/);
+  await expect(page.getByRole('radio', { name: 'Max grade', exact: true })).toHaveClass(/an-chip--dimmed/);
+  await shot(page, 'analytics-dimming');
+});
+
 test('mobile: the analytics button opens the dashboard as a stacked list', async ({ page }) => {
   await page.route(/rest\/v1\/analytics_tiles/, async route => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([MILEAGE_TILE_ROW]) });

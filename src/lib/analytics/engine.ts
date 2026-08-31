@@ -1,4 +1,5 @@
 import type { CardioLogRow, CompletionRow, MealRow, SetLogRow, WorkoutSessionRow } from '../db/types';
+import type { Sport } from '../../types/workout';
 import { classifySet, parseQuantity } from '../tracking/records';
 import { durationMinutesFor, minutesForBareDuration, sessionSecondsMap } from '../review/stats';
 import { parseGrade } from '../climbing';
@@ -18,6 +19,7 @@ import { bucketsFor, bucketOf, type Bucket } from './buckets';
 import { resolveUnits, type QuantityEntry } from './units';
 import { shiftedDaySet, passesDayFilter } from './dayFilter';
 import { ZONE_LABELS, zoneBounds, type HrSettings } from './hrZones';
+import { baseIdOf } from '../schedule/occurrence';
 import type { Period } from '../review/isoMonth';
 
 // ─── The aggregation engine ──────────────────────────────────────────────────
@@ -30,19 +32,18 @@ import type { Period } from '../review/isoMonth';
 // on who fetched the inputs (tests and the builder preview construct them
 // directly).
 
-/** One synced activity, normalized from activity_streams by fetch.ts. */
-export interface StreamActivity {
+/** One synced activity's HR stream, reduced to zone seconds at fetch. */
+export interface ZoneActivity {
   eventId: string;
   eventDate: string;
-  /** summary.sportLabel; '' when the provider gave none. */
-  sportLabel: string;
-  distanceMeters: number | null;
-  elevationGainMeters: number | null;
-  durationSec: number | null;
-  calories: number | null;
-  avgHr: number | null;
-  /** Reduced from streams.hr at fetch; null = no stream or zones unset. */
-  zoneSeconds: [number, number, number, number, number] | null;
+  zoneSeconds: [number, number, number, number, number];
+}
+
+/** The event columns the sport dimension reads (phase 37). */
+export interface EventLite {
+  title: string;
+  type: string;
+  sport: Sport | null;
 }
 
 export interface AnalyticsInputs {
@@ -51,9 +52,11 @@ export interface AnalyticsInputs {
   setLogs: SetLogRow[];
   cardioLogs: CardioLogRow[];
   meals: MealRow[];
-  streams: StreamActivity[];
+  zoneActivities: ZoneActivity[];
   /** exercise_definitions id → category (identifies pitch rows). */
   categories: Map<string, string>;
+  /** workout_events base id → sport/title/type (recurring occurrences resolve via their base). */
+  events: Map<string, EventLite>;
 }
 
 export interface ComputeContext {
@@ -104,7 +107,7 @@ interface Point {
   value: number;
   /** Length measures carry the parsed quantity instead (unit-resolved per rendered series). */
   quantity?: QuantityEntry | null;
-  /** avg weighting (synced-avg-hr weights by activity duration). */
+  /** Optional avg weighting hook (no v1 measure sets it; plain mean otherwise). */
   weight?: number;
   group: string;
   gradeLabel?: string;
@@ -157,17 +160,35 @@ export function computeTile(spec: ChartSpec, inputs: AnalyticsInputs, ctx: Compu
 // ─── Shared lookups ──────────────────────────────────────────────────────────
 
 interface SharedLookups {
-  /** event_id|event_date → completion event_type (set/cardio/stream rows resolve through this). */
+  /** event_id|event_date → completion event_type (set/cardio/zone rows resolve through this). */
   eventTypeOf: Map<string, string>;
   sessionSeconds: Map<string, number>;
+  /** The row's sport bucket, or null = unspecified. */
+  sportOf: (eventId: string, eventDate: string) => Sport | null;
+  /** The row's workout title (event lookup, else the completion's copy). */
+  titleOf: (eventId: string, eventDate: string) => string | null;
 }
 
 function buildShared(inputs: AnalyticsInputs): SharedLookups {
   const eventTypeOf = new Map<string, string>();
+  const completionTitle = new Map<string, string>();
   for (const c of inputs.completions) {
-    if (c.is_completed) eventTypeOf.set(completionKey(c.event_id, c.event_date), c.event_type);
+    if (!c.is_completed) continue;
+    eventTypeOf.set(completionKey(c.event_id, c.event_date), c.event_type);
+    completionTitle.set(completionKey(c.event_id, c.event_date), c.event_title);
   }
-  return { eventTypeOf, sessionSeconds: sessionSecondsMap(inputs.sessions) };
+  const sportOf = (eventId: string, eventDate: string): Sport | null => {
+    const event = inputs.events.get(baseIdOf(eventId));
+    if (event?.sport) return event.sport;
+    // Climbing types imply the sport even on rows that predate phase 37.
+    const type = event?.type ?? eventTypeOf.get(completionKey(eventId, eventDate));
+    return isClimbingEvent(type) ? 'climbing' : null;
+  };
+  const titleOf = (eventId: string, eventDate: string): string | null =>
+    inputs.events.get(baseIdOf(eventId))?.title ??
+    completionTitle.get(completionKey(eventId, eventDate)) ??
+    null;
+  return { eventTypeOf, sessionSeconds: sessionSecondsMap(inputs.sessions), sportOf, titleOf };
 }
 
 // ─── Point extraction ────────────────────────────────────────────────────────
@@ -190,7 +211,19 @@ function extractPoints(
   const typeSet = f.eventTypes?.length ? new Set<string>(f.eventTypes) : null;
   const nameSet = f.exerciseNames?.length ? new Set(f.exerciseNames.map(n => n.trim().toLowerCase())) : null;
   const categorySet = f.categories?.length ? new Set(f.categories) : null;
-  const sportSet = f.sports?.length ? new Set(f.sports.map(x => x.toLowerCase())) : null;
+  const sportSet = f.sports?.length ? new Set<Sport>(f.sports) : null;
+  const titleSet = f.workoutTitles?.length ? new Set(f.workoutTitles.map(t => t.trim().toLowerCase())) : null;
+  const sportPasses = (eventId: string, eventDate: string): boolean => {
+    if (sportSet) {
+      const sport = shared.sportOf(eventId, eventDate);
+      if (!sport || !sportSet.has(sport)) return false;
+    }
+    if (titleSet) {
+      const title = shared.titleOf(eventId, eventDate);
+      if (!title || !titleSet.has(title.trim().toLowerCase())) return false;
+    }
+    return true;
+  };
   const mealTypeSet = f.mealTypes?.length ? new Set<string>(f.mealTypes) : null;
 
   const logRowPasses = (row: { event_id: string; event_date: string; exercise_name: string; definition_id?: string | null }): boolean => {
@@ -199,6 +232,7 @@ function extractPoints(
       // No completion → the event type is unknowable; a type filter drops it.
       if (!type || !typeSet.has(type)) return false;
     }
+    if (!sportPasses(row.event_id, row.event_date)) return false;
     if (nameSet && !nameSet.has(row.exercise_name.trim().toLowerCase())) return false;
     if (categorySet) {
       const category = row.definition_id ? inputs.categories.get(row.definition_id) : undefined;
@@ -214,6 +248,7 @@ function extractPoints(
     logRow: (row: SetLogRow | CardioLogRow): string => {
       switch (s.groupBy) {
         case 'event-type': return shared.eventTypeOf.get(completionKey(row.event_id, row.event_date)) ?? 'unknown';
+        case 'sport': return shared.sportOf(row.event_id, row.event_date) ?? 'unspecified';
         case 'exercise': return row.exercise_name;
         case 'category': return categoryOf(row);
         default: return '';
@@ -228,7 +263,11 @@ function extractPoints(
       for (const c of inputs.completions) {
         if (!c.is_completed || !keepDate(c.event_date)) continue;
         if (typeSet && !typeSet.has(c.event_type)) continue;
-        const group = s.groupBy === 'event-type' ? c.event_type : '';
+        if (!sportPasses(c.event_id, c.event_date)) continue;
+        const group =
+          s.groupBy === 'event-type' ? c.event_type
+          : s.groupBy === 'sport' ? (shared.sportOf(c.event_id, c.event_date) ?? 'unspecified')
+          : '';
         if (s.measure === 'session-count') {
           points.push({ date: c.event_date, value: 1, group });
         } else {
@@ -307,43 +346,25 @@ function extractPoints(
       break;
     }
 
-    case 'streams': {
-      for (const a of inputs.streams) {
-        if (!keepDate(a.eventDate)) continue;
-        if (sportSet && !sportSet.has(a.sportLabel.toLowerCase())) continue;
-        if (typeSet) {
-          const type = shared.eventTypeOf.get(completionKey(a.eventId, a.eventDate));
-          if (!type || !typeSet.has(type)) continue;
-        }
-        const group = s.groupBy === 'sport' ? (a.sportLabel || 'Unknown') : '';
-        if (s.measure === 'synced-distance' && a.distanceMeters != null) {
-          points.push({ date: a.eventDate, value: a.distanceMeters, quantity: { value: a.distanceMeters, unit: 'm' }, group });
-        } else if (s.measure === 'synced-elevation' && a.elevationGainMeters != null) {
-          points.push({ date: a.eventDate, value: a.elevationGainMeters, quantity: { value: a.elevationGainMeters, unit: 'm' }, group });
-        } else if (s.measure === 'synced-time' && a.durationSec != null) {
-          points.push({ date: a.eventDate, value: a.durationSec / 60, group });
-        } else if (s.measure === 'synced-calories' && a.calories != null) {
-          points.push({ date: a.eventDate, value: a.calories, group });
-        } else if (s.measure === 'synced-avg-hr' && a.avgHr != null) {
-          points.push({ date: a.eventDate, value: a.avgHr, weight: a.durationSec ?? 1, group });
-        }
-      }
-      break;
-    }
-
     case 'hr-zones': {
       // Defaults to fanning by zone — "time in HR zones" with no groupBy
       // would otherwise collapse to plain active time.
       const byZone = s.groupBy !== 'sport';
-      for (const a of inputs.streams) {
-        if (!a.zoneSeconds || !keepDate(a.eventDate)) continue;
-        if (sportSet && !sportSet.has(a.sportLabel.toLowerCase())) continue;
+      for (const a of inputs.zoneActivities) {
+        if (!keepDate(a.eventDate)) continue;
+        if (!sportPasses(a.eventId, a.eventDate)) continue;
+        if (typeSet) {
+          const type = shared.eventTypeOf.get(completionKey(a.eventId, a.eventDate));
+          if (!type || !typeSet.has(type)) continue;
+        }
         a.zoneSeconds.forEach((seconds, zone) => {
           if (seconds <= 0) return;
           points.push({
             date: a.eventDate,
             value: seconds / 60,
-            group: byZone ? ZONE_LABELS[zone] : (a.sportLabel || 'Unknown'),
+            group: byZone
+              ? ZONE_LABELS[zone]
+              : (shared.sportOf(a.eventId, a.eventDate) ?? 'unspecified'),
           });
         });
       }

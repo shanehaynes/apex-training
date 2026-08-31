@@ -39,6 +39,7 @@ export const SERVER_STAMPED_COLUMNS: ReadonlySet<string> = new Set([
 export const EVENT_INSERT_COLUMNS: ReadonlySet<string> = new Set([
   'id',
   'type',
+  'sport',
   'title',
   'subtitle',
   'date',
@@ -108,6 +109,7 @@ export const WORKOUT_TEMPLATE_COLUMNS: ReadonlySet<string> = new Set([
   'id',
   'title',
   'type',
+  'sport',
   'scoring_type',
   'time_cap_minutes',
   'estimated_duration',

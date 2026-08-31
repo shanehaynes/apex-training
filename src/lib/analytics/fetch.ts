@@ -1,7 +1,8 @@
 import { supabase } from '../supabaseClient';
 import type { CardioLogRow, CompletionRow, MealRow, SetLogRow, WorkoutSessionRow } from '../db/types';
+import type { Sport } from '../../types/workout';
 import type { Period } from '../review/isoMonth';
-import type { AnalyticsInputs, StreamActivity } from './engine';
+import type { AnalyticsInputs, EventLite, ZoneActivity } from './engine';
 import { zoneSeconds, type HrSettings, zoneBounds } from './hrZones';
 
 // ─── Window-bounded data access ──────────────────────────────────────────────
@@ -11,10 +12,12 @@ import { zoneSeconds, type HrSettings, zoneBounds } from './hrZones';
 // history for PR detection, far too heavy for a view render (and analytics
 // tiles are windowed by definition — PR-style measures stay in the library).
 //
-// The HR stream fetch is separate and conditional: streams.hr is the heavy
-// column (≤2000 points per activity), pulled only when some tile computes
+// The HR stream fetch is conditional: streams.hr is the heavy column
+// (≤2000 points per activity), pulled only when some tile computes
 // hr-zone-time, and immediately reduced to per-activity zone seconds so the
-// raw arrays never sit in memory or state.
+// raw arrays never sit in memory or state. Nothing else is read from
+// activity_streams any more — the sport dimension is the phase37 column on
+// workout_events, not parsed provider summaries.
 
 export const EMPTY_INPUTS: AnalyticsInputs = {
   completions: [],
@@ -22,36 +25,10 @@ export const EMPTY_INPUTS: AnalyticsInputs = {
   setLogs: [],
   cardioLogs: [],
   meals: [],
-  streams: [],
+  zoneActivities: [],
   categories: new Map(),
+  events: new Map(),
 };
-
-const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-const str = (v: unknown): string => (typeof v === 'string' ? v : '');
-
-interface StreamRow {
-  event_id: string;
-  event_date: string;
-  summary: Record<string, unknown> | null;
-  hr?: unknown;
-}
-
-function toActivity(row: StreamRow, hr: HrSettings, withZones: boolean): StreamActivity {
-  const s = row.summary ?? {};
-  const bounds = withZones ? zoneBounds(hr) : null;
-  const samples = bounds && Array.isArray(row.hr) ? (row.hr as Array<[number, number]>) : null;
-  return {
-    eventId: row.event_id,
-    eventDate: row.event_date,
-    sportLabel: str(s.sportLabel),
-    distanceMeters: num(s.distanceMeters),
-    elevationGainMeters: num(s.elevationGainMeters),
-    durationSec: num(s.durationSec),
-    calories: num(s.calories),
-    avgHr: num(s.avgHr),
-    zoneSeconds: samples && bounds ? zoneSeconds(samples, bounds) : null,
-  };
-}
 
 /**
  * Everything the engine needs for one window. Offline (supabase === null)
@@ -64,13 +41,9 @@ export async function loadAnalyticsInputs(
   if (!supabase) return EMPTY_INPUTS;
   const { startDate, endDateExclusive } = window;
 
-  // streams.hr rides the same query only when zone tiles exist — the summary
-  // is a small scalar bag, the stream is not.
-  const streamSelect = opts.withHrZones && zoneBounds(opts.hr) !== null
-    ? 'event_id,event_date,summary,hr:streams->hr'
-    : 'event_id,event_date,summary';
+  const bounds = opts.withHrZones ? zoneBounds(opts.hr) : null;
 
-  const [completions, sessions, setLogs, cardioLogs, meals, streams, definitions] = await Promise.all([
+  const [completions, sessions, setLogs, cardioLogs, meals, events, definitions, hrStreams] = await Promise.all([
     supabase
       .from('workout_completions')
       .select('*')
@@ -101,18 +74,26 @@ export async function loadAnalyticsInputs(
       .select('*')
       .gte('date', startDate)
       .lt('date', endDateExclusive),
+    // Unwindowed on purpose: recurring occurrences resolve through their
+    // BASE event, whose row date has nothing to do with the occurrence date.
+    // Four small columns per event keep this cheap.
     supabase
-      .from('activity_streams')
-      .select(streamSelect)
-      .gte('event_date', startDate)
-      .lt('event_date', endDateExclusive),
+      .from('workout_events')
+      .select('id,title,type,sport'),
     // Small table, unwindowed: categories identify pitch rows.
     supabase
       .from('exercise_definitions')
       .select('id,category'),
+    bounds
+      ? supabase
+          .from('activity_streams')
+          .select('event_id,event_date,hr:streams->hr')
+          .gte('event_date', startDate)
+          .lt('event_date', endDateExclusive)
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
-  for (const [label, res] of Object.entries({ completions, sessions, setLogs, cardioLogs, meals, streams, definitions })) {
+  for (const [label, res] of Object.entries({ completions, sessions, setLogs, cardioLogs, meals, events, definitions, hrStreams })) {
     if (res.error) console.warn(`[apex] analytics ${label} load failed:`, res.error.message);
   }
 
@@ -121,13 +102,31 @@ export async function loadAnalyticsInputs(
     categories.set(d.id, d.category);
   }
 
+  const eventMap = new Map<string, EventLite>();
+  for (const e of (events.data ?? []) as Array<{ id: string; title: string; type: string; sport: string | null }>) {
+    eventMap.set(e.id, { title: e.title, type: e.type, sport: (e.sport ?? null) as Sport | null });
+  }
+
+  const zoneActivities: ZoneActivity[] = [];
+  if (bounds) {
+    for (const row of (hrStreams.data ?? []) as Array<{ event_id: string; event_date: string; hr?: unknown }>) {
+      if (!Array.isArray(row.hr)) continue;
+      zoneActivities.push({
+        eventId: row.event_id,
+        eventDate: row.event_date,
+        zoneSeconds: zoneSeconds(row.hr as Array<[number, number]>, bounds),
+      });
+    }
+  }
+
   return {
     completions: (completions.data ?? []) as CompletionRow[],
     sessions: (sessions.data ?? []) as WorkoutSessionRow[],
     setLogs: (setLogs.data ?? []) as SetLogRow[],
     cardioLogs: (cardioLogs.data ?? []) as CardioLogRow[],
     meals: (meals.data ?? []) as MealRow[],
-    streams: ((streams.data ?? []) as unknown as StreamRow[]).map(r => toActivity(r, opts.hr, opts.withHrZones)),
+    zoneActivities,
     categories,
+    events: eventMap,
   };
 }

@@ -96,3 +96,32 @@ describe('describeDraft', () => {
     expect(text).toContain('Repeat: MO every 1 week(s)');
   });
 });
+
+describe('sport (phase 37)', () => {
+  it('sets and clears the sport on non-climbing drafts', () => {
+    const on = applyDraftUpdate(base(), { sport: 'running' }, new Map());
+    if ('error' in on) throw new Error(on.error);
+    expect(on.draft.sport).toBe('running');
+
+    const off = applyDraftUpdate(on.draft, { sport: null }, new Map());
+    if ('error' in off) throw new Error(off.error);
+    expect(off.draft.sport).toBe('');
+  });
+
+  it('climbing types force the climbing sport, and leaving them drops it', () => {
+    const climb = applyDraftUpdate(base(), { type: 'outdoor-climbing' }, new Map());
+    if ('error' in climb) throw new Error(climb.error);
+    expect(climb.draft.sport).toBe('climbing');
+
+    // A sport passed on a climbing draft is overruled, not an error — the
+    // summary tells the model why nothing moved.
+    const pinned = applyDraftUpdate(climb.draft, { sport: 'running' }, new Map());
+    if ('error' in pinned) throw new Error(pinned.error);
+    expect(pinned.draft.sport).toBe('climbing');
+    expect(pinned.summary).toContain('imply');
+
+    const back = applyDraftUpdate(climb.draft, { type: 'cardio' }, new Map());
+    if ('error' in back) throw new Error(back.error);
+    expect(back.draft.sport).toBe('');
+  });
+});

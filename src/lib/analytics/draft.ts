@@ -1,8 +1,10 @@
-import type { WorkoutType } from '../../types/workout';
+import type { Sport, WorkoutType } from '../../types/workout';
 import type { MealType } from '../../types/nutrition';
 import type { GradeScale } from '../climbing';
 import {
   CHART_SPEC_VERSION,
+  SPORTS,
+  sportCompatible,
   MAX_GROUP_LIMIT,
   MAX_ROLLING_DAYS,
   MAX_SERIES,
@@ -40,7 +42,9 @@ export interface SeriesDraft {
   /** '' = the measure's default. */
   agg: Aggregation | '';
   eventTypes: WorkoutType[];
-  sports: string[];
+  sports: Sport[];
+  /** 'Other' narrows to specific named workouts by title. */
+  workoutTitles: string[];
   exerciseNames: string[];
   categories: string[];
   mealTypes: MealType[];
@@ -76,6 +80,7 @@ export function emptySeriesDraft(id: string): SeriesDraft {
     agg: '',
     eventTypes: [],
     sports: [],
+    workoutTitles: [],
     exerciseNames: [],
     categories: [],
     mealTypes: [],
@@ -163,8 +168,12 @@ export function chartDraftProblem(draft: ChartDraft): string | null {
     if (s.measure === 'max-grade' && !s.gradeScale) {
       return 'Max grade needs a grade scale — grades only order within one scale.';
     }
-    if (s.sports.length > 0 && def.source !== 'streams' && def.source !== 'hr-zones') {
-      return `${def.label} has no sport dimension — sports live on synced activities.`;
+    if (s.sports.length > 0 && def.source === 'meals') {
+      return `${def.label} has no sport dimension — meals aren't workouts.`;
+    }
+    const blocked = s.sports.filter(sport => s.measure && !sportCompatible(s.measure, sport));
+    if (blocked.length) {
+      return `${def.label} is incompatible with ${blocked.join(', ')}.`;
     }
   }
 
@@ -184,6 +193,7 @@ export function specFromDraft(draft: ChartDraft): { spec: ChartSpec } | { error:
     const filters: SeriesFilters = {};
     if (s.eventTypes.length) filters.eventTypes = [...s.eventTypes];
     if (s.sports.length) filters.sports = [...s.sports];
+    if (s.workoutTitles.length) filters.workoutTitles = [...s.workoutTitles];
     if (s.exerciseNames.length) filters.exerciseNames = [...s.exerciseNames];
     if (s.categories.length) filters.categories = [...s.categories];
     if (s.mealTypes.length) filters.mealTypes = [...s.mealTypes];
@@ -243,6 +253,7 @@ export function draftFromSpec(spec: ChartSpec): ChartDraft {
       agg: s.agg ?? '',
       eventTypes: [...(s.filters?.eventTypes ?? [])],
       sports: [...(s.filters?.sports ?? [])],
+      workoutTitles: [...(s.filters?.workoutTitles ?? [])],
       exerciseNames: [...(s.filters?.exerciseNames ?? [])],
       categories: [...(s.filters?.categories ?? [])],
       mealTypes: [...(s.filters?.mealTypes ?? [])],
@@ -277,6 +288,7 @@ export interface SeriesUpdateInput {
   agg?: unknown;
   event_types?: unknown;
   sports?: unknown;
+  workout_titles?: unknown;
   exercise_names?: unknown;
   categories?: unknown;
   meal_types?: unknown;
@@ -487,9 +499,14 @@ function applySeriesUpdate(
     else errors.push(`event_types must be workout types (${WORKOUT_TYPES.join(', ')})`);
   }
   if (raw.sports !== undefined) {
-    const list = stringList(raw.sports);
+    const list = listOf(raw.sports, SPORTS);
     if (list) target.sports = list;
-    else errors.push('sports must be an array of strings');
+    else errors.push(`sports must be from ${SPORTS.join(', ')}`);
+  }
+  if (raw.workout_titles !== undefined) {
+    const list = stringList(raw.workout_titles);
+    if (list) target.workoutTitles = list;
+    else errors.push('workout_titles must be an array of strings');
   }
   if (raw.exercise_names !== undefined) {
     const list = stringList(raw.exercise_names);
@@ -570,6 +587,7 @@ export function describeChartDraft(draft: ChartDraft): string {
     if (s.label) parts.push(`label "${s.label}"`);
     if (s.eventTypes.length) parts.push(`types ${s.eventTypes.join('/')}`);
     if (s.sports.length) parts.push(`sports ${s.sports.join('/')}`);
+    if (s.workoutTitles.length) parts.push(`workouts ${s.workoutTitles.join('/')}`);
     if (s.exerciseNames.length) parts.push(`exercises ${s.exerciseNames.join('/')}`);
     if (s.categories.length) parts.push(`categories ${s.categories.join('/')}`);
     if (s.mealTypes.length) parts.push(`meals ${s.mealTypes.join('/')}`);

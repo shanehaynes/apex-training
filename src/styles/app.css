@@ -4352,6 +4352,14 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   border-color: #3d3530;
 }
 
+/* Sport picker (phase 37): same button language as the scoring toggle. */
+.builder-sport {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
 .builder-scoring {
   display: flex;
   flex-direction: column;
@@ -4363,7 +4371,8 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   gap: 8px;
 }
 
-.builder-scoring__btn {
+.builder-scoring__btn,
+.builder-sport__btn {
   padding: 8px 16px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -4376,7 +4385,8 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   transition: border-color var(--duration-fast), color var(--duration-fast);
 }
 
-.builder-scoring__btn:hover {
+.builder-scoring__btn:hover,
+.builder-sport__btn:hover {
   border-color: #3d3530;
 }
 
@@ -6914,4 +6924,21 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   color: var(--text-muted);
   margin: -4px 0 10px;
   max-width: 52ch;
+}
+
+/* Dimmed chips: incompatible with a prior selection (sport ↔ measure). */
+.an-chip--dimmed {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.an-chip--dimmed:hover {
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
+}
+
+.an-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 4px 0 8px;
 }

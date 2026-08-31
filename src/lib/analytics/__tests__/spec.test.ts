@@ -23,9 +23,14 @@ describe('specProblem', () => {
     expect(specProblem(makeSpec({ measure: 'max-grade', filters: { gradeScale: 'yds' } }))).toBeNull();
   });
 
-  it('rejects the sports filter on measures without a sport dimension', () => {
-    expect(specProblem(makeSpec({ measure: 'distance', filters: { sports: ['Trail Run'] } }))).toContain('synced');
-    expect(specProblem(makeSpec({ measure: 'synced-distance', filters: { sports: ['Trail Run'] } }))).toBeNull();
+  it('validates sport filters: enum values, no sport on meals, compatibility blocklist', () => {
+    expect(specProblem(makeSpec({ measure: 'distance', filters: { sports: ['running'] } }))).toBeNull();
+    expect(specProblem(makeSpec({ measure: 'distance', filters: { sports: ['Trail Run' as never] } }))).toContain('sports must be from');
+    expect(specProblem(makeSpec({ measure: 'protein', filters: { sports: ['running'] } }))).toContain('no sport');
+    expect(specProblem(makeSpec({ measure: 'distance', filters: { sports: ['climbing'] } }))).toContain('incompatible');
+    expect(specProblem(makeSpec({ measure: 'elevation-gain', filters: { sports: ['swimming'] } }))).toContain('incompatible');
+    expect(specProblem(makeSpec({ measure: 'pitches', filters: { sports: ['running'] } }))).toContain('incompatible');
+    expect(specProblem(makeSpec({ measure: 'pitches', filters: { sports: ['climbing'] } }))).toBeNull();
   });
 
   it('rejects malformed ranges and day filters', () => {
