@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import type { ApiMessage, CallModel, ModelResponse } from './types';
-import { builderToolSchemas, coachToolSchemas } from '../../src/lib/coach/schemas';
+import { analyticsToolSchemas, builderToolSchemas, coachToolSchemas } from '../../src/lib/coach/schemas';
 import { COACH_MODEL } from '../../src/lib/coach/model';
 
 // Per-model request params + pricing. The coach-under-test request shape is
@@ -62,7 +62,7 @@ export function makeAnthropicCaller(client: Anthropic, model: string): CallModel
       system,
       messages: messages as Anthropic.MessageParam[],
       ...(withTools
-        ? { tools: toolMode === 'builder' ? builderToolSchemas() : coachToolSchemas() }
+        ? { tools: toolMode === 'builder' ? builderToolSchemas() : toolMode === 'analytics' ? analyticsToolSchemas() : coachToolSchemas() }
         : {}),
     });
     const final = await stream.finalMessage();

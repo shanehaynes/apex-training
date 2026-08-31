@@ -4,6 +4,7 @@ import { PROGRESSION_CASES } from './progression';
 import { REFUSAL_CASES } from './refusal';
 import { INTEGRITY_CASES } from './integrity';
 import { BUILDER_CASES } from './builder';
+import { ANALYTICS_CASES } from './analytics';
 
 export const ALL_CASES: EvalCase[] = [
   ...CONSTRAINT_CASES,
@@ -11,6 +12,7 @@ export const ALL_CASES: EvalCase[] = [
   ...REFUSAL_CASES,
   ...INTEGRITY_CASES,
   ...BUILDER_CASES,
+  ...ANALYTICS_CASES,
 ];
 
 const ids = new Set<string>();
