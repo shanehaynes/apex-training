@@ -90,12 +90,16 @@ test('a spent invite link explains itself, and keeps explaining after the tab sw
   await expect(banner).toContainText('expired, or it has already been used');
   await shot(page, 'auth-link-expired');
 
+  // Every mode this card has, including the one the loop ran through:
+  // create-account, whose invite-only note used to be all that was left.
   await page.locator('.auth-toggle__option', { hasText: 'Create account' }).click();
-  await expect(banner, 'the reason survives the mode switch').toBeVisible();
+  await expect(page.locator('.auth-hint')).toHaveText('Account creation is invite only.');
+  await expect(banner, 'the reason survives the switch to create').toBeVisible();
 
-  // A failed submit adds its own message without displacing the banner.
-  await page.locator('input[name="email"]').fill('invited@example.com');
-  await page.locator('input[name="password"]').fill('hunter2hunter2');
-  await page.locator('.auth-submit').click();
-  await expect(banner).toBeVisible();
+  await page.locator('.auth-toggle__option', { hasText: 'Sign in' }).click();
+  await expect(banner, 'and the switch back').toBeVisible();
+
+  await page.locator('.auth-link', { hasText: 'Forgot' }).click();
+  await expect(page.locator('.auth-toggle')).toHaveCount(0);
+  await expect(banner, 'and reset mode, which hides the toggle').toBeVisible();
 });
