@@ -156,13 +156,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
       }
 
-      const verdict = await validateAnthropicKey(key);
-      if (verdict === 'invalid') {
-        res.status(400).send('That Anthropic API key was rejected by Anthropic — check it and try again');
+      // Anthropic's refusals are actionable by the user (wrong key, wrong
+      // workspace scope), so they get the reason; only a genuine failure to
+      // reach Anthropic is worth a "try again".
+      const check = await validateAnthropicKey(key);
+      if (check.verdict === 'rejected') {
+        res.status(400).send(check.message);
         return;
       }
-      if (verdict === 'unreachable') {
-        res.status(502).send("Couldn't verify the key with Anthropic — try again in a moment");
+      if (check.verdict === 'unreachable') {
+        res.status(502).send("Couldn't reach Anthropic to verify the key — try again in a moment");
         return;
       }
 
