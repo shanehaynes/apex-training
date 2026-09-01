@@ -612,6 +612,7 @@ export type Database = {
           avatar_key: string
           coach_context: string
           coach_goal: string
+          coach_model: string | null
           created_at: string
           display_name: string
           ics_token: string
@@ -627,6 +628,7 @@ export type Database = {
           avatar_key?: string
           coach_context?: string
           coach_goal?: string
+          coach_model?: string | null
           created_at?: string
           display_name?: string
           ics_token?: string
@@ -642,6 +644,7 @@ export type Database = {
           avatar_key?: string
           coach_context?: string
           coach_goal?: string
+          coach_model?: string | null
           created_at?: string
           display_name?: string
           ics_token?: string

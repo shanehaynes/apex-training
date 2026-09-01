@@ -36,6 +36,8 @@ export interface AuthContextValue {
   setNewPassword: (password: string) => Promise<string | null>;
   updateProfile: (fields: {
     displayName?: string; avatarKey?: AvatarKey; coachGoal?: string; coachContext?: string;
+    /** Coach model pick (phase 38): null clears it, falling back to the app default. */
+    coachModel?: string | null;
     /** HR-zone settings (phase 35): null clears a value. */
     maxHr?: number | null; thresholdHr?: number | null;
   }) => Promise<boolean>;

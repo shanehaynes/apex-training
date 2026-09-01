@@ -159,6 +159,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = useCallback(async (fields: {
     displayName?: string; avatarKey?: AvatarKey; coachGoal?: string; coachContext?: string;
+    /** Coach model pick (phase 38): null clears it, falling back to the app default. */
+    coachModel?: string | null;
     /** HR-zone settings (phase 35): null clears a value. */
     maxHr?: number | null; thresholdHr?: number | null;
   }): Promise<boolean> => {
@@ -169,6 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...(fields.avatarKey !== undefined ? { avatar_key: fields.avatarKey } : {}),
         ...(fields.coachGoal !== undefined ? { coach_goal: fields.coachGoal } : {}),
         ...(fields.coachContext !== undefined ? { coach_context: fields.coachContext } : {}),
+        ...(fields.coachModel !== undefined ? { coach_model: fields.coachModel } : {}),
         ...(fields.maxHr !== undefined ? { max_hr: fields.maxHr } : {}),
         ...(fields.thresholdHr !== undefined ? { threshold_hr: fields.thresholdHr } : {}),
       }, 'Updating profile');
@@ -179,6 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...(fields.avatarKey !== undefined ? { avatar_key: fields.avatarKey } : {}),
         ...(fields.coachGoal !== undefined ? { coach_goal: fields.coachGoal } : {}),
         ...(fields.coachContext !== undefined ? { coach_context: fields.coachContext } : {}),
+        ...(fields.coachModel !== undefined ? { coach_model: fields.coachModel } : {}),
         ...(fields.maxHr !== undefined ? { max_hr: fields.maxHr } : {}),
         ...(fields.thresholdHr !== undefined ? { threshold_hr: fields.thresholdHr } : {}),
       });

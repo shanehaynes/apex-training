@@ -4,7 +4,7 @@ import { useAuth } from '../../context/auth';
 import { useCalendar } from '../../context/calendar';
 import { useChat } from '../../hooks/useChat';
 import { buildBuilderPrompt } from '../../lib/coach/prompt';
-import { COACH_MODEL_DISPLAY } from '../../lib/coach/model';
+import CoachModelPicker from '../coach/CoachModelPicker';
 import { applyDraftUpdate, describeDraft, type DraftUpdateInput, type WorkoutDraft } from '../../lib/builder/draft';
 import { now } from '../../lib/clock';
 import type { ExerciseDefinition, WorkoutTemplate } from '../../types/workout';
@@ -89,7 +89,7 @@ export default function BuilderCoachPanel({ draft, setDraft, definitions, templa
     <div className="builder-coach">
       <div className="chat-sidebar__header builder-coach__header">
         <span className="chat-sidebar__title"><Sparkles size={14} strokeWidth={1.5} /> Coach</span>
-        <span className="chat-sidebar__model">{COACH_MODEL_DISPLAY}</span>
+        <CoachModelPicker />
         <button className="library-close builder-coach__close" onClick={onClose} aria-label="Hide coach">
           <X size={14} strokeWidth={1.5} />
         </button>
