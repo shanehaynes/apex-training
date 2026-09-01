@@ -4816,6 +4816,21 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   text-align: center;
 }
 
+/* Why the visitor landed here (a spent invite or reset link), as opposed to
+   what their last submit did. Boxed and above the toggle so it reads as the
+   state of the arrival and survives switching between sign-in and create. */
+.auth-banner {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: var(--radius-md);
+  background: rgba(248, 113, 113, 0.08);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: #f87171;
+  text-align: center;
+}
+
 /* ── Error boundary (last-resort crash screen) ─────────────────────────── */
 
 .error-boundary__title {

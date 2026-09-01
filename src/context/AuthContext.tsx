@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { ApiError, getJson, patchJson } from '../lib/api';
 import { clearCompletedIds } from '../lib/schedule/localCompletion';
 import { publicOrigin } from '../lib/origin';
+import { parseAuthLinkError } from '../lib/auth/linkError';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
 import { registerAgentState } from '../dev/agentBridge';
 import {
@@ -14,12 +15,11 @@ import {
 // `type` marker (`invite` / `recovery`). supabase-js consumes the fragment
 // during detectSessionInUrl, so capture it synchronously at module init —
 // by the time React renders it may already be gone.
-const initialHashParams = new URLSearchParams(
-  typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '',
-);
-const initialLinkType = initialHashParams.get('type');
-// Expired/used links arrive with error_description instead of a session.
-const initialLinkError = initialHashParams.get('error_description');
+const initialHash = typeof window !== 'undefined' ? window.location.hash : '';
+const initialSearch = typeof window !== 'undefined' ? window.location.search : '';
+const initialLinkType = new URLSearchParams(initialHash.replace(/^#/, '')).get('type');
+// A refused link brings an error instead of a session — see lib/auth/linkError.
+const initialLinkError = parseAuthLinkError(initialHash, initialSearch);
 const arrivedNeedingPassword = initialLinkType === 'invite' || initialLinkType === 'recovery';
 
 interface KeyStatusPayload {
