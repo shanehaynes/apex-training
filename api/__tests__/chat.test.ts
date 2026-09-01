@@ -333,3 +333,53 @@ describe('chat handler — rate limit', () => {
     expect(writes).toEqual([]);
   });
 });
+
+describe('chat handler — model selection', () => {
+  /** Run one turn and return the params handed to the SDK. */
+  async function paramsFor(body: Record<string, unknown>) {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    const { res } = makeHandlerRes();
+    await handler(makeHandlerReq({ messages: [{ role: 'user', content: 'hi' }], system: 'x', ...body }), res);
+    return streamMock.mock.calls.at(-1)?.[0] as unknown as Anthropic.MessageStreamParams;
+  }
+
+  it('falls back to the default model when the body names none', async () => {
+    const params = await paramsFor({});
+    expect(params.model).toBe(COACH_MODEL);
+  });
+
+  it('honours an allowlisted model id', async () => {
+    const params = await paramsFor({ model: 'claude-sonnet-5' });
+    expect(params.model).toBe('claude-sonnet-5');
+  });
+
+  it('falls back to the default for an id outside the catalog', async () => {
+    // Covers a forged body AND a real user still holding a retired id in
+    // profiles.coach_model — neither may reach the API verbatim.
+    for (const model of ['gpt-4o', '', 'claude-opus-9', 42, null]) {
+      const params = await paramsFor({ model });
+      expect(params.model).toBe(COACH_MODEL);
+    }
+  });
+
+  it('sends adaptive thinking on models that support it', async () => {
+    const params = await paramsFor({ model: 'claude-opus-4-8' });
+    expect(params.thinking).toEqual({ type: 'adaptive' });
+  });
+
+  it('omits thinking entirely on Haiku 4.5, which rejects the adaptive form', async () => {
+    // The 400 this guards against is silent in every other test: the params
+    // are well-formed TypeScript, and only the live API refuses them.
+    const params = await paramsFor({ model: 'claude-haiku-4-5-20251001' });
+    expect(params.model).toBe('claude-haiku-4-5-20251001');
+    expect(params).not.toHaveProperty('thinking');
+  });
+
+  it('keeps the cache breakpoints regardless of model', async () => {
+    const params = await paramsFor({ model: 'claude-haiku-4-5-20251001', withTools: true });
+    expect(params.system).toEqual([
+      { type: 'text', text: 'x', cache_control: { type: 'ephemeral' } },
+    ]);
+    expect(params.tools?.at(-1)).toMatchObject({ cache_control: { type: 'ephemeral' } });
+  });
+});

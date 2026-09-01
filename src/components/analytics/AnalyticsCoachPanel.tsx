@@ -4,7 +4,7 @@ import { useAuth } from '../../context/auth';
 import { useCalendar } from '../../context/calendar';
 import { useChat } from '../../hooks/useChat';
 import { buildAnalyticsPrompt } from '../../lib/coach/prompt';
-import { COACH_MODEL_DISPLAY } from '../../lib/coach/model';
+import CoachModelPicker from '../coach/CoachModelPicker';
 import {
   applyChartDraftUpdate,
   describeChartDraft,
@@ -89,7 +89,7 @@ export default function AnalyticsCoachPanel({ draft, setDraft, otherWorkoutTitle
     <div className="analytics-coach" data-testid="analytics-coach">
       <div className="chat-sidebar__header analytics-coach__header">
         <span className="chat-sidebar__title"><Sparkles size={14} strokeWidth={1.5} /> Coach</span>
-        <span className="chat-sidebar__model">{COACH_MODEL_DISPLAY}</span>
+        <CoachModelPicker />
         <button className="library-close analytics-coach__close" onClick={onClose} aria-label="Hide coach">
           <X size={14} strokeWidth={1.5} />
         </button>

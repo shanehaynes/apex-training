@@ -45,6 +45,18 @@ else
 fi
 
 echo
+echo "── coach model catalog"
+# src/lib/coach/models.ts is hand-maintained and rots silently: a retired id
+# just falls back to the default, a new release simply never reaches the
+# picker. Neither surfaces in CI or a test. Always exits 0 — no key or no
+# network is a skipped check, not a failure.
+if [ -f scripts/check-models.mjs ]; then
+  node scripts/check-models.mjs 2>/dev/null || echo "   check-models.mjs failed to run — skipped"
+else
+  echo "   check-models.mjs not in this checkout — skipped"
+fi
+
+echo
 echo "── production auth redirects"
 # Dashboard-only settings, so no commit and no CI run can see them drift. They
 # did: Site URL pointed at an SSO-walled Vercel alias and every invited user was

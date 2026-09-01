@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
 import { getAnthropicKey } from './_lib/anthropicKey.js';
 import { enforceRateLimit } from './_lib/rateLimit.js';
 import { analyticsToolSchemas, builderToolSchemas, coachToolSchemas } from '../src/lib/coach/schemas.js';
-import { COACH_MODEL } from '../src/lib/coach/model.js';
+import { resolveCoachModel } from '../src/lib/coach/models.js';
 import type { ChatWireEvent } from '../src/lib/coach/wire.js';
 
 // Server-side proxy for the coach chat, running on the CALLER'S OWN
@@ -87,6 +87,8 @@ interface Body {
   withTools?: unknown;
   /** 'builder' = the workout builder's draft-only tool list (see below). */
   toolMode?: unknown;
+  /** Chosen model id; anything unrecognised resolves to the default. */
+  model?: unknown;
 }
 
 // ─── Prompt caching ──────────────────────────────────────────────────────────
@@ -106,6 +108,10 @@ interface Body {
 //   2. The messages breakpoint is written only on the tools-on turn. Changing
 //      tool_choice invalidates the messages tier, so the re-stream's entry has
 //      no future reader.
+//
+// The cache is also keyed per MODEL: switching models in the picker
+// invalidates all three tiers, so the first turn afterwards reads nothing and
+// pays every write. Expected, and self-correcting on the next turn.
 //
 // Still uncached by construction: the system block embeds live schedule and
 // meal state, so any confirmed mutation invalidates system+messages on the
@@ -231,16 +237,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const withTools = !!body.withTools;
   const toolMode: ToolMode = body.toolMode === 'builder' || body.toolMode === 'analytics' ? body.toolMode : 'chat';
   const messages = body.messages as Anthropic.MessageParam[];
+  // Allowlisted, never trusted verbatim: an arbitrary id would be paired
+  // with the wrong thinking config (Haiku 4.5 400s on adaptive thinking).
+  // The bill is the caller's own key either way.
+  const coachModel = resolveCoachModel(body.model);
 
   try {
     const client = new Anthropic({ apiKey });
     const stream = client.messages.stream({
-      model: COACH_MODEL,
+      model: coachModel.id,
       // max_tokens caps thinking + response text together on current models.
       // At 1024, planning-heavy requests spent the whole budget on thinking
       // and streamed zero text (stop_reason max_tokens on 14/30 eval cases).
       max_tokens: 8192,
-      thinking: { type: 'adaptive' },
+      // Per-model, not a shared literal: `thinking` is absent on models that
+      // predate adaptive thinking, which reject it outright (models.ts).
+      ...coachModel.params,
       system: [{ type: 'text', text: body.system, cache_control: { type: 'ephemeral' } }],
       // Constant tool list (per mode) + tool_choice to gate it — see the
       // caching note above.
@@ -251,6 +263,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const usage = await streamToWireEvents(stream as AsyncIterable<UpstreamEvent>, send);
     if (usage) {
       console.log('[api/chat] usage', {
+        model: coachModel.id,
         withTools,
         input:      usage.input_tokens ?? 0,
         cacheRead:  usage.cache_read_input_tokens ?? 0,

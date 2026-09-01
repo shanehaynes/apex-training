@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { useAuth } from '../context/auth';
 import { ApiError, authHeaders } from '../lib/api';
 import { createWireCollector } from '../lib/coach/wire';
 import { toPendingActions, settleHead, appendUserText } from '../lib/coach/actionQueue';
@@ -38,6 +39,10 @@ export interface UseChatOptions {
 }
 
 export function useChat({ toolMode }: UseChatOptions = {}) {
+  // Read here rather than as a prop: all three coach panels get the user's
+  // model pick for free, and none of them has to thread it through.
+  // undefined/null just means "server picks the default" — see models.ts.
+  const { profile } = useAuth();
   const [messages,       setMessages]       = useState<DisplayMessage[]>([]);
   const [apiMessages,    setApiMessages]    = useState<ApiMessage[]>([]);
   // A response may carry several tool_use blocks — each is confirmed or
@@ -49,6 +54,10 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
   const [isLoading,      setIsLoading]      = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
   const abortRef = useRef<(() => void) | null>(null);
+  // Carried in every callback's dep list below, not just closed over: these
+  // are memoized on other state, so a switch in the picker with no other
+  // change would otherwise keep sending the previous model.
+  const coachModel = profile?.coach_model ?? undefined;
 
   // ── Core streaming helper — reads NDJSON wire events from /api/chat ───────
 
@@ -63,7 +72,11 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-      body: JSON.stringify({ messages: msgs, system: systemPrompt, withTools, ...(toolMode ? { toolMode } : {}) }),
+      body: JSON.stringify({
+        messages: msgs, system: systemPrompt, withTools,
+        ...(toolMode ? { toolMode } : {}),
+        ...(coachModel ? { model: coachModel } : {}),
+      }),
       signal: controller.signal,
     });
     // ApiError keeps the status so catches can tell "no API key saved"
@@ -142,7 +155,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
       setStreamingContent('');
       abortRef.current = null;
     }
-  }, [apiMessages]);
+  }, [apiMessages, coachModel]);
 
   // ── settleAction — shared confirm/cancel step ──────────────────────────────
 
@@ -180,7 +193,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
       setStreamingContent('');
       abortRef.current = null;
     }
-  }, [pendingActions, heldResults, apiMessages]);
+  }, [pendingActions, heldResults, apiMessages, coachModel]);
 
   // ── confirmAction ──────────────────────────────────────────────────────────
 
@@ -239,7 +252,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
       setStreamingContent('');
       abortRef.current = null;
     }
-  }, []);
+  }, [coachModel]);
 
   const abort = useCallback(() => { abortRef.current?.(); }, []);
 

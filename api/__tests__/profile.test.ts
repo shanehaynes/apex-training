@@ -329,6 +329,38 @@ describe('PATCH /api/profile — coach fields', () => {
   });
 });
 
+describe('PATCH /api/profile — coach model (phase 38)', () => {
+  it('accepts a model id from the catalog', async () => {
+    const state: AdminState = { key: null };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { coach_model: 'claude-haiku-4-5-20251001' }), res);
+    expect(statusCode()).toBe(200);
+    expect(state.profileUpdate).toMatchObject({ coach_model: 'claude-haiku-4-5-20251001' });
+  });
+
+  it('accepts null — clearing the pick falls the user back to the app default', async () => {
+    const state: AdminState = { key: null };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { coach_model: null }), res);
+    expect(statusCode()).toBe(200);
+    expect(state.profileUpdate).toMatchObject({ coach_model: null });
+  });
+
+  it('400s an id outside the catalog', async () => {
+    // The column has no CHECK constraint, so this allowlist is the only
+    // thing keeping a junk id out of the row.
+    for (const bad of ['gpt-4o', 'claude-opus-4-1', '', 42]) {
+      mockedAdmin.mockReturnValue(makeAdmin({ key: null }));
+      const { res, statusCode, body } = makeRes();
+      await handler(makeReq('PATCH', { coach_model: bad }), res);
+      expect(statusCode()).toBe(400);
+      expect(body()).toBe('Invalid coach_model');
+    }
+  });
+});
+
 describe('PATCH /api/profile — HR-zone settings (phase 35)', () => {
   it('accepts integer max_hr and threshold_hr', async () => {
     const state: AdminState = { key: null };

@@ -4,6 +4,7 @@ import { requireUser } from '../auth.js';
 import { getAnthropicKey, keyLast4, validateAnthropicKey } from '../anthropicKey.js';
 import { encryptSecret, hasEncryptionSecret } from '../keyCrypto.js';
 import { enforceRateLimit } from '../rateLimit.js';
+import { isCoachModelId } from '../../../src/lib/coach/models.js';
 
 // Profile reads/writes, same posture as every other table: the browser
 // reads profiles via RLS (own row only) and mutates through this
@@ -63,6 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     avatar_key?: unknown;
     coach_goal?: unknown;
     coach_context?: unknown;
+    coach_model?: unknown;
     onboarding_dismissed?: unknown;
     anthropic_api_key?: unknown;
     max_hr?: unknown;
@@ -102,6 +104,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
     fields.coach_context = body.coach_context.trim();
+  }
+
+  // Which model the coach runs on. null clears the pick, putting the user
+  // back on DEFAULT_COACH_MODEL — the column has no CHECK constraint, so this
+  // allowlist is the only thing keeping a junk id out of the row.
+  if (body?.coach_model !== undefined) {
+    if (body.coach_model !== null && !isCoachModelId(body.coach_model)) {
+      res.status(400).send('Invalid coach_model');
+      return;
+    }
+    fields.coach_model = body.coach_model;
   }
 
   // A one-way latch, and deliberately not a timestamp the client supplies:

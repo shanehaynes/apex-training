@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { getAnthropicKey } from '../anthropicKey.js';
 import { enforceRateLimit } from '../rateLimit.js';
 import { athleteSection } from '../../../src/lib/coach/prompt.js';
-import { COACH_MODEL } from '../../../src/lib/coach/model.js';
+import { defaultCoachModel, resolveCoachModel } from '../../../src/lib/coach/models.js';
 
 // One-shot post-workout coach summary, running on the caller's own
 // Anthropic key (server-only user_api_keys table). PRs arrive pre-computed
@@ -66,16 +66,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // Personalization is best-effort: a failed profile read degrades to the
-  // generic prompt rather than failing the summary.
+  // Personalization and model choice are best-effort: a failed profile read
+  // degrades to the generic prompt on the default model rather than failing
+  // the summary.
   let athlete = '';
+  let coachModel = defaultCoachModel();
   try {
     const { data } = await supabase
       .from('profiles')
-      .select('coach_goal, coach_context')
+      .select('coach_goal, coach_context, coach_model')
       .eq('id', userId)
       .maybeSingle();
     athlete = athleteSection(data?.coach_goal, data?.coach_context);
+    coachModel = resolveCoachModel(data?.coach_model);
   } catch (err) {
     console.error('[api/coach-summary] profile read failed:', err instanceof Error ? err.message : err);
   }
@@ -83,7 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const client = new Anthropic({ apiKey });
     const response = await client.messages.create({
-      model: COACH_MODEL,
+      model: coachModel.id,
       max_tokens: 300,
       system: SYSTEM_PROMPT + athlete,
       messages: [{ role: 'user', content: body.recap }],

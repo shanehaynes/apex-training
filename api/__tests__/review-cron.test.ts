@@ -110,7 +110,7 @@ function makeRes() {
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.CRON_SECRET = 'test-secret';
-  mockedListRecipients.mockResolvedValue([{ userId: 'user-1', email: 'shane@example.com', displayName: 'Shane' }]);
+  mockedListRecipients.mockResolvedValue([{ userId: 'user-1', email: 'shane@example.com', displayName: 'Shane', coachModel: null }]);
   mockedGetReview.mockResolvedValue(null);
   mockedFetchInputs.mockImplementation(async (_supabase, _userId, period) => ({
     period,
@@ -236,7 +236,7 @@ describe('generation and delivery', () => {
   });
 
   it('marks no-email users skipped instead of failing', async () => {
-    mockedListRecipients.mockResolvedValue([{ userId: 'user-1', email: null, displayName: 'Shane' }]);
+    mockedListRecipients.mockResolvedValue([{ userId: 'user-1', email: null, displayName: 'Shane', coachModel: null }]);
     const { res, body } = makeRes();
     await handler(makeReq(PERIOD_QUERY), res);
     expect(mockedSend).not.toHaveBeenCalled();
