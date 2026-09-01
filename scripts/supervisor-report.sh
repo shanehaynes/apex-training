@@ -5,9 +5,10 @@
 #
 #   scripts/supervisor-report.sh
 #
-# Covers: is main green, is the shared local stack current, what git-tidy
-# would clean, which worktrees look abandoned, and where every open PR sits
-# in the merge loop (scripts/merge-babysit.sh runs that loop).
+# Covers: is main green, is the shared local stack current, do production's
+# auth redirects still reach the public app, what git-tidy would clean, which
+# worktrees look abandoned, and where every open PR sits in the merge loop
+# (scripts/merge-babysit.sh runs that loop).
 set -uo pipefail
 
 # Anchor on the checkout this script lives in (so it runs from anywhere),
@@ -42,6 +43,29 @@ if scripts/preflight-local.sh >/dev/null 2>&1; then
 else
   echo "   stack not running — drift check skipped (npm run stack:fix to bring it up)"
 fi
+
+echo
+echo "── production auth redirects"
+# Dashboard-only settings, so no commit and no CI run can see them drift. They
+# did: Site URL pointed at an SSO-walled Vercel alias and every invited user was
+# asked to create a Vercel account. Exit 2 is "could not reach the project",
+# which is an outage, not a drift — status line, never an ACTION.
+# This sweep runs from the primary checkout, which sits on main; a branch that
+# has not landed yet simply has no script to run.
+if [ ! -x scripts/auth-redirect-check.sh ]; then
+  echo "   auth-redirect-check.sh not in this checkout — skipped"
+  auth_out="" auth_code=2
+else
+  auth_out=$(scripts/auth-redirect-check.sh 2>&1); auth_code=$?
+fi
+case $auth_code in
+  0) echo "   invites and resets land on the public domain" ;;
+  2) [ -n "$auth_out" ] && echo "   Supabase unreachable — redirect check skipped" ;;
+  *)
+    echo "$auth_out" | sed 's/^/   /'
+    echo "ACTION Supabase auth redirects point off the public domain — invites and password resets land on Vercel's SSO wall; fix Authentication → URL Configuration (DEPLOY_MULTI_USER.md step 1)"
+    ;;
+esac
 
 echo
 echo "── merged branches and worktrees to retire (git-tidy.sh dry run)"

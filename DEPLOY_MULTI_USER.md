@@ -13,9 +13,28 @@ throughout.
    to your account by this email.)
 2. Authentication → Sign In / Up: turn **off** "Allow new users to sign up"
    (invite-only; email+password sign-in keeps working).
-3. Authentication → URL Configuration:
-   - Site URL: your production Vercel URL
-   - Redirect URLs: add `http://localhost:5173` (and preview domains if used)
+3. Authentication → URL Configuration. **Read this twice — it is the one step
+   that has actually gone wrong.** "Your production Vercel URL" is ambiguous,
+   and the wrong reading breaks every invite you will ever send:
+   - **Site URL:** `https://apextrainingcalendar.vercel.app` — the public
+     custom domain. **Not** `apex-training-<something>.vercel.app`. Those are
+     Vercel's generated project aliases, they sit behind Deployment Protection,
+     and every mailed link is built from Site URL — so an invitee clicking one
+     gets Vercel's login page demanding they create a *Vercel* account, and
+     never reaches Apex at all.
+   - **Redirect URLs:** `https://apextrainingcalendar.vercel.app/**`,
+     `http://localhost:5173/**`, and `http://localhost:*/**` (worktree dev
+     ports from `dev/port.mjs`). The production domain must be here as well as
+     in Site URL: anything the app passes as `redirect_to` and that is not on
+     this list is *silently* swapped for Site URL, with no error anywhere —
+     which is how "Forgot password?" can break in production while invites
+     look fine. Do not add preview domains; previews are SSO-walled by design.
+
+   Prove it, rather than trusting the form:
+
+   ```bash
+   scripts/auth-redirect-check.sh
+   ```
 4. Copy your new auth user's UUID (Users list → click the row). In Vercel →
    Project → Settings → Environment Variables, add
    `SEED_SOURCE_USER_ID=<that uuid>` (all environments). Add it to
@@ -49,6 +68,9 @@ an incognito window on the site shows the login screen, and the old
 calendar subscription to the tokened URL from your profile page).
 
 ## 5. Invite the others
+
+Run `scripts/auth-redirect-check.sh` first — a green check here is what makes
+the rest of this section true, and step 1.3 is easy to get wrong.
 
 Authentication → Users → **Invite user** (one at a time; built-in SMTP is
 rate-limited to a few emails per hour). Each invitee:
@@ -86,5 +108,12 @@ Anthropic key instead of the shared server key.
   and need a manual restore in the dashboard. Regular use prevents it.
 - **Password reset**: "Forgot password?" on the login screen emails a
   recovery link; it lands on the same set-password screen. Links are
-  single-use and expire in ~24h.
+  single-use and expire in ~24h. The link is built from `redirectTo:
+  publicOrigin()`, so it depends on the same allow-list as step 1.3.
+- **Links already sent** are baked with whatever Site URL was current when
+  they were mailed. Fixing step 1.3 does not repair an email already in
+  someone's inbox — delete the invited user and invite again. (The token
+  itself is unspent, so appending
+  `&redirect_to=https://apextrainingcalendar.vercel.app` to the
+  `…/auth/v1/verify?token=…` URL also works, once the allow-list is right.)
 - Delete this file once the rollout is done.
