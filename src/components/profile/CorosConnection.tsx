@@ -1,4 +1,5 @@
 import { useProviderSync } from '../../hooks/useProviderSync';
+import ProfileDisclosure from './ProfileDisclosure';
 
 // Profile → COROS connection management. Self-contained section block
 // (McpTokens precedent) so ProfileView only gains one line. The sync
@@ -18,8 +19,13 @@ export default function CorosConnection() {
   if (!configured) return null;
 
   return (
-    <section className="profile-section">
-      <h3 className="profile-section__title">COROS</h3>
+    <ProfileDisclosure
+      title="COROS"
+      status={status === 'connected' ? 'Connected' : status === 'expired' ? 'Reconnect needed' : 'Not connected'}
+      // An expired connection is silently not syncing: open the fold so the
+      // reconnect button is in front of the user rather than one click away.
+      defaultOpen={status === 'expired'}
+    >
       {status === 'connected' ? (
         <>
           <p className="profile-hint">
@@ -63,6 +69,6 @@ export default function CorosConnection() {
           </button>
         </>
       )}
-    </section>
+    </ProfileDisclosure>
   );
 }

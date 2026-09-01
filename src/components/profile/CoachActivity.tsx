@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { authHeaders } from '../../lib/api';
+import ProfileDisclosure from './ProfileDisclosure';
 
 // Read-only view of the mutation audit logs (/api/mutations-log) — makes
 // coach-driven schedule changes visible so unexpected activity is caught
@@ -47,8 +48,10 @@ export default function CoachActivity() {
   if (failed) return null;
 
   return (
-    <section className="profile-section">
-      <h3 className="profile-section__title">Coach activity</h3>
+    <ProfileDisclosure
+      title="Coach activity"
+      status={entries === null ? 'Loading…' : `${entries.length} recent`}
+    >
       <p className="profile-hint">
         Every schedule and library change, and whether you or the AI coach
         made it. Recent first.
@@ -77,6 +80,6 @@ export default function CoachActivity() {
           ))}
         </ul>
       )}
-    </section>
+    </ProfileDisclosure>
   );
 }

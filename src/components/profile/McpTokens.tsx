@@ -10,6 +10,7 @@ import {
 } from '../../lib/api';
 import { notify } from '../../lib/notify';
 import { publicOrigin } from '../../lib/origin';
+import ProfileDisclosure from './ProfileDisclosure';
 
 // "AI connector" profile section: mint/list/revoke the personal access
 // tokens that authenticate the remote MCP endpoint (/api/mcp). The plaintext
@@ -88,9 +89,12 @@ export default function McpTokens({ onShowGuide }: Props) {
   const active = tokens.filter(t => !t.revoked_at);
 
   return (
-    <section className="profile-section">
-      <div className="profile-section__head">
-        <h3 className="profile-section__title">AI connector</h3>
+    <ProfileDisclosure
+      title="AI connector"
+      status={active.length > 0 ? `${active.length} token${active.length === 1 ? '' : 's'}` : 'Not set up'}
+      // Outside the toggle button, so the guide is one click away even while
+      // the section is collapsed.
+      action={(
         <button
           type="button"
           className="profile-help"
@@ -100,7 +104,8 @@ export default function McpTokens({ onShowGuide }: Props) {
         >
           <HelpCircle size={15} strokeWidth={1.6} />
         </button>
-      </div>
+      )}
+    >
       <p className="profile-hint">
         Query your training data from Claude or ChatGPT. Add this URL as a custom
         connector (or via <code>claude mcp add</code>) and authenticate with an
@@ -180,6 +185,6 @@ export default function McpTokens({ onShowGuide }: Props) {
           {isCreating ? 'Creating…' : 'Create token'}
         </button>
       </form>
-    </section>
+    </ProfileDisclosure>
   );
 }

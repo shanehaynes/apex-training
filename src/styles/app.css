@@ -4897,6 +4897,103 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   font-weight: 600;
 }
 
+/* Second level of hierarchy above the sections: "You", "AI", "Connections",
+   "Activity". Brighter and ruled, so a section title never reads as a group. */
+.profile-group {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.profile-group__title {
+  font-size: var(--text-sm);
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Collapsible section (ProfileDisclosure) — set-once settings, so the screen
+   opens on the handful of fields that are actually revisited. */
+.profile-fold {
+  gap: 0;
+}
+
+.profile-fold__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-fold__toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.profile-fold__chevron {
+  flex: none;
+  color: var(--text-muted);
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+
+.profile-fold--open .profile-fold__chevron {
+  transform: rotate(90deg);
+}
+
+/* Title takes the slack so the status and thumb sit right, in either order
+   and whether or not both are present. */
+.profile-fold__toggle .profile-section__title {
+  margin-right: auto;
+}
+
+.profile-fold__toggle:hover .profile-section__title,
+.profile-fold__toggle:focus-visible .profile-section__title,
+.profile-fold__toggle:hover .profile-fold__chevron {
+  color: var(--text-primary);
+}
+
+/* The state the fold hides — "Saved", "Connected", "3 tokens" — stays on the
+   header, so collapsing costs controls, not information. */
+.profile-fold__status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.profile-fold__thumb {
+  display: inline-flex;
+  flex: none;
+}
+
+.profile-fold__thumb img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border-subtle);
+  display: block;
+}
+
+.profile-fold__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+}
+
 .profile-avatars {
   display: flex;
   gap: 14px;
