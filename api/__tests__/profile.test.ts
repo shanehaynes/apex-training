@@ -12,9 +12,21 @@ vi.mock('../_lib/rateLimit.js', () => ({ enforceRateLimit: vi.fn(async () => tru
 vi.mock('@anthropic-ai/sdk', () => {
   class AuthenticationError extends Error {}
   class PermissionDeniedError extends Error {}
+  // Mirrors the real (status, body, message, headers) signature: the handler
+  // reads the body's error.message to say what Anthropic actually objected to.
+  class BadRequestError extends Error {
+    status: number;
+    error: unknown;
+    constructor(status: number, error: unknown, message?: string) {
+      super(message ?? 'bad request');
+      this.status = status;
+      this.error = error;
+    }
+  }
   class MockAnthropic {
     static AuthenticationError = AuthenticationError;
     static PermissionDeniedError = PermissionDeniedError;
+    static BadRequestError = BadRequestError;
     models = { list: modelsList };
   }
   return { default: MockAnthropic };
@@ -149,6 +161,55 @@ describe('PATCH /api/profile — anthropic_api_key', () => {
     expect(String(body())).toContain('rejected');
     expect(String(body())).not.toContain('revoked-key');
     expect(state.upserted).toBeUndefined();
+  });
+
+  it('400s an unscoped key with the Console fix, not a connection error', async () => {
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    modelsList.mockRejectedValue(new Anthropic.BadRequestError(400, {
+      type: 'error',
+      error: {
+        type: 'invalid_request_error',
+        message: 'anthropic-workspace-id is required when authenticating with an identity-linked'
+          + ' API key; send the id of the workspace this request acts in.',
+      },
+    }, 'bad request', new Headers()));
+    const state: AdminState = { key: null };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('PATCH', { anthropic_api_key: 'sk-ant-api03-unscoped-key-0000' }), res);
+    expect(statusCode()).toBe(400);
+    expect(String(body())).toContain('Workspace');
+    expect(state.upserted).toBeUndefined();
+  });
+
+  it('passes any other Anthropic 400 through rather than blaming the network', async () => {
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    modelsList.mockRejectedValue(new Anthropic.BadRequestError(400, {
+      type: 'error',
+      error: { type: 'invalid_request_error', message: 'Your credit balance is too low.' },
+    }, 'bad request', new Headers()));
+    mockedAdmin.mockReturnValue(makeAdmin({ key: null }));
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('PATCH', { anthropic_api_key: 'sk-ant-api03-broke-key-0000' }), res);
+    expect(statusCode()).toBe(400);
+    expect(String(body())).toContain('credit balance');
+  });
+
+  it('logs an unreachable check, with any key in the message redacted', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // What the header layer throws when a pasted key holds a newline — note
+    // that its message quotes the key back, which is why the log redacts.
+    modelsList.mockRejectedValue(
+      new TypeError('Headers.append: "sk-ant-api03-leaky-key-0000" is an invalid header value.'),
+    );
+    mockedAdmin.mockReturnValue(makeAdmin({ key: null }));
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { anthropic_api_key: 'sk-ant-api03-leaky-key-0000' }), res);
+    expect(statusCode()).toBe(502);
+    const logged = spy.mock.calls.map(call => call.join(' ')).join('\n');
+    expect(logged).toContain('TypeError');
+    expect(logged).not.toContain('leaky-key');
+    spy.mockRestore();
   });
 
   it('502s when Anthropic is unreachable', async () => {

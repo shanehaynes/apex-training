@@ -373,8 +373,10 @@ export default function ProfileView() {
                 <p className="profile-hint">
                   The coach chat and post-workout summaries run on your own
                   Anthropic API key (create one at console.anthropic.com →
-                  Settings → API keys). It's stored server-side and never shown
-                  in full again.
+                  Settings → API keys). Set Workspace to a specific workspace —
+                  a key left on “same as personal account” will not work here —
+                  and give it a long expiry, or the coach stops the day it
+                  lapses. It's stored server-side and never shown in full again.
                 </p>
                 <form className="auth-form" onSubmit={submitKey}>
                   <input

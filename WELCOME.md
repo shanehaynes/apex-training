@@ -50,7 +50,9 @@ rate, your exercise library, your active training block, and today's meals.
 **The coach needs your own Anthropic API key.** Chat and post-workout summaries stay
 switched off until you add one in **Profile → AI Coach**. Get a key at
 [console.anthropic.com](https://console.anthropic.com/) — usage bills to your account,
-not to Apex.
+not to Apex. When you create it, set **Workspace** to a specific workspace rather than
+leaving it on "same as personal account" — a key that isn't tied to one workspace will
+not work here — and choose a long expiry, or the coach stops the day the key lapses.
 
 ## Training blocks
 
