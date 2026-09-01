@@ -12,10 +12,16 @@ import CoachActivity from './CoachActivity';
 import McpTokens from './McpTokens';
 import ConnectorGuide from './ConnectorGuide';
 import CorosConnection from './CorosConnection';
+import ProfileDisclosure from './ProfileDisclosure';
 import type { AvatarKey } from '../../lib/db/types';
 
 // Full-screen profile overlay, same pattern as LibraryView: fixed inset-0,
 // Escape closes, body scroll locked while open.
+//
+// The body reads top-to-bottom as: who you are → what the coach knows →
+// what Apex is connected to → what has been happening. Within each group the
+// fields you revisit are laid out plainly and the set-once ones (password,
+// API key, tokens, COROS, the activity log) sit behind ProfileDisclosure.
 
 // Ghost-text examples for the coach fields. The context rotation is offset
 // 4s from the goal's so the two placeholders never swap at the same moment.
@@ -163,6 +169,12 @@ export default function ProfileView() {
     return <ConnectorGuide onBack={() => setShowConnectorGuide(false)} onClose={close} />;
   }
 
+  const currentAvatar = profile?.avatar_key ? AVATARS[profile.avatar_key] : null;
+
+  const keyStatus = anthropicKey === null
+    ? 'Checking…'
+    : anthropicKey.hasKey ? `Saved · …${anthropicKey.last4 ?? ''}` : 'Not set';
+
   return (
     <div className="profile-view">
       <header className="library-header">
@@ -181,214 +193,243 @@ export default function ProfileView() {
             this screen. Self-hides for the template source. */}
         <GettingStarted />
 
-        <section className="profile-section">
-          <h3 className="profile-section__title">Avatar</h3>
-          <div className="profile-avatars">
-            {AVATAR_KEYS.map(key => (
-              <button
-                key={key}
-                className={`profile-avatar${profile?.avatar_key === key ? ' profile-avatar--active' : ''}`}
-                onClick={() => pickAvatar(key)}
-                title={AVATARS[key].label}
-              >
-                <img src={AVATARS[key].src} alt={AVATARS[key].label} />
-                {profile?.avatar_key === key && (
-                  <span className="profile-avatar__check"><Check size={12} strokeWidth={3} /></span>
-                )}
-              </button>
-            ))}
-          </div>
-        </section>
+        <div className="profile-group">
+          <h2 className="profile-group__title">You</h2>
 
-        <section className="profile-section">
-          <h3 className="profile-section__title">Account</h3>
-          <label className="auth-field">
-            <span className="auth-field__label">Name</span>
-            <input
-              className="auth-input"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onBlur={saveName}
-              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-              maxLength={80}
-            />
-          </label>
-          <label className="auth-field">
-            <span className="auth-field__label">Email</span>
-            <input className="auth-input" value={session?.user.email ?? ''} readOnly disabled />
-          </label>
-        </section>
-
-        <section className="profile-section">
-          <h3 className="profile-section__title">Heart-rate zones</h3>
-          <p className="profile-section__hint">
-            Zone charts in Analytics use Friel LTHR bands when a threshold HR is
-            set, %-of-max bands otherwise. Blank a field to clear it.
-          </p>
-          <div className="library-field-row">
+          <section className="profile-section">
+            <h3 className="profile-section__title">Account</h3>
             <label className="auth-field">
-              <span className="auth-field__label">Threshold HR (LTHR)</span>
+              <span className="auth-field__label">Name</span>
               <input
                 className="auth-input"
-                inputMode="numeric"
-                value={thresholdHr}
-                onChange={e => setThresholdHr(e.target.value)}
-                onBlur={saveThresholdHr}
+                value={name}
+                onChange={e => setName(e.target.value)}
+                onBlur={saveName}
                 onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                placeholder="e.g. 165"
+                maxLength={80}
               />
             </label>
             <label className="auth-field">
-              <span className="auth-field__label">Max HR</span>
-              <input
-                className="auth-input"
-                inputMode="numeric"
-                value={maxHr}
-                onChange={e => setMaxHr(e.target.value)}
-                onBlur={saveMaxHr}
-                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                placeholder="e.g. 188"
-              />
+              <span className="auth-field__label">Email</span>
+              <input className="auth-input" value={session?.user.email ?? ''} readOnly disabled />
             </label>
-          </div>
-        </section>
+          </section>
 
-        <section className="profile-section">
-          <h3 className="profile-section__title">Change password</h3>
-          <form className="auth-form" onSubmit={changePassword}>
-            <label className="auth-field">
-              <span className="auth-field__label">New password</span>
-              <input
-                type="password"
-                autoComplete="new-password"
-                className="auth-input"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-                minLength={8}
-              />
-            </label>
-            <label className="auth-field">
-              <span className="auth-field__label">Confirm password</span>
-              <input
-                type="password"
-                autoComplete="new-password"
-                className="auth-input"
-                value={confirm}
-                onChange={e => setConfirm(e.target.value)}
-                required
-              />
-            </label>
-            {passwordMsg && <p className="profile-msg">{passwordMsg}</p>}
-            <button type="submit" className="auth-submit">Update password</button>
-          </form>
-        </section>
-
-        <section className="profile-section">
-          <h3 className="profile-section__title">AI Coach</h3>
-          <p className="profile-hint">
-            Tell the coach what you're training for — it shapes every chat and
-            post-workout summary.
-          </p>
-          <label className="auth-field">
-            <span className="auth-field__label">Goal</span>
-            <input
-              className="auth-input"
-              value={goal}
-              onChange={e => setGoal(e.target.value)}
-              onBlur={saveGoal}
-              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-              maxLength={200}
-              placeholder={goalPlaceholder}
-            />
-          </label>
-          <label className="auth-field">
-            <span className="auth-field__label">Additional context</span>
-            <textarea
-              className="auth-input auth-input--textarea"
-              value={coachContext}
-              onChange={e => setCoachContext(e.target.value)}
-              onBlur={saveCoachContext}
-              maxLength={1000}
-              rows={3}
-              placeholder={contextPlaceholder}
-            />
-          </label>
-          {anthropicKey === null ? (
-            <p className="profile-hint">Checking key status…</p>
-          ) : anthropicKey.hasKey && !isReplacingKey ? (
-            <>
-              <p className="profile-hint">
-                The coach runs on your own Anthropic API key. Yours is saved.
-              </p>
-              <div className="profile-feed">
+          <section className="profile-section">
+            <h3 className="profile-section__title">Heart-rate zones</h3>
+            <p className="profile-section__hint">
+              Zone charts in Analytics use Friel LTHR bands when a threshold HR is
+              set, %-of-max bands otherwise. Blank a field to clear it.
+            </p>
+            <div className="library-field-row">
+              <label className="auth-field">
+                <span className="auth-field__label">Threshold HR (LTHR)</span>
                 <input
-                  className="auth-input profile-feed__url"
-                  value={`sk-ant-…${anthropicKey.last4 ?? ''}`}
-                  readOnly
-                  aria-label="Saved API key (masked)"
+                  className="auth-input"
+                  inputMode="numeric"
+                  value={thresholdHr}
+                  onChange={e => setThresholdHr(e.target.value)}
+                  onBlur={saveThresholdHr}
+                  onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                  placeholder="e.g. 165"
                 />
-                <button className="btn-today" onClick={() => { setIsReplacingKey(true); setKeyMsg(null); }}>
-                  Replace
+              </label>
+              <label className="auth-field">
+                <span className="auth-field__label">Max HR</span>
+                <input
+                  className="auth-input"
+                  inputMode="numeric"
+                  value={maxHr}
+                  onChange={e => setMaxHr(e.target.value)}
+                  onBlur={saveMaxHr}
+                  onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                  placeholder="e.g. 188"
+                />
+              </label>
+            </div>
+          </section>
+
+          {/* 24 tiles is a third of a screen for a choice made once. The
+              header carries the current pick, so folding it hides nothing. */}
+          <ProfileDisclosure
+            title="Avatar"
+            status={currentAvatar?.label}
+            thumb={currentAvatar && <img src={currentAvatar.src} alt="" />}
+          >
+            <div className="profile-avatars">
+              {AVATAR_KEYS.map(key => (
+                <button
+                  key={key}
+                  className={`profile-avatar${profile?.avatar_key === key ? ' profile-avatar--active' : ''}`}
+                  onClick={() => pickAvatar(key)}
+                  title={AVATARS[key].label}
+                >
+                  <img src={AVATARS[key].src} alt={AVATARS[key].label} />
+                  {profile?.avatar_key === key && (
+                    <span className="profile-avatar__check"><Check size={12} strokeWidth={3} /></span>
+                  )}
                 </button>
-                <button className="btn-today" onClick={removeKey}>
-                  Remove
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="profile-hint">
-                The coach chat and post-workout summaries run on your own
-                Anthropic API key (create one at console.anthropic.com →
-                Settings → API keys). It's stored server-side and never shown
-                in full again.
-              </p>
-              <form className="auth-form" onSubmit={submitKey}>
+              ))}
+            </div>
+          </ProfileDisclosure>
+
+          <ProfileDisclosure title="Change password">
+            <form className="auth-form" onSubmit={changePassword}>
+              <label className="auth-field">
+                <span className="auth-field__label">New password</span>
                 <input
                   type="password"
-                  autoComplete="off"
+                  autoComplete="new-password"
                   className="auth-input"
-                  placeholder="sk-ant-…"
-                  value={keyInput}
-                  onChange={e => setKeyInput(e.target.value)}
-                  aria-label="Anthropic API key"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  minLength={8}
                 />
-                {keyMsg && <p className="auth-error">{keyMsg}</p>}
+              </label>
+              <label className="auth-field">
+                <span className="auth-field__label">Confirm password</span>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  className="auth-input"
+                  value={confirm}
+                  onChange={e => setConfirm(e.target.value)}
+                  required
+                />
+              </label>
+              {passwordMsg && <p className="profile-msg">{passwordMsg}</p>}
+              <button type="submit" className="auth-submit">Update password</button>
+            </form>
+          </ProfileDisclosure>
+        </div>
+
+        <div className="profile-group">
+          <h2 className="profile-group__title">AI</h2>
+
+          <section className="profile-section">
+            <h3 className="profile-section__title">Coach</h3>
+            <p className="profile-hint">
+              Tell the coach what you're training for — it shapes every chat and
+              post-workout summary.
+            </p>
+            <label className="auth-field">
+              <span className="auth-field__label">Goal</span>
+              <input
+                className="auth-input"
+                value={goal}
+                onChange={e => setGoal(e.target.value)}
+                onBlur={saveGoal}
+                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                maxLength={200}
+                placeholder={goalPlaceholder}
+              />
+            </label>
+            <label className="auth-field">
+              <span className="auth-field__label">Additional context</span>
+              <textarea
+                className="auth-input auth-input--textarea"
+                value={coachContext}
+                onChange={e => setCoachContext(e.target.value)}
+                onBlur={saveCoachContext}
+                maxLength={1000}
+                rows={3}
+                placeholder={contextPlaceholder}
+              />
+            </label>
+          </section>
+
+          {/* Set once at signup and then forgotten — but opened for you when
+              there is no key, because without one the coach does nothing. */}
+          <ProfileDisclosure
+            title="Anthropic API key"
+            status={keyStatus}
+            defaultOpen={anthropicKey?.hasKey === false}
+          >
+            {anthropicKey === null ? (
+              <p className="profile-hint">Checking key status…</p>
+            ) : anthropicKey.hasKey && !isReplacingKey ? (
+              <>
+                <p className="profile-hint">
+                  The coach runs on your own Anthropic API key. Yours is saved.
+                </p>
                 <div className="profile-feed">
-                  <button type="submit" className="auth-submit" disabled={isSavingKey || !keyInput.trim()}>
-                    {isSavingKey ? 'Verifying…' : 'Save key'}
+                  <input
+                    className="auth-input profile-feed__url"
+                    value={`sk-ant-…${anthropicKey.last4 ?? ''}`}
+                    readOnly
+                    aria-label="Saved API key (masked)"
+                  />
+                  <button className="btn-today" onClick={() => { setIsReplacingKey(true); setKeyMsg(null); }}>
+                    Replace
                   </button>
-                  {isReplacingKey && (
-                    <button type="button" className="btn-today" onClick={() => { setIsReplacingKey(false); setKeyInput(''); setKeyMsg(null); }}>
-                      Cancel
-                    </button>
-                  )}
+                  <button className="btn-today" onClick={removeKey}>
+                    Remove
+                  </button>
                 </div>
-              </form>
-            </>
-          )}
-        </section>
+              </>
+            ) : (
+              <>
+                <p className="profile-hint">
+                  The coach chat and post-workout summaries run on your own
+                  Anthropic API key (create one at console.anthropic.com →
+                  Settings → API keys). It's stored server-side and never shown
+                  in full again.
+                </p>
+                <form className="auth-form" onSubmit={submitKey}>
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    className="auth-input"
+                    placeholder="sk-ant-…"
+                    value={keyInput}
+                    onChange={e => setKeyInput(e.target.value)}
+                    aria-label="Anthropic API key"
+                  />
+                  {keyMsg && <p className="auth-error">{keyMsg}</p>}
+                  <div className="profile-feed">
+                    <button type="submit" className="auth-submit" disabled={isSavingKey || !keyInput.trim()}>
+                      {isSavingKey ? 'Verifying…' : 'Save key'}
+                    </button>
+                    {isReplacingKey && (
+                      <button type="button" className="btn-today" onClick={() => { setIsReplacingKey(false); setKeyInput(''); setKeyMsg(null); }}>
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </>
+            )}
+          </ProfileDisclosure>
 
-        <CoachActivity />
+          <McpTokens onShowGuide={() => setShowConnectorGuide(true)} />
+        </div>
 
-        <section className="profile-section">
-          <h3 className="profile-section__title">Calendar feed</h3>
-          <p className="profile-hint">
-            Subscribe from Apple/Google Calendar to see your workouts. Anyone with
-            this URL can read your schedule — treat it like a password.
-          </p>
-          <div className="profile-feed">
-            <input className="auth-input profile-feed__url" value={feedUrl ?? ''} readOnly />
-            <button className="btn-today" onClick={copyFeedUrl} title="Copy feed URL">
-              <Copy size={14} strokeWidth={1.5} />
-            </button>
-          </div>
-        </section>
+        <div className="profile-group">
+          <h2 className="profile-group__title">Connections</h2>
 
-        <McpTokens onShowGuide={() => setShowConnectorGuide(true)} />
+          <CorosConnection />
 
-        <CorosConnection />
+          <ProfileDisclosure title="Calendar feed">
+            <p className="profile-hint">
+              Subscribe from Apple/Google Calendar to see your workouts. Anyone with
+              this URL can read your schedule — treat it like a password.
+            </p>
+            <div className="profile-feed">
+              <input className="auth-input profile-feed__url" value={feedUrl ?? ''} readOnly />
+              <button className="btn-today" onClick={copyFeedUrl} title="Copy feed URL">
+                <Copy size={14} strokeWidth={1.5} />
+              </button>
+            </div>
+          </ProfileDisclosure>
+        </div>
+
+        {/* Last, and collapsed: a log is something you consult after the fact,
+            never something you came here to change. */}
+        <div className="profile-group">
+          <h2 className="profile-group__title">Activity</h2>
+          <CoachActivity />
+        </div>
 
         <section className="profile-section">
           <button className="profile-signout" onClick={() => signOut()}>
