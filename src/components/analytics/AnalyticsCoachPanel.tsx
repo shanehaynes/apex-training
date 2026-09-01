@@ -1,0 +1,162 @@
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { KeyRound, Send, Sparkles, Square, X } from 'lucide-react';
+import { useAuth } from '../../context/auth';
+import { useCalendar } from '../../context/calendar';
+import { useChat } from '../../hooks/useChat';
+import { buildAnalyticsPrompt } from '../../lib/coach/prompt';
+import { COACH_MODEL_DISPLAY } from '../../lib/coach/model';
+import {
+  applyChartDraftUpdate,
+  describeChartDraft,
+  type ChartDraft,
+  type DraftUpdateInput,
+} from '../../lib/analytics/draft';
+import { now } from '../../lib/clock';
+
+interface Props {
+  draft: ChartDraft;
+  setDraft: Dispatch<SetStateAction<ChartDraft>>;
+  /** Titles of sport-'other' workouts, for the prompt's narrowing section. */
+  otherWorkoutTitles: string[];
+  onClose: () => void;
+}
+
+/**
+ * The tile builder's embedded coach: a third independent chat thread in
+ * toolMode 'analytics', whose single tool reduces onto the chart draft
+ * (applyChartDraftUpdate) — the BuilderCoachPanel contract exactly. Edits
+ * auto-apply with no confirmation card: the user's real gate is the Save
+ * button, and nothing here persists anything. The calendar/meal tools don't
+ * exist in this mode, so the coach cannot reach past the form.
+ */
+export default function AnalyticsCoachPanel({ draft, setDraft, otherWorkoutTitles, onClose }: Props) {
+  const {
+    messages, isLoading, streamingContent,
+    pendingAction, sendMessage, confirmAction, cancelAction, abort,
+  } = useChat({ toolMode: 'analytics' });
+  const { dispatch } = useCalendar();
+  const { anthropicKey } = useAuth();
+  const needsKey = anthropicKey?.hasKey === false;
+
+  const [input, setInput] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // The prompt and the executor both need the draft AS OF NOW, not as of the
+  // render that created a callback — the coach may queue several updates in
+  // one response, each reducing onto the previous result.
+  const draftRef = useRef(draft);
+  useEffect(() => { draftRef.current = draft; }, [draft]);
+
+  const today = useMemo(() => now(), []);
+  const resolvePrompt = useCallback(
+    () => buildAnalyticsPrompt(describeChartDraft(draftRef.current), otherWorkoutTitles, today),
+    [otherWorkoutTitles, today],
+  );
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, streamingContent]);
+
+  // ── Auto-apply queued draft updates ────────────────────────────────────────
+  const settledRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!pendingAction || settledRef.current === pendingAction.toolUseId) return;
+    settledRef.current = pendingAction.toolUseId;
+
+    if (pendingAction.toolName !== 'update_chart_draft') {
+      cancelAction(resolvePrompt());
+      return;
+    }
+    confirmAction(async () => {
+      const result = applyChartDraftUpdate(draftRef.current, pendingAction.input as DraftUpdateInput);
+      if ('error' in result) return result.error;
+      setDraft(result.draft);
+      draftRef.current = result.draft;
+      return result.summary;
+    }, resolvePrompt());
+  }, [pendingAction, confirmAction, cancelAction, resolvePrompt, setDraft]);
+
+  const handleSend = () => {
+    const text = input.trim();
+    if (!text || isLoading || pendingAction) return;
+    setInput('');
+    sendMessage(text, resolvePrompt());
+  };
+
+  const isStreaming = isLoading && streamingContent;
+
+  return (
+    <div className="analytics-coach" data-testid="analytics-coach">
+      <div className="chat-sidebar__header analytics-coach__header">
+        <span className="chat-sidebar__title"><Sparkles size={14} strokeWidth={1.5} /> Coach</span>
+        <span className="chat-sidebar__model">{COACH_MODEL_DISPLAY}</span>
+        <button className="library-close analytics-coach__close" onClick={onClose} aria-label="Hide coach">
+          <X size={14} strokeWidth={1.5} />
+        </button>
+      </div>
+
+      <div className="chat-sidebar__messages">
+        {messages.length === 0 && !isLoading && (
+          <div className="chat-empty">
+            {needsKey ? (
+              <>
+                <p className="chat-empty__hint">
+                  The coach runs on your own Anthropic API key. Add one to unlock it.
+                </p>
+                <button className="chat-key-setup-btn" onClick={() => dispatch({ type: 'OPEN_PROFILE' })}>
+                  <KeyRound size={13} /> Add API key
+                </button>
+              </>
+            ) : (
+              <p className="chat-empty__hint">
+                Describe the chart — the coach configures the tile. Only you can press Save.
+              </p>
+            )}
+          </div>
+        )}
+
+        {messages.map((msg, i) => (
+          <div key={i} className={`chat-msg chat-msg--${msg.role}`}>
+            <p className="chat-msg__text">{msg.content}</p>
+          </div>
+        ))}
+
+        {isStreaming && (
+          <div className="chat-msg chat-msg--assistant">
+            <p className="chat-msg__text">{streamingContent}<span className="chat-cursor" /></p>
+          </div>
+        )}
+
+        {isLoading && !streamingContent && (
+          <div className="chat-msg chat-msg--assistant">
+            <span className="chat-typing"><span /><span /><span /></span>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="chat-sidebar__input-row">
+        <textarea
+          className="chat-input"
+          placeholder={needsKey ? 'Add your API key to chat…' : 'e.g. “Weekly running mileage, last 3 months”'}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+          }}
+          rows={1}
+          disabled={isLoading || needsKey}
+        />
+        <button
+          className="chat-send-btn"
+          onClick={isLoading ? abort : handleSend}
+          disabled={needsKey}
+          aria-label={isLoading ? 'Stop' : 'Send'}
+        >
+          {isLoading ? <Square size={14} /> : <Send size={14} />}
+        </button>
+      </div>
+    </div>
+  );
+}

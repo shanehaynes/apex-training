@@ -315,3 +315,87 @@ export const updateWorkoutDraftSchema: Anthropic.Tool = {
 export function builderToolSchemas(): Anthropic.Tool[] {
   return [updateWorkoutDraftSchema];
 }
+
+// Enum lists mirrored from src/lib/analytics/spec.ts BY HAND: this module
+// must stay dependency-free (api/chat.ts imports it — see the IMPORT
+// SURFACE WARNING there), so it cannot import the catalog. A unit test
+// (src/lib/coach/__tests__/analyticsSchema.test.ts) pins the two together
+// so they cannot drift silently.
+const CHART_MEASURES = [
+  'session-count', 'training-time',
+  'set-count', 'rep-count', 'tonnage', 'est-1rm',
+  'pitches', 'max-grade',
+  'distance', 'elevation-gain', 'cardio-time', 'avg-hr', 'hr-zone-time',
+  'calories', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'alcohol', 'meal-count',
+];
+const CHART_SPORTS = ['running', 'biking', 'swimming', 'climbing', 'other'];
+const CHART_GROUP_BYS = ['event-type', 'sport', 'exercise', 'category', 'meal-type', 'hr-zone', 'unit'];
+
+export const updateChartDraftSchema: Anthropic.Tool = {
+  name: 'update_chart_draft',
+  description:
+    'Update the analytics chart tile the user is building. Partial: only the fields you pass change; ' +
+    'a series entry with a matching id merges into that series, one without an id appends a new series. ' +
+    'This edits the builder form only — nothing is saved until the user presses Save, which only they can do. ' +
+    'The app computes every number the chart shows; you configure, you never calculate.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      title: { type: 'string' },
+      chart_type: { type: 'string', enum: ['line', 'bar', 'stacked-bar', 'area', 'kpi', 'table'], description: 'kpi = one big stat; stacked-bar needs series of one unit kind.' },
+      bucket: { type: 'string', enum: ['day', 'week', 'iso-month', 'total'], description: "Time resolution. 'iso-month' = the app's 4-week training month; 'total' = one number for the whole range." },
+      display_unit: { type: 'string', enum: ['mi', 'km', 'm', 'ft'], description: 'Opt-in length conversion for distance/elevation series; null to clear (chart in the dominant logged unit).' },
+      date_range: {
+        type: 'object',
+        description: 'One of: {kind:"rolling", days} · {kind:"fixed", start_date, end_date} (YYYY-MM-DD, end inclusive) · {kind:"preset", preset}.',
+        properties: {
+          kind: { type: 'string', enum: ['rolling', 'fixed', 'preset'] },
+          days: { type: 'number' },
+          start_date: { type: 'string' },
+          end_date: { type: 'string' },
+          preset: { type: 'string', enum: ['this-iso-month', 'last-iso-month', 'this-iso-year', 'last-iso-year', 'current-block'] },
+        },
+      },
+      series: {
+        type: 'array',
+        description: 'Partial series updates. Filters are inlined per entry; omitted keys stay untouched.',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', description: "Existing series id ('s1'…) merges; omit to append." },
+            label: { type: 'string' },
+            measure: { type: 'string', enum: CHART_MEASURES, description: 'Required when appending a new series; optional on merges.' },
+            agg: { type: 'string', enum: ['sum', 'avg', 'count', 'max'], description: 'null = the measure default. Nutrition avg means per LOGGED day.' },
+            group_by: { type: 'string', enum: CHART_GROUP_BYS, description: 'Fans this series into one line/bar per group value; null clears.' },
+            group_limit: { type: 'number', description: 'Keep the top N groups (default 6); null clears.' },
+            axis: { type: 'string', enum: ['left', 'right'], description: 'null = auto (second unit kind goes right).' },
+            event_types: { type: 'array', items: { type: 'string', enum: ['stretching', 'morning-routine', 'weights', 'climbing', 'outdoor-climbing', 'cardio', 'yoga'] } },
+            sports: { type: 'array', items: { type: 'string', enum: CHART_SPORTS }, description: "Sport buckets. Some pairings are invalid (distance×climbing, elevation×swimming, pitches/grades×non-climbing) — the reducer explains if hit." },
+            workout_titles: { type: 'array', items: { type: 'string' }, description: "With sports:['other']: the specific named workouts to include (exact titles)." },
+            exercise_names: { type: 'array', items: { type: 'string' } },
+            categories: { type: 'array', items: { type: 'string' } },
+            meal_types: { type: 'array', items: { type: 'string', enum: ['breakfast', 'lunch', 'dinner', 'snack'] } },
+            grade_scale: { type: 'string', enum: ['yds', 'boulder', 'ice', 'mixed'], description: 'Required by max-grade (grades only order within one scale).' },
+            day_filter: {
+              type: 'object',
+              description: 'Keep rows by proximity to training days: {event_types, offset_days (-7..7; 1 = day after), mode include|exclude}. Pass {off:true} to clear. E.g. protein the day after strength days.',
+              properties: {
+                event_types: { type: 'array', items: { type: 'string', enum: ['stretching', 'morning-routine', 'weights', 'climbing', 'outdoor-climbing', 'cardio', 'yoga'] } },
+                offset_days: { type: 'number' },
+                mode: { type: 'string', enum: ['include', 'exclude'] },
+                off: { type: 'boolean' },
+              },
+            },
+          },
+        },
+      },
+      remove_series: { type: 'array', items: { type: 'string' }, description: 'Series ids to delete.' },
+    },
+    // No `required`: every field optional, because it's a partial update.
+  },
+};
+
+/** The analytics thread's constant tool list — per-mode caching invariant. */
+export function analyticsToolSchemas(): Anthropic.Tool[] {
+  return [updateChartDraftSchema];
+}

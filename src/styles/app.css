@@ -6942,3 +6942,31 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   color: var(--text-muted);
   margin: 4px 0 8px;
 }
+
+/* ── Analytics coach (phase-37 follow-up) ────────────────────
+   Lives UNDER the live preview in the builder's right column, so a
+   request and the chart it configures share one glance. Inner chrome
+   reuses the chat-sidebar classes. */
+
+.tile-builder__coach-toggle { margin-left: auto; }
+
+.analytics-coach {
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+  max-height: 40vh;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.analytics-coach__header {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.analytics-coach .chat-sidebar__messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}

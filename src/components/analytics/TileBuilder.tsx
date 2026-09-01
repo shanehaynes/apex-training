@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowLeft, Plus, X } from 'lucide-react';
+import { ArrowLeft, Plus, Sparkles, X } from 'lucide-react';
 import { notify } from '../../lib/notify';
 import { useAnalytics } from '../../context/analytics';
 import { useAnalyticsData } from '../../hooks/useAnalyticsData';
@@ -27,6 +27,7 @@ import {
 } from '../../lib/analytics/draft';
 import { mintTileId, type AnalyticsTile, type TileLayout } from '../../lib/analytics/tiles';
 import TileRenderer from './TileRenderer';
+import AnalyticsCoachPanel from './AnalyticsCoachPanel';
 import { WORKOUT_COLORS } from '../../utils/workoutColors';
 import type { Sport, WorkoutType } from '../../types/workout';
 import type { MealType } from '../../types/nutrition';
@@ -190,6 +191,7 @@ export default function TileBuilder({ tile, onClose }: Props) {
     tile?.spec ? draftFromSpec(tile.spec) : emptyChartDraft(),
   );
   const [saving, setSaving] = useState(false);
+  const [coachOpen, setCoachOpen] = useState(false);
 
   const built = useMemo(() => specFromDraft(draft), [draft]);
   const problem = 'error' in built ? built.error : null;
@@ -251,6 +253,13 @@ export default function TileBuilder({ tile, onClose }: Props) {
             <ArrowLeft size={16} strokeWidth={1.5} />
           </button>
           <h2 className="tile-builder__heading">{tile ? 'Edit tile' : 'New tile'}</h2>
+          <button
+            className="library-edit-btn tile-builder__coach-toggle"
+            onClick={() => setCoachOpen(v => !v)}
+            aria-pressed={coachOpen}
+          >
+            <Sparkles size={13} strokeWidth={1.5} /> {coachOpen ? 'Hide coach' : 'Show coach'}
+          </button>
         </div>
 
         <label className="library-field">
@@ -350,6 +359,14 @@ export default function TileBuilder({ tile, onClose }: Props) {
           </div>
         )}
         {data.loading && <div className="an-loading">Loading data…</div>}
+        {coachOpen && (
+          <AnalyticsCoachPanel
+            draft={draft}
+            setDraft={setDraft}
+            otherWorkoutTitles={otherWorkoutOptions.map(o => o.value)}
+            onClose={() => setCoachOpen(false)}
+          />
+        )}
       </div>
     </div>
   );

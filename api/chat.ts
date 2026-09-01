@@ -4,7 +4,7 @@ import { requireUser } from './_lib/auth.js';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
 import { getAnthropicKey } from './_lib/anthropicKey.js';
 import { enforceRateLimit } from './_lib/rateLimit.js';
-import { builderToolSchemas, coachToolSchemas } from '../src/lib/coach/schemas.js';
+import { analyticsToolSchemas, builderToolSchemas, coachToolSchemas } from '../src/lib/coach/schemas.js';
 import { COACH_MODEL } from '../src/lib/coach/model.js';
 import type { ChatWireEvent } from '../src/lib/coach/wire.js';
 
@@ -112,18 +112,22 @@ interface Body {
 // next turn. Fixing that means moving the volatile region out of `system` —
 // gate it on the usage numbers logged at the end of the handler.
 
-export type ToolMode = 'chat' | 'builder';
+export type ToolMode = 'chat' | 'builder' | 'analytics';
 
 /**
- * Static tool schemas with a cache breakpoint on the last one. Two modes,
- * each with its own CONSTANT list: the sidebar's full registry, and the
- * builder's single draft tool. A mode's tools+system prefix stays identical
- * across its own turns (the caching rules above hold per mode); the builder
- * mode's absent calendar/meal tools are what make "the coach can never
- * apply, save, or touch the schedule from the builder" structural.
+ * Static tool schemas with a cache breakpoint on the last one. Three modes,
+ * each with its own CONSTANT list: the sidebar's full registry, the
+ * builder's single draft tool, and the analytics builder's single chart
+ * tool. A mode's tools+system prefix stays identical across its own turns
+ * (the caching rules above hold per mode); a scoped mode's absent
+ * calendar/meal tools are what make "the coach can never apply, save, or
+ * touch the schedule from here" structural.
  */
 export function cachedToolSchemas(mode: ToolMode = 'chat'): Anthropic.Tool[] {
-  const tools = mode === 'builder' ? builderToolSchemas() : coachToolSchemas();
+  const tools =
+    mode === 'builder' ? builderToolSchemas()
+    : mode === 'analytics' ? analyticsToolSchemas()
+    : coachToolSchemas();
   return tools.map((tool, i) =>
     i === tools.length - 1 ? { ...tool, cache_control: { type: 'ephemeral' as const } } : tool,
   );
@@ -225,7 +229,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.on('close', () => { if (!finished) upstreamAbort.abort(); });
 
   const withTools = !!body.withTools;
-  const toolMode: ToolMode = body.toolMode === 'builder' ? 'builder' : 'chat';
+  const toolMode: ToolMode = body.toolMode === 'builder' || body.toolMode === 'analytics' ? body.toolMode : 'chat';
   const messages = body.messages as Anthropic.MessageParam[];
 
   try {

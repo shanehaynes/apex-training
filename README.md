@@ -117,6 +117,8 @@ Deploys as a standard Vite app on Vercel ([vercel.json](vercel.json)). Set the e
 
 Give users the assigned domain, never a deployment URL. Vercel Deployment Protection covers every path on a deployment URL — including `/.well-known/*`, `/api/mcp`, and `/api/calendar-feed` — so a visitor there is asked to sign in to Vercel before they ever reach the app's own login. Previews share production's env vars and therefore its database, which is why that protection is worth keeping on.
 
+**Supabase's Site URL is one of those places you hand out a URL**, and the least obvious one: every invite, password-reset and confirmation email GoTrue sends is built from it, and any `redirect_to` the app asks for is silently replaced by it unless the origin is on the Redirect URLs allow-list. Point either at a deployment URL and invited users meet Vercel's SSO page instead of the app. Nothing in a commit or in CI can see these two dashboard fields, so [`scripts/auth-redirect-check.sh`](scripts/auth-redirect-check.sh) reads them back over HTTP — it is part of [`scripts/supervisor-report.sh`](scripts/supervisor-report.sh), and the values to set are in [DEPLOY_MULTI_USER.md](DEPLOY_MULTI_USER.md).
+
 To subscribe from a calendar app, add `https://<your-deployment>/api/calendar-feed` as a URL/ICS subscription.
 
 To query your training data from Claude, ChatGPT, or any MCP client, connect to `https://<your-deployment>/api/mcp` — setup per client in [CONNECTORS.md](CONNECTORS.md).
