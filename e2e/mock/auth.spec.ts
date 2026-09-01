@@ -72,3 +72,30 @@ test('login gate, reset mode, fabricated session, profile view', async ({ page }
   expect(keyButtons.map(t => t.trim())).toEqual(expect.arrayContaining(['Replace', 'Remove']));
   await shot(page, 'auth-profile-expanded');
 });
+
+// The landing an expired or already-clicked invite produces. GoTrue verifies
+// the token itself and, on refusal, redirects to the app with no session and
+// the reason in the fragment — this is the live project's exact wording,
+// captured with a bogus token. The visitor must be told; the tab they reach
+// for next is create-account, which is closed, so losing this message on the
+// switch leaves them staring at "accounts are created by invitation".
+test('a spent invite link explains itself, and keeps explaining after the tab switch', async ({ page }) => {
+  test.skip(!supabaseRef(), 'offline mode has no auth gate — nothing to drive');
+
+  await page.goto('/#error=access_denied&error_code=otp_expired'
+    + '&error_description=Email+link+is+invalid+or+has+expired&sb=');
+
+  const banner = page.getByTestId('auth-link-error');
+  await expect(banner).toBeVisible({ timeout: 20000 });
+  await expect(banner).toContainText('expired, or it has already been used');
+  await shot(page, 'auth-link-expired');
+
+  await page.locator('.auth-toggle__option', { hasText: 'Create account' }).click();
+  await expect(banner, 'the reason survives the mode switch').toBeVisible();
+
+  // A failed submit adds its own message without displacing the banner.
+  await page.locator('input[name="email"]').fill('invited@example.com');
+  await page.locator('input[name="password"]').fill('hunter2hunter2');
+  await page.locator('.auth-submit').click();
+  await expect(banner).toBeVisible();
+});

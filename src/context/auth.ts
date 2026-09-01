@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
+import type { AuthLinkError } from '../lib/auth/linkError';
 
 // Context object + hook live apart from the provider so AuthContext.tsx
 // exports only a component and stays eligible for React Fast Refresh.
@@ -27,7 +28,7 @@ export interface AuthContextValue {
   /** null = not yet loaded/unknown (don't block the coach UI on it). */
   anthropicKey: AnthropicKeyStatus | null;
   /** Error carried by an expired/used invite or recovery link, for LoginView. */
-  linkError: string | null;
+  linkError: AuthLinkError | null;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
