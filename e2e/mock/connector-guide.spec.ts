@@ -61,7 +61,10 @@ test('every client tab renders its own instructions', async ({ page }) => {
   // shows, so a user copying from either place pastes the same string.
   const guideUrl = await page.locator('.cg-body .profile-feed__url').inputValue();
   await page.locator('.library-back').click();
+  // The help icon sits outside the fold's toggle, so it is reachable while the
+  // AI connector section is collapsed — expanding is only for the URL below.
   await expect(page.locator('.profile-help')).toBeVisible();
+  await page.locator('.profile-fold__toggle', { hasText: 'AI connector' }).click();
   const sectionUrl = await page.locator('input[aria-label="MCP endpoint URL"]').inputValue();
   expect(guideUrl).toBe(sectionUrl);
 });

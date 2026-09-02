@@ -101,6 +101,8 @@ export interface Recipient {
   userId: string;
   email: string | null;
   displayName: string;
+  /** profiles.coach_model — null means "follow the app default". */
+  coachModel: string | null;
 }
 
 export async function listRecipients(supabase: Admin): Promise<Recipient[]> {
@@ -112,7 +114,7 @@ export async function listRecipients(supabase: Admin): Promise<Recipient[]> {
     if (data.users.length < 200) break;
   }
 
-  const { data: profiles, error } = await supabase.from('profiles').select('id, display_name');
+  const { data: profiles, error } = await supabase.from('profiles').select('id, display_name, coach_model');
   if (error) throw new Error(`profiles fetch failed: ${error.message}`);
 
   return (profiles ?? [])
@@ -120,6 +122,7 @@ export async function listRecipients(supabase: Admin): Promise<Recipient[]> {
       userId: p.id as string,
       email: emails.get(p.id as string) ?? null,
       displayName: (p.display_name as string) || 'athlete',
+      coachModel: (p.coach_model as string | null) ?? null,
     }))
     .sort((a, b) => a.userId.localeCompare(b.userId));
 }

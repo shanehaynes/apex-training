@@ -20,12 +20,12 @@ import { getIsoMonth, lastCompletedIsoYear, lastCompletedMonth } from '../src/li
 import {
   MONTHLY_MAX_TOKENS,
   MONTHLY_REVIEW_SYSTEM_PROMPT,
-  REVIEW_MODEL,
   YEARLY_MAX_TOKENS,
   YEARLY_REVIEW_SYSTEM_PROMPT,
   buildMonthlyRecap,
   buildYearlyRecap,
 } from '../src/lib/review/recap.js';
+import { resolveCoachModel } from '../src/lib/coach/models.js';
 import { buildReviewPeriod, computeReviewStats, computeYearlyStats } from '../src/lib/review/stats.js';
 import type { PeriodType, ReviewStats, YearlyStats } from '../src/lib/review/types.js';
 
@@ -65,16 +65,19 @@ const periodName = (p: WorkPeriod) =>
 async function generateCommentary(
   apiKey: string,
   stats: ReviewStats | YearlyStats,
-  displayName: string,
+  recipient: Recipient,
   periodType: PeriodType,
 ): Promise<string> {
   const yearly = periodType === 'year';
   const recap = yearly
-    ? buildYearlyRecap(stats as YearlyStats, displayName)
-    : buildMonthlyRecap(stats, displayName);
+    ? buildYearlyRecap(stats as YearlyStats, recipient.displayName)
+    : buildMonthlyRecap(stats, recipient.displayName);
+  // The recap runs on the user's own key, so it honours their coach model
+  // pick too — a Haiku user is not quietly billed at Opus rates once a month.
+  const coachModel = resolveCoachModel(recipient.coachModel);
   const client = new Anthropic({ apiKey });
   const response = await client.messages.create({
-    model: REVIEW_MODEL,
+    model: coachModel.id,
     max_tokens: yearly ? YEARLY_MAX_TOKENS : MONTHLY_MAX_TOKENS,
     system: yearly ? YEARLY_REVIEW_SYSTEM_PROMPT : MONTHLY_REVIEW_SYSTEM_PROMPT,
     messages: [{ role: 'user', content: recap }],
@@ -256,7 +259,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const apiKey = await getAnthropicKey(supabase, recipient.userId);
           if (apiKey) {
             try {
-              commentary = await generateCommentary(apiKey, stats, recipient.displayName, work.periodType);
+              commentary = await generateCommentary(apiKey, stats, recipient, work.periodType);
               await saveCommentary(supabase, row.id, commentary);
             } catch (err) {
               const ageDays = (now.getTime() - new Date(row.created_at).getTime()) / 86_400_000;

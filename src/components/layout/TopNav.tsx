@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Dumbbell, Plus, Target } from 'lucide-react';
+import { BarChart2, ChevronLeft, ChevronRight, Dumbbell, Plus, Target } from 'lucide-react';
 import { useCalendar } from '../../context/calendar';
 import { useAuth } from '../../context/auth';
 import ProviderSyncControls from '../sync/ProviderSyncControls';
@@ -74,6 +74,15 @@ export default function TopNav() {
         >
           <Dumbbell size={14} strokeWidth={1.5} />
           <span className="btn-library__label">Library</span>
+        </button>
+        <button
+          className="btn-library"
+          data-testid="nav-analytics"
+          onClick={() => dispatch({ type: 'OPEN_ANALYTICS' })}
+          title="Analytics"
+        >
+          <BarChart2 size={14} strokeWidth={1.5} />
+          <span className="btn-library__label">Analytics</span>
         </button>
         <button
           className="btn-today"

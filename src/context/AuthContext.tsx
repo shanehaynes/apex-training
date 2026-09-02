@@ -5,6 +5,7 @@ import { acceptTerms as postAcceptance, ApiError, getJson, patchJson } from '../
 import type { AcceptanceStatus } from '../lib/api';
 import { clearCompletedIds } from '../lib/schedule/localCompletion';
 import { publicOrigin } from '../lib/origin';
+import { parseAuthLinkError } from '../lib/auth/linkError';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
 import { registerAgentState } from '../dev/agentBridge';
 import {
@@ -16,12 +17,11 @@ import {
 // `type` marker (`invite` / `recovery`). supabase-js consumes the fragment
 // during detectSessionInUrl, so capture it synchronously at module init —
 // by the time React renders it may already be gone.
-const initialHashParams = new URLSearchParams(
-  typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '',
-);
-const initialLinkType = initialHashParams.get('type');
-// Expired/used links arrive with error_description instead of a session.
-const initialLinkError = initialHashParams.get('error_description');
+const initialHash = typeof window !== 'undefined' ? window.location.hash : '';
+const initialSearch = typeof window !== 'undefined' ? window.location.search : '';
+const initialLinkType = new URLSearchParams(initialHash.replace(/^#/, '')).get('type');
+// A refused link brings an error instead of a session — see lib/auth/linkError.
+const initialLinkError = parseAuthLinkError(initialHash, initialSearch);
 const arrivedNeedingPassword = initialLinkType === 'invite' || initialLinkType === 'recovery';
 
 interface KeyStatusPayload {
@@ -174,6 +174,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = useCallback(async (fields: {
     displayName?: string; avatarKey?: AvatarKey; coachGoal?: string; coachContext?: string;
+    /** Coach model pick (phase 38): null clears it, falling back to the app default. */
+    coachModel?: string | null;
+    /** HR-zone settings (phase 35): null clears a value. */
+    maxHr?: number | null; thresholdHr?: number | null;
   }): Promise<boolean> => {
     if (!supabase) return false;
     try {
@@ -182,6 +186,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...(fields.avatarKey !== undefined ? { avatar_key: fields.avatarKey } : {}),
         ...(fields.coachGoal !== undefined ? { coach_goal: fields.coachGoal } : {}),
         ...(fields.coachContext !== undefined ? { coach_context: fields.coachContext } : {}),
+        ...(fields.coachModel !== undefined ? { coach_model: fields.coachModel } : {}),
+        ...(fields.maxHr !== undefined ? { max_hr: fields.maxHr } : {}),
+        ...(fields.thresholdHr !== undefined ? { threshold_hr: fields.thresholdHr } : {}),
       }, 'Updating profile');
       // Optimistic local apply; the row is ours alone, no reconciliation needed.
       setProfile(prev => prev && {
@@ -190,6 +197,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...(fields.avatarKey !== undefined ? { avatar_key: fields.avatarKey } : {}),
         ...(fields.coachGoal !== undefined ? { coach_goal: fields.coachGoal } : {}),
         ...(fields.coachContext !== undefined ? { coach_context: fields.coachContext } : {}),
+        ...(fields.coachModel !== undefined ? { coach_model: fields.coachModel } : {}),
+        ...(fields.maxHr !== undefined ? { max_hr: fields.maxHr } : {}),
+        ...(fields.thresholdHr !== undefined ? { threshold_hr: fields.thresholdHr } : {}),
       });
       return true;
     } catch {

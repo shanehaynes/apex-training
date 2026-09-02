@@ -18,6 +18,7 @@ import {
 import { eventToRow, eventFieldsToRow } from '../../src/lib/schedule/mapping';
 import { definitionFieldsToRow } from '../../src/lib/schedule/definitions';
 import { templateToRow } from '../../src/lib/schedule/templates';
+import { tileToRow } from '../../src/lib/analytics/tiles';
 import { favoriteToRow, mealFieldsToRow, mealToRow } from '../../src/lib/nutrition/mapping';
 import { blockToRow, blockFieldsToRow, objectiveToRow, objectiveFieldsToRow } from '../../src/lib/blocks/mapping';
 import type { ExerciseDefinition, WorkoutTemplate } from '../../src/types/workout';
@@ -30,6 +31,7 @@ import type { Objective, TrainingBlock } from '../../src/types/blocks';
 const FULL_EVENT: Parameters<typeof eventToRow>[0] = {
   id: 'evt-1',
   type: 'weights',
+  sport: 'other',
   title: 'Upper Body',
   subtitle: 'Push focus',
   date: '2026-07-24',
@@ -60,6 +62,7 @@ const FULL_TEMPLATE: WorkoutTemplate = {
   id: 'wt-1',
   title: 'MURPH',
   type: 'weights',
+  sport: 'other',
   scoringType: 'for-time',
   timeCapMinutes: 60,
   estimatedDuration: 60,
@@ -203,11 +206,22 @@ describe('client/server mirror', () => {
     expect(rejected).toEqual([]);
   });
 
-  // The analytics tile mapper (src/lib/analytics/tiles.ts) lands with the
-  // engine PR; until then this pins the exact column set the handler
-  // accepts, so a drive-by addition here fails loudly.
   it('pins the analytics tile columns', () => {
     expect([...ANALYTICS_TILE_COLUMNS].sort()).toEqual(['h', 'id', 'spec', 'w', 'x', 'y']);
+  });
+
+  it('accepts every column tileToRow emits', () => {
+    const spec = {
+      version: 1 as const,
+      title: 'Weekly mileage',
+      chartType: 'line' as const,
+      range: { kind: 'rolling' as const, days: 90 },
+      bucket: 'week' as const,
+      series: [{ id: 's1', measure: 'distance' as const }],
+    };
+    const row = tileToRow('tile-1', spec, { x: 0, y: 0, w: 6, h: 4 });
+    const { rejected } = pickAllowed(row as unknown as Record<string, unknown>, ANALYTICS_TILE_COLUMNS);
+    expect(rejected).toEqual([]);
   });
 
   it('accepts every column definitionFieldsToRow emits', () => {

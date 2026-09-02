@@ -1,6 +1,6 @@
 import type {
   CardioTargets, ClimbingTargets, Exercise, ExerciseDefinition, ScoringType,
-  WorkoutEvent, WorkoutTemplate, WorkoutType,
+  Sport, WorkoutEvent, WorkoutTemplate, WorkoutType,
 } from '../../types/workout';
 import type { CreateEventInput, SaveWorkoutTemplateInput, UpdateEventInput } from '../schedule/types';
 import { toDisplayTime, toInputTime } from '../time';
@@ -30,6 +30,8 @@ export interface WorkoutDraft {
   templateId?: string;
   title: string;
   type: WorkoutType;
+  /** '' = unspecified. Climbing types force 'climbing' (withType). */
+  sport: Sport | '';
   scoringType: ScoringType;
   /** AMRAP only: working-window length in minutes. */
   timeCap: string;
@@ -86,6 +88,7 @@ export function emptyDraft(date: string, title = ''): WorkoutDraft {
   return {
     title,
     type: 'weights',
+    sport: '',
     scoringType: 'strength',
     timeCap: '',
     date,
@@ -115,9 +118,13 @@ export function emptyDraft(date: string, title = ''): WorkoutDraft {
 export function withType(draft: WorkoutDraft, type: WorkoutType): WorkoutDraft {
   const titleIsDefault = !draft.title || TYPE_ORDER.some(t => draft.title === WORKOUT_COLORS[t].label);
   const durationIsDefault = TYPE_ORDER.some(t => draft.duration === String(TYPE_DURATION[t]));
+  const isClimbing = type === 'climbing' || type === 'outdoor-climbing';
   return {
     ...draft,
     type,
+    // Climbing types imply the sport; leaving climbing drops the implication
+    // (a deliberately picked sport survives type changes).
+    sport: isClimbing ? 'climbing' : draft.sport === 'climbing' ? '' : draft.sport,
     title: titleIsDefault ? WORKOUT_COLORS[type].label : draft.title,
     duration: durationIsDefault || !draft.duration ? String(TYPE_DURATION[type]) : draft.duration,
   };
@@ -128,6 +135,7 @@ export function draftFromTemplate(t: WorkoutTemplate, date: string): WorkoutDraf
     templateId: t.id,
     title: t.title,
     type: t.type,
+    sport: t.sport ?? '',
     scoringType: t.scoringType,
     timeCap: t.timeCapMinutes != null ? String(t.timeCapMinutes) : '',
     date,
@@ -154,6 +162,7 @@ export function draftFromEvent(e: WorkoutEvent): WorkoutDraft {
     templateId: e.templateId,
     title: e.title,
     type: e.type,
+    sport: e.sport ?? '',
     scoringType: e.scoringType ?? 'strength',
     timeCap: e.timeCapMinutes != null ? String(e.timeCapMinutes) : '',
     date: e.date,
@@ -228,6 +237,7 @@ export function templateInputFromDraft(draft: WorkoutDraft): Omit<SaveWorkoutTem
   return {
     title: draft.title.trim(),
     type: draft.type,
+    sport: draft.sport || undefined,
     scoringType: draft.scoringType,
     timeCapMinutes: packedTimeCap(draft),
     estimatedDuration: parseInt(draft.duration, 10),
@@ -249,6 +259,7 @@ export function createInputFromDraft(draft: WorkoutDraft, templateId: string): C
   const rule = ruleFromRepeat(draft.repeat);
   return {
     type: draft.type,
+    sport: draft.sport || undefined,
     title: draft.title.trim(),
     date: rule && !draft.repeat.custom ? snapAnchorDate(draft.date, draft.repeat.days) : draft.date,
     recurrenceRule: rule,
@@ -292,6 +303,9 @@ export function eventFieldsFromDraft(
   return {
     title: draft.title.trim(),
     type: draft.type,
+    // Explicit null so unsetting the sport clears the column — undefined
+    // keys are skipped by eventFieldsToRow, which would leave it stale.
+    sport: (draft.sport || null) as unknown as WorkoutEvent['sport'],
     estimatedDuration: parseInt(draft.duration, 10),
     difficulty: draft.difficulty,
     description: draft.description.trim(),
@@ -343,6 +357,8 @@ export interface DraftExerciseInput {
 export interface DraftUpdateInput {
   title?: string;
   type?: WorkoutType;
+  /** null clears (back to unspecified); climbing types force 'climbing'. */
+  sport?: Sport | null;
   scoring_type?: ScoringType;
   time_cap_minutes?: number;
   date?: string;
@@ -417,7 +433,26 @@ export function applyDraftUpdate(
   };
 
   if (typeof input.title === 'string' && input.title.trim()) set('title', input.title.trim(), 'title');
-  if (input.type && input.type in WORKOUT_COLORS) set('type', input.type, 'category');
+  if (input.type && input.type in WORKOUT_COLORS) {
+    set('type', input.type, 'category');
+    // Same implication withType applies in the form: climbing types ARE the
+    // climbing sport; leaving them drops the implied value.
+    if (input.type === 'climbing' || input.type === 'outdoor-climbing') next = { ...next, sport: 'climbing' };
+    else if (next.sport === 'climbing') next = { ...next, sport: '' };
+  }
+  if (input.sport !== undefined) {
+    const isClimbingType = next.type === 'climbing' || next.type === 'outdoor-climbing';
+    if (isClimbingType) {
+      // The type already decided this — acknowledge instead of erroring so
+      // a sport-only update still yields an instructive tool_result.
+      next = { ...next, sport: 'climbing' };
+      changed.push('sport (climbing types imply it — unchanged)');
+    } else if (input.sport === null) {
+      set('sport', '', 'sport cleared');
+    } else if (['running', 'biking', 'swimming', 'other'].includes(input.sport)) {
+      set('sport', input.sport, 'sport');
+    }
+  }
   if (input.scoring_type === 'strength' || input.scoring_type === 'for-time' || input.scoring_type === 'amrap') {
     set('scoringType', input.scoring_type, 'scoring');
   }
@@ -469,7 +504,7 @@ export function applyDraftUpdate(
 export function describeDraft(draft: WorkoutDraft): string {
   const lines = [
     `Title: ${draft.title || '(untitled)'}`,
-    `Category: ${WORKOUT_COLORS[draft.type].label}`,
+    `Category: ${WORKOUT_COLORS[draft.type].label}${draft.sport ? ` · sport ${draft.sport}` : ''}`,
     `Scoring: ${draft.scoringType}${draft.scoringType === 'amrap' && draft.timeCap ? ` (cap ${draft.timeCap} min)` : ''}`,
     `Date: ${draft.date}${draft.startTime ? ` ${draft.startTime}` : ''}${draft.endTime ? `–${draft.endTime}` : ''} · ${draft.duration || '?'} min · difficulty ${draft.difficulty}`,
   ];

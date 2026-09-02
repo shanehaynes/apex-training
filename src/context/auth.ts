@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
 import type { AcceptanceStatus } from '../lib/api';
+import type { AuthLinkError } from '../lib/auth/linkError';
 
 // Context object + hook live apart from the provider so AuthContext.tsx
 // exports only a component and stays eligible for React Fast Refresh.
@@ -38,7 +39,7 @@ export interface AuthContextValue {
    *  gate is the actual enforcement, so an unknown state never blocks. */
   termsStatus: TermsStatus | null;
   /** Error carried by an expired/used invite or recovery link, for LoginView. */
-  linkError: string | null;
+  linkError: AuthLinkError | null;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
@@ -46,6 +47,10 @@ export interface AuthContextValue {
   setNewPassword: (password: string) => Promise<string | null>;
   updateProfile: (fields: {
     displayName?: string; avatarKey?: AvatarKey; coachGoal?: string; coachContext?: string;
+    /** Coach model pick (phase 38): null clears it, falling back to the app default. */
+    coachModel?: string | null;
+    /** HR-zone settings (phase 35): null clears a value. */
+    maxHr?: number | null; thresholdHr?: number | null;
   }) => Promise<boolean>;
   /** Latch the welcome flow closed for good, on every device. */
   dismissOnboarding: () => Promise<void>;

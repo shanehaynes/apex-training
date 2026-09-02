@@ -612,6 +612,7 @@ export type Database = {
           avatar_key: string
           coach_context: string
           coach_goal: string
+          coach_model: string | null
           created_at: string
           display_name: string
           ics_token: string
@@ -627,6 +628,7 @@ export type Database = {
           avatar_key?: string
           coach_context?: string
           coach_goal?: string
+          coach_model?: string | null
           created_at?: string
           display_name?: string
           ics_token?: string
@@ -642,6 +644,7 @@ export type Database = {
           avatar_key?: string
           coach_context?: string
           coach_goal?: string
+          coach_model?: string | null
           created_at?: string
           display_name?: string
           ics_token?: string
@@ -1066,6 +1069,7 @@ export type Database = {
           recurring_frequency: string | null
           scoring_type: string | null
           source: string | null
+          sport: string | null
           start_time: string | null
           subtitle: string | null
           tags: string[]
@@ -1099,6 +1103,7 @@ export type Database = {
           recurring_frequency?: string | null
           scoring_type?: string | null
           source?: string | null
+          sport?: string | null
           start_time?: string | null
           subtitle?: string | null
           tags?: string[]
@@ -1132,6 +1137,7 @@ export type Database = {
           recurring_frequency?: string | null
           scoring_type?: string | null
           source?: string | null
+          sport?: string | null
           start_time?: string | null
           subtitle?: string | null
           tags?: string[]
@@ -1271,6 +1277,7 @@ export type Database = {
           id: string
           location: string | null
           scoring_type: string
+          sport: string | null
           tags: string[]
           time_cap_minutes: number | null
           title: string
@@ -1293,6 +1300,7 @@ export type Database = {
           id: string
           location?: string | null
           scoring_type?: string
+          sport?: string | null
           tags?: string[]
           time_cap_minutes?: number | null
           title: string
@@ -1315,6 +1323,7 @@ export type Database = {
           id?: string
           location?: string | null
           scoring_type?: string
+          sport?: string | null
           tags?: string[]
           time_cap_minutes?: number | null
           title?: string

@@ -9,10 +9,15 @@ export type ApexWorkoutType =
   | 'stretching' | 'morning-routine' | 'weights'
   | 'climbing' | 'outdoor-climbing' | 'cardio' | 'yoga';
 
+/** The analytics sport bucket (phase 37); null = no bucket (ski, row, walk…). */
+export type ActivitySport = 'running' | 'biking' | 'swimming' | 'climbing' | null;
+
 export interface SportMapping {
   type: ApexWorkoutType;
   /** Human sport name used as the event title, e.g. "Trail Run". */
   label: string;
+  /** Stamped onto created events so synced history joins the sport breakdown. */
+  sport: ActivitySport;
 }
 
 // The official dubbo sport-type table, verified 2026-08-10 against the live
@@ -87,6 +92,17 @@ function titleCase(raw: string): string {
     .replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
 }
 
+// The five-bucket sport, from the label. Everything unmatched stays null —
+// 'other' is reserved for workouts the user deliberately names, never a
+// dumping ground for unmapped watch modes. Order-safe against the traps the
+// type rules dodge ("Stair Climbing", "Mountain Climb"): climbing comes
+// from the resolved TYPE, not a label pattern.
+const SPORT_RULES: Array<{ pattern: RegExp; sport: ActivitySport }> = [
+  { pattern: /\brun\b/i, sport: 'running' },
+  { pattern: /bike|cycl/i, sport: 'biking' },
+  { pattern: /swim/i, sport: 'swimming' },
+];
+
 export function mapSport(sport: string | number | undefined | null): SportMapping {
   const label = typeof sport === 'number'
     ? CODE_LABELS[sport] ?? `Activity ${sport}`
@@ -95,5 +111,9 @@ export function mapSport(sport: string | number | undefined | null): SportMappin
       : 'Activity';
 
   const rule = LABEL_RULES.find(r => r.pattern.test(label));
-  return { type: rule?.type ?? 'cardio', label };
+  const type = rule?.type ?? 'cardio';
+  const bucket = type === 'climbing' || type === 'outdoor-climbing'
+    ? 'climbing'
+    : SPORT_RULES.find(r => r.pattern.test(label))?.sport ?? null;
+  return { type, label, sport: bucket };
 }

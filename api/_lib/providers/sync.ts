@@ -10,7 +10,7 @@ import {
   type SyncProvider,
 } from './connection.js';
 import { CorosClient, type ProviderActivity } from './coros/client.js';
-import { mapSport } from './coros/mapSport.js';
+import { mapSport, type ActivitySport } from './coros/mapSport.js';
 import { McpAuthExpiredError, McpToolError } from './mcpHttp.js';
 import { matchActivity, occurrenceKey } from '../../../src/lib/sync/matching.js';
 import { minutesToDisplayTime } from '../../../src/lib/time.js';
@@ -406,6 +406,7 @@ async function handleApply(
         await writeActivityRecords(supabase, userId, provider, activity, sport.label, local, null, {
           eventId,
           type: sport.type,
+          sport: sport.sport,
         });
         outcome.created += 1;
       }
@@ -484,6 +485,7 @@ export async function runAutoSync(
       await writeActivityRecords(supabase, userId, provider, activity, sport.label, local, null, {
         eventId: sanitizeEventId(provider, activity.activityId),
         type: sport.type,
+        sport: sport.sport,
       });
       outcome.created += 1;
     } catch (err) {
@@ -523,7 +525,7 @@ async function writeActivityRecords(
   sportLabel: string,
   local: LocalInstant,
   fillTarget: WorkoutEvent | null,
-  createSpec: { eventId: string; type: WorkoutEvent['type'] } | null,
+  createSpec: { eventId: string; type: WorkoutEvent['type']; sport: ActivitySport } | null,
 ): Promise<void> {
   const now = new Date().toISOString();
   const durationMin = Math.max(1, Math.round(activity.durationSec / 60));
@@ -565,6 +567,7 @@ async function writeActivityRecords(
       user_id: userId,
       id: eventId,
       type: createSpec.type,
+      sport: createSpec.sport,
       title: sportLabel,
       subtitle: 'Synced from COROS',
       date: local.date,

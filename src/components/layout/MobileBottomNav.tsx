@@ -1,9 +1,14 @@
 import { useState } from 'react';
-import { CalendarDays, BarChart2, Dumbbell, Plus, UtensilsCrossed } from 'lucide-react';
+import { CalendarDays, BarChart2, MessageSquare, Dumbbell, Plus, UtensilsCrossed } from 'lucide-react';
 import { useCalendar } from '../../context/calendar';
 import { toDateString } from '../../utils/dateHelpers';
 
-export type MobileTab = 'calendar' | 'analytics';
+// 'coach' was labeled 'analytics' before phase 35 shipped a real analytics
+// view — the tab always swapped in the chat sidebar (the CSS keys off
+// data-mobile-tab="coach"). Analytics itself is not a tab: it opens the
+// full-screen dashboard overlay, so the button dispatches OPEN_ANALYTICS
+// and shows active while that overlay is up.
+export type MobileTab = 'calendar' | 'coach';
 
 interface Props {
   activeTab: MobileTab;
@@ -57,9 +62,18 @@ export default function MobileBottomNav({ activeTab, onChange }: Props) {
         </button>
       </div>
       <button
-        className={`mobile-nav__tab${activeTab === 'analytics' ? ' mobile-nav__tab--active' : ''}`}
-        onClick={() => onChange('analytics')}
-        aria-selected={activeTab === 'analytics'}
+        className={`mobile-nav__tab${activeTab === 'coach' ? ' mobile-nav__tab--active' : ''}`}
+        onClick={() => onChange('coach')}
+        aria-selected={activeTab === 'coach'}
+      >
+        <MessageSquare size={22} strokeWidth={1.5} />
+        <span>Coach</span>
+      </button>
+      <button
+        className={`mobile-nav__tab${state.analyticsOpen ? ' mobile-nav__tab--active' : ''}`}
+        onClick={() => dispatch({ type: 'OPEN_ANALYTICS' })}
+        aria-selected={state.analyticsOpen}
+        data-testid="mobile-nav-analytics"
       >
         <BarChart2 size={22} strokeWidth={1.5} />
         <span>Analytics</span>

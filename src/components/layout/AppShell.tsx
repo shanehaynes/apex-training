@@ -9,6 +9,7 @@ import AddMealView from '../composer/AddMealView';
 import TrackerView from '../tracker/TrackerView';
 import LibraryView from '../library/LibraryView';
 import BlocksView from '../blocks/BlocksView';
+import AnalyticsView from '../analytics/AnalyticsView';
 import ProfileView from '../profile/ProfileView';
 import OnboardingHost from '../onboarding/OnboardingHost';
 import MobileBottomNav from './MobileBottomNav';
@@ -55,6 +56,7 @@ export default function AppShell() {
       {state.trackingSession && <TrackerView />}
       {state.libraryOpen && <LibraryView />}
       {state.blocksOpen && <BlocksView />}
+      {state.analyticsOpen && <AnalyticsView />}
       {state.profileOpen && <ProfileView />}
       <OnboardingHost />
       <Toasts />

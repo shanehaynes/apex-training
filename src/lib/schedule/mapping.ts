@@ -30,6 +30,7 @@ export function rowToEvent(row: WorkoutEventRow): WorkoutEvent {
     tags:              row.tags ?? [],
     equipment:         row.equipment ?? [],
     source:            (row.source ?? undefined) as WorkoutEvent['source'],
+    sport:             (row.sport ?? undefined) as WorkoutEvent['sport'],
     templateId:        row.template_id ?? undefined,
     scoringType:       (row.scoring_type ?? undefined) as WorkoutEvent['scoringType'],
     timeCapMinutes:    row.time_cap_minutes ?? undefined,
@@ -82,6 +83,10 @@ const EVENT_FIELDS: {
   // Key omitted when unset so inserts keep working before the phase 27
   // source column migration has been applied.
   source:            v => (v === undefined ? {} : { source: v }),
+  // Same guard as source: emit the column only when the caller has a value
+  // (or an explicit null to clear), so full-row inserts stay valid against
+  // a database the phase37 migration hasn't reached yet.
+  sport:             v => (v === undefined ? {} : { sport: v }),
   // Keys omitted when unset so inserts keep working before the phase 33
   // template/scoring column migration has been applied.
   templateId:        v => (v === undefined ? {} : { template_id: v }),

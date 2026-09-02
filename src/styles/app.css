@@ -1260,10 +1260,10 @@
   }
 
   /* Show analytics sidebar when that tab is active */
-  .app-shell[data-mobile-tab="analytics"] .app-main {
+  .app-shell[data-mobile-tab="coach"] .app-main {
     display: none;
   }
-  .app-shell[data-mobile-tab="analytics"] .app-sidebar {
+  .app-shell[data-mobile-tab="coach"] .app-sidebar {
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -1703,6 +1703,39 @@
 .chat-sidebar__model {
   font-size: var(--text-xs);
   color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* The model badge, made selectable (CoachModelPicker). Styled to read as the
+   badge it replaced until hovered/focused, so the header stays quiet. */
+.chat-sidebar__model-select {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  max-width: 60%;
+  cursor: pointer;
+  transition: border-color var(--duration-fast), color var(--duration-fast);
+}
+
+.chat-sidebar__model-select:hover {
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+
+.chat-sidebar__model-select:focus-visible {
+  outline: none;
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+/* Native option lists don't inherit the transparent background. */
+.chat-sidebar__model-select option {
+  background: var(--bg-surface);
+  color: var(--text-primary);
   font-family: var(--font-mono);
 }
 
@@ -4352,6 +4385,14 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   border-color: #3d3530;
 }
 
+/* Sport picker (phase 37): same button language as the scoring toggle. */
+.builder-sport {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
 .builder-scoring {
   display: flex;
   flex-direction: column;
@@ -4363,7 +4404,8 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   gap: 8px;
 }
 
-.builder-scoring__btn {
+.builder-scoring__btn,
+.builder-sport__btn {
   padding: 8px 16px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -4376,7 +4418,8 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   transition: border-color var(--duration-fast), color var(--duration-fast);
 }
 
-.builder-scoring__btn:hover {
+.builder-scoring__btn:hover,
+.builder-sport__btn:hover {
   border-color: #3d3530;
 }
 
@@ -4806,6 +4849,21 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   text-align: center;
 }
 
+/* Why the visitor landed here (a spent invite or reset link), as opposed to
+   what their last submit did. Boxed and above the toggle so it reads as the
+   state of the arrival and survives switching between sign-in and create. */
+.auth-banner {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: var(--radius-md);
+  background: rgba(248, 113, 113, 0.08);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: #f87171;
+  text-align: center;
+}
+
 /* ── Error boundary (last-resort crash screen) ─────────────────────────── */
 
 .error-boundary__title {
@@ -4885,6 +4943,103 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   letter-spacing: 0.1em;
   color: var(--text-muted);
   font-weight: 600;
+}
+
+/* Second level of hierarchy above the sections: "You", "AI", "Connections",
+   "Activity". Brighter and ruled, so a section title never reads as a group. */
+.profile-group {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.profile-group__title {
+  font-size: var(--text-sm);
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Collapsible section (ProfileDisclosure) — set-once settings, so the screen
+   opens on the handful of fields that are actually revisited. */
+.profile-fold {
+  gap: 0;
+}
+
+.profile-fold__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-fold__toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.profile-fold__chevron {
+  flex: none;
+  color: var(--text-muted);
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+
+.profile-fold--open .profile-fold__chevron {
+  transform: rotate(90deg);
+}
+
+/* Title takes the slack so the status and thumb sit right, in either order
+   and whether or not both are present. */
+.profile-fold__toggle .profile-section__title {
+  margin-right: auto;
+}
+
+.profile-fold__toggle:hover .profile-section__title,
+.profile-fold__toggle:focus-visible .profile-section__title,
+.profile-fold__toggle:hover .profile-fold__chevron {
+  color: var(--text-primary);
+}
+
+/* The state the fold hides — "Saved", "Connected", "3 tokens" — stays on the
+   header, so collapsing costs controls, not information. */
+.profile-fold__status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.profile-fold__thumb {
+  display: inline-flex;
+  flex: none;
+}
+
+.profile-fold__thumb img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border-subtle);
+  display: block;
+}
+
+.profile-fold__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
 }
 
 .profile-avatars {
@@ -5319,7 +5474,7 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 
   /* On the coach tab it lands squarely on the input row and Coach's Notes —
      same reason OnboardingHost hides it behind full-screen overlays. */
-  .app-shell[data-mobile-tab="analytics"] .setup-nudge { display: none; }
+  .app-shell[data-mobile-tab="coach"] .setup-nudge { display: none; }
 
   /* .modal turns into a bottom sheet here, so the footer buttons would
      otherwise sit under the home indicator. */
@@ -6706,3 +6861,491 @@ ol.legal__list { list-style: decimal outside; }
 }
 
 .account-data__confirm-actions { display: flex; gap: 8px; }
+
+/* ============================================================
+   ANALYTICS DASHBOARD (phase 35)
+   ============================================================ */
+
+.analytics-view {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.analytics-body {
+  flex: 1;
+  padding: 16px 20px 40px;
+}
+
+.analytics-empty {
+  margin-top: 48px;
+}
+
+/* Mobile: tiles as a stacked list ordered by grid position. */
+.analytics-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.analytics-stack__item {
+  height: 260px;
+}
+
+/* ── Tile cards ─────────────────────────────────────────────── */
+
+.tile-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.tile-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px 8px;
+  cursor: grab;
+  user-select: none;
+}
+
+.react-draggable-dragging .tile-card__header { cursor: grabbing; }
+
+.tile-card__title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tile-card__menu-wrap { position: relative; flex-shrink: 0; }
+
+.tile-card__menu-btn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.tile-card__menu-btn:hover { color: var(--text-primary); background: var(--bg-elevated); }
+
+.tile-card__menu {
+  position: absolute;
+  top: 30px;
+  right: 0;
+  z-index: 20;
+  min-width: 150px;
+  padding: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+}
+
+.tile-card__menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.tile-card__menu button:hover { background: var(--bg-surface); color: var(--text-primary); }
+.tile-card__menu-danger:hover { color: #fb7185 !important; }
+
+.tile-card__body {
+  flex: 1;
+  min-height: 0;
+  padding: 0 8px 8px;
+}
+
+.tile-card__foot {
+  padding: 4px 12px 8px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ── Chart internals ────────────────────────────────────────── */
+
+.tile-chart {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.tile-chart__plot { flex: 1; min-height: 0; }
+
+.tile-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 0 6px 4px;
+}
+
+.tile-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.tile-legend__dot,
+.tile-tooltip__dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+  flex-shrink: 0;
+}
+
+.tile-problem {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.tile-kpis {
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  align-content: center;
+  padding: 8px;
+}
+
+.tile-kpi { display: flex; flex-direction: column; gap: 2px; }
+
+.tile-kpi__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.tile-kpi__value {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+}
+
+.tile-kpi__value em {
+  font-style: normal;
+  font-size: var(--text-sm);
+  margin-left: 4px;
+  color: var(--text-muted);
+}
+
+.tile-kpi__sub { font-size: 10px; color: var(--text-muted); }
+
+.tile-table-wrap { height: 100%; overflow: auto; }
+
+.tile-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-xs);
+}
+
+.tile-table th,
+.tile-table td {
+  padding: 5px 8px;
+  text-align: right;
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.tile-table th:first-child,
+.tile-table td:first-child { text-align: left; color: var(--text-muted); }
+
+.tile-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* ── react-grid-layout, dark theme ──────────────────────────── */
+
+.analytics-grid .react-grid-item.react-draggable-dragging,
+.analytics-grid .react-grid-item.resizing {
+  z-index: 30;
+  opacity: 0.92;
+}
+
+.analytics-grid .react-grid-placeholder {
+  background: var(--accent-primary);
+  opacity: 0.12;
+  border-radius: var(--radius-lg);
+}
+
+.analytics-grid .react-resizable-handle {
+  opacity: 0;
+  transition: opacity var(--duration-fast);
+}
+
+.analytics-grid .react-grid-item:hover .react-resizable-handle { opacity: 0.6; }
+
+/* The library ships a light-theme arrow glyph; repaint it muted. */
+.analytics-grid .react-resizable-handle-se {
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  background-image: none;
+  width: 10px;
+  height: 10px;
+  margin: 0 4px 4px 0;
+  border-bottom-right-radius: 4px;
+}
+
+/* ── Tile builder ───────────────────────────────────────────── */
+
+.tile-builder {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.tile-builder__config {
+  flex: 1;
+  min-width: 0;
+  max-width: 560px;
+  overflow-y: auto;
+  padding: 16px 20px 40px;
+  border-right: 1px solid var(--border-subtle);
+}
+
+.tile-builder__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.tile-builder__heading {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tile-builder__preview {
+  flex: 1.2;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 20px;
+  position: sticky;
+  top: 0;
+}
+
+.tile-builder__preview-chart {
+  flex: 1;
+  min-height: 280px;
+  max-height: 60vh;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 10px;
+}
+
+.an-loading { font-size: var(--text-xs); color: var(--text-muted); }
+
+@media (max-width: 768px) {
+  .tile-builder { flex-direction: column; overflow-y: auto; }
+  .tile-builder__config { max-width: none; border-right: none; overflow-y: visible; }
+  .tile-builder__preview { position: static; padding-top: 0; }
+}
+
+/* ── Builder fields & chips ─────────────────────────────────── */
+
+.an-field { margin-bottom: 12px; }
+
+.an-field__label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.an-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.an-chip {
+  padding: 5px 10px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color var(--duration-fast), color var(--duration-fast);
+}
+
+.an-chip:hover { color: var(--text-primary); border-color: var(--text-muted); }
+
+.an-chip--active {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  background: rgba(249, 115, 22, 0.08);
+}
+
+.an-measure-group { margin-bottom: 8px; }
+
+.an-measure-group__label {
+  display: block;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.an-series {
+  margin: 16px 0;
+  padding: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.an-series__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.an-series__name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.an-series__remove {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.an-series__remove:hover { color: #fb7185; background: var(--bg-elevated); }
+
+.an-filters-toggle {
+  display: block;
+  margin: 8px 0;
+  padding: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.an-filters-toggle:hover { color: var(--text-primary); }
+
+.an-filters {
+  padding: 8px 0 0 10px;
+  border-left: 2px solid var(--border-subtle);
+}
+
+.an-add-series {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.an-add-series:hover { color: var(--text-primary); border-color: var(--text-muted); }
+
+.profile-section__hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: -4px 0 10px;
+  max-width: 52ch;
+}
+
+/* Dimmed chips: incompatible with a prior selection (sport ↔ measure). */
+.an-chip--dimmed {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.an-chip--dimmed:hover {
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
+}
+
+.an-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 4px 0 8px;
+}
+
+/* ── Analytics coach (phase-37 follow-up) ────────────────────
+   Lives UNDER the live preview in the builder's right column, so a
+   request and the chart it configures share one glance. Inner chrome
+   reuses the chat-sidebar classes. */
+
+.tile-builder__coach-toggle { margin-left: auto; }
+
+.analytics-coach {
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+  max-height: 40vh;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.analytics-coach__header {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.analytics-coach .chat-sidebar__messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}

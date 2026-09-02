@@ -47,17 +47,59 @@ test('login gate, reset mode, fabricated session, profile view', async ({ page }
 
   await page.locator('.top-nav__avatar').click();
   await expect(page.locator('.profile-view')).toBeVisible();
+  // Set-once settings are collapsed by default; the header keeps their state
+  // in view, and the controls come back on expanding.
+  const keyFold = page.locator('.profile-fold', { hasText: 'Anthropic API key' });
+  await expect(keyFold.locator('.profile-fold__status')).toHaveText('Saved · …abcd');
+  await expect(page.locator('input[aria-label="Saved API key (masked)"]')).toHaveCount(0);
+  await expect(page.locator('.profile-avatar')).toHaveCount(0);
+  await shot(page, 'auth-profile');
+
+  await page.locator('.profile-fold__toggle', { hasText: 'Avatar' }).click();
   // One tile per entry in the avatar library (src/lib/profile/avatars.ts).
   await expect(page.locator('.profile-avatar')).toHaveCount(24);
+  await keyFold.locator('.profile-fold__toggle').click();
+  await page.locator('.profile-fold__toggle', { hasText: 'Calendar feed' }).click();
 
   const feedUrls = await page.locator('.profile-feed__url')
     .evaluateAll(els => els.map(el => (el as HTMLInputElement).value));
   expect(feedUrls.some(u => u.includes('/api/calendar-feed?token=driver-ics-token')),
     'feed URL carries the profile ics token').toBe(true);
-  // AI Coach section: masked key + Replace/Remove (stubbed hasKey=true).
+  // API key fold: masked key + Replace/Remove (stubbed hasKey=true).
   expect(feedUrls.some(u => u === 'sk-ant-…abcd'),
-    'AI Coach section shows the masked key').toBe(true);
+    'the API key fold shows the masked key').toBe(true);
   const keyButtons = await page.locator('.profile-feed .btn-today').allTextContents();
   expect(keyButtons.map(t => t.trim())).toEqual(expect.arrayContaining(['Replace', 'Remove']));
-  await shot(page, 'auth-profile');
+  await shot(page, 'auth-profile-expanded');
+});
+
+// The landing an expired or already-clicked invite produces. GoTrue verifies
+// the token itself and, on refusal, redirects to the app with no session and
+// the reason in the fragment — this is the live project's exact wording,
+// captured with a bogus token. The visitor must be told; the tab they reach
+// for next is create-account, which is closed, so losing this message on the
+// switch leaves them staring at "accounts are created by invitation".
+test('a spent invite link explains itself, and keeps explaining after the tab switch', async ({ page }) => {
+  test.skip(!supabaseRef(), 'offline mode has no auth gate — nothing to drive');
+
+  await page.goto('/#error=access_denied&error_code=otp_expired'
+    + '&error_description=Email+link+is+invalid+or+has+expired&sb=');
+
+  const banner = page.getByTestId('auth-link-error');
+  await expect(banner).toBeVisible({ timeout: 20000 });
+  await expect(banner).toContainText('expired, or it has already been used');
+  await shot(page, 'auth-link-expired');
+
+  // Every mode this card has, including the one the loop ran through:
+  // create-account, whose invite-only note used to be all that was left.
+  await page.locator('.auth-toggle__option', { hasText: 'Create account' }).click();
+  await expect(page.locator('.auth-hint')).toHaveText('Account creation is invite only.');
+  await expect(banner, 'the reason survives the switch to create').toBeVisible();
+
+  await page.locator('.auth-toggle__option', { hasText: 'Sign in' }).click();
+  await expect(banner, 'and the switch back').toBeVisible();
+
+  await page.locator('.auth-link', { hasText: 'Forgot' }).click();
+  await expect(page.locator('.auth-toggle')).toHaveCount(0);
+  await expect(banner, 'and reset mode, which hides the toggle').toBeVisible();
 });

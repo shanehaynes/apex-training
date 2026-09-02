@@ -12,6 +12,15 @@ import AcceptanceCheckbox from '../legal/AcceptanceCheckbox';
 // primary modes share the email/password fields and differ only in button
 // label, password autocomplete, and that one note — a segmented toggle, not
 // a second form, keeps the card from growing.
+//
+// Two errors live here and they are not the same thing. A form error belongs
+// to the submit that produced it and dies with the next one. A *link* error
+// says why the visitor is looking at this card at all — their invite link was
+// spent — so it sits above the toggle and outlives every mode switch. It used
+// to seed the form error instead, which meant one tap on "Create account"
+// silently erased the only explanation on offer and replaced it with
+// "accounts are created by invitation" — the exact loop an expired invite
+// puts someone in.
 
 type Mode = 'signIn' | 'create' | 'reset' | 'resetSent' | 'confirmSent';
 
@@ -20,7 +29,7 @@ export default function LoginView() {
   const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(linkError);
+  const [error, setError] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -92,6 +101,10 @@ export default function LoginView() {
           <span className="top-nav__logo">APEX</span>
           <span className="top-nav__sub">Training</span>
         </div>
+
+        {linkError && mode !== 'resetSent' && mode !== 'confirmSent' && (
+          <p className="auth-banner" data-testid="auth-link-error">{linkError.message}</p>
+        )}
 
         {(mode === 'signIn' || mode === 'create') && (
           <div className="auth-toggle" role="group" aria-label="Sign in or create account">

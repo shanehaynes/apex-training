@@ -1,5 +1,4 @@
 import { describeDatedRecord, formatMinutes, formatNumber, formatUnitMap, formatWeight, shortDate } from './formats.js';
-import { COACH_MODEL } from '../coach/model.js';
 import type { ReviewStats, YearlyStats } from './types.js';
 
 // ─── AI recap: the model's entire view of the period ─────────────────────────
@@ -7,7 +6,6 @@ import type { ReviewStats, YearlyStats } from './types.js';
 // figure is pre-computed by stats.ts and rendered here as plain text; the
 // model narrates it and is explicitly forbidden from inventing numbers.
 
-export const REVIEW_MODEL = COACH_MODEL;
 export const MONTHLY_MAX_TOKENS = 400;
 export const YEARLY_MAX_TOKENS = 800;
 
