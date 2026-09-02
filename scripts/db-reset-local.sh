@@ -95,7 +95,7 @@ done
 # swallows the clicks of every live e2e spec. The first-run flow itself is
 # covered by e2e/mock/onboarding.spec.ts against an explicit fresh stub.
 # Fixture users need a CURRENT terms acceptance, for the same reason the
-# profiles above need onboarding_dismissed_at: without one the phase36 gate
+# profiles above need onboarding_dismissed_at: without one the phase39 gate
 # in requireUser 403s every /api/* call, and every live e2e spec fails on an
 # empty calendar with no visible cause. Versions are read from
 # src/lib/legal/versions.ts rather than hardcoded here, so bumping a version

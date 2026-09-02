@@ -1,5 +1,5 @@
 -- ============================================================
--- APEX TRAINING — Phase 36 Migration: terms acceptance ledger
+-- APEX TRAINING — Phase 39 Migration: terms acceptance ledger
 -- Run this in: Supabase Dashboard → SQL Editor → New query
 --
 -- Run BEFORE deploying the clickwrap code — the acceptance handler and the

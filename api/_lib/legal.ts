@@ -9,7 +9,7 @@ import { PRIVACY_VERSION, TERMS_VERSION } from '../../src/lib/legal/versions.js'
 // edit away from not existing.
 //
 // Two responsibilities:
-//   1. Record an acceptance (append-only — see the phase36 migration).
+//   1. Record an acceptance (append-only — see the phase39 migration).
 //   2. Answer "has this user accepted the current versions?" for the gate
 //      folded into requireUser, which every JWT-authed handler already calls.
 //
@@ -75,7 +75,7 @@ export function isCurrent(status: AcceptanceStatus | null): boolean {
  * The gate's question. FAILS CLOSED, unlike the rate limiter next door: a
  * limiter that fails open costs us some quota, whereas a consent gate that
  * fails open lets an induced database error bypass consent entirely. The
- * cost of the choice is that an unapplied phase36 migration 403s every
+ * cost of the choice is that an unapplied phase39 migration 403s every
  * authenticated request — which is why the migration says to run it first,
  * and why the failure is logged under a stable, grep-able tag.
  */
@@ -113,7 +113,7 @@ export function clientUserAgent(req: VercelRequest): string | null {
 }
 
 /**
- * Write an acceptance. Always an INSERT: the phase36 trigger rejects UPDATE
+ * Write an acceptance. Always an INSERT: the phase39 trigger rejects UPDATE
  * outright, and the whole point of the table is that accepting v2 leaves the
  * v1 row standing as evidence of what was agreed when.
  */
