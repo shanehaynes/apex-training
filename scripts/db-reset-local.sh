@@ -52,7 +52,8 @@ DROP TABLE IF EXISTS
   definition_mutations_log, exercise_definitions,
   workout_cardio_logs, workout_set_logs, workout_sessions,
   event_mutations_log, recurring_exceptions, workout_events,
-  workout_completion_log, workout_completions
+  workout_completion_log, workout_completions,
+  terms_acceptances
   CASCADE;
 DELETE FROM auth.users;
 SQL
@@ -93,6 +94,23 @@ done
 # brand-new accounts. The welcome flow then renders over the calendar and
 # swallows the clicks of every live e2e spec. The first-run flow itself is
 # covered by e2e/mock/onboarding.spec.ts against an explicit fresh stub.
+# Fixture users need a CURRENT terms acceptance, for the same reason the
+# profiles above need onboarding_dismissed_at: without one the phase39 gate
+# in requireUser 403s every /api/* call, and every live e2e spec fails on an
+# empty calendar with no visible cause. Versions are read from
+# src/lib/legal/versions.ts rather than hardcoded here, so bumping a version
+# does not silently leave this seed one release behind.
+echo "── recording terms acceptance for the fixture users"
+LEGAL_VERSIONS=$(npx --yes tsx -e \
+  "import {TERMS_VERSION, PRIVACY_VERSION} from './src/lib/legal/versions.ts'; console.log(TERMS_VERSION + ' ' + PRIVACY_VERSION)")
+TERMS_VERSION=${LEGAL_VERSIONS%% *}
+PRIVACY_VERSION=${LEGAL_VERSIONS##* }
+docker exec -i "$DB_CONTAINER" psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres <<SQL
+INSERT INTO terms_acceptances (user_id, terms_version, privacy_version, ip, user_agent)
+SELECT id, '$TERMS_VERSION', '$PRIVACY_VERSION', '127.0.0.1', 'db-reset-local.sh fixture'
+FROM auth.users;
+SQL
+
 echo "── backfilling profiles for pre-trigger users"
 docker exec -i "$DB_CONTAINER" psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres <<'SQL'
 INSERT INTO profiles (id, display_name, avatar_key, onboarding_dismissed_at)

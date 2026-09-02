@@ -2,6 +2,7 @@ import { defineConfig, configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import vercelApiPlugin from './dev/vercelApiPlugin.ts'
+import legalDocsPlugin from './dev/legalDocsPlugin.ts'
 import { devPort, previewPort } from './dev/port.mjs'
 import { assertProdEnv } from './dev/envGuard.mjs'
 
@@ -12,7 +13,7 @@ export default defineConfig(({ command }) => {
   assertProdEnv({ command })
 
   return {
-    plugins: [react(), tailwindcss(), vercelApiPlugin()],
+    plugins: [react(), tailwindcss(), vercelApiPlugin(), legalDocsPlugin()],
     test: {
       // e2e/ holds Playwright specs, run via `npx playwright test` — not vitest.
       // .claude/ holds session worktrees whose copies of the repo would

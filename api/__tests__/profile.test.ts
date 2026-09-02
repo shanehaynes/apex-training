@@ -36,6 +36,8 @@ const mockedAdmin = vi.mocked(getSupabaseAdmin);
 
 interface AdminState {
   key: string | null;
+  /** Latest terms_acceptances row; null (the default) = never accepted. */
+  acceptance?: Record<string, unknown> | null;
   upserted?: Record<string, unknown>;
   deleted?: boolean;
   profileUpdate?: Record<string, unknown>;
@@ -45,15 +47,20 @@ interface AdminState {
 function makeAdmin(state: AdminState) {
   return {
     from(table: string) {
+      // GET also reads the terms ledger, whose query adds .order().limit()
+      // before .maybeSingle().
+      const rowFor = (t: string) =>
+        t === 'terms_acceptances'
+          ? state.acceptance ?? null
+          : (state.key ? { anthropic_api_key: state.key } : null);
       return {
-        select: () => ({
-          eq: () => ({
-            maybeSingle: async () => ({
-              data: state.key ? { anthropic_api_key: state.key } : null,
-              error: null,
-            }),
-          }),
-        }),
+        select: () => {
+          const leaf: Record<string, unknown> = {};
+          leaf.maybeSingle = async () => ({ data: rowFor(table), error: null });
+          leaf.order = () => leaf;
+          leaf.limit = () => leaf;
+          return { eq: () => leaf };
+        },
         upsert: async (row: Record<string, unknown>) => {
           state.upserted = row;
           state.key = row.anthropic_api_key as string;
@@ -112,7 +119,12 @@ describe('GET /api/profile', () => {
     const { res, statusCode, body } = makeRes();
     await handler(makeReq('GET'), res);
     expect(statusCode()).toBe(200);
-    expect(body()).toEqual({ hasAnthropicKey: false, anthropicKeyLast4: null });
+    // GET also reports the acceptance state — the one call a terms-gated
+    // user can still make, and so the only way the client learns the modal
+    // is due (see loadKeyStatus in AuthContext.tsx).
+    expect(body()).toEqual({
+      hasAnthropicKey: false, anthropicKeyLast4: null, termsAccepted: null, termsCurrent: false,
+    });
   });
 
   it('reports masked last-4 when a key is stored — never the key itself', async () => {
@@ -120,7 +132,9 @@ describe('GET /api/profile', () => {
     const { res, statusCode, body } = makeRes();
     await handler(makeReq('GET'), res);
     expect(statusCode()).toBe(200);
-    expect(body()).toEqual({ hasAnthropicKey: true, anthropicKeyLast4: 'tail' });
+    expect(body()).toEqual({
+      hasAnthropicKey: true, anthropicKeyLast4: 'tail', termsAccepted: null, termsCurrent: false,
+    });
     expect(JSON.stringify(body())).not.toContain('secret');
   });
 });
@@ -256,7 +270,7 @@ describe('PATCH /api/profile — at-rest key encryption', () => {
     const { res, statusCode, body } = makeRes();
     await handler(makeReq('GET'), res);
     expect(statusCode()).toBe(200);
-    expect(body()).toEqual({ hasAnthropicKey: true, anthropicKeyLast4: 'wxyz' });
+    expect(body()).toMatchObject({ hasAnthropicKey: true, anthropicKeyLast4: 'wxyz' });
   });
 });
 

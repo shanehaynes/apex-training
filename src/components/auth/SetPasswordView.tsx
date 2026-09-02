@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/auth';
+import AcceptanceCheckbox from '../legal/AcceptanceCheckbox';
 
 // Set-a-password screen, reached two ways with an active session already in
 // place: a dashboard invite link (first login) or a password recovery link.
@@ -8,14 +9,25 @@ import { useAuth } from '../../context/auth';
 // sign-in later).
 
 export default function SetPasswordView() {
-  const { setNewPassword, session, signOut } = useAuth();
+  const { setNewPassword, acceptTerms, termsStatus, session, signOut } = useAuth();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Recovery links reach this screen too, and an existing user resetting a
+  // password has already accepted — asking again would be noise. The
+  // checkbox appears only when the ledger has nothing current for them,
+  // which for an invited user is always.
+  const needsAcceptance = termsStatus === null || !termsStatus.current;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (needsAcceptance && !accepted) {
+      setError('Please accept the Terms of Service and Privacy Policy to continue.');
+      return;
+    }
     if (password.length < 8) {
       setError('Password must be at least 8 characters.');
       return;
@@ -27,7 +39,20 @@ export default function SetPasswordView() {
     setIsSubmitting(true);
     setError(null);
     const err = await setNewPassword(password);
-    if (err) setError(err);
+    if (err) {
+      setError(err);
+      setIsSubmitting(false);
+      return;
+    }
+    // After the password lands, not before: the session is already valid
+    // here, but recording acceptance only once the account is genuinely
+    // usable keeps the ledger free of rows for abandoned set-ups.
+    if (needsAcceptance) {
+      const acceptErr = await acceptTerms();
+      // Non-fatal: the account works, and the gate modal will ask again on
+      // the next load. Better than stranding them on this screen.
+      if (acceptErr) console.warn('[apex] acceptance not recorded at set-password:', acceptErr);
+    }
     setIsSubmitting(false);
   };
 
@@ -80,9 +105,22 @@ export default function SetPasswordView() {
             />
           </label>
 
+          {needsAcceptance && (
+            <AcceptanceCheckbox
+              id="accept-legal-invite"
+              checked={accepted}
+              onChange={setAccepted}
+              disabled={isSubmitting}
+            />
+          )}
+
           {error && <p className="auth-error">{error}</p>}
 
-          <button type="submit" className="auth-submit" disabled={isSubmitting}>
+          <button
+            type="submit"
+            className="auth-submit"
+            disabled={isSubmitting || (needsAcceptance && !accepted)}
+          >
             {isSubmitting ? 'Saving…' : 'Set password'}
           </button>
           <button type="button" className="auth-link" onClick={() => signOut()}>

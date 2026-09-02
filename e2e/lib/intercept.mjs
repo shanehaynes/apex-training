@@ -52,12 +52,35 @@ export function isExpectedConsoleError(msg) {
   return url.includes(MOCK_SUPABASE.ref) || msg.text().includes(MOCK_SUPABASE.ref);
 }
 
+// Hardcoded because this file is plain .mjs (node imports it directly from
+// scripts/drive.mjs) and cannot import the .ts constants. Pinned against
+// src/lib/legal/versions.ts by src/lib/legal/__tests__/documents.test.ts, so
+// bumping a version fails the suite here rather than silently leaving every
+// mock spec staring at an acceptance modal.
+const MOCK_ACCEPTANCE = {
+  termsVersion: 'terms-v1',
+  privacyVersion: 'privacy-v1',
+  acceptedAt: '2026-08-29T00:00:00.000Z',
+};
+
+/** What a user who accepted an EARLIER release looks like — the state the
+ *  re-acceptance modal exists for. Selected by the staleTerms fixture. */
+const STALE_ACCEPTANCE = {
+  termsVersion: 'terms-v0',
+  privacyVersion: 'privacy-v0',
+  acceptedAt: '2026-01-15T00:00:00.000Z',
+};
+
 /**
  * Install the mock-profile stubs on a BrowserContext.
  * `profile` is the stubbed own-profile row (see driverProfile in session.mjs);
  * `anonKey` re-authorizes passthrough REST reads (null in offline mode).
  */
-export async function installIntercept(context, { anonKey = null, profile } = {}) {
+export async function installIntercept(context, { anonKey = null, profile, staleTerms = false } = {}) {
+  // `accepted` is what GET /api/profile reports back; `current` false is what
+  // raises the blocking gate in AuthGate.
+  const acceptance = staleTerms ? STALE_ACCEPTANCE : MOCK_ACCEPTANCE;
+  const termsCurrent = !staleTerms;
   // The design tokens @import Google Fonts — the one external fetch in an
   // otherwise hermetic suite, and a real flake source: Claude remote-sandbox
   // egress proxies reset it, which failed every spec via the console-error
@@ -93,12 +116,29 @@ export async function installIntercept(context, { anonKey = null, profile } = {}
         ? { id: 'mock-token-1', token: 'apx_mock-token-not-real' }
         : { tokens: [] });
     }
+    // Terms acceptance: the driven profile is a settled user who has already
+    // accepted, so the blocking gate never covers the app under test. Specs
+    // that want the gate install their own page.route (which outranks this).
+    if (url.includes('/api/terms-acceptance')) {
+      // POST is the accept action: it always returns the CURRENT versions,
+      // which is what lets a spec click through the gate and see the app.
+      return json(route, req.method() === 'POST'
+        ? { accepted: MOCK_ACCEPTANCE, current: true }
+        : { accepted: acceptance, current: termsCurrent });
+    }
     // Key status for the AI Coach: hasAnthropicKey=true keeps the coach UI
-    // live (a false would swap in the setup prompt).
+    // live (a false would swap in the setup prompt). termsCurrent is stated
+    // explicitly rather than left absent — an omitted field also happens to
+    // suppress the gate, which would make every spec pass for the wrong
+    // reason the day that default changes.
     if (url.includes('/api/profile')) {
-      return json(route, req.method() === 'GET'
-        ? { hasAnthropicKey: true, anthropicKeyLast4: 'abcd' }
-        : { ok: true, hasAnthropicKey: true, anthropicKeyLast4: 'abcd' });
+      const status = {
+        hasAnthropicKey: true,
+        anthropicKeyLast4: 'abcd',
+        termsAccepted: acceptance,
+        termsCurrent,
+      };
+      return json(route, req.method() === 'GET' ? status : { ok: true, ...status });
     }
     // Provider sync (COROS): unconfigured by default so the toolbar button
     // stays hidden in every spec that doesn't opt in. The sync spec installs

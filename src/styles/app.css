@@ -6629,6 +6629,240 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 }
 
 /* ============================================================
+   LEGAL (/terms, /privacy)
+   Long-form reading, so this deliberately breaks with the app's
+   dense layout: one measure-limited column, generous leading, and
+   type that scales down rather than reflowing on a phone.
+   ============================================================ */
+
+.legal-screen {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  padding: 24px 20px 96px;
+}
+
+.legal {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.legal__nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 20px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.legal__nav-link {
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+.legal__nav-link:hover { color: var(--text-primary); }
+
+.legal__body {
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: 300;
+  line-height: 1.7;
+}
+
+.legal__body strong { color: var(--text-primary); font-weight: 600; }
+
+.legal__body a {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legal__h1 {
+  color: var(--text-primary);
+  font-family: var(--font-wordmark);
+  font-size: var(--text-3xl);
+  letter-spacing: 0.02em;
+  margin: 0 0 8px;
+}
+
+.legal__h2 {
+  color: var(--text-primary);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  margin: 44px 0 12px;
+}
+
+.legal__h3 {
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  margin: 28px 0 10px;
+}
+
+.legal__p { margin: 0 0 16px; }
+
+/* Tailwind's preflight clears list-style globally, so the markers have to
+   be asked for by name — without this the clauses read as loose paragraphs. */
+ul.legal__list { list-style: disc outside; }
+ol.legal__list { list-style: decimal outside; }
+.legal__list { margin: 0 0 16px; padding-left: 22px; }
+.legal__list li { margin-bottom: 8px; }
+.legal__list li::marker { color: var(--text-muted); }
+
+.legal__code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+}
+
+.legal__rule {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: 36px 0;
+}
+
+/* Tables carry the data-category disclosures, which are the part of the
+   privacy policy most worth reading — so they scroll themselves rather
+   than squeezing to unreadable column widths on a phone. */
+.legal__table-wrap {
+  overflow-x: auto;
+  margin: 0 0 20px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.legal__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.legal__table th,
+.legal__table td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: top;
+}
+
+.legal__table th {
+  color: var(--text-primary);
+  font-weight: 600;
+  background: var(--bg-surface);
+  white-space: nowrap;
+}
+
+.legal__table tr:last-child td { border-bottom: none; }
+
+@media (max-width: 600px) {
+  .legal-screen { padding: 16px 16px 72px; }
+  .legal__body { font-size: var(--text-sm); }
+  .legal__h2 { margin-top: 36px; }
+}
+
+/* ============================================================
+   CLICKWRAP (acceptance checkbox, terms gate, account data)
+   ============================================================ */
+
+/* The links sit inside the label, adjacent to the box — that adjacency is
+   the point (see AcceptanceCheckbox.tsx), so nothing here may move them. */
+.legal-accept {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+}
+
+.legal-accept__box {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+.legal-accept__box:disabled { cursor: default; opacity: 0.5; }
+
+.legal-accept__label {
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.legal-accept__label a {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legal-accept__versions {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.legal-accept__previous {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.legal-accept__summary {
+  list-style: none;
+  margin: 4px 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--text-sm);
+}
+
+.legal-accept__summary a {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.account-data__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-data__danger-note { margin-top: 20px; }
+
+.account-data__danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-weights-border);
+  border-color: var(--color-weights-border);
+}
+
+.account-data__danger:disabled { opacity: 0.45; }
+
+.account-data__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 14px;
+  border: 1px solid var(--color-weights-border);
+  border-radius: var(--radius-md);
+  background: var(--color-weights-light);
+}
+
+.account-data__confirm-actions { display: flex; gap: 8px; }
+
+/* ============================================================
    ANALYTICS DASHBOARD (phase 35)
    ============================================================ */
 

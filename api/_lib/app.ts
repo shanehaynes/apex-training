@@ -23,6 +23,8 @@ import providerSync from './handlers/providerSync.js';
 import providerCallback from './handlers/providerCallback.js';
 import providerCron from './handlers/providerCron.js';
 import version from './handlers/version.js';
+import termsAcceptance from './handlers/termsAcceptance.js';
+import account from './handlers/account.js';
 import { handleTrainingBlocks } from './trainingBlocks.js';
 import { handleMeals } from './meals.js';
 import { handleMealFavorites } from './mealFavorites.js';
@@ -86,6 +88,11 @@ app.all('/provider-cron', bridge(providerCron));
 // Deployed-build identity for scripts/deploy-verify.sh: the commit SHA
 // Vercel stamped on this build. Unauthenticated — the repo is public.
 app.all('/version', bridge(version));
+// Clickwrap: recording an acceptance, and the account's own data rights.
+// Both are exempt from the terms gate in requireUser — accepting is how a
+// blocked user unblocks, and export/delete must not be held hostage to it.
+app.all('/terms-acceptance', bridge(termsAcceptance));
+app.all('/account', bridge(account));
 // Distinctive message: if /api/chat (or another standalone route) ever lands
 // here, filesystem precedence over the catch-all broke — see the plan's
 // preview-deploy curl matrix.

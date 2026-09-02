@@ -12,6 +12,7 @@ import CoachActivity from './CoachActivity';
 import McpTokens from './McpTokens';
 import ConnectorGuide from './ConnectorGuide';
 import CorosConnection from './CorosConnection';
+import AccountData from './AccountData';
 import ProfileDisclosure from './ProfileDisclosure';
 import type { AvatarKey } from '../../lib/db/types';
 
@@ -432,6 +433,8 @@ export default function ProfileView() {
           <h2 className="profile-group__title">Activity</h2>
           <CoachActivity />
         </div>
+
+        <AccountData />
 
         <section className="profile-section">
           <button className="profile-signout" onClick={() => signOut()}>

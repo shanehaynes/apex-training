@@ -5,6 +5,7 @@ import { resolveMcpToken } from '../mcp/tokens.js';
 import { handleMcpMessage, isJsonRpcRequest, RPC_INVALID_REQUEST, RPC_PARSE_ERROR } from '../mcp/protocol.js';
 import { MCP_TOOLS } from '../mcp/toolRegistry.js';
 import { OAUTH_SCOPE, publicOrigin } from '../oauth/common.js';
+import { hasAcceptedCurrent, TERMS_REQUIRED_BODY } from '../legal.js';
 
 // Remote MCP server endpoint (Streamable HTTP, stateless). One POST per
 // JSON-RPC message, application/json back — the 2025-06-18 spec allows a
@@ -38,6 +39,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `Bearer realm="apex-training", resource_metadata="${publicOrigin(req)}/.well-known/oauth-protected-resource", scope="${OAUTH_SCOPE}"`,
     );
     res.status(401).send('Missing or invalid access token. Connect via OAuth, or mint a token in Apex Training → Profile → AI connector.');
+    return;
+  }
+
+  // The token's owner is gated too. A user who has not accepted the current
+  // terms should not have third-party clients reading their training data on
+  // their behalf — the consent that matters here is the account holder's,
+  // and the MCP client cannot give it for them. This path does not go
+  // through requireUser (token auth, not JWT), so the check is explicit.
+  if (!(await hasAcceptedCurrent(supabase, userId))) {
+    res.status(403).send(`${TERMS_REQUIRED_BODY} — sign in to Apex Training and accept the updated terms to restore API access.`);
     return;
   }
 

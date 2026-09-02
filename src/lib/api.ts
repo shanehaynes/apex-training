@@ -80,6 +80,52 @@ export function deleteJson<T = unknown>(path: string, label: string, body?: unkn
   return requestJson<T>('DELETE', path, body, label);
 }
 
+// ── Legal acceptance and account data rights ──────────────────────────────────
+
+/** One row of the append-only acceptance ledger, as /api/* reports it. */
+export interface AcceptanceStatus {
+  termsVersion: string;
+  privacyVersion: string;
+  acceptedAt: string;
+}
+
+/**
+ * Record acceptance of the current Terms and Privacy Policy. Takes no body:
+ * the versions are the server's own constants, so there is nothing for the
+ * client to assert (api/_lib/legal.ts).
+ */
+export function acceptTerms(): Promise<{ accepted: AcceptanceStatus; current: boolean }> {
+  return postJson('/api/terms-acceptance', undefined, 'Recording acceptance');
+}
+
+/**
+ * Download the account export. Deliberately not getJson: the response is a
+ * file attachment the user saves, so it goes straight to a blob and never
+ * through the JSON parser.
+ */
+export async function downloadAccountExport(): Promise<void> {
+  const res = await fetch('/api/account', { headers: await authHeaders() });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    console.warn(`[apex] Export failed (${res.status}):`, detail);
+    notify('Export failed');
+    throw new ApiError(detail || 'Export failed', res.status);
+  }
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `apex-training-export-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** Irreversible. The confirm string is checked server-side too. */
+export function deleteAccount(): Promise<{ ok: boolean }> {
+  return deleteJson('/api/account', 'Account deletion', { confirm: 'DELETE' });
+}
+
 // ── MCP connector tokens ──────────────────────────────────────────────────────
 
 export interface McpTokenInfo {

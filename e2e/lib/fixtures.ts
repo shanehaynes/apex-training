@@ -19,6 +19,13 @@ export interface ApexOptions {
   /** Stub the profile as a fresh account so the template banner renders. */
   freshProfile: boolean;
   /**
+   * Report the user as having accepted an OLDER document version, which is
+   * what raises the blocking re-acceptance gate (src/components/legal/
+   * TermsGate.tsx). Default false: every other spec needs a settled user, or
+   * the modal would sit over everything it wants to click.
+   */
+  staleTerms: boolean;
+  /**
    * Freeze the app's date-semantic clock (see src/lib/clock.ts), e.g.
    * '2026-03-02T08:00:00'. The mock project pins a default in
    * playwright.config.ts — the bundled seed only covers 2026-06-22 through
@@ -35,16 +42,19 @@ interface ApexFixtures {
 export const test = base.extend<ApexOptions & ApexFixtures>({
   sessionSeed: [true, { option: true }],
   freshProfile: [false, { option: true }],
+  staleTerms: [false, { option: true }],
   fakeNow: [null, { option: true }],
 
   // Note: the second fixture argument is Playwright's `use` continuation —
   // named `provide` here so lint doesn't mistake it for a React hook.
-  context: async ({ context, sessionSeed, freshProfile, fakeNow }, provide) => {
+  context: async ({ context, sessionSeed, freshProfile, staleTerms, fakeNow }, provide) => {
     // Pinned, not read from .env.local: specs that need an authenticated app
     // (the profile-driven onboarding flow) would otherwise pass for whoever
     // has a .env.local and fail in CI, which has none.
     const { ref, anonKey } = MOCK_SUPABASE;
-    await installIntercept(context, { anonKey, profile: driverProfile({ fresh: freshProfile }) });
+    await installIntercept(context, {
+      anonKey, profile: driverProfile({ fresh: freshProfile }), staleTerms,
+    });
     if (sessionSeed) await seedFabricatedSession(context, ref);
     if (fakeNow) {
       await context.addInitScript(v => {
