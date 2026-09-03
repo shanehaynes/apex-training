@@ -30,8 +30,10 @@ say so.
    (`api/__tests__/fixtures/emitIosFixtures.test.ts`) runs the real handlers against the local
    stack and writes canonical responses to `ios/Fixtures/`: `schedule.json`,
    `bootstrap.json`, `finish.json`, `chat-stream.ndjson`, `analytics-compute.json`,
-   `query-*.json`, `profile.json`. `swift test` decodes every file. CI's `full` job runs the
-   emitter with `--check` and fails if the committed fixtures changed.
+   `query-*.json`, `profile.json`. `swift test` decodes every file. The emitter runs inside the
+   integration suite (`api/__tests__/integration/ios-read.integration.test.ts`): by default it
+   **checks** the committed files and fails on drift; `APEX_FIXTURES_WRITE=1` regenerates them
+   after a deliberate shape change. CI's `full` job therefore checks them with no extra step.
 3. **Snapshot tests** (`swift-snapshot-testing`) in `ApexFeatures`: Day view (empty, three
    events, completed), tracker set row in each state (planned / shadow / logged / autofilled /
    extra), confirmation card, KPI and line tiles, event detail sheet. iPhone 16 and iPhone SE,

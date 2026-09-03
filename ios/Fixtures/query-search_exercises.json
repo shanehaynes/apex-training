@@ -1,0 +1,33 @@
+{
+  "tool": "search_exercises",
+  "result": {
+    "query": "fixture",
+    "total_matches": 1,
+    "exercises": [
+      {
+        "canonical_name": "Fixture Press",
+        "category": "strength",
+        "aliases": [
+          "fx press"
+        ],
+        "muscle_groups": [
+          "chest"
+        ],
+        "equipment": [
+          "barbell"
+        ],
+        "is_unilateral": false,
+        "default_prescription": {
+          "sets": null,
+          "reps": null,
+          "duration": null,
+          "weight": null,
+          "rest": null
+        },
+        "technique_notes": null,
+        "last_performed": "2026-09-08",
+        "archived": false
+      }
+    ]
+  }
+}

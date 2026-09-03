@@ -1,0 +1,10 @@
+{
+  "hasAnthropicKey": false,
+  "anthropicKeyLast4": null,
+  "termsAccepted": {
+    "termsVersion": "terms-v1",
+    "privacyVersion": "privacy-v1",
+    "acceptedAt": "<timestamp>"
+  },
+  "termsCurrent": true
+}
