@@ -9,6 +9,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 // @ts-expect-error plain-JS helper shared with the seed scripts
 import { localSupabaseEnv } from '../../scripts/lib/localEnv.mjs';
+import { buildChatContext } from '../../api/_lib/coach/context';
 
 const env = localSupabaseEnv();
 const admin = createClient(env.url, env.serviceKey, { auth: { persistSession: false } });
@@ -126,9 +127,11 @@ test('block detail renders attainment computed from real logs', async ({ page })
 });
 
 test('the coach prompt carries pre-computed block attainment', async ({ page }) => {
-  // Capture the system prompt actually sent to /api/chat — the guarantee is
-  // that the model receives the numbers already computed, plus the framing
-  // telling it not to recompute them.
+  // Since W5a the SERVER builds the system prompt: the browser sends only
+  // { mode, today, … }. So this proves two things — the client asks for the
+  // prompt with the right calendar day, and the server's builder, run here
+  // against the same stack, hands the model the numbers already computed
+  // plus the framing telling it not to recompute them.
   // The fixture user has no Anthropic key, which disables the chat input.
   // Report one as present: the key is never used, since /api/chat is stubbed.
   await page.route('**/api/profile*', async route => {
@@ -140,25 +143,29 @@ test('the coach prompt carries pre-computed block attainment', async ({ page }) 
     });
   });
 
-  let systemPrompt = '';
+  let chatBody: { mode?: string; today?: string; system?: string } | null = null;
   await page.route('**/api/chat', async route => {
-    systemPrompt = (route.request().postDataJSON() as { system?: string }).system ?? '';
+    chatBody = route.request().postDataJSON() as typeof chatBody;
     await route.fulfill({
       status: 200,
       headers: { 'Content-Type': 'application/x-ndjson' },
-      body: `${JSON.stringify({ type: 'text', text: 'ok' })}\n`,
+      body: `${JSON.stringify({ type: 'text', delta: 'ok' })}\n${JSON.stringify({ type: 'done' })}\n`,
     });
   });
 
   await signIn(page, 'agent@apex.local');
 
-  // No waiting for blocks or logs to settle first: the prompt is resolved at
-  // send time, awaiting both. Sending the instant the input is usable is
-  // exactly the race this asserts is gone.
   await page.locator('.chat-input').fill('How is this block going?');
   await page.locator('.chat-input').press('Enter');
-  await expect.poll(() => systemPrompt, { timeout: 15000 }).not.toBe('');
+  await expect.poll(() => chatBody, { timeout: 15000 }).not.toBeNull();
 
+  // The v2 body: the fake clock's calendar day, no client-built prompt.
+  expect(chatBody).toMatchObject({ mode: 'chat', today: FAKE_NOW.slice(0, 10) });
+  expect(chatBody!.system).toBeUndefined();
+
+  const { system: systemPrompt } = await buildChatContext(
+    admin as never, await userId('agent@apex.local'), 'chat', chatBody!.today,
+  );
   expect(systemPrompt).toContain('<training_block>');
   expect(systemPrompt).toContain('CURRENT BLOCK: Fall Aerobic Foundation — week 5 of 8');
   expect(systemPrompt).toContain('Objective: Liberty Ridge (target 2027-06-15)');
