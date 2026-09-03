@@ -115,6 +115,72 @@ jobs:
           path: test-results/
           retention-days: 7
 
+  # The iOS core package on Linux. This is the gate that keeps ApexCore free of
+  # Apple-only imports and dependencies (docs/ios/architecture.md rule 2) — the
+  # import grep in ci:guards catches the common case, but only a real Linux build
+  # proves it. Fast: no dependencies to resolve, no SDK.
+  apexcore-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.1"
+      - run: swift test --package-path ios/Packages/ApexCore
+
+  # The iOS app: generate the project, build it, run the unit and UI tests on a
+  # simulator.
+  #
+  # macos-26 rather than macos-15: ApexKit's manifest is swift-tools-version 6.2
+  # and the sources are Swift 6.3, which an older runner's Xcode cannot build.
+  ios:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      # An `on.paths` filter would be the obvious way to skip web-only PRs, but
+      # path filters and required checks do not compose: a required check that
+      # never starts blocks the merge queue forever. The job always runs and
+      # finishes in seconds when no iOS file changed.
+      - name: Skip when no iOS paths changed
+        run: |
+          base=$(git merge-base origin/main HEAD)
+          if git diff --quiet "$base" HEAD -- ios/ ; then
+            echo "no ios/ changes"
+            echo "skip=1" >> "$GITHUB_ENV"
+          fi
+      - run: brew install xcodegen
+        if: env.skip != '1'
+      - run: xcodegen generate --spec ios/project.yml
+        if: env.skip != '1'
+      # CODE_SIGNING_ALLOWED=NO: a simulator build needs no identity, and the
+      # runner has none. Local is the only configuration whose Supabase values
+      # are committed, so it is the only one CI can build.
+      - name: Build and test
+        if: env.skip != '1'
+        run: |
+          xcodebuild \
+            -project ios/Apex.xcodeproj \
+            -scheme Apex \
+            -configuration Local \
+            -destination 'platform=iOS Simulator,name=iPhone 17' \
+            -derivedDataPath ios/build/dd \
+            -resultBundlePath ios/build/Apex.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+      # The UI smoke signs in against a Supabase stack the runner does not have,
+      # so it skips itself there; the .xcresult is what a Linux session reads
+      # with `gh run download` when it needs to see what happened.
+      - uses: actions/upload-artifact@v7
+        if: always() && env.skip != '1'
+        with:
+          name: ios-results
+          path: ios/build/Apex.xcresult
+          retention-days: 7
+
   # Coach eval suite (deterministic checkers + LLM judge). Nightly/manual
   # only — it calls the Anthropic API, so per-PR runs would spend tokens on
   # every push. Needs the ANTHROPIC_API_KEY repo secret; without it the job
