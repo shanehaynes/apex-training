@@ -13,7 +13,76 @@
 // the stub itself — every stub needs these headers, and OPTIONS preflights
 // need an explicit 204.
 
+import { createRequire } from 'node:module';
 import { DRIVER_USER, MOCK_SUPABASE, fabricatedSession } from './session.mjs';
+// Playwright's loader resolves these TS modules (and their .js-specifier
+// internals), so the bootstrap stub builds the tracker model with the SAME
+// pure builders the server runs — no second implementation to drift.
+import { buildLastPerformance, buildTrackerModel, setExerciseNames } from '../../src/lib/tracking/plan.ts';
+import { normalizeSeedEvent } from '../../src/lib/schedule/expand.ts';
+import { baseIdOf } from '../../src/lib/schedule/occurrence.ts';
+
+const seedSchedule = createRequire(import.meta.url)('../../src/data/schedule.json');
+
+/** The stub's open session row; spread overrides for a finished one. */
+export function mockSession(overrides = {}) {
+  return {
+    id: 'driver-session', event_id: 'x', event_date: '2000-01-01',
+    started_at: new Date().toISOString(), finished_at: null,
+    total_duration_seconds: null, coach_summary: null,
+    template_id: null, score_type: null, score_time_seconds: null,
+    score_rounds: null, score_reps: null, updated_at: '',
+    ...overrides,
+  };
+}
+
+/**
+ * Fabricated prior-session rows for the given exercise names: weight, reps
+ * AND duration so every rendered input dimension gets a ghost, whatever the
+ * exercise's planned fields are. Shared by the REST history stub and the
+ * bootstrap stub so both paths agree.
+ */
+export function priorSetRows(names) {
+  return names.flatMap((name, i) => [1, 2].map(setNumber => ({
+    event_id: 'driver-prev', event_date: '2000-01-01', section: 'exercise',
+    exercise_id: `prev-${i}`, exercise_name: name, set_number: setNumber,
+    planned_weight: null, planned_reps: null, planned_duration: null,
+    actual_weight: setNumber === 1 ? '100' : '105', actual_reps: '8',
+    actual_duration: setNumber === 1 ? '0:45' : '1:00',
+    is_autofilled: false,
+  })));
+}
+
+/**
+ * What /api/workout-sessions answers in the mock profile, by action. The
+ * `bootstrap` response carries the resolved tracker model for the occurrence
+ * (seed event by base id, or `event` when a spec supplies its own), with the
+ * fabricated history as shadow ghosts. Specs that install their own
+ * page.route delegate here for everything they don't script.
+ */
+export function sessionResponse(body, { session = mockSession(), event = null } = {}) {
+  if (body.action === 'bootstrap') {
+    const base = event ?? seedSchedule.events.find(e => e.id === baseIdOf(body.eventId));
+    const resolved = base
+      ? normalizeSeedEvent({ ...base, id: body.eventId, date: body.eventDate })
+      : {
+          id: body.eventId, date: body.eventDate, type: 'weights', title: 'Workout', exercises: [],
+          estimatedDuration: 0, description: '', difficulty: 3, tags: [], isCompleted: false, isRecurring: false,
+        };
+    const history = priorSetRows(setExerciseNames(resolved));
+    const groups = buildTrackerModel(resolved, [], [], buildLastPerformance(history), new Map());
+    return { session, event: resolved, groups, scored: false, prs: [], scoreRecord: null };
+  }
+  if (body.action === 'finish') {
+    return { ok: true, totalDurationSeconds: 60, prs: [], scoreRecord: null, recap: '' };
+  }
+  return { session };
+}
+
+/** NDJSON body for the streamed coach summary stub. */
+export const MOCK_SUMMARY_NDJSON =
+  JSON.stringify({ type: 'text', delta: 'Solid session — every planned set logged.' }) + '\n' +
+  JSON.stringify({ type: 'done' }) + '\n';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -101,12 +170,12 @@ export async function installIntercept(context, { anonKey = null, profile, stale
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
 
     if (url.includes('/api/workout-sessions')) {
-      return json(route, {
-        session: {
-          id: 'driver-session', event_id: 'x', event_date: '2000-01-01',
-          started_at: new Date().toISOString(), finished_at: null,
-          total_duration_seconds: null, updated_at: '',
-        },
+      return json(route, sessionResponse(req.postDataJSON() ?? {}));
+    }
+    // The post-workout summary streams NDJSON text events (W3).
+    if (url.includes('/api/coach-summary')) {
+      return route.fulfill({
+        status: 200, contentType: 'application/x-ndjson', headers: CORS, body: MOCK_SUMMARY_NDJSON,
       });
     }
     // MCP connector tokens (profile section): empty list, and a fixed fake
@@ -194,17 +263,7 @@ export async function installIntercept(context, { anonKey = null, profile, stale
         })));
       }
       if (decoded.includes('event_date=lt.')) {
-        const names = parseNameFilter(decoded);
-        // Weight, reps, AND duration so every rendered input dimension gets a
-        // ghost, whatever the exercise's planned fields are.
-        return json(route, names.flatMap((name, i) => [1, 2].map(setNumber => ({
-          event_id: 'driver-prev', event_date: '2000-01-01', section: 'exercise',
-          exercise_id: `prev-${i}`, exercise_name: name, set_number: setNumber,
-          planned_weight: null, planned_reps: null, planned_duration: null,
-          actual_weight: setNumber === 1 ? '100' : '105', actual_reps: '8',
-          actual_duration: setNumber === 1 ? '0:45' : '1:00',
-          is_autofilled: false,
-        }))));
+        return json(route, priorSetRows(parseNameFilter(decoded)));
       }
       return json(route, []);
     }

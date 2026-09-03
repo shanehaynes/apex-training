@@ -1,5 +1,14 @@
 import type { Page } from '@playwright/test';
 import { test, expect, apexState, gotoCalendar, shot, supabaseRef } from '../lib/fixtures';
+// @ts-expect-error plain-JS helper shared with the intercept
+import { mockSession, sessionResponse } from '../lib/intercept.mjs';
+
+/** The session row every stub below reports: finished an hour after it began. */
+const finishedSession = (eventId: string, eventDate: string) => mockSession({
+  id: 'finished-session', event_id: eventId, event_date: eventDate,
+  started_at: '2026-09-07T08:00:00.000Z', finished_at: '2026-09-07T09:00:00.000Z',
+  total_duration_seconds: 3600,
+});
 
 interface ScheduleState { eventCount: number }
 
@@ -49,15 +58,7 @@ test('a finished workout keeps logging edits — reps and weights stay editable'
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(body.action === 'start'
-        ? {
-            session: {
-              id: 'finished-session', event_id: body.eventId, event_date: body.eventDate,
-              started_at: '2026-09-07T08:00:00.000Z', finished_at: '2026-09-07T09:00:00.000Z',
-              total_duration_seconds: 3600, coach_summary: null, updated_at: '',
-            },
-          }
-        : { ok: true }),
+      body: JSON.stringify(sessionResponse(body, { session: finishedSession(body.eventId, body.eventDate) })),
     });
   });
 
@@ -103,15 +104,7 @@ async function stubFinishedSession(page: Page, swaps: SwapBody[]) {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(body.action === 'start'
-        ? {
-            session: {
-              id: 'finished-session', event_id: 'e', event_date: '2026-09-07',
-              started_at: '2026-09-07T08:00:00.000Z', finished_at: '2026-09-07T09:00:00.000Z',
-              total_duration_seconds: 3600, coach_summary: null, updated_at: '',
-            },
-          }
-        : { ok: true }),
+      body: JSON.stringify(sessionResponse(body, { session: finishedSession('e', '2026-09-07') })),
     });
   });
 }

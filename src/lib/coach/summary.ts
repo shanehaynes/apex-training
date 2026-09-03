@@ -1,17 +1,17 @@
 import { format, parseISO } from 'date-fns';
-import { postJson } from '../api';
-import { mealCalories, sumDayMacros } from '../nutrition/mapping';
+import { mealCalories, sumDayMacros } from '../nutrition/mapping.js';
 import type { Meal } from '../../types/nutrition';
 import type { WorkoutEvent } from '../../types/workout';
 import type { TrackedSectionGroup } from '../tracking/plan';
-import { describeRecord } from '../tracking/records';
+import { describeRecord } from '../tracking/records.js';
 import type { PersonalRecord } from '../tracking/records';
 
-// ─── Post-workout coach summary ───────────────────────────────────────────────
-// One-shot generation at Finish, proxied through /api/coach-summary so the
-// Anthropic key stays server-side. PRs arrive pre-computed (see
-// lib/tracking/records.ts) — the model narrates them, it never queries or
-// derives them, keeping token spend to a single small completion.
+// ─── Post-workout coach recap ─────────────────────────────────────────────────
+// The plain-text recap the summary model narrates. Pure and dependency-light
+// on purpose: since W3 it runs SERVER-SIDE (api/_lib/trackerSession.ts) from
+// the saved rows, so every client gets the same text. PRs arrive
+// pre-computed (see lib/tracking/records.ts) — the model narrates them, it
+// never queries or derives them, keeping token spend to one small completion.
 
 function setLine(weight: string, reps: string, duration: string): string {
   const parts: string[] = [];
@@ -99,15 +99,4 @@ export function buildSessionRecap(
   if (nutrition) lines.push(nutrition);
 
   return lines.join('\n');
-}
-
-/**
- * Generate the coach's written summary via /api/coach-summary. Throws when
- * the request fails or comes back empty — the summary popup degrades to
- * PRs + the completed list in that case.
- */
-export async function generateCoachSummary(recap: string): Promise<string> {
-  const data = await postJson<{ text?: string }>('/api/coach-summary', { recap }, 'Coach summary');
-  if (!data?.text) throw new Error('Empty summary response');
-  return data.text;
 }

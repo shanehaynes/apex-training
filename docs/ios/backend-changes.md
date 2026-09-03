@@ -79,7 +79,8 @@ new `api/_lib/trackerSession.ts` importing `src/lib/tracking/plan.js` and `recor
 - **`POST /api/coach-summary { eventId, eventDate }`**: server rebuilds the recap from rows,
   streams the summary as NDJSON (lift `streamToWireEvents` from `api/chat.ts` into
   `api/_lib/wire.ts`), and persists `coach_summary` itself — deleting the client `summary`
-  round-trip. Accept the legacy `{ recap }` body during transition.
+  round-trip. Accept the legacy `{ recap }` body during transition (still one-shot JSON), and
+  keep the `summary` action so a stale web bundle mid-session can land its text.
 - Web: `useWorkoutSession` switches to `bootstrap`; `sessionRepo.loadSession` and the client
   `computeSessionPRs` calls are deleted. `setToRow/cardioToRow/collectUntouchedPlanned/
   makeExtraSet` stay client-side (edit-time serializers).
