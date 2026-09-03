@@ -1,7 +1,7 @@
 # W5b — Backend: `/api/coach-tool` (server-side tool execution)
 
 **Machine:** Linux · **Depends on:** W5a · **Unblocks:** W6 (actions), W7, W9
-**Status:** blocked on W5a
+**Status:** in review (PR pending)
 
 ## Goal
 Confirmed coach actions execute on the server with the same executors the evals test, so no
@@ -29,4 +29,17 @@ Out: conversation persistence (client, D-013).
 - Local gate green.
 
 ## Session log
-- (none yet)
+- 2026-09-03 · Linux · Services extracted behaviour-for-behaviour into `api/_lib/services/{events,
+  eventInstances,definitions,meals,completions}.ts` (+ `result.ts`); the five HTTP handlers are thin
+  doors (auth → throttle → AI cap → service). `api/_lib/coach/serverDeps.ts` implements
+  `CoachToolDeps` over them, mirroring what ScheduleContext/MealsContext did for the coach (ai- ids,
+  retro-log completion + plan-filled session via the shared `applyQuickComplete`, merged occurrence
+  overrides, synchronous definition resolution like the eval fixture). `POST /api/coach-tool`
+  (`handlers/coachTool.ts`): mutation tools run the real executors with `writes` + the AI cap
+  (`aiMutationCapReached` split out of `enforceAiMutationCap`); `update_workout_draft` /
+  `update_chart_draft` are a stateless reduce (`reads`). Web: `ChatSidebar` confirm posts to
+  `/api/coach-tool` and refetches completions; the builder/analytics panels keep their local
+  reducers (same functions). Tests: `coach-tool.test.ts`, `server-deps.test.ts`; integration runs
+  the recorded eval `create_event` input from `evals/results/transcripts/…/postop-knee-load-cap.json`
+  end to end (row + `triggered_by='ai'` log, cross-user isolation); fixture `coach-tool.json`.
+  Not done: the optional HMAC on tool_use ids.

@@ -1,44 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from './supabaseAdmin.js';
 import { requireUser } from './auth.js';
-import { pickAllowed, MEAL_INSERT_COLUMNS, MEAL_PATCH_COLUMNS } from './allowlist.js';
 import { enforceAiMutationCap, enforceRateLimit } from './rateLimit.js';
-import type { Json, MealMutationLogRow, MealRow, TablesInsert } from '../../src/lib/db/types.js';
+import { createMeal, deleteMeal, updateMeal, type MealMutationLogEntry } from './services/meals.js';
+import { sendFailure } from './services/result.js';
+import type { MealRow } from '../../src/lib/db/types.js';
 
 // Meal writes (phase 22) + audit trail (phase 23), served as /api/meals by
-// the consolidated router (_lib/app.ts) — a delegate rather than its own
-// api/*.ts file because of the Vercel Hobby 12-function deploy cap.
-// Same shape as api/events.ts: auth → rate limit → allowlist → service-role
-// write → mutation log. The log feeds the daily AI cap now that the coach
-// has meal tools.
-
-interface MutationLogEntry {
-  meal_title: string;
-  diff?: Json;
-  /** Omitted → the DB default ('ai'); UI-driven edits send 'user'. */
-  triggered_by?: 'ai' | 'user';
-}
-
-async function logMutation(
-  supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
-  userId: string,
-  operation: MealMutationLogRow['operation'],
-  mealId: string,
-  log: MutationLogEntry,
-) {
-  const { error } = await supabase.from('meal_mutations_log').insert({
-    user_id: userId,
-    operation,
-    meal_id: mealId,
-    meal_title: log.meal_title,
-    diff: log.diff,
-    // Runtime guard, not just the type: the entry arrives in request bodies.
-    ...(log.triggered_by === 'ai' || log.triggered_by === 'user'
-      ? { triggered_by: log.triggered_by }
-      : {}),
-  });
-  if (error) console.error('[api/meals] mutation log insert failed:', error.message);
-}
+// the consolidated router (_lib/app.ts). HTTP door onto
+// api/_lib/services/meals.ts: auth → rate limit → AI cap → service (W5b).
 
 export async function handleMeals(req: VercelRequest, res: VercelResponse) {
   const supabase = getSupabaseAdmin();
@@ -64,27 +34,9 @@ export async function handleMeals(req: VercelRequest, res: VercelResponse) {
     // (the coach path and unlabeled callers — matches the log's 'ai' default).
     if (triggeredBy !== 'user' && !(await enforceAiMutationCap(supabase, res, userId))) return;
 
-    const { picked, rejected } = pickAllowed(row as Record<string, unknown>, MEAL_INSERT_COLUMNS);
-    if (rejected.length > 0) {
-      console.error('[api/meals] insert rejected unknown fields:', rejected.join(', '));
-      res.status(400).send(`Unknown meal fields: ${rejected.join(', ')}`);
-      return;
-    }
-
-    const { error } = await supabase
-      .from('meals')
-      .insert({ ...picked, user_id: userId } as TablesInsert<'meals'>);
-    if (error) {
-      console.error('[api/meals] insert failed:', error.message);
-      res.status(500).send('Failed to create meal');
-      return;
-    }
-
-    await logMutation(supabase, userId, 'create', row.id, {
-      meal_title: row.title,
-      triggered_by: triggeredBy,
-    });
-    res.status(200).json({ id: row.id });
+    const result = await createMeal(supabase, userId, row as Record<string, unknown>, triggeredBy);
+    if (!result.ok) return sendFailure(res, result);
+    res.status(200).json(result.value);
     return;
   }
 
@@ -95,51 +47,25 @@ export async function handleMeals(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'PATCH') {
-    const body = req.body as { fields?: Partial<MealRow>; log?: MutationLogEntry } | undefined;
+    const body = req.body as { fields?: Partial<MealRow>; log?: MealMutationLogEntry } | undefined;
     if (!body?.fields || !body.log) {
       res.status(400).send('Missing fields or log');
       return;
     }
-
     if (body.log.triggered_by !== 'user' && !(await enforceAiMutationCap(supabase, res, userId))) return;
 
-    const { picked, rejected } = pickAllowed(body.fields as Record<string, unknown>, MEAL_PATCH_COLUMNS);
-    if (rejected.length > 0) {
-      console.error('[api/meals] update rejected unknown fields:', rejected.join(', '));
-      res.status(400).send(`Unknown meal fields: ${rejected.join(', ')}`);
-      return;
-    }
-
-    const { error } = await supabase
-      .from('meals')
-      .update({ ...picked, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('user_id', userId);
-
-    if (error) {
-      console.error('[api/meals] update failed:', error.message);
-      res.status(500).send('Failed to update meal');
-      return;
-    }
-
-    await logMutation(supabase, userId, 'update', id, body.log);
+    const result = await updateMeal(supabase, userId, id, body.fields as Record<string, unknown>, body.log);
+    if (!result.ok) return sendFailure(res, result);
     res.status(200).json({ ok: true });
     return;
   }
 
   if (req.method === 'DELETE') {
-    const body = req.body as { log?: MutationLogEntry } | undefined;
-
+    const body = req.body as { log?: MealMutationLogEntry } | undefined;
     if (body?.log?.triggered_by !== 'user' && !(await enforceAiMutationCap(supabase, res, userId))) return;
 
-    const { error } = await supabase.from('meals').delete().eq('id', id).eq('user_id', userId);
-    if (error) {
-      console.error('[api/meals] delete failed:', error.message);
-      res.status(500).send('Failed to delete meal');
-      return;
-    }
-
-    await logMutation(supabase, userId, 'delete', id, body?.log ?? { meal_title: id });
+    const result = await deleteMeal(supabase, userId, id, body?.log);
+    if (!result.ok) return sendFailure(res, result);
     res.status(200).json({ ok: true });
     return;
   }

@@ -21,6 +21,7 @@ import queryHandler from '../../_lib/handlers/query';
 import sessionsHandler from '../../_lib/handlers/workoutSessions';
 import profileHandler from '../../_lib/handlers/profile';
 import chatHandler from '../../chat';
+import coachToolHandler from '../../_lib/handlers/coachTool';
 import { buildChatContext } from '../../_lib/coach/context';
 import { getSupabaseAdmin } from '../../_lib/supabaseAdmin';
 import { getAnthropicKey } from '../../_lib/anthropicKey';
@@ -100,6 +101,8 @@ function normalize(value: unknown, key = ''): unknown {
   if (typeof value === 'string') {
     if (/(_at|At)$/.test(key) && /^\d{4}-\d{2}-\d{2}T/.test(value)) return '<timestamp>';
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) return '<uuid>';
+    // Server-minted ids inside prose (tool_result text, labels).
+    return value.replace(/\b(ai|meal)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '$1-<uuid>');
   }
   return value;
 }
@@ -382,6 +385,69 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
       label: 'Delete: Fixture Push Day · 2026-09-29 (this instance)',
     });
     fixture('chat-stream.ndjson', chunks.join(''));
+  });
+
+  it('coach-tool: a recorded eval tool call executes on the server with ai attribution; other users cannot reach it', async () => {
+    // The create_event input a real eval run produced — the same executor now
+    // runs here against the service-role client.
+    const transcript = JSON.parse(readFileSync(
+      join(__dirname, '..', '..', '..', 'evals', 'results', 'transcripts', '2026-08-01T04-50-11-458Z__claude-opus-4-8', 'postop-knee-load-cap.json'), 'utf8',
+    )) as unknown;
+    const findInput = (node: unknown): Record<string, unknown> | null => {
+      if (Array.isArray(node)) { for (const n of node) { const r = findInput(n); if (r) return r; } return null; }
+      if (node && typeof node === 'object') {
+        const o = node as Record<string, unknown>;
+        if (o.name === 'create_event' && o.input && typeof o.input === 'object') return o.input as Record<string, unknown>;
+        for (const v of Object.values(o)) { const r = findInput(v); if (r) return r; }
+      }
+      return null;
+    };
+    const input = findInput(transcript)!;
+    expect(input.title).toBeTruthy();
+
+    const before = new Set(((await admin.from('exercise_definitions').select('id').eq('user_id', agent.userId)).data ?? []).map(r => r.id as string));
+    const c = makeRes();
+    await coachToolHandler(makeReq({
+      method: 'POST', token: agent.token,
+      body: { toolUseId: 'tu_eval', name: 'create_event', input, today: '2026-08-06' },
+    }), c.res);
+    expect(c.statusCode).toBe(200);
+    const out = c.body as { ok: boolean; resultText: string };
+    expect(out.ok).toBe(true);
+    expect(out.resultText).toContain('Created');
+    const createdId = /\[(ai-[0-9a-f-]{36})\]/.exec(out.resultText)?.[1] ?? null;
+    expect(createdId).not.toBeNull();
+
+    try {
+      const { data: row } = await admin.from('workout_events').select('title, user_id, exercises').eq('id', createdId!).single();
+      expect(row!.title).toBe(input.title);
+      expect(row!.user_id).toBe(agent.userId);
+      expect((row!.exercises as Array<{ name: string }>).map(e => e.name)).toContain('Back Squat');
+      // Attribution is stamped by the server, not declared by the caller.
+      const { data: log } = await admin.from('event_mutations_log').select('triggered_by, operation').eq('event_id', createdId!).single();
+      expect(log).toEqual({ triggered_by: 'ai', operation: 'create' });
+
+      // Another user's coach cannot touch it: the executor reports not found, the row stays.
+      const other = makeRes();
+      await coachToolHandler(makeReq({
+        method: 'POST', token: agent2.token,
+        body: { name: 'delete_event', input: { event_id: createdId, scope: 'all' }, today: '2026-08-06' },
+      }), other.res);
+      expect(other.statusCode).toBe(200);
+      expect((other.body as { resultText: string }).resultText).not.toContain('Deleted');
+      expect((await admin.from('workout_events').select('id').eq('id', createdId!)).data).toHaveLength(1);
+
+      fixture('coach-tool.json', out);
+    } finally {
+      await admin.from('event_mutations_log').delete().eq('event_id', createdId!);
+      await admin.from('workout_events').delete().eq('id', createdId!);
+      const after = ((await admin.from('exercise_definitions').select('id').eq('user_id', agent.userId)).data ?? []).map(r => r.id as string);
+      const created = after.filter(id => !before.has(id));
+      if (created.length) {
+        await admin.from('definition_mutations_log').delete().in('definition_id', created);
+        await admin.from('exercise_definitions').delete().in('id', created);
+      }
+    }
   });
 
   it('emits (or checks) the iOS fixture contract from real responses', async () => {

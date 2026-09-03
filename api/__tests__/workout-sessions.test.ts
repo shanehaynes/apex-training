@@ -6,7 +6,10 @@ import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
 vi.mock('../_lib/auth.js', () => ({ requireUser: vi.fn(async () => 'user-123') }));
 vi.mock('../_lib/rateLimit.js', () => ({ enforceRateLimit: vi.fn(async () => true) }));
-vi.mock('../_lib/trackerSession.js', () => ({
+vi.mock('../_lib/trackerSession.js', async (importOriginal) => ({
+  // The real quick-complete writer runs against the mock admin below (its
+  // upserts are what these tests assert); only the loaders are scripted.
+  ...(await importOriginal<typeof import('../_lib/trackerSession.js')>()),
   loadResolvedOccurrence: vi.fn(async (_db: unknown, _u: string, eventId: string, eventDate: string) =>
     eventId === 'missing' ? null : {
       id: eventId, date: eventDate, type: 'weights', title: 'Bench', estimatedDuration: 45, description: '',
