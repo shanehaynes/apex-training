@@ -146,6 +146,8 @@ at PostgREST's 1000-row default — the server port changes numbers for heavy us
 PR). Active block for the `current-block` preset and HR settings load server-side. Bucket
 `reads`. Promote `specProblem` into `analyticsTiles.ts` so the server validates specs and no
 client does. Web may switch `useAnalyticsData` later.
+Landed 2026-09-03 (`api/_lib/analyticsData.ts`, `handlers/analyticsCompute.ts`); the web still
+computes in the browser.
 
 ## W10 — `POST /api/blocks?resource=cycle { spec }` → `{ blocks }` (Linux, small)
 Wraps `blocks/cadence.ts` (`CycleSpecError`, overlap checks). Web switches its preview to it.

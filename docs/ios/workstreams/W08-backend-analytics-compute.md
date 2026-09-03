@@ -1,7 +1,7 @@
 # W8 — Backend: analytics compute
 
 **Machine:** Linux · **Depends on:** W0 · **Unblocks:** W9
-**Status:** blocked on W0
+**Status:** in review (PR pending)
 
 ## Goal
 `POST /api/analytics-compute { specs, today }` → `{ tiles }` so clients render charts from
@@ -26,4 +26,12 @@ Out: Swift.
 - Latency for the seeded dashboard < 1.5s cold on Vercel preview (log it in the PR).
 
 ## Session log
-- (none yet)
+- 2026-09-03 · Linux · `api/_lib/analyticsData.ts` (service-role port of `fetch.ts`, every table
+  paged via `fetchAllPages`), `POST /api/analytics-compute { specs[1..24], today }` →
+  `{ today, tiles: TileResult[] }` index-aligned (invalid spec = problem slot), HR settings from
+  the profile, current-block preset via `blockCovering`, bucket `reads`. `analyticsTiles.ts` POST
+  now runs `specProblem` after the shape check (server owns the spec contract). `engine.ts`,
+  `window.ts`, `buckets.ts` switched to `.js` specifiers. Web keeps its browser path
+  (`useAnalyticsData`) — switching it is a follow-up gated on measured latency. Tests:
+  `analytics-compute.test.ts`; integration computes session-count / tonnage over the fixture rows
+  (1 session, 1,190 lb) with cross-user isolation; fixture `analytics-compute.json`.

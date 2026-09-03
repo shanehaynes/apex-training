@@ -22,6 +22,7 @@ import sessionsHandler from '../../_lib/handlers/workoutSessions';
 import profileHandler from '../../_lib/handlers/profile';
 import chatHandler from '../../chat';
 import coachToolHandler from '../../_lib/handlers/coachTool';
+import analyticsComputeHandler from '../../_lib/handlers/analyticsCompute';
 import { buildChatContext } from '../../_lib/coach/context';
 import { getSupabaseAdmin } from '../../_lib/supabaseAdmin';
 import { getAnthropicKey } from '../../_lib/anthropicKey';
@@ -448,6 +449,41 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
         await admin.from('exercise_definitions').delete().in('id', created);
       }
     }
+  });
+
+  it('analytics-compute: the engine runs over the caller\'s rows and answers index-aligned TileData', async () => {
+    const window = { kind: 'fixed', startDate: '2026-09-01', endDateExclusive: '2026-10-01' };
+    const specs = [
+      { version: 1, title: 'Sessions', chartType: 'kpi', range: window, bucket: 'total', series: [{ id: 's1', measure: 'session-count' }] },
+      // No exercise filter: the 09-08 rows carry the alias spelling ('fx press')
+      // and the engine filters on the logged name, browser and server alike.
+      { version: 1, title: 'Tonnage', chartType: 'bar', range: window, bucket: 'week', series: [{ id: 's1', measure: 'tonnage' }] },
+      { version: 1, title: 'broken', chartType: 'line', range: window, bucket: 'week', series: [{ id: 's1', measure: 'no-such-measure' }] },
+    ];
+    const c = makeRes();
+    await analyticsComputeHandler(makeReq({ method: 'POST', token: agent.token, body: { specs, today: '2026-09-22' } }), c.res);
+    expect(c.statusCode).toBe(200);
+    const { tiles } = c.body as { tiles: Array<{ ok: boolean; data?: { series: Array<{ points: Array<number | null> }> }; problem?: string }> };
+    expect(tiles).toHaveLength(3);
+    // One completed fixture occurrence in September (09-08); the quick-complete and
+    // the tracked finish do not write completions.
+    expect(tiles[0].ok).toBe(true);
+    expect(tiles[0].data!.series[0].points).toEqual([1]);
+    // Tonnage from the real logs: 100×5 + 110×3 (09-08) and 120×3 (09-22); autofilled rows excluded.
+    expect(tiles[1].ok).toBe(true);
+    const weekly = tiles[1].data!.series[0].points.map(p => p ?? 0);
+    expect(weekly.reduce((a, b) => a + b, 0)).toBe(1190);
+    expect(tiles[2].ok).toBe(false);
+    expect(tiles[2].problem).toBeTruthy();
+
+    // Another user's tiles never see these rows.
+    const other = makeRes();
+    await analyticsComputeHandler(makeReq({ method: 'POST', token: agent2.token, body: { specs: [specs[1]], today: '2026-09-22' } }), other.res);
+    expect(other.statusCode).toBe(200);
+    const otherWeekly = (other.body as { tiles: Array<{ data?: { series: Array<{ points: Array<number | null> }> } }> }).tiles[0].data?.series[0]?.points.map(p => p ?? 0) ?? [];
+    expect(otherWeekly.reduce((a, b) => a + b, 0)).toBe(0);
+
+    fixture('analytics-compute.json', c.body);
   });
 
   it('emits (or checks) the iOS fixture contract from real responses', async () => {

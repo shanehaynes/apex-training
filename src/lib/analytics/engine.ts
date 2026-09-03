@@ -1,9 +1,9 @@
 import type { CardioLogRow, CompletionRow, MealRow, SetLogRow, WorkoutSessionRow } from '../db/types';
 import type { Sport } from '../../types/workout';
-import { classifySet, parseQuantity } from '../tracking/records';
-import { durationMinutesFor, minutesForBareDuration, sessionSecondsMap } from '../review/stats';
-import { parseGrade } from '../climbing';
-import { mealCalories, rowToMeal } from '../nutrition/mapping';
+import { classifySet, parseQuantity } from '../tracking/records.js';
+import { durationMinutesFor, minutesForBareDuration, sessionSecondsMap } from '../review/stats.js';
+import { parseGrade } from '../climbing.js';
+import { mealCalories, rowToMeal } from '../nutrition/mapping.js';
 import type { Meal } from '../../types/nutrition';
 import {
   MEASURES,
@@ -13,13 +13,13 @@ import {
   type ChartSeries,
   type ChartSpec,
   type UnitKind,
-} from './spec';
-import { resolveRange, inRange, type ResolvedRange } from './window';
-import { bucketsFor, bucketOf, type Bucket } from './buckets';
-import { resolveUnits, type QuantityEntry } from './units';
-import { shiftedDaySet, passesDayFilter } from './dayFilter';
-import { ZONE_LABELS, zoneBounds, type HrSettings } from './hrZones';
-import { baseIdOf } from '../schedule/occurrence';
+} from './spec.js';
+import { resolveRange, inRange, type ResolvedRange } from './window.js';
+import { bucketsFor, bucketOf, type Bucket } from './buckets.js';
+import { resolveUnits, type QuantityEntry } from './units.js';
+import { shiftedDaySet, passesDayFilter } from './dayFilter.js';
+import { ZONE_LABELS, zoneBounds, type HrSettings } from './hrZones.js';
+import { baseIdOf } from '../schedule/occurrence.js';
 import type { Period } from '../review/isoMonth';
 
 // ─── The aggregation engine ──────────────────────────────────────────────────

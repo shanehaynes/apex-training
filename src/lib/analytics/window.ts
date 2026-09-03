@@ -1,7 +1,7 @@
 import { addDays, format, parseISO } from 'date-fns';
-import { getIsoMonth, monthBoundaries, yearBoundaries, lastCompletedMonth, rangeLabel, type Period } from '../review/isoMonth';
+import { getIsoMonth, monthBoundaries, yearBoundaries, lastCompletedMonth, rangeLabel, type Period } from '../review/isoMonth.js';
 import type { ChartSpec, DateRange } from './spec';
-import { maxDayOffset } from './spec';
+import { maxDayOffset } from './spec.js';
 
 // ─── Date-range resolution ───────────────────────────────────────────────────
 // A spec's DateRange resolves to a half-open Period against "today" (passed
