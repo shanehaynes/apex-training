@@ -4,6 +4,7 @@ import { requireUser } from '../auth.js';
 import { pickAllowed, ANALYTICS_TILE_COLUMNS, EVENT_ID_PATTERN } from '../allowlist.js';
 import { enforceRateLimit } from '../rateLimit.js';
 import type { AnalyticsTileRow, TablesInsert } from '../../../src/lib/db/types.js';
+import { specProblem as deepSpecProblem, upgradeSpec } from '../../../src/lib/analytics/spec.js';
 
 // Analytics dashboard tiles (phase 35), served as /api/analytics-tiles by
 // the consolidated router (_lib/app.ts). POST upserts one tile scoped to
@@ -13,11 +14,10 @@ import type { AnalyticsTileRow, TablesInsert } from '../../../src/lib/db/types.j
 // or mutation log: the coach has no tile tools in chat mode — the analytics
 // coach edits an unsaved draft, and only the user's Save writes here.
 //
-// The spec column is validated loosely here (shape, version, series count)
-// and strictly client-side by specProblem (src/lib/analytics/spec.ts) — the
-// blocks weekly_targets precedent: the allowlist guards column names, the
-// domain module guards contents, and the renderer shows an error tile for
-// anything invalid rather than trusting the row.
+// The spec column is validated for shape (version, series count, size) and
+// then deeply by specProblem (src/lib/analytics/spec.ts) — since W8 the
+// server owns the contract, so a native client never validates a spec and
+// the renderer's error tile is for rows that predate this check.
 
 const MAX_SERIES = 8;
 const MAX_SPEC_BYTES = 16_384;
@@ -63,9 +63,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(400).send('Missing or invalid tile id');
       return;
     }
-    const specProblem = specShapeProblem(row.spec);
-    if (specProblem) {
-      res.status(400).send(specProblem);
+    const shape = specShapeProblem(row.spec);
+    if (shape) {
+      res.status(400).send(shape);
+      return;
+    }
+    const upgraded = upgradeSpec(row.spec);
+    const deep = upgraded ? deepSpecProblem(upgraded) : 'spec must be a version-1 chart spec';
+    if (deep) {
+      res.status(400).send(deep);
       return;
     }
     const badLayout = layoutProblem(row);

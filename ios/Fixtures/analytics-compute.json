@@ -1,0 +1,85 @@
+{
+  "today": "2026-09-22",
+  "tiles": [
+    {
+      "ok": true,
+      "data": {
+        "buckets": [
+          {
+            "key": "total",
+            "label": ""
+          }
+        ],
+        "series": [
+          {
+            "key": "s1",
+            "label": "Sessions",
+            "unitKind": "count",
+            "unit": "",
+            "axis": "left",
+            "points": [
+              1
+            ]
+          }
+        ],
+        "excluded": {
+          "otherUnit": 0,
+          "unparseable": 0
+        },
+        "rangeLabel": "Sep 1 – Sep 30, 2026"
+      }
+    },
+    {
+      "ok": true,
+      "data": {
+        "buckets": [
+          {
+            "key": "2026-08-31",
+            "label": "Aug 31"
+          },
+          {
+            "key": "2026-09-07",
+            "label": "Sep 7"
+          },
+          {
+            "key": "2026-09-14",
+            "label": "Sep 14"
+          },
+          {
+            "key": "2026-09-21",
+            "label": "Sep 21"
+          },
+          {
+            "key": "2026-09-28",
+            "label": "Sep 28"
+          }
+        ],
+        "series": [
+          {
+            "key": "s1",
+            "label": "Tonnage",
+            "unitKind": "weight",
+            "unit": "lb",
+            "axis": "left",
+            "points": [
+              0,
+              830,
+              0,
+              360,
+              0
+            ]
+          }
+        ],
+        "excluded": {
+          "otherUnit": 0,
+          "unparseable": 0
+        },
+        "rangeLabel": "Sep 1 – Sep 30, 2026"
+      }
+    },
+    {
+      "ok": false,
+      "problem": "spec must be a version-1 chart spec"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { addDays, format, parseISO, startOfISOWeek } from 'date-fns';
-import { getIsoMonth, monthBoundaries, type Period } from '../review/isoMonth';
+import { getIsoMonth, monthBoundaries, type Period } from '../review/isoMonth.js';
 import type { TimeBucket } from './spec';
 
 // ─── Time bucketing ──────────────────────────────────────────────────────────
