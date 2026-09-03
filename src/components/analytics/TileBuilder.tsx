@@ -363,7 +363,6 @@ export default function TileBuilder({ tile, onClose }: Props) {
           <AnalyticsCoachPanel
             draft={draft}
             setDraft={setDraft}
-            otherWorkoutTitles={otherWorkoutOptions.map(o => o.value)}
             onClose={() => setCoachOpen(false)}
           />
         )}

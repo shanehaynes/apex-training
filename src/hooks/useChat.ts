@@ -38,6 +38,19 @@ export interface UseChatOptions {
   toolMode?: 'chat' | 'builder' | 'analytics';
 }
 
+/**
+ * What the server needs to build the system prompt for a turn (W5a): the
+ * caller's local calendar date, and — for the builder/analytics coaches —
+ * the draft as of now. The server assembles the prompt from the caller's own
+ * data, so the client never ships schedule text.
+ */
+export interface ChatContext {
+  /** YYYY-MM-DD in the device's local calendar. */
+  today: string;
+  /** builder: WorkoutDraft · analytics: ChartDraft · chat: absent. */
+  draft?: unknown;
+}
+
 export function useChat({ toolMode }: UseChatOptions = {}) {
   // Read here rather than as a prop: all three coach panels get the user's
   // model pick for free, and none of them has to thread it through.
@@ -63,7 +76,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
 
   async function streamResponse(
     msgs: ApiMessage[],
-    systemPrompt: string,
+    ctx: ChatContext,
     withTools: boolean,
   ): Promise<{ text: string; toolUses: WireToolUse[] }> {
     const controller = new AbortController();
@@ -73,8 +86,11 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
       body: JSON.stringify({
-        messages: msgs, system: systemPrompt, withTools,
-        ...(toolMode ? { toolMode } : {}),
+        mode: toolMode ?? 'chat',
+        messages: msgs,
+        withTools,
+        today: ctx.today,
+        ...(ctx.draft !== undefined ? { context: { draft: ctx.draft } } : {}),
         ...(coachModel ? { model: coachModel } : {}),
       }),
       signal: controller.signal,
@@ -102,7 +118,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
 
   // ── sendMessage ────────────────────────────────────────────────────────────
 
-  const sendMessage = useCallback(async (content: string, systemPrompt: string) => {
+  const sendMessage = useCallback(async (content: string, ctx: ChatContext) => {
     setIsLoading(true);
     setStreamingContent('');
 
@@ -116,7 +132,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     setApiMessages(nextApiMessages);
 
     try {
-      const { text, toolUses } = await streamResponse(nextApiMessages, systemPrompt, true);
+      const { text, toolUses } = await streamResponse(nextApiMessages, ctx, true);
 
       // Build the assistant's API content (may include tool_use blocks)
       const assistantContent: Array<TextBlock | WireToolUse> = [];
@@ -165,7 +181,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
   // coach's tools-off follow-up.
   const settleAction = useCallback(async (
     resultText: string,
-    systemPrompt: string,
+    ctx: ChatContext,
     failureMessage: string,
   ) => {
     const { queue, results, flushed } = settleHead(pendingActions, heldResults, resultText);
@@ -181,7 +197,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     setApiMessages(withResult);
 
     try {
-      const { text } = await streamResponse(withResult, systemPrompt, false);
+      const { text } = await streamResponse(withResult, ctx, false);
       setMessages(prev => [...prev, { role: 'assistant', content: text }]);
       setApiMessages(prev => [...prev, { role: 'assistant', content: text }]);
     } catch (err: unknown) {
@@ -199,7 +215,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
 
   const confirmAction = useCallback(async (
     executor: () => Promise<string>,
-    systemPrompt: string,
+    ctx: ChatContext,
   ) => {
     if (pendingActions.length === 0) return;
     setIsLoading(true);
@@ -213,19 +229,19 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
       setIsLoading(false);
     }
 
-    await settleAction(resultText, systemPrompt, 'Done — but I had trouble confirming. The change was applied.');
+    await settleAction(resultText, ctx, 'Done — but I had trouble confirming. The change was applied.');
   }, [pendingActions, settleAction]);
 
   // ── cancelAction ───────────────────────────────────────────────────────────
 
-  const cancelAction = useCallback(async (systemPrompt: string) => {
+  const cancelAction = useCallback(async (ctx: ChatContext) => {
     if (pendingActions.length === 0) return;
-    await settleAction('Cancelled by user.', systemPrompt, '');
+    await settleAction('Cancelled by user.', ctx, '');
   }, [pendingActions, settleAction]);
 
   // ── triggerInitial (Coach's Notes — no tools) ──────────────────────────────
 
-  const triggerInitial = useCallback(async (systemPrompt: string) => {
+  const triggerInitial = useCallback(async (ctx: ChatContext) => {
     setIsLoading(true);
     setStreamingContent('');
     setPendingActions([]);
@@ -234,7 +250,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     const syntheticUser: ApiMessage = { role: 'user', content: 'Give me my coaching briefing for today.' };
 
     try {
-      const { text } = await streamResponse([syntheticUser], systemPrompt, false);
+      const { text } = await streamResponse([syntheticUser], ctx, false);
       const assistantMsg: ApiMessage = { role: 'assistant', content: text };
       // Seed apiMessages so follow-up chat has valid history
       setApiMessages([syntheticUser, assistantMsg]);

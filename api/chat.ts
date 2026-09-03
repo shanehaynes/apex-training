@@ -8,6 +8,8 @@ import { analyticsToolSchemas, builderToolSchemas, coachToolSchemas } from '../s
 import { resolveCoachModel } from '../src/lib/coach/models.js';
 import type { ChatWireEvent } from '../src/lib/coach/wire.js';
 import { streamToWireEvents as translate, type UpstreamEvent as Upstream } from './_lib/wire.js';
+import { buildChatContext, ChatContextError, isChatMode, type ChatMode } from './_lib/coach/context.js';
+import { findCoachTool, type CoachToolContext } from '../src/lib/coach/tools.js';
 
 // Server-side proxy for the coach chat, running on the CALLER'S OWN
 // Anthropic key (server-only user_api_keys table — no key ever reaches the
@@ -19,8 +21,12 @@ import { streamToWireEvents as translate, type UpstreamEvent as Upstream } from 
 // tool_use event per block; the client queues them all (actionQueue.ts).
 //
 // IMPORT SURFACE WARNING: this function once crashed at module load on
-// Vercel when it imported the coach executor graph. Only api/_lib and the
-// dependency-free src/lib/coach/schemas.ts may be imported here.
+// Vercel — an extensionless relative import, which real Node ESM rejects.
+// Since W5a the graph deliberately reaches src/lib/coach (prompt builders,
+// tool labels) and the draft reducers through api/_lib/coach/context.ts;
+// api/__tests__/esm-imports.test.ts walks every reachable file and fails on
+// any specifier without a .js extension. Nothing here may import React,
+// Supabase-js or the browser API client.
 
 // The stream translator lives in api/_lib/wire.ts (shared with the summary
 // handler); re-exported so existing imports and tests keep their paths.
@@ -29,10 +35,18 @@ export type { UpstreamEvent, UpstreamUsage } from './_lib/wire.js';
 
 interface Body {
   messages?: unknown;
+  /** LEGACY: a client-built system prompt. Superseded by mode/today/context
+   *  (W5a) — accepted until every bundle has switched. */
   system?: unknown;
   withTools?: unknown;
-  /** 'builder' = the workout builder's draft-only tool list (see below). */
+  /** 'chat' | 'builder' | 'analytics' — which prompt and which tool list. */
+  mode?: unknown;
+  /** @deprecated alias of `mode` from the legacy body. */
   toolMode?: unknown;
+  /** The caller's local calendar date, YYYY-MM-DD (v2 bodies). */
+  today?: unknown;
+  /** builder/analytics: the current draft the server describes in the prompt. */
+  context?: { draft?: unknown } | unknown;
   /** Chosen model id; anything unrecognised resolves to the default. */
   model?: unknown;
 }
@@ -64,7 +78,7 @@ interface Body {
 // next turn. Fixing that means moving the volatile region out of `system` —
 // gate it on the usage numbers logged at the end of the handler.
 
-export type ToolMode = 'chat' | 'builder' | 'analytics';
+export type ToolMode = ChatMode;
 
 /**
  * Static tool schemas with a cache breakpoint on the last one. Three modes,
@@ -145,17 +159,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const body = req.body as Body | undefined;
-  if (!Array.isArray(body?.messages) || typeof body.system !== 'string') {
-    res.status(400).send('Missing messages or system');
+  if (!Array.isArray(body?.messages)) {
+    res.status(400).send('Missing messages');
     return;
   }
 
   // Sanity bounds ~10x above legitimate usage — a request outside them is a
   // bug or abuse, not a long conversation.
-  if (body.system.length > 100_000) {
-    res.status(413).send('System prompt too large');
-    return;
-  }
   if (body.messages.length > 80 || JSON.stringify(body.messages).length > 400_000) {
     res.status(413).send('Conversation too large');
     return;
@@ -167,9 +177,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  const modeInput = body.mode ?? body.toolMode;
+  const toolMode: ChatMode = isChatMode(modeInput) ? modeInput : 'chat';
+
+  // The system prompt: built here from the caller's own data (v2), or
+  // handed over by a legacy bundle. Either way the verified uid scopes it.
+  let system: string;
+  let toolContext: CoachToolContext | null = null;
+  if (typeof body.system === 'string') {
+    if (body.system.length > 100_000) {
+      res.status(413).send('System prompt too large');
+      return;
+    }
+    system = body.system;
+  } else {
+    const draft = typeof body.context === 'object' && body.context !== null
+      ? (body.context as { draft?: unknown }).draft
+      : undefined;
+    try {
+      ({ system, toolContext } = await buildChatContext(supabase, userId, toolMode, body.today, draft));
+    } catch (err) {
+      if (err instanceof ChatContextError) {
+        res.status(400).send(err.message);
+        return;
+      }
+      console.error('[api/chat] context build failed:', err instanceof Error ? err.message : err);
+      res.status(500).send('Failed to build coach context');
+      return;
+    }
+  }
+
   res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache');
-  const send = (event: ChatWireEvent) => { res.write(JSON.stringify(event) + '\n'); };
+  // tool_use events carry the confirmation-card label, computed with the
+  // context the prompt was built from (W5a) so a native client never ports
+  // displayLabel. Best-effort: a label failure must not break the stream.
+  const send = (event: ChatWireEvent) => {
+    let out = event;
+    if (event.type === 'tool_use' && toolContext) {
+      try {
+        const label = findCoachTool(event.name)?.displayLabel(event.input, toolContext);
+        if (label) out = { ...event, label };
+      } catch { /* the client falls back to the tool name */ }
+    }
+    res.write(JSON.stringify(out) + '\n');
+  };
 
   // Abort propagation: when the browser cancels the fetch (the Stop button,
   // or a closed tab), the socket dies but the upstream Anthropic request
@@ -181,7 +233,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.on('close', () => { if (!finished) upstreamAbort.abort(); });
 
   const withTools = !!body.withTools;
-  const toolMode: ToolMode = body.toolMode === 'builder' || body.toolMode === 'analytics' ? body.toolMode : 'chat';
   const messages = body.messages as Anthropic.MessageParam[];
   // Allowlisted, never trusted verbatim: an arbitrary id would be paired
   // with the wrong thinking config (Haiku 4.5 400s on adaptive thinking).
@@ -199,7 +250,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Per-model, not a shared literal: `thinking` is absent on models that
       // predate adaptive thinking, which reject it outright (models.ts).
       ...coachModel.params,
-      system: [{ type: 'text', text: body.system, cache_control: { type: 'ephemeral' } }],
+      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
       // Constant tool list (per mode) + tool_choice to gate it — see the
       // caching note above.
       tools: cachedToolSchemas(toolMode),

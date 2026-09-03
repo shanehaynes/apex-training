@@ -64,8 +64,12 @@ test('the coach configures the tile and cannot save it', async ({ page }) => {
   await expect(page.getByTestId('tile-preview').locator('svg')).toBeVisible();
   await shot(page, 'analytics-coach-filled');
 
-  // The wire: analytics toolMode on the tools-on call, tools off on the settle.
-  expect(chatBodies[0].toolMode).toBe('analytics');
+  // The wire (v2): analytics mode + the chart draft as of now on the tools-on
+  // call — the server builds the prompt — tools off on the settle.
+  expect(chatBodies[0].mode).toBe('analytics');
+  expect(chatBodies[0].today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  expect(chatBodies[0].system).toBeUndefined();
+  expect((chatBodies[0].context as { draft: Record<string, unknown> }).draft).toBeTruthy();
   expect(chatBodies[0].withTools).toBe(true);
   expect(chatBodies[1].withTools).toBe(false);
 

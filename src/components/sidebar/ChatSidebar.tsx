@@ -3,12 +3,11 @@ import { useSchedule } from '../../context/schedule';
 import { useMeals } from '../../context/meals';
 import { useCalendar } from '../../context/calendar';
 import { useAuth } from '../../context/auth';
+import { format } from 'date-fns';
 import { useChat } from '../../hooks/useChat';
-import { buildSystemPrompt } from '../../lib/coach/prompt';
 import CoachModelPicker from '../coach/CoachModelPicker';
 import { findCoachTool } from '../../lib/coach/tools';
 import { Send, Square, NotebookPen, Check, X, KeyRound } from 'lucide-react';
-import { useBlockSummary } from '../../hooks/useBlockSummary';
 import { now } from '../../lib/clock';
 
 // ─── Confirmation card ────────────────────────────────────────────────────────
@@ -53,17 +52,17 @@ function ConfirmCard({ label, remaining, onConfirm, onCancel, disabled }: Confir
 
 export default function ChatSidebar() {
   const {
-    events, definitions, getEventsForDate,
+    events, definitions,
     createEvent, updateEvent, deleteEvent, deleteEventInstance, rescheduleEvent,
     createDefinition, updateDefinition,
   } = useSchedule();
-  const { meals, getMealsForDate, createMeal, updateMeal, deleteMeal } = useMeals();
+  const { meals, createMeal, updateMeal, deleteMeal } = useMeals();
   const {
     messages, isLoading, streamingContent,
     pendingAction, pendingActionCount, sendMessage, confirmAction, cancelAction, triggerInitial, abort,
   } = useChat();
   const { dispatch } = useCalendar();
-  const { anthropicKey, profile } = useAuth();
+  const { anthropicKey } = useAuth();
   // Known-missing key blocks the coach with a setup prompt; unknown (null,
   // e.g. offline mode or status still loading) doesn't — the server's 402
   // mapping in useChat is the backstop.
@@ -74,22 +73,13 @@ export default function ChatSidebar() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const today = useMemo(() => now(), []);
-  const todayEvents = useMemo(() => getEventsForDate(today), [getEventsForDate, today]);
-  const todayMeals = useMemo(() => getMealsForDate(today), [getMealsForDate, today]);
-  const getBlockSummary = useBlockSummary();
 
-  // Built at call time, not memoized: the prompt is only ever read inside the
-  // handlers below, and the block summary needs an await. Memoizing it would
-  // mean a message sent before that await settled reached the model with no
-  // block context at all.
-  const resolveSystemPrompt = useCallback(async () => {
-    const block = await getBlockSummary();
-    return buildSystemPrompt(todayEvents, events, today, definitions.values(), {
-      goal: profile?.coach_goal, context: profile?.coach_context,
-    }, block, todayMeals);
-  }, [todayEvents, events, today, definitions, profile, getBlockSummary, todayMeals]);
+  // The server builds the system prompt from this user's own data (W5a);
+  // the client only says which calendar day it is. Still resolved at call
+  // time so the fake clock in e2e is read when a message is sent.
+  const resolveContext = useCallback(async () => ({ today: format(today, 'yyyy-MM-dd') }), [today]);
 
-  // Confirm/Cancel/Notes/Send all await resolveSystemPrompt() (a network
+  // Confirm/Cancel/Notes/Send all await resolveContext() (a network
   // round-trip) BEFORE useChat flips isLoading, so `disabled={isLoading}`
   // alone leaves a window where a double-click runs the executor twice —
   // duplicate backend mutations and a corrupted tool_result set. The ref is
@@ -155,7 +145,7 @@ export default function ChatSidebar() {
     // the message with no error and nothing in the thread.
     if (!text || isLoading || actionLatchRef.current || pendingAction) return;
     setInput('');
-    runExclusive(async () => sendMessage(text, await resolveSystemPrompt()));
+    runExclusive(async () => sendMessage(text, await resolveContext()));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -222,8 +212,8 @@ export default function ChatSidebar() {
             label={pendingLabel}
             remaining={pendingActionCount - 1}
             disabled={isLoading || actionBusy}
-            onConfirm={() => runExclusive(async () => confirmAction(buildExecutor(), await resolveSystemPrompt()))}
-            onCancel={() => runExclusive(async () => cancelAction(await resolveSystemPrompt()))}
+            onConfirm={() => runExclusive(async () => confirmAction(buildExecutor(), await resolveContext()))}
+            onCancel={() => runExclusive(async () => cancelAction(await resolveContext()))}
           />
         )}
 
@@ -233,7 +223,7 @@ export default function ChatSidebar() {
       <div className="chat-sidebar__actions">
         <button
           className="chat-notes-btn"
-          onClick={() => runExclusive(async () => triggerInitial(await resolveSystemPrompt()))}
+          onClick={() => runExclusive(async () => triggerInitial(await resolveContext()))}
           disabled={isLoading || actionBusy || !!pendingAction || needsKey}
         >
           <NotebookPen size={13} />

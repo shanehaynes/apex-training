@@ -11,7 +11,7 @@
 // Regenerate the fixtures after a deliberate shape change with
 //   APEX_LOCAL_SUPABASE=1 APEX_FIXTURES_WRITE=1 vitest run api/__tests__/integration/ios-read
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -20,6 +20,35 @@ import scheduleHandler from '../../_lib/handlers/schedule';
 import queryHandler from '../../_lib/handlers/query';
 import sessionsHandler from '../../_lib/handlers/workoutSessions';
 import profileHandler from '../../_lib/handlers/profile';
+import chatHandler from '../../chat';
+import { buildChatContext } from '../../_lib/coach/context';
+import { getSupabaseAdmin } from '../../_lib/supabaseAdmin';
+import { getAnthropicKey } from '../../_lib/anthropicKey';
+
+// The chat handler needs a key and a model; both are mocked so the context
+// builder and the wire framing (labels!) run against REAL data while the
+// model call is scripted. Only this file sees these mocks.
+vi.mock('../../_lib/anthropicKey.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../_lib/anthropicKey.js')>();
+  // Real behaviour by default (the profile fixture reports the true key
+  // status); the chat test primes one call with a key.
+  return { ...original, getAnthropicKey: vi.fn(original.getAnthropicKey) };
+});
+vi.mock('@anthropic-ai/sdk', () => ({
+  default: vi.fn(function () {
+    return {
+      messages: {
+        stream: () => (async function* () {
+          yield { type: 'message_start', message: { usage: { input_tokens: 10 } } };
+          yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Clearing it. ' } };
+          yield { type: 'content_block_start', content_block: { type: 'tool_use', id: 'toolu_fixture', name: 'delete_event' } };
+          yield { type: 'content_block_delta', delta: { type: 'input_json_delta', partial_json: '{"event_id":"ios-fixture-weekly__2026-09-29","scope":"instance","date":"2026-09-29"}' } };
+          yield { type: 'content_block_stop' };
+        })(),
+      },
+    };
+  }),
+}));
 // @ts-expect-error plain-JS helper shared with the seed scripts
 import { localSupabaseEnv } from '../../../scripts/lib/localEnv.mjs';
 
@@ -77,7 +106,8 @@ function normalize(value: unknown, key = ''): unknown {
 
 function fixture(name: string, payload: unknown): void {
   const path = join(FIXTURE_DIR, name);
-  const text = `${JSON.stringify(normalize(payload), null, 2)}\n`;
+  // .ndjson fixtures are the wire bytes themselves; everything else is JSON.
+  const text = name.endsWith('.ndjson') ? String(payload) : `${JSON.stringify(normalize(payload), null, 2)}\n`;
   if (WRITE_FIXTURES) {
     mkdirSync(FIXTURE_DIR, { recursive: true });
     writeFileSync(path, text);
@@ -322,6 +352,36 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
 
     fixture('bootstrap.json', again.body);
     fixture('finish.json', finish.body);
+  });
+
+  it('chat v2: the server builds the prompt from the caller\'s data and labels tool calls', async () => {
+    // The context builder against real rows: today = the tracked occurrence's date.
+    const admin2 = getSupabaseAdmin()!;
+    const { system } = await buildChatContext(admin2, agent.userId, 'chat', '2026-09-22');
+    expect(system).toContain(`[${TRACKED_OCCURRENCE}] Fixture Push Day (60 min) at 17:30`);
+    expect(system).toContain('Fixture Press');
+    expect(system).toMatch(/LAST 4 WEEKS: \d+\/\d+ completed/);
+    // Another user's prompt knows nothing of it.
+    const other = await buildChatContext(admin2, agent2.userId, 'chat', '2026-09-22');
+    expect(other.system).not.toContain('Fixture Push Day');
+
+    // The handler end to end: v2 body → NDJSON with a labelled tool_use.
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-ant-integration');
+    const c = makeRes();
+    const chunks: string[] = [];
+    (c.res as unknown as { write: (s: string) => boolean }).write = (s: string) => { chunks.push(s); return true; };
+    (c.res as unknown as { on: () => unknown }).on = () => c.res;
+    await chatHandler(makeReq({
+      method: 'POST', token: agent.token,
+      body: { mode: 'chat', today: '2026-09-22', withTools: true, messages: [{ role: 'user', content: 'skip next week' }] },
+    }), c.res);
+    const events = chunks.join('').trim().split('\n').map(l => JSON.parse(l) as Record<string, unknown>);
+    expect(events.map(e => e.type)).toEqual(['text', 'tool_use', 'done']);
+    expect(events[1]).toMatchObject({
+      name: 'delete_event',
+      label: 'Delete: Fixture Push Day · 2026-09-29 (this instance)',
+    });
+    fixture('chat-stream.ndjson', chunks.join(''));
   });
 
   it('emits (or checks) the iOS fixture contract from real responses', async () => {

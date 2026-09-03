@@ -101,7 +101,10 @@ profile fields, block summary (`blocks/promptSummary.ts` fed by `computeBlockPro
 Legacy `{ system }` bodies keep working until the web switches (same PR).
 
 Wire extension (additive): `{ type: 'tool_use', id, name, input, label }` — the server computes
-the display label with a real `CoachToolContext`, so Swift never needs `findCoachTool`.
+the display label with a real `CoachToolContext`, so Swift never needs `findCoachTool`. The
+web's collector strips `label` before the block goes back to the model (unknown fields 400).
+Landed 2026-09-03: `api/_lib/coach/context.ts`; the analytics "other sport" titles and the
+builder's template titles are derived server-side too.
 
 Prompt caching is unaffected: tools → system → messages prefix and the three breakpoints are
 unchanged; the system text is byte-identical to what the client would have built. Building it
