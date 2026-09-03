@@ -13,10 +13,10 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W2 | Schedule read, cache, realtime, auth links | blocked on W1 | Mac | first TestFlight with value |
 | W3 | Backend tracker consolidation | done (PR #96) | Linux | web switched in the same PR |
 | W4 | Tracker UI + write queue | blocked on W1 | Mac | W3 done |
-| W5a | Backend chat v2 (server prompt) | in review (PR pending) | Linux | web switched in the same PR |
-| W5b | Backend `/api/coach-tool` | blocked on W5a | Linux | services extraction |
-| W6 | Coach tab | blocked on W5a | Mac | actions need W5b |
-| W7 | Event CRUD + builder | blocked on W5b, W2 | Mac | |
+| W5a | Backend chat v2 (server prompt) | done (PR #98) | Linux | web switched in the same PR |
+| W5b | Backend `/api/coach-tool` | in review (PR pending) | Linux | services extracted; web confirm switched |
+| W6 | Coach tab | blocked on W1 | Mac | W5a done; W5b in review |
+| W7 | Event CRUD + builder | blocked on W2 | Mac | W5b in review |
 | W8 | Backend analytics compute | blocked on W0 | Linux | |
 | W9 | Analytics tab (editable layout) | blocked on W8, W6 | Mac | |
 | W10 | Library, Blocks, Meals | blocked on W2 | both | small cycle endpoint |
@@ -25,7 +25,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
-1. Merge W5a; then W5b (coach-tool) or W8 (analytics compute) on Linux. W1 on the Mac is in progress (Shane setting up).
+1. Merge W5b; then W8 (analytics compute) is the last Linux gate. W1 on the Mac is in progress (Shane setting up).
 2. Shane: Apple Developer Program membership; App ID `com.apextraining.app`; add
    `https://apextrainingcalendar.vercel.app/auth/callback` to Supabase Additional Redirect URLs.
 3. Shane: merge the two HELD PRs from W1 (ci.yml jobs; AASA + vercel.json header).
@@ -34,7 +34,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 - 2026-09-02 · plan · Master plan and all briefs written (PR #94).
 - 2026-09-03 · W0 · Read endpoints, server-built quick-complete, Swift types emit, fixtures — PR #95 merged.
 - 2026-09-03 · W3 · Tracker bootstrap/finish consolidation, streaming coach summary, web switched — PR #96 merged.
-- 2026-09-03 · W5a · Server-side prompt assembly, chat v2 body, labelled tool_use events, web switched — PR opened.
+- 2026-09-03 · W5a · Server-side prompt assembly, chat v2 body, labelled tool_use events, web switched — PR #98 merged.
+- 2026-09-03 · W5b · Services extraction, `/api/coach-tool`, web confirm switched — PR opened.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)

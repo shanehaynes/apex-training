@@ -4,6 +4,7 @@ import { useMeals } from '../../context/meals';
 import { useCalendar } from '../../context/calendar';
 import { useAuth } from '../../context/auth';
 import { format } from 'date-fns';
+import { postJson } from '../../lib/api';
 import { useChat } from '../../hooks/useChat';
 import CoachModelPicker from '../coach/CoachModelPicker';
 import { findCoachTool } from '../../lib/coach/tools';
@@ -52,11 +53,9 @@ function ConfirmCard({ label, remaining, onConfirm, onCancel, disabled }: Confir
 
 export default function ChatSidebar() {
   const {
-    events, definitions,
-    createEvent, updateEvent, deleteEvent, deleteEventInstance, rescheduleEvent,
-    createDefinition, updateDefinition,
+    events, definitions, refreshCompletions,
   } = useSchedule();
-  const { meals, createMeal, updateMeal, deleteMeal } = useMeals();
+  const { meals } = useMeals();
   const {
     messages, isLoading, streamingContent,
     pendingAction, pendingActionCount, sendMessage, confirmAction, cancelAction, triggerInitial, abort,
@@ -105,28 +104,21 @@ export default function ChatSidebar() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent, pendingAction]);
 
-  // ── Mutation executor (called on Confirm) — dispatches to the registry ─────
-
+  // ── Mutation executor (called on Confirm) — runs on the server ────────────
+  // POST /api/coach-tool executes the confirmed tool with the same executors
+  // this client used to run (W5b): the server stamps 'ai' attribution and
+  // the audit log itself. Realtime reconciles events/definitions/meals; the
+  // completion state of a retro-logged event is not subscribed, so refetch it.
   const buildExecutor = () => async (): Promise<string> => {
     if (!pendingAction) return 'No action.';
-    const tool = findCoachTool(pendingAction.toolName);
-    if (!tool) return 'Unknown action.';
-    // Coach-originated mutations are stamped 'ai' here — the audit logs (and
-    // the server's daily AI cap) rely on this attribution.
-    return tool.execute(pendingAction.input, {
-      createEvent:         input => createEvent({ ...input, triggeredBy: 'ai' }),
-      updateEvent:         input => updateEvent({ ...input, triggeredBy: input.triggeredBy ?? 'ai' }),
-      deleteEvent:         id => deleteEvent(id, 'ai'),
-      deleteEventInstance: (baseId, date) => deleteEventInstance(baseId, date, 'ai'),
-      rescheduleEvent:     (id, fields) => rescheduleEvent(id, fields, 'ai'),
-      definitions,
-      createDefinition:    input => createDefinition({ ...input, triggeredBy: 'ai' }),
-      updateDefinition:    input => updateDefinition({ ...input, triggeredBy: input.triggeredBy ?? 'ai' }),
-      meals,
-      createMeal:          input => createMeal({ ...input, triggeredBy: 'ai' }),
-      updateMeal:          input => updateMeal({ ...input, triggeredBy: input.triggeredBy ?? 'ai' }),
-      deleteMeal:          id => deleteMeal(id, 'ai'),
-    });
+    const data = await postJson<{ resultText?: string }>('/api/coach-tool', {
+      toolUseId: pendingAction.toolUseId,
+      name: pendingAction.toolName,
+      input: pendingAction.input,
+      today: format(today, 'yyyy-MM-dd'),
+    }, 'Applying coach action');
+    refreshCompletions().catch(() => {});
+    return data?.resultText ?? 'Done.';
   };
 
   // Recompute the confirmation label with live app state — the stored label

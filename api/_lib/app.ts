@@ -27,6 +27,7 @@ import termsAcceptance from './handlers/termsAcceptance.js';
 import account from './handlers/account.js';
 import schedule from './handlers/schedule.js';
 import query from './handlers/query.js';
+import coachTool from './handlers/coachTool.js';
 import { handleTrainingBlocks } from './trainingBlocks.js';
 import { handleMeals } from './meals.js';
 import { handleMealFavorites } from './mealFavorites.js';
@@ -73,6 +74,9 @@ app.all('/completions', bridge(completions));
 // schedule for a date window, and a JWT door onto the read-only MCP tools.
 app.all('/schedule', bridge(schedule));
 app.all('/query', bridge(query));
+// Confirmed coach tool calls execute here, with the executors the evals
+// test, so no client carries them (docs/ios/backend-changes.md, W5b).
+app.all('/coach-tool', bridge(coachTool));
 // Remote MCP server (bearer PAT auth, not Supabase JWT) + its token CRUD.
 app.all('/mcp', bridge(mcp));
 app.all('/mcp-tokens', bridge(mcpTokens));

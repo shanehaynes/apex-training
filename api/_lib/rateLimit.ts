@@ -107,6 +107,24 @@ export async function enforceAiMutationCap(
   userId: string,
   cap: number = AI_DAILY_MUTATION_CAP,
 ): Promise<boolean> {
+  if (await aiMutationCapReached(supabase, userId, cap)) {
+    res.setHeader('Retry-After', '3600');
+    res.status(429).send('Daily AI mutation cap reached.');
+    return false;
+  }
+  return true;
+}
+
+/**
+ * The cap check without the response: true when today's AI-attributed
+ * mutations have reached the cap (and the first-breach alert has been
+ * sent). Fails OPEN — a storage error reads as "not reached".
+ */
+export async function aiMutationCapReached(
+  supabase: Admin,
+  userId: string,
+  cap: number = AI_DAILY_MUTATION_CAP,
+): Promise<boolean> {
   try {
     const midnight = new Date();
     midnight.setUTCHours(0, 0, 0, 0);
@@ -150,14 +168,12 @@ export async function enforceAiMutationCap(
       // total === cap only on the first blocked request of the day — the
       // equality check is the alert dedupe (good enough per-user).
       if (total === cap) await alertCapHit(supabase, userId, cap);
-      res.setHeader('Retry-After', '3600');
-      res.status(429).send('Daily AI mutation cap reached.');
-      return false;
+      return true;
     }
   } catch (err) {
     logFailOpen('AI mutation cap', err);
   }
-  return true;
+  return false;
 }
 
 async function alertCapHit(supabase: Admin, userId: string, cap: number): Promise<void> {

@@ -9,7 +9,8 @@ import {
   EVENT_ID_PATTERN,
 } from '../allowlist.js';
 import { enforceRateLimit } from '../rateLimit.js';
-import { buildBootstrap, buildFinishSummary, loadResolvedOccurrence } from '../trackerSession.js';
+import { applyQuickComplete, buildBootstrap, buildFinishSummary, loadResolvedOccurrence } from '../trackerSession.js';
+import { sendFailure } from '../services/result.js';
 import { buildQuickCompleteLogs } from '../../../src/lib/tracking/plan.js';
 import type { CardioLogRow, SetLogRow, TablesInsert, TrackedSection, WorkoutSessionRow } from '../../../src/lib/db/types.js';
 import { sessionScoreFromRow } from '../../../src/lib/tracking/records.js';
@@ -458,63 +459,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const now = new Date().toISOString();
-
-    const { error: sessionErr } = await supabase
-      .from('workout_sessions')
-      .upsert(
-        { user_id: userId, event_id: eventId, event_date: eventDate, started_at: now },
-        { onConflict: 'user_id,event_id,event_date', ignoreDuplicates: true },
-      );
-    if (sessionErr) {
-      console.error('[api/workout-sessions] quick-complete session upsert failed:', sessionErr.message);
-      res.status(500).send('Failed to quick-complete session');
-      return;
-    }
-
-    // Stamp unfinished sessions with the recommended duration; a genuinely
-    // tracked-and-finished session keeps its measured time.
-    const { error: finishErr } = await supabase
-      .from('workout_sessions')
-      .update({
-        finished_at: now,
-        total_duration_seconds: typeof durationSeconds === 'number' ? Math.round(durationSeconds) : null,
-        updated_at: now,
-      })
-      .eq('user_id', userId).eq('event_id', eventId)
-      .eq('event_date', eventDate)
-      .is('finished_at', null);
-    if (finishErr) {
-      console.error('[api/workout-sessions] quick-complete finish failed:', finishErr.message);
-      res.status(500).send('Failed to quick-complete session');
-      return;
-    }
-
-    const ops: PromiseLike<{ error: { message: string } | null }>[] = [];
-    if (setLogs.length) {
-      ops.push(supabase
-        .from('workout_set_logs')
-        .upsert(
-          setLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })) as TablesInsert<'workout_set_logs'>[],
-          { onConflict: SET_LOG_CONFLICT, ignoreDuplicates: true },
-        ));
-    }
-    if (cardioLogs.length) {
-      ops.push(supabase
-        .from('workout_cardio_logs')
-        .upsert(
-          cardioLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })) as TablesInsert<'workout_cardio_logs'>[],
-          { onConflict: CARDIO_CONFLICT, ignoreDuplicates: true },
-        ));
-    }
-    const results = await Promise.all(ops);
-    const failed = results.find(r => r.error);
-    if (failed?.error) {
-      console.error('[api/workout-sessions] quick-complete logs failed:', failed.error.message);
-      res.status(500).send('Failed to log planned work');
-      return;
-    }
-
+    const result = await applyQuickComplete(supabase, userId, eventId, eventDate, { setLogs, cardioLogs }, durationSeconds);
+    if (!result.ok) return sendFailure(res, result);
     res.status(200).json({ ok: true });
     return;
   }

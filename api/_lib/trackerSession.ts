@@ -34,6 +34,9 @@ import {
 } from '../../src/lib/tracking/records.js';
 import { buildSessionRecap } from '../../src/lib/coach/summary.js';
 import { rowToMeal } from '../../src/lib/nutrition/mapping.js';
+import { buildQuickCompleteLogs } from '../../src/lib/tracking/plan.js';
+import type { TablesInsert } from '../../src/lib/db/types.js';
+import { fail, succeed, type ServiceResult } from './services/result.js';
 
 // Server-side tracker session model (docs/ios/backend-changes.md, W3). The
 // pure builders in src/lib/tracking run here against the service-role
@@ -247,4 +250,88 @@ export async function buildFinishSummary(
     scoreRecord: describeScore(scoreRecord),
     recap: buildSessionRecap(event, groups, totalSeconds, prs, meals),
   };
+}
+
+const SET_LOG_CONFLICT = 'user_id,event_id,event_date,section,exercise_id,set_number';
+const CARDIO_CONFLICT = 'user_id,event_id,event_date,section,exercise_id';
+
+/**
+ * "Mark as Complete": stamp the session finished at the recommended duration
+ * and log the given rows as autofilled. Every upsert ignores duplicates, so
+ * anything hand-logged — including a partially tracked session — is never
+ * overwritten. Shared by the workout-sessions handler and the coach's
+ * server-side retro-log (an event created on a past day completes on creation).
+ */
+export async function applyQuickComplete(
+  supabase: Admin,
+  userId: string,
+  eventId: string,
+  eventDate: string,
+  rows: { setLogs: Record<string, unknown>[]; cardioLogs: Record<string, unknown>[] },
+  durationSeconds: number | undefined,
+): Promise<ServiceResult> {
+  const now = new Date().toISOString();
+
+  const { error: sessionErr } = await supabase
+    .from('workout_sessions')
+    .upsert(
+      { user_id: userId, event_id: eventId, event_date: eventDate, started_at: now },
+      { onConflict: 'user_id,event_id,event_date', ignoreDuplicates: true },
+    );
+  if (sessionErr) {
+    console.error('[api/workout-sessions] quick-complete session upsert failed:', sessionErr.message);
+    return fail(500, 'Failed to quick-complete session');
+  }
+
+  // Stamp unfinished sessions with the recommended duration; a genuinely
+  // tracked-and-finished session keeps its measured time.
+  const { error: finishErr } = await supabase
+    .from('workout_sessions')
+    .update({
+      finished_at: now,
+      total_duration_seconds: typeof durationSeconds === 'number' ? Math.round(durationSeconds) : null,
+      updated_at: now,
+    })
+    .eq('user_id', userId).eq('event_id', eventId)
+    .eq('event_date', eventDate)
+    .is('finished_at', null);
+  if (finishErr) {
+    console.error('[api/workout-sessions] quick-complete finish failed:', finishErr.message);
+    return fail(500, 'Failed to quick-complete session');
+  }
+
+  const ops: PromiseLike<{ error: { message: string } | null }>[] = [];
+  if (rows.setLogs.length) {
+    ops.push(supabase
+      .from('workout_set_logs')
+      .upsert(
+        rows.setLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })) as TablesInsert<'workout_set_logs'>[],
+        { onConflict: SET_LOG_CONFLICT, ignoreDuplicates: true },
+      ));
+  }
+  if (rows.cardioLogs.length) {
+    ops.push(supabase
+      .from('workout_cardio_logs')
+      .upsert(
+        rows.cardioLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })) as TablesInsert<'workout_cardio_logs'>[],
+        { onConflict: CARDIO_CONFLICT, ignoreDuplicates: true },
+      ));
+  }
+  const results = await Promise.all(ops);
+  const failed = results.find(r => r.error);
+  if (failed?.error) {
+    console.error('[api/workout-sessions] quick-complete logs failed:', failed.error.message);
+    return fail(500, 'Failed to log planned work');
+  }
+  return succeed(undefined);
+}
+
+/** Quick-complete an event from its plan alone (rows built server-side). */
+export async function quickCompletePlan(supabase: Admin, userId: string, event: WorkoutEvent): Promise<ServiceResult> {
+  const built = buildQuickCompleteLogs(event);
+  return applyQuickComplete(
+    supabase, userId, event.id, event.date,
+    { setLogs: built.setLogs as unknown as Record<string, unknown>[], cardioLogs: built.cardioLogs as unknown as Record<string, unknown>[] },
+    event.estimatedDuration > 0 ? event.estimatedDuration * 60 : undefined,
+  );
 }
