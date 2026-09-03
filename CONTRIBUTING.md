@@ -260,11 +260,13 @@ running live e2e will corrupt each other's fixtures.
 
 One session at a time for `e2e:live` and `db:reset-local` — and that is now
 mechanical, not prose: both (and `agent:check:full`) run under a machine-wide
-lock ([scripts/with-stack-lock.sh](scripts/with-stack-lock.sh), `flock` on a
-file in the primary checkout's `.claude/state/`). A second session queues,
-with a note saying who holds the lock, rather than corrupting the first one's
-fixtures; `APEX_STACK_LOCK_WAIT` bounds the wait (default 600s). Anything
-new that resets or seeds the stack should go through the same wrapper.
+lock ([scripts/with-stack-lock.sh](scripts/with-stack-lock.sh), an atomic
+`mkdir` in the primary checkout's `.claude/state/` — not `flock`, which macOS
+does not ship). A second session queues, with a note saying who holds the
+lock, rather than corrupting the first one's fixtures; `APEX_STACK_LOCK_WAIT`
+bounds the wait (default 600s). A lock left behind by a holder that died is
+reaped automatically once its pid is gone. Anything new that resets or seeds
+the stack should go through the same wrapper.
 
 The stack is also **not kept current for you**. `supabase start` only
 auto-applies timestamped migrations and this repo's are `phaseN_*.sql` (see
