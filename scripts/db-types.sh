@@ -22,7 +22,14 @@ cd "$(dirname "$0")/.."
 OUT=src/lib/db/database.types.ts
 # The iOS app's row types come from the same schema, same CLI, same run
 # (docs/ios/architecture.md §13) — one migration regenerates both files.
-OUT_SWIFT=ios/Packages/ApexCore/Sources/ApexCore/Generated/DatabaseTypes.swift
+#
+# The Swift emit lives in ApexAuth, not ApexCore, because it uses supabase-swift's
+# AnyJSON for jsonb columns. supabase-swift declares no Linux platform, and ApexCore
+# has to stay Linux-buildable for the apexcore-linux CI job. The generated enum is
+# `internal`, so a module of its own could not re-export it either — ApexAuth already
+# owns the Supabase client, which makes `internal` exactly the right visibility here.
+# See docs/ios/decisions.md D-021.
+OUT_SWIFT=ios/Packages/ApexKit/Sources/ApexAuth/Generated/DatabaseTypes.swift
 CLI_VERSION=2.115.0
 
 generate() {

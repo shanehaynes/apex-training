@@ -21,12 +21,12 @@ ios/
                                  entitlements (associated domains), Assets (AppIcon only)
   Design/                        app icon source (SVG) and export notes
   Fixtures/                      JSON/NDJSON emitted by the web repo's vitest (contract tests)
+  Config/                      xcconfig per build configuration (D-022)
   Packages/
     ApexCore/                    Linux-buildable. NO UIKit / SwiftUI / supabase-swift.
       Models/                    Codable mirrors of API JSON (WorkoutEvent, Exercise, PlannedSet,
                                  TrackedSectionGroup, ChartSpec, TileData, PersonalRecord, Meal,
                                  TrainingBlock, Profile, …) — snake_case via a shared decoder
-      Generated/DatabaseTypes.swift   supabase gen types --lang=swift (row types for direct reads)
       API/                       ApexClient (actor), Endpoint enum, APIError, NDJSON line parser,
                                  ChatWireEvent
       Coach/                     ApiMessage blocks, PendingAction, ActionQueue (settleHead /
@@ -38,14 +38,17 @@ ios/
       Schedule/                  OccurrenceID (`${baseId}__${date}`), Repeat (repeat.ts port),
                                  month/day layout math
       Analytics/                 palette, unit + number formatting
-    ApexPersistence/             Apple-only: GRDB implementation of CacheStore / WriteQueueStore /
+    ApexKit/                     Apple-only, one package with four library products (D-021):
+      ApexPersistence/           GRDB implementation of CacheStore / WriteQueueStore /
                                  ConversationStore
-    ApexAuth/                    Apple-only: supabase-swift Auth + Realtime wrapper, Keychain,
-                                 TokenProvider, RealtimeHub (debounced table-change stream)
-    ApexUI/                      design system: Tokens.swift (generated), Colors.xcassets, fonts,
-                                 Avatars.xcassets, components (Card, Chip, Segmented, WorkoutTypeBadge,
+      ApexAuth/                  supabase-swift Auth + Realtime wrapper, Keychain, TokenProvider,
+                                 RealtimeHub (debounced table-change stream), and
+                                 Generated/DatabaseTypes.swift (row types — they need
+                                 supabase-swift's AnyJSON, so they cannot live in ApexCore)
+      ApexUI/                    design system: Tokens.swift (generated), fonts, Avatars.xcassets,
+                                 components (Card, Chip, Segmented, WorkoutTypeBadge,
                                  ConfirmBar, Toast, SheetHeader, …)
-    ApexFeatures/                one target per feature: Schedule, Tracker, Coach, Builder,
+      ApexFeatures/              one feature per file group: Schedule, Tracker, Coach, Builder,
                                  Analytics, Library, Blocks, Meals, Profile, Sync, Onboarding
   scripts/
     gen-tokens.mjs               tokens.css + workoutColors.ts + palette.ts → ApexUI/Tokens.swift (--check)
@@ -55,9 +58,12 @@ ios/
 ```
 
 Build settings: iOS 17.0 floor (D-004); Swift 6 language mode; `SWIFT_DEFAULT_ACTOR_ISOLATION =
-MainActor` for app and feature targets; `ApexCore` strict without the default (it has its own
-actors). Dependencies: `supabase-swift`, `GRDB.swift`, `swift-snapshot-testing` (tests only).
-Nothing else unless a brief argues for it.
+MainActor` for the app target and `.defaultIsolation(MainActor)` for `ApexUI`/`ApexFeatures`;
+`ApexCore` and `ApexAuth` strict without the default (their actors and Sendable row types are
+used off the main actor). Note the test targets must **not** get the MainActor default —
+XCTestCase's `init` and `setUp` overrides are nonisolated and will not compile against it;
+isolate individual test methods instead. Dependencies: `supabase-swift`, `GRDB.swift`,
+`swift-snapshot-testing` (tests only). Nothing else unless a brief argues for it.
 
 ## 2. State management — MVVM on Observation (D-006)
 
@@ -99,7 +105,9 @@ TabView
 - `supabase-swift` `AuthClient` with Keychain storage (SDK default on Apple), `flowType: .pkce`.
 - `TokenProvider` protocol (`func accessToken() async throws -> String`) is all `ApexCore`
   sees. 401 from the API → refresh once → retry once → sign out with a "session expired" state.
-  Never loop.
+  Never loop. The *policy* lives in `ApexClient` (ApexCore), not in `ApexAuth`, so the
+  never-loop guarantee is proved by `swift test` on Linux; `SupabaseTokenProvider` only knows
+  how to fetch, renew and discard a token.
 - Sign in: email + password, `textContentType` set so AutoFill + Face ID work; the associated
   domain makes saved web credentials appear.
 - Invite/recovery: `resetPasswordForEmail(redirectTo: "https://apextrainingcalendar.vercel.app/auth/callback")`
@@ -112,7 +120,8 @@ TabView
 ## 5. API client (`ApexCore.ApexClient`)
 
 - Base URL from build configuration (`Release` → prod; `Local` → the worktree's dev port and the
-  local Supabase stack; never prod Supabase from a simulator).
+  local Supabase stack; never prod Supabase from a simulator — `AppConfig.assertSafe()` traps
+  at launch). Values travel xcconfig → Info.plist → `Bundle.main` (D-022).
 - Injects `Authorization: Bearer <token>` and `Content-Type: application/json`; snake_case
   decoding; ISO dates as `YYYY-MM-DD` strings (never `Date`) to match the API.
 - `APIError`: `.unauthorized`, `.missingAnthropicKey` (402), `.termsAcceptanceRequired` (403 with
@@ -224,9 +233,13 @@ token generator. Value inspection by tap/scrub (`chartOverlay` + `DragGesture`).
   and `src/lib/analytics/palette.ts` → `Tokens.swift` (colours as `Color(hex:)`, radii,
   durations, type scale); `--check` in CI. The brand should fail a build when it drifts.
 - Dark only (D-010): `.preferredColorScheme(.dark)`, `UIUserInterfaceStyle = Dark`.
-- Fonts: Inter, JetBrains Mono, Barlow Condensed (all SIL OFL) bundled in `ApexUI` resources,
-  registered via `UIAppFonts`; `Font.apex(.display|.mono|.wordmark, size:, weight:)` with
-  `relativeTo:` for Dynamic Type.
+- Fonts: Inter, JetBrains Mono, Barlow Condensed (all SIL OFL) bundled in `ApexUI` resources
+  and registered at runtime with `CTFontManagerRegisterFontsForURL` from `Bundle.module` —
+  **not** `UIAppFonts`, which only sees the main app bundle while SwiftPM resources land in
+  `ApexKit_ApexUI.bundle`. Registering at runtime also gives previews and the snapshot bundle
+  the real faces. `Font.apex(.display|.mono|.wordmark, size:, weight:)` with `relativeTo:` for
+  Dynamic Type; a missing TTF otherwise falls back to San Francisco silently, so `ApexTests`
+  asserts every face resolves.
 - Avatars: the 24 SVGs from `src/assets/avatars/` in `Avatars.xcassets` (Preserve Vector Data).
 - Full spec: [design-spec.md](design-spec.md).
 
@@ -241,7 +254,7 @@ Pair with `isIdleTimerDisabled` while the tracker is frontmost.
 ## 13. Type and contract sync (three CI-checked mechanisms)
 
 1. `scripts/db-types.sh` emits both `src/lib/db/database.types.ts` and
-   `ios/Packages/ApexCore/Sources/ApexCore/Generated/DatabaseTypes.swift`; `--check` covers both.
+   `ios/Packages/ApexKit/Sources/ApexAuth/Generated/DatabaseTypes.swift`; `--check` covers both.
 2. The fixture emitter vitest writes `ios/Fixtures/*`; `swift test` decodes them; `--check`
    fails on uncommitted drift.
 3. `gen-tokens.mjs --check`.
