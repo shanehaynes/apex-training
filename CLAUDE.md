@@ -5,6 +5,12 @@ Personal training app: React + Vite front end, Vercel serverless API under
 [CONTRIBUTING.md](CONTRIBUTING.md) — the essentials are here because they are
 easy to get wrong and expensive to get wrong.
 
+## iOS app
+
+A native SwiftUI port is planned and documented in [docs/ios/MASTER.md](docs/ios/MASTER.md).
+Any iOS or iOS-driven backend work starts there (it has its own session protocol and a status
+board); the `ios/` directory holds the app once workstream W1 lands.
+
 ## Several sessions may be running right now
 
 More than one Claude session works in this repo at once, and none of them can
