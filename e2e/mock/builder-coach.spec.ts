@@ -66,8 +66,12 @@ test('the coach panel fills the whole draft and cannot apply it', async ({ page 
   await expect(page.getByLabel('Repeat on WE')).toHaveAttribute('aria-pressed', 'true');
   await shot(page, 'builder-coach-filled');
 
-  // The wire: builder toolMode on the tools-on call, tools off on the settle.
-  expect(chatBodies[0].toolMode).toBe('builder');
+  // The wire (v2): builder mode + the draft as of now on the tools-on call —
+  // the server builds the prompt — tools off on the settle.
+  expect(chatBodies[0].mode).toBe('builder');
+  expect(chatBodies[0].today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  expect(chatBodies[0].system).toBeUndefined();
+  expect((chatBodies[0].context as { draft: Record<string, unknown> }).draft).toBeTruthy();
   expect(chatBodies[0].withTools).toBe(true);
   expect(chatBodies[1].withTools).toBe(false);
 

@@ -3,14 +3,14 @@ import type {
   Sport, WorkoutEvent, WorkoutTemplate, WorkoutType,
 } from '../../types/workout';
 import type { CreateEventInput, SaveWorkoutTemplateInput, UpdateEventInput } from '../schedule/types';
-import { toDisplayTime, toInputTime } from '../time';
-import { WORKOUT_COLORS } from '../../utils/workoutColors';
+import { toDisplayTime, toInputTime } from '../time.js';
+import { WORKOUT_COLORS } from '../../utils/workoutColors.js';
 import {
   entryFromDefinition, hasPerSideCount, matchDefinitionByName, slugifyName, uniqueEntryId,
-} from '../schedule/definitions';
-import { normalizeSupersets } from '../schedule/supersets';
+} from '../schedule/definitions.js';
+import { normalizeSupersets } from '../schedule/supersets.js';
 import { WEEKDAYS, type Weekday } from '../recurrence/index.js';
-import { REPEAT_OFF, repeatFromRule, repeatProblem, ruleFromRepeat, snapAnchorDate, type DraftRepeat } from './repeat';
+import { REPEAT_OFF, repeatFromRule, repeatProblem, ruleFromRepeat, snapAnchorDate, type DraftRepeat } from './repeat.js';
 
 // ─── The builder's draft model ───────────────────────────────────────────────
 // One plain object holding everything the workout builder edits, with pure

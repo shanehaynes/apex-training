@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type 
 import { KeyRound, Send, Sparkles, Square, X } from 'lucide-react';
 import { useAuth } from '../../context/auth';
 import { useCalendar } from '../../context/calendar';
+import { format } from 'date-fns';
 import { useChat } from '../../hooks/useChat';
-import { buildBuilderPrompt } from '../../lib/coach/prompt';
 import CoachModelPicker from '../coach/CoachModelPicker';
-import { applyDraftUpdate, describeDraft, type DraftUpdateInput, type WorkoutDraft } from '../../lib/builder/draft';
+import { applyDraftUpdate, type DraftUpdateInput, type WorkoutDraft } from '../../lib/builder/draft';
 import { now } from '../../lib/clock';
 import type { ExerciseDefinition, WorkoutTemplate } from '../../types/workout';
 
@@ -25,7 +25,7 @@ interface Props {
  * nothing here persists anything. The calendar/meal tools don't exist in
  * this mode, so the coach cannot touch anything beyond the form.
  */
-export default function BuilderCoachPanel({ draft, setDraft, definitions, templates, onClose }: Props) {
+export default function BuilderCoachPanel({ draft, setDraft, definitions, onClose }: Props) {
   const {
     messages, isLoading, streamingContent,
     pendingAction, sendMessage, confirmAction, cancelAction, abort,
@@ -44,12 +44,12 @@ export default function BuilderCoachPanel({ draft, setDraft, definitions, templa
   useEffect(() => { draftRef.current = draft; }, [draft]);
 
   const today = useMemo(() => now(), []);
-  const resolvePrompt = useCallback(() => buildBuilderPrompt(
-    describeDraft(draftRef.current),
-    [...templates.values()].filter(t => !t.archivedAt).map(t => t.title),
-    definitions.values(),
-    today,
-  ), [templates, definitions, today]);
+  // The server describes the draft, the saved-workout titles and the library
+  // in the prompt (W5a); the client sends the draft as of now.
+  const resolvePrompt = useCallback(
+    () => ({ today: format(today, 'yyyy-MM-dd'), draft: draftRef.current }),
+    [today],
+  );
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

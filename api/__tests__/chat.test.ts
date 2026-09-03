@@ -31,6 +31,27 @@ vi.mock('../_lib/supabaseAdmin.js', () => ({
 }));
 vi.mock('../_lib/anthropicKey.js', () => ({ getAnthropicKey: vi.fn(async () => null) }));
 vi.mock('../_lib/rateLimit.js', () => ({ enforceRateLimit: vi.fn(async () => true) }));
+// The server-side prompt builder (W5a): scripted here; its own suite is
+// api/__tests__/coach-context.test.ts.
+vi.mock('../_lib/coach/context.js', () => {
+  class ChatContextError extends Error {}
+  return {
+    ChatContextError,
+    isChatMode: (v: unknown) => v === 'chat' || v === 'builder' || v === 'analytics',
+    buildChatContext: vi.fn(async (_db: unknown, _u: string, mode: string, today: unknown) => {
+      if (typeof today !== 'string' || today === 'bad') throw new ChatContextError('today must be a YYYY-MM-DD date');
+      return {
+        system: `SERVER PROMPT (${mode})`,
+        toolContext: {
+          definitions: new Map(),
+          events: [{ id: 'evt-9', title: 'Leg day', date: '2026-09-04', type: 'weights', estimatedDuration: 60, isCompleted: false }],
+          meals: [],
+        },
+      };
+    }),
+  };
+});
+import { buildChatContext } from '../_lib/coach/context';
 
 import { getAnthropicKey } from '../_lib/anthropicKey';
 import { enforceRateLimit } from '../_lib/rateLimit';
@@ -331,6 +352,61 @@ describe('chat handler — rate limit', () => {
     expect(statusCode()).toBe(429);
     expect(Object.keys(headers)).toEqual([]);
     expect(writes).toEqual([]);
+  });
+});
+
+describe('chat handler — v2 body: server-side prompt (W5a)', () => {
+  it('builds the system prompt from mode/today/context instead of trusting the body', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    const { res } = makeHandlerRes();
+    await handler(makeHandlerReq({
+      mode: 'builder', today: '2026-09-03', withTools: true,
+      context: { draft: { title: 'Push' } },
+      messages: [{ role: 'user', content: 'add bench' }],
+    }), res);
+    expect(buildChatContext).toHaveBeenLastCalledWith(expect.anything(), 'user-123', 'builder', '2026-09-03', { title: 'Push' });
+    const params = streamMock.mock.calls.at(-1)![0] as unknown as Anthropic.MessageStreamParams;
+    expect(params.system).toEqual([{ type: 'text', text: 'SERVER PROMPT (builder)', cache_control: { type: 'ephemeral' } }]);
+    // The builder mode's tool list, chosen from `mode`.
+    expect((params.tools as Array<{ name: string }>).map(t => t.name)).toEqual(['update_workout_draft']);
+  });
+
+  it('400s a v2 body without a valid today, and one with neither today nor a legacy system', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValue('sk-test');
+    const a = makeHandlerRes();
+    await handler(makeHandlerReq({ mode: 'chat', today: 'bad', messages: [{ role: 'user', content: 'hi' }] }), a.res);
+    expect(a.statusCode()).toBe(400);
+    expect(a.body()).toBe('today must be a YYYY-MM-DD date');
+
+    const b = makeHandlerRes();
+    await handler(makeHandlerReq({ messages: [{ role: 'user', content: 'hi' }] }), b.res);
+    expect(b.statusCode()).toBe(400);
+    expect(streamMock).not.toHaveBeenCalledWith(expect.objectContaining({ system: undefined }));
+    vi.mocked(getAnthropicKey).mockReset();
+    vi.mocked(getAnthropicKey).mockResolvedValue(null);
+  });
+
+  it('labels tool_use events with real context on a v2 turn, and leaves legacy turns unlabelled', async () => {
+    const toolTurn: UpstreamEvent[] = [
+      { type: 'content_block_start', content_block: { type: 'tool_use', id: 'tu_1', name: 'delete_event' } },
+      { type: 'content_block_delta', delta: { type: 'input_json_delta', partial_json: '{"event_id":"evt-9","scope":"all"}' } },
+      { type: 'content_block_stop' },
+    ];
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    streamMock.mockImplementationOnce(() => upstream(toolTurn) as never);
+    const v2 = makeHandlerRes();
+    await handler(makeHandlerReq({ mode: 'chat', today: '2026-09-03', withTools: true, messages: [{ role: 'user', content: 'delete leg day' }] }), v2.res);
+    const v2Events = v2.writes.join('').trim().split('\n').map(l => JSON.parse(l) as ChatWireEvent);
+    const labelled = v2Events.find(e => e.type === 'tool_use') as { label?: string; input: unknown };
+    expect(labelled.label).toBe('Delete: Leg day · 2026-09-04 (entire series)');
+    expect(labelled.input).toEqual({ event_id: 'evt-9', scope: 'all' });
+
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    streamMock.mockImplementationOnce(() => upstream(toolTurn) as never);
+    const legacy = makeHandlerRes();
+    await handler(makeHandlerReq({ system: 'x', withTools: true, messages: [{ role: 'user', content: 'delete leg day' }] }), legacy.res);
+    const legacyEvents = legacy.writes.join('').trim().split('\n').map(l => JSON.parse(l) as ChatWireEvent);
+    expect((legacyEvents.find(e => e.type === 'tool_use') as { label?: string }).label).toBeUndefined();
   });
 });
 

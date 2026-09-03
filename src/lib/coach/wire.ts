@@ -6,7 +6,9 @@
 
 export type ChatWireEvent =
   | { type: 'text'; delta: string }
-  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
+  /** `label`: the confirmation-card one-liner, computed server-side with
+   *  real context (W5a). Wire-only — never forwarded to the model. */
+  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown>; label?: string }
   | { type: 'done' }
   | { type: 'error'; message: string };
 

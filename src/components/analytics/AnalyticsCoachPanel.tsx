@@ -2,12 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type 
 import { KeyRound, Send, Sparkles, Square, X } from 'lucide-react';
 import { useAuth } from '../../context/auth';
 import { useCalendar } from '../../context/calendar';
+import { format } from 'date-fns';
 import { useChat } from '../../hooks/useChat';
-import { buildAnalyticsPrompt } from '../../lib/coach/prompt';
 import CoachModelPicker from '../coach/CoachModelPicker';
 import {
   applyChartDraftUpdate,
-  describeChartDraft,
   type ChartDraft,
   type DraftUpdateInput,
 } from '../../lib/analytics/draft';
@@ -17,7 +16,6 @@ interface Props {
   draft: ChartDraft;
   setDraft: Dispatch<SetStateAction<ChartDraft>>;
   /** Titles of sport-'other' workouts, for the prompt's narrowing section. */
-  otherWorkoutTitles: string[];
   onClose: () => void;
 }
 
@@ -29,7 +27,7 @@ interface Props {
  * button, and nothing here persists anything. The calendar/meal tools don't
  * exist in this mode, so the coach cannot reach past the form.
  */
-export default function AnalyticsCoachPanel({ draft, setDraft, otherWorkoutTitles, onClose }: Props) {
+export default function AnalyticsCoachPanel({ draft, setDraft, onClose }: Props) {
   const {
     messages, isLoading, streamingContent,
     pendingAction, sendMessage, confirmAction, cancelAction, abort,
@@ -48,9 +46,11 @@ export default function AnalyticsCoachPanel({ draft, setDraft, otherWorkoutTitle
   useEffect(() => { draftRef.current = draft; }, [draft]);
 
   const today = useMemo(() => now(), []);
+  // The server describes the draft and the "other sport" titles in the
+  // prompt (W5a); the client sends the draft as of now.
   const resolvePrompt = useCallback(
-    () => buildAnalyticsPrompt(describeChartDraft(draftRef.current), otherWorkoutTitles, today),
-    [otherWorkoutTitles, today],
+    () => ({ today: format(today, 'yyyy-MM-dd'), draft: draftRef.current }),
+    [today],
   );
 
   useEffect(() => {

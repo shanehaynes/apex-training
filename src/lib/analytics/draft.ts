@@ -22,7 +22,7 @@ import {
   type RangePreset,
   type SeriesFilters,
   type TimeBucket,
-} from './spec';
+} from './spec.js';
 
 // ─── The chart draft ─────────────────────────────────────────────────────────
 // One plain object holding everything the tile builder edits, with pure

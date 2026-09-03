@@ -1,7 +1,7 @@
 # W5a — Backend: chat v2 (server-side prompt assembly)
 
 **Machine:** Linux · **Depends on:** W0 · **Unblocks:** W5b, W6
-**Status:** blocked on W0
+**Status:** in review (PR pending)
 
 ## Goal
 `/api/chat` builds the system prompt itself from the caller's data, so any client sends
@@ -29,4 +29,16 @@ Out: tool execution (W5b).
 - Playwright `mobile-chat` and coach specs green.
 
 ## Session log
-- (none yet)
+- 2026-09-03 · Linux · `api/_lib/coach/context.ts` builds all three prompts server-side from the
+  same loaders the MCP tools use (`fetchExpandedSchedule`, completions over this week + 4,
+  `loadMealsForDate`, profile, block attainment via `fetchPeriodInputs` + `computeBlockProgress`,
+  template titles, "other sport" titles). `api/chat.ts` accepts `{ mode, messages, withTools,
+  today, context?.draft, model }` (legacy `{ system }` still honoured), chooses the tool list from
+  `mode`, and stamps `label` on every `tool_use` wire event via `findCoachTool().displayLabel`
+  with real context. `src/lib/builder/draft.ts` and `src/lib/analytics/draft.ts` switched to `.js`
+  specifiers. Web: `useChat` sends the v2 body (`ChatContext { today, draft? }`); `ChatSidebar`,
+  `BuilderCoachPanel`, `AnalyticsCoachPanel` no longer build prompts; `useBlockSummary` deleted;
+  `TileBuilder` no longer passes other-workout titles. Tests: golden equivalence
+  (`api/__tests__/coach-context.test.ts`), v2/label cases in `chat.test.ts`, real-data context +
+  labelled stream in the integration suite; fixture `ios/Fixtures/chat-stream.ndjson` (scripted
+  model, real context). Evals untouched — they still drive `prompt.ts` directly.
