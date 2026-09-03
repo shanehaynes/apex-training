@@ -25,6 +25,8 @@ import providerCron from './handlers/providerCron.js';
 import version from './handlers/version.js';
 import termsAcceptance from './handlers/termsAcceptance.js';
 import account from './handlers/account.js';
+import schedule from './handlers/schedule.js';
+import query from './handlers/query.js';
 import { handleTrainingBlocks } from './trainingBlocks.js';
 import { handleMeals } from './meals.js';
 import { handleMealFavorites } from './mealFavorites.js';
@@ -67,6 +69,10 @@ app.all('/event-instances', bridge(eventInstances));
 app.all('/coach-summary', bridge(coachSummary));
 app.all('/mutations-log', bridge(mutationsLog));
 app.all('/completions', bridge(completions));
+// Native-client read surface (docs/ios/backend-changes.md, W0): the expanded
+// schedule for a date window, and a JWT door onto the read-only MCP tools.
+app.all('/schedule', bridge(schedule));
+app.all('/query', bridge(query));
 // Remote MCP server (bearer PAT auth, not Supabase JWT) + its token CRUD.
 app.all('/mcp', bridge(mcp));
 app.all('/mcp-tokens', bridge(mcpTokens));

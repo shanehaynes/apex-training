@@ -1,7 +1,7 @@
 import type { Exercise, PlannedSet, WorkoutEvent } from '../../types/workout';
 import type { CardioLogRow, SetLogRow, TrackedSection } from '../db/types';
-import { sectionLabels } from '../climbing';
-import { parseDurationSeconds } from './records';
+import { sectionLabels } from '../climbing.js';
+import { parseDurationSeconds } from './records.js';
 
 // ─── Tracker form model ───────────────────────────────────────────────────────
 // Pure builders that turn a WorkoutEvent (plan) plus previously-saved rows

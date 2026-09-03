@@ -9,6 +9,8 @@ import {
   EVENT_ID_PATTERN,
 } from '../allowlist.js';
 import { enforceRateLimit } from '../rateLimit.js';
+import { loadResolvedOccurrence } from '../trackerSession.js';
+import { buildQuickCompleteLogs } from '../../../src/lib/tracking/plan.js';
 import type { CardioLogRow, SetLogRow, TablesInsert, TrackedSection } from '../../../src/lib/db/types.js';
 
 // Single endpoint for the workout tracker's writes, discriminated by
@@ -336,18 +338,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Every upsert ignores duplicates, so anything hand-logged — including a
   // partially tracked session — is never overwritten.
   if (body.action === 'quick-complete') {
-    const setLogs = prepareLogRows(res, body.setLogs, SET_LOG_COLUMNS, 'setLogs', true);
-    if (!setLogs) return;
-    const cardioLogs = prepareLogRows(res, body.cardioLogs, CARDIO_LOG_COLUMNS, 'cardioLogs', false);
-    if (!cardioLogs) return;
+    let setLogs: Record<string, unknown>[] | null;
+    let cardioLogs: Record<string, unknown>[] | null;
+    let durationSeconds = body.durationSeconds;
+    if (body.setLogs === undefined && body.cardioLogs === undefined) {
+      // No rows from the client: build them here from the plan (W0 — a
+      // native client never ports the tracker model). The recommended
+      // duration comes from the event too unless the caller sent one.
+      const event = await loadResolvedOccurrence(supabase, userId, eventId, eventDate);
+      if (!event) {
+        res.status(404).send('No such event');
+        return;
+      }
+      const built = buildQuickCompleteLogs(event);
+      setLogs = built.setLogs as unknown as Record<string, unknown>[];
+      cardioLogs = built.cardioLogs as unknown as Record<string, unknown>[];
+      if (durationSeconds === undefined && event.estimatedDuration > 0) {
+        durationSeconds = event.estimatedDuration * 60;
+      }
+    } else {
+      setLogs = prepareLogRows(res, body.setLogs, SET_LOG_COLUMNS, 'setLogs', true);
+      if (!setLogs) return;
+      cardioLogs = prepareLogRows(res, body.cardioLogs, CARDIO_LOG_COLUMNS, 'cardioLogs', false);
+      if (!cardioLogs) return;
+    }
 
     // A 400 beats the opaque 500 that Infinity/NaN produces at the DB. A
     // week is far beyond any recommended session length.
-    if (body.durationSeconds !== undefined &&
-        (typeof body.durationSeconds !== 'number' ||
-         !Number.isFinite(body.durationSeconds) ||
-         body.durationSeconds < 0 ||
-         body.durationSeconds > 7 * 24 * 3600)) {
+    if (durationSeconds !== undefined &&
+        (typeof durationSeconds !== 'number' ||
+         !Number.isFinite(durationSeconds) ||
+         durationSeconds < 0 ||
+         durationSeconds > 7 * 24 * 3600)) {
       res.status(400).send('durationSeconds must be a finite number of seconds');
       return;
     }
@@ -372,7 +394,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .from('workout_sessions')
       .update({
         finished_at: now,
-        total_duration_seconds: typeof body.durationSeconds === 'number' ? Math.round(body.durationSeconds) : null,
+        total_duration_seconds: typeof durationSeconds === 'number' ? Math.round(durationSeconds) : null,
         updated_at: now,
       })
       .eq('user_id', userId).eq('event_id', eventId)

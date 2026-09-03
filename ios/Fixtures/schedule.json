@@ -1,0 +1,114 @@
+{
+  "window": {
+    "start": "2026-09-01",
+    "end": "2026-09-30"
+  },
+  "bases": [
+    {
+      "id": "ios-fixture-weekly",
+      "type": "weights",
+      "title": "Fixture Push Day",
+      "date": "2026-09-01",
+      "startTime": "17:30",
+      "endTime": "18:30",
+      "estimatedDuration": 60,
+      "description": "W0 fixture",
+      "warmup": [],
+      "exercises": [
+        {
+          "id": "fx-press",
+          "name": "Fixture Press",
+          "reps": "5",
+          "sets": 2,
+          "weight": "100 lb",
+          "category": "strength",
+          "restPeriod": "2 min",
+          "definitionId": "ios-fixture-def",
+          "muscleGroups": [
+            "chest"
+          ]
+        },
+        {
+          "id": "fx-row",
+          "name": "Fixture Row",
+          "category": "cardio",
+          "duration": "20 min"
+        }
+      ],
+      "cooldown": [],
+      "difficulty": 3,
+      "tags": [
+        "fixture"
+      ],
+      "equipment": [],
+      "isCompleted": false,
+      "isRecurring": true,
+      "recurrenceRule": "FREQ=WEEKLY;BYDAY=TU;UNTIL=20261027"
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "ios-fixture-weekly",
+      "baseId": "ios-fixture-weekly",
+      "date": "2026-09-01",
+      "startTime": "17:30",
+      "endTime": "18:30",
+      "isCompleted": false,
+      "completedAt": null
+    },
+    {
+      "id": "ios-fixture-weekly__2026-09-08",
+      "baseId": "ios-fixture-weekly",
+      "date": "2026-09-08",
+      "startTime": "17:30",
+      "endTime": "18:30",
+      "isCompleted": true,
+      "completedAt": "<timestamp>"
+    },
+    {
+      "id": "ios-fixture-weekly__2026-09-15",
+      "baseId": "ios-fixture-weekly",
+      "date": "2026-09-15",
+      "startTime": "17:30",
+      "endTime": "18:30",
+      "isCompleted": false,
+      "completedAt": null
+    },
+    {
+      "id": "ios-fixture-weekly__2026-09-22",
+      "baseId": "ios-fixture-weekly",
+      "date": "2026-09-22",
+      "startTime": "17:30",
+      "endTime": "18:30",
+      "isCompleted": false,
+      "completedAt": null
+    },
+    {
+      "id": "ios-fixture-weekly__2026-09-29",
+      "baseId": "ios-fixture-weekly",
+      "date": "2026-09-29",
+      "startTime": "17:30",
+      "endTime": "18:30",
+      "isCompleted": false,
+      "completedAt": null
+    }
+  ],
+  "definitions": [
+    {
+      "id": "ios-fixture-def",
+      "canonicalName": "Fixture Press",
+      "aliases": [
+        "fx press"
+      ],
+      "category": "strength",
+      "muscleGroups": [
+        "chest"
+      ],
+      "equipment": [
+        "barbell"
+      ],
+      "isUnilateral": false
+    }
+  ],
+  "templates": []
+}

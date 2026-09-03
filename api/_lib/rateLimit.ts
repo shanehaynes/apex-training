@@ -38,6 +38,11 @@ export const RATE_LIMITS = {
   /** Provider sync (COROS): one apply writes dozens of rows, so it gets its
    *  own bucket instead of draining the shared writes budget. */
   providerSync: { windowSeconds: 3600, max: 60 },
+  /** Native-client read endpoints (/api/schedule, /api/query, analytics
+   *  compute): these replace direct Supabase reads that had no throttle at
+   *  all. Generous for refresh-on-foreground + realtime; a 30s poll would
+   *  drain it, which is the point — never poll. */
+  reads:   { windowSeconds: 600,  max: 300 },
 } as const;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;

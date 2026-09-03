@@ -9,7 +9,7 @@ account-deletion requirement.
 
 ## Scope
 In:
-- Backend (Linux): `DELETE /api/profile` after an FK cascade audit (migration if needed);
+- Backend (Linux): account deletion already exists (`DELETE /api/account`, PR #93) — nothing to add;
   `provider-sync connect-start { client: 'ios' }` + **migration `provider_connections.client`**
   (claim with `scripts/next-phase.sh` at PR time) + callback redirect to
   `apextraining://connected?provider=coros` / `connect_error`; add the web's Delete account

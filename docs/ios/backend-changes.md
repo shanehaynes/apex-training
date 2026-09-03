@@ -47,8 +47,9 @@ A JWT door onto the read-only MCP registry (`api/_lib/mcp/toolRegistry.ts`): `ge
 zero new logic; add richer dedicated handlers only where a screen needs a different shape.
 
 ### Guards and generators
-- `scripts/ci-guards.sh`: walk the import graph from `api/*.ts` and fail on any extensionless
-  relative specifier inside `src/`.
+- Import-graph guard: already exists as `api/__tests__/esm-imports.test.ts` (runs in `npm test`);
+  no change needed. Any `src/lib` module newly reached from `api/` must switch to `.js`
+  specifiers or that test fails.
 - `scripts/db-types.sh`: also `supabase gen types --lang=swift >
   ios/Packages/ApexCore/Sources/ApexCore/Generated/DatabaseTypes.swift`; `--check` covers it.
 - `api/__tests__/fixtures/emitIosFixtures.test.ts`: runs handlers against the local stack and
@@ -149,9 +150,9 @@ services so every client gets re-lettering for free.
 
 ## W11 — profile, COROS, account (Linux + Mac)
 
-- **`DELETE /api/profile`**: `auth.admin.deleteUser(userId)` after an FK cascade audit of every
-  `user_id` table; if any lacks `ON DELETE CASCADE`, a migration adds it. Surface in the web
-  profile too. App Store guideline 5.1.1(v).
+- **Account deletion already exists**: `DELETE /api/account` (PR #93, `api/_lib/handlers/account.ts`,
+  with `USER_DATA_TABLES` and a test that fails if a migration adds a user table it misses).
+  iOS surfaces it in W11; no backend work. App Store guideline 5.1.1(v).
 - **COROS from the app**: `provider-sync connect-start { client: 'ios' }` persisted on the
   pending `provider_connections` row (**migration: `provider_connections.client text`**, claim
   the number with `scripts/next-phase.sh` at PR time), and `providerCallback.ts` redirects that
@@ -181,5 +182,5 @@ services so every client gets re-lettering for free.
 | `coach-tool` | W5b | tools.ts + services extraction | yes | writes/reads | 670 | — |
 | `analytics-compute` | W8 | engine.ts, spec.ts, hrZones.ts | later | reads | 200 | — |
 | `blocks?resource=cycle`, supersets in services | W10 | cadence.ts, supersets.ts | yes | writes | 80 | — |
-| `DELETE /api/profile` | W11 | auth.admin | add | writes | 60 | maybe (cascades) |
+| account deletion | W11 | exists: `DELETE /api/account` | — | — | 0 | — |
 | COROS `client:'ios'` + scheme redirect | W11 | providers/* | no | providerSync | 40 | **yes** (`provider_connections.client`) |

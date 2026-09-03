@@ -1,0 +1,19 @@
+{
+  "tool": "get_prs",
+  "result": {
+    "scope": "all_time",
+    "lifts": [
+      {
+        "exercise": "Fixture Press",
+        "estimated_1rm": 121,
+        "weight": 110,
+        "reps": 3,
+        "date": "2026-09-08"
+      }
+    ],
+    "holds": [],
+    "reps": [],
+    "cardio_distance": [],
+    "cardio_elevation": []
+  }
+}

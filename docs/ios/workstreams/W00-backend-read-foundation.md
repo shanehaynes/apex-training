@@ -1,7 +1,7 @@
 # W0 — Backend read foundation
 
 **Machine:** Linux · **Depends on:** — · **Unblocks:** W2 (and every later Swift workstream)
-**Status:** ready
+**Status:** in review (PR pending)
 
 ## Goal
 Give a native client everything it needs to *read* without reimplementing recurrence, alias
@@ -16,7 +16,10 @@ In:
 - `POST /api/workout-sessions { action: 'quick-complete' }` builds rows server-side via
   `buildQuickCompleteLogs` when the body carries none.
 - `POST /api/query { tool, args }` over `api/_lib/mcp/toolRegistry.ts` (JWT, bucket `reads`).
-- `scripts/ci-guards.sh`: `.js`-specifier import-graph guard from `api/*.ts` into `src/`.
+- ~~`.js`-specifier import-graph guard~~ — already exists as `api/__tests__/esm-imports.test.ts`
+  (walks the api import graph and fails on extensionless relative imports). Nothing to add;
+  `src/lib/tracking/plan.ts` needed its two runtime imports switched to `.js` once the API
+  graph reached it, and the test caught exactly that.
 - `scripts/db-types.sh`: also emit `ios/Packages/ApexCore/Sources/ApexCore/Generated/DatabaseTypes.swift`;
   `--check` covers it.
 - `api/__tests__/fixtures/emitIosFixtures.test.ts` → `ios/Fixtures/{schedule,query-*,profile}.json`
@@ -40,4 +43,14 @@ Out: any web UI change; the web keeps its in-browser schedule path.
 - The local gate (`agent:check`) is green.
 
 ## Session log
-- (none yet)
+- 2026-09-03 · Linux · Implemented: `reads` bucket; `GET /api/schedule` (`api/_lib/handlers/schedule.ts`);
+  `POST /api/query` (`api/_lib/handlers/query.ts`); server-built `quick-complete` via new
+  `api/_lib/trackerSession.ts` `loadResolvedOccurrence` (also stamps the plan's estimated
+  duration when the caller sends none); `scripts/db-types.sh` now emits and checks
+  `ios/Packages/ApexCore/Sources/ApexCore/Generated/DatabaseTypes.swift`; fixture emitter lives in
+  `api/__tests__/integration/ios-read.integration.test.ts` (checks by default, writes with
+  `APEX_FIXTURES_WRITE=1`) and produced `ios/Fixtures/{schedule,query-search_exercises,query-get_prs,profile}.json`.
+  Unit tests: `schedule.test.ts`, `query.test.ts`, quick-complete cases in `workout-sessions.test.ts`.
+  Findings for later workstreams: account deletion already exists as `/api/account` (PR #93), so
+  W11 drops `DELETE /api/profile`; `requireUser` gates every non-exempt route on terms acceptance
+  (`403 terms-acceptance-required`), which the Swift `APIError` must map (added to architecture.md).

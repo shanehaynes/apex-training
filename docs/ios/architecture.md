@@ -115,9 +115,12 @@ TabView
   local Supabase stack; never prod Supabase from a simulator).
 - Injects `Authorization: Bearer <token>` and `Content-Type: application/json`; snake_case
   decoding; ISO dates as `YYYY-MM-DD` strings (never `Date`) to match the API.
-- `APIError`: `.unauthorized`, `.missingAnthropicKey` (402), `.payloadTooLarge` (413),
-  `.rateLimited(retryAfter:)` (429), `.server(status, message)`, `.network(URLError)`,
-  `.decoding(context)`. Chat surfaces 402/429 inline (like `useChat.ts`); everything else toasts.
+- `APIError`: `.unauthorized`, `.missingAnthropicKey` (402), `.termsAcceptanceRequired` (403 with
+  body `terms-acceptance-required` — `requireUser` gates every non-exempt route until the user
+  accepts the current Terms/Privacy; the app shows the acceptance screen and posts to
+  `/api/terms-acceptance`), `.payloadTooLarge` (413), `.rateLimited(retryAfter:)` (429),
+  `.server(status, message)`, `.network(URLError)`, `.decoding(context)`. Chat surfaces 402/429
+  inline (like `useChat.ts`); everything else toasts.
 - Streaming: `URLSession.bytes(for:)` → `.lines` → decode one `ChatWireEvent` per line →
   `AsyncThrowingStream`. Task cancellation cancels the request, which trips `res.on('close')`
   in `api/chat.ts` and aborts the upstream Anthropic call.

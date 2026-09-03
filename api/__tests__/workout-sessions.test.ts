@@ -6,6 +6,17 @@ import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
 vi.mock('../_lib/auth.js', () => ({ requireUser: vi.fn(async () => 'user-123') }));
 vi.mock('../_lib/rateLimit.js', () => ({ enforceRateLimit: vi.fn(async () => true) }));
+vi.mock('../_lib/trackerSession.js', () => ({
+  loadResolvedOccurrence: vi.fn(async (_db: unknown, _u: string, eventId: string, eventDate: string) =>
+    eventId === 'missing' ? null : {
+      id: eventId, date: eventDate, type: 'weights', title: 'Bench', estimatedDuration: 45, description: '',
+      difficulty: 3, tags: [], isCompleted: false, isRecurring: false,
+      exercises: [
+        { id: 'bench', name: 'Bench Press', category: 'strength', sets: 2, reps: '5', weight: '100 lb' },
+        { id: 'row', name: 'Easy Row', category: 'cardio', duration: '20 min' },
+      ],
+    }),
+}));
 
 const mockedAdmin = vi.mocked(getSupabaseAdmin);
 
@@ -234,6 +245,35 @@ describe('POST /api/workout-sessions — quick-complete guards', () => {
     }), res);
     expect(statusCode()).toBe(200);
     expect(state.upserts['workout_set_logs'][0].is_autofilled).toBe(true);
+  });
+});
+
+describe('POST /api/workout-sessions — quick-complete without rows (server-built)', () => {
+  it('builds planned rows from the resolved event and stamps the recommended duration', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq({ action: 'quick-complete', eventId: 'evt-1__2026-08-07', eventDate: '2026-08-07' }), res);
+    expect(statusCode()).toBe(200);
+    const sets = state.upserts['workout_set_logs'];
+    expect(sets.map(r => [r.event_id, r.event_date, r.set_number, r.actual_weight, r.is_autofilled])).toEqual([
+      ['evt-1__2026-08-07', '2026-08-07', 1, '100 lb', true],
+      ['evt-1__2026-08-07', '2026-08-07', 2, '100 lb', true],
+    ]);
+    expect(state.upserts['workout_cardio_logs'][0]).toMatchObject({ exercise_id: 'row', duration_minutes: 20, is_autofilled: true });
+    const finish = state.updates.find(u => u.table === 'workout_sessions')!;
+    expect(finish.patch.total_duration_seconds).toBe(45 * 60);
+  });
+
+  it('lets an explicit durationSeconds win over the plan', async () => {
+    const { res } = makeRes();
+    await handler(makeReq({ action: 'quick-complete', eventId: 'evt-1', eventDate: '2026-08-07', durationSeconds: 600 }), res);
+    expect(state.updates.find(u => u.table === 'workout_sessions')!.patch.total_duration_seconds).toBe(600);
+  });
+
+  it('404s when the caller owns no such event, writing nothing', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq({ action: 'quick-complete', eventId: 'missing', eventDate: '2026-08-07' }), res);
+    expect(statusCode()).toBe(404);
+    expect(state.upserts['workout_sessions']).toBeUndefined();
   });
 });
 

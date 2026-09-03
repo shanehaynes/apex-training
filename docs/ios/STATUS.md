@@ -8,7 +8,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 
 | WS | Title | State | Machine | Notes |
 |---|---|---|---|---|
-| W0 | Backend read foundation | ready | Linux | no migration |
+| W0 | Backend read foundation | in review (PR pending) | Linux | no migration |
 | W1 | iOS scaffold + app icon + CI | ready | Mac | two HELD PRs (ci.yml; AASA + vercel.json) |
 | W2 | Schedule read, cache, realtime, auth links | blocked on W0, W1 | Mac | first TestFlight with value |
 | W3 | Backend tracker consolidation | blocked on W0 | Linux | web switches in the same PR |
@@ -25,13 +25,14 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
-1. W0 on Linux and W1 on the Mac, in parallel.
+1. Merge W0; W1 on the Mac can start now (it needs nothing from W0 until W2).
 2. Shane: Apple Developer Program membership; App ID `com.apextraining.app`; add
    `https://apextrainingcalendar.vercel.app/auth/callback` to Supabase Additional Redirect URLs.
 3. Shane: merge the two HELD PRs from W1 (ci.yml jobs; AASA + vercel.json header).
 
 ## Recent sessions
-- 2026-09-02 · plan · Master plan and all briefs written (this PR). No code yet.
+- 2026-09-02 · plan · Master plan and all briefs written (PR #94).
+- 2026-09-03 · W0 · Read endpoints, server-built quick-complete, Swift types emit, fixtures — PR opened.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)
