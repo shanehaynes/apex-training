@@ -36,8 +36,11 @@ say so.
    after a deliberate shape change. CI's `full` job therefore checks them with no extra step.
 3. **Snapshot tests** (`swift-snapshot-testing`) in `ApexFeatures`: Day view (empty, three
    events, completed), tracker set row in each state (planned / shadow / logged / autofilled /
-   extra), confirmation card, KPI and line tiles, event detail sheet. iPhone 16 and iPhone SE,
-   dark, default and one large Dynamic Type size.
+   extra), confirmation card, KPI and line tiles, event detail sheet. iPhone 17 (iOS 26) and,
+   where the runtime is installed, iPhone 16 (iOS 18) — dark, default and one large Dynamic
+   Type size. Snapshots are opt-in behind `APEX_SNAPSHOTS=1` and reviewed on a Mac, never a
+   CI gate: their bytes depend on the OS's own text rendering, and a suite that is red for
+   environmental reasons is a suite people learn to ignore.
 4. **XCUITest smoke** — launch with `-apexMockClient` (an in-process `ApexClient` fed by the
    fixtures) → sign in → today → open the first workout → start tracker → log one set → finish →
    summary. It attaches screenshots at each step; `ios/scripts/screenshots.sh` collects them.
@@ -52,11 +55,14 @@ apexcore-linux:
   runs-on: ubuntu-latest
   steps:
     - uses: actions/checkout@v7
-    - uses: swift-actions/setup-swift@v2      # pin the same major as Xcode's toolchain
+    - uses: swift-actions/setup-swift@v2
+      with: { swift-version: "6.1" }          # ApexCore is tools-version 6.0; no Apple SDK needed
     - run: swift test --package-path ios/Packages/ApexCore
 
 ios:
-  runs-on: macos-15
+  # macos-15's default Xcode cannot build a tools-version 6.2 manifest or Swift 6.3
+  # sources, which is what ApexKit is.
+  runs-on: macos-26
   timeout-minutes: 40
   steps:
     - uses: actions/checkout@v7
@@ -69,7 +75,7 @@ ios:
       if: env.skip != '1'
     - run: xcodegen generate --spec ios/project.yml
       if: env.skip != '1'
-    - run: xcodebuild -project ios/Apex.xcodeproj -scheme Apex -destination 'platform=iOS Simulator,name=iPhone 16' -resultBundlePath ios/build/Apex.xcresult test
+    - run: xcodebuild -project ios/Apex.xcodeproj -scheme Apex -configuration Local -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ios/build/dd -resultBundlePath ios/build/Apex.xcresult CODE_SIGNING_ALLOWED=NO test
       if: env.skip != '1'
     - uses: actions/upload-artifact@v7
       if: always() && env.skip != '1'
@@ -83,21 +89,29 @@ queue. The job always starts and finishes green in seconds for web-only PRs.
 ## Local loop on the Mac
 
 ```bash
-brew install xcodegen swiftlint
+brew install xcodegen
 cd ios && xcodegen generate            # per worktree; .xcodeproj is git-ignored
-xcodebuild -scheme Apex -destination 'platform=iOS Simulator,name=iPhone 16' test
-ios/scripts/screenshots.sh             # boots a simulator, runs the smoke, writes ios/build/screens/*.png
+xcodebuild -project Apex.xcodeproj -scheme Apex -configuration Local \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO test
+ios/scripts/screenshots.sh             # runs the smoke, writes ios/build/screens/<device>/*.png
+ios/scripts/screenshots.sh 'iPhone 16' 18.6 # the iOS 18 chrome, if that runtime is installed
 ```
 
+The first generate + build in a fresh worktree takes several minutes: supabase-swift pulls
+`swift-syntax`, whose macro plugin compiles from source.
+
 Pointing a simulator build at the local Supabase stack: build configuration `Local` sets
-`APEX_API_BASE=http://127.0.0.1:5173` (or the worktree's `npm run -s port`) and
-`SUPABASE_URL=http://127.0.0.1:54321` with the committed local anon key from `.env.agent`.
-A simulator build must never point at production Supabase — same rule as the web harness.
+`APEX_API_BASE=http://127.0.0.1:$(APEX_LOCAL_PORT)` and `SUPABASE_URL=http://127.0.0.1:54321`
+with the committed local anon key from `.env.agent`. Override the port for your worktree in
+`ios/Config/Local.local.xcconfig` (git-ignored). A simulator build must never point at
+production Supabase — `AppConfig.assertSafe()` makes that a launch-time trap rather than a
+rule people remember.
 
 ## TestFlight
 
 1. First builds: Xcode → Product → Archive → Distribute (Organizer). Zero setup beyond the
-   Apple Developer account and an App ID `com.apextraining.app` with the associated-domains
+   Apple Developer account and an App ID `com.shanehaynes.apextraining` with the associated-domains
    entitlement.
 2. Then `ios/fastlane/Fastfile` with a `beta` lane: `app_store_connect_api_key` from repo
    secrets, `build_app` with `-allowProvisioningUpdates` (no `match`, solo developer),

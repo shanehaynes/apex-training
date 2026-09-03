@@ -1,7 +1,7 @@
 # W1 — iOS scaffold
 
 **Machine:** Mac · **Depends on:** — (runs in parallel with W0) · **Unblocks:** W2, W11
-**Status:** ready
+**Status:** in review (3 PRs: `feat/ios-scaffold`, plus two HELD)
 
 ## Goal
 A running app that signs in against Supabase, shows four empty tabs in the house style, and is
@@ -9,7 +9,7 @@ buildable by CI and by any worktree. TestFlight build 0.
 
 ## Scope
 In:
-- `ios/project.yml` (XcodeGen): app target `Apex` (bundle id `com.apextraining.app`, iOS 17.0,
+- `ios/project.yml` (XcodeGen): app target `Apex` (bundle id `com.shanehaynes.apextraining`, iOS 17.0,
   Swift 6, `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`), `ApexTests`, `ApexUITests`; build
   configurations `Debug`, `Local`, `Release` with `APEX_API_BASE` / `SUPABASE_URL` /
   `SUPABASE_ANON_KEY` per configuration (Local = the committed `.env.agent` values).
@@ -44,4 +44,24 @@ Out: any real screen content.
 - TestFlight build 0 installed on Shane's phone.
 
 ## Session log
-- (none yet)
+- 2026-09-03 · Mac · Scaffold built and verified on device simulators.
+  - **Two SwiftPM packages, not five** (D-021): `ApexCore` (no dependencies, Linux-buildable)
+    and `ApexKit` (ApexAuth · ApexPersistence · ApexUI · ApexFeatures). The generated
+    `DatabaseTypes.swift` moved to `ApexAuth` — it needs supabase-swift's `AnyJSON`, which the
+    compiler proved immediately: `ApexCore` would not build without it. `scripts/db-types.sh`
+    repointed; the emit is unchanged, so `--check` still diffs clean.
+  - **Build configuration** via xcconfig → Info.plist → `Bundle.main` (D-022), with
+    `AppConfig.assertSafe()` trapping a simulator build that points anywhere but 127.0.0.1.
+  - **Corrections to the plan**, all applied to the docs: the App ID is
+    `com.shanehaynes.apextraining`, not `com.apextraining.app`; the destination is iPhone 17
+    (no iPhone 16 existed until an iOS 18.6 runtime was installed); the CI runner must be
+    `macos-26`; fonts register with `CTFontManagerRegisterFontsForURL`, not `UIAppFonts`,
+    because SwiftPM resources are not in the main bundle; and a test target must **not** get
+    `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` (XCTestCase's overrides are nonisolated).
+  - **Verified:** 36 `swift test` cases on ApexCore including all nine fixtures decoding;
+    15 simulator unit tests; the XCUITest smoke signing in as a real local-stack user and
+    reaching all four tabs, on iPhone 17 (iOS 26) and iPhone 16 (iOS 18); `gen-tokens --check`
+    failing on a hex change and on a workoutColors/tokens.css disagreement; the ApexCore
+    import guard failing on a planted `import SwiftUI`; `db-types.sh --check`; `agent:check`.
+  - **Not done, and why:** TestFlight build 0 needs Shane to archive (the Release
+    configuration is ready). SwiftLint was left out rather than added unwired to CI.

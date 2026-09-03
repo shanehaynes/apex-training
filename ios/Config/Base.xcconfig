@@ -1,0 +1,20 @@
+// Shared build settings. Configuration-specific values live in Debug/Local/Release.
+//
+// `//` starts a comment in xcconfig, so a URL cannot be written literally —
+// `https://host` truncates to `https:`. SLASH is the standard way around it.
+SLASH = /
+
+// The production project, already public in this repo (scripts/auth-redirect-check.sh
+// has the same value, and the web ships it in every page load).
+APEX_PROD_SUPABASE_URL = https:$(SLASH)$(SLASH)prmlzrkcfvmfapauoxqn.supabase.co
+
+// The anon key is the one value not committed, so Secrets.xcconfig is a single
+// line. AppConfig traps at launch while this sentinel is still in place, so a
+// misconfigured build cannot ship quietly.
+APEX_SUPABASE_ANON_KEY_PLACEHOLDER = REPLACE_ME
+SUPABASE_ANON_KEY = $(APEX_SUPABASE_ANON_KEY_PLACEHOLDER)
+
+// Apple Developer Team (public — it appears in every AASA file).
+DEVELOPMENT_TEAM = G44GWSXFK2
+
+#include? "Secrets.xcconfig"

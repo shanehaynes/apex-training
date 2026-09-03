@@ -36,3 +36,15 @@ e2e/screenshots/
 # (merge audit log, locks) and the autonomous-merge kill switch
 .claude/state/
 .claude/AUTOMERGE_OFF
+
+# iOS — the Xcode project is generated per worktree (XcodeGen, D-005); everything
+# below is a build artifact or per-machine configuration.
+ios/*.xcodeproj
+ios/*.xcworkspace
+ios/build/
+ios/DerivedData/
+ios/.swiftpm/
+ios/Packages/*/.build/
+ios/Packages/*/.swiftpm/
+ios/Config/Secrets.xcconfig
+ios/Config/*.local.xcconfig
