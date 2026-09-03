@@ -181,3 +181,52 @@ W1 (see design-spec.md "App icon brief"); optionally reuse it as the web favicon
 `type=invite`, handing the tokens to `apextraining://auth#…`; (b) `redirectTo` guidance for
 invites in `DEPLOY_MULTI_USER.md` plus a `/auth/callback` universal-link path. **Decision:**
 both (ten lines each). Lands in W2.
+
+## D-021 · Swift package layout — two packages, and the generated row types live in `ApexAuth`
+**Status:** decided · W1 session · 2026-09-03
+architecture.md §1 implied five sibling packages. **Decision:** `ApexCore` alone, plus one
+`ApexKit` package exposing `ApexAuth`, `ApexPersistence`, `ApexUI` and `ApexFeatures` as four
+library products.
+
+Why `ApexCore` stays separate is a hard constraint, not taste: `swift test --package-path
+ios/Packages/ApexCore` must build the *whole* package on Linux, so one Apple-only target in it
+ends the Linux gate. Why the rest are one package: every worktree resolves the graph from
+scratch after `xcodegen generate`, and one package resolves supabase-swift and GRDB once
+instead of four times with four manifests to keep in version step. The boundaries that matter
+are still enforced, by target dependency edges inside the manifest.
+
+The generated `DatabaseTypes.swift` moved from `ApexCore` to `ApexAuth` in the same change.
+It compiles only with supabase-swift's `AnyJSON` (its one non-Foundation symbol, 69 uses),
+which lives in the unexported `Helpers` module — so it is `import Supabase` or nothing, and
+supabase-swift declares no Linux platform and pulls in `swift-syntax`. The generated enum is
+`internal`, so a module of its own could not re-export it either. `ApexAuth` already owns the
+Supabase client, which makes `internal` the right visibility. The emit is unchanged, so
+`scripts/db-types.sh --check` still diffs clean; only `OUT_SWIFT` moved.
+
+Considered and rejected: (a) `ApexCore` depends on supabase-swift — turns a zero-dependency,
+offline, seconds-long Linux gate into a network-bound multi-minute one and breaks
+architecture.md rule 2; (b) post-process the emit to strip `AnyJSON` — every future schema
+change then carries a transform CI must reproduce byte-for-byte forever.
+
+Enforced by a new `scripts/ci-guards.sh` block that greps `ApexCore/Sources` for Apple-only
+and SDK imports: a Linux-runnable guard for a Linux-only property, so every run catches it
+rather than only the one job that would notice.
+
+## D-022 · Build configuration — xcconfig → Info.plist → `Bundle.main`
+**Status:** decided · W1 session · 2026-09-03
+Three configurations (`Debug`, `Local`, `Release`), each with an xcconfig supplying
+`APEX_API_BASE`, `SUPABASE_URL` and `SUPABASE_ANON_KEY`. They reach Swift through Info.plist
+keys read by `AppConfig`, so a built `.ipa` can be inspected to see what it points at.
+
+`Local` is fully self-sufficient from values already committed in `.env.agent`; production
+values live in `ios/Config/Secrets.xcconfig`, git-ignored, with an `.example` alongside. The
+app traps at launch while the placeholder is unreplaced, and `AppConfig.assertSafe()` traps if
+a **simulator** build points anywhere but `127.0.0.1` — the harness's "never point a local
+build at production Supabase" rule, made mechanical instead of remembered.
+
+Considered and rejected: user-defined settings inline in `project.yml` (nowhere to put a value
+that must not be committed); `GENERATE_INFOPLIST_FILE` + `INFOPLIST_KEY_*` (only works for keys
+Xcode knows); a generated `Config.swift` (forces a rebuild to switch, invisible in a built app).
+
+Gotcha worth keeping: `//` starts a comment in xcconfig, so a URL written literally truncates
+to `https:` with no error. URLs are written `http:$(SLASH)$(SLASH)host` with `SLASH = /`.

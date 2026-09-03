@@ -22,6 +22,25 @@ if [ "$actual" -ne "$expected" ]; then
 fi
 echo "api function count: $actual (ok)"
 
+# The iOS design system is generated from the web's own source files
+# (docs/ios/architecture.md §11). A hex changed in tokens.css that never reached
+# Tokens.swift is brand drift, and the generator is the only writer of that file.
+# Runs under plain node with no dependencies, so it works in a --no-install worktree.
+node ios/scripts/gen-tokens.mjs --check
+
+# ApexCore must stay Linux-buildable: it is what a Linux session can prove with
+# `swift test` (architecture.md rule 2), and CI's apexcore-linux job builds the
+# whole package. One Apple-only or SDK import silently ends that, and only a
+# Linux run would ever notice — so check it here, where every run does.
+if grep -rnE '^[[:space:]]*import[[:space:]]+(UIKit|SwiftUI|Combine|Supabase|Auth|PostgREST|Realtime|Storage|GRDB|CoreText)\b' \
+     ios/Packages/ApexCore/Sources; then
+  echo "::error::ApexCore imports an Apple-only or SDK module (listed above)." \
+    "Move that code to ios/Packages/ApexKit (ApexAuth / ApexPersistence / ApexUI)" \
+    "and keep ApexCore dependency-free."
+  exit 1
+fi
+echo "ApexCore imports: clean"
+
 # Production dependencies must be free of high/critical advisories. Dev-only
 # advisories don't block — dependabot PRs handle those as fixes land.
 npm audit --omit=dev --audit-level=high

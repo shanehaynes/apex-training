@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Apex app icon (design-spec §8, D-019).
+       Ground: #000000 with a subtle radial lift toward #2a2a2a at the top-left.
+       Mark: one angular summit / "A" chevron in the accent #ffffff, flat, no
+       gradient. One #b4b4b4 rule beneath it — the "done" orange, echoing the
+       line above the title in og.png. Two colours, no text. -->
+  <defs>
+    <radialGradient id="ground" cx="26%" cy="20%" r="90%">
+      <stop offset="0" stop-color="#2a2a2a"/>
+      <stop offset="1" stop-color="#000000"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#ground)"/>
+  <path d="M512 250 L840 706 H706 L512 424 L318 706 H184 Z" fill="#ffffff"/>
+  <rect x="184" y="778" width="656" height="26" rx="13" fill="#b4b4b4"/>
+</svg>

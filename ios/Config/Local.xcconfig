@@ -1,0 +1,17 @@
+#include "Base.xcconfig"
+
+// The dev loop: this worktree's vite server and the local Supabase stack.
+// A simulator build must never point at production Supabase — the same rule the
+// web harness enforces, checked at launch by AppConfig.assertSafe().
+//
+// The dev port is per-worktree: run `npm run -s port` and put your number in
+// Config/Local.local.xcconfig (git-ignored) rather than editing this file.
+APEX_LOCAL_PORT = 5173
+APEX_API_BASE = http:$(SLASH)$(SLASH)127.0.0.1:$(APEX_LOCAL_PORT)
+SUPABASE_URL = http:$(SLASH)$(SLASH)127.0.0.1:54321
+
+// The Supabase CLI's public local-development anon key, identical for every
+// local project — the same value .env.agent commits, for the same reason.
+SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+
+#include? "Local.local.xcconfig"
