@@ -1,16 +1,20 @@
-import { postJson } from '../api';
+import { ApiError, authHeaders, postJson } from '../api';
 import { supabase } from '../supabaseClient';
-import type { CardioLogRow, ExerciseDefinitionRow, SetLogRow, TrackedSection, WorkoutSessionRow } from '../db/types';
+import { createWireCollector } from '../coach/wire';
+import type { CardioLogRow, SetLogRow, TrackedSection, WorkoutSessionRow } from '../db/types';
 import type { WorkoutEvent } from '../../types/workout';
-import { buildQuickCompleteLogs, cardioExerciseNames, setExerciseNames } from './plan';
-import { buildAliasIndex, canonicalizeLogNames, expandNamesWithAliases, type AliasIndex } from '../schedule/definitions';
-import type { ScoreHistoryRow, SessionScore } from './records';
+import { buildTrackerModel } from './plan';
+import type { TrackedSectionGroup } from './plan';
+import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from './records';
 
 // Data access for the workout tracker — the one module that knows where
-// tracking data lives. Reads go straight to Supabase on the anon client
-// (SELECT-only RLS policies); writes go through /api/workout-sessions
-// (service role). Owns the no-backend fallback: with Supabase unconfigured
-// the session is tracked in memory only, like completions are.
+// tracking data lives. Since W3 (docs/ios/backend-changes.md) the session
+// model is built SERVER-SIDE: /api/workout-sessions `bootstrap` returns the
+// resolved TrackedSectionGroup[] (plan × saved rows × last-session shadows)
+// and `finish` returns PRs + the score record, so this client owns only its
+// edits. Writes go through /api/workout-sessions (service role). Owns the
+// no-backend fallback: with Supabase unconfigured the session is tracked in
+// memory only, like completions are.
 
 export type SessionInfo = Pick<
   WorkoutSessionRow,
@@ -26,15 +30,10 @@ export interface RemovedSetKey {
 
 export interface TrackerSessionData {
   session: SessionInfo;
-  savedSets: SetLogRow[];
-  savedCardio: CardioLogRow[];
-  /** Raw prior set logs for this event's exercises — feed client-side PR
-      detection at Finish (never sent through the AI). */
-  history: SetLogRow[];
-  cardioHistory: CardioLogRow[];
-  /** Prior finished scores for this event's template (scored events only) —
-      feeds workout-level PR detection at Finish. */
-  scoreHistory: ScoreHistoryRow[];
+  groups: TrackedSectionGroup[];
+  /** Populated for an already-finished session (reopening the summary). */
+  prs: PersonalRecord[];
+  scoreRecord: WorkoutScoreRecord | null;
 }
 
 function inMemorySession(): SessionInfo {
@@ -51,148 +50,32 @@ function inMemorySession(): SessionInfo {
   };
 }
 
-/**
- * Alias index over the exercise library, so history fetches match every
- * spelling a log row might carry (pre-rename names included) and grouping
- * unifies them under the canonical name. Empty index on failure — matching
- * degrades to today's exact-name behavior.
- */
-async function loadAliasIndex(): Promise<AliasIndex> {
-  const { data, error } = await supabase!
-    .from('exercise_definitions')
-    .select('canonical_name,aliases');
-  if (error || !data) return buildAliasIndex([]);
-  return buildAliasIndex(
-    (data as Pick<ExerciseDefinitionRow, 'canonical_name' | 'aliases'>[]).map(r => ({
-      canonicalName: r.canonical_name,
-      aliases: r.aliases ?? [],
-    })),
-  );
+interface BootstrapWire {
+  session: WorkoutSessionRow;
+  groups: TrackedSectionGroup[];
+  prs?: PersonalRecord[];
+  scoreRecord?: WorkoutScoreRecord | null;
 }
 
-/** Get-or-create the session and hydrate any previously-saved logs. */
+/** Get-or-create the session and receive the resolved tracker model. */
 export async function loadSession(event: WorkoutEvent): Promise<TrackerSessionData> {
-  if (!supabase) {
-    return { session: inMemorySession(), savedSets: [], savedCardio: [], history: [], cardioHistory: [], scoreHistory: [] };
-  }
-
-  // Aliases must load before the history queries — they widen the name filter.
-  const aliasIndex = await loadAliasIndex().catch(() => buildAliasIndex([]));
-
-  // Previous actuals for this event's set-tracked exercises, matched by
-  // name (expanded to known aliases) so history follows an exercise across
-  // events and renames. Ordered desc so a truncated result still contains
-  // the most recent sessions.
-  const names = expandNamesWithAliases(setExerciseNames(event), aliasIndex);
-  const historyQuery = names.length
-    ? supabase
-        .from('workout_set_logs')
-        .select('*')
-        .in('exercise_name', names)
-        .lt('event_date', event.date)
-        .eq('is_autofilled', false)
-        .order('event_date', { ascending: false })
-        .limit(500)
-    : Promise.resolve({ data: [] as SetLogRow[] });
-
-  // Prior cardio actuals, for distance/elevation PR detection. Autofilled
-  // rows (quick-complete plan-fills) are not performances, like set logs.
-  const cardioNames = expandNamesWithAliases(cardioExerciseNames(event), aliasIndex);
-  const cardioHistoryQuery = cardioNames.length
-    ? supabase
-        .from('workout_cardio_logs')
-        .select('*')
-        .in('exercise_name', cardioNames)
-        .lt('event_date', event.date)
-        .eq('is_autofilled', false)
-        .order('event_date', { ascending: false })
-        .limit(500)
-    : Promise.resolve({ data: [] as CardioLogRow[] });
-
-  // Prior finished scores for this template — the workout-level PR history.
-  // Keyed on template_id so every scheduled instance of the named workout
-  // (and detached days, which keep the id) contributes.
-  const scored = event.templateId && (event.scoringType === 'for-time' || event.scoringType === 'amrap');
-  const scoreHistoryQuery = scored
-    ? supabase
-        .from('workout_sessions')
-        .select('event_date,score_type,score_time_seconds,score_rounds,score_reps')
-        .eq('template_id', event.templateId!)
-        .lt('event_date', event.date)
-        .not('finished_at', 'is', null)
-        .not('score_type', 'is', null)
-        .order('event_date', { ascending: false })
-        .limit(500)
-    : Promise.resolve({ data: [] as ScoreHistoryRow[] });
-
-  const [startRes, setsRes, cardioRes, historyRes, cardioHistoryRes, scoreHistoryRes] = await Promise.all([
-    postJson<{ session: WorkoutSessionRow }>(
-      '/api/workout-sessions',
-      { action: 'start', eventId: event.id, eventDate: event.date },
-      'Starting session',
-    ),
-    supabase.from('workout_set_logs').select('*').eq('event_id', event.id).eq('event_date', event.date),
-    supabase.from('workout_cardio_logs').select('*').eq('event_id', event.id).eq('event_date', event.date),
-    historyQuery,
-    cardioHistoryQuery,
-    scoreHistoryQuery,
-  ]).catch(err => {
-    console.warn('[apex] Tracker load failed:', err);
-    return [null, null, null, null, null, null] as const;
+  const offline = (): TrackerSessionData => ({
+    session: inMemorySession(), groups: buildTrackerModel(event), prs: [], scoreRecord: null,
   });
+  if (!supabase) return offline();
 
-  const savedSets = (setsRes?.data ?? []) as SetLogRow[];
-  const savedCardio = (cardioRes?.data ?? []) as CardioLogRow[];
-
-  // A swapped exercise is logged under a movement the plan never names, so
-  // the history queries above missed it. Fetch the difference — one extra
-  // round trip, and only for sessions that actually carry a substitution.
-  const [extraHistory, extraCardioHistory] = await Promise.all([
-    fetchHistoryFor('workout_set_logs', extraNames(savedSets, names), event.date, aliasIndex),
-    fetchHistoryFor('workout_cardio_logs', extraNames(savedCardio, cardioNames), event.date, aliasIndex),
-  ]);
-
-  return {
-    session: startRes?.session ?? inMemorySession(),
-    savedSets,
-    savedCardio,
-    // Canonicalized in memory only: PR/last-performance grouping keys by
-    // exercise_name, so pre-rename rows must group with current ones.
-    history: [
-      ...canonicalizeLogNames((historyRes?.data ?? []) as SetLogRow[], aliasIndex),
-      ...(extraHistory as SetLogRow[]),
-    ],
-    cardioHistory: [
-      ...canonicalizeLogNames((cardioHistoryRes?.data ?? []) as CardioLogRow[], aliasIndex),
-      ...(extraCardioHistory as CardioLogRow[]),
-    ],
-    scoreHistory: (scoreHistoryRes?.data ?? []) as ScoreHistoryRow[],
-  };
-}
-
-/** Names this session logged that the plan-derived name list did not cover. */
-function extraNames(rows: { exercise_name: string }[], covered: string[]): string[] {
-  const known = new Set(covered);
-  return [...new Set(rows.map(r => r.exercise_name).filter(name => name && !known.has(name)))];
-}
-
-/** Prior non-autofilled logs for a set of exercise names, aliases included. */
-async function fetchHistoryFor(
-  table: 'workout_set_logs' | 'workout_cardio_logs',
-  names: string[],
-  before: string,
-  aliasIndex: AliasIndex,
-): Promise<{ exercise_name: string }[]> {
-  if (!supabase || !names.length) return [];
-  const { data } = await supabase
-    .from(table)
-    .select('*')
-    .in('exercise_name', expandNamesWithAliases(names, aliasIndex))
-    .lt('event_date', before)
-    .eq('is_autofilled', false)
-    .order('event_date', { ascending: false })
-    .limit(500);
-  return canonicalizeLogNames((data ?? []) as { exercise_name: string }[], aliasIndex);
+  try {
+    const data = await postJson<BootstrapWire>(
+      '/api/workout-sessions',
+      { action: 'bootstrap', eventId: event.id, eventDate: event.date },
+      'Starting session',
+    );
+    if (!data?.session || !Array.isArray(data.groups)) throw new Error('Malformed bootstrap response');
+    return { session: data.session, groups: data.groups, prs: data.prs ?? [], scoreRecord: data.scoreRecord ?? null };
+  } catch (err) {
+    console.warn('[apex] Tracker load failed:', err);
+    return offline();
+  }
 }
 
 /** Idempotent upsert of everything the user touched since the last flush. */
@@ -205,24 +88,36 @@ export async function saveLogs(
   await postJson('/api/workout-sessions', { action: 'save', eventId, eventDate, ...payload }, 'Autosave');
 }
 
+export interface FinishResult {
+  totalDurationSeconds: number;
+  prs: PersonalRecord[];
+  scoreRecord: WorkoutScoreRecord | null;
+}
+
 /**
  * Stamp the session finished; zero-fill rows arrive pre-built by the caller.
- * Returns the server-computed duration, or null offline (caller keeps its
- * locally elapsed time).
+ * Returns the server-computed duration plus the PRs and score record it
+ * detected against full history, or null offline (caller keeps its locally
+ * elapsed time and reports no records).
  */
 export async function finishSession(
   eventId: string,
   eventDate: string,
   autofillRows: SetLogRow[],
   score?: { templateId: string } & SessionScore,
-): Promise<number | null> {
+): Promise<FinishResult | null> {
   if (!supabase) return null;
-  const data = await postJson<{ totalDurationSeconds?: number }>(
+  const data = await postJson<Partial<FinishResult>>(
     '/api/workout-sessions',
     { action: 'finish', eventId, eventDate, autofillRows, ...(score ? { score } : {}) },
     'Finishing workout',
   );
-  return typeof data?.totalDurationSeconds === 'number' ? data.totalDurationSeconds : null;
+  if (typeof data?.totalDurationSeconds !== 'number') return null;
+  return {
+    totalDurationSeconds: data.totalDurationSeconds,
+    prs: Array.isArray(data.prs) ? data.prs : [],
+    scoreRecord: data.scoreRecord ?? null,
+  };
 }
 
 export interface ExerciseSwap {
@@ -256,20 +151,17 @@ export async function cancelSession(eventId: string, eventDate: string): Promise
 }
 
 /**
- * "Mark as Complete" quick path: log every exercise at its planned targets
- * and stamp the session finished at the recommended duration. Server-side
- * upserts ignore duplicates, so hand-logged rows are never overwritten.
+ * "Mark as Complete" quick path: the server logs every exercise at its
+ * planned targets and stamps the session finished at the recommended
+ * duration (W0). Server-side upserts ignore duplicates, so hand-logged rows
+ * are never overwritten.
  */
 export async function quickCompleteSession(event: WorkoutEvent): Promise<void> {
   if (!supabase) return;
-  const { setLogs, cardioLogs } = buildQuickCompleteLogs(event);
   await postJson('/api/workout-sessions', {
     action: 'quick-complete',
     eventId: event.id,
     eventDate: event.date,
-    durationSeconds: event.estimatedDuration * 60,
-    setLogs,
-    cardioLogs,
   }, 'Quick-completing workout');
 }
 
@@ -279,9 +171,37 @@ export async function quickUncompleteSession(eventId: string, eventDate: string)
   await postJson('/api/workout-sessions', { action: 'quick-uncomplete', eventId, eventDate }, 'Un-completing workout');
 }
 
-/** Persist the AI coach summary — fire-and-forget. */
-export function saveSummary(eventId: string, eventDate: string, coachSummary: string): void {
-  if (!supabase) return;
-  postJson('/api/workout-sessions', { action: 'summary', eventId, eventDate, coachSummary }, 'Saving coach summary')
-    .catch(() => {});
+/**
+ * Stream the coach's written summary for a finished session. The server
+ * rebuilds the recap from the saved rows, streams NDJSON text events (the
+ * chat wire format), and persists the result itself. `onText` receives the
+ * running total. Throws when the request fails or comes back empty — the
+ * summary popup degrades to PRs + the completed list in that case.
+ */
+export async function generateCoachSummary(
+  eventId: string,
+  eventDate: string,
+  onText?: (fullText: string) => void,
+): Promise<string> {
+  if (!supabase) throw new Error('No backend');
+  const res = await fetch('/api/coach-summary', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+    body: JSON.stringify({ eventId, eventDate }),
+  });
+  if (!res.ok || !res.body) {
+    throw new ApiError(await res.text().catch(() => `coach summary failed: ${res.status}`), res.status);
+  }
+  const collector = createWireCollector(onText);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    collector.push(decoder.decode(value, { stream: true }));
+  }
+  collector.end();
+  const text = collector.text.trim();
+  if (!text) throw new Error('Empty summary response');
+  return text;
 }

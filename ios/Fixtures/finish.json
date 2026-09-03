@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "totalDurationSeconds": 1800,
+  "prs": [
+    {
+      "kind": "oneRM",
+      "exerciseName": "Fixture Press",
+      "estimatedOneRM": 132,
+      "weight": 120,
+      "reps": 3,
+      "previousOneRM": 121.00000000000001,
+      "previousDate": "2026-09-08",
+      "description": "est. 1RM 132 (120 × 3), up from 121 on Sep 8"
+    }
+  ],
+  "scoreRecord": null,
+  "recap": "Workout: Fixture Push Day (weights)\nDate: Tuesday, Sep 22, 2026\nDuration: 30 min\n\nMain Work:\n- Fixture Press: 120 lb × 3 (1 set skipped)\n- Fixture Row: not logged\n\nPERSONAL RECORDS this session (pre-computed and verified — highlight these):\n- Fixture Press (strength record): est. 1RM 132 (120 × 3), up from 121 on Sep 8"
+}

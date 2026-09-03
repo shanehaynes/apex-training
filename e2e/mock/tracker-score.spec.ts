@@ -1,4 +1,7 @@
 import { test, expect, gotoCalendar, shot } from '../lib/fixtures';
+// @ts-expect-error plain-JS helper shared with the intercept
+import { mockSession, sessionResponse } from '../lib/intercept.mjs';
+import { rowToEvent } from '../../src/lib/schedule/mapping';
 
 // One scored (For Time) event on the frozen "today", replacing the 503→seed
 // fallback: page.route outranks the context-level intercept.
@@ -51,25 +54,27 @@ test('finishing a For Time workout asks for the score and celebrates the PR', as
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([PRIOR_SESSION]) }));
   await page.route('**/api/workout-sessions*', route => {
     const body = route.request().postDataJSON() as Record<string, unknown>;
-    if (body.action === 'start') {
-      return route.fulfill({
-        status: 200, contentType: 'application/json',
-        body: JSON.stringify({ session: {
-          started_at: new Date().toISOString(), finished_at: null,
-          total_duration_seconds: null, coach_summary: null,
-          template_id: null, score_type: null, score_time_seconds: null,
-          score_rounds: null, score_reps: null,
-        } }),
-      });
-    }
     if (body.action === 'finish') {
       finishes.push(body);
+      // The server detects the workout-level PR against the template's
+      // history (W3): 41:32 beats the 44:10 from June 12.
       return route.fulfill({
         status: 200, contentType: 'application/json',
-        body: JSON.stringify({ ok: true, totalDurationSeconds: 2492 }),
+        body: JSON.stringify({
+          ok: true, totalDurationSeconds: 2492, prs: [], recap: '',
+          scoreRecord: {
+            kind: 'workout-score',
+            score: { type: 'for-time', timeSeconds: 2492 },
+            previous: { type: 'for-time', timeSeconds: 2650 },
+            previousDate: PRIOR_SESSION.event_date,
+          },
+        }),
       });
     }
-    return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    return route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify(sessionResponse(body, { session: mockSession(), event: rowToEvent(MURPH_EVENT as never) })),
+    });
   });
   await gotoCalendar(page);
 

@@ -1,23 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { parseISO } from 'date-fns';
-import type { Meal } from '../types/nutrition';
 import type { ExerciseDefinition, WorkoutEvent } from '../types/workout';
 import type { CardioLogRow, SetLogRow, TrackedSection } from '../lib/db/types';
 import {
-  buildTrackerModel,
-  buildLastPerformance,
-  buildLastCardio,
   collectUntouchedPlanned,
-  hasLoggedData,
   makeExtraSet,
   setToRow,
   cardioToRow,
 } from '../lib/tracking/plan';
 import type { TrackedSectionGroup } from '../lib/tracking/plan';
-import { computeSessionPRs, computeWorkoutScorePR, sessionScoreFromRow } from '../lib/tracking/records';
-import type { PersonalRecord, ScoreHistoryRow, SessionScore, WorkoutScoreRecord } from '../lib/tracking/records';
-import { buildSessionRecap, generateCoachSummary } from '../lib/coach/summary';
-import { cancelSession, finishSession, loadSession, saveLogs, saveSummary, swapLoggedExercise } from '../lib/tracking/sessionRepo';
+import { sessionScoreFromRow } from '../lib/tracking/records';
+import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from '../lib/tracking/records';
+import {
+  cancelSession, finishSession, generateCoachSummary, loadSession, saveLogs, swapLoggedExercise,
+} from '../lib/tracking/sessionRepo';
 import type { RemovedSetKey, SessionInfo } from '../lib/tracking/sessionRepo';
 import type { SetField, CardioField } from '../components/tracker/TrackerExercise';
 import { registerAgentState } from '../dev/agentBridge';
@@ -48,13 +43,14 @@ export type FinishOutcome =
  * Owns a workout-tracking session end to end: load/hydrate, in-memory edits
  * with debounced autosave (flushed on tab hide), the elapsed timer, and the
  * finish/cancel/summary lifecycle. The view renders what this returns.
- * `setCompletion` and `getMealsForDate` are injected so the hook stays free
- * of ScheduleContext/MealsContext.
+ * `setCompletion` is injected so the hook stays free of ScheduleContext.
+ *
+ * The model, PR detection and the recap all come from the server (W3):
+ * bootstrap hands over the resolved groups, finish hands back the records.
  */
 export function useWorkoutSession(
   event: WorkoutEvent | null,
   setCompletion: (id: string, completed: boolean) => void,
-  getMealsForDate?: (date: Date) => Meal[],
 ) {
   const [groups, setGroups] = useState<TrackedSectionGroup[] | null>(null);
   const [session, setSession] = useState<SessionInfo | null>(null);
@@ -67,9 +63,10 @@ export function useWorkoutSession(
   const dirtySetsRef = useRef<Set<string>>(new Set());   // `${section}|${exerciseId}|${setNumber}`
   const dirtyCardioRef = useRef<Set<string>>(new Set()); // `${section}|${exerciseId}`
   const removedRef = useRef<RemovedSetKey[]>([]);
-  const historyRef = useRef<SetLogRow[]>([]);
-  const cardioHistoryRef = useRef<CardioLogRow[]>([]);
-  const scoreHistoryRef = useRef<ScoreHistoryRow[]>([]);
+  // What the server last reported for this session — bootstrap for a
+  // finished session, or the finish response — so reopening the summary
+  // costs nothing.
+  const recordsRef = useRef<{ prs: PersonalRecord[]; scoreRecord: WorkoutScoreRecord | null }>({ prs: [], scoreRecord: null });
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Set the moment a cancel is confirmed: blocks the debounced autosave and
   // the visibilitychange flush from re-creating rows after the delete.
@@ -105,12 +102,8 @@ export function useWorkoutSession(
     loadSession(loadEvent).then(data => {
       if (cancelled) return;
       setSession(data.session);
-      historyRef.current = data.history;
-      cardioHistoryRef.current = data.cardioHistory;
-      scoreHistoryRef.current = data.scoreHistory;
-      const lastPerf = buildLastPerformance(data.history);
-      const lastCardio = buildLastCardio(data.cardioHistory);
-      setGroups(buildTrackerModel(loadEvent, data.savedSets, data.savedCardio, lastPerf, lastCardio));
+      recordsRef.current = { prs: data.prs, scoreRecord: data.scoreRecord };
+      setGroups(data.groups);
     });
 
     return () => { cancelled = true; };
@@ -305,12 +298,9 @@ export function useWorkoutSession(
     // Order matters: a pending autosave carries the old name, and would write
     // it straight back over the rows the swap just relabelled.
     await flushSave();
-    const tracked = findTracked(section, exerciseId);
-    const hadLogs = !!tracked && hasLoggedData(tracked);
 
-    let persisted = false;
     try {
-      persisted = await swapLoggedExercise(target.id, target.date, {
+      await swapLoggedExercise(target.id, target.date, {
         section,
         exerciseId,
         exerciseName: def.canonicalName,
@@ -321,7 +311,9 @@ export function useWorkoutSession(
     }
 
     // Paint it immediately either way — offline there is nothing to reload,
-    // and the renamed model is what subsequent saves serialize.
+    // and the renamed model is what subsequent saves serialize. PR detection
+    // runs server-side at Finish against the relabelled rows, so nothing
+    // else needs refreshing here.
     updateExercise(section, exerciseId, t => {
       const from = t.substitutedFrom ?? t.exercise.name;
       return {
@@ -331,46 +323,26 @@ export function useWorkoutSession(
         substitutedFrom: from === def.canonicalName ? null : from,
       };
     });
-
-    // Refresh the history refs — and only those. PR detection keys on the
-    // exercise name, and the swapped-in movement's prior sessions were never
-    // fetched (loadSession now widens its query to the names on this
-    // session's own rows, which the relabel just changed). Rebuilding the
-    // whole model here instead would be wrong: the model comes from saved
-    // rows, so a swap with nothing logged yet would revert on the spot.
-    if (persisted && hadLogs) {
-      const data = await loadSession(target).catch(() => null);
-      if (data) {
-        historyRef.current = data.history;
-        cardioHistoryRef.current = data.cardioHistory;
-      }
-    }
     return true;
   };
 
   // ── Finish / cancel / summary ───────────────────────────────────────────────
 
-  // Generate the coach text for an already-open summary popup, then persist
-  // it so reopening the finished session shows the same summary for free.
-  const generateAndSaveSummary = (
-    groupsSnapshot: TrackedSectionGroup[],
-    prs: PersonalRecord[],
-    durationSeconds: number | null,
-  ) => {
+  // Stream the coach text into an already-open summary popup. The server
+  // rebuilds the recap from the saved rows and persists the result, so
+  // reopening the finished session shows the same summary for free.
+  const generateSummary = () => {
     if (!event) return;
-    // Fueling context is the workout's day, not the wall-clock day — a
-    // retro-tracked session should read that date's meals.
-    const meals = getMealsForDate?.(parseISO(event.date)) ?? [];
-    const recap = buildSessionRecap(event, groupsSnapshot, durationSeconds, prs, meals);
-    generateCoachSummary(recap)
+    generateCoachSummary(event.id, event.date, partial => {
+      setSummary(prev => prev && { ...prev, coachText: partial, coachStatus: 'ready' });
+    })
       .then(text => {
         setSummary(prev => prev && { ...prev, coachText: text, coachStatus: 'ready' });
         setSession(prev => prev && { ...prev, coach_summary: text });
-        saveSummary(event.id, event.date, text);
       })
       .catch(err => {
         console.warn('[apex] Coach summary generation failed:', err);
-        setSummary(prev => prev && { ...prev, coachStatus: 'unavailable' });
+        setSummary(prev => prev && { ...prev, coachText: null, coachStatus: 'unavailable' });
       });
   };
 
@@ -396,13 +368,13 @@ export function useWorkoutSession(
     setIsFinishing(true);
     try {
       await flushSave();
-      const serverSeconds = await finishSession(
+      const result = await finishSession(
         event.id,
         event.date,
         autofillRows,
         scored && score ? { templateId: event.templateId!, ...score } : undefined,
       );
-      const totalSeconds = serverSeconds ?? elapsed;
+      const totalSeconds = result?.totalDurationSeconds ?? elapsed;
       setCompletion(event.id, true);
       setSession(prev => prev && {
         ...prev,
@@ -411,13 +383,15 @@ export function useWorkoutSession(
       });
       setIsFinishing(false);
 
-      // Summary popup before returning to the calendar: PRs are computed
-      // here, client-side; the coach text streams in behind the popup.
-      const prs = computeSessionPRs(groupsRef.current, historyRef.current, cardioHistoryRef.current);
+      // Summary popup before returning to the calendar: the server detected
+      // the PRs against full history; the coach text streams in behind.
+      const prs = result?.prs ?? [];
       const sessionScore = scored && score ? score : null;
-      const scoreRecord = sessionScore ? computeWorkoutScorePR(sessionScore, scoreHistoryRef.current) : null;
+      const scoreRecord = result?.scoreRecord ?? null;
+      recordsRef.current = { prs, scoreRecord };
       setSummary({ prs, score: sessionScore, scoreRecord, coachText: null, coachStatus: 'loading' });
-      generateAndSaveSummary(groupsRef.current, prs, totalSeconds);
+      if (result) generateSummary();
+      else setSummary(prev => prev && { ...prev, coachStatus: 'unavailable' });
       return { status: 'finished' };
     } catch {
       setIsFinishing(false);
@@ -450,18 +424,17 @@ export function useWorkoutSession(
   };
 
   // Reopen the summary on an already-finished session — saved coach text,
-  // freshly recomputed PRs (history still predates this event's date), and
-  // the score straight off the saved session row.
+  // the records the server reported (bootstrap or finish), and the score
+  // straight off the saved session row.
   const openSavedSummary = () => {
     if (!groups) return;
-    const prs = computeSessionPRs(groupsRef.current, historyRef.current, cardioHistoryRef.current);
+    const { prs, scoreRecord } = recordsRef.current;
     const score = session ? sessionScoreFromRow(session) : null;
-    const scoreRecord = score ? computeWorkoutScorePR(score, scoreHistoryRef.current) : null;
     if (session?.coach_summary) {
       setSummary({ prs, score, scoreRecord, coachText: session.coach_summary, coachStatus: 'ready' });
     } else {
       setSummary({ prs, score, scoreRecord, coachText: null, coachStatus: 'loading' });
-      generateAndSaveSummary(groupsRef.current, prs, session?.total_duration_seconds ?? null);
+      generateSummary();
     }
   };
 

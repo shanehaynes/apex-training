@@ -9,9 +9,10 @@ import {
   EVENT_ID_PATTERN,
 } from '../allowlist.js';
 import { enforceRateLimit } from '../rateLimit.js';
-import { loadResolvedOccurrence } from '../trackerSession.js';
+import { buildBootstrap, buildFinishSummary, loadResolvedOccurrence } from '../trackerSession.js';
 import { buildQuickCompleteLogs } from '../../../src/lib/tracking/plan.js';
-import type { CardioLogRow, SetLogRow, TablesInsert, TrackedSection } from '../../../src/lib/db/types.js';
+import type { CardioLogRow, SetLogRow, TablesInsert, TrackedSection, WorkoutSessionRow } from '../../../src/lib/db/types.js';
+import { sessionScoreFromRow } from '../../../src/lib/tracking/records.js';
 
 // Single endpoint for the workout tracker's writes, discriminated by
 // body.action (predates the consolidated router; /api/workout-sessions/*
@@ -25,7 +26,12 @@ interface RemovedSetKey {
 }
 
 interface Body {
-  action?: 'start' | 'save' | 'finish' | 'cancel' | 'summary' | 'quick-complete' | 'quick-uncomplete' | 'swap-exercise';
+  action?: 'bootstrap' | 'start' | 'save' | 'finish' | 'cancel' | 'summary' | 'quick-complete' | 'quick-uncomplete' | 'swap-exercise';
+  /** bootstrap/start: when the session really began — a native client's
+   *  offline write queue flushes hours late (docs/ios/architecture.md §7). */
+  startedAt?: unknown;
+  /** finish: same, for when it really ended. */
+  finishedAt?: unknown;
   eventId?: string;
   eventDate?: string;
   setLogs?: SetLogRow[];
@@ -62,6 +68,26 @@ const CARDIO_CONFLICT = 'user_id,event_id,event_date,section,exercise_id';
 const MAX_BATCH_ROWS = 500;
 
 const SECTIONS: ReadonlySet<string> = new Set(['warmup', 'exercise', 'cooldown']);
+
+// A client-supplied timestamp may lag (offline flush) but not by more than a
+// week, and may lead only by clock skew — anything else is a bug or a forgery.
+const MAX_PAST_MS = 7 * 24 * 3600 * 1000;
+const MAX_FUTURE_MS = 5 * 60 * 1000;
+
+/**
+ * Parse an optional client timestamp. Returns undefined when absent, the
+ * Date when sane, or null after sending the 400 itself.
+ */
+function clientTimestamp(res: VercelResponse, value: unknown, label: string): Date | null | undefined {
+  if (value === undefined) return undefined;
+  const t = typeof value === 'string' ? Date.parse(value) : NaN;
+  const now = Date.now();
+  if (Number.isNaN(t) || t < now - MAX_PAST_MS || t > now + MAX_FUTURE_MS) {
+    res.status(400).send(`${label} must be an ISO timestamp within the last 7 days`);
+    return null;
+  }
+  return new Date(t);
+}
 
 /**
  * Allowlist + identity-check one batch of set/cardio rows. SetLogRow /
@@ -145,12 +171,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   const { eventId, eventDate } = body;
 
-  // ── start: get-or-create the session, preserving the original started_at ──
-  if (body.action === 'start') {
+  // ── start / bootstrap: get-or-create the session, preserving started_at ──
+  // bootstrap additionally returns the fully resolved tracker model (W3):
+  // plan × saved rows × last-session shadows, plus PRs for a finished session.
+  if (body.action === 'start' || body.action === 'bootstrap') {
+    const startedAt = clientTimestamp(res, body.startedAt, 'startedAt');
+    if (startedAt === null) return;
+
+    // The event first: a bootstrap for something the caller doesn't own must
+    // not leave a session row behind.
+    const event = body.action === 'bootstrap'
+      ? await loadResolvedOccurrence(supabase, userId, eventId, eventDate)
+      : null;
+    if (body.action === 'bootstrap' && !event) {
+      res.status(404).send('No such event');
+      return;
+    }
+
     const { error: insertErr } = await supabase
       .from('workout_sessions')
       .upsert(
-        { user_id: userId, event_id: eventId, event_date: eventDate, started_at: new Date().toISOString() },
+        { user_id: userId, event_id: eventId, event_date: eventDate, started_at: (startedAt ?? new Date()).toISOString() },
         { onConflict: 'user_id,event_id,event_date', ignoreDuplicates: true },
       );
     if (insertErr) {
@@ -171,7 +212,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    res.status(200).json({ session: data });
+    if (body.action === 'start') {
+      res.status(200).json({ session: data });
+      return;
+    }
+    try {
+      res.status(200).json(await buildBootstrap(supabase, userId, data as WorkoutSessionRow, event!));
+    } catch (err) {
+      console.error('[api/workout-sessions] bootstrap failed:', err instanceof Error ? err.message : err);
+      res.status(500).send('Failed to load session');
+    }
     return;
   }
 
@@ -266,11 +316,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const finishedAt = new Date();
-    const totalSeconds = Math.max(
-      0,
-      Math.round((finishedAt.getTime() - new Date(session.started_at as string).getTime()) / 1000),
-    );
+    const clientFinishedAt = clientTimestamp(res, body.finishedAt, 'finishedAt');
+    if (clientFinishedAt === null) return;
+    const finishedAt = clientFinishedAt ?? new Date();
+    const startedMs = new Date(session.started_at as string).getTime();
+    if (finishedAt.getTime() < startedMs) {
+      res.status(400).send('finishedAt precedes the session start');
+      return;
+    }
+    const totalSeconds = Math.max(0, Math.round((finishedAt.getTime() - startedMs) / 1000));
 
     const { error: updateErr } = await supabase
       .from('workout_sessions')
@@ -304,11 +358,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    res.status(200).json({ ok: true, totalDurationSeconds: totalSeconds });
+    // PRs, the workout-level score record and the recap come back with the
+    // finish (W3): computed from the rows just saved against full history,
+    // so no client carries records.ts. An event deleted mid-session still
+    // finishes — with nothing to report.
+    const event = await loadResolvedOccurrence(supabase, userId, eventId, eventDate).catch(() => null);
+    if (!event) {
+      res.status(200).json({ ok: true, totalDurationSeconds: totalSeconds, prs: [], scoreRecord: null, recap: '' });
+      return;
+    }
+    try {
+      const score = sessionScoreFromRow({
+        score_type: (scoreColumns.score_type as string | undefined) ?? null,
+        score_time_seconds: (scoreColumns.score_time_seconds as number | undefined) ?? null,
+        score_rounds: (scoreColumns.score_rounds as number | undefined) ?? null,
+        score_reps: (scoreColumns.score_reps as number | undefined) ?? null,
+      });
+      const summary = await buildFinishSummary(supabase, userId, event, totalSeconds, score);
+      res.status(200).json({
+        ok: true,
+        totalDurationSeconds: totalSeconds,
+        prs: summary.prs,
+        scoreRecord: summary.scoreRecord,
+        recap: summary.recap,
+      });
+    } catch (err) {
+      // The session IS finished; a failed summary must not read as a failed finish.
+      console.error('[api/workout-sessions] finish summary failed:', err instanceof Error ? err.message : err);
+      res.status(200).json({ ok: true, totalDurationSeconds: totalSeconds, prs: [], scoreRecord: null, recap: '' });
+    }
     return;
   }
 
-  // ── summary: persist the AI coach summary generated client-side at Finish ──
+  // ── summary: persist a coach summary the client generated itself ─────────
+  // Legacy: /api/coach-summary persists what it streams (W3). Kept so a
+  // stale web bundle mid-session still lands its text.
   if (body.action === 'summary') {
     if (typeof body.coachSummary !== 'string' || !body.coachSummary.trim()) {
       res.status(400).send('Missing coachSummary');

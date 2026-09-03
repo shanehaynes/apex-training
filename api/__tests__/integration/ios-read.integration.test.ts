@@ -1,5 +1,6 @@
-// W0 read foundation against the LOCAL Supabase stack: GET /api/schedule,
-// POST /api/query, and the server-built quick-complete — real JWTs, real RLS,
+// W0 read foundation + W3 tracker bootstrap against the LOCAL Supabase stack:
+// GET /api/schedule, POST /api/query, the server-built quick-complete, and
+// the tracker's bootstrap/finish — real JWTs, real RLS,
 // cross-user scoping. Also the iOS fixture contract: the last test writes (or
 // checks) ios/Fixtures/*.json from these very responses, which is what keeps
 // the Swift models honest without a TS→Swift codegen pipeline
@@ -59,6 +60,7 @@ const EVENT_ID = `${FX}-weekly`;
 const DEF_ID = `${FX}-def`;
 const DONE_OCCURRENCE = `${EVENT_ID}__2026-09-08`;
 const QUICK_OCCURRENCE = `${EVENT_ID}__2026-09-15`;
+const TRACKED_OCCURRENCE = `${EVENT_ID}__2026-09-22`;
 
 /** Replace volatile values so a fixture is byte-stable across stack resets. */
 function normalize(value: unknown, key = ''): unknown {
@@ -243,6 +245,83 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
       body: { action: 'quick-complete', eventId: QUICK_OCCURRENCE, eventDate: '2026-09-15' },
     }), other.res);
     expect(other.statusCode).toBe(404);
+  });
+
+  it('bootstrap resolves the plan with last-session shadows; finish detects PRs and returns the recap', async () => {
+    // A client-stamped start an hour ago (the offline-flush path); the finish
+    // below lands 30 minutes after it, pinning the duration so the fixture is
+    // stable across runs.
+    const startedAt = new Date(Date.now() - 3600_000).toISOString();
+    const boot = makeRes();
+    await sessionsHandler(makeReq({
+      method: 'POST', token: agent.token,
+      body: { action: 'bootstrap', eventId: TRACKED_OCCURRENCE, eventDate: '2026-09-22', startedAt },
+    }), boot.res);
+    expect(boot.statusCode).toBe(200);
+    const model = boot.body as {
+      session: { started_at: string; finished_at: string | null };
+      groups: Array<{ section: string; exercises: Array<{ exercise: { name: string }; isCardio: boolean; sets: Array<{ setNumber: number; shadow: { weight: string; reps: string } | null; isLogged: boolean }> }> }>;
+      scored: boolean; prs: unknown[];
+    };
+    expect(model.session.finished_at).toBeNull();
+    expect(model.scored).toBe(false);
+    const press = model.groups[0].exercises.find(e => e.exercise.name === 'Fixture Press')!;
+    // Shadows come from the 09-08 real logs; the 09-15 quick-complete rows are autofilled and ignored.
+    expect(press.sets.map(s => [s.setNumber, s.isLogged, s.shadow])).toEqual([
+      [1, false, { weight: '100 lb', reps: '5', duration: '' }],
+      [2, false, { weight: '110 lb', reps: '3', duration: '' }],
+    ]);
+    expect(model.groups[0].exercises.find(e => e.isCardio)?.exercise.name).toBe('Fixture Row');
+
+    // Log one heavier set, then finish: est. 1RM 120×3 (132) beats 110×3 (121).
+    const save = makeRes();
+    await sessionsHandler(makeReq({
+      method: 'POST', token: agent.token,
+      body: { action: 'save', eventId: TRACKED_OCCURRENCE, eventDate: '2026-09-22', setLogs: [{
+        event_id: TRACKED_OCCURRENCE, event_date: '2026-09-22', section: 'exercise', exercise_id: 'fx-press',
+        exercise_name: 'Fixture Press', definition_id: DEF_ID, set_number: 1,
+        planned_weight: '100 lb', planned_reps: '5', planned_duration: null,
+        actual_weight: '120 lb', actual_reps: '3', actual_duration: null, is_autofilled: false,
+      }] },
+    }), save.res);
+    expect(save.statusCode).toBe(200);
+
+    expect(model.session.started_at.slice(0, 19)).toBe(startedAt.slice(0, 19));
+    const finishedAt = new Date(Date.parse(startedAt) + 1800_000).toISOString();
+    const finish = makeRes();
+    await sessionsHandler(makeReq({
+      method: 'POST', token: agent.token,
+      body: { action: 'finish', eventId: TRACKED_OCCURRENCE, eventDate: '2026-09-22', autofillRows: [], finishedAt },
+    }), finish.res);
+    expect(finish.statusCode).toBe(200);
+    const done = finish.body as { prs: Array<{ kind: string; exerciseName: string; description: string }>; recap: string; totalDurationSeconds: number };
+    expect(done.totalDurationSeconds).toBe(1800);
+    expect(done.recap).toContain('Duration: 30 min');
+    expect(done.prs).toEqual([expect.objectContaining({ kind: 'oneRM', exerciseName: 'Fixture Press' })]);
+    expect(done.prs[0].description).toContain('up from 121');
+    expect(done.recap).toContain('Fixture Press: 120 lb × 3');
+    expect(done.recap).toContain('PERSONAL RECORDS');
+
+    // Re-bootstrapping a finished session reports the same records.
+    const again = makeRes();
+    await sessionsHandler(makeReq({
+      method: 'POST', token: agent.token,
+      body: { action: 'bootstrap', eventId: TRACKED_OCCURRENCE, eventDate: '2026-09-22' },
+    }), again.res);
+    const reopened = again.body as { session: { finished_at: string | null }; prs: Array<{ kind: string }> };
+    expect(reopened.session.finished_at).not.toBeNull();
+    expect(reopened.prs.map(p => p.kind)).toEqual(['oneRM']);
+
+    // Another user sees nothing of it.
+    const other = makeRes();
+    await sessionsHandler(makeReq({
+      method: 'POST', token: agent2.token,
+      body: { action: 'bootstrap', eventId: TRACKED_OCCURRENCE, eventDate: '2026-09-22' },
+    }), other.res);
+    expect(other.statusCode).toBe(404);
+
+    fixture('bootstrap.json', again.body);
+    fixture('finish.json', finish.body);
   });
 
   it('emits (or checks) the iOS fixture contract from real responses', async () => {

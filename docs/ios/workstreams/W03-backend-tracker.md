@@ -1,7 +1,7 @@
 # W3 — Backend: tracker consolidation
 
 **Machine:** Linux · **Depends on:** W0 · **Unblocks:** W4
-**Status:** blocked on W0
+**Status:** in review (PR pending)
 
 ## Goal
 One tracker model on the server so Swift receives a fully-resolved session and only owns edits.
@@ -32,4 +32,16 @@ Out: any Swift.
 - Local gate green; fixtures committed.
 
 ## Session log
-- (none yet)
+- 2026-09-03 · Linux · Implemented in `api/_lib/trackerSession.ts` (`loadSavedRows`,
+  `loadTrackerHistory` with alias-widened, paged history, `buildBootstrap`, `buildFinishSummary`,
+  `loadMealsForDate`) and `handlers/workoutSessions.ts` (`bootstrap`; `start{startedAt}` /
+  `finish{finishedAt}` bounded to [now−7d, now+5min] and finish ≥ start; `finish` returns
+  `{ prs (with description), scoreRecord (with description), recap }`). `coach-summary` v2
+  `{ eventId, eventDate }` rebuilds the recap, streams NDJSON via the lifted `api/_lib/wire.ts`,
+  and persists; the legacy `{ recap }` JSON path and the `summary` action stay for stale bundles.
+  Web: `sessionRepo.loadSession` → bootstrap, `finishSession` returns the records,
+  `generateCoachSummary` streams; `useWorkoutSession` drops history refs, local PR detection
+  and the meals dependency; `quickCompleteSession` sends no rows (W0). `src/lib/coach/summary.ts`
+  is now pure (`.js` specifiers). Mock e2e: `e2e/lib/intercept.mjs` builds the bootstrap model
+  with the real `buildTrackerModel` (Playwright resolves the TS), shared by the two specs that
+  stub sessions. Fixtures added: `bootstrap.json`, `finish.json`.

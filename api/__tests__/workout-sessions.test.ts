@@ -16,6 +16,14 @@ vi.mock('../_lib/trackerSession.js', () => ({
         { id: 'row', name: 'Easy Row', category: 'cardio', duration: '20 min' },
       ],
     }),
+  buildBootstrap: vi.fn(async (_db: unknown, _u: string, session: unknown, event: { id: string }) => ({
+    session, event, groups: [{ section: 'exercise', label: 'Main', exercises: [] }], scored: false, prs: [], scoreRecord: null,
+  })),
+  buildFinishSummary: vi.fn(async (_db: unknown, _u: string, _e: unknown, total: number, score: unknown) => ({
+    groups: [], prs: [{ kind: 'reps', exerciseName: 'Bench Press', description: 'a PR' }],
+    scoreRecord: score ? { kind: 'workout-score', score, description: 'beat it' } : null,
+    recap: `recap for ${total}s`,
+  })),
 }));
 
 const mockedAdmin = vi.mocked(getSupabaseAdmin);
@@ -274,6 +282,62 @@ describe('POST /api/workout-sessions — quick-complete without rows (server-bui
     await handler(makeReq({ action: 'quick-complete', eventId: 'missing', eventDate: '2026-08-07' }), res);
     expect(statusCode()).toBe(404);
     expect(state.upserts['workout_sessions']).toBeUndefined();
+  });
+});
+
+describe('POST /api/workout-sessions — bootstrap and client timestamps', () => {
+  it('bootstrap returns the resolved model for an owned event and 404s otherwise, creating no session', async () => {
+    const ok = makeRes();
+    await handler(makeReq({ action: 'bootstrap', eventId: 'evt-1__2026-08-07', eventDate: '2026-08-07' }), ok.res);
+    expect(ok.statusCode()).toBe(200);
+    expect(ok.body()).toMatchObject({ groups: [{ section: 'exercise' }], scored: false, prs: [] });
+    expect(state.upserts['workout_sessions'][0]).toMatchObject({ event_id: 'evt-1__2026-08-07' });
+
+    state.upserts = {};
+    const missing = makeRes();
+    await handler(makeReq({ action: 'bootstrap', eventId: 'missing', eventDate: '2026-08-07' }), missing.res);
+    expect(missing.statusCode()).toBe(404);
+    expect(state.upserts['workout_sessions']).toBeUndefined();
+  });
+
+  it('start honours a sane startedAt and 400s one outside the window', async () => {
+    const twoHoursAgo = new Date(Date.now() - 2 * 3600_000).toISOString();
+    const ok = makeRes();
+    await handler(makeReq({ action: 'start', eventId: 'evt-1', eventDate: '2026-08-07', startedAt: twoHoursAgo }), ok.res);
+    expect(ok.statusCode()).toBe(200);
+    expect(state.upserts['workout_sessions'][0].started_at).toBe(twoHoursAgo);
+
+    for (const bad of ['yesterday', new Date(Date.now() - 8 * 86400_000).toISOString(), new Date(Date.now() + 3600_000).toISOString()]) {
+      const { res, statusCode } = makeRes();
+      await handler(makeReq({ action: 'start', eventId: 'evt-1', eventDate: '2026-08-07', startedAt: bad }), res);
+      expect(statusCode(), bad).toBe(400);
+    }
+  });
+
+  it('finish stamps a client finishedAt, rejects one before the start, and returns PRs + recap', async () => {
+    const thirtySecondsAgo = new Date(Date.now() - 30_000).toISOString();
+    const ok = makeRes();
+    await handler(makeReq({ action: 'finish', eventId: 'evt-1', eventDate: '2026-08-07', autofillRows: [], finishedAt: thirtySecondsAgo }), ok.res);
+    expect(ok.statusCode()).toBe(200);
+    const patch = state.updates.find(u => u.table === 'workout_sessions')!.patch;
+    expect(patch.finished_at).toBe(thirtySecondsAgo);
+    // The mock session started a minute ago → ~30s, not ~60s.
+    expect(patch.total_duration_seconds).toBeGreaterThanOrEqual(28);
+    expect(patch.total_duration_seconds).toBeLessThanOrEqual(32);
+    expect(ok.body()).toMatchObject({ ok: true, prs: [{ exerciseName: 'Bench Press' }], scoreRecord: null, recap: expect.stringContaining('recap for') });
+
+    const early = makeRes();
+    await handler(makeReq({ action: 'finish', eventId: 'evt-1', eventDate: '2026-08-07', autofillRows: [], finishedAt: new Date(Date.now() - 120_000).toISOString() }), early.res);
+    expect(early.statusCode()).toBe(400);
+  });
+
+  it('finish passes a logged score through to the score record', async () => {
+    const { res, body } = makeRes();
+    await handler(makeReq({
+      action: 'finish', eventId: 'evt-1', eventDate: '2026-08-07', autofillRows: [],
+      score: { templateId: 'wt-1', type: 'for-time', timeSeconds: 2492 },
+    }), res);
+    expect(body()).toMatchObject({ scoreRecord: { score: { type: 'for-time', timeSeconds: 2492 } } });
   });
 });
 
