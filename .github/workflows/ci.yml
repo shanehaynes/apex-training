@@ -145,7 +145,12 @@ jobs:
       # path filters and required checks do not compose: a required check that
       # never starts blocks the merge queue forever. The job always runs and
       # finishes in seconds when no iOS file changed.
-      - name: Skip when no iOS paths changed
+      #
+      # Only PRs skip. On push/schedule/dispatch the merge base *is* HEAD, so the
+      # diff is empty and this would skip every time — the nightly run would then
+      # never build the app at all, which is the one run that most needs to.
+      - name: Skip when a pull request changes no iOS paths
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
         run: |
           base=$(git merge-base origin/main HEAD)
           if git diff --quiet "$base" HEAD -- ios/ ; then
