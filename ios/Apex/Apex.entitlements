@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- applinks: universal links for /auth/* and /app/* (the AASA ships in its
+	     own PR). webcredentials: lets Password AutoFill offer the saved
+	     apextrainingcalendar.vercel.app login on the sign-in screen. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:apextrainingcalendar.vercel.app</string>
+		<string>webcredentials:apextrainingcalendar.vercel.app</string>
+	</array>
+</dict>
+</plist>
