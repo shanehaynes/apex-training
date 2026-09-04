@@ -48,3 +48,4 @@ ios/Packages/*/.build/
 ios/Packages/*/.swiftpm/
 ios/Config/Secrets.xcconfig
 ios/Config/*.local.xcconfig
+ios/Config/appstoreconnect.env

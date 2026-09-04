@@ -1,7 +1,7 @@
 # W1 — iOS scaffold
 
 **Machine:** Mac · **Depends on:** — (runs in parallel with W0) · **Unblocks:** W2, W11
-**Status:** done (#102, #103, #104, #105, #106) — TestFlight build 0 outstanding
+**Status:** done — every acceptance criterion met, TestFlight build 0 shipped
 
 ## Goal
 A running app that signs in against Supabase, shows four empty tabs in the house style, and is
@@ -63,5 +63,14 @@ Out: any real screen content.
     reaching all four tabs, on iPhone 17 (iOS 26) and iPhone 16 (iOS 18); `gen-tokens --check`
     failing on a hex change and on a workoutColors/tokens.css disagreement; the ApexCore
     import guard failing on a planted `import SwiftUI`; `db-types.sh --check`; `agent:check`.
-  - **Not done, and why:** TestFlight build 0 needs Shane to archive (the Release
-    configuration is ready). SwiftLint was left out rather than added unwired to CI.
+  - **Acceptance closed out 2026-09-04:** session survives relaunch and sign-out clears the
+    Keychain, both verified on a signed simulator build. The first attempt used a
+    `CODE_SIGNING_ALLOWED=NO` build and appeared to fail — an unsigned app cannot write the
+    Keychain, so the session never persists. That is a CI-shaped build, not a bug; noted in
+    ios/CLAUDE.md so the next session does not chase it.
+  - **TestFlight build 0 shipped 2026-09-04** as 0.1.0 (285), archived and uploaded headlessly
+    by `ios/scripts/testflight.sh` — no Xcode GUI. The App Store Connect API key let
+    `xcodebuild -allowProvisioningUpdates` create the Apple Distribution certificate and
+    provisioning profile itself; the machine had neither beforehand. The `.ipa` carries the
+    associated-domains entitlement, so the AASA landed in #104 is now exercisable on device.
+  - **Not done, and why:** SwiftLint was left out rather than added unwired to CI.

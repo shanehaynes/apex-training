@@ -55,6 +55,12 @@ pulls in `swift-syntax` and its macro plugin has to compile. It has not hung.
 Snapshot tests are opt-in (`APEX_SNAPSHOTS=1`): their bytes depend on the OS's text rendering,
 so they are reviewed by eye on a Mac rather than enforced on a runner.
 
+**Do not test auth against a `CODE_SIGNING_ALLOWED=NO` build.** That is what CI builds, and it
+is right for CI — but an unsigned app cannot write the Keychain, so the session silently fails
+to persist and the app returns to sign-in on every launch. It looks exactly like a session-restore
+bug and is not one. Drop the flag (the normal Xcode build signs ad-hoc) whenever you are
+checking sign-in, session restore or sign-out.
+
 ## Configuration
 
 `Local` (the scheme's run and test configuration) points at this worktree's vite server and
@@ -83,6 +89,17 @@ A local user to sign in as: `agent@apex.local` / `apex-agent-password`
 (`scripts/create-local-users.mjs`).
 
 Note `//` starts a comment in xcconfig, so URLs are written `http:$(SLASH)$(SLASH)host`.
+
+## TestFlight
+
+`ios/scripts/testflight.sh` archives and uploads without opening Xcode — `--check` verifies
+credentials, `--dry-run` archives and exports without uploading. It needs an App Store Connect
+API key: the `.p8` at `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8` and the two ids in
+`ios/Config/appstoreconnect.env` (git-ignored — see the `.example`). That key also lets
+`xcodebuild -allowProvisioningUpdates` create the distribution certificate and profile, so
+there is no signing setup to do first.
+
+Uploading publishes a build to Apple. Confirm with Shane before running it without `--dry-run`.
 
 ## Regenerating
 

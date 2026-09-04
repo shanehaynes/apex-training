@@ -110,7 +110,30 @@ rule people remember.
 
 ## TestFlight
 
-1. First builds, from a worktree (never the primary checkout):
+1. **One command, no Xcode** — this is how build 0 (0.1.0/285) shipped:
+
+   ```bash
+   ios/scripts/testflight.sh --check     # credentials only, builds nothing
+   ios/scripts/testflight.sh --dry-run   # archive + export to disk, no upload
+   ios/scripts/testflight.sh             # archive + upload
+   ```
+
+   It needs an App Store Connect API key (App Store Connect → Users and Access →
+   Integrations → App Store Connect API → Team Keys): the `.p8` at
+   `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8` and the two ids in
+   `ios/Config/appstoreconnect.env` (git-ignored; see the `.example`). That key also lets
+   `xcodebuild -allowProvisioningUpdates` create the Apple Distribution certificate and the
+   provisioning profile on its own, so there is no signing setup to do first — this machine
+   had neither when the first build shipped.
+
+   Build numbers come from `git rev-list --count HEAD`, which only increases. App Store
+   Connect rejects a build number it has already seen for a marketing version, and that is the
+   usual way a release gets stuck. The marketing version stays in `ios/project.yml`.
+
+   Uploading publishes a build to Apple — confirm with Shane before running it without
+   `--dry-run`.
+
+2. By hand in Xcode, if the script cannot run:
 
    ```bash
    ios/scripts/secrets.sh                 # the anon key; git-ignored, so per-worktree
@@ -118,19 +141,19 @@ rule people remember.
    open Apex.xcodeproj
    ```
 
-   In Xcode: destination **Any iOS Device (arm64)** (Archive is disabled while a simulator is
-   selected) → **Product → Archive** → Organizer opens → **Distribute App → TestFlight &
-   App Store → Upload**. Processing takes 5–15 minutes before the build appears in TestFlight.
+   Sign in under Xcode → Settings → Accounts, set the destination to **Any iOS Device
+   (arm64)** (Archive is disabled while a simulator is selected), then **Product → Archive** →
+   **Distribute App → TestFlight & App Store → Upload**.
 
-   Prerequisites: the Apple Developer account, App ID `com.shanehaynes.apextraining` with the
-   associated-domains capability, and — easy to miss — an **App Store Connect app record** for
-   that bundle id, or the upload is rejected.
-2. Then `ios/fastlane/Fastfile` with a `beta` lane: `app_store_connect_api_key` from repo
-   secrets, `build_app` with `-allowProvisioningUpdates` (no `match`, solo developer),
-   `upload_to_testflight`. Triggered by `.github/workflows/testflight.yml` on
-   `workflow_dispatch` (HELD). Build number = `github.run_number`; marketing version from
-   `ios/project.yml`.
-3. Builds expire after 90 days — W13 sets a release cadence note in MASTER.md.
+   Prerequisites either way: the Apple Developer account, App ID
+   `com.shanehaynes.apextraining` with the associated-domains capability, and — easy to miss,
+   and separate from the App ID — an **App Store Connect app record** for that bundle id, or
+   the upload is rejected.
+
+3. Later, if this ever needs to run in CI: `.github/workflows/testflight.yml` on
+   `workflow_dispatch` (HELD), calling the same script with the key from repo secrets and
+   `github.run_number` as the build number.
+4. Builds expire after 90 days — W13 sets a release cadence note in MASTER.md.
 
 ## App Store gate (W13)
 

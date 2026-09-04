@@ -9,7 +9,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | WS | Title | State | Machine | Notes |
 |---|---|---|---|---|
 | W0 | Backend read foundation | done (PR #95) | Linux | no migration |
-| W1 | iOS scaffold + app icon + CI | done (#102, #103, #104, #105, #106) | Mac | TestFlight build 0 is Shane's to archive |
+| W1 | iOS scaffold + app icon + CI | done | Mac | TestFlight build 0 (0.1.0/285) shipped and installed |
 | W2 | Schedule read, cache, realtime, auth links | ready | Mac | first TestFlight with value |
 | W3 | Backend tracker consolidation | done (PR #96) | Linux | web switched in the same PR |
 | W4 | Tracker UI + write queue | ready | Mac | W3 done |
@@ -27,9 +27,9 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 ## Next up
 1. W2, W4 or W6 on the Mac in any order — every backend gate is merged and W1 gives them the
    app to build in. Remaining Linux work: W10's cycle endpoint, W11's COROS `client:'ios'` migration.
-2. Shane: TestFlight build 0 — App Store Connect app record for `com.shanehaynes.apextraining`,
-   then Xcode → Any iOS Device → Product → Archive → Distribute. The Release configuration is
-   verified; only `ios/Config/Secrets.xcconfig` (git-ignored, the anon key) is per-worktree.
+2. Releases are one command now: `ios/scripts/testflight.sh`. Needs the App Store Connect API
+   key (`.p8` in `~/.appstoreconnect/private_keys/`, ids in `ios/Config/appstoreconnect.env` —
+   both git-ignored and per-machine).
 
 ## Recent sessions
 - 2026-09-02 · plan · Master plan and all briefs written (PR #94).
@@ -43,6 +43,9 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   iPhone 17 (iOS 26) and iPhone 16 (iOS 18.6) against the local stack; the `ios` CI job's first
   real build passed on `macos-26`; the deployed AASA serves 200 as `application/json`.
   D-021, D-022.
+- 2026-09-04 · W1 · Acceptance closed: session restore and sign-out verified on a signed build,
+  and TestFlight build 0 (0.1.0/285) uploaded headlessly via `ios/scripts/testflight.sh` and
+  installed on Shane's phone. W1 is done end to end.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)
