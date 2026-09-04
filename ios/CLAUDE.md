@@ -55,6 +55,12 @@ pulls in `swift-syntax` and its macro plugin has to compile. It has not hung.
 Snapshot tests are opt-in (`APEX_SNAPSHOTS=1`): their bytes depend on the OS's text rendering,
 so they are reviewed by eye on a Mac rather than enforced on a runner.
 
+**Do not test auth against a `CODE_SIGNING_ALLOWED=NO` build.** That is what CI builds, and it
+is right for CI — but an unsigned app cannot write the Keychain, so the session silently fails
+to persist and the app returns to sign-in on every launch. It looks exactly like a session-restore
+bug and is not one. Drop the flag (the normal Xcode build signs ad-hoc) whenever you are
+checking sign-in, session restore or sign-out.
+
 ## Configuration
 
 `Local` (the scheme's run and test configuration) points at this worktree's vite server and

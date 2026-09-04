@@ -63,5 +63,10 @@ Out: any real screen content.
     reaching all four tabs, on iPhone 17 (iOS 26) and iPhone 16 (iOS 18); `gen-tokens --check`
     failing on a hex change and on a workoutColors/tokens.css disagreement; the ApexCore
     import guard failing on a planted `import SwiftUI`; `db-types.sh --check`; `agent:check`.
+  - **Acceptance closed out 2026-09-04:** session survives relaunch and sign-out clears the
+    Keychain, both verified on a signed simulator build. The first attempt used a
+    `CODE_SIGNING_ALLOWED=NO` build and appeared to fail — an unsigned app cannot write the
+    Keychain, so the session never persists. That is a CI-shaped build, not a bug; noted in
+    ios/CLAUDE.md so the next session does not chase it.
   - **Not done, and why:** TestFlight build 0 needs Shane to archive (the Release
-    configuration is ready). SwiftLint was left out rather than added unwired to CI.
+    configuration is verified). SwiftLint was left out rather than added unwired to CI.
