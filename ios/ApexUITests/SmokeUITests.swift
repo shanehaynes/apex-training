@@ -111,3 +111,62 @@ final class SmokeUITests: XCTestCase {
         add(shot)
     }
 }
+
+/// The auth links (D-020, architecture.md §3) on the mock: an invite hand-off
+/// lands on set-password and a password signs in; a spent link explains itself.
+final class AuthLinkUITests: XCTestCase {
+    override func setUp() {
+        continueAfterFailure = false
+    }
+
+    private func launchMock() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient"]
+        app.launch()
+        return app
+    }
+
+    func testInviteHandOffLandsOnSetPasswordAndSignsIn() {
+        let app = launchMock()
+        XCTAssertTrue(app.textFields["signin.email"].waitForExistence(timeout: 10))
+
+        XCUIDevice.shared.system.open(URL(string:
+            "apextraining://auth#access_token=AT&refresh_token=RT&type=invite&expires_in=3600&token_type=bearer")!)
+        let newPassword = app.secureTextFields["setpassword.new"]
+        XCTAssertTrue(newPassword.waitForExistence(timeout: 10))
+        attach(app, name: "09-set-password")
+
+        newPassword.tap()
+        newPassword.typeText("correct-horse-battery")
+        let confirm = app.secureTextFields["setpassword.confirm"]
+        confirm.tap()
+        confirm.typeText("correct-horse-battery")
+        // The invitee has never accepted on the web: the toggle is required.
+        let terms = app.switches["setpassword.terms"]
+        XCTAssertTrue(terms.exists)
+        terms.tap()
+        app.buttons["setpassword.submit"].tap()
+
+        XCTAssertTrue(app.tabBars.buttons["Schedule"].waitForExistence(timeout: 20))
+        attach(app, name: "10-after-set-password")
+    }
+
+    func testSpentLinkExplainsItself() {
+        let app = launchMock()
+        XCTAssertTrue(app.textFields["signin.email"].waitForExistence(timeout: 10))
+        XCUIDevice.shared.system.open(URL(string:
+            "apextraining://auth#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired")!)
+        let toast = app.staticTexts["toast.failure"]
+        XCTAssertTrue(toast.waitForExistence(timeout: 10))
+        XCTAssertTrue(toast.label.contains("already been used"), toast.label)
+        XCTAssertTrue(app.textFields["signin.email"].exists)
+        attach(app, name: "11-spent-link")
+    }
+
+    private func attach(_ app: XCUIApplication, name: String) {
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+}

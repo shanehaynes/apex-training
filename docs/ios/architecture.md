@@ -120,7 +120,16 @@ TabView
   URL root → the web's set-password screen shows "Open in the Apex app" when the hash carries
   `type=invite` or `type=recovery`, and the sign-in card shows it for a `?code=` landing (a
   reset the app requested, which only the app can exchange). `src/lib/auth/landing.ts`.
-- Set-password screen for `needsPassword` (invite / recovery) mirrors `SetPasswordView.tsx`.
+- Set-password screen for `needsPassword` (invite / recovery) mirrors `SetPasswordView.tsx`,
+  including the acceptance toggle when `GET /api/profile` says the terms are not current
+  (an iOS-first invitee is otherwise 403-blocked on every read). `AuthState.needsPassword` is
+  held across every SDK event until `setPassword` succeeds; the hold is set *before* the SDK
+  is asked for the session so the `SIGNED_IN` that follows cannot skip the screen.
+- Recovery detection: the PKCE exchange for `?code=` never reports `type=recovery`
+  (supabase-swift 2.55.1 emits PASSWORD_RECOVERY only on the implicit path), so
+  `sendPasswordReset` notes `apex.pendingRecovery` in UserDefaults and the next code exchange
+  lands on set-password. The implicit hand-off carries `type` in its fragment.
+- A link that arrives while the stored session is still being read is parked and replayed.
 - Realtime channels need the JWT: `realtime.setAuth(token)` after every refresh.
 
 ## 5. API client (`ApexCore.ApexClient`)

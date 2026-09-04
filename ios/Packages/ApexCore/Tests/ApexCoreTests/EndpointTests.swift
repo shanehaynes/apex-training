@@ -32,6 +32,12 @@ final class EndpointTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(JSONValue.self, from: data), value)
     }
 
+    func testTermsAcceptanceIsABodilessPost() {
+        XCTAssertEqual(Endpoint.termsAcceptance.method, .post)
+        XCTAssertNil(Endpoint.termsAcceptance.body)
+        XCTAssertEqual(Endpoint.termsAcceptance.url(relativeTo: base)?.path, "/api/terms-acceptance")
+    }
+
     func testTrailingSlashOnTheBaseDoesNotDoubleUp() {
         let slashed = URL(string: "http://127.0.0.1:5314/")!
         XCTAssertEqual(

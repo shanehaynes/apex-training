@@ -1,7 +1,7 @@
 # W2 — Schedule: read, cache, realtime, auth links
 
 **Machine:** Mac (+ a small web change) · **Depends on:** W0, W1 · **Unblocks:** W4, W7, W10
-**Status:** in progress — A0 #110 (HELD), A #111, B open; C (auth links) next
+**Status:** in review — A0 #110 (HELD), A #111, B #112, C open; then TestFlight build 1
 
 ## Goal
 The first vertical slice with daily value: open the app, see today and the month, open a
@@ -103,3 +103,22 @@ direct reads of `activity_streams`, `profiles`.
     simulator within ~4 s.
   - **Not done here:** device runs (Shane), W4's write queue (the toggle is two direct calls
     marked for it), the "+" toolbar menu (W7).
+- 2026-09-04 · Mac · PR C — auth links and set-password.
+  - `AuthService.handle(_:originalURL:)`: `?code=` → `session(from:)` (PKCE); the web's
+    `#access_token…` hand-off → `setSession` (a PKCE client refuses a fragment in
+    `session(from:)`); an error fragment → sign-in with the reason. `AuthState.needsPassword`
+    is held across every SDK event until `setPassword` lands; the hold is set before the SDK
+    is asked so the `SIGNED_IN` that follows cannot skip the screen. PKCE never reports
+    `type=recovery` (verified in 2.55.1), so `sendPasswordReset` notes `apex.pendingRecovery`.
+  - `SetPasswordView` mirrors the web's, with the acceptance toggle when `/api/profile` says
+    the terms are not current (`Endpoint.termsAcceptance`, POST, no body).
+  - `AppModel.open(_:)` routes every `DeepLink`: auth → `AuthService`; `/app/event|library` →
+    `pendingRoute` for W7/W10; `connected`/`connect_error` → a toast until W11. A link that
+    arrives while restoring is parked and replayed. `.onOpenURL` in `ApexApp`.
+  - Under `-apexMockClient` an invite fragment lands on set-password without GoTrue;
+    `AuthLinkUITests` covers invite → set password → tabs, and the spent-link toast.
+  - **Verified live on the simulator (signed build, local stack):** minted tokens opened via
+    `simctl openurl` with `type=invite` → set-password → new password → tabs; the
+    `otp_expired` fragment → sign-in with the toast.
+  - **Not verifiable here:** the real emails (recovery from the app, dashboard invite) — Shane,
+    on the phone, after merge; report which recovery path fired (`type=` or the pending note).

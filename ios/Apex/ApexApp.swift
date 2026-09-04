@@ -35,6 +35,9 @@ struct ApexApp: App {
             // which SwiftUI previews do not read.
             .preferredColorScheme(.dark)
             .onChange(of: scenePhase) { _, phase in model.scenePhase(phase) }
+            // Universal links (`/auth/callback`, `/app/...`) and `apextraining://`
+            // both arrive here (architecture.md §3).
+            .onOpenURL { url in Task { await model.open(url) } }
         }
     }
 }
@@ -61,9 +64,20 @@ struct RootView: View {
             )
             .task {
                 if let reason { ToastBus.shared.post(reason, level: .failure) }
+                model.replayParkedLink()
             }
+        case .needsPassword(_, let email):
+            SetPasswordView(
+                email: email,
+                needsTerms: model.needsTermsAcceptance,
+                onSubmit: { password in
+                    await model.setPassword(password, acceptTerms: model.needsTermsAcceptance)
+                },
+                onCancel: { model.cancelPasswordSetup() }
+            )
         case .signedIn(_, let email):
             RootTabView(schedule: model.schedule, email: email) { model.signOut() }
+                .task { model.replayParkedLink() }
         }
     }
 }

@@ -48,8 +48,10 @@ final class DeepLinkTests: XCTestCase {
     // MARK: - URL routing
 
     func testUniversalLinkWithCode() {
-        XCTAssertEqual(parse("https://apextrainingcalendar.vercel.app/auth/callback?code=abc123"), .authCode("abc123"))
-        XCTAssertEqual(parse("apextraining://auth?code=abc123"), .authCode("abc123"))
+        XCTAssertEqual(parse("https://apextrainingcalendar.vercel.app/auth/callback?code=abc123"), .authCode(code: "abc123", type: nil))
+        XCTAssertEqual(parse("apextraining://auth?code=abc123"), .authCode(code: "abc123", type: nil))
+        XCTAssertEqual(parse("https://apextrainingcalendar.vercel.app/auth/callback?code=abc&type=recovery"),
+                       .authCode(code: "abc", type: .recovery))
     }
 
     func testInviteHandOffFragment() {
