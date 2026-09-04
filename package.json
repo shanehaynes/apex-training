@@ -22,6 +22,7 @@
     "e2e:live": "scripts/with-stack-lock.sh sh -c 'scripts/preflight-local.sh --fix --quiet && APEX_LOCAL_SUPABASE=1 playwright test --project=live'",
     "db:types": "scripts/db-types.sh",
     "db:reset-local": "scripts/db-reset-local.sh",
+    "db:restore-drill": "scripts/db-restore-drill.sh",
     "ci:guards": "scripts/ci-guards.sh",
     "agent:check": "tsc -b && vitest run && oxlint && playwright test --project=mock && npm run ci:guards",
     "agent:check:full": "npm run agent:check && scripts/with-stack-lock.sh sh -c 'npm run db:reset-local && APEX_LOCAL_SUPABASE=1 vitest run api/__tests__/integration && npm run e2e:live'",

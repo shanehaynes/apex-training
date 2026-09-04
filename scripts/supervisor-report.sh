@@ -79,6 +79,31 @@ case $auth_code in
     ;;
 esac
 
+echo "── production backup"
+# Nightly encrypted dump + restore drill (.github/workflows/backup.yml). Red,
+# or green but older than two days (schedule disabled after 60 idle days,
+# project paused, secret revoked), means the last good backup is ageing —
+# README, "Backups".
+if [ -n "$GH" ]; then
+  backup=$("$GH" run list --workflow backup.yml --branch main --limit 1 \
+    --json conclusion,status,updatedAt \
+    --jq '.[0] | "\(.conclusion // .status) \(.updatedAt)"' 2>/dev/null || true)
+  case "$backup" in
+    ""|null*) echo "   no backup runs found (gh auth? workflow not on main yet?)" ;;
+    success*)
+      when=${backup#success }
+      when_s=$(date -d "$when" +%s 2>/dev/null || date -j -f %Y-%m-%dT%H:%M:%SZ "$when" +%s 2>/dev/null || true)
+      if [ -n "$when_s" ] && [ "$when_s" -lt "$(( $(date +%s) - 2*86400 ))" ]; then
+        echo "ACTION last green backup is older than two days ($when) — schedule disabled, project paused, or secret gone? (README, Backups)"
+      else
+        echo "   last backup dumped and restore-drilled: $when"
+      fi ;;
+    *) echo "ACTION nightly backup is not green: $backup — gh run list --workflow backup.yml" ;;
+  esac
+else
+  echo "   gh not found — skipped"
+fi
+
 echo
 echo "── merged branches and worktrees to retire (git-tidy.sh dry run)"
 scripts/git-tidy.sh 2>/dev/null | sed 's/^/   /' || echo "   git-tidy.sh failed"
