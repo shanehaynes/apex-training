@@ -1,0 +1,6 @@
+# age public keys the nightly database backup is encrypted to, one per line
+# (scripts/db-backup.sh, .github/workflows/backup.yml). Public keys are safe
+# in a public repo; the matching private key lives only in Shane's password
+# manager. Generate with `age-keygen -o apex-backup.key` and paste the
+# "# public key:" line's value here. A second line is a second key that can
+# also decrypt every future bundle — cheap insurance against losing the first.
