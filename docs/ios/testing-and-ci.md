@@ -125,12 +125,29 @@ rule people remember.
    Prerequisites: the Apple Developer account, App ID `com.shanehaynes.apextraining` with the
    associated-domains capability, and — easy to miss — an **App Store Connect app record** for
    that bundle id, or the upload is rejected.
-2. Then `ios/fastlane/Fastfile` with a `beta` lane: `app_store_connect_api_key` from repo
-   secrets, `build_app` with `-allowProvisioningUpdates` (no `match`, solo developer),
-   `upload_to_testflight`. Triggered by `.github/workflows/testflight.yml` on
-   `workflow_dispatch` (HELD). Build number = `github.run_number`; marketing version from
-   `ios/project.yml`.
-3. Builds expire after 90 days — W13 sets a release cadence note in MASTER.md.
+2. Or skip Xcode entirely — `ios/scripts/testflight.sh` archives, exports and uploads:
+
+   ```bash
+   ios/scripts/testflight.sh --check     # credentials only, builds nothing
+   ios/scripts/testflight.sh --dry-run   # archive + export to disk, no upload
+   ios/scripts/testflight.sh             # archive + upload
+   ```
+
+   It needs an App Store Connect API key (App Store Connect → Users and Access →
+   Integrations → App Store Connect API → Team Keys), the `.p8` at
+   `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8`, and the two ids in
+   `ios/Config/appstoreconnect.env` (git-ignored; see the `.example`). The key also lets
+   `xcodebuild -allowProvisioningUpdates` create the distribution certificate and profile, so
+   no signing setup is needed first.
+
+   Build numbers come from `git rev-list --count HEAD`, which only increases — App Store
+   Connect rejects a build number it has already seen for a marketing version. The marketing
+   version stays in `ios/project.yml`.
+
+3. Later, if this ever needs to run in CI: `.github/workflows/testflight.yml` on
+   `workflow_dispatch` (HELD), calling the same script with the key from repo secrets and
+   `github.run_number` as the build number.
+4. Builds expire after 90 days — W13 sets a release cadence note in MASTER.md.
 
 ## App Store gate (W13)
 

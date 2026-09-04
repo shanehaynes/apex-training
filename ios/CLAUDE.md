@@ -90,6 +90,17 @@ A local user to sign in as: `agent@apex.local` / `apex-agent-password`
 
 Note `//` starts a comment in xcconfig, so URLs are written `http:$(SLASH)$(SLASH)host`.
 
+## TestFlight
+
+`ios/scripts/testflight.sh` archives and uploads without opening Xcode — `--check` verifies
+credentials, `--dry-run` archives and exports without uploading. It needs an App Store Connect
+API key: the `.p8` at `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8` and the two ids in
+`ios/Config/appstoreconnect.env` (git-ignored — see the `.example`). That key also lets
+`xcodebuild -allowProvisioningUpdates` create the distribution certificate and profile, so
+there is no signing setup to do first.
+
+Uploading publishes a build to Apple. Confirm with Shane before running it without `--dry-run`.
+
 ## Regenerating
 
 - `node ios/scripts/gen-tokens.mjs` — after any change to `src/styles/tokens.css`,
