@@ -15,12 +15,21 @@ final class EndpointTests: XCTestCase {
         XCTAssertEqual(url?.query, "start=a&end=b&include=definitions,templates")
     }
 
-    /// Arguments are sorted so the same call always produces the same URL — a
-    /// cache key that reshuffles is a cache that never hits.
-    func testQueryArgumentsAreOrderStable() {
-        let url = Endpoint.query(tool: "get_prs", arguments: ["scope": "all_time", "exercise": "Press"])
-            .url(relativeTo: base)
-        XCTAssertEqual(url?.query, "tool=get_prs&exercise=Press&scope=all_time")
+    /// The handler is POST-only and reads `{ tool, args }` from the body; keys
+    /// are sorted so the same call always produces the same bytes.
+    func testQueryIsAPostWithASortedBody() {
+        let endpoint = Endpoint.query(tool: "get_meals", args: ["start_date": "2026-09-08", "include_items": true, "limit": 20])
+        XCTAssertEqual(endpoint.method, .post)
+        XCTAssertEqual(endpoint.url(relativeTo: base)?.absoluteString, "http://127.0.0.1:5314/api/query")
+        XCTAssertEqual(String(decoding: endpoint.body!, as: UTF8.self),
+                       #"{"args":{"include_items":true,"limit":20,"start_date":"2026-09-08"},"tool":"get_meals"}"#)
+        XCTAssertEqual(String(decoding: Endpoint.query(tool: "get_prs").body!, as: UTF8.self), #"{"args":{},"tool":"get_prs"}"#)
+    }
+
+    func testJSONValueRoundTrips() throws {
+        let value: JSONValue = ["a": [1, 2.5, true, nil, "s"], "b": ["c": 3]]
+        let data = try JSONEncoder().encode(value)
+        XCTAssertEqual(try JSONDecoder().decode(JSONValue.self, from: data), value)
     }
 
     func testTrailingSlashOnTheBaseDoesNotDoubleUp() {

@@ -1,0 +1,45 @@
+{
+  "tool": "get_meals",
+  "result": {
+    "start_date": "2026-09-08",
+    "end_date": "2026-09-08",
+    "days": [
+      {
+        "date": "2026-09-08",
+        "meal_count": 2,
+        "totals": {
+          "calories": 1114,
+          "proteinG": 70,
+          "carbsG": 138,
+          "fatTotalG": 30
+        },
+        "meals": [
+          {
+            "title": "Fixture Oats",
+            "time": "07:15",
+            "meal_type": "breakfast",
+            "calories": 520,
+            "protein_g": 22,
+            "carbs_g": 78,
+            "fiber_g": null,
+            "sugar_g": null,
+            "fat_total_g": 12,
+            "notes": null
+          },
+          {
+            "title": "Fixture Chicken Bowl",
+            "time": "12:45",
+            "meal_type": "lunch",
+            "calories": 594,
+            "protein_g": 48,
+            "carbs_g": 60,
+            "fiber_g": null,
+            "sugar_g": null,
+            "fat_total_g": 18,
+            "notes": null
+          }
+        ]
+      }
+    ]
+  }
+}

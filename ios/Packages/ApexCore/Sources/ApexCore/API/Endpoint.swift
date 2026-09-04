@@ -32,6 +32,17 @@ public struct Endpoint: Sendable, Equatable {
         return components.url
     }
 
+    /// Bodies are encoded with sorted keys so the same call always produces
+    /// the same bytes — testable, and a stable key for anything that hashes a
+    /// request.
+    static func json<T: Encodable>(_ value: T) -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        // Encoding a value built from Codable structs and JSONValue cannot
+        // fail; a crash here would be a programming error, not a runtime one.
+        return try! encoder.encode(value) // swiftlint:disable:this force_try
+    }
+
     // MARK: - W0 read endpoints
 
     /// One window of schedule: bases, expanded occurrences, and whichever
@@ -48,12 +59,48 @@ public struct Endpoint: Sendable, Equatable {
         return Endpoint(path: "api/schedule", query: query)
     }
 
-    /// The read-only coach tools, callable directly by the app.
-    public static func query(tool: String, arguments: [String: String] = [:]) -> Endpoint {
-        var query = [URLQueryItem(name: "tool", value: tool)]
-        query.append(contentsOf: arguments.keys.sorted().map { URLQueryItem(name: $0, value: arguments[$0]) })
-        return Endpoint(path: "api/query", query: query)
+    /// The read-only coach tools, callable directly by the app. The handler
+    /// (`api/_lib/handlers/query.ts`) is POST-only and reads `{ tool, args }`
+    /// from the body; `args` is a JSON object, not a flat string map.
+    public static func query(tool: String, args: [String: JSONValue] = [:]) -> Endpoint {
+        struct Body: Encodable {
+            let tool: String
+            let args: [String: JSONValue]
+        }
+        return Endpoint(method: .post, path: "api/query", body: json(Body(tool: tool, args: args)))
     }
 
     public static let profile = Endpoint(path: "api/profile")
+
+    // MARK: - W2 writes
+
+    /// Toggle an occurrence's completion. The two rows are built by
+    /// `CompletionRows.build` — the shape the server's allowlist accepts.
+    public static func completions(completionRow: CompletionRow, logRow: CompletionLogRow) -> Endpoint {
+        struct Body: Encodable {
+            let completionRow: CompletionRow
+            let logRow: CompletionLogRow
+        }
+        return Endpoint(
+            method: .post,
+            path: "api/completions",
+            body: json(Body(completionRow: completionRow, logRow: logRow))
+        )
+    }
+
+    /// The tracker session actions that need only an occurrence: the plan-filled
+    /// `quick-complete` and its undo `quick-uncomplete`. W4 adds the bodies
+    /// that carry logs.
+    public static func workoutSessions(action: String, eventId: String, eventDate: String) -> Endpoint {
+        struct Body: Encodable {
+            let action: String
+            let eventId: String
+            let eventDate: String
+        }
+        return Endpoint(
+            method: .post,
+            path: "api/workout-sessions",
+            body: json(Body(action: action, eventId: eventId, eventDate: eventDate))
+        )
+    }
 }

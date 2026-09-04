@@ -43,7 +43,9 @@ toggle completion without porting `plan.ts`.
 A JWT door onto the read-only MCP registry (`api/_lib/mcp/toolRegistry.ts`): `get_prs`,
 `get_period_stats`, `get_exercise_history`, `search_exercises`, `get_training_blocks`,
 `get_meals`, `get_workout_detail`. Same `McpToolDef.execute(supabase, userId, args)`; bucket
-`reads`. ~50 lines. Gives Swift library stats, history, PRs, period stats and block progress with
+`reads`. ~50 lines. **POST only** with the tool name and its arguments in the JSON body —
+`args` is a JSON object (nested values, numbers, booleans), which is why `Endpoint.query` takes
+`[String: JSONValue]` and not a flat string map (W2 fixed a GET-shaped first version). Gives Swift library stats, history, PRs, period stats and block progress with
 zero new logic; add richer dedicated handlers only where a screen needs a different shape.
 
 ### Guards and generators
@@ -51,9 +53,13 @@ zero new logic; add richer dedicated handlers only where a screen needs a differ
   no change needed. Any `src/lib` module newly reached from `api/` must switch to `.js`
   specifiers or that test fails.
 - `scripts/db-types.sh`: also `supabase gen types --lang=swift >
-  ios/Packages/ApexCore/Sources/ApexCore/Generated/DatabaseTypes.swift`; `--check` covers it.
-- `api/__tests__/fixtures/emitIosFixtures.test.ts`: runs handlers against the local stack and
-  writes `ios/Fixtures/*.json|ndjson`; `--check` mode in CI's `full` job.
+  ios/Packages/ApexKit/Sources/ApexAuth/Generated/DatabaseTypes.swift` (D-021: the emit needs
+  supabase-swift's `AnyJSON`, so it lives in `ApexAuth`, not `ApexCore`); `--check` covers it.
+- `api/__tests__/integration/ios-read.integration.test.ts`: runs handlers against the local
+  stack and writes `ios/Fixtures/*.json|ndjson` (`APEX_FIXTURES_WRITE=1`); by default it checks
+  the committed files, which is what CI's `full` job does. W2 added `schedule-empty.json`,
+  `activity-streams.json` (read through the anon client under the user's JWT, so the RLS
+  SELECT policy is part of the contract) and `query-get_meals.json`.
 
 ## W3 — tracker consolidation (Linux)
 

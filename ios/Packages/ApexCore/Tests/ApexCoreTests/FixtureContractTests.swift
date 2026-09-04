@@ -29,15 +29,86 @@ final class FixtureContractTests: XCTestCase {
     func testScheduleDecodes() throws {
         let schedule = try decode(ScheduleResponse.self, from: "schedule.json")
         XCTAssertEqual(schedule.window.start, "2026-09-01")
-        XCTAssertEqual(schedule.bases.count, 1)
-        XCTAssertEqual(schedule.bases[0].type, .weights)
-        XCTAssertEqual(schedule.occurrences.count, 5)
+        // The weekly series plus three one-offs on 2026-09-08.
+        XCTAssertEqual(schedule.bases.count, 4)
+        let weekly = try XCTUnwrap(schedule.bases.first { $0.id == "ios-fixture-weekly" })
+        XCTAssertEqual(weekly.type, .weights)
+        XCTAssertEqual(schedule.occurrences.count, 8)
         XCTAssertEqual(schedule.definitions?.first?.canonicalName, "Fixture Press")
 
         // The recurring occurrence id is `${baseId}__${date}` — the OccurrenceID
-        // shape the whole app keys off.
-        XCTAssertEqual(schedule.occurrences[1].id, "ios-fixture-weekly__2026-09-08")
-        XCTAssertEqual(schedule.occurrences[1].baseId, "ios-fixture-weekly")
+        // shape the whole app keys off — and the series anchor's own occurrence
+        // carries the bare base id.
+        let mine = schedule.occurrences.filter { $0.baseId == "ios-fixture-weekly" }
+        XCTAssertEqual(mine[0].id, "ios-fixture-weekly")
+        XCTAssertEqual(mine[1].id, "ios-fixture-weekly__2026-09-08")
+        XCTAssertEqual(OccurrenceID.date(of: mine[1].id), mine[1].date)
+    }
+
+    /// Every field the event sheet renders, on the base that carries it.
+    func testScheduleCarriesTheEventSheetFields() throws {
+        let schedule = try decode(ScheduleResponse.self, from: "schedule.json")
+        let run = try XCTUnwrap(schedule.bases.first { $0.id == "ios-fixture-run" })
+        XCTAssertEqual(run.type, .cardio)
+        XCTAssertEqual(run.sport, "running")
+        XCTAssertEqual(run.subtitle, "Zone 2")
+        XCTAssertEqual(run.location, "East Rock")
+        XCTAssertEqual(run.cardioTargets?.distance, "5 mi")
+        XCTAssertEqual(run.cardioTargets?.avgHeartRate, 150)
+
+        let crag = try XCTUnwrap(schedule.bases.first { $0.id == "ios-fixture-crag" })
+        XCTAssertEqual(crag.type, .outdoorClimbing)
+        XCTAssertEqual(crag.climbingTargets?.maxGrade, "5.11a")
+        XCTAssertEqual(crag.climbingTargets?.totalPitches, 4)
+        XCTAssertEqual(crag.warmup?.count, 1)
+        let pitch = try XCTUnwrap(crag.exercises?.first)
+        XCTAssertEqual(pitch.climbStyle, "sport")
+        XCTAssertEqual(pitch.grade, "5.10c")
+        XCTAssertEqual(pitch.ascentStyle, "redpoint")
+
+        let circuit = try XCTUnwrap(schedule.bases.first { $0.id == "ios-fixture-circuit" })
+        XCTAssertEqual(circuit.exercises?.map(\.superset), ["A", "A", nil])
+        XCTAssertEqual(circuit.exercises?[0].plannedSets?.count, 3)
+        XCTAssertEqual(circuit.exercises?[0].plannedSets?[1].targetWeight, "165 lb")
+
+        // Indexed: four events on the day, in start-time order, one completed.
+        let index = ScheduleIndex(schedule)
+        let day = index.events(on: DayKey("2026-09-08")!)
+        XCTAssertEqual(day.map(\.id), ["ios-fixture-run", "ios-fixture-crag", "ios-fixture-circuit", "ios-fixture-weekly__2026-09-08"])
+        XCTAssertEqual(day.filter(\.isCompleted).map(\.id), ["ios-fixture-weekly__2026-09-08"])
+    }
+
+    func testEmptyWindowDecodes() throws {
+        let schedule = try decode(ScheduleResponse.self, from: "schedule-empty.json")
+        XCTAssertEqual(schedule.window.start, "2026-10-28")
+        XCTAssertTrue(schedule.bases.isEmpty)
+        XCTAssertTrue(schedule.occurrences.isEmpty)
+        XCTAssertTrue(ScheduleIndex(schedule).isEmpty)
+    }
+
+    func testActivityStreamsDecode() throws {
+        let rows = try decode([ActivityStreamRecord].self, from: "activity-streams.json")
+        let record = try XCTUnwrap(rows.first)
+        XCTAssertEqual(record.provider, "coros")
+        XCTAssertEqual(record.hrSamples.count, 5)
+        XCTAssertEqual(record.gpsSamples.count, 5)
+        XCTAssertEqual(record.gpsSamples[2].elevationMeters, 80)
+        XCTAssertEqual(SyncMetricsFormatter.items(record.summary).map(\.text),
+                       ["150/172 bpm", "5.00 mi", "800 ft", "420 cal", "Load 88"])
+    }
+
+    func testMealsQueryDecodes() throws {
+        let meals = try decode(QueryEnvelope<MealsQueryResult>.self, from: "query-get_meals.json")
+        XCTAssertEqual(meals.tool, "get_meals")
+        let day = try XCTUnwrap(meals.result.days.first)
+        XCTAssertEqual(day.date, "2026-09-08")
+        XCTAssertEqual(day.mealCount, 2)
+        XCTAssertEqual(day.totals.calories, 1114)
+        XCTAssertEqual(day.totals.proteinG, 70)
+        XCTAssertEqual(day.meals?.map(\.title), ["Fixture Oats", "Fixture Chicken Bowl"])
+        // The server derived this one (no stored calories): Atwater 4/4/9.
+        XCTAssertEqual(day.meals?[1].calories, 594)
+        XCTAssertEqual(day.meals?[1].mealType, "lunch")
     }
 
     /// The emitter normalises volatile values to the literal strings "<uuid>" and
@@ -47,7 +118,8 @@ final class FixtureContractTests: XCTestCase {
     /// production against real data.
     func testVolatileFieldsAreStrings() throws {
         let schedule = try decode(ScheduleResponse.self, from: "schedule.json")
-        XCTAssertEqual(schedule.occurrences[1].completedAt, "<timestamp>")
+        let done = try XCTUnwrap(schedule.occurrences.first { $0.id == "ios-fixture-weekly__2026-09-08" })
+        XCTAssertEqual(done.completedAt, "<timestamp>")
 
         let bootstrap = try decode(TrackerBootstrap.self, from: "bootstrap.json")
         XCTAssertEqual(bootstrap.session?.id, "<uuid>")

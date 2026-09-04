@@ -90,6 +90,16 @@ const FX = 'ios-fixture';
 const EVENT_ID = `${FX}-weekly`;
 const DEF_ID = `${FX}-def`;
 const DONE_OCCURRENCE = `${EVENT_ID}__2026-09-08`;
+// Three one-off events on the same day as the completed occurrence, so the
+// Day view fixture has four events (an overflow chip on the month grid) and
+// the event sheet has every field it renders: cardio targets, climbing pitches
+// and targets, supersets with planned sets. The weekly base is left exactly as
+// it was so bootstrap.json / finish.json do not move.
+const FIXTURE_DAY = '2026-09-08';
+const RUN_ID = `${FX}-run`;
+const CRAG_ID = `${FX}-crag`;
+const CIRCUIT_ID = `${FX}-circuit`;
+const MEAL_IDS = [`${FX}-meal-1`, `${FX}-meal-2`];
 const QUICK_OCCURRENCE = `${EVENT_ID}__2026-09-15`;
 const TRACKED_OCCURRENCE = `${EVENT_ID}__2026-09-22`;
 
@@ -144,8 +154,10 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     await admin.from('workout_sessions').delete().like('event_id', `${EVENT_ID}%`);
     await admin.from('workout_completion_log').delete().like('event_id', `${EVENT_ID}%`);
     await admin.from('workout_completions').delete().like('event_id', `${EVENT_ID}%`);
-    await admin.from('workout_events').delete().eq('id', EVENT_ID);
+    await admin.from('workout_events').delete().like('id', `${FX}%`);
     await admin.from('exercise_definitions').delete().eq('id', DEF_ID);
+    await admin.from('activity_streams').delete().like('event_id', `${FX}%`);
+    await admin.from('meals').delete().in('id', MEAL_IDS);
   }
 
   beforeAll(async () => {
@@ -173,6 +185,56 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
         { id: 'fx-row', name: 'Fixture Row', category: 'cardio', duration: '20 min' },
       ],
     })).error);
+    fail('run', (await admin.from('workout_events').insert({
+      id: RUN_ID, user_id: agent.userId, title: 'Fixture Run', subtitle: 'Zone 2', type: 'cardio', sport: 'running',
+      date: FIXTURE_DAY, start_time: '06:30', end_time: '07:10', estimated_duration: 40, difficulty: 2,
+      description: 'Easy aerobic miles.', location: 'East Rock', tags: ['fixture'],
+      cardio_targets: { distance: '5 mi', elevationGain: '800 ft', avgHeartRate: 150 },
+      exercises: [{ id: 'fx-run', name: 'Fixture Easy Run', category: 'cardio', duration: '40 min' }],
+    })).error);
+    fail('crag', (await admin.from('workout_events').insert({
+      id: CRAG_ID, user_id: agent.userId, title: 'Fixture Crag Day', type: 'outdoor-climbing', sport: 'climbing',
+      date: FIXTURE_DAY, start_time: '09:00', estimated_duration: 240, difficulty: 4,
+      description: 'Four pitches, then home.', location: 'Ragged Mountain', tags: ['fixture'],
+      climbing_targets: { maxGrade: '5.11a', totalPitches: 4 },
+      warmup: [{ id: 'fx-approach', name: 'Fixture Approach Hike', category: 'cardio', duration: '25 min' }],
+      exercises: [
+        { id: 'fx-p1', name: 'Fixture Arete', category: 'climbing', climbStyle: 'sport', grade: '5.10c', ascentStyle: 'redpoint' },
+        { id: 'fx-p2', name: 'Fixture Crack', category: 'climbing', climbStyle: 'trad', grade: '5.9', ascentStyle: 'flash' },
+      ],
+    })).error);
+    fail('circuit', (await admin.from('workout_events').insert({
+      id: CIRCUIT_ID, user_id: agent.userId, title: 'Fixture Circuit', type: 'weights',
+      date: FIXTURE_DAY, start_time: '12:00', estimated_duration: 45, difficulty: 3,
+      description: 'Squat and pull-up superset, then core.', tags: ['fixture'],
+      exercises: [
+        { id: 'fx-c1', name: 'Fixture Squat', category: 'strength', sets: 3, reps: '5', weight: '185 lb', restPeriod: '90 s', superset: 'A',
+          plannedSets: [
+            { setNumber: 1, targetWeight: '135 lb', targetReps: '5' },
+            { setNumber: 2, targetWeight: '165 lb', targetReps: '5' },
+            { setNumber: 3, targetWeight: '185 lb', targetReps: '5' },
+          ] },
+        { id: 'fx-c2', name: 'Fixture Pull-Up', category: 'strength', sets: 3, reps: '8', superset: 'A', notes: 'Strict.' },
+        { id: 'fx-c3', name: 'Fixture Plank', category: 'strength', duration: '60 s' },
+      ],
+    })).error);
+    fail('streams', (await admin.from('activity_streams').insert({
+      user_id: agent.userId, event_id: RUN_ID, event_date: FIXTURE_DAY, provider: 'coros', activity_id: `${FX}-act`,
+      summary: { sport: 'run', sportLabel: 'Run', startUtc: '2026-09-08T10:30:00Z', durationSec: 2400,
+                 distanceMeters: 8046.72, elevationGainMeters: 243.84, avgHr: 150, maxHr: 172, calories: 420, trainingLoad: 88 },
+      streams: {
+        hr: [[0, 120], [600, 145], [1200, 155], [1800, 160], [2400, 150]],
+        gps: [[0, 41.321, -72.904, 30], [600, 41.325, -72.901, 45], [1200, 41.33, -72.899, 80], [1800, 41.326, -72.903, 55], [2400, 41.321, -72.904, 30]],
+      },
+    })).error);
+    fail('meals', (await admin.from('meals').insert([
+      { id: MEAL_IDS[0], user_id: agent.userId, title: 'Fixture Oats', date: FIXTURE_DAY, time: '07:15', meal_type: 'breakfast',
+        calories: 520, protein_g: 22, carbs_g: 78, fat_total_g: 12 },
+      // No stored calories: the server derives them (Atwater), which is the
+      // reason the app asks the server rather than adding grams itself.
+      { id: MEAL_IDS[1], user_id: agent.userId, title: 'Fixture Chicken Bowl', date: FIXTURE_DAY, time: '12:45', meal_type: 'lunch',
+        protein_g: 48, carbs_g: 60, fat_total_g: 18 },
+    ])).error);
     fail('completion', (await admin.from('workout_completions').insert({
       user_id: agent.userId, event_id: DONE_OCCURRENCE, event_date: '2026-09-08', event_title: 'Fixture Push Day',
       event_type: 'weights', duration_minutes: 60, is_completed: true, completed_at: '2026-09-08T18:30:00Z',
@@ -487,16 +549,56 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
   });
 
   it('emits (or checks) the iOS fixture contract from real responses', async () => {
-    const sched = await schedule(agent.token, { start: '2026-09-01', end: '2026-09-30', include: 'definitions,templates' });
-    const body = sched.body as { window: unknown; bases: Array<{ id: string }>; occurrences: Array<{ baseId: string }>; definitions: Array<{ id: string }>; templates: unknown[] };
-    fixture('schedule.json', {
+    type ScheduleBody = { window: unknown; bases: Array<{ id: string }>; occurrences: Array<{ id: string; baseId: string; date: string }>; definitions: Array<{ id: string }>; templates: unknown[] };
+    // Sorted: Postgres returns same-day rows in whatever order it likes, and a
+    // fixture that reshuffles between runs is a fixture that always "drifts".
+    const byId = (a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id);
+    const carve = (body: ScheduleBody) => ({
       window: body.window,
-      bases: body.bases.filter(b => b.id === EVENT_ID),
-      occurrences: body.occurrences.filter(o => o.baseId === EVENT_ID),
+      bases: body.bases.filter(b => b.id.startsWith(FX)).sort(byId),
+      occurrences: body.occurrences.filter(o => o.baseId.startsWith(FX))
+        .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)),
       definitions: body.definitions.filter(d => d.id === DEF_ID),
       // Templates are whatever the seed carries; keep the key so the model decodes it.
       templates: [],
     });
+    const sched = await schedule(agent.token, { start: '2026-09-01', end: '2026-09-30', include: 'definitions,templates' });
+    const carved = carve(sched.body as ScheduleBody);
+    // Four bases: the weekly series plus the three one-offs on FIXTURE_DAY.
+    expect(carved.bases.map(b => b.id).sort()).toEqual([CIRCUIT_ID, CRAG_ID, RUN_ID, EVENT_ID].sort());
+    fixture('schedule.json', carved);
+
+    // Past the series' UNTIL and holding no fixture rows: the empty-state fixture.
+    const empty = await schedule(agent.token, { start: '2026-10-28', end: '2026-11-30', include: 'definitions,templates' });
+    const carvedEmpty = carve(empty.body as ScheduleBody);
+    expect(carvedEmpty.occurrences).toEqual([]);
+    fixture('schedule-empty.json', carvedEmpty);
+
+    // The streams row the way the app reads it: the anon client under the
+    // user's JWT, so the per-user SELECT policy is what this proves.
+    const asAgent = createClient(env.url, env.anonKey, {
+      auth: { persistSession: false },
+      global: { headers: { Authorization: `Bearer ${agent.token}` } },
+    });
+    const { data: streams, error: streamsError } = await asAgent
+      .from('activity_streams').select('provider, summary, streams').like('event_id', `${FX}%`);
+    expect(streamsError).toBeNull();
+    expect(streams).toHaveLength(1);
+    const { data: otherStreams } = await createClient(env.url, env.anonKey, {
+      auth: { persistSession: false },
+      global: { headers: { Authorization: `Bearer ${agent2.token}` } },
+    }).from('activity_streams').select('provider').like('event_id', `${FX}%`);
+    expect(otherStreams).toEqual([]);
+    fixture('activity-streams.json', streams);
+
+    const meals = await query(agent.token, { tool: 'get_meals', args: { start_date: FIXTURE_DAY, end_date: FIXTURE_DAY, include_items: true } });
+    expect(meals.statusCode).toBe(200);
+    const mealDays = (meals.body as { result: { days: Array<{ meal_count: number; totals: { calories: number } }> } }).result.days;
+    expect(mealDays).toHaveLength(1);
+    expect(mealDays[0].meal_count).toBe(2);
+    // 520 stored + 594 derived (48·4 + 60·4 + 18·9).
+    expect(mealDays[0].totals.calories).toBe(1114);
+    fixture('query-get_meals.json', meals.body);
 
     fixture('query-search_exercises.json', (await query(agent.token, { tool: 'search_exercises', args: { query: 'fixture' } })).body);
     fixture('query-get_prs.json', (await query(agent.token, { tool: 'get_prs', args: { exercise_name: 'Fixture Press' } })).body);

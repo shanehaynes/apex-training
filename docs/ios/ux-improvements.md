@@ -13,7 +13,7 @@ workstream's session log, not here — this file is the inventory.
 | U4 | No zoom-on-focus, ever | only `.chat-input` and `.auth-input` are 16px; everything else 12–14px zooms iOS Safari | inherent to native |
 | U5 | Sheets with detents, grab handle and drag-to-dismiss for event and day detail | modal scales in (`scale 0.94 → 1`) even when CSS turns it into a bottom sheet; no handle (`app.css:1659`) | W2 |
 | U6 | Swipe between days and months; long-press a day to add | chevron taps only; no gestures | W2 |
-| U7 | Completion toggle reachable from every view | month/week check circles are `opacity: 0` until `:hover` (`app.css:339,566`) — impossible on touch | W2 |
+| U7 | Completion toggle reachable from every view | month/week check circles are `opacity: 0` until `:hover` (`app.css:339,566`) — impossible on touch. iOS: Day cards carry a 44pt control; a month chip opens the day sheet, whose rows carry the same control (D-023 note) | W2 |
 | U8 | Toasts render above the tab bar | `.toasts { bottom: 20px }` sits under the 60px mobile nav | W1 (toast component) |
 | U9 | Native date / time / select pickers in dark | `type="date"`/`type="time"`/`<select>` render light-mode controls; only `.modal-meta-input` sets `color-scheme: dark` | W7, W10, W11 |
 | U10 | Reorder exercises with a real drag handle (`List.onMove`) | framer-motion `Reorder` from an 18px grip with `touch-action: none` (`EventExerciseEditor.tsx`) | W7 |

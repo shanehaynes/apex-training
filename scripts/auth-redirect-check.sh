@@ -115,6 +115,23 @@ case "$got" in
     failed=1 ;;
 esac
 
+# 2c. The app's own scheme. The web hands an invite or recovery landing to
+#     `apextraining://auth` (D-020) and the app asks for it as redirect_to on
+#     its own flows; GoTrue drops a scheme that is not allow-listed exactly as
+#     silently as a path. Matched as a string prefix: `new URL().origin` is
+#     "null" for a custom scheme, so origin_of cannot judge it.
+app_scheme="apextraining://auth"
+got=$(verify_location "$app_scheme")
+case "$got" in
+  "$app_scheme"*)
+    echo "   ✓ $app_scheme is on the Redirect URLs allow-list" ;;
+  *)
+    echo "   ✗ redirect_to=$app_scheme was dropped for ${got:-nothing}" >&2
+    echo "     Add $app_scheme to Supabase → Authentication → URL Configuration → Redirect URLs." >&2
+    echo "     The iOS invite hand-off and in-app recovery depend on it (docs/ios/architecture.md §4)." >&2
+    failed=1 ;;
+esac
+
 # 3. The origin those links land on must be reachable without a Vercel account.
 code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$prod/" 2>/dev/null || echo 000)
 sso=$(curl -s -o /dev/null -w '%{redirect_url}' --max-time 15 "$prod/" 2>/dev/null)

@@ -103,3 +103,22 @@ test('a spent invite link explains itself, and keeps explaining after the tab sw
   await expect(page.locator('.auth-toggle')).toHaveCount(0);
   await expect(banner, 'and reset mode, which hides the toggle').toBeVisible();
 });
+
+// The iOS hand-off (docs/ios/decisions.md D-020). A `?code=` landing is a PKCE
+// password reset the app requested; the web cannot exchange it, so the card
+// offers to open the app with that code. A plain landing offers nothing —
+// the link must never appear to someone who simply came to sign in.
+test('a reset code the app requested is offered to the app, and nothing else is', async ({ page }) => {
+  test.skip(!supabaseRef(), 'offline mode has no auth gate — nothing to drive');
+
+  await page.goto('/?code=abc%2Fdef');
+  const open = page.getByTestId('open-in-app');
+  await expect(open).toBeVisible({ timeout: 20000 });
+  await expect(open).toHaveAttribute('href', 'apextraining://auth?code=abc%2Fdef');
+  await expect(open).toHaveText('Open in the Apex app');
+  await shot(page, 'auth-open-in-app');
+
+  await page.goto('/');
+  await expect(page.locator('.auth-card')).toBeVisible({ timeout: 20000 });
+  await expect(page.getByTestId('open-in-app')).toHaveCount(0);
+});

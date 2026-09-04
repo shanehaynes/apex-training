@@ -4814,6 +4814,16 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 .auth-submit:hover:not(:disabled) { opacity: 0.9; }
 .auth-submit:disabled { opacity: 0.55; cursor: default; }
 
+/* The iOS hand-off is an <a>, not a <button>: a custom-scheme link the OS
+   resolves. Same visual weight as the primary action it stands beside. */
+.auth-submit--app {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 14px;
+  text-decoration: none;
+}
+
 .auth-link {
   background: none;
   border: none;

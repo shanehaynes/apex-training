@@ -91,8 +91,12 @@ TabView
   the device or backgrounding must never dismiss it.
 - Typed routes make every screen deep-linkable. `DeepLink` parses both `apextraining://…` and
   universal links on `apextrainingcalendar.vercel.app`:
-  - `/auth/callback#…` → `auth.session(from:)` (recovery, invite)
-  - `apextraining://auth#…` → same (web hand-off button, D-020)
+  - `/auth/callback?code=…` → `auth.session(from:)` — the PKCE reset the app itself requested
+  - `apextraining://auth#access_token=…&refresh_token=…&type=invite|recovery` (the web
+    hand-off button, D-020) → `auth.setSession(accessToken:refreshToken:)`. A PKCE-configured
+    `session(from:)` refuses a fragment (it wants `?code=`), and a dashboard invite is implicit
+    with no verifier on the phone, so the tokens are set directly. `DeepLink.parse` in
+    `ApexCore` tells the two apart; `AuthLinkError` carries GoTrue's refusal fragment.
   - `apextraining://connected?provider=coros` / `…/connect_error` → COROS result (W11)
   - `/app/event/<id>/<date>`, `/app/library/<definitionId>` → routes (future share links)
 - AASA at `public/.well-known/apple-app-site-association` with `applinks` limited to
@@ -111,9 +115,11 @@ TabView
 - Sign in: email + password, `textContentType` set so AutoFill + Face ID work; the associated
   domain makes saved web credentials appear.
 - Invite/recovery: `resetPasswordForEmail(redirectTo: "https://apextrainingcalendar.vercel.app/auth/callback")`
-  (Shane adds that URL to Supabase Additional Redirect URLs; extend
-  `scripts/auth-redirect-check.sh` to assert it). Invites are dashboard-generated at the Site
-  URL root → the web root shows "Open in the Apex app" when the hash carries `type=invite`.
+  (Shane adds that URL and `apextraining://auth` to Supabase Additional Redirect URLs;
+  `scripts/auth-redirect-check.sh` asserts both). Invites are dashboard-generated at the Site
+  URL root → the web's set-password screen shows "Open in the Apex app" when the hash carries
+  `type=invite` or `type=recovery`, and the sign-in card shows it for a `?code=` landing (a
+  reset the app requested, which only the app can exchange). `src/lib/auth/landing.ts`.
 - Set-password screen for `needsPassword` (invite / recovery) mirrors `SetPasswordView.tsx`.
 - Realtime channels need the JWT: `realtime.setAuth(token)` after every refresh.
 
