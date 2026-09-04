@@ -5,6 +5,152 @@
   },
   "bases": [
     {
+      "id": "ios-fixture-circuit",
+      "type": "weights",
+      "title": "Fixture Circuit",
+      "date": "2026-09-08",
+      "startTime": "12:00",
+      "estimatedDuration": 45,
+      "description": "Squat and pull-up superset, then core.",
+      "warmup": [],
+      "exercises": [
+        {
+          "id": "fx-c1",
+          "name": "Fixture Squat",
+          "reps": "5",
+          "sets": 3,
+          "weight": "185 lb",
+          "category": "strength",
+          "superset": "A",
+          "restPeriod": "90 s",
+          "plannedSets": [
+            {
+              "setNumber": 1,
+              "targetReps": "5",
+              "targetWeight": "135 lb"
+            },
+            {
+              "setNumber": 2,
+              "targetReps": "5",
+              "targetWeight": "165 lb"
+            },
+            {
+              "setNumber": 3,
+              "targetReps": "5",
+              "targetWeight": "185 lb"
+            }
+          ]
+        },
+        {
+          "id": "fx-c2",
+          "name": "Fixture Pull-Up",
+          "reps": "8",
+          "sets": 3,
+          "notes": "Strict.",
+          "category": "strength",
+          "superset": "A"
+        },
+        {
+          "id": "fx-c3",
+          "name": "Fixture Plank",
+          "category": "strength",
+          "duration": "60 s"
+        }
+      ],
+      "cooldown": [],
+      "difficulty": 3,
+      "tags": [
+        "fixture"
+      ],
+      "equipment": [],
+      "isCompleted": false,
+      "isRecurring": false
+    },
+    {
+      "id": "ios-fixture-crag",
+      "type": "outdoor-climbing",
+      "title": "Fixture Crag Day",
+      "date": "2026-09-08",
+      "startTime": "09:00",
+      "estimatedDuration": 240,
+      "description": "Four pitches, then home.",
+      "warmup": [
+        {
+          "id": "fx-approach",
+          "name": "Fixture Approach Hike",
+          "category": "cardio",
+          "duration": "25 min"
+        }
+      ],
+      "exercises": [
+        {
+          "id": "fx-p1",
+          "name": "Fixture Arete",
+          "grade": "5.10c",
+          "category": "climbing",
+          "climbStyle": "sport",
+          "ascentStyle": "redpoint"
+        },
+        {
+          "id": "fx-p2",
+          "name": "Fixture Crack",
+          "grade": "5.9",
+          "category": "climbing",
+          "climbStyle": "trad",
+          "ascentStyle": "flash"
+        }
+      ],
+      "cooldown": [],
+      "difficulty": 4,
+      "location": "Ragged Mountain",
+      "climbingTargets": {
+        "maxGrade": "5.11a",
+        "totalPitches": 4
+      },
+      "tags": [
+        "fixture"
+      ],
+      "equipment": [],
+      "sport": "climbing",
+      "isCompleted": false,
+      "isRecurring": false
+    },
+    {
+      "id": "ios-fixture-run",
+      "type": "cardio",
+      "title": "Fixture Run",
+      "subtitle": "Zone 2",
+      "date": "2026-09-08",
+      "startTime": "06:30",
+      "endTime": "07:10",
+      "estimatedDuration": 40,
+      "description": "Easy aerobic miles.",
+      "warmup": [],
+      "exercises": [
+        {
+          "id": "fx-run",
+          "name": "Fixture Easy Run",
+          "category": "cardio",
+          "duration": "40 min"
+        }
+      ],
+      "cooldown": [],
+      "difficulty": 2,
+      "location": "East Rock",
+      "cardioTargets": {
+        "distance": "5 mi",
+        "avgHeartRate": 150,
+        "elevationGain": "800 ft"
+      },
+      "tags": [
+        "fixture"
+      ],
+      "equipment": [],
+      "sport": "running",
+      "isCompleted": false,
+      "isRecurring": false
+    },
+    {
       "id": "ios-fixture-weekly",
       "type": "weights",
       "title": "Fixture Push Day",
@@ -53,6 +199,33 @@
       "date": "2026-09-01",
       "startTime": "17:30",
       "endTime": "18:30",
+      "isCompleted": false,
+      "completedAt": null
+    },
+    {
+      "id": "ios-fixture-circuit",
+      "baseId": "ios-fixture-circuit",
+      "date": "2026-09-08",
+      "startTime": "12:00",
+      "endTime": null,
+      "isCompleted": false,
+      "completedAt": null
+    },
+    {
+      "id": "ios-fixture-crag",
+      "baseId": "ios-fixture-crag",
+      "date": "2026-09-08",
+      "startTime": "09:00",
+      "endTime": null,
+      "isCompleted": false,
+      "completedAt": null
+    },
+    {
+      "id": "ios-fixture-run",
+      "baseId": "ios-fixture-run",
+      "date": "2026-09-08",
+      "startTime": "06:30",
+      "endTime": "07:10",
       "isCompleted": false,
       "completedAt": null
     },

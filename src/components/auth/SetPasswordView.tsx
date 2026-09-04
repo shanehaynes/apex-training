@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/auth';
 import AcceptanceCheckbox from '../legal/AcceptanceCheckbox';
+import OpenInAppButton from './OpenInAppButton';
 
 // Set-a-password screen, reached two ways with an active session already in
 // place: a dashboard invite link (first login) or a password recovery link.
@@ -67,6 +68,10 @@ export default function SetPasswordView() {
         <p className="auth-note">
           Set a password for {session?.user.email ?? 'your account'}.
         </p>
+
+        {/* An invite or recovery link opened on a phone with the app installed
+            can finish there instead (D-020); everywhere else this renders nothing. */}
+        <OpenInAppButton />
 
         <form className="auth-form" onSubmit={handleSubmit}>
           {/* Hidden username field gives password managers the account

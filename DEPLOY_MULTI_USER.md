@@ -29,6 +29,12 @@ throughout.
      this list is *silently* swapped for Site URL, with no error anywhere —
      which is how "Forgot password?" can break in production while invites
      look fine. Do not add preview domains; previews are SSO-walled by design.
+   - **For the iOS app** (docs/ios/architecture.md §4), two more entries:
+     `https://apextrainingcalendar.vercel.app/auth/callback` (the app's
+     password-reset `redirectTo`; the `/**` glob covers it, listed so it is
+     not removed by accident) and `apextraining://auth` (the app's own scheme,
+     used by the invite hand-off below). A scheme is dropped as silently as a
+     path when it is missing.
 
    Prove it, rather than trusting the form:
 
@@ -75,7 +81,13 @@ the rest of this section true, and step 1.3 is easy to get wrong.
 Authentication → Users → **Invite user** (one at a time; built-in SMTP is
 rate-limited to a few emails per hour). Each invitee:
 
-1. Clicks the email link → lands on the set-password screen.
+1. Clicks the email link → lands on the set-password screen. On an iPhone
+   with the Apex app installed, that screen also offers **Open in the Apex
+   app**, which finishes set-password in the app (the same link opened on a
+   laptop simply continues on the web). A password reset *requested from the
+   app* works only on that phone: the reset code is bound to the device that
+   asked for it, so opening that email on a desktop is a dead end by design —
+   ask for the reset from the web instead.
 2. Gets a random animal avatar automatically.
 3. Sees the "Copy Shane's recurring workouts" banner — one click copies your
    recurring events + the exercises they reference. It's one-time and safe to

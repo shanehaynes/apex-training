@@ -161,7 +161,9 @@ site_url = "http://localhost:5173"
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 # Worktrees run dev:agent on a derived port (dev/port.mjs); the globs admit them.
-additional_redirect_urls = ["http://localhost:5173", "http://localhost:*", "http://localhost:*/**"]
+# apextraining://auth is the iOS app's callback (docs/ios/architecture.md §4),
+# so the Local simulator build can complete invite and recovery links too.
+additional_redirect_urls = ["http://localhost:5173", "http://localhost:*", "http://localhost:*/**", "apextraining://auth"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.

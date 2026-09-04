@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/auth';
 import AcceptanceCheckbox from '../legal/AcceptanceCheckbox';
+import OpenInAppButton from './OpenInAppButton';
 
 // Email + password sign-in and create-account, one card, one form. A real
 // <form> with name/autocomplete attributes is what makes iCloud Keychain /
@@ -105,6 +106,10 @@ export default function LoginView() {
         {linkError && mode !== 'resetSent' && mode !== 'confirmSent' && (
           <p className="auth-banner" data-testid="auth-link-error">{linkError.message}</p>
         )}
+
+        {/* A `?code=` landing is a PKCE reset the iOS app requested; only the
+            app can exchange it, so the card offers the hand-off (D-020). */}
+        <OpenInAppButton />
 
         {(mode === 'signIn' || mode === 'create') && (
           <div className="auth-toggle" role="group" aria-label="Sign in or create account">

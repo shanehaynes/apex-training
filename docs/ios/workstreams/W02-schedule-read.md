@@ -1,7 +1,7 @@
 # W2 — Schedule: read, cache, realtime, auth links
 
 **Machine:** Mac (+ a small web change) · **Depends on:** W0, W1 · **Unblocks:** W4, W7, W10
-**Status:** blocked on W0, W1
+**Status:** in progress — PR A0 (#110, HELD) and PR A open; B (UI) and C (auth links) next
 
 ## Goal
 The first vertical slice with daily value: open the app, see today and the month, open a
@@ -43,4 +43,31 @@ direct reads of `activity_streams`, `profiles`.
 - TestFlight build 1.
 
 ## Session log
-- (none yet)
+- 2026-09-04 · Mac · Plan and PRs A0 + A. Landing as four PRs: A0 realtime publication
+  migration (phase40, HELD); A ApexCore + fixtures + web hand-off (this PR); B Schedule UI,
+  cache, realtime, `-apexMockClient` seam; C deep links + set-password. Plan of record:
+  `~/.claude/plans/lets-analyze-the-next-temporal-hamming.md` on Shane's Mac.
+  - **Corrections to this brief found on the way in:** GRDB was already wired by W1;
+    `Endpoint.query` was GET-shaped against a POST-only handler (fixed, `[String: JSONValue]`
+    args); `WorkoutEventBase`/`Exercise` lacked every event-sheet field (added: targets,
+    supersets, planned sets, climbing pitch fields, sport/subtitle/location/source/template);
+    the invite hand-off fragment cannot go through `session(from:)` under PKCE (see D-023 and
+    architecture.md §3 — `setSession` instead); schedule tables were in the realtime
+    publication only by dashboard state (A0).
+  - **ApexCore (Linux-provable):** `Schedule/` — `OccurrenceID`, `DayKey` + `TimeLabel`,
+    `ScheduleWindow` (today −60…+120) + `ScheduleCacheKey`, `ScheduleIndex`/`ScheduleEvent`
+    (by-day index, web sort order, optimistic `settingCompletion`), `MonthGrid`, `WeekPage`,
+    `CompletionRows` (allowlist-pinned), `StaleAffordance`; `Support/RefreshCoalescer`;
+    `Auth/DeepLink` + `AuthLinkError`; `Models/ActivityStreams` (+ `SyncMetricsFormatter`,
+    `StreamDownsample`, `ActivityStreamsReading`), `Models/Meals`, `Models/JSONValue`,
+    `OkResponse`; `Endpoint.completions` / `.workoutSessions`. 83 `swift test` cases.
+  - **Fixtures:** three one-off events on 2026-09-08 (run with cardio targets + a synced
+    `activity_streams` row, crag with climbing targets and pitches, circuit with a superset and
+    planned sets), two meals; new `schedule-empty.json`, `activity-streams.json`,
+    `query-get_meals.json`; emitter output sorted so same-day rows cannot "drift".
+  - **Web (D-020):** `src/lib/auth/landing.ts` + `OpenInAppButton` on the set-password screen
+    (invite/recovery hash) and the sign-in card (`?code=`); `auth-redirect-check.sh` check 2c for
+    `apextraining://auth`; `supabase/config.toml` allow-lists the scheme locally;
+    `DEPLOY_MULTI_USER.md` updated.
+  - **Shane:** add `apextraining://auth` to Redirect URLs; `shipit` #110 and run phase40 in
+    the production SQL editor.

@@ -230,3 +230,23 @@ Xcode knows); a generated `Config.swift` (forces a rebuild to switch, invisible 
 
 Gotcha worth keeping: `//` starts a comment in xcconfig, so a URL written literally truncates
 to `https:` with no error. URLs are written `http:$(SLASH)$(SLASH)host` with `SLASH = /`.
+
+## D-023 · Two `src/lib` modules are ported to Swift despite having tests
+**Status:** decided · W2 session · 2026-09-04
+D-008 says Swift never reimplements anything with a `__tests__` dir under `src/lib/`. Two
+exceptions, both wire-format parsing that cannot run server-side because it happens before a
+request exists: `OccurrenceID` (`src/lib/schedule/occurrence.ts` — the `${baseId}__${date}`
+split every schedule join keys off) and `AuthLinkError` (`src/lib/auth/linkError.ts` — GoTrue's
+refusal fragment on an invite or recovery link, read from the URL that opened the app).
+
+Parity is enforced the same way the rule would have been: the vitest vectors are copied verbatim
+into `OccurrenceIDTests` / `DeepLinkTests` and run on Linux. A change to either TS module that
+alters behaviour must change its test, and the copied Swift test then fails.
+
+Considered and rejected: an endpoint that parses ids and fragments for the client (a network
+round-trip to split a string, and the auth fragment arrives with no session to call it with).
+
+Also recorded here from W2: month chips (22pt) cannot host a 44pt completion control, so U7 is
+met through the day sheet's rows — one tap from any month cell — rather than a control on the
+chip itself.
+

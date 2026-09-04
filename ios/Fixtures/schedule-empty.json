@@ -1,0 +1,26 @@
+{
+  "window": {
+    "start": "2026-10-28",
+    "end": "2026-11-30"
+  },
+  "bases": [],
+  "occurrences": [],
+  "definitions": [
+    {
+      "id": "ios-fixture-def",
+      "canonicalName": "Fixture Press",
+      "aliases": [
+        "fx press"
+      ],
+      "category": "strength",
+      "muscleGroups": [
+        "chest"
+      ],
+      "equipment": [
+        "barbell"
+      ],
+      "isUnilateral": false
+    }
+  ],
+  "templates": []
+}
