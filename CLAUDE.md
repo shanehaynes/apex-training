@@ -97,8 +97,8 @@ count (new handlers belong in `api/_lib/handlers/`, behind the Hono router)
 plus `npm audit --omit=dev`. `agent:check` runs the same guards, so a branch
 cannot pass locally and fail those in CI. A nightly scheduled run re-proves
 `main` from scratch and runs the coach evals; `scripts/supervisor-report.sh`
-prints everything that needs attention (main status, stack drift, stale
-worktrees, open PRs) in one read-only sweep.
+prints everything that needs attention (main status, stack drift, last
+nightly backup, stale worktrees, open PRs) in one read-only sweep.
 
 A `PreToolUse` hook ([.claude/settings.json](.claude/settings.json) →
 `scripts/hooks/bash-guard.mjs`) mechanically blocks the three rules above that
