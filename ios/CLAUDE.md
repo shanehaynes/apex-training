@@ -52,8 +52,11 @@ xcodebuild reports only "unable to find a device matching the provided destinati
 The first `xcodegen generate` + build in a fresh worktree takes several minutes: supabase-swift
 pulls in `swift-syntax` and its macro plugin has to compile. It has not hung.
 
-Snapshot tests are opt-in (`APEX_SNAPSHOTS=1`): their bytes depend on the OS's text rendering,
-so they are reviewed by eye on a Mac rather than enforced on a runner.
+Snapshot tests are opt-in: their bytes depend on the OS's text rendering, so they are
+reviewed by eye on a Mac rather than enforced on a runner. xcodebuild forwards environment
+to the test process only under a `TEST_RUNNER_` prefix, so it is
+`TEST_RUNNER_APEX_SNAPSHOTS=1 xcodebuild … -only-testing:ApexTests/ScheduleSnapshotTests test`
+(the first run records into `ios/ApexTests/__Snapshots__/`, the second compares).
 
 **Do not test auth against a `CODE_SIGNING_ALLOWED=NO` build.** That is what CI builds, and it
 is right for CI — but an unsigned app cannot write the Keychain, so the session silently fails
@@ -87,6 +90,23 @@ the script in any worktree you do a device or Release build from.
 
 A local user to sign in as: `agent@apex.local` / `apex-agent-password`
 (`scripts/create-local-users.mjs`).
+
+The simulator reaches the API through this worktree's vite server, and it dials `127.0.0.1`.
+Node 26 binds vite to `::1` only, so start it as `npm run dev:agent -- --host 127.0.0.1` or
+every `/api/*` call fails with "No connection" while the web works fine in a browser.
+
+**Fixtures instead of a backend:** launch with `-apexMockClient` and the app answers every
+`/api/*` route from `ios/Fixtures/` in-process (`ios/Apex/Mock/`, DEBUG only), accepts any
+credentials, and fixes "today" to 2026-09-08, the day the fixtures put four events on. This is
+what the XCUITest smoke runs on, because CI's unsigned build has no Keychain (below).
+`-apexMockFail completions` makes `POST /api/completions` answer 500, for the rollback path.
+
+**Realtime on the local stack** needs the tables in the `supabase_realtime` publication —
+phase40 adds every table a client subscribes to; a stack reset before it has nothing. The hub
+joins one channel per table group on purpose: Realtime gives a join one verdict for all of its
+bindings, so one unpublished table silently voids every other binding on that channel. A failed
+join is logged under subsystem `com.shanehaynes.apextraining`, category `realtime`
+(`xcrun simctl spawn booted log show --last 5m --info --predicate 'subsystem == "com.shanehaynes.apextraining"'`).
 
 Note `//` starts a comment in xcconfig, so URLs are written `http:$(SLASH)$(SLASH)host`.
 

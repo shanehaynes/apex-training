@@ -195,12 +195,23 @@ tracker_ops(id INTEGER PRIMARY KEY, event_id, event_date, action, payload BLOB,
 
 ## 8. Realtime (`ApexAuth.RealtimeHub`)
 
-One channel with `postgresChange(AnyAction.self, schema: "public", table:)` for
-`workout_events`, `recurring_exceptions`, `exercise_definitions`, `workout_templates`
-(matching `ScheduleContext`), plus `training_blocks`, `objectives`, `meals`, `meal_favorites`,
-`analytics_tiles`. Events feed an `AsyncStream` debounced 250ms (Supabase emits one event per
-row) → one window refresh per table group. Subscribe on `.active`, unsubscribe on `.background`;
-the foreground refresh covers what was missed.
+- One channel **per table group** (`schedule`, `blocks`, `meals`, `analytics`), each with a
+  `postgresChange(AnyAction.self, schema: "public", table:)` binding per table: schedule =
+  `workout_events`, `recurring_exceptions`, `exercise_definitions`, `workout_templates`,
+  `workout_completions`; blocks = `training_blocks`, `objectives`; meals = `meals`,
+  `meal_favorites`; analytics = `analytics_tiles`. Not one channel for everything: Realtime
+  answers a join with a single verdict for all of its bindings, so one table missing from the
+  publication silently voids every other binding on that channel (W2 found this on a fresh
+  local stack). A group is joined only when a screen renders it (`subscribe(.schedule)` from
+  `ScheduleModel.start()`); a group that fails to join takes nothing else down and logs why.
+- Events feed an `AsyncStream<TableGroup>` through `RefreshCoalescer` (250 ms — Supabase emits
+  one event per row) → one window refresh per group.
+- `suspend()` on `.background`, `resume()` on `.active`, `reset()` on sign-out; the foreground
+  refresh covers what was missed. Use `subscribeWithError()`, never the deprecated
+  `subscribe()`, which swallows the failure.
+- The JWT reaches the socket on its own: `SupabaseClient` forwards every auth event to
+  `realtimeV2.setAuth`.
+- Publication membership is a migration (phase40), not dashboard state, so local and prod agree.
 
 ## 9. Coach loop (after W5a/W5b)
 

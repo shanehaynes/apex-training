@@ -41,14 +41,7 @@ public struct TypeChip: View {
     /// Falls back to a neutral chip for a type this build does not know, so a
     /// new server-side type renders rather than crashes.
     public init(rawType: String) {
-        self.palette = WorkoutTypeTokens.byRawValue[rawType] ?? WorkoutPalette(
-            label: rawType.replacingOccurrences(of: "-", with: " ").capitalized,
-            solid: ApexColor.bgElevated,
-            border: ApexColor.borderSubtle,
-            fill: ApexColor.bgElevated,
-            glow: .clear,
-            glowRadius: 0
-        )
+        self.palette = WorkoutTypeTokens.palette(for: rawType)
     }
 
     public var body: some View {

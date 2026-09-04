@@ -39,6 +39,11 @@ targets:
     platform: iOS
     sources:
       - path: Apex
+      # The fixture JSON, as a folder reference, so the -apexMockClient seam
+      # can answer /api/* in-process. Release excludes it (Release.xcconfig).
+      - path: Fixtures
+        type: folder
+        buildPhase: resources
     configFiles:
       Debug: Config/Debug.xcconfig
       Local: Config/Local.xcconfig

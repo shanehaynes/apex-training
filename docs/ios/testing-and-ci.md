@@ -38,12 +38,16 @@ say so.
    events, completed), tracker set row in each state (planned / shadow / logged / autofilled /
    extra), confirmation card, KPI and line tiles, event detail sheet. iPhone 17 (iOS 26) and,
    where the runtime is installed, iPhone 16 (iOS 18) — dark, default and one large Dynamic
-   Type size. Snapshots are opt-in behind `APEX_SNAPSHOTS=1` and reviewed on a Mac, never a
+   Type size. Snapshots are opt-in behind `TEST_RUNNER_APEX_SNAPSHOTS=1` (xcodebuild strips any other environment) and reviewed on a Mac, never a
    CI gate: their bytes depend on the OS's own text rendering, and a suite that is red for
    environmental reasons is a suite people learn to ignore.
-4. **XCUITest smoke** — launch with `-apexMockClient` (an in-process `ApexClient` fed by the
-   fixtures) → sign in → today → open the first workout → start tracker → log one set → finish →
-   summary. It attaches screenshots at each step; `ios/scripts/screenshots.sh` collects them.
+4. **XCUITest smoke** — launch with `-apexMockClient` (W2: `ios/Apex/Mock/`, an in-process
+   `HTTPTransport` answering every `/api/*` route from the bundled fixtures, any-credentials
+   auth, "today" fixed to the fixture day; CI's unsigned build has no Keychain, so a real
+   sign-in could never carry the smoke) → sign in → today → month → day sheet → event → complete.
+   W4 extends it into the tracker. It attaches screenshots at each step;
+   `ios/scripts/screenshots.sh` collects them. The live flavour (`testSignInRevealsTheFourTabs`)
+   still signs in against the local stack and skips when none is reachable.
 5. **Backend** — every new endpoint gets an integration test in `api/__tests__/integration`
    (real JWT, cross-user isolation) and unit tests for any pure helper. The `.js`-specifier
    import-graph guard runs in `scripts/ci-guards.sh`.
