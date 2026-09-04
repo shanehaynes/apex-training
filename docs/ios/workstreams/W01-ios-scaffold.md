@@ -1,7 +1,7 @@
 # W1 — iOS scaffold
 
 **Machine:** Mac · **Depends on:** — (runs in parallel with W0) · **Unblocks:** W2, W11
-**Status:** in review (3 PRs: `feat/ios-scaffold`, plus two HELD)
+**Status:** done (#102, #103, #104, #105, #106) — TestFlight build 0 outstanding
 
 ## Goal
 A running app that signs in against Supabase, shows four empty tabs in the house style, and is
