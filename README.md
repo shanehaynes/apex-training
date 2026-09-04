@@ -123,6 +123,38 @@ To subscribe from a calendar app, add `https://<your-deployment>/api/calendar-fe
 
 To query your training data from Claude, ChatGPT, or any MCP client, connect to `https://<your-deployment>/api/mcp` — setup per client in [CONNECTORS.md](CONNECTORS.md).
 
+## 🗄️ Backups
+
+Production is on Supabase's free tier, which keeps no backups, so the repo makes its own. [`.github/workflows/backup.yml`](.github/workflows/backup.yml) runs at 04:30 UTC every night: [`scripts/db-backup.sh`](scripts/db-backup.sh) dumps the schema and every `auth` and `public` row with the Supabase CLI, encrypts the bundle to the public key in [`scripts/backup/age-recipient.txt`](scripts/backup/age-recipient.txt), and uploads it as a workflow artifact kept for 90 days. Then [`scripts/db-restore-drill.sh`](scripts/db-restore-drill.sh) restores the same dump into a throwaway local stack on the runner and checks it: users and events exist, every row count matches the dump, the signup trigger is back, and the schema matches the committed types. A backup that cannot be restored turns the run red, and [`scripts/supervisor-report.sh`](scripts/supervisor-report.sh) reports the last run.
+
+The repo is public, so any logged-in GitHub user can download an artifact; the encryption is what keeps password hashes, tokens and training data private. Losing the private key makes every bundle unreadable — a second key line in the recipient file is cheap insurance.
+
+**One-time setup**
+
+1. `age-keygen -o apex-backup.key` (age is `apt install age` or `brew install age`). Put the whole file in your password manager and paste the `# public key:` value into `scripts/backup/age-recipient.txt`.
+2. Supabase dashboard → **Connect** → **Session pooler**: `postgresql://postgres.<ref>:[PASSWORD]@aws-0-<region>.pooler.supabase.com:5432/postgres`, with the password percent-encoded. Not the direct `db.<ref>` host (IPv6-only, unreachable from GitHub's runners) and not port 6543 (transaction mode, which breaks pg_dump).
+3. Repo → Settings → Secrets and variables → Actions → `SUPABASE_DB_URL`. Without it the workflow skips with a notice rather than failing. Rotate with Database → **Reset database password** and update the secret in the same minute.
+4. `gh workflow run backup.yml`, then watch it go green.
+
+**Restoring a bundle locally** — a real drill. It replaces the seeded fixtures with production data, your friends' password hashes included, so `npm run db:reset-local` afterwards is not optional:
+
+```bash
+id=$(gh run list --workflow backup.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+gh run download "$id" -p 'db-backup-*' -D /tmp/apex-backup
+age -d -i ~/path/apex-backup.key /tmp/apex-backup/db-backup-*/*.age | tar -xz -C /tmp/apex-backup
+npm run db:restore-drill -- /tmp/apex-backup
+npm run db:reset-local
+```
+
+**Disaster recovery into a fresh Supabase project.** Decrypt and extract as above and take the new project's session-pooler URL. Load with `psql "$URL" -v ON_ERROR_STOP=1 -1 -f schema.sql -f data.sql` (psql 17 or newer, or `docker exec -i` into the local stack's container the way the drill does). Then recreate the signup trigger: `on_auth_user_created` lives on `auth.users`, which no schema dump carries, and its DDL is the last statement of [`supabase/migrations/phase9_multi_user.sql`](supabase/migrations/phase9_multi_user.sql). Set Site URL and Redirect URLs per [DEPLOY_MULTI_USER.md](DEPLOY_MULTI_USER.md), put the new project's keys into Vercel, and keep `API_KEY_ENCRYPTION_SECRET` unchanged or every stored Anthropic key is unreadable.
+
+**When the run is red**
+
+- `column ... of relation "auth.users" does not exist` during the load: production's auth schema is newer than the CLI's local one. The artifact is fine; rerun once the CLI image catches up.
+- The types check fails: production is behind `main`'s migrations. Apply them (CONTRIBUTING.md, "Migration numbers").
+- Connection refused or timed out: the free-tier project paused after a week without traffic. Restore it in the dashboard.
+- Retention is 90 days rolling, and GitHub disables a scheduled workflow after 60 days without commits. Download one bundle to offline storage every quarter.
+
 ## ⌚ Watch sync (COROS)
 
 Connect a COROS account in **Profile → COROS** (an OAuth sign-in on COROS's
