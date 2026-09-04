@@ -110,22 +110,7 @@ rule people remember.
 
 ## TestFlight
 
-1. First builds, from a worktree (never the primary checkout):
-
-   ```bash
-   ios/scripts/secrets.sh                 # the anon key; git-ignored, so per-worktree
-   cd ios && xcodegen generate
-   open Apex.xcodeproj
-   ```
-
-   In Xcode: destination **Any iOS Device (arm64)** (Archive is disabled while a simulator is
-   selected) → **Product → Archive** → Organizer opens → **Distribute App → TestFlight &
-   App Store → Upload**. Processing takes 5–15 minutes before the build appears in TestFlight.
-
-   Prerequisites: the Apple Developer account, App ID `com.shanehaynes.apextraining` with the
-   associated-domains capability, and — easy to miss — an **App Store Connect app record** for
-   that bundle id, or the upload is rejected.
-2. Or skip Xcode entirely — `ios/scripts/testflight.sh` archives, exports and uploads:
+1. **One command, no Xcode** — this is how build 0 (0.1.0/285) shipped:
 
    ```bash
    ios/scripts/testflight.sh --check     # credentials only, builds nothing
@@ -134,15 +119,36 @@ rule people remember.
    ```
 
    It needs an App Store Connect API key (App Store Connect → Users and Access →
-   Integrations → App Store Connect API → Team Keys), the `.p8` at
-   `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8`, and the two ids in
-   `ios/Config/appstoreconnect.env` (git-ignored; see the `.example`). The key also lets
-   `xcodebuild -allowProvisioningUpdates` create the distribution certificate and profile, so
-   no signing setup is needed first.
+   Integrations → App Store Connect API → Team Keys): the `.p8` at
+   `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8` and the two ids in
+   `ios/Config/appstoreconnect.env` (git-ignored; see the `.example`). That key also lets
+   `xcodebuild -allowProvisioningUpdates` create the Apple Distribution certificate and the
+   provisioning profile on its own, so there is no signing setup to do first — this machine
+   had neither when the first build shipped.
 
-   Build numbers come from `git rev-list --count HEAD`, which only increases — App Store
-   Connect rejects a build number it has already seen for a marketing version. The marketing
-   version stays in `ios/project.yml`.
+   Build numbers come from `git rev-list --count HEAD`, which only increases. App Store
+   Connect rejects a build number it has already seen for a marketing version, and that is the
+   usual way a release gets stuck. The marketing version stays in `ios/project.yml`.
+
+   Uploading publishes a build to Apple — confirm with Shane before running it without
+   `--dry-run`.
+
+2. By hand in Xcode, if the script cannot run:
+
+   ```bash
+   ios/scripts/secrets.sh                 # the anon key; git-ignored, so per-worktree
+   cd ios && xcodegen generate
+   open Apex.xcodeproj
+   ```
+
+   Sign in under Xcode → Settings → Accounts, set the destination to **Any iOS Device
+   (arm64)** (Archive is disabled while a simulator is selected), then **Product → Archive** →
+   **Distribute App → TestFlight & App Store → Upload**.
+
+   Prerequisites either way: the Apple Developer account, App ID
+   `com.shanehaynes.apextraining` with the associated-domains capability, and — easy to miss,
+   and separate from the App ID — an **App Store Connect app record** for that bundle id, or
+   the upload is rejected.
 
 3. Later, if this ever needs to run in CI: `.github/workflows/testflight.yml` on
    `workflow_dispatch` (HELD), calling the same script with the key from repo secrets and
