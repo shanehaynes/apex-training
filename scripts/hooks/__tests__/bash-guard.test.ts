@@ -106,4 +106,21 @@ describe('rule: the primary checkout is never a workspace', () => {
     expect(decide('scripts/git-new.sh fix/x', primary, primary)).toBeNull();
     expect(decide('npm ci', primary, primary)).toBeNull();
   });
+
+  it('blocks Xcode and SwiftPM builds, which write into the checkout they run in', () => {
+    expect(decide('xcodegen generate', primary, primary)).toMatch(/primary checkout/);
+    expect(decide('cd ios && xcodegen generate', primary, primary)).toMatch(/primary checkout/);
+    expect(decide('xcodebuild -scheme Apex test', primary, primary)).toMatch(/primary checkout/);
+    expect(decide('swift test --package-path ios/Packages/ApexCore', primary, primary)).toMatch(
+      /primary checkout/,
+    );
+    expect(decide('swift build', primary, primary)).toMatch(/primary checkout/);
+  });
+
+  it('allows iOS builds in a worktree, and read-only simulator queries anywhere', () => {
+    expect(decide('xcodebuild -scheme Apex test', worktree, worktree)).toBeNull();
+    expect(decide('xcodegen generate', worktree, worktree)).toBeNull();
+    expect(decide('xcrun simctl list devices', primary, primary)).toBeNull();
+    expect(decide('xcodebuild -version', worktree, worktree)).toBeNull();
+  });
 });

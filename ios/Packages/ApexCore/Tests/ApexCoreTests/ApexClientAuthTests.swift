@@ -1,4 +1,11 @@
 import XCTest
+import Foundation
+// URLRequest lives in FoundationNetworking on Linux, not Foundation. Without this
+// ApexCore does not compile there — which is the whole point of the package, so
+// CI's apexcore-linux job is what catches a missing one.
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 @testable import ApexCore
 
 /// The 401 policy, which must never loop. These run on Linux, which is the whole

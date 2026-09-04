@@ -79,8 +79,14 @@ const GH_MERGE = /\bgh\b[^|;&]*\bpr\s+merge\b|\bgh\s+api\b[^|;&]*\/merge\b/;
 // (scripts/merge-policy.mjs). The agent applying it to its own PR would
 // dissolve the authority boundary the label exists to draw.
 const SHIPIT_GRANT = /--add-label[^|;&]*\bshipit\b|\bgh\s+api\b[^|;&]*\blabels\b[^|;&]*\bshipit\b/;
-// What "do not build there, do not commit there" means concretely.
-const PRIMARY_BANNED = /\bgit\s+commit\b|\bnpm\s+run\s+(build|dev(:agent)?|preview|e2e(:live)?|agent:check(:full)?)\b|\bnpx?\s+vite\b/;
+// What "do not build there, do not commit there" means concretely. The Xcode
+// entries are the same rule, not a new one: `xcodegen` writes ios/Apex.xcodeproj
+// into whatever checkout it runs in, and `xcodebuild`/`swift build` write build
+// products beside it — which every later session would then inherit
+// (docs/ios/MASTER.md, session protocol). Read-only tools like `xcrun simctl
+// list` are deliberately not here.
+const PRIMARY_BANNED =
+  /\bgit\s+commit\b|\bnpm\s+run\s+(build|dev(:agent)?|preview|e2e(:live)?|agent:check(:full)?)\b|\bnpx?\s+vite\b|\bxcodebuild\b|\bxcodegen\b|\bswift\s+(build|test)\b/;
 
 export function decide(command, cwd, projectDir) {
   if (PKILL_VITE.test(command)) {
