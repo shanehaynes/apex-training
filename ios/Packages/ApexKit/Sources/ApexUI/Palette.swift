@@ -15,6 +15,9 @@ public enum ApexPalette {
     public static let destructive = Color(hex: 0xB91C1C)
     public static let userBubble = Color(hex: 0x1E3A5F)
     public static let userBubbleBorder = Color(hex: 0x2A5080)
+    /// The one mark colour of the synced-activity stream charts (`StreamCharts.tsx`),
+    /// a shade darker than the sync-badge accent so it clears 3:1 on the sheet.
+    public static let streamMark = Color(hex: 0xEA690B)
 
     /// Block attainment semantics (design-spec §1).
     public enum Attainment {
@@ -34,4 +37,20 @@ public enum Spacing {
     public static let xxl: CGFloat = 32
     /// Standard screen inset.
     public static let screen: CGFloat = 16
+}
+
+extension WorkoutTypeTokens {
+    /// The palette for a raw `workout_type`, with a neutral fallback for a type
+    /// this build does not know — a new server-side type renders rather than
+    /// crashes (the web's `getWorkoutColor` is total over its enum; this is not).
+    public static func palette(for rawType: String) -> WorkoutPalette {
+        byRawValue[rawType] ?? WorkoutPalette(
+            label: rawType.replacingOccurrences(of: "-", with: " ").capitalized,
+            solid: ApexColor.bgElevated,
+            border: ApexColor.borderSubtle,
+            fill: ApexColor.bgElevated,
+            glow: .clear,
+            glowRadius: 0
+        )
+    }
 }

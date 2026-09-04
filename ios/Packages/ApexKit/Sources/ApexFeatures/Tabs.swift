@@ -2,25 +2,8 @@ import ApexUI
 import SwiftUI
 
 // The four tabs from D-012. Each owns a NavigationStack so its own routes push
-// independently; the screens themselves arrive in W2/W6/W9/W11.
-
-public struct ScheduleTab: View {
-    public init() {}
-
-    public var body: some View {
-        NavigationStack {
-            EmptyState(
-                eyebrow: "Schedule",
-                message: "Your training calendar lands here in W2.",
-                symbol: "calendar"
-            )
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) { Wordmark() }
-            }
-        }
-    }
-}
+// independently. Schedule lives in Schedule/ScheduleTab.swift (W2); the others
+// arrive in W6/W9/W11.
 
 public struct CoachTab: View {
     public init() {}

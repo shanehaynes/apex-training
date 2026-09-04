@@ -1,7 +1,7 @@
 # W2 — Schedule: read, cache, realtime, auth links
 
 **Machine:** Mac (+ a small web change) · **Depends on:** W0, W1 · **Unblocks:** W4, W7, W10
-**Status:** in progress — PR A0 (#110, HELD) and PR A open; B (UI) and C (auth links) next
+**Status:** in progress — A0 #110 (HELD), A #111, B open; C (auth links) next
 
 ## Goal
 The first vertical slice with daily value: open the app, see today and the month, open a
@@ -71,3 +71,35 @@ direct reads of `activity_streams`, `profiles`.
     `DEPLOY_MULTI_USER.md` updated.
   - **Shane:** add `apextraining://auth` to Redirect URLs; `shipit` #110 and run phase40 in
     the production SQL editor.
+- 2026-09-04 · Mac · PR B — the Schedule tab.
+  - **ApexUI:** `ApexIcon` (the W2 subset of the lucide map), `EventCard` (3pt rail, mono time,
+    44pt toggle), `EventChip` (title only — at ~48pt a cell the web's `time · title` truncates
+    to the time), `WeekStrip`, `WorkoutTypeBadge`, `FreshnessBanner`,
+    `WorkoutTypeTokens.palette(for:)` with the unknown-type fallback.
+  - **ScheduleModel** (`ApexFeatures/Schedule/`): cache → render → `/api/schedule` for
+    today −60…+120 → cache; refreshes coalesce (one in flight, one pending); optimistic
+    completion (rollback only when `/api/completions` fails; a failed plan-fill keeps the state
+    and toasts); the window is written back after a toggle so an offline relaunch shows it;
+    meals per month through `get_meals`; streams memoised per occurrence. 11 model tests over a
+    scripted transport and `MemoryCacheStore`.
+  - **Views:** `ScheduleTab` (period bar, Day|Month, freshness line, sheets at
+    `.medium/.large`), `DayView` (week strip, big numeral, cards, meals row; swipe ±1 day, strip
+    ±1 week), `MonthView` (≤3 chips + `+N`, swipe ±1 month, 0.28s slide), `DaySheet` (cards
+    with the toggle — U7's month path), `EventSheet` (read-only `WorkoutModal`: meta strip,
+    targets, `SyncMetricsView`, difficulty, sections with superset rails, disabled Start Workout),
+    `StreamChartsView` (Swift Charts: HR line, route `Canvas`, elevation area; drag to scrub).
+  - **RealtimeHub** (`ApexAuth`): one channel per table group, `subscribeWithError`,
+    suspend/resume with the scene, reset on sign-out. Found on the simulator: one channel with
+    every table bound never delivered — the local publication lacked `meals`/`analytics_tiles`
+    and Realtime voids the whole join. phase40 (#110) now carries all ten tables.
+  - **`-apexMockClient`** (`ios/Apex/Mock/`): fixture-fed transport with remembered
+    completions, fixture streams, any-credentials auth, `TestClock` on the fixture day; the
+    fixtures ship as a folder reference in Debug (excluded from Release). The XCUITest smoke
+    runs sign in → day → month → `+1 more` → day sheet → event → Completed on it, on iPhone 17
+    (iOS 26) and iPhone 16 (iOS 18.6). Snapshots recorded (`TEST_RUNNER_APEX_SNAPSHOTS=1`; the
+    documented `APEX_SNAPSHOTS=1` never reached the test process).
+  - **Verified live** (signed Local build, this worktree's API, local stack): session restore,
+    the real schedule for today, and an `UPDATE` to `workout_events` in Postgres reaching the
+    simulator within ~4 s.
+  - **Not done here:** device runs (Shane), W4's write queue (the toggle is two direct calls
+    marked for it), the "+" toolbar menu (W7).

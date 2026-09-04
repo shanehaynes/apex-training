@@ -10,7 +10,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 |---|---|---|---|---|
 | W0 | Backend read foundation | done (PR #95) | Linux | no migration |
 | W1 | iOS scaffold + app icon + CI | done | Mac | TestFlight build 0 (0.1.0/285) shipped and installed |
-| W2 | Schedule read, cache, realtime, auth links | in progress (A0 #110 HELD, A open; B, C next) | Mac | first TestFlight with value |
+| W2 | Schedule read, cache, realtime, auth links | in progress (A0 #110 HELD, A #111, B open; C next) | Mac | first TestFlight with value |
 | W3 | Backend tracker consolidation | done (PR #96) | Linux | web switched in the same PR |
 | W4 | Tracker UI + write queue | ready | Mac | W3 done |
 | W5a | Backend chat v2 (server prompt) | done (PR #98) | Linux | web switched in the same PR |
@@ -25,8 +25,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
-1. W2 continues on the Mac: PR B (Schedule UI, cache, `RealtimeHub`, `-apexMockClient` seam)
-   once PR A merges, then PR C (deep links, set-password), then TestFlight build 1. W4 and W6
+1. W2 continues on the Mac: PR C (deep links, set-password) on top of B, then TestFlight
+   build 1 and Shane's device runs (airplane mode, web edit → phone, recovery and invite links). W4 and W6
    remain open to any other Mac session. Remaining Linux work: W10's cycle endpoint, W11's
    COROS `client:'ios'` migration.
 2. Shane: `shipit` #110 (phase40 realtime publication) and run the same file in the production
@@ -53,7 +53,12 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   installed on Shane's phone. W1 is done end to end.
 
 - 2026-09-04 · W2 · Plan; PR A0 (phase40 realtime publication, #110) and PR A (ApexCore
-  schedule/deep-link/completion modules, fixtures, web invite hand-off). D-023.
+  schedule/deep-link/completion modules, fixtures, web invite hand-off, #111). D-023.
+- 2026-09-04 · W2 · PR B: the Schedule tab (Day, Month, day and event sheets, stream charts),
+  `ScheduleModel` over the GRDB cache, `RealtimeHub` (one channel per table group — a single
+  channel silently dropped everything on a fresh stack), the `-apexMockClient` fixture seam
+  the XCUITest smoke now runs on, snapshots recorded. Realtime proved on the simulator against
+  the local stack.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)

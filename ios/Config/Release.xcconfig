@@ -2,3 +2,7 @@
 
 APEX_API_BASE = https:$(SLASH)$(SLASH)apextrainingcalendar.vercel.app
 SUPABASE_URL = $(APEX_PROD_SUPABASE_URL)
+
+// The fixture folder exists for the -apexMockClient seam (DEBUG only); a
+// shipped build carries no test data.
+EXCLUDED_SOURCE_FILE_NAMES = Fixtures Fixtures/*

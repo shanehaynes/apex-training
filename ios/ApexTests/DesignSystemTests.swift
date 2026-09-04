@@ -49,4 +49,12 @@ final class DesignSystemTests: XCTestCase {
     func testTypeChipFallsBackForAnUnknownType() {
         _ = TypeChip(rawType: "surfing")
     }
+
+    /// A symbol name that does not exist renders nothing, silently.
+    @MainActor
+    func testEveryIconResolvesToASymbol() {
+        for icon in ApexIcon.allCases {
+            XCTAssertNotNil(UIImage(systemName: icon.systemName), "\(icon) → \(icon.systemName) is not an SF Symbol")
+        }
+    }
 }

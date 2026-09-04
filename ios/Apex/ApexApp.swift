@@ -6,10 +6,17 @@ import SwiftUI
 @main
 struct ApexApp: App {
     @State private var model: AppModel
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         AppConfig.assertSafe()
         ApexFonts.register()
+        #if DEBUG
+        if CommandLine.arguments.contains("-apexMockClient") {
+            _model = State(initialValue: AppModel(mock: MockEnvironment()))
+            return
+        }
+        #endif
         let auth = AuthService(
             supabaseURL: AppConfig.supabaseURL,
             anonKey: AppConfig.supabaseAnonKey
@@ -27,6 +34,7 @@ struct ApexApp: App {
             // Dark only (D-010) — belt and braces with UIUserInterfaceStyle,
             // which SwiftUI previews do not read.
             .preferredColorScheme(.dark)
+            .onChange(of: scenePhase) { _, phase in model.scenePhase(phase) }
         }
     }
 }
@@ -55,7 +63,7 @@ struct RootView: View {
                 if let reason { ToastBus.shared.post(reason, level: .failure) }
             }
         case .signedIn(_, let email):
-            RootTabView(email: email) { model.signOut() }
+            RootTabView(schedule: model.schedule, email: email) { model.signOut() }
         }
     }
 }
