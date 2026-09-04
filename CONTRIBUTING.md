@@ -268,6 +268,13 @@ bounds the wait (default 600s). A lock left behind by a holder that died is
 reaped automatically once its pid is gone. Anything new that resets or seeds
 the stack should go through the same wrapper.
 
+`npm run db:restore-drill -- <dir>` is the third thing that does: it loads a
+database backup (README, "Backups") over the local stack under the same lock.
+It leaves production data — real users, real password hashes — in a database
+every session on this machine shares, and evicts the fixtures live e2e expects,
+so `npm run db:reset-local` afterwards is not optional. Same permission posture
+as the reset: a human's job, never an auto-mode session's.
+
 The stack is also **not kept current for you**. `supabase start` only
 auto-applies timestamped migrations and this repo's are `phaseN_*.sql` (see
 below), so the local database has exactly the schema of the last
