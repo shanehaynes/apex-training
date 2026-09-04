@@ -68,9 +68,16 @@ APEX_LOCAL_PORT = 5314
 `AppConfig.assertSafe()` traps at launch if a simulator build points anywhere but `127.0.0.1`,
 which is the same rule the web harness enforces. `Debug` and `Release` point at production;
 everything they need is in `Base.xcconfig` except the anon key, which goes in
-`ios/Config/Secrets.xcconfig` (git-ignored — copy `Secrets.xcconfig.example`, one line). The
-app refuses to launch while the placeholder is still there, so a device build cannot silently
-ship unconfigured.
+`ios/Config/Secrets.xcconfig`:
+
+```bash
+ios/scripts/secrets.sh          # writes it; --check verifies it
+```
+
+That file is git-ignored, so it exists in one worktree and **dies with it** when
+`git-tidy.sh` removes the worktree after its PR merges. Missing, it does not fail at build
+time — the app builds, installs, and then traps at launch on the `REPLACE_ME` sentinel. Run
+the script in any worktree you do a device or Release build from.
 
 A local user to sign in as: `agent@apex.local` / `apex-agent-password`
 (`scripts/create-local-users.mjs`).

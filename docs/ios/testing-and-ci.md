@@ -110,9 +110,21 @@ rule people remember.
 
 ## TestFlight
 
-1. First builds: Xcode → Product → Archive → Distribute (Organizer). Zero setup beyond the
-   Apple Developer account and an App ID `com.shanehaynes.apextraining` with the associated-domains
-   entitlement.
+1. First builds, from a worktree (never the primary checkout):
+
+   ```bash
+   ios/scripts/secrets.sh                 # the anon key; git-ignored, so per-worktree
+   cd ios && xcodegen generate
+   open Apex.xcodeproj
+   ```
+
+   In Xcode: destination **Any iOS Device (arm64)** (Archive is disabled while a simulator is
+   selected) → **Product → Archive** → Organizer opens → **Distribute App → TestFlight &
+   App Store → Upload**. Processing takes 5–15 minutes before the build appears in TestFlight.
+
+   Prerequisites: the Apple Developer account, App ID `com.shanehaynes.apextraining` with the
+   associated-domains capability, and — easy to miss — an **App Store Connect app record** for
+   that bundle id, or the upload is rejected.
 2. Then `ios/fastlane/Fastfile` with a `beta` lane: `app_store_connect_api_key` from repo
    secrets, `build_app` with `-allowProvisioningUpdates` (no `match`, solo developer),
    `upload_to_testflight`. Triggered by `.github/workflows/testflight.yml` on
