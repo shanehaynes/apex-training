@@ -34,6 +34,11 @@
 	<!-- Dark only (D-010). -->
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
+	<!-- The app uses only HTTPS/TLS, which is exempt encryption. Declaring it here
+	     means App Store Connect stops asking the export-compliance question on
+	     every single upload; leaving it out blocks each build until answered. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<!-- Build configuration, filled in from ios/Config/*.xcconfig (D-022). -->
 	<key>APEX_API_BASE</key>
 	<string>$(APEX_API_BASE)</string>
