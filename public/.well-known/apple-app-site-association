@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["G44GWSXFK2.com.shanehaynes.apextraining"],
+        "components": [
+          { "/": "/auth/*", "comment": "invite, recovery and confirmation callbacks" },
+          { "/": "/app/*", "comment": "shared links to an event, definition or block" }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["G44GWSXFK2.com.shanehaynes.apextraining"]
+  }
+}

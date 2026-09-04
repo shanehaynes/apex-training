@@ -99,6 +99,22 @@ else
   failed=1
 fi
 
+# 2b. The exact callback the iOS app asks for. AuthService.sendPasswordReset()
+#     passes redirectTo=$prod/auth/callback, and a path that is not covered by
+#     an allow-list entry is dropped the same silent way an origin is — the app
+#     would show "check your email" and the link would land on the web root.
+callback="$prod/auth/callback"
+got=$(verify_location "$callback")
+case "$got" in
+  "$callback"*)
+    echo "   ✓ $callback is on the Redirect URLs allow-list" ;;
+  *)
+    echo "   ✗ redirect_to=$callback was dropped for ${got:-nothing}" >&2
+    echo "     Add $prod/** (or that exact path) to Supabase → Authentication → URL Configuration." >&2
+    echo "     The iOS app's password reset and invite links depend on it (docs/ios/architecture.md §4)." >&2
+    failed=1 ;;
+esac
+
 # 3. The origin those links land on must be reachable without a Vercel account.
 code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$prod/" 2>/dev/null || echo 000)
 sso=$(curl -s -o /dev/null -w '%{redirect_url}' --max-time 15 "$prod/" 2>/dev/null)
