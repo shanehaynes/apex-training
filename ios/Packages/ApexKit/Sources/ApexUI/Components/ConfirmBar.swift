@@ -47,6 +47,7 @@ public struct ConfirmBar: View {
         .frame(maxWidth: .infinity)
         .background(ApexColor.bgElevated)
         .overlay(alignment: .top) { Rectangle().fill(ApexColor.borderSubtle).frame(height: 1) }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tracker.confirm")
     }
 }

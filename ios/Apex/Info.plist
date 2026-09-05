@@ -56,6 +56,16 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<!-- W4: the tracker's write queue flushes opportunistically in the background
+	     (architecture.md §7). Fetch is the only mode; the task id must be listed. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.shanehaynes.apextraining.queue-flush</string>
+	</array>
 	<!-- The web hand-off button (D-020); consumed in W2. -->
 	<key>CFBundleURLTypes</key>
 	<array>

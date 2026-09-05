@@ -64,6 +64,7 @@ struct ScoreCard: View {
                 focused = .rounds
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tracker.score")
     }
 

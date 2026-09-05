@@ -1,7 +1,7 @@
 # W4 — Tracker UI + write queue
 
 **Machine:** Mac · **Depends on:** W3 · **Unblocks:** W12
-**Status:** in progress (A #117 in review, B in review, C next)
+**Status:** in review (A #117, B #118, C) — code complete; TestFlight build 2 and the device run outstanding
 
 ## Goal
 The gym-floor screen — the surface where native must beat the web most. TestFlight build 2.
@@ -123,3 +123,27 @@ Out: Live Activity (W12), rest timer (Backlog).
   - **Not done here (PR C):** the flush driver (network / scene / background task), the
     Info.plist background keys, the UI smoke through the tracker, TestFlight build 2, the device
     airplane-mode test.
+- 2026-09-05 · Mac · PR C — the flush triggers and the smoke.
+  - **`WriteQueueDriver`** (app target — nothing in it is unit-testable): `NWPathMonitor`
+    satisfied → `queue.resume()`; scene `.active` → resume; scene `.background` →
+    `beginBackgroundTask` + `flush()` + `BGAppRefreshTask` request (15 min earliest);
+    `registerBackgroundTask()` from `ApexApp.init` (must precede launch completion).
+    `Info.plist`: `UIBackgroundModes: [fetch]`, `BGTaskSchedulerPermittedIdentifiers`.
+    `AppModel.ensureQueue` builds the driver with the queue; sign-out stops it. The queue's
+    backoff runs on `SystemClock` even under the mock, or every retry would be instant.
+  - **Mock:** a non-peek `bootstrap` answers a session started 7 min before the fixed clock (the
+    committed `bootstrap.json` is a *finished* session — a reopen, not a start);
+    `-apexMockFailOnce save 3` fails the first three saves; `-apexMockFail` matches an action too.
+  - **Smoke:** `testTrackerOnFixtures` — sign in → Fixture Push Day → "View / Edit Workout"
+    (the fixture occurrence is completed) → tracker → focus on set 2 commits the ghost (110 lb)
+    → "1 set pending sync" while the saves are refused → clears on the retry → Finish → "1 planned
+    set unlogged — recorded as 0." → Finish anyway → summary streams the fixture coach text and
+    the PR → Back. Screenshots 07–10 via `ios/scripts/screenshots.sh`.
+  - **Found on the way:** an `accessibilityIdentifier` on a container replaces every child's in
+    the accessibility tree unless the container is `.accessibilityElement(children: .contain)`.
+    Every tracker container now is; `tracker.title` and friends resolve.
+  - **Outstanding (Shane):** TestFlight build 2 (bump `MARKETING_VERSION` in `project.yml`, then
+    `ios/scripts/testflight.sh`; `--check` passes from this worktree) and the device run — open
+    today's workout once online (or wait for the peek prefetch), airplane mode, log sets, Finish,
+    background, Wi-Fi on → the server's rows and completion match and `started_at` /
+    `finished_at` are the phone's stamps.
