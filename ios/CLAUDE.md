@@ -95,11 +95,24 @@ The simulator reaches the API through this worktree's vite server, and it dials 
 Node 26 binds vite to `::1` only, so start it as `npm run dev:agent -- --host 127.0.0.1` or
 every `/api/*` call fails with "No connection" while the web works fine in a browser.
 
+**Auth links on a simulator.** Mint tokens from the local stack and open the hand-off URL:
+
+```bash
+curl -s 'http://127.0.0.1:54321/auth/v1/token?grant_type=password' -H "apikey: $ANON" \
+  -H 'Content-Type: application/json' -d '{"email":"agent@apex.local","password":"apex-agent-password"}'
+xcrun simctl openurl booted 'apextraining://auth#access_token=…&refresh_token=…&type=invite&expires_in=3600&token_type=bearer'
+```
+
+`type=invite|recovery` lands on set-password; an `#error=…&error_code=otp_expired…` fragment
+shows the spent-link toast. A signed build (Keychain) is needed for the session to persist.
+
 **Fixtures instead of a backend:** launch with `-apexMockClient` and the app answers every
 `/api/*` route from `ios/Fixtures/` in-process (`ios/Apex/Mock/`, DEBUG only), accepts any
 credentials, and fixes "today" to 2026-09-08, the day the fixtures put four events on. This is
 what the XCUITest smoke runs on, because CI's unsigned build has no Keychain (below).
 `-apexMockFail completions` makes `POST /api/completions` answer 500, for the rollback path.
+Under the mock an `apextraining://auth#…type=invite` link lands on set-password without GoTrue,
+which is how `AuthLinkUITests` covers that screen in CI.
 
 **Realtime on the local stack** needs the tables in the `supabase_realtime` publication —
 phase40 adds every table a client subscribes to; a stack reset before it has nothing. The hub

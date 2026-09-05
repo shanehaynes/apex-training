@@ -11,7 +11,9 @@ import Foundation
 ///   the web handed over (D-020). A PKCE-configured client refuses it in
 ///   `session(from:)`, so the tokens go through `setSession` instead.
 public enum DeepLink: Equatable, Sendable {
-    case authCode(String)
+    /// `type` is whatever the URL said, which for a PKCE redirect is usually
+    /// nothing — the app keeps its own note of having asked for a reset.
+    case authCode(code: String, type: AuthLinkType?)
     case authTokens(accessToken: String, refreshToken: String, type: AuthLinkType?)
     case authError(AuthLinkError)
     case connected(provider: String)
@@ -71,10 +73,10 @@ public enum DeepLink: Equatable, Sendable {
         }
         let query = components.queryItems ?? []
         let fragment = FormQuery.items(components.fragment)
-        if let code = value("code", in: query) ?? value("code", in: fragment) {
-            return .authCode(code)
-        }
         let type = (value("type", in: fragment) ?? value("type", in: query)).flatMap(AuthLinkType.init(rawValue:))
+        if let code = value("code", in: query) ?? value("code", in: fragment) {
+            return .authCode(code: code, type: type)
+        }
         if let access = value("access_token", in: fragment) ?? value("access_token", in: query) {
             guard let refresh = value("refresh_token", in: fragment) ?? value("refresh_token", in: query) else {
                 return .authError(AuthLinkError(code: nil, message: "That sign-in link was incomplete. Ask for a fresh one."))

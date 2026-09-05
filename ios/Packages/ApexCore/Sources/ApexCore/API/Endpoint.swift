@@ -72,6 +72,10 @@ public struct Endpoint: Sendable, Equatable {
 
     public static let profile = Endpoint(path: "api/profile")
 
+    /// Records acceptance of the current legal versions. No body: the server
+    /// owns which versions are current (`api/_lib/handlers/termsAcceptance.ts`).
+    public static let termsAcceptance = Endpoint(method: .post, path: "api/terms-acceptance")
+
     // MARK: - W2 writes
 
     /// Toggle an occurrence's completion. The two rows are built by

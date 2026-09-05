@@ -156,7 +156,9 @@ public final class ScheduleModel {
             lastRefreshFailed = true
             let message = Self.readable(error)
             if index == nil {
-                loadError = message
+                // Nothing cached to fall back on: the network line has no
+                // "last synced" to speak of.
+                loadError = Self.isNetwork(error) ? "No connection. Check your network and retry." : message
             } else if reason == .pullToRefresh || reason == .retry {
                 ToastBus.shared.post(message, level: .failure)
             }
@@ -329,6 +331,11 @@ public final class ScheduleModel {
     }
 
     // MARK: - Messages
+
+    static func isNetwork(_ error: Error) -> Bool {
+        if let api = error as? APIError, case .network = api { return true }
+        return false
+    }
 
     static func readable(_ error: Error) -> String {
         if let api = error as? APIError {

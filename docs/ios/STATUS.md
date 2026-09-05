@@ -10,7 +10,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 |---|---|---|---|---|
 | W0 | Backend read foundation | done (PR #95) | Linux | no migration |
 | W1 | iOS scaffold + app icon + CI | done | Mac | TestFlight build 0 (0.1.0/285) shipped and installed |
-| W2 | Schedule read, cache, realtime, auth links | in review (A0 #110 and A #111 merged; B #112, C #114 open) | Mac | first TestFlight with value |
+| W2 | Schedule read, cache, realtime, auth links | in review (A0 #110, A #111, B #112 merged; C #114 open) | Mac | first TestFlight with value |
 | W3 | Backend tracker consolidation | done (PR #96) | Linux | web switched in the same PR |
 | W4 | Tracker UI + write queue | ready | Mac | W3 done |
 | W5a | Backend chat v2 (server prompt) | done (PR #98) | Linux | web switched in the same PR |
@@ -25,8 +25,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
-1. Land W2: B #112 then C #114 (retarget C to `main` once B merges), then TestFlight build 1
-   and Shane's device runs (airplane mode, web edit → phone, recovery and invite links). W4 and W6
+1. Land C #114, then TestFlight build 1 (`ios/scripts/testflight.sh`) and Shane's device runs:
+   airplane-mode relaunch, web edit → phone, recovery email, invite hand-off. Then W4 or W6. W4 and W6
    remain open to any other Mac session. Remaining Linux work: W10's cycle endpoint, W11's
    COROS `client:'ios'` migration.
 2. Shane: `shipit` #110 (phase40 realtime publication) and run the same file in the production
@@ -59,6 +59,10 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   channel silently dropped everything on a fresh stack), the `-apexMockClient` fixture seam
   the XCUITest smoke now runs on, snapshots recorded. Realtime proved on the simulator against
   the local stack.
+- 2026-09-04 · W2 · PR C: `AuthService.handle` for both link shapes, `needsPassword` held
+  until a password lands, `SetPasswordView` with the terms toggle, `AppModel.open` routing,
+  `AuthLinkUITests` on the mock; invite hand-off and spent link proved on the simulator with
+  minted tokens.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)

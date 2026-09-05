@@ -63,6 +63,7 @@ public struct ToastHost: View {
                     )
                     .shadow(color: .black.opacity(0.6), radius: 12, y: 4)
                     .onTapGesture { bus.dismiss(toast.id) }
+                    .accessibilityIdentifier("toast.\(toast.level)")
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
