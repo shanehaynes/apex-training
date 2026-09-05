@@ -33,6 +33,10 @@ interface Body {
   startedAt?: unknown;
   /** finish: same, for when it really ended. */
   finishedAt?: unknown;
+  /** bootstrap only: read the model without creating the session (W4). The
+   *  native app prefetches today's workouts so one can start offline, and a
+   *  prefetch must never stamp a started_at nobody chose. */
+  peek?: unknown;
   eventId?: string;
   eventDate?: string;
   setLogs?: SetLogRow[];
@@ -178,6 +182,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (body.action === 'start' || body.action === 'bootstrap') {
     const startedAt = clientTimestamp(res, body.startedAt, 'startedAt');
     if (startedAt === null) return;
+    const peek = body.action === 'bootstrap' && body.peek === true;
 
     // The event first: a bootstrap for something the caller doesn't own must
     // not leave a session row behind.
@@ -189,25 +194,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const { error: insertErr } = await supabase
-      .from('workout_sessions')
-      .upsert(
-        { user_id: userId, event_id: eventId, event_date: eventDate, started_at: (startedAt ?? new Date()).toISOString() },
-        { onConflict: 'user_id,event_id,event_date', ignoreDuplicates: true },
-      );
-    if (insertErr) {
-      console.error('[api/workout-sessions] start upsert failed:', insertErr.message);
-      res.status(500).send('Failed to start session');
-      return;
+    if (!peek) {
+      const { error: insertErr } = await supabase
+        .from('workout_sessions')
+        .upsert(
+          { user_id: userId, event_id: eventId, event_date: eventDate, started_at: (startedAt ?? new Date()).toISOString() },
+          { onConflict: 'user_id,event_id,event_date', ignoreDuplicates: true },
+        );
+      if (insertErr) {
+        console.error('[api/workout-sessions] start upsert failed:', insertErr.message);
+        res.status(500).send('Failed to start session');
+        return;
+      }
     }
 
-    const { data, error: selectErr } = await supabase
+    const sessionQuery = supabase
       .from('workout_sessions')
       .select('*')
       .eq('user_id', userId).eq('event_id', eventId)
-      .eq('event_date', eventDate)
-      .single();
-    if (selectErr || !data) {
+      .eq('event_date', eventDate);
+    // A peek may legitimately find no session; every other path just wrote one.
+    const { data, error: selectErr } = peek ? await sessionQuery.maybeSingle() : await sessionQuery.single();
+    if (selectErr || (!data && !peek)) {
       console.error('[api/workout-sessions] start select failed:', selectErr?.message);
       res.status(500).send('Failed to load session');
       return;
@@ -218,7 +226,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
     try {
-      res.status(200).json(await buildBootstrap(supabase, userId, data as WorkoutSessionRow, event!));
+      res.status(200).json(await buildBootstrap(supabase, userId, (data as WorkoutSessionRow | null) ?? null, event!));
     } catch (err) {
       console.error('[api/workout-sessions] bootstrap failed:', err instanceof Error ? err.message : err);
       res.status(500).send('Failed to load session');

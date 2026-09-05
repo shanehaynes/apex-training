@@ -37,13 +37,44 @@ public actor ApexClient {
         try await perform(endpoint, allowRefresh: true)
     }
 
-    private func perform(_ endpoint: Endpoint, allowRefresh: Bool) async throws -> Data {
-        let token: String
-        do {
-            token = try await tokens.accessToken()
-        } catch {
-            throw APIError.unauthorized
+    /// A streaming endpoint (the coach and the workout summary): the body as it
+    /// arrives, after the same 401 policy has run on the response head. A
+    /// non-2xx head is read to the end and thrown as the matching `APIError`.
+    public func stream(_ endpoint: Endpoint) async throws -> AsyncThrowingStream<Data, Error> {
+        try await performStream(endpoint, allowRefresh: true)
+    }
+
+    /// The NDJSON coach wire, one decoded event per line, from any endpoint
+    /// that speaks it (`/api/chat`, `/api/coach-summary`).
+    public func wireEvents(for endpoint: Endpoint) async throws -> AsyncThrowingStream<ChatWireEvent, Error> {
+        let bytes = try await stream(endpoint)
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                var parser = NDJSONLineParser()
+                do {
+                    for try await chunk in bytes {
+                        for line in parser.consume(chunk) { continuation.yield(try Self.decodeWire(line)) }
+                    }
+                    for line in parser.finish() { continuation.yield(try Self.decodeWire(line)) }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    private static func decodeWire(_ line: String) throws -> ChatWireEvent {
+        do {
+            return try JSONDecoder().decode(ChatWireEvent.self, from: Data(line.utf8))
+        } catch {
+            throw APIError.decoding("wire event: \(error)")
+        }
+    }
+
+    private func perform(_ endpoint: Endpoint, allowRefresh: Bool) async throws -> Data {
+        let token = try await accessToken()
 
         let response: HTTPResponse
         do {
@@ -61,7 +92,53 @@ public actor ApexClient {
             body: response.body,
             headers: response.headers
         )
+        try await refreshOnce(for: apiError, allowRefresh: allowRefresh)
+        return try await perform(endpoint, allowRefresh: false)
+    }
 
+    private func performStream(_ endpoint: Endpoint, allowRefresh: Bool) async throws -> AsyncThrowingStream<Data, Error> {
+        let token = try await accessToken()
+
+        let response: HTTPStreamResponse
+        do {
+            response = try await transport.stream(request(endpoint, token: token))
+        } catch let error as APIError {
+            throw error
+        } catch {
+            throw APIError.network("\(error)")
+        }
+
+        if (200..<300).contains(response.status) { return response.bytes }
+
+        // The error body is short; read it so the message survives.
+        var body = Data()
+        do {
+            for try await chunk in response.bytes { body.append(chunk) }
+        } catch {
+            // The status already tells the story; a truncated error body does not change it.
+        }
+        let apiError = APIError.from(status: response.status, body: body, headers: response.headers)
+        try await refreshOnce(for: apiError, allowRefresh: allowRefresh)
+        return try await performStream(endpoint, allowRefresh: false)
+    }
+
+    /// A token the provider cannot produce because the network is down is a
+    /// network failure, not a lost session — the write queue retries the former
+    /// and pauses on the latter.
+    private func accessToken() async throws -> String {
+        do {
+            return try await tokens.accessToken()
+        } catch let error as URLError {
+            throw APIError.network("\(error)")
+        } catch {
+            throw APIError.unauthorized
+        }
+    }
+
+    /// The 401 policy: anything but a 401 is thrown as is; a 401 buys one
+    /// refresh (or signs out); the caller then retries exactly once with
+    /// `allowRefresh: false`, so a second 401 lands in the sign-out branch.
+    private func refreshOnce(for apiError: APIError, allowRefresh: Bool) async throws {
         guard case .unauthorized = apiError else { throw apiError }
         guard allowRefresh else {
             // Refreshed once already and still unauthorized: the session is gone.
@@ -74,7 +151,6 @@ public actor ApexClient {
             await tokens.signOut()
             throw APIError.unauthorized
         }
-        return try await perform(endpoint, allowRefresh: false)
     }
 
     private func request(_ endpoint: Endpoint, token: String) throws -> URLRequest {

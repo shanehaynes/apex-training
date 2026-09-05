@@ -21,6 +21,7 @@ import queryHandler from '../../_lib/handlers/query';
 import sessionsHandler from '../../_lib/handlers/workoutSessions';
 import profileHandler from '../../_lib/handlers/profile';
 import chatHandler from '../../chat';
+import coachSummaryHandler from '../../_lib/handlers/coachSummary';
 import coachToolHandler from '../../_lib/handlers/coachTool';
 import analyticsComputeHandler from '../../_lib/handlers/analyticsCompute';
 import { buildChatContext } from '../../_lib/coach/context';
@@ -40,8 +41,15 @@ vi.mock('@anthropic-ai/sdk', () => ({
   default: vi.fn(function () {
     return {
       messages: {
-        stream: () => (async function* () {
+        stream: (request: { tools?: unknown }) => (async function* () {
           yield { type: 'message_start', message: { usage: { input_tokens: 10 } } };
+          if (!request.tools) {
+            // The coach summary passes no tools: prose only, the way the
+            // tracker's summary overlay streams it.
+            yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Strong session — ' } };
+            yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'a new estimated 1RM on Fixture Press.' } };
+            return;
+          }
           yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Clearing it. ' } };
           yield { type: 'content_block_start', content_block: { type: 'tool_use', id: 'toolu_fixture', name: 'delete_event' } };
           yield { type: 'content_block_delta', delta: { type: 'input_json_delta', partial_json: '{"event_id":"ios-fixture-weekly__2026-09-29","scope":"instance","date":"2026-09-29"}' } };
@@ -348,6 +356,31 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     // below lands 30 minutes after it, pinning the duration so the fixture is
     // stable across runs.
     const startedAt = new Date(Date.now() - 3600_000).toISOString();
+
+    // A peek (W4) reads the model without starting the session — the native
+    // app prefetches today's workouts so one can start offline, and a prefetch
+    // must never stamp a started_at nobody chose. Plan and shadows come back;
+    // `session` is null; no row is written.
+    const peek = makeRes();
+    await sessionsHandler(makeReq({
+      method: 'POST', token: agent.token,
+      body: { action: 'bootstrap', eventId: TRACKED_OCCURRENCE, eventDate: '2026-09-22', peek: true },
+    }), peek.res);
+    expect(peek.statusCode).toBe(200);
+    const peeked = peek.body as { session: unknown; groups: unknown[]; prs: unknown[]; scoreRecord: unknown };
+    expect(peeked.session).toBeNull();
+    expect(peeked.groups).toHaveLength(1);
+    expect(peeked.prs).toEqual([]);
+    const { data: noRow } = await getSupabaseAdmin()!
+      .from('workout_sessions').select('id').eq('user_id', agent.userId).eq('event_id', TRACKED_OCCURRENCE);
+    expect(noRow).toEqual([]);
+    const peekOther = makeRes();
+    await sessionsHandler(makeReq({
+      method: 'POST', token: agent2.token,
+      body: { action: 'bootstrap', eventId: TRACKED_OCCURRENCE, eventDate: '2026-09-22', peek: true },
+    }), peekOther.res);
+    expect(peekOther.statusCode).toBe(404);
+
     const boot = makeRes();
     await sessionsHandler(makeReq({
       method: 'POST', token: agent.token,
@@ -417,7 +450,40 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     expect(other.statusCode).toBe(404);
 
     fixture('bootstrap.json', again.body);
+    fixture('bootstrap-peek.json', peek.body);
     fixture('finish.json', finish.body);
+  });
+
+  it('coach-summary v2 rebuilds the recap from the saved rows, streams NDJSON text, and persists it', async () => {
+    // The session above is finished; the model call is the scripted stream.
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-ant-integration');
+    const c = makeRes();
+    const chunks: string[] = [];
+    (c.res as unknown as { write: (s: string) => boolean }).write = (s: string) => { chunks.push(s); return true; };
+    (c.res as unknown as { on: () => unknown }).on = () => c.res;
+    await coachSummaryHandler(makeReq({
+      method: 'POST', token: agent.token,
+      body: { eventId: TRACKED_OCCURRENCE, eventDate: '2026-09-22' },
+    }), c.res);
+    const events = chunks.join('').trim().split('\n').map(l => JSON.parse(l) as Record<string, unknown>);
+    expect(events.map(e => e.type)).toEqual(['text', 'text', 'done']);
+
+    // Persisted on the session, so reopening the summary is free.
+    const { data: row } = await getSupabaseAdmin()!
+      .from('workout_sessions').select('coach_summary')
+      .eq('user_id', agent.userId).eq('event_id', TRACKED_OCCURRENCE).eq('event_date', '2026-09-22').single();
+    expect(row?.coach_summary).toBe('Strong session — a new estimated 1RM on Fixture Press.');
+
+    // A session that never finished is refused, not summarised.
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-ant-integration');
+    const early = makeRes();
+    await coachSummaryHandler(makeReq({
+      method: 'POST', token: agent.token,
+      body: { eventId: `${EVENT_ID}__2026-09-29`, eventDate: '2026-09-29' },
+    }), early.res);
+    expect(early.statusCode).toBe(409);
+
+    fixture('coach-summary.ndjson', chunks.join(''));
   });
 
   it('chat v2: the server builds the prompt from the caller\'s data and labels tool calls', async () => {

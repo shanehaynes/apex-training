@@ -29,7 +29,7 @@ say so.
 2. **Fixture contract tests** — a vitest in the web repo
    (`api/__tests__/fixtures/emitIosFixtures.test.ts`) runs the real handlers against the local
    stack and writes canonical responses to `ios/Fixtures/`: `schedule.json`,
-   `bootstrap.json`, `finish.json`, `chat-stream.ndjson`, `analytics-compute.json`,
+   `bootstrap.json`, `bootstrap-peek.json`, `finish.json`, `chat-stream.ndjson`, `coach-summary.ndjson`, `analytics-compute.json`,
    `query-*.json`, `profile.json`. `swift test` decodes every file. The emitter runs inside the
    integration suite (`api/__tests__/integration/ios-read.integration.test.ts`): by default it
    **checks** the committed files and fails on drift; `APEX_FIXTURES_WRITE=1` regenerates them
