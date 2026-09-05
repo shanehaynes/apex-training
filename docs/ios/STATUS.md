@@ -10,16 +10,16 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 |---|---|---|---|---|
 | W0 | Backend read foundation | done (PR #95) | Linux | no migration |
 | W1 | iOS scaffold + app icon + CI | done | Mac | TestFlight build 0 (0.1.0/285) shipped and installed |
-| W2 | Schedule read, cache, realtime, auth links | in review (A0 #110, A #111, B #112 merged; C #114 open) | Mac | first TestFlight with value |
+| W2 | Schedule read, cache, realtime, auth links | done (#110, #111, #112, #114) | Mac | TestFlight build 1 + device runs are Shane's |
 | W3 | Backend tracker consolidation | done (PR #96) | Linux | web switched in the same PR |
 | W4 | Tracker UI + write queue | in review (A #117, B #118, C) | Mac | code complete; TestFlight build 2 + Shane's airplane-mode device run outstanding |
 | W5a | Backend chat v2 (server prompt) | done (PR #98) | Linux | web switched in the same PR |
 | W5b | Backend `/api/coach-tool` | done (PR #99) | Linux | services extracted; web confirm switched |
 | W6 | Coach tab | ready | Mac | W5a + W5b done |
-| W7 | Event CRUD + builder | blocked on W2 | Mac | W5b done |
+| W7 | Event CRUD + builder | ready | Mac | W2 + W5b done |
 | W8 | Backend analytics compute | done (PR #100) | Linux | web keeps its browser path |
 | W9 | Analytics tab (editable layout) | blocked on W6 | Mac | W8 done |
-| W10 | Library, Blocks, Meals | blocked on W2 | both | small cycle endpoint |
+| W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
 | W11 | Profile, integrations, account | ready | both | the only migration (`provider_connections.client`) |
 | W12 | Live Activity | ready once W4 merges | Mac | `ApexWidgets` target; tracker start/finish/cancel hooks are in `TrackerModel` |
 | W13 | Release + polish | blocked | Mac | App Store gate |
@@ -65,6 +65,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   until a password lands, `SetPasswordView` with the terms toggle, `AppModel.open` routing,
   `AuthLinkUITests` on the mock; invite hand-off and spent link proved on the simulator with
   minted tokens.
+- 2026-09-05 · W2 · All four PRs merged (#110, #111, #112, #114); phase40 applied in prod by
+  Shane. W7 and W10 unblocked.
 
 - 2026-09-05 · W4 · Plan and PR A: `ApexCore.TrackerEditor` (edits, shadow commits, extra
   sets, swap, zero-fill, row serialisers), `WriteQueue` + `WriteQueueStore` + `RetryPolicy`
