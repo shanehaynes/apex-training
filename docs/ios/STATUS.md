@@ -12,7 +12,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W1 | iOS scaffold + app icon + CI | done | Mac | TestFlight build 0 (0.1.0/285) shipped and installed |
 | W2 | Schedule read, cache, realtime, auth links | in review (A0 #110, A #111, B #112 merged; C #114 open) | Mac | first TestFlight with value |
 | W3 | Backend tracker consolidation | done (PR #96) | Linux | web switched in the same PR |
-| W4 | Tracker UI + write queue | in progress (feat/w4-tracker; PR A in review) | Mac | A = ApexCore editor + queue + peek bootstrap; B = tracker UI; C = flush driver + TestFlight 2 |
+| W4 | Tracker UI + write queue | in progress (A #117, B in review; C next) | Mac | A = ApexCore editor + queue + peek bootstrap; B = GRDB store + tracker UI; C = flush driver + TestFlight 2 |
 | W5a | Backend chat v2 (server prompt) | done (PR #98) | Linux | web switched in the same PR |
 | W5b | Backend `/api/coach-tool` | done (PR #99) | Linux | services extracted; web confirm switched |
 | W6 | Coach tab | ready | Mac | W5a + W5b done |
@@ -70,6 +70,16 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   `DurationBuffer`/`CountSpec`/`SessionScore` ports (D-024), tracker `Endpoint`s, a streaming
   seam on `HTTPTransport`/`ApexClient`, backend `bootstrap { peek: true }`, fixtures
   `bootstrap-peek.json` + `coach-summary.ndjson`. 170 `swift test` cases green.
+
+- 2026-09-05 · W4 · PR B: `GRDBWriteQueueStore` + `v2_tracker_ops`, `TrackerModel` over editor +
+  queue (render-first open, offline start from a cached peek, 800 ms debounce → queued save,
+  finish gate → queued finish + completion, offline finish with "PRs pending sync", cancel
+  purge, swap over cached definitions, streamed coach summary with 402/409/in-band degrade),
+  the tracker views (`fullScreenCover` from the event sheet's live Start Workout, keyboard
+  accessory Next/Done/Use last/Abc·123, keyboard-avoiding confirm bar and score card, summary
+  overlay, swap picker, sync strip), peek prefetch in `ScheduleModel`, mock routes, 14 snapshots.
+  Proved live on the simulator against the local stack: open → log → finish → server rows,
+  autofill and completion all correct.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)

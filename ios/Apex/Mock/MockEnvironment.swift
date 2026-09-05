@@ -90,8 +90,17 @@ actor FixtureTransport: HTTPTransport {
                 return ok(Data(#"{"ok":true}"#.utf8))
             case ("POST", "/api/workout-sessions"):
                 let body = request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-                if body?["action"] as? String == "bootstrap" { return ok(try Fixtures.data("bootstrap.json")) }
-                return ok(Data(#"{"ok":true}"#.utf8))
+                switch body?["action"] as? String {
+                case "bootstrap" where body?["peek"] as? Bool == true: return ok(try Fixtures.data("bootstrap-peek.json"))
+                case "bootstrap": return ok(try Fixtures.data("bootstrap.json"))
+                case "finish": return ok(try Fixtures.data("finish.json"))
+                default: return ok(Data(#"{"ok":true}"#.utf8))
+                }
+            case ("POST", "/api/coach-summary"):
+                return HTTPResponse(
+                    status: 200, headers: ["Content-Type": "application/x-ndjson; charset=utf-8"],
+                    body: try Fixtures.data("coach-summary.ndjson")
+                )
             default:
                 return HTTPResponse(status: 404, headers: [:], body: Data("no fixture for \(method) \(path)".utf8))
             }

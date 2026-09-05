@@ -26,6 +26,15 @@ public enum ApexIcon: String, CaseIterable, Sendable {
     case sparkles = "sparkles"
     case person = "person"
     case plus = "plus"
+    // W4 — the tracker.
+    case flag = "flag.fill"
+    case trophy = "trophy"
+    case swap = "arrow.2.squarepath"
+    case close = "xmark"
+    case trash = "trash"
+    case pendingSync = "arrow.triangle.2.circlepath"
+    case warning = "exclamationmark.triangle"
+    case ghost = "wand.and.stars"
 
     /// Light weight, like the web's 1.5px lucide strokes.
     public var image: some View {

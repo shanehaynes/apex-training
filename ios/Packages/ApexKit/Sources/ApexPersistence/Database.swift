@@ -48,6 +48,25 @@ public enum ApexDatabase {
             }
         }
 
+        // W4: the tracker write queue (architecture.md §7). `owner` is the
+        // signed-in user: unsynced ops outlive a sign-out and must never flush
+        // under another account.
+        migrator.registerMigration("v2_tracker_ops") { db in
+            try db.create(table: "tracker_ops") { table in
+                table.autoIncrementedPrimaryKey("id")
+                table.column("owner", .text).notNull()
+                table.column("event_id", .text).notNull()
+                table.column("event_date", .text).notNull()
+                table.column("action", .text).notNull()
+                table.column("payload", .blob).notNull()
+                table.column("created_at", .double).notNull()
+                table.column("attempts", .integer).notNull().defaults(to: 0)
+                table.column("last_error", .text)
+                table.column("state", .text).notNull()
+            }
+            try db.create(index: "tracker_ops_session", on: "tracker_ops", columns: ["owner", "event_id", "event_date", "state", "id"])
+        }
+
         return migrator
     }
 }

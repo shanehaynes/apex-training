@@ -187,6 +187,24 @@ final class DurationBufferTests: XCTestCase {
         XCTAssertEqual(entry.mode, .text)
     }
 
+    func testTheAccessoryTogglesModesByHand() {
+        var entry = DurationEntry(value: "")
+        entry.beginEditing()
+        _ = entry.change(raw: "1")
+        _ = entry.change(raw: "0:015")
+        // "Abc": the typed digits become the seed (what the user actually typed, not the display).
+        XCTAssertEqual(entry.setMode(.text, stored: "15s"), "15")
+        XCTAssertEqual(entry.mode, .text)
+        XCTAssertNil(entry.setMode(.text, stored: "15"), "already there")
+        // "123" only returns when the stored value is a plain duration.
+        XCTAssertNil(entry.setMode(.stopwatch, stored: "10s on 5s off"))
+        XCTAssertEqual(entry.mode, .text)
+        XCTAssertNil(entry.setMode(.stopwatch, stored: "0:15"))
+        XCTAssertEqual(entry.mode, .stopwatch)
+        XCTAssertEqual(entry.buffer, "", "focused, so the buffer reopens empty")
+        XCTAssertEqual(entry.display(stored: "0:15"), "")
+    }
+
     func testPlaceholderPrefersTheGhostWhenNothingIsStored() {
         let entry = DurationEntry(value: "")
         XCTAssertEqual(entry.placeholder(stored: "", ghost: "1:45"), "1:45")

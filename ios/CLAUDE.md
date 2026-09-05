@@ -111,6 +111,9 @@ shows the spent-link toast. A signed build (Keychain) is needed for the session 
 credentials, and fixes "today" to 2026-09-08, the day the fixtures put four events on. This is
 what the XCUITest smoke runs on, because CI's unsigned build has no Keychain (below).
 `-apexMockFail completions` makes `POST /api/completions` answer 500, for the rollback path.
+The tracker (W4) is answered too: `bootstrap` → `bootstrap.json` (or `bootstrap-peek.json` with
+`peek: true`), `finish` → `finish.json`, `POST /api/coach-summary` → `coach-summary.ndjson`;
+`save`/`swap-exercise`/`cancel` → `{"ok":true}`.
 Under the mock an `apextraining://auth#…type=invite` link lands on set-password without GoTrue,
 which is how `AuthLinkUITests` covers that screen in CI.
 
