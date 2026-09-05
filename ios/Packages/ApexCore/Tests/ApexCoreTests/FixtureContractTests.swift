@@ -157,6 +157,34 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertEqual(row.cardio?.isLogged, false)
     }
 
+    /// `peek: true` reads the model without creating the session: the plan and
+    /// shadows come back, `session` is null, and nothing is stamped.
+    func testPeekBootstrapDecodesWithoutASession() throws {
+        let peek = try decode(TrackerBootstrap.self, from: "bootstrap-peek.json")
+        XCTAssertNil(peek.session)
+        XCTAssertEqual(peek.event?.title, "Fixture Push Day")
+        XCTAssertEqual(peek.groups.count, 1)
+        XCTAssertEqual(peek.prs, [])
+        XCTAssertNil(peek.scoreRecord)
+        let press = peek.groups[0].exercises[0]
+        XCTAssertEqual(press.sets.map(\.isLogged), [false, false])
+        XCTAssertEqual(press.sets[0].shadow?.weight, "100 lb")
+        XCTAssertEqual(press.sets[1].shadow?.weight, "110 lb")
+    }
+
+    /// The workout summary is the coach wire with no tools: text deltas then done.
+    func testCoachSummaryStreamDecodes() throws {
+        var parser = NDJSONLineParser()
+        var events: [ChatWireEvent] = []
+        for line in parser.consume(try load("coach-summary.ndjson")) + parser.finish() {
+            events.append(try JSONDecoder().decode(ChatWireEvent.self, from: Data(line.utf8)))
+        }
+        XCTAssertEqual(events.count, 3)
+        XCTAssertEqual(events[0], .text(delta: "Strong session — "))
+        XCTAssertEqual(events[1], .text(delta: "a new estimated 1RM on Fixture Press."))
+        XCTAssertEqual(events[2], .done)
+    }
+
     func testFinishDecodes() throws {
         let finish = try decode(FinishResponse.self, from: "finish.json")
         XCTAssertTrue(finish.ok)

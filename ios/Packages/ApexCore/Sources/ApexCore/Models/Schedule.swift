@@ -87,7 +87,9 @@ public struct Occurrence: Codable, Sendable, Equatable {
 
 public struct Exercise: Codable, Sendable, Equatable {
     public let id: String
-    public let name: String
+    /// `name` and `definitionId` are `var`: a tracker swap relabels the logged
+    /// rows onto another definition (`TrackerEditor.swap`). The id never moves.
+    public var name: String
     public let category: String?
     public let sets: Int?
     public let reps: String?
@@ -103,11 +105,38 @@ public struct Exercise: Codable, Sendable, Equatable {
     public let climbStyle: String?
     public let grade: String?
     public let ascentStyle: String?
-    public let definitionId: String?
+    public var definitionId: String?
     public let muscleGroups: [String]?
     public let notes: String?
     public let imageUrl: String?
     public let techniqueNotes: String?
+
+    public init(
+        id: String, name: String, category: String? = nil, sets: Int? = nil, reps: String? = nil,
+        weight: String? = nil, duration: String? = nil, restPeriod: String? = nil, plannedSets: [PlannedSet]? = nil,
+        superset: String? = nil, climbStyle: String? = nil, grade: String? = nil, ascentStyle: String? = nil,
+        definitionId: String? = nil, muscleGroups: [String]? = nil, notes: String? = nil,
+        imageUrl: String? = nil, techniqueNotes: String? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.category = category
+        self.sets = sets
+        self.reps = reps
+        self.weight = weight
+        self.duration = duration
+        self.restPeriod = restPeriod
+        self.plannedSets = plannedSets
+        self.superset = superset
+        self.climbStyle = climbStyle
+        self.grade = grade
+        self.ascentStyle = ascentStyle
+        self.definitionId = definitionId
+        self.muscleGroups = muscleGroups
+        self.notes = notes
+        self.imageUrl = imageUrl
+        self.techniqueNotes = techniqueNotes
+    }
 }
 
 public struct ExerciseDefinition: Codable, Sendable, Equatable {
@@ -120,6 +149,40 @@ public struct ExerciseDefinition: Codable, Sendable, Equatable {
     public let imageUrl: String?
     public let techniqueNotes: String?
     public let isUnilateral: Bool?
+    /// The default prescription (`rowToDefinition` in src/lib/schedule/definitions.ts).
+    /// The tracker's swap picker reads these to decide which inputs a
+    /// swapped-in movement gets; the server omits them when null.
+    public let defaultSets: Int?
+    public let defaultReps: String?
+    public let defaultDuration: String?
+    public let defaultWeight: String?
+    public let defaultRest: String?
+    /// Set once archived; the swap picker hides archived movements.
+    public let archivedAt: String?
+
+    public init(
+        id: String, canonicalName: String, aliases: [String]? = nil, category: String? = nil,
+        muscleGroups: [String]? = nil, equipment: [String]? = nil, imageUrl: String? = nil,
+        techniqueNotes: String? = nil, isUnilateral: Bool? = nil, defaultSets: Int? = nil,
+        defaultReps: String? = nil, defaultDuration: String? = nil, defaultWeight: String? = nil,
+        defaultRest: String? = nil, archivedAt: String? = nil
+    ) {
+        self.id = id
+        self.canonicalName = canonicalName
+        self.aliases = aliases
+        self.category = category
+        self.muscleGroups = muscleGroups
+        self.equipment = equipment
+        self.imageUrl = imageUrl
+        self.techniqueNotes = techniqueNotes
+        self.isUnilateral = isUnilateral
+        self.defaultSets = defaultSets
+        self.defaultReps = defaultReps
+        self.defaultDuration = defaultDuration
+        self.defaultWeight = defaultWeight
+        self.defaultRest = defaultRest
+        self.archivedAt = archivedAt
+    }
 }
 
 public struct WorkoutTemplate: Codable, Sendable, Equatable {

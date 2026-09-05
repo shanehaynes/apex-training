@@ -12,7 +12,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W1 | iOS scaffold + app icon + CI | done | Mac | TestFlight build 0 (0.1.0/285) shipped and installed |
 | W2 | Schedule read, cache, realtime, auth links | in review (A0 #110, A #111, B #112 merged; C #114 open) | Mac | first TestFlight with value |
 | W3 | Backend tracker consolidation | done (PR #96) | Linux | web switched in the same PR |
-| W4 | Tracker UI + write queue | ready | Mac | W3 done |
+| W4 | Tracker UI + write queue | in progress (feat/w4-tracker; PR A in review) | Mac | A = ApexCore editor + queue + peek bootstrap; B = tracker UI; C = flush driver + TestFlight 2 |
 | W5a | Backend chat v2 (server prompt) | done (PR #98) | Linux | web switched in the same PR |
 | W5b | Backend `/api/coach-tool` | done (PR #99) | Linux | services extracted; web confirm switched |
 | W6 | Coach tab | ready | Mac | W5a + W5b done |
@@ -63,6 +63,13 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   until a password lands, `SetPasswordView` with the terms toggle, `AppModel.open` routing,
   `AuthLinkUITests` on the mock; invite hand-off and spent link proved on the simulator with
   minted tokens.
+
+- 2026-09-05 · W4 · Plan and PR A: `ApexCore.TrackerEditor` (edits, shadow commits, extra
+  sets, swap, zero-fill, row serialisers), `WriteQueue` + `WriteQueueStore` + `RetryPolicy`
+  (per-session FIFO, save coalescing, backoff, pause on 401, failed-op surfacing, cancel purge),
+  `DurationBuffer`/`CountSpec`/`SessionScore` ports (D-024), tracker `Endpoint`s, a streaming
+  seam on `HTTPTransport`/`ApexClient`, backend `bootstrap { peek: true }`, fixtures
+  `bootstrap-peek.json` + `coach-summary.ndjson`. 170 `swift test` cases green.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)

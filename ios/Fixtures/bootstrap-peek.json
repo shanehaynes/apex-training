@@ -1,0 +1,134 @@
+{
+  "session": null,
+  "event": {
+    "id": "ios-fixture-weekly__2026-09-22",
+    "type": "weights",
+    "title": "Fixture Push Day",
+    "date": "2026-09-22",
+    "startTime": "17:30",
+    "endTime": "18:30",
+    "estimatedDuration": 60,
+    "description": "W0 fixture",
+    "warmup": [],
+    "exercises": [
+      {
+        "id": "fx-press",
+        "name": "Fixture Press",
+        "reps": "5",
+        "sets": 2,
+        "weight": "100 lb",
+        "category": "strength",
+        "restPeriod": "2 min",
+        "definitionId": "ios-fixture-def",
+        "muscleGroups": [
+          "chest"
+        ]
+      },
+      {
+        "id": "fx-row",
+        "name": "Fixture Row",
+        "category": "cardio",
+        "duration": "20 min"
+      }
+    ],
+    "cooldown": [],
+    "difficulty": 3,
+    "tags": [
+      "fixture"
+    ],
+    "equipment": [],
+    "isCompleted": false,
+    "isRecurring": true,
+    "recurrenceRule": "FREQ=WEEKLY;BYDAY=TU;UNTIL=20261027"
+  },
+  "groups": [
+    {
+      "section": "exercise",
+      "label": "Main Work",
+      "exercises": [
+        {
+          "section": "exercise",
+          "exercise": {
+            "id": "fx-press",
+            "name": "Fixture Press",
+            "reps": "5",
+            "sets": 2,
+            "weight": "100 lb",
+            "category": "strength",
+            "restPeriod": "2 min",
+            "definitionId": "ios-fixture-def",
+            "muscleGroups": [
+              "chest"
+            ]
+          },
+          "substitutedFrom": null,
+          "isCardio": false,
+          "sets": [
+            {
+              "setNumber": 1,
+              "planned": {
+                "setNumber": 1,
+                "targetWeight": "100 lb",
+                "targetReps": "5"
+              },
+              "actualWeight": "",
+              "actualReps": "",
+              "actualDuration": "",
+              "isLogged": false,
+              "isAutofilled": false,
+              "isExtra": false,
+              "shadow": {
+                "weight": "100 lb",
+                "reps": "5",
+                "duration": ""
+              }
+            },
+            {
+              "setNumber": 2,
+              "planned": {
+                "setNumber": 2,
+                "targetWeight": "100 lb",
+                "targetReps": "5"
+              },
+              "actualWeight": "",
+              "actualReps": "",
+              "actualDuration": "",
+              "isLogged": false,
+              "isAutofilled": false,
+              "isExtra": false,
+              "shadow": {
+                "weight": "110 lb",
+                "reps": "3",
+                "duration": ""
+              }
+            }
+          ],
+          "cardio": null
+        },
+        {
+          "section": "exercise",
+          "exercise": {
+            "id": "fx-row",
+            "name": "Fixture Row",
+            "category": "cardio",
+            "duration": "20 min"
+          },
+          "substitutedFrom": null,
+          "isCardio": true,
+          "sets": [],
+          "cardio": {
+            "durationMinutes": "",
+            "distance": "",
+            "elevationGain": "",
+            "avgHeartRate": "",
+            "isLogged": false,
+            "shadow": null
+          }
+        }
+      ]
+    }
+  ],
+  "scored": false,
+  "prs": [],
+  "scoreRecord": null
+}

@@ -175,7 +175,8 @@ function describeScore(record: WorkoutScoreRecord | null): WireScoreRecord | nul
 }
 
 export interface TrackerBootstrap {
-  session: WorkoutSessionRow;
+  /** Null only for a `peek` bootstrap of a session that has never started. */
+  session: WorkoutSessionRow | null;
   event: WorkoutEvent;
   groups: TrackedSectionGroup[];
   scored: boolean;
@@ -188,7 +189,7 @@ export interface TrackerBootstrap {
 export async function buildBootstrap(
   supabase: Admin,
   userId: string,
-  session: WorkoutSessionRow,
+  session: WorkoutSessionRow | null,
   event: WorkoutEvent,
 ): Promise<TrackerBootstrap> {
   const saved = await loadSavedRows(supabase, userId, event.id, event.date);
@@ -199,7 +200,7 @@ export async function buildBootstrap(
   );
   let prs: WirePersonalRecord[] = [];
   let scoreRecord: WireScoreRecord | null = null;
-  if (session.finished_at) {
+  if (session?.finished_at) {
     prs = describePRs(computeSessionPRs(groups, hist.history, hist.cardioHistory));
     const score = sessionScoreFromRow(session);
     scoreRecord = describeScore(score ? computeWorkoutScorePR(score, hist.scoreHistory) : null);
