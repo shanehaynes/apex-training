@@ -1,7 +1,7 @@
 # W2 — Schedule: read, cache, realtime, auth links
 
 **Machine:** Mac (+ a small web change) · **Depends on:** W0, W1 · **Unblocks:** W4, W7, W10
-**Status:** in review — A0 #110, A #111, B #112 merged; C #114 open; then TestFlight build 1
+**Status:** done (#110, #111, #112, #114) — TestFlight build 1 and the device runs are Shane's
 
 ## Goal
 The first vertical slice with daily value: open the app, see today and the month, open a
