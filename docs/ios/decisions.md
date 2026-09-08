@@ -250,3 +250,29 @@ Also recorded here from W2: month chips (22pt) cannot host a 44pt completion con
 met through the day sheet's rows — one tap from any month cell — rather than a control on the
 chip itself.
 
+## D-024 · Keystroke-time helpers ported to Swift (D-008 exceptions, W4)
+**Status:** decided · W4 session · 2026-09-05
+In the D-023 mould — logic that runs before a request exists, so the server cannot own it —
+four more `src/lib` pieces with tests are ported with their vectors copied verbatim into
+`ApexCore` tests: `durationBuffer.ts` (the stopwatch digit buffer; `DurationBufferTests`),
+the count-convention helpers in `schedule/definitions.ts` (`hasPerSideCount`,
+`stripCountSpec`, `countSpecNote`; `CountSpecTests`), `formatElapsed`/`formatSeconds` and
+the score shape/format from `tracking/records.ts` (`SessionScore`), and the component-local
+`inputFields` from `TrackerExercise.tsx` (`TrackerEditorTests`). PR detection, model
+construction and shadow selection stay server-side; `TrackerEditor` only mutates what the
+server built.
+
+Also decided in W4:
+- **`bootstrap { peek: true }`** (backend-changes.md, W3 addendum). Without a non-creating
+  read the brief's airplane-mode criterion — `started_at` equal to the offline start — was
+  unmeetable: a workout never opened online had nothing cached, and one opened online already
+  carried a server stamp.
+- **`ScheduleModel.toggleCompletion` stays direct.** The W3 hand-off described it as "marked
+  for `WriteQueue.enqueue`"; the code carries no such marker and its contract (authoritative
+  write, immediate rollback, then a server plan-fill) would race queued tracker ops for the
+  same session. W4 adds the `.completion` op the tracker needs for finish/cancel; an offline
+  toggle is a separate, small follow-up once its ordering against `quick-complete` is specified.
+- **Queued ops survive sign-out** under an `owner` column and never flush under another user;
+  a stamp the server rejects as outside its 7-day window is re-sent once unstamped (data lands,
+  duration lost) and a second refusal leaves the op `failed`; a `failed` op does not block later
+  ops for its session — Retry/Discard resolves it.

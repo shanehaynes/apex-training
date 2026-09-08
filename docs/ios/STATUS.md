@@ -12,7 +12,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W1 | iOS scaffold + app icon + CI | done | Mac | TestFlight build 0 (0.1.0/285) shipped and installed |
 | W2 | Schedule read, cache, realtime, auth links | done (#110, #111, #112, #114) | Mac | TestFlight build 1 + device runs are Shane's |
 | W3 | Backend tracker consolidation | done (PR #96) | Linux | web switched in the same PR |
-| W4 | Tracker UI + write queue | ready | Mac | W3 done |
+| W4 | Tracker UI + write queue | in progress (feat/w4-tracker; PR A in review) | Mac | A = ApexCore editor + queue + peek bootstrap; B = tracker UI; C = flush driver + TestFlight 2 |
 | W5a | Backend chat v2 (server prompt) | done (PR #98) | Linux | web switched in the same PR |
 | W5b | Backend `/api/coach-tool` | done (PR #99) | Linux | services extracted; web confirm switched |
 | W6 | Coach tab | ready | Mac | W5a + W5b done |
@@ -65,6 +65,13 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   minted tokens.
 - 2026-09-05 · W2 · All four PRs merged (#110, #111, #112, #114); phase40 applied in prod by
   Shane. W7 and W10 unblocked.
+
+- 2026-09-05 · W4 · Plan and PR A: `ApexCore.TrackerEditor` (edits, shadow commits, extra
+  sets, swap, zero-fill, row serialisers), `WriteQueue` + `WriteQueueStore` + `RetryPolicy`
+  (per-session FIFO, save coalescing, backoff, pause on 401, failed-op surfacing, cancel purge),
+  `DurationBuffer`/`CountSpec`/`SessionScore` ports (D-024), tracker `Endpoint`s, a streaming
+  seam on `HTTPTransport`/`ApexClient`, backend `bootstrap { peek: true }`, fixtures
+  `bootstrap-peek.json` + `coach-summary.ndjson`. 170 `swift test` cases green.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)

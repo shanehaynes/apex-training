@@ -93,8 +93,8 @@ public struct Endpoint: Sendable, Equatable {
     }
 
     /// The tracker session actions that need only an occurrence: the plan-filled
-    /// `quick-complete` and its undo `quick-uncomplete`. W4 adds the bodies
-    /// that carry logs.
+    /// `quick-complete` and its undo `quick-uncomplete`. The log-carrying
+    /// actions go through `tracker(_:session:)`.
     public static func workoutSessions(action: String, eventId: String, eventDate: String) -> Endpoint {
         struct Body: Encodable {
             let action: String
@@ -106,5 +106,104 @@ public struct Endpoint: Sendable, Equatable {
             path: "api/workout-sessions",
             body: json(Body(action: action, eventId: eventId, eventDate: eventDate))
         )
+    }
+
+    // MARK: - W4 tracker
+
+    /// Open the tracker: the server-built model (plan × saved rows × shadows).
+    /// Creates the session unless `peek` — the offline prefetch must never stamp
+    /// a `started_at` nobody chose. `startedAt` carries a queued offline start
+    /// so both paths converge on the same time (ISO; the server bounds it).
+    public static func trackerBootstrap(
+        eventId: String, eventDate: String, startedAt: String? = nil, peek: Bool = false
+    ) -> Endpoint {
+        struct Body: Encodable {
+            let action = "bootstrap"
+            let eventId: String
+            let eventDate: String
+            let startedAt: String?
+            let peek: Bool?
+        }
+        return sessions(Body(eventId: eventId, eventDate: eventDate, startedAt: startedAt, peek: peek ? true : nil))
+    }
+
+    /// One queued tracker op as the request that lands it. Bodies carry only
+    /// the fields the handler reads for that action; optionals that are nil are
+    /// omitted, which the handler treats as "server decides".
+    public static func tracker(_ payload: TrackerOpPayload, session: SessionKey) -> Endpoint {
+        switch payload {
+        case .start(let startedAt):
+            struct Body: Encodable {
+                let action = "start"
+                let eventId: String
+                let eventDate: String
+                let startedAt: String?
+            }
+            return sessions(Body(eventId: session.eventId, eventDate: session.eventDate, startedAt: startedAt))
+
+        case .save(let save):
+            struct Body: Encodable {
+                let action = "save"
+                let eventId: String
+                let eventDate: String
+                let setLogs: [SetLogRow]
+                let cardioLogs: [CardioLogRow]
+                let removedSets: [SetKey]
+            }
+            return sessions(Body(
+                eventId: session.eventId, eventDate: session.eventDate,
+                setLogs: save.setLogs, cardioLogs: save.cardioLogs, removedSets: save.removedSets
+            ))
+
+        case .finish(let finish):
+            struct Body: Encodable {
+                let action = "finish"
+                let eventId: String
+                let eventDate: String
+                let autofillRows: [SetLogRow]
+                let finishedAt: String?
+                let score: ScoreSubmission?
+            }
+            return sessions(Body(
+                eventId: session.eventId, eventDate: session.eventDate,
+                autofillRows: finish.autofillRows, finishedAt: finish.finishedAt, score: finish.score
+            ))
+
+        case .cancel:
+            return workoutSessions(action: "cancel", eventId: session.eventId, eventDate: session.eventDate)
+
+        case .swapExercise(let swap):
+            struct Body: Encodable {
+                let action = "swap-exercise"
+                let eventId: String
+                let eventDate: String
+                let section: String
+                let exerciseId: String
+                let exerciseName: String
+                let definitionId: String?
+            }
+            return sessions(Body(
+                eventId: session.eventId, eventDate: session.eventDate, section: swap.section,
+                exerciseId: swap.exerciseId, exerciseName: swap.exerciseName, definitionId: swap.definitionId
+            ))
+
+        case .completion(let completionRow, let logRow):
+            return completions(completionRow: completionRow, logRow: logRow)
+        }
+    }
+
+    /// The post-workout coach summary, streamed as NDJSON (`text` · `done` ·
+    /// `error`). The server rebuilds the recap from the saved rows and persists
+    /// what it streamed; 409 until the session is finished.
+    public static func coachSummary(eventId: String, eventDate: String) -> Endpoint {
+        struct Body: Encodable {
+            let eventId: String
+            let eventDate: String
+        }
+        return Endpoint(method: .post, path: "api/coach-summary", body: json(Body(eventId: eventId, eventDate: eventDate)))
+    }
+
+    private static func sessions<T: Encodable>(_ body: T) -> Endpoint {
+        Endpoint(method: .post, path: "api/workout-sessions", body: json(body))
     }
 }
