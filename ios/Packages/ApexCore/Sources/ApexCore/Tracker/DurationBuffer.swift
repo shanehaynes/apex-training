@@ -186,6 +186,23 @@ public struct DurationEntry: Equatable, Sendable {
         }
     }
 
+    /// The keyboard accessory's "Abc" / "123": switch modes by hand. Into text,
+    /// the current display becomes the seed; back to stopwatch only when the
+    /// stored value is a plain duration (anything else would be dropped).
+    /// Returns the value to store when the switch changed it.
+    public mutating func setMode(_ target: Mode, stored: String) -> String? {
+        guard target != mode else { return nil }
+        switch target {
+        case .text:
+            return switchToText(display(stored: stored))
+        case .stopwatch:
+            guard DurationBuffer.isPlain(stored) else { return nil }
+            mode = .stopwatch
+            buffer = isFocused ? "" : nil
+            return nil
+        }
+    }
+
     /// Backspace with an empty buffer clears a stored value outright — without
     /// it the user would have to type a throwaway digit first. Returns the value
     /// to store, or nil when there is nothing to clear.

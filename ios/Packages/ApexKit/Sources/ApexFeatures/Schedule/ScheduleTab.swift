@@ -6,10 +6,30 @@ import SwiftUI
 /// day and an event, the freshness line when the cache has to speak for itself.
 public struct ScheduleTab: View {
     @Bindable private var model: ScheduleModel
+    private let tracker: TrackerServices?
     @State private var sheet: ScheduleSheet?
+    @State private var trackerRoute: TrackerRoute?
+    /// Set while the event sheet is still dismissing: presenting the cover over
+    /// a sheet mid-dismiss is what produces "attempt to present while a
+    /// presentation is in progress".
+    @State private var pendingTracker: TrackerRoute?
 
-    public init(model: ScheduleModel) {
+    /// `tracker: nil` hides Start Workout (the app before a user is signed in).
+    public init(model: ScheduleModel, tracker: TrackerServices? = nil) {
         self.model = model
+        self.tracker = tracker
+    }
+
+    private var trackerDependencies: TrackerDependencies? {
+        guard let tracker else { return nil }
+        let model = self.model
+        return TrackerDependencies(
+            services: tracker,
+            definitions: { await model.definitions() },
+            onCompletionChanged: { event, isCompleted, completedAt in
+                model.applyCompletionLocally(id: event.id, isCompleted: isCompleted, completedAt: completedAt)
+            }
+        )
     }
 
     public var body: some View {
@@ -29,11 +49,18 @@ public struct ScheduleTab: View {
             .toolbarBackground(ApexColor.bgPrimary, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
         }
-        .sheet(item: $sheet) { item in
+        .sheet(item: $sheet, onDismiss: presentPendingTracker) { item in
             Group {
                 switch item {
                 case .event(let id):
-                    EventSheet(model: model, eventId: id) { sheet = nil }
+                    EventSheet(
+                        model: model, eventId: id,
+                        onStart: tracker == nil ? nil : { event in
+                            pendingTracker = TrackerRoute(event: event)
+                            sheet = nil
+                        },
+                        onClose: { sheet = nil }
+                    )
                 case .day(let day):
                     DaySheet(model: model, day: day, onOpenEvent: { sheet = .event(id: $0.id) }, onClose: { sheet = nil })
                 }
@@ -42,7 +69,18 @@ public struct ScheduleTab: View {
             .presentationDragIndicator(.visible)
             .presentationBackground(ApexColor.bgSurface)
         }
+        .fullScreenCover(item: $trackerRoute) { route in
+            if let deps = trackerDependencies {
+                TrackerHost(route: route, deps: deps)
+            }
+        }
         .task { await model.start() }
+    }
+
+    private func presentPendingTracker() {
+        guard let route = pendingTracker else { return }
+        pendingTracker = nil
+        trackerRoute = route
     }
 
     @ViewBuilder

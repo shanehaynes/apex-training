@@ -14,6 +14,9 @@ public struct ScheduleDependencies: Sendable {
     public var timeZone: TimeZone
     /// `Calendar` convention: 1 = Sunday, 2 = Monday.
     public var firstWeekday: Int
+    /// Peek-bootstrap today's and tomorrow's workouts after each refresh so the
+    /// tracker can start offline (W4). Off in tests that count requests.
+    public var prefetchesTracker: Bool
 
     public init(
         client: ApexClient,
@@ -22,7 +25,8 @@ public struct ScheduleDependencies: Sendable {
         streams: (any ActivityStreamsReading)? = nil,
         realtime: (any RealtimeChanges)? = nil,
         timeZone: TimeZone = .current,
-        firstWeekday: Int = Calendar.current.firstWeekday
+        firstWeekday: Int = Calendar.current.firstWeekday,
+        prefetchesTracker: Bool = true
     ) {
         self.client = client
         self.cache = cache
@@ -31,6 +35,7 @@ public struct ScheduleDependencies: Sendable {
         self.realtime = realtime
         self.timeZone = timeZone
         self.firstWeekday = firstWeekday
+        self.prefetchesTracker = prefetchesTracker
     }
 }
 
@@ -152,6 +157,7 @@ public final class ScheduleModel {
             if let templates = response.templates, let json = try? JSONEncoder().encode(templates) {
                 try? await deps.cache.write(CacheEntry(kind: .templates, key: ScheduleCacheKey.templates, json: json, fetchedAt: now))
             }
+            if deps.prefetchesTracker { Task { await self.prefetchTrackerBootstraps() } }
         } catch {
             lastRefreshFailed = true
             let message = Self.readable(error)
@@ -186,6 +192,14 @@ public final class ScheduleModel {
 
     public func events(on day: DayKey) -> [ScheduleEvent] { index?.events(on: day) ?? [] }
     public func event(id: String) -> ScheduleEvent? { index?.event(id: id) }
+
+    /// The cached exercise definitions — the tracker's swap picker reads these
+    /// (`search_exercises` carries no ids).
+    public func definitions() async -> [ExerciseDefinition] {
+        guard let entry = try? await deps.cache.read(kind: .definitions, key: ScheduleCacheKey.definitions),
+              let decoded = try? JSONDecoder().decode([ExerciseDefinition].self, from: entry.json) else { return [] }
+        return decoded
+    }
     public func typeDots(on day: DayKey) -> [WorkoutType] { index?.typeDots(on: day) ?? [] }
     public func meals(on day: DayKey) -> MealsQueryResult.Day? { mealsByDay[day] }
 
@@ -271,6 +285,37 @@ public final class ScheduleModel {
         }
         await persistIndex()
         await refresh(reason: .afterCompletion)
+    }
+
+    /// The tracker finished or cancelled a session: flip the calendar here and in
+    /// the cache. The authoritative `/api/completions` write rides the tracker's
+    /// write queue — the web's injected `setCompletion`, made durable.
+    public func applyCompletionLocally(id: String, isCompleted: Bool, completedAt: String?) {
+        guard index != nil else { return }
+        index = index?.settingCompletion(id: id, isCompleted: isCompleted, completedAt: completedAt)
+        Task { await persistIndex() }
+    }
+
+    // MARK: - Tracker prefetch
+
+    /// `bootstrap { peek: true }` for today's and tomorrow's workouts, so a
+    /// tracker opened offline has a server-built model to start from
+    /// (architecture.md §7). Quiet, best-effort, and never over a cached session.
+    public func prefetchTrackerBootstraps() async {
+        for event in [today, today.adding(days: 1)].flatMap({ events(on: $0) }) {
+            await prefetchTracker(for: event)
+        }
+    }
+
+    public func prefetchTracker(for event: ScheduleEvent) async {
+        let key = ScheduleCacheKey.trackerBootstrap(eventId: event.id, eventDate: event.date)
+        if let entry = try? await deps.cache.read(kind: .trackerBootstrap, key: key) {
+            if (try? JSONDecoder().decode(TrackerBootstrap.self, from: entry.json))?.session != nil { return }
+            if deps.clock.now.timeIntervalSince(entry.fetchedAt) < CachePolicy.staleAfter { return }
+        }
+        guard let data = try? await deps.client.data(for: .trackerBootstrap(eventId: event.id, eventDate: event.date, peek: true)),
+              (try? JSONDecoder().decode(TrackerBootstrap.self, from: data)) != nil else { return }
+        try? await deps.cache.write(CacheEntry(kind: .trackerBootstrap, key: key, json: data, fetchedAt: deps.clock.now))
     }
 
     /// Write the current window back so an offline relaunch shows the flip.

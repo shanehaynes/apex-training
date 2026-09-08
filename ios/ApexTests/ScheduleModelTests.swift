@@ -77,7 +77,9 @@ final class ScheduleModelTests: XCTestCase {
         let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: Tokens())
         return ScheduleModel(deps: ScheduleDependencies(
             client: client, cache: cache, clock: clock, streams: nil, realtime: nil,
-            timeZone: TimeZone(identifier: "UTC")!, firstWeekday: 2
+            timeZone: TimeZone(identifier: "UTC")!, firstWeekday: 2,
+            // These tests count /api/workout-sessions calls; the tracker prefetch has its own test.
+            prefetchesTracker: false
         ))
     }
 

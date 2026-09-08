@@ -1,7 +1,7 @@
 # W4 — Tracker UI + write queue
 
 **Machine:** Mac · **Depends on:** W3 · **Unblocks:** W12
-**Status:** in progress (feat/w4-tracker — PR A in review)
+**Status:** in progress (A merged #117; B #118 in review; C #119 next)
 
 ## Goal
 The gym-floor screen — the surface where native must beat the web most. TestFlight build 2.
@@ -75,3 +75,51 @@ Out: Live Activity (W12), rest timer (Backlog).
     session). Handler unit tests untouched and green.
   - **Not done here (PR B/C):** everything Apple-side — GRDB `tracker_ops`, the tracker views
     and model, event-sheet wiring, the flush driver, UI smoke, TestFlight build 2.
+- 2026-09-05 · Mac · PR B — the tracker.
+  - **ApexPersistence:** migration `v2_tracker_ops` (with `owner`), `GRDBWriteQueueStore`
+    scoped per owner so another account never sees or flushes an earlier one's unsynced work.
+    `AppModel.ensureQueue(owner:)` builds the queue when the root learns who is signed in;
+    sign-out drops the instance and keeps the rows.
+  - **TrackerModel** (`ApexFeatures/Tracker/`): open = cached bootstrap → render → replay queued
+    saves/swaps/start/finish → flush → network bootstrap carrying any queued start stamp →
+    `replaceGroupsIfClean`. Offline with a cached peek and no session: stamp now, queue `start`,
+    cache the synthesised session. Nothing cached → "open once online". Edits: 800 ms debounce
+    (`ApexClock`, so tests are instant) → `takeSavePayload` → queued `save` → flush. Shadow
+    commits on focus (row) / per field (cardio); U28 "Use last" per exercise and in the
+    keyboard accessory. Finish gate = web's outcome order; finishing queues `finish` (autofill
+    rows, `finishedAt`, score) then `completion(true)` and flips the calendar locally
+    (`ScheduleModel.applyCompletionLocally`); `.finished` from the queue fills PRs and streams
+    the coach; offline the summary says "PRs pending sync" until then. Cancel purges the session's
+    ops, queues `cancel`, flips completion back if finished. Swap flushes first, relabels
+    locally, queues `swap-exercise`; candidates come from the cached definitions (same logged
+    shape, never archived). Coach summary: 409 → "available once the workout syncs", 402 /
+    in-band `error` / empty → the web's unavailable copy; the text is cached on the session.
+  - **Views:** `TrackerHost` (`fullScreenCover`, keeps the screen awake — U15), `TrackerScreen`
+    (header with the title on its own line and `date · elapsed` — U27; sync strip; sections;
+    Cancel workout; bottom inset for ConfirmBar / ScoreCard / failure bar so the keyboard lifts
+    them — U3; keyboard accessory Use last · Abc/123 · Next · Done with reading-order focus
+    advance — U2; haptics via `.sensoryFeedback` — U16), `TrackedExerciseView` + `SetRowView` +
+    `CardioRowView` (ghost placeholders, extra rows removable, 44pt controls), `DurationField`
+    over `DurationEntry` (decimal pad, programmatic refocus on mode change — U29), `ScoreCard`,
+    `SummaryOverlay`, `SwapPickerSheet`. `ApexUI.ConfirmBar`; eight new icons.
+  - **Schedule wiring:** `EventSheet` shows Start Workout / View · Edit Workout for every event
+    (web parity) and peeks the bootstrap on open; `ScheduleTab` presents the cover after the sheet
+    dismisses; `ScheduleModel.prefetchTrackerBootstraps` peeks today's and tomorrow's workouts
+    after each refresh (`prefetchesTracker: false` in the request-counting tests).
+  - **Mock:** `bootstrap` (+ `peek`), `finish`, `coach-summary` routes from the new fixtures.
+  - **Tests:** `WriteQueueStoreTests` (GRDB round trip, ordering, owner scoping, relaunch
+    replay), `TrackerModelTests` (15: open online / offline-cached / offline-uncached, debounce,
+    offline pending chip, finish gate, scored + skip, offline finish → PRs later, cancel, swap,
+    reopen finished, summary degrade ×4, focus walk), `TrackerSnapshotTests` (14 recorded and
+    reviewed: tracker, 16e / Pro Max / XXL, finished, confirm bars, score cards, summary ×3,
+    exercise cards, pending sync). Full `xcodebuild test` green (62 unit incl. the W2 smoke's 5
+    UI tests).
+  - **Verified live** (signed Local build, this worktree's vite on 127.0.0.1, local stack):
+    sign in → today's seeded weights event → Start Workout → bootstrap creates the session →
+    185 / Next / 5 → debounced `save` lands (`actual_weight: "185"`) → Finish → confirm bar above
+    the keyboard → Finish anyway → server: `finished_at`, `total_duration_seconds: 105`, set 2
+    and the plank zero-filled `is_autofilled`, completion row `is_completed: true` → summary
+    overlay (coach 402 → unavailable copy, log correct) → Back to calendar.
+  - **Not done here (PR C):** the flush driver (network / scene / background task), the
+    Info.plist background keys, the UI smoke through the tracker, TestFlight build 2, the device
+    airplane-mode test.
