@@ -8,17 +8,21 @@ import SwiftUI
 public struct EventSheet: View {
     let model: ScheduleModel
     let eventId: String
+    /// Start Workout (W4). Nil hides the button — the tracker needs a signed-in
+    /// user's write queue behind it.
+    let onStart: ((ScheduleEvent) -> Void)?
     let onClose: () -> Void
 
-    public init(model: ScheduleModel, eventId: String, onClose: @escaping () -> Void) {
+    public init(model: ScheduleModel, eventId: String, onStart: ((ScheduleEvent) -> Void)? = nil, onClose: @escaping () -> Void) {
         self.model = model
         self.eventId = eventId
+        self.onStart = onStart
         self.onClose = onClose
     }
 
     public var body: some View {
         if let event = model.event(id: eventId) {
-            EventSheetContent(model: model, event: event, onClose: onClose)
+            EventSheetContent(model: model, event: event, onStart: onStart, onClose: onClose)
         } else {
             VStack(spacing: Spacing.md) {
                 SheetHeader(title: "Workout", onClose: onClose)
@@ -32,6 +36,7 @@ public struct EventSheet: View {
 private struct EventSheetContent: View {
     let model: ScheduleModel
     let event: ScheduleEvent
+    let onStart: ((ScheduleEvent) -> Void)?
     let onClose: () -> Void
     @State private var streams: ActivityStreamRecord?
     @State private var isToggling = false
@@ -78,7 +83,11 @@ private struct EventSheetContent: View {
             .accessibilityLabel("Close")
             .padding(.trailing, Spacing.xs)
         }
-        .task(id: event.id) { streams = await model.streams(for: event) }
+        .task(id: event.id) {
+            streams = await model.streams(for: event)
+            // Opening the sheet is intent: make sure this workout can start offline.
+            if onStart != nil { await model.prefetchTracker(for: event) }
+        }
         .accessibilityIdentifier("schedule.event")
     }
 
@@ -141,26 +150,25 @@ private struct EventSheetContent: View {
         }
     }
 
+    /// Start Workout is offered for every event, like the web's `WorkoutModal`;
+    /// a completed one reopens its editable session.
     private var actions: some View {
-        VStack(spacing: Spacing.sm) {
-            HStack(spacing: Spacing.sm) {
-                ApexButton("Start Workout", kind: .secondary) {}
-                    .disabled(true)
-                    .opacity(0.5)
-                ApexButton(event.isCompleted ? "Completed" : "Mark as Complete", kind: event.isCompleted ? .secondary : .primary, isLoading: isToggling) {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    isToggling = true
-                    Task {
-                        await model.toggleCompletion(event)
-                        isToggling = false
-                    }
+        HStack(spacing: Spacing.sm) {
+            if let onStart {
+                ApexButton(event.isCompleted ? "View / Edit Workout" : "Start Workout", kind: .secondary) {
+                    onStart(event)
                 }
-                .accessibilityIdentifier("schedule.event.complete")
+                .accessibilityIdentifier("schedule.event.start")
             }
-            Text("The tracker arrives in the next build.")
-                .font(.apex(.display, size: TypeScale.micro, relativeTo: .caption2))
-                .foregroundStyle(ApexColor.textMuted)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            ApexButton(event.isCompleted ? "Completed" : "Mark as Complete", kind: event.isCompleted ? .secondary : .primary, isLoading: isToggling) {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                isToggling = true
+                Task {
+                    await model.toggleCompletion(event)
+                    isToggling = false
+                }
+            }
+            .accessibilityIdentifier("schedule.event.complete")
         }
     }
 
