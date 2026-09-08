@@ -68,6 +68,7 @@ struct SwapPickerSheet: View {
         }
         .background(ApexColor.bgSurface)
         .onAppear { searching = true }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tracker.swap.picker")
     }
 

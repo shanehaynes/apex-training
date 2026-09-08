@@ -12,7 +12,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W1 | iOS scaffold + app icon + CI | done | Mac | TestFlight build 0 (0.1.0/285) shipped and installed |
 | W2 | Schedule read, cache, realtime, auth links | done (#110, #111, #112, #114) | Mac | TestFlight build 1 + device runs are Shane's |
 | W3 | Backend tracker consolidation | done (PR #96) | Linux | web switched in the same PR |
-| W4 | Tracker UI + write queue | in progress (A merged #117; B #118 in review; C #119 next) | Mac | A = ApexCore editor + queue + peek bootstrap; B = GRDB store + tracker UI; C = flush driver + TestFlight 2 |
+| W4 | Tracker UI + write queue | in review (A #117 + B #118 merged; C #119 open) | Mac | code complete; TestFlight build 2 + Shane's airplane-mode device run outstanding |
 | W5a | Backend chat v2 (server prompt) | done (PR #98) | Linux | web switched in the same PR |
 | W5b | Backend `/api/coach-tool` | done (PR #99) | Linux | services extracted; web confirm switched |
 | W6 | Coach tab | ready | Mac | W5a + W5b done |
@@ -21,20 +21,22 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W9 | Analytics tab (editable layout) | blocked on W6 | Mac | W8 done |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
 | W11 | Profile, integrations, account | ready | both | the only migration (`provider_connections.client`) |
-| W12 | Live Activity | blocked on W4 | Mac | |
+| W12 | Live Activity | ready once W4 merges | Mac | `ApexWidgets` target; tracker start/finish/cancel hooks are in `TrackerModel` |
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
-1. Mac: W4 (tracker + write queue) or W6 (coach), either order; W7 and W10 are unblocked too.
+1. Land W4 A → B → C (stacked; each squash merge conflicts on the living docs — keep the newer
+   branch's side), then TestFlight build 2 (`ios/scripts/testflight.sh` from a worktree that has
+   run `secrets.sh`; bump `MARKETING_VERSION` first) and Shane's device run: open today's
+   workout once online (or let the peek prefetch do it), airplane mode, log, Finish, background,
+   Wi-Fi on → rows match and `started_at` / `finished_at` are the phone's stamps. Then W6 (coach)
+   or W12 (Live Activity); W7 and W10 are unblocked too.
 2. Shane: add `apextraining://auth` to Supabase → Authentication → URL Configuration → Redirect
-   URLs (`scripts/auth-redirect-check.sh` check 2c fails until then); TestFlight build 1
-   (`ios/scripts/testflight.sh` from a fresh worktree after `secrets.sh` and the
-   `appstoreconnect.env` one-liner); device runs on the iPhone 15 Pro — airplane-mode relaunch,
-   a web edit reaching the phone while foregrounded, a recovery email from the app, a dashboard
-   invite opened on the phone (note which recovery path fired: `type=` or the pending note).
-2. Releases are one command now: `ios/scripts/testflight.sh`. Needs the App Store Connect API
-   key (`.p8` in `~/.appstoreconnect/private_keys/`, ids in `ios/Config/appstoreconnect.env` —
-   both git-ignored and per-machine).
+   URLs (`scripts/auth-redirect-check.sh` check 2c fails until then); the W2 device runs on the
+   iPhone 15 Pro (airplane-mode relaunch, a web edit reaching the phone, recovery email, invite).
+3. Releases are one command: `ios/scripts/testflight.sh`. Needs the App Store Connect API key
+   (`.p8` in `~/.appstoreconnect/private_keys/`, ids in `ios/Config/appstoreconnect.env` — both
+   git-ignored and per-machine; `printf` the two ids back after a tidy).
 
 ## Recent sessions
 - 2026-09-02 · plan · Master plan and all briefs written (PR #94).
@@ -82,6 +84,13 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   overlay, swap picker, sync strip), peek prefetch in `ScheduleModel`, mock routes, 14 snapshots.
   Proved live on the simulator against the local stack: open → log → finish → server rows,
   autofill and completion all correct.
+
+- 2026-09-05 · W4 · PR C: `WriteQueueDriver` (network path, scene active/background with a
+  background task, `BGAppRefreshTask`), `UIBackgroundModes`, the mock's started `bootstrap` and
+  `-apexMockFailOnce`, `testTrackerOnFixtures` (event → Start → ghost commits → pending chip
+  clears → Finish → confirm → streamed summary → Back), accessibility identifiers scoped with
+  `.accessibilityElement(children: .contain)` (an outer identifier otherwise replaces every
+  child's). Code complete; TestFlight build 2 waits on Shane's go.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)

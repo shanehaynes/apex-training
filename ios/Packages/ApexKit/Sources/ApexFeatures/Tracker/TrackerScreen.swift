@@ -54,7 +54,6 @@ public struct TrackerScreen: View {
         .sensoryFeedback(.success, trigger: model.completedCount)
         .sensoryFeedback(.impact(weight: .medium), trigger: model.confirmCount)
         .preferredColorScheme(.dark)
-        .accessibilityIdentifier("tracker")
     }
 
     // MARK: - Content
@@ -321,6 +320,7 @@ struct SyncStatusStrip: View {
         .frame(maxWidth: .infinity)
         .background(ApexColor.bgSurface)
         .overlay(alignment: .bottom) { Rectangle().fill(ApexColor.borderSubtle).frame(height: 1) }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tracker.sync")
     }
 }

@@ -28,6 +28,7 @@ final class AppModel {
 
     private let pool: DatabasePool?
     private var queueOwner: String?
+    private var queueDriver: WriteQueueDriver?
     private let streams: (any ActivityStreamsReading)?
     private let hub: RealtimeHub?
     private let clock: any ApexClock
@@ -80,8 +81,12 @@ final class AppModel {
         guard queueOwner != owner, let client else { return }
         queueOwner = owner
         let store: any WriteQueueStore = pool.map { GRDBWriteQueueStore(pool: $0, owner: owner) } ?? MemoryWriteQueueStore()
-        let queue = WriteQueue(store: store, client: client, clock: clock)
+        // Backoff runs on real time even under the mock: its TestClock would make
+        // every retry instant, and the smoke wants to see the pending chip.
+        let queue = WriteQueue(store: store, client: client, clock: SystemClock())
         trackerServices = TrackerServices(client: client, cache: cache ?? MemoryCacheStore(), queue: queue, clock: clock)
+        queueDriver?.stop()
+        queueDriver = WriteQueueDriver(queue: queue)
         Task { await queue.flush() }
     }
 
@@ -214,6 +219,8 @@ final class AppModel {
     func signOut() {
         schedule.stop()
         // The queue's rows stay (per owner); the instance goes with the session.
+        queueDriver?.stop()
+        queueDriver = nil
         trackerServices = nil
         queueOwner = nil
         Task {
@@ -231,11 +238,14 @@ final class AppModel {
         guard case .signedIn = state else { return }
         switch phase {
         case .active:
+            queueDriver?.sceneBecameActive()
             Task {
                 await hub?.resume()
                 await schedule.refresh(reason: .foreground)
             }
         case .background:
+            // The write queue's visibilitychange analog (architecture.md §7).
+            queueDriver?.sceneEnteredBackground()
             Task { await hub?.suspend() }
         default:
             break

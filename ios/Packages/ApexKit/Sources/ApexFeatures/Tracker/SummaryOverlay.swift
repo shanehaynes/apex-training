@@ -89,6 +89,7 @@ struct SummaryOverlay: View {
                 .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
         }
         .foregroundStyle(ApexColor.textMuted)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tracker.summary.pending")
     }
 
@@ -108,6 +109,7 @@ struct SummaryOverlay: View {
                 Text(message).apexBody().italic()
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tracker.summary.coach")
     }
 
@@ -121,6 +123,7 @@ struct SummaryOverlay: View {
                 trophy(title: pr.exerciseName, description: pr.description)
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tracker.summary.prs")
     }
 
@@ -163,6 +166,7 @@ struct SummaryOverlay: View {
                 }
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tracker.summary.log")
     }
 

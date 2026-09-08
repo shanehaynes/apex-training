@@ -9,6 +9,9 @@ import Foundation
 ///
 ///   -apexMockClient                 turn it on
 ///   -apexMockFail completions       make POST /api/completions answer 500
+///   -apexMockFailOnce save 3        make the first 3 `save` actions (or a path
+///                                   suffix) answer 500, then succeed — the
+///                                   write queue's pending → synced path
 struct MockEnvironment {
     /// 2026-09-08T12:00:00Z — the day the fixtures put four events on.
     let clock: any ApexClock = TestClock(now: Date(timeIntervalSince1970: 1_788_868_800))
@@ -19,8 +22,18 @@ struct MockEnvironment {
 
     init() {
         let failing = Self.argument("-apexMockFail")
-        transport = FixtureTransport(failingRoute: failing)
+        var failOnce: (route: String, count: Int)?
+        if let route = Self.argument("-apexMockFailOnce") {
+            failOnce = (route, Int(Self.argument(after: route) ?? "") ?? 1)
+        }
+        transport = FixtureTransport(failingRoute: failing, failOnce: failOnce, clock: clock)
         streams = FixtureStreams()
+    }
+
+    static func argument(after value: String) -> String? {
+        let args = CommandLine.arguments
+        guard let i = args.firstIndex(of: value), i + 1 < args.count else { return nil }
+        return args[i + 1]
     }
 
     static func argument(_ name: String) -> String? {
@@ -50,23 +63,33 @@ nonisolated enum Fixtures {
 /// real server would — the model re-reads the window after every toggle.
 actor FixtureTransport: HTTPTransport {
     private let failingRoute: String?
+    private var failOnce: (route: String, count: Int)?
+    private let clock: any ApexClock
     private(set) var requests: [(method: String, path: String, body: Data?)] = []
     private var completions: [String: (isCompleted: Bool, completedAt: String?)] = [:]
 
-    init(failingRoute: String?) {
+    init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock) {
         self.failingRoute = failingRoute
+        self.failOnce = failOnce
+        self.clock = clock
     }
 
     func send(_ request: URLRequest) async throws -> HTTPResponse {
         let method = request.httpMethod ?? "GET"
         let path = request.url?.path ?? ""
         let query = request.url?.query ?? ""
+        let body = request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        let action = body?["action"] as? String
         requests.append((method, path, request.httpBody))
         // The real thing takes a moment; so does this, so loading states render.
         try? await Task.sleep(for: .milliseconds(120))
 
-        if let failingRoute, path.hasSuffix(failingRoute) {
+        if let failingRoute, path.hasSuffix(failingRoute) || action == failingRoute {
             return HTTPResponse(status: 500, headers: [:], body: Data("mock failure".utf8))
+        }
+        if let once = failOnce, once.count > 0, path.hasSuffix(once.route) || action == once.route {
+            failOnce = (once.route, once.count - 1)
+            return HTTPResponse(status: 500, headers: [:], body: Data("mock failure (once)".utf8))
         }
         do {
             switch (method, path) {
@@ -89,12 +112,18 @@ actor FixtureTransport: HTTPTransport {
                 }
                 return ok(Data(#"{"ok":true}"#.utf8))
             case ("POST", "/api/workout-sessions"):
-                let body = request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-                switch body?["action"] as? String {
-                case "bootstrap" where body?["peek"] as? Bool == true: return ok(try Fixtures.data("bootstrap-peek.json"))
-                case "bootstrap": return ok(try Fixtures.data("bootstrap.json"))
-                case "finish": return ok(try Fixtures.data("finish.json"))
-                default: return ok(Data(#"{"ok":true}"#.utf8))
+                switch action {
+                case "bootstrap" where body?["peek"] as? Bool == true:
+                    return ok(try Fixtures.data("bootstrap-peek.json"))
+                case "bootstrap":
+                    // A session started now, the way the real handler creates one —
+                    // the committed bootstrap.json is a finished session, which is
+                    // what a reopen shows, not what Start Workout should.
+                    return ok(startedBootstrap(try Fixtures.data("bootstrap-peek.json"), eventId: body?["eventId"] as? String, eventDate: body?["eventDate"] as? String))
+                case "finish":
+                    return ok(try Fixtures.data("finish.json"))
+                default:
+                    return ok(Data(#"{"ok":true}"#.utf8))
                 }
             case ("POST", "/api/coach-summary"):
                 return HTTPResponse(
@@ -107,6 +136,16 @@ actor FixtureTransport: HTTPTransport {
         } catch {
             return HTTPResponse(status: 404, headers: [:], body: Data(String(describing: error).utf8))
         }
+    }
+
+    private func startedBootstrap(_ data: Data, eventId: String?, eventDate: String?) -> Data {
+        guard var object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return data }
+        object["session"] = [
+            "id": "mock-session", "user_id": "ios-fixture-user",
+            "event_id": eventId ?? "ios-fixture-weekly__2026-09-08", "event_date": eventDate ?? "2026-09-08",
+            "started_at": CompletionRows.isoTimestamp(clock.now.addingTimeInterval(-7 * 60)),
+        ]
+        return (try? JSONSerialization.data(withJSONObject: object)) ?? data
     }
 
     private func applyCompletions(to data: Data) -> Data {

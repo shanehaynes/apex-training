@@ -11,6 +11,8 @@ struct ApexApp: App {
     init() {
         AppConfig.assertSafe()
         ApexFonts.register()
+        // Must precede launch completion (BGTaskScheduler refuses later registrations).
+        WriteQueueDriver.registerBackgroundTask()
         #if DEBUG
         if CommandLine.arguments.contains("-apexMockClient") {
             _model = State(initialValue: AppModel(mock: MockEnvironment()))

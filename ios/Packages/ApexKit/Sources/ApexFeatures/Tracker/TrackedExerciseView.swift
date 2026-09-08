@@ -30,6 +30,9 @@ struct TrackedExerciseView: View {
         .padding(Spacing.md)
         .background(ApexColor.bgSurface, in: .rect(cornerRadius: Radius.lg))
         .overlay(RoundedRectangle(cornerRadius: Radius.lg).strokeBorder(ApexColor.borderSubtle, lineWidth: 1))
+        // Contain, or this identifier would replace every child's (SwiftUI applies
+        // an outer identifier to the whole subtree otherwise).
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tracker.exercise.\(tracked.exercise.id)")
     }
 
@@ -214,6 +217,7 @@ struct SetRowView: View {
                 Color.clear.frame(width: 32, height: 44)
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tracker.set.\(tracked.exercise.id).\(set.setNumber)")
     }
 
