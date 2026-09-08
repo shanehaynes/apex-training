@@ -1,7 +1,7 @@
 # W4 — Tracker UI + write queue
 
 **Machine:** Mac · **Depends on:** W3 · **Unblocks:** W12
-**Status:** in review (A #117 + B #118 merged; C #119 open) — code complete; TestFlight build 2 and the device run outstanding
+**Status:** done (#117, #118, #119) — TestFlight build 2 (0.3.0/295) uploaded; Shane's device run outstanding
 
 ## Goal
 The gym-floor screen — the surface where native must beat the web most. TestFlight build 2.
@@ -147,3 +147,5 @@ Out: Live Activity (W12), rest timer (Backlog).
     today's workout once online (or wait for the peek prefetch), airplane mode, log sets, Finish,
     background, Wi-Fi on → the server's rows and completion match and `started_at` /
     `finished_at` are the phone's stamps.
+- 2026-09-08 · Mac · merged and shipped. A, B, C squash-merged in order; TestFlight build 2 = 0.3.0
+  (build 295) uploaded from `chore/testflight-build-2`. Left for Shane: the airplane-mode device run.
