@@ -1,7 +1,7 @@
 # W4 — Tracker UI + write queue
 
 **Machine:** Mac · **Depends on:** W3 · **Unblocks:** W12
-**Status:** in progress (A #117 in review, B in review, C next)
+**Status:** in progress (A merged #117; B #118 in review; C #119 next)
 
 ## Goal
 The gym-floor screen — the surface where native must beat the web most. TestFlight build 2.

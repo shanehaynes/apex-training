@@ -12,7 +12,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W1 | iOS scaffold + app icon + CI | done | Mac | TestFlight build 0 (0.1.0/285) shipped and installed |
 | W2 | Schedule read, cache, realtime, auth links | done (#110, #111, #112, #114) | Mac | TestFlight build 1 + device runs are Shane's |
 | W3 | Backend tracker consolidation | done (PR #96) | Linux | web switched in the same PR |
-| W4 | Tracker UI + write queue | in progress (A #117, B in review; C next) | Mac | A = ApexCore editor + queue + peek bootstrap; B = GRDB store + tracker UI; C = flush driver + TestFlight 2 |
+| W4 | Tracker UI + write queue | in progress (A merged #117; B #118 in review; C #119 next) | Mac | A = ApexCore editor + queue + peek bootstrap; B = GRDB store + tracker UI; C = flush driver + TestFlight 2 |
 | W5a | Backend chat v2 (server prompt) | done (PR #98) | Linux | web switched in the same PR |
 | W5b | Backend `/api/coach-tool` | done (PR #99) | Linux | services extracted; web confirm switched |
 | W6 | Coach tab | ready | Mac | W5a + W5b done |
