@@ -38,4 +38,9 @@ public enum ScheduleCacheKey {
     public static func meals(year: Int, month: Int) -> String {
         String(format: "%04d-%02d", year, month)
     }
+
+    /// `tracker_bootstrap` is cached per session: `<eventId>|<date>`.
+    public static func trackerBootstrap(eventId: String, eventDate: String) -> String {
+        "\(eventId)|\(eventDate)"
+    }
 }

@@ -21,7 +21,14 @@ final class AppModel {
     private(set) var client: ApexClient?
     private(set) var cache: (any CacheStore)?
     private(set) var schedule: ScheduleModel
+    /// The tracker's write queue and friends, built per signed-in user: the
+    /// `tracker_ops` store is per owner so unsynced work never flushes under
+    /// another account (architecture.md §7). Nil until `ensureQueue`.
+    private(set) var trackerServices: TrackerServices?
 
+    private let pool: DatabasePool?
+    private var queueOwner: String?
+    private var queueDriver: WriteQueueDriver?
     private let streams: (any ActivityStreamsReading)?
     private let hub: RealtimeHub?
     private let clock: any ApexClock
@@ -42,10 +49,12 @@ final class AppModel {
             await MainActor.run { auth?.expire(reason: "Session expired. Sign in again.") }
         }
         let client = ApexClient(baseURL: AppConfig.apiBase, transport: URLSessionTransport(), tokens: tokens)
-        let cache = Self.openDatabase()
+        let pool = Self.openDatabase()
+        let cache: (any CacheStore)? = pool.map { GRDBCacheStore(pool: $0) }
         let streams = SupabaseActivityStreams(client: auth.supabase)
         let hub = RealtimeHub(client: auth.supabase)
         self.client = client
+        self.pool = pool
         self.cache = cache
         self.streams = streams
         self.hub = hub
@@ -58,12 +67,28 @@ final class AppModel {
         self.clock = mock.clock
         let client = ApexClient(baseURL: AppConfig.apiBase, transport: mock.transport, tokens: mock.tokens)
         self.client = client
+        self.pool = nil
         self.cache = mock.cache
         self.streams = mock.streams
         self.hub = nil
         self.schedule = Self.makeSchedule(client: client, cache: mock.cache, clock: mock.clock, streams: mock.streams, realtime: nil)
     }
     #endif
+
+    /// Called once the root knows who is signed in. Idempotent per owner. The
+    /// queue outlives nothing: a new owner gets a new queue over their own rows.
+    func ensureQueue(owner: String) {
+        guard queueOwner != owner, let client else { return }
+        queueOwner = owner
+        let store: any WriteQueueStore = pool.map { GRDBWriteQueueStore(pool: $0, owner: owner) } ?? MemoryWriteQueueStore()
+        // Backoff runs on real time even under the mock: its TestClock would make
+        // every retry instant, and the smoke wants to see the pending chip.
+        let queue = WriteQueue(store: store, client: client, clock: SystemClock())
+        trackerServices = TrackerServices(client: client, cache: cache ?? MemoryCacheStore(), queue: queue, clock: clock)
+        queueDriver?.stop()
+        queueDriver = WriteQueueDriver(queue: queue)
+        Task { await queue.flush() }
+    }
 
     var state: AuthState { auth?.state ?? mockState }
 
@@ -193,6 +218,11 @@ final class AppModel {
 
     func signOut() {
         schedule.stop()
+        // The queue's rows stay (per owner); the instance goes with the session.
+        queueDriver?.stop()
+        queueDriver = nil
+        trackerServices = nil
+        queueOwner = nil
         Task {
             await hub?.reset()
             // Another account may sign in next; nothing cached belongs to it.
@@ -208,11 +238,14 @@ final class AppModel {
         guard case .signedIn = state else { return }
         switch phase {
         case .active:
+            queueDriver?.sceneBecameActive()
             Task {
                 await hub?.resume()
                 await schedule.refresh(reason: .foreground)
             }
         case .background:
+            // The write queue's visibilitychange analog (architecture.md §7).
+            queueDriver?.sceneEnteredBackground()
             Task { await hub?.suspend() }
         default:
             break
@@ -232,11 +265,12 @@ final class AppModel {
         ))
     }
 
-    /// A cache that will not open is not fatal: the app still works online, and
-    /// refusing to launch over it would be worse than losing offline reads.
-    private static func openDatabase() -> (any CacheStore)? {
+    /// A database that will not open is not fatal: the app still works online
+    /// (the cache and the write queue fall back to memory), and refusing to
+    /// launch over it would be worse than losing offline reads.
+    private static func openDatabase() -> DatabasePool? {
         do {
-            return GRDBCacheStore(pool: try ApexDatabase.makePool())
+            return try ApexDatabase.makePool()
         } catch {
             ToastBus.shared.post("Offline cache unavailable.", level: .failure)
             return nil
