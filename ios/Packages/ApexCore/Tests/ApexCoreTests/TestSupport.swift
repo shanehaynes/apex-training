@@ -28,7 +28,7 @@ enum TestFixtures {
 
 /// Suspends callers until opened — for "while a request is in flight" tests.
 actor Gate {
-    private var isOpen = false
+    private(set) var isOpen = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
 
     func wait() async {
@@ -59,15 +59,30 @@ actor ScriptedTransport: HTTPTransport {
     enum Step: Sendable {
         case respond(HTTPResponse)
         case throwNetwork
+        /// A chunked 2xx body. Each chunk is delivered as its own `Data`; when
+        /// `holdOpen` is set the stream stays open after the last chunk until
+        /// the gate opens (or the consumer cancels) — the "Stop mid-stream" seam.
+        case stream(status: Int, headers: [String: String], chunks: [String], holdOpen: Gate?)
 
         static func ok(_ json: String = #"{"ok":true}"#) -> Step { .respond(HTTPResponse(status: 200, body: Data(json.utf8))) }
         static func status(_ code: Int, body: String = "", headers: [String: String] = [:]) -> Step {
             .respond(HTTPResponse(status: code, headers: headers, body: Data(body.utf8)))
         }
+        /// One NDJSON line per chunk.
+        static func ndjson(_ lines: [String], holdOpen: Gate? = nil) -> Step {
+            .stream(status: 200, headers: ["Content-Type": "application/x-ndjson"],
+                    chunks: lines.map { $0 + "\n" }, holdOpen: holdOpen)
+        }
+        /// Arbitrary byte splits of one NDJSON body.
+        static func chunks(_ chunks: [String]) -> Step {
+            .stream(status: 200, headers: ["Content-Type": "application/x-ndjson"], chunks: chunks, holdOpen: nil)
+        }
     }
 
     private var steps: [Step]
     private(set) var requests: [RecordedRequest] = []
+    /// Streams whose consumer went away before the body finished.
+    private(set) var streamCancellations = 0
     private var holdNext: Gate?
     private var holdOnce = false
 
@@ -84,6 +99,43 @@ actor ScriptedTransport: HTTPTransport {
     }
 
     func send(_ request: URLRequest) async throws -> HTTPResponse {
+        switch try await next(request) {
+        case .respond(let response): return response
+        case .throwNetwork: throw URLError(.notConnectedToInternet)
+        case .stream(let status, let headers, let chunks, _):
+            return HTTPResponse(status: status, headers: headers, body: Data(chunks.joined().utf8))
+        }
+    }
+
+    func stream(_ request: URLRequest) async throws -> HTTPStreamResponse {
+        switch try await next(request) {
+        case .respond(let response): return HTTPStreamResponse(response)
+        case .throwNetwork: throw URLError(.notConnectedToInternet)
+        case .stream(let status, let headers, let chunks, let holdOpen):
+            let (bytes, continuation) = AsyncThrowingStream<Data, Error>.makeStream()
+            let producer = Task {
+                for chunk in chunks {
+                    continuation.yield(Data(chunk.utf8))
+                    await Task.yield()
+                }
+                if let holdOpen {
+                    while !Task.isCancelled, await !holdOpen.isOpen {
+                        try? await Task.sleep(nanoseconds: 2_000_000)
+                    }
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { termination in
+                producer.cancel()
+                if case .cancelled = termination { Task { await self.noteCancellation() } }
+            }
+            return HTTPStreamResponse(status: status, headers: headers, bytes: bytes)
+        }
+    }
+
+    private func noteCancellation() { streamCancellations += 1 }
+
+    private func next(_ request: URLRequest) async throws -> Step {
         let body = request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
         requests.append(RecordedRequest(
             method: request.httpMethod ?? "", path: request.url?.path ?? "",
@@ -94,11 +146,7 @@ actor ScriptedTransport: HTTPTransport {
             holdNext = nil
             await gate.wait()
         }
-        let step = steps.count > 1 ? steps.removeFirst() : (steps.first ?? Step.ok())
-        switch step {
-        case .respond(let response): return response
-        case .throwNetwork: throw URLError(.notConnectedToInternet)
-        }
+        return steps.count > 1 ? steps.removeFirst() : (steps.first ?? Step.ok())
     }
 
     var count: Int { requests.count }

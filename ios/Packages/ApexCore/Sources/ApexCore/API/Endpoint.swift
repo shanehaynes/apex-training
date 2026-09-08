@@ -203,6 +203,55 @@ public struct Endpoint: Sendable, Equatable {
         return Endpoint(method: .post, path: "api/coach-summary", body: json(Body(eventId: eventId, eventDate: eventDate)))
     }
 
+    // MARK: - W6 coach
+
+    /// One coach turn (`POST /api/chat` v2). The server builds the system
+    /// prompt from the caller's own data; the body carries only the mode, the
+    /// history, the caller's local date and — for the builder/analytics
+    /// coaches — the current draft. Labels are stripped from every tool_use
+    /// block here: the API rejects unknown fields. `model` is omitted when the
+    /// user has no pick so a future default bump moves them with it.
+    public static func chat(
+        mode: ChatMode, messages: [ApiMessage], withTools: Bool, today: String,
+        draft: JSONValue? = nil, model: String? = nil
+    ) -> Endpoint {
+        struct Context: Encodable { let draft: JSONValue }
+        struct Body: Encodable {
+            let mode: String
+            let messages: [ApiMessage]
+            let withTools: Bool
+            let today: String
+            let context: Context?
+            let model: String?
+        }
+        return Endpoint(method: .post, path: "api/chat", body: json(Body(
+            mode: mode.rawValue, messages: messages.map { $0.strippingLabels() }, withTools: withTools,
+            today: today, context: draft.map(Context.init), model: model
+        )))
+    }
+
+    /// Execute a confirmed coach action on the server (`POST /api/coach-tool`,
+    /// W5b). `toolUseId` is unused by the handler today and sent for the
+    /// planned HMAC check.
+    public static func coachTool(toolUseId: String, name: String, input: JSONValue, today: String) -> Endpoint {
+        struct Body: Encodable {
+            let toolUseId: String
+            let name: String
+            let input: JSONValue
+            let today: String
+        }
+        return Endpoint(method: .post, path: "api/coach-tool", body: json(Body(
+            toolUseId: toolUseId, name: name, input: input, today: today
+        )))
+    }
+
+    /// Save, replace or remove (nil) the user's Anthropic key. The server
+    /// validates a new key against Anthropic and answers 400 with its message.
+    public static func setAnthropicKey(_ key: String?) -> Endpoint {
+        let body: [String: JSONValue] = ["anthropic_api_key": key.map(JSONValue.string) ?? .null]
+        return Endpoint(method: .patch, path: "api/profile", body: json(body))
+    }
+
     private static func sessions<T: Encodable>(_ body: T) -> Endpoint {
         Endpoint(method: .post, path: "api/workout-sessions", body: json(body))
     }

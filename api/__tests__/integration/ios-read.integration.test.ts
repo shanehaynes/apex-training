@@ -672,6 +672,10 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     const prof = makeRes();
     await profileHandler(makeReq({ method: 'GET', token: agent.token }), prof.res);
     expect(prof.statusCode).toBe(200);
+    // W6: the coach model rides on the profile response so the native app's
+    // badge never reads the profiles row directly. The seeded user has no
+    // pick, so the label is the default's.
+    expect(prof.body).toMatchObject({ coachModel: null, coachModelLabel: 'Opus 4.8' });
     fixture('profile.json', prof.body);
   });
 });
