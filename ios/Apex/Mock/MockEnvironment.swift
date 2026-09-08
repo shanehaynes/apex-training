@@ -12,6 +12,9 @@ import Foundation
 ///   -apexMockFailOnce save 3        make the first 3 `save` actions (or a path
 ///                                   suffix) answer 500, then succeed — the
 ///                                   write queue's pending → synced path
+///   -apexMockHasKey                 the profile reports an Anthropic key, so the
+///                                   coach opens on the thread instead of the
+///                                   key-setup state (the fixture has no key)
 struct MockEnvironment {
     /// 2026-09-08T12:00:00Z — the day the fixtures put four events on.
     let clock: any ApexClock = TestClock(now: Date(timeIntervalSince1970: 1_788_868_800))
@@ -26,7 +29,10 @@ struct MockEnvironment {
         if let route = Self.argument("-apexMockFailOnce") {
             failOnce = (route, Int(Self.argument(after: route) ?? "") ?? 1)
         }
-        transport = FixtureTransport(failingRoute: failing, failOnce: failOnce, clock: clock)
+        transport = FixtureTransport(
+            failingRoute: failing, failOnce: failOnce, clock: clock,
+            hasKey: CommandLine.arguments.contains("-apexMockHasKey")
+        )
         streams = FixtureStreams()
     }
 
@@ -67,11 +73,38 @@ actor FixtureTransport: HTTPTransport {
     private let clock: any ApexClock
     private(set) var requests: [(method: String, path: String, body: Data?)] = []
     private var completions: [String: (isCompleted: Bool, completedAt: String?)] = [:]
+    /// Flipped by `-apexMockHasKey` and by a PATCH that saves or removes one.
+    private var hasKey: Bool
 
-    init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock) {
+    init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false) {
         self.failingRoute = failingRoute
         self.failOnce = failOnce
         self.clock = clock
+        self.hasKey = hasKey
+    }
+
+    /// The coach stream arrives line by line, a beat apart, so the typing
+    /// indicator and the cursor are real on the simulator; every other route
+    /// streams its `send` body in one chunk.
+    func stream(_ request: URLRequest) async throws -> HTTPStreamResponse {
+        guard request.httpMethod == "POST", request.url?.path == "/api/chat" else {
+            return HTTPStreamResponse(try await send(request))
+        }
+        let response = try await send(request)
+        guard response.status == 200 else { return HTTPStreamResponse(response) }
+        let lines = String(decoding: response.body, as: UTF8.self).split(separator: "\n").map { String($0) + "\n" }
+        let (bytes, continuation) = AsyncThrowingStream<Data, Error>.makeStream()
+        let producer = Task {
+            try? await Task.sleep(for: .milliseconds(350))
+            for line in lines {
+                guard !Task.isCancelled else { break }
+                continuation.yield(Data(line.utf8))
+                try? await Task.sleep(for: .milliseconds(120))
+            }
+            continuation.finish()
+        }
+        continuation.onTermination = { _ in producer.cancel() }
+        return HTTPStreamResponse(status: response.status, headers: response.headers, bytes: bytes)
     }
 
     func send(_ request: URLRequest) async throws -> HTTPResponse {
@@ -98,7 +131,20 @@ actor FixtureTransport: HTTPTransport {
                 let start = query.split(separator: "&").first { $0.hasPrefix("start=") }?.dropFirst(6) ?? ""
                 return ok(applyCompletions(to: try Fixtures.data(start >= "2026-10-28" ? "schedule-empty.json" : "schedule.json")))
             case ("GET", "/api/profile"):
-                return ok(try Fixtures.data("profile.json"))
+                return ok(withKey(try Fixtures.data("profile.json")))
+            case ("PATCH", "/api/profile"):
+                if let entry = body?["anthropic_api_key"] {
+                    hasKey = !(entry is NSNull)
+                }
+                return ok(Data(#"{"ok":true,"hasAnthropicKey":\(hasKey),"anthropicKeyLast4":\(hasKey ? "\"mock\"" : "null")}"#.utf8))
+            case ("POST", "/api/chat"):
+                guard hasKey else { return HTTPResponse(status: 402, headers: [:], body: Data("anthropic-key-missing".utf8)) }
+                return HTTPResponse(
+                    status: 200, headers: ["Content-Type": "application/x-ndjson; charset=utf-8"],
+                    body: try chatBody(body)
+                )
+            case ("POST", "/api/coach-tool"):
+                return ok(try Fixtures.data("coach-tool.json"))
             case ("POST", "/api/query"):
                 let body = request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
                 let tool = body?["tool"] as? String ?? "unknown"
@@ -136,6 +182,35 @@ actor FixtureTransport: HTTPTransport {
         } catch {
             return HTTPResponse(status: 404, headers: [:], body: Data(String(describing: error).utf8))
         }
+    }
+
+    /// Tools on → the recorded `chat-stream.ndjson` (text, a labelled
+    /// `delete_event`, done). Tools off → a synthesised reply: the briefing for
+    /// Coach's Notes, the confirmation for a flushed tool_result, a line of
+    /// Markdown otherwise — so the smoke and the snapshots see every state.
+    private func chatBody(_ body: [String: Any]?) throws -> Data {
+        if body?["withTools"] as? Bool == true { return try Fixtures.data("chat-stream.ndjson") }
+        let messages = body?["messages"] as? [[String: Any]] ?? []
+        let last = messages.last
+        let text: String
+        if let content = last?["content"] as? String, content == ChatCopy.notesPrompt {
+            text = "**Today** — Fixture Push Day at 17:30.\n\n- Warm up the shoulders first\n- Last time you pressed 110 lb; aim for 115\n\nKeep the run easy tomorrow."
+        } else if let blocks = last?["content"] as? [[String: Any]], blocks.contains(where: { $0["type"] as? String == "tool_result" }) {
+            text = "Done — Fixture Push Day on 2026-09-29 is cleared."
+        } else {
+            text = "Noted. Anything else?"
+        }
+        let deltas = text.split(separator: " ", omittingEmptySubsequences: false).enumerated().map { index, word in
+            #"{"type":"text","delta":"\#((index == 0 ? "" : " ") + word.replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "\n", with: "\\n"))"}"#
+        }
+        return Data((deltas + [#"{"type":"done"}"#]).joined(separator: "\n").appending("\n").utf8)
+    }
+
+    private func withKey(_ data: Data) -> Data {
+        guard var object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return data }
+        object["hasAnthropicKey"] = hasKey
+        object["anthropicKeyLast4"] = hasKey ? "mock" : NSNull()
+        return (try? JSONSerialization.data(withJSONObject: object)) ?? data
     }
 
     private func startedBootstrap(_ data: Data, eventId: String?, eventDate: String?) -> Data {

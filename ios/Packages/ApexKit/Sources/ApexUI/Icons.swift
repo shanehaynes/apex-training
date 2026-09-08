@@ -35,6 +35,15 @@ public enum ApexIcon: String, CaseIterable, Sendable {
     case pendingSync = "arrow.triangle.2.circlepath"
     case warning = "exclamationmark.triangle"
     case ghost = "wand.and.stars"
+    // W6 — the coach.
+    case send = "arrow.up.circle.fill"
+    case stop = "stop.fill"
+    case notes = "text.book.closed"
+    case history = "clock.arrow.circlepath"
+    case newChat = "square.and.pencil"
+    case key = "key"
+    case check = "checkmark"
+    case chat = "bubble.left.and.bubble.right"
 
     /// Light weight, like the web's 1.5px lucide strokes.
     public var image: some View {

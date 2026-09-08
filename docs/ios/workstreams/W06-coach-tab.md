@@ -1,7 +1,7 @@
 # W6 — Coach tab
 
 **Machine:** Mac · **Depends on:** W5a (W5b for actions) · **Unblocks:** W7, W9 (their coach drawers reuse this)
-**Status:** in progress — PR A (`feat/w6-coach-core`) open; B (UI) and C (smoke + TestFlight 3) to follow
+**Status:** in progress — PR A (`feat/w6-coach-core`, #126) and PR B (`feat/w6-coach-ui`) open; C (smoke + TestFlight 3) to follow
 
 ## Goal
 The coach as a first-class tab: streaming, Markdown, confirmations, local history. TestFlight build 3.
@@ -65,3 +65,46 @@ Out: builder/analytics coach drawers (W7/W9 reuse `ChatSession` with a mode).
     `CoachModel`, the thread / composer / card / Notes / badge / list views, `AnthropicKeyView`,
     `MarkdownText`, mock `/api/chat` (chunked) + `/api/coach-tool` routes, snapshots, smoke,
     TestFlight build 3.
+- 2026-09-08 · Mac · PR B — the Coach tab.
+  - **ApexPersistence:** migration `v3_conversations` (`conversations` with `owner`, `messages`
+    with nullable `api_content_json`, `display_text` and `kind`; FK cascade), `GRDBConversationStore`
+    scoped per owner like `tracker_ops`.
+  - **CoachModel** (`ApexFeatures/Coach/`): a thin `@Observable` mirror of one `ChatSession`,
+    fed only by the session's ordered event stream — reading the actor directly could be
+    overtaken by a buffered older event, so the end of every awaited action instead waits for
+    a marker event (`ChatSession.mark`) to drain the queue. Owns the profile (key status,
+    `coachModelLabel`), the conversation list, the composer text, the synchronous confirm latch
+    and the haptic counter; `onMutationConfirmed` → `ScheduleModel.refresh(reason:
+    .coachMutation)` (new reason). Every action returns its task so tests await it.
+  - **Views:** `CoachTab` / `CoachScreen` (eyebrow + model badge as the title view, history ·
+    Notes · New in the toolbar, `safeAreaInset(.bottom)` hosting the card or the composer —
+    U3), `CoachThreadView` (sticks to the bottom, interactive keyboard dismiss), `MessageBubble`
+    (user bubble in the web's navy, coach as `MarkdownText`, muted notices, a "Stopped" caption
+    on a kept partial), `TypingIndicator`, `StreamingCursor`, `ConfirmationCard` ("Coach wants
+    to" · label · "k of N" · Cancel / Confirm), `Composer` (multiline, explicit Send that
+    becomes Stop — U22), `ConversationListView` (new / resume / swipe-delete),
+    `Profile/AnthropicKeyView` (save / replace / remove; Anthropic's rejection text — the
+    W11 key section, pulled forward per D-025). `ApexUI.MarkdownText` over `MarkdownBlocks`
+    + `AttributedString(markdown:)`; eight new `ApexIcon` cases.
+  - **App:** `AppModel.ensureQueue` also builds `CoachServices` + `CoachModel` per owner;
+    sign-out shuts it down and keeps the rows. **Mock:** `FixtureTransport.stream` delivers
+    `/api/chat` line by line (350 ms, then 120 ms apart) so the indicator and cursor are real;
+    tools-on → `chat-stream.ndjson`, tools-off → a synthesised briefing / confirmation / reply;
+    `POST /api/coach-tool` → `coach-tool.json`; `PATCH /api/profile` remembers the key;
+    `-apexMockHasKey` opens on the thread instead of the key-setup state; `/api/chat` answers 402
+    without a key.
+  - **Tests:** `ConversationStoreTests` (6: round trip, ordering + touch, owner scoping,
+    cascade + deleteAll, grown row, relaunch), `CoachModelTests` (14: key states, model label
+    on the request, stream → card, confirm → haptic + refresh hook + follow-up, cancel, latch,
+    Stop keeps the partial, Notes = new conversation, resume re-derives the card, delete, key
+    saved unblocks, 402 mid-thread, rate limit until Retry-After, tool-failure toast),
+    `CoachSnapshotTests` (15 recorded and reviewed: thread with Markdown on 393 / 16e / Pro Max /
+    XXL, streaming cursor, typing, card 1 of 1 / 2 of 3 / busy, key-setup, rate-limited, stopped
+    bubble, conversation list, key sheet empty / saved). Full `xcodebuild test`: 88 unit green;
+    `swift test` 246 green on macOS and Linux (the marker event and `.coachMutation` touch ApexCore).
+  - **Verified live on the simulator (mock, `-apexMockHasKey`):** sign in → Coach → header with
+    the badge → Coach's Notes streams and renders Markdown with the prompt hidden → composer →
+    tool_use card → Confirm → follow-up.
+  - **Not done here (PR C):** the XCUITest coach leg, `MARKETING_VERSION` 0.4.0, TestFlight
+    build 3, Shane's device run against the real backend (create-event round trip; Stop → Vercel
+    abort log).

@@ -2,23 +2,8 @@ import ApexUI
 import SwiftUI
 
 // The four tabs from D-012. Each owns a NavigationStack so its own routes push
-// independently. Schedule lives in Schedule/ScheduleTab.swift (W2); the others
-// arrive in W6/W9/W11.
-
-public struct CoachTab: View {
-    public init() {}
-
-    public var body: some View {
-        NavigationStack {
-            EmptyState(
-                eyebrow: "Coach",
-                message: "The coach thread lands here in W6.",
-                symbol: "sparkles"
-            )
-            .navigationTitle("Coach")
-        }
-    }
-}
+// independently. Schedule lives in Schedule/ScheduleTab.swift (W2), Coach in
+// Coach/CoachTab.swift (W6); the others arrive in W9/W11.
 
 public struct AnalyticsTab: View {
     public init() {}
