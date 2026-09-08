@@ -175,32 +175,55 @@ the future server table.
 ## 7. Tracker write queue
 
 ```
-tracker_ops(id INTEGER PRIMARY KEY, event_id, event_date, action, payload BLOB,
-            created_at REAL, attempts INT, last_error TEXT, state TEXT)
+tracker_ops(id INTEGER PRIMARY KEY AUTOINCREMENT, owner TEXT, event_id, event_date, action,
+            payload BLOB, created_at REAL, attempts INT, last_error TEXT, state TEXT)
 ```
 
-- FIFO **per (event_id, event_date)**; a `WriteQueue` actor in `ApexCore` over a
-  `WriteQueueStore` protocol.
-- Coalescing mirrors the web's `dirtySetsRef` + 800ms `AUTOSAVE_DEBOUNCE_MS`: edits accumulate
-  in memory, then one `save` op with `setLogs / cardioLogs / removedSets`. If the previous op for
-  the same session is an unsent `save`, merge (last write per set key wins; `removedSets`
-  concatenated) so a long offline session leaves a short queue.
-- Idempotency: `save` is already an upsert on
-  `(user_id, event_id, event_date, section, exercise_id, set_number)` with server-stamped
-  `updated_at`. `start {startedAt}` and `finish {finishedAt}` (backend change, W3) let a delayed
-  flush stamp real times. `cancel` purges queued ops for the session before enqueueing itself.
-- Flush triggers: `NWPathMonitor` satisfied; `scenePhase == .active`; `scenePhase == .background`
-  → `beginBackgroundTask` + immediate flush (the `visibilitychange` analog); a registered
-  `BGAppRefreshTask` for opportunistic flushes.
-- Failure classes: network / 5xx / 429 → retry with backoff; 401 → refresh token then retry;
-  other 4xx → mark `failed`, surface in the tracker ("2 sets could not be saved — retry"), never
-  drop silently.
+- FIFO **per (event_id, event_date)**; sessions independent. `ApexCore.WriteQueue` is an actor
+  over a `WriteQueueStore` protocol (`ApexPersistence.GRDBWriteQueueStore`; `MemoryWriteQueueStore`
+  in tests and as the fallback when SQLite will not open), with an injected `ApexClock` so backoff
+  is proved by `swift test` on Linux. Ops: `start{startedAt}`, `save`, `finish{autofillRows,
+  finishedAt, score?}`, `cancel`, `swap-exercise`, and `completion` (the `/api/completions` rows
+  — finishing flips the occurrence the way the web does after `finish`; cancelling a finished
+  session flips it back). `state ∈ {pending, failed}`: a sent op is deleted.
+- Coalescing mirrors the web's `dirtySetsRef` + 800ms `AUTOSAVE_DEBOUNCE_MS`: `TrackerEditor`
+  accumulates dirty keys, `takeSavePayload()` hands the queue one `save`, and the queue merges
+  it into the session's tail when that tail is an unsent, not-in-flight `save`
+  (`SavePayload.merging`: last write per set key wins, a later removal drops the earlier upsert
+  and vice versa, never past the server's 500-row cap). Invariant, tested: a key is never in both
+  `setLogs` and `removedSets` of one op — the server runs upserts and deletes in one un-ordered
+  batch. The editor hands the payload to the queue *before* anything is awaited; unlike the web,
+  a failed request cannot lose the batch.
+- Idempotency: `save` is an upsert on `(user_id, event_id, event_date, section, exercise_id,
+  set_number)`. `start{startedAt}` / `finish{finishedAt}` let a delayed flush stamp real times;
+  the server bounds them to `[now − 7d, now + 5min]` and a rejected stamp is re-sent once
+  unstamped. `cancel` purges every queued op for the session (and voids an in-flight one's
+  result) before enqueueing itself.
+- Offline open: the model is server-built (D-008), so an offline start needs a cached
+  `bootstrap { peek: true }` (backend-changes.md, W3 addendum) — `ScheduleModel` prefetches
+  today's and tomorrow's workouts after each window refresh. With a cached peek and no session,
+  the tracker stamps `startedAt = now`, enqueues `start`, and passes the same stamp to the online
+  `bootstrap` later, so both paths converge. Nothing cached → "open this workout once online".
+- Flush triggers (app target, `WriteQueueDriver`): `NWPathMonitor` satisfied; `scenePhase ==
+  .active`; `scenePhase == .background` → `beginBackgroundTask` + immediate flush (the
+  `visibilitychange` analog); a registered `BGAppRefreshTask` for opportunistic flushes; and
+  after every enqueue.
+- Failure classes (`RetryPolicy`): network / 5xx / 429 → retry with 1s·2ⁿ backoff capped at 300s,
+  `Retry-After` honoured; `.unauthorized` → pause (the client has already refreshed once: either
+  the user is signed out, or the phone is offline with an expired JWT — the queue waits for the
+  next external trigger); other 4xx → `failed`, surfaced in the tracker ("2 sets could not be
+  saved — Retry · Discard"), never dropped, and not blocking later ops for the session.
+- Observation: `subscribe() → AsyncStream<QueueEvent>` (`.changed`, `.finished(session,
+  FinishResponse?)`, `.failed`, `.paused`, `.resumed`) and `status(for:) → SessionSyncStatus`
+  (pending / failed set counts) drive the "N sets pending sync" chip and the failure bar.
 - Conflicts: tracker tables are not realtime-subscribed (same as web); two devices on one
   session → last write per set wins. The session's finished/cancelled state is refreshed from
-  `bootstrap` when the tracker opens.
-- Finish offline: allowed. `collectUntouchedPlanned` runs on the in-memory groups (needs unsaved
-  edits, exactly like the web); the summary shows "PRs pending sync" until the `finish` flush
-  returns `prs` and `recap`.
+  `bootstrap` when the tracker opens; a fresh model replaces the cached one only when nothing
+  local is ahead of it (`TrackerEditor.replaceGroupsIfClean`).
+- Finish offline: allowed. `collectUntouchedPlanned` runs on the in-memory groups; the summary
+  shows "PRs pending sync" until the `finish` flush emits `.finished` with `prs` and `recap`.
+- Sign-out keeps `tracker_ops`: the store is per `owner`, so user A's unsynced workout flushes
+  when A is back and never under user B.
 
 ## 8. Realtime (`ApexAuth.RealtimeHub`)
 

@@ -87,6 +87,63 @@ final class SmokeUITests: XCTestCase {
         attach(app, name: "06-completed")
     }
 
+    /// sign in → event → Start Workout → a ghost commits on focus → the first
+    /// saves fail, the chip says so, the retry clears it → Finish → confirm →
+    /// summary streams → Back. All on fixtures (W4).
+    func testTrackerOnFixtures() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockFailOnce", "save", "3"]
+        app.launch()
+        signIn(app)
+
+        let card = app.buttons["event.card.Fixture Push Day"]
+        XCTAssertTrue(card.waitForExistence(timeout: 20))
+        card.tap()
+        let start = app.buttons["schedule.event.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        XCTAssertEqual(start.label, "View / Edit Workout", "the fixture occurrence is completed")
+        start.tap()
+
+        let title = app.staticTexts["tracker.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 20))
+        XCTAssertEqual(title.label, "Fixture Push Day")
+        XCTAssertTrue(app.staticTexts["tracker.elapsed"].exists)
+        attach(app, name: "07-tracker")
+
+        // Focus on the shadowed row commits last time's values.
+        let weight2 = app.textFields["tracker.input.fx-press.2.weight"]
+        XCTAssertTrue(weight2.waitForExistence(timeout: 10))
+        weight2.tap()
+        XCTAssertEqual(weight2.value as? String, "110 lb")
+        app.buttons["tracker.keyboard.done"].tap()
+
+        // The first saves are refused: the chip counts the set, then the retry clears it.
+        let chip = app.otherElements["tracker.sync"].firstMatch
+        let syncText = app.staticTexts["1 set pending sync"]
+        XCTAssertTrue(chip.waitForExistence(timeout: 10) || syncText.waitForExistence(timeout: 10))
+        attach(app, name: "08-tracker-pending")
+        let cleared = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: syncText)
+        wait(for: [cleared], timeout: 30)
+
+        // Finish: set 1 was never touched, so the gate asks first.
+        app.buttons["tracker.finish"].tap()
+        let finishAnyway = app.buttons["Finish anyway"]
+        XCTAssertTrue(finishAnyway.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["1 planned set unlogged — recorded as 0."].exists)
+        attach(app, name: "09-tracker-confirm")
+        finishAnyway.tap()
+
+        let summary = app.otherElements["tracker.summary"].firstMatch
+        XCTAssertTrue(summary.waitForExistence(timeout: 20) || app.staticTexts["Workout Complete"].waitForExistence(timeout: 20))
+        let coach = app.staticTexts["Strong session — a new estimated 1RM on Fixture Press."]
+        XCTAssertTrue(coach.waitForExistence(timeout: 20), "the fixture stream renders")
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'est. 1RM 132'")).firstMatch.exists)
+        attach(app, name: "10-tracker-summary")
+
+        app.buttons["tracker.summary.back"].tap()
+        XCTAssertTrue(app.buttons["event.card.Fixture Push Day"].waitForExistence(timeout: 20))
+    }
+
     /// The live flavour: a real sign-in against the local stack.
     func testSignInRevealsTheFourTabs() throws {
         let app = launch(mock: false)

@@ -91,6 +91,15 @@ new `api/_lib/trackerSession.ts` importing `src/lib/tracking/plan.js` and `recor
   `computeSessionPRs` calls are deleted. `setToRow/cardioToRow/collectUntouchedPlanned/
   makeExtraSet` stay client-side (edit-time serializers).
 
+### W4 addendum — `bootstrap { peek: true }` (landed with W4 PR A)
+`bootstrap` is a get-or-create: it stamps `started_at` before it builds the model. The native
+app prefetches today's and tomorrow's workouts so one can start offline, and a prefetch must
+never create a session row with a start time nobody chose — so `peek: true` skips the upsert
+and returns the same `TrackerBootstrap` with `session: null` when none exists (404 for an
+unowned event, as before). Fixture: `ios/Fixtures/bootstrap-peek.json`. The offline open then
+queues `start { startedAt }` with the phone's time and passes the same stamp to the online
+`bootstrap`, so both paths converge on one `started_at`.
+
 ## W5a — chat v2: server-side prompt assembly (Linux)
 
 `api/chat.ts` accepts
