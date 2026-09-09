@@ -21,12 +21,13 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W9 | Analytics tab (editable layout) | ready | Mac | W8 + W6 done |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
 | W11 | Profile, integrations, account | ready | both | the only migration (`provider_connections.client`) |
-| W12 | Live Activity | in review (PR A #131, PR B #132 stacked) | Mac | 0.5.0; TestFlight build 4 and the device run wait on Shane |
+| W12 | Live Activity | done (#131, #132) | Mac | 0.5.0 on main; TestFlight build 4 and Shane's device run outstanding |
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
-1. W12: merge A (#131) then B; `ios/scripts/testflight.sh` from the W12 worktree for TestFlight
-   build 4 (0.5.0) on Shane's go; Shane's device run (30-minute background, Done linger,
+1. W12: `ios/scripts/testflight.sh` from the W12 worktree (`.claude/worktrees/feat-w12-activity-target`,
+   which still holds the two git-ignored files) for TestFlight build 4 (0.5.0) on Shane's go;
+   Shane's device run (30-minute background, Done linger,
    kill/relaunch, the first-run Live Activities prompt). Then W9, W7 or W10.
 2. Shane's W6 device run on TestFlight build 3 (0.4.0/301): add a key in the sheet, ask the coach
    to create a workout tomorrow → card → Confirm → it appears on Schedule; Stop mid-stream →
@@ -120,6 +121,9 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   first `pendingRoute` consumer) + `RootTabView` selection + `ScheduleTab` consumer, relaunch
   adopt/end, sign-out `endAll`, 0.5.0, D-026. Proved on the simulator under the mock: compact,
   expanded, Lock Screen, tap-to-open warm and cold, relaunch reconcile, Done on the Lock Screen.
+- 2026-09-09 · W12 · A (#131) and B (#132) merged via the babysitter; B needed the
+  `git rebase --onto origin/main <old-A-tip>` after A's squash, as W6 did. 0.5.0 is on main;
+  the TestFlight upload waits on Shane.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)
