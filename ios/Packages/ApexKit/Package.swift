@@ -22,6 +22,7 @@ let package = Package(
         .library(name: "ApexPersistence", targets: ["ApexPersistence"]),
         .library(name: "ApexUI", targets: ["ApexUI"]),
         .library(name: "ApexFeatures", targets: ["ApexFeatures"]),
+        .library(name: "ApexActivity", targets: ["ApexActivity"]),
     ],
     dependencies: [
         .package(path: "../ApexCore"),
@@ -62,6 +63,18 @@ let package = Package(
                 .product(name: "ApexCore", package: "ApexCore"),
                 "ApexUI", "ApexAuth", "ApexPersistence",
             ],
+            swiftSettings: [.swiftLanguageMode(.v6), .defaultIsolation(MainActor.self)]
+        ),
+        // The Live Activity (W12, D-016): the ActivityKit attributes and the
+        // island / Lock Screen views, compiled once and linked by both the app
+        // and the ApexWidgets extension. ActivityKit pairs an activity with its
+        // UI by the attributes *type*, so that type must live in exactly one
+        // module. Depends on ApexUI and ApexCore only — never ApexPersistence
+        // (GRDB) or ApexAuth (supabase-swift): a widget extension process runs
+        // under a memory ceiling a fraction of the app's.
+        .target(
+            name: "ApexActivity",
+            dependencies: [.product(name: "ApexCore", package: "ApexCore"), "ApexUI"],
             swiftSettings: [.swiftLanguageMode(.v6), .defaultIsolation(MainActor.self)]
         ),
     ]

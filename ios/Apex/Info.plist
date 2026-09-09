@@ -66,6 +66,12 @@
 	<array>
 		<string>com.shanehaynes.apextraining.queue-flush</string>
 	</array>
+	<!-- W12: the tracker's elapsed timer in the Dynamic Island and on the Lock
+	     Screen (D-016). Rendered by the ApexWidgets extension; the app requests
+	     the activity. No frequent-updates key: the system draws the timer from
+	     a date, so nothing is ever pushed. -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<!-- The web hand-off button (D-020); consumed in W2. -->
 	<key>CFBundleURLTypes</key>
 	<array>

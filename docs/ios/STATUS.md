@@ -21,7 +21,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W9 | Analytics tab (editable layout) | ready | Mac | W8 + W6 done |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
 | W11 | Profile, integrations, account | ready | both | the only migration (`provider_connections.client`) |
-| W12 | Live Activity | ready | Mac | `ApexWidgets` target; tracker start/finish/cancel hooks are in `TrackerModel` |
+| W12 | Live Activity | in progress (`feat/w12-activity-target`) | Mac | PR A: `ApexActivity` + `ApexWidgets` targets, views, snapshots; PR B: hooks, deep link, relaunch, 0.5.0 |
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
@@ -107,6 +107,11 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 - 2026-09-09 · W6 · A/B/C merged (#126, #127, #128; each squash conflicted the next because the
   stacked branch still carried the lower commit — `git rebase --onto origin/main <old-tip>` each
   time). TestFlight build 3 (0.4.0/301) uploaded via `ios/scripts/testflight.sh`. W9 unblocked.
+- 2026-09-09 · W12 · Plan and PR A: `ApexActivity` package target (attributes with ids, content
+  state with a reserved rest-timer field, island + Lock Screen views), `ApexWidgets` extension,
+  `NSSupportsLiveActivities`, versions moved to project level, 4 snapshots. Found: `pendingRoute`
+  is never consumed and the custom scheme has no `app` host — both land in PR B. Dry-run archive
+  signed both bundles.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)
