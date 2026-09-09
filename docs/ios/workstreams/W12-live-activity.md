@@ -1,7 +1,7 @@
 # W12 — Live Activity + Dynamic Island for the tracker
 
 **Machine:** Mac · **Depends on:** W4 · **Unblocks:** —
-**Status:** in review — PR A (`feat/w12-activity-target`) and PR B (`feat/w12-activity-behaviour`, stacked on A); device acceptance is Shane's
+**Status:** in review — PR A #131 (`feat/w12-activity-target`) and PR B #132 (`feat/w12-activity-behaviour`, stacked on A); device acceptance is Shane's
 
 ## Goal
 Start a workout and see the elapsed timer (and the title, where it fits) in the Dynamic Island

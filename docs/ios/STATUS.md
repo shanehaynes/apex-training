@@ -21,7 +21,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W9 | Analytics tab (editable layout) | ready | Mac | W8 + W6 done |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
 | W11 | Profile, integrations, account | ready | both | the only migration (`provider_connections.client`) |
-| W12 | Live Activity | in review (PR A #131, PR B stacked) | Mac | 0.5.0; TestFlight build 4 and the device run wait on Shane |
+| W12 | Live Activity | in review (PR A #131, PR B #132 stacked) | Mac | 0.5.0; TestFlight build 4 and the device run wait on Shane |
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
