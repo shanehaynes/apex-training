@@ -1,7 +1,7 @@
 # W6 — Coach tab
 
 **Machine:** Mac · **Depends on:** W5a (W5b for actions) · **Unblocks:** W7, W9 (their coach drawers reuse this)
-**Status:** in review — PR A #126, PR B #127, PR C (`feat/w6-coach-release`); TestFlight build 3 (0.4.0) archived, upload waits on Shane
+**Status:** done (#126, #127, #128) — TestFlight build 3 (0.4.0/301) uploaded 2026-09-09; Shane's device run outstanding
 
 ## Goal
 The coach as a first-class tab: streaming, Markdown, confirmations, local history. TestFlight build 3.

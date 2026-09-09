@@ -15,30 +15,26 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W4 | Tracker UI + write queue | done (#117, #118, #119) | Mac | TestFlight build 2 (0.3.0/295) uploaded; Shane's airplane-mode device run outstanding |
 | W5a | Backend chat v2 (server prompt) | done (PR #98) | Linux | web switched in the same PR |
 | W5b | Backend `/api/coach-tool` | done (PR #99) | Linux | services extracted; web confirm switched |
-| W6 | Coach tab | in review (#126, #127, PR C) | Mac | 0.4.0 archived (dry run); TestFlight build 3 upload + device run are Shane's |
+| W6 | Coach tab | done (#126, #127, #128) | Mac | TestFlight build 3 (0.4.0/301) uploaded 2026-09-09; Shane's device run outstanding |
 | W7 | Event CRUD + builder | ready | Mac | W2 + W5b done |
 | W8 | Backend analytics compute | done (PR #100) | Linux | web keeps its browser path |
-| W9 | Analytics tab (editable layout) | blocked on W6 | Mac | W8 done |
+| W9 | Analytics tab (editable layout) | ready | Mac | W8 + W6 done |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
 | W11 | Profile, integrations, account | ready | both | the only migration (`provider_connections.client`) |
 | W12 | Live Activity | ready | Mac | `ApexWidgets` target; tracker start/finish/cancel hooks are in `TrackerModel` |
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
-1. Shane's W4 device run on TestFlight build 2 (0.3.0/295): open today's workout once online (or
-   let the peek prefetch do it), airplane mode, log, Finish, background, Wi-Fi on → rows match and
-   `started_at` / `finished_at` are the phone's stamps.
-1. Land W6: A #126 → B #127 (retarget to `main`) → C, in order (each squash conflicts the
-   next on the living docs — keep the newer branch's side). Then Shane: `ios/scripts/testflight.sh`
-   from the C worktree for TestFlight build 3 (0.4.0), and the device run (key sheet → create
-   an event via the coach → it appears on Schedule; Stop mid-stream → Vercel abort log;
-   relaunch mid-card). W9 is unblocked once W6 merges; W12 / W7 / W10 stay unblocked.
-2. Shane: add `apextraining://auth` to Supabase → Authentication → URL Configuration → Redirect
-   URLs (`scripts/auth-redirect-check.sh` check 2c fails until then); the W2 device runs on the
-   iPhone 15 Pro (airplane-mode relaunch, a web edit reaching the phone, recovery email, invite).
-3. Releases are one command: `ios/scripts/testflight.sh`. Needs the App Store Connect API key
-   (`.p8` in `~/.appstoreconnect/private_keys/`, ids in `ios/Config/appstoreconnect.env` — both
-   git-ignored and per-machine; `printf` the two ids back after a tidy).
+1. Shane's W6 device run on TestFlight build 3 (0.4.0/301): add a key in the sheet, ask the coach
+   to create a workout tomorrow → card → Confirm → it appears on Schedule; Stop mid-stream →
+   the Vercel log shows the aborted upstream call; kill the app mid-card → relaunch → the card
+   comes back. Then W12 (Live Activity), W9 (analytics — now unblocked), W7 or W10.
+2. Still open from earlier: the W4 airplane-mode run on build 2; add `apextraining://auth` to
+   Supabase → Authentication → URL Configuration → Redirect URLs (`scripts/auth-redirect-check.sh`
+   check 2c fails until then); the W2 device runs.
+3. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
+   `ios/Config/Secrets.xcconfig` (`ios/scripts/secrets.sh`) and `ios/Config/appstoreconnect.env`
+   (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
 - 2026-09-02 · plan · Master plan and all briefs written (PR #94).
@@ -108,6 +104,9 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   simulator under the mock.
 - 2026-09-08 · W6 · PR C: `testCoachOnFixtures` + `testCoachKeySetupOnFixtures` (screenshots
   11–16), 0.4.0, TestFlight dry-run archive green; upload and device run left for Shane.
+- 2026-09-09 · W6 · A/B/C merged (#126, #127, #128; each squash conflicted the next because the
+  stacked branch still carried the lower commit — `git rebase --onto origin/main <old-tip>` each
+  time). TestFlight build 3 (0.4.0/301) uploaded via `ios/scripts/testflight.sh`. W9 unblocked.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)
