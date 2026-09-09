@@ -23,6 +23,12 @@ settings:
     IPHONEOS_DEPLOYMENT_TARGET: "17.0"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     DEVELOPMENT_TEAM: G44GWSXFK2
+    # Project-level, not per target: the app and the ApexWidgets extension must
+    # carry the same version and build number or App Store Connect rejects the
+    # upload. testflight.sh stamps CURRENT_PROJECT_VERSION on the command line,
+    # which reaches every target the same way.
+    MARKETING_VERSION: "0.4.0"
+    CURRENT_PROJECT_VERSION: "1"
 
 packages:
   ApexCore:
@@ -52,8 +58,6 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shanehaynes.apextraining
         PRODUCT_NAME: Apex
-        MARKETING_VERSION: "0.4.0"
-        CURRENT_PROJECT_VERSION: "1"
         INFOPLIST_FILE: Apex/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: Apex/Apex.entitlements
@@ -76,6 +80,42 @@ targets:
         product: ApexUI
       - package: ApexKit
         product: ApexFeatures
+      - package: ApexKit
+        product: ApexActivity
+      # The Live Activity extension (W12). An app-extension dependency is
+      # embedded into the app bundle by XcodeGen.
+      - target: ApexWidgets
+
+  # The widget extension: a thin @main bundle over ApexActivity's views. It
+  # links ApexActivity (and through it ApexUI + ApexCore) and nothing else —
+  # widget extension processes run under a memory ceiling a fraction of the
+  # app's, and supabase-swift or GRDB would be dead weight there.
+  ApexWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ApexWidgets
+    configFiles:
+      Debug: Config/Debug.xcconfig
+      Local: Config/Local.xcconfig
+      Release: Config/Release.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shanehaynes.apextraining.widgets
+        PRODUCT_NAME: ApexWidgets
+        INFOPLIST_FILE: ApexWidgets/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_STYLE: Automatic
+        SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    dependencies:
+      - package: ApexKit
+        product: ApexActivity
+      - package: ApexKit
+        product: ApexUI
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
 
   ApexTests:
     type: bundle.unit-test
@@ -103,6 +143,9 @@ targets:
         link: false
       - package: ApexKit
         product: ApexFeatures
+        link: false
+      - package: ApexKit
+        product: ApexActivity
         link: false
 
   ApexUITests:
