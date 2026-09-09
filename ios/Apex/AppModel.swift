@@ -1,3 +1,4 @@
+import ApexActivity
 import ApexAuth
 import ApexCore
 import ApexFeatures
@@ -38,8 +39,13 @@ final class AppModel {
     private var mockState: AuthState = .signedOut(reason: nil)
     /// A link that arrived before the stored session was read; replayed once it is.
     private var parkedURL: URL?
-    /// A non-auth link (`/app/event/...`) the tabs will consume (W7/W10).
-    private(set) var pendingRoute: DeepLink?
+    /// Non-auth links (`/app/...`) and the tab selection: the tabs consume from
+    /// here (W12 `.tracker`; W7/W10 `.event`/`.library`).
+    let routes = RouteBus()
+    /// The Live Activity (W12), per signed-in user like the queue. Nil until
+    /// `ensureQueue`; the mock runs on the real one too, so the simulator can
+    /// prove the island without a backend — except under the XCUITest smoke.
+    private var activity: LiveActivityController?
     /// Whether the set-password screen must also collect acceptance: the terms
     /// gate 403s every other read for an invitee who never accepted on the web.
     private(set) var needsTermsAcceptance = false
@@ -87,7 +93,19 @@ final class AppModel {
         // Backoff runs on real time even under the mock: its TestClock would make
         // every retry instant, and the smoke wants to see the pending chip.
         let queue = WriteQueue(store: store, client: client, clock: SystemClock())
-        trackerServices = TrackerServices(client: client, cache: cache ?? MemoryCacheStore(), queue: queue, clock: clock)
+        let cache = cache ?? MemoryCacheStore()
+        let publisher: any TrackerActivityPublishing
+        if CommandLine.arguments.contains("-apexUITest") {
+            publisher = NoActivityPublisher()
+        } else {
+            let controller = LiveActivityController()
+            activity = controller
+            publisher = controller
+            // Whatever the system kept alive across a kill: keep it if the
+            // session is still open, end it otherwise (architecture.md §12).
+            Task { await controller.adoptExisting { key in await Self.isSessionOpen(key, in: cache) } }
+        }
+        trackerServices = TrackerServices(client: client, cache: cache, queue: queue, clock: clock, activity: publisher)
         queueDriver?.stop()
         queueDriver = WriteQueueDriver(queue: queue)
         Task { await queue.flush() }
@@ -163,8 +181,8 @@ final class AppModel {
                 // stays signed in, and the sign-in card gets the explanation.
                 ToastBus.shared.post(message, level: .failure)
             }
-        case .event, .library:
-            pendingRoute = link
+        case .event, .library, .tracker:
+            routes.open(link)
         case .connected(let provider):
             ToastBus.shared.post("\(provider.capitalized) connected.", level: .success)
         case .connectError(_, let message):
@@ -236,6 +254,8 @@ final class AppModel {
         queueDriver?.stop()
         queueDriver = nil
         trackerServices = nil
+        // Nothing in the island belongs to the next account.
+        if let activity { Task { await activity.endAll() } }
         coach?.shutdown()
         coach = nil
         queueOwner = nil
@@ -266,6 +286,18 @@ final class AppModel {
         default:
             break
         }
+    }
+
+    /// The cached bootstrap is the only record of a session an app kill left
+    /// behind: started and not finished means the island should keep counting.
+    /// No cache entry means a cancel purged it — or it was never ours.
+    private static func isSessionOpen(_ key: SessionKey, in cache: any CacheStore) async -> Bool {
+        guard let entry = try? await cache.read(
+                kind: .trackerBootstrap, key: ScheduleCacheKey.trackerBootstrap(eventId: key.eventId, eventDate: key.eventDate)
+              ),
+              let bootstrap = try? JSONDecoder().decode(TrackerBootstrap.self, from: entry.json),
+              let session = bootstrap.session else { return false }
+        return session.startedAt != nil && session.finishedAt == nil
     }
 
     private static func makeSchedule(

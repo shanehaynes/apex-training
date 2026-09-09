@@ -1,20 +1,26 @@
+import ApexActivity
 import ApexCore
 import Foundation
 
 /// What the tracker needs from the app: the client, the read cache, the write
-/// queue and the clock. Built once by `AppModel` per signed-in user (the queue
-/// store is per owner) and handed to the Schedule tab.
+/// queue, the clock and the Live Activity (W12). Built once by `AppModel` per
+/// signed-in user (the queue store is per owner) and handed to the Schedule tab.
 public struct TrackerServices: Sendable {
     public var client: ApexClient
     public var cache: any CacheStore
     public var queue: WriteQueue
     public var clock: any ApexClock
+    public var activity: any TrackerActivityPublishing
 
-    public init(client: ApexClient, cache: any CacheStore, queue: WriteQueue, clock: any ApexClock = SystemClock()) {
+    public init(
+        client: ApexClient, cache: any CacheStore, queue: WriteQueue, clock: any ApexClock = SystemClock(),
+        activity: any TrackerActivityPublishing = NoActivityPublisher()
+    ) {
         self.client = client
         self.cache = cache
         self.queue = queue
         self.clock = clock
+        self.activity = activity
     }
 }
 
