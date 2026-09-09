@@ -151,6 +151,14 @@ Body `{ toolUseId, name, input, today }` → `{ resultText, ok }` or, for draft 
 - Evals: unchanged (they drive the executors with `memoryDeps.ts`); add one integration test
   that runs a recorded eval case through `serverDeps` against the local stack.
 
+### W6 addendum — `GET /api/profile` carries the coach model (landed with W6 PR A)
+The web reads `profiles.coach_model` through RLS; the native app reads profile state only
+through this endpoint, so it now also returns `coachModel` (the stored id, or `null` = follow
+the default) and `coachModelLabel` (resolved with `resolveCoachModel`, the same allowlist
+`/api/chat` applies to the request body — a retired id reads as the default it will run on).
+Both are optional in `ProfileResponse` so a profile cached by an older build still decodes.
+Fixture `profile.json` regenerated. The picker itself is W11; W6 shows the label read-only.
+
 ## W8 — `POST /api/analytics-compute { specs: ChartSpec[], today }` (Linux)
 
 → `{ tiles: TileResult[] }` (index-aligned, cap 24 specs; single-spec calls for the builder's

@@ -1,6 +1,8 @@
 {
   "hasAnthropicKey": false,
   "anthropicKeyLast4": null,
+  "coachModel": null,
+  "coachModelLabel": "Opus 4.8",
   "termsAccepted": {
     "termsVersion": "terms-v1",
     "privacyVersion": "privacy-v1",

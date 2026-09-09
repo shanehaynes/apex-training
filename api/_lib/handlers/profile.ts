@@ -5,7 +5,7 @@ import { getAnthropicKey, keyLast4, validateAnthropicKey } from '../anthropicKey
 import { encryptSecret, hasEncryptionSecret } from '../keyCrypto.js';
 import { enforceRateLimit } from '../rateLimit.js';
 import { isCurrent, latestAcceptance } from '../legal.js';
-import { isCoachModelId } from '../../../src/lib/coach/models.js';
+import { isCoachModelId, resolveCoachModel } from '../../../src/lib/coach/models.js';
 
 // Profile reads/writes, same posture as every other table: the browser
 // reads profiles via RLS (own row only) and mutates through this
@@ -30,6 +30,22 @@ async function keyStatus(supabase: NonNullable<ReturnType<typeof getSupabaseAdmi
   return { hasAnthropicKey: key !== null, anthropicKeyLast4: key ? keyLast4(key) : null };
 }
 
+// The coach model, for clients that do not read the profiles row directly
+// (the native app — W6). `coachModel` is the stored column as is (null =
+// follow the default); `coachModelLabel` is what a badge shows, resolved the
+// same way /api/chat resolves the request body, so a retired id reads as the
+// default it will actually run on.
+async function coachModelStatus(supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>, userId: string) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('coach_model')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const stored = typeof data?.coach_model === 'string' ? data.coach_model : null;
+  return { coachModel: stored, coachModelLabel: resolveCoachModel(stored).label };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET' && req.method !== 'PATCH') {
     res.status(405).send('Method not allowed');
@@ -51,12 +67,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'GET') {
     try {
-      const [keys, accepted] = await Promise.all([
+      const [keys, accepted, model] = await Promise.all([
         keyStatus(supabase, userId),
         latestAcceptance(supabase, userId),
+        coachModelStatus(supabase, userId),
       ]);
       res.status(200).json({
         ...keys,
+        ...model,
         termsAccepted: accepted,
         termsCurrent: isCurrent(accepted),
       });
