@@ -1,3 +1,4 @@
+import ApexActivity
 import ApexCore
 import XCTest
 import ApexFeatures
@@ -72,15 +73,26 @@ final class TrackerModelTests: XCTestCase {
         return t
     }
 
+    /// Records what the tracker told the Live Activity (W12).
+    private final class ActivitySpy: TrackerActivityPublishing, @unchecked Sendable {
+        enum Call: Equatable { case sync(TrackerActivitySnapshot), end(SessionKey, Int?) }
+        private let lock = NSLock()
+        private var _calls: [Call] = []
+        var calls: [Call] { lock.withLock { _calls } }
+        func sync(_ snapshot: TrackerActivitySnapshot) async { lock.withLock { _calls.append(.sync(snapshot)) } }
+        func end(_ session: SessionKey, totalSeconds: Int?) async { lock.withLock { _calls.append(.end(session, totalSeconds)) } }
+    }
+
     @MainActor
     private func make(
         _ transport: ScriptedTransport, cache: MemoryCacheStore = MemoryCacheStore(),
         store: MemoryWriteQueueStore = MemoryWriteQueueStore(), clock: TestClock = TestClock(now: now),
-        calendar: Calendar = Calendar(), event: ScheduleEvent = TrackerModelTests.event
+        calendar: Calendar = Calendar(), event: ScheduleEvent = TrackerModelTests.event,
+        activity: any TrackerActivityPublishing = NoActivityPublisher()
     ) -> (TrackerModel, WriteQueue) {
         let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: Tokens())
         let queue = WriteQueue(store: store, client: client, clock: clock)
-        let services = TrackerServices(client: client, cache: cache, queue: queue, clock: clock)
+        let services = TrackerServices(client: client, cache: cache, queue: queue, clock: clock, activity: activity)
         let deps = TrackerDependencies(
             services: services,
             definitions: { [ExerciseDefinition(id: "d-row", canonicalName: "Rowing Machine", category: "cardio"),
@@ -177,6 +189,72 @@ final class TrackerModelTests: XCTestCase {
         let (model, _) = make(transport)
         await model.open()
         guard case .unavailable = model.phase else { return XCTFail("expected unavailable, got \(model.phase)") }
+    }
+
+    // MARK: - Live Activity (W12)
+
+    @MainActor
+    func testOpenWithARunningSessionSyncsTheActivityOnce() async throws {
+        let spy = ActivitySpy()
+        let (model, _) = make(healthy(), activity: spy)
+        await model.open()
+        guard case .sync(let snapshot)? = spy.calls.first, spy.calls.count == 1 else { return XCTFail("\(spy.calls)") }
+        XCTAssertEqual(snapshot.session, model.session)
+        XCTAssertEqual(snapshot.title, Self.event.title)
+        XCTAssertEqual(snapshot.startedAt, model.startedAt, "the island counts from the server's started_at")
+        XCTAssertEqual(snapshot.exerciseCount, model.editor.groups.reduce(0) { $0 + $1.exercises.count })
+        // Back keeps it up: the workout is still going.
+        await model.close()
+        XCTAssertEqual(spy.calls.count, 1)
+    }
+
+    @MainActor
+    func testOfflineStartSyncsWithTheLocalStamp() async throws {
+        let cache = MemoryCacheStore()
+        let key = ScheduleCacheKey.trackerBootstrap(eventId: Self.event.id, eventDate: Self.event.date)
+        try await cache.write(CacheEntry(kind: .trackerBootstrap, key: key, json: Self.fixture("bootstrap-peek.json"), fetchedAt: Self.now))
+        let transport = healthy()
+        transport.offline = true
+        let spy = ActivitySpy()
+        let (model, _) = make(transport, cache: cache, activity: spy)
+        await model.open()
+        XCTAssertEqual(spy.calls, [.sync(TrackerActivitySnapshot(
+            session: model.session, title: Self.event.title, startedAt: Self.now,
+            exerciseCount: model.editor.groups.reduce(0) { $0 + $1.exercises.count }
+        ))])
+    }
+
+    @MainActor
+    func testUnavailableAndFinishedSessionsSyncNothing() async throws {
+        let offline = healthy()
+        offline.offline = true
+        let spy = ActivitySpy()
+        let (unavailable, _) = make(offline, activity: spy)
+        await unavailable.open()
+        XCTAssertTrue(spy.calls.isEmpty, "nothing to count without a session")
+
+        let transport = healthy()
+        transport.set("POST /api/workout-sessions bootstrap", body: Self.fixture("bootstrap.json"))
+        let (finished, _) = make(transport, activity: spy)
+        await finished.open()
+        XCTAssertTrue(finished.isFinished)
+        XCTAssertTrue(spy.calls.isEmpty, "a finished session reopened starts no activity")
+    }
+
+    @MainActor
+    func testFinishEndsWithTheTotalAndCancelEndsAtOnce() async throws {
+        let spy = ActivitySpy()
+        let (model, queue) = make(healthy(), activity: spy)
+        await model.open()
+        await model.requestFinish(force: true)
+        XCTAssertEqual(spy.calls.last, .end(model.session, model.totalDurationSeconds))
+        XCTAssertNotNil(model.totalDurationSeconds)
+        await queue.flush(model.session)
+
+        model.confirmCancel()
+        _ = await model.cancelWorkout()
+        XCTAssertEqual(spy.calls.last, .end(model.session, nil))
+        XCTAssertEqual(spy.calls.count, 3, "sync, end(total), end(nil)")
     }
 
     // MARK: - Edits

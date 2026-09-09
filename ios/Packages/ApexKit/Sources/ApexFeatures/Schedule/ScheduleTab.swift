@@ -7,6 +7,7 @@ import SwiftUI
 public struct ScheduleTab: View {
     @Bindable private var model: ScheduleModel
     private let tracker: TrackerServices?
+    private let routes: RouteBus?
     @State private var sheet: ScheduleSheet?
     @State private var trackerRoute: TrackerRoute?
     /// Set while the event sheet is still dismissing: presenting the cover over
@@ -15,9 +16,11 @@ public struct ScheduleTab: View {
     @State private var pendingTracker: TrackerRoute?
 
     /// `tracker: nil` hides Start Workout (the app before a user is signed in).
-    public init(model: ScheduleModel, tracker: TrackerServices? = nil) {
+    /// `routes` is the deep-link bus this tab consumes `.tracker` from (W12).
+    public init(model: ScheduleModel, tracker: TrackerServices? = nil, routes: RouteBus? = nil) {
         self.model = model
         self.tracker = tracker
+        self.routes = routes
     }
 
     private var trackerDependencies: TrackerDependencies? {
@@ -75,12 +78,38 @@ public struct ScheduleTab: View {
             }
         }
         .task { await model.start() }
+        // The Live Activity's tap. Two triggers: the link arriving while the
+        // index is loaded, and the index arriving after a cold-launch link.
+        .onChange(of: routes?.pending, initial: true) { _, _ in consumeRoute() }
+        .onChange(of: model.index == nil) { _, _ in consumeRoute() }
     }
 
     private func presentPendingTracker() {
         guard let route = pendingTracker else { return }
         pendingTracker = nil
         trackerRoute = route
+    }
+
+    /// `.tracker(id:date:)` → the occurrence, presented the same way Start
+    /// Workout presents it. Waits for the index; a miss (the occurrence is
+    /// outside the window around today) is a toast, and the link is spent.
+    private func consumeRoute() {
+        guard let routes, tracker != nil, model.index != nil,
+              let link = routes.take(where: { if case .tracker = $0 { true } else { false } }) else { return }
+        guard let route = TrackerRouteResolver.route(for: link, in: model.index) else {
+            ToastBus.shared.post("That workout is not on the schedule any more.", level: .failure)
+            return
+        }
+        // Already showing it (the app was in the tracker when the island was tapped).
+        if trackerRoute?.id == route.id { return }
+        // Another session's tracker is up: leave it — the user is in a workout.
+        if trackerRoute != nil { return }
+        if sheet != nil {
+            pendingTracker = route
+            sheet = nil
+        } else {
+            trackerRoute = route
+        }
     }
 
     @ViewBuilder

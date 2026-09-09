@@ -21,18 +21,21 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W9 | Analytics tab (editable layout) | ready | Mac | W8 + W6 done |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
 | W11 | Profile, integrations, account | ready | both | the only migration (`provider_connections.client`) |
-| W12 | Live Activity | in progress (`feat/w12-activity-target`) | Mac | PR A: `ApexActivity` + `ApexWidgets` targets, views, snapshots; PR B: hooks, deep link, relaunch, 0.5.0 |
+| W12 | Live Activity | in review (PR A #131, PR B #132 stacked) | Mac | 0.5.0; TestFlight build 4 and the device run wait on Shane |
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
-1. Shane's W6 device run on TestFlight build 3 (0.4.0/301): add a key in the sheet, ask the coach
+1. W12: merge A (#131) then B; `ios/scripts/testflight.sh` from the W12 worktree for TestFlight
+   build 4 (0.5.0) on Shane's go; Shane's device run (30-minute background, Done linger,
+   kill/relaunch, the first-run Live Activities prompt). Then W9, W7 or W10.
+2. Shane's W6 device run on TestFlight build 3 (0.4.0/301): add a key in the sheet, ask the coach
    to create a workout tomorrow → card → Confirm → it appears on Schedule; Stop mid-stream →
    the Vercel log shows the aborted upstream call; kill the app mid-card → relaunch → the card
-   comes back. Then W12 (Live Activity), W9 (analytics — now unblocked), W7 or W10.
-2. Still open from earlier: the W4 airplane-mode run on build 2; add `apextraining://auth` to
+   comes back.
+3. Still open from earlier: the W4 airplane-mode run on build 2; add `apextraining://auth` to
    Supabase → Authentication → URL Configuration → Redirect URLs (`scripts/auth-redirect-check.sh`
    check 2c fails until then); the W2 device runs.
-3. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
+4. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
    `ios/Config/Secrets.xcconfig` (`ios/scripts/secrets.sh`) and `ios/Config/appstoreconnect.env`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
@@ -111,7 +114,12 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   state with a reserved rest-timer field, island + Lock Screen views), `ApexWidgets` extension,
   `NSSupportsLiveActivities`, versions moved to project level, 4 snapshots. Found: `pendingRoute`
   is never consumed and the custom scheme has no `app` host — both land in PR B. Dry-run archive
-  signed both bundles.
+  signed both bundles. PR A is #131.
+- 2026-09-09 · W12 · PR B: `DeepLink.tracker` + scheme `app` host, `TrackerActivityPublishing`
+  seam + stateless `LiveActivityController`, the three `TrackerModel` hooks, `RouteBus` (the
+  first `pendingRoute` consumer) + `RootTabView` selection + `ScheduleTab` consumer, relaunch
+  adopt/end, sign-out `endAll`, 0.5.0, D-026. Proved on the simulator under the mock: compact,
+  expanded, Lock Screen, tap-to-open warm and cold, relaunch reconcile, Done on the Lock Screen.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)

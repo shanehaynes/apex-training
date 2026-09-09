@@ -96,6 +96,19 @@ final class DeepLinkTests: XCTestCase {
         XCTAssertNil(parse("https://apextrainingcalendar.vercel.app/app/event/only-id"))
     }
 
+    /// The Live Activity's tap URL (W12), and the same routes on the scheme.
+    func testTrackerRouteOnTheSchemeAndTheOrigin() {
+        XCTAssertEqual(parse("apextraining://app/tracker/ios-fixture-weekly__2026-09-22/2026-09-22"),
+                       .tracker(id: "ios-fixture-weekly__2026-09-22", date: "2026-09-22"))
+        XCTAssertEqual(parse("https://apextrainingcalendar.vercel.app/app/tracker/e/2026-09-22"), .tracker(id: "e", date: "2026-09-22"))
+        XCTAssertEqual(parse("apextraining://app/event/e/2026-09-22"), .event(id: "e", date: "2026-09-22"))
+        XCTAssertEqual(parse("apextraining://app/library/def-1"), .library(definitionId: "def-1"))
+        XCTAssertNil(parse("apextraining://app/tracker/only-id"))
+        XCTAssertNil(parse("apextraining://app/tracker/e/2026-09-22/extra"))
+        XCTAssertNil(parse("apextraining://app/"))
+        XCTAssertNil(parse("apextraining://tracker/e/2026-09-22"), "the scheme's routes live under the app host")
+    }
+
     func testProviderLinks() {
         XCTAssertEqual(parse("apextraining://connected?provider=coros"), .connected(provider: "coros"))
         XCTAssertEqual(parse("apextraining://connect_error?provider=coros&message=denied"),
