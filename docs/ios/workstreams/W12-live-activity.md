@@ -1,7 +1,7 @@
 # W12 — Live Activity + Dynamic Island for the tracker
 
 **Machine:** Mac · **Depends on:** W4 · **Unblocks:** —
-**Status:** in progress — PR A (`feat/w12-activity-target`) open; PR B next
+**Status:** in review — PR A (`feat/w12-activity-target`) and PR B (`feat/w12-activity-behaviour`, stacked on A); device acceptance is Shane's
 
 ## Goal
 Start a workout and see the elapsed timer (and the title, where it fits) in the Dynamic Island
@@ -49,3 +49,30 @@ Out: rest timer (Backlog) — leave a hook in `ContentState` for it.
     GRDB/supabase; 94 unit + 8 UI tests green; `testflight.sh --dry-run` archived and exported
     an IPA with the extension signed under the team (bundle id minted by automatic signing).
     Open: the extension's own `ApexFonts.register()` is exercised only when an activity runs (B).
+- 2026-09-09 · Mac · PR B (stacked on A): `DeepLink.tracker` + the scheme's `app` host
+  (ApexCore, 247 `swift test` green); `TrackerActivityPublishing` + `TrackerActivitySnapshot` +
+  `NoActivityPublisher` and the stateless `LiveActivityController` in `ApexActivity`;
+  `TrackerServices.activity`; the three `TrackerModel` hooks; `RouteBus` + `AppTab` +
+  `TrackerRouteResolver`, `RootTabView` selection, the `ScheduleTab` consumer; `AppModel`
+  wiring (`adoptExisting` on `ensureQueue`, `endAll` on sign-out, the mock runs the real
+  controller except under `-apexUITest`); 0.5.0; D-026.
+  - **Proved on the iPhone 17 simulator under `-apexMockClient`** (screenshots in the PR):
+    start → compact island (glyph + timer) → long-press → expanded (title, timer, "2 exercises",
+    Open) → Lock Screen banner; kill the app → tap the island → cold launch, no crash; relaunch →
+    "ending a stale activity" (the mock's memory cache has no session); start again → Back → the
+    activity stays → Home → tap → the tracker reopens on the same session; Finish → the island
+    drops it (system rule for an ended activity) and the Lock Screen shows "Done" with the total
+    in the positive colour; Cancel after that finish clears the Lock Screen at once (first
+    attempt left the "Done" banner lingering: `end(nil)` only matched live activities and the
+    finished one was already `.ended` — it now matches anything not yet dismissed). The
+    extension registered the house fonts. The 31-hour reading in the
+    running state is the mock's fixed clock against the system's real time — not a bug.
+  - Tests: 4 spy cases in `TrackerModelTests` (open syncs once with the server's stamp, offline
+    start syncs the local stamp, unavailable/finished sync nothing, finish ends with the total
+    then cancel ends at once; Back ends nothing), `RouteBusTests` (tab mapping, take-where,
+    resolver), `DeepLinkTests` vectors.
+  - **Left for Shane (device, TestFlight build 4 on go):** the 30-minute background check on
+    the real island, the 5-minute Done linger, kill/relaunch with the GRDB cache (the simulator
+    proof used the mock's memory cache, so relaunch ended rather than kept the activity), and
+    the first-run "Allow Live Activities from Apex?" prompt.
+

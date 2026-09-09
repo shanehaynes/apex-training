@@ -27,7 +27,7 @@ settings:
     # carry the same version and build number or App Store Connect rejects the
     # upload. testflight.sh stamps CURRENT_PROJECT_VERSION on the command line,
     # which reaches every target the same way.
-    MARKETING_VERSION: "0.4.0"
+    MARKETING_VERSION: "0.5.0"
     CURRENT_PROJECT_VERSION: "1"
 
 packages:

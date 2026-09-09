@@ -61,7 +61,7 @@ let package = Package(
             name: "ApexFeatures",
             dependencies: [
                 .product(name: "ApexCore", package: "ApexCore"),
-                "ApexUI", "ApexAuth", "ApexPersistence",
+                "ApexUI", "ApexAuth", "ApexPersistence", "ApexActivity",
             ],
             swiftSettings: [.swiftLanguageMode(.v6), .defaultIsolation(MainActor.self)]
         ),

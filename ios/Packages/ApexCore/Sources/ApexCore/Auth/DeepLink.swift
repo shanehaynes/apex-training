@@ -20,6 +20,9 @@ public enum DeepLink: Equatable, Sendable {
     case connectError(provider: String?, message: String?)
     case event(id: String, date: String)
     case library(definitionId: String)
+    /// The tracker on one occurrence — what a tap on the Live Activity opens
+    /// (W12): `apextraining://app/tracker/<eventId>/<date>`.
+    case tracker(id: String, date: String)
 
     public enum AuthLinkType: String, Sendable, Equatable {
         case invite, recovery, signup, magiclink
@@ -49,6 +52,10 @@ public enum DeepLink: Equatable, Sendable {
                     provider: value("provider", in: components.queryItems),
                     message: value("message", in: components.queryItems) ?? value("error", in: components.queryItems)
                 )
+            // `apextraining://app/...` mirrors the universal `/app/...` routes,
+            // so anything in the app itself (the Live Activity) can link without
+            // a round trip through the web origin.
+            case "app": return appRoute(path.split(separator: "/").map(String.init))
             default: return nil
             }
         }
@@ -59,11 +66,19 @@ public enum DeepLink: Equatable, Sendable {
         case "auth" where segments == ["auth", "callback"]:
             return parseAuth(components)
         case "app":
-            if segments.count == 4, segments[1] == "event" { return .event(id: segments[2], date: segments[3]) }
-            if segments.count == 3, segments[1] == "library" { return .library(definitionId: segments[2]) }
-            return nil
+            return appRoute(Array(segments.dropFirst()))
         default:
             return nil
+        }
+    }
+
+    /// The segments after `app`.
+    private static func appRoute(_ rest: [String]) -> DeepLink? {
+        switch (rest.first, rest.count) {
+        case ("event", 3): return .event(id: rest[1], date: rest[2])
+        case ("tracker", 3): return .tracker(id: rest[1], date: rest[2])
+        case ("library", 2): return .library(definitionId: rest[1])
+        default: return nil
         }
     }
 

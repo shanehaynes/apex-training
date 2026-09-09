@@ -294,11 +294,19 @@ token generator. Value inspection by tap/scrub (`chartOverlay` + `DragGesture`).
 
 ## 12. Live Activity (W12, D-016)
 
-`ApexWidgets` extension target; `ActivityAttributes { title: String }`, `ContentState
-{ startedAt: Date, exerciseCount: Int? }`. The system renders the elapsed timer from the date
-(`Text(timerInterval:)`), so no periodic updates. Start on tracker open, end on finish/cancel
-with a final "Done · 42:10" state. Compact: timer; minimal: icon; expanded: title + timer.
-Pair with `isIdleTimerDisabled` while the tracker is frontmost.
+`ApexActivity` (ApexKit, linked by the app and the `ApexWidgets` extension — ActivityKit pairs
+by the attributes type, so it exists once): `TrackerActivityAttributes { title, eventId,
+eventDate }`, `ContentState { startedAt, exerciseCount?, phase: running | done(total),
+restEndsAt (reserved, D-015) }`, the views per placement, and `LiveActivityController`. The
+system renders the elapsed timer from the date (`Text(timerInterval:)`), so nothing pushes.
+`TrackerModel` speaks to `TrackerActivityPublishing` (`sync` at the end of `open()` for a
+running session; `end(total)` on finish — "Done · m:ss" lingers 5 minutes on the Lock Screen;
+`end(nil)` on cancel; Back leaves it up). On launch `adoptExisting` keeps an activity whose
+cached bootstrap is started and unfinished and ends the rest. A tap opens
+`apextraining://app/tracker/<id>/<date>` → `DeepLink.tracker` → `RouteBus` → the Schedule tab
+presents the occurrence. Compact: glyph + timer; minimal: glyph; expanded: title + timer +
+count + Open; Lock Screen: banner on `bgSurface`. Pair with `isIdleTimerDisabled` while the
+tracker is frontmost. Decisions: D-026.
 
 ## 13. Type and contract sync (three CI-checked mechanisms)
 

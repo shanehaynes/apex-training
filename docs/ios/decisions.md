@@ -325,3 +325,39 @@ Decided in the plan and proved in `ChatSessionTests`:
   `ApexUI`.
 - **Card copy is "1 of N"** (the brief) rather than the web's "· N more after this".
 
+## D-026 · Live Activity mechanics (W12)
+**Status:** decided · W12 session · 2026-09-09
+D-016 said yes to the island; these are the calls the build forced.
+- **One module for attributes and views.** `ApexActivity` (ApexKit) is linked by the app and
+  the `ApexWidgets` extension. ActivityKit pairs an activity with its UI by the attributes
+  *type*, so the type must exist once; the views live beside it so `ApexTests` can snapshot
+  them. It depends on `ApexUI` + `ApexCore` only — a widget extension runs under a memory
+  ceiling a fraction of the app's, so GRDB and supabase-swift stay out.
+- **Attributes carry the ids** (`{ title, eventId, eventDate }`, not the brief's `{ title }`):
+  the tap URL needs them and a relaunched app reconciles on them. `ContentState.restEndsAt` is
+  reserved for the rest timer (D-015) and unused.
+- **The seam is a protocol** (`TrackerActivityPublishing`: `sync`, `end`) on `TrackerServices`.
+  `sync` is idempotent by design — `open()` can settle `startedAt` twice (offline stamp, then
+  the server's echo) and the island must agree with the header either way. The controller is
+  a stateless struct over `Activity.activities`: `Activity` is not `Sendable`, and the system's
+  list is the one record that survives a kill anyway.
+- **Three hooks, not four.** End of `open()` (running sessions only), finish (`end` with the
+  total → "Done · m:ss" lingers 5 minutes on the Lock Screen; the island drops an ended
+  activity at once, which is the system's rule, not ours), cancel (`end` immediate). Back does
+  nothing: leaving the screen is not leaving the gym.
+- **One activity at a time; never spawned outside the tracker.** `sync` for session B ends
+  A's. On launch `adoptExisting` keeps an activity whose cached bootstrap has a started,
+  unfinished session and ends the rest — a finished session, or one with no cache (cancel
+  purges it; the mock's memory cache has none), has no business in the island. Sign-out ends
+  all.
+- **The tap route is `apextraining://app/tracker/<id>/<date>`**, and the custom scheme gained
+  an `app` host that mirrors the universal `/app/...` routes. `RouteBus` (tab selection +
+  the parked link) is the first consumer of what `AppModel` used to park in `pendingRoute`;
+  W7/W10 reuse it for `.event`/`.library`. A miss (the occurrence is outside the window around
+  today) is a toast, not a fetch.
+- **Truncation rule:** compact and minimal show no title; the expanded centre is one line,
+  tail; the Lock Screen banner two lines, tail (U27's rule). Compact/minimal use the system
+  font; everything else the house faces, which the extension registers itself.
+- **Versions are project-level** in `project.yml`: App Store Connect rejects an extension whose
+  `CFBundleShortVersionString` differs from the app's.
+

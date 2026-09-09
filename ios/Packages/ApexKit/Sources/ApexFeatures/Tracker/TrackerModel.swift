@@ -1,3 +1,4 @@
+import ApexActivity
 import ApexCore
 import ApexUI
 import Foundation
@@ -143,9 +144,11 @@ public final class TrackerModel {
         }
         sync = await services.queue.status(for: session)
         startTimer()
+        await syncActivity()
     }
 
-    /// Back: flush what is dirty into the queue, then let the queue try.
+    /// Back: flush what is dirty into the queue, then let the queue try. The
+    /// Live Activity stays up — leaving the screen is not leaving the gym.
     public func close() async {
         isPresented = false
         await flushEdits()
@@ -264,6 +267,19 @@ public final class TrackerModel {
         } else if let startedAt {
             elapsed = max(0, Int(services.clock.now.timeIntervalSince(startedAt)))
         }
+    }
+
+    // MARK: - Live Activity (W12)
+
+    /// A running session gets (or keeps) its activity; a session that is not
+    /// started, already finished, or unavailable gets nothing. Idempotent —
+    /// the publisher only updates when the snapshot changed.
+    private func syncActivity() async {
+        guard phase == .ready, !isFinished, let startedAt else { return }
+        await services.activity.sync(TrackerActivitySnapshot(
+            session: session, title: event.title, startedAt: startedAt,
+            exerciseCount: editor.groups.reduce(0) { $0 + $1.exercises.count }
+        ))
     }
 
     // MARK: - Edits
@@ -449,6 +465,7 @@ public final class TrackerModel {
         )
         gate = .idle
         await markCachedFinished(at: finish.finishedAt, total: elapsed)
+        await services.activity.end(session, totalSeconds: elapsed)
         let queue = services.queue
         let session = session
         Task { await queue.flush(session) }
@@ -565,6 +582,7 @@ public final class TrackerModel {
         try? await services.cache.purge(kind: .trackerBootstrap)
         isPresented = false
         timerTask?.cancel()
+        await services.activity.end(session, totalSeconds: nil)
         let queue = services.queue
         let session = session
         Task { await queue.flush(session) }
