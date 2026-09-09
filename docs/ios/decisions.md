@@ -276,3 +276,52 @@ Also decided in W4:
   a stamp the server rejects as outside its 7-day window is re-sent once unstamped (data lands,
   duration lost) and a second refusal leaves the op `failed`; a `failed` op does not block later
   ops for its session — Retry/Discard resolves it.
+
+## D-025 · Coach thread persistence and the loop's edge cases (W6)
+**Status:** decided · W6 session with Shane · 2026-09-08
+
+Four product calls Shane made before the work started:
+- **Model badge source — `GET /api/profile`.** The endpoint never returned `coach_model` (the web
+  reads the `profiles` row over RLS). Options: (a) add `coachModel` + a server-resolved
+  `coachModelLabel` to the response — the server keeps owning the catalog, Swift shows a string;
+  (b) a public accessor in `ApexAuth` reading the row directly, which makes Swift mirror the
+  four-model catalog for labels; (c) no badge until W11. **(a).** The badge is read-only in W6;
+  the picker is W11. Both fields are optional in `ProfileResponse` so a cached profile from an
+  older build still decodes.
+- **402 "Add key" → a minimal key sheet in W6** (`AnthropicKeyView`: SecureField, PATCH
+  `anthropic_api_key`, Anthropic's rejection text, remove), presented from the coach and reused by
+  W11 under You. Rejected: pointing at the web for now (the one-tap criterion would slip), and
+  pulling all of You › AI Coach forward (overlaps W11).
+- **Coach's Notes starts a new conversation** titled with the date; the current one stays in the
+  list. Never auto-runs — each run bills the user's key and a `chat`-bucket call.
+- **Stop keeps the partial text** as a display-only row (`kind = stopped`, no API content) and
+  persists no partial assistant turn, so the next request never replays a truncated message. The
+  web discards it. An in-band `error` mid-stream is treated the same way.
+
+Decided in the plan and proved in `ChatSessionTests`:
+- **`conversations` carries an `owner`** (amends D-013's literal schema, W4's `tracker_ops`
+  precedent): another account on the same phone never sees or resumes these threads.
+- **Display-only rows** (errors, stopped partials, the hidden Notes prompt) are stored with
+  `api_content_json NULL`; `StoredMessage.kind` (turn · notice · stopped) tells the thread how to
+  render them.
+- **The tool_result row is grown one result at a time, before the next card shows**, and on
+  relaunch the pending queue is re-derived from the stored tail (`ActionQueue.pendingTail`): an
+  unsettled assistant tool_use turn resumes at "1 of N"; a partially settled one at the next
+  action; a complete flush with no follow-up is idle, and the next send folds into it exactly as
+  the web's `appendUserText` does. Residual risk, accepted: one duplicate confirm if the app dies
+  between coach-tool succeeding and the row write.
+- **History window before every request** (`ActionQueue.historyWindow`): the newest messages
+  under 60 / 300 KB, with the cut moved forward to a plain user turn so a tool_use is never
+  separated from its tool_result. The web never needed this — its thread died with the tab; a
+  persisted one would hit the server's 80-message / 400 KB 413.
+- **Empty assistant turns are dropped.** The web stores `content: []` when a stream yields
+  nothing, which the next call rejects; iOS shows a notice and keeps history valid.
+- **Server labels, not local recomputation.** The web ignores the wire `label` and recomputes
+  the card text with live state; Swift shows the server's label (falling back to the tool name)
+  and never composes one — the label is stored with the block so a card survives a relaunch and
+  is stripped only in `Endpoint.chat`.
+- **Markdown splits in two.** Block structure (`MarkdownBlocks`) is plain `String` work in
+  `ApexCore` so Linux tests it; the inline pass is `AttributedString(markdown:)`, Apple-only, in
+  `ApexUI`.
+- **Card copy is "1 of N"** (the brief) rather than the web's "· N more after this".
+

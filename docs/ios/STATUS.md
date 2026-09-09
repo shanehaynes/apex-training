@@ -15,7 +15,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W4 | Tracker UI + write queue | done (#117, #118, #119) | Mac | TestFlight build 2 (0.3.0/295) uploaded; Shane's airplane-mode device run outstanding |
 | W5a | Backend chat v2 (server prompt) | done (PR #98) | Linux | web switched in the same PR |
 | W5b | Backend `/api/coach-tool` | done (PR #99) | Linux | services extracted; web confirm switched |
-| W6 | Coach tab | ready | Mac | W5a + W5b done |
+| W6 | Coach tab | in progress (feat/w6-coach-core — PR A) | Mac | ApexCore core + profile `coachModel` landed in A; UI in B; TestFlight 3 in C |
 | W7 | Event CRUD + builder | ready | Mac | W2 + W5b done |
 | W8 | Backend analytics compute | done (PR #100) | Linux | web keeps its browser path |
 | W9 | Analytics tab (editable layout) | blocked on W6 | Mac | W8 done |
@@ -27,8 +27,12 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 ## Next up
 1. Shane's W4 device run on TestFlight build 2 (0.3.0/295): open today's workout once online (or
    let the peek prefetch do it), airplane mode, log, Finish, background, Wi-Fi on → rows match and
-   `started_at` / `finished_at` are the phone's stamps. Then W6 (coach) or W12 (Live Activity);
-   W7 and W10 are unblocked too.
+   `started_at` / `finished_at` are the phone's stamps.
+1. W6 PR B (Mac): `v3_conversations` + `GRDBConversationStore`, `CoachModel` over
+   `ChatSession`, the Coach tab views, `AnthropicKeyView`, `MarkdownText`, mock `/api/chat`
+   (chunked `stream`) + `/api/coach-tool` + `-apexMockHasKey`, `CoachModelTests` +
+   `CoachSnapshotTests`. Then PR C: smoke leg, 0.4.0, TestFlight build 3. W12 / W7 / W10 stay
+   unblocked.
 2. Shane: add `apextraining://auth` to Supabase → Authentication → URL Configuration → Redirect
    URLs (`scripts/auth-redirect-check.sh` check 2c fails until then); the W2 device runs on the
    iPhone 15 Pro (airplane-mode relaunch, a web edit reaching the phone, recovery email, invite).
@@ -92,6 +96,11 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 - 2026-09-08 · W4 · A/B/C merged (#117, #118, #119; each squash conflicted the next PR on the
   living docs and the files it layered over — resolved keeping the newer branch's side). TestFlight
   build 2 (0.3.0/295) archived and uploaded via `ios/scripts/testflight.sh`.
+- 2026-09-08 · W6 · Plan (four product calls made by Shane: model via `/api/profile`, key sheet
+  in W6, Notes = new conversation, Stop keeps the partial) and PR A: `ApexCore.ChatSession` +
+  `ActionQueue` (web vectors verbatim) + `ApiMessage` shapes + `MarkdownBlocks` +
+  `ConversationStore`, `Endpoint.chat/.coachTool/.setAnthropicKey`, `GET /api/profile`
+  `coachModel`/`coachModelLabel` + regenerated `profile.json`. 246 `swift test` green. D-025.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)

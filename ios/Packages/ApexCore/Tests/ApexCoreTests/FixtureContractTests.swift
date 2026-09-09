@@ -200,6 +200,17 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertFalse(profile.hasAnthropicKey)
         XCTAssertNil(profile.anthropicKeyLast4)
         XCTAssertTrue(profile.termsCurrent)
+        // W6: the seeded user has no model pick, so the label is the default's.
+        XCTAssertNil(profile.coachModel)
+        XCTAssertEqual(profile.coachModelLabel, "Opus 4.8")
+    }
+
+    /// A profile cached by a build that predates the coach fields still decodes.
+    func testProfileWithoutCoachFieldsDecodes() throws {
+        let legacy = #"{"hasAnthropicKey":true,"anthropicKeyLast4":"abcd","termsAccepted":null,"termsCurrent":true}"#
+        let profile = try JSONDecoder().decode(ProfileResponse.self, from: Data(legacy.utf8))
+        XCTAssertTrue(profile.hasAnthropicKey)
+        XCTAssertNil(profile.coachModelLabel)
     }
 
     func testQueryEnvelopesDecode() throws {

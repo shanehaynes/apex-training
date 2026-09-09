@@ -41,6 +41,8 @@ interface AdminState {
   upserted?: Record<string, unknown>;
   deleted?: boolean;
   profileUpdate?: Record<string, unknown>;
+  /** The profiles row GET reads for the coach model; undefined = null column. */
+  coachModel?: string | null;
 }
 
 // Minimal chainable fake covering exactly the query shapes profile.ts uses.
@@ -49,10 +51,11 @@ function makeAdmin(state: AdminState) {
     from(table: string) {
       // GET also reads the terms ledger, whose query adds .order().limit()
       // before .maybeSingle().
-      const rowFor = (t: string) =>
-        t === 'terms_acceptances'
-          ? state.acceptance ?? null
-          : (state.key ? { anthropic_api_key: state.key } : null);
+      const rowFor = (t: string) => {
+        if (t === 'terms_acceptances') return state.acceptance ?? null;
+        if (t === 'profiles') return { coach_model: state.coachModel ?? null };
+        return state.key ? { anthropic_api_key: state.key } : null;
+      };
       return {
         select: () => {
           const leaf: Record<string, unknown> = {};
@@ -123,7 +126,9 @@ describe('GET /api/profile', () => {
     // user can still make, and so the only way the client learns the modal
     // is due (see loadKeyStatus in AuthContext.tsx).
     expect(body()).toEqual({
-      hasAnthropicKey: false, anthropicKeyLast4: null, termsAccepted: null, termsCurrent: false,
+      hasAnthropicKey: false, anthropicKeyLast4: null,
+      coachModel: null, coachModelLabel: 'Opus 4.8',
+      termsAccepted: null, termsCurrent: false,
     });
   });
 
@@ -133,9 +138,26 @@ describe('GET /api/profile', () => {
     await handler(makeReq('GET'), res);
     expect(statusCode()).toBe(200);
     expect(body()).toEqual({
-      hasAnthropicKey: true, anthropicKeyLast4: 'tail', termsAccepted: null, termsCurrent: false,
+      hasAnthropicKey: true, anthropicKeyLast4: 'tail',
+      coachModel: null, coachModelLabel: 'Opus 4.8',
+      termsAccepted: null, termsCurrent: false,
     });
     expect(JSON.stringify(body())).not.toContain('secret');
+  });
+
+  // The native app has no RLS read of the profiles row (W6): the stored id
+  // comes back as is, and the label is resolved the way /api/chat resolves
+  // the request — a retired id reads as the default it will run on.
+  it('reports the stored coach model and its resolved label', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({ key: null, coachModel: 'claude-sonnet-5' }));
+    const { res, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(body()).toMatchObject({ coachModel: 'claude-sonnet-5', coachModelLabel: 'Sonnet 5' });
+
+    mockedAdmin.mockReturnValue(makeAdmin({ key: null, coachModel: 'claude-retired-1' }));
+    const retired = makeRes();
+    await handler(makeReq('GET'), retired.res);
+    expect(retired.body()).toMatchObject({ coachModel: 'claude-retired-1', coachModelLabel: 'Opus 4.8' });
   });
 });
 
