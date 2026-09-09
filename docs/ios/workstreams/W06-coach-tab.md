@@ -1,7 +1,7 @@
 # W6 — Coach tab
 
 **Machine:** Mac · **Depends on:** W5a (W5b for actions) · **Unblocks:** W7, W9 (their coach drawers reuse this)
-**Status:** in progress — PR A (`feat/w6-coach-core`, #126) and PR B (`feat/w6-coach-ui`) open; C (smoke + TestFlight 3) to follow
+**Status:** in review — PR A #126, PR B #127, PR C (`feat/w6-coach-release`); TestFlight build 3 (0.4.0) archived, upload waits on Shane
 
 ## Goal
 The coach as a first-class tab: streaming, Markdown, confirmations, local history. TestFlight build 3.
@@ -108,3 +108,22 @@ Out: builder/analytics coach drawers (W7/W9 reuse `ChatSession` with a mode).
   - **Not done here (PR C):** the XCUITest coach leg, `MARKETING_VERSION` 0.4.0, TestFlight
     build 3, Shane's device run against the real backend (create-event round trip; Stop → Vercel
     abort log).
+- 2026-09-08 · Mac · PR C — the smoke and the release.
+  - **Smoke:** `testCoachOnFixtures` (`-apexMockHasKey`: sign in → Coach → badge "Opus 4.8" →
+    composer → "Clearing it." → card with the server label, composer gone → Confirm → "Done —
+    Fixture Push Day on 2026-09-29 is cleared." → composer back → conversations sheet lists the
+    thread by its first message; screenshots 11–14) and `testCoachKeySetupOnFixtures` (no flag:
+    key-setup state with the composer disabled → Add API key → sheet → save → the empty thread
+    with the composer enabled → a send streams; 15–16). `ios/scripts/screenshots.sh` collects them.
+  - **Release:** `MARKETING_VERSION` 0.4.0. `ios/scripts/testflight.sh --check` and `--dry-run`
+    green from this worktree (build number from `git rev-list --count HEAD`). The upload is
+    Shane's call — `ios/scripts/testflight.sh` from this worktree once A/B/C are merged (the
+    per-machine `Secrets.xcconfig` and `appstoreconnect.env` are recreated here).
+  - **Left for Shane:** TestFlight build 3 upload; the device run against the real backend —
+    add a key in the sheet (Anthropic's rejection text shows on a bad one), ask for a workout
+    tomorrow → card → Confirm → the event appears on Schedule; Stop mid-stream → the Vercel log
+    shows the aborted upstream call; relaunch mid-card → the card comes back.
+  - **Corrections found in B/C:** the model's mirror must be fed only by the session's ordered
+    events — a direct read of the actor was overtaken by a buffered older event (the marker
+    drain, D-025); `simctl`-driven typing lands one field late on the sign-in screen, so manual
+    simulator checks go through the composer, which focuses reliably.

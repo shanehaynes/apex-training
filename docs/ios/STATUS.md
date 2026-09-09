@@ -15,7 +15,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W4 | Tracker UI + write queue | done (#117, #118, #119) | Mac | TestFlight build 2 (0.3.0/295) uploaded; Shane's airplane-mode device run outstanding |
 | W5a | Backend chat v2 (server prompt) | done (PR #98) | Linux | web switched in the same PR |
 | W5b | Backend `/api/coach-tool` | done (PR #99) | Linux | services extracted; web confirm switched |
-| W6 | Coach tab | in progress (PR A #126, PR B feat/w6-coach-ui) | Mac | core + profile `coachModel` in A; tab, persistence, key sheet, mock, snapshots in B; smoke + TestFlight 3 in C |
+| W6 | Coach tab | in review (#126, #127, PR C) | Mac | 0.4.0 archived (dry run); TestFlight build 3 upload + device run are Shane's |
 | W7 | Event CRUD + builder | ready | Mac | W2 + W5b done |
 | W8 | Backend analytics compute | done (PR #100) | Linux | web keeps its browser path |
 | W9 | Analytics tab (editable layout) | blocked on W6 | Mac | W8 done |
@@ -28,10 +28,11 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 1. Shane's W4 device run on TestFlight build 2 (0.3.0/295): open today's workout once online (or
    let the peek prefetch do it), airplane mode, log, Finish, background, Wi-Fi on → rows match and
    `started_at` / `finished_at` are the phone's stamps.
-1. W6 PR C (Mac): the XCUITest coach leg (`-apexMockHasKey` → send → card → Confirm →
-   follow-up; the key-setup state without the flag), `MARKETING_VERSION` 0.4.0, TestFlight
-   build 3 (Shane confirms the upload), then Shane's device run against the real backend.
-   W12 / W7 / W10 stay unblocked.
+1. Land W6: A #126 → B #127 (retarget to `main`) → C, in order (each squash conflicts the
+   next on the living docs — keep the newer branch's side). Then Shane: `ios/scripts/testflight.sh`
+   from the C worktree for TestFlight build 3 (0.4.0), and the device run (key sheet → create
+   an event via the coach → it appears on Schedule; Stop mid-stream → Vercel abort log;
+   relaunch mid-card). W9 is unblocked once W6 merges; W12 / W7 / W10 stay unblocked.
 2. Shane: add `apextraining://auth` to Supabase → Authentication → URL Configuration → Redirect
    URLs (`scripts/auth-redirect-check.sh` check 2c fails until then); the W2 device runs on the
    iPhone 15 Pro (airplane-mode relaunch, a web edit reaching the phone, recovery email, invite).
@@ -105,6 +106,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   conversations, Notes, model badge), `AnthropicKeyView`, chunked mock `/api/chat` +
   `/api/coach-tool` + `-apexMockHasKey`; 88 unit + 15 snapshots green; proved live on the
   simulator under the mock.
+- 2026-09-08 · W6 · PR C: `testCoachOnFixtures` + `testCoachKeySetupOnFixtures` (screenshots
+  11–16), 0.4.0, TestFlight dry-run archive green; upload and device run left for Shane.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)
