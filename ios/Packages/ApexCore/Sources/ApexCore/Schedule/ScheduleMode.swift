@@ -8,4 +8,7 @@ public enum ScheduleMode: Hashable, Sendable {
 /// Why a window refresh was asked for; decides who hears about a failure.
 public enum ScheduleRefreshReason: Sendable, Equatable {
     case launch, foreground, pullToRefresh, realtime, afterCompletion, retry
+    /// A confirmed coach action landed on the server (W6); realtime covers the
+    /// tables it touched, but not the completion rows a retro-log writes.
+    case coachMutation
 }

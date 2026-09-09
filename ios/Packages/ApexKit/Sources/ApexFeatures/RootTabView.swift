@@ -4,12 +4,17 @@ import SwiftUI
 public struct RootTabView: View {
     private let schedule: ScheduleModel
     private let tracker: TrackerServices?
+    private let coach: CoachModel?
     private let email: String?
     private let onSignOut: () -> Void
 
-    public init(schedule: ScheduleModel, tracker: TrackerServices? = nil, email: String?, onSignOut: @escaping () -> Void) {
+    public init(
+        schedule: ScheduleModel, tracker: TrackerServices? = nil, coach: CoachModel? = nil,
+        email: String?, onSignOut: @escaping () -> Void
+    ) {
         self.schedule = schedule
         self.tracker = tracker
+        self.coach = coach
         self.email = email
         self.onSignOut = onSignOut
     }
@@ -18,7 +23,7 @@ public struct RootTabView: View {
         TabView {
             ScheduleTab(model: schedule, tracker: tracker)
                 .tabItem { Label("Schedule", systemImage: "calendar") }
-            CoachTab()
+            CoachTab(model: coach)
                 .tabItem { Label("Coach", systemImage: "sparkles") }
             AnalyticsTab()
                 .tabItem { Label("Analytics", systemImage: "chart.line.uptrend.xyaxis") }

@@ -60,6 +60,13 @@ public actor ChatSession {
         public let role: ApiMessage.Role
         public let text: String
         public let kind: StoredMessage.Kind
+
+        public init(id: String, role: ApiMessage.Role, text: String, kind: StoredMessage.Kind) {
+            self.id = id
+            self.role = role
+            self.text = text
+            self.kind = kind
+        }
     }
 
     public enum Event: Sendable, Equatable {
@@ -71,6 +78,9 @@ public actor ChatSession {
         /// A confirmed mutation landed on the server — refresh what shows it.
         case mutationConfirmed
         case toast(String)
+        /// Echoed by `mark(_:)`. Events are delivered in order, so an observer
+        /// that sees its marker has applied everything emitted before it.
+        case marker(UUID)
     }
 
     public private(set) var config: Config
@@ -116,6 +126,9 @@ public actor ChatSession {
     }
 
     private func unsubscribe(_ id: UUID) { subscribers[id] = nil }
+
+    /// Emit a marker so an observer can wait for its event queue to drain.
+    public func mark(_ id: UUID) { emit(.marker(id)) }
 
     private func emit(_ event: Event) {
         for continuation in subscribers.values { continuation.yield(event) }

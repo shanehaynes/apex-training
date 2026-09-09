@@ -67,6 +67,32 @@ public enum ApexDatabase {
             try db.create(index: "tracker_ops_session", on: "tracker_ops", columns: ["owner", "event_id", "event_date", "state", "id"])
         }
 
+        // W6: local coach conversations (D-013, D-025). Shaped like the future
+        // server table plus `owner` (same reason as tracker_ops) and `kind`
+        // (turn · notice · stopped — rows without API content are display-only).
+        migrator.registerMigration("v3_conversations") { db in
+            try db.create(table: "conversations") { table in
+                table.column("id", .text).primaryKey()
+                table.column("owner", .text).notNull()
+                table.column("mode", .text).notNull()
+                table.column("title", .text)
+                table.column("created_at", .double).notNull()
+                table.column("updated_at", .double).notNull()
+            }
+            try db.create(index: "conversations_owner_recent", on: "conversations", columns: ["owner", "mode", "updated_at"])
+            try db.create(table: "messages") { table in
+                table.column("id", .text).primaryKey()
+                table.column("conversation_id", .text).notNull()
+                    .references("conversations", onDelete: .cascade)
+                table.column("role", .text).notNull()
+                table.column("api_content_json", .blob)
+                table.column("display_text", .text)
+                table.column("kind", .text).notNull().defaults(to: "turn")
+                table.column("created_at", .double).notNull()
+            }
+            try db.create(index: "messages_conversation_order", on: "messages", columns: ["conversation_id", "created_at"])
+        }
+
         return migrator
     }
 }

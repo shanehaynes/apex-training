@@ -78,7 +78,7 @@ struct RootView: View {
                 onCancel: { model.cancelPasswordSetup() }
             )
         case .signedIn(let userID, let email):
-            RootTabView(schedule: model.schedule, tracker: model.trackerServices, email: email) { model.signOut() }
+            RootTabView(schedule: model.schedule, tracker: model.trackerServices, coach: model.coach, email: email) { model.signOut() }
                 .onAppear { model.ensureQueue(owner: userID) }
                 .task { model.replayParkedLink() }
         }
