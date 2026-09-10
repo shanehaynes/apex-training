@@ -1,7 +1,7 @@
 # W12 — Live Activity + Dynamic Island for the tracker
 
 **Machine:** Mac · **Depends on:** W4 · **Unblocks:** —
-**Status:** done (#131, #132) — TestFlight build 4 and the device acceptance are Shane's
+**Status:** done (#131, #132) — TestFlight build 4 (0.5.0/306) uploaded 2026-09-09; device acceptance is Shane's
 
 ## Goal
 Start a workout and see the elapsed timer (and the title, where it fits) in the Dynamic Island

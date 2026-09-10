@@ -21,14 +21,15 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W9 | Analytics tab (editable layout) | ready | Mac | W8 + W6 done |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
 | W11 | Profile, integrations, account | ready | both | the only migration (`provider_connections.client`) |
-| W12 | Live Activity | done (#131, #132) | Mac | 0.5.0 on main; TestFlight build 4 and Shane's device run outstanding |
+| W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306) uploaded 2026-09-09; Shane's device run outstanding |
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
-1. W12: `ios/scripts/testflight.sh` from the W12 worktree (`.claude/worktrees/feat-w12-activity-target`,
-   which still holds the two git-ignored files) for TestFlight build 4 (0.5.0) on Shane's go;
-   Shane's device run (30-minute background, Done linger,
-   kill/relaunch, the first-run Live Activities prompt). Then W9, W7 or W10.
+1. Shane's W12 device run on TestFlight build 4 (0.5.0/306): start a workout → island timer;
+   background 30 min → still right; long-press → expanded; Lock Screen banner; Finish → "Done"
+   lingers 5 min on the Lock Screen; Cancel → gone; kill the app mid-session → relaunch → the
+   island keeps counting (GRDB cache); tap the island → the tracker. First run asks "Allow Live
+   Activities from Apex?". Then W9, W7 or W10.
 2. Shane's W6 device run on TestFlight build 3 (0.4.0/301): add a key in the sheet, ask the coach
    to create a workout tomorrow → card → Confirm → it appears on Schedule; Stop mid-stream →
    the Vercel log shows the aborted upstream call; kill the app mid-card → relaunch → the card
@@ -124,6 +125,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 - 2026-09-09 · W12 · A (#131) and B (#132) merged via the babysitter; B needed the
   `git rebase --onto origin/main <old-A-tip>` after A's squash, as W6 did. 0.5.0 is on main;
   the TestFlight upload waits on Shane.
+- 2026-09-09 · W12 · TestFlight build 4 (0.5.0/306) uploaded via `ios/scripts/testflight.sh`
+  from the W12 worktree, detached at main (2158e2b, which includes the #129 web dependency bump).
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)
