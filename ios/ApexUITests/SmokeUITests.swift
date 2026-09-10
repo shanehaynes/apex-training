@@ -74,7 +74,7 @@ final class SmokeUITests: XCTestCase {
 
         // Event: the synced run shows its provider badge; completing it flips the button.
         app.buttons["event.card.Fixture Run"].tap()
-        XCTAssertTrue(app.staticTexts["schedule.event.title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["schedule.event.title"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.otherElements["schedule.event.synced"].waitForExistence(timeout: 10)
             || app.staticTexts["Synced from COROS"].waitForExistence(timeout: 5))
         attach(app, name: "05-event")
@@ -242,6 +242,100 @@ final class SmokeUITests: XCTestCase {
         app.buttons["coach.send"].tap()
         XCTAssertTrue(app.otherElements["coach.card"].waitForExistence(timeout: 20))
         attach(app, name: "16-coach-key-saved")
+    }
+
+    /// sign in → the day → rename the run inline → delete this day only on the
+    /// series → link a circuit exercise into the superset → delete the run →
+    /// the "+" opens the builder. All on fixtures; the mock replays every write
+    /// into the next schedule read (W7).
+    func testEventEditsOnFixtures() {
+        let app = launch(mock: true)
+        signIn(app)
+        let run = app.buttons["event.card.Fixture Run"]
+        XCTAssertTrue(run.waitForExistence(timeout: 20))
+
+        // Rename inline: tap the title, retype, submit.
+        run.tap()
+        let title = app.buttons["schedule.event.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 10))
+        title.tap()
+        let field = app.textFields["schedule.event.title.field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "Fixture Run".count) + "Fixture Run PM\n")
+        let renamed = app.buttons["schedule.event.title"]
+        let renamedShows = expectation(for: NSPredicate(format: "label == %@", "Fixture Run PM"), evaluatedWith: renamed)
+        wait(for: [renamedShows], timeout: 10)
+        attach(app, name: "17-renamed")
+
+        // Delete the one-off: the confirm names the workout, the card leaves the day.
+        let sheet = app.scrollViews.firstMatch
+        let deleteLink = app.buttons["schedule.event.delete"]
+        var swipes = 0
+        while !deleteLink.isHittable, swipes < 6 { sheet.swipeUp(); swipes += 1 }
+        deleteLink.tap()
+        let confirm = app.buttons["schedule.event.delete.confirm"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        XCTAssertEqual(confirm.label, "Delete workout")
+        attach(app, name: "18-delete-one-off")
+        confirm.tap()
+        let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.buttons["event.card.Fixture Run PM"])
+        wait(for: [gone], timeout: 10)
+        XCTAssertFalse(app.buttons["event.card.Fixture Run"].exists)
+
+        // The series: "This day only" skips the occurrence; the other days stay.
+        app.buttons["event.card.Fixture Push Day"].tap()
+        XCTAssertTrue(app.buttons["schedule.event.title"].waitForExistence(timeout: 10))
+        let seriesDelete = app.buttons["schedule.event.delete"]
+        swipes = 0
+        while !seriesDelete.isHittable, swipes < 6 { app.scrollViews.firstMatch.swipeUp(); swipes += 1 }
+        seriesDelete.tap()
+        let thisDay = app.buttons["schedule.event.delete.confirm"]
+        XCTAssertTrue(thisDay.waitForExistence(timeout: 5))
+        XCTAssertEqual(thisDay.label, "This day only")
+        XCTAssertTrue(app.buttons["schedule.event.delete.series"].exists)
+        attach(app, name: "19-delete-this-day")
+        thisDay.tap()
+        let skipped = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.buttons["event.card.Fixture Push Day"])
+        wait(for: [skipped], timeout: 10)
+        // Next week's occurrence is still on the calendar.
+        app.buttons["Next"].tap()
+        app.buttons["Next"].tap()
+        app.buttons["Next"].tap()
+        app.buttons["Next"].tap()
+        app.buttons["Next"].tap()
+        app.buttons["Next"].tap()
+        app.buttons["Next"].tap()
+        XCTAssertTrue(app.buttons["event.card.Fixture Push Day"].waitForExistence(timeout: 10))
+        app.buttons["Today"].tap()
+
+        // Edit exercises on the circuit: link the plank into the superset, save, reopen.
+        app.buttons["event.card.Fixture Circuit"].tap()
+        let editExercises = app.buttons["schedule.event.edit.exercises"]
+        XCTAssertTrue(editExercises.waitForExistence(timeout: 10))
+        editExercises.tap()
+        let editor = app.otherElements["schedule.event.exercises"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 10))
+        let link = app.buttons["editor.link.fx-c3"]
+        XCTAssertTrue(link.waitForExistence(timeout: 5))
+        XCTAssertEqual(link.label, "Link with above")
+        link.tap()
+        XCTAssertEqual(link.label, "Unlink")
+        attach(app, name: "20-edit-exercises")
+        app.buttons["editor.save"].tap()
+        let closed = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: editor)
+        wait(for: [closed], timeout: 10)
+        app.buttons["event.card.Fixture Circuit"].tap()
+        XCTAssertTrue(app.buttons["schedule.event.title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["Superset A"].waitForExistence(timeout: 5))
+        attach(app, name: "21-superset-of-three")
+        app.buttons["Close"].firstMatch.tap()
+
+        // The "+" opens the builder on the selected day.
+        let add = app.buttons["schedule.add"]
+        XCTAssertTrue(add.waitForExistence(timeout: 10))
+        add.tap()
+        XCTAssertTrue(app.otherElements["builder"].waitForExistence(timeout: 10) || app.staticTexts["Add Workout"].waitForExistence(timeout: 5))
+        attach(app, name: "22-builder-entry")
     }
 
     private func attach(_ app: XCUIApplication, name: String) {

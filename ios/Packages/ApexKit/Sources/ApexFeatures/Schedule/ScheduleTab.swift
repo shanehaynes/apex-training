@@ -14,6 +14,9 @@ public struct ScheduleTab: View {
     /// a sheet mid-dismiss is what produces "attempt to present while a
     /// presentation is in progress".
     @State private var pendingTracker: TrackerRoute?
+    /// Same rule for a sheet that replaces the event sheet (the builder, the
+    /// exercises editor — the web's OPEN_EVENT_EDITOR replaces the modal).
+    @State private var pendingSheet: ScheduleSheet?
 
     /// `tracker: nil` hides Start Workout (the app before a user is signed in).
     /// `routes` is the deep-link bus this tab consumes `.tracker` from (W12).
@@ -48,11 +51,24 @@ public struct ScheduleTab: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) { Wordmark() }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        sheet = .builder(.create(date: model.selectedDay))
+                    } label: {
+                        ApexIcon.plus.image
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(ApexColor.textPrimary)
+                            .frame(width: 44, height: 44)
+                            .contentShape(.rect)
+                    }
+                    .accessibilityLabel("Add workout")
+                    .accessibilityIdentifier("schedule.add")
+                }
             }
             .toolbarBackground(ApexColor.bgPrimary, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
         }
-        .sheet(item: $sheet, onDismiss: presentPendingTracker) { item in
+        .sheet(item: $sheet, onDismiss: presentPending) { item in
             Group {
                 switch item {
                 case .event(let id):
@@ -62,13 +78,30 @@ public struct ScheduleTab: View {
                             pendingTracker = TrackerRoute(event: event)
                             sheet = nil
                         },
+                        onEditWorkout: { event in
+                            pendingSheet = .builder(.edit(eventId: event.id))
+                            sheet = nil
+                        },
+                        onEditExercises: { event in
+                            pendingSheet = .editExercises(id: event.id)
+                            sheet = nil
+                        },
                         onClose: { sheet = nil }
                     )
+                    .presentationDetents([.medium, .large])
                 case .day(let day):
                     DaySheet(model: model, day: day, onOpenEvent: { sheet = .event(id: $0.id) }, onClose: { sheet = nil })
+                        .presentationDetents([.medium, .large])
+                case .builder(let route):
+                    BuilderSheet(model: model, route: route, onClose: { sheet = nil })
+                        .presentationDetents([.large])
+                case .editExercises(let id):
+                    if let event = model.event(id: id) {
+                        EditExercisesSheet(model: model, event: event, onClose: { sheet = nil })
+                            .presentationDetents([.large])
+                    }
                 }
             }
-            .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .presentationBackground(ApexColor.bgSurface)
         }
@@ -80,14 +113,35 @@ public struct ScheduleTab: View {
         .task { await model.start() }
         // The Live Activity's tap. Two triggers: the link arriving while the
         // index is loaded, and the index arriving after a cold-launch link.
-        .onChange(of: routes?.pending, initial: true) { _, _ in consumeRoute() }
-        .onChange(of: model.index == nil) { _, _ in consumeRoute() }
+        .onChange(of: routes?.pending, initial: true) { _, _ in consumeRoute(); consumeEventRoute() }
+        .onChange(of: model.index == nil) { _, _ in consumeRoute(); consumeEventRoute() }
     }
 
-    private func presentPendingTracker() {
-        guard let route = pendingTracker else { return }
-        pendingTracker = nil
-        trackerRoute = route
+    /// `/app/event/<id>/<date>` (W7): the event sheet, once the index can
+    /// find it; a miss is a toast and the link is spent (D-026).
+    private func consumeEventRoute() {
+        guard let routes, model.index != nil,
+              let link = routes.take(where: { if case .event = $0 { true } else { false } }) else { return }
+        guard let route = EventRouteResolver.route(for: link, in: model.index) else {
+            ToastBus.shared.post("That workout is not on the schedule any more.", level: .failure)
+            return
+        }
+        if sheet != nil {
+            pendingSheet = route
+            sheet = nil
+        } else {
+            sheet = route
+        }
+    }
+
+    private func presentPending() {
+        if let route = pendingTracker {
+            pendingTracker = nil
+            trackerRoute = route
+        } else if let next = pendingSheet {
+            pendingSheet = nil
+            sheet = next
+        }
     }
 
     /// `.tracker(id:date:)` → the occurrence, presented the same way Start
@@ -134,16 +188,19 @@ public struct ScheduleTab: View {
         } else {
             switch model.mode {
             case .day:
-                DayView(model: model, onOpen: { sheet = .event(id: $0.id) })
+                DayView(model: model, onOpen: { sheet = .event(id: $0.id) }, onAdd: { sheet = .builder(.create(date: $0)) })
             case .month:
-                MonthView(model: model, onOpenDay: { sheet = .day($0) }, onOpenEvent: { sheet = .event(id: $0.id) })
+                MonthView(
+                    model: model, onOpenDay: { sheet = .day($0) }, onOpenEvent: { sheet = .event(id: $0.id) },
+                    onAdd: { sheet = .builder(.create(date: $0)) }
+                )
             }
         }
     }
 }
 
-/// `‹ title ›` · Today · Day|Month — the web's TopNav, minus the "+" that
-/// arrives with the builder (W7).
+/// `‹ title ›` · Today · Day|Month — the web's TopNav; the "+" sits in the
+/// navigation bar.
 struct PeriodBar: View {
     @Bindable var model: ScheduleModel
 
@@ -187,5 +244,23 @@ struct PeriodBar: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+    }
+}
+
+// MARK: - Preview factories (snapshots reach the internal sheets through these)
+
+extension ScheduleTab {
+    /// "Edit exercises" for an event, as the tab presents it.
+    public static func editExercisesPreview(model: ScheduleModel, eventId: String) -> AnyView {
+        guard let event = model.event(id: eventId) else { return AnyView(EmptyView()) }
+        return AnyView(EditExercisesSheet(model: model, event: event, onClose: {}))
+    }
+
+    /// The exercise picker in a given state.
+    public static func pickerPreview(definitions: [ExerciseDefinition], query: String, creating: Bool) -> AnyView {
+        AnyView(ExercisePickerSheet(
+            definitions: definitions, preferredCategory: "strength", initialQuery: query, initialCreating: creating,
+            onPick: { _ in }, onCreate: { _, _, _ in nil }, onClose: {}
+        ))
     }
 }

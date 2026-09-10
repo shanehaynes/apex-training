@@ -16,7 +16,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W5a | Backend chat v2 (server prompt) | done (PR #98) | Linux | web switched in the same PR |
 | W5b | Backend `/api/coach-tool` | done (PR #99) | Linux | services extracted; web confirm switched |
 | W6 | Coach tab | done (#126, #127, #128) | Mac | TestFlight build 3 (0.4.0/301) uploaded 2026-09-09; Shane's device run outstanding |
-| W7 | Event CRUD + builder | in progress (`feat/w7-draft-endpoint`, PR A of four) | Mac | backend endpoint + ApexCore first; B/C/D stacked |
+| W7 | Event CRUD + builder | in progress (A #137, B `feat/w7-event-edits`; C/D stacked) | Mac | sheet edits + "+" landed in B; the builder is C |
 | W8 | Backend analytics compute | done (PR #100) | Linux | web keeps its browser path |
 | W9 | Analytics tab (editable layout) | ready | Mac | W8 + W6 done |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
@@ -44,6 +44,10 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   normalised in the services, `originalDate` on schedule stubs, regenerated + five new fixtures,
   ApexCore `Repeat`/`Supersets`/`Slug`/`WorkoutDraft`/`ScheduleEdit`/index mutators/W7 endpoints
   and the builder chat path (302 `swift test` green). Web switch filed as #136.
+- 2026-09-10 · W7 · PR B: the event sheet's edit paths (rename, native day/time pickers,
+  difficulty, Edit exercises, Delete this day / series), the "+" entries, the `/app/event` route,
+  `ScheduleModel+Edits`, the sections editor + picker, mock CRUD routes, 12 model tests, 8
+  snapshots, the event-edits smoke leg.
 - 2026-09-02 · plan · Master plan and all briefs written (PR #94).
 - 2026-09-03 · W0 · Read endpoints, server-built quick-complete, Swift types emit, fixtures — PR #95 merged.
 - 2026-09-03 · W3 · Tracker bootstrap/finish consolidation, streaming coach summary, web switched — PR #96 merged.

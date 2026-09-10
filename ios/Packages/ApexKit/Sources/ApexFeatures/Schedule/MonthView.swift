@@ -8,6 +8,8 @@ struct MonthView: View {
     @Bindable var model: ScheduleModel
     let onOpenDay: (DayKey) -> Void
     let onOpenEvent: (ScheduleEvent) -> Void
+    /// Long-press on a day → the builder on that day (W7).
+    var onAdd: ((DayKey) -> Void)? = nil
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 7)
@@ -56,7 +58,8 @@ struct MonthView: View {
                         events: model.events(on: day),
                         isToday: day == model.today,
                         onOpenDay: { onOpenDay(day) },
-                        onOpenEvent: onOpenEvent
+                        onOpenEvent: onOpenEvent,
+                        onAdd: onAdd
                     )
                 } else {
                     Color.clear.frame(minHeight: 84)
@@ -72,6 +75,7 @@ struct MonthDayCell: View {
     let isToday: Bool
     let onOpenDay: () -> Void
     let onOpenEvent: (ScheduleEvent) -> Void
+    var onAdd: ((DayKey) -> Void)? = nil
 
     private static let maxVisible = 3
 
@@ -123,5 +127,6 @@ struct MonthDayCell: View {
         .overlay(RoundedRectangle(cornerRadius: Radius.sm).strokeBorder(ApexColor.borderSubtle, lineWidth: 0.5))
         .contentShape(.rect)
         .onTapGesture(perform: onOpenDay)
+        .onLongPressGesture { onAdd?(day) }
     }
 }
