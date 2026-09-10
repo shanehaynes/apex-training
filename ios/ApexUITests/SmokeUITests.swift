@@ -338,6 +338,71 @@ final class SmokeUITests: XCTestCase {
         attach(app, name: "22-builder-entry")
     }
 
+    /// "+" → the library → the fixture template → the coach fills the form
+    /// from the recorded builder stream → Apply → the workout is on the day.
+    func testBuilderOnFixtures() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockHasKey"]
+        app.launch()
+        signIn(app)
+        let add = app.buttons["schedule.add"]
+        XCTAssertTrue(add.waitForExistence(timeout: 20))
+        add.tap()
+        let template = app.buttons["builder.template.ios-fixture-template"]
+        XCTAssertTrue(template.waitForExistence(timeout: 10))
+        attach(app, name: "23-builder-search")
+        template.tap()
+        let titleField = app.textFields["builder.title.field"]
+        XCTAssertTrue(titleField.waitForExistence(timeout: 10))
+        XCTAssertEqual(titleField.value as? String, "Fixture Template Push")
+        attach(app, name: "24-builder-form")
+
+        // The coach: one turn, the draft tool reduces server-side, the form follows.
+        app.buttons["builder.coach.toggle"].tap()
+        let composer = app.textViews["coach.composer"].firstMatch.exists ? app.textViews["coach.composer"].firstMatch : app.textFields["coach.composer"].firstMatch
+        XCTAssertTrue(composer.waitForExistence(timeout: 10))
+        composer.tap()
+        composer.typeText("add fixture press 3x8")
+        app.buttons["coach.send"].tap()
+        // The draft tool reduced server-side (the mock keeps the form's own title when the
+        // coach names none) and the tools-off follow-up confirms it in the thread.
+        let followUp = app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'Review the form and press Apply'")).firstMatch
+        XCTAssertTrue(followUp.waitForExistence(timeout: 20))
+        XCTAssertFalse(app.otherElements["coach.card"].exists, "the builder's coach never shows a card")
+        XCTAssertEqual(titleField.value as? String, "Fixture Template Push")
+        attach(app, name: "25-builder-coach")
+
+        app.buttons["builder.apply"].tap()
+        let card = app.buttons["event.card.Fixture Template Push"]
+        XCTAssertTrue(card.waitForExistence(timeout: 15))
+        attach(app, name: "26-builder-applied")
+    }
+
+    /// Edit a series occurrence in the builder → Save changes → the scope bar →
+    /// This event only → the day shows the detached, renamed workout.
+    func testBuilderScopeOnFixtures() {
+        let app = launch(mock: true)
+        signIn(app)
+        let pushDay = app.buttons["event.card.Fixture Push Day"]
+        XCTAssertTrue(pushDay.waitForExistence(timeout: 20))
+        pushDay.tap()
+        let editWorkout = app.buttons["schedule.event.edit.workout"]
+        XCTAssertTrue(editWorkout.waitForExistence(timeout: 10))
+        editWorkout.tap()
+        let titleField = app.textFields["builder.title.field"]
+        XCTAssertTrue(titleField.waitForExistence(timeout: 10))
+        titleField.tap()
+        titleField.typeText(" (solo)")
+        app.buttons["builder.apply"].tap()
+        let scope = app.buttons["builder.scope.occurrence"]
+        XCTAssertTrue(scope.waitForExistence(timeout: 5))
+        attach(app, name: "27-builder-scope")
+        scope.tap()
+        XCTAssertTrue(app.buttons["event.card.Fixture Push Day (solo)"].waitForExistence(timeout: 15))
+        XCTAssertFalse(app.buttons["event.card.Fixture Push Day"].exists)
+        attach(app, name: "28-builder-detached")
+    }
+
     private func attach(_ app: XCUIApplication, name: String) {
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = name

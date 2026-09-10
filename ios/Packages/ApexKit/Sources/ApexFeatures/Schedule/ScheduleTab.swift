@@ -8,6 +8,8 @@ public struct ScheduleTab: View {
     @Bindable private var model: ScheduleModel
     private let tracker: TrackerServices?
     private let routes: RouteBus?
+    /// The builder's coach drawer (W7); nil hides the drawer.
+    private let coachServices: CoachServices?
     @State private var sheet: ScheduleSheet?
     @State private var trackerRoute: TrackerRoute?
     /// Set while the event sheet is still dismissing: presenting the cover over
@@ -20,10 +22,11 @@ public struct ScheduleTab: View {
 
     /// `tracker: nil` hides Start Workout (the app before a user is signed in).
     /// `routes` is the deep-link bus this tab consumes `.tracker` from (W12).
-    public init(model: ScheduleModel, tracker: TrackerServices? = nil, routes: RouteBus? = nil) {
+    public init(model: ScheduleModel, tracker: TrackerServices? = nil, routes: RouteBus? = nil, coachServices: CoachServices? = nil) {
         self.model = model
         self.tracker = tracker
         self.routes = routes
+        self.coachServices = coachServices
     }
 
     private var trackerDependencies: TrackerDependencies? {
@@ -93,7 +96,7 @@ public struct ScheduleTab: View {
                     DaySheet(model: model, day: day, onOpenEvent: { sheet = .event(id: $0.id) }, onClose: { sheet = nil })
                         .presentationDetents([.medium, .large])
                 case .builder(let route):
-                    BuilderSheet(model: model, route: route, onClose: { sheet = nil })
+                    BuilderSheet(model: model, route: route, coachServices: coachServices, onClose: { sheet = nil })
                         .presentationDetents([.large])
                 case .editExercises(let id):
                     if let event = model.event(id: id) {

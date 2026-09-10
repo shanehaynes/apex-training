@@ -114,3 +114,39 @@ Out: meals composer (W10).
     (the PNGs are listed individually) — re-record with the file present or regenerate first.
     `repeat` is a Swift keyword (the draft property is `repeatRule`, coding key `repeat`).
   - **Not done here:** the builder itself (C), the builder smokes and 0.6.0 (D).
+- 2026-09-10 · Mac · PR C — the builder sheet.
+  - **`BuilderModel`:** one `WorkoutDraft` every input writes into (`update`), the search
+    step (`filteredTemplates`: unarchived, the type chip, a substring over title and tags,
+    newest save first; `pick` / `startBlank`), `setType` through `withType`, the scope
+    question for a series, `apply(scope:)` — the instant `problem` toast, the per-entry
+    unilateral check, then `create` / `update(eventId)` / `detach(eventId, keyDate)` with the
+    repeat forced off for a detached day; the server's `ok:false` lands as `errors` + a toast.
+    `isDirty` is draft ≠ baseline (a picked template is not dirty). A builder-mode `CoachModel`
+    is created in `start()` when services exist; every form edit is pushed to the session
+    (`updateDraft`) and every reduce comes back through `onDraft` → `apply(reduced:)`.
+  - **Views:** `BuilderSheet` (title / date / back-to-search / the sparkle / close with a
+    Discard dialog when dirty; `.large`, `interactiveDismissDisabled` while dirty; the action
+    bar in `safeAreaInset(.bottom)`: Cancel + Apply / Save changes, or the scope bar with the
+    web's copy), `TemplateSearchView` (search, `All` + seven type chips, rows with the type
+    chip, scoring badge and exercise count, swipe to archive, `Build "<q>"`),
+    `BuilderFormView` (type chips, sport hidden for climbing types, scoring + AMRAP cap,
+    title, date, duration, start/end `TimeField`s, `RepeatPickerView`, outdoor-climbing and
+    cardio targets, location, tags, description, difficulty, the sections editor),
+    `RepeatPickerView` (On/Off hidden for a series, Monday-first day chips, every N weeks,
+    Ends never / on a date, a custom rule read-only), `BuilderCoachDrawer` (a split under the
+    form: thread + composer reused from the Coach tab, "Updating the draft…" while the reduce
+    runs, no card, the key sheet on a 402).
+  - **`CoachModel`:** `init(services:mode:draft:onDraft:placeholder:)` — the draft modes are
+    store-less (never listed under Conversations) and forward `.draft`; `updateDraft(_:)`.
+    `AppModel` keeps `coachServices` and hands them to `ScheduleTab` for the drawer. The mock
+    serves `chat-stream-builder.ndjson` in builder mode.
+  - **Tests:** `BuilderModelTests` (8: search filter/sort + build from the query, template
+    pick, `withType`, create sends the draft, invalid drafts refused before any request and
+    the server's refusal lands as errors, series scope routing with the repeat forced off on
+    detach, one-off saves without a scope, the coach's reduce lands on the form and a form edit
+    reaches the session), `BuilderSnapshotTests` (search, form from the template, outdoor +
+    repeat, scope bar, coach drawer, XXL), `SmokeUITests.testBuilderOnFixtures` ("+" → the
+    library → the template → the coach fills the form from the recorded stream → Apply → the
+    card on the day; screenshots 23–26) and `testBuilderScopeOnFixtures` (Edit workout on the
+    series → Save changes → This event only → the detached, renamed card; 27–28).
+  - **Not done here:** 0.6.0, D-027, screens/design-spec updates, the TestFlight dry-run (D).
