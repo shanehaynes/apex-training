@@ -34,9 +34,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    to create a workout tomorrow → card → Confirm → it appears on Schedule; Stop mid-stream →
    the Vercel log shows the aborted upstream call; kill the app mid-card → relaunch → the card
    comes back.
-3. Still open from earlier: the W4 airplane-mode run on build 2; add `apextraining://auth` to
-   Supabase → Authentication → URL Configuration → Redirect URLs (`scripts/auth-redirect-check.sh`
-   check 2c fails until then); the W2 device runs.
+3. Still open from earlier: the W4 airplane-mode run on build 2; the W2 device runs.
 4. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
    `ios/Config/Secrets.xcconfig` (`ios/scripts/secrets.sh`) and `ios/Config/appstoreconnect.env`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
@@ -127,6 +125,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   the TestFlight upload waits on Shane.
 - 2026-09-09 · W12 · TestFlight build 4 (0.5.0/306) uploaded via `ios/scripts/testflight.sh`
   from the W12 worktree, detached at main (2158e2b, which includes the #129 web dependency bump).
+- 2026-09-09 · Shane added `apextraining://auth` to the Supabase Redirect URLs;
+  `scripts/auth-redirect-check.sh` passes all five checks.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)
