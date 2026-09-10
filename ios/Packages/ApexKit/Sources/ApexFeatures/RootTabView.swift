@@ -5,6 +5,7 @@ public struct RootTabView: View {
     private let schedule: ScheduleModel
     private let tracker: TrackerServices?
     private let coach: CoachModel?
+    private let coachServices: CoachServices?
     private let email: String?
     private let onSignOut: () -> Void
     @Bindable private var routes: RouteBus
@@ -12,12 +13,13 @@ public struct RootTabView: View {
     /// `routes` is the deep-link bus (W12): a parked link selects its tab here
     /// and the tab consumes it. The default is a fresh bus, for previews.
     public init(
-        schedule: ScheduleModel, tracker: TrackerServices? = nil, coach: CoachModel? = nil,
+        schedule: ScheduleModel, tracker: TrackerServices? = nil, coach: CoachModel? = nil, coachServices: CoachServices? = nil,
         email: String?, routes: RouteBus = RouteBus(), onSignOut: @escaping () -> Void
     ) {
         self.schedule = schedule
         self.tracker = tracker
         self.coach = coach
+        self.coachServices = coachServices
         self.email = email
         self.routes = routes
         self.onSignOut = onSignOut
@@ -25,7 +27,7 @@ public struct RootTabView: View {
 
     public var body: some View {
         TabView(selection: $routes.tab) {
-            ScheduleTab(model: schedule, tracker: tracker, routes: routes)
+            ScheduleTab(model: schedule, tracker: tracker, routes: routes, coachServices: coachServices)
                 .tabItem { Label("Schedule", systemImage: "calendar") }
                 .tag(AppTab.schedule)
             CoachTab(model: coach)

@@ -245,14 +245,16 @@ actor FixtureTransport: HTTPTransport {
     /// Coach's Notes, the confirmation for a flushed tool_result, a line of
     /// Markdown otherwise — so the smoke and the snapshots see every state.
     private func chatBody(_ body: [String: Any]?) throws -> Data {
-        if body?["withTools"] as? Bool == true { return try Fixtures.data("chat-stream.ndjson") }
+        if body?["withTools"] as? Bool == true {
+            return try Fixtures.data(body?["mode"] as? String == "builder" ? "chat-stream-builder.ndjson" : "chat-stream.ndjson")
+        }
         let messages = body?["messages"] as? [[String: Any]] ?? []
         let last = messages.last
         let text: String
         if let content = last?["content"] as? String, content == ChatCopy.notesPrompt {
             text = "**Today** — Fixture Push Day at 17:30.\n\n- Warm up the shoulders first\n- Last time you pressed 110 lb; aim for 115\n\nKeep the run easy tomorrow."
         } else if let blocks = last?["content"] as? [[String: Any]], blocks.contains(where: { $0["type"] as? String == "tool_result" }) {
-            text = "Done — Fixture Push Day on 2026-09-29 is cleared."
+            text = body?["mode"] as? String == "builder" ? "Added Fixture Press, 3 × 8. Review the form and press Apply." : "Done — Fixture Push Day on 2026-09-29 is cleared."
         } else {
             text = "Noted. Anything else?"
         }

@@ -29,6 +29,8 @@ final class AppModel {
     /// The Coach tab's model, built per signed-in user over a per-owner
     /// conversation store (D-025). Nil until `ensureQueue`.
     private(set) var coach: CoachModel?
+    /// The builder's coach drawer builds its own session over these (W7).
+    private(set) var coachServices: CoachServices?
 
     private let pool: DatabasePool?
     private var queueOwner: String?
@@ -112,14 +114,16 @@ final class AppModel {
 
         coach?.shutdown()
         let conversations: any ConversationStore = pool.map { GRDBConversationStore(pool: $0, owner: owner) } ?? MemoryConversationStore()
-        coach = CoachModel(services: CoachServices(
+        let services = CoachServices(
             client: client, store: conversations, clock: clock,
             onMutationConfirmed: { [weak self] in
                 // Realtime covers the events table; the completion a retro-log
                 // writes is not subscribed (architecture.md §8), so refresh.
                 Task { await self?.schedule.refresh(reason: .coachMutation) }
             }
-        ))
+        )
+        coachServices = services
+        coach = CoachModel(services: services)
     }
 
     var state: AuthState { auth?.state ?? mockState }
@@ -258,6 +262,7 @@ final class AppModel {
         if let activity { Task { await activity.endAll() } }
         coach?.shutdown()
         coach = nil
+        coachServices = nil
         queueOwner = nil
         Task {
             await hub?.reset()

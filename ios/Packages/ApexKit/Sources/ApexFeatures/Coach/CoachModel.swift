@@ -28,18 +28,36 @@ public final class CoachModel {
     public var showKeySheet = false
 
     public let session: ChatSession
+    public let mode: ChatMode
     private let services: CoachServices
+    private let onDraft: ((JSONValue) -> Void)?
+    private let placeholder: String?
     private var eventsTask: Task<Void, Never>?
     private var markers: [UUID: CheckedContinuation<Void, Never>] = [:]
 
-    public init(services: CoachServices, mode: ChatMode = .chat) {
+    /// `.chat` persists conversations per owner; the draft modes (builder,
+    /// analytics) are store-less like the web's panels and carry `draft` as
+    /// the session's context — every reduce comes back through `onDraft`.
+    public init(
+        services: CoachServices, mode: ChatMode = .chat, draft: JSONValue? = nil,
+        onDraft: ((JSONValue) -> Void)? = nil, placeholder: String? = nil
+    ) {
         self.services = services
+        self.mode = mode
+        self.onDraft = onDraft
+        self.placeholder = placeholder
         let clock = services.clock
         let timeZone = services.timeZone
         self.session = ChatSession(
-            config: .init(mode: mode, today: { DayKey.today(clock: clock, timeZone: timeZone).string }),
-            client: services.client, store: services.store, clock: clock
+            config: .init(mode: mode, draft: draft, today: { DayKey.today(clock: clock, timeZone: timeZone).string }),
+            client: services.client, store: mode == .chat ? services.store : nil, clock: clock
         )
+    }
+
+    /// The form changed: the next reduce must start from what the user sees
+    /// (the web's `draftRef` rule).
+    public func updateDraft(_ draft: JSONValue) {
+        Task { [session] in await session.update(draft: draft) }
     }
 
     // MARK: - Derived
@@ -78,7 +96,7 @@ public final class CoachModel {
     public var composerPlaceholder: String {
         if needsKey { return ChatCopy.placeholderNeedsKey }
         if pending != nil { return ChatCopy.placeholderPending }
-        return ChatCopy.placeholder
+        return placeholder ?? ChatCopy.placeholder
     }
 
     public var modelLabel: String? { profile?.coachModelLabel }
@@ -138,6 +156,7 @@ public final class CoachModel {
     }
 
     public func refreshConversations() async {
+        guard mode == .chat else { return }
         conversations = (try? await services.store.conversations(mode: .chat)) ?? []
     }
 
@@ -241,10 +260,8 @@ public final class CoachModel {
             Task { await refreshConversations() }
         case .mutationConfirmed:
             services.onMutationConfirmed()
-        case .draft:
-            // Builder / analytics only: the coach tab's session never reduces a
-            // draft. The builder's model forwards it to the form (W7 PR C).
-            break
+        case .draft(let draft):
+            onDraft?(draft)
         case .toast(let text):
             ToastBus.shared.post(text, level: .failure)
         case .marker(let id):
