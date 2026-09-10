@@ -14,7 +14,7 @@ Tabs (D-012): **Schedule · Coach · Analytics · You**.
 | `MonthView` (desktop only today) | **Month**: 7×N grid, ≤3 chips + "+N", tap day → day sheet, tap chip → event sheet; swipe months | W2 | completion reachable (U7) |
 | `WeekView` | omitted (D-009) | — | |
 | `TopNav` period controls, Today | toolbar: ‹ › · title · Today; segmented Day/Month | W2 | |
-| `MobileBottomNav` FAB (+) → Workout / Meal | toolbar "+" menu | W2 | |
+| `MobileBottomNav` FAB (+) → Workout / Meal | "+" in the navigation bar, "Add workout" on an empty day, long-press a month cell → the builder (Meal is W10) | W7 | |
 | `DayModal.tsx` | **Day sheet** (`.medium/.large`): workouts + meals + macro rollup; Add workout / Add meal; tap meal → composer | W2 (list), W10 (meals) | |
 | `WorkoutModal.tsx` (432 lines) | **Event sheet**: title/date/time inline edit, difficulty dots, `SyncMetrics` badges, stream charts (scrub), exercise list with supersets, Start Workout, Mark Complete, Edit exercises, Edit workout, Delete (occurrence vs series) | W2 (read + complete), W7 (edit/delete), W11 (sync metrics detail) | U5, U14 |
 | `TrackerView.tsx` + `TrackerExercise.tsx` | **Tracker** (`fullScreenCover`): header (back, title on its own line, date · elapsed timer, Finish), section groups, set rows (# · target · inputs · remove), cardio row, climbing pitch rows, shadow fill, Add set, Swap exercise (picker), autosave → write queue | W4 | U2, U3, U15, U16, U18, U27–U29 |

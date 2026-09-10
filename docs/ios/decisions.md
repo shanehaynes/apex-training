@@ -361,3 +361,40 @@ D-016 said yes to the island; these are the calls the build forced.
 - **Versions are project-level** in `project.yml`: App Store Connect rejects an extension whose
   `CFBundleShortVersionString` differs from the app's.
 
+## D-027 · Event CRUD and the builder (W7)
+**Status:** decided · W7 session · 2026-09-10
+The brief said "port the builder"; these are the lines drawn while doing it.
+- **Apply is a server endpoint.** `POST /api/workout-draft` takes the same `WorkoutDraft` JSON
+  the client already hands `/api/coach-tool` and runs the web's own `draft.ts` serialisers,
+  template identity (draft id › case-insensitive title › a minted `wt-`), `eventToRow`, the
+  retro-log rule and the services. Swift never learned a row shape (D-008). The alternative —
+  porting ~600 lines of tested serialisers — was a second drift surface for nothing. The web
+  keeps its client-side Apply for now (#136).
+- **User-facing validation answers `ok:false` on 200.** `draftProblem` and `validateUnilateral`
+  come back as `{ ok:false, problem, violations }` — the `/api/coach-tool` convention — so the
+  client keeps the text and the per-entry map; `ApexClient` would drop a 4xx body. 4xx stays for
+  malformed requests, ownership, a detach on a one-off, and failures.
+- **Event CRUD writes are direct, online-only, optimistic against `ScheduleIndex` with a
+  rollback.** The W4 queue is `SessionKey`-shaped and exists so unsynced *workout data*
+  survives; a half-built workout is not that (the D-024 precedent: the completion toggle stays
+  direct). Every successful write refreshes with `.afterEdit`, because realtime covers the
+  tables, not the completion rows a retro-log create writes.
+- **Three more D-008 exceptions, vectors copied verbatim (the D-023 mould):** `Repeat`
+  (the brief's own ask; D-008 names repeat chips as Swift-owned), `Supersets` (live letters
+  while dragging cannot wait on a round-trip; the server re-letters on every write as the
+  safety net — which it did not do before W7 for direct writes), and the `WorkoutDraft`
+  constructors + `withType` + the instant `problem` (form state before a request exists; the
+  server re-validates). Plus `slugifyName` for the picker's inline create.
+- **`originalDate` on every schedule stub.** `/api/event-instances` keys on the date an
+  occurrence was generated at; the id carries it for every occurrence but the series anchor,
+  whose bare-id stub shows the overridden date once moved. Optional in Swift so an older
+  cache decodes; `ScheduleEvent.keyDate` falls back to the id, then the displayed date.
+- **The builder's coach auto-applies.** In the draft modes the one tool edits form state on the
+  server and nothing else, so it runs without a card (web parity); any other tool the model
+  asks for is cancelled without a request. Only Apply writes. `.chat` is byte-identical.
+  Analytics (W9) inherits with `update_chart_draft`.
+- **The builder sheet is `.large` only and a dirty draft cannot be swiped away**; the close
+  button asks. A picked template with no edits is not dirty — closing loses nothing the
+  library does not hold.
+- **The web's serialiser quirk is mirrored, not fixed:** an unset end time on a one-off edit
+  is omitted rather than cleared.

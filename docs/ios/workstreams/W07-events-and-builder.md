@@ -1,7 +1,7 @@
 # W7 — Event CRUD + workout builder
 
 **Machine:** Mac · **Depends on:** W5b, W2 · **Unblocks:** —
-**Status:** in progress (PR A `feat/w7-draft-endpoint`; B/C/D follow from the same worktree)
+**Status:** in review — A #137 merged; B #138, C #139, D `feat/w7-release` stacked. TestFlight build 5 (0.6.0) after D, on Shane's go.
 
 ## Goal
 Everything the web's `WorkoutBuilderView`, `BuilderForm`, `RepeatPicker`, `EventExerciseEditor`
@@ -150,3 +150,12 @@ Out: meals composer (W10).
     card on the day; screenshots 23–26) and `testBuilderScopeOnFixtures` (Edit workout on the
     series → Save changes → This event only → the detached, renamed card; 27–28).
   - **Not done here:** 0.6.0, D-027, screens/design-spec updates, the TestFlight dry-run (D).
+- 2026-09-10 · Mac · PR D — release. `MARKETING_VERSION` 0.6.0; D-027; `screens.md` ("+" owner
+  → W7), `design-spec.md` §5 (`FormField`, `DateField`/`TimeField`, `ChipRow`,
+  `ExerciseEditorRow`, the scope bar, the delete panel); `STATUS.md`. U9 (native pickers in
+  dark) and U10 (real drag handle) ticked by B/C. `testflight.sh --check` and `--dry-run` from
+  this worktree; the upload is Shane's call.
+  - **Left for Shane:** `shipit`-free merges in order (B → C → D, rebasing each onto main after
+    the lower squash), the TestFlight upload, and the device run from Acceptance: create a
+    recurring workout, edit one occurrence, edit the series, delete an occurrence — the web
+    shows the same result each time; the coach drawer on a real key.
