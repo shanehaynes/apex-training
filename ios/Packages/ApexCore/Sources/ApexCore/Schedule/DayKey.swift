@@ -147,6 +147,27 @@ public enum TimeLabel {
         return "\(h)h \(m)m"
     }
 
+    /// `toInputTime` in `src/lib/time.ts`: a stored time as the `HH:mm` a
+    /// draft holds; `""` for nil or garbage.
+    public static func inputTime(_ stored: String?) -> String {
+        guard let stored, let total = minutes(stored) else { return "" }
+        return String(format: "%02d:%02d", total / 60, total % 60)
+    }
+
+    /// `toDisplayTime`: an `HH:mm` input as the `"5:30 PM"` the API stores.
+    /// Built by hand, never through a locale-aware formatter — iOS 17+
+    /// inserts U+202F before AM/PM, which the server's parser rejects.
+    public static func stored(minutes total: Int) -> String {
+        display(String(format: "%02d:%02d", (total / 60) % 24, total % 60)) ?? ""
+    }
+
+    /// `WorkoutModal.commitStartTime`: moving the start drags the end along
+    /// so the duration survives; nil when there was no end to move.
+    public static func shiftedEnd(newStart: Int, oldStart: String?, oldEnd: String?) -> Int? {
+        guard let oldStart = oldStart.flatMap(minutes), let oldEnd = oldEnd.flatMap(minutes) else { return nil }
+        return min(newStart + (oldEnd - oldStart), 23 * 60 + 59)
+    }
+
     /// `mm:ss` / `h:mm:ss` for stream scrubbing (`formatElapsed` in StreamCharts.tsx).
     public static func elapsed(seconds: Double) -> String {
         let total = Int(seconds.rounded())

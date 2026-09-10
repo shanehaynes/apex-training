@@ -1,0 +1,36 @@
+{
+  "ok": true,
+  "action": "create",
+  "id": "ai-<uuid>",
+  "templateId": "ios-fixture-template",
+  "date": "2026-09-07",
+  "completedOnCreate": true,
+  "isRecurring": false,
+  "event": {
+    "id": "ai-<uuid>",
+    "type": "weights",
+    "title": "Fixture Template Push",
+    "date": "2026-09-07",
+    "estimatedDuration": 45,
+    "difficulty": 3,
+    "startTime": "6:30 AM",
+    "endTime": "7:15 AM",
+    "description": "",
+    "tags": [],
+    "equipment": [],
+    "exercises": [
+      {
+        "id": "ios-fixture-def",
+        "definitionId": "ios-fixture-def",
+        "name": "Fixture Press",
+        "category": "strength",
+        "sets": 3,
+        "reps": "8"
+      }
+    ],
+    "templateId": "ios-fixture-template",
+    "scoringType": "strength",
+    "isCompleted": true,
+    "isRecurring": false
+  }
+}

@@ -22,5 +22,30 @@
       "isUnilateral": false
     }
   ],
-  "templates": []
+  "templates": [
+    {
+      "id": "ios-fixture-template",
+      "title": "Fixture Template Push",
+      "type": "weights",
+      "scoringType": "strength",
+      "estimatedDuration": 45,
+      "difficulty": 3,
+      "description": "",
+      "warmup": [],
+      "exercises": [
+        {
+          "id": "ios-fixture-def",
+          "name": "Fixture Press",
+          "reps": "8",
+          "sets": 3,
+          "category": "strength",
+          "definitionId": "ios-fixture-def"
+        }
+      ],
+      "cooldown": [],
+      "tags": [],
+      "equipment": [],
+      "updatedAt": "<timestamp>"
+    }
+  ]
 }

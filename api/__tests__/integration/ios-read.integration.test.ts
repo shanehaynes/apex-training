@@ -24,6 +24,8 @@ import chatHandler from '../../chat';
 import coachSummaryHandler from '../../_lib/handlers/coachSummary';
 import coachToolHandler from '../../_lib/handlers/coachTool';
 import analyticsComputeHandler from '../../_lib/handlers/analyticsCompute';
+import workoutDraftHandler from '../../_lib/handlers/workoutDraft';
+import { emptyDraft } from '../../../src/lib/builder/draft';
 import { buildChatContext } from '../../_lib/coach/context';
 import { getSupabaseAdmin } from '../../_lib/supabaseAdmin';
 import { getAnthropicKey } from '../../_lib/anthropicKey';
@@ -48,6 +50,14 @@ vi.mock('@anthropic-ai/sdk', () => ({
             // tracker's summary overlay streams it.
             yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Strong session — ' } };
             yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'a new estimated 1RM on Fixture Press.' } };
+            return;
+          }
+          if ((request.tools as Array<{ name: string }>).some(t => t.name === 'update_workout_draft')) {
+            // Builder mode: the single draft tool, no label (W7).
+            yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Adding it. ' } };
+            yield { type: 'content_block_start', content_block: { type: 'tool_use', id: 'toolu_fixture_draft', name: 'update_workout_draft' } };
+            yield { type: 'content_block_delta', delta: { type: 'input_json_delta', partial_json: '{"exercises":[{"name":"fx press","sets":3,"reps":"8"}]}' } };
+            yield { type: 'content_block_stop' };
             return;
           }
           yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Clearing it. ' } };
@@ -97,6 +107,8 @@ function makeReq(opts: { method: string; token?: string; query?: Record<string, 
 const FX = 'ios-fixture';
 const EVENT_ID = `${FX}-weekly`;
 const DEF_ID = `${FX}-def`;
+const TEMPLATE_ID = `${FX}-template`;
+const TEMPLATE_TITLE = 'Fixture Template Push';
 const DONE_OCCURRENCE = `${EVENT_ID}__2026-09-08`;
 // Three one-off events on the same day as the completed occurrence, so the
 // Day view fixture has four events (an overflow chip on the month grid) and
@@ -162,7 +174,9 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     await admin.from('workout_sessions').delete().like('event_id', `${EVENT_ID}%`);
     await admin.from('workout_completion_log').delete().like('event_id', `${EVENT_ID}%`);
     await admin.from('workout_completions').delete().like('event_id', `${EVENT_ID}%`);
+    await admin.from('recurring_exceptions').delete().like('event_id', `${FX}%`);
     await admin.from('workout_events').delete().like('id', `${FX}%`);
+    await admin.from('workout_templates').delete().like('id', `${FX}%`);
     await admin.from('exercise_definitions').delete().eq('id', DEF_ID);
     await admin.from('activity_streams').delete().like('event_id', `${FX}%`);
     await admin.from('meals').delete().in('id', MEAL_IDS);
@@ -183,6 +197,11 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     fail('definition', (await admin.from('exercise_definitions').insert({
       id: DEF_ID, user_id: agent.userId, canonical_name: 'Fixture Press', category: 'strength',
       aliases: ['fx press'], muscle_groups: ['chest'], equipment: ['barbell'], is_unilateral: false,
+    })).error);
+    fail('template', (await admin.from('workout_templates').insert({
+      id: TEMPLATE_ID, user_id: agent.userId, title: TEMPLATE_TITLE, type: 'weights', scoring_type: 'strength',
+      estimated_duration: 45, difficulty: 3, description: 'W7 fixture', tags: ['fixture'],
+      exercises: [{ id: 'fx-press', name: 'fx press', definitionId: DEF_ID, category: 'strength', sets: 3, reps: '8', weight: '100 lb' }],
     })).error);
     fail('event', (await admin.from('workout_events').insert({
       id: EVENT_ID, user_id: agent.userId, title: 'Fixture Push Day', type: 'weights', date: '2026-09-01',
@@ -486,6 +505,130 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     fixture('coach-summary.ndjson', chunks.join(''));
   });
 
+  it('workout-draft: Apply on the server — create with a template match, edit, detach — and the draft reduce', async () => {
+    // The reduce the builder coach drives: the alias 'fx press' resolves to the fixture definition.
+    const reduce = makeRes();
+    await coachToolHandler(makeReq({
+      method: 'POST', token: agent.token,
+      body: {
+        name: 'update_workout_draft', today: FIXTURE_DAY, draft: emptyDraft('2026-09-15'),
+        input: { title: 'Fixture Coach Draft', exercises: [{ name: 'fx press', sets: 3, reps: '8' }], repeat: { days: ['TU'] } },
+      },
+    }), reduce.res);
+    expect(reduce.statusCode).toBe(200);
+    const reduced = reduce.body as { ok: boolean; draft: { title: string; lists: { exercises: Array<{ definitionId?: string }> }; repeat: { days: string[] } } };
+    expect(reduced.ok).toBe(true);
+    expect(reduced.draft.title).toBe('Fixture Coach Draft');
+    expect(reduced.draft.lists.exercises[0].definitionId).toBe(DEF_ID);
+    expect(reduced.draft.repeat.days).toEqual(['TU']);
+    fixture('coach-tool-draft.json', reduce.body);
+
+    const createdIds: string[] = [];
+    try {
+      // Create: the seeded template's title (no templateId in the draft)
+      // resolves to its id; a one-off dated yesterday is a retro-log.
+      const create = makeRes();
+      await workoutDraftHandler(makeReq({
+        method: 'POST', token: agent.token,
+        body: {
+          today: FIXTURE_DAY, action: { kind: 'create' },
+          draft: {
+            ...emptyDraft('2026-09-07', TEMPLATE_TITLE), startTime: '06:30', endTime: '07:15', duration: '45',
+            lists: { warmup: [], cooldown: [], exercises: reduced.draft.lists.exercises },
+          },
+        },
+      }), create.res);
+      expect(create.statusCode).toBe(200);
+      const created = create.body as { ok: boolean; id: string; templateId: string; completedOnCreate: boolean; event: { title: string } };
+      expect(created).toMatchObject({ ok: true, action: 'create', templateId: TEMPLATE_ID, completedOnCreate: true, isRecurring: false });
+      createdIds.push(created.id);
+      const { data: row } = await admin.from('workout_events').select('template_id, start_time, user_id').eq('id', created.id).single();
+      expect(row).toEqual({ template_id: TEMPLATE_ID, start_time: '6:30 AM', user_id: agent.userId });
+      expect((await admin.from('workout_completions').select('is_completed').eq('event_id', created.id).single()).data).toEqual({ is_completed: true });
+      const { data: log } = await admin.from('event_mutations_log').select('triggered_by').eq('event_id', created.id).single();
+      expect(log).toEqual({ triggered_by: 'user' });
+      fixture('workout-draft-create.json', create.body);
+
+      // Edit the one-off: schedule fields included, the title changes.
+      const edit = makeRes();
+      await workoutDraftHandler(makeReq({
+        method: 'POST', token: agent.token,
+        body: {
+          today: FIXTURE_DAY, action: { kind: 'update', eventId: created.id },
+          draft: { ...emptyDraft('2026-09-07', `${TEMPLATE_TITLE} (edited)`), startTime: '07:00', duration: '50' },
+        },
+      }), edit.res);
+      expect(edit.statusCode).toBe(200);
+      expect(edit.body).toMatchObject({ ok: true, action: 'update', id: created.id, event: { title: `${TEMPLATE_TITLE} (edited)`, startTime: '7:00 AM' } });
+      expect((await admin.from('workout_events').select('title').eq('id', created.id).single()).data).toEqual({ title: `${TEMPLATE_TITLE} (edited)` });
+      fixture('workout-draft-edit.json', edit.body);
+
+      // Detach one occurrence of the weekly series: a standalone row plus a skip.
+      const detach = makeRes();
+      await workoutDraftHandler(makeReq({
+        method: 'POST', token: agent.token,
+        body: {
+          today: FIXTURE_DAY, action: { kind: 'detach', eventId: `${EVENT_ID}__2026-09-29`, occurrenceDate: '2026-09-29' },
+          draft: { ...emptyDraft('2026-09-30', 'Fixture Push Day (solo)'), duration: '60' },
+        },
+      }), detach.res);
+      expect(detach.statusCode).toBe(200);
+      const detached = detach.body as { id: string };
+      createdIds.push(detached.id);
+      expect(detach.body).toMatchObject({ ok: true, action: 'detach', detachedFrom: EVENT_ID, occurrenceDate: '2026-09-29', date: '2026-09-30', isRecurring: false });
+      const { data: skip } = await admin.from('recurring_exceptions').select('override_date').eq('event_id', EVENT_ID).eq('skipped_date', '2026-09-29').single();
+      expect(skip).toEqual({ override_date: null });
+      fixture('workout-draft-detach.json', detach.body);
+
+      // Another user's draft cannot edit it.
+      const other = makeRes();
+      await workoutDraftHandler(makeReq({
+        method: 'POST', token: agent2.token,
+        body: { today: FIXTURE_DAY, action: { kind: 'update', eventId: created.id }, draft: emptyDraft('2026-09-07', 'x') },
+      }), other.res);
+      expect(other.statusCode).toBe(404);
+
+      // A validation problem answers 200 ok:false with the web's text and writes nothing.
+      const bad = makeRes();
+      await workoutDraftHandler(makeReq({
+        method: 'POST', token: agent.token,
+        body: { today: FIXTURE_DAY, action: { kind: 'create' }, draft: emptyDraft('2026-09-07', '') },
+      }), bad.res);
+      expect(bad.statusCode).toBe(200);
+      expect(bad.body).toEqual({ ok: false, problem: 'Give the workout a title' });
+    } finally {
+      // The chat fixture's label names the 09-29 occurrence — put it back.
+      await admin.from('recurring_exceptions').delete().eq('event_id', EVENT_ID).eq('skipped_date', '2026-09-29');
+      if (createdIds.length) {
+        for (const table of ['workout_set_logs', 'workout_cardio_logs', 'workout_sessions', 'workout_completion_log', 'workout_completions', 'event_mutations_log']) {
+          await admin.from(table).delete().in('event_id', createdIds);
+        }
+        await admin.from('workout_events').delete().in('id', createdIds);
+      }
+    }
+  });
+
+  it('chat v2 (builder): one tool, the draft in context, no label on the tool_use', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-ant-integration');
+    const c = makeRes();
+    const chunks: string[] = [];
+    (c.res as unknown as { write: (s: string) => boolean }).write = (s: string) => { chunks.push(s); return true; };
+    (c.res as unknown as { on: () => unknown }).on = () => c.res;
+    await chatHandler(makeReq({
+      method: 'POST', token: agent.token,
+      body: {
+        mode: 'builder', today: FIXTURE_DAY, withTools: true, context: { draft: emptyDraft('2026-09-15', 'Fixture Coach Draft') },
+        messages: [{ role: 'user', content: 'add fixture press, 3 sets of 8' }],
+      },
+    }), c.res);
+    expect(c.statusCode).toBe(200);
+    const events = chunks.join('').trim().split('\n').map(l => JSON.parse(l) as Record<string, unknown>);
+    expect(events.map(e => e.type)).toEqual(['text', 'tool_use', 'done']);
+    expect(events[1]).toMatchObject({ name: 'update_workout_draft', input: { exercises: [{ name: 'fx press', sets: 3, reps: '8' }] } });
+    expect(events[1].label).toBeUndefined();
+    fixture('chat-stream-builder.ndjson', chunks.join(''));
+  });
+
   it('chat v2: the server builds the prompt from the caller\'s data and labels tool calls', async () => {
     // The context builder against real rows: today = the tracked occurrence's date.
     const admin2 = getSupabaseAdmin()!;
@@ -615,7 +758,7 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
   });
 
   it('emits (or checks) the iOS fixture contract from real responses', async () => {
-    type ScheduleBody = { window: unknown; bases: Array<{ id: string }>; occurrences: Array<{ id: string; baseId: string; date: string }>; definitions: Array<{ id: string }>; templates: unknown[] };
+    type ScheduleBody = { window: unknown; bases: Array<{ id: string }>; occurrences: Array<{ id: string; baseId: string; date: string; originalDate: string }>; definitions: Array<{ id: string }>; templates: Array<{ id: string }> };
     // Sorted: Postgres returns same-day rows in whatever order it likes, and a
     // fixture that reshuffles between runs is a fixture that always "drifts".
     const byId = (a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id);
@@ -625,13 +768,17 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
       occurrences: body.occurrences.filter(o => o.baseId.startsWith(FX))
         .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)),
       definitions: body.definitions.filter(d => d.id === DEF_ID),
-      // Templates are whatever the seed carries; keep the key so the model decodes it.
-      templates: [],
+      templates: body.templates.filter(t => t.id.startsWith(FX)).sort(byId),
     });
     const sched = await schedule(agent.token, { start: '2026-09-01', end: '2026-09-30', include: 'definitions,templates' });
     const carved = carve(sched.body as ScheduleBody);
     // Four bases: the weekly series plus the three one-offs on FIXTURE_DAY.
     expect(carved.bases.map(b => b.id).sort()).toEqual([CIRCUIT_ID, CRAG_ID, RUN_ID, EVENT_ID].sort());
+    expect(carved.templates.map(t => t.id)).toEqual([TEMPLATE_ID]);
+    // W7: every stub says which date its exception row keys on — the anchor's
+    // is its own row date, a generated occurrence's is the date in its id.
+    expect(carved.occurrences.find(o => o.id === EVENT_ID)).toMatchObject({ date: '2026-09-01', originalDate: '2026-09-01' });
+    expect(carved.occurrences.find(o => o.id === DONE_OCCURRENCE)).toMatchObject({ originalDate: '2026-09-08' });
     fixture('schedule.json', carved);
 
     // Past the series' UNTIL and holding no fixture rows: the empty-state fixture.

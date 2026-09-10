@@ -34,10 +34,11 @@ public struct Endpoint: Sendable, Equatable {
 
     /// Bodies are encoded with sorted keys so the same call always produces
     /// the same bytes — testable, and a stable key for anything that hashes a
-    /// request.
+    /// request. Slashes stay slashes ("90/90 Hip Stretch"): both spellings are
+    /// valid JSON, and the unescaped one is what every test can read.
     static func json<T: Encodable>(_ value: T) -> Data {
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         // Encoding a value built from Codable structs and JSONValue cannot
         // fail; a crash here would be a programming error, not a runtime one.
         return try! encoder.encode(value) // swiftlint:disable:this force_try
@@ -233,15 +234,18 @@ public struct Endpoint: Sendable, Equatable {
     /// Execute a confirmed coach action on the server (`POST /api/coach-tool`,
     /// W5b). `toolUseId` is unused by the handler today and sent for the
     /// planned HMAC check.
-    public static func coachTool(toolUseId: String, name: String, input: JSONValue, today: String) -> Endpoint {
+    /// `draft` is the builder's / analytics' current draft for the draft
+    /// tools, which reduce it and answer with the next one (W7).
+    public static func coachTool(toolUseId: String, name: String, input: JSONValue, today: String, draft: JSONValue? = nil) -> Endpoint {
         struct Body: Encodable {
             let toolUseId: String
             let name: String
             let input: JSONValue
             let today: String
+            let draft: JSONValue?
         }
         return Endpoint(method: .post, path: "api/coach-tool", body: json(Body(
-            toolUseId: toolUseId, name: name, input: input, today: today
+            toolUseId: toolUseId, name: name, input: input, today: today, draft: draft
         )))
     }
 
@@ -250,6 +254,99 @@ public struct Endpoint: Sendable, Equatable {
     public static func setAnthropicKey(_ key: String?) -> Endpoint {
         let body: [String: JSONValue] = ["anthropic_api_key": key.map(JSONValue.string) ?? .null]
         return Endpoint(method: .patch, path: "api/profile", body: json(body))
+    }
+
+    // MARK: - W7 writes
+    // Every body carries user attribution: without it the server charges the
+    // AI mutation cap (`api/_lib/handlers/events.ts`).
+
+    /// Series-wide field edits (`PATCH /api/events?id=<baseId>`).
+    public static func updateEvent(id: String, fields: EventFields, log: EventMutationLog) -> Endpoint {
+        struct Body: Encodable {
+            let fields: EventFields
+            let log: EventMutationLog
+        }
+        return Endpoint(method: .patch, path: "api/events", query: [URLQueryItem(name: "id", value: id)], body: json(Body(fields: fields, log: log)))
+    }
+
+    /// A one-off, or a whole series (`DELETE /api/events?id=<baseId>`).
+    public static func deleteEvent(id: String, log: EventMutationLog) -> Endpoint {
+        struct Body: Encodable { let log: EventMutationLog }
+        return Endpoint(method: .delete, path: "api/events", query: [URLQueryItem(name: "id", value: id)], body: json(Body(log: log)))
+    }
+
+    /// Skip one occurrence of a series. `date` is `ScheduleEvent.keyDate`.
+    public static func skipInstance(eventId: String, date: String, eventTitle: String) -> Endpoint {
+        instance(InstanceBody(eventId: eventId, date: date, eventTitle: eventTitle, overrides: nil))
+    }
+
+    /// Move one occurrence of a series (all three override columns are written).
+    public static func rescheduleInstance(eventId: String, date: String, eventTitle: String, overrides: OccurrenceOverride) -> Endpoint {
+        instance(InstanceBody(eventId: eventId, date: date, eventTitle: eventTitle, overrides: overrides))
+    }
+
+    /// The builder's Apply (`POST /api/workout-draft`): the draft JSON in,
+    /// the server upserts the template and writes the event.
+    public static func workoutDraft(draft: WorkoutDraft, today: String, action: WorkoutDraftAction) -> Endpoint {
+        struct Action: Encodable {
+            let kind: String
+            let eventId: String?
+            let occurrenceDate: String?
+        }
+        struct Body: Encodable {
+            let draft: WorkoutDraft
+            let today: String
+            let action: Action
+        }
+        let wire: Action = switch action {
+        case .create: Action(kind: "create", eventId: nil, occurrenceDate: nil)
+        case .update(let eventId): Action(kind: "update", eventId: eventId, occurrenceDate: nil)
+        case .detach(let eventId, let occurrenceDate): Action(kind: "detach", eventId: eventId, occurrenceDate: occurrenceDate)
+        }
+        return Endpoint(method: .post, path: "api/workout-draft", body: json(Body(draft: draft, today: today, action: wire)))
+    }
+
+    /// Archive (a timestamp) or restore (nil) a library template.
+    public static func archiveTemplate(id: String, archivedAt: String?) -> Endpoint {
+        let body: [String: JSONValue] = ["archived_at": archivedAt.map(JSONValue.string) ?? .null]
+        return Endpoint(method: .patch, path: "api/workout-templates", query: [URLQueryItem(name: "id", value: id)], body: json(body))
+    }
+
+    /// The picker's inline create (`POST /api/exercise-definitions`); the id
+    /// is `Slug.name(canonicalName)`, as the web mints it.
+    public static func createDefinition(id: String, canonicalName: String, category: String, isUnilateral: Bool) -> Endpoint {
+        struct Body: Encodable {
+            let id: String
+            let canonicalName: String
+            let category: String
+            let isUnilateral: Bool
+            let aliases: [String] = []
+            let muscleGroups: [String] = []
+            let equipment: [String] = []
+            let triggeredBy = "user"
+            enum CodingKeys: String, CodingKey {
+                case id, category, aliases, equipment
+                case canonicalName = "canonical_name"
+                case isUnilateral = "is_unilateral"
+                case muscleGroups = "muscle_groups"
+                case triggeredBy = "triggered_by"
+            }
+        }
+        return Endpoint(method: .post, path: "api/exercise-definitions", body: json(Body(
+            id: id, canonicalName: canonicalName, category: category, isUnilateral: isUnilateral
+        )))
+    }
+
+    private struct InstanceBody: Encodable {
+        let eventId: String
+        let date: String
+        let eventTitle: String
+        let overrides: OccurrenceOverride?
+        let triggeredBy = "user"
+    }
+
+    private static func instance(_ body: InstanceBody) -> Endpoint {
+        Endpoint(method: .post, path: "api/event-instances", body: json(body))
     }
 
     private static func sessions<T: Encodable>(_ body: T) -> Endpoint {

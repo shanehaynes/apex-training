@@ -13,7 +13,7 @@ import {
   emptyDraft, eventFieldsFromDraft, templateInputFromDraft, type WorkoutDraft,
 } from '../../lib/builder/draft';
 import { REPEAT_OFF } from '../../lib/builder/repeat';
-import { validateUnilateral } from '../modal/EventExerciseEditor';
+import { validateUnilateral } from '../../lib/schedule/definitions';
 import { WORKOUT_COLORS } from '../../utils/workoutColors';
 import TemplateSearch from './TemplateSearch';
 import BuilderForm from './BuilderForm';

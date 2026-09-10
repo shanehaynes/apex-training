@@ -197,6 +197,7 @@
       "id": "ios-fixture-weekly",
       "baseId": "ios-fixture-weekly",
       "date": "2026-09-01",
+      "originalDate": "2026-09-01",
       "startTime": "17:30",
       "endTime": "18:30",
       "isCompleted": false,
@@ -206,6 +207,7 @@
       "id": "ios-fixture-circuit",
       "baseId": "ios-fixture-circuit",
       "date": "2026-09-08",
+      "originalDate": "2026-09-08",
       "startTime": "12:00",
       "endTime": null,
       "isCompleted": false,
@@ -215,6 +217,7 @@
       "id": "ios-fixture-crag",
       "baseId": "ios-fixture-crag",
       "date": "2026-09-08",
+      "originalDate": "2026-09-08",
       "startTime": "09:00",
       "endTime": null,
       "isCompleted": false,
@@ -224,6 +227,7 @@
       "id": "ios-fixture-run",
       "baseId": "ios-fixture-run",
       "date": "2026-09-08",
+      "originalDate": "2026-09-08",
       "startTime": "06:30",
       "endTime": "07:10",
       "isCompleted": false,
@@ -233,6 +237,7 @@
       "id": "ios-fixture-weekly__2026-09-08",
       "baseId": "ios-fixture-weekly",
       "date": "2026-09-08",
+      "originalDate": "2026-09-08",
       "startTime": "17:30",
       "endTime": "18:30",
       "isCompleted": true,
@@ -242,6 +247,7 @@
       "id": "ios-fixture-weekly__2026-09-15",
       "baseId": "ios-fixture-weekly",
       "date": "2026-09-15",
+      "originalDate": "2026-09-15",
       "startTime": "17:30",
       "endTime": "18:30",
       "isCompleted": false,
@@ -251,6 +257,7 @@
       "id": "ios-fixture-weekly__2026-09-22",
       "baseId": "ios-fixture-weekly",
       "date": "2026-09-22",
+      "originalDate": "2026-09-22",
       "startTime": "17:30",
       "endTime": "18:30",
       "isCompleted": false,
@@ -260,6 +267,7 @@
       "id": "ios-fixture-weekly__2026-09-29",
       "baseId": "ios-fixture-weekly",
       "date": "2026-09-29",
+      "originalDate": "2026-09-29",
       "startTime": "17:30",
       "endTime": "18:30",
       "isCompleted": false,
@@ -283,5 +291,30 @@
       "isUnilateral": false
     }
   ],
-  "templates": []
+  "templates": [
+    {
+      "id": "ios-fixture-template",
+      "title": "Fixture Template Push",
+      "type": "weights",
+      "scoringType": "strength",
+      "estimatedDuration": 45,
+      "difficulty": 3,
+      "description": "",
+      "warmup": [],
+      "exercises": [
+        {
+          "id": "ios-fixture-def",
+          "name": "Fixture Press",
+          "reps": "8",
+          "sets": 3,
+          "category": "strength",
+          "definitionId": "ios-fixture-def"
+        }
+      ],
+      "cooldown": [],
+      "tags": [],
+      "equipment": [],
+      "updatedAt": "<timestamp>"
+    }
+  ]
 }

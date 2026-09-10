@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "action": "update",
+  "id": "ai-<uuid>",
+  "templateId": "ios-fixture-template",
+  "date": "2026-09-07",
+  "completedOnCreate": false,
+  "isRecurring": false,
+  "event": {
+    "id": "ai-<uuid>",
+    "type": "weights",
+    "title": "Fixture Template Push (edited)",
+    "date": "2026-09-07",
+    "startTime": "7:00 AM",
+    "estimatedDuration": 50,
+    "description": "",
+    "exercises": [],
+    "difficulty": 3,
+    "tags": [],
+    "equipment": [],
+    "sport": null,
+    "templateId": "ios-fixture-template",
+    "scoringType": "strength",
+    "isCompleted": false,
+    "isRecurring": false
+  }
+}

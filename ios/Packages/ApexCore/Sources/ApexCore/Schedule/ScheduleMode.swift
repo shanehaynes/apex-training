@@ -11,4 +11,8 @@ public enum ScheduleRefreshReason: Sendable, Equatable {
     /// A confirmed coach action landed on the server (W6); realtime covers the
     /// tables it touched, but not the completion rows a retro-log writes.
     case coachMutation
+    /// An event write from the sheet or the builder landed (W7); same reason
+    /// as `coachMutation` — a retro-log create writes completion rows realtime
+    /// does not announce.
+    case afterEdit
 }

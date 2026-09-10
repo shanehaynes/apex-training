@@ -29,8 +29,9 @@ say so.
 2. **Fixture contract tests** — a vitest in the web repo
    (`api/__tests__/fixtures/emitIosFixtures.test.ts`) runs the real handlers against the local
    stack and writes canonical responses to `ios/Fixtures/`: `schedule.json`,
-   `bootstrap.json`, `bootstrap-peek.json`, `finish.json`, `chat-stream.ndjson`, `coach-summary.ndjson`, `analytics-compute.json`,
-   `query-*.json`, `profile.json`. `swift test` decodes every file. The emitter runs inside the
+   `bootstrap.json`, `bootstrap-peek.json`, `finish.json`, `chat-stream.ndjson`, `chat-stream-builder.ndjson`,
+   `coach-summary.ndjson`, `coach-tool.json`, `coach-tool-draft.json`, `workout-draft-{create,edit,detach}.json`,
+   `analytics-compute.json`, `query-*.json`, `profile.json`. `swift test` decodes every file. The emitter runs inside the
    integration suite (`api/__tests__/integration/ios-read.integration.test.ts`): by default it
    **checks** the committed files and fails on drift; `APEX_FIXTURES_WRITE=1` regenerates them
    after a deliberate shape change. CI's `full` job therefore checks them with no extra step.

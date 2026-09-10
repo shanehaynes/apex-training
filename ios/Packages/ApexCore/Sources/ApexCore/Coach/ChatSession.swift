@@ -77,6 +77,9 @@ public actor ChatSession {
         case conversation(Conversation?)
         /// A confirmed mutation landed on the server — refresh what shows it.
         case mutationConfirmed
+        /// Builder / analytics: the server reduced the draft tool onto the
+        /// draft and this is the next one (W7). Already stored in `config`.
+        case draft(JSONValue)
         case toast(String)
         /// Echoed by `mark(_:)`. Events are delivered in order, so an observer
         /// that sees its marker has applied everything emitted before it.
@@ -277,6 +280,56 @@ public actor ChatSession {
         streamTask?.cancel()
     }
 
+    // MARK: - Draft tools (builder / analytics)
+
+    /// The one tool the draft modes carry. It edits form state, nothing on
+    /// the server, so it runs without a card — the web's `BuilderCoachPanel`
+    /// auto-applies it. Only the user's Apply writes anything.
+    private var autoDraftTool: String? {
+        switch config.mode {
+        case .chat: nil
+        case .builder: "update_workout_draft"
+        case .analytics: "update_chart_draft"
+        }
+    }
+
+    /// Where `.chat` would present a card: reduce the draft tool through
+    /// `/api/coach-tool` and settle; anything else the model asked for in a
+    /// draft mode is cancelled without a request (there is nothing to run).
+    private func settleDraftHead() async {
+        guard let head = queue.first else { return }
+        guard head.toolName == autoDraftTool else {
+            await settle(ChatCopy.cancelledByUser, failureCopy: ChatCopy.confirmTroubled)
+            return
+        }
+        setState(.executing(head: head, index: queueTotal - queue.count + 1, total: queueTotal))
+        let resultText: String
+        do {
+            let response = try await client.send(
+                .coachTool(toolUseId: head.toolUseId, name: head.toolName, input: head.input, today: config.today(), draft: config.draft),
+                as: CoachToolResponse.self
+            )
+            if response.ok, let draft = response.draft {
+                config.draft = draft
+                emit(.draft(draft))
+            }
+            // The reducer's own text either way: a refusal ("Unilateral
+            // exercises need per-side counts…") is what the model must hear.
+            resultText = response.resultText ?? "Done."
+        } catch let error as APIError {
+            if case .rateLimited = error {
+                emit(.toast(ChatCopy.aiCapReached))
+            } else {
+                emit(.toast(ChatCopy.applyFailed))
+            }
+            resultText = ChatCopy.executorFailed
+        } catch {
+            emit(.toast(ChatCopy.applyFailed))
+            resultText = ChatCopy.executorFailed
+        }
+        await settle(resultText, failureCopy: ChatCopy.confirmTroubled)
+    }
+
     // MARK: - Confirmation
 
     public func confirmHead() async {
@@ -333,6 +386,8 @@ public actor ChatSession {
             toolResultRow = nil
             queueTotal = 0
             await stream(withTools: false, failureCopy: failureCopy)
+        } else if autoDraftTool != nil {
+            await settleDraftHead()
         } else {
             setState(.awaitingConfirmation(head: queue[0], index: queueTotal - queue.count + 1, total: queueTotal))
         }
@@ -406,7 +461,11 @@ public actor ChatSession {
             held = []
             queueTotal = queue.count
             toolResultRow = nil
-            setState(.awaitingConfirmation(head: queue[0], index: 1, total: queueTotal))
+            if autoDraftTool != nil {
+                await settleDraftHead()
+            } else {
+                setState(.awaitingConfirmation(head: queue[0], index: 1, total: queueTotal))
+            }
         }
     }
 

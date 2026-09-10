@@ -20,39 +20,42 @@ public struct ScheduleResponse: Codable, Sendable, Equatable {
 ///
 /// Field set follows `WorkoutEvent` in `src/types/workout.ts`. Enum-like
 /// strings (`sport`, `source`, `scoringType`) stay `String?` so a value the
-/// server adds later never fails the whole schedule decode.
+/// server adds later never fails the whole schedule decode. Fields are `var`
+/// (the `Exercise.name` precedent) so an optimistic edit is `var copy = base;
+/// copy.title = …` — the index itself stays a value that is rebuilt, never
+/// mutated in place.
 public struct WorkoutEventBase: Codable, Sendable, Equatable {
-    public let id: String
-    public let type: WorkoutType
-    public let sport: String?
-    public let title: String
-    public let subtitle: String?
+    public var id: String
+    public var type: WorkoutType
+    public var sport: String?
+    public var title: String
+    public var subtitle: String?
     /// The server builds each base from the first in-window occurrence, so
     /// this is NOT the series anchor. Never place an event by it — place by
     /// `Occurrence.date`.
-    public let date: String
-    public let startTime: String?
-    public let endTime: String?
-    public let estimatedDuration: Int?
-    public let description: String?
-    public let warmup: [Exercise]?
-    public let exercises: [Exercise]?
-    public let cooldown: [Exercise]?
-    public let difficulty: Int?
-    public let location: String?
-    public let coverImageUrl: String?
-    public let cardioTargets: CardioTargets?
-    public let climbingTargets: ClimbingTargets?
-    public let tags: [String]?
-    public let equipment: [String]?
-    public let source: String?
-    public let templateId: String?
-    public let scoringType: String?
-    public let timeCapMinutes: Int?
-    public let isCompleted: Bool?
-    public let completedAt: String?
-    public let isRecurring: Bool?
-    public let recurrenceRule: String?
+    public var date: String
+    public var startTime: String?
+    public var endTime: String?
+    public var estimatedDuration: Int?
+    public var description: String?
+    public var warmup: [Exercise]?
+    public var exercises: [Exercise]?
+    public var cooldown: [Exercise]?
+    public var difficulty: Int?
+    public var location: String?
+    public var coverImageUrl: String?
+    public var cardioTargets: CardioTargets?
+    public var climbingTargets: ClimbingTargets?
+    public var tags: [String]?
+    public var equipment: [String]?
+    public var source: String?
+    public var templateId: String?
+    public var scoringType: String?
+    public var timeCapMinutes: Int?
+    public var isCompleted: Bool?
+    public var completedAt: String?
+    public var isRecurring: Bool?
+    public var recurrenceRule: String?
 }
 
 /// Planned session targets for a cardio event. Free-text distance/elevation
@@ -75,14 +78,34 @@ public struct ClimbingTargets: Codable, Sendable, Equatable {
 /// One dated instance of a base. `id` is the `OccurrenceID` — `baseId` for the
 /// first, `baseId__YYYY-MM-DD` for the rest.
 public struct Occurrence: Codable, Sendable, Equatable {
-    public let id: String
-    public let baseId: String
-    public let date: String
-    public let startTime: String?
-    public let endTime: String?
-    public let isCompleted: Bool
+    public var id: String
+    public var baseId: String
+    public var date: String
+    /// The date this occurrence was generated at — what `/api/event-instances`
+    /// keys a skip, move or detach on. Differs from `date` once an override
+    /// moved the occurrence; for the series anchor (bare id) it is the base
+    /// row's own date, which nothing else carries. Optional: a window cached
+    /// by a build before W7 lacks it, and `ScheduleEvent.keyDate` falls back.
+    public var originalDate: String?
+    public var startTime: String?
+    public var endTime: String?
+    public var isCompleted: Bool
     /// A timestamp string, never a `Date` — see FixtureContractTests.
-    public let completedAt: String?
+    public var completedAt: String?
+
+    public init(
+        id: String, baseId: String, date: String, originalDate: String? = nil,
+        startTime: String? = nil, endTime: String? = nil, isCompleted: Bool = false, completedAt: String? = nil
+    ) {
+        self.id = id
+        self.baseId = baseId
+        self.date = date
+        self.originalDate = originalDate
+        self.startTime = startTime
+        self.endTime = endTime
+        self.isCompleted = isCompleted
+        self.completedAt = completedAt
+    }
 }
 
 public struct Exercise: Codable, Sendable, Equatable {
@@ -98,9 +121,10 @@ public struct Exercise: Codable, Sendable, Equatable {
     public let restPeriod: String?
     public let plannedSets: [PlannedSet]?
     /// Superset/circuit label ("A", "B"): consecutive entries in one section
-    /// sharing a label are performed together. Adjacency is maintained server
-    /// side (`src/lib/schedule/supersets.ts`); the client only groups for display.
-    public let superset: String?
+    /// sharing a label are performed together. `var` for the editor:
+    /// `Supersets` (the `src/lib/schedule/supersets.ts` port) re-letters as
+    /// the user drags, and the server re-letters again on every write.
+    public var superset: String?
     /// Climbing pitches only.
     public let climbStyle: String?
     public let grade: String?
@@ -185,8 +209,56 @@ public struct ExerciseDefinition: Codable, Sendable, Equatable {
     }
 }
 
+/// A workout-library entry (`rowToTemplate` in `src/lib/schedule/templates.ts`):
+/// an event minus its calendar placement, plus scoring. Applying one is the
+/// builder's job (W7); archive/restore lives under Library (W10).
 public struct WorkoutTemplate: Codable, Sendable, Equatable {
     public let id: String
-    public let name: String?
-    public let type: WorkoutType?
+    public let title: String
+    public let type: WorkoutType
+    public let sport: String?
+    public let scoringType: String?
+    public let timeCapMinutes: Int?
+    public let estimatedDuration: Int?
+    public let difficulty: Int?
+    public let description: String?
+    public let warmup: [Exercise]?
+    public let exercises: [Exercise]?
+    public let cooldown: [Exercise]?
+    public let location: String?
+    public let tags: [String]?
+    public let equipment: [String]?
+    public let cardioTargets: CardioTargets?
+    public let climbingTargets: ClimbingTargets?
+    public let archivedAt: String?
+    /// Server-stamped on every save; the library list sorts by it.
+    public let updatedAt: String?
+
+    public init(
+        id: String, title: String, type: WorkoutType, sport: String? = nil, scoringType: String? = nil,
+        timeCapMinutes: Int? = nil, estimatedDuration: Int? = nil, difficulty: Int? = nil, description: String? = nil,
+        warmup: [Exercise]? = nil, exercises: [Exercise]? = nil, cooldown: [Exercise]? = nil, location: String? = nil,
+        tags: [String]? = nil, equipment: [String]? = nil, cardioTargets: CardioTargets? = nil,
+        climbingTargets: ClimbingTargets? = nil, archivedAt: String? = nil, updatedAt: String? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.type = type
+        self.sport = sport
+        self.scoringType = scoringType
+        self.timeCapMinutes = timeCapMinutes
+        self.estimatedDuration = estimatedDuration
+        self.difficulty = difficulty
+        self.description = description
+        self.warmup = warmup
+        self.exercises = exercises
+        self.cooldown = cooldown
+        self.location = location
+        self.tags = tags
+        self.equipment = equipment
+        self.cardioTargets = cardioTargets
+        self.climbingTargets = climbingTargets
+        self.archivedAt = archivedAt
+        self.updatedAt = updatedAt
+    }
 }

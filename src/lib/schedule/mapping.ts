@@ -1,5 +1,6 @@
 import type { CompletionLogRow, CompletionRow, WorkoutEventRow } from '../db/types';
 import type { WorkoutEvent, WorkoutType } from '../../types/workout';
+import type { CreateEventInput } from './types';
 import { ruleFromLegacyColumns } from '../recurrence/index.js';
 
 // ─── Row ↔ WorkoutEvent mapping ───────────────────────────────────────────────
@@ -48,6 +49,40 @@ export function rowToEvent(row: WorkoutEventRow): WorkoutEvent {
           endDate:    row.recurring_end_date ?? undefined,
         }
       : undefined,
+  };
+}
+
+/**
+ * The WorkoutEvent a CreateEventInput becomes once the caller has minted its
+ * id and decided completion (a past-dated one-off is a retro-log). One
+ * literal for the calendar, the coach executors and the builder endpoint.
+ */
+export function eventFromCreateInput(input: CreateEventInput, id: string, isCompleted: boolean): WorkoutEvent {
+  return {
+    id,
+    type:              input.type,
+    sport:             input.sport,
+    title:             input.title,
+    date:              input.date,
+    estimatedDuration: input.estimatedDuration,
+    difficulty:        input.difficulty ?? 3,
+    startTime:         input.startTime,
+    endTime:           input.endTime,
+    description:       input.description ?? '',
+    location:          input.location,
+    tags:              input.tags ?? [],
+    equipment:         input.equipment ?? [],
+    exercises:         input.exercises ?? [],
+    warmup:            input.warmup,
+    cooldown:          input.cooldown,
+    cardioTargets:     input.cardioTargets,
+    climbingTargets:   input.climbingTargets,
+    templateId:        input.templateId,
+    scoringType:       input.scoringType,
+    timeCapMinutes:    input.timeCapMinutes,
+    isCompleted,
+    isRecurring:       !!input.recurrenceRule,
+    recurrenceRule:    input.recurrenceRule,
   };
 }
 

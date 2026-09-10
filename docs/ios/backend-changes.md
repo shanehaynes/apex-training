@@ -172,10 +172,50 @@ client does. Web may switch `useAnalyticsData` later.
 Landed 2026-09-03 (`api/_lib/analyticsData.ts`, `handlers/analyticsCompute.ts`); the web still
 computes in the browser.
 
+## W7 — `POST /api/workout-draft` (landed with W7 PR A)
+
+The builder's Apply, server-side. The web runs it in the browser
+(`WorkoutBuilderView.tsx` over `ScheduleContext`: validate → template identity → template
+upsert → event create, or PATCH / detach on edit); a native client sends the same
+`WorkoutDraft` JSON it hands `/api/coach-tool` and the server runs the same pure functions
+(`src/lib/builder/draft.ts`, `schedule/templates.ts`, `schedule/mapping.ts`) over the same
+services. Nothing about row shapes, anchor snapping, template revival or retro-logging exists
+in Swift (D-008).
+
+```jsonc
+{ "draft": { /* WorkoutDraft */ }, "today": "2026-09-08",
+  "action": { "kind": "create" }
+          // | { "kind": "update", "eventId": "<occurrence or base id>" }   one-off: with schedule; series: without
+          // | { "kind": "detach", "eventId": "<occurrence id>", "occurrenceDate": "<originalDate>" } }
+```
+→ `{ ok: true, action, id, templateId?, date, completedOnCreate, isRecurring, detachedFrom?,
+occurrenceDate?, event }` (`event` is the base as `/api/schedule` serves it), or
+`{ ok: false, problem, violations? }` on **200** for the web's own pre-save toasts
+(`draftProblem`, `validateUnilateral` keyed by entry id) — the `/api/coach-tool` shape, so the
+client keeps the text. 4xx stays for malformed bodies, ownership (404), a detach on a one-off
+(400) and service failures. Bucket `writes`; every log row is `triggered_by: 'user'`, so the AI
+cap is never charged. `validateUnilateral` moved from the editor component into
+`schedule/definitions.ts` so the API can import it. Handler `api/_lib/handlers/workoutDraft.ts`,
+orchestration `api/_lib/services/workoutDraft.ts`, templates upsert extracted to
+`services/templates.ts`. **Web stays on its client-side Apply for now** (tracked as a GitHub
+issue; the builder e2e specs pin today's request shapes).
+
+Also in W7:
+- **Supersets re-letter on every write.** `normalizeSupersets` used to run only in the web's
+  editor, the draft reducer and the coach executors, so a direct `/api/events` or
+  `/api/workout-templates` write stored whatever labels arrived. `services/supersets.ts`
+  now normalises the section columns after the allowlist in events insert + patch, the
+  templates upsert and detach. (Moved here from the W10 list.)
+- **`originalDate` on `/api/schedule` occurrence stubs**: the date the occurrence was generated
+  at — the id carries it for every occurrence but the series anchor, whose bare-id stub shows
+  the overridden date once moved. `/api/event-instances` keys on this. Additive; the Swift
+  model treats it as optional so a cached window from an older build still decodes.
+- Fixtures: `schedule.json` gains a seeded template and `originalDate`; new
+  `coach-tool-draft.json`, `workout-draft-{create,edit,detach}.json`, `chat-stream-builder.ndjson`.
+
 ## W10 — `POST /api/blocks?resource=cycle { spec }` → `{ blocks }` (Linux, small)
 Wraps `blocks/cadence.ts` (`CycleSpecError`, overlap checks). Web switches its preview to it.
-Also run `normalizeSupersets` (`schedule/supersets.ts`) in the events/templates insert + patch
-services so every client gets re-lettering for free.
+(Superset re-lettering in the services landed with W7.)
 
 ## W11 — profile, COROS, account (Linux + Mac)
 
@@ -210,6 +250,7 @@ services so every client gets re-lettering for free.
 | `chat` v2 + `label` | W5a | prompt.ts, draft describers, promptSummary.ts | yes | chat | 260 | — |
 | `coach-tool` | W5b | tools.ts + services extraction | yes | writes/reads | 670 | — |
 | `analytics-compute` | W8 | engine.ts, spec.ts, hrZones.ts | later | reads | 200 | — |
-| `blocks?resource=cycle`, supersets in services | W10 | cadence.ts, supersets.ts | yes | writes | 80 | — |
+| `workout-draft`, supersets in services, `originalDate` | W7 | draft.ts, templates.ts, mapping.ts, supersets.ts | later | writes | 300 | — |
+| `blocks?resource=cycle` | W10 | cadence.ts | yes | writes | 60 | — |
 | account deletion | W11 | exists: `DELETE /api/account` | — | — | 0 | — |
 | COROS `client:'ios'` + scheme redirect | W11 | providers/* | no | providerSync | 40 | **yes** (`provider_connections.client`) |

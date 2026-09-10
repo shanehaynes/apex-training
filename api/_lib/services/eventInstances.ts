@@ -3,6 +3,7 @@ import { migrateTrackedEventDate, purgeTrackedEventData, relabelTrackedEventId }
 import { pickAllowed, EVENT_INSERT_COLUMNS, EVENT_ID_PATTERN, SERVER_STAMPED_COLUMNS } from '../allowlist.js';
 import { makeOccurrenceId } from '../../../src/lib/schedule/occurrence.js';
 import { fail, succeed, type ServiceResult } from './result.js';
+import { normalizeSectionColumns } from './supersets.js';
 import type { Json, TablesInsert } from '../../../src/lib/db/types.js';
 import type { TriggeredBy } from './events.js';
 
@@ -104,7 +105,7 @@ export async function detachInstance(
 
   // A detached occurrence is one concrete day — never recurring itself.
   const { error: insertErr } = await supabase.from('workout_events').insert({
-    ...picked,
+    ...normalizeSectionColumns(picked),
     id: newId,
     user_id: userId,
     is_recurring: false,

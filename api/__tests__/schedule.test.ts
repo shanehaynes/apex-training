@@ -58,6 +58,8 @@ beforeEach(() => {
       { ...base, id: 'evt-solo', title: 'Long run', date: '2026-09-10', isRecurring: false, recurrenceRule: undefined },
     ],
     definitions: new Map([['def-1', { id: 'def-1', canonicalName: 'Bench Press', aliases: [], category: 'strength', muscleGroups: [], equipment: [], isUnilateral: false }]]),
+    // The weekly anchor was moved (its bare-id occurrence shows a later date).
+    anchorDates: new Map([['evt-weekly', '2026-08-25'], ['evt-solo', '2026-09-10']]),
   } as never);
   mockedCompletions.mockResolvedValue([
     { event_id: 'evt-weekly__2026-09-08', event_date: '2026-09-08', is_completed: true, completed_at: '2026-09-08T18:30:00Z' },
@@ -123,6 +125,19 @@ describe('GET /api/schedule — shape', () => {
     expect(out.templates).toBeUndefined();
     // Horizon anchored at the window end so the expander covers it.
     expect(mockedExpanded).toHaveBeenCalledWith(expect.anything(), 'user-123', '2026-09-30');
+  });
+
+  it('stamps originalDate: the id\'s date for generated occurrences, the row date for a moved anchor', async () => {
+    const { res, body } = makeRes();
+    await handler(makeReq({ start: '2026-08-01', end: '2026-09-30' }), res);
+    const out = body() as { occurrences: Array<{ id: string; date: string; originalDate: string }> };
+    const byId = Object.fromEntries(out.occurrences.map(o => [o.id, o]));
+    // The anchor renders at its overridden date but keys its exception row on the row date.
+    expect(byId['evt-weekly']).toMatchObject({ date: '2026-09-01', originalDate: '2026-08-25' });
+    // A generated occurrence's id carries the date it was generated at.
+    expect(byId['evt-weekly__2026-09-15']).toMatchObject({ date: '2026-09-15', originalDate: '2026-09-15' });
+    // A one-off is its own anchor.
+    expect(byId['evt-solo']).toMatchObject({ date: '2026-09-10', originalDate: '2026-09-10' });
   });
 
   it('attaches definitions and mapped templates when asked', async () => {
