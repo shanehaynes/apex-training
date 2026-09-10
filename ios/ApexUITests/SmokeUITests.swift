@@ -74,7 +74,7 @@ final class SmokeUITests: XCTestCase {
 
         // Event: the synced run shows its provider badge; completing it flips the button.
         app.buttons["event.card.Fixture Run"].tap()
-        XCTAssertTrue(app.staticTexts["schedule.event.title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["schedule.event.title"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.otherElements["schedule.event.synced"].waitForExistence(timeout: 10)
             || app.staticTexts["Synced from COROS"].waitForExistence(timeout: 5))
         attach(app, name: "05-event")
