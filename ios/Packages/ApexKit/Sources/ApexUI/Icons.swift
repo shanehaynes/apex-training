@@ -44,6 +44,17 @@ public enum ApexIcon: String, CaseIterable, Sendable {
     case key = "key"
     case check = "checkmark"
     case chat = "bubble.left.and.bubble.right"
+    // W7 — the event sheet's edits and the builder.
+    case edit = "pencil"
+    case recur = "repeat"
+    case link = "link"
+    case unlink = "scissors"
+    case search = "magnifyingglass"
+    case grip = "line.3.horizontal"
+    case calendarPlus = "calendar.badge.plus"
+    case template = "doc.on.doc"
+    case chevronDown = "chevron.down"
+    case minus = "minus.circle"
 
     /// Light weight, like the web's 1.5px lucide strokes.
     public var image: some View {

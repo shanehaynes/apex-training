@@ -49,7 +49,7 @@ public final class ScheduleModel {
     public typealias Mode = ScheduleMode
     public typealias RefreshReason = ScheduleRefreshReason
 
-    public private(set) var index: ScheduleIndex?
+    public internal(set) var index: ScheduleIndex?
     public private(set) var fetchedAt: Date?
     public private(set) var lastRefreshFailed = false
     public private(set) var isRefreshing = false
@@ -64,7 +64,7 @@ public final class ScheduleModel {
     public var mode: Mode = .day
     public var selectedDay: DayKey
 
-    private let deps: ScheduleDependencies
+    let deps: ScheduleDependencies
     private var started = false
     private var pendingRefresh: RefreshReason?
     private var realtimeTask: Task<Void, Never>?
@@ -200,6 +200,12 @@ public final class ScheduleModel {
               let decoded = try? JSONDecoder().decode([ExerciseDefinition].self, from: entry.json) else { return [] }
         return decoded
     }
+    /// The cached workout library — the builder's template search reads this.
+    public func templates() async -> [WorkoutTemplate] {
+        guard let entry = try? await deps.cache.read(kind: .templates, key: ScheduleCacheKey.templates),
+              let decoded = try? JSONDecoder().decode([WorkoutTemplate].self, from: entry.json) else { return [] }
+        return decoded
+    }
     public func typeDots(on day: DayKey) -> [WorkoutType] { index?.typeDots(on: day) ?? [] }
     public func meals(on day: DayKey) -> MealsQueryResult.Day? { mealsByDay[day] }
 
@@ -319,7 +325,7 @@ public final class ScheduleModel {
     }
 
     /// Write the current window back so an offline relaunch shows the flip.
-    private func persistIndex() async {
+    func persistIndex() async {
         guard let index, let json = try? JSONEncoder().encode(index.response) else { return }
         try? await deps.cache.write(CacheEntry(
             kind: .scheduleWindow, key: ScheduleCacheKey.window, json: json, fetchedAt: fetchedAt ?? deps.clock.now

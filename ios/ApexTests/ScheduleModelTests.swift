@@ -268,4 +268,216 @@ final class ScheduleModelTests: XCTestCase {
         XCTAssertTrue(model.isShowingToday)
         XCTAssertEqual(model.selectedDay, model.today)
     }
+
+    // MARK: - W7 edits
+
+    /// The fixture with one base's fields changed — what the server answers
+    /// after a PATCH landed.
+    private static func patchedFixture(baseId: String, fields: [String: Any]) -> Data {
+        var object = try! JSONSerialization.jsonObject(with: fixture("schedule.json")) as! [String: Any]
+        object["bases"] = (object["bases"] as! [[String: Any]]).map { base -> [String: Any] in
+            guard base["id"] as? String == baseId else { return base }
+            return base.merging(fields) { _, new in new }
+        }
+        return try! JSONSerialization.data(withJSONObject: object)
+    }
+
+    /// The fixture without some stubs (and any base they were the last of).
+    private static func withoutStubs(_ ids: Set<String>) -> Data {
+        var object = try! JSONSerialization.jsonObject(with: fixture("schedule.json")) as! [String: Any]
+        let stubs = (object["occurrences"] as! [[String: Any]]).filter { !ids.contains($0["id"] as! String) }
+        let live = Set(stubs.map { $0["baseId"] as! String })
+        object["occurrences"] = stubs
+        object["bases"] = (object["bases"] as! [[String: Any]]).filter { live.contains($0["id"] as! String) }
+        return try! JSONSerialization.data(withJSONObject: object)
+    }
+
+    private func editable() -> ScriptedTransport {
+        let t = healthy()
+        t.set("PATCH", "/api/events")
+        t.set("DELETE", "/api/events")
+        t.set("POST", "/api/event-instances")
+        t.set("POST", "/api/workout-draft", body: Self.fixture("workout-draft-create.json"))
+        t.set("PATCH", "/api/workout-templates", body: Data(#"{"id":"ios-fixture-template"}"#.utf8))
+        t.set("POST", "/api/exercise-definitions", body: Data(#"{"id":"nordic-curl"}"#.utf8))
+        return t
+    }
+
+    private func body(_ transport: ScriptedTransport, _ method: String, _ path: String) -> String {
+        transport.requests.last { $0.method == method && $0.path == path }?.body ?? ""
+    }
+
+    @MainActor
+    func testRetitleIsSeriesWideAndPatchesTheBase() async throws {
+        let transport = editable()
+        let model = makeModel(transport)
+        await model.start()
+        let event = try XCTUnwrap(model.event(id: "ios-fixture-weekly__2026-09-15"))
+        transport.set("GET", "/api/schedule", body: Self.patchedFixture(baseId: "ios-fixture-weekly", fields: ["title": "Bench"]))
+        let ok = await model.commit(.retitle(event, title: "Bench"))
+        XCTAssertTrue(ok)
+        XCTAssertEqual(body(transport, "PATCH", "/api/events"), #"{"fields":{"title":"Bench"},"log":{"event_date":"2026-09-15","event_title":"Bench","triggered_by":"user"}}"#)
+        // Every occurrence of the series, after the refresh the commit asked for.
+        XCTAssertEqual(model.event(id: "ios-fixture-weekly")?.title, "Bench")
+        XCTAssertEqual(model.event(id: "ios-fixture-weekly__2026-09-08")?.title, "Bench")
+        XCTAssertEqual(transport.count("GET", "/api/schedule"), 2)
+    }
+
+    @MainActor
+    func testRescheduleOneOffPatchesDateAndTimesAndMovesTheDay() async throws {
+        let transport = editable()
+        let model = makeModel(transport)
+        await model.start()
+        let run = try XCTUnwrap(model.event(id: "ios-fixture-run"))
+        transport.set("GET", "/api/schedule", body: Self.withoutStubs(["ios-fixture-run"]))
+        await model.commit(.reschedule(run, OccurrenceOverride(date: "2026-09-09", startTime: "7:00 AM")))
+        XCTAssertEqual(body(transport, "PATCH", "/api/events"), #"{"fields":{"date":"2026-09-09","start_time":"7:00 AM"},"log":{"event_date":"2026-09-09","event_title":"Fixture Run","triggered_by":"user"}}"#)
+        XCTAssertFalse(model.events(on: day).contains { $0.id == "ios-fixture-run" })
+    }
+
+    @MainActor
+    func testRescheduleRecurringOccurrenceOverridesKeyedAtTheOriginalDate() async throws {
+        let transport = editable()
+        let model = makeModel(transport)
+        await model.start()
+        let occurrence = try XCTUnwrap(model.event(id: "ios-fixture-weekly__2026-09-15"))
+        await model.commit(.reschedule(occurrence, OccurrenceOverride(startTime: "6:00 AM")))
+        XCTAssertEqual(body(transport, "POST", "/api/event-instances"),
+                       #"{"date":"2026-09-15","eventId":"ios-fixture-weekly","eventTitle":"Fixture Push Day","overrides":{"date":"2026-09-15","endTime":"18:30","startTime":"6:00 AM"},"triggeredBy":"user"}"#)
+        XCTAssertEqual(transport.count("PATCH", "/api/events"), 0)
+    }
+
+    @MainActor
+    func testDeleteOccurrenceSkipsOneStubAndDeleteSeriesRemovesEveryStub() async throws {
+        let transport = editable()
+        let model = makeModel(transport)
+        await model.start()
+        let occurrence = try XCTUnwrap(model.event(id: "ios-fixture-weekly__2026-09-08"))
+        transport.set("GET", "/api/schedule", body: Self.withoutStubs(["ios-fixture-weekly__2026-09-08"]))
+        await model.commit(.skipOccurrence(occurrence))
+        XCTAssertEqual(body(transport, "POST", "/api/event-instances"), #"{"date":"2026-09-08","eventId":"ios-fixture-weekly","eventTitle":"Fixture Push Day","triggeredBy":"user"}"#)
+        XCTAssertNil(model.event(id: "ios-fixture-weekly__2026-09-08"))
+        XCTAssertNotNil(model.event(id: "ios-fixture-weekly__2026-09-15"))
+
+        let series = try XCTUnwrap(model.event(id: "ios-fixture-weekly__2026-09-15"))
+        // Every stub the series ever had (the skipped one is already gone from the index).
+        let allOfIt = Set(model.index!.response.occurrences.filter { $0.baseId == "ios-fixture-weekly" }.map(\.id)).union(["ios-fixture-weekly__2026-09-08"])
+        transport.set("GET", "/api/schedule", body: Self.withoutStubs(allOfIt))
+        await model.commit(.deleteEvent(series))
+        XCTAssertEqual(body(transport, "DELETE", "/api/events"), #"{"log":{"event_date":"2026-09-15","event_title":"Fixture Push Day","triggered_by":"user"}}"#)
+        XCTAssertNil(model.event(id: "ios-fixture-weekly"))
+        XCTAssertEqual(model.events(on: day).count, 3)
+    }
+
+    @MainActor
+    func testEditFailureRollsBackAndSkipsTheRefresh() async throws {
+        let transport = editable()
+        transport.set("PATCH", "/api/events", status: 500, body: Data("boom".utf8))
+        let model = makeModel(transport)
+        await model.start()
+        let run = try XCTUnwrap(model.event(id: "ios-fixture-run"))
+        let ok = await model.commit(.retitle(run, title: "Nope"))
+        XCTAssertFalse(ok)
+        XCTAssertEqual(model.event(id: "ios-fixture-run")?.title, "Fixture Run")
+        XCTAssertEqual(transport.count("GET", "/api/schedule"), 1)
+    }
+
+    @MainActor
+    func testEditSectionsPatchesOnlyTheChangedSections() async throws {
+        let transport = editable()
+        let model = makeModel(transport)
+        await model.start()
+        let circuit = try XCTUnwrap(model.event(id: "ios-fixture-circuit"))
+        await model.commit(.setSections(circuit, warmup: [], exercises: nil, cooldown: nil))
+        let sent = body(transport, "PATCH", "/api/events")
+        XCTAssertTrue(sent.hasPrefix(#"{"fields":{"warmup":[]},"log":"#), sent)
+        XCTAssertFalse(sent.contains("exercises"))
+    }
+
+    @MainActor
+    func testApplyDraftCreateInsertsTheReturnedEventAndRefreshes() async throws {
+        let transport = editable()
+        let model = makeModel(transport)
+        await model.start()
+        let response = await model.applyDraft(.empty(date: "2026-09-07", title: "Fixture Template Push"), action: .create)
+        XCTAssertEqual(response?.ok, true)
+        XCTAssertEqual(response?.templateId, "ios-fixture-template")
+        // Before the refresh's answer arrives the created event is already on its day…
+        // …and after it (the fixture does not carry it) the refresh count shows it was asked for.
+        XCTAssertEqual(transport.count("POST", "/api/workout-draft"), 1)
+        XCTAssertEqual(transport.count("GET", "/api/schedule"), 2)
+        let sent = body(transport, "POST", "/api/workout-draft")
+        XCTAssertTrue(sent.hasPrefix(#"{"action":{"kind":"create"},"draft":{"#), sent)
+        XCTAssertTrue(sent.hasSuffix(#""today":"2026-09-08"}"#), sent)
+    }
+
+    @MainActor
+    func testApplyDraftProblemLeavesTheIndexAloneAndSkipsTheRefresh() async throws {
+        let transport = editable()
+        transport.set("POST", "/api/workout-draft", body: Data(#"{"ok":false,"problem":"Give the workout a title"}"#.utf8))
+        let model = makeModel(transport)
+        await model.start()
+        let before = model.index
+        let response = await model.applyDraft(.empty(date: "2026-09-07"), action: .create)
+        XCTAssertEqual(response?.ok, false)
+        XCTAssertEqual(response?.problem, "Give the workout a title")
+        XCTAssertEqual(model.index, before)
+        XCTAssertEqual(transport.count("GET", "/api/schedule"), 1)
+    }
+
+    @MainActor
+    func testApplyDraftTransportFailureIsNil() async throws {
+        let transport = editable()
+        transport.set("POST", "/api/workout-draft", status: 500, body: Data("boom".utf8))
+        let model = makeModel(transport)
+        await model.start()
+        let response = await model.applyDraft(.empty(date: "2026-09-07", title: "x"), action: .create)
+        XCTAssertNil(response)
+        XCTAssertEqual(transport.count("GET", "/api/schedule"), 1)
+    }
+
+    @MainActor
+    func testApplyDraftDetachSendsTheKeyDateAndSwapsTheOccurrence() async throws {
+        let transport = editable()
+        transport.set("POST", "/api/workout-draft", body: Self.fixture("workout-draft-detach.json"))
+        let model = makeModel(transport)
+        await model.start()
+        let occurrence = try XCTUnwrap(model.event(id: "ios-fixture-weekly__2026-09-29"))
+        transport.set("GET", "/api/schedule", body: Self.withoutStubs(["ios-fixture-weekly__2026-09-29"]))
+        let response = await model.applyDraft(WorkoutDraft(event: occurrence), action: .detach(eventId: occurrence.id, occurrenceDate: occurrence.keyDate))
+        XCTAssertEqual(response?.action, "detach")
+        XCTAssertTrue(body(transport, "POST", "/api/workout-draft").hasPrefix(#"{"action":{"eventId":"ios-fixture-weekly__2026-09-29","kind":"detach","occurrenceDate":"2026-09-29"}"#))
+        XCTAssertNil(model.event(id: "ios-fixture-weekly__2026-09-29"))
+    }
+
+    @MainActor
+    func testTemplatesReadFromTheCacheAndArchiveFollows() async throws {
+        let transport = editable()
+        let model = makeModel(transport)
+        await model.start()
+        let templates = await model.templates()
+        XCTAssertEqual(templates.map(\.id), ["ios-fixture-template"])
+        XCTAssertNil(templates.first?.archivedAt)
+        let ok = await model.archiveTemplate(id: "ios-fixture-template", archived: true)
+        XCTAssertTrue(ok)
+        XCTAssertEqual(body(transport, "PATCH", "/api/workout-templates"), #"{"archived_at":"2026-09-08T12:00:00.000Z"}"#)
+        let after = await model.templates()
+        XCTAssertNotNil(after.first?.archivedAt)
+    }
+
+    @MainActor
+    func testCreateDefinitionMintsTheSlugAndLandsInTheCache() async throws {
+        let transport = editable()
+        let model = makeModel(transport)
+        await model.start()
+        // The name is trimmed, not otherwise rewritten (the web sends `query.trim()`); the id is the slug.
+        let created = await model.createDefinition(name: " Nordic Curl ", category: "strength", isUnilateral: false)
+        XCTAssertEqual(created?.id, "nordic-curl")
+        XCTAssertEqual(created?.canonicalName, "Nordic Curl")
+        XCTAssertEqual(body(transport, "POST", "/api/exercise-definitions"),
+                       #"{"aliases":[],"canonical_name":"Nordic Curl","category":"strength","equipment":[],"id":"nordic-curl","is_unilateral":false,"muscle_groups":[],"triggered_by":"user"}"#)
+        let definitions = await model.definitions()
+        XCTAssertTrue(definitions.contains { $0.id == "nordic-curl" })
+        XCTAssertTrue(definitions.contains { $0.id == "ios-fixture-def" })
+    }
 }

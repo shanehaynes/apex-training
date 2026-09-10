@@ -11,8 +11,8 @@ public enum AppTab: Hashable, Sendable {
 /// tab it belongs to selects itself and consumes it when it can (a cold launch
 /// has no schedule index yet, so consumption waits on the model, not the link).
 ///
-/// W12 consumes `.tracker` (the Live Activity's tap). `.event` and `.library`
-/// are parked for W7 and W10, which reuse this bus rather than add another.
+/// W12 consumes `.tracker` (the Live Activity's tap), W7 `.event` (a shared
+/// workout link). `.library` is parked for W10, which reuses this bus.
 @MainActor
 @Observable
 public final class RouteBus {
@@ -50,5 +50,13 @@ public enum TrackerRouteResolver {
     public static func route(for link: DeepLink, in index: ScheduleIndex?) -> TrackerRoute? {
         guard case .tracker(let id, let date) = link, let event = index?.event(id: id), event.date == date else { return nil }
         return TrackerRoute(event: event)
+    }
+}
+
+/// `.event(id:date:)` → the event sheet, when the occurrence is in the window.
+enum EventRouteResolver {
+    static func route(for link: DeepLink, in index: ScheduleIndex?) -> ScheduleSheet? {
+        guard case .event(let id, let date) = link, let event = index?.event(id: id), event.date == date else { return nil }
+        return .event(id: event.id)
     }
 }

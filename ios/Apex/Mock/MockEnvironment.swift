@@ -15,6 +15,10 @@ import Foundation
 ///   -apexMockHasKey                 the profile reports an Anthropic key, so the
 ///                                   coach opens on the thread instead of the
 ///                                   key-setup state (the fixture has no key)
+///
+/// W7: the sheet's and the builder's writes (`/api/events`, `/api/event-instances`,
+/// `/api/workout-draft`, templates, definitions) are remembered and replayed
+/// into later schedule reads, so a smoke sees what it just changed.
 struct MockEnvironment {
     /// 2026-09-08T12:00:00Z — the day the fixtures put four events on.
     let clock: any ApexClock = TestClock(now: Date(timeIntervalSince1970: 1_788_868_800))
@@ -75,6 +79,23 @@ actor FixtureTransport: HTTPTransport {
     private var completions: [String: (isCompleted: Bool, completedAt: String?)] = [:]
     /// Flipped by `-apexMockHasKey` and by a PATCH that saves or removes one.
     private var hasKey: Bool
+    /// W7: every write the sheet and the builder make, replayed into later
+    /// schedule reads the way the completions are.
+    private var edits = ScheduleEdits()
+    private var minted = 0
+
+    struct ScheduleEdits {
+        /// camelCase field overrides per base id (PATCH /api/events, update).
+        var patched: [String: [String: Any]] = [:]
+        var deletedBases: Set<String> = []
+        var removedStubs: Set<String> = []
+        /// Per-occurrence moves keyed by stub id.
+        var moved: [String: [String: Any]] = [:]
+        /// Created and detached events: a base plus its one stub.
+        var added: [(base: [String: Any], stub: [String: Any])] = []
+        var archivedTemplates: [String: Any] = [:]
+        var addedDefinitions: [[String: Any]] = []
+    }
 
     init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false) {
         self.failingRoute = failingRoute
@@ -129,7 +150,7 @@ actor FixtureTransport: HTTPTransport {
             case ("GET", "/api/schedule"):
                 // Past the series' UNTIL: the empty window.
                 let start = query.split(separator: "&").first { $0.hasPrefix("start=") }?.dropFirst(6) ?? ""
-                return ok(applyCompletions(to: try Fixtures.data(start >= "2026-10-28" ? "schedule-empty.json" : "schedule.json")))
+                return ok(applyEdits(to: applyCompletions(to: try Fixtures.data(start >= "2026-10-28" ? "schedule-empty.json" : "schedule.json"))))
             case ("GET", "/api/profile"):
                 return ok(withKey(try Fixtures.data("profile.json")))
             case ("PATCH", "/api/profile"):
@@ -144,7 +165,42 @@ actor FixtureTransport: HTTPTransport {
                     body: try chatBody(body)
                 )
             case ("POST", "/api/coach-tool"):
+                if body?["name"] as? String == "update_workout_draft" {
+                    return ok(try reducedDraft(body))
+                }
                 return ok(try Fixtures.data("coach-tool.json"))
+            case ("PATCH", "/api/events"):
+                let id = queryValue("id", in: query)
+                let fields = body?["fields"] as? [String: Any] ?? [:]
+                var patch = edits.patched[id] ?? [:]
+                for (key, value) in fields { patch[Self.camel(key)] = value }
+                edits.patched[id] = patch
+                return ok(Data(#"{"ok":true}"#.utf8))
+            case ("DELETE", "/api/events"):
+                edits.deletedBases.insert(queryValue("id", in: query))
+                return ok(Data(#"{"ok":true}"#.utf8))
+            case ("POST", "/api/event-instances"):
+                guard let eventId = body?["eventId"] as? String, let date = body?["date"] as? String,
+                      let stubId = try stubId(baseId: eventId, originalDate: date) else {
+                    return HTTPResponse(status: 404, headers: [:], body: Data("Event not found".utf8))
+                }
+                if let overrides = body?["overrides"] as? [String: Any] {
+                    edits.moved[stubId] = overrides
+                } else {
+                    edits.removedStubs.insert(stubId)
+                }
+                return ok(Data(#"{"ok":true}"#.utf8))
+            case ("POST", "/api/workout-draft"):
+                return ok(try applyDraft(body))
+            case ("PATCH", "/api/workout-templates"):
+                edits.archivedTemplates[queryValue("id", in: query)] = body?["archived_at"] ?? NSNull()
+                return ok(Data(#"{"id":"\(queryValue("id", in: query))"}"#.utf8))
+            case ("POST", "/api/exercise-definitions"):
+                edits.addedDefinitions.append([
+                    "id": body?["id"] ?? "", "canonicalName": body?["canonical_name"] ?? "", "category": body?["category"] ?? "strength",
+                    "aliases": [], "muscleGroups": [], "equipment": [], "isUnilateral": body?["is_unilateral"] ?? false,
+                ])
+                return ok(Data(#"{"id":"\(body?["id"] as? String ?? "")"}"#.utf8))
             case ("POST", "/api/query"):
                 let body = request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
                 let tool = body?["tool"] as? String ?? "unknown"
@@ -239,6 +295,168 @@ actor FixtureTransport: HTTPTransport {
 
     private func ok(_ data: Data) -> HTTPResponse {
         HTTPResponse(status: 200, headers: ["Content-Type": "application/json"], body: data)
+    }
+
+    // MARK: - W7 writes
+
+    private func queryValue(_ name: String, in query: String) -> String {
+        for pair in query.split(separator: "&") {
+            let parts = pair.split(separator: "=", maxSplits: 1)
+            if parts.count == 2, parts[0] == name { return String(parts[1]).removingPercentEncoding ?? String(parts[1]) }
+        }
+        return ""
+    }
+
+    private static func camel(_ snake: String) -> String {
+        let parts = snake.split(separator: "_")
+        return parts.enumerated().map { $0.offset == 0 ? String($0.element) : $0.element.prefix(1).uppercased() + $0.element.dropFirst() }.joined()
+    }
+
+    private func scheduleObject() throws -> [String: Any] {
+        (try JSONSerialization.jsonObject(with: try Fixtures.data("schedule.json")) as? [String: Any]) ?? [:]
+    }
+
+    /// The stub `/api/event-instances` keys on: same base, same original date.
+    private func stubId(baseId: String, originalDate: String) throws -> String? {
+        let stubs = try scheduleObject()["occurrences"] as? [[String: Any]] ?? []
+        let known = stubs.first { $0["baseId"] as? String == baseId && $0["originalDate"] as? String == originalDate }
+        if let id = known?["id"] as? String { return id }
+        return edits.added.first { $0.stub["baseId"] as? String == baseId && $0.stub["originalDate"] as? String == originalDate }?.stub["id"] as? String
+    }
+
+    /// The reduce: the fixture's answer, with the caller's own date kept so the
+    /// form stays on the day it opened on.
+    private func reducedDraft(_ body: [String: Any]?) throws -> Data {
+        guard var object = (try JSONSerialization.jsonObject(with: try Fixtures.data("coach-tool-draft.json"))) as? [String: Any],
+              var draft = object["draft"] as? [String: Any] else { return try Fixtures.data("coach-tool-draft.json") }
+        if let sent = body?["draft"] as? [String: Any] {
+            for key in ["date", "startTime", "endTime", "type", "sport", "duration", "difficulty", "location", "tags", "description"] {
+                if let value = sent[key] { draft[key] = value }
+            }
+            if let title = sent["title"] as? String, !title.isEmpty, (body?["input"] as? [String: Any])?["title"] == nil { draft["title"] = title }
+        }
+        object["draft"] = draft
+        return try JSONSerialization.data(withJSONObject: object)
+    }
+
+    /// Apply: the fixture response reshaped around the caller's draft, and
+    /// the event remembered for the next schedule read.
+    private func applyDraft(_ body: [String: Any]?) throws -> Data {
+        let draft = body?["draft"] as? [String: Any] ?? [:]
+        let action = body?["action"] as? [String: Any] ?? [:]
+        let kind = action["kind"] as? String ?? "create"
+        let title = (draft["title"] as? String)?.trimmingCharacters(in: .whitespaces) ?? ""
+        if title.isEmpty {
+            return try JSONSerialization.data(withJSONObject: ["ok": false, "problem": "Give the workout a title"])
+        }
+        let fixture = kind == "update" ? "workout-draft-edit.json" : kind == "detach" ? "workout-draft-detach.json" : "workout-draft-create.json"
+        guard var object = (try JSONSerialization.jsonObject(with: try Fixtures.data(fixture))) as? [String: Any],
+              var event = object["event"] as? [String: Any] else { return try Fixtures.data(fixture) }
+        let lists = draft["lists"] as? [String: Any] ?? [:]
+        let date = draft["date"] as? String ?? "2026-09-08"
+        let repeatOn = (draft["repeat"] as? [String: Any])?["enabled"] as? Bool ?? false
+        event["title"] = title
+        event["type"] = draft["type"] ?? "weights"
+        event["date"] = date
+        event["estimatedDuration"] = Int(draft["duration"] as? String ?? "") ?? 60
+        event["difficulty"] = draft["difficulty"] ?? 3
+        event["startTime"] = TimeLabel.display(draft["startTime"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? NSNull()
+        event["endTime"] = TimeLabel.display(draft["endTime"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? NSNull()
+        event["exercises"] = lists["exercises"] ?? []
+        event["warmup"] = lists["warmup"] ?? []
+        event["cooldown"] = lists["cooldown"] ?? []
+        event["description"] = draft["description"] ?? ""
+        event["location"] = (draft["location"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? NSNull()
+        event["isRecurring"] = kind == "create" && repeatOn
+        object["date"] = date
+        object["isRecurring"] = kind == "create" && repeatOn
+        object["completedOnCreate"] = kind == "create" && !repeatOn && date < "2026-09-08"
+
+        switch kind {
+        case "update":
+            let id = OccurrenceID.baseId(of: action["eventId"] as? String ?? "")
+            object["id"] = id
+            event["id"] = id
+            var patch = edits.patched[id] ?? [:]
+            for key in ["title", "type", "estimatedDuration", "difficulty", "exercises", "warmup", "cooldown", "description", "location"] {
+                patch[key] = event[key]
+            }
+            edits.patched[id] = patch
+        default:
+            minted += 1
+            let id = "ai-mock-\(minted)"
+            object["id"] = id
+            event["id"] = id
+            event["isCompleted"] = object["completedOnCreate"] as? Bool ?? false
+            if kind == "detach", let occurrence = action["eventId"] as? String {
+                object["detachedFrom"] = OccurrenceID.baseId(of: occurrence)
+                object["occurrenceDate"] = action["occurrenceDate"] ?? date
+                edits.removedStubs.insert(occurrence)
+            }
+            let stub: [String: Any] = [
+                "id": id, "baseId": id, "date": date, "originalDate": date,
+                "startTime": event["startTime"] ?? NSNull(), "endTime": event["endTime"] ?? NSNull(),
+                "isCompleted": event["isCompleted"] ?? false,
+                "completedAt": (event["isCompleted"] as? Bool ?? false) ? CompletionRows.isoTimestamp(clock.now) : NSNull(),
+            ]
+            edits.added.append((event, stub))
+            if event["isRecurring"] as? Bool == true {
+                // The server expands a series; here one more week stands in for it.
+                var next = stub
+                let nextDate = DayKey(date).map { $0.adding(days: 7).string } ?? date
+                next["id"] = OccurrenceID.make(baseId: id, date: nextDate)
+                next["date"] = nextDate
+                next["originalDate"] = nextDate
+                next["isCompleted"] = false
+                next["completedAt"] = NSNull()
+                edits.added.append((event, next))
+            }
+        }
+        object["event"] = event
+        return try JSONSerialization.data(withJSONObject: object)
+    }
+
+    private func applyEdits(to data: Data) -> Data {
+        guard var object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return data }
+        var bases = object["bases"] as? [[String: Any]] ?? []
+        var stubs = object["occurrences"] as? [[String: Any]] ?? []
+        bases = bases.filter { !edits.deletedBases.contains($0["id"] as? String ?? "") }
+        stubs = stubs.filter { stub in
+            guard let id = stub["id"] as? String, let baseId = stub["baseId"] as? String else { return false }
+            return !edits.deletedBases.contains(baseId) && !edits.removedStubs.contains(id)
+        }
+        for (base, stub) in edits.added {
+            if let id = base["id"] as? String, !bases.contains(where: { $0["id"] as? String == id }) { bases.append(base) }
+            stubs.append(stub)
+        }
+        bases = bases.map { base in
+            guard let id = base["id"] as? String, let patch = edits.patched[id] else { return base }
+            return base.merging(patch) { _, new in new }
+        }
+        stubs = stubs.map { stub in
+            guard let id = stub["id"] as? String, let move = edits.moved[id] else { return stub }
+            var moved = stub
+            if let date = move["date"] { moved["date"] = date }
+            if let start = move["startTime"] { moved["startTime"] = start }
+            if let end = move["endTime"] { moved["endTime"] = end }
+            return moved
+        }
+        object["bases"] = bases
+        object["occurrences"] = stubs
+        if var templates = object["templates"] as? [[String: Any]] {
+            templates = templates.map { template in
+                guard let id = template["id"] as? String, let archived = edits.archivedTemplates[id] else { return template }
+                var next = template
+                next["archivedAt"] = archived
+                return next
+            }
+            object["templates"] = templates
+        }
+        if var definitions = object["definitions"] as? [[String: Any]] {
+            definitions.append(contentsOf: edits.addedDefinitions)
+            object["definitions"] = definitions
+        }
+        return (try? JSONSerialization.data(withJSONObject: object)) ?? data
     }
 }
 

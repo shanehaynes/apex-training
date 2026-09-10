@@ -108,30 +108,32 @@ public struct Occurrence: Codable, Sendable, Equatable {
     }
 }
 
-public struct Exercise: Codable, Sendable, Equatable {
+public struct Exercise: Codable, Sendable, Equatable, Identifiable {
     public let id: String
     /// `name` and `definitionId` are `var`: a tracker swap relabels the logged
     /// rows onto another definition (`TrackerEditor.swap`). The id never moves.
     public var name: String
-    public let category: String?
-    public let sets: Int?
-    public let reps: String?
-    public let weight: String?
-    public let duration: String?
-    public let restPeriod: String?
-    public let plannedSets: [PlannedSet]?
+    public var category: String?
+    public var sets: Int?
+    public var reps: String?
+    public var weight: String?
+    public var duration: String?
+    public var restPeriod: String?
+    /// Per-set ramp targets; cleared when a prescription field is edited
+    /// (`EventExerciseEditor` rule) because they no longer describe it.
+    public var plannedSets: [PlannedSet]?
     /// Superset/circuit label ("A", "B"): consecutive entries in one section
     /// sharing a label are performed together. `var` for the editor:
     /// `Supersets` (the `src/lib/schedule/supersets.ts` port) re-letters as
     /// the user drags, and the server re-letters again on every write.
     public var superset: String?
     /// Climbing pitches only.
-    public let climbStyle: String?
-    public let grade: String?
-    public let ascentStyle: String?
+    public var climbStyle: String?
+    public var grade: String?
+    public var ascentStyle: String?
     public var definitionId: String?
     public let muscleGroups: [String]?
-    public let notes: String?
+    public var notes: String?
     public let imageUrl: String?
     public let techniqueNotes: String?
 

@@ -73,3 +73,44 @@ Out: meals composer (W10).
     / `Occurrence` fields now `var`, `WorkoutTemplate` real shape, `.afterEdit` reason.
     `Endpoint.json` no longer escapes slashes.
   - **Not done here:** everything Apple-side (B, C, D). No `xcodebuild` in this PR.
+- 2026-09-10 · Mac · PR B — the event sheet's edit paths, the "+", the route, the mock.
+  - **EventSheet:** tap the title to rename (submit commits, empty/unchanged is a no-op); tap
+    the day or the time for the schedule panel — native compact date/time pickers pinned to
+    UTC (U9), the start drags the end along, an end at or before the start is refused with the
+    web's toast before any request; the difficulty dots are 44pt targets (U1); Edit exercises /
+    Edit workout buttons; Delete unfolds into the web's confirm (one-off "Delete workout";
+    series "This day only" / "Whole series" / Keep). Delete this day = skip; the sheet closes
+    on success.
+  - **`ScheduleModel+Edits`:** `commit(_:)` (optimistic → request → rollback + toast → window
+    write-back → `refresh(.afterEdit)`), `applyDraft(_:action:)` (create inserts the returned
+    base + stub, update replaces, detach swaps; `ok:false` handed back; nil on transport
+    failure), `archiveTemplate`, `createDefinition` (both rewrite their cache entries),
+    `templates()`. `index` is `internal(set)` for the extension.
+  - **`ApexFeatures/Builder/`:** `ExerciseSectionsEditor` (one `List`, three sections, edit
+    mode on for real drag handles — U10 — every move/link/remove re-letters through
+    `Supersets`, a prescription edit clears `plannedSets`, Add exercise / Add pitch),
+    `ExerciseEditorRow` (sets/reps/weight · duration/rest, or style/grade/ascent for a pitch),
+    `ExercisePickerSheet` (search over the cached library, category chips, exact-match-or-create
+    with the inline category + unilateral form; the definition is created immediately, as the
+    web does), `EditExercisesSheet` (series-wide; Save sends only the changed sections),
+    `Entries` (the `definitions.ts` entry rules + `climbing.ts` vocab), `BuilderSheet` stub.
+  - **`ScheduleTab`:** "+" in the navigation bar, "Add workout" on an empty day, long-press a
+    month cell → `.builder(.create(date:))`; "Edit workout" / "Edit exercises" replace the
+    event sheet (`pendingSheet`, the `pendingTracker` rule); `/app/event/<id>/<date>` consumed
+    through `EventRouteResolver` (a miss is a toast, D-026).
+  - **ApexUI:** `FormField` + `apexFieldChrome()`, `ChipRow`, `DateField`, `TimeField`,
+    `FlowLayout` public, ten icons. **ApexCore:** `Exercise` prescription fields are `var` and
+    it is `Identifiable`; `DayKey.fromUTCMidnight`.
+  - **Mock:** `PATCH`/`DELETE /api/events`, `POST /api/event-instances`, `POST /api/workout-draft`
+    (the fixture reshaped around the caller's draft, a fresh `ai-mock-N` id, one extra stub a
+    week out for a series), `PATCH /api/workout-templates`, `POST /api/exercise-definitions`,
+    coach-tool's draft reduce — every write replayed into later schedule reads.
+  - **Tests:** 12 `ScheduleModelTests` edit cases; 5 new snapshots + the 3 event-sheet
+    references re-recorded (the sheet gained the edit row and the delete link);
+    `SmokeUITests.testEventEditsOnFixtures` (rename → delete the one-off → "This day only" on
+    the series with next week still there → link the plank into the circuit's superset → the
+    "+"; screenshots 17–22) green on the iPhone 17 Pro simulator.
+  - **Found on the way in:** a deleted snapshot reference breaks the generated project's build
+    (the PNGs are listed individually) — re-record with the file present or regenerate first.
+    `repeat` is a Swift keyword (the draft property is `repeatRule`, coding key `repeat`).
+  - **Not done here:** the builder itself (C), the builder smokes and 0.6.0 (D).

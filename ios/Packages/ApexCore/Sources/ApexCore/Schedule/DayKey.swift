@@ -84,6 +84,10 @@ public struct DayKey: Hashable, Comparable, Sendable, Codable, CustomStringConve
         return DayKey(year: parts.year!, month: parts.month!, day: parts.day!)
     }
 
+    /// The day a UTC-midnight `Date` (from `utcMidnight`, or a picker working
+    /// in UTC) names.
+    public static func fromUTCMidnight(_ date: Date) -> DayKey { DayKey(date) }
+
     private init(_ date: Date) {
         let parts = DayKey.utc.dateComponents([.year, .month, .day], from: date)
         self.init(year: parts.year!, month: parts.month!, day: parts.day!)

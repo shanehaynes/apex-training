@@ -8,6 +8,8 @@ import SwiftUI
 struct DayView: View {
     @Bindable var model: ScheduleModel
     let onOpen: (ScheduleEvent) -> Void
+    /// The empty day's "Add workout" (W7).
+    var onAdd: ((DayKey) -> Void)? = nil
 
     var body: some View {
         ScrollView {
@@ -81,12 +83,24 @@ struct DayView: View {
     private var eventList: some View {
         let events = model.events(on: model.selectedDay)
         if events.isEmpty {
-            Text("No workouts scheduled — rest up.")
-                .apexBody()
-                .frame(maxWidth: .infinity, minHeight: 88)
-                .background(ApexColor.bgSurface, in: .rect(cornerRadius: Radius.lg))
-                .overlay(RoundedRectangle(cornerRadius: Radius.lg).strokeBorder(ApexColor.borderSubtle, style: StrokeStyle(lineWidth: 1, dash: [4, 4])))
-                .accessibilityIdentifier("schedule.day.empty")
+            VStack(spacing: Spacing.sm) {
+                Text("No workouts scheduled — rest up.").apexBody()
+                if let onAdd {
+                    Button { onAdd(model.selectedDay) } label: {
+                        Label("Add workout", systemImage: ApexIcon.plus.systemName)
+                            .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
+                            .foregroundStyle(ApexColor.accent)
+                            .frame(minHeight: 44)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("schedule.day.add")
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 88)
+            .background(ApexColor.bgSurface, in: .rect(cornerRadius: Radius.lg))
+            .overlay(RoundedRectangle(cornerRadius: Radius.lg).strokeBorder(ApexColor.borderSubtle, style: StrokeStyle(lineWidth: 1, dash: [4, 4])))
+            .accessibilityIdentifier("schedule.day.empty")
         } else {
             VStack(spacing: Spacing.sm) {
                 ForEach(events) { event in

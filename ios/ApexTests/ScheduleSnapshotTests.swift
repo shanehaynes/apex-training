@@ -118,6 +118,44 @@ final class ScheduleSnapshotTests: XCTestCase {
         snapshot(EventSheet(model: model, eventId: "ios-fixture-crag", onClose: {}), named: "event-crag", size: CGSize(width: 393, height: 760))
     }
 
+    // MARK: - W7 edit paths
+
+    @MainActor
+    func testEventSheetRecurringWithEditActions() async {
+        let model = await model()
+        snapshot(EventSheet(model: model, eventId: "ios-fixture-weekly__2026-09-08", onEditWorkout: { _ in }, onEditExercises: { _ in }, onClose: {}),
+                 named: "event-weekly-edit", size: CGSize(width: 393, height: 760))
+    }
+
+    @MainActor
+    func testEventSheetScheduleEditor() async {
+        let model = await model()
+        snapshot(EventSheet(model: model, eventId: "ios-fixture-run", onEditWorkout: { _ in }, onEditExercises: { _ in }, onClose: {},
+                            preview: .init(editingSchedule: true)),
+                 named: "event-run-reschedule", size: CGSize(width: 393, height: 760))
+    }
+
+    @MainActor
+    func testEventSheetDeleteConfirmSeries() async {
+        let model = await model()
+        snapshot(EventSheet(model: model, eventId: "ios-fixture-weekly__2026-09-08", onEditWorkout: { _ in }, onEditExercises: { _ in }, onClose: {},
+                            preview: .init(confirmingDelete: true)),
+                 named: "event-weekly-delete", size: CGSize(width: 393, height: 860))
+    }
+
+    @MainActor
+    func testEditExercisesSheetWithASuperset() async {
+        let model = await model()
+        snapshot(ScheduleTab.editExercisesPreview(model: model, eventId: "ios-fixture-circuit"), named: "edit-exercises-circuit", size: CGSize(width: 393, height: 852))
+    }
+
+    @MainActor
+    func testExercisePickerCreateState() async {
+        let model = await model()
+        let definitions = await model.definitions()
+        snapshot(ScheduleTab.pickerPreview(definitions: definitions, query: "Nordic curl", creating: true), named: "picker-create", size: CGSize(width: 393, height: 700))
+    }
+
     @MainActor
     func testEventSheetCircuit() async {
         let model = await model()
