@@ -50,6 +50,13 @@ export interface ExpandedSchedule {
   /** Flat occurrence list, library references resolved, sorted by date. */
   occurrences: WorkoutEvent[];
   definitions: Map<string, ExerciseDefinition>;
+  /**
+   * Each base row's own `date` — the series anchor. The expander emits the
+   * anchor occurrence under the bare id at whatever date an override moved
+   * it to, so this is the only way back to the date its exception row keys
+   * on (docs/ios/backend-changes.md, W7 `originalDate`).
+   */
+  anchorDates: Map<string, string>;
 }
 
 /**
@@ -92,7 +99,11 @@ export async function fetchExpandedSchedule(
   }
 
   const resolvedBase = eventRows.map(row => resolveEventExercises(rowToEvent(row), definitions));
-  return { occurrences: expandRecurringEvents(resolvedBase, exceptions, parseISO(horizonAnchor)), definitions };
+  return {
+    occurrences: expandRecurringEvents(resolvedBase, exceptions, parseISO(horizonAnchor)),
+    definitions,
+    anchorDates: new Map(eventRows.map(r => [r.id, r.date])),
+  };
 }
 
 export async function fetchCompletionsInRange(

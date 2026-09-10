@@ -704,4 +704,145 @@ final class ChatSessionTests: XCTestCase {
         let v88 = await session.messages.last?.text
         XCTAssertEqual(v88, "Clearing it. ")
     }
+
+    // MARK: - Builder mode (W7): the draft tool runs without a card
+
+    private var builderLines: [String] {
+        get throws {
+            String(decoding: try TestFixtures.data("chat-stream-builder.ndjson"), as: UTF8.self)
+                .split(separator: "\n").map(String.init)
+        }
+    }
+    private let reducedOK = #"{"ok":true,"resultText":"Draft updated: exercises (1). The user reviews and presses Apply.","draft":{"title":"Leg day","lists":{"exercises":[{"id":"fx","name":"Fixture Press"}]}}}"#
+    private let reducedDraft: JSONValue = ["title": "Leg day", "lists": ["exercises": [["id": "fx", "name": "Fixture Press"]]]]
+
+    private func draftToolUse(_ id: String) -> String {
+        #"{"type":"tool_use","id":"\#(id)","name":"update_workout_draft","input":{"exercises":[{"name":"fx press","sets":3,"reps":"8"}]}}"#
+    }
+
+    func testBuilderDraftToolAutoExecutesWithoutACardAndEmitsTheDraft() async throws {
+        let transport = ScriptedTransport([.ndjson(try builderLines), .ok(reducedOK), .ndjson(text("Added it."))])
+        let session = makeSession(transport, store: nil, mode: .builder, draft: ["title": "Leg day", "lists": ["exercises": []]])
+        let events = Events()
+        await events.start(await session.subscribe())
+
+        await session.send("add fixture press 3x8")
+
+        let v1 = await session.state
+        XCTAssertEqual(v1, .idle)
+        let requests = await transport.requests
+        XCTAssertEqual(requests.map(\.path), ["/api/chat", "/api/coach-tool", "/api/chat"])
+        let tool = requests[1]
+        XCTAssertEqual(tool.body?["name"] as? String, "update_workout_draft")
+        XCTAssertEqual(tool.body?["toolUseId"] as? String, "toolu_fixture_draft")
+        XCTAssertEqual((tool.body?["draft"] as? [String: Any])?["title"] as? String, "Leg day")
+        XCTAssertEqual(((tool.body?["draft"] as? [String: Any])?["lists"] as? [String: Any]).map { ($0["exercises"] as? [Any])?.count } ?? nil, 0)
+        XCTAssertEqual(tool.body?["today"] as? String, today)
+
+        // The reduced draft replaces the session's and rides on the follow-up.
+        let v2 = await events.contains(.draft(reducedDraft))
+        XCTAssertTrue(v2)
+        let v3 = await session.config.draft
+        XCTAssertEqual(v3, reducedDraft)
+        let followUp = requests[2]
+        XCTAssertEqual(followUp.body?["withTools"] as? Bool, false)
+        XCTAssertEqual(followUp.body?["mode"] as? String, "builder")
+        let sentDraft = (followUp.body?["context"] as? [String: Any])?["draft"] as? [String: Any]
+        XCTAssertEqual(((sentDraft?["lists"] as? [String: Any])?["exercises"] as? [Any])?.count, 1)
+        let history = messages(of: followUp)
+        let results = try XCTUnwrap(history[2]["content"] as? [[String: Any]])
+        XCTAssertEqual(results[0]["tool_use_id"] as? String, "toolu_fixture_draft")
+        XCTAssertEqual(results[0]["content"] as? String, "Draft updated: exercises (1). The user reviews and presses Apply.")
+
+        // Never a card, never a "mutation landed" refresh.
+        let all = await events.all
+        XCTAssertFalse(all.contains { if case .state(.awaitingConfirmation) = $0 { true } else { false } })
+        XCTAssertTrue(all.contains { if case .state(.executing) = $0 { true } else { false } })
+        XCTAssertFalse(all.contains(.mutationConfirmed))
+        let v4 = await session.messages.map(\.text)
+        XCTAssertEqual(v4, ["add fixture press 3x8", "Adding it. ", "Added it."])
+        await events.stop()
+    }
+
+    func testBuilderReducerRefusalTextBecomesTheToolResultWithoutADraftEvent() async throws {
+        let refusal = #"{"ok":false,"resultText":"Unilateral exercises need per-side counts. Fix and retry.","draft":{"title":"Leg day"}}"#
+        let transport = ScriptedTransport([.ndjson(try builderLines), .ok(refusal), .ndjson(text("Say the side."))])
+        let session = makeSession(transport, store: nil, mode: .builder, draft: ["title": "Leg day"])
+        let events = Events()
+        await events.start(await session.subscribe())
+        await session.send("add pistols")
+        let requests = await transport.requests
+        let results = try XCTUnwrap(messages(of: requests[2])[2]["content"] as? [[String: Any]])
+        XCTAssertEqual(results[0]["content"] as? String, "Unilateral exercises need per-side counts. Fix and retry.")
+        let all = await events.all
+        XCTAssertFalse(all.contains { if case .draft = $0 { true } else { false } })
+        XCTAssertFalse(all.contains { if case .toast = $0 { true } else { false } })
+        let v5 = await session.config.draft
+        XCTAssertEqual(v5, ["title": "Leg day"])
+        await events.stop()
+    }
+
+    func testBuilderAutoCancelsAnyOtherToolWithoutARequest() async throws {
+        let lines = [#"{"type":"text","delta":"Sure."}"#, toolUse("toolu_x"), #"{"type":"done"}"#]
+        let transport = ScriptedTransport([.ndjson(lines), .ndjson(text("Okay."))])
+        let session = makeSession(transport, store: nil, mode: .builder, draft: ["title": "Leg day"])
+        await session.send("delete it")
+        let requests = await transport.requests
+        XCTAssertEqual(requests.map(\.path), ["/api/chat", "/api/chat"])
+        let results = try XCTUnwrap(messages(of: requests[1])[2]["content"] as? [[String: Any]])
+        XCTAssertEqual(results[0]["content"] as? String, ChatCopy.cancelledByUser)
+        let v6 = await session.state
+        XCTAssertEqual(v6, .idle)
+    }
+
+    func testBuilderTwoDraftUpdatesReduceOntoTheLatestDraftAndFlushOnce() async throws {
+        let lines = [#"{"type":"text","delta":"Two steps."}"#, draftToolUse("d1"), draftToolUse("d2"), #"{"type":"done"}"#]
+        let second = #"{"ok":true,"resultText":"Draft updated: title.","draft":{"title":"Leg day 2"}}"#
+        let transport = ScriptedTransport([.ndjson(lines), .ok(reducedOK), .ok(second), .ndjson(text("Done."))])
+        let session = makeSession(transport, store: nil, mode: .builder, draft: ["title": "Leg day"])
+        await session.send("go")
+        let requests = await transport.requests
+        XCTAssertEqual(requests.map(\.path), ["/api/chat", "/api/coach-tool", "/api/coach-tool", "/api/chat"])
+        // The second reduce starts from the first reduce's output.
+        XCTAssertEqual(((requests[2].body?["draft"] as? [String: Any])?["lists"] as? [String: Any]).map { ($0["exercises"] as? [Any])?.count } ?? nil, 1)
+        let results = try XCTUnwrap(messages(of: requests[3])[2]["content"] as? [[String: Any]])
+        XCTAssertEqual(results.map { $0["tool_use_id"] as? String }, ["d1", "d2"])
+        let v7 = await session.config.draft
+        XCTAssertEqual(v7, ["title": "Leg day 2"])
+    }
+
+    func testBuilderCoachToolFailureAndCapUseTheChatCopy() async throws {
+        let transport = ScriptedTransport([.ndjson(try builderLines), .status(500, body: "boom"), .ndjson(text("Hm."))])
+        let session = makeSession(transport, store: nil, mode: .builder, draft: ["title": "Leg day"])
+        let events = Events()
+        await events.start(await session.subscribe())
+        await session.send("add it")
+        let v8 = await events.contains(.toast(ChatCopy.applyFailed))
+        XCTAssertTrue(v8)
+        let requests = await transport.requests
+        let results = try XCTUnwrap(messages(of: requests[2])[2]["content"] as? [[String: Any]])
+        XCTAssertEqual(results[0]["content"] as? String, ChatCopy.executorFailed)
+        await events.stop()
+
+        let capped = ScriptedTransport([.ndjson(try builderLines), .status(429, body: "Daily AI mutation cap reached.", headers: ["Retry-After": "3600"]), .ndjson(text("Hm."))])
+        let session2 = makeSession(capped, store: nil, mode: .builder, draft: ["title": "Leg day"])
+        let events2 = Events()
+        await events2.start(await session2.subscribe())
+        await session2.send("add it")
+        let v9 = await events2.contains(.toast(ChatCopy.aiCapReached))
+        XCTAssertTrue(v9)
+        await events2.stop()
+    }
+
+    /// The guard on `.chat`: the same tool name still gets a card there.
+    func testChatModeStillPresentsACardForTheDraftTool() async throws {
+        let transport = ScriptedTransport([.ndjson(try builderLines)])
+        let session = makeSession(transport)
+        await session.send("add it")
+        let v10 = await session.state
+        guard case .awaitingConfirmation(let head, 1, 1) = v10 else { return XCTFail("expected a card, got \(v10)") }
+        XCTAssertEqual(head.toolName, "update_workout_draft")
+        let requests = await transport.requests
+        XCTAssertEqual(requests.map(\.path), ["/api/chat"])
+    }
 }

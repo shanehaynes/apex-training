@@ -281,4 +281,61 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertEqual(decoded?["scope"] as? String, "instance")
         XCTAssertEqual(events[2], .done)
     }
+
+    // MARK: - W7
+
+    func testScheduleCarriesTemplatesAndOriginalDates() throws {
+        let schedule = try decode(ScheduleResponse.self, from: "schedule.json")
+        let template = try XCTUnwrap(schedule.templates?.first)
+        XCTAssertEqual(template.id, "ios-fixture-template")
+        XCTAssertEqual(template.title, "Fixture Template Push")
+        XCTAssertEqual(template.type, .weights)
+        XCTAssertEqual(template.exercises?.first?.definitionId, "ios-fixture-def")
+        XCTAssertNil(template.archivedAt)
+
+        // Every stub says which date its exception row keys on.
+        XCTAssertTrue(schedule.occurrences.allSatisfy { $0.originalDate != nil })
+        let index = ScheduleIndex(schedule)
+        XCTAssertEqual(index.event(id: "ios-fixture-weekly")?.keyDate, "2026-09-01")
+        XCTAssertEqual(index.event(id: "ios-fixture-weekly__2026-09-08")?.keyDate, "2026-09-08")
+    }
+
+    func testBuilderChatStreamDecodesWithoutALabel() throws {
+        let lines = String(decoding: try load("chat-stream-builder.ndjson"), as: UTF8.self)
+            .split(separator: "\n").map(String.init)
+        let events = try lines.map { try JSONDecoder().decode(ChatWireEvent.self, from: Data($0.utf8)) }
+        XCTAssertEqual(events.count, 3)
+        let block = try XCTUnwrap(ToolUseBlock(events[1]))
+        XCTAssertEqual(block.name, "update_workout_draft")
+        XCTAssertNil(block.label)
+    }
+
+    func testDraftReduceAndApplyResponsesDecode() throws {
+        let reduce = try decode(CoachToolResponse.self, from: "coach-tool-draft.json")
+        XCTAssertTrue(reduce.ok)
+        XCTAssertNotNil(reduce.draft)
+        XCTAssertEqual(try WorkoutDraft(jsonValue: try XCTUnwrap(reduce.draft)).lists.exercises.first?.definitionId, "ios-fixture-def")
+        // The mutation response still decodes without a draft.
+        XCTAssertNil(try decode(CoachToolResponse.self, from: "coach-tool.json").draft)
+
+        let create = try decode(WorkoutDraftResponse.self, from: "workout-draft-create.json")
+        XCTAssertTrue(create.ok)
+        XCTAssertEqual(create.action, "create")
+        XCTAssertEqual(create.templateId, "ios-fixture-template")
+        XCTAssertEqual(create.completedOnCreate, true)
+        XCTAssertEqual(create.event?.title, "Fixture Template Push")
+        XCTAssertEqual(create.event?.startTime, "6:30 AM")
+        XCTAssertEqual(create.event?.id, create.id)
+
+        let edit = try decode(WorkoutDraftResponse.self, from: "workout-draft-edit.json")
+        XCTAssertEqual(edit.action, "update")
+        XCTAssertEqual(edit.event?.title, "Fixture Template Push (edited)")
+
+        let detach = try decode(WorkoutDraftResponse.self, from: "workout-draft-detach.json")
+        XCTAssertEqual(detach.action, "detach")
+        XCTAssertEqual(detach.detachedFrom, "ios-fixture-weekly")
+        XCTAssertEqual(detach.occurrenceDate, "2026-09-29")
+        XCTAssertEqual(detach.event?.isRecurring, false)
+        XCTAssertEqual(detach.date, "2026-09-30")
+    }
 }

@@ -247,6 +247,20 @@ describe('POST /api/event-instances — detaching one occurrence', () => {
     }
   });
 
+  it('re-letters the standalone row\'s supersets on the way in', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq({
+      action: 'detach', eventId: 'evt-1', date: '2026-07-13', triggeredBy: 'user',
+      event: { ...DETACH_EVENT, exercises: [
+        { id: 'a', name: 'Squat', category: 'strength', superset: 'X' },
+        { id: 'b', name: 'Pull-up', category: 'strength', superset: 'X' },
+      ] },
+    }), res);
+    expect(statusCode()).toBe(200);
+    const inserted = state.inserted.find(r => r.table === 'workout_events')!;
+    expect((inserted.exercises as Array<{ superset?: string }>).map(e => e.superset)).toEqual(['A', 'A']);
+  });
+
   it('also relabels the bare base id when detaching the series anchor', async () => {
     const { res, statusCode } = makeRes();
     await handler(makeReq({

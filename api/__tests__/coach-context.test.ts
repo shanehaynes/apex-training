@@ -59,7 +59,7 @@ function makeAdmin() {
 
 beforeEach(() => {
   state = { profile: { coach_goal: 'Send 5.12', coach_context: 'Two kids' }, blocks: [], templates: [{ title: 'Push Day' }, { title: 'Pull Day' }] };
-  vi.mocked(fetchExpandedSchedule).mockResolvedValue({ occurrences, definitions: new Map([[def.id, def]]) });
+  vi.mocked(fetchExpandedSchedule).mockResolvedValue({ occurrences, definitions: new Map([[def.id, def]]), anchorDates: new Map() });
   vi.mocked(fetchCompletionsInRange).mockResolvedValue([
     { event_id: 'evt-soccer', event_date: '2026-08-31', is_completed: true, completed_at: '2026-08-31T20:00:00Z' },
   ] as never);

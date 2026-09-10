@@ -3,15 +3,15 @@ import { Reorder, useDragControls } from 'framer-motion';
 import { GripVertical, Link2, Plus, X } from 'lucide-react';
 import { useSchedule } from '../../context/schedule';
 import { baseIdOf, isOccurrenceId } from '../../lib/schedule/occurrence';
-import { entryFromDefinition, hasPerSideCount, uniqueEntryId } from '../../lib/schedule/definitions';
+import { entryFromDefinition, uniqueEntryId, validateUnilateral } from '../../lib/schedule/definitions';
+import type { SectionKey, SectionLists } from '../../lib/schedule/definitions';
 import { linkWithAbove, normalizeSupersets, unlink } from '../../lib/schedule/supersets';
 import { notify } from '../../lib/notify';
 import { CLIMB_STYLES, ascentStylesFor, climbStyleLabel, sectionLabels } from '../../lib/climbing';
 import ExercisePicker from './ExercisePicker';
 import type { AscentStyle, ClimbStyle, Exercise, ExerciseCategory, ExerciseDefinition, WorkoutEvent, WorkoutType } from '../../types/workout';
 
-export type SectionKey = 'warmup' | 'exercises' | 'cooldown';
-export type SectionLists = Record<SectionKey, Exercise[]>;
+export type { SectionKey, SectionLists };
 
 const SECTION_KEYS: SectionKey[] = ['warmup', 'exercises', 'cooldown'];
 
@@ -145,27 +145,6 @@ function EditorCard({
       {error && <p className="editor-card__error">{error}</p>}
     </Reorder.Item>
   );
-}
-
-/**
- * Same rule the coach executor enforces: unilateral movements state their
- * counts per side. Checked entry-by-entry so the error lands on the card.
- */
-export function validateUnilateral(
-  lists: SectionLists,
-  definitions: Map<string, ExerciseDefinition>,
-): Map<string, string> {
-  const violations = new Map<string, string>();
-  for (const entries of Object.values(lists)) {
-    for (const entry of entries) {
-      const def = entry.definitionId ? definitions.get(entry.definitionId) : undefined;
-      const counted = entry.reps ?? entry.duration;
-      if (def?.isUnilateral && counted && !hasPerSideCount(counted)) {
-        violations.set(entry.id, `Per-side count needed — e.g. "${counted} each side" (or "total").`);
-      }
-    }
-  }
-  return violations;
 }
 
 interface SectionsProps {

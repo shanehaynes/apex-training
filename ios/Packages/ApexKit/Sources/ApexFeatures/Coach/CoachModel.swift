@@ -241,6 +241,10 @@ public final class CoachModel {
             Task { await refreshConversations() }
         case .mutationConfirmed:
             services.onMutationConfirmed()
+        case .draft:
+            // Builder / analytics only: the coach tab's session never reduces a
+            // draft. The builder's model forwards it to the form (W7 PR C).
+            break
         case .toast(let text):
             ToastBus.shared.post(text, level: .failure)
         case .marker(let id):

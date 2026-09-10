@@ -48,4 +48,14 @@ public struct CoachToolResponse: Codable, Sendable, Equatable {
     public let ok: Bool
     public let resultText: String?
     public let problem: String?
+    /// Draft tools only (`update_workout_draft`, `update_chart_draft`): the
+    /// reduced draft, or the caller's own draft back when `ok` is false.
+    public let draft: JSONValue?
+
+    public init(ok: Bool, resultText: String? = nil, problem: String? = nil, draft: JSONValue? = nil) {
+        self.ok = ok
+        self.resultText = resultText
+        self.problem = problem
+        self.draft = draft
+    }
 }

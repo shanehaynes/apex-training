@@ -108,6 +108,32 @@ export function hasPerSideCount(text: string | null | undefined): boolean {
   return !!text && PER_SIDE_RE.test(text);
 }
 
+export type SectionKey = 'warmup' | 'exercises' | 'cooldown';
+export type SectionLists = Record<SectionKey, Exercise[]>;
+
+/**
+ * Same rule the coach executor enforces: unilateral movements state their
+ * counts per side. Checked entry-by-entry so the error lands on the card.
+ * Lives here (not in the editor component) so `/api/workout-draft` runs the
+ * exact check the builder runs before Apply.
+ */
+export function validateUnilateral(
+  lists: SectionLists,
+  definitions: Map<string, ExerciseDefinition>,
+): Map<string, string> {
+  const violations = new Map<string, string>();
+  for (const entries of Object.values(lists)) {
+    for (const entry of entries) {
+      const def = entry.definitionId ? definitions.get(entry.definitionId) : undefined;
+      const counted = entry.reps ?? entry.duration;
+      if (def?.isUnilateral && counted && !hasPerSideCount(counted)) {
+        violations.set(entry.id, `Per-side count needed — e.g. "${counted} each side" (or "total").`);
+      }
+    }
+  }
+  return violations;
+}
+
 // ─── Count conventions: display ──────────────────────────────────────────────
 // Authoring requires the convention inside the count string (PER_SIDE_RE
 // above); reading it there crowds the prescription line, so display lifts it

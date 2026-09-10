@@ -4,7 +4,7 @@ import { requireUser } from '../auth.js';
 import { enforceRateLimit } from '../rateLimit.js';
 import { fetchAllPages } from '../pagination.js';
 import { fetchCompletionsInRange, fetchExpandedSchedule } from '../mcp/data.js';
-import { baseIdOf } from '../../../src/lib/schedule/occurrence.js';
+import { baseIdOf, occurrenceDateOf } from '../../../src/lib/schedule/occurrence.js';
 import { rowToTemplate } from '../../../src/lib/schedule/templates.js';
 import type { WorkoutTemplateRow } from '../../../src/lib/db/types.js';
 import type { ExerciseDefinition, WorkoutEvent, WorkoutTemplate } from '../../../src/types/workout.js';
@@ -30,6 +30,13 @@ export interface OccurrenceStub {
   id: string;
   baseId: string;
   date: string;
+  /**
+   * The date the occurrence was generated at — what `/api/event-instances`
+   * keys a skip/move/detach on. Equals `date` unless an override moved it;
+   * for the series anchor (bare id) it is the base row's own date, which no
+   * other field carries once the anchor has been moved.
+   */
+  originalDate: string;
   startTime: string | null;
   endTime: string | null;
   isCompleted: boolean;
@@ -93,7 +100,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!userId) return;
   if (!(await enforceRateLimit(supabase, res, userId, 'reads'))) return;
 
-  const [{ occurrences, definitions }, completions, templateRows] = await Promise.all([
+  const [{ occurrences, definitions, anchorDates }, completions, templateRows] = await Promise.all([
     // Anchor the open-ended horizon at the window's end so every requested
     // date is covered (the expander adds 366 days past the anchor).
     fetchExpandedSchedule(supabase, userId, end),
@@ -123,6 +130,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       id: e.id,
       baseId,
       date: e.date,
+      originalDate: occurrenceDateOf(e.id) ?? anchorDates.get(baseId) ?? e.date,
       startTime: e.startTime ?? null,
       endTime: e.endTime ?? null,
       isCompleted: completion?.is_completed ?? false,

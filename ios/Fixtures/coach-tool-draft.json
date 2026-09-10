@@ -1,0 +1,47 @@
+{
+  "ok": true,
+  "resultText": "Draft updated: title, exercises (1), repeat. The user reviews and presses Apply.",
+  "draft": {
+    "title": "Fixture Coach Draft",
+    "type": "weights",
+    "sport": "",
+    "scoringType": "strength",
+    "timeCap": "",
+    "date": "2026-09-15",
+    "startTime": "",
+    "endTime": "",
+    "duration": "60",
+    "difficulty": 3,
+    "description": "",
+    "location": "",
+    "tags": "",
+    "distance": "",
+    "elevationGain": "",
+    "avgHeartRate": "",
+    "maxGrade": "",
+    "totalPitches": "",
+    "lists": {
+      "warmup": [],
+      "exercises": [
+        {
+          "id": "ios-fixture-def",
+          "definitionId": "ios-fixture-def",
+          "name": "Fixture Press",
+          "category": "strength",
+          "sets": 3,
+          "reps": "8"
+        }
+      ],
+      "cooldown": []
+    },
+    "equipment": [],
+    "repeat": {
+      "enabled": true,
+      "days": [
+        "TU"
+      ],
+      "interval": "1",
+      "until": ""
+    }
+  }
+}

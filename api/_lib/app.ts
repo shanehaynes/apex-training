@@ -28,6 +28,7 @@ import account from './handlers/account.js';
 import schedule from './handlers/schedule.js';
 import query from './handlers/query.js';
 import coachTool from './handlers/coachTool.js';
+import workoutDraft from './handlers/workoutDraft.js';
 import analyticsCompute from './handlers/analyticsCompute.js';
 import { handleTrainingBlocks } from './trainingBlocks.js';
 import { handleMeals } from './meals.js';
@@ -78,6 +79,10 @@ app.all('/query', bridge(query));
 // Confirmed coach tool calls execute here, with the executors the evals
 // test, so no client carries them (docs/ios/backend-changes.md, W5b).
 app.all('/coach-tool', bridge(coachTool));
+// The builder's Apply for native clients: the draft JSON in, the template
+// upsert + event write done with the web's own pure functions (docs/ios/
+// backend-changes.md, W7).
+app.all('/workout-draft', bridge(workoutDraft));
 // The analytics engine over the caller's rows, for clients that render
 // TileData instead of raw logs (docs/ios/backend-changes.md, W8).
 app.all('/analytics-compute', bridge(analyticsCompute));

@@ -1,0 +1,3 @@
+{"type":"text","delta":"Adding it. "}
+{"type":"tool_use","id":"toolu_fixture_draft","name":"update_workout_draft","input":{"exercises":[{"name":"fx press","sets":3,"reps":"8"}]}}
+{"type":"done"}

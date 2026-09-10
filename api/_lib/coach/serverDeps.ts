@@ -10,7 +10,7 @@ import type { CoachToolDeps } from '../../../src/lib/coach/tools.js';
 import type { ExerciseDefinition, WorkoutEvent } from '../../../src/types/workout.js';
 import type { Meal } from '../../../src/types/nutrition.js';
 import type { CreateEventInput } from '../../../src/lib/schedule/types.js';
-import { buildCompletionRows, eventFieldsToRow, eventToRow } from '../../../src/lib/schedule/mapping.js';
+import { buildCompletionRows, eventFieldsToRow, eventFromCreateInput, eventToRow } from '../../../src/lib/schedule/mapping.js';
 import { definitionFieldsToRow, slugifyName } from '../../../src/lib/schedule/definitions.js';
 import { baseIdOf, makeOccurrenceId, occurrenceDateOf } from '../../../src/lib/schedule/occurrence.js';
 import { mealFieldsToRow, mealToRow } from '../../../src/lib/nutrition/mapping.js';
@@ -49,32 +49,7 @@ export function createServerDeps(supabase: Admin, userId: string, ctx: ServerDep
       // the "Mark as Complete" toggle, including the plan-filled session
       // log). A recurring series is a plan whatever its anchor date — never that.
       const completedOnCreate = input.date < ctx.today && !input.recurrenceRule;
-      const newEvent: WorkoutEvent = {
-        id,
-        type:              input.type,
-        sport:             input.sport,
-        title:             input.title,
-        date:              input.date,
-        estimatedDuration: input.estimatedDuration,
-        difficulty:        input.difficulty ?? 3,
-        startTime:         input.startTime,
-        endTime:           input.endTime,
-        description:       input.description ?? '',
-        location:          input.location,
-        tags:              input.tags ?? [],
-        equipment:         input.equipment ?? [],
-        exercises:         input.exercises ?? [],
-        warmup:            input.warmup,
-        cooldown:          input.cooldown,
-        cardioTargets:     input.cardioTargets,
-        climbingTargets:   input.climbingTargets,
-        templateId:        input.templateId,
-        scoringType:       input.scoringType,
-        timeCapMinutes:    input.timeCapMinutes,
-        isCompleted:       completedOnCreate,
-        isRecurring:       !!input.recurrenceRule,
-        recurrenceRule:    input.recurrenceRule,
-      };
+      const newEvent = eventFromCreateInput(input, id, completedOnCreate);
       const result = await events.createEvent(supabase, userId, eventToRow(newEvent) as unknown as Record<string, unknown>, 'ai');
       if (!result.ok) return null;
       ctx.events.push(newEvent);

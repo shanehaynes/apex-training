@@ -1,6 +1,7 @@
 import type { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { pickAllowed, EVENT_INSERT_COLUMNS, EVENT_PATCH_COLUMNS, EVENT_ID_PATTERN } from '../allowlist.js';
 import { purgeTrackedEventData } from '../eventCleanup.js';
+import { normalizeSectionColumns } from './supersets.js';
 import { fail, succeed, type ServiceResult } from './result.js';
 import type { Json, TablesInsert, WorkoutEventRow } from '../../../src/lib/db/types.js';
 
@@ -70,7 +71,7 @@ export async function createEvent(
 
   const { error } = await supabase
     .from('workout_events')
-    .insert({ ...picked, user_id: userId } as TablesInsert<'workout_events'>);
+    .insert({ ...normalizeSectionColumns(picked), user_id: userId } as TablesInsert<'workout_events'>);
   if (error) {
     console.error('[api/events] insert failed:', error.message);
     return fail(500, 'Failed to create event');
@@ -103,7 +104,7 @@ export async function updateEvent(
   // entry for someone else's (or a mistyped) id.
   const { data: updated, error } = await supabase
     .from('workout_events')
-    .update({ ...picked, updated_at: new Date().toISOString() })
+    .update({ ...normalizeSectionColumns(picked), updated_at: new Date().toISOString() })
     .eq('id', id)
     .eq('user_id', userId)
     .select('id');

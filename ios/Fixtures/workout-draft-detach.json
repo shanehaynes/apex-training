@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "action": "detach",
+  "id": "ai-<uuid>",
+  "date": "2026-09-30",
+  "completedOnCreate": false,
+  "isRecurring": false,
+  "detachedFrom": "ios-fixture-weekly",
+  "occurrenceDate": "2026-09-29",
+  "event": {
+    "id": "ai-<uuid>",
+    "type": "weights",
+    "title": "Fixture Push Day (solo)",
+    "date": "2026-09-30",
+    "estimatedDuration": 60,
+    "description": "",
+    "exercises": [],
+    "difficulty": 3,
+    "tags": [],
+    "equipment": [],
+    "sport": null,
+    "scoringType": "strength",
+    "isCompleted": false,
+    "isRecurring": false
+  }
+}

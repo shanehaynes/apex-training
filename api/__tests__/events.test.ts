@@ -129,6 +129,20 @@ describe('POST /api/events — field allowlist', () => {
     expect(state.inserted).toBeUndefined();
   });
 
+  it('re-letters supersets on insert: a shared label becomes A, a lone one clears', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('POST', {
+      ...base, triggered_by: 'user',
+      exercises: [
+        { id: 'a', name: 'Squat', category: 'strength', superset: 'X' },
+        { id: 'b', name: 'Pull-up', category: 'strength', superset: 'X' },
+        { id: 'c', name: 'Plank', category: 'strength', superset: 'Z' },
+      ],
+    }), res);
+    expect(statusCode()).toBe(200);
+    expect((state.inserted!.exercises as Array<{ superset?: string }>).map(e => e.superset)).toEqual(['A', 'A', undefined]);
+  });
+
   it('rejects an oversized id', async () => {
     const { res, statusCode } = makeRes();
     await handler(makeReq('POST', { ...base, id: 'a'.repeat(200) }), res);
@@ -167,6 +181,19 @@ describe('PATCH /api/events — field allowlist', () => {
     expect(statusCode()).toBe(200);
     expect(state.updated).toMatchObject({ title: 'Incline Bench' });
     expect(state.updated).toHaveProperty('updated_at');
+  });
+
+  it('re-letters supersets on patch: a run split by a reorder becomes two groups', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { fields: { warmup: [
+      { id: 'a', name: 'Squat', category: 'strength', superset: 'A' },
+      { id: 'b', name: 'Pull-up', category: 'strength', superset: 'A' },
+      { id: 'c', name: 'Plank', category: 'strength' },
+      { id: 'd', name: 'Row', category: 'strength', superset: 'A' },
+      { id: 'e', name: 'Dip', category: 'strength', superset: 'A' },
+    ] }, log }, { id: 'evt-1' }), res);
+    expect(statusCode()).toBe(200);
+    expect((state.updated!.warmup as Array<{ superset?: string }>).map(e => e.superset)).toEqual(['A', 'A', undefined, 'B', 'B']);
   });
 
   it("404s on someone else's (or a mistyped) id without writing an audit entry", async () => {
