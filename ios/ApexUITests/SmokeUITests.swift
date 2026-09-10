@@ -30,6 +30,21 @@ final class SmokeUITests: XCTestCase {
         app.buttons["Sign in"].tap()
     }
 
+    /// Taps an event card and waits for its sheet. A starved CI runner can
+    /// drop a synthesized tap — the run that lost one took ten seconds just to
+    /// find the card, and its recording shows the day view never moving — so
+    /// a tap that opens nothing is sent again, twice at most.
+    private func openEvent(_ app: XCUIApplication, card: String, file: StaticString = #filePath, line: UInt = #line) {
+        let button = app.buttons["event.card.\(card)"]
+        XCTAssertTrue(button.waitForExistence(timeout: 20), "missing card: \(card)", file: file, line: line)
+        let title = app.buttons["schedule.event.title"]
+        for _ in 0..<3 {
+            button.tap()
+            if title.waitForExistence(timeout: 10) { return }
+        }
+        XCTFail("the event sheet never opened for \(card)", file: file, line: line)
+    }
+
     func testSignInScreenOffersAutoFillableFields() {
         let app = launch(mock: false)
         let email = app.textFields["signin.email"]
@@ -73,8 +88,7 @@ final class SmokeUITests: XCTestCase {
         attach(app, name: "04-day-sheet")
 
         // Event: the synced run shows its provider badge; completing it flips the button.
-        app.buttons["event.card.Fixture Run"].tap()
-        XCTAssertTrue(app.buttons["schedule.event.title"].waitForExistence(timeout: 10))
+        openEvent(app, card: "Fixture Run")
         XCTAssertTrue(app.otherElements["schedule.event.synced"].waitForExistence(timeout: 10)
             || app.staticTexts["Synced from COROS"].waitForExistence(timeout: 5))
         attach(app, name: "05-event")
@@ -96,9 +110,7 @@ final class SmokeUITests: XCTestCase {
         app.launch()
         signIn(app)
 
-        let card = app.buttons["event.card.Fixture Push Day"]
-        XCTAssertTrue(card.waitForExistence(timeout: 20))
-        card.tap()
+        openEvent(app, card: "Fixture Push Day")
         let start = app.buttons["schedule.event.start"]
         XCTAssertTrue(start.waitForExistence(timeout: 10))
         XCTAssertEqual(start.label, "View / Edit Workout", "the fixture occurrence is completed")
@@ -251,13 +263,10 @@ final class SmokeUITests: XCTestCase {
     func testEventEditsOnFixtures() {
         let app = launch(mock: true)
         signIn(app)
-        let run = app.buttons["event.card.Fixture Run"]
-        XCTAssertTrue(run.waitForExistence(timeout: 20))
 
         // Rename inline: tap the title, retype, submit.
-        run.tap()
+        openEvent(app, card: "Fixture Run")
         let title = app.buttons["schedule.event.title"]
-        XCTAssertTrue(title.waitForExistence(timeout: 10))
         title.tap()
         let field = app.textFields["schedule.event.title.field"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
@@ -283,8 +292,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertFalse(app.buttons["event.card.Fixture Run"].exists)
 
         // The series: "This day only" skips the occurrence; the other days stay.
-        app.buttons["event.card.Fixture Push Day"].tap()
-        XCTAssertTrue(app.buttons["schedule.event.title"].waitForExistence(timeout: 10))
+        openEvent(app, card: "Fixture Push Day")
         let seriesDelete = app.buttons["schedule.event.delete"]
         swipes = 0
         while !seriesDelete.isHittable, swipes < 6 { app.scrollViews.firstMatch.swipeUp(); swipes += 1 }
@@ -309,7 +317,7 @@ final class SmokeUITests: XCTestCase {
         app.buttons["Today"].tap()
 
         // Edit exercises on the circuit: link the plank into the superset, save, reopen.
-        app.buttons["event.card.Fixture Circuit"].tap()
+        openEvent(app, card: "Fixture Circuit")
         let editExercises = app.buttons["schedule.event.edit.exercises"]
         XCTAssertTrue(editExercises.waitForExistence(timeout: 10))
         editExercises.tap()
@@ -324,8 +332,7 @@ final class SmokeUITests: XCTestCase {
         app.buttons["editor.save"].tap()
         let closed = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: editor)
         wait(for: [closed], timeout: 10)
-        app.buttons["event.card.Fixture Circuit"].tap()
-        XCTAssertTrue(app.buttons["schedule.event.title"].waitForExistence(timeout: 10))
+        openEvent(app, card: "Fixture Circuit")
         XCTAssertTrue(app.descendants(matching: .any)["Superset A"].waitForExistence(timeout: 5))
         attach(app, name: "21-superset-of-three")
         app.buttons["Close"].firstMatch.tap()
@@ -383,9 +390,7 @@ final class SmokeUITests: XCTestCase {
     func testBuilderScopeOnFixtures() {
         let app = launch(mock: true)
         signIn(app)
-        let pushDay = app.buttons["event.card.Fixture Push Day"]
-        XCTAssertTrue(pushDay.waitForExistence(timeout: 20))
-        pushDay.tap()
+        openEvent(app, card: "Fixture Push Day")
         let editWorkout = app.buttons["schedule.event.edit.workout"]
         XCTAssertTrue(editWorkout.waitForExistence(timeout: 10))
         editWorkout.tap()

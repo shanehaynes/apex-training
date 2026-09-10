@@ -155,6 +155,9 @@ Out: meals composer (W10).
   `ExerciseEditorRow`, the scope bar, the delete panel); `STATUS.md`. U9 (native pickers in
   dark) and U10 (real drag handle) ticked by B/C. `testflight.sh --check` and `--dry-run` from
   this worktree; the upload is Shane's call.
+  - CI lost one tap: `testEventEditsOnFixtures` tapped the run card on a runner that had
+    taken ten seconds to find it, and the recording shows the day view never moving. The
+    smoke now opens cards through `openEvent`, which re-sends a tap that shows no sheet.
   - **Left for Shane:** `shipit`-free merges in order (B → C → D, rebasing each onto main after
     the lower squash), the TestFlight upload, and the device run from Acceptance: create a
     recurring workout, edit one occurrence, edit the series, delete an occurrence — the web
