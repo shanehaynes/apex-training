@@ -109,7 +109,12 @@ Recurring patterns to port as `TextStyle`s:
 | `.library-view` etc. full-screen overlays | pushed screens in a `NavigationStack` |
 | `.tracker-confirm` sticky bar | `ConfirmBar(message:, primary:, secondary:)` in `safeAreaInset(edge: .bottom)` |
 | `.toasts` | `ToastHost` above the tab bar; `ToastBus.post` |
-| `.library-field` + `__input` | `ApexField(label:, text:, keyboard:)` — mono label, surface fill, 44pt |
+| `.library-field` + `__input` | `FormField(label:, text:, keyboard:)` — mono label, elevated fill, 44pt; `apexFieldChrome()` gives any control the same box |
+| `<input type=date/time>` | `DateField` / `TimeField` — native compact pickers in the field box, pinned to UTC (U9) |
+| `.builder-type-chip` radio groups | `ChipRow(label:, options:, selection:)` — a `FlowLayout` of `Chip`s, one selected |
+| `EventExerciseEditor` card | `ExerciseEditorRow` in a `List` with edit mode on (real drag handle, U10): name, prescription row, link toggle, remove |
+| `BuilderForm` scope bar | the action bar's second state: the scope copy + Back · This event only · Whole series (`ApexButton`s) |
+| `.modal-danger` | the delete panel: `ApexPalette.destructive` fill at 12%, `ApexButton(.destructive)` per scope |
 | `.tile-card__menu` kebab | `Menu` with `contextMenu` on the tile |
 | `.block-bar__track/__fill`, `.type-bar-row__track` | `AttainmentBar(value:, target:, state:)` |
 | `.event-chip`, `.day-event-card` | `EventChip` (month), `EventCard` (day) with a 3pt left rail in the type's `border` colour and a 44pt completion control |
