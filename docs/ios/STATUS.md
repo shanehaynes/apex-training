@@ -16,7 +16,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W5a | Backend chat v2 (server prompt) | done (PR #98) | Linux | web switched in the same PR |
 | W5b | Backend `/api/coach-tool` | done (PR #99) | Linux | services extracted; web confirm switched |
 | W6 | Coach tab | done (#126, #127, #128) | Mac | TestFlight build 3 (0.4.0/301) uploaded 2026-09-09; Shane's device run outstanding |
-| W7 | Event CRUD + builder | in review (A #137 merged; B #138, C #139, D stacked) | Mac | TestFlight build 5 (0.6.0) after D merges, on Shane's go |
+| W7 | Event CRUD + builder | done (#137, #138, #139, #140) | Mac | TestFlight build 5 (0.6.0/312) uploaded 2026-09-11; Shane's device run outstanding |
 | W8 | Backend analytics compute | done (PR #100) | Linux | web keeps its browser path |
 | W9 | Analytics tab (editable layout) | ready | Mac | W8 + W6 done |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
@@ -25,13 +25,10 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
-1. Land W7 in order: B #138 → C #139 → D (each squash conflicts the next stacked PR because it
-   still carries the lower commit — `git rebase --onto origin/main <old-lower-tip>` and
-   `--force-with-lease`, as A → B needed). Then `ios/scripts/testflight.sh` from the W7
-   worktree (`.claude/worktrees/feat-w7-draft-endpoint`, which holds the two git-ignored files)
-   for TestFlight build 5 (0.6.0) on Shane's go, and Shane's W7 device run: create a recurring
-   workout, edit one occurrence, edit the series, delete an occurrence — the web shows the same
-   result each time; the coach drawer on a real key. Then W9 or W10 (W11 after).
+1. Shane's W7 device run on TestFlight build 5 (0.6.0/312): create a recurring workout, edit
+   one occurrence, edit the series, delete an occurrence — the web shows the same result each
+   time; the coach drawer on a real key. Then W9 or W10 (W11 after). The W7 worktree can be
+   tidied; its two git-ignored release files go with it (item 4).
 2. Shane's W12 device run on TestFlight build 4 (0.5.0/306): start a workout → island timer;
    background 30 min → still right; long-press → expanded; Lock Screen banner; Finish → "Done"
    lingers 5 min on the Lock Screen; Cancel → gone; kill the app mid-session → relaunch → the
@@ -59,7 +56,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   picker, coach drawer with the server-side reduce), `BuilderModel`, 8 model tests, 6 snapshots,
   two builder smoke legs.
 - 2026-09-10 · W7 · PR D: 0.6.0, D-027, the screens/design-spec rows, `testflight.sh --dry-run`;
-  build 5 waits on Shane's go.
+  CI dropped one tap in the event-edits smoke, so `openEvent` now re-sends it.
+- 2026-09-11 · W7 · D merged (#140); TestFlight build 5 (0.6.0/312) uploaded.
 - 2026-09-02 · plan · Master plan and all briefs written (PR #94).
 - 2026-09-03 · W0 · Read endpoints, server-built quick-complete, Swift types emit, fixtures — PR #95 merged.
 - 2026-09-03 · W3 · Tracker bootstrap/finish consolidation, streaming coach summary, web switched — PR #96 merged.
