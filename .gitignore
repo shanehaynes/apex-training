@@ -37,6 +37,9 @@ e2e/screenshots/
 .claude/state/
 .claude/AUTOMERGE_OFF
 
+# Linked worktrees — scripts/git-new.sh creates them inside the primary checkout
+.claude/worktrees/
+
 # iOS — the Xcode project is generated per worktree (XcodeGen, D-005); everything
 # below is a build artifact or per-machine configuration.
 ios/*.xcodeproj
