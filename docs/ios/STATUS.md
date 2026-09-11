@@ -15,7 +15,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W4 | Tracker UI + write queue | done (#117, #118, #119) | Mac | TestFlight build 2 (0.3.0/295); airplane-mode device run passed 2026-09-11 on build 306 |
 | W5a | Backend chat v2 (server prompt) | done (PR #98) | Linux | web switched in the same PR |
 | W5b | Backend `/api/coach-tool` | done (PR #99) | Linux | services extracted; web confirm switched |
-| W6 | Coach tab | done (#126, #127, #128) | Mac | TestFlight build 3 (0.4.0/301); device run passed 2026-09-11 on build 306 (kill-mid-card not yet tried) |
+| W6 | Coach tab | done (#126, #127, #128) | Mac | TestFlight build 3 (0.4.0/301); device run passed 2026-09-11 on build 306, kill-mid-card relaunch included |
 | W7 | Event CRUD + builder | done (#137, #138, #139, #140) | Mac | TestFlight build 5 (0.6.0/312) uploaded 2026-09-11; Shane's device run outstanding |
 | W8 | Backend analytics compute | done (PR #100) | Linux | web keeps its browser path |
 | W9 | Analytics tab (editable layout) | ready | Mac | W8 + W6 done |
@@ -30,7 +30,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    time; the coach drawer on a real key. Then W9 or W10 (W11 after). The W7 worktree can be
    tidied; its two git-ignored release files go with it (item 4).
 2. Still open from earlier: the W2 device runs; two W12 timings nobody has clocked (30 minutes
-   backgrounded, the 5-minute Done linger on the Lock Screen) and the W6 kill-mid-card relaunch.
+   backgrounded, the 5-minute Done linger on the Lock Screen).
 3. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
    `ios/Config/Secrets.xcconfig` (`ios/scripts/secrets.sh`) and `ios/Config/appstoreconnect.env`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
@@ -40,8 +40,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   build; W12 island + long-press + Lock Screen banner, tap-to-open, kill mid-session → relaunch
   from the island (the GRDB cache kept it), finish and cancel both clear it; W4 airplane-mode
   start → finish → sync; W6 coach creates a workout that lands on Schedule, Stop keeps the
-  partial. Not timed: the 30-minute background and the 5-minute Done linger; not tried: W6
-  kill-mid-card.
+  partial; kill mid-card → relaunch → the card comes back. Not timed: the 30-minute background
+  and the 5-minute Done linger.
 - 2026-09-10 · W7 · Plan (four decisions by Shane) and PR A: `POST /api/workout-draft`, supersets
   normalised in the services, `originalDate` on schedule stubs, regenerated + five new fixtures,
   ApexCore `Repeat`/`Supersets`/`Slug`/`WorkoutDraft`/`ScheduleEdit`/index mutators/W7 endpoints
