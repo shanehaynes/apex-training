@@ -75,4 +75,10 @@ Out: rest timer (Backlog) — leave a hook in `ContentState` for it.
     the real island, the 5-minute Done linger, kill/relaunch with the GRDB cache (the simulator
     proof used the mock's memory cache, so relaunch ended rather than kept the activity), and
     the first-run "Allow Live Activities from Apex?" prompt.
-
+- 2026-09-11 · device · Shane's run on build 306 (iPhone 15 Pro): island timer and long-press,
+  Lock Screen banner (two-line title, mono timer, count — as designed), tap opens the tracker,
+  kill from the app switcher → the island stays → tap relaunches onto the same session (the GRDB
+  cache keeps it, unlike the simulator's memory cache), finish and cancel both dismiss it. The
+  first-run permission prompt was accepted. Acceptance met except the two timings not clocked
+  (30-minute background, 5-minute Done linger). Observed, not a bug: the running timer reads
+  `0:29` (`Text(timerInterval:)` does not pad minutes) while the Done state reads `00:29`.

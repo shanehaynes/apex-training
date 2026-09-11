@@ -12,16 +12,16 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W1 | iOS scaffold + app icon + CI | done | Mac | TestFlight build 0 (0.1.0/285) shipped and installed |
 | W2 | Schedule read, cache, realtime, auth links | done (#110, #111, #112, #114) | Mac | TestFlight build 1 + device runs are Shane's |
 | W3 | Backend tracker consolidation | done (PR #96) | Linux | web switched in the same PR |
-| W4 | Tracker UI + write queue | done (#117, #118, #119) | Mac | TestFlight build 2 (0.3.0/295) uploaded; Shane's airplane-mode device run outstanding |
+| W4 | Tracker UI + write queue | done (#117, #118, #119) | Mac | TestFlight build 2 (0.3.0/295); airplane-mode device run passed 2026-09-11 on build 306 |
 | W5a | Backend chat v2 (server prompt) | done (PR #98) | Linux | web switched in the same PR |
 | W5b | Backend `/api/coach-tool` | done (PR #99) | Linux | services extracted; web confirm switched |
-| W6 | Coach tab | done (#126, #127, #128) | Mac | TestFlight build 3 (0.4.0/301) uploaded 2026-09-09; Shane's device run outstanding |
+| W6 | Coach tab | done (#126, #127, #128) | Mac | TestFlight build 3 (0.4.0/301); device run passed 2026-09-11 on build 306 (kill-mid-card not yet tried) |
 | W7 | Event CRUD + builder | done (#137, #138, #139, #140) | Mac | TestFlight build 5 (0.6.0/312) uploaded 2026-09-11; Shane's device run outstanding |
 | W8 | Backend analytics compute | done (PR #100) | Linux | web keeps its browser path |
 | W9 | Analytics tab (editable layout) | ready | Mac | W8 + W6 done |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
 | W11 | Profile, integrations, account | ready | both | the only migration (`provider_connections.client`) |
-| W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306) uploaded 2026-09-09; Shane's device run outstanding |
+| W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
@@ -29,21 +29,19 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    one occurrence, edit the series, delete an occurrence — the web shows the same result each
    time; the coach drawer on a real key. Then W9 or W10 (W11 after). The W7 worktree can be
    tidied; its two git-ignored release files go with it (item 4).
-2. Shane's W12 device run on TestFlight build 4 (0.5.0/306): start a workout → island timer;
-   background 30 min → still right; long-press → expanded; Lock Screen banner; Finish → "Done"
-   lingers 5 min on the Lock Screen; Cancel → gone; kill the app mid-session → relaunch → the
-   island keeps counting (GRDB cache); tap the island → the tracker. First run asks "Allow Live
-   Activities from Apex?". Then W9, W7 or W10.
-2. Shane's W6 device run on TestFlight build 3 (0.4.0/301): add a key in the sheet, ask the coach
-   to create a workout tomorrow → card → Confirm → it appears on Schedule; Stop mid-stream →
-   the Vercel log shows the aborted upstream call; kill the app mid-card → relaunch → the card
-   comes back.
-3. Still open from earlier: the W4 airplane-mode run on build 2; the W2 device runs.
-4. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
+2. Still open from earlier: the W2 device runs; two W12 timings nobody has clocked (30 minutes
+   backgrounded, the 5-minute Done linger on the Lock Screen) and the W6 kill-mid-card relaunch.
+3. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
    `ios/Config/Secrets.xcconfig` (`ios/scripts/secrets.sh`) and `ios/Config/appstoreconnect.env`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-11 · device · Shane's run on TestFlight build 4 (0.5.0/306): session restore on a signed
+  build; W12 island + long-press + Lock Screen banner, tap-to-open, kill mid-session → relaunch
+  from the island (the GRDB cache kept it), finish and cancel both clear it; W4 airplane-mode
+  start → finish → sync; W6 coach creates a workout that lands on Schedule, Stop keeps the
+  partial. Not timed: the 30-minute background and the 5-minute Done linger; not tried: W6
+  kill-mid-card.
 - 2026-09-10 · W7 · Plan (four decisions by Shane) and PR A: `POST /api/workout-draft`, supersets
   normalised in the services, `originalDate` on schedule stubs, regenerated + five new fixtures,
   ApexCore `Repeat`/`Supersets`/`Slug`/`WorkoutDraft`/`ScheduleEdit`/index mutators/W7 endpoints
