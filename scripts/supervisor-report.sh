@@ -86,14 +86,22 @@ echo "── production backup"
 # README, "Backups".
 if [ -n "$GH" ]; then
   backup=$("$GH" run list --workflow backup.yml --branch main --limit 1 \
-    --json conclusion,status,updatedAt \
-    --jq '.[0] | "\(.conclusion // .status) \(.updatedAt)"' 2>/dev/null || true)
+    --json conclusion,status,updatedAt,databaseId \
+    --jq '.[0] | "\(.conclusion // .status) \(.updatedAt) \(.databaseId)"' 2>/dev/null || true)
   case "$backup" in
     ""|null*) echo "   no backup runs found (gh auth? workflow not on main yet?)" ;;
     success*)
-      when=${backup#success }
+      set -- $backup; when=$2; run_id=$3
+      # Green is not enough: a gated skip was green too. The bundle must exist.
+      artifacts=$("$GH" api "repos/{owner}/{repo}/actions/runs/$run_id/artifacts" --jq '.total_count' 2>/dev/null || echo "?")
+      if [ "$artifacts" = 0 ]; then
+        echo "ACTION last backup run was green but uploaded nothing ($when) — the secret or the age key is missing (README, Backups)"
+        artifacts=skip
+      fi
       when_s=$(date -d "$when" +%s 2>/dev/null || date -j -f %Y-%m-%dT%H:%M:%SZ "$when" +%s 2>/dev/null || true)
-      if [ -n "$when_s" ] && [ "$when_s" -lt "$(( $(date +%s) - 2*86400 ))" ]; then
+      if [ "$artifacts" = skip ]; then
+        :
+      elif [ -n "$when_s" ] && [ "$when_s" -lt "$(( $(date +%s) - 2*86400 ))" ]; then
         echo "ACTION last green backup is older than two days ($when) — schedule disabled, project paused, or secret gone? (README, Backups)"
       else
         echo "   last backup dumped and restore-drilled: $when"
