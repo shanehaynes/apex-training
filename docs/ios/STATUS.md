@@ -34,7 +34,12 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    tidied; its two git-ignored release files go with it (item 4).
 3. Still open from earlier: the W2 device runs; two W12 timings nobody has clocked (30 minutes
    backgrounded, the 5-minute Done linger on the Lock Screen).
-4. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
+4. **Mac, small:** `SmokeUITests.testCoachKeySetupOnFixtures` is flaky in CI. It does
+   `composer.tap()` then `composer.typeText("hi")` with nothing waiting for first responder, and
+   failed once on #149 with "Neither element nor any descendant has keyboard focus", then passed
+   on a re-run of the same commit. Same race W7 hit in the event-edits smoke, where `openEvent`
+   ended up re-sending its tap. Needs a Mac to fix and prove.
+5. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
    `ios/Config/Secrets.xcconfig` (`ios/scripts/secrets.sh`) and `ios/Config/appstoreconnect.env`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
