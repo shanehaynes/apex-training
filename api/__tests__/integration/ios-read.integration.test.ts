@@ -278,6 +278,14 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     await admin.from('event_mutations_log').delete().eq('user_id', agent2.userId);
     await admin.from('definition_mutations_log').delete().eq('user_id', agent2.userId);
     await admin.from('block_mutations_log').delete().eq('user_id', agent2.userId);
+
+    // Throttling state outlives the rows. One pass through this file spends
+    // several calls from the seeded users' `summary` bucket (10 per hour) and
+    // dozens from `writes` and `providerSync`, so a third or fourth run inside
+    // the same hour starts getting 429s — which surface as a handler that
+    // writes nothing, not as an error that names the cause. Costs CI nothing
+    // (it builds the database from scratch) and makes the suite re-runnable.
+    await admin.from('api_request_counts').delete().in('user_id', [agent.userId, agent2.userId]);
   }
 
   beforeAll(async () => {
@@ -968,6 +976,12 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     fixture('query-search_exercises.json', (await query(agent.token, { tool: 'search_exercises', args: { query: 'fixture' } })).body);
     fixture('query-get_prs.json', (await query(agent.token, { tool: 'get_prs', args: { exercise_name: 'Fixture Press' } })).body);
 
+    // The fixture pins the NO-KEY state. getAnthropicKey is mocked for the
+    // chat tests above, and a `mockResolvedValueOnce` any of them primed but
+    // did not consume would otherwise be spent here — reporting a key the
+    // seeded user does not have, and failing the drift check as if the shape
+    // had changed. Seen once; this is the guard.
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce(null);
     const prof = makeRes();
     await profileHandler(makeReq({ method: 'GET', token: agent.token }), prof.res);
     expect(prof.statusCode).toBe(200);

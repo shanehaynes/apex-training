@@ -60,6 +60,14 @@ Out: push (Backlog).
   a `DeepLink` fix — `.connectError` parsed `message`/`error` but never `reason`, so the callback's
   code would have decoded to nil. 321 `swift test` green (swift:6.1 in Docker; no native toolchain
   on this machine).
+- Found while proving the fixtures: **the integration suite could not be run more than about
+  three times an hour.** The seeded users' `summary` bucket is 10 per hour and one pass spends
+  several; past the cap `enforceRateLimit` answers 429 and the coach-summary handler writes
+  nothing, which surfaces as `Unexpected end of JSON input` in a W3 test and then — because the
+  primed `getAnthropicKey` value goes unconsumed and is spent by the next caller — as a bogus
+  `profile.json` drift. Neither names the cause. `cleanup()` now clears `api_request_counts` for
+  both agents, and the profile fixture pins the no-key state explicitly. Five consecutive
+  whole-directory runs green. CI never saw it: the `full` job builds the database from scratch.
 - Scope items closed with no code: `scripts/auth-redirect-check.sh` already asserts
   `/auth/callback` and passes all five checks (Shane added it 2026-09-09); `DELETE /api/account`
   needs nothing, and `provider_connections` is covered by the `account.test.ts` sweep through
