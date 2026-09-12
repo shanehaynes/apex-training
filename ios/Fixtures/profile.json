@@ -1,8 +1,49 @@
 {
   "hasAnthropicKey": false,
   "anthropicKeyLast4": null,
+  "displayName": "agent",
+  "avatarKey": "goat",
+  "coachGoal": "",
+  "coachContext": "",
+  "maxHr": null,
+  "thresholdHr": null,
   "coachModel": null,
   "coachModelLabel": "Opus 4.8",
+  "calendarFeedUrl": "http://localhost/api/calendar-feed?token=<uuid>",
+  "coachModels": [
+    {
+      "id": "claude-opus-5",
+      "label": "Opus 5",
+      "badge": "claude opus 5",
+      "blurb": "Newest and sharpest. Same price as Opus 4.8.",
+      "inputPerMTok": 5,
+      "outputPerMTok": 25
+    },
+    {
+      "id": "claude-opus-4-8",
+      "label": "Opus 4.8",
+      "badge": "claude opus 4.8",
+      "blurb": "Strong reasoning on planning-heavy turns. The default.",
+      "inputPerMTok": 5,
+      "outputPerMTok": 25
+    },
+    {
+      "id": "claude-sonnet-5",
+      "label": "Sonnet 5",
+      "badge": "claude sonnet 5",
+      "blurb": "About 40% cheaper. Handles most coaching turns well.",
+      "inputPerMTok": 3,
+      "outputPerMTok": 15
+    },
+    {
+      "id": "claude-haiku-4-5-20251001",
+      "label": "Haiku 4.5",
+      "badge": "claude haiku 4.5",
+      "blurb": "Cheapest by 5x and fastest. No extended thinking.",
+      "inputPerMTok": 1,
+      "outputPerMTok": 5
+    }
+  ],
   "termsAccepted": {
     "termsVersion": "terms-v1",
     "privacyVersion": "privacy-v1",

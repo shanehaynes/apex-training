@@ -398,3 +398,41 @@ The brief said "port the builder"; these are the lines drawn while doing it.
   library does not hold.
 - **The web's serialiser quirk is mirrored, not fixed:** an unset end time on a one-off edit
   is omitted rather than cleared.
+
+## D-028 · The COROS callback, and where the You tab reads its profile (W11)
+**Status:** decided · W11 backend session · 2026-09-11
+The brief said "`client: 'ios'` and a scheme redirect"; these are the lines drawn while doing it.
+- **The pending row is read before every failure branch, not after.** The callback arrives with no
+  JWT, so `provider_connections.client` is the only record of who started the dance — and the two
+  commonest failures are declining at COROS and leaving the consent screen past the 10-minute TTL.
+  Both have to close `ASWebAuthenticationSession`, which only a redirect to the app's own scheme
+  does. That forced `findPendingByState` to answer a `PendingLookup` carrying `client` on **both**
+  arms: the first shape returned `null` for an expired row and stranded the in-app browser on a
+  web page. A missing `state` is the one case where the client is genuinely unknowable, and it
+  falls back to the web.
+- **Failure reasons are a small closed vocabulary, and iOS-only.** `denied` · `missing_code` ·
+  `expired` · `exchange_failed`. The web's `/?connected=coros` and `/?connect_error=coros` stay
+  byte-identical at 302 with no `reason` param — `ProviderSyncControls.tsx` has always parsed
+  exactly those two, and the SPA's toast never distinguished causes. `DeepLink.connectError` gained
+  `reason` at the front of its `message`/`error` chain; it had never parsed the key the server was
+  about to start sending.
+- **`client` is written on every connect-start, the web's as null.** The pending row is an upsert
+  on `(user_id, provider)`, so a conditional write would let `'ios'` from an abandoned attempt
+  redirect a later web connect into the app. For the same reason the column has no CHECK
+  constraint (the phase38 call): the allowlist in the handler is what keeps junk out, and a CHECK
+  would need a migration per client.
+- **The You tab reads the profiles row from `/api/profile`, not over RLS.** W6 put the coach model
+  there so "the native app's badge never reads the profiles row directly"; W11 needed six more
+  fields and the calendar feed, so it widened the same endpoint rather than opening a second
+  read path. The feed URL is composed server-side from `ics_token` — the bare token never ships,
+  and no client has to know how the URL is spelled. The model catalog rides along for D-008: the
+  alternative was hand-porting `models.ts` into Swift for the picker.
+- **The You tab's fixtures are emitted on agent2.** The connection row, the token list and the
+  activity feed are per-user singletons or unprefixed, and `provider-sync.integration.test.ts` and
+  `mcp.integration.test.ts` already own agent's — vitest runs those files in parallel with this
+  one. `provider-cron.integration.test.ts` made the same move for the same reason.
+- **Three new scrubs in the fixture emitter, two of them about secrets and one about drift.** A
+  uuid inside a `?token=` URL (the feed URL would otherwise commit a working ICS token) and the
+  minted PAT are secrets; `token_last4` is neither secret nor stable — it is re-minted on every
+  run, and baking one in would have failed the drift check on the next run rather than on a real
+  shape change.

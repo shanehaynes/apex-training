@@ -1,0 +1,10 @@
+{
+  "coros": {
+    "status": "connected",
+    "lastSyncedAt": "<timestamp>",
+    "connectedAt": "<timestamp>",
+    "autoSync": true,
+    "pendingFillCount": 0,
+    "configured": true
+  }
+}

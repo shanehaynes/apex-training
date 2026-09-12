@@ -9,6 +9,18 @@ vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
 vi.mock('../_lib/auth.js', () => ({ requireUser: vi.fn(async () => 'user-123') }));
 vi.mock('../_lib/rateLimit.js', () => ({ enforceRateLimit: vi.fn(async () => true) }));
 
+// connect-start otherwise needs COROS env and a live discovery fetch. Only the
+// two calls that reach outside are replaced; generateState/generatePkce stay
+// real so the row the handler writes is the row production would write.
+vi.mock('../_lib/providers/coros/oauth.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../_lib/providers/coros/oauth.js')>()),
+  isCorosConfigured: vi.fn(() => corosConfigured),
+  buildAuthorizeUrl: vi.fn(async () => 'https://open.coros.com/oauth2/authorize?stub=1'),
+}));
+
+/** Flipped per test; the 503 path still has to be reachable. */
+let corosConfigured = false;
+
 const mockedAdmin = vi.mocked(getSupabaseAdmin);
 
 interface Row { [k: string]: unknown }
@@ -51,6 +63,7 @@ let state: AdminState;
 beforeEach(() => {
   state = { connections: [] };
   mockedAdmin.mockReturnValue(makeAdmin(state));
+  corosConfigured = false;
   delete process.env.COROS_CLIENT_ID;
   delete process.env.COROS_REDIRECT_URI;
 });
@@ -110,6 +123,35 @@ describe('provider-sync handler', () => {
     const { res, body } = makeRes();
     await handler(makeReq({ action: 'disconnect', provider: 'coros' }), res);
     expect(body()).toEqual({ ok: true });
+    expect(state.connections).toEqual([]);
+  });
+
+  // W11 (phase41): the callback has no JWT, so the pending row is the only
+  // place it can learn which client to redirect back to.
+  it("connect-start persists client 'ios' on the pending row", async () => {
+    corosConfigured = true;
+    const { res, statusCode } = makeRes();
+    await handler(makeReq({ action: 'connect-start', provider: 'coros', client: 'ios' }), res);
+    expect(statusCode()).toBe(200);
+    expect(state.connections[0]).toMatchObject({ status: 'pending', client: 'ios' });
+  });
+
+  it('connect-start without a client persists null, not an absent column', async () => {
+    corosConfigured = true;
+    const { res, statusCode } = makeRes();
+    await handler(makeReq({ action: 'connect-start', provider: 'coros' }), res);
+    expect(statusCode()).toBe(200);
+    // Explicitly null rather than missing: the upsert replaces the row, so an
+    // 'ios' value left by an abandoned attempt must not survive a web connect.
+    expect(state.connections[0]).toHaveProperty('client', null);
+  });
+
+  it('400s an unknown client instead of storing it', async () => {
+    corosConfigured = true;
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq({ action: 'connect-start', provider: 'coros', client: 'android' }), res);
+    expect(statusCode()).toBe(400);
+    expect(body()).toBe('Unknown client');
     expect(state.connections).toEqual([]);
   });
 });

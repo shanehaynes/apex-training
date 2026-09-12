@@ -1,0 +1,44 @@
+{
+  "entries": [
+    {
+      "source": "event",
+      "operation": "update_instance",
+      "title": "Fixture Push Day",
+      "event_date": "2026-09-09",
+      "triggered_by": "ai",
+      "logged_at": "<timestamp>"
+    },
+    {
+      "source": "event",
+      "operation": "create",
+      "title": "Fixture Push Day",
+      "event_date": "2026-09-08",
+      "triggered_by": "user",
+      "logged_at": "<timestamp>"
+    },
+    {
+      "source": "definition",
+      "operation": "archive",
+      "title": "Fixture Press",
+      "event_date": null,
+      "triggered_by": "user",
+      "logged_at": "<timestamp>"
+    },
+    {
+      "source": "block",
+      "operation": "create",
+      "title": "Fixture Base Block",
+      "event_date": null,
+      "triggered_by": "ai",
+      "logged_at": "<timestamp>"
+    },
+    {
+      "source": "objective",
+      "operation": "update",
+      "title": "Fixture Spring Objective",
+      "event_date": null,
+      "triggered_by": "user",
+      "logged_at": "<timestamp>"
+    }
+  ]
+}

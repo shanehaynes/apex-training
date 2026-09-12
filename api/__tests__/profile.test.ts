@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import handler from '../_lib/handlers/profile';
 import { keyLast4 } from '../_lib/anthropicKey';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
+import { COACH_MODELS } from '../../src/lib/coach/models';
 
 const { modelsList } = vi.hoisted(() => ({ modelsList: vi.fn() }));
 
@@ -43,7 +44,21 @@ interface AdminState {
   profileUpdate?: Record<string, unknown>;
   /** The profiles row GET reads for the coach model; undefined = null column. */
   coachModel?: string | null;
+  /** The rest of the profiles row GET now returns (W11); undefined = all null. */
+  profile?: Record<string, unknown>;
 }
+
+/** Every profiles column GET reads, all null unless a test sets one. */
+const EMPTY_PROFILE = {
+  display_name: null, avatar_key: null, coach_goal: null,
+  coach_context: null, max_hr: null, threshold_hr: null, ics_token: null,
+};
+
+/** GET's response minus the fields each test is actually about. */
+const PROFILE_DEFAULTS = {
+  displayName: null, avatarKey: null, coachGoal: null, coachContext: null,
+  maxHr: null, thresholdHr: null, calendarFeedUrl: null,
+};
 
 // Minimal chainable fake covering exactly the query shapes profile.ts uses.
 function makeAdmin(state: AdminState) {
@@ -53,7 +68,7 @@ function makeAdmin(state: AdminState) {
       // before .maybeSingle().
       const rowFor = (t: string) => {
         if (t === 'terms_acceptances') return state.acceptance ?? null;
-        if (t === 'profiles') return { coach_model: state.coachModel ?? null };
+        if (t === 'profiles') return { ...EMPTY_PROFILE, ...state.profile, coach_model: state.coachModel ?? null };
         return state.key ? { anthropic_api_key: state.key } : null;
       };
       return {
@@ -88,7 +103,9 @@ function makeAdmin(state: AdminState) {
 }
 
 function makeReq(method: string, body?: unknown): VercelRequest {
-  return { method, headers: {}, body } as unknown as VercelRequest;
+  // publicOrigin() falls back to the request host when VITE_PUBLIC_ORIGIN is
+  // unset, which is what calendarFeedUrl is built from.
+  return { method, headers: { host: 'apex.test' }, body } as unknown as VercelRequest;
 }
 
 function makeRes() {
@@ -128,6 +145,8 @@ describe('GET /api/profile', () => {
     expect(body()).toEqual({
       hasAnthropicKey: false, anthropicKeyLast4: null,
       coachModel: null, coachModelLabel: 'Opus 4.8',
+      ...PROFILE_DEFAULTS,
+      coachModels: expect.any(Array),
       termsAccepted: null, termsCurrent: false,
     });
   });
@@ -140,6 +159,8 @@ describe('GET /api/profile', () => {
     expect(body()).toEqual({
       hasAnthropicKey: true, anthropicKeyLast4: 'tail',
       coachModel: null, coachModelLabel: 'Opus 4.8',
+      ...PROFILE_DEFAULTS,
+      coachModels: expect.any(Array),
       termsAccepted: null, termsCurrent: false,
     });
     expect(JSON.stringify(body())).not.toContain('secret');
@@ -158,6 +179,66 @@ describe('GET /api/profile', () => {
     const retired = makeRes();
     await handler(makeReq('GET'), retired.res);
     expect(retired.body()).toMatchObject({ coachModel: 'claude-retired-1', coachModelLabel: 'Opus 4.8' });
+  });
+
+  // W11: the You tab needs the whole profiles row, and the native app reads it
+  // from here rather than over RLS (the W6 precedent, one endpoint wider).
+  it('returns the profile row fields the You tab renders', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({
+      key: null,
+      profile: {
+        display_name: 'Alex', avatar_key: 'ibex', coach_goal: 'Ski tour Rainier',
+        coach_context: 'Bad left knee', max_hr: 190, threshold_hr: 170,
+      },
+    }));
+    const { res, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(body()).toMatchObject({
+      displayName: 'Alex', avatarKey: 'ibex', coachGoal: 'Ski tour Rainier',
+      coachContext: 'Bad left knee', maxHr: 190, thresholdHr: 170,
+    });
+  });
+
+  // Composed server-side so no client has to know how the feed URL is spelled;
+  // the bare ics_token never ships on its own.
+  it('composes the calendar feed URL from the request origin', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({
+      key: null,
+      profile: { ics_token: '11111111-2222-3333-4444-555555555555' },
+    }));
+    const { res, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(body()).toMatchObject({
+      calendarFeedUrl: 'https://apex.test/api/calendar-feed?token=11111111-2222-3333-4444-555555555555',
+    });
+    expect(body()).not.toHaveProperty('icsToken');
+  });
+
+  it('leaves the feed URL null when the row has no token yet', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({ key: null }));
+    const { res, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(body()).toMatchObject({ calendarFeedUrl: null });
+  });
+
+  // The picker's options come from the server so a native client never
+  // hand-ports the catalog (D-008). `params` is a request shape, not a
+  // picker's business, and must not leak into it.
+  it('serves the coach model catalog without request params', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({ key: null }));
+    const { res, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    const models = (body() as { coachModels: Record<string, unknown>[] }).coachModels;
+    expect(models.length).toBe(COACH_MODELS.length);
+    expect(models[0]).toEqual({
+      id: COACH_MODELS[0].id,
+      label: COACH_MODELS[0].label,
+      badge: COACH_MODELS[0].badge,
+      blurb: COACH_MODELS[0].blurb,
+      inputPerMTok: COACH_MODELS[0].inputPerMTok,
+      outputPerMTok: COACH_MODELS[0].outputPerMTok,
+    });
+    expect(models.every(m => !('params' in m))).toBe(true);
   });
 });
 

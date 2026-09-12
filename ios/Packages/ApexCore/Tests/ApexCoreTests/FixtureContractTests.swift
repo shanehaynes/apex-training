@@ -206,6 +206,87 @@ final class FixtureContractTests: XCTestCase {
     }
 
     /// A profile cached by a build that predates the coach fields still decodes.
+    // MARK: - W11
+
+    /// The profile fixture now carries the whole `profiles` row and the model
+    /// catalog, so the You tab reads one endpoint instead of the table.
+    func testProfileCarriesTheYouTabFields() throws {
+        let profile = try decode(ProfileResponse.self, from: "profile.json")
+        XCTAssertEqual(profile.displayName, "agent")
+        XCTAssertEqual(profile.avatarKey, "goat")
+        // The seeded user has cleared coach text and no zones set.
+        XCTAssertEqual(profile.coachGoal, "")
+        XCTAssertNil(profile.maxHr)
+        // The emitter scrubs the ics_token, so this pins the shape, not a value.
+        XCTAssertEqual(profile.calendarFeedUrl, "http://localhost/api/calendar-feed?token=<uuid>")
+
+        let models = try XCTUnwrap(profile.coachModels)
+        XCTAssertEqual(models.first?.id, "claude-opus-5")
+        XCTAssertEqual(models.first?.priceLabel, "$5/$25 per Mtok")
+        XCTAssertEqual(models.map(\.label), ["Opus 5", "Opus 4.8", "Sonnet 5", "Haiku 4.5"])
+    }
+
+    /// Every source the feed can carry, and both attribution badges.
+    func testActivityLogDecodes() throws {
+        let log = try decode(ActivityLogResponse.self, from: "mutations-log.json")
+        XCTAssertEqual(log.entries.map(\.source), ["event", "event", "definition", "block", "objective"])
+        let newest = try XCTUnwrap(log.entries.first)
+        XCTAssertEqual(newest.operation, "update_instance")
+        XCTAssertEqual(newest.eventDate, "2026-09-09")
+        XCTAssertFalse(newest.isUserTriggered)
+        XCTAssertTrue(log.entries[1].isUserTriggered)
+        // Only events carry a date.
+        XCTAssertNil(log.entries[2].eventDate)
+    }
+
+    func testConnectorTokensAndConnectedAppsDecode() throws {
+        let listed = try decode(McpTokensResponse.self, from: "mcp-tokens.json")
+        let token = try XCTUnwrap(listed.tokens.first)
+        XCTAssertEqual(token.name, "ios-fixture laptop")
+        XCTAssertNil(token.lastUsedAt)
+        XCTAssertTrue(token.isActive)
+        XCTAssertEqual(listed.activeTokens.count, 1)
+
+        let app = try XCTUnwrap(listed.connections.first)
+        XCTAssertEqual(app.clientId, "ios-fixture-client-1")
+        XCTAssertEqual(app.id, app.clientId)
+
+        // The one-time reveal. Both values are scrubbed by the emitter.
+        let minted = try decode(MintedMcpToken.self, from: "mcp-token-mint.json")
+        XCTAssertEqual(minted.token, "<token>")
+    }
+
+    func testProviderStatusDecodes() throws {
+        let status = try decode(ProviderStatusResponse.self, from: "provider-status.json")
+        XCTAssertEqual(status.coros.known, .connected)
+        XCTAssertTrue(status.coros.configured)
+        XCTAssertTrue(status.coros.autoSync)
+        XCTAssertEqual(status.coros.pendingFillCount, 0)
+    }
+
+    /// The proposal list is what the confirmation queue walks: a matched
+    /// activity asks, an unmatched one imports without asking.
+    func testSyncPreviewAndApplyDecode() throws {
+        let preview = try decode(SyncPreviewResponse.self, from: "provider-preview.json")
+        XCTAssertEqual(preview.proposals.count, 2)
+
+        let fill = try XCTUnwrap(preview.proposals.first)
+        XCTAssertTrue(fill.needsConfirmation)
+        XCTAssertEqual(fill.activity.id, fill.activity.activityId)
+        // Quantities arrive pre-formatted with units — never a bare number.
+        XCTAssertEqual(fill.activity.distance, "5.20 mi")
+        XCTAssertEqual(try XCTUnwrap(fill.match).eventId, "ios-fixture-planned-run")
+
+        let create = preview.proposals[1]
+        XCTAssertFalse(create.needsConfirmation)
+        XCTAssertNil(create.match)
+
+        let outcome = try decode(SyncApplyOutcome.self, from: "provider-apply.json")
+        XCTAssertEqual(outcome.created, 1)
+        XCTAssertEqual(outcome.filled, 1)
+        XCTAssertTrue(outcome.errors.isEmpty)
+    }
+
     func testProfileWithoutCoachFieldsDecodes() throws {
         let legacy = #"{"hasAnthropicKey":true,"anthropicKeyLast4":"abcd","termsAccepted":null,"termsCurrent":true}"#
         let profile = try JSONDecoder().decode(ProfileResponse.self, from: Data(legacy.utf8))

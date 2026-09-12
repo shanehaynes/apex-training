@@ -114,4 +114,19 @@ final class DeepLinkTests: XCTestCase {
         XCTAssertEqual(parse("apextraining://connect_error?provider=coros&message=denied"),
                        .connectError(provider: "coros", message: "denied"))
     }
+
+    /// W11: /api/provider-callback sends a `reason` code, not `message`. The
+    /// older keys stay in the chain, and `reason` wins when more than one is
+    /// present.
+    func testConnectErrorPrefersTheCallbacksReasonCode() {
+        for reason in ["denied", "missing_code", "expired", "exchange_failed"] {
+            XCTAssertEqual(parse("apextraining://connect_error?provider=coros&reason=\(reason)"),
+                           .connectError(provider: "coros", message: reason))
+        }
+        XCTAssertEqual(parse("apextraining://connect_error?provider=coros&reason=expired&message=old"),
+                       .connectError(provider: "coros", message: "expired"))
+        // A bare failure still parses — the app shows its generic copy.
+        XCTAssertEqual(parse("apextraining://connect_error"),
+                       .connectError(provider: nil, message: nil))
+    }
 }

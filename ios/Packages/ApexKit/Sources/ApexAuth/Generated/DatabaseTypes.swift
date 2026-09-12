@@ -1243,6 +1243,7 @@ internal enum PublicSchema {
   internal struct ProviderConnectionsSelect: Codable, Hashable, Sendable {
     internal let accessToken: String?
     internal let autoSync: Bool
+    internal let client: String?
     internal let connectedAt: String?
     internal let lastSyncedAt: String?
     internal let pendingFillCount: Int32
@@ -1257,6 +1258,7 @@ internal enum PublicSchema {
     internal enum CodingKeys: String, CodingKey {
       case accessToken = "access_token"
       case autoSync = "auto_sync"
+      case client = "client"
       case connectedAt = "connected_at"
       case lastSyncedAt = "last_synced_at"
       case pendingFillCount = "pending_fill_count"
@@ -1273,6 +1275,7 @@ internal enum PublicSchema {
   internal struct ProviderConnectionsInsert: Codable, Hashable, Sendable {
     internal let accessToken: String?
     internal let autoSync: Bool?
+    internal let client: String?
     internal let connectedAt: String?
     internal let lastSyncedAt: String?
     internal let pendingFillCount: Int32?
@@ -1287,6 +1290,7 @@ internal enum PublicSchema {
     internal enum CodingKeys: String, CodingKey {
       case accessToken = "access_token"
       case autoSync = "auto_sync"
+      case client = "client"
       case connectedAt = "connected_at"
       case lastSyncedAt = "last_synced_at"
       case pendingFillCount = "pending_fill_count"
@@ -1303,6 +1307,7 @@ internal enum PublicSchema {
   internal struct ProviderConnectionsUpdate: Codable, Hashable, Sendable {
     internal let accessToken: String?
     internal let autoSync: Bool?
+    internal let client: String?
     internal let connectedAt: String?
     internal let lastSyncedAt: String?
     internal let pendingFillCount: Int32?
@@ -1317,6 +1322,7 @@ internal enum PublicSchema {
     internal enum CodingKeys: String, CodingKey {
       case accessToken = "access_token"
       case autoSync = "auto_sync"
+      case client = "client"
       case connectedAt = "connected_at"
       case lastSyncedAt = "last_synced_at"
       case pendingFillCount = "pending_fill_count"

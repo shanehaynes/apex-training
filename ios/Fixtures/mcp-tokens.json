@@ -1,0 +1,19 @@
+{
+  "tokens": [
+    {
+      "id": "<uuid>",
+      "name": "ios-fixture laptop",
+      "token_last4": "<last4>",
+      "created_at": "<timestamp>",
+      "last_used_at": null,
+      "revoked_at": null
+    }
+  ],
+  "connections": [
+    {
+      "client_id": "ios-fixture-client-1",
+      "name": "ios-fixture Claude Desktop",
+      "created_at": "<timestamp>"
+    }
+  ]
+}

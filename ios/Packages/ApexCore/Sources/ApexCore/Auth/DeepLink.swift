@@ -48,9 +48,15 @@ public enum DeepLink: Equatable, Sendable {
             case "connected":
                 return .connected(provider: value("provider", in: components.queryItems) ?? "")
             case "connect_error":
+                // `reason` is what /api/provider-callback actually sends (W11):
+                // a short code — denied · missing_code · expired ·
+                // exchange_failed — not prose. `message` and `error` stay in
+                // the chain because a provider redirect can carry either.
                 return .connectError(
                     provider: value("provider", in: components.queryItems),
-                    message: value("message", in: components.queryItems) ?? value("error", in: components.queryItems)
+                    message: value("reason", in: components.queryItems)
+                        ?? value("message", in: components.queryItems)
+                        ?? value("error", in: components.queryItems)
                 )
             // `apextraining://app/...` mirrors the universal `/app/...` routes,
             // so anything in the app itself (the Live Activity) can link without

@@ -219,17 +219,36 @@ Wraps `blocks/cadence.ts` (`CycleSpecError`, overlap checks). Web switches its p
 
 ## W11 — profile, COROS, account (Linux + Mac)
 
-- **Account deletion already exists**: `DELETE /api/account` (PR #93, `api/_lib/handlers/account.ts`,
-  with `USER_DATA_TABLES` and a test that fails if a migration adds a user table it misses).
-  iOS surfaces it in W11; no backend work. App Store guideline 5.1.1(v).
+Landed 2026-09-11 (`phase41_provider_client.sql`, `handlers/providerSync.ts`,
+`handlers/providerCallback.ts`, `handlers/profile.ts`, `providers/connection.ts`).
+
+- **Account deletion already exists**: `DELETE /api/account` (PR #93, `api/_lib/handlers/account.ts`).
+  iOS surfaces it in W11; no backend work. App Store guideline 5.1.1(v). Note the coverage test
+  in `account.test.ts` reaches `provider_connections` through `REDACTED_TABLES`, not
+  `USER_DATA_TABLES` — the encrypted OAuth tokens are deliberately left out of the *export*,
+  while deletion rides the `ON DELETE CASCADE` on `auth.users`.
 - **COROS from the app**: `provider-sync connect-start { client: 'ios' }` persisted on the
-  pending `provider_connections` row (**migration: `provider_connections.client text`**, claim
-  the number with `scripts/next-phase.sh` at PR time), and `providerCallback.ts` redirects that
-  client to `apextraining://connected?provider=coros` (or `…/connect_error`). Universal links
-  alone do not suffice: `ASWebAuthenticationSession` https callbacks need iOS 17.4 and the
-  callback lands on `/`, which the AASA must not match.
-- **Recovery redirect**: add `https://apextrainingcalendar.vercel.app/auth/callback` to Supabase
-  Additional Redirect URLs (dashboard, Shane) and assert it in `scripts/auth-redirect-check.sh`.
+  pending `provider_connections` row (**migration phase41: `provider_connections.client text`**,
+  nullable, no CHECK), and `providerCallback.ts` redirects that client to
+  `apextraining://connected?provider=coros` / `apextraining://connect_error?provider=coros&reason=<code>`.
+  Universal links alone do not suffice: `ASWebAuthenticationSession` https callbacks need iOS 17.4
+  and the callback lands on `/`, which the AASA must not match.
+  The callback now resolves the pending row **before** every failure branch, because that row is
+  the only record of the client and a declined or expired connect has to close the in-app browser
+  too — `findPendingByState` returns a `PendingLookup` carrying `client` on both arms. Reasons are
+  `denied` · `missing_code` · `expired` · `exchange_failed`, iOS only; the web keeps
+  `/?connected=coros` and `/?connect_error=coros` byte-identical at 302, with no `reason` param.
+  `client` is written on every connect-start including the web's (as null), since the pending row
+  is an upsert on `(user_id, provider)`.
+- **`GET /api/profile` widened** (additive; the web ignores the new keys and still reads its own
+  `profiles` row over RLS). Adds `displayName`, `avatarKey`, `coachGoal`, `coachContext`, `maxHr`,
+  `thresholdHr`, a server-composed `calendarFeedUrl` (`publicOrigin(req)` + the row's `ics_token`,
+  so the bare token never ships and no client learns the URL's spelling), and `coachModels` — the
+  `src/lib/coach/models.ts` catalog minus `params`, so the native picker does not hand-port it
+  (D-008). Same call W6 made for the model badge, one endpoint wider.
+- **Recovery redirect**: **done** — `scripts/auth-redirect-check.sh` already asserts
+  `https://apextrainingcalendar.vercel.app/auth/callback`, and all five checks pass (Shane added
+  it to the Supabase allow-list 2026-09-09).
 - **Invite hand-off (W2, web)**: the SPA root shows "Open in the Apex app" when the hash carries
   `type=invite`, linking to `apextraining://auth#<same hash>`.
 
@@ -253,4 +272,5 @@ Wraps `blocks/cadence.ts` (`CycleSpecError`, overlap checks). Web switches its p
 | `workout-draft`, supersets in services, `originalDate` | W7 | draft.ts, templates.ts, mapping.ts, supersets.ts | later | writes | 300 | — |
 | `blocks?resource=cycle` | W10 | cadence.ts | yes | writes | 60 | — |
 | account deletion | W11 | exists: `DELETE /api/account` | — | — | 0 | — |
-| COROS `client:'ios'` + scheme redirect | W11 | providers/* | no | providerSync | 40 | **yes** (`provider_connections.client`) |
+| COROS `client:'ios'` + scheme redirect | W11 | providers/* | no | providerSync | 40 | **yes** (phase41 `provider_connections.client`) |
+| `GET /api/profile` widened (profiles row, feed URL, model catalog) | W11 | models.ts, oauth/common.ts | no | — | 50 | — |

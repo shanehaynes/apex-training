@@ -352,4 +352,154 @@ public struct Endpoint: Sendable, Equatable {
     private static func sessions<T: Encodable>(_ body: T) -> Endpoint {
         Endpoint(method: .post, path: "api/workout-sessions", body: json(body))
     }
+
+    // MARK: - W11 profile, integrations, account
+    //
+    // The profile writes are all PATCH /api/profile against a snake_case
+    // allowlist (`api/_lib/handlers/profile.ts`): an unknown key is a 400, so
+    // each factory sends exactly the keys its edit owns. Fields that can be
+    // CLEARED go through [String: JSONValue] rather than an Encodable struct,
+    // because Encodable omits a nil and the server needs an explicit null to
+    // tell "leave it alone" from "unset it" — the setAnthropicKey precedent.
+
+    private static func profilePatch(_ fields: [String: JSONValue]) -> Endpoint {
+        Endpoint(method: .patch, path: "api/profile", body: json(fields))
+    }
+
+    /// 1–80 characters after trimming; the server stores it trimmed.
+    public static func setDisplayName(_ name: String) -> Endpoint {
+        profilePatch(["display_name": .string(name)])
+    }
+
+    /// One of the 24 keys in the server's `AVATAR_KEYS`; anything else is a 400.
+    public static func setAvatarKey(_ key: String) -> Endpoint {
+        profilePatch(["avatar_key": .string(key)])
+    }
+
+    /// Both zones in one write, which is how the section saves. nil clears a
+    /// zone (max 100–250, threshold 80–230 when set).
+    public static func setHeartRateZones(maxHr: Int?, thresholdHr: Int?) -> Endpoint {
+        profilePatch([
+            "max_hr": maxHr.map { .number(Double($0)) } ?? .null,
+            "threshold_hr": thresholdHr.map { .number(Double($0)) } ?? .null,
+        ])
+    }
+
+    /// The coach's standing goal and context. `""` is a valid value — clearing
+    /// either is an edit, not an omission — so they are sent as given.
+    public static func setCoachProfile(goal: String, context: String) -> Endpoint {
+        profilePatch(["coach_goal": .string(goal), "coach_context": .string(context)])
+    }
+
+    /// Which model the coach runs on. nil clears the pick, putting the user
+    /// back on the server's default.
+    public static func setCoachModel(_ id: String?) -> Endpoint {
+        profilePatch(["coach_model": id.map(JSONValue.string) ?? .null])
+    }
+
+    /// A one-way latch — there is no un-dismiss, and only `true` is accepted.
+    public static let dismissOnboarding = Endpoint(
+        method: .patch, path: "api/profile", body: json(["onboarding_dismissed": JSONValue.bool(true)])
+    )
+
+    /// The activity log: the three audit tables merged newest-first, capped at
+    /// 100 server-side. No paging and no parameters.
+    public static let mutationsLog = Endpoint(path: "api/mutations-log")
+
+    /// Active and revoked personal access tokens, plus the OAuth clients the
+    /// user has connected.
+    public static let mcpTokens = Endpoint(path: "api/mcp-tokens")
+
+    /// Mint a token. The response carries the plaintext exactly once — show it,
+    /// then it is unrecoverable.
+    public static func mintMcpToken(name: String) -> Endpoint {
+        struct Body: Encodable { let name: String }
+        return Endpoint(method: .post, path: "api/mcp-tokens", body: json(Body(name: name)))
+    }
+
+    /// Revoke one token. It stays in the list as revoked; nothing is deleted.
+    public static func revokeMcpToken(id: String) -> Endpoint {
+        Endpoint(method: .delete, path: "api/mcp-tokens", query: [URLQueryItem(name: "id", value: id)])
+    }
+
+    /// Disconnect an app: revokes every live token for that client at once.
+    /// `client_id` takes precedence over `id` server-side, so it travels alone.
+    public static func disconnectApp(clientId: String) -> Endpoint {
+        Endpoint(method: .delete, path: "api/mcp-tokens", query: [URLQueryItem(name: "client_id", value: clientId)])
+    }
+
+    /// Delete the account and everything that cascades from it (App Store
+    /// guideline 5.1.1(v)). The confirmation string is the server's guard
+    /// against a stray DELETE — the typed confirmation in the UI is separate.
+    public static let deleteAccount = Endpoint(
+        method: .delete, path: "api/account", body: json(["confirm": "DELETE"])
+    )
+
+    // Provider sync is one POST route with a `body.action` discriminator
+    // (`api/_lib/handlers/providerSync.ts`), the workoutSessions shape.
+
+    private static func providerSync<T: Encodable>(_ body: T) -> Endpoint {
+        Endpoint(method: .post, path: "api/provider-sync", body: json(body))
+    }
+
+    /// Connection state for every provider. The only action that needs no
+    /// `provider`, and the only one outside the rate limit.
+    public static let providerStatus = Endpoint(
+        method: .post, path: "api/provider-sync", body: json(["action": "status"])
+    )
+
+    /// Begin the OAuth dance. `client: "ios"` is recorded on the pending row so
+    /// the callback redirects to `apextraining://connected` instead of the web
+    /// app (phase41) — which is the only thing that closes the
+    /// `ASWebAuthenticationSession` the authorize URL is opened in.
+    public static func providerConnectStart(provider: String = "coros", client: String? = "ios") -> Endpoint {
+        struct Body: Encodable {
+            let action = "connect-start"
+            let provider: String
+            let client: String?
+        }
+        return providerSync(Body(provider: provider, client: client))
+    }
+
+    /// Drop the connection row. The imported activities and their streams stay.
+    public static func providerDisconnect(provider: String = "coros") -> Endpoint {
+        struct Body: Encodable {
+            let action = "disconnect"
+            let provider: String
+        }
+        return providerSync(Body(provider: provider))
+    }
+
+    /// The nightly-sync opt-out.
+    public static func providerAutoSync(enabled: Bool, provider: String = "coros") -> Endpoint {
+        struct Body: Encodable {
+            let action = "set-auto-sync"
+            let provider: String
+            let enabled: Bool
+        }
+        return providerSync(Body(provider: provider, enabled: enabled))
+    }
+
+    /// What a sync would do. Writes nothing. `timezone` is a required IANA
+    /// zone — it is what places each activity on a calendar date.
+    public static func providerPreview(timezone: String, provider: String = "coros") -> Endpoint {
+        struct Body: Encodable {
+            let action = "preview"
+            let provider: String
+            let timezone: String
+        }
+        return providerSync(Body(provider: provider, timezone: timezone))
+    }
+
+    /// Execute the settled decisions — one call for the whole queue, never one
+    /// per card. 1–100 decisions, each activity at most once.
+    public static func providerApply(timezone: String, decisions: [SyncDecision], provider: String = "coros") -> Endpoint {
+        struct Body: Encodable {
+            let action = "apply"
+            let provider: String
+            let timezone: String
+            let decisions: [SyncDecision]
+        }
+        return providerSync(Body(provider: provider, timezone: timezone, decisions: decisions))
+    }
 }
