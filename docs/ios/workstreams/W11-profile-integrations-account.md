@@ -1,7 +1,7 @@
 # W11 — Profile, integrations, account
 
 **Machine:** both · **Depends on:** W1 (W2 for realtime-aware sync results) · **Unblocks:** W13
-**Status:** blocked on W1
+**Status:** backend in review (PR pending, `feat/w11-backend`) · You tab UI is the Mac session's
 
 ## Goal
 The You tab root and every integration the web profile offers, plus the App Store's
@@ -35,4 +35,36 @@ Out: push (Backlog).
 - Snapshots: You root, key section, token reveal, sync confirmation sheet.
 
 ## Session log
-- (none yet)
+- 2026-09-11 · backend (Linux) · The half the Mac cannot prove. **Migration** `phase41_provider_client.sql`
+  (`provider_connections.client`, nullable, no CHECK — the phase38 call); `connect-start` takes
+  `{ client: 'ios' }`, validates it beside `provider` and ahead of the rate limit, and `beginOAuth`
+  writes it unconditionally so an abandoned iOS attempt cannot redirect a later web connect.
+  **`providerCallback`** now reads the pending row *before* every failure branch — it is the only
+  place the client is recorded, and the two commonest failures (declining at COROS, and a consent
+  screen left past the 10-minute TTL) have to dismiss `ASWebAuthenticationSession` just as a
+  success does. That needed `findPendingByState` to return a `PendingLookup` carrying `client` on
+  both arms; an expired row otherwise stranded the in-app browser on a web page. Reasons:
+  `denied` · `missing_code` · `expired` · `exchange_failed`, iOS only — the web's
+  `/?connected=coros` and `/?connect_error=coros` are byte-identical, 302, no `reason` param.
+  **`GET /api/profile` widened** to the rest of the `profiles` row plus a server-composed
+  `calendarFeedUrl` and the coach model catalog, so the You tab reads one endpoint rather than the
+  table and nobody hand-ports `models.ts` (the W6 precedent, D-008). **Tests**: `providerCallback`
+  had none — it has ten now; `provider-sync` covers persist/null/400. **Fixtures**: six new
+  (`mutations-log`, `mcp-tokens`, `mcp-token-mint`, `provider-status`, `provider-preview`,
+  `provider-apply`) plus a regenerated `profile.json`, emitted on agent2 because the connection row
+  and the token list are per-user singletons that other files in the directory already own on
+  agent. Two scrubbing rules added to `normalize()`: a uuid inside a `?token=` URL (the feed URL
+  would have committed a working ICS token) and the minted PAT — plus `token_last4`, which is
+  re-minted every run and would have failed the drift check rather than a real shape change.
+  **ApexCore**: 20 endpoints, the `Integrations.swift` models, `ProfileResponse` + 8 optionals, and
+  a `DeepLink` fix — `.connectError` parsed `message`/`error` but never `reason`, so the callback's
+  code would have decoded to nil. 321 `swift test` green (swift:6.1 in Docker; no native toolchain
+  on this machine).
+- Scope items closed with no code: `scripts/auth-redirect-check.sh` already asserts
+  `/auth/callback` and passes all five checks (Shane added it 2026-09-09); `DELETE /api/account`
+  needs nothing, and `provider_connections` is covered by the `account.test.ts` sweep through
+  `REDACTED_TABLES` — deliberately excluded from the *export* because the tokens are encrypted,
+  while deletion rides `ON DELETE CASCADE`.
+- Left for the Mac session: every screen in Scope above, the four snapshots in Acceptance, the
+  device runs (COROS connect inside the app, a fill, a bad key), and `ProviderSyncControls`-style
+  copy. The Endpoint cases and models it consumes are all in this PR.

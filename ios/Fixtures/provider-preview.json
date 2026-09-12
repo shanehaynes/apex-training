@@ -1,0 +1,36 @@
+{
+  "proposals": [
+    {
+      "activity": {
+        "activityId": "ios-fixture-run-1",
+        "sportLabel": "Trail Run",
+        "apexType": "cardio",
+        "localDate": "2026-09-09",
+        "displayTime": "7:05 AM",
+        "durationMin": 47,
+        "distance": "5.20 mi",
+        "avgHr": 152
+      },
+      "match": {
+        "eventId": "ios-fixture-planned-run",
+        "eventDate": "2026-09-09",
+        "title": "Planned Morning Run",
+        "startTime": "7:00 AM",
+        "type": "cardio"
+      }
+    },
+    {
+      "activity": {
+        "activityId": "ios-fixture-ride-1",
+        "sportLabel": "Bike",
+        "apexType": "cardio",
+        "localDate": "2026-09-09",
+        "displayTime": "3:40 PM",
+        "durationMin": 90,
+        "distance": "18.64 mi",
+        "avgHr": 138
+      },
+      "match": null
+    }
+  ]
+}

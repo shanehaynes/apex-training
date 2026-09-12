@@ -5,7 +5,8 @@ import { getAnthropicKey, keyLast4, validateAnthropicKey } from '../anthropicKey
 import { encryptSecret, hasEncryptionSecret } from '../keyCrypto.js';
 import { enforceRateLimit } from '../rateLimit.js';
 import { isCurrent, latestAcceptance } from '../legal.js';
-import { isCoachModelId, resolveCoachModel } from '../../../src/lib/coach/models.js';
+import { COACH_MODELS, isCoachModelId, resolveCoachModel } from '../../../src/lib/coach/models.js';
+import { publicOrigin } from '../oauth/common.js';
 
 // Profile reads/writes, same posture as every other table: the browser
 // reads profiles via RLS (own row only) and mutates through this
@@ -30,21 +31,50 @@ async function keyStatus(supabase: NonNullable<ReturnType<typeof getSupabaseAdmi
   return { hasAnthropicKey: key !== null, anthropicKeyLast4: key ? keyLast4(key) : null };
 }
 
-// The coach model, for clients that do not read the profiles row directly
-// (the native app — W6). `coachModel` is the stored column as is (null =
-// follow the default); `coachModelLabel` is what a badge shows, resolved the
-// same way /api/chat resolves the request body, so a retired id reads as the
-// default it will actually run on.
-async function coachModelStatus(supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>, userId: string) {
+// The profiles row, for clients that do not read it directly. The web reads
+// it over RLS through AuthContext; the native app does not (W6 put the coach
+// model here for exactly that reason — "so the native app's badge never reads
+// the profiles row directly"), and W11's You tab needs the rest of it.
+//
+// `coachModel` is the stored column as is (null = follow the default);
+// `coachModelLabel` is what a badge shows, resolved the same way /api/chat
+// resolves the request body, so a retired id reads as the default it will
+// actually run on.
+//
+// `calendarFeedUrl` is composed here rather than shipping the bare ics_token,
+// so no client has to know how the feed URL is spelled — the web builds the
+// same string in ProfileView.tsx. It is the same secret the browser already
+// holds via the profiles row, not a new exposure, and it is only ever sent to
+// the authenticated owner of the row.
+async function profileFields(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>, userId: string, req: VercelRequest,
+) {
   const { data, error } = await supabase
     .from('profiles')
-    .select('coach_model')
+    .select('display_name, avatar_key, coach_goal, coach_context, coach_model, max_hr, threshold_hr, ics_token')
     .eq('id', userId)
     .maybeSingle();
   if (error) throw new Error(error.message);
   const stored = typeof data?.coach_model === 'string' ? data.coach_model : null;
-  return { coachModel: stored, coachModelLabel: resolveCoachModel(stored).label };
+  return {
+    displayName: data?.display_name ?? null,
+    avatarKey: data?.avatar_key ?? null,
+    coachGoal: data?.coach_goal ?? null,
+    coachContext: data?.coach_context ?? null,
+    maxHr: data?.max_hr ?? null,
+    thresholdHr: data?.threshold_hr ?? null,
+    coachModel: stored,
+    coachModelLabel: resolveCoachModel(stored).label,
+    calendarFeedUrl: data?.ics_token ? `${publicOrigin(req)}/api/calendar-feed?token=${data.ics_token}` : null,
+  };
 }
+
+// The picker's options, so a native client never hand-ports the catalog
+// (D-008). `params` is deliberately omitted: it is a server request shape,
+// not something a picker renders.
+const coachModelCatalog = () => COACH_MODELS.map(({ id, label, badge, blurb, inputPerMTok, outputPerMTok }) => ({
+  id, label, badge, blurb, inputPerMTok, outputPerMTok,
+}));
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET' && req.method !== 'PATCH') {
@@ -67,14 +97,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'GET') {
     try {
-      const [keys, accepted, model] = await Promise.all([
+      const [keys, accepted, fields] = await Promise.all([
         keyStatus(supabase, userId),
         latestAcceptance(supabase, userId),
-        coachModelStatus(supabase, userId),
+        profileFields(supabase, userId, req),
       ]);
       res.status(200).json({
         ...keys,
-        ...model,
+        ...fields,
+        coachModels: coachModelCatalog(),
         termsAccepted: accepted,
         termsCurrent: isCurrent(accepted),
       });

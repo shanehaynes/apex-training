@@ -25,6 +25,8 @@ import coachSummaryHandler from '../../_lib/handlers/coachSummary';
 import coachToolHandler from '../../_lib/handlers/coachTool';
 import analyticsComputeHandler from '../../_lib/handlers/analyticsCompute';
 import workoutDraftHandler from '../../_lib/handlers/workoutDraft';
+import mutationsLogHandler from '../../_lib/handlers/mutationsLog';
+import mcpTokensHandler from '../../_lib/handlers/mcpTokens';
 import { emptyDraft } from '../../../src/lib/builder/draft';
 import { buildChatContext } from '../../_lib/coach/context';
 import { getSupabaseAdmin } from '../../_lib/supabaseAdmin';
@@ -69,8 +71,52 @@ vi.mock('@anthropic-ai/sdk', () => ({
     };
   }),
 }));
+// W11: preview/apply reach a real watch API, so the COROS client is stubbed
+// the way provider-sync.integration.test.ts stubs it — everything below the
+// client (sport mapping, local-date placement, matching, the writes) is real.
+// Two activities: a trail run that matches a planned event (a FILL, the case
+// the confirmation sheet exists for) and a ride with nothing planned (a
+// CREATE, which needs no confirmation).
+// vi.hoisted because the mock factory runs before this file's own consts are
+// initialised; the test body reads the same values back.
+const SYNC = vi.hoisted(() => ({
+  runUtc: '2026-09-09T14:05:00Z',
+  rideUtc: '2026-09-09T22:40:00Z',
+  runId: 'ios-fixture-run-1',
+  rideId: 'ios-fixture-ride-1',
+}));
+
+vi.mock('../../_lib/providers/coros/client.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../_lib/providers/coros/client.js')>();
+  class StubCorosClient {
+    async fetchRecentActivities() {
+      return [
+        {
+          provider: 'coros' as const, activityId: SYNC.runId, sport: 102,
+          startUtc: SYNC.runUtc, durationSec: 2820,
+          distanceMeters: 8368.6, elevationGainMeters: 250,
+          avgHr: 152, maxHr: 176, calories: 512,
+          summaryExtras: { trainingLoad: 87 },
+          streams: { hr: [[0, 120], [30, 140], [60, 150]] as [number, number][] },
+        },
+        {
+          provider: 'coros' as const, activityId: SYNC.rideId, sport: 200,
+          startUtc: SYNC.rideUtc, durationSec: 5400,
+          distanceMeters: 30000, avgHr: 138,
+          summaryExtras: {},
+        },
+      ];
+    }
+    async fetchActivityDetail() { return null; }
+  }
+  return { ...original, CorosClient: StubCorosClient };
+});
+
 // @ts-expect-error plain-JS helper shared with the seed scripts
 import { localSupabaseEnv } from '../../../scripts/lib/localEnv.mjs';
+
+// Imported AFTER the mock above so providers/sync.ts binds the stub client.
+const { default: providerSyncHandler } = await import('../../_lib/handlers/providerSync');
 
 const RUN = !!process.env.APEX_LOCAL_SUPABASE;
 const WRITE_FIXTURES = !!process.env.APEX_FIXTURES_WRITE;
@@ -123,6 +169,24 @@ const MEAL_IDS = [`${FX}-meal-1`, `${FX}-meal-2`];
 const QUICK_OCCURRENCE = `${EVENT_ID}__2026-09-15`;
 const TRACKED_OCCURRENCE = `${EVENT_ID}__2026-09-22`;
 
+// W11 integration surfaces (provider connection, MCP tokens, mutations log)
+// are all PER-USER SINGLETONS or unprefixed feeds, and agent@apex.local's are
+// already owned by other files in this directory — provider-sync's connection
+// row, mcp's tokens — which vitest runs in parallel with this one. So the You
+// tab's fixtures are emitted for agent2, whose only other job here is proving
+// cross-user isolation. provider-cron.integration.test.ts makes the same move
+// for the same reason.
+const SYNC_TZ = 'America/Los_Angeles';
+const PLANNED_RUN_ID = `${FX}-planned-run`;
+const TOKEN_NAME = `${FX} laptop`;
+const CONNECTED_APP_NAME = `${FX} Claude Desktop`;
+const CONNECTED_APP_CLIENT = `${FX}-client-1`;
+/** Titles the mutations-log fixture is carved out by. */
+const LOG_EVENT_TITLE = 'Fixture Push Day';
+const LOG_DEF_NAME = 'Fixture Press';
+const LOG_BLOCK_NAME = 'Fixture Base Block';
+const LOG_OBJECTIVE_NAME = 'Fixture Spring Objective';
+
 /** Replace volatile values so a fixture is byte-stable across stack resets. */
 function normalize(value: unknown, key = ''): unknown {
   if (Array.isArray(value)) return value.map(v => normalize(v));
@@ -132,8 +196,21 @@ function normalize(value: unknown, key = ''): unknown {
   if (typeof value === 'string') {
     if (/(_at|At)$/.test(key) && /^\d{4}-\d{2}-\d{2}T/.test(value)) return '<timestamp>';
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) return '<uuid>';
-    // Server-minted ids inside prose (tool_result text, labels).
-    return value.replace(/\b(ai|meal)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '$1-<uuid>');
+    // A live credential, not a volatile id: POST /api/mcp-tokens reveals the
+    // plaintext PAT exactly once, and it must never reach a committed file.
+    if (key === 'token') return '<token>';
+    // The displayed tail of a token minted by this very run — as volatile as
+    // a uuid, and a fixture that baked one in would fail the drift check on
+    // the next run rather than on a real shape change.
+    if (key === 'token_last4') return '<last4>';
+    return value
+      // A uuid carried INSIDE a string — the calendar feed URL embeds the
+      // profile's ics_token, and the bare-uuid rule above only fires on a
+      // string that is nothing else. Committing that token would publish a
+      // working feed URL for the fixture user.
+      .replace(/([?&]token=)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '$1<uuid>')
+      // Server-minted ids inside prose (tool_result text, labels).
+      .replace(/\b(ai|meal)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '$1-<uuid>');
   }
   return value;
 }
@@ -180,6 +257,27 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     await admin.from('exercise_definitions').delete().eq('id', DEF_ID);
     await admin.from('activity_streams').delete().like('event_id', `${FX}%`);
     await admin.from('meals').delete().in('id', MEAL_IDS);
+
+    // W11 (agent2's side). The provider rows are a per-user singleton, and
+    // apply writes events keyed `coros-<activityId>` rather than FX-prefixed
+    // ones, so they are named rather than matched.
+    await admin.from('provider_connections').delete().eq('user_id', agent2.userId).eq('provider', 'coros');
+    await admin.from('provider_activity_imports').delete().eq('user_id', agent2.userId);
+    for (const id of [`coros-${SYNC.runId}`, `coros-${SYNC.rideId}`]) {
+      await admin.from('workout_completions').delete().eq('event_id', id);
+      await admin.from('workout_sessions').delete().eq('event_id', id);
+      await admin.from('workout_cardio_logs').delete().eq('event_id', id);
+      await admin.from('activity_streams').delete().eq('event_id', id);
+      await admin.from('workout_events').delete().eq('id', id);
+    }
+    await admin.from('workout_completions').delete().eq('event_id', PLANNED_RUN_ID);
+    await admin.from('workout_sessions').delete().eq('event_id', PLANNED_RUN_ID);
+    await admin.from('workout_cardio_logs').delete().eq('event_id', PLANNED_RUN_ID);
+    await admin.from('activity_streams').delete().eq('event_id', PLANNED_RUN_ID);
+    await admin.from('mcp_tokens').delete().eq('user_id', agent2.userId);
+    await admin.from('event_mutations_log').delete().eq('user_id', agent2.userId);
+    await admin.from('definition_mutations_log').delete().eq('user_id', agent2.userId);
+    await admin.from('block_mutations_log').delete().eq('user_id', agent2.userId);
   }
 
   beforeAll(async () => {
@@ -271,6 +369,60 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
         exercise_name: 'fx press', definition_id: DEF_ID, set_number: 1, actual_weight: '100 lb', actual_reps: '5', is_autofilled: false },
       { user_id: agent.userId, event_id: DONE_OCCURRENCE, event_date: '2026-09-08', section: 'exercise', exercise_id: 'fx-press',
         exercise_name: 'fx press', definition_id: DEF_ID, set_number: 2, actual_weight: '110 lb', actual_reps: '3', is_autofilled: false },
+    ])).error);
+
+    // ---- W11: the You tab's own surfaces, all on agent2 (see SYNC_TZ above).
+
+    // isCorosConfigured() gates the section's visibility, and a fixture that
+    // said `configured: false` would describe a deployment nobody ships.
+    process.env.COROS_CLIENT_ID = 'fixture-client';
+    process.env.COROS_REDIRECT_URI = 'https://apextrainingcalendar.vercel.app/api/provider-callback';
+
+    // A connected row. No API_KEY_ENCRYPTION_SECRET in the test env, so the
+    // plaintext token round-trips through unsealed() (provider-sync's note).
+    fail('connection', (await admin.from('provider_connections').upsert({
+      user_id: agent2.userId, provider: 'coros',
+      access_token: 'stub-token', refresh_token: 'stub-refresh',
+      token_expires_at: '2099-01-01T00:00:00Z',
+      status: 'connected', connected_at: '2026-09-01T12:00:00Z',
+      last_synced_at: '2026-09-09T02:00:00Z', auto_sync: true,
+    }, { onConflict: 'user_id,provider' })).error);
+
+    // The planned run the stubbed trail run matches, on that activity's LOCAL
+    // date — which is what makes preview propose a fill rather than a create.
+    fail('planned run', (await admin.from('workout_events').insert({
+      id: PLANNED_RUN_ID, user_id: agent2.userId, type: 'cardio',
+      title: 'Planned Morning Run',
+      date: new Intl.DateTimeFormat('en-CA', { timeZone: SYNC_TZ }).format(new Date(SYNC.runUtc)),
+      start_time: '7:00 AM', estimated_duration: 45, description: '', difficulty: 3,
+      tags: [], equipment: [], warmup: [], cooldown: [], is_recurring: false,
+      exercises: [{ id: 'fx-run', name: 'Trail Run', category: 'cardio', duration: '45 min' }],
+    })).error);
+
+    // One live connector grant, so the "connected apps" list has a row. Only
+    // `kind: 'refresh'` grants are projected as connections.
+    fail('grant', (await admin.from('mcp_tokens').insert({
+      user_id: agent2.userId, kind: 'refresh', name: CONNECTED_APP_NAME,
+      client_id: CONNECTED_APP_CLIENT, token_hash: 'fixture-grant-hash', token_last4: 'aaaa',
+    })).error);
+
+    // Activity-log rows covering all four sources and both badges. logged_at
+    // is explicit so the merge order is the fixture's, not the clock's.
+    fail('event log', (await admin.from('event_mutations_log').insert([
+      { user_id: agent2.userId, operation: 'create', event_id: PLANNED_RUN_ID, event_title: LOG_EVENT_TITLE,
+        event_date: '2026-09-08', triggered_by: 'user', logged_at: '2026-09-08T10:00:00Z' },
+      { user_id: agent2.userId, operation: 'update_instance', event_id: PLANNED_RUN_ID, event_title: LOG_EVENT_TITLE,
+        event_date: '2026-09-09', triggered_by: 'ai', logged_at: '2026-09-09T11:00:00Z' },
+    ])).error);
+    fail('definition log', (await admin.from('definition_mutations_log').insert({
+      user_id: agent2.userId, operation: 'archive', definition_id: `${FX}-log-def`, definition_name: LOG_DEF_NAME,
+      triggered_by: 'user', logged_at: '2026-09-07T09:00:00Z',
+    })).error);
+    fail('block log', (await admin.from('block_mutations_log').insert([
+      { user_id: agent2.userId, operation: 'create', resource: 'block', resource_id: '00000000-0000-4000-8000-00000000b10c',
+        resource_name: LOG_BLOCK_NAME, triggered_by: 'ai', logged_at: '2026-09-06T08:00:00Z' },
+      { user_id: agent2.userId, operation: 'update', resource: 'objective', resource_id: '00000000-0000-4000-8000-0000000000b1',
+        resource_name: LOG_OBJECTIVE_NAME, triggered_by: 'user', logged_at: '2026-09-05T07:00:00Z' },
     ])).error);
   });
 
@@ -823,6 +975,85 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     // badge never reads the profiles row directly. The seeded user has no
     // pick, so the label is the default's.
     expect(prof.body).toMatchObject({ coachModel: null, coachModelLabel: 'Opus 4.8' });
+    // W11 widened the same response to the rest of the profiles row, so the
+    // You tab reads one endpoint instead of the table.
+    expect(prof.body).toMatchObject({ displayName: 'agent', avatarKey: 'goat' });
+    // The feed URL is composed server-side; the ics_token is scrubbed by
+    // normalize() on its way into the file, never committed.
+    expect(String((prof.body as { calendarFeedUrl: string }).calendarFeedUrl))
+      .toMatch(/\/api\/calendar-feed\?token=[0-9a-f-]{36}$/);
     fixture('profile.json', prof.body);
+  });
+
+  // W11 — the You tab's own surfaces. All on agent2: see the note by SYNC_TZ.
+  it('emits the profile, activity-log, connector and COROS fixtures', async () => {
+    // ---- Activity log. The feed is not id-prefixed, so the fixture is the
+    // fixture-named subset of it — the activity-streams precedent above.
+    const log = makeRes();
+    await mutationsLogHandler(makeReq({ method: 'GET', token: agent2.token }), log.res);
+    expect(log.statusCode).toBe(200);
+    const names = new Set([LOG_EVENT_TITLE, LOG_DEF_NAME, LOG_BLOCK_NAME, LOG_OBJECTIVE_NAME]);
+    const entries = (log.body as { entries: { source: string; title: string }[] }).entries
+      .filter(e => names.has(e.title));
+    // All four sources and both badges, newest first.
+    expect(entries.map(e => e.source)).toEqual(['event', 'event', 'definition', 'block', 'objective']);
+    fixture('mutations-log.json', { entries });
+
+    // ---- Connector tokens. Minting is the only call that ever reveals the
+    // plaintext PAT, which normalize() replaces before anything is written.
+    const mint = makeRes();
+    await mcpTokensHandler(makeReq({ method: 'POST', token: agent2.token, body: { name: TOKEN_NAME } }), mint.res);
+    expect(mint.statusCode).toBe(200);
+    const minted = mint.body as { id: string; token: string };
+    expect(minted.token).toMatch(/^apx_/);
+    fixture('mcp-token-mint.json', mint.body);
+
+    const tokens = makeRes();
+    await mcpTokensHandler(makeReq({ method: 'GET', token: agent2.token }), tokens.res);
+    expect(tokens.statusCode).toBe(200);
+    const listed = tokens.body as {
+      tokens: { name: string; token_last4: string }[];
+      connections: { client_id: string; name: string }[];
+    };
+    expect(listed.tokens.map(t => t.name)).toEqual([TOKEN_NAME]);
+    expect(listed.tokens[0].token_last4).toBe(minted.token.slice(-4));
+    expect(listed.connections.map(c => c.client_id)).toEqual([CONNECTED_APP_CLIENT]);
+    fixture('mcp-tokens.json', tokens.body);
+
+    // ---- COROS. status first: `configured` is what decides whether the
+    // section renders at all.
+    const providerSync = async (body: unknown) => {
+      const c = makeRes();
+      await providerSyncHandler(makeReq({ method: 'POST', token: agent2.token, body }), c.res);
+      return c;
+    };
+
+    const status = await providerSync({ action: 'status' });
+    expect(status.statusCode).toBe(200);
+    expect(status.body).toMatchObject({ coros: { status: 'connected', configured: true, autoSync: true } });
+    fixture('provider-status.json', status.body);
+
+    // preview writes nothing: the trail run matches the planned event (a fill
+    // the confirmation sheet has to ask about), the ride matches nothing.
+    const preview = await providerSync({ action: 'preview', provider: 'coros', timezone: SYNC_TZ });
+    expect(preview.statusCode).toBe(200);
+    const proposals = (preview.body as { proposals: { activity: { activityId: string; localDate: string }; match: unknown }[] }).proposals;
+    expect(proposals.map(p => p.activity.activityId)).toEqual([SYNC.runId, SYNC.rideId]);
+    expect(proposals[0].match).not.toBeNull();
+    expect(proposals[1].match).toBeNull();
+    fixture('provider-preview.json', preview.body);
+
+    // apply executes the decisions the sheet collected: fill the matched run,
+    // create a standalone event for the ride.
+    const apply = await providerSync({
+      action: 'apply', provider: 'coros', timezone: SYNC_TZ,
+      decisions: [
+        { activityId: SYNC.runId, action: 'fill', targetEventId: PLANNED_RUN_ID, eventDate: proposals[0].activity.localDate },
+        { activityId: SYNC.rideId, action: 'create' },
+      ],
+    });
+    expect(apply.statusCode).toBe(200);
+    expect(apply.body).toEqual({ created: 1, filled: 1, errors: [] });
+    fixture('provider-apply.json', apply.body);
   });
 });

@@ -222,6 +222,9 @@ export type ProviderConnectionRow = Row<'provider_connections', {
   status: 'pending' | 'connected' | 'expired';
   /** { state, codeVerifier (encrypted), createdAt } during the redirect dance. */
   pending_oauth: Record<string, unknown> | null;
+  /** Which client started the pending OAuth (phase41); null is the web, and is
+   *  what every row written before that migration means. */
+  client: 'ios' | null;
 }>;
 
 /** Service-role only. One row per provider activity ever imported. event_id

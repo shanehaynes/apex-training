@@ -692,6 +692,7 @@ export type Database = {
         Row: {
           access_token: string | null
           auto_sync: boolean
+          client: string | null
           connected_at: string | null
           last_synced_at: string | null
           pending_fill_count: number
@@ -707,6 +708,7 @@ export type Database = {
         Insert: {
           access_token?: string | null
           auto_sync?: boolean
+          client?: string | null
           connected_at?: string | null
           last_synced_at?: string | null
           pending_fill_count?: number
@@ -722,6 +724,7 @@ export type Database = {
         Update: {
           access_token?: string | null
           auto_sync?: boolean
+          client?: string | null
           connected_at?: string | null
           last_synced_at?: string | null
           pending_fill_count?: number

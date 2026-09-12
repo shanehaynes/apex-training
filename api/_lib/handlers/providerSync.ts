@@ -8,6 +8,7 @@ import {
   disconnect,
   getConnection,
   setAutoSync,
+  type ProviderClient,
   type SyncProvider,
 } from '../providers/connection.js';
 import { buildAuthorizeUrl, generatePkce, generateState, isCorosConfigured } from '../providers/coros/oauth.js';
@@ -32,6 +33,7 @@ interface Body {
   timezone?: string;
   decisions?: unknown;
   enabled?: unknown;
+  client?: unknown;
 }
 
 function parseProvider(value: unknown): SyncProvider | null {
@@ -72,6 +74,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  // Which client is driving the OAuth dance (phase41). Validated here, beside
+  // the provider and ahead of the rate limit, because both are body-shape
+  // checks: a malformed body should not spend the caller's budget. Absent is
+  // the web, the only value stored is 'ios', and an unknown one never reaches
+  // the database — which is why the column carries no CHECK constraint.
+  if (body.client !== undefined && body.client !== null && body.client !== 'ios') {
+    res.status(400).send('Unknown client');
+    return;
+  }
+  const client: ProviderClient = body.client === 'ios' ? 'ios' : null;
+
   if (!(await enforceRateLimit(supabase, res, userId, 'providerSync'))) return;
 
   try {
@@ -83,7 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         const state = generateState();
         const pkce = generatePkce();
-        await beginOAuth(supabase, userId, provider, state, pkce.verifier);
+        await beginOAuth(supabase, userId, provider, state, pkce.verifier, client);
         res.status(200).json({ authorizeUrl: await buildAuthorizeUrl(state, pkce) });
         return;
       }

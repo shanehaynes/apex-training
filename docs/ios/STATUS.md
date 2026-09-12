@@ -20,22 +20,34 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W8 | Backend analytics compute | done (PR #100) | Linux | web keeps its browser path |
 | W9 | Analytics tab (editable layout) | ready | Mac | W8 + W6 done |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
-| W11 | Profile, integrations, account | ready | both | the only migration (`provider_connections.client`) |
+| W11 | Profile, integrations, account | backend in review (PR pending) | both | migration phase41 — HELD, needs `shipit`; You tab UI is the Mac's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
-1. Shane's W7 device run on TestFlight build 5 (0.6.0/312): create a recurring workout, edit
+1. **Shane: `shipit` on the W11 backend PR** — it adds `phase41_provider_client.sql`, so the
+   babysitter will not touch it, and the Mac session's You tab consumes its ApexCore surface.
+   Apply phase41 in prod after it merges.
+2. Shane's W7 device run on TestFlight build 5 (0.6.0/312): create a recurring workout, edit
    one occurrence, edit the series, delete an occurrence — the web shows the same result each
-   time; the coach drawer on a real key. Then W9 or W10 (W11 after). The W7 worktree can be
+   time; the coach drawer on a real key. Then W9 or W10. The W7 worktree can be
    tidied; its two git-ignored release files go with it (item 4).
-2. Still open from earlier: the W2 device runs; two W12 timings nobody has clocked (30 minutes
+3. Still open from earlier: the W2 device runs; two W12 timings nobody has clocked (30 minutes
    backgrounded, the 5-minute Done linger on the Lock Screen).
-3. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
+4. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
    `ios/Config/Secrets.xcconfig` (`ios/scripts/secrets.sh`) and `ios/Config/appstoreconnect.env`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-11 · W11 · Backend + ApexCore (the Mac builds the You tab in parallel): phase41
+  `provider_connections.client`, `connect-start { client: 'ios' }`, a `providerCallback` that
+  reads the pending row before every failure branch so a declined or expired iOS connect still
+  closes the in-app browser (reasons denied/missing_code/expired/exchange_failed; the web's two
+  strings byte-identical), `GET /api/profile` widened to the profiles row + server-composed
+  `calendarFeedUrl` + the model catalog, ten first-ever callback tests, six new fixtures on
+  agent2 with three new secret/volatility scrubs, and 20 ApexCore endpoints + models + the
+  `DeepLink` `reason` fix. 321 `swift test` green in Docker. D-028. Scope items 4 and 5 needed
+  no code. PR pending — HELD on the migration.
 - 2026-09-11 · device · Shane's run on TestFlight build 4 (0.5.0/306): session restore on a signed
   build; W12 island + long-press + Lock Screen banner, tap-to-open, kill mid-session → relaunch
   from the island (the GRDB cache kept it), finish and cancel both clear it; W4 airplane-mode

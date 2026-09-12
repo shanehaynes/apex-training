@@ -33,7 +33,14 @@ export interface ConnectionRow {
   auto_sync: boolean;
   /** Matches awaiting a fill/keep-separate decision — the Sync-button badge. */
   pending_fill_count: number;
+  /** Client that started the pending OAuth (phase41): 'ios' for the native
+   *  app, null for the web. The callback arrives without a JWT, so this is the
+   *  only way it can tell which redirect target dismisses the user's flow. */
+  client: ProviderClient;
 }
+
+/** null is the web app — the original behaviour and every pre-phase41 row. */
+export type ProviderClient = 'ios' | null;
 
 /** Encrypt when the secret is configured; plaintext + loud log otherwise
  *  (keyCrypto contract — the env var can be introduced without a migration). */
@@ -54,7 +61,7 @@ export async function getConnection(
 ): Promise<ConnectionRow | null> {
   const { data, error } = await supabase
     .from('provider_connections')
-    .select('user_id, provider, access_token, refresh_token, token_expires_at, status, pending_oauth, last_synced_at, connected_at, timezone, auto_sync, pending_fill_count')
+    .select('user_id, provider, access_token, refresh_token, token_expires_at, status, pending_oauth, last_synced_at, connected_at, timezone, auto_sync, pending_fill_count, client')
     .eq('user_id', userId)
     .eq('provider', provider)
     .maybeSingle();
@@ -127,9 +134,15 @@ export async function listAutoSyncConnections(
   return (data ?? []) as { user_id: string; provider: SyncProvider; timezone: string | null }[];
 }
 
-/** Start the redirect dance: park state + encrypted PKCE verifier on the row. */
+/** Start the redirect dance: park state + encrypted PKCE verifier on the row.
+ *
+ *  `client` is written on every attempt, the web's included (as null): this is
+ *  an upsert on (user_id, provider), so omitting it would leave an 'ios' value
+ *  from an abandoned attempt in place and redirect a later web connect into
+ *  the app. */
 export async function beginOAuth(
   supabase: Admin, userId: string, provider: SyncProvider, state: string, codeVerifier: string,
+  client: ProviderClient = null,
 ): Promise<void> {
   const { error } = await supabase
     .from('provider_connections')
@@ -138,6 +151,7 @@ export async function beginOAuth(
       provider,
       status: 'pending',
       pending_oauth: { state, codeVerifier: sealed(codeVerifier), createdAt: new Date().toISOString() },
+      client,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,provider' });
   if (error) throw new Error(`beginOAuth upsert failed: ${error.message}`);
@@ -145,21 +159,36 @@ export async function beginOAuth(
 
 const PENDING_OAUTH_TTL_MS = 10 * 60 * 1000;
 
+/** The outcome of a callback's state lookup. `client` is present on both arms
+ *  on purpose: an expired attempt still has to be sent back to the client that
+ *  started it, or a native app's ASWebAuthenticationSession is left sitting on
+ *  a web page it cannot act on. It is null whenever no row was found, which is
+ *  the only case where the client is genuinely unknowable. */
+export type PendingLookup =
+  | { ok: true; userId: string; codeVerifier: string; client: ProviderClient }
+  | { ok: false; client: ProviderClient };
+
 /** Locate the pending row for a callback by its unguessable state value. */
 export async function findPendingByState(
   supabase: Admin, provider: SyncProvider, state: string,
-): Promise<{ userId: string; codeVerifier: string } | null> {
+): Promise<PendingLookup> {
   const { data, error } = await supabase
     .from('provider_connections')
-    .select('user_id, pending_oauth')
+    .select('user_id, pending_oauth, client')
     .eq('provider', provider)
     .eq('pending_oauth->>state', state)
     .maybeSingle();
   if (error) throw new Error(`pending-state lookup failed: ${error.message}`);
+  const client: ProviderClient = data?.client === 'ios' ? 'ios' : null;
   const pending = (data?.pending_oauth ?? null) as ConnectionRow['pending_oauth'];
-  if (!data || !pending?.codeVerifier || !pending.createdAt) return null;
-  if (Date.now() - Date.parse(pending.createdAt) > PENDING_OAUTH_TTL_MS) return null;
-  return { userId: data.user_id as string, codeVerifier: unsealed(pending.codeVerifier) };
+  if (!data || !pending?.codeVerifier || !pending.createdAt) return { ok: false, client };
+  if (Date.now() - Date.parse(pending.createdAt) > PENDING_OAUTH_TTL_MS) return { ok: false, client };
+  return {
+    ok: true,
+    userId: data.user_id as string,
+    codeVerifier: unsealed(pending.codeVerifier),
+    client,
+  };
 }
 
 function tokenPatch(tokens: TokenResponse): TablesUpdate<'provider_connections'> {
