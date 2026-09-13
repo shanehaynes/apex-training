@@ -436,3 +436,33 @@ The brief said "`client: 'ios'` and a scheme redirect"; these are the lines draw
   minted PAT are secrets; `token_last4` is neither secret nor stable — it is re-minted on every
   run, and baking one in would have failed the drift check on the next run rather than on a real
   shape change.
+
+## D-030 · The You tab's shape, and how the COROS browser closes without a backend (W11)
+**Status:** decided · W11 Mac session · 2026-09-13
+- **Sync lives under You › COROS, not on the Schedule toolbar.** The web puts the Sync button in
+  the top nav because that is where the connection's state is visible; the phone has a tab for
+  that. The pending-fill count rides on the Sync button's title ("Sync now · 2 waiting") and the
+  root row shows the connection state, so nothing is further than two taps from Schedule.
+- **The confirmation queue is a bottom sheet the model owns.** `CorosModel.queue` is the source
+  of truth; the sheet is `isPresented: queue.first != nil`, and dismissing it calls
+  `abandonQueue()`, which drops the decisions and toasts — nothing has been written, and the
+  activities are still on the watch. The web's double-click latch survives as `isSettling`.
+- **`ASWebAuthenticationSession` is a closure the view hands the model.** The model stays
+  testable on a scripted transport: `connect(open:)` takes `(URL) async throws -> URL`, the view
+  passes `webAuthenticationSession.authenticate(...)` with the cancel mapped to
+  `CancellationError`, and the returned callback goes through `DeepLink.parse` like any other
+  link. An authorize URL already on the app's scheme is treated as the callback itself — that is
+  the fixture mock's answer to `connect-start`, and how the smoke connects without a browser.
+- **Avatars ship as SVG in an asset catalog, generated from the web's catalog.** Xcode
+  rasterises them per scale, the drawings are paths and circles it renders faithfully, and
+  `gen-avatars.mjs --check` fails on drift the way `gen-tokens.mjs` does — the keys are the
+  server's allowlist, so a client with its own list is a 400 waiting to happen.
+- **The guide's figures are rendered, not redrawn.** They are React SVG components with `<text>`,
+  which the asset-catalog SVG renderer does not handle; `gen-connector-figures.ts` renders them
+  through the repo's Playwright with the house fonts inlined and emits their pins and notes as
+  Swift, so the screen's callouts stay text. PNG bytes vary by Chromium build, so `--check`
+  covers the Swift side and each figure's presence, not the pixels.
+- **The root reads three things on appearance** — the profile, the COROS status, the token
+  list (quietly) — so every row shows its state before it is opened; each pushed screen re-reads
+  its own on `.task`. Profile writes send exactly their own keys and re-read; the coach's badge
+  is told through `onProfileChanged` rather than by sharing a model across tabs.

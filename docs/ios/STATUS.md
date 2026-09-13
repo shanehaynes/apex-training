@@ -20,14 +20,15 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W8 | Backend analytics compute | done (PR #100) | Linux | web keeps its browser path |
 | W9 | Analytics tab (editable layout) | ready | Mac | W8 + W6 done |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
-| W11 | Profile, integrations, account | backend in review (PR pending) | both | migration phase41 — HELD, needs `shipit`; You tab UI is the Mac's |
+| W11 | Profile, integrations, account | backend done (#149) · You tab in review (`feat/w11-you`) | both | phase41 applied in prod? (Shane); device runs are Shane's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
-1. **Shane: `shipit` on the W11 backend PR** — it adds `phase41_provider_client.sql`, so the
-   babysitter will not touch it, and the Mac session's You tab consumes its ApexCore surface.
-   Apply phase41 in prod after it merges.
+1. **W11 You tab PR** (`feat/w11-you`): review, merge after the W9 stack (it touches the same
+   five files — AppModel, RootTabView, Tabs, the mock, Icons — additively; resolve keeping both).
+   Then a TestFlight build and Shane's W11 device run: COROS connect inside the app, a sync that
+   fills a planned workout, a bad key's Anthropic message. Confirm phase41 is applied in prod.
 2. Shane's W7 device run on TestFlight build 5 (0.6.0/312): create a recurring workout, edit
    one occurrence, edit the series, delete an occurrence — the web shows the same result each
    time; the coach drawer on a real key. Then W9 or W10. The W7 worktree can be
@@ -44,6 +45,11 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-13 · W11 · Mac: the You tab end to end — `YouModel`/`CorosModel`/`ConnectorModel`/
+  `ActivityLogModel` over the #149 endpoints, thirteen pushed screens, `ASWebAuthenticationSession`
+  connect with the mock's browserless seam, the sync confirmation bottom sheet, the 24 avatars and
+  the guide's eight figures generated from the web sources, W11 mock routes, 26 model tests, 20
+  snapshots, the `testYouOnFixtures` smoke leg. D-030. PR pending.
 - 2026-09-11 · W11 · Backend + ApexCore (the Mac builds the You tab in parallel): phase41
   `provider_connections.client`, `connect-start { client: 'ios' }`, a `providerCallback` that
   reads the pending row before every failure branch so a declined or expired iOS connect still

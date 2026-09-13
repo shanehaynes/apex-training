@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- River otter: play as training -->
+  <circle cx="64" cy="64" r="64" fill="#4a7061"/>
+  <circle cx="42" cy="42" r="7" fill="#5d4630"/>
+  <circle cx="42" cy="42" r="3.6" fill="#8a6d4e"/>
+  <circle cx="86" cy="42" r="7" fill="#5d4630"/>
+  <circle cx="86" cy="42" r="3.6" fill="#8a6d4e"/>
+  <ellipse cx="64" cy="64" rx="30" ry="27" fill="#6e5233"/>
+  <path d="M40 52 Q46 42 64 41 Q82 42 88 52 Q78 46 64 46 Q50 46 40 52 Z" fill="#5d4630"/>
+  <ellipse cx="64" cy="79" rx="17" ry="13" fill="#d9c9a8"/>
+  <ellipse cx="52" cy="76" rx="6" ry="5" fill="#d9c9a8"/>
+  <ellipse cx="76" cy="76" rx="6" ry="5" fill="#d9c9a8"/>
+  <path d="M58 68 Q64 64 70 68 Q69 74 64 74 Q59 74 58 68 Z" fill="#241a10"/>
+  <path d="M64 74 L64 78 M64 78 Q60 82 55 80 M64 78 Q68 82 73 80" stroke="#241a10" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <circle cx="58" cy="82" r="0.9" fill="#8a6d4e"/><circle cx="61" cy="85" r="0.9" fill="#8a6d4e"/>
+  <circle cx="70" cy="82" r="0.9" fill="#8a6d4e"/><circle cx="67" cy="85" r="0.9" fill="#8a6d4e"/>
+  <path d="M50 76 Q41 73 35 75 M51 81 Q43 82 38 85 M78 76 Q87 73 93 75 M77 81 Q85 82 90 85" stroke="#e8dcc2" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  <circle cx="52" cy="58" r="3.6" fill="#241a10"/>
+  <circle cx="76" cy="58" r="3.6" fill="#241a10"/>
+  <circle cx="53.2" cy="56.8" r="1.1" fill="#f0e6d0"/>
+  <circle cx="77.2" cy="56.8" r="1.1" fill="#f0e6d0"/>
+  <path d="M47 53 Q52 50 57 53 M71 53 Q76 50 81 53" stroke="#8a6d4e" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+</svg>

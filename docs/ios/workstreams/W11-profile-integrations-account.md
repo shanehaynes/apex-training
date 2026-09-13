@@ -1,7 +1,7 @@
 # W11 — Profile, integrations, account
 
 **Machine:** both · **Depends on:** W1 (W2 for realtime-aware sync results) · **Unblocks:** W13
-**Status:** backend in review (PR pending, `feat/w11-backend`) · You tab UI is the Mac session's
+**Status:** backend done (#149) · You tab in review (`feat/w11-you`) · device runs are Shane's
 
 ## Goal
 The You tab root and every integration the web profile offers, plus the App Store's
@@ -76,3 +76,31 @@ Out: push (Backlog).
 - Left for the Mac session: every screen in Scope above, the four snapshots in Acceptance, the
   device runs (COROS connect inside the app, a fill, a bad key), and `ProviderSyncControls`-style
   copy. The Endpoint cases and models it consumes are all in this PR.
+- 2026-09-13 · Mac · **The You tab, on the backend #149 shipped.** `YouTab` is grouped native
+  sections (U24) over one `YouModel` per signed-in user (`AppModel.ensureQueue`, like the coach):
+  Account (name, the 24-avatar grid, change password via `auth.setPassword`), Training (HR zones,
+  both saved in one PATCH with explicit nulls, the web's bounds and wording), AI coach (goal and
+  context with the rotating placeholders, the server-owned model catalog as a picker, the W6 key
+  sheet reused), Integrations (COROS, calendar feed with copy / ShareLink / `webcal://`, AI
+  connector), Data (activity log, About with Terms/Privacy links and the acceptance line, Delete
+  account by typing the email). Every profile write is followed by a re-read and
+  `onProfileChanged` → `CoachModel.refreshProfile`, so the coach badge follows the picker.
+  **COROS** connects inside the app: `CorosView` hands `CorosModel.connect` a closure over
+  `@Environment(\.webAuthenticationSession)` (`callbackURLScheme: "apextraining"`, ephemeral), the
+  model parses the returned callback with `DeepLink` and maps the D-028 reasons to copy;
+  `AppModel.open` forwards a plain `connected`/`connect_error` link to the same model. Sync is the
+  web hook ported: preview → matched proposals queue in a bottom sheet (U30) → one apply →
+  `onScheduleChanged` → `schedule.refresh(.afterEdit)`; dismissing the sheet writes nothing.
+  **Generated, not copied**: `ios/scripts/gen-avatars.mjs` emits the 24 SVGs into
+  `Avatars.xcassets` + `Avatars.swift` from `src/lib/profile/avatars.ts` (`--check` for drift);
+  `ios/scripts/gen-connector-figures.ts` renders the guide's eight React SVG drawings through
+  Playwright with the house fonts inlined into `ConnectorFigures.xcassets` (2x/3x) +
+  `ConnectorFigures.swift` (titles, pins, notes), and `ConnectorGuideView` is the web guide's
+  prose with those figures. **Mock**: every W11 route answered, writes replayed into later reads,
+  the emitter's `<timestamp>`/`<uuid>`/`<last4>`/`<token>` placeholders put back, `-apexMockCoros
+  expired|disconnected`, and `connect-start` answers with the callback itself so the smoke connects
+  without a browser (`CorosModel` treats an app-scheme authorize URL as the callback). 26 model
+  tests (`YouModelTests`), 20 snapshots (`YouSnapshotTests`), `testYouOnFixtures` (mint → reveal →
+  list → Sync now → Fill it → toast → activity log). Proved by hand on the iPhone 17 Pro simulator
+  under the mock. D-030. Left for Shane: the device runs in Acceptance (a real COROS connect in the
+  in-app browser, a fill that shows metrics on the event sheet, a bad key's Anthropic message).

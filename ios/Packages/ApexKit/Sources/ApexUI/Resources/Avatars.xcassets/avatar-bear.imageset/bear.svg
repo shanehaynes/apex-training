@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Grizzly: offseason strength -->
+  <circle cx="64" cy="64" r="64" fill="#5c7048"/>
+  <circle cx="42" cy="34" r="10" fill="#5d4630"/>
+  <circle cx="42" cy="34" r="5" fill="#8a6d4e"/>
+  <circle cx="86" cy="34" r="10" fill="#5d4630"/>
+  <circle cx="86" cy="34" r="5" fill="#8a6d4e"/>
+  <path d="M64 28 Q92 32 94 60 Q94 84 78 92 Q64 98 50 92 Q34 84 34 60 Q36 32 64 28 Z" fill="#6e5233"/>
+  <path d="M40 46 Q64 32 88 46 Q78 38 64 38 Q50 38 40 46 Z" fill="#5d4630"/>
+  <ellipse cx="64" cy="78" rx="16" ry="13" fill="#b08c5c"/>
+  <path d="M57 70 Q64 66 71 70 Q70 77 64 77 Q58 77 57 70 Z" fill="#241a10"/>
+  <path d="M64 77 L64 82 M64 82 Q59 87 53 84 M64 82 Q69 87 75 84" stroke="#241a10" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <circle cx="50" cy="58" r="3.6" fill="#241a10"/>
+  <circle cx="78" cy="58" r="3.6" fill="#241a10"/>
+  <circle cx="51.2" cy="56.8" r="1.1" fill="#e8dcc2"/>
+  <circle cx="79.2" cy="56.8" r="1.1" fill="#e8dcc2"/>
+  <path d="M44 53 Q49 50 54 53 M74 53 Q79 50 84 53" stroke="#5d4630" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M40 68 Q43 66 46 68 M40 74 Q43 72 46 74 M88 68 Q85 66 82 68 M88 74 Q85 72 82 74" stroke="#5d4630" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+</svg>

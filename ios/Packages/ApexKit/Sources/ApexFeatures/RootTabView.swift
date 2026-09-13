@@ -6,6 +6,7 @@ public struct RootTabView: View {
     private let tracker: TrackerServices?
     private let coach: CoachModel?
     private let coachServices: CoachServices?
+    private let you: YouModel?
     private let email: String?
     private let onSignOut: () -> Void
     @Bindable private var routes: RouteBus
@@ -14,9 +15,10 @@ public struct RootTabView: View {
     /// and the tab consumes it. The default is a fresh bus, for previews.
     public init(
         schedule: ScheduleModel, tracker: TrackerServices? = nil, coach: CoachModel? = nil, coachServices: CoachServices? = nil,
-        email: String?, routes: RouteBus = RouteBus(), onSignOut: @escaping () -> Void
+        you: YouModel? = nil, email: String?, routes: RouteBus = RouteBus(), onSignOut: @escaping () -> Void
     ) {
         self.schedule = schedule
+        self.you = you
         self.tracker = tracker
         self.coach = coach
         self.coachServices = coachServices
@@ -36,7 +38,7 @@ public struct RootTabView: View {
             AnalyticsTab()
                 .tabItem { Label("Analytics", systemImage: "chart.line.uptrend.xyaxis") }
                 .tag(AppTab.analytics)
-            YouTab(email: email, onSignOut: onSignOut)
+            YouTab(model: you)
                 .tabItem { Label("You", systemImage: "person") }
                 .tag(AppTab.you)
         }

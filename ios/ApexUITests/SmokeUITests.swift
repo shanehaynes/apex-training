@@ -414,6 +414,81 @@ final class SmokeUITests: XCTestCase {
         shot.lifetime = .keepAlways
         add(shot)
     }
+
+    // MARK: - W11 · the You tab
+
+    /// sign in → You → the header names the fixture user → AI connector → mint a
+    /// token → the one-time reveal → Done → the token is listed → COROS → Sync
+    /// now → the confirmation sheet for the matched run → Fill it → the apply
+    /// toast → Activity log rows. All on fixtures; the mock answers
+    /// `connect-start` with the callback itself, so Reconnect needs no browser.
+    func testYouOnFixtures() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockHasKey"]
+        app.launch()
+        signIn(app)
+
+        let youTab = app.tabBars.buttons["You"]
+        XCTAssertTrue(youTab.waitForExistence(timeout: 20))
+        youTab.tap()
+        let name = app.staticTexts["you.name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 10))
+        XCTAssertEqual(name.label, "agent")
+        let corosRow = app.buttons["you.row.coros"]
+        XCTAssertTrue(corosRow.waitForExistence(timeout: 10), "the fixture deployment has COROS configured")
+        XCTAssertTrue(corosRow.label.contains("Connected"))
+        XCTAssertTrue(app.buttons["you.row.key"].label.contains("Saved"))
+        attach(app, name: "w11-01-you")
+
+        // AI connector: mint → reveal → Done → listed.
+        app.buttons["you.row.connector"].tap()
+        let tokenName = app.textFields["connector.name"]
+        XCTAssertTrue(tokenName.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.otherElements["connector.token.ios-fixture laptop"].waitForExistence(timeout: 10))
+        attach(app, name: "w11-02-connector")
+        tokenName.tap()
+        tokenName.typeText("Claude Code")
+        app.buttons["connector.create"].tap()
+        let reveal = app.staticTexts["token.reveal.value"]
+        XCTAssertTrue(reveal.waitForExistence(timeout: 10))
+        XCTAssertTrue(reveal.label.hasPrefix("apx_mock_"))
+        attach(app, name: "w11-03-token-reveal")
+        app.buttons["token.reveal.done"].tap()
+        XCTAssertTrue(app.otherElements["connector.token.Claude Code"].waitForExistence(timeout: 10))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        // COROS: Sync now → the matched run asks; the ride imports on its own.
+        let coros = app.buttons["you.row.coros"]
+        XCTAssertTrue(coros.waitForExistence(timeout: 10))
+        coros.tap()
+        let sync = app.buttons["coros.sync"]
+        XCTAssertTrue(sync.waitForExistence(timeout: 10))
+        attach(app, name: "w11-04-coros")
+        sync.tap()
+        let prompt = app.staticTexts["sync.prompt"]
+        XCTAssertTrue(prompt.waitForExistence(timeout: 10))
+        XCTAssertEqual(prompt.label, "Trail Run · 7:05 AM · 5.20 mi — fill planned “Planned Morning Run”?")
+        XCTAssertFalse(app.staticTexts["sync.remaining"].exists, "one match, nothing after it")
+        attach(app, name: "w11-05-sync-confirm")
+        app.buttons["sync.fill"].tap()
+        let toast = app.staticTexts["COROS: Imported 1 activity · filled 1 planned workout"]
+        XCTAssertTrue(toast.waitForExistence(timeout: 10))
+        attach(app, name: "w11-06-synced")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        // The activity log renders the fixture's five rows with their badges.
+        let activity = app.buttons["you.row.activity"]
+        XCTAssertTrue(activity.waitForExistence(timeout: 10))
+        var swipes = 0
+        while !activity.isHittable, swipes < 4 { app.scrollViews.firstMatch.swipeUp(); swipes += 1 }
+        activity.tap()
+        // The rows combine their children into one element, so the type is not fixed.
+        let firstRow = app.descendants(matching: .any).matching(identifier: "activity.row.0").firstMatch
+        XCTAssertTrue(firstRow.waitForExistence(timeout: 10))
+        XCTAssertTrue(firstRow.label.contains("Rescheduled occurrence of"), firstRow.label)
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "activity.row.4").firstMatch.exists)
+        attach(app, name: "w11-07-activity")
+    }
 }
 
 /// The auth links (D-020, architecture.md §3) on the mock: an invite hand-off
@@ -473,4 +548,5 @@ final class AuthLinkUITests: XCTestCase {
         shot.lifetime = .keepAlways
         add(shot)
     }
+
 }

@@ -120,6 +120,12 @@ actions (or a path suffix) answer 500 and then succeed — the write queue's pen
 the smoke asserts on; `-apexMockFail` also matches an action name now.
 Under the mock an `apextraining://auth#…type=invite` link lands on set-password without GoTrue,
 which is how `AuthLinkUITests` covers that screen in CI.
+The You tab (W11) is answered too: every profile PATCH is replayed into the next `GET /api/profile`,
+tokens minted through `POST /api/mcp-tokens` appear in the list, COROS `connect-start` answers with
+the `apextraining://connected` callback itself (so Reconnect needs no browser), `preview`/`apply`
+come from their fixtures, and `-apexMockCoros expired` (or `disconnected`) starts the connection in
+that state. The emitter's `<timestamp>`/`<uuid>`/`<last4>`/`<token>` placeholders are put back with
+stand-ins so dates parse.
 
 **Realtime on the local stack** needs the tables in the `supabase_realtime` publication —
 phase40 adds every table a client subscribes to; a stack reset before it has nothing. The hub
@@ -149,5 +155,11 @@ Uploading publishes a build to Apple. Confirm with Shane before running it witho
 - `npm run db:types` — after any migration. It writes
   `Packages/ApexKit/Sources/ApexAuth/Generated/DatabaseTypes.swift` as well as the TS types.
 - `node ios/scripts/render-icon.mjs` — after editing `Design/app-icon.svg`.
+- `node ios/scripts/gen-avatars.mjs` — after any change to `src/lib/profile/avatars.ts` or
+  `src/assets/avatars/*.svg`; writes `ApexUI/Resources/Avatars.xcassets` + `Generated/Avatars.swift`
+  (`--check` for drift).
+- `npx tsx --tsconfig tsconfig.app.json ios/scripts/gen-connector-figures.ts` — after editing
+  `src/components/profile/ConnectorFigures.tsx`; renders the guide's drawings through Playwright
+  into `ApexUI/Resources/ConnectorFigures.xcassets` + `Generated/ConnectorFigures.swift`.
 - `Fixtures/` come from `api/__tests__/integration/ios-read.integration.test.ts`
   (`APEX_FIXTURES_WRITE=1` to update after a deliberate shape change). Never edit them by hand.
