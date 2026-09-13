@@ -38,7 +38,7 @@ public struct BuilderSheet: View {
             if builder.step == .search {
                 TemplateSearchView(builder: builder)
             } else if builder.coachOpen, let coach = builder.coach {
-                VSplit(top: { BuilderFormView(builder: builder) }, bottom: { BuilderCoachDrawer(builder: builder, coach: coach) })
+                VSplit(top: { BuilderFormView(builder: builder) }, bottom: { DraftCoachDrawer(coach: coach, copy: .builder) })
             } else {
                 BuilderFormView(builder: builder)
             }
@@ -152,21 +152,5 @@ public struct BuilderSheet: View {
         .padding(Spacing.screen)
         .background(ApexColor.bgSurface)
         .overlay(alignment: .top) { Rectangle().fill(ApexColor.borderSubtle).frame(height: 1) }
-    }
-}
-
-/// Two panes stacked, the bottom one (the coach) taking a fixed share.
-private struct VSplit<Top: View, Bottom: View>: View {
-    @ViewBuilder let top: () -> Top
-    @ViewBuilder let bottom: () -> Bottom
-
-    var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
-                top().frame(height: geometry.size.height * 0.5)
-                Rectangle().fill(ApexColor.borderSubtle).frame(height: 1)
-                bottom().frame(maxHeight: .infinity)
-            }
-        }
     }
 }
