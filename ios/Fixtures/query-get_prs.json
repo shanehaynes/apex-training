@@ -13,7 +13,21 @@
     ],
     "holds": [],
     "reps": [],
-    "cardio_distance": [],
-    "cardio_elevation": []
+    "cardio_distance": [
+      {
+        "exercise": "Fixture Easy Run",
+        "unit": "mi",
+        "value": 5,
+        "date": "2026-09-08"
+      }
+    ],
+    "cardio_elevation": [
+      {
+        "exercise": "Fixture Easy Run",
+        "unit": "ft",
+        "value": 800,
+        "date": "2026-09-08"
+      }
+    ]
   }
 }

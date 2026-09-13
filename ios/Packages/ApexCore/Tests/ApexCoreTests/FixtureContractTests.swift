@@ -319,19 +319,93 @@ final class FixtureContractTests: XCTestCase {
     func testAnalyticsComputeDecodes() throws {
         let analytics = try decode(AnalyticsComputeResponse.self, from: "analytics-compute.json")
         XCTAssertEqual(analytics.today, "2026-09-22")
-        XCTAssertEqual(analytics.tiles.count, 3)
+        // The six seeded tiles in dashboard order, then a spec the engine refuses.
+        XCTAssertEqual(analytics.tiles.count, 7)
 
-        guard case .ok(let first) = analytics.tiles[0] else {
-            return XCTFail("first tile should have computed")
-        }
-        XCTAssertEqual(first.series.first?.label, "Sessions")
-        XCTAssertEqual(first.series.first?.points, [1])
+        guard case .ok(let sessions) = analytics.tiles[0] else { return XCTFail("the KPI should have computed") }
+        XCTAssertEqual(sessions.series.first?.label, "Sessions")
+        XCTAssertEqual(sessions.series.first?.points, [1])
+        XCTAssertEqual(sessions.buckets.map(\.key), ["total"])
+
+        // A split fans out per group; the key carries the workout type the phone colours by.
+        guard case .ok(let byType) = analytics.tiles[2] else { return XCTFail("the stacked tile should have computed") }
+        XCTAssertTrue(byType.series.contains { $0.key == "s1:weights" }, byType.series.map(\.key).joined(separator: ","))
+
+        // A grade series carries its labels; a rank is never shown.
+        guard case .ok(let grade) = analytics.tiles[3] else { return XCTFail("the grade tile should have computed") }
+        XCTAssertEqual(grade.series.first?.unitKind, "grade")
+        XCTAssertTrue(grade.series.first?.gradeLabels?.contains("5.10c") == true)
+
+        // An average is nil where nothing was logged — a gap, not a zero.
+        guard case .ok(let hr) = analytics.tiles[4] else { return XCTFail("the line tile should have computed") }
+        XCTAssertTrue(hr.series.first?.points.contains { $0 == nil } == true)
+        XCTAssertTrue(hr.series.first?.points.contains { $0 == 150 } == true)
+
+        // An unreadable distance is excluded and counted for the footnote.
+        guard case .ok(let distance) = analytics.tiles[5] else { return XCTFail("the area tile should have computed") }
+        XCTAssertGreaterThan(distance.excludedCount, 0)
 
         // A tile that could not compute carries a reason, not an exception.
-        guard case .problem(let problem) = analytics.tiles[2] else {
-            return XCTFail("third tile should be a problem")
-        }
+        guard case .problem(let problem) = analytics.tiles[6] else { return XCTFail("the last tile should be a problem") }
         XCTAssertFalse(problem.isEmpty)
+    }
+
+    func testAnalyticsTilesDecodeAndAlignWithTheComputeFixture() throws {
+        let response = try decode(AnalyticsTilesResponse.self, from: "analytics-tiles.json")
+        let tiles = response.tiles
+        XCTAssertEqual(tiles.map(\.id), ["sessions", "tonnage", "time", "grade", "hr", "distance"].map { "ios-fixture-tile-\($0)" })
+        XCTAssertEqual(tiles.map(\.chartType), ["kpi", "bar", "stacked-bar", "table", "line", "area"])
+        XCTAssertTrue(tiles.allSatisfy { $0.spec != nil && $0.draft != nil })
+        XCTAssertEqual(tiles[0].layout, TileLayout(x: 0, y: 0, w: 6, h: 4))
+        XCTAssertEqual(tiles[0].draft?.rangeKind, "fixed")
+        XCTAssertEqual(tiles[0].draft?.endDate, "2026-09-30")   // inclusive in the draft
+        XCTAssertEqual(tiles[3].draft?.series.first?.gradeScale, "yds")
+        XCTAssertEqual(TileLayoutPlan.ordered(tiles).map(\.id), tiles.map(\.id))
+        XCTAssertTrue(response.options.categories.contains("strength"))
+
+        // The compute fixture is index-aligned with these tiles — the mock relies on it.
+        let compute = try decode(AnalyticsComputeResponse.self, from: "analytics-compute.json")
+        XCTAssertEqual(compute.tiles.count, tiles.count + 1)
+        for (index, tile) in tiles.enumerated() {
+            guard case .ok(let data) = compute.tiles[index] else { return XCTFail("slot \(index) should match \(tile.id)") }
+            if tile.chartType == "kpi" {
+                XCTAssertEqual(data.buckets.map(\.key), ["total"])
+            } else {
+                XCTAssertGreaterThan(data.buckets.count, 1, tile.id)
+            }
+        }
+    }
+
+    func testAnalyticsDraftFixturesDecode() throws {
+        // The web's emptyChartDraft() is the Swift mirror's `empty`, key for key.
+        let empty = try decode(ChartDraft.self, from: "chart-draft-empty.json")
+        XCTAssertEqual(empty, ChartDraft.empty)
+
+        let preview = try decode(AnalyticsComputeResponse.self, from: "analytics-compute-preview.json")
+        XCTAssertEqual(preview.tiles, [.problem("Every series needs a measure.")])
+
+        // The chart-draft reduce round-trips through the mirror without loss.
+        let reduced = try decode(CoachToolResponse.self, from: "coach-tool-chart-draft.json")
+        XCTAssertTrue(reduced.ok)
+        let draft = try ChartDraft(jsonValue: try XCTUnwrap(reduced.draft))
+        XCTAssertEqual(draft.title, "Fixture weekly tonnage")
+        XCTAssertEqual(draft.chartType, "bar")
+        XCTAssertEqual(draft.series.first?.measure, "tonnage")
+        XCTAssertEqual(try ChartDraft(jsonValue: try draft.jsonValue()), draft)
+        XCTAssertEqual(try draft.jsonValue(), reduced.draft)
+
+        let saved = try decode(TileSaveResponse.self, from: "analytics-tiles-save.json")
+        XCTAssertTrue(saved.ok)
+        XCTAssertEqual(saved.tile?.id, "ios-fixture-tile-save")
+        XCTAssertEqual(saved.tile?.layout, TileLayout(x: 0, y: 24, w: 12, h: 4))
+        XCTAssertEqual(saved.tile?.draft?.chartType, "bar")
+
+        // The analytics chat stream: text, the chart tool with no label, done.
+        let lines = String(decoding: try load("chat-stream-analytics.ndjson"), as: UTF8.self)
+            .split(separator: "\n").map(String.init)
+        XCTAssertEqual(lines.count, 3)
+        XCTAssertTrue(lines[1].contains(#""name":"update_chart_draft""#))
+        XCTAssertFalse(lines[1].contains("\"label\""))
     }
 
     func testCoachToolDecodes() throws {

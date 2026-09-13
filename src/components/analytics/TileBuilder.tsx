@@ -9,12 +9,7 @@ import {
   WORKOUT_TYPES,
   sportCompatible,
   type Aggregation,
-  type ChartType,
-  type DisplayUnit,
   type GroupBy,
-  type MeasureId,
-  type RangePreset,
-  type TimeBucket,
 } from '../../lib/analytics/spec';
 import {
   draftFromSpec,
@@ -26,12 +21,22 @@ import {
   type SeriesDraft,
 } from '../../lib/analytics/draft';
 import { mintTileId, type AnalyticsTile, type TileLayout } from '../../lib/analytics/tiles';
+import {
+  BUCKETS,
+  CHART_TYPES,
+  DISPLAY_UNITS,
+  GRADE_SCALES,
+  GROUP_BY_LABELS,
+  MEAL_TYPES,
+  MEASURE_GROUPS,
+  OTHER_SPORT_HINT,
+  PRESETS,
+  SPORT_OPTIONS,
+} from '../../lib/analytics/labels';
 import TileRenderer from './TileRenderer';
 import AnalyticsCoachPanel from './AnalyticsCoachPanel';
 import { WORKOUT_COLORS } from '../../utils/workoutColors';
-import type { Sport, WorkoutType } from '../../types/workout';
-import type { MealType } from '../../types/nutrition';
-import type { GradeScale } from '../../lib/climbing';
+import type { WorkoutType } from '../../types/workout';
 
 // The tile editor: config column on the left, live preview on the right —
 // the builder-view two-column pattern. All state is ONE ChartDraft (the
@@ -46,64 +51,6 @@ interface Props {
   onClose: () => void;
 }
 
-const CHART_TYPES: Array<{ value: ChartType; label: string }> = [
-  { value: 'line', label: 'Line' },
-  { value: 'bar', label: 'Bar' },
-  { value: 'stacked-bar', label: 'Stacked' },
-  { value: 'area', label: 'Area' },
-  { value: 'kpi', label: 'Stat' },
-  { value: 'table', label: 'Table' },
-];
-
-const BUCKETS: Array<{ value: TimeBucket; label: string }> = [
-  { value: 'day', label: 'Day' },
-  { value: 'week', label: 'Week' },
-  { value: 'iso-month', label: 'Training month' },
-  { value: 'total', label: 'Total' },
-];
-
-const PRESETS: Array<{ value: RangePreset; label: string }> = [
-  { value: 'this-iso-month', label: 'This month' },
-  { value: 'last-iso-month', label: 'Last month' },
-  { value: 'this-iso-year', label: 'This year' },
-  { value: 'last-iso-year', label: 'Last year' },
-  { value: 'current-block', label: 'Current block' },
-];
-
-const DISPLAY_UNITS: DisplayUnit[] = ['mi', 'km', 'm', 'ft'];
-const GRADE_SCALES: Array<{ value: GradeScale; label: string }> = [
-  { value: 'yds', label: 'YDS' },
-  { value: 'boulder', label: 'V-grade' },
-  { value: 'ice', label: 'WI/AI' },
-  { value: 'mixed', label: 'M' },
-];
-const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
-
-const MEASURE_GROUPS: Array<{ label: string; ids: MeasureId[] }> = [
-  { label: 'Training', ids: ['session-count', 'training-time'] },
-  { label: 'Strength', ids: ['set-count', 'rep-count', 'tonnage', 'est-1rm'] },
-  { label: 'Climbing', ids: ['pitches', 'max-grade'] },
-  { label: 'Cardio', ids: ['distance', 'elevation-gain', 'cardio-time', 'avg-hr', 'hr-zone-time'] },
-  { label: 'Nutrition', ids: ['calories', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'alcohol', 'meal-count'] },
-];
-
-const SPORT_OPTIONS: Array<{ value: Sport; label: string }> = [
-  { value: 'running', label: 'Running' },
-  { value: 'biking', label: 'Biking' },
-  { value: 'swimming', label: 'Swimming' },
-  { value: 'climbing', label: 'Climbing' },
-  { value: 'other', label: 'Other' },
-];
-
-const GROUP_BY_LABELS: Record<GroupBy, string> = {
-  'event-type': 'Workout type',
-  sport: 'Sport',
-  exercise: 'Exercise',
-  category: 'Category',
-  'meal-type': 'Meal type',
-  'hr-zone': 'HR zone',
-  unit: 'Unit',
-};
 
 function Chips<T extends string>({ label, options, value, onSelect, clearable }: {
   label: string;
@@ -485,7 +432,7 @@ function SeriesEditor({ series: s, index, removable, otherWorkoutOptions, catego
                   onToggle={v => onPatch({ workoutTitles: toggle(s.workoutTitles, v) })} />
               )}
               {showSports && s.sports.includes('other') && otherWorkoutOptions.length === 0 && (
-                <p className="an-hint">No workouts marked “Other sport” yet — set a sport on a workout in the builder.</p>
+                <p className="an-hint">{OTHER_SPORT_HINT}</p>
               )}
               {showLogFilters && (
                 <label className="library-field">

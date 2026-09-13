@@ -4,6 +4,7 @@ import handler, { MAX_SPECS } from '../_lib/handlers/analyticsCompute';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 import { loadAnalyticsInputs } from '../_lib/analyticsData';
 import { makeCompletion, makeInputs, makeSpec } from '../../src/lib/analytics/__tests__/helpers';
+import { emptyChartDraft } from '../../src/lib/analytics/draft';
 import type { TileResult } from '../../src/lib/analytics/engine';
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
@@ -65,6 +66,10 @@ describe('POST /api/analytics-compute — validation', () => {
       { specs: Array.from({ length: MAX_SPECS + 1 }, () => sessions), today: TODAY },
       { specs: [sessions], today: '15/09/2026' },
       { specs: [sessions] },
+      // W9: drafts is the other body — exactly one of the two arrays.
+      { drafts: [], today: TODAY },
+      { drafts: 'nope', today: TODAY },
+      { specs: [sessions], drafts: [emptyChartDraft()], today: TODAY },
     ]) {
       const { res, statusCode } = makeRes();
       await handler(makeReq(body), res);
@@ -109,5 +114,36 @@ describe('POST /api/analytics-compute — results', () => {
     await handler(makeReq({ specs: [preset], today: TODAY }), some.res);
     expect(some.body().tiles[0].ok).toBe(true);
     expect(vi.mocked(loadAnalyticsInputs).mock.calls.at(-1)![2]).toMatchObject({ startDate: '2026-09-07', endDateExclusive: '2026-10-05' });
+  });
+});
+
+describe('POST /api/analytics-compute { drafts } — the native builder\'s live preview (W9)', () => {
+  it('runs each draft through specFromDraft: a problem slot for one the web would refuse, data for one it would build', async () => {
+    const empty = emptyChartDraft();                       // no measure yet
+    const mileage = emptyChartDraft();
+    mileage.title = 'Sessions';
+    mileage.chartType = 'kpi';
+    mileage.rangeKind = 'fixed';
+    mileage.startDate = '2026-09-01';
+    mileage.endDate = '2026-09-30';                       // inclusive in the draft
+    mileage.series[0].measure = 'session-count';
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq({ drafts: [empty, 'not-a-draft', { title: 'x' }, mileage], today: TODAY }), res);
+    expect(statusCode()).toBe(200);
+    const { tiles } = body();
+    expect(tiles).toHaveLength(4);
+    expect(tiles[0]).toEqual({ ok: false, problem: 'Every series needs a measure.' });
+    expect(tiles[1]).toEqual({ ok: false, problem: 'draft must be an object' });
+    expect(tiles[2]).toEqual({ ok: false, problem: 'draft is not a chart draft' });
+    expect(tiles[3].ok).toBe(true);
+    expect((tiles[3] as { ok: true; data: { series: Array<{ points: Array<number | null> }> } }).data.series[0].points).toEqual([2]);
+    // The draft's inclusive end became the spec's exclusive one before the window was computed.
+    expect(vi.mocked(loadAnalyticsInputs).mock.calls[0][2]).toMatchObject({ startDate: '2026-09-01', endDateExclusive: '2026-10-01' });
+  });
+
+  it('caps drafts at the same batch size as specs', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq({ drafts: Array.from({ length: MAX_SPECS + 1 }, () => emptyChartDraft()), today: TODAY }), res);
+    expect(statusCode()).toBe(400);
   });
 });
