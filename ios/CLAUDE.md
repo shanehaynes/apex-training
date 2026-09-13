@@ -146,6 +146,10 @@ Uploading publishes a build to Apple. Confirm with Shane before running it witho
 - `node ios/scripts/gen-tokens.mjs` — after any change to `src/styles/tokens.css`,
   `src/utils/workoutColors.ts` or `src/lib/analytics/palette.ts`. `--check` runs in
   `npm run ci:guards`, so drift fails the build rather than the brand.
+- `node ios/scripts/gen-analytics-catalog.mjs` — after any change to `src/lib/analytics/spec.ts`
+  (measures, sport blocklist, limits), `src/lib/analytics/labels.ts` (the builder's option
+  labels) or `src/utils/workoutColors.ts` (type labels). Writes
+  `ApexCore/Analytics/Generated/AnalyticsCatalog.swift`; `--check` runs in `npm run ci:guards`.
 - `npm run db:types` — after any migration. It writes
   `Packages/ApexKit/Sources/ApexAuth/Generated/DatabaseTypes.swift` as well as the TS types.
 - `node ios/scripts/render-icon.mjs` — after editing `Design/app-icon.svg`.

@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import handler from '../_lib/handlers/analyticsTiles';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
+import { enforceRateLimit } from '../_lib/rateLimit';
+import { draftFromSpec, emptyChartDraft, specFromDraft, type ChartDraft } from '../../src/lib/analytics/draft';
+import type { ChartSpec } from '../../src/lib/analytics/spec';
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
 vi.mock('../_lib/auth.js', () => ({ requireUser: vi.fn(async () => 'user-123') }));
@@ -10,6 +13,10 @@ vi.mock('../_lib/rateLimit.js', () => ({ enforceRateLimit: vi.fn(async () => tru
 const mockedAdmin = vi.mocked(getSupabaseAdmin);
 
 interface AdminState {
+  /** Rows a select() answers, keyed by table. */
+  rows: Record<string, unknown[]>;
+  /** Filters the select chains applied, keyed by table. */
+  selectFilters: Record<string, Record<string, unknown>>;
   upserted?: Record<string, unknown>;
   updates: Array<{ row: Record<string, unknown>; filters: Record<string, unknown> }>;
   deleteFilters?: Record<string, unknown>;
@@ -19,8 +26,20 @@ interface AdminState {
 // Minimal chainable fake covering exactly the query shapes the handler uses.
 function makeAdmin(state: AdminState) {
   return {
-    from() {
+    from(table: string) {
       return {
+        select: () => {
+          const filters: Record<string, unknown> = {};
+          const chain = {
+            eq(col: string, val: unknown) { filters[col] = val; return chain; },
+            order() { return chain; },
+            then(resolve: (v: { data: unknown[]; error: null }) => void) {
+              state.selectFilters[table] = filters;
+              resolve({ data: state.rows[table] ?? [], error: null });
+            },
+          };
+          return chain;
+        },
         upsert: async (row: Record<string, unknown>) => {
           state.upserted = row;
           return { error: null };
@@ -76,12 +95,60 @@ const VALID_SPEC = {
   series: [{ id: 's1', measure: 'distance' }],
 };
 
+/** A draft the web would save: the mileage tile as the builder holds it. */
+function validDraft(): ChartDraft {
+  const draft = emptyChartDraft();
+  draft.title = 'Weekly mileage';
+  draft.series[0].measure = 'distance';
+  return draft;
+}
+
 function freshState(): AdminState {
-  return { updates: [], deleteCount: 1 };
+  return { rows: {}, selectFilters: {}, updates: [], deleteCount: 1 };
 }
 
 beforeEach(() => {
   mockedAdmin.mockReset();
+  vi.mocked(enforceRateLimit).mockClear();
+});
+
+describe('GET /api/analytics-tiles (W9 — the native dashboard read)', () => {
+  it('lists the caller\'s tiles in y,x order with the draft each spec unfolds to, plus the picker options', async () => {
+    const state = freshState();
+    state.rows.analytics_tiles = [
+      { id: 'tile-a', user_id: 'user-123', spec: VALID_SPEC, x: 0, y: 0, w: 6, h: 4, created_at: 'c', updated_at: '2026-09-11T10:00:00Z' },
+      { id: 'tile-b', user_id: 'user-123', spec: { version: 1, title: 'Old tile', series: [] }, x: 0, y: 4, w: 12, h: 2, created_at: 'c', updated_at: null },
+    ];
+    state.rows.exercise_definitions = [{ category: 'strength' }, { category: 'cardio' }, { category: 'strength' }, { category: null }];
+    state.rows.workout_events = [{ title: ' Soccer night ' }, { title: 'Soccer night' }, { title: '' }];
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(statusCode()).toBe(200);
+    const out = body() as { tiles: Array<Record<string, unknown>>; options: unknown };
+    expect(out.tiles).toHaveLength(2);
+    expect(out.tiles[0]).toEqual({
+      id: 'tile-a', title: 'Weekly mileage', spec: VALID_SPEC, draft: draftFromSpec(VALID_SPEC as ChartSpec),
+      layout: { x: 0, y: 0, w: 6, h: 4 }, updatedAt: '2026-09-11T10:00:00Z',
+    });
+    // A stored spec that no longer validates keeps its title and carries no draft.
+    expect(out.tiles[1]).toEqual({ id: 'tile-b', title: 'Old tile', spec: null, draft: null, layout: { x: 0, y: 4, w: 12, h: 2 }, updatedAt: null });
+    expect(out.options).toEqual({ categories: ['cardio', 'strength'], otherWorkoutTitles: ['Soccer night'] });
+    // Never another user's rows, never a user_id in the response.
+    expect(state.selectFilters.analytics_tiles).toEqual({ user_id: 'user-123' });
+    expect(state.selectFilters.workout_events).toEqual({ user_id: 'user-123', sport: 'other' });
+    expect(JSON.stringify(out)).not.toContain('user_id');
+  });
+
+  it('charges the reads bucket for GET and writes for every mutation', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin(freshState()));
+    await handler(makeReq('GET'), makeRes().res);
+    expect(vi.mocked(enforceRateLimit).mock.calls.at(-1)![3]).toBe('reads');
+    await handler(makeReq('POST', { id: 'tile-abc', spec: VALID_SPEC }), makeRes().res);
+    expect(vi.mocked(enforceRateLimit).mock.calls.at(-1)![3]).toBe('writes');
+    await handler(makeReq('DELETE', undefined, { id: 'tile-abc' }), makeRes().res);
+    expect(vi.mocked(enforceRateLimit).mock.calls.at(-1)![3]).toBe('writes');
+  });
 });
 
 describe('POST /api/analytics-tiles', () => {
@@ -129,6 +196,76 @@ describe('POST /api/analytics-tiles', () => {
       const { res, statusCode } = makeRes();
       await handler(makeReq('POST', { id: 'tile-abc', spec: VALID_SPEC, ...layout }), res);
       expect(statusCode()).toBe(400);
+      expect(state.upserted).toBeUndefined();
+    }
+  });
+});
+
+describe('POST /api/analytics-tiles { draft } (W9 — the native builder\'s Save)', () => {
+  it('converts the draft with the web\'s own specFromDraft, upserts the row and answers the saved tile', async () => {
+    const state = freshState();
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode, body } = makeRes();
+    const draft = validDraft();
+    await handler(makeReq('POST', { id: 'tile-abc', draft, layout: { x: 0, y: 8, w: 12, h: 4 } }), res);
+    expect(statusCode()).toBe(200);
+    const spec = (specFromDraft(draft) as { spec: ChartSpec }).spec;
+    expect(state.upserted).toEqual({
+      id: 'tile-abc', spec, x: 0, y: 8, w: 12, h: 4, user_id: 'user-123', updated_at: expect.any(String),
+    });
+    expect(body()).toEqual({
+      ok: true, id: 'tile-abc',
+      tile: { id: 'tile-abc', title: 'Weekly mileage', spec, draft: draftFromSpec(spec), layout: { x: 0, y: 8, w: 12, h: 4 }, updatedAt: expect.any(String) },
+    });
+  });
+
+  it('defaults the layout when none is sent and fills a partial one', async () => {
+    const state = freshState();
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    await handler(makeReq('POST', { id: 'tile-abc', draft: validDraft() }), makeRes().res);
+    expect(state.upserted).toMatchObject({ x: 0, y: 0, w: 6, h: 4 });
+    await handler(makeReq('POST', { id: 'tile-abc', draft: validDraft(), layout: { h: 6 } }), makeRes().res);
+    expect(state.upserted).toMatchObject({ x: 0, y: 0, w: 6, h: 6 });
+  });
+
+  it('answers 200 ok:false with the web\'s pre-save text for a blank title, writing nothing', async () => {
+    const state = freshState();
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode, body } = makeRes();
+    const draft = validDraft();
+    draft.title = '   ';
+    await handler(makeReq('POST', { id: 'tile-abc', draft }), res);
+    expect(statusCode()).toBe(200);
+    expect(body()).toEqual({ ok: false, problem: 'Give the tile a title' });
+    expect(state.upserted).toBeUndefined();
+  });
+
+  it('answers 200 ok:false with chartDraftProblem\'s text when the draft would not build', async () => {
+    const state = freshState();
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode, body } = makeRes();
+    const draft = validDraft();
+    draft.series[0].measure = 'max-grade';   // needs a grade scale
+    await handler(makeReq('POST', { id: 'tile-abc', draft }), res);
+    expect(statusCode()).toBe(200);
+    expect(body()).toEqual({ ok: false, problem: 'Max grade needs a grade scale — grades only order within one scale.' });
+    expect(state.upserted).toBeUndefined();
+  });
+
+  it('400s a draft that is not an object, a bad layout, a non-draft shape, or a body carrying both spec and draft', async () => {
+    for (const body of [
+      { id: 'tile-abc', draft: 'nope' },
+      { id: 'tile-abc', draft: validDraft(), layout: { w: 13 } },
+      { id: 'tile-abc', draft: validDraft(), layout: 'wide' },
+      { id: 'tile-abc', draft: { title: 'No series here' } },
+      { id: 'tile-abc', draft: validDraft(), spec: VALID_SPEC },
+      { id: 'bad id!', draft: validDraft() },
+    ]) {
+      const state = freshState();
+      mockedAdmin.mockReturnValue(makeAdmin(state));
+      const { res, statusCode } = makeRes();
+      await handler(makeReq('POST', body), res);
+      expect(statusCode(), JSON.stringify(body).slice(0, 60)).toBe(400);
       expect(state.upserted).toBeUndefined();
     }
   });
@@ -192,10 +329,11 @@ describe('DELETE /api/analytics-tiles', () => {
 });
 
 describe('method handling', () => {
-  it('405s GET — reads go straight to Supabase under RLS', async () => {
+  it('405s PUT before touching auth or the limiter', async () => {
     mockedAdmin.mockReturnValue(makeAdmin(freshState()));
     const { res, statusCode } = makeRes();
-    await handler(makeReq('GET'), res);
+    await handler(makeReq('PUT'), res);
     expect(statusCode()).toBe(405);
+    expect(enforceRateLimit).not.toHaveBeenCalled();
   });
 });

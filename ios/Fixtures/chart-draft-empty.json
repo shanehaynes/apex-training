@@ -1,0 +1,32 @@
+{
+  "title": "",
+  "chartType": "line",
+  "rangeKind": "rolling",
+  "rollingDays": "90",
+  "startDate": "",
+  "endDate": "",
+  "preset": "this-iso-month",
+  "bucket": "week",
+  "displayUnit": "",
+  "series": [
+    {
+      "id": "s1",
+      "label": "",
+      "measure": "",
+      "agg": "",
+      "eventTypes": [],
+      "sports": [],
+      "workoutTitles": [],
+      "exerciseNames": [],
+      "categories": [],
+      "mealTypes": [],
+      "gradeScale": "",
+      "dayFilterTypes": [],
+      "dayFilterOffset": "0",
+      "dayFilterMode": "include",
+      "groupBy": "",
+      "groupLimit": "",
+      "axis": ""
+    }
+  ]
+}

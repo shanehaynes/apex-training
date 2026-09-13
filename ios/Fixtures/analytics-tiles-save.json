@@ -1,0 +1,63 @@
+{
+  "ok": true,
+  "id": "ios-fixture-tile-save",
+  "tile": {
+    "id": "ios-fixture-tile-save",
+    "title": "Fixture weekly tonnage",
+    "spec": {
+      "version": 1,
+      "title": "Fixture weekly tonnage",
+      "chartType": "bar",
+      "range": {
+        "kind": "rolling",
+        "days": 90
+      },
+      "bucket": "week",
+      "series": [
+        {
+          "id": "s1",
+          "measure": "tonnage"
+        }
+      ]
+    },
+    "draft": {
+      "title": "Fixture weekly tonnage",
+      "chartType": "bar",
+      "rangeKind": "rolling",
+      "rollingDays": "90",
+      "startDate": "",
+      "endDate": "",
+      "preset": "this-iso-month",
+      "bucket": "week",
+      "displayUnit": "",
+      "series": [
+        {
+          "id": "s1",
+          "label": "",
+          "measure": "tonnage",
+          "agg": "",
+          "eventTypes": [],
+          "sports": [],
+          "workoutTitles": [],
+          "exerciseNames": [],
+          "categories": [],
+          "mealTypes": [],
+          "gradeScale": "",
+          "dayFilterTypes": [],
+          "dayFilterOffset": "0",
+          "dayFilterMode": "include",
+          "groupBy": "",
+          "groupLimit": "",
+          "axis": ""
+        }
+      ]
+    },
+    "layout": {
+      "x": 0,
+      "y": 24,
+      "w": 12,
+      "h": 4
+    },
+    "updatedAt": "<timestamp>"
+  }
+}
