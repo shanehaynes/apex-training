@@ -25,6 +25,12 @@ public final class ToastBus {
 
     private init() {}
 
+    // Under MainActor default isolation the deinit would be synthesized as
+    // *isolated*, which routes deallocation through swift_task_deinitOnExecutor
+    // and aborts on the iOS 17/18 runtime when the object dies outside a task
+    // (swiftlang/swift#87316, D-031). Nothing here needs the actor to die.
+    nonisolated deinit {}
+
     public func post(_ toast: Toast) {
         toasts.append(toast)
         Task { [weak self] in

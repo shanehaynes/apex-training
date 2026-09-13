@@ -28,6 +28,12 @@ echo "api function count: $actual (ok)"
 # Runs under plain node with no dependencies, so it works in a --no-install worktree.
 node ios/scripts/gen-tokens.mjs --check
 
+# Every class in a MainActor-default iOS target declares `nonisolated deinit`,
+# or its synthesized isolated deinit aborts on the iOS 17/18 runtime
+# (docs/ios/decisions.md D-031). CI's ios job runs iOS 26 only and cannot see
+# the crash, so this grep is what enforces the rule.
+ios/scripts/check-deinits.sh
+
 # ApexCore must stay Linux-buildable: it is what a Linux session can prove with
 # `swift test` (architecture.md rule 2), and CI's apexcore-linux job builds the
 # whole package. One Apple-only or SDK import silently ends that, and only a

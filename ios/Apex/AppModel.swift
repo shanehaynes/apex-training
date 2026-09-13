@@ -84,6 +84,12 @@ final class AppModel {
         self.hub = nil
         self.schedule = Self.makeSchedule(client: client, cache: mock.cache, clock: mock.clock, streams: mock.streams, realtime: nil)
     }
+
+    // Under MainActor default isolation the deinit would be synthesized as
+    // *isolated*, which routes deallocation through swift_task_deinitOnExecutor
+    // and aborts on the iOS 17/18 runtime when the object dies outside a task
+    // (swiftlang/swift#87316, D-031). Nothing here needs the actor to die.
+    nonisolated deinit {}
     #endif
 
     /// Called once the root knows who is signed in. Idempotent per owner. The
