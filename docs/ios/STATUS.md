@@ -40,7 +40,14 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    failed once on #149 with "Neither element nor any descendant has keyboard focus", then passed
    on a re-run of the same commit. Same race W7 hit in the event-edits smoke, where `openEvent`
    ended up re-sending its tap. Needs a Mac to fix and prove.
-5. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
+5. **Mac, small:** on the **iOS 18.6 simulator runtime** a `@MainActor` `@Observable` class's
+   deinit crashes the process (`pointer being freed was not allocated` inside
+   `swift_task_deinitOnExecutorMainActorBackDeploy`) — `RouteBusTests` dies that way there while
+   passing on iOS 26.5, which CI runs. W11 sidestepped it for its own models with an explicit
+   `nonisolated deinit {}`; `RouteBus` (and anything else that is deallocated in a test) needs
+   the same one-liner if the suite is ever to run on an iOS 18 simulator. Not a device risk:
+   those objects live for the session.
+6. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
    `ios/Config/Secrets.xcconfig` (`ios/scripts/secrets.sh`) and `ios/Config/appstoreconnect.env`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 

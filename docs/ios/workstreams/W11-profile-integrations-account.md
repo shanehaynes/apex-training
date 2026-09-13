@@ -104,3 +104,9 @@ Out: push (Backlog).
   list → Sync now → Fill it → toast → activity log). Proved by hand on the iPhone 17 Pro simulator
   under the mock. D-030. Left for Shane: the device runs in Acceptance (a real COROS connect in the
   in-app browser, a fill that shows metrics on the event sheet, a bad key's Anthropic message).
+- Found on the way: **the iOS 18.6 simulator runtime aborts on an isolated deinit.** A
+  `@MainActor` `@Observable` model released while a hosting view tears down (the snapshot tests)
+  dies with `pointer being freed was not allocated` in `swift_task_deinitOnExecutorMainActorBackDeploy`;
+  iOS 26.5 is fine. The four W11 models declare `nonisolated deinit {}` — nothing in them needs the
+  actor to die. `RouteBusTests` (untouched here) fails the same way on 18.6 and passes on 26.5; noted
+  on the board as a Mac one-liner.
