@@ -20,12 +20,12 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W8 | Backend analytics compute | done (PR #100) | Linux | web keeps its browser path |
 | W9 | Analytics tab (editable layout) | ready | Mac | W8 + W6 done |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
-| W11 | Profile, integrations, account | backend done (#149) · You tab in review (`feat/w11-you`) | both | phase41 applied in prod? (Shane); device runs are Shane's |
+| W11 | Profile, integrations, account | backend done (#149) · You tab in review (#157) | both | phase41 applied in prod? (Shane); device runs are Shane's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
-1. **W11 You tab PR** (`feat/w11-you`): review, merge after the W9 stack (it touches the same
+1. **W11 You tab PR #157**: review, merge after the W9 stack (it touches the same
    five files — AppModel, RootTabView, Tabs, the mock, Icons — additively; resolve keeping both).
    Then a TestFlight build and Shane's W11 device run: COROS connect inside the app, a sync that
    fills a planned workout, a bad key's Anthropic message. Confirm phase41 is applied in prod.

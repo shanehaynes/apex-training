@@ -1,7 +1,7 @@
 # W11 — Profile, integrations, account
 
 **Machine:** both · **Depends on:** W1 (W2 for realtime-aware sync results) · **Unblocks:** W13
-**Status:** backend done (#149) · You tab in review (`feat/w11-you`) · device runs are Shane's
+**Status:** backend done (#149) · You tab in review (#157) · device runs are Shane's
 
 ## Goal
 The You tab root and every integration the web profile offers, plus the App Store's
