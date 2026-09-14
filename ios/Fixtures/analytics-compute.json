@@ -78,6 +78,187 @@
       }
     },
     {
+      "ok": true,
+      "data": {
+        "buckets": [
+          {
+            "key": "2026-08-31",
+            "label": "Aug 31"
+          },
+          {
+            "key": "2026-09-07",
+            "label": "Sep 7"
+          },
+          {
+            "key": "2026-09-14",
+            "label": "Sep 14"
+          },
+          {
+            "key": "2026-09-21",
+            "label": "Sep 21"
+          },
+          {
+            "key": "2026-09-28",
+            "label": "Sep 28"
+          }
+        ],
+        "series": [
+          {
+            "key": "s1:weights",
+            "label": "Training time · weights",
+            "unitKind": "minutes",
+            "unit": "min",
+            "axis": "left",
+            "points": [
+              0,
+              60,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "excluded": {
+          "otherUnit": 0,
+          "unparseable": 0
+        },
+        "rangeLabel": "Sep 1 – Sep 30, 2026"
+      }
+    },
+    {
+      "ok": true,
+      "data": {
+        "buckets": [
+          {
+            "key": "2026-M09",
+            "label": "Aug 10"
+          },
+          {
+            "key": "2026-M10",
+            "label": "Sep 7"
+          }
+        ],
+        "series": [
+          {
+            "key": "s1",
+            "label": "Max grade",
+            "unitKind": "grade",
+            "unit": "",
+            "axis": "left",
+            "points": [
+              null,
+              1060
+            ],
+            "gradeLabels": [
+              null,
+              "5.10c"
+            ]
+          }
+        ],
+        "excluded": {
+          "otherUnit": 0,
+          "unparseable": 0
+        },
+        "rangeLabel": "Sep 1 – Sep 30, 2026"
+      }
+    },
+    {
+      "ok": true,
+      "data": {
+        "buckets": [
+          {
+            "key": "2026-08-31",
+            "label": "Aug 31"
+          },
+          {
+            "key": "2026-09-07",
+            "label": "Sep 7"
+          },
+          {
+            "key": "2026-09-14",
+            "label": "Sep 14"
+          },
+          {
+            "key": "2026-09-21",
+            "label": "Sep 21"
+          },
+          {
+            "key": "2026-09-28",
+            "label": "Sep 28"
+          }
+        ],
+        "series": [
+          {
+            "key": "s1",
+            "label": "Avg heart rate",
+            "unitKind": "bpm",
+            "unit": "bpm",
+            "axis": "left",
+            "points": [
+              null,
+              150,
+              null,
+              null,
+              null
+            ]
+          }
+        ],
+        "excluded": {
+          "otherUnit": 0,
+          "unparseable": 0
+        },
+        "rangeLabel": "Sep 1 – Sep 30, 2026"
+      }
+    },
+    {
+      "ok": true,
+      "data": {
+        "buckets": [
+          {
+            "key": "2026-08-31",
+            "label": "Aug 31"
+          },
+          {
+            "key": "2026-09-07",
+            "label": "Sep 7"
+          },
+          {
+            "key": "2026-09-14",
+            "label": "Sep 14"
+          },
+          {
+            "key": "2026-09-21",
+            "label": "Sep 21"
+          },
+          {
+            "key": "2026-09-28",
+            "label": "Sep 28"
+          }
+        ],
+        "series": [
+          {
+            "key": "s1",
+            "label": "Distance",
+            "unitKind": "length",
+            "unit": "mi",
+            "axis": "left",
+            "points": [
+              0,
+              5,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "excluded": {
+          "otherUnit": 0,
+          "unparseable": 1
+        },
+        "rangeLabel": "Sep 1 – Sep 30, 2026"
+      }
+    },
+    {
       "ok": false,
       "problem": "spec must be a version-1 chart spec"
     }

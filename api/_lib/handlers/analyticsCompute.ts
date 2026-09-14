@@ -5,19 +5,25 @@ import { enforceRateLimit } from '../rateLimit.js';
 import { loadAnalyticsInputs } from '../analyticsData.js';
 import { computeTile, type ComputeContext, type TileResult } from '../../../src/lib/analytics/engine.js';
 import { needsHrZones, specProblem, upgradeSpec, type ChartSpec } from '../../../src/lib/analytics/spec.js';
+import { specFromDraft, type ChartDraft } from '../../../src/lib/analytics/draft.js';
 import { unionWindow } from '../../../src/lib/analytics/window.js';
 import { blockCovering, blockPeriod } from '../../../src/lib/blocks/period.js';
 import { rowToBlock } from '../../../src/lib/blocks/mapping.js';
 import type { TrainingBlockRow } from '../../../src/lib/db/types.js';
 
 // POST /api/analytics-compute { specs: ChartSpec[], today } → { today, tiles: TileResult[] }
+//                          or { drafts: ChartDraft[], today }
 //
 // The analytics engine (src/lib/analytics/engine.ts) run server-side over the
 // caller's rows (docs/ios/backend-changes.md, W8): a native client renders
 // TileData and never fetches raw logs or ports the aggregation. Results are
 // index-aligned with the request; an invalid spec answers with its problem
-// text in that slot, exactly as the dashboard's error tile does. One spec at
-// a time serves the tile builder's live preview.
+// text in that slot, exactly as the dashboard's error tile does.
+//
+// `drafts` (W9) is the native tile builder's live preview: the builder's
+// ChartDraft runs through the web's own specFromDraft here, and a draft the
+// web would refuse answers its person-phrased problem in that slot — the
+// same text the web shows under the preview. Exactly one of the two arrays.
 //
 // "Today" is the caller's local calendar date — the engine never reads the
 // clock — and the current-block preset resolves against the active block.
@@ -26,15 +32,37 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 /** A whole dashboard; the builder sends one. */
 export const MAX_SPECS = 24;
 
+type Slot = ChartSpec | { problem: string };
+
+function slotFromSpec(json: unknown): Slot {
+  const spec = upgradeSpec(json);
+  if (!spec) return { problem: 'spec must be a version-1 chart spec' };
+  const problem = specProblem(spec);
+  return problem ? { problem } : spec;
+}
+
+function slotFromDraft(json: unknown): Slot {
+  if (typeof json !== 'object' || json === null || Array.isArray(json)) return { problem: 'draft must be an object' };
+  try {
+    const built = specFromDraft(json as ChartDraft);
+    return 'error' in built ? { problem: built.error } : built.spec;
+  } catch {
+    return { problem: 'draft is not a chart draft' };
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.status(405).send('Method not allowed');
     return;
   }
 
-  const body = (req.body ?? {}) as { specs?: unknown; today?: unknown };
-  if (!Array.isArray(body.specs) || body.specs.length < 1 || body.specs.length > MAX_SPECS) {
-    res.status(400).send(`specs must be an array of 1-${MAX_SPECS}`);
+  const body = (req.body ?? {}) as { specs?: unknown; drafts?: unknown; today?: unknown };
+  const isBatch = (v: unknown): v is unknown[] => Array.isArray(v) && v.length >= 1 && v.length <= MAX_SPECS;
+  const hasSpecs = body.specs !== undefined;
+  const hasDrafts = body.drafts !== undefined;
+  if (hasSpecs === hasDrafts || !isBatch(hasSpecs ? body.specs : body.drafts)) {
+    res.status(400).send(`specs or drafts must be an array of 1-${MAX_SPECS}`);
     return;
   }
   if (typeof body.today !== 'string' || !DATE_RE.test(body.today)) {
@@ -43,14 +71,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   const todayIso = body.today;
 
-  // Shape-check every spec up front so a malformed one becomes a problem
+  // Shape-check every entry up front so a malformed one becomes a problem
   // slot, not a crash mid-batch; the engine re-validates deeply.
-  const specs: Array<ChartSpec | { problem: string }> = body.specs.map(json => {
-    const spec = upgradeSpec(json);
-    if (!spec) return { problem: 'spec must be a version-1 chart spec' };
-    const problem = specProblem(spec);
-    return problem ? { problem } : spec;
-  });
+  const specs: Slot[] = hasSpecs
+    ? (body.specs as unknown[]).map(slotFromSpec)
+    : (body.drafts as unknown[]).map(slotFromDraft);
   const valid = specs.filter((s): s is ChartSpec => !('problem' in s));
 
   const supabase = getSupabaseAdmin();

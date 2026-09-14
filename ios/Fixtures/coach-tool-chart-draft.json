@@ -1,0 +1,36 @@
+{
+  "ok": true,
+  "resultText": "Chart draft updated: title, chart type, bucket, updated series s1. The user reviews and presses Save.",
+  "draft": {
+    "title": "Fixture weekly tonnage",
+    "chartType": "bar",
+    "rangeKind": "rolling",
+    "rollingDays": "90",
+    "startDate": "",
+    "endDate": "",
+    "preset": "this-iso-month",
+    "bucket": "week",
+    "displayUnit": "",
+    "series": [
+      {
+        "id": "s1",
+        "label": "",
+        "measure": "tonnage",
+        "agg": "",
+        "eventTypes": [],
+        "sports": [],
+        "workoutTitles": [],
+        "exerciseNames": [],
+        "categories": [],
+        "mealTypes": [],
+        "gradeScale": "",
+        "dayFilterTypes": [],
+        "dayFilterOffset": "0",
+        "dayFilterMode": "include",
+        "groupBy": "",
+        "groupLimit": "",
+        "axis": ""
+      }
+    ]
+  }
+}
