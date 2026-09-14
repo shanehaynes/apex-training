@@ -56,6 +56,13 @@ public enum ApexIcon: String, CaseIterable, Sendable {
     case chevronDown = "chevron.down"
     case minus = "minus.circle"
 
+    // W9 — analytics
+    case kebab = "ellipsis"
+    case duplicate = "plus.square.on.square"
+    case resize = "arrow.up.and.down"
+    case chart = "chart.bar"
+    case table = "tablecells"
+
     /// Light weight, like the web's 1.5px lucide strokes.
     public var image: some View {
         Image(systemName: rawValue).fontWeight(.light)

@@ -18,7 +18,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W6 | Coach tab | done (#126, #127, #128) | Mac | TestFlight build 3 (0.4.0/301); device run passed 2026-09-11 on build 306, kill-mid-card relaunch included |
 | W7 | Event CRUD + builder | done (#137, #138, #139, #140) | Mac | TestFlight build 5 (0.6.0/312) uploaded 2026-09-11; Shane's device run outstanding |
 | W8 | Backend analytics compute | done (PR #100) | Linux | web keeps its browser path |
-| W9 | Analytics tab (editable layout) | in progress (A open; B, C, D to follow) | Mac | plan approved 2026-09-11; TestFlight build 6 (0.7.0) after D |
+| W9 | Analytics tab (editable layout) | in progress (A #153, B open; C, D to follow) | Mac | plan approved 2026-09-11; TestFlight build 6 (0.7.0) after D |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
 | W11 | Profile, integrations, account | backend in review (PR pending) | both | migration phase41 — HELD, needs `shipit`; You tab UI is the Mac's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
@@ -44,6 +44,9 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-13 · W9 · PR B: the Analytics tab — `AnalyticsModel`, tile cards with Swift Charts
+  renderers (tap-to-pin values; drags swallow the page's flick), edit mode, mock routes, 16 model
+  tests, 12 snapshots.
 - 2026-09-12 · W9 · PR A: `GET /api/analytics-tiles`, draft bodies on tiles POST and compute,
   the generated `AnalyticsCatalog.swift`, the ApexCore analytics layer, seven analytics fixtures.
 - 2026-09-11 · W11 · Backend + ApexCore (the Mac builds the You tab in parallel): phase41

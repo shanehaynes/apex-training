@@ -118,6 +118,11 @@ seven minutes before the fixed clock, so Start Workout opens a live session rath
 committed (finished) `bootstrap.json`. `-apexMockFailOnce save 3` makes the first three `save`
 actions (or a path suffix) answer 500 and then succeed — the write queue's pending → synced path
 the smoke asserts on; `-apexMockFail` also matches an action name now.
+The Analytics tab (W9) is answered too: `GET /api/analytics-tiles` → `analytics-tiles.json` plus
+every save, layout commit and delete the session made; `POST /api/analytics-compute` matches each
+spec to a seeded tile and serves that slot of `analytics-compute.json` (index-aligned on purpose),
+a draft with no measure → `analytics-compute-preview.json`; `POST /api/analytics-tiles { draft }`
+→ `analytics-tiles-save.json` reshaped around the caller's id, draft and layout.
 Under the mock an `apextraining://auth#…type=invite` link lands on set-password without GoTrue,
 which is how `AuthLinkUITests` covers that screen in CI.
 
