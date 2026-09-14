@@ -46,3 +46,22 @@ Out: new chart types.
   the run's distance/elevation records. Found on the way in: `tiles.ts` needed a `.js` specifier
   once the API graph reached it; the stack must be reset from a checkout that has phase41.
   - **Not done here:** the dashboard (B), the builder sheet (C), smoke/0.7.0/docs/D-028 (D).
+- 2026-09-13 · Mac · PR B — the dashboard. `AnalyticsModel` (cache-first, one compute per refresh
+  chunked at 24, results cached per tile and trusted only for a matching spec on the same day
+  and only on launch/realtime; edit mode → `TileLayoutPlan` → PATCH of the changed rows,
+  optimistic with rollback; duplicate reuses the source result; delete stands on a 404),
+  `AnalyticsTab` (inline title — a large one does not survive the ScrollView↔List swap of edit
+  mode; Edit/Done and "+"; the builder route lands as a placeholder for C), `TileCardView`
+  (kebab → Edit/Duplicate/Delete → "Confirm delete" dialog; stat tiles size to their content,
+  charts take the grid height), `TileChartView` in Swift Charts (categorical buckets keyed by
+  `bucket.key`, gaps at nils via per-run series, workout-type colours through
+  `ChartPalette.color(for:)`, right-axis series on an overlaid chart, grade charts hide the
+  y-axis), `KPIRowView`, `TileTableView` (sticky header), `AnalyticsEditList` (S/M/L segmented
+  per row, `.onMove`), `ApexIcon` +5, `Chip(isDimmed:)`. Mock: the four analytics routes with
+  saves, layouts and deletes replayed into later reads; compute answers by matching a spec to a
+  seeded tile (the fixture is index-aligned). 16 model tests, 13 snapshots.
+  - **Found on the simulator:** any drag gesture on a chart — zero-distance or hold-then-drag —
+    swallows the page's vertical flick, and `chartXSelection` never fired on the iOS 26 runtime;
+    value inspection is a tap that pins the bucket's card (U13). A KPI at the grid height was
+    two-thirds empty, so stat tiles size to content.
+  - **Not done here:** the builder sheet (C), smoke/0.7.0/docs/D-028 (D).

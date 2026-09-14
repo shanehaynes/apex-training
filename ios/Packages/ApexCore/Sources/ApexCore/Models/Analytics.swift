@@ -5,6 +5,11 @@ import Foundation
 public struct AnalyticsComputeResponse: Codable, Sendable, Equatable {
     public let today: String
     public let tiles: [TileResult]
+
+    public init(today: String, tiles: [TileResult]) {
+        self.today = today
+        self.tiles = tiles
+    }
 }
 
 /// A tile either computed or explained why it could not.
