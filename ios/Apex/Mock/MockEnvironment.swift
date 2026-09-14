@@ -177,6 +177,9 @@ actor FixtureTransport: HTTPTransport {
                 if body?["name"] as? String == "update_workout_draft" {
                     return ok(try reducedDraft(body))
                 }
+                if body?["name"] as? String == "update_chart_draft" {
+                    return ok(try reducedChartDraft(body))
+                }
                 return ok(try Fixtures.data("coach-tool.json"))
             case ("PATCH", "/api/events"):
                 let id = queryValue("id", in: query)
@@ -275,7 +278,11 @@ actor FixtureTransport: HTTPTransport {
     /// Markdown otherwise — so the smoke and the snapshots see every state.
     private func chatBody(_ body: [String: Any]?) throws -> Data {
         if body?["withTools"] as? Bool == true {
-            return try Fixtures.data(body?["mode"] as? String == "builder" ? "chat-stream-builder.ndjson" : "chat-stream.ndjson")
+            switch body?["mode"] as? String {
+            case "builder": return try Fixtures.data("chat-stream-builder.ndjson")
+            case "analytics": return try Fixtures.data("chat-stream-analytics.ndjson")
+            default: return try Fixtures.data("chat-stream.ndjson")
+            }
         }
         let messages = body?["messages"] as? [[String: Any]] ?? []
         let last = messages.last
@@ -283,7 +290,11 @@ actor FixtureTransport: HTTPTransport {
         if let content = last?["content"] as? String, content == ChatCopy.notesPrompt {
             text = "**Today** — Fixture Push Day at 17:30.\n\n- Warm up the shoulders first\n- Last time you pressed 110 lb; aim for 115\n\nKeep the run easy tomorrow."
         } else if let blocks = last?["content"] as? [[String: Any]], blocks.contains(where: { $0["type"] as? String == "tool_result" }) {
-            text = body?["mode"] as? String == "builder" ? "Added Fixture Press, 3 × 8. Review the form and press Apply." : "Done — Fixture Push Day on 2026-09-29 is cleared."
+            switch body?["mode"] as? String {
+            case "builder": text = "Added Fixture Press, 3 × 8. Review the form and press Apply."
+            case "analytics": text = "Set up weekly tonnage as bars. Review the form and press Save."
+            default: text = "Done — Fixture Push Day on 2026-09-29 is cleared."
+            }
         } else {
             text = "Noted. Anything else?"
         }
@@ -463,6 +474,19 @@ actor FixtureTransport: HTTPTransport {
                 if let value = sent[key] { draft[key] = value }
             }
             if let title = sent["title"] as? String, !title.isEmpty, (body?["input"] as? [String: Any])?["title"] == nil { draft["title"] = title }
+        }
+        object["draft"] = draft
+        return try JSONSerialization.data(withJSONObject: object)
+    }
+
+    /// The chart-draft reduce (W9): the fixture's answer, with the caller's own
+    /// title kept unless the input set one, so an edit stays on its tile.
+    private func reducedChartDraft(_ body: [String: Any]?) throws -> Data {
+        guard var object = (try JSONSerialization.jsonObject(with: try Fixtures.data("coach-tool-chart-draft.json"))) as? [String: Any],
+              var draft = object["draft"] as? [String: Any] else { return try Fixtures.data("coach-tool-chart-draft.json") }
+        if let sent = body?["draft"] as? [String: Any],
+           let title = sent["title"] as? String, !title.isEmpty, (body?["input"] as? [String: Any])?["title"] == nil {
+            draft["title"] = title
         }
         object["draft"] = draft
         return try JSONSerialization.data(withJSONObject: object)

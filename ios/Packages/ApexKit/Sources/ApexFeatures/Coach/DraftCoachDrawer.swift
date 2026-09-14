@@ -2,13 +2,37 @@ import ApexCore
 import ApexUI
 import SwiftUI
 
-/// `BuilderCoachPanel.tsx`: the builder's coach in a drawer under the form.
-/// Its one tool edits the draft on the server and the form follows — no
-/// confirmation card; only the user's Apply writes anything. A 402 offers the
-/// same key sheet the Coach tab uses.
-struct BuilderCoachDrawer: View {
-    @Bindable var builder: BuilderModel
+/// What differs between the drawers: the copy and the accessibility prefix.
+public struct DraftCoachCopy: Sendable {
+    public let emptyHint: String
+    public let updating: String
+    public let idPrefix: String
+
+    public init(emptyHint: String, updating: String, idPrefix: String) {
+        self.emptyHint = emptyHint
+        self.updating = updating
+        self.idPrefix = idPrefix
+    }
+
+    /// `BuilderCoachPanel.tsx`.
+    public static let builder = DraftCoachCopy(
+        emptyHint: "Describe the workout — the coach fills the form. Only you can press Apply.",
+        updating: "Updating the draft…", idPrefix: "builder.coach"
+    )
+    /// `AnalyticsCoachPanel.tsx`.
+    public static let analytics = DraftCoachCopy(
+        emptyHint: "Describe the chart — the coach configures the tile. Only you can press Save.",
+        updating: "Updating the tile…", idPrefix: "analytics.coach"
+    )
+}
+
+/// The draft coach in a drawer under a form (`BuilderCoachPanel.tsx`,
+/// `AnalyticsCoachPanel.tsx`): its one tool edits the draft on the server
+/// and the form follows — no confirmation card; only the user's Apply or Save
+/// writes anything. A 402 offers the same key sheet the Coach tab uses.
+struct DraftCoachDrawer: View {
     @Bindable var coach: CoachModel
+    let copy: DraftCoachCopy
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,11 +42,11 @@ struct BuilderCoachDrawer: View {
                 if coach.isExecuting {
                     HStack(spacing: Spacing.xs) {
                         ProgressView().controlSize(.mini).tint(ApexColor.textMuted)
-                        Text("Updating the draft…")
+                        Text(copy.updating)
                             .font(.apex(.mono, size: TypeScale.micro, relativeTo: .caption2))
                             .foregroundStyle(ApexColor.textMuted)
                     }
-                    .accessibilityIdentifier("builder.coach.updating")
+                    .accessibilityIdentifier("\(copy.idPrefix).updating")
                 }
             }
             .padding(.horizontal, Spacing.screen)
@@ -32,17 +56,17 @@ struct BuilderCoachDrawer: View {
                     Text(ChatCopy.emptyWithoutKey).apexBody().multilineTextAlignment(.center)
                     ApexButton(ChatCopy.addKey) { coach.showKeySheet = true }
                         .frame(maxWidth: 220)
-                        .accessibilityIdentifier("builder.coach.addkey")
+                        .accessibilityIdentifier("\(copy.idPrefix).addkey")
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(Spacing.screen)
             } else if coach.messages.isEmpty, !coach.isStreaming {
-                Text("Describe the workout — the coach fills the form. Only you can press Apply.")
+                Text(copy.emptyHint)
                     .apexBody()
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(Spacing.screen)
-                    .accessibilityIdentifier("builder.coach.empty")
+                    .accessibilityIdentifier("\(copy.idPrefix).empty")
             } else {
                 CoachThreadView(model: coach)
             }
@@ -58,6 +82,6 @@ struct BuilderCoachDrawer: View {
             .presentationBackground(ApexColor.bgSurface)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("builder.coach")
+        .accessibilityIdentifier(copy.idPrefix)
     }
 }
