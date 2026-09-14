@@ -5,11 +5,16 @@ import SwiftUI
 public struct Chip: View {
     private let title: String
     private let isSelected: Bool
+    private let isDimmed: Bool
     private let action: (() -> Void)?
 
-    public init(_ title: String, isSelected: Bool = false, action: (() -> Void)? = nil) {
+    /// `isDimmed` is the web's `.an-chip--dimmed`: an option a prior choice
+    /// rules out. It stays tappable so the reason can show (U13) — the caller
+    /// decides what a tap does.
+    public init(_ title: String, isSelected: Bool = false, isDimmed: Bool = false, action: (() -> Void)? = nil) {
         self.title = title
         self.isSelected = isSelected
+        self.isDimmed = isDimmed
         self.action = action
     }
 
@@ -23,6 +28,7 @@ public struct Chip: View {
             .overlay(
                 Capsule().strokeBorder(isSelected ? .clear : ApexColor.borderSubtle, lineWidth: 1)
             )
+            .opacity(isDimmed ? 0.4 : 1)
 
         if let action {
             Button(action: action) { label }

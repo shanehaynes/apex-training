@@ -3,22 +3,8 @@ import SwiftUI
 
 // The four tabs from D-012. Each owns a NavigationStack so its own routes push
 // independently. Schedule lives in Schedule/ScheduleTab.swift (W2), Coach in
-// Coach/CoachTab.swift (W6); the others arrive in W9/W11.
-
-public struct AnalyticsTab: View {
-    public init() {}
-
-    public var body: some View {
-        NavigationStack {
-            EmptyState(
-                eyebrow: "Analytics",
-                message: "Your tiles land here in W9.",
-                symbol: "chart.line.uptrend.xyaxis"
-            )
-            .navigationTitle("Analytics")
-        }
-    }
-}
+// Coach/CoachTab.swift (W6), Analytics in Analytics/AnalyticsTab.swift (W9); You
+// arrives in W11.
 
 public struct YouTab: View {
     private let email: String?
