@@ -1,7 +1,7 @@
 # W9 — Analytics tab
 
 **Machine:** Mac · **Depends on:** W8, W6 · **Unblocks:** —
-**Status:** in progress — PR A (backend + ApexCore) open; B dashboard, C builder, D release to follow
+**Status:** in review — A #153, B #154, C #155, D stacked; TestFlight build 6 (0.7.0) after D
 
 ## Goal
 The dashboard and tile builder, readable on a phone, with editable layout (D-011).
@@ -45,7 +45,7 @@ Out: new chart types.
   draft, chart-draft reduce, save, `chat-stream-analytics.ndjson`; `query-get_prs.json` gains
   the run's distance/elevation records. Found on the way in: `tiles.ts` needed a `.js` specifier
   once the API graph reached it; the stack must be reset from a checkout that has phase41.
-  - **Not done here:** the dashboard (B), the builder sheet (C), smoke/0.7.0/docs/D-028 (D).
+  - **Not done here:** the dashboard (B), the builder sheet (C), smoke/0.7.0/docs/D-029 (D).
 - 2026-09-13 · Mac · PR B — the dashboard. `AnalyticsModel` (cache-first, one compute per refresh
   chunked at 24, results cached per tile and trusted only for a matching spec on the same day
   and only on launch/realtime; edit mode → `TileLayoutPlan` → PATCH of the changed rows,
@@ -64,7 +64,7 @@ Out: new chart types.
     swallows the page's vertical flick, and `chartXSelection` never fired on the iOS 26 runtime;
     value inspection is a tap that pins the bucket's card (U13). A KPI at the grid height was
     two-thirds empty, so stat tiles size to content.
-  - **Not done here:** the builder sheet (C), smoke/0.7.0/docs/D-028 (D).
+  - **Not done here:** the builder sheet (C), smoke/0.7.0/docs/D-029 (D).
 - 2026-09-13 · Mac · PR C — the tile builder. `TileBuilderModel` (the `ChartDraft` mirror as form
   state; every edit → the coach's draft + a debounced preview through `POST /api/analytics-compute
   { drafts }`, one in flight, stale answers dropped; the catalog's dimming reasons both ways;
@@ -82,4 +82,21 @@ Out: new chart types.
   with its own follow-up, `/api/coach-tool update_chart_draft` → `coach-tool-chart-draft.json`
   keeping the caller's title. 10 model tests, 5 snapshots. Driven on the iPhone 17 Pro: "+" →
   Tonnage → the preview → the coach fills title and Bar → Save → seven tiles.
-  - **Not done here:** smoke/0.7.0/docs/D-028/TestFlight dry-run (D).
+  - **Not done here:** smoke/0.7.0/docs/D-029/TestFlight dry-run (D).
+- 2026-09-13 · Mac · PR D — release. `MARKETING_VERSION` 0.7.0; D-029 (W11 had taken D-028
+  meanwhile — every reference renumbered); architecture §10 (tap-to-pin, gaps, one-chart dual
+  axis) and §13 (the fourth generator); `design-spec.md` §5 (`TileCardView`, the KPI/table/
+  problem views, `ScrubCard`, `Chip(isDimmed:tint:)`, `MultiChipRow`, `VSplit`,
+  `DraftCoachDrawer`) and §7; the board. U13 and U26 ticked by B/C. Three smoke legs:
+  `testAnalyticsDashboardOnFixtures` (six tiles → a tap pins "830 lb" → Edit → L on the tonnage
+  tile, the KPI dragged down → Done → the order survives a tab switch; 29–32),
+  `testTileBuilderOnFixtures` (`-apexMockHasKey`: "+" → Tonnage → the preview → the coach fills
+  the title and Bar → Save → seven tiles; 33–36), `testTileKebabOnFixtures` (Duplicate →
+  "(copy)"; Delete → Confirm delete → six tiles; 37–38). Every opening tap goes through a
+  retrying helper, and every tap-then-type waits for keyboard focus — the board's
+  `testCoachKeySetupOnFixtures` flake was the same race. `testflight.sh --check` and
+  `--dry-run` from this worktree; the upload is Shane's call.
+  - **Left for Shane:** merges in order (A → B → C → D, rebasing each onto main after the lower
+    squash), the TestFlight upload, and the device run from Acceptance: reorder + resize on the
+    phone → the web shows the new `y/h`; a spec the web rejects is rejected with the server's
+    message; the coach drawer on a real key.

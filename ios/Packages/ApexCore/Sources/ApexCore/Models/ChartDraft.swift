@@ -8,7 +8,7 @@ import Foundation
 /// Enum-like fields are plain strings so a value the web adds still decodes.
 ///
 /// A dumb mirror: constructors and nothing else. Validation, draft→spec and
-/// spec→draft run server-side (D-008, D-028) — the live preview's problem
+/// spec→draft run server-side (D-008, D-029) — the live preview's problem
 /// slot carries the same `chartDraftProblem` text the web shows.
 public struct ChartDraft: Codable, Sendable, Equatable {
     public var title: String

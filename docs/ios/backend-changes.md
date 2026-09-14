@@ -219,7 +219,7 @@ The web dashboard reads `analytics_tiles` straight from PostgREST under RLS and 
 client-side (`TileBuilder.tsx` over `src/lib/analytics/draft.ts`); the native app reads through
 the API and sends the builder's `ChartDraft`, and the server runs the same pure functions
 (`specFromDraft`, `chartDraftProblem`, `draftFromSpec`) — nothing about draft→spec exists in Swift
-(D-008, D-028).
+(D-008, D-029).
 
 - **`GET /api/analytics-tiles`** → `{ tiles: [{ id, title, spec, draft, layout: {x,y,w,h},
   updatedAt }], options: { categories, otherWorkoutTitles } }`, rows in `y,x` order. `spec` is
