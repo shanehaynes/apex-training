@@ -18,21 +18,19 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W6 | Coach tab | done (#126, #127, #128) | Mac | TestFlight build 3 (0.4.0/301); device run passed 2026-09-11 on build 306, kill-mid-card relaunch included |
 | W7 | Event CRUD + builder | done (#137, #138, #139, #140) | Mac | TestFlight build 5 (0.6.0/312) uploaded 2026-09-11; Shane's device run outstanding |
 | W8 | Backend analytics compute | done (PR #100) | Linux | web keeps its browser path |
-| W9 | Analytics tab (editable layout) | in review (A #153, B #154, C #155, D stacked) | Mac | TestFlight build 6 (0.7.0) after D merges, on Shane's go |
+| W9 | Analytics tab (editable layout) | done (#153, #154, #155, #156) | Mac | TestFlight build 6 (0.7.0/324) uploaded 2026-09-14; Shane's device run outstanding |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
-| W11 | Profile, integrations, account | backend done (#149) · You tab in review (#157) | both | phase41 applied in prod? (Shane); device runs are Shane's |
+| W11 | Profile, integrations, account | done (#149, #157) | both | on TestFlight build 6; phase41 applied in prod? (Shane); device runs are Shane's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
-1. Land W9 D #156 (A–C are on main; D is rebased past #157 and #158). Then one
-   `ios/scripts/testflight.sh` from the W9 worktree (`.claude/worktrees/feat-w9-analytics-api`,
-   which holds the two git-ignored files) for TestFlight build 6 (0.7.0) — it carries W9's
-   Analytics tab and W11's You tab — on Shane's go. Then Shane's device runs: W9 (reorder and
-   resize on the phone → the web dashboard shows the new `y/h`; a spec the web rejects shows the
-   server's message in the builder; the coach drawer on a real key) and W11 (COROS connect
-   inside the app, a sync that fills a planned workout, a bad key's Anthropic message). Confirm
-   phase41 is applied in prod. Then W10, W13 after. The W7 worktrees can be tidied.
+1. Shane's device runs on TestFlight build 6 (0.7.0/324, carries W9's Analytics tab and W11's
+   You tab): W9 (reorder and resize on the phone → the web dashboard shows the new `y/h`; a spec
+   the web rejects shows the server's message in the builder; the coach drawer on a real key) and
+   W11 (COROS connect inside the app, a sync that fills a planned workout, a bad key's Anthropic
+   message). Confirm phase41 is applied in prod. Then W10, W13 after. The W7, W9 and W11
+   worktrees can be tidied — the two git-ignored release files die with them (item 3).
 2. Still open from earlier: the W2 device runs; two W12 timings nobody has clocked (30 minutes
    backgrounded, the 5-minute Done linger on the Lock Screen).
 3. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
@@ -40,6 +38,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-14 · W9 · D merged (#156); TestFlight build 6 (0.7.0/324) uploaded — W9 and W11 (#157) both aboard.
 - 2026-09-13 · W11 · Mac: the You tab end to end — `YouModel`/`CorosModel`/`ConnectorModel`/
   `ActivityLogModel` over the #149 endpoints, thirteen pushed screens, `ASWebAuthenticationSession`
   connect with the mock's browserless seam, the sync confirmation bottom sheet, the 24 avatars and

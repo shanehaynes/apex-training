@@ -1,7 +1,7 @@
 # W11 — Profile, integrations, account
 
 **Machine:** both · **Depends on:** W1 (W2 for realtime-aware sync results) · **Unblocks:** W13
-**Status:** backend done (#149) · You tab in review (#157) · device runs are Shane's
+**Status:** done — backend #149, You tab #157; on TestFlight build 6 (0.7.0/324); device runs are Shane's
 
 ## Goal
 The You tab root and every integration the web profile offers, plus the App Store's
