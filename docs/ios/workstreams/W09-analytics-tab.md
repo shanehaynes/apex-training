@@ -65,3 +65,21 @@ Out: new chart types.
     value inspection is a tap that pins the bucket's card (U13). A KPI at the grid height was
     two-thirds empty, so stat tiles size to content.
   - **Not done here:** the builder sheet (C), smoke/0.7.0/docs/D-028 (D).
+- 2026-09-13 · Mac · PR C — the tile builder. `TileBuilderModel` (the `ChartDraft` mirror as form
+  state; every edit → the coach's draft + a debounced preview through `POST /api/analytics-compute
+  { drafts }`, one in flight, stale answers dropped; the catalog's dimming reasons both ways;
+  `setMeasure` resets aggregation and split like the web's `onPatch`; Save through
+  `POST /api/analytics-tiles { draft }` — `ok:false` toasts the server's text, `ok:true` hands the
+  tile and the preview's result to `AnalyticsModel.saved`), `TileBuilderSheet` (title, chart, range
+  with rolling/preset/fixed, bucket hidden for a stat, display unit for length measures, one
+  `SeriesEditorView` per series with the grouped measure picker, aggregation `Auto (…)`, split
+  `None`, top groups, grade scale, a Filters disclosure with type-coloured chips, dimmed sports and
+  their reason, the "other" workouts or the hint, exercises, categories, meal types, the day filter
+  and its mode; `Add series`; the preview pinned under the form; Cancel + Save tile / Save changes
+  in the keyboard-lifting bar; Discard confirm while dirty). The builder's coach drawer became
+  `DraftCoachDrawer(coach:copy:)` in `Coach/` and `VSplit` moved to ApexUI; `Chip(tint:)` and
+  `MultiChipRow` are new. Mock: `/api/chat` analytics mode streams `chat-stream-analytics.ndjson`
+  with its own follow-up, `/api/coach-tool update_chart_draft` → `coach-tool-chart-draft.json`
+  keeping the caller's title. 10 model tests, 5 snapshots. Driven on the iPhone 17 Pro: "+" →
+  Tonnage → the preview → the coach fills title and Bar → Save → seven tiles.
+  - **Not done here:** smoke/0.7.0/docs/D-028/TestFlight dry-run (D).
