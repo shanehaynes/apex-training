@@ -8,7 +8,7 @@ import Observation
 /// computes from that draft (debounced, one in flight, stale answers
 /// dropped), the catalog's dimming rules, an analytics-mode coach whose
 /// reduces land on the same draft, and Save through the draft body. Nothing
-/// about draft→spec or validation lives here (D-008, D-028): a draft the web
+/// about draft→spec or validation lives here (D-008, D-029): a draft the web
 /// would refuse comes back as the preview's problem, in the web's words.
 @MainActor
 @Observable
@@ -49,6 +49,12 @@ public final class TileBuilderModel {
         original = initial
         for series in initial.series where Self.hasFilters(series) { filtersOpen.insert(series.id) }
     }
+
+    // Under MainActor default isolation the deinit would be synthesized as
+    // *isolated*, which routes deallocation through swift_task_deinitOnExecutor
+    // and aborts on the iOS 17/18 runtime when the object dies outside a task
+    // (swiftlang/swift#87316, D-031). Nothing here needs the actor to die.
+    nonisolated deinit {}
 
     // MARK: - Lifecycle
 

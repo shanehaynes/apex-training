@@ -115,7 +115,12 @@ Recurring patterns to port as `TextStyle`s:
 | `EventExerciseEditor` card | `ExerciseEditorRow` in a `List` with edit mode on (real drag handle, U10): name, prescription row, link toggle, remove |
 | `BuilderForm` scope bar | the action bar's second state: the scope copy + Back · This event only · Whole series (`ApexButton`s) |
 | `.modal-danger` | the delete panel: `ApexPalette.destructive` fill at 12%, `ApexButton(.destructive)` per scope |
-| `.tile-card__menu` kebab | `Menu` with `contextMenu` on the tile |
+| `.tile-card` | `TileCardView`: title, `ApexIcon.kebab` `Menu` (Edit · Duplicate · Delete → a confirming dialog), the body at the tile's `TileHeight`, the excluded-entries footnote |
+| `.tile-kpi`, `.tile-table`, `.tile-problem` | `KPIRowView` (a `FlowLayout` that wraps on the SE), `TileTableView` (sticky header, grade text over numbers), `TileProblemView` |
+| `TileTooltip` | `ScrubCard` on `bgElevated`, pinned by a tap on the chart |
+| `.an-chip--dimmed` | `Chip(isDimmed:)` at 40 % opacity, still tappable so the reason shows; `MultiChipRow` shows it under the row; `Chip(tint:)` carries a workout type's colour |
+| `TileBuilder` two columns | `TileBuilderSheet`: the form over the preview, `VSplit` with `DraftCoachDrawer` when the coach is open |
+| `BuilderCoachPanel`, `AnalyticsCoachPanel` | `DraftCoachDrawer(coach:, copy:)` — one drawer, two copies |
 | `.block-bar__track/__fill`, `.type-bar-row__track` | `AttainmentBar(value:, target:, state:)` |
 | `.event-chip`, `.day-event-card` | `EventChip` (month), `EventCard` (day) with a 3pt left rail in the type's `border` colour and a 44pt completion control |
 | `.day-strip` (7 cells, dots) | `WeekStrip` — a horizontally paging 7-day strip with up to 3 type dots |
@@ -136,8 +141,9 @@ mapping in `ApexUI/Icons.swift` so a session can find it.
 Follow `TileRenderer.tsx`: no axis lines, no tick lines, no grid, no animation; ticks 10→11pt
 `textMuted`; line width 1.5, points only when ≤ 60; area fill opacity 0.18; legend only when
 >1 series (7pt dots, 10→11pt text); `—` for null; ≥1000 rounded with separators, else one
-decimal trimmed. Tooltip → a `chartOverlay` scrubber showing a `bgElevated` card with per-series
-dots. FIT stream charts (HR, elevation, route): 96pt tall, dashed grid `2 3`, crosshair readout,
+decimal trimmed. Tooltip → a tap pins the bucket's `ScrubCard` on `bgElevated` with per-series
+dots (a drag would swallow the page's flick — D-029). Null points are gaps. Right-axis series
+are rescaled into the left domain; the trailing axis reads round right-axis values. FIT stream charts (HR, elevation, route): 96pt tall, dashed grid `2 3`, crosshair readout,
 drag-to-scrub.
 
 ## 8. App icon brief (D-019)

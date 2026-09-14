@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Wolverine: relentless in winter -->
+  <circle cx="64" cy="64" r="64" fill="#7a4646"/>
+  <circle cx="44" cy="38" r="7" fill="#2e2118"/>
+  <circle cx="44" cy="38" r="3.5" fill="#6b503a"/>
+  <circle cx="84" cy="38" r="7" fill="#2e2118"/>
+  <circle cx="84" cy="38" r="3.5" fill="#6b503a"/>
+  <path d="M64 32 Q90 36 92 62 Q92 84 76 92 Q64 96 52 92 Q36 84 36 62 Q38 36 64 32 Z" fill="#3d2c22"/>
+  <path d="M38 64 Q42 46 64 44 Q86 46 90 64 Q86 52 64 52 Q42 52 38 64 Z" fill="#c9a26b"/>
+  <path d="M36 62 Q38 70 42 76 Q39 68 40 60 Z" fill="#c9a26b"/>
+  <path d="M92 62 Q90 70 86 76 Q89 68 88 60 Z" fill="#c9a26b"/>
+  <ellipse cx="64" cy="76" rx="13" ry="10" fill="#a3805a"/>
+  <path d="M58 70 Q64 67 70 70 Q69 76 64 76 Q59 76 58 70 Z" fill="#171009"/>
+  <path d="M64 76 L64 80 M64 80 Q59 84 54 82 M64 80 Q69 84 74 82" stroke="#171009" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <circle cx="52" cy="60" r="3.2" fill="#171009"/>
+  <circle cx="76" cy="60" r="3.2" fill="#171009"/>
+  <circle cx="53.1" cy="58.9" r="1" fill="#e8d8bc"/>
+  <circle cx="77.1" cy="58.9" r="1" fill="#e8d8bc"/>
+  <path d="M46 55 L57 57 M71 57 L82 55" stroke="#171009" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <path d="M44 82 Q47 80 50 82 M84 82 Q81 80 78 82 M46 88 Q49 86 52 88 M82 88 Q79 86 76 88" stroke="#2e2118" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+</svg>

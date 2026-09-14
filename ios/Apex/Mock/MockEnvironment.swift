@@ -15,6 +15,8 @@ import Foundation
 ///   -apexMockHasKey                 the profile reports an Anthropic key, so the
 ///                                   coach opens on the thread instead of the
 ///                                   key-setup state (the fixture has no key)
+///   -apexMockCoros expired          the COROS connection starts expired (or
+///                                   `disconnected`); the default is connected
 ///
 /// W7: the sheet's and the builder's writes (`/api/events`, `/api/event-instances`,
 /// `/api/workout-draft`, templates, definitions) are remembered and replayed
@@ -35,7 +37,8 @@ struct MockEnvironment {
         }
         transport = FixtureTransport(
             failingRoute: failing, failOnce: failOnce, clock: clock,
-            hasKey: CommandLine.arguments.contains("-apexMockHasKey")
+            hasKey: CommandLine.arguments.contains("-apexMockHasKey"),
+            corosStatus: Self.argument("-apexMockCoros") ?? "connected"
         )
         streams = FixtureStreams()
     }
@@ -83,6 +86,16 @@ actor FixtureTransport: HTTPTransport {
     /// schedule reads the way the completions are.
     private var edits = ScheduleEdits()
     private var minted = 0
+    /// W11: the You tab's writes, replayed into later reads the way the
+    /// schedule edits are. Profile keys are the handler's snake_case names.
+    private var profileEdits: [String: Any] = [:]
+    private var mintedTokens: [[String: Any]] = []
+    private var revokedTokens: Set<String> = []
+    private var disconnectedApps: Set<String> = []
+    private var corosStatus = "connected"
+    private var corosAutoSync = true
+    private var corosSynced = false
+
     /// W9: the dashboard's writes, replayed into later tile reads.
     private var tileEdits = TileEdits()
 
@@ -106,11 +119,12 @@ actor FixtureTransport: HTTPTransport {
         var addedDefinitions: [[String: Any]] = []
     }
 
-    init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false) {
+    init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false, corosStatus: String = "connected") {
         self.failingRoute = failingRoute
         self.failOnce = failOnce
         self.clock = clock
         self.hasKey = hasKey
+        self.corosStatus = corosStatus
     }
 
     /// The coach stream arrives line by line, a beat apart, so the typing
@@ -161,12 +175,41 @@ actor FixtureTransport: HTTPTransport {
                 let start = query.split(separator: "&").first { $0.hasPrefix("start=") }?.dropFirst(6) ?? ""
                 return ok(applyEdits(to: applyCompletions(to: try Fixtures.data(start >= "2026-10-28" ? "schedule-empty.json" : "schedule.json"))))
             case ("GET", "/api/profile"):
-                return ok(withKey(try Fixtures.data("profile.json")))
+                return ok(withProfileEdits(withKey(unscrubbed(try Fixtures.data("profile.json")))))
             case ("PATCH", "/api/profile"):
                 if let entry = body?["anthropic_api_key"] {
                     hasKey = !(entry is NSNull)
                 }
+                for key in ["display_name", "avatar_key", "coach_goal", "coach_context", "coach_model", "max_hr", "threshold_hr"] {
+                    if let value = body?[key] { profileEdits[key] = value }
+                }
                 return ok(Data(#"{"ok":true,"hasAnthropicKey":\(hasKey),"anthropicKeyLast4":\(hasKey ? "\"mock\"" : "null")}"#.utf8))
+            // W11 — the You tab.
+            case ("GET", "/api/mutations-log"):
+                return ok(unscrubbed(try Fixtures.data("mutations-log.json")))
+            case ("GET", "/api/mcp-tokens"):
+                return ok(try tokenList())
+            case ("POST", "/api/mcp-tokens"):
+                minted += 1
+                let id = "mock-token-\(minted)"
+                let token = "apx_mock_\(String(repeating: "0", count: 28))\(String(format: "%04d", minted))"
+                mintedTokens.append([
+                    "id": id, "name": body?["name"] as? String ?? "Token", "token_last4": String(token.suffix(4)),
+                    "created_at": CompletionRows.isoTimestamp(clock.now), "last_used_at": NSNull(), "revoked_at": NSNull(),
+                ])
+                return ok(try JSONSerialization.data(withJSONObject: ["id": id, "token": token]))
+            case ("DELETE", "/api/mcp-tokens"):
+                let clientId = queryValue("client_id", in: query)
+                if !clientId.isEmpty {
+                    disconnectedApps.insert(clientId)
+                    return ok(Data(#"{"ok":true,"revoked":1}"#.utf8))
+                }
+                revokedTokens.insert(queryValue("id", in: query))
+                return ok(Data(#"{"ok":true}"#.utf8))
+            case ("DELETE", "/api/account"):
+                return ok(Data(#"{"ok":true,"deleted":"ios-fixture-user"}"#.utf8))
+            case ("POST", "/api/provider-sync"):
+                return try providerSync(action: action, body: body)
             case ("POST", "/api/chat"):
                 guard hasKey else { return HTTPResponse(status: 402, headers: [:], body: Data("anthropic-key-missing".utf8)) }
                 return HTTPResponse(
@@ -333,6 +376,90 @@ actor FixtureTransport: HTTPTransport {
             return flipped
         }
         return (try? JSONSerialization.data(withJSONObject: object)) ?? data
+    }
+
+    // MARK: - W11 reads and writes
+
+    /// The fixture emitter scrubs secrets and volatile values to placeholders
+    /// (`<timestamp>`, `<uuid>`, `<last4>`, `<token>`); the screens need
+    /// parseable values, so the mock puts stand-ins back.
+    private func unscrubbed(_ data: Data) -> Data {
+        var text = String(decoding: data, as: UTF8.self)
+        text = text.replacingOccurrences(of: "<timestamp>", with: CompletionRows.isoTimestamp(clock.now.addingTimeInterval(-3_600)))
+        text = text.replacingOccurrences(of: "<uuid>", with: "00000000-0000-4000-8000-000000000001")
+        text = text.replacingOccurrences(of: "<last4>", with: "k9x2")
+        text = text.replacingOccurrences(of: "<token>", with: "apx_mock_token")
+        return Data(text.utf8)
+    }
+
+    /// The You tab's PATCHes, reflected the way the handler would store them
+    /// (trimmed; the model label resolved from the fixture's own catalog).
+    private func withProfileEdits(_ data: Data) -> Data {
+        guard !profileEdits.isEmpty, var object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return data }
+        let camel: [String: String] = [
+            "display_name": "displayName", "avatar_key": "avatarKey", "coach_goal": "coachGoal", "coach_context": "coachContext",
+            "coach_model": "coachModel", "max_hr": "maxHr", "threshold_hr": "thresholdHr",
+        ]
+        for (key, value) in profileEdits {
+            object[camel[key] ?? key] = (value as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? value
+        }
+        if let model = profileEdits["coach_model"] {
+            let catalog = object["coachModels"] as? [[String: Any]] ?? []
+            let picked = catalog.first { $0["id"] as? String == model as? String } ?? catalog.first { $0["label"] as? String == "Opus 4.8" }
+            object["coachModelLabel"] = picked?["label"] ?? object["coachModelLabel"] ?? NSNull()
+        }
+        return (try? JSONSerialization.data(withJSONObject: object)) ?? data
+    }
+
+    private func tokenList() throws -> Data {
+        guard var object = (try JSONSerialization.jsonObject(with: unscrubbed(try Fixtures.data("mcp-tokens.json")))) as? [String: Any] else {
+            return try Fixtures.data("mcp-tokens.json")
+        }
+        var tokens = (object["tokens"] as? [[String: Any]] ?? []) + mintedTokens
+        tokens = tokens.map { token in
+            guard let id = token["id"] as? String, revokedTokens.contains(id) else { return token }
+            var revoked = token
+            revoked["revoked_at"] = CompletionRows.isoTimestamp(clock.now)
+            return revoked
+        }
+        object["tokens"] = tokens
+        object["connections"] = (object["connections"] as? [[String: Any]] ?? []).filter { !disconnectedApps.contains($0["client_id"] as? String ?? "") }
+        return try JSONSerialization.data(withJSONObject: object)
+    }
+
+    /// `-apexMockCoros disconnected|expired` starts the connection in that
+    /// state; the default is the fixture's (connected). `connect-start`
+    /// answers with the callback itself on the app's scheme, so the smoke
+    /// connects without a browser (`CorosModel.connect`).
+    private func providerSync(action: String?, body: [String: Any]?) throws -> HTTPResponse {
+        switch action {
+        case "status":
+            guard var object = (try JSONSerialization.jsonObject(with: unscrubbed(try Fixtures.data("provider-status.json")))) as? [String: Any],
+                  var coros = object["coros"] as? [String: Any] else { return ok(try Fixtures.data("provider-status.json")) }
+            coros["status"] = corosStatus
+            coros["autoSync"] = corosAutoSync
+            if corosStatus != "connected" { coros["lastSyncedAt"] = NSNull(); coros["connectedAt"] = NSNull() }
+            if corosSynced { coros["pendingFillCount"] = 0; coros["lastSyncedAt"] = CompletionRows.isoTimestamp(clock.now) }
+            object["coros"] = coros
+            return ok(try JSONSerialization.data(withJSONObject: object))
+        case "connect-start":
+            corosStatus = "connected"
+            return ok(Data(#"{"authorizeUrl":"apextraining://connected?provider=coros"}"#.utf8))
+        case "disconnect":
+            corosStatus = "disconnected"
+            return ok(Data(#"{"ok":true}"#.utf8))
+        case "set-auto-sync":
+            corosAutoSync = body?["enabled"] as? Bool ?? true
+            return ok(Data(#"{"ok":true,"autoSync":\(corosAutoSync)}"#.utf8))
+        case "preview":
+            guard corosStatus == "connected" else { return HTTPResponse(status: 409, headers: [:], body: Data("provider-expired".utf8)) }
+            return ok(try Fixtures.data("provider-preview.json"))
+        case "apply":
+            corosSynced = true
+            return ok(try Fixtures.data("provider-apply.json"))
+        default:
+            return HTTPResponse(status: 400, headers: [:], body: Data("unknown action".utf8))
+        }
     }
 
     // MARK: - W9 analytics
