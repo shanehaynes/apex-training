@@ -436,3 +436,30 @@ The brief said "`client: 'ios'` and a scheme redirect"; these are the lines draw
   minted PAT are secrets; `token_last4` is neither secret nor stable — it is re-minted on every
   run, and baking one in would have failed the drift check on the next run rather than on a real
   shape change.
+
+## D-031 · MainActor-default classes declare `nonisolated deinit`
+**Status:** decided · Mac session · 2026-09-13
+- **The crash.** Every ApexTests run on the iOS 18.6 simulator aborted in libmalloc
+  (`POINTER_BEING_FREED_WAS_NOT_ALLOCATED` under `swift::TaskLocal::StopLookupScope`, reached from
+  `swift_task_deinitOnExecutorMainActorBackDeploy` → `<Class>.__deallocating_deinit`). First
+  `YouModel` releasing `CorosModel`, then — once those four carried a fix — `RouteBus`, a leaf
+  class released from a plain synchronous test. Nesting is not the trigger; any isolated deinit
+  that runs outside a task can abort.
+- **Why the deinit is isolated when nobody wrote one.** Under MainActor default isolation
+  (`SWIFT_DEFAULT_ACTOR_ISOLATION` on Apex and ApexWidgets, `.defaultIsolation(MainActor.self)` on
+  ApexUI, ApexFeatures, ApexActivity) the Swift 6.2+ compiler synthesizes an *isolated* deinit for
+  every class. The deployment floor is iOS 17.0, so the back-deploy thunk is emitted and the
+  iOS 17/18 runtime does the work. An explicit `@MainActor` alone does not synthesize one
+  (checked in SIL with the Xcode 26.6 toolchain), so ApexAuth, ApexCore and the test targets are
+  unaffected. Upstream: [swiftlang/swift#87316](https://github.com/swiftlang/swift/issues/87316),
+  [#85663](https://github.com/swiftlang/swift/issues/85663) — both open, both name
+  `nonisolated deinit` as the workaround; the only compiler knob is `-default-isolation`, which stays.
+- **The rule.** Every class in a MainActor-default target declares `nonisolated deinit {}` (a class
+  with a real deinit body marks that body `nonisolated`; it may still touch its own stored
+  properties, not isolated methods). `ios/scripts/check-deinits.sh`, run from `scripts/ci-guards.sh`
+  on every push, fails any file with more `class` declarations than `nonisolated deinit`s, and
+  pins the count of targets that opt into the default so a new one has to be added to its list.
+  CI's ios job runs the iOS 26 simulator only, which does not reproduce the crash — the grep is
+  the enforcement, not the test run.
+- **Exit condition.** Drop the rule when the deployment floor reaches a runtime where the upstream
+  issues are closed, and re-run ApexTests on the oldest supported simulator before doing so.

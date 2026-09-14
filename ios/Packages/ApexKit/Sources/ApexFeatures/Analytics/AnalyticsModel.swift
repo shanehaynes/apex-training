@@ -81,6 +81,12 @@ public final class AnalyticsModel {
         self.today = DayKey.today(clock: deps.clock, timeZone: deps.timeZone)
     }
 
+    // Under MainActor default isolation the deinit would be synthesized as
+    // *isolated*, which routes deallocation through swift_task_deinitOnExecutor
+    // and aborts on the iOS 17/18 runtime when the object dies outside a task
+    // (swiftlang/swift#87316, D-031). Nothing here needs the actor to die.
+    nonisolated deinit {}
+
     // MARK: - Lifecycle
 
     /// Cache first, then the network, then realtime. Idempotent: the tab's
