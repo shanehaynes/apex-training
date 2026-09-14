@@ -1,7 +1,7 @@
 # W9 — Analytics tab
 
 **Machine:** Mac · **Depends on:** W8, W6 · **Unblocks:** —
-**Status:** in review — A #153, B #154, C #155, D stacked; TestFlight build 6 (0.7.0) after D
+**Status:** done — #153, #154, #155, #156; TestFlight build 6 (0.7.0/324) uploaded 2026-09-14; device run is Shane's
 
 ## Goal
 The dashboard and tile builder, readable on a phone, with editable layout (D-011).
@@ -100,3 +100,6 @@ Out: new chart types.
     squash), the TestFlight upload, and the device run from Acceptance: reorder + resize on the
     phone → the web shows the new `y/h`; a spec the web rejects is rejected with the server's
     message; the coach drawer on a real key.
+- 2026-09-14 · Mac · D merged (#156) after three rebases past W11's #157 and #158 (both
+  sides of `STATUS.md`, D-029 kept next to D-030). `testflight.sh` from the W9 worktree: build
+  324 uploaded. Device run outstanding.
