@@ -34,11 +34,18 @@ jobs:
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
     steps:
-      # A job-level `if:` cannot read secrets, so gate in a step.
+      # A job-level `if:` cannot read secrets, so gate in a step. On the
+      # canonical repo a missing secret is a FAILURE: three nights of green
+      # "skipped" runs once passed for three nights of backups. Only a fork,
+      # which cannot have the secret, skips.
       - id: gate
         run: |
           if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "::notice::SUPABASE_DB_URL secret not set — backup skipped."
+            if [ "$GITHUB_REPOSITORY" = "shanehaynes/apex-training" ]; then
+              echo "::error::SUPABASE_DB_URL secret not set — no backup was taken (README, Backups)."
+              exit 1
+            fi
+            echo "::notice::SUPABASE_DB_URL secret not set — backup skipped on fork."
             echo run=false >> "$GITHUB_OUTPUT"
             exit 0
           fi
