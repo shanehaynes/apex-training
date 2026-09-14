@@ -353,6 +353,53 @@ public struct Endpoint: Sendable, Equatable {
         Endpoint(method: .post, path: "api/workout-sessions", body: json(body))
     }
 
+    // MARK: - W9 analytics
+    // The dashboard reads tiles through the API (the web reads PostgREST) and
+    // computes from the specs it was served; the builder previews and saves
+    // the draft JSON and the server runs the web's own draft.ts (D-028).
+
+    /// Every saved tile with its layout and the draft it unfolds to, plus the
+    /// builder's picker options (`GET /api/analytics-tiles`).
+    public static let analyticsTiles = Endpoint(path: "api/analytics-tiles")
+
+    /// Compute the served specs, index-aligned, at most 24 per request.
+    public static func analyticsCompute(specs: [JSONValue], today: String) -> Endpoint {
+        struct Body: Encodable {
+            let specs: [JSONValue]
+            let today: String
+        }
+        return Endpoint(method: .post, path: "api/analytics-compute", body: json(Body(specs: specs, today: today)))
+    }
+
+    /// The builder's live preview: one draft in, one result (or its problem) out.
+    public static func analyticsPreview(draft: ChartDraft, today: String) -> Endpoint {
+        struct Body: Encodable {
+            let drafts: [ChartDraft]
+            let today: String
+        }
+        return Endpoint(method: .post, path: "api/analytics-compute", body: json(Body(drafts: [draft], today: today)))
+    }
+
+    /// The builder's Save: the server validates and converts the draft.
+    public static func saveTile(id: String, draft: ChartDraft, layout: TileLayout) -> Endpoint {
+        struct Body: Encodable {
+            let id: String
+            let draft: ChartDraft
+            let layout: TileLayout
+        }
+        return Endpoint(method: .post, path: "api/analytics-tiles", body: json(Body(id: id, draft: draft, layout: layout)))
+    }
+
+    /// The edit mode's commit: only the rows that moved or resized.
+    public static func saveLayouts(_ layouts: [TileLayoutUpdate]) -> Endpoint {
+        struct Body: Encodable { let layouts: [TileLayoutUpdate] }
+        return Endpoint(method: .patch, path: "api/analytics-tiles", body: json(Body(layouts: layouts)))
+    }
+
+    public static func deleteTile(id: String) -> Endpoint {
+        Endpoint(method: .delete, path: "api/analytics-tiles", query: [URLQueryItem(name: "id", value: id)])
+    }
+
     // MARK: - W11 profile, integrations, account
     //
     // The profile writes are all PATCH /api/profile against a snake_case

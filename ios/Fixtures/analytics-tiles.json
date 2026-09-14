@@ -1,0 +1,379 @@
+{
+  "tiles": [
+    {
+      "id": "ios-fixture-tile-sessions",
+      "title": "Sessions",
+      "spec": {
+        "range": {
+          "kind": "fixed",
+          "startDate": "2026-09-01",
+          "endDateExclusive": "2026-10-01"
+        },
+        "title": "Sessions",
+        "bucket": "total",
+        "series": [
+          {
+            "id": "s1",
+            "measure": "session-count"
+          }
+        ],
+        "version": 1,
+        "chartType": "kpi"
+      },
+      "draft": {
+        "title": "Sessions",
+        "chartType": "kpi",
+        "rangeKind": "fixed",
+        "rollingDays": "90",
+        "startDate": "2026-09-01",
+        "endDate": "2026-09-30",
+        "preset": "this-iso-month",
+        "bucket": "total",
+        "displayUnit": "",
+        "series": [
+          {
+            "id": "s1",
+            "label": "",
+            "measure": "session-count",
+            "agg": "",
+            "eventTypes": [],
+            "sports": [],
+            "workoutTitles": [],
+            "exerciseNames": [],
+            "categories": [],
+            "mealTypes": [],
+            "gradeScale": "",
+            "dayFilterTypes": [],
+            "dayFilterOffset": "0",
+            "dayFilterMode": "include",
+            "groupBy": "",
+            "groupLimit": "",
+            "axis": ""
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "updatedAt": "<timestamp>"
+    },
+    {
+      "id": "ios-fixture-tile-tonnage",
+      "title": "Tonnage",
+      "spec": {
+        "range": {
+          "kind": "fixed",
+          "startDate": "2026-09-01",
+          "endDateExclusive": "2026-10-01"
+        },
+        "title": "Tonnage",
+        "bucket": "week",
+        "series": [
+          {
+            "id": "s1",
+            "measure": "tonnage"
+          }
+        ],
+        "version": 1,
+        "chartType": "bar"
+      },
+      "draft": {
+        "title": "Tonnage",
+        "chartType": "bar",
+        "rangeKind": "fixed",
+        "rollingDays": "90",
+        "startDate": "2026-09-01",
+        "endDate": "2026-09-30",
+        "preset": "this-iso-month",
+        "bucket": "week",
+        "displayUnit": "",
+        "series": [
+          {
+            "id": "s1",
+            "label": "",
+            "measure": "tonnage",
+            "agg": "",
+            "eventTypes": [],
+            "sports": [],
+            "workoutTitles": [],
+            "exerciseNames": [],
+            "categories": [],
+            "mealTypes": [],
+            "gradeScale": "",
+            "dayFilterTypes": [],
+            "dayFilterOffset": "0",
+            "dayFilterMode": "include",
+            "groupBy": "",
+            "groupLimit": "",
+            "axis": ""
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 4,
+        "w": 6,
+        "h": 4
+      },
+      "updatedAt": "<timestamp>"
+    },
+    {
+      "id": "ios-fixture-tile-time",
+      "title": "Training time by type",
+      "spec": {
+        "range": {
+          "kind": "fixed",
+          "startDate": "2026-09-01",
+          "endDateExclusive": "2026-10-01"
+        },
+        "title": "Training time by type",
+        "bucket": "week",
+        "series": [
+          {
+            "id": "s1",
+            "groupBy": "event-type",
+            "measure": "training-time"
+          }
+        ],
+        "version": 1,
+        "chartType": "stacked-bar"
+      },
+      "draft": {
+        "title": "Training time by type",
+        "chartType": "stacked-bar",
+        "rangeKind": "fixed",
+        "rollingDays": "90",
+        "startDate": "2026-09-01",
+        "endDate": "2026-09-30",
+        "preset": "this-iso-month",
+        "bucket": "week",
+        "displayUnit": "",
+        "series": [
+          {
+            "id": "s1",
+            "label": "",
+            "measure": "training-time",
+            "agg": "",
+            "eventTypes": [],
+            "sports": [],
+            "workoutTitles": [],
+            "exerciseNames": [],
+            "categories": [],
+            "mealTypes": [],
+            "gradeScale": "",
+            "dayFilterTypes": [],
+            "dayFilterOffset": "0",
+            "dayFilterMode": "include",
+            "groupBy": "event-type",
+            "groupLimit": "",
+            "axis": ""
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 8,
+        "w": 6,
+        "h": 4
+      },
+      "updatedAt": "<timestamp>"
+    },
+    {
+      "id": "ios-fixture-tile-grade",
+      "title": "Max grade",
+      "spec": {
+        "range": {
+          "kind": "fixed",
+          "startDate": "2026-09-01",
+          "endDateExclusive": "2026-10-01"
+        },
+        "title": "Max grade",
+        "bucket": "iso-month",
+        "series": [
+          {
+            "id": "s1",
+            "filters": {
+              "gradeScale": "yds"
+            },
+            "measure": "max-grade"
+          }
+        ],
+        "version": 1,
+        "chartType": "table"
+      },
+      "draft": {
+        "title": "Max grade",
+        "chartType": "table",
+        "rangeKind": "fixed",
+        "rollingDays": "90",
+        "startDate": "2026-09-01",
+        "endDate": "2026-09-30",
+        "preset": "this-iso-month",
+        "bucket": "iso-month",
+        "displayUnit": "",
+        "series": [
+          {
+            "id": "s1",
+            "label": "",
+            "measure": "max-grade",
+            "agg": "",
+            "eventTypes": [],
+            "sports": [],
+            "workoutTitles": [],
+            "exerciseNames": [],
+            "categories": [],
+            "mealTypes": [],
+            "gradeScale": "yds",
+            "dayFilterTypes": [],
+            "dayFilterOffset": "0",
+            "dayFilterMode": "include",
+            "groupBy": "",
+            "groupLimit": "",
+            "axis": ""
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 12,
+        "w": 6,
+        "h": 4
+      },
+      "updatedAt": "<timestamp>"
+    },
+    {
+      "id": "ios-fixture-tile-hr",
+      "title": "Avg heart rate",
+      "spec": {
+        "range": {
+          "kind": "fixed",
+          "startDate": "2026-09-01",
+          "endDateExclusive": "2026-10-01"
+        },
+        "title": "Avg heart rate",
+        "bucket": "week",
+        "series": [
+          {
+            "id": "s1",
+            "measure": "avg-hr"
+          }
+        ],
+        "version": 1,
+        "chartType": "line"
+      },
+      "draft": {
+        "title": "Avg heart rate",
+        "chartType": "line",
+        "rangeKind": "fixed",
+        "rollingDays": "90",
+        "startDate": "2026-09-01",
+        "endDate": "2026-09-30",
+        "preset": "this-iso-month",
+        "bucket": "week",
+        "displayUnit": "",
+        "series": [
+          {
+            "id": "s1",
+            "label": "",
+            "measure": "avg-hr",
+            "agg": "",
+            "eventTypes": [],
+            "sports": [],
+            "workoutTitles": [],
+            "exerciseNames": [],
+            "categories": [],
+            "mealTypes": [],
+            "gradeScale": "",
+            "dayFilterTypes": [],
+            "dayFilterOffset": "0",
+            "dayFilterMode": "include",
+            "groupBy": "",
+            "groupLimit": "",
+            "axis": ""
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 16,
+        "w": 6,
+        "h": 4
+      },
+      "updatedAt": "<timestamp>"
+    },
+    {
+      "id": "ios-fixture-tile-distance",
+      "title": "Distance",
+      "spec": {
+        "range": {
+          "kind": "fixed",
+          "startDate": "2026-09-01",
+          "endDateExclusive": "2026-10-01"
+        },
+        "title": "Distance",
+        "bucket": "week",
+        "series": [
+          {
+            "id": "s1",
+            "measure": "distance"
+          }
+        ],
+        "version": 1,
+        "chartType": "area"
+      },
+      "draft": {
+        "title": "Distance",
+        "chartType": "area",
+        "rangeKind": "fixed",
+        "rollingDays": "90",
+        "startDate": "2026-09-01",
+        "endDate": "2026-09-30",
+        "preset": "this-iso-month",
+        "bucket": "week",
+        "displayUnit": "",
+        "series": [
+          {
+            "id": "s1",
+            "label": "",
+            "measure": "distance",
+            "agg": "",
+            "eventTypes": [],
+            "sports": [],
+            "workoutTitles": [],
+            "exerciseNames": [],
+            "categories": [],
+            "mealTypes": [],
+            "gradeScale": "",
+            "dayFilterTypes": [],
+            "dayFilterOffset": "0",
+            "dayFilterMode": "include",
+            "groupBy": "",
+            "groupLimit": "",
+            "axis": ""
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 20,
+        "w": 6,
+        "h": 4
+      },
+      "updatedAt": "<timestamp>"
+    }
+  ],
+  "options": {
+    "categories": [
+      "cardio",
+      "climbing",
+      "mobility",
+      "skill",
+      "strength",
+      "stretch"
+    ],
+    "otherWorkoutTitles": []
+  }
+}

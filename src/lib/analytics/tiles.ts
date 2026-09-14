@@ -1,5 +1,5 @@
 import type { AnalyticsTileRow } from '../db/types';
-import { upgradeSpec, type ChartSpec } from './spec';
+import { upgradeSpec, type ChartSpec } from './spec.js';
 
 // ─── Tile ↔ row mapping ──────────────────────────────────────────────────────
 // The persistence shape for analytics_tiles (phase 35). Ids are client-minted

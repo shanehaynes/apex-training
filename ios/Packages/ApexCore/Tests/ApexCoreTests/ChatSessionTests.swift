@@ -835,6 +835,52 @@ final class ChatSessionTests: XCTestCase {
     }
 
     /// The guard on `.chat`: the same tool name still gets a card there.
+    // MARK: - Analytics mode (W9): the chart draft tool takes the builder's path
+
+    func testAnalyticsDraftToolAutoExecutesAndEmitsTheChartDraft() async throws {
+        let stream = [
+            #"{"type":"text","delta":"Configuring it. "}"#,
+            #"{"type":"tool_use","id":"toolu_chart","name":"update_chart_draft","input":{"title":"Weekly tonnage","chart_type":"bar","series":[{"id":"s1","measure":"tonnage"}]}}"#,
+            #"{"type":"done"}"#,
+        ]
+        let reduced = #"{"ok":true,"resultText":"Chart draft updated: title, chart type, added series s1. The user reviews and presses Save.","draft":{"title":"Weekly tonnage","chartType":"bar"}}"#
+        let transport = ScriptedTransport([.ndjson(stream), .ok(reduced), .ndjson(text("Review the form and press Save."))])
+        let session = makeSession(transport, store: nil, mode: .analytics, draft: ["title": "", "chartType": "line"])
+        let events = Events()
+        await events.start(await session.subscribe())
+
+        await session.send("weekly tonnage as bars")
+
+        let v1 = await session.state
+        XCTAssertEqual(v1, .idle)
+        let requests = await transport.requests
+        XCTAssertEqual(requests.map(\.path), ["/api/chat", "/api/coach-tool", "/api/chat"])
+        XCTAssertEqual(requests[0].body?["mode"] as? String, "analytics")
+        let tool = requests[1]
+        XCTAssertEqual(tool.body?["name"] as? String, "update_chart_draft")
+        XCTAssertEqual(tool.body?["toolUseId"] as? String, "toolu_chart")
+        XCTAssertEqual((tool.body?["draft"] as? [String: Any])?["chartType"] as? String, "line")
+        XCTAssertEqual((tool.body?["input"] as? [String: Any])?["chart_type"] as? String, "bar")
+
+        // The reduced chart draft replaces the session's and rides on the follow-up.
+        let v2 = await events.contains(.draft(["title": "Weekly tonnage", "chartType": "bar"]))
+        XCTAssertTrue(v2)
+        let followUp = requests[2]
+        XCTAssertEqual(followUp.body?["mode"] as? String, "analytics")
+        XCTAssertEqual(followUp.body?["withTools"] as? Bool, false)
+        let sentDraft = (followUp.body?["context"] as? [String: Any])?["draft"] as? [String: Any]
+        XCTAssertEqual(sentDraft?["chartType"] as? String, "bar")
+        let history = messages(of: followUp)
+        let results = try XCTUnwrap(history[2]["content"] as? [[String: Any]])
+        XCTAssertEqual(results[0]["content"] as? String, "Chart draft updated: title, chart type, added series s1. The user reviews and presses Save.")
+
+        // Never a card, never a "mutation landed" refresh.
+        let all = await events.all
+        XCTAssertFalse(all.contains { if case .state(.awaitingConfirmation) = $0 { true } else { false } })
+        XCTAssertFalse(all.contains(.mutationConfirmed))
+        await events.stop()
+    }
+
     func testChatModeStillPresentsACardForTheDraftTool() async throws {
         let transport = ScriptedTransport([.ndjson(try builderLines)])
         let session = makeSession(transport)

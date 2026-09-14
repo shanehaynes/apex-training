@@ -213,6 +213,44 @@ Also in W7:
 - Fixtures: `schedule.json` gains a seeded template and `originalDate`; new
   `coach-tool-draft.json`, `workout-draft-{create,edit,detach}.json`, `chat-stream-builder.ndjson`.
 
+## W9 — the analytics tiles API for the phone (landed with W9 PR A)
+
+The web dashboard reads `analytics_tiles` straight from PostgREST under RLS and builds specs
+client-side (`TileBuilder.tsx` over `src/lib/analytics/draft.ts`); the native app reads through
+the API and sends the builder's `ChartDraft`, and the server runs the same pure functions
+(`specFromDraft`, `chartDraftProblem`, `draftFromSpec`) — nothing about draft→spec exists in Swift
+(D-008, D-028).
+
+- **`GET /api/analytics-tiles`** → `{ tiles: [{ id, title, spec, draft, layout: {x,y,w,h},
+  updatedAt }], options: { categories, otherWorkoutTitles } }`, rows in `y,x` order. `spec` is
+  the validated spec or `null` (a row that predates server-side validation keeps its title);
+  `draft` is `draftFromSpec(spec)`. `options` is what the builder's pickers offer beyond the
+  catalog: the caller's distinct `exercise_definitions.category` values and the titles of
+  workouts whose sport is `other`. Bucket `reads`; every write still charges `writes` (the
+  limiter moved inside the method switch).
+- **`POST /api/analytics-tiles { id, draft, layout? }`** — the native Save. Blank title → `200
+  { ok:false, problem: "Give the tile a title" }` (the web's own pre-save check, moved
+  server-side); `specFromDraft` error → `200 { ok:false, problem }` with `chartDraftProblem`'s
+  text; else upsert and `200 { ok:true, id, tile }` (the GET shape). `layout` defaults to
+  `{0,0,6,4}` and fills partially. The web's `{ id, spec, x,y,w,h }` body is unchanged
+  (`e2e/mock/analytics.spec.ts` pins it); a body carrying both is a 400.
+- **`POST /api/analytics-compute { drafts, today }`** — the builder's live preview: exactly one
+  of `specs` / `drafts`, 1–24; each draft runs through `specFromDraft` and a refused one answers
+  its person-phrased problem in that slot, index-aligned like a bad spec. Response unchanged.
+- **The catalog is generated, not typed.** `ios/scripts/gen-analytics-catalog.mjs` loads
+  `src/lib/analytics/spec.ts` (measures, limits, `sportCompatible`), the new
+  `src/lib/analytics/labels.ts` (the option labels, moved out of `TileBuilder.tsx` so node can
+  import them) and `src/utils/workoutColors.ts` under node's type stripping and writes
+  `ApexCore/Analytics/Generated/AnalyticsCatalog.swift`; `--check` runs in `ci:guards`. Swift
+  reads it for chips and dim reasons; it validates nothing.
+- Fixtures: six seeded `ios-fixture-tile-*` rows (kpi, bar, stacked-bar by type, table
+  max-grade with `gradeLabels`, line with a null week, area with an excluded entry) →
+  `analytics-tiles.json`; `analytics-compute.json` regenerated over them (7 slots, the last a
+  problem); `analytics-compute-preview.json`, `chart-draft-empty.json`,
+  `coach-tool-chart-draft.json`, `analytics-tiles-save.json`, `chat-stream-analytics.ndjson`.
+  `Series.gradeLabels` joins the Swift model. **Web stays on PostgREST and its client-side
+  Save for now** (issue #152).
+
 ## W10 — `POST /api/blocks?resource=cycle { spec }` → `{ blocks }` (Linux, small)
 Wraps `blocks/cadence.ts` (`CycleSpecError`, overlap checks). Web switches its preview to it.
 (Superset re-lettering in the services landed with W7.)
@@ -269,6 +307,7 @@ Landed 2026-09-11 (`phase41_provider_client.sql`, `handlers/providerSync.ts`,
 | `chat` v2 + `label` | W5a | prompt.ts, draft describers, promptSummary.ts | yes | chat | 260 | — |
 | `coach-tool` | W5b | tools.ts + services extraction | yes | writes/reads | 670 | — |
 | `analytics-compute` | W8 | engine.ts, spec.ts, hrZones.ts | later | reads | 200 | — |
+| `GET /api/analytics-tiles`, `{ draft }` on tiles POST and compute | W9 | draft.ts, tiles.ts | later | reads / writes | 120 | — |
 | `workout-draft`, supersets in services, `originalDate` | W7 | draft.ts, templates.ts, mapping.ts, supersets.ts | later | writes | 300 | — |
 | `blocks?resource=cycle` | W10 | cadence.ts | yes | writes | 60 | — |
 | account deletion | W11 | exists: `DELETE /api/account` | — | — | 0 | — |
