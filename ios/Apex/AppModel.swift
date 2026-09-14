@@ -33,6 +33,9 @@ final class AppModel {
     private(set) var coach: CoachModel?
     /// The builder's coach drawer builds its own session over these (W7).
     private(set) var coachServices: CoachServices?
+    /// The You tab's model (W11), per signed-in user like the coach. Nil until
+    /// `ensureQueue`.
+    private(set) var you: YouModel?
 
     private let pool: DatabasePool?
     private var queueOwner: String?
@@ -98,7 +101,7 @@ final class AppModel {
 
     /// Called once the root knows who is signed in. Idempotent per owner. The
     /// queue outlives nothing: a new owner gets a new queue over their own rows.
-    func ensureQueue(owner: String) {
+    func ensureQueue(owner: String, email: String?) {
         guard queueOwner != owner, let client else { return }
         queueOwner = owner
         let store: any WriteQueueStore = pool.map { GRDBWriteQueueStore(pool: $0, owner: owner) } ?? MemoryWriteQueueStore()
@@ -134,6 +137,27 @@ final class AppModel {
         )
         coachServices = services
         coach = CoachModel(services: services)
+
+        you = YouModel(services: YouServices(
+            client: client, publicOrigin: AppConfig.publicOrigin, email: email, clock: clock, versionLabel: AppConfig.versionLabel,
+            changePassword: { [weak self] password in await self?.changePassword(password) },
+            onProfileChanged: { [weak self] in Task { await self?.coach?.refreshProfile() } },
+            onScheduleChanged: { [weak self] in Task { await self?.schedule.refresh(reason: .afterEdit) } },
+            onAccountDeleted: { [weak self] in self?.signOut() },
+            signOut: { [weak self] in self?.signOut() }
+        ))
+    }
+
+    /// The You tab's change-password: the same SDK call the set-password
+    /// screen makes, on the live session. The mock has no GoTrue and accepts.
+    private func changePassword(_ password: String) async -> String? {
+        guard let auth else { return nil }
+        do {
+            try await auth.setPassword(password)
+            return nil
+        } catch {
+            return Self.readable(error)
+        }
     }
 
     var state: AuthState { auth?.state ?? mockState }
@@ -197,10 +221,16 @@ final class AppModel {
             }
         case .event, .library, .tracker:
             routes.open(link)
-        case .connected(let provider):
-            ToastBus.shared.post("\(provider.capitalized) connected.", level: .success)
-        case .connectError(_, let message):
-            ToastBus.shared.post(message ?? "The connection was not completed.", level: .failure)
+        case .connected, .connectError:
+            // Normally the in-app browser delivers this to the COROS screen
+            // itself (D-028); a plain deep link still lands on the same model.
+            if let you {
+                await you.coros.handleCallback(link)
+            } else if case .connected(let provider) = link {
+                ToastBus.shared.post("\(provider.capitalized) connected.", level: .success)
+            } else {
+                ToastBus.shared.post("The connection was not completed.", level: .failure)
+            }
         }
     }
 
@@ -274,6 +304,7 @@ final class AppModel {
         coach?.shutdown()
         coach = nil
         coachServices = nil
+        you = nil
         queueOwner = nil
         Task {
             await hub?.reset()

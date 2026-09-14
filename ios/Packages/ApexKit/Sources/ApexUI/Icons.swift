@@ -56,6 +56,18 @@ public enum ApexIcon: String, CaseIterable, Sendable {
     case chevronDown = "chevron.down"
     case minus = "minus.circle"
 
+    // W11 — the You tab.
+    case copy = "doc.on.clipboard"
+    case share = "square.and.arrow.up"
+    case signOut = "rectangle.portrait.and.arrow.right"
+    case lock = "lock"
+    case info = "info.circle"
+    case help = "questionmark.circle"
+    case connector = "point.3.connected.trianglepath.dotted"
+    case activityLog = "list.bullet.rectangle"
+    case shield = "checkmark.shield"
+    case externalLink = "arrow.up.right.square"
+
     // W9 — analytics
     case kebab = "ellipsis"
     case duplicate = "plus.square.on.square"
