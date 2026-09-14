@@ -18,6 +18,18 @@ cd "$(git rev-parse --git-common-dir)/.." || exit 1
 
 GH="${GH:-$(command -v /home/shanehaynes/bin/gh || command -v gh || true)}"
 
+# Epoch seconds for a UTC timestamp of the form 2026-09-10T11:18:01Z — what
+# git-new.sh writes to claims.tsv and what gh returns — or nothing, with a
+# non-zero exit, when neither date(1) can parse it. GNU date reads the Z as
+# UTC; BSD date (macOS) has no -d, and its -f matches the Z as a literal and
+# parses the rest in local time, so the zone is pinned or the result is off
+# by the local offset.
+epoch_utc() {
+  [ -n "${1:-}" ] || return 1
+  date -d "$1" +%s 2>/dev/null \
+    || TZ=UTC date -j -f %Y-%m-%dT%H:%M:%SZ "$1" +%s 2>/dev/null
+}
+
 echo "── main"
 if [ -n "$GH" ]; then
   latest=$("$GH" run list --workflow CI --branch main --limit 1 \
@@ -98,7 +110,7 @@ if [ -n "$GH" ]; then
         echo "ACTION last backup run was green but uploaded nothing ($when) — the secret or the age key is missing (README, Backups)"
         artifacts=skip
       fi
-      when_s=$(date -d "$when" +%s 2>/dev/null || date -j -f %Y-%m-%dT%H:%M:%SZ "$when" +%s 2>/dev/null || true)
+      when_s=$(epoch_utc "$when")
       if [ "$artifacts" = skip ]; then
         :
       elif [ -n "$when_s" ] && [ "$when_s" -lt "$(( $(date +%s) - 2*86400 ))" ]; then
@@ -142,10 +154,13 @@ if [ -s "$claims" ]; then
   now=$(date +%s)
   while IFS=$'\t' read -r br ts wt intent; do
     [ -n "$br" ] || continue
-    claimed=$(date -d "$ts" +%s 2>/dev/null || echo "$now")
-    age_days=$(( (now - claimed) / 86400 ))
+    claimed=$(epoch_utc "$ts")
+    age_days=""
+    [ -n "$claimed" ] && age_days=$(( (now - claimed) / 86400 ))
     if [ ! -d "$wt" ]; then
       echo "ACTION claim for $br points at a missing worktree — stale; scripts/git-tidy.sh --yes prunes it"
+    elif [ -z "$age_days" ]; then
+      echo "ACTION claim for $br has a timestamp neither date(1) can parse ('$ts') — age unknown; fix or retire that line in $claims"
     elif [ "$age_days" -ge 7 ]; then
       echo "ACTION $br claimed ${age_days}d ago${intent:+ ($intent)} — finish it or retire it"
     else
