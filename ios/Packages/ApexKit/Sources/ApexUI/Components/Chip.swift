@@ -5,24 +5,33 @@ import SwiftUI
 public struct Chip: View {
     private let title: String
     private let isSelected: Bool
+    private let isDimmed: Bool
+    private let tint: Color?
     private let action: (() -> Void)?
 
-    public init(_ title: String, isSelected: Bool = false, action: (() -> Void)? = nil) {
+    /// `isDimmed` is the web's `.an-chip--dimmed`: an option a prior choice
+    /// rules out. It stays tappable so the reason can show (U13) — the caller
+    /// decides what a tap does. `tint` colours the chip's border (and its
+    /// selected fill) — a workout type's own colour on its chip.
+    public init(_ title: String, isSelected: Bool = false, isDimmed: Bool = false, tint: Color? = nil, action: (() -> Void)? = nil) {
         self.title = title
         self.isSelected = isSelected
+        self.isDimmed = isDimmed
+        self.tint = tint
         self.action = action
     }
 
     public var body: some View {
         let label = Text(title)
             .font(.apex(.display, size: TypeScale.xs, weight: .medium, relativeTo: .caption))
-            .foregroundStyle(isSelected ? ApexColor.bgPrimary : ApexColor.textSecondary)
+            .foregroundStyle(isSelected ? (tint == nil ? ApexColor.bgPrimary : ApexColor.textPrimary) : ApexColor.textSecondary)
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
-            .background(isSelected ? ApexColor.accent : ApexColor.bgSurface, in: .capsule)
+            .background(isSelected ? (tint.map { $0.opacity(0.35) } ?? ApexColor.accent) : ApexColor.bgSurface, in: .capsule)
             .overlay(
-                Capsule().strokeBorder(isSelected ? .clear : ApexColor.borderSubtle, lineWidth: 1)
+                Capsule().strokeBorder(isSelected && tint == nil ? .clear : (tint ?? ApexColor.borderSubtle), lineWidth: 1)
             )
+            .opacity(isDimmed ? 0.4 : 1)
 
         if let action {
             Button(action: action) { label }

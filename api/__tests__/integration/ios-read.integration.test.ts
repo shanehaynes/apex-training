@@ -24,10 +24,12 @@ import chatHandler from '../../chat';
 import coachSummaryHandler from '../../_lib/handlers/coachSummary';
 import coachToolHandler from '../../_lib/handlers/coachTool';
 import analyticsComputeHandler from '../../_lib/handlers/analyticsCompute';
+import analyticsTilesHandler from '../../_lib/handlers/analyticsTiles';
 import workoutDraftHandler from '../../_lib/handlers/workoutDraft';
 import mutationsLogHandler from '../../_lib/handlers/mutationsLog';
 import mcpTokensHandler from '../../_lib/handlers/mcpTokens';
 import { emptyDraft } from '../../../src/lib/builder/draft';
+import { emptyChartDraft } from '../../../src/lib/analytics/draft';
 import { buildChatContext } from '../../_lib/coach/context';
 import { getSupabaseAdmin } from '../../_lib/supabaseAdmin';
 import { getAnthropicKey } from '../../_lib/anthropicKey';
@@ -52,6 +54,14 @@ vi.mock('@anthropic-ai/sdk', () => ({
             // tracker's summary overlay streams it.
             yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Strong session — ' } };
             yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'a new estimated 1RM on Fixture Press.' } };
+            return;
+          }
+          if ((request.tools as Array<{ name: string }>).some(t => t.name === 'update_chart_draft')) {
+            // Analytics mode: the single chart-draft tool, no label (W9).
+            yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Configuring it. ' } };
+            yield { type: 'content_block_start', content_block: { type: 'tool_use', id: 'toolu_fixture_chart', name: 'update_chart_draft' } };
+            yield { type: 'content_block_delta', delta: { type: 'input_json_delta', partial_json: '{"title":"Fixture weekly tonnage","chart_type":"bar","bucket":"week","series":[{"id":"s1","measure":"tonnage"}]}' } };
+            yield { type: 'content_block_stop' };
             return;
           }
           if ((request.tools as Array<{ name: string }>).some(t => t.name === 'update_workout_draft')) {
@@ -168,6 +178,21 @@ const CIRCUIT_ID = `${FX}-circuit`;
 const MEAL_IDS = [`${FX}-meal-1`, `${FX}-meal-2`];
 const QUICK_OCCURRENCE = `${EVENT_ID}__2026-09-15`;
 const TRACKED_OCCURRENCE = `${EVENT_ID}__2026-09-22`;
+// W9: the seeded dashboard. Fixed windows (a rolling range moves with
+// `today`), full-height rows in y order so the phone's list matches the grid.
+const CLIMB_DEF_ID = `${FX}-def-climb`;
+const TILE_PREFIX = `${FX}-tile-`;
+const TILE_WINDOW = { kind: 'fixed', startDate: '2026-09-01', endDateExclusive: '2026-10-01' };
+const TILE_SPECS: Array<{ id: string; spec: Record<string, unknown> }> = [
+  { id: `${TILE_PREFIX}sessions`, spec: { version: 1, title: 'Sessions', chartType: 'kpi', range: TILE_WINDOW, bucket: 'total', series: [{ id: 's1', measure: 'session-count' }] } },
+  // No exercise filter: the 09-08 rows carry the alias spelling ('fx press')
+  // and the engine filters on the logged name, browser and server alike.
+  { id: `${TILE_PREFIX}tonnage`, spec: { version: 1, title: 'Tonnage', chartType: 'bar', range: TILE_WINDOW, bucket: 'week', series: [{ id: 's1', measure: 'tonnage' }] } },
+  { id: `${TILE_PREFIX}time`, spec: { version: 1, title: 'Training time by type', chartType: 'stacked-bar', range: TILE_WINDOW, bucket: 'week', series: [{ id: 's1', measure: 'training-time', groupBy: 'event-type' }] } },
+  { id: `${TILE_PREFIX}grade`, spec: { version: 1, title: 'Max grade', chartType: 'table', range: TILE_WINDOW, bucket: 'iso-month', series: [{ id: 's1', measure: 'max-grade', filters: { gradeScale: 'yds' } }] } },
+  { id: `${TILE_PREFIX}hr`, spec: { version: 1, title: 'Avg heart rate', chartType: 'line', range: TILE_WINDOW, bucket: 'week', series: [{ id: 's1', measure: 'avg-hr' }] } },
+  { id: `${TILE_PREFIX}distance`, spec: { version: 1, title: 'Distance', chartType: 'area', range: TILE_WINDOW, bucket: 'week', series: [{ id: 's1', measure: 'distance' }] } },
+];
 
 // W11 integration surfaces (provider connection, MCP tokens, mutations log)
 // are all PER-USER SINGLETONS or unprefixed feeds, and agent@apex.local's are
@@ -246,15 +271,16 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
   }
 
   async function cleanup() {
-    await admin.from('workout_set_logs').delete().like('event_id', `${EVENT_ID}%`);
-    await admin.from('workout_cardio_logs').delete().like('event_id', `${EVENT_ID}%`);
+    await admin.from('workout_set_logs').delete().like('event_id', `${FX}%`);
+    await admin.from('workout_cardio_logs').delete().like('event_id', `${FX}%`);
+    await admin.from('analytics_tiles').delete().like('id', `${FX}%`);
     await admin.from('workout_sessions').delete().like('event_id', `${EVENT_ID}%`);
     await admin.from('workout_completion_log').delete().like('event_id', `${EVENT_ID}%`);
     await admin.from('workout_completions').delete().like('event_id', `${EVENT_ID}%`);
     await admin.from('recurring_exceptions').delete().like('event_id', `${FX}%`);
     await admin.from('workout_events').delete().like('id', `${FX}%`);
     await admin.from('workout_templates').delete().like('id', `${FX}%`);
-    await admin.from('exercise_definitions').delete().eq('id', DEF_ID);
+    await admin.from('exercise_definitions').delete().like('id', `${FX}%`);
     await admin.from('activity_streams').delete().like('event_id', `${FX}%`);
     await admin.from('meals').delete().in('id', MEAL_IDS);
 
@@ -378,6 +404,31 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
       { user_id: agent.userId, event_id: DONE_OCCURRENCE, event_date: '2026-09-08', section: 'exercise', exercise_id: 'fx-press',
         exercise_name: 'fx press', definition_id: DEF_ID, set_number: 2, actual_weight: '110 lb', actual_reps: '3', is_autofilled: false },
     ])).error);
+
+    // ---- W9: what the dashboard tiles compute over. A climbing definition
+    // makes the crag's set-log rows pitches (grade text in actual_weight); a
+    // cardio row with an unreadable distance is what the excluded-entries
+    // footnote counts. Named without "Fixture" so search_exercises('fixture')
+    // keeps its fixture.
+    fail('climb definition', (await admin.from('exercise_definitions').insert({
+      id: CLIMB_DEF_ID, user_id: agent.userId, canonical_name: 'Ragged Arete', category: 'climbing',
+      aliases: [], muscle_groups: [], equipment: [], is_unilateral: false,
+    })).error);
+    fail('pitch logs', (await admin.from('workout_set_logs').insert([
+      { user_id: agent.userId, event_id: CRAG_ID, event_date: FIXTURE_DAY, section: 'exercise', exercise_id: 'fx-p1',
+        exercise_name: 'Ragged Arete', definition_id: CLIMB_DEF_ID, set_number: 1, actual_weight: '5.10c', actual_reps: null, is_autofilled: false },
+      { user_id: agent.userId, event_id: CRAG_ID, event_date: FIXTURE_DAY, section: 'exercise', exercise_id: 'fx-p2',
+        exercise_name: 'Ragged Arete', definition_id: CLIMB_DEF_ID, set_number: 2, actual_weight: '5.9', actual_reps: null, is_autofilled: false },
+    ])).error);
+    fail('cardio logs', (await admin.from('workout_cardio_logs').insert([
+      { user_id: agent.userId, event_id: RUN_ID, event_date: FIXTURE_DAY, section: 'exercise', exercise_id: 'fx-run',
+        exercise_name: 'Fixture Easy Run', duration_minutes: 40, distance: '5 mi', elevation_gain: '800 ft', avg_heart_rate: 150, is_autofilled: false },
+      { user_id: agent.userId, event_id: RUN_ID, event_date: FIXTURE_DAY, section: 'cooldown', exercise_id: 'fx-jog',
+        exercise_name: 'Fixture Cooldown Jog', duration_minutes: 10, distance: 'far', elevation_gain: null, avg_heart_rate: null, is_autofilled: false },
+    ])).error);
+    fail('tiles', (await admin.from('analytics_tiles').insert(TILE_SPECS.map((t, i) => ({
+      id: t.id, user_id: agent.userId, spec: t.spec, x: 0, y: i * 4, w: 6, h: 4,
+    })))).error);
 
     // ---- W11: the You tab's own surfaces, all on agent2 (see SYNC_TZ above).
 
@@ -882,20 +933,34 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     }
   });
 
-  it('analytics-compute: the engine runs over the caller\'s rows and answers index-aligned TileData', async () => {
-    const window = { kind: 'fixed', startDate: '2026-09-01', endDateExclusive: '2026-10-01' };
+  it('analytics tiles + compute: the dashboard read, the engine over the caller\'s rows, the draft bodies, and the chart-draft reduce (W8, W9)', async () => {
+    type TileView = { id: string; title: string; spec: Record<string, unknown> | null; draft: Record<string, unknown> | null; layout: { x: number; y: number; w: number; h: number }; updatedAt: string | null };
+    type Tiles = { tiles: TileView[]; options: { categories: string[]; otherWorkoutTitles: string[] } };
+    type Tile = { ok: boolean; data?: { series: Array<{ key: string; points: Array<number | null>; gradeLabels?: Array<string | null> }>; excluded: { otherUnit: number; unparseable: number } }; problem?: string };
+
+    // GET: every seeded tile in y order, each with the draft its spec unfolds to.
+    const list = makeRes();
+    await analyticsTilesHandler(makeReq({ method: 'GET', token: agent.token }), list.res);
+    expect(list.statusCode).toBe(200);
+    const body = list.body as Tiles;
+    const carved: Tiles = { tiles: body.tiles.filter(t => t.id.startsWith(TILE_PREFIX)), options: body.options };
+    expect(carved.tiles.map(t => t.id)).toEqual(TILE_SPECS.map(t => t.id));
+    expect(carved.tiles[0]).toMatchObject({ title: 'Sessions', draft: { chartType: 'kpi', rangeKind: 'fixed', startDate: '2026-09-01', endDate: '2026-09-30' }, layout: { x: 0, y: 0, w: 6, h: 4 } });
+    expect(carved.tiles[3].draft).toMatchObject({ chartType: 'table', series: [{ measure: 'max-grade', gradeScale: 'yds' }] });
+    expect(carved.options.categories).toEqual(expect.arrayContaining(['climbing', 'strength']));
+    expect(JSON.stringify(carved)).not.toContain('user_id');
+    fixture('analytics-tiles.json', carved);
+
+    // Compute the served specs in tiles order, plus a spec the engine refuses.
     const specs = [
-      { version: 1, title: 'Sessions', chartType: 'kpi', range: window, bucket: 'total', series: [{ id: 's1', measure: 'session-count' }] },
-      // No exercise filter: the 09-08 rows carry the alias spelling ('fx press')
-      // and the engine filters on the logged name, browser and server alike.
-      { version: 1, title: 'Tonnage', chartType: 'bar', range: window, bucket: 'week', series: [{ id: 's1', measure: 'tonnage' }] },
-      { version: 1, title: 'broken', chartType: 'line', range: window, bucket: 'week', series: [{ id: 's1', measure: 'no-such-measure' }] },
+      ...carved.tiles.map(t => t.spec),
+      { version: 1, title: 'broken', chartType: 'line', range: TILE_WINDOW, bucket: 'week', series: [{ id: 's1', measure: 'no-such-measure' }] },
     ];
     const c = makeRes();
     await analyticsComputeHandler(makeReq({ method: 'POST', token: agent.token, body: { specs, today: '2026-09-22' } }), c.res);
     expect(c.statusCode).toBe(200);
-    const { tiles } = c.body as { tiles: Array<{ ok: boolean; data?: { series: Array<{ points: Array<number | null> }> }; problem?: string }> };
-    expect(tiles).toHaveLength(3);
+    const { tiles } = c.body as { tiles: Tile[] };
+    expect(tiles).toHaveLength(7);
     // One completed fixture occurrence in September (09-08); the quick-complete and
     // the tracked finish do not write completions.
     expect(tiles[0].ok).toBe(true);
@@ -904,17 +969,98 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     expect(tiles[1].ok).toBe(true);
     const weekly = tiles[1].data!.series[0].points.map(p => p ?? 0);
     expect(weekly.reduce((a, b) => a + b, 0)).toBe(1190);
-    expect(tiles[2].ok).toBe(false);
-    expect(tiles[2].problem).toBeTruthy();
+    // The split fans out per workout type — the key the phone colours by.
+    expect(tiles[2].data!.series.map(s => s.key)).toContain('s1:weights');
+    // The crag's pitches carry their grade text; a rank is never shown.
+    expect(tiles[3].ok).toBe(true);
+    expect(tiles[3].data!.series[0].gradeLabels).toContain('5.10c');
+    // Avg HR is null in a week with no cardio — a gap, not a zero.
+    expect(tiles[4].data!.series[0].points).toContain(null);
+    expect(tiles[4].data!.series[0].points).toContain(150);
+    // 'far' is not a distance: excluded, counted, footnoted.
+    expect(tiles[5].data!.excluded.unparseable).toBeGreaterThanOrEqual(1);
+    expect(tiles[6].ok).toBe(false);
+    expect(tiles[6].problem).toBeTruthy();
+    fixture('analytics-compute.json', c.body);
 
     // Another user's tiles never see these rows.
     const other = makeRes();
     await analyticsComputeHandler(makeReq({ method: 'POST', token: agent2.token, body: { specs: [specs[1]], today: '2026-09-22' } }), other.res);
     expect(other.statusCode).toBe(200);
-    const otherWeekly = (other.body as { tiles: Array<{ data?: { series: Array<{ points: Array<number | null> }> } }> }).tiles[0].data?.series[0]?.points.map(p => p ?? 0) ?? [];
+    const otherWeekly = (other.body as { tiles: Tile[] }).tiles[0].data?.series[0]?.points.map(p => p ?? 0) ?? [];
     expect(otherWeekly.reduce((a, b) => a + b, 0)).toBe(0);
+    const otherList = makeRes();
+    await analyticsTilesHandler(makeReq({ method: 'GET', token: agent2.token }), otherList.res);
+    expect((otherList.body as Tiles).tiles.filter(t => t.id.startsWith(TILE_PREFIX))).toEqual([]);
 
-    fixture('analytics-compute.json', c.body);
+    // The builder's live preview: a draft the web would refuse answers its text in the slot.
+    const empty = emptyChartDraft();
+    fixture('chart-draft-empty.json', empty);
+    const preview = makeRes();
+    await analyticsComputeHandler(makeReq({ method: 'POST', token: agent.token, body: { drafts: [empty], today: '2026-09-22' } }), preview.res);
+    expect(preview.statusCode).toBe(200);
+    expect((preview.body as { tiles: Tile[] }).tiles).toEqual([{ ok: false, problem: 'Every series needs a measure.' }]);
+    fixture('analytics-compute-preview.json', preview.body);
+
+    // The analytics coach's reduce: the same stateless path as the workout draft.
+    const reduce = makeRes();
+    await coachToolHandler(makeReq({
+      method: 'POST', token: agent.token,
+      body: {
+        name: 'update_chart_draft', today: FIXTURE_DAY, draft: empty,
+        input: { title: 'Fixture weekly tonnage', chart_type: 'bar', bucket: 'week', series: [{ id: 's1', measure: 'tonnage' }] },
+      },
+    }), reduce.res);
+    expect(reduce.statusCode).toBe(200);
+    const reduced = reduce.body as { ok: boolean; resultText: string; draft: { title: string; chartType: string; series: Array<{ measure: string }> } };
+    expect(reduced.ok).toBe(true);
+    expect(reduced.resultText).toContain('Chart draft updated');
+    expect(reduced.draft).toMatchObject({ title: 'Fixture weekly tonnage', chartType: 'bar', bucket: 'week', series: [{ id: 's1', measure: 'tonnage' }] });
+    fixture('coach-tool-chart-draft.json', reduce.body);
+
+    // Save the reduced draft through the draft body; the server converts and answers the tile.
+    const saveId = `${TILE_PREFIX}save`;
+    try {
+      const save = makeRes();
+      await analyticsTilesHandler(makeReq({
+        method: 'POST', token: agent.token,
+        body: { id: saveId, draft: reduced.draft, layout: { x: 0, y: 24, w: 12, h: 4 } },
+      }), save.res);
+      expect(save.statusCode).toBe(200);
+      expect(save.body).toMatchObject({ ok: true, id: saveId, tile: { id: saveId, title: 'Fixture weekly tonnage', layout: { x: 0, y: 24, w: 12, h: 4 } } });
+      const { data: row } = await admin.from('analytics_tiles').select('spec, user_id').eq('id', saveId).single();
+      expect(row).toMatchObject({ user_id: agent.userId, spec: { title: 'Fixture weekly tonnage', chartType: 'bar', bucket: 'week' } });
+      fixture('analytics-tiles-save.json', save.body);
+
+      // A blank title is refused with the web's own text, on a 200, writing nothing.
+      const blank = makeRes();
+      await analyticsTilesHandler(makeReq({ method: 'POST', token: agent.token, body: { id: `${saveId}-blank`, draft: { ...reduced.draft, title: '' } } }), blank.res);
+      expect(blank.statusCode).toBe(200);
+      expect(blank.body).toEqual({ ok: false, problem: 'Give the tile a title' });
+    } finally {
+      await admin.from('analytics_tiles').delete().like('id', `${saveId}%`);
+    }
+  });
+
+  it('chat v2 (analytics): one tool, the chart draft in context, no label on the tool_use', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-ant-integration');
+    const c = makeRes();
+    const chunks: string[] = [];
+    (c.res as unknown as { write: (s: string) => boolean }).write = (s: string) => { chunks.push(s); return true; };
+    (c.res as unknown as { on: () => unknown }).on = () => c.res;
+    await chatHandler(makeReq({
+      method: 'POST', token: agent.token,
+      body: {
+        mode: 'analytics', today: FIXTURE_DAY, withTools: true, context: { draft: emptyChartDraft() },
+        messages: [{ role: 'user', content: 'weekly tonnage as bars' }],
+      },
+    }), c.res);
+    expect(c.statusCode).toBe(200);
+    const events = chunks.join('').trim().split('\n').map(l => JSON.parse(l) as Record<string, unknown>);
+    expect(events.map(e => e.type)).toEqual(['text', 'tool_use', 'done']);
+    expect(events[1]).toMatchObject({ name: 'update_chart_draft', input: { title: 'Fixture weekly tonnage', chart_type: 'bar' } });
+    expect(events[1].label).toBeUndefined();
+    fixture('chat-stream-analytics.ndjson', chunks.join(''));
   });
 
   it('emits (or checks) the iOS fixture contract from real responses', async () => {

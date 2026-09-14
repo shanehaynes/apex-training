@@ -96,6 +96,16 @@ actor FixtureTransport: HTTPTransport {
     private var corosAutoSync = true
     private var corosSynced = false
 
+    /// W9: the dashboard's writes, replayed into later tile reads.
+    private var tileEdits = TileEdits()
+
+    struct TileEdits {
+        /// Saved tiles (new or edited), in the GET shape, keyed by id.
+        var saved: [String: [String: Any]] = [:]
+        var layouts: [String: [String: Any]] = [:]
+        var deleted: Set<String> = []
+    }
+
     struct ScheduleEdits {
         /// camelCase field overrides per base id (PATCH /api/events, update).
         var patched: [String: [String: Any]] = [:]
@@ -210,6 +220,9 @@ actor FixtureTransport: HTTPTransport {
                 if body?["name"] as? String == "update_workout_draft" {
                     return ok(try reducedDraft(body))
                 }
+                if body?["name"] as? String == "update_chart_draft" {
+                    return ok(try reducedChartDraft(body))
+                }
                 return ok(try Fixtures.data("coach-tool.json"))
             case ("PATCH", "/api/events"):
                 let id = queryValue("id", in: query)
@@ -269,6 +282,26 @@ actor FixtureTransport: HTTPTransport {
                 default:
                     return ok(Data(#"{"ok":true}"#.utf8))
                 }
+            case ("GET", "/api/analytics-tiles"):
+                return ok(try tilesBody())
+            case ("POST", "/api/analytics-compute"):
+                return ok(try computeBody(body))
+            case ("POST", "/api/analytics-tiles"):
+                return ok(try saveTile(body))
+            case ("PATCH", "/api/analytics-tiles"):
+                for entry in body?["layouts"] as? [[String: Any]] ?? [] {
+                    if let id = entry["id"] as? String {
+                        tileEdits.layouts[id] = ["x": entry["x"] ?? 0, "y": entry["y"] ?? 0, "w": entry["w"] ?? 12, "h": entry["h"] ?? 4]
+                    }
+                }
+                return ok(Data(#"{"ok":true}"#.utf8))
+            case ("DELETE", "/api/analytics-tiles"):
+                let id = queryValue("id", in: query)
+                guard try tilesList().contains(where: { $0["id"] as? String == id }) else {
+                    return HTTPResponse(status: 404, headers: [:], body: Data("Tile not found".utf8))
+                }
+                tileEdits.deleted.insert(id)
+                return ok(Data(#"{"id":"\(id)"}"#.utf8))
             case ("POST", "/api/coach-summary"):
                 return HTTPResponse(
                     status: 200, headers: ["Content-Type": "application/x-ndjson; charset=utf-8"],
@@ -288,7 +321,11 @@ actor FixtureTransport: HTTPTransport {
     /// Markdown otherwise — so the smoke and the snapshots see every state.
     private func chatBody(_ body: [String: Any]?) throws -> Data {
         if body?["withTools"] as? Bool == true {
-            return try Fixtures.data(body?["mode"] as? String == "builder" ? "chat-stream-builder.ndjson" : "chat-stream.ndjson")
+            switch body?["mode"] as? String {
+            case "builder": return try Fixtures.data("chat-stream-builder.ndjson")
+            case "analytics": return try Fixtures.data("chat-stream-analytics.ndjson")
+            default: return try Fixtures.data("chat-stream.ndjson")
+            }
         }
         let messages = body?["messages"] as? [[String: Any]] ?? []
         let last = messages.last
@@ -296,7 +333,11 @@ actor FixtureTransport: HTTPTransport {
         if let content = last?["content"] as? String, content == ChatCopy.notesPrompt {
             text = "**Today** — Fixture Push Day at 17:30.\n\n- Warm up the shoulders first\n- Last time you pressed 110 lb; aim for 115\n\nKeep the run easy tomorrow."
         } else if let blocks = last?["content"] as? [[String: Any]], blocks.contains(where: { $0["type"] as? String == "tool_result" }) {
-            text = body?["mode"] as? String == "builder" ? "Added Fixture Press, 3 × 8. Review the form and press Apply." : "Done — Fixture Push Day on 2026-09-29 is cleared."
+            switch body?["mode"] as? String {
+            case "builder": text = "Added Fixture Press, 3 × 8. Review the form and press Apply."
+            case "analytics": text = "Set up weekly tonnage as bars. Review the form and press Save."
+            default: text = "Done — Fixture Push Day on 2026-09-29 is cleared."
+            }
         } else {
             text = "Noted. Anything else?"
         }
@@ -421,6 +462,104 @@ actor FixtureTransport: HTTPTransport {
         }
     }
 
+    // MARK: - W9 analytics
+
+    private func tilesFixture() throws -> [String: Any] {
+        (try JSONSerialization.jsonObject(with: try Fixtures.data("analytics-tiles.json")) as? [String: Any]) ?? [:]
+    }
+
+    /// The fixture's tiles plus every save, minus every delete, with the
+    /// layouts the edit mode committed — sorted the way the server sorts.
+    private func tilesList() throws -> [[String: Any]] {
+        var tiles = (try tilesFixture()["tiles"] as? [[String: Any]]) ?? []
+        for (id, saved) in tileEdits.saved {
+            if let index = tiles.firstIndex(where: { $0["id"] as? String == id }) { tiles[index] = saved } else { tiles.append(saved) }
+        }
+        tiles = tiles.filter { !tileEdits.deleted.contains($0["id"] as? String ?? "") }
+        tiles = tiles.map { tile in
+            guard let id = tile["id"] as? String, let layout = tileEdits.layouts[id] else { return tile }
+            var moved = tile
+            moved["layout"] = layout
+            return moved
+        }
+        let position: ([String: Any]) -> (Int, Int) = { tile in
+            let layout = tile["layout"] as? [String: Any]
+            return (layout?["y"] as? Int ?? 0, layout?["x"] as? Int ?? 0)
+        }
+        return tiles.sorted { position($0) < position($1) }
+    }
+
+    private func tilesBody() throws -> Data {
+        var object = try tilesFixture()
+        object["tiles"] = try tilesList()
+        return try JSONSerialization.data(withJSONObject: object)
+    }
+
+    /// Compute answers by matching each spec (or draft) to a seeded tile and
+    /// serving that tile's slot of `analytics-compute.json` — the fixture is
+    /// index-aligned with `analytics-tiles.json` on purpose.
+    private func computeBody(_ body: [String: Any]?) throws -> Data {
+        let compute = (try JSONSerialization.jsonObject(with: try Fixtures.data("analytics-compute.json")) as? [String: Any]) ?? [:]
+        let slots = compute["tiles"] as? [[String: Any]] ?? []
+        let seeded = (try tilesFixture()["tiles"] as? [[String: Any]]) ?? []
+        func slot(matching chartType: String?) -> [String: Any] {
+            if let index = seeded.firstIndex(where: { ($0["draft"] as? [String: Any])?["chartType"] as? String == chartType }), index < slots.count {
+                return slots[index]
+            }
+            return slots.count > 1 ? slots[1] : ["ok": false, "problem": "no fixture slot"]
+        }
+        var answers: [[String: Any]] = []
+        if let specs = body?["specs"] as? [[String: Any]] {
+            for spec in specs {
+                if let index = seeded.firstIndex(where: { ($0["spec"] as? NSDictionary)?.isEqual(to: spec) == true }), index < slots.count {
+                    answers.append(slots[index])
+                } else {
+                    answers.append(slot(matching: spec["chartType"] as? String))
+                }
+            }
+        } else if let drafts = body?["drafts"] as? [[String: Any]] {
+            let preview = (try JSONSerialization.jsonObject(with: try Fixtures.data("analytics-compute-preview.json")) as? [String: Any])?["tiles"] as? [[String: Any]] ?? []
+            for draft in drafts {
+                let series = draft["series"] as? [[String: Any]] ?? []
+                if series.isEmpty || series.contains(where: { ($0["measure"] as? String ?? "").isEmpty }), let first = preview.first {
+                    answers.append(first)
+                } else {
+                    answers.append(slot(matching: draft["chartType"] as? String))
+                }
+            }
+        }
+        return try JSONSerialization.data(withJSONObject: ["today": body?["today"] ?? "2026-09-08", "tiles": answers])
+    }
+
+    /// The native Save: the fixture's answer reshaped around the caller's
+    /// id, draft and layout, then remembered for later reads.
+    private func saveTile(_ body: [String: Any]?) throws -> Data {
+        guard let draft = body?["draft"] as? [String: Any] else {
+            // The web's spec body — accepted, not replayed.
+            return Data(#"{"id":"\(body?["id"] as? String ?? "")"}"#.utf8)
+        }
+        let title = (draft["title"] as? String ?? "").trimmingCharacters(in: .whitespaces)
+        guard !title.isEmpty else {
+            return Data(#"{"ok":false,"problem":"Give the tile a title"}"#.utf8)
+        }
+        var object = (try JSONSerialization.jsonObject(with: try Fixtures.data("analytics-tiles-save.json")) as? [String: Any]) ?? [:]
+        var tile = object["tile"] as? [String: Any] ?? [:]
+        let id = body?["id"] as? String ?? "tile-mock"
+        tile["id"] = id
+        tile["title"] = title
+        tile["draft"] = draft
+        if var spec = tile["spec"] as? [String: Any] {
+            spec["title"] = title
+            spec["chartType"] = draft["chartType"] ?? spec["chartType"]
+            tile["spec"] = spec
+        }
+        tile["layout"] = body?["layout"] ?? ["x": 0, "y": 0, "w": 12, "h": 4]
+        object["id"] = id
+        object["tile"] = tile
+        tileEdits.saved[id] = tile
+        return try JSONSerialization.data(withJSONObject: object)
+    }
+
     private func ok(_ data: Data) -> HTTPResponse {
         HTTPResponse(status: 200, headers: ["Content-Type": "application/json"], body: data)
     }
@@ -462,6 +601,19 @@ actor FixtureTransport: HTTPTransport {
                 if let value = sent[key] { draft[key] = value }
             }
             if let title = sent["title"] as? String, !title.isEmpty, (body?["input"] as? [String: Any])?["title"] == nil { draft["title"] = title }
+        }
+        object["draft"] = draft
+        return try JSONSerialization.data(withJSONObject: object)
+    }
+
+    /// The chart-draft reduce (W9): the fixture's answer, with the caller's own
+    /// title kept unless the input set one, so an edit stays on its tile.
+    private func reducedChartDraft(_ body: [String: Any]?) throws -> Data {
+        guard var object = (try JSONSerialization.jsonObject(with: try Fixtures.data("coach-tool-chart-draft.json"))) as? [String: Any],
+              var draft = object["draft"] as? [String: Any] else { return try Fixtures.data("coach-tool-chart-draft.json") }
+        if let sent = body?["draft"] as? [String: Any],
+           let title = sent["title"] as? String, !title.isEmpty, (body?["input"] as? [String: Any])?["title"] == nil {
+            draft["title"] = title
         }
         object["draft"] = draft
         return try JSONSerialization.data(withJSONObject: object)

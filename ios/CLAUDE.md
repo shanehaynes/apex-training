@@ -118,6 +118,11 @@ seven minutes before the fixed clock, so Start Workout opens a live session rath
 committed (finished) `bootstrap.json`. `-apexMockFailOnce save 3` makes the first three `save`
 actions (or a path suffix) answer 500 and then succeed — the write queue's pending → synced path
 the smoke asserts on; `-apexMockFail` also matches an action name now.
+The Analytics tab (W9) is answered too: `GET /api/analytics-tiles` → `analytics-tiles.json` plus
+every save, layout commit and delete the session made; `POST /api/analytics-compute` matches each
+spec to a seeded tile and serves that slot of `analytics-compute.json` (index-aligned on purpose),
+a draft with no measure → `analytics-compute-preview.json`; `POST /api/analytics-tiles { draft }`
+→ `analytics-tiles-save.json` reshaped around the caller's id, draft and layout.
 Under the mock an `apextraining://auth#…type=invite` link lands on set-password without GoTrue,
 which is how `AuthLinkUITests` covers that screen in CI.
 The You tab (W11) is answered too: every profile PATCH is replayed into the next `GET /api/profile`,
@@ -152,6 +157,10 @@ Uploading publishes a build to Apple. Confirm with Shane before running it witho
 - `node ios/scripts/gen-tokens.mjs` — after any change to `src/styles/tokens.css`,
   `src/utils/workoutColors.ts` or `src/lib/analytics/palette.ts`. `--check` runs in
   `npm run ci:guards`, so drift fails the build rather than the brand.
+- `node ios/scripts/gen-analytics-catalog.mjs` — after any change to `src/lib/analytics/spec.ts`
+  (measures, sport blocklist, limits), `src/lib/analytics/labels.ts` (the builder's option
+  labels) or `src/utils/workoutColors.ts` (type labels). Writes
+  `ApexCore/Analytics/Generated/AnalyticsCatalog.swift`; `--check` runs in `npm run ci:guards`.
 - `npm run db:types` — after any migration. It writes
   `Packages/ApexKit/Sources/ApexAuth/Generated/DatabaseTypes.swift` as well as the TS types.
 - `node ios/scripts/render-icon.mjs` — after editing `Design/app-icon.svg`.

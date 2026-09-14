@@ -22,6 +22,8 @@ final class AppModel {
     private(set) var client: ApexClient?
     private(set) var cache: (any CacheStore)?
     private(set) var schedule: ScheduleModel
+    /// The Analytics tab's model (W9): tiles and results over the same cache.
+    private(set) var analytics: AnalyticsModel
     /// The tracker's write queue and friends, built per signed-in user: the
     /// `tracker_ops` store is per owner so unsynced work never flushes under
     /// another account (architecture.md §7). Nil until `ensureQueue`.
@@ -73,6 +75,7 @@ final class AppModel {
         self.streams = streams
         self.hub = hub
         self.schedule = Self.makeSchedule(client: client, cache: cache, clock: SystemClock(), streams: streams, realtime: hub)
+        self.analytics = Self.makeAnalytics(client: client, cache: cache, clock: SystemClock(), realtime: hub)
     }
 
     #if DEBUG
@@ -86,7 +89,14 @@ final class AppModel {
         self.streams = mock.streams
         self.hub = nil
         self.schedule = Self.makeSchedule(client: client, cache: mock.cache, clock: mock.clock, streams: mock.streams, realtime: nil)
+        self.analytics = Self.makeAnalytics(client: client, cache: mock.cache, clock: mock.clock, realtime: nil)
     }
+
+    // Under MainActor default isolation the deinit would be synthesized as
+    // *isolated*, which routes deallocation through swift_task_deinitOnExecutor
+    // and aborts on the iOS 17/18 runtime when the object dies outside a task
+    // (swiftlang/swift#87316, D-031). Nothing here needs the actor to die.
+    nonisolated deinit {}
     #endif
 
     /// Called once the root knows who is signed in. Idempotent per owner. The
@@ -284,6 +294,7 @@ final class AppModel {
 
     func signOut() {
         schedule.stop()
+        analytics.stop()
         // The queue's rows stay (per owner); the instance goes with the session.
         queueDriver?.stop()
         queueDriver = nil
@@ -302,6 +313,7 @@ final class AppModel {
             if let auth { await auth.signOut() } else { mockState = .signedOut(reason: nil) }
         }
         schedule = Self.makeSchedule(client: client!, cache: cache, clock: clock, streams: streams, realtime: hub)
+        analytics = Self.makeAnalytics(client: client!, cache: cache, clock: clock, realtime: hub)
     }
 
     /// Realtime lives only while the scene is active (architecture.md §8); the
@@ -314,6 +326,7 @@ final class AppModel {
             Task {
                 await hub?.resume()
                 await schedule.refresh(reason: .foreground)
+                await analytics.refresh(reason: .foreground)
             }
         case .background:
             // The write queue's visibilitychange analog (architecture.md §7).
@@ -347,6 +360,12 @@ final class AppModel {
             streams: streams,
             realtime: realtime
         ))
+    }
+
+    private static func makeAnalytics(
+        client: ApexClient, cache: (any CacheStore)?, clock: any ApexClock, realtime: (any RealtimeChanges)?
+    ) -> AnalyticsModel {
+        AnalyticsModel(deps: AnalyticsDependencies(client: client, cache: cache ?? MemoryCacheStore(), clock: clock, realtime: realtime))
     }
 
     /// A database that will not open is not fatal: the app still works online

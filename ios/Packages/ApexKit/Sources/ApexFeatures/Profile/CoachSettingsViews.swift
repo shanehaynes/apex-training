@@ -85,6 +85,8 @@ final class RotatingPlaceholder {
         self.offset = offset
     }
 
+    nonisolated deinit {}
+
     var current: String { examples.isEmpty ? "" : examples[index % examples.count] }
 
     func run() async {

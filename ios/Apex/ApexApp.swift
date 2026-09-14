@@ -78,7 +78,7 @@ struct RootView: View {
                 onCancel: { model.cancelPasswordSetup() }
             )
         case .signedIn(let userID, let email):
-            RootTabView(schedule: model.schedule, tracker: model.trackerServices, coach: model.coach, coachServices: model.coachServices, you: model.you, email: email, routes: model.routes) {
+            RootTabView(schedule: model.schedule, analytics: model.analytics, tracker: model.trackerServices, coach: model.coach, coachServices: model.coachServices, you: model.you, email: email, routes: model.routes) {
                 model.signOut()
             }
                 .onAppear { model.ensureQueue(owner: userID, email: email) }

@@ -18,17 +18,16 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W6 | Coach tab | done (#126, #127, #128) | Mac | TestFlight build 3 (0.4.0/301); device run passed 2026-09-11 on build 306, kill-mid-card relaunch included |
 | W7 | Event CRUD + builder | done (#137, #138, #139, #140) | Mac | TestFlight build 5 (0.6.0/312) uploaded 2026-09-11; Shane's device run outstanding |
 | W8 | Backend analytics compute | done (PR #100) | Linux | web keeps its browser path |
-| W9 | Analytics tab (editable layout) | ready | Mac | W8 + W6 done |
+| W9 | Analytics tab (editable layout) | in progress (A #153, B #154, C open; D to follow) | Mac | plan approved 2026-09-11; TestFlight build 6 (0.7.0) after D |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
 | W11 | Profile, integrations, account | backend done (#149) · You tab in review (#157) | both | phase41 applied in prod? (Shane); device runs are Shane's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
-1. **W11 You tab PR #157**: review, merge after the W9 stack (it touches the same
-   five files — AppModel, RootTabView, Tabs, the mock, Icons — additively; resolve keeping both).
-   Then a TestFlight build and Shane's W11 device run: COROS connect inside the app, a sync that
-   fills a planned workout, a bad key's Anthropic message. Confirm phase41 is applied in prod.
+1. **W11 You tab PR #157**: review and merge (rebased on the W9 stack and #158). Then a
+   TestFlight build and Shane's W11 device run: COROS connect inside the app, a sync that fills a
+   planned workout, a bad key's Anthropic message. Confirm phase41 is applied in prod.
 2. Shane's W7 device run on TestFlight build 5 (0.6.0/312): create a recurring workout, edit
    one occurrence, edit the series, delete an occurrence — the web shows the same result each
    time; the coach drawer on a real key. Then W9 or W10. The W7 worktree can be
@@ -40,23 +39,27 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    failed once on #149 with "Neither element nor any descendant has keyboard focus", then passed
    on a re-run of the same commit. Same race W7 hit in the event-edits smoke, where `openEvent`
    ended up re-sending its tap. Needs a Mac to fix and prove.
-5. **Mac, small:** on the **iOS 18.6 simulator runtime** a `@MainActor` `@Observable` class's
-   deinit crashes the process (`pointer being freed was not allocated` inside
-   `swift_task_deinitOnExecutorMainActorBackDeploy`) — `RouteBusTests` dies that way there while
-   passing on iOS 26.5, which CI runs. W11 sidestepped it for its own models with an explicit
-   `nonisolated deinit {}`; `RouteBus` (and anything else that is deallocated in a test) needs
-   the same one-liner if the suite is ever to run on an iOS 18 simulator. Not a device risk:
-   those objects live for the session.
-6. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
+5. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
    `ios/Config/Secrets.xcconfig` (`ios/scripts/secrets.sh`) and `ios/Config/appstoreconnect.env`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+<<<<<<< HEAD
 - 2026-09-13 · W11 · Mac: the You tab end to end — `YouModel`/`CorosModel`/`ConnectorModel`/
   `ActivityLogModel` over the #149 endpoints, thirteen pushed screens, `ASWebAuthenticationSession`
   connect with the mock's browserless seam, the sync confirmation bottom sheet, the 24 avatars and
   the guide's eight figures generated from the web sources, W11 mock routes, 26 model tests, 20
   snapshots, the `testYouOnFixtures` smoke leg. D-030. PR pending.
+=======
+- 2026-09-13 · W9 · PR C: the tile builder — `TileBuilderModel` with the debounced server preview,
+  the series editor with the catalog's dimming, the shared `DraftCoachDrawer`, mock analytics chat;
+  10 model tests, 5 snapshots.
+- 2026-09-13 · W9 · PR B: the Analytics tab — `AnalyticsModel`, tile cards with Swift Charts
+  renderers (tap-to-pin values; drags swallow the page's flick), edit mode, mock routes, 16 model
+  tests, 12 snapshots.
+- 2026-09-12 · W9 · PR A: `GET /api/analytics-tiles`, draft bodies on tiles POST and compute,
+  the generated `AnalyticsCatalog.swift`, the ApexCore analytics layer, seven analytics fixtures.
+>>>>>>> origin/main
 - 2026-09-11 · W11 · Backend + ApexCore (the Mac builds the You tab in parallel): phase41
   `provider_connections.client`, `connect-start { client: 'ios' }`, a `providerCallback` that
   reads the pending row before every failure branch so a declined or expired iOS connect still
