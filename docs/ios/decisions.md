@@ -436,3 +436,104 @@ The brief said "`client: 'ios'` and a scheme redirect"; these are the lines draw
   minted PAT are secrets; `token_last4` is neither secret nor stable — it is re-minted on every
   run, and baking one in would have failed the drift check on the next run rather than on a real
   shape change.
+
+## D-029 · The Analytics tab: tiles through the API, drafts on the server, a generated catalog (W9)
+**Status:** decided · W9 session · 2026-09-13
+The brief said "port the dashboard and the tile builder"; these are the lines drawn while doing it.
+- **`GET /api/analytics-tiles` exists for the phone.** The web reads `analytics_tiles` from
+  PostgREST under RLS; iOS reads through the API like every other screen, so the mock answers
+  it and a fixture pins it. Each tile comes with the draft its spec unfolds to
+  (`draftFromSpec`, run server-side) and the picker options the web derives locally.
+- **Draft logic stays server-side — the W7 mould (D-027).** `POST /api/analytics-tiles { id,
+  draft, layout }` and `POST /api/analytics-compute { drafts }` run the web's own `draft.ts`;
+  user-facing problems answer `200 { ok:false, problem }` (the coach-tool convention). The
+  builder's live preview is that endpoint with one draft, so the same `chartDraftProblem` text
+  the web shows appears under the phone's form. `ChartDraft` in Swift is a dumb Codable mirror:
+  constructors only, no validator ported. Spec bodies stay accepted for the web.
+- **The catalog is generated, not typed** — the third generator after tokens and DB types.
+  `gen-analytics-catalog.mjs` loads `spec.ts`, the new `labels.ts` (the option labels, out of
+  the React component so node can import them) and `workoutColors.ts` under node's type
+  stripping; `--check` runs in `ci:guards`. Swift reads it for chips and dim reasons and
+  validates nothing.
+- **Two ports in the D-023 mould, vectors added to the web first:** `SeriesColors` (a
+  workout-type group keeps its app colour and consumes no ramp slot; `palette.test.ts` did not
+  exist and was written for it) and `TileFormat` (the renderer's `fmt`).
+- **Per-tile results are cached by content.** `analytics_result` / `<tileId>` holds `{ spec,
+  today, result }` and is reused only when the spec still matches and the day is today's — and
+  only on launch and realtime; foreground, pull and after-save recompute, because realtime on
+  `analytics_tiles` says nothing about the logs behind a tile. One compute per refresh, chunked
+  at the server's 24.
+- **D-011 made concrete.** Edit mode → order becomes cumulative `y`, `x = 0`, `w = 12`, `h ∈
+  {2,4,6}` for S/M/L; only the rows that changed are written. A commit from the phone rewrites
+  the web grid into full-width rows in phone order — the decision's chosen consequence. New and
+  duplicated tiles are full-width at the bottom. Stat tiles size to their content on the phone;
+  charts take the grid height.
+- **Value inspection is a tap that pins the bucket's card.** A zero-distance drag and a
+  hold-then-drag both swallowed the page's vertical flick on a page of charts, and
+  `chartXSelection` never fired on the iOS 26 runtime; U13 asks for values on tap, and a pinned
+  card is that.
+- **Null points are gaps** (architecture §10), diverging from the web's `connectNulls`.
+- **Dual axes are one chart.** Swift Charts has no second y-axis; right-axis series are rescaled
+  into the left domain and the trailing axis is labelled at round right-axis values. The
+  overlay of two charts was tried and misaligned.
+- **Delete is the kebab then a confirming dialog** — the web's two taps.
+- **The coach drawer generalised.** `DraftCoachDrawer(coach:copy:)` serves the workout builder
+  and the tile builder; the analytics session is store-less like the builder's.
+- **The web's switch to the draft endpoints is #152**, not W9.
+
+## D-030 · The You tab's shape, and how the COROS browser closes without a backend (W11)
+**Status:** decided · W11 Mac session · 2026-09-13
+- **Sync lives under You › COROS, not on the Schedule toolbar.** The web puts the Sync button in
+  the top nav because that is where the connection's state is visible; the phone has a tab for
+  that. The pending-fill count rides on the Sync button's title ("Sync now · 2 waiting") and the
+  root row shows the connection state, so nothing is further than two taps from Schedule.
+- **The confirmation queue is a bottom sheet the model owns.** `CorosModel.queue` is the source
+  of truth; the sheet is `isPresented: queue.first != nil`, and dismissing it calls
+  `abandonQueue()`, which drops the decisions and toasts — nothing has been written, and the
+  activities are still on the watch. The web's double-click latch survives as `isSettling`.
+- **`ASWebAuthenticationSession` is a closure the view hands the model.** The model stays
+  testable on a scripted transport: `connect(open:)` takes `(URL) async throws -> URL`, the view
+  passes `webAuthenticationSession.authenticate(...)` with the cancel mapped to
+  `CancellationError`, and the returned callback goes through `DeepLink.parse` like any other
+  link. An authorize URL already on the app's scheme is treated as the callback itself — that is
+  the fixture mock's answer to `connect-start`, and how the smoke connects without a browser.
+- **Avatars ship as SVG in an asset catalog, generated from the web's catalog.** Xcode
+  rasterises them per scale, the drawings are paths and circles it renders faithfully, and
+  `gen-avatars.mjs --check` fails on drift the way `gen-tokens.mjs` does — the keys are the
+  server's allowlist, so a client with its own list is a 400 waiting to happen.
+- **The guide's figures are rendered, not redrawn.** They are React SVG components with `<text>`,
+  which the asset-catalog SVG renderer does not handle; `gen-connector-figures.ts` renders them
+  through the repo's Playwright with the house fonts inlined and emits their pins and notes as
+  Swift, so the screen's callouts stay text. PNG bytes vary by Chromium build, so `--check`
+  covers the Swift side and each figure's presence, not the pixels.
+- **The root reads three things on appearance** — the profile, the COROS status, the token
+  list (quietly) — so every row shows its state before it is opened; each pushed screen re-reads
+  its own on `.task`. Profile writes send exactly their own keys and re-read; the coach's badge
+  is told through `onProfileChanged` rather than by sharing a model across tabs.
+
+## D-031 · MainActor-default classes declare `nonisolated deinit`
+**Status:** decided · Mac session · 2026-09-13
+- **The crash.** Every ApexTests run on the iOS 18.6 simulator aborted in libmalloc
+  (`POINTER_BEING_FREED_WAS_NOT_ALLOCATED` under `swift::TaskLocal::StopLookupScope`, reached from
+  `swift_task_deinitOnExecutorMainActorBackDeploy` → `<Class>.__deallocating_deinit`). First
+  `YouModel` releasing `CorosModel`, then — once those four carried a fix — `RouteBus`, a leaf
+  class released from a plain synchronous test. Nesting is not the trigger; any isolated deinit
+  that runs outside a task can abort.
+- **Why the deinit is isolated when nobody wrote one.** Under MainActor default isolation
+  (`SWIFT_DEFAULT_ACTOR_ISOLATION` on Apex and ApexWidgets, `.defaultIsolation(MainActor.self)` on
+  ApexUI, ApexFeatures, ApexActivity) the Swift 6.2+ compiler synthesizes an *isolated* deinit for
+  every class. The deployment floor is iOS 17.0, so the back-deploy thunk is emitted and the
+  iOS 17/18 runtime does the work. An explicit `@MainActor` alone does not synthesize one
+  (checked in SIL with the Xcode 26.6 toolchain), so ApexAuth, ApexCore and the test targets are
+  unaffected. Upstream: [swiftlang/swift#87316](https://github.com/swiftlang/swift/issues/87316),
+  [#85663](https://github.com/swiftlang/swift/issues/85663) — both open, both name
+  `nonisolated deinit` as the workaround; the only compiler knob is `-default-isolation`, which stays.
+- **The rule.** Every class in a MainActor-default target declares `nonisolated deinit {}` (a class
+  with a real deinit body marks that body `nonisolated`; it may still touch its own stored
+  properties, not isolated methods). `ios/scripts/check-deinits.sh`, run from `scripts/ci-guards.sh`
+  on every push, fails any file with more `class` declarations than `nonisolated deinit`s, and
+  pins the count of targets that opt into the default so a new one has to be added to its list.
+  CI's ios job runs the iOS 26 simulator only, which does not reproduce the crash — the grep is
+  the enforcement, not the test run.
+- **Exit condition.** Drop the rule when the deployment floor reaches a runtime where the upstream
+  issues are closed, and re-run ApexTests on the oldest supported simulator before doing so.

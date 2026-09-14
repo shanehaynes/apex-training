@@ -274,7 +274,10 @@ Swift Charts over the server's `TileData`: `line`/`area` → `LineMark`/`AreaMar
 split at `nil` (gaps), `bar`/`stacked-bar` → `BarMark` with `.foregroundStyle(by:)`, `kpi` and
 `table` are plain views. House style from `TileRenderer.tsx`: no axis lines, no tick lines, no
 grid, no animation, 10pt ticks, legend only when >1 series. Palette from `palette.ts` via the
-token generator. Value inspection by tap/scrub (`chartOverlay` + `DragGesture`).
+token generator. Buckets are categorical (`bucket.key` on the axis, `bucket.label` as the
+tick). Value inspection is a tap that pins the bucket's card — never a drag on a page of charts
+(D-029). Right-axis series are rescaled into the left domain with a trailing axis of round
+right-axis values; Swift Charts has no second y-axis.
 
 ## 11. Design system (`ApexUI`)
 
@@ -315,5 +318,8 @@ tracker is frontmost. Decisions: D-026.
 2. The fixture emitter vitest writes `ios/Fixtures/*`; `swift test` decodes them; `--check`
    fails on uncommitted drift.
 3. `gen-tokens.mjs --check`.
+4. `gen-analytics-catalog.mjs --check` — the tile builder's measures, labels and sport blocklist
+   from `src/lib/analytics/{spec,labels}.ts` into `ApexCore/Analytics/Generated/AnalyticsCatalog.swift`
+   (W9, D-029).
 No TS→Swift codegen of `src/types/workout.ts`; the fixture contract catches the same drift with
 far less machinery.

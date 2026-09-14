@@ -8,6 +8,22 @@ enum AppConfig {
     static let supabaseURL = url("SUPABASE_URL")
     static let supabaseAnonKey = string("SUPABASE_ANON_KEY")
     static let name = string("APEX_CONFIGURATION")
+    /// The web app's origin, for what the You tab points outside the app at:
+    /// the MCP endpoint and the legal pages. The API base is the same origin
+    /// (the Local configuration's vite server proxies `/api/*`), and a build
+    /// can be inspected for it the same way.
+    static let publicOrigin: URL = {
+        var components = URLComponents(url: apiBase, resolvingAgainstBaseURL: false)
+        components?.path = ""
+        components?.query = nil
+        return components?.url ?? apiBase
+    }()
+    /// "0.6.0 (312)" — the About screen's line.
+    static let versionLabel: String = {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
+        return build.isEmpty ? version : "\(version) (\(build))"
+    }()
 
     /// Fails the launch rather than shipping a build pointed at the wrong backend.
     ///
