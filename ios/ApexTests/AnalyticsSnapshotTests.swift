@@ -25,7 +25,14 @@ final class AnalyticsSnapshotTests: XCTestCase {
             case ("GET", "/api/analytics-tiles"):
                 if empty { return HTTPResponse(status: 200, headers: [:], body: Data(#"{"tiles":[],"options":{"categories":[],"otherWorkoutTitles":[]}}"#.utf8)) }
                 name = "analytics-tiles.json"
-            case ("POST", "/api/analytics-compute"): name = "analytics-compute.json"
+            case ("POST", "/api/analytics-compute"):
+                // The builder's preview: a draft with no measure is the web's problem.
+                if let body = request.httpBody, String(decoding: body, as: UTF8.self).contains("\"measure\":\"\"") {
+                    name = "analytics-compute-preview.json"
+                } else {
+                    name = "analytics-compute.json"
+                }
+            case ("GET", "/api/profile"): name = "profile.json"
             default: return HTTPResponse(status: 200, headers: [:], body: Data(#"{"ok":true}"#.utf8))
             }
             return HTTPResponse(status: 200, headers: [:], body: try Data(contentsOf: fixtures.appendingPathComponent(name)))
@@ -40,16 +47,34 @@ final class AnalyticsSnapshotTests: XCTestCase {
 
     @MainActor
     private func model(empty: Bool = false) async -> AnalyticsModel {
+        await stack(empty: empty).model
+    }
+
+    @MainActor
+    private func stack(empty: Bool = false) async -> (model: AnalyticsModel, client: ApexClient, clock: TestClock) {
         ApexFonts.register()
         let transport = FixtureTransport()
         transport.empty = empty
         let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: Tokens())
+        let clock = TestClock(now: Date(timeIntervalSince1970: 1_788_868_800))
         let model = AnalyticsModel(deps: AnalyticsDependencies(
-            client: client, cache: MemoryCacheStore(), clock: TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)),
-            realtime: nil, timeZone: TimeZone(identifier: "UTC")!
+            client: client, cache: MemoryCacheStore(), clock: clock, realtime: nil, timeZone: TimeZone(identifier: "UTC")!
         ))
         await model.start()
-        return model
+        return (model, client, clock)
+    }
+
+    /// A builder over the seeded dashboard, its first preview settled.
+    @MainActor
+    private func builder(tile: AnalyticsTile? = nil, coach: Bool = false) async -> TileBuilderModel {
+        let (model, client, clock) = await stack()
+        let services = coach ? CoachServices(client: client, store: MemoryConversationStore(), clock: clock, timeZone: TimeZone(identifier: "UTC")!) : nil
+        let builder = TileBuilderModel(model: model, tile: tile, coachServices: services)
+        builder.previewDelay = .zero
+        await builder.start()
+        for _ in 0..<20 { await Task.yield() }
+        try? await Task.sleep(for: .milliseconds(50))
+        return builder
     }
 
     private func data(_ index: Int) throws -> TileData {
@@ -163,5 +188,43 @@ final class AnalyticsSnapshotTests: XCTestCase {
     func testDashboardAtTheLargestType() async {
         let model = await model()
         snapshot(AnalyticsTab(model: model).environment(\.sizeCategory, .extraExtraLarge), named: "dashboard-xxl", size: CGSize(width: 393, height: 1400))
+    }
+
+    // MARK: - The tile builder (PR C)
+
+    @MainActor
+    func testBuilderNew() async {
+        let builder = await builder()
+        snapshot(TileBuilderSheet(builder: builder, onClose: {}), named: "builder-new", size: CGSize(width: 393, height: 1400))
+    }
+
+    @MainActor
+    func testBuilderEditingTheStackedTile() async {
+        let (model, _, _) = await stack()
+        let builder = await builder(tile: model.tiles[2])
+        snapshot(TileBuilderSheet(builder: builder, onClose: {}), named: "builder-edit", size: CGSize(width: 393, height: 1600))
+    }
+
+    @MainActor
+    func testBuilderFiltersOpenWithADimmedSport() async {
+        let builder = await builder()
+        builder.setMeasure("s1", "distance")
+        builder.filtersOpen.insert("s1")
+        for _ in 0..<20 { await Task.yield() }
+        try? await Task.sleep(for: .milliseconds(50))
+        snapshot(TileBuilderSheet(builder: builder, onClose: {}), named: "builder-filters", size: CGSize(width: 393, height: 1800))
+    }
+
+    @MainActor
+    func testBuilderCoachDrawer() async {
+        let builder = await builder(coach: true)
+        builder.coachOpen = true
+        snapshot(TileBuilderSheet(builder: builder, onClose: {}), named: "builder-coach")
+    }
+
+    @MainActor
+    func testBuilderAtTheLargestType() async {
+        let builder = await builder()
+        snapshot(TileBuilderSheet(builder: builder, onClose: {}).environment(\.sizeCategory, .extraExtraLarge), named: "builder-xxl", size: CGSize(width: 393, height: 1600))
     }
 }

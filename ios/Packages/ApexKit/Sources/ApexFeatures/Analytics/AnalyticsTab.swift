@@ -54,7 +54,7 @@ public struct AnalyticsTab: View {
         .sheet(item: $model.sheet) { item in
             switch item {
             case .builder(let tile):
-                TileBuilderPlaceholder(tile: tile, onClose: { model.sheet = nil })
+                TileBuilderSheet(model: model, tile: tile, coachServices: coachServices, onClose: { model.sheet = nil })
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
                     .presentationBackground(ApexColor.bgSurface)
@@ -119,20 +119,5 @@ public struct AnalyticsTab: View {
         }
         .accessibilityIdentifier("analytics.dashboard")
         .refreshable { await model.refresh(reason: .pullToRefresh) }
-    }
-}
-
-/// PR B lands the route; PR C fills it with the tile builder.
-struct TileBuilderPlaceholder: View {
-    let tile: AnalyticsTile?
-    let onClose: () -> Void
-
-    var body: some View {
-        VStack(spacing: Spacing.md) {
-            SheetHeader(title: tile == nil ? "New tile" : "Edit tile", onClose: onClose)
-            EmptyState(eyebrow: "Tile builder", message: "The tile builder lands in W9 PR C.", symbol: ApexIcon.chart.systemName)
-        }
-        .background(ApexColor.bgSurface)
-        .accessibilityIdentifier("analytics.builder")
     }
 }
