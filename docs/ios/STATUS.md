@@ -18,32 +18,36 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W6 | Coach tab | done (#126, #127, #128) | Mac | TestFlight build 3 (0.4.0/301); device run passed 2026-09-11 on build 306, kill-mid-card relaunch included |
 | W7 | Event CRUD + builder | done (#137, #138, #139, #140) | Mac | TestFlight build 5 (0.6.0/312) uploaded 2026-09-11; Shane's device run outstanding |
 | W8 | Backend analytics compute | done (PR #100) | Linux | web keeps its browser path |
-| W9 | Analytics tab (editable layout) | in progress (A #153, B #154, C open; D to follow) | Mac | plan approved 2026-09-11; TestFlight build 6 (0.7.0) after D |
+| W9 | Analytics tab (editable layout) | done (#153, #154, #155, #156) | Mac | TestFlight build 6 (0.7.0/324) uploaded 2026-09-14; Shane's device run outstanding |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
-| W11 | Profile, integrations, account | backend in review (PR pending) | both | migration phase41 — HELD, needs `shipit`; You tab UI is the Mac's |
+| W11 | Profile, integrations, account | done (#149, #157) | both | on TestFlight build 6; phase41 applied in prod? (Shane); device runs are Shane's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
 | W13 | Release + polish | blocked | Mac | App Store gate |
 
 ## Next up
-1. **Shane: `shipit` on the W11 backend PR** — it adds `phase41_provider_client.sql`, so the
-   babysitter will not touch it, and the Mac session's You tab consumes its ApexCore surface.
-   Apply phase41 in prod after it merges.
-2. Shane's W7 device run on TestFlight build 5 (0.6.0/312): create a recurring workout, edit
-   one occurrence, edit the series, delete an occurrence — the web shows the same result each
-   time; the coach drawer on a real key. Then W9 or W10. The W7 worktree can be
-   tidied; its two git-ignored release files go with it (item 4).
-3. Still open from earlier: the W2 device runs; two W12 timings nobody has clocked (30 minutes
+1. Shane's device runs on TestFlight build 6 (0.7.0/324, carries W9's Analytics tab and W11's
+   You tab): W9 (reorder and resize on the phone → the web dashboard shows the new `y/h`; a spec
+   the web rejects shows the server's message in the builder; the coach drawer on a real key) and
+   W11 (COROS connect inside the app, a sync that fills a planned workout, a bad key's Anthropic
+   message). Confirm phase41 is applied in prod. Then W10, W13 after. The W7, W9 and W11
+   worktrees can be tidied — the two git-ignored release files die with them (item 3).
+2. Still open from earlier: the W2 device runs; two W12 timings nobody has clocked (30 minutes
    backgrounded, the 5-minute Done linger on the Lock Screen).
-4. **Mac, small:** `SmokeUITests.testCoachKeySetupOnFixtures` is flaky in CI. It does
-   `composer.tap()` then `composer.typeText("hi")` with nothing waiting for first responder, and
-   failed once on #149 with "Neither element nor any descendant has keyboard focus", then passed
-   on a re-run of the same commit. Same race W7 hit in the event-edits smoke, where `openEvent`
-   ended up re-sending its tap. Needs a Mac to fix and prove.
-5. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
+3. Releases are one command: `ios/scripts/testflight.sh` from a worktree that has
    `ios/Config/Secrets.xcconfig` (`ios/scripts/secrets.sh`) and `ios/Config/appstoreconnect.env`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-14 · W9 · D merged (#156); TestFlight build 6 (0.7.0/324) uploaded — W9 and W11 (#157) both aboard.
+- 2026-09-13 · W11 · Mac: the You tab end to end — `YouModel`/`CorosModel`/`ConnectorModel`/
+  `ActivityLogModel` over the #149 endpoints, thirteen pushed screens, `ASWebAuthenticationSession`
+  connect with the mock's browserless seam, the sync confirmation bottom sheet, the 24 avatars and
+  the guide's eight figures generated from the web sources, W11 mock routes, 26 model tests, 20
+  snapshots, the `testYouOnFixtures` smoke leg. D-030. PR pending.
+- 2026-09-13 · W9 · PR D: three smoke legs (dashboard with a pinned value and edit mode, the
+  builder with the coach, the kebab), every tap-then-type in the smoke now waits for keyboard
+  focus (the `testCoachKeySetupOnFixtures` flake), 0.7.0, D-029, the architecture/design-spec
+  rows, `testflight.sh --dry-run`; build 6 waits on Shane's go.
 - 2026-09-13 · W9 · PR C: the tile builder — `TileBuilderModel` with the debounced server preview,
   the series editor with the catalog's dimming, the shared `DraftCoachDrawer`, mock analytics chat;
   10 model tests, 5 snapshots.

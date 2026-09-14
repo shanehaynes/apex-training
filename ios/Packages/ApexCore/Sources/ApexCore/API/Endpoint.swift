@@ -356,7 +356,7 @@ public struct Endpoint: Sendable, Equatable {
     // MARK: - W9 analytics
     // The dashboard reads tiles through the API (the web reads PostgREST) and
     // computes from the specs it was served; the builder previews and saves
-    // the draft JSON and the server runs the web's own draft.ts (D-028).
+    // the draft JSON and the server runs the web's own draft.ts (D-029).
 
     /// Every saved tile with its layout and the draft it unfolds to, plus the
     /// builder's picker options (`GET /api/analytics-tiles`).

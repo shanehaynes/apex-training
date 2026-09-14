@@ -196,8 +196,7 @@ final class SmokeUITests: XCTestCase {
 
         let composer = app.textFields["coach.composer"]
         XCTAssertTrue(composer.waitForExistence(timeout: 10))
-        composer.tap()
-        composer.typeText("skip next week")
+        type("skip next week", into: composer)
         app.buttons["coach.send"].tap()
 
         // The card replaces the composer once the stream ends; the label is the server's.
@@ -240,8 +239,7 @@ final class SmokeUITests: XCTestCase {
         add.tap()
         let field = app.secureTextFields["key.field"]
         XCTAssertTrue(field.waitForExistence(timeout: 10))
-        field.tap()
-        field.typeText("sk-ant-api03-mock-key-0000000000")
+        type("sk-ant-api03-mock-key-0000000000", into: field)
         app.buttons["key.save"].tap()
 
         // The sheet closes, the profile now reports a key, the thread is open.
@@ -249,8 +247,7 @@ final class SmokeUITests: XCTestCase {
         let composer = app.textFields["coach.composer"]
         XCTAssertTrue(composer.waitForExistence(timeout: 10))
         XCTAssertTrue(composer.isEnabled)
-        composer.tap()
-        composer.typeText("hi")
+        type("hi", into: composer)
         app.buttons["coach.send"].tap()
         XCTAssertTrue(app.otherElements["coach.card"].waitForExistence(timeout: 20))
         attach(app, name: "16-coach-key-saved")
@@ -368,8 +365,7 @@ final class SmokeUITests: XCTestCase {
         app.buttons["builder.coach.toggle"].tap()
         let composer = app.textViews["coach.composer"].firstMatch.exists ? app.textViews["coach.composer"].firstMatch : app.textFields["coach.composer"].firstMatch
         XCTAssertTrue(composer.waitForExistence(timeout: 10))
-        composer.tap()
-        composer.typeText("add fixture press 3x8")
+        type("add fixture press 3x8", into: composer)
         app.buttons["coach.send"].tap()
         // The draft tool reduced server-side (the mock keeps the form's own title when the
         // coach names none) and the tools-off follow-up confirms it in the thread.
@@ -396,8 +392,7 @@ final class SmokeUITests: XCTestCase {
         editWorkout.tap()
         let titleField = app.textFields["builder.title.field"]
         XCTAssertTrue(titleField.waitForExistence(timeout: 10))
-        titleField.tap()
-        titleField.typeText(" (solo)")
+        type(" (solo)", into: titleField)
         app.buttons["builder.apply"].tap()
         let scope = app.buttons["builder.scope.occurrence"]
         XCTAssertTrue(scope.waitForExistence(timeout: 5))
@@ -408,11 +403,242 @@ final class SmokeUITests: XCTestCase {
         attach(app, name: "28-builder-detached")
     }
 
+    /// Taps a field and types once it has keyboard focus — a type sent a beat
+    /// early fails with "Neither element nor any descendant has keyboard focus"
+    /// on a starved runner (the `testCoachKeySetupOnFixtures` flake).
+    private func type(_ text: String, into field: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(field.waitForExistence(timeout: 10), "missing field: \(field)", file: file, line: line)
+        for _ in 0..<3 {
+            field.tap()
+            let focused = NSPredicate { object, _ in (object as? XCUIElement)?.value(forKey: "hasKeyboardFocus") as? Bool == true }
+            if XCTWaiter().wait(for: [expectation(for: focused, evaluatedWith: field)], timeout: 3) == .completed { break }
+        }
+        field.typeText(text)
+    }
+
+    /// Taps a control and waits for what it should open, re-sending the tap
+    /// a starved runner dropped (the `openEvent` lesson), twice at most.
+    private func tapUntil(_ button: XCUIElement, shows target: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(button.waitForExistence(timeout: 20), "missing: \(button)", file: file, line: line)
+        for _ in 0..<3 {
+            button.tap()
+            if target.waitForExistence(timeout: 10) { return }
+        }
+        XCTFail("\(target) never appeared after tapping \(button)", file: file, line: line)
+    }
+
+    /// sign in → Analytics → six seeded tiles → tap a bar pins its value →
+    /// Edit → the KPI to the bottom, the tonnage tile tall → Done → the order
+    /// survives a tab switch. All on fixtures (W9).
+    func testAnalyticsDashboardOnFixtures() {
+        let app = launch(mock: true)
+        signIn(app)
+        let tab = app.tabBars.buttons["Analytics"]
+        tapUntil(tab, shows: app.otherElements["tile.card.ios-fixture-tile-sessions"])
+        XCTAssertTrue(app.staticTexts["analytics.count"].label.hasPrefix("6 tiles"))
+        let tonnage = app.otherElements["tile.card.ios-fixture-tile-tonnage"]
+        XCTAssertTrue(tonnage.exists)
+        attach(app, name: "29-analytics")
+
+        // A tap on the bar chart pins the bucket's card (U13): the Sep 7 bar sits
+        // under the card's second column.
+        let pinned = app.staticTexts["830 lb"].firstMatch
+        for _ in 0..<3 where !pinned.exists {
+            tonnage.coordinate(withNormalizedOffset: CGVector(dx: 0.38, dy: 0.62)).tap()
+            _ = pinned.waitForExistence(timeout: 4)
+        }
+        XCTAssertTrue(pinned.exists, "the tap did not pin the bucket")
+        attach(app, name: "30-analytics-scrub")
+
+        // Edit mode: reorder and resize, then Done.
+        tapUntil(app.buttons["analytics.edit"], shows: app.collectionViews["analytics.editlist"])
+        // The segmented control's identifier rides on each of its buttons.
+        let large = app.buttons.matching(identifier: "tile.height.ios-fixture-tile-tonnage").matching(NSPredicate(format: "label == 'L'")).firstMatch
+        XCTAssertTrue(large.waitForExistence(timeout: 5))
+        large.tap()
+        attach(app, name: "31-analytics-edit")
+        let sessionsRow = app.otherElements["tile.editrow.ios-fixture-tile-sessions"]
+        let distanceRow = app.otherElements["tile.editrow.ios-fixture-tile-distance"]
+        let handle = sessionsRow.buttons.matching(NSPredicate(format: "label CONTAINS 'Reorder'")).firstMatch
+        if handle.exists {
+            handle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                .press(forDuration: 0.6, thenDragTo: distanceRow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 1.2)))
+        }
+        app.buttons["analytics.edit.done"].tap()
+        XCTAssertTrue(app.scrollViews["analytics.dashboard"].waitForExistence(timeout: 10))
+        // The layout write landed on the mock and survives a tab switch.
+        app.tabBars.buttons["Schedule"].tap()
+        tapUntil(tab, shows: app.otherElements["tile.card.ios-fixture-tile-tonnage"])
+        XCTAssertTrue(app.otherElements["tile.card.ios-fixture-tile-tonnage"].exists)
+        attach(app, name: "32-analytics-reordered")
+    }
+
+    /// "+" → the builder → Tonnage → the preview draws → the coach fills the
+    /// title and the chart type from `chat-stream-analytics.ndjson` → Save →
+    /// the new tile is on the dashboard (W9).
+    func testTileBuilderOnFixtures() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockHasKey"]
+        app.launch()
+        signIn(app)
+        tapUntil(app.tabBars.buttons["Analytics"], shows: app.otherElements["tile.card.ios-fixture-tile-sessions"])
+        tapUntil(app.buttons["analytics.add"], shows: app.textFields["analytics.builder.title"])
+        attach(app, name: "33-builder-form")
+
+        // A measure makes the draft valid; the server's preview draws.
+        let form = app.scrollViews.firstMatch
+        let tonnage = app.buttons["series.s1.measure.tonnage"]
+        var swipes = 0
+        while !tonnage.isHittable, swipes < 4 { form.swipeUp(); swipes += 1 }
+        tonnage.tap()
+        let preview = app.otherElements["analytics.builder.preview"]
+        swipes = 0
+        while !preview.exists, swipes < 6 { form.swipeUp(); swipes += 1 }
+        XCTAssertTrue(preview.waitForExistence(timeout: 10))
+        attach(app, name: "34-builder-preview")
+
+        // The coach: one turn, the chart-draft tool reduces server-side, the form follows.
+        app.buttons["analytics.builder.coach.toggle"].tap()
+        let composer = app.textViews["coach.composer"].firstMatch.exists ? app.textViews["coach.composer"].firstMatch : app.textFields["coach.composer"].firstMatch
+        XCTAssertTrue(composer.waitForExistence(timeout: 10))
+        type("weekly tonnage as bars", into: composer)
+        app.buttons["coach.send"].tap()
+        let followUp = app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'Review the form and press Save'")).firstMatch
+        XCTAssertTrue(followUp.waitForExistence(timeout: 20))
+        XCTAssertFalse(app.otherElements["coach.card"].exists, "the builder's coach never shows a card")
+        let titleField = app.textFields["analytics.builder.title"]
+        XCTAssertEqual(titleField.value as? String, "Fixture weekly tonnage")
+        attach(app, name: "35-builder-coach")
+
+        app.buttons["analytics.builder.save"].tap()
+        // The count line at the top says it landed; the card itself is at the
+        // bottom of a lazy stack and exists only once scrolled to.
+        let seven = expectation(for: NSPredicate(format: "label BEGINSWITH '7 tiles'"), evaluatedWith: app.staticTexts["analytics.count"])
+        wait(for: [seven], timeout: 15)
+        // The phone minted the id; the card is known by the title the coach gave it.
+        let saved = app.staticTexts["Fixture weekly tonnage"].firstMatch
+        let dashboard = app.scrollViews["analytics.dashboard"]
+        swipes = 0
+        while !saved.exists, swipes < 8 { dashboard.swipeUp(); swipes += 1 }
+        XCTAssertTrue(saved.waitForExistence(timeout: 5))
+        attach(app, name: "36-builder-saved")
+    }
+
+    /// The kebab: Duplicate adds "(copy)" at the bottom; Delete needs its
+    /// confirming tap and the tile leaves the dashboard (W9).
+    func testTileKebabOnFixtures() {
+        let app = launch(mock: true)
+        signIn(app)
+        tapUntil(app.tabBars.buttons["Analytics"], shows: app.otherElements["tile.card.ios-fixture-tile-sessions"])
+        app.buttons["tile.menu.ios-fixture-tile-sessions"].tap()
+        let duplicate = app.buttons["Duplicate"]
+        XCTAssertTrue(duplicate.waitForExistence(timeout: 5))
+        duplicate.tap()
+        let seven = expectation(for: NSPredicate(format: "label BEGINSWITH '7 tiles'"), evaluatedWith: app.staticTexts["analytics.count"])
+        wait(for: [seven], timeout: 10)
+        // The copy is at the bottom of a lazy stack: scroll until it exists.
+        let copy = app.staticTexts["Sessions (copy)"]
+        let dashboard = app.scrollViews["analytics.dashboard"]
+        var swipes = 0
+        while !copy.exists, swipes < 8 { dashboard.swipeUp(); swipes += 1 }
+        XCTAssertTrue(copy.waitForExistence(timeout: 5))
+        attach(app, name: "37-tile-duplicated")
+        swipes = 0
+        while !app.buttons["tile.menu.ios-fixture-tile-sessions"].isHittable, swipes < 8 { dashboard.swipeDown(); swipes += 1 }
+
+        app.buttons["tile.menu.ios-fixture-tile-sessions"].tap()
+        let delete = app.buttons["Delete"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 5))
+        delete.tap()
+        let confirm = app.buttons["Confirm delete"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        attach(app, name: "38-tile-delete")
+        confirm.tap()
+        let six = expectation(for: NSPredicate(format: "label BEGINSWITH '6 tiles'"), evaluatedWith: app.staticTexts["analytics.count"])
+        wait(for: [six], timeout: 10)
+        XCTAssertFalse(app.otherElements["tile.card.ios-fixture-tile-sessions"].exists)
+    }
+
     private func attach(_ app: XCUIApplication, name: String) {
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = name
         shot.lifetime = .keepAlways
         add(shot)
+    }
+
+    // MARK: - W11 · the You tab
+
+    /// sign in → You → the header names the fixture user → AI connector → mint a
+    /// token → the one-time reveal → Done → the token is listed → COROS → Sync
+    /// now → the confirmation sheet for the matched run → Fill it → the apply
+    /// toast → Activity log rows. All on fixtures; the mock answers
+    /// `connect-start` with the callback itself, so Reconnect needs no browser.
+    func testYouOnFixtures() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockHasKey"]
+        app.launch()
+        signIn(app)
+
+        let youTab = app.tabBars.buttons["You"]
+        XCTAssertTrue(youTab.waitForExistence(timeout: 20))
+        youTab.tap()
+        let name = app.staticTexts["you.name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 10))
+        XCTAssertEqual(name.label, "agent")
+        let corosRow = app.buttons["you.row.coros"]
+        XCTAssertTrue(corosRow.waitForExistence(timeout: 10), "the fixture deployment has COROS configured")
+        XCTAssertTrue(corosRow.label.contains("Connected"))
+        XCTAssertTrue(app.buttons["you.row.key"].label.contains("Saved"))
+        attach(app, name: "w11-01-you")
+
+        // AI connector: mint → reveal → Done → listed.
+        app.buttons["you.row.connector"].tap()
+        let tokenName = app.textFields["connector.name"]
+        XCTAssertTrue(tokenName.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.otherElements["connector.token.ios-fixture laptop"].waitForExistence(timeout: 10))
+        attach(app, name: "w11-02-connector")
+        tokenName.tap()
+        tokenName.typeText("Claude Code")
+        app.buttons["connector.create"].tap()
+        let reveal = app.staticTexts["token.reveal.value"]
+        XCTAssertTrue(reveal.waitForExistence(timeout: 10))
+        XCTAssertTrue(reveal.label.hasPrefix("apx_mock_"))
+        attach(app, name: "w11-03-token-reveal")
+        app.buttons["token.reveal.done"].tap()
+        XCTAssertTrue(app.otherElements["connector.token.Claude Code"].waitForExistence(timeout: 10))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        // COROS: Sync now → the matched run asks; the ride imports on its own.
+        let coros = app.buttons["you.row.coros"]
+        XCTAssertTrue(coros.waitForExistence(timeout: 10))
+        coros.tap()
+        let sync = app.buttons["coros.sync"]
+        XCTAssertTrue(sync.waitForExistence(timeout: 10))
+        attach(app, name: "w11-04-coros")
+        sync.tap()
+        let prompt = app.staticTexts["sync.prompt"]
+        XCTAssertTrue(prompt.waitForExistence(timeout: 10))
+        XCTAssertEqual(prompt.label, "Trail Run · 7:05 AM · 5.20 mi — fill planned “Planned Morning Run”?")
+        XCTAssertFalse(app.staticTexts["sync.remaining"].exists, "one match, nothing after it")
+        attach(app, name: "w11-05-sync-confirm")
+        app.buttons["sync.fill"].tap()
+        let toast = app.staticTexts["COROS: Imported 1 activity · filled 1 planned workout"]
+        XCTAssertTrue(toast.waitForExistence(timeout: 10))
+        attach(app, name: "w11-06-synced")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        // The activity log renders the fixture's five rows with their badges.
+        let activity = app.buttons["you.row.activity"]
+        XCTAssertTrue(activity.waitForExistence(timeout: 10))
+        var swipes = 0
+        while !activity.isHittable, swipes < 4 { app.scrollViews.firstMatch.swipeUp(); swipes += 1 }
+        activity.tap()
+        // The rows combine their children into one element, so the type is not fixed.
+        let firstRow = app.descendants(matching: .any).matching(identifier: "activity.row.0").firstMatch
+        XCTAssertTrue(firstRow.waitForExistence(timeout: 10))
+        XCTAssertTrue(firstRow.label.contains("Rescheduled occurrence of"), firstRow.label)
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "activity.row.4").firstMatch.exists)
+        attach(app, name: "w11-07-activity")
     }
 }
 
@@ -473,4 +699,5 @@ final class AuthLinkUITests: XCTestCase {
         shot.lifetime = .keepAlways
         add(shot)
     }
+
 }

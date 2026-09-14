@@ -31,6 +31,12 @@ final class WriteQueueDriver {
         monitor.start(queue: DispatchQueue(label: "apex.queue.path"))
     }
 
+    // Under MainActor default isolation the deinit would be synthesized as
+    // *isolated*, which routes deallocation through swift_task_deinitOnExecutor
+    // and aborts on the iOS 17/18 runtime when the object dies outside a task
+    // (swiftlang/swift#87316, D-031). Nothing here needs the actor to die.
+    nonisolated deinit {}
+
     func stop() {
         monitor.cancel()
         if Self.current === queue { Self.current = nil }
