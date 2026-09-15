@@ -3,14 +3,16 @@ import XCTest
 
 /// The write queue state machine (architecture.md §7), over a scripted transport,
 /// an in-memory store and a `TestClock` — backoff runs instantly and is asserted
-/// on the recorded sleeps.
+/// on the recorded sleeps. A test that reads the queue between a failure and its
+/// retry holds the retry on a `HeldClock` instead: under `TestClock` the retry
+/// can fire before the test's next line.
 final class WriteQueueTests: XCTestCase {
     private let session = fixtureSession
     private let other = SessionKey(eventId: "ios-fixture-run", eventDate: "2026-09-08")
 
     private func makeQueue(
         _ transport: ScriptedTransport, store: MemoryWriteQueueStore = MemoryWriteQueueStore(),
-        clock: TestClock = TestClock(now: Date(timeIntervalSince1970: 1_788_868_800))
+        clock: any ApexClock = TestClock(now: Date(timeIntervalSince1970: 1_788_868_800))
     ) -> WriteQueue {
         WriteQueue(store: store, client: makeClient(transport), clock: clock)
     }
@@ -123,7 +125,7 @@ final class WriteQueueTests: XCTestCase {
 
     func testANetworkFailureStopsTheChainAndBackoffResumesItInOrder() async throws {
         let transport = ScriptedTransport([.throwNetwork, .ok(), .ok()])
-        let clock = TestClock()
+        let clock = HeldClock()
         let queue = makeQueue(transport, clock: clock)
         try await queue.enqueue(save([setRow(1)]), for: session)
         try await queue.enqueue(.finish(FinishPayload(autofillRows: [], finishedAt: nil)), for: session)
@@ -132,6 +134,7 @@ final class WriteQueueTests: XCTestCase {
         // The failure stopped the chain: finish did not go out behind a lost save.
         let v9 = await transport.requests.map(\.action)
         XCTAssertEqual(v9, ["save"])
+        clock.open()
         await queue.awaitRetries()
         let v10 = await transport.requests.map(\.action)
         XCTAssertEqual(v10, ["save", "save", "finish"])
@@ -141,10 +144,12 @@ final class WriteQueueTests: XCTestCase {
     func testSessionsAreIndependent() async throws {
         let transport = ScriptedTransport([.throwNetwork, .ok()])
         let store = MemoryWriteQueueStore()
-        let queue = makeQueue(transport, store: store)
+        let clock = HeldClock()
+        let queue = makeQueue(transport, store: store, clock: clock)
         try await queue.enqueue(save([setRow(1)]), for: session)
         try await queue.enqueue(save([setRow(1, exerciseId: "fx-row")]), for: other)
         await queue.flush()
+        clock.open()
         await queue.awaitRetries()
         // Both sessions were attempted in the first pass — whichever went first
         // failed and did not hold the other back — then the failed one retried.
@@ -158,7 +163,7 @@ final class WriteQueueTests: XCTestCase {
 
     func testBackoffVector() async throws {
         let transport = ScriptedTransport([.throwNetwork, .status(503), .throwNetwork, .status(500), .ok()])
-        let clock = TestClock()
+        let clock = HeldClock()
         let store = MemoryWriteQueueStore()
         let queue = makeQueue(transport, store: store, clock: clock)
         try await queue.enqueue(save([setRow(1)]), for: session)
@@ -167,12 +172,37 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(v14, 1)
         let v15 = await store.all.first?.lastError
         XCTAssertEqual(v15, "No connection.")
+        clock.open()
         await queue.awaitRetries()
         XCTAssertEqual(clock.sleeps, [1, 2, 4, 8])
         let v16 = await transport.count
         XCTAssertEqual(v16, 5)
         let v17 = await store.all.count
         XCTAssertEqual(v17, 0)
+    }
+
+    func testARetryCalledOffByANewerOneOrAPurgeNeverFires() async throws {
+        let transport = ScriptedTransport([.throwNetwork, .throwNetwork, .ok()])
+        let clock = HeldClock()
+        let queue = makeQueue(transport, clock: clock)
+        try await queue.enqueue(save([setRow(1)]), for: session)
+        await queue.flush(session)  // fails: a 1s retry waits on the clock
+        // A trigger lands after that backoff but before its sleep ends; its send
+        // fails too, and the 2s retry it schedules replaces the 1s one.
+        clock.advance(by: 1)
+        await queue.flush(session)
+        await queue.purgeAll()  // calls off the 2s retry
+        try await queue.enqueue(save([setRow(2)]), for: session)
+
+        // Calling a retry off cancels its sleep, which ends it early (`Task.sleep`
+        // throws). Neither may fire: the new save waits for a trigger of its own.
+        clock.open()
+        await queue.awaitRetries()
+        let sent = await transport.count
+        XCTAssertEqual(sent, 2)
+        XCTAssertEqual(clock.sleeps, [1, 2])
+        let queued = await queue.pendingSaves(for: session).count
+        XCTAssertEqual(queued, 1)
     }
 
     func testRateLimitHonoursRetryAfter() async throws {
@@ -277,7 +307,9 @@ final class WriteQueueTests: XCTestCase {
     func testCancelPurgesTheSessionAndSendsOneCancel() async throws {
         let transport = ScriptedTransport([.throwNetwork, .ok()])
         let store = MemoryWriteQueueStore()
-        let queue = makeQueue(transport, store: store)
+        // Holds the retry: under `TestClock` it could re-send the save before the cancel purges it.
+        let clock = HeldClock()
+        let queue = makeQueue(transport, store: store, clock: clock)
         try await queue.enqueue(save([setRow(1)]), for: session)
         try await queue.enqueue(save([setRow(1, exerciseId: "fx-row")]), for: other)
         await queue.flush(session)  // fails, schedules a retry
@@ -288,6 +320,7 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(ops.map(\.session), [other, session])
         XCTAssertEqual(ops.last?.payload, .cancel)
 
+        clock.open()
         await transport.script([.ok()])
         await queue.flush()
         await queue.awaitRetries()
@@ -315,6 +348,24 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(v33, ["save", "cancel"])
         let v34 = await store.all.count
         XCTAssertEqual(v34, 0)
+    }
+
+    func testCancelCallsOffTheSessionsWaitingRetry() async throws {
+        let transport = ScriptedTransport([.throwNetwork, .ok()])
+        let clock = HeldClock()
+        let queue = makeQueue(transport, clock: clock)
+        try await queue.enqueue(save([setRow(1)]), for: session)
+        await queue.flush(session)  // fails: a retry waits on the clock
+
+        try await queue.cancelSession(session)
+        // Calling the retry off cancels its sleep, which ends it early (`Task.sleep`
+        // throws). It must not fire: nothing flushed, so the cancel is still queued.
+        clock.open()
+        await queue.awaitRetries()
+        let sent = await transport.requests.map(\.action)
+        XCTAssertEqual(sent, ["save"])
+        let queued = await queue.pendingOps(for: session).map(\.payload)
+        XCTAssertEqual(queued, [.cancel])
     }
 
     // MARK: - Finish

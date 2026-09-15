@@ -38,6 +38,11 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-15 · fix · The apexcore-linux flake in `testCancelPurgesTheSessionAndSendsOneCancel`
+  (23 of 50 runs locally): its retry could fire before `cancelSession`, because `TestClock`
+  never waits. The four tests that read the queue between a failure and its retry now hold it on
+  a test-only `HeldClock` (0 of 50). Found alongside: cancelling a retry's sleep made it fire at
+  once, so a newer retry re-sent early and lifted its own backoff. A called-off retry now stops.
 - 2026-09-15 · fix · Build-6 device run: a refused save (blank title) in the tile builder toasted
   under the sheet. Both builder sheets now show the refusal inline above Cancel/Save
   (`saveProblem` / `problem`); `applyDraft` throws instead of toasting.
