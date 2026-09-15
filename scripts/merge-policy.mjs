@@ -39,6 +39,7 @@ export const HELD = [
   { path: 'scripts/deploy-verify.sh', reason: 'post-merge verification (allow-listed in settings)' },
   { path: 'scripts/git-tidy.sh', reason: 'removes worktrees (allow-listed in settings)' },
   { path: 'scripts/supervisor-report.sh', reason: 'allow-listed in settings' },
+  { path: 'scripts/prod-schema-check.mjs', reason: 'run by supervisor-report.sh holding the production service-role key' },
   { path: 'scripts/combine-check.sh', reason: 'allow-listed in settings' },
   { path: '.github/', reason: 'CI is the merge floor' },
   { path: 'supabase/migrations/', reason: 'applied to production by hand' },

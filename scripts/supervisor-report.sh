@@ -6,9 +6,10 @@
 #   scripts/supervisor-report.sh
 #
 # Covers: is main green, is the shared local stack current, do production's
-# auth redirects still reach the public app, what git-tidy would clean, which
-# worktrees look abandoned, and where every open PR sits in the merge loop
-# (scripts/merge-babysit.sh runs that loop).
+# auth redirects still reach the public app, does production's database have
+# every table, column and function main's code expects, what git-tidy would
+# clean, which worktrees look abandoned, and where every open PR sits in the
+# merge loop (scripts/merge-babysit.sh runs that loop).
 set -uo pipefail
 
 # Anchor on the checkout this script lives in (so it runs from anywhere),
@@ -91,6 +92,31 @@ case $auth_code in
     ;;
 esac
 
+echo
+echo "── production database schema"
+# Production migrations are pasted into the Supabase SQL Editor by hand, and a
+# skipped one shows up only as 500s: on 2026-09-15 prod lacked phase38, phase41
+# and phase32_quarantine while /api/version reported current code. The check
+# reads PostgREST's schema only (limit=0 probes and the OpenAPI document) with
+# the production service-role key from .env.local. Exit 1 is drift; 2 is
+# "could not check" (unreachable, key rejected) — status, never an ACTION, as
+# with the redirect check above.
+if [ ! -f scripts/prod-schema-check.mjs ]; then
+  echo "   prod-schema-check.mjs not in this checkout — skipped"
+elif ! grep -qE '^VITE_SUPABASE_URL=.' .env.local 2>/dev/null \
+  || ! grep -qE '^SUPABASE_SERVICE_ROLE_KEY=.' .env.local 2>/dev/null; then
+  echo "   no VITE_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in .env.local — skipped"
+else
+  schema_out=$(node scripts/prod-schema-check.mjs 2>&1); schema_code=$?
+  printf '%s\n' "$schema_out" | sed 's/^/   /'
+  case $schema_code in
+    0|2) ;;
+    1) echo "ACTION production database lacks objects main's code uses — apply the migrations named above in the Supabase SQL Editor; requests that touch them 500 until then" ;;
+    *) echo "ACTION scripts/prod-schema-check.mjs failed (exit $schema_code) — production schema drift goes unchecked until it is fixed" ;;
+  esac
+fi
+
+echo
 echo "── production backup"
 # Nightly encrypted dump + restore drill (.github/workflows/backup.yml). Red,
 # or green but older than two days (schedule disabled after 60 idle days,
