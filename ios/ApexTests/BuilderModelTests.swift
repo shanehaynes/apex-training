@@ -168,9 +168,10 @@ final class BuilderModelTests: XCTestCase {
         let (model, _) = await schedule(t)
         let builder = BuilderModel(model: model, route: .create(date: DayKey("2026-09-07")!))
         builder.startBlank()
-        // No title.
+        // No title — the refusal is a line in the sheet, not a toast under it.
         let applied1 = await builder.apply()
         XCTAssertFalse(applied1)
+        XCTAssertEqual(builder.problem, "Give the workout a title")
         // A unilateral count without a side.
         await builder.start()
         builder.update {
@@ -179,13 +180,20 @@ final class BuilderModelTests: XCTestCase {
         }
         // The fixture definition is not unilateral, so this one passes the local check…
         XCTAssertEqual(builder.errors, [:])
+        XCTAssertNil(builder.problem, "the edit cleared it")
         XCTAssertEqual(t.count("POST", "/api/workout-draft"), 0)
-        // …and the server's own refusal lands as errors + a toast, nothing applied.
+        // …and the server's own refusal lands as errors + the line, nothing applied.
         t.set("POST", "/api/workout-draft", body: Data(#"{"ok":false,"problem":"Per-side counts needed for unilateral exercises","violations":{"p":"Per-side count needed"}}"#.utf8))
         let applied2 = await builder.apply()
         XCTAssertFalse(applied2)
         XCTAssertEqual(builder.errors["p"], "Per-side count needed")
+        XCTAssertEqual(builder.problem, "Per-side counts needed for unilateral exercises")
         XCTAssertTrue(builder.isDirty)
+        // A request that never lands says so in the same place.
+        t.set("POST", "/api/workout-draft", status: 500, body: Data("boom".utf8))
+        let applied3 = await builder.apply()
+        XCTAssertFalse(applied3)
+        XCTAssertEqual(builder.problem, "Failed to save — try again")
     }
 
     @MainActor

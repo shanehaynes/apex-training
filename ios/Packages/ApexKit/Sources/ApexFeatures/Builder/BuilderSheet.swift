@@ -108,10 +108,14 @@ public struct BuilderSheet: View {
     }
 
     /// `BuilderForm`'s action bar: Cancel + Apply / Save changes, or — for a
-    /// recurring series — the scope question first.
+    /// recurring series — the scope question first. The last refusal sits
+    /// above the buttons: a toast would render under the sheet.
     @ViewBuilder
     private var actionBar: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
+            if let problem = builder.problem {
+                InlineError(problem, identifier: "builder.problem")
+            }
             if builder.choosingScope {
                 Text("Apply to this event only — it leaves the series for good, keeping anything logged — or to the whole series?")
                     .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))

@@ -228,6 +228,20 @@ final class TileBuilderModelTests: XCTestCase {
         XCTAssertFalse(saved)
         XCTAssertEqual(model.tiles.count, before)
         XCTAssertTrue(builder.isDirty == false)
+        // The refusal is a line in the sheet (a toast would sit under it) until the next edit.
+        XCTAssertEqual(builder.saveProblem, "Give the tile a title")
+        builder.update { $0.title = "Weekly tonnage" }
+        XCTAssertNil(builder.saveProblem)
+    }
+
+    @MainActor
+    func testSaveThatNeverLandsSaysSoInTheSheet() async throws {
+        let t = transport()
+        t.set("POST", "/api/analytics-tiles", status: 500, body: Data("boom".utf8))
+        let (builder, _) = await builder(t)
+        let saved = await builder.save()
+        XCTAssertFalse(saved)
+        XCTAssertEqual(builder.saveProblem, "Failed to save — try again")
     }
 
     @MainActor

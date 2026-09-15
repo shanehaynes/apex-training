@@ -120,6 +120,7 @@ Recurring patterns to port as `TextStyle`s:
 | `TileTooltip` | `ScrubCard` on `bgElevated`, pinned by a tap on the chart |
 | `.an-chip--dimmed` | `Chip(isDimmed:)` at 40 % opacity, still tappable so the reason shows; `MultiChipRow` shows it under the row; `Chip(tint:)` carries a workout type's colour |
 | `TileBuilder` two columns | `TileBuilderSheet`: the form over the preview, `VSplit` with `DraftCoachDrawer` when the coach is open |
+| `notify()` on a refused save | inside a sheet the refusal is an `InlineError` line above the action bar's buttons (`builder.problem`, `analytics.builder.saveproblem`) — toasts belong to the presenting screen, a sheet covers `ToastHost` |
 | `BuilderCoachPanel`, `AnalyticsCoachPanel` | `DraftCoachDrawer(coach:, copy:)` — one drawer, two copies |
 | `.block-bar__track/__fill`, `.type-bar-row__track` | `AttainmentBar(value:, target:, state:)` |
 | `.event-chip`, `.day-event-card` | `EventChip` (month), `EventCard` (day) with a 3pt left rail in the type's `border` colour and a 44pt completion control |

@@ -103,3 +103,7 @@ Out: new chart types.
 - 2026-09-14 · Mac · D merged (#156) after three rebases past W11's #157 and #158 (both
   sides of `STATUS.md`, D-029 kept next to D-030). `testflight.sh` from the W9 worktree: build
   324 uploaded. Device run outstanding.
+- 2026-09-15 · Mac · Device-run finding: Save with a blank title was refused by the server as
+  designed, but the toast rendered under the sheet. `TileBuilderModel.saveProblem` now carries
+  every refusal into an `InlineError` above the action bar (the workout builder got the same);
+  the smoke's builder leg saves once without a title first.
