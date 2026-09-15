@@ -32,6 +32,12 @@ final class AnalyticsSnapshotTests: XCTestCase {
                 } else {
                     name = "analytics-compute.json"
                 }
+            case ("POST", "/api/analytics-tiles"):
+                // The server's blank-title refusal, as the mock and the handler answer it.
+                if let body = request.httpBody, String(decoding: body, as: UTF8.self).contains("\"title\":\"\"") {
+                    return HTTPResponse(status: 200, headers: [:], body: Data(#"{"ok":false,"problem":"Give the tile a title"}"#.utf8))
+                }
+                return HTTPResponse(status: 200, headers: [:], body: Data(#"{"ok":true}"#.utf8))
             case ("GET", "/api/profile"): name = "profile.json"
             default: return HTTPResponse(status: 200, headers: [:], body: Data(#"{"ok":true}"#.utf8))
             }
@@ -220,6 +226,18 @@ final class AnalyticsSnapshotTests: XCTestCase {
         let builder = await builder(coach: true)
         builder.coachOpen = true
         snapshot(TileBuilderSheet(builder: builder, onClose: {}), named: "builder-coach")
+    }
+
+    /// Save with no title: the server's refusal is a line above Cancel/Save,
+    /// inside the sheet — a toast would render under it.
+    @MainActor
+    func testBuilderSaveRefused() async {
+        let builder = await builder()
+        builder.setMeasure("s1", "tonnage")
+        for _ in 0..<20 { await Task.yield() }
+        try? await Task.sleep(for: .milliseconds(50))
+        _ = await builder.save()
+        snapshot(TileBuilderSheet(builder: builder, onClose: {}), named: "builder-saveproblem")
     }
 
     @MainActor

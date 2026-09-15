@@ -38,6 +38,9 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-15 · fix · Build-6 device run: a refused save (blank title) in the tile builder toasted
+  under the sheet. Both builder sheets now show the refusal inline above Cancel/Save
+  (`saveProblem` / `problem`); `applyDraft` throws instead of toasting.
 - 2026-09-14 · W9 · D merged (#156); TestFlight build 6 (0.7.0/324) uploaded — W9 and W11 (#157) both aboard.
 - 2026-09-13 · W11 · Mac: the You tab end to end — `YouModel`/`CorosModel`/`ConnectorModel`/
   `ActivityLogModel` over the #149 endpoints, thirteen pushed screens, `ASWebAuthenticationSession`

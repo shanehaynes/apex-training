@@ -25,6 +25,10 @@ public final class TileBuilderModel {
     public private(set) var draft: ChartDraft
     public private(set) var preview: PreviewState = .idle
     public private(set) var isSaving = false
+    /// Why the last Save was refused — the server's text, or that the request
+    /// never landed — shown in the sheet (a toast would sit under it). Cleared
+    /// by the next edit.
+    public private(set) var saveProblem: String?
     public private(set) var coach: CoachModel?
     public var coachOpen = false
     public var confirmDiscard = false
@@ -130,6 +134,7 @@ public final class TileBuilderModel {
         change(&next)
         guard next != draft else { return }
         draft = next
+        saveProblem = nil
         pushDraftToCoach()
         schedulePreview()
     }
@@ -178,6 +183,7 @@ public final class TileBuilderModel {
     public func apply(reduced: JSONValue) {
         guard let next = try? ChartDraft(jsonValue: reduced) else { return }
         draft = next
+        saveProblem = nil
         schedulePreview()
     }
 
@@ -225,9 +231,9 @@ public final class TileBuilderModel {
 
     // MARK: - Save
 
-    /// `POST /api/analytics-tiles { id, draft, layout }`. nil result = the
-    /// request never landed (toasted); `ok:false` = the server's text
-    /// (toasted, the form stays); `ok:true` = the tile is on the dashboard.
+    /// `POST /api/analytics-tiles { id, draft, layout }`. A request that never
+    /// landed and the server's `ok:false` both land in `saveProblem` (the form
+    /// stays); `ok:true` = the tile is on the dashboard and the sheet closes.
     public func save() async -> Bool {
         let id = editing?.id ?? TileID.mint()
         let layout = editing?.layout ?? TileLayoutPlan.nextLayout(after: model.tiles, height: .medium)
@@ -238,13 +244,14 @@ public final class TileBuilderModel {
             let data = try await model.deps.client.data(for: .saveTile(id: id, draft: draft, layout: layout))
             response = try JSONDecoder().decode(TileSaveResponse.self, from: data)
         } catch {
-            ToastBus.shared.post(AnalyticsModel.isNetwork(error) ? "No connection — couldn't save. Try again when you're back online." : "Failed to save — try again", level: .failure)
+            saveProblem = AnalyticsModel.isNetwork(error) ? "No connection — couldn't save. Try again when you're back online." : "Failed to save — try again"
             return false
         }
         guard response.ok, let tile = response.tile else {
-            ToastBus.shared.post(response.problem ?? "Failed to save — try again", level: .failure)
+            saveProblem = response.problem ?? "Failed to save — try again"
             return false
         }
+        saveProblem = nil
         ToastBus.shared.post(isEditing ? "Tile updated" : "Tile added", level: .success)
         original = draft
         let result: TileResult? = { if case .ready(let data) = preview { return .ok(data) } else { return nil } }()
