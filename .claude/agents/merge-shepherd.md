@@ -55,6 +55,10 @@ merging". Use `gh` by absolute path: `/home/shanehaynes/bin/gh`.
 - "local stack lags main" → for Shane (auto-mode sessions are refused the
   reset); merging may continue, but say the `full` CI job covers what the
   local stack cannot.
+- "production database lacks objects main's code uses" → for Shane:
+  production DDL is applied by hand in the Supabase SQL Editor, never by a
+  session. Relay the missing objects and the migrations named beside them;
+  the endpoints that read them are already failing in production.
 - Stale/dirty worktree lines → name the worktree and leave it alone; another
   session may own it.
 
