@@ -29,6 +29,7 @@ describe('the authority chain can never merge itself', () => {
     'scripts/deploy-verify.sh',
     'scripts/git-tidy.sh',
     'scripts/supervisor-report.sh',
+    'scripts/prod-schema-check.mjs',
     'scripts/combine-check.sh',
     'scripts/hooks/bash-guard.mjs',
     '.claude/settings.json',
