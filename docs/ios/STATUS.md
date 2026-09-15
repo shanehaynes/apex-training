@@ -38,6 +38,9 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-15 · fix · The event sheet's end-before-start refusal was the last toast posted from
+  inside a sheet on a known path; it is now an `InlineError` above the schedule editor's
+  Cancel/Done (`schedule.event.edit.problem`), cleared by the next edit. Snapshot added.
 - 2026-09-15 · fix · Build-6 device run: a refused save (blank title) in the tile builder toasted
   under the sheet. Both builder sheets now show the refusal inline above Cancel/Save
   (`saveProblem` / `problem`); `applyDraft` throws instead of toasting.

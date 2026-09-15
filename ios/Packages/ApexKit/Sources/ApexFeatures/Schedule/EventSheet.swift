@@ -25,9 +25,12 @@ public struct EventSheet: View {
     public struct PreviewState: Sendable {
         public var editingSchedule = false
         public var confirmingDelete = false
-        public init(editingSchedule: Bool = false, confirmingDelete: Bool = false) {
+        /// A refusal already showing in the schedule editor.
+        public var scheduleProblem: String?
+        public init(editingSchedule: Bool = false, confirmingDelete: Bool = false, scheduleProblem: String? = nil) {
             self.editingSchedule = editingSchedule
             self.confirmingDelete = confirmingDelete
+            self.scheduleProblem = scheduleProblem
         }
     }
 
@@ -75,6 +78,10 @@ private struct EventSheetContent: View {
     @State private var dayDraft: DayKey
     @State private var startDraft: Int?
     @State private var endDraft: Int?
+    /// The schedule editor's last refusal. A toast would render under the
+    /// sheet (`ToastHost` lives in the root `ZStack`), so it lives here until
+    /// the next edit.
+    @State private var scheduleProblem: String?
     @State private var confirmDelete: Bool
     @State private var isDeleting = false
 
@@ -91,6 +98,7 @@ private struct EventSheetContent: View {
         self.onClose = onClose
         _isEditingSchedule = State(initialValue: preview.editingSchedule)
         _confirmDelete = State(initialValue: preview.confirmingDelete)
+        _scheduleProblem = State(initialValue: preview.scheduleProblem)
         _dayDraft = State(initialValue: event.day)
         _startDraft = State(initialValue: event.startTime.flatMap(TimeLabel.minutes))
         _endDraft = State(initialValue: event.endTime.flatMap(TimeLabel.minutes))
@@ -293,8 +301,14 @@ private struct EventSheetContent: View {
                 TimeField("Start", minutes: $startDraft, identifier: "schedule.event.edit.start")
                 TimeField("End", minutes: $endDraft, identifier: "schedule.event.edit.end")
             }
+            if let scheduleProblem {
+                InlineError(scheduleProblem, identifier: "schedule.event.edit.problem")
+            }
             HStack(spacing: Spacing.sm) {
-                ApexButton("Cancel", kind: .secondary) { isEditingSchedule = false }
+                ApexButton("Cancel", kind: .secondary) {
+                    scheduleProblem = nil
+                    isEditingSchedule = false
+                }
                 ApexButton("Done") { Task { await commitSchedule() } }
                     .accessibilityIdentifier("schedule.event.edit.done")
             }
@@ -302,10 +316,12 @@ private struct EventSheetContent: View {
         .padding(Spacing.md)
         .background(ApexColor.bgElevated.opacity(0.5), in: .rect(cornerRadius: Radius.lg))
         .onChange(of: startDraft) { old, new in
+            scheduleProblem = nil
             // Drag the end along, preserving the duration (WorkoutModal.commitStartTime).
             guard let old, let new, let end = endDraft, end > old else { return }
             endDraft = min(new + (end - old), 23 * 60 + 59)
         }
+        .onChange(of: endDraft) { scheduleProblem = nil }
     }
 
     /// `WorkoutModal`'s danger zone: a delete link that unfolds into the
@@ -381,9 +397,10 @@ private struct EventSheetContent: View {
 
     private func commitSchedule() async {
         if let start = startDraft, let end = endDraft, end <= start {
-            ToastBus.shared.post("End time must be after the start time", level: .failure)
+            scheduleProblem = "End time must be after the start time"
             return
         }
+        scheduleProblem = nil
         var override = OccurrenceOverride()
         if dayDraft != event.day { override.date = dayDraft.string }
         let start = startDraft.map(TimeLabel.stored(minutes:))
