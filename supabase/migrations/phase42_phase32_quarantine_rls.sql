@@ -1,0 +1,32 @@
+-- Phase 42: row-level security on phase32_quarantine.
+--
+-- WHY THIS EXISTS
+-- phase32 made phase32_quarantine a real table, so the rows its dedupe backfill
+-- removed would outlive the session for inspection or restore. It never enabled
+-- RLS, and no later migration did either. Supabase grants anon and authenticated
+-- full privileges on new public tables. With RLS off, anyone holding the anon
+-- key can read the table through PostgREST, and the key ships in the web bundle.
+-- The table holds whole workout rows across users, in row_data. The same key can
+-- also insert rows or delete every quarantined one.
+--
+-- Every database built from these migrations starts out that way: the local
+-- stack, CI's full job, a fresh project. On the local stack on 2026-09-15 this
+-- was the only public table with relrowsecurity off, and anon held SELECT, INSERT
+-- and DELETE on it. Production is believed to be locked down already: the table
+-- was missing there and was restored by hand that day, with DDL that also enabled
+-- RLS. REST cannot tell you either way, because an RLS table with no policies
+-- still answers anon with 200 and []. Check pg_class.relrowsecurity instead.
+--
+-- Deliberately NO policies. The only reader is the service role, which bypasses
+-- RLS: account deletion sweeps this table (NON_CASCADING_TABLES in
+-- api/_lib/handlers/account.ts). That is the same setup as api_request_counts,
+-- oauth_clients and user_api_keys.
+--
+-- A new migration rather than an edit to phase32, because production has already
+-- run phase32. Running it again to pick up an edit would repeat its dedupe
+-- backfill over live training data.
+--
+-- Idempotent: enabling RLS where it is already on changes nothing, so this is
+-- safe to run against production.
+
+alter table public.phase32_quarantine enable row level security;
