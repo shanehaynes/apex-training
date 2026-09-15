@@ -65,7 +65,12 @@ public actor WriteQueue {
     private var rerun: Set<SessionKey> = []
     private var cancelledMidFlight: Set<SessionKey> = []
     private var notBefore: [SessionKey: Date] = [:]
-    private var retryTasks: [SessionKey: (token: UUID, task: Task<Void, Never>)] = [:]
+    /// The retry waiting out each session's backoff: the one a cancel, a purge
+    /// or a newer retry calls off. A retry leaves it when it fires.
+    private var waitingRetry: [SessionKey: UUID] = [:]
+    /// Every retry task still running — waiting, flushing, or winding down after
+    /// being called off. What `awaitRetries` waits for.
+    private var retryTasks: [UUID: Task<Void, Never>] = [:]
     private var subscribers: [UUID: AsyncStream<QueueEvent>.Continuation] = [:]
 
     public init(
@@ -110,8 +115,7 @@ public actor WriteQueue {
     /// for the session may land after: purge (pending and failed alike), forget
     /// any in-flight op's result, then queue the cancel itself.
     public func cancelSession(_ session: SessionKey) async throws {
-        retryTasks[session]?.task.cancel()
-        retryTasks[session] = nil
+        callOffRetry(for: session)
         notBefore[session] = nil
         if inFlight.values.contains(session) { cancelledMidFlight.insert(session) }
         try await store.purge(session: session)
@@ -220,29 +224,41 @@ public actor WriteQueue {
 
     private func scheduleRetry(_ session: SessionKey, after delay: Double) {
         notBefore[session] = clock.now.addingTimeInterval(delay)
-        retryTasks[session]?.task.cancel()
+        callOffRetry(for: session)
         let token = UUID()
-        let task = Task { [weak self, clock] in
+        waitingRetry[session] = token
+        retryTasks[token] = Task { [weak self, clock] in
             try? await clock.sleep(seconds: delay)
             await self?.retryFired(session, token: token)
         }
-        retryTasks[session] = (token, task)
     }
 
-    /// The retry stays registered until its flush is over, so `awaitRetries`
-    /// cannot return while the re-send is still in the air. A newer retry
-    /// scheduled by that flush replaces the registration and is left alone.
+    /// Cancels the session's waiting retry — never one that has fired, whose
+    /// flush is already under way and owns whatever it has in the air.
+    private func callOffRetry(for session: SessionKey) {
+        guard let token = waitingRetry.removeValue(forKey: session) else { return }
+        retryTasks[token]?.cancel()
+    }
+
+    /// The retry stays in `retryTasks` until its flush is over, so
+    /// `awaitRetries` cannot return while the re-send is still in the air.
     private func retryFired(_ session: SessionKey, token: UUID) async {
+        defer { retryTasks[token] = nil }
+        // Called off while it waited. Cancelling a sleep ends it early rather
+        // than never (`Task.sleep` throws), so this is where the retry stops: it
+        // must not re-send, and must not lift the gate a newer retry has set.
+        guard waitingRetry[session] == token else { return }
+        waitingRetry[session] = nil
         notBefore[session] = nil
         await flush(session)
-        if retryTasks[session]?.token == token { retryTasks[session] = nil }
     }
 
     /// For tests and the driver: wait for every scheduled retry to have fired
-    /// and flushed, including retries those flushes scheduled in turn.
+    /// and flushed, including retries those flushes scheduled in turn, and for
+    /// every called-off one to have wound down.
     public func awaitRetries() async {
-        while let entry = retryTasks.values.first {
-            await entry.task.value
+        while let task = retryTasks.values.first {
+            await task.value
         }
     }
 
@@ -376,8 +392,8 @@ public actor WriteQueue {
     /// workout data outlives the session and flushes when its owner is back
     /// (the store is per owner); this is for tests and a deliberate reset.
     public func purgeAll() async {
-        for entry in retryTasks.values { entry.task.cancel() }
-        retryTasks = [:]
+        for token in waitingRetry.values { retryTasks[token]?.cancel() }
+        waitingRetry = [:]
         notBefore = [:]
         try? await store.purgeAll()
     }

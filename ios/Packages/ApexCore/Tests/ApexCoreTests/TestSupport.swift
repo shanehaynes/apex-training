@@ -43,6 +43,79 @@ actor Gate {
     }
 }
 
+/// A clock whose sleeps wait for the test. `TestClock` never suspends, so a
+/// retry the queue schedules can fire before the test's next line; here every
+/// sleep is held until `open()`, cancelled or not. Opening ends the held ones
+/// — a cancelled sleep throws `CancellationError`, as `Task.sleep` does — and
+/// lets every later sleep straight through. `now` moves only with `advance`.
+final class HeldClock: ApexClock, @unchecked Sendable {
+    private struct Held {
+        let continuation: CheckedContinuation<Void, any Error>
+        var cancelled: Bool
+    }
+
+    private let lock = NSLock()
+    private var current: Date
+    private var recorded: [Double] = []
+    private var isOpen = false
+    private var held: [UUID: Held] = [:]
+
+    init(now: Date = Date(timeIntervalSince1970: 0)) {
+        self.current = now
+    }
+
+    var now: Date { withLock { current } }
+
+    /// Every interval `sleep(seconds:)` was asked for, in order.
+    var sleeps: [Double] { withLock { recorded } }
+
+    /// Sleeps waiting for `open()`.
+    var heldSleeps: Int { withLock { held.count } }
+
+    func sleep(seconds: Double) async throws {
+        let id = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+                let open = withLock {
+                    recorded.append(seconds)
+                    if !isOpen { held[id] = Held(continuation: continuation, cancelled: Task.isCancelled) }
+                    return isOpen
+                }
+                guard open else { return }
+                if Task.isCancelled { continuation.resume(throwing: CancellationError()) } else { continuation.resume() }
+            }
+        } onCancel: {
+            withLock { held[id]?.cancelled = true }
+        }
+    }
+
+    func open() {
+        let ended = withLock {
+            isOpen = true
+            let ended = Array(held.values)
+            held = [:]
+            return ended
+        }
+        for sleep in ended {
+            if sleep.cancelled {
+                sleep.continuation.resume(throwing: CancellationError())
+            } else {
+                sleep.continuation.resume()
+            }
+        }
+    }
+
+    func advance(by seconds: Double) {
+        withLock { current = current.addingTimeInterval(seconds) }
+    }
+
+    private func withLock<R>(_ body: () -> R) -> R {
+        lock.lock()
+        defer { lock.unlock() }
+        return body()
+    }
+}
+
 struct RecordedRequest: @unchecked Sendable {
     let method: String
     let path: String

@@ -38,6 +38,11 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-15 · fix · The apexcore-linux flake in `testCancelPurgesTheSessionAndSendsOneCancel`
+  (23 of 50 runs locally): its retry could fire before `cancelSession`, because `TestClock`
+  never waits. The four tests that read the queue between a failure and its retry now hold it on
+  a test-only `HeldClock` (0 of 50). Found alongside: cancelling a retry's sleep made it fire at
+  once, so a newer retry re-sent early and lifted its own backoff. A called-off retry now stops.
 - 2026-09-15 · fix · The event sheet's end-before-start refusal was the last toast posted from
   inside a sheet on a known path; it is now an `InlineError` above the schedule editor's
   Cancel/Done (`schedule.event.edit.problem`), cleared by the next edit. Snapshot added.

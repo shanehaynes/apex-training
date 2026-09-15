@@ -17,4 +17,34 @@ final class ClockTests: XCTestCase {
         XCTAssertTrue(clock.sleeps.isEmpty)
         XCTAssertEqual(clock.now.timeIntervalSince1970, 60)
     }
+
+    func testHeldClockHoldsASleepUntilOpenedThenLetsLaterOnesThrough() async throws {
+        let clock = HeldClock()
+        let sleeper = Task { try await clock.sleep(seconds: 5) }
+        while clock.heldSleeps == 0 { await Task.yield() }
+        XCTAssertEqual(clock.sleeps, [5])
+
+        clock.open()
+        try await sleeper.value
+        XCTAssertEqual(clock.heldSleeps, 0)
+        try await clock.sleep(seconds: 1)
+        XCTAssertEqual(clock.sleeps, [5, 1])
+        XCTAssertEqual(clock.now.timeIntervalSince1970, 0)
+    }
+
+    func testACancelledHeldSleepWaitsForOpenThenThrows() async {
+        let clock = HeldClock()
+        let sleeper = Task { try await clock.sleep(seconds: 5) }
+        while clock.heldSleeps == 0 { await Task.yield() }
+
+        sleeper.cancel()
+        XCTAssertEqual(clock.heldSleeps, 1)
+        clock.open()
+        do {
+            try await sleeper.value
+            XCTFail("a cancelled sleep returned")
+        } catch {
+            XCTAssertTrue(error is CancellationError, "\(error)")
+        }
+    }
 }
