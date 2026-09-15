@@ -497,6 +497,14 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(preview.waitForExistence(timeout: 10))
         attach(app, name: "34-builder-preview")
 
+        // Save with no title: the server refuses, and the refusal is a line in
+        // the sheet above the buttons — not a toast under it (the build-6 device run).
+        app.buttons["analytics.builder.save"].tap()
+        let refusal = app.staticTexts["analytics.builder.saveproblem"]
+        XCTAssertTrue(refusal.waitForExistence(timeout: 10))
+        XCTAssertEqual(refusal.label, "Give the tile a title")
+        attach(app, name: "34b-builder-refused")
+
         // The coach: one turn, the chart-draft tool reduces server-side, the form follows.
         app.buttons["analytics.builder.coach.toggle"].tap()
         let composer = app.textViews["coach.composer"].firstMatch.exists ? app.textViews["coach.composer"].firstMatch : app.textFields["coach.composer"].firstMatch

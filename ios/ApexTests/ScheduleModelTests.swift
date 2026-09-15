@@ -399,9 +399,9 @@ final class ScheduleModelTests: XCTestCase {
         let transport = editable()
         let model = makeModel(transport)
         await model.start()
-        let response = await model.applyDraft(.empty(date: "2026-09-07", title: "Fixture Template Push"), action: .create)
-        XCTAssertEqual(response?.ok, true)
-        XCTAssertEqual(response?.templateId, "ios-fixture-template")
+        let response = try await model.applyDraft(.empty(date: "2026-09-07", title: "Fixture Template Push"), action: .create)
+        XCTAssertEqual(response.ok, true)
+        XCTAssertEqual(response.templateId, "ios-fixture-template")
         // Before the refresh's answer arrives the created event is already on its day…
         // …and after it (the fixture does not carry it) the refresh count shows it was asked for.
         XCTAssertEqual(transport.count("POST", "/api/workout-draft"), 1)
@@ -418,21 +418,22 @@ final class ScheduleModelTests: XCTestCase {
         let model = makeModel(transport)
         await model.start()
         let before = model.index
-        let response = await model.applyDraft(.empty(date: "2026-09-07"), action: .create)
-        XCTAssertEqual(response?.ok, false)
-        XCTAssertEqual(response?.problem, "Give the workout a title")
+        let response = try await model.applyDraft(.empty(date: "2026-09-07"), action: .create)
+        XCTAssertEqual(response.ok, false)
+        XCTAssertEqual(response.problem, "Give the workout a title")
         XCTAssertEqual(model.index, before)
         XCTAssertEqual(transport.count("GET", "/api/schedule"), 1)
     }
 
     @MainActor
-    func testApplyDraftTransportFailureIsNil() async throws {
+    func testApplyDraftTransportFailureThrows() async throws {
         let transport = editable()
         transport.set("POST", "/api/workout-draft", status: 500, body: Data("boom".utf8))
         let model = makeModel(transport)
         await model.start()
-        let response = await model.applyDraft(.empty(date: "2026-09-07", title: "x"), action: .create)
-        XCTAssertNil(response)
+        var thrown = false
+        do { _ = try await model.applyDraft(.empty(date: "2026-09-07", title: "x"), action: .create) } catch { thrown = true }
+        XCTAssertTrue(thrown, "the builder turns the failure into its own line")
         XCTAssertEqual(transport.count("GET", "/api/schedule"), 1)
     }
 
@@ -444,8 +445,8 @@ final class ScheduleModelTests: XCTestCase {
         await model.start()
         let occurrence = try XCTUnwrap(model.event(id: "ios-fixture-weekly__2026-09-29"))
         transport.set("GET", "/api/schedule", body: Self.withoutStubs(["ios-fixture-weekly__2026-09-29"]))
-        let response = await model.applyDraft(WorkoutDraft(event: occurrence), action: .detach(eventId: occurrence.id, occurrenceDate: occurrence.keyDate))
-        XCTAssertEqual(response?.action, "detach")
+        let response = try await model.applyDraft(WorkoutDraft(event: occurrence), action: .detach(eventId: occurrence.id, occurrenceDate: occurrence.keyDate))
+        XCTAssertEqual(response.action, "detach")
         XCTAssertTrue(body(transport, "POST", "/api/workout-draft").hasPrefix(#"{"action":{"eventId":"ios-fixture-weekly__2026-09-29","kind":"detach","occurrenceDate":"2026-09-29"}"#))
         XCTAssertNil(model.event(id: "ios-fixture-weekly__2026-09-29"))
     }

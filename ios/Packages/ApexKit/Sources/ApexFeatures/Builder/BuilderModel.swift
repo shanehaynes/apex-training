@@ -17,6 +17,10 @@ public final class BuilderModel {
     public private(set) var draft: WorkoutDraft
     public private(set) var step: Step
     public private(set) var errors: [String: String] = [:]
+    /// Why the last Apply was refused as a whole — the draft's own check, the
+    /// server's text, or a request that never landed — shown in the sheet (a
+    /// toast would sit under it). Cleared by the next edit; `errors` are per row.
+    public private(set) var problem: String?
     public private(set) var isSaving = false
     public private(set) var templates: [WorkoutTemplate] = []
     public private(set) var definitions: [ExerciseDefinition] = []
@@ -123,6 +127,7 @@ public final class BuilderModel {
         change(&next)
         draft = next
         errors = [:]
+        problem = nil
         pushDraftToCoach()
     }
 
@@ -135,6 +140,7 @@ public final class BuilderModel {
         guard let next = try? WorkoutDraft(jsonValue: reduced) else { return }
         draft = next
         errors = [:]
+        problem = nil
     }
 
     private func pushDraftToCoach() {
@@ -177,13 +183,15 @@ public final class BuilderModel {
     // MARK: - Apply
 
     /// `validate()` then Apply / Save changes. Returns true when the sheet
-    /// should close. The server re-validates; its `ok:false` lands here too.
+    /// should close. The server re-validates; its `ok:false` lands in
+    /// `problem` / `errors` too.
     @discardableResult
     public func apply(scope: Scope? = nil) async -> Bool {
-        if let problem = draft.problem {
-            ToastBus.shared.post(problem, level: .failure)
+        if let refusal = draft.problem {
+            problem = refusal
             return false
         }
+        problem = nil
         errors = Entries.unilateralViolations(draft.lists, definitions: definitions)
         guard errors.isEmpty else { return false }
 
@@ -203,9 +211,15 @@ public final class BuilderModel {
 
         isSaving = true
         defer { isSaving = false }
-        guard let response = await model.applyDraft(sent, action: action) else { return false }
+        let response: WorkoutDraftResponse
+        do {
+            response = try await model.applyDraft(sent, action: action)
+        } catch {
+            problem = ScheduleModel.isNetwork(error) ? "No connection — couldn't save. Try again when you're back online." : "Failed to save — try again"
+            return false
+        }
         guard response.ok else {
-            if let problem = response.problem { ToastBus.shared.post(problem, level: .failure) }
+            problem = response.problem
             errors = response.violations ?? [:]
             return false
         }

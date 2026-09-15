@@ -79,16 +79,23 @@ public struct TileBuilderSheet: View {
         .padding(.top, Spacing.sm)
     }
 
+    /// Cancel + Save, with the last refusal above them: a toast would render
+    /// under the sheet, so the server's text lives here until the next edit.
     private var actionBar: some View {
-        HStack(spacing: Spacing.sm) {
-            ApexButton("Cancel", kind: .secondary) {
-                if builder.isDirty { builder.confirmDiscard = true } else { onClose() }
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            if let problem = builder.saveProblem {
+                InlineError(problem, identifier: "analytics.builder.saveproblem")
             }
-            .disabled(builder.isSaving)
-            ApexButton(builder.isEditing ? "Save changes" : "Save tile", isLoading: builder.isSaving) {
-                Task { if await builder.save() { onClose() } }
+            HStack(spacing: Spacing.sm) {
+                ApexButton("Cancel", kind: .secondary) {
+                    if builder.isDirty { builder.confirmDiscard = true } else { onClose() }
+                }
+                .disabled(builder.isSaving)
+                ApexButton(builder.isEditing ? "Save changes" : "Save tile", isLoading: builder.isSaving) {
+                    Task { if await builder.save() { onClose() } }
+                }
+                .accessibilityIdentifier("analytics.builder.save")
             }
-            .accessibilityIdentifier("analytics.builder.save")
         }
         .padding(Spacing.screen)
         .background(ApexColor.bgSurface)

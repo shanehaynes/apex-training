@@ -27,15 +27,9 @@ extension ScheduleModel {
 
     /// The builder's Apply. nil = the request never landed (toasted here);
     /// `ok: false` = the server's validation, for the sheet to show inline.
-    public func applyDraft(_ draft: WorkoutDraft, action: WorkoutDraftAction) async -> WorkoutDraftResponse? {
-        let response: WorkoutDraftResponse
-        do {
-            let data = try await deps.client.data(for: .workoutDraft(draft: draft, today: today.string, action: action))
-            response = try JSONDecoder().decode(WorkoutDraftResponse.self, from: data)
-        } catch {
-            ToastBus.shared.post(Self.isNetwork(error) ? "No connection — couldn't save. Try again when you're back online." : "Failed to save — try again", level: .failure)
-            return nil
-        }
+    public func applyDraft(_ draft: WorkoutDraft, action: WorkoutDraftAction) async throws -> WorkoutDraftResponse {
+        let data = try await deps.client.data(for: .workoutDraft(draft: draft, today: today.string, action: action))
+        let response = try JSONDecoder().decode(WorkoutDraftResponse.self, from: data)
         guard response.ok else { return response }
         if let current = index, let event = response.event, let id = response.id, let date = response.date {
             switch action {
