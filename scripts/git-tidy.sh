@@ -26,7 +26,12 @@ set -euo pipefail
 apply=0
 [ "${1:-}" = "--yes" ] && apply=1
 
-root=$(git rev-parse --show-toplevel)
+# The primary checkout, not the current worktree: --show-toplevel answers with
+# whichever worktree runs this, and then "$root/.claude/worktrees/" matches
+# nothing — every merged worktree was reported as "outside .claude/worktrees/"
+# whenever tidy ran from a worktree (2026-09-15). git-common-dir is the one
+# .git that every worktree shares, so its parent is always the primary.
+root=$(cd "$(git rev-parse --git-common-dir)/.." && pwd -P)
 cd "$root"
 
 echo "── fetching origin (with prune)"
