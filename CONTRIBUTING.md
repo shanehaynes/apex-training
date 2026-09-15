@@ -412,6 +412,17 @@ scratch, and goes red if the committed file differs by a byte. The CLI
 version is pinned in the script because the generator's output changes
 between releases — bump it deliberately, regenerating in the same PR.
 
+Production is the one database nothing rebuilds: its migrations are pasted
+into the Supabase SQL Editor by hand, and a skipped one surfaces only as 500s
+from whatever reads the missing object. `node scripts/prod-schema-check.mjs`
+compares production against `main`'s committed types — every table, column
+and function, through read-only `limit=0` PostgREST probes with the
+service-role key in `.env.local` — and names the migration behind anything
+missing; `supervisor-report.sh` runs it on every sweep. Run it after pasting a
+migration. It cannot see triggers, policies, grants or the realtime
+publication, so a migration that only changes those still needs checking by
+hand.
+
 ## Repo settings this assumes
 
 - **Auto-delete head branches on merge: on.** Without it, every merged PR leaves
