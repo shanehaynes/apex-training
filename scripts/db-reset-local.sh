@@ -41,20 +41,64 @@ run_sql_file() {
   docker exec -i "$DB_CONTAINER" psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres < "$1"
 }
 
-echo "── dropping app tables and auth users"
+echo "── dropping the app's public objects and auth users"
+# Everything in public, found in the catalog rather than named by hand — the
+# same approach as scripts/db-restore-drill.sh. The hand-written table list
+# this replaced fell twelve tables behind, and a table that survives here is
+# never rebuilt: its migration's CREATE TABLE IF NOT EXISTS is skipped, so an
+# edited column, default or RLS setting never reaches this database and its
+# rows outlive the reset. Functions go for the same reason: CREATE OR REPLACE
+# keeps a stale function's grants, cannot change its return type, and never
+# removes one that no migration creates any more.
+#
+# Left alone: anything an extension owns (pg_depend deptype 'e' — btree_gist,
+# which phase19 installs into public, keeps ~200 functions and types there),
+# and the extension itself, which phase19 re-issues IF NOT EXISTS; and
+# anything internal to another object (deptype 'i' — an identity column's
+# sequence, a range type's constructor), which goes when its owner does.
+# Dropping a table also takes it out of the supabase_realtime publication;
+# phase19 and phase40 put the members back.
 docker exec -i "$DB_CONTAINER" psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres <<'SQL'
+SET client_min_messages = warning;
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user();
-DROP TABLE IF EXISTS
-  api_request_counts,
-  block_mutations_log, training_blocks, objectives,
-  reviews, user_api_keys, profiles,
-  definition_mutations_log, exercise_definitions,
-  workout_cardio_logs, workout_set_logs, workout_sessions,
-  event_mutations_log, recurring_exceptions, workout_events,
-  workout_completion_log, workout_completions,
-  terms_acceptances
-  CASCADE;
+DO $$
+DECLARE stmts text[]; stmt text;
+BEGIN
+  -- Each list is collected before its first drop; IF EXISTS skips whatever an
+  -- earlier CASCADE already took (a serial column's sequence goes with its table).
+  SELECT coalesce(array_agg(format('DROP %s IF EXISTS %I.%I CASCADE',
+      CASE c.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW'
+           WHEN 'S' THEN 'SEQUENCE' WHEN 'f' THEN 'FOREIGN TABLE'
+           WHEN 'c' THEN 'TYPE' ELSE 'TABLE' END,
+      ns.nspname, c.relname)), '{}')
+  INTO stmts
+  FROM pg_class c JOIN pg_namespace ns ON ns.oid = c.relnamespace
+  WHERE ns.nspname = 'public' AND c.relkind IN ('r','p','v','m','S','f','c')
+    AND NOT EXISTS (SELECT 1 FROM pg_depend d
+      WHERE d.classid = 'pg_class'::regclass AND d.objid = c.oid AND d.deptype IN ('e','i'));
+  FOREACH stmt IN ARRAY stmts LOOP EXECUTE stmt; END LOOP;
+
+  SELECT coalesce(array_agg(format('DROP %s IF EXISTS %I.%I(%s) CASCADE',
+      CASE p.prokind WHEN 'p' THEN 'PROCEDURE' WHEN 'a' THEN 'AGGREGATE' ELSE 'FUNCTION' END,
+      ns.nspname, p.proname, pg_get_function_identity_arguments(p.oid))), '{}')
+  INTO stmts
+  FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace
+  WHERE ns.nspname = 'public'
+    AND NOT EXISTS (SELECT 1 FROM pg_depend d
+      WHERE d.classid = 'pg_proc'::regclass AND d.objid = p.oid AND d.deptype IN ('e','i'));
+  FOREACH stmt IN ARRAY stmts LOOP EXECUTE stmt; END LOOP;
+
+  -- Domains, enums and ranges. Composite types are pg_class rows (relkind 'c',
+  -- above); array and multirange types go with their element or range type.
+  SELECT coalesce(array_agg(format('DROP TYPE IF EXISTS %I.%I CASCADE', ns.nspname, t.typname)), '{}')
+  INTO stmts
+  FROM pg_type t JOIN pg_namespace ns ON ns.oid = t.typnamespace
+  WHERE ns.nspname = 'public' AND t.typtype IN ('d','e','r')
+    AND NOT EXISTS (SELECT 1 FROM pg_depend d
+      WHERE d.classid = 'pg_type'::regclass AND d.objid = t.oid AND d.deptype IN ('e','i'));
+  FOREACH stmt IN ARRAY stmts LOOP EXECUTE stmt; END LOOP;
+END $$;
 DELETE FROM auth.users;
 SQL
 
