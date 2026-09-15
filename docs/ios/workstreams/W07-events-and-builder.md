@@ -162,3 +162,8 @@ Out: meals composer (W10).
     the lower squash), the TestFlight upload, and the device run from Acceptance: create a
     recurring workout, edit one occurrence, edit the series, delete an occurrence — the web
     shows the same result each time; the coach drawer on a real key.
+- 2026-09-15 · Mac · Build-6 device run: the event sheet's "End time must be after the start
+  time" was still a toast, rendered under the sheet (#161 fixed only the builders). It is now
+  `scheduleProblem`, an `InlineError` above the editor's Cancel/Done, cleared by the next edit
+  or Cancel; `PreviewState.scheduleProblem` seeds it for the `event-run-reschedule-problem`
+  snapshot.

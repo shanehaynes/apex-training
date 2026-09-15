@@ -135,6 +135,16 @@ final class ScheduleSnapshotTests: XCTestCase {
                  named: "event-run-reschedule", size: CGSize(width: 393, height: 760))
     }
 
+    /// An end at or before the start is refused inside the sheet, not by a
+    /// toast the sheet would cover.
+    @MainActor
+    func testEventSheetScheduleEditorRefused() async {
+        let model = await model()
+        snapshot(EventSheet(model: model, eventId: "ios-fixture-run", onEditWorkout: { _ in }, onEditExercises: { _ in }, onClose: {},
+                            preview: .init(editingSchedule: true, scheduleProblem: "End time must be after the start time")),
+                 named: "event-run-reschedule-problem", size: CGSize(width: 393, height: 760))
+    }
+
     @MainActor
     func testEventSheetDeleteConfirmSeries() async {
         let model = await model()
