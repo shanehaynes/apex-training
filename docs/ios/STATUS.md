@@ -17,7 +17,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W5b | Backend `/api/coach-tool` | done (PR #99) | Linux | services extracted; web confirm switched |
 | W6 | Coach tab | done (#126, #127, #128) | Mac | TestFlight build 3 (0.4.0/301); device run passed 2026-09-11 on build 306, kill-mid-card relaunch included |
 | W7 | Event CRUD + builder | done (#137, #138, #139, #140) | Mac | TestFlight build 5 (0.6.0/312) uploaded 2026-09-11; Shane's device run outstanding |
-| W8 | Backend analytics compute | done (PR #100) | Linux | web keeps its browser path |
+| W8 | Backend analytics compute | done (PR #100) | Linux | web switched in #179 — dashboard and preview |
 | W9 | Analytics tab (editable layout) | done (#153, #154, #155, #156) | Mac | TestFlight build 6 (0.7.0/324) uploaded 2026-09-14; Shane's device run outstanding |
 | W10 | Library, Blocks, Meals | ready | both | small cycle endpoint |
 | W11 | Profile, integrations, account | done (#149, #157) | both | on TestFlight build 6; phase41 applied in prod? (Shane); device runs are Shane's |
