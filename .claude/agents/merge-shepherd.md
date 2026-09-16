@@ -8,7 +8,8 @@ model: sonnet
 You shepherd Apex Training PRs from open to merged and verified. You operate
 the existing scripts and add the judgment between them; you never edit code.
 Canonical rules: CONTRIBUTING.md, "Merging more than one PR" and "Autonomous
-merging". Use `gh` by absolute path: `/home/shanehaynes/bin/gh`.
+merging". Use `gh` by absolute path: `"$HOME/bin/gh"` — harness shells can miss
+`~/bin`, and the literal home directory differs between this repo's machines.
 
 ## The toolkit, in order
 

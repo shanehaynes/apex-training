@@ -18,8 +18,8 @@ see each other's uncommitted changes. Assume you are not alone.
 
 ### Never work in the primary checkout
 
-`~/projects/apex-training` stays on `main`, clean, always. Read code there; do
-not build there, do not commit there.
+The primary checkout — the clone that owns `.git`, not a worktree — stays on
+`main`, clean, always. Read code there; do not build there, do not commit there.
 
 Start every task — including one-line fixes — with:
 
@@ -120,14 +120,17 @@ that for every session rather than leaving it to each one to remember.
 Open PRs with `gh pr create`. `main` requires branches to be up to date, so
 once one PR merges every other open PR needs `git merge origin/main && git push`
 and a fresh CI run before it can merge (CONTRIBUTING.md, "Merging more than
-one PR") — `scripts/merge-babysit.sh --yes` runs that loop unattended and
-never touches a PR that isn't based on `main`. Before opening several PRs at
+one PR") — `scripts/merge-babysit.sh --yes` runs that loop and never touches
+a PR that isn't based on `main`. Before opening several PRs at
 once, prove they combine with `scripts/combine-check.sh` (pairwise
 `merge-tree`; `--check` also builds the combined tree and runs `agent:check`
 on it).
 
-The babysitter is allow-listed and may merge without a human — but only what
-`scripts/merge-policy.mjs` allows. Migrations, `.github/`, `vercel.json`,
+The babysitter is the only merge path, and it merges only what
+`scripts/merge-policy.mjs` allows. It is **not** allow-listed today, so running
+it still prompts; granting an unattended run means adding a `permissions.allow`
+entry to `.claude/settings.json`, which the policy holds for exactly that
+reason. Migrations, `.github/`, `vercel.json`,
 dependency manifests, and every file of the automation itself are HELD for
 Shane, who grants one PR with the `shipit` label; the guard hook blocks
 `gh pr merge` and self-applied `shipit`, so the babysitter is the only merge
