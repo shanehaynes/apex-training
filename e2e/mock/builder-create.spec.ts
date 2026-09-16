@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect, gotoCalendar, shot } from '../lib/fixtures';
 
 // One library template, served to the page-scoped stub below. Snake_case row
@@ -27,7 +28,28 @@ const CINDY_ROW = {
   updated_at: '2026-08-01T00:00:00Z',
 };
 
-test('top-nav add opens the builder; scoring selector; apply closes', async ({ page }) => {
+/**
+ * Watch the builder's wire. Since #136 every Apply and Save changes is ONE
+ * POST /api/workout-draft, so `legacy` is the real assertion: the old
+ * client-side sequence (template upsert, then event insert or PATCH or
+ * detach) is gone, not merely unused. Observed, never fulfilled — the
+ * context-level stub answers with the service's own shapes.
+ */
+function watchDraftWrites(page: Page) {
+  const drafts: Array<Record<string, unknown>> = [];
+  const legacy: string[] = [];
+  page.on('request', req => {
+    const { pathname } = new URL(req.url());
+    if (pathname === '/api/workout-draft') drafts.push(req.postDataJSON());
+    else if (req.method() !== 'GET' && ['/api/events', '/api/event-instances', '/api/workout-templates'].includes(pathname)) {
+      legacy.push(`${req.method()} ${pathname}`);
+    }
+  });
+  return { drafts, legacy };
+}
+
+test('top-nav add opens the builder; scoring selector; apply posts one draft', async ({ page }) => {
+  const wire = watchDraftWrites(page);
   await gotoCalendar(page);
 
   // Direct entry point: the builder no longer hides behind the day modal.
@@ -52,18 +74,37 @@ test('top-nav add opens the builder; scoring selector; apply closes', async ({ p
   await expect(cap).toBeVisible();
   await shot(page, 'builder-scoring');
 
-  // AMRAP without a cap is refused; with one, Apply stubs through and closes.
+  // AMRAP without a cap is still refused, but the refusal is the SERVER's
+  // now: the draft posts, comes back `ok: false`, and the problem toasts.
+  // That is why a refused Apply costs a request where it used to cost none.
   await page.locator('.exercise-editor__save').click();
   await expect(page.getByText('time cap').first()).toBeVisible();
+  await expect(page.locator('.composer-view'), 'a refusal keeps the form open').toBeVisible();
+  expect(wire.drafts.length, 'the refused Apply posted too').toBe(1);
+
+  // With a cap, the stub applies it like the service would and the builder closes.
   await cap.fill('40');
   await page.locator('.exercise-editor__save').click();
   await expect(page.locator('.composer-view')).toHaveCount(0);
+
+  // One endpoint, one body: the draft, today, and which write to perform.
+  expect(wire.drafts.length).toBe(2);
+  const body = wire.drafts[1];
+  expect(Object.keys(body).sort()).toEqual(['action', 'draft', 'today']);
+  expect(body.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  expect(body.action).toEqual({ kind: 'create' });
+  const draft = body.draft as Record<string, unknown>;
+  expect(draft.title).toBe('MURPH');
+  expect(draft.scoringType).toBe('amrap');
+  expect(draft.timeCap, 'the cap travels as typed; the server parses it').toBe('40');
+  expect(wire.legacy, 'the client-side sequence is gone').toEqual([]);
 });
 
 test('picking a library template fills the form and keeps its identity', async ({ page }) => {
   // Page-scoped stub outranks the context-level empty list.
   await page.route(/rest\/v1\/workout_templates/, route =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([CINDY_ROW]) }));
+  const wire = watchDraftWrites(page);
   await gotoCalendar(page);
 
   await page.getByTestId('nav-add-workout').click();
@@ -94,15 +135,19 @@ test('picking a library template fills the form and keeps its identity', async (
   await page.locator('.editor-card__link').last().click();
   await expect(page.locator('.superset-badge')).toHaveCount(2);
 
-  // Apply → both stubbed writes succeed → builder closes; the template
-  // upsert carries the group labels.
-  const templatePosts: Array<Record<string, unknown>> = [];
-  await page.route('**/api/workout-templates*', route => {
-    templatePosts.push(route.request().postDataJSON());
-    return route.fulfill({ status: 200, contentType: 'application/json', body: '{"id":"wt-cindy"}' });
-  });
   await page.locator('.exercise-editor__save').click();
   await expect(page.locator('.composer-view')).toHaveCount(0);
-  const savedExercises = templatePosts[0].exercises as Array<{ superset?: string }>;
-  expect(savedExercises.map(e => e.superset)).toEqual(['A', 'A']);
+
+  // The picked template's id rides in the draft — that identity is what keeps
+  // a named workout's score history continuous — and so do the superset
+  // letters the editor assigned. The server resolves identity and upserts;
+  // the browser no longer saves the template itself.
+  expect(wire.drafts.length, 'exactly one POST').toBe(1);
+  const draft = wire.drafts[0].draft as {
+    templateId: string;
+    lists: { exercises: Array<{ superset?: string }> };
+  };
+  expect(draft.templateId).toBe('wt-cindy');
+  expect(draft.lists.exercises.map(e => e.superset)).toEqual(['A', 'A']);
+  expect(wire.legacy, 'no separate template upsert').toEqual([]);
 });

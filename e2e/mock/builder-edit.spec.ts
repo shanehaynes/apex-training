@@ -1,19 +1,27 @@
+import type { Page } from '@playwright/test';
 import { test, expect, apexState, gotoCalendar, shot } from '../lib/fixtures';
 
-test('edit workout opens the builder prefilled; save patches the event', async ({ page }) => {
-  // Capture the PATCH the builder sends on Save changes.
-  const patches: Array<{ url: string; body: Record<string, unknown> }> = [];
-  await page.route('**/api/events*', route => {
-    if (route.request().method() === 'PATCH') {
-      patches.push({ url: route.request().url(), body: route.request().postDataJSON() });
+/** See builder-create.spec.ts — one POST per save, and nothing else. */
+function watchDraftWrites(page: Page) {
+  const drafts: Array<Record<string, unknown>> = [];
+  const legacy: string[] = [];
+  page.on('request', req => {
+    const { pathname } = new URL(req.url());
+    if (pathname === '/api/workout-draft') drafts.push(req.postDataJSON());
+    else if (req.method() !== 'GET' && ['/api/events', '/api/event-instances', '/api/workout-templates'].includes(pathname)) {
+      legacy.push(`${req.method()} ${pathname}`);
     }
-    return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
   });
+  return { drafts, legacy };
+}
+
+test('edit workout opens the builder prefilled; save posts one update', async ({ page }) => {
+  const wire = watchDraftWrites(page);
   await gotoCalendar(page);
 
   // A one-off event — recurring ones detour through the series scope chooser
   // (covered by builder-recurrence.spec.ts).
-  const schedule = await apexState<{ events: Array<{ title: string; isRecurring: boolean }> }>(page, 'schedule');
+  const schedule = await apexState<{ events: Array<{ id: string; title: string; isRecurring: boolean }> }>(page, 'schedule');
   const oneOff = schedule.events.find(e => !e.isRecurring);
   expect(oneOff, 'the bundled seed has a one-off event').toBeTruthy();
   await page.locator('.event-chip__main', { hasText: oneOff!.title }).first().click();
@@ -33,9 +41,28 @@ test('edit workout opens the builder prefilled; save patches the event', async (
   await page.locator('.exercise-editor__save').click();
   await expect(page.locator('.composer-view')).toHaveCount(0);
 
-  expect(patches.length, 'exactly one PATCH').toBe(1);
-  const fields = patches[0].body.fields as Record<string, unknown>;
-  expect(fields.title).toBe('Edited In Builder');
-  expect(fields.location).toBe('Garage gym');
+  // One POST carrying the whole draft: the server derives the PATCH fields
+  // from it (eventFieldsFromDraft), so nothing field-shaped is on this wire.
+  expect(wire.drafts.length, 'exactly one POST').toBe(1);
+  const body = wire.drafts[0];
+  expect(Object.keys(body).sort()).toEqual(['action', 'draft', 'today']);
+  // Addressed by the row the modal opened. Several seed events share a title,
+  // so this pins the shape — a one-off is addressed by its own base id, never
+  // an occurrence id — rather than one particular seed row.
+  const action = body.action as { kind: string; eventId: string };
+  expect(action.kind).toBe('update');
+  expect(action.eventId, 'a one-off has no occurrence id').not.toContain('__');
+  expect(
+    schedule.events.some(e => e.id === action.eventId && !e.isRecurring),
+    'the id belongs to a one-off event on the calendar',
+  ).toBe(true);
+  const draft = body.draft as Record<string, unknown>;
+  expect(draft.title).toBe('Edited In Builder');
+  expect(draft.location).toBe('Garage gym');
+  expect(wire.legacy, 'no PATCH /api/events').toEqual([]);
+
+  // The response REPLACES the base event locally, so the calendar renames
+  // without waiting on a refetch.
+  await expect(page.locator('.event-chip__main', { hasText: 'Edited In Builder' }).first()).toBeVisible();
   await shot(page, 'builder-edit-saved');
 });

@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, Plus, Sparkles, X } from 'lucide-react';
 import { notify } from '../../lib/notify';
-import { useAnalytics } from '../../context/analytics';
-import { useAnalyticsData } from '../../hooks/useAnalyticsData';
-import { computeTile } from '../../lib/analytics/engine';
+import { useAnalytics, type TileView } from '../../context/analytics';
+import { BUILDER_DEBOUNCE_MS, useTileResults } from '../../hooks/useTileResults';
 import {
   MEASURES,
   WORKOUT_TYPES,
@@ -12,7 +11,6 @@ import {
   type GroupBy,
 } from '../../lib/analytics/spec';
 import {
-  draftFromSpec,
   emptyChartDraft,
   emptySeriesDraft,
   nextSeriesId,
@@ -20,7 +18,7 @@ import {
   type ChartDraft,
   type SeriesDraft,
 } from '../../lib/analytics/draft';
-import { mintTileId, type AnalyticsTile, type TileLayout } from '../../lib/analytics/tiles';
+import { mintTileId, type TileLayout } from '../../lib/analytics/tiles';
 import {
   BUCKETS,
   CHART_TYPES,
@@ -41,13 +39,15 @@ import type { WorkoutType } from '../../types/workout';
 // The tile editor: config column on the left, live preview on the right —
 // the builder-view two-column pattern. All state is ONE ChartDraft (the
 // src/lib/builder/draft.ts doctrine: plain object, numeric fields as
-// strings, pure converters); every input writes here and the preview reads
-// specFromDraft on each render, so what you see is exactly what Save
-// persists. The analytics coach (follow-up PR) reduces onto this same
-// object via applyChartDraftUpdate.
+// strings, pure converters); every input writes here, and since #152 the
+// draft is also exactly what goes on the wire — the preview posts it to
+// /api/analytics-compute and Save posts it to /api/analytics-tiles, so what
+// you see is what the server built and persisted, with no client-side spec
+// in between. The analytics coach reduces onto the same object via
+// applyChartDraftUpdate.
 
 interface Props {
-  tile: AnalyticsTile | null;
+  tile: TileView | null;
   onClose: () => void;
 }
 
@@ -133,21 +133,22 @@ const toggle = <T,>(list: T[], value: T): T[] =>
 const TYPE_OPTIONS = WORKOUT_TYPES.map(t => ({ value: t, label: WORKOUT_COLORS[t].label }));
 
 export default function TileBuilder({ tile, onClose }: Props) {
-  const { tiles, saveTile } = useAnalytics();
-  const [draft, setDraft] = useState<ChartDraft>(() =>
-    tile?.spec ? draftFromSpec(tile.spec) : emptyChartDraft(),
-  );
+  const { tiles, options, saveTile } = useAnalytics();
+  // The stored draft comes from the GET (draftFromSpec, run server-side).
+  const [draft, setDraft] = useState<ChartDraft>(() => tile?.draft ?? emptyChartDraft());
   const [saving, setSaving] = useState(false);
+  const [saveProblem, setSaveProblem] = useState<string | null>(null);
   const [coachOpen, setCoachOpen] = useState(false);
 
+  // The live preview is the compute endpoint with one draft: the server runs
+  // specFromDraft and answers a draft the web would refuse with the very
+  // same chartDraftProblem text, so the refusal under the form is now the
+  // server's word. specFromDraft still runs here, but only to hand
+  // TileRenderer a spec to draw against — every NUMBER came from the server.
+  const previewRequests = useMemo(() => [{ key: 'preview', draft }], [draft]);
+  const preview = useTileResults(previewRequests, BUILDER_DEBOUNCE_MS).preview;
   const built = useMemo(() => specFromDraft(draft), [draft]);
-  const problem = 'error' in built ? built.error : null;
-  const previewSpecs = useMemo(() => ('spec' in built ? [built.spec] : []), [built]);
-  const data = useAnalyticsData(previewSpecs);
-  const previewResult = useMemo(
-    () => ('spec' in built ? computeTile(built.spec, data.inputs, data.ctx) : null),
-    [built, data.inputs, data.ctx],
-  );
+  const problem = preview && !preview.ok ? preview.problem : null;
 
   const patchSeries = (id: string, patch: Partial<SeriesDraft>) =>
     setDraft(d => ({ ...d, series: d.series.map(s => (s.id === id ? { ...s, ...patch } : s)) }));
@@ -158,38 +159,40 @@ export default function TileBuilder({ tile, onClose }: Props) {
   const removeSeries = (id: string) =>
     setDraft(d => ({ ...d, series: d.series.filter(s => s.id !== id) }));
 
-  // 'Other' narrows to the specific workouts the user made — the options
-  // are their own sport='other' workout titles.
-  const otherWorkoutOptions = useMemo(() => {
-    const titles = [...new Set(
-      [...data.inputs.events.values()].filter(e => e.sport === 'other').map(e => e.title.trim()).filter(Boolean),
-    )].sort();
-    return titles.map(t => ({ value: t, label: t }));
-  }, [data.inputs.events]);
-  const categoryOptions = useMemo(() => {
-    const values = [...new Set(data.inputs.categories.values())].sort();
-    return values.map(v => ({ value: v, label: v }));
-  }, [data.inputs.categories]);
+  // Both pickers arrive with the tiles GET now: 'Other' narrows to the
+  // user's own sport='other' workout titles, and the category chips to their
+  // exercise categories — neither is derivable in the browser any more,
+  // because the browser no longer holds the rows.
+  const otherWorkoutOptions = useMemo(
+    () => options.otherWorkoutTitles.map(t => ({ value: t, label: t })),
+    [options.otherWorkoutTitles],
+  );
+  const categoryOptions = useMemo(
+    () => options.categories.map(v => ({ value: v, label: v })),
+    [options.categories],
+  );
 
+  // No pre-flight check of our own: the server owns the refusals, and it
+  // tests the blank title BEFORE trying to build the draft — the opposite of
+  // the order this component used to apply, so an untitled invalid draft now
+  // hears about its title first.
   const save = async () => {
-    if (!('spec' in built)) {
-      notify(built.error);
-      return;
-    }
-    if (!draft.title.trim()) {
-      notify('Give the tile a title');
-      return;
-    }
     const layout: TileLayout = tile
       ? tile.layout
       : { x: 0, y: tiles.reduce((max, t) => Math.max(max, t.layout.y + t.layout.h), 0), w: 6, h: 4 };
     setSaving(true);
-    const ok = await saveTile(tile?.id ?? mintTileId(), built.spec, layout);
+    const result = await saveTile(tile?.id ?? mintTileId(), draft, layout);
     setSaving(false);
-    if (ok) {
-      notify(tile ? 'Tile updated' : 'Tile added');
-      onClose();
+    if (!result) return;                 // the request itself failed; lib/api toasted it
+    if (!result.ok) {
+      // Stay open: the fix is one edit away, and closing would lose it.
+      setSaveProblem(result.problem);
+      notify(result.problem);
+      return;
     }
+    setSaveProblem(null);
+    notify(tile ? 'Tile updated' : 'Tile added');
+    onClose();
   };
 
   return (
@@ -288,6 +291,10 @@ export default function TileBuilder({ tile, onClose }: Props) {
           <Plus size={14} strokeWidth={1.5} /> Add series
         </button>
 
+        {saveProblem && (
+          <div className="tile-problem" data-testid="tile-save-problem">{saveProblem}</div>
+        )}
+
         <div className="exercise-editor__bar composer-actions">
           <button className="exercise-editor__cancel" onClick={onClose} disabled={saving}>Cancel</button>
           <button className="exercise-editor__save" data-testid="tile-save" onClick={save} disabled={saving}>
@@ -300,12 +307,12 @@ export default function TileBuilder({ tile, onClose }: Props) {
         <div className="an-field__label">Preview</div>
         {problem ? (
           <div className="tile-problem" data-testid="tile-builder-problem">{problem}</div>
-        ) : (
+        ) : preview ? (
           <div className="tile-builder__preview-chart" data-testid="tile-preview">
-            <TileRenderer spec={'spec' in built ? built.spec : null} result={previewResult} />
+            <TileRenderer spec={'spec' in built ? built.spec : null} result={preview} />
           </div>
-        )}
-        {data.loading && <div className="an-loading">Loading data…</div>}
+        ) : null}
+        {!preview && <div className="an-loading">Loading data…</div>}
         {coachOpen && (
           <AnalyticsCoachPanel
             draft={draft}
