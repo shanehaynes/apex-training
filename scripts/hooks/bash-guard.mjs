@@ -542,8 +542,12 @@ class ShellParser {
       return { text: '', dynamic: true };
     }
     if (n === '{') {
-      this.i += 2;
+      const from = this.i + 2;
+      this.i = from;
       this.skipBalanced('{', '}');
+      // The expansion's own value is unknowable, but a substitution written
+      // inside it still runs: `${x:-$(git clean -fd)}` cleans the tree.
+      this.scanSubstitutions(this.s.slice(from, this.i - 1), depth);
       return { text: '', dynamic: true };
     }
     const name = /^[A-Za-z_][A-Za-z0-9_]*|^[0-9]|^[@*#?$!-]/.exec(s.slice(this.i + 1, this.i + 64));

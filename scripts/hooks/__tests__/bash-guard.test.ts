@@ -214,6 +214,11 @@ describe('#144: code stays code', () => {
     expect(inTree("echo 'git clean -fd' | bash")).toMatch(/only copy/);
   });
 
+  it('follows a substitution nested inside a parameter expansion', () => {
+    expect(inTree('echo "${x:-$(git clean -fd)}"')).toMatch(/only copy/);
+    expect(inTree('echo "${x:-`git reset --hard`}"')).toMatch(/only copy/);
+  });
+
   it('follows commands handed to another program to run', () => {
     expect(inTree('xargs git clean -fd')).toMatch(/only copy/);
     expect(inTree('find . -name x -exec git clean -fd {} \\;')).toMatch(/only copy/);
