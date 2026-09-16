@@ -1,0 +1,72 @@
+# Nightly drift check on the coach model catalog.
+#
+# src/lib/coach/models.ts is hand-maintained and rots silently: a retired id
+# just falls back to the default, and a newly released model never appears in
+# the picker. scripts/check-models.mjs notices — but until this workflow it only
+# ran when somebody ran scripts/supervisor-report.sh, so drift waited on a human
+# remembering to sweep. Here it looks every night whether anyone is watching.
+#
+# Deliberately its OWN workflow, not a job in ci.yml. supervisor-report.sh asks
+# `gh run list --workflow CI --branch main` whether main is green, so a catalog
+# job living in CI would report main as broken every time Anthropic ships a
+# model — a repo-wide red light for something no commit did, and the one signal
+# that tells a session whether it can trust main would start lying. Drift is
+# news about the outside world, not a regression, so it gets its own workflow
+# and its own red light, and leaves CI meaning what it has always meant.
+#
+# The script ALWAYS exits 0 by design (it feeds a read-only status sweep, where
+# a missing key must never fail the report), so turning its output into a signal
+# is this workflow's whole job: ACTION lines are the failure, and a skipped
+# check is a warning rather than a silent green.
+name: Model catalog
+
+on:
+  schedule:
+    - cron: '30 10 * * *'   # half an hour after CI's 10:00 nightly, so the two never queue against each other
+  workflow_dispatch:
+
+# Reads the checkout and calls the Models API. Writes nothing.
+permissions:
+  contents: read
+
+jobs:
+  catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      # No `npm ci`, and so no `cache: npm`: check-models.mjs imports only
+      # node: builtins, so an install would be a minute spent on nothing.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Diff the catalog against the Models API
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # The script is built never to fail, so its OUTPUT is the signal. But
+          # if it ever does die — models.ts renamed, a node fault — the default
+          # shell's `-e` would abort this step at the assignment and the
+          # captured stderr would never be printed: a red run with an empty
+          # log. Capture the status instead, print unconditionally, then decide.
+          out=$(node scripts/check-models.mjs 2>&1) && rc=0 || rc=$?
+          printf '%s\n' "$out"
+
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::scripts/check-models.mjs exited $rc without finishing — the catalog was not checked."
+            exit 1
+          fi
+
+          # Drift. Every ACTION line is repeated as an annotation so the run
+          # summary names the model without anyone opening the log.
+          if printf '%s\n' "$out" | grep -q '^ACTION'; then
+            printf '%s\n' "$out" | grep '^ACTION' | sed 's/^/::error::/'
+            exit 1
+          fi
+
+          # No key, or the API was unreachable: the script says so and still
+          # exits 0. Green would then mean "nobody looked", which is how a
+          # check disables itself without anyone noticing — warn instead.
+          if printf '%s\n' "$out" | grep -q 'skipped'; then
+            printf '%s\n' "$out" | grep 'skipped' | sed 's/^ *//; s/^/::warning::/'
+          fi

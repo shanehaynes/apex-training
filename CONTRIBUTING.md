@@ -205,9 +205,12 @@ only copy of something may be sitting there.
 All three rules above are now enforced mechanically, not just by prose: a
 `PreToolUse` hook (`.claude/settings.json` → `scripts/hooks/bash-guard.mjs`)
 blocks builds and commits in the primary checkout, `pkill`/`killall` on vite,
-and destructive git commands. For the destructive ones, review `git status`
-first and then re-run the exact command prefixed with `APEX_DESTRUCTIVE_OK=1`
-— the override exists so the hook makes you look, not so it stops you.
+and destructive git commands. It matches the words the shell will run, not the
+raw text, so writing *about* `git clean -fd` in a commit message or a PR body
+is fine. For the destructive ones, review `git status` first and then re-run
+with `APEX_DESTRUCTIVE_OK=1` immediately in front of that one git command —
+the override covers that command alone, not the rest of the line and not a
+shell it launches. It exists so the hook makes you look, not so it stops you.
 
 ## Parallel-session hazards specific to this repo
 
