@@ -405,7 +405,7 @@ actor FixtureTransport: HTTPTransport {
         }
         if let model = profileEdits["coach_model"] {
             let catalog = object["coachModels"] as? [[String: Any]] ?? []
-            let picked = catalog.first { $0["id"] as? String == model as? String } ?? catalog.first { $0["label"] as? String == "Opus 4.8" }
+            let picked = catalog.first { $0["id"] as? String == model as? String } ?? catalog.first { $0["label"] as? String == "Opus 5" }
             object["coachModelLabel"] = picked?["label"] ?? object["coachModelLabel"] ?? NSNull()
         }
         return (try? JSONSerialization.data(withJSONObject: object)) ?? data
