@@ -7,9 +7,10 @@
 #
 # Covers: is main green, is the shared local stack current, do production's
 # auth redirects still reach the public app, does production's database have
-# every table, column and function main's code expects, what git-tidy would
-# clean, which worktrees look abandoned, and where every open PR sits in the
-# merge loop (scripts/merge-babysit.sh runs that loop).
+# every table, column and function main's code expects, is the primary checkout
+# still on main and clean, what git-tidy would clean, which worktrees look
+# abandoned, and where every open PR sits in the merge loop
+# (scripts/merge-babysit.sh runs that loop).
 set -uo pipefail
 
 # Anchor on the checkout this script lives in (so it runs from anywhere),
