@@ -9,19 +9,21 @@ import { draftFromSpec, specFromDraft, type ChartDraft } from '../../../src/lib/
 import { DEFAULT_TILE_LAYOUT, rowToTile, tileToRow, type TileLayout } from '../../../src/lib/analytics/tiles.js';
 
 // Analytics dashboard tiles (phase 35), served as /api/analytics-tiles by
-// the consolidated router (_lib/app.ts). GET lists the caller's tiles (W9 —
-// the native app reads through the API; the web still reads PostgREST under
-// RLS); POST upserts one tile scoped to (user_id, id); PATCH commits grid
+// the consolidated router (_lib/app.ts). GET lists the caller's tiles (W9
+// for the phone, and since #152 for the web too — nothing reads
+// analytics_tiles from PostgREST any more); POST upserts one tile scoped to
+// (user_id, id); PATCH commits grid
 // layouts in batch (the debounced drag/resize write); DELETE removes a tile
 // outright — nothing keys history on a tile id, so there is no archive state
 // (unlike templates). No AI cap or mutation log: the coach has no tile tools
 // in chat mode — the analytics coach edits an unsaved draft, and only the
 // user's Save writes here.
 //
-// Two POST bodies. The web sends the spec it built client-side; a native
-// client sends the builder's ChartDraft and the server runs the web's own
-// specFromDraft (src/lib/analytics/draft.ts) — nothing about draft→spec
-// exists in Swift (D-008). A draft that fails validation answers 200
+// Two POST bodies. Both clients send the builder's ChartDraft and the server
+// runs the web's own specFromDraft (src/lib/analytics/draft.ts) — nothing
+// about draft→spec exists in Swift (D-008), and since #152 nothing about it
+// runs in the browser at save time either. The spec body stays accepted for
+// callers that hold one already. A draft that fails validation answers 200
 // { ok:false, problem } with the same person-phrased text the web toasts,
 // the /api/workout-draft convention, so the client keeps the message.
 //

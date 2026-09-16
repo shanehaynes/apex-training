@@ -168,9 +168,13 @@ into `api/_lib/analyticsData.ts` using `fetchAllPages` (the web's bare `.select(
 at PostgREST's 1000-row default — the server port changes numbers for heavy users; say so in the
 PR). Active block for the `current-block` preset and HR settings load server-side. Bucket
 `reads`. Promote `specProblem` into `analyticsTiles.ts` so the server validates specs and no
-client does. Web may switch `useAnalyticsData` later.
-Landed 2026-09-03 (`api/_lib/analyticsData.ts`, `handlers/analyticsCompute.ts`); the web still
-computes in the browser.
+client does.
+Landed 2026-09-03 (`api/_lib/analyticsData.ts`, `handlers/analyticsCompute.ts`); the web followed
+in #152 — `useAnalyticsData` is gone, `useTileResults` posts one call for a whole dashboard
+(chunked at the server's 24, content-keyed so a title edit costs nothing) and the tile builder's
+preview posts its draft. The response now carries a `Server-Timing` header splitting the row read
+from the aggregation, so a latency check on a deployed preview can tell server work from network
+time.
 
 ## W7 — `POST /api/workout-draft` (landed with W7 PR A)
 
@@ -232,8 +236,9 @@ the API and sends the builder's `ChartDraft`, and the server runs the same pure 
   { ok:false, problem: "Give the tile a title" }` (the web's own pre-save check, moved
   server-side); `specFromDraft` error → `200 { ok:false, problem }` with `chartDraftProblem`'s
   text; else upsert and `200 { ok:true, id, tile }` (the GET shape). `layout` defaults to
-  `{0,0,6,4}` and fills partially. The web's `{ id, spec, x,y,w,h }` body is unchanged
-  (`e2e/mock/analytics.spec.ts` pins it); a body carrying both is a 400.
+  `{0,0,6,4}` and fills partially. Since #152 this is the web's Save too, so
+  `e2e/mock/analytics.spec.ts` pins the draft body; the `{ id, spec, x,y,w,h }` body stays
+  accepted for a caller that already holds a spec, and a body carrying both is a 400.
 - **`POST /api/analytics-compute { drafts, today }`** — the builder's live preview: exactly one
   of `specs` / `drafts`, 1–24; each draft runs through `specFromDraft` and a refused one answers
   its person-phrased problem in that slot, index-aligned like a bad spec. Response unchanged.
@@ -248,8 +253,11 @@ the API and sends the builder's `ChartDraft`, and the server runs the same pure 
   `analytics-tiles.json`; `analytics-compute.json` regenerated over them (7 slots, the last a
   problem); `analytics-compute-preview.json`, `chart-draft-empty.json`,
   `coach-tool-chart-draft.json`, `analytics-tiles-save.json`, `chat-stream-analytics.ndjson`.
-  `Series.gradeLabels` joins the Swift model. **Web stays on PostgREST and its client-side
-  Save for now** (issue #152).
+  `Series.gradeLabels` joins the Swift model. **The web switched to all three endpoints in #152**
+  — tile read, Save, dashboard compute and builder preview. Nothing reads `analytics_tiles` from
+  PostgREST any more, so the 1000-row cap that silently truncated a heavy user's numbers in the
+  browser is gone; `e2e/lib/mock/analytics.mjs` answers the three routes in the mock suite, since
+  the app-wide provider makes every spec issue the tiles GET.
 
 ## W10 — `POST /api/blocks?resource=cycle { spec }` → `{ blocks }` (Linux, small)
 Wraps `blocks/cadence.ts` (`CycleSpecError`, overlap checks). Web switches its preview to it.

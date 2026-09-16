@@ -1,34 +1,68 @@
 import { test, expect, apexState, gotoCalendar, shot } from '../lib/fixtures';
+import { draftFromSpec } from '../../src/lib/analytics/draft';
+import type { ChartSpec } from '../../src/lib/analytics/spec';
 
 // The analytics dashboard (phase 35): empty state → tile builder → live
-// preview → save (intercepted POST) → tile in the grid. The mock backend
-// serves empty analytics_tiles by default (intercept.mjs); saved-tile
-// scenarios stub their own list. The clock is pinned to 2026-09-07, so a
-// rolling 90-day range lands inside the bundled seed window.
+// preview → save (intercepted POST) → tile in the grid. Since #152 every one
+// of those steps is an API call: the tiles GET, the compute POST behind the
+// preview, and a save whose body is the builder's DRAFT — the browser builds
+// no spec and aggregates no rows. The mock backend answers all three from a
+// fabricated history (e2e/lib/mock/analytics.mjs) using the app's own
+// specFromDraft/computeTile, so a refusal asserted here is the real text.
+// Saved-tile scenarios stub the GET; the clock is pinned to 2026-09-07, so a
+// rolling 90-day range lands on top of that history.
 
-// One saved tile, the row shape rowToTile reads.
-const MILEAGE_TILE_ROW = {
-  user_id: 'mock-user',
-  id: 'tile-mileage',
-  spec: {
-    version: 1,
-    title: 'Weekly mileage',
-    chartType: 'line',
-    range: { kind: 'rolling', days: 90 },
-    bucket: 'week',
-    series: [{ id: 's1', measure: 'distance' }],
-  },
-  x: 0, y: 0, w: 6, h: 4,
-  created_at: '2026-09-01T00:00:00Z',
-  updated_at: '2026-09-01T00:00:00Z',
+const MILEAGE_SPEC: ChartSpec = {
+  version: 1,
+  title: 'Weekly mileage',
+  chartType: 'line',
+  range: { kind: 'rolling', days: 90 },
+  bucket: 'week',
+  series: [{ id: 's1', measure: 'distance' }],
 };
 
-test('empty dashboard explains itself and the builder saves a tile', async ({ page }) => {
-  const posted: Array<Record<string, unknown>> = [];
+/** One saved tile, in the shape GET /api/analytics-tiles serves. */
+const MILEAGE_TILE = {
+  id: 'tile-mileage',
+  title: MILEAGE_SPEC.title,
+  spec: MILEAGE_SPEC,
+  draft: draftFromSpec(MILEAGE_SPEC),
+  layout: { x: 0, y: 0, w: 6, h: 4 },
+  updatedAt: '2026-09-01T00:00:00Z',
+};
+
+/** Serve one saved tile from the GET, leaving every other call to the mock layer. */
+async function stubSavedTile(page: import('@playwright/test').Page) {
   await page.route('**/api/analytics-tiles', async route => {
-    posted.push(route.request().postDataJSON() as Record<string, unknown>);
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'tile-x' }) });
+    if (route.request().method() !== 'GET') return route.fallback();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        tiles: [MILEAGE_TILE],
+        options: { categories: ['strength'], otherWorkoutTitles: ['Soccer night'] },
+      }),
+    });
   });
+}
+
+/**
+ * Capture saves without answering them. The load-time GET now hits the same
+ * URL, so the handler filters on method and hands everything back to the
+ * intercept layer, which actually stores the tile and replies.
+ */
+async function captureSaves(page: import('@playwright/test').Page) {
+  const posted: Array<Record<string, unknown>> = [];
+  await page.route('**/api/analytics-tiles', route => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    posted.push(route.request().postDataJSON() as Record<string, unknown>);
+    return route.fallback();
+  });
+  return posted;
+}
+
+test('empty dashboard explains itself and the builder saves a tile', async ({ page }) => {
+  const posted = await captureSaves(page);
 
   await gotoCalendar(page);
   await page.getByTestId('nav-analytics').click();
@@ -39,33 +73,35 @@ test('empty dashboard explains itself and the builder saves a tile', async ({ pa
   await page.getByTestId('analytics-new-tile').click();
   await page.getByTestId('tile-title').fill('Training sessions');
 
-  // Pick a measure; the preview renders from the same spec Save persists.
+  // Pick a measure; the preview is the server computing the same draft Save
+  // is about to persist.
   await page.getByRole('radio', { name: 'Sessions', exact: true }).click();
   await expect(page.getByTestId('tile-preview')).toBeVisible();
-  // A line chart over the (empty) mock data still draws its axes as SVG.
+  // A line chart over the fabricated history draws its axes as SVG.
   await expect(page.getByTestId('tile-preview').locator('svg')).toBeVisible();
   await shot(page, 'analytics-builder');
 
   await page.getByTestId('tile-save').click();
 
-  // The wire payload is the whole contract: spec + layout columns.
+  // The wire payload is the whole contract, and it is the DRAFT — no spec is
+  // built in the browser any more, and the layout is its own object.
+  await expect(page.locator('.tile-card__title')).toHaveText('Training sessions');
   expect(posted).toHaveLength(1);
   expect(posted[0]).toMatchObject({
-    spec: {
-      version: 1,
+    draft: {
       title: 'Training sessions',
       chartType: 'line',
+      rangeKind: 'rolling',
       bucket: 'week',
       series: [{ id: 's1', measure: 'session-count' }],
     },
-    x: 0, y: 0, w: 6, h: 4,
+    layout: { x: 0, y: 0, w: 6, h: 4 },
   });
+  expect(posted[0].spec, 'the web no longer sends a spec').toBeUndefined();
   expect(String(posted[0].id)).toMatch(/^tile-/);
 
-  // Optimistic save: the tile is in the grid without waiting for realtime.
+  // The tile the SERVER answered with is what the grid holds.
   await expect(page.getByTestId('analytics-empty')).toBeHidden();
-  await expect(page.locator('.tile-card__title')).toHaveText('Training sessions');
-
   const state = await apexState<{ tiles: Array<{ title: string; measures: string[] }> }>(page, 'analytics');
   expect(state.tiles).toHaveLength(1);
   expect(state.tiles[0].measures).toEqual(['session-count']);
@@ -73,15 +109,17 @@ test('empty dashboard explains itself and the builder saves a tile', async ({ pa
 });
 
 test('a saved tile renders and edits round-trip through the builder', async ({ page }) => {
-  await page.route(/rest\/v1\/analytics_tiles/, async route => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([MILEAGE_TILE_ROW]) });
-  });
+  await stubSavedTile(page);
 
   await gotoCalendar(page);
   await page.getByTestId('nav-analytics').click();
   await expect(page.locator('.tile-card__title')).toHaveText('Weekly mileage');
+  // Computed by the server and handed to the card — the loading state gives
+  // way to the chart only once the result lands. Scoped to the body: the
+  // header's kebab is an svg too.
+  await expect(page.getByTestId('tile-tile-mileage').locator('.tile-card__body svg')).toBeVisible();
 
-  // Edit opens the builder prefilled from the stored spec.
+  // Edit opens the builder prefilled from the draft the GET carried.
   await page.locator('.tile-card__menu-btn').click();
   await page.getByRole('menuitem', { name: 'Edit' }).click();
   await expect(page.getByTestId('tile-title')).toHaveValue('Weekly mileage');
@@ -97,12 +135,34 @@ test('an invalid draft explains itself instead of previewing', async ({ page }) 
   await page.getByTestId('nav-analytics').click();
   await page.getByTestId('analytics-new-tile').click();
 
-  // Max grade without a scale is the canonical spec-level violation.
+  // Max grade without a scale is the canonical draft-level violation, and the
+  // text under the form is now the server's own chartDraftProblem answer.
   await page.getByRole('radio', { name: 'Max grade', exact: true }).click();
   await expect(page.getByTestId('tile-builder-problem')).toContainText('grade scale');
 
   await page.getByRole('radio', { name: 'YDS', exact: true }).click();
   await expect(page.getByTestId('tile-preview')).toBeVisible();
+});
+
+test('a blank title is refused by the server and the builder stays open', async ({ page }) => {
+  const posted = await captureSaves(page);
+
+  await gotoCalendar(page);
+  await page.getByTestId('nav-analytics').click();
+  await page.getByTestId('analytics-new-tile').click();
+
+  // A valid draft in every other respect: the server checks the title first,
+  // which is the opposite of the order the web used to apply.
+  await page.getByRole('radio', { name: 'Sessions', exact: true }).click();
+  await expect(page.getByTestId('tile-preview')).toBeVisible();
+  await page.getByTestId('tile-save').click();
+
+  await expect(page.getByText('Give the tile a title').first()).toBeVisible();
+  await expect(page.getByTestId('tile-save-problem')).toContainText('Give the tile a title');
+  // Still in the builder, with the work intact.
+  await expect(page.getByTestId('tile-title')).toBeVisible();
+  await expect(page.getByTestId('analytics-empty')).toHaveCount(0);
+  expect(posted, 'one save attempt, not one per refusal').toHaveLength(1);
 });
 
 test('incompatible sport/measure pairings dim instead of erroring', async ({ page }) => {
@@ -128,9 +188,7 @@ test('incompatible sport/measure pairings dim instead of erroring', async ({ pag
 });
 
 test('mobile: the analytics button opens the dashboard as a stacked list', async ({ page }) => {
-  await page.route(/rest\/v1\/analytics_tiles/, async route => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([MILEAGE_TILE_ROW]) });
-  });
+  await stubSavedTile(page);
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto('/');
