@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { deleteJson, patchJson, postJson } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
 import { useDebouncedReload } from '../hooks/useDebouncedReload';
 import type { CompletionRow, ExerciseDefinitionRow, RecurringExceptionRow, WorkoutEventRow, WorkoutTemplateRow } from '../lib/db/types';
 import type { ExerciseDefinition, WorkoutEvent, WorkoutTemplate, Schedule } from '../types/workout';
-import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, SaveWorkoutTemplateInput, UpdateDefinitionInput, UpdateEventInput } from '../lib/schedule/types';
+import type { CreateDefinitionInput, OccurrenceOverride, UpdateDefinitionInput, UpdateEventInput } from '../lib/schedule/types';
+import { templateInputFromDraft, type WorkoutDraft } from '../lib/builder/draft';
 import { expandRecurringEvents, normalizeSeedEvent } from '../lib/schedule/expand';
 import { definitionFieldsToRow, resolveEventExercises, rowToDefinition, slugifyName } from '../lib/schedule/definitions';
-import { mintTemplateId, rowToTemplate, templateToRow } from '../lib/schedule/templates';
-import { buildCompletionRows, eventFieldsToRow, eventToRow, rowToEvent } from '../lib/schedule/mapping';
+import { rowToTemplate } from '../lib/schedule/templates';
+import { buildCompletionRows, eventFieldsToRow, rowToEvent } from '../lib/schedule/mapping';
 import { loadCompletedIds, saveCompletedIds } from '../lib/schedule/localCompletion';
 import { useAuth } from './auth';
 import { quickCompleteSession, quickUncompleteSession } from '../lib/tracking/sessionRepo';
@@ -17,8 +18,8 @@ import { baseIdOf, belongsToEvent, makeOccurrenceId, occurrenceDateOf } from '..
 import { timeToMinutes } from '../lib/time';
 import { toDateString } from '../utils/dateHelpers';
 import { registerAgentState } from '../dev/agentBridge';
-import { isPastDay, now } from '../lib/clock';
-import { ScheduleContext, type ScheduleContextValue } from './schedule';
+import { now } from '../lib/clock';
+import { ScheduleContext, type ScheduleContextValue, type WorkoutDraftRequest, type WorkoutDraftResult } from './schedule';
 
 // Shared empty result so no-event days don't mint a fresh array per call —
 // memoized consumers (DayCell) rely on referential stability.
@@ -291,60 +292,89 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   // ── Mutation helpers ───────────────────────────────────────────────────────
 
-  const createEvent = useCallback(async (input: CreateEventInput): Promise<{ id: string } | null> => {
+  /**
+   * The builder's Apply and Save changes, as one POST: the server validates
+   * the draft, resolves template identity, upserts the template and then
+   * creates / PATCHes / detaches, running the same pure functions this client
+   * would have (api/_lib/services/workoutDraft.ts). Everything below the call
+   * is placing the response, so the calendar never waits on the realtime
+   * refetch.
+   */
+  const applyWorkoutDraft = useCallback(async (
+    draft: WorkoutDraft,
+    request: WorkoutDraftRequest,
+  ): Promise<WorkoutDraftResult | null> => {
     if (!supabase) return null;
 
-    // UUID, not a timestamp: workout_events.id is a global PK across users,
-    // so two people composing at the same millisecond must never collide.
-    const id = `ai-${crypto.randomUUID()}`;
-    // An event added to a day that has already passed is a retro-log: it was
-    // done, not planned, so it completes on creation (same effect as the
-    // "Mark as Complete" toggle, including the plan-filled session log).
-    // A recurring series is a plan whatever its anchor date — never that.
-    const completedOnCreate = isPastDay(input.date) && !input.recurrenceRule;
-    const newEvent: WorkoutEvent = {
-      id,
-      type:              input.type,
-      sport:             input.sport,
-      title:             input.title,
-      date:              input.date,
-      estimatedDuration: input.estimatedDuration,
-      difficulty:        input.difficulty ?? 3,
-      startTime:         input.startTime,
-      endTime:           input.endTime,
-      description:       input.description ?? '',
-      location:          input.location,
-      tags:              input.tags ?? [],
-      equipment:         input.equipment ?? [],
-      exercises:         input.exercises ?? [],
-      warmup:            input.warmup,
-      cooldown:          input.cooldown,
-      cardioTargets:     input.cardioTargets,
-      climbingTargets:   input.climbingTargets,
-      templateId:        input.templateId,
-      scoringType:       input.scoringType,
-      timeCapMinutes:    input.timeCapMinutes,
-      isCompleted:       completedOnCreate,
-      isRecurring:       !!input.recurrenceRule,
-      recurrenceRule:    input.recurrenceRule,
-    };
+    // The exception row keys on the occurrence's ORIGINALLY generated date,
+    // which the id carries for every occurrence but the anchor — and an
+    // earlier reschedule may have moved the anchor's displayed date away from
+    // its row date. baseEventsRef is the only place that row date survives,
+    // which is why this is resolved here and not in the builder view.
+    const occurrenceDate = request.kind !== 'detach' ? null
+      : occurrenceDateOf(request.eventId)
+        ?? baseEventsRef.current.find(e => e.id === baseIdOf(request.eventId))?.date
+        ?? null;
+    if (request.kind === 'detach' && !occurrenceDate) return null;
+    const action = request.kind === 'detach' ? { ...request, occurrenceDate } : request;
 
+    let wire: unknown;
     try {
-      await postJson('/api/events', { ...eventToRow(newEvent), triggered_by: input.triggeredBy ?? 'user' }, 'Creating event');
-      if (completedOnCreate) {
+      wire = await postJson<unknown>('/api/workout-draft', {
+        draft,
+        today: format(now(), 'yyyy-MM-dd'),
+        action,
+      }, 'Saving workout');
+    } catch {
+      // postJson has already toasted the transport or 4xx failure.
+      return null;
+    }
+
+    // postJson parses the body but never inspects it: a 200 that isn't the
+    // documented shape must not be reported to the caller as a write.
+    const res = wire as WorkoutDraftResult | undefined;
+    if (!res || typeof res !== 'object' || typeof res.ok !== 'boolean') return null;
+    if (!res.ok) return res;
+    const event = res.event;
+    if (!event || typeof event !== 'object' || typeof event.id !== 'string') return null;
+
+    if (res.action === 'create') {
+      // Nothing used to place a created event — it appeared only once the
+      // realtime refetch landed.
+      setBaseEvents(prev => [...prev, event]);
+      const templateId = res.templateId;
+      if (templateId) {
+        setTemplates(prev => new Map(prev).set(templateId, { id: templateId, ...templateInputFromDraft(draft) }));
+      }
+      if (res.completedOnCreate) {
+        // A past-dated one-off is a retro-log. The server already wrote the
+        // completion row AND the plan-filled session — this only mirrors the
+        // flag locally; re-posting either would double-write.
         setCompletedIds(prev => {
-          const next = new Set(prev).add(id);
+          const next = new Set(prev).add(event.id);
           saveCompletedIds(userId, next);
           return next;
         });
-        postJson('/api/completions', buildCompletionRows(newEvent, true), 'Completion sync').catch(() => {});
-        quickCompleteSession(newEvent).catch(() => {});
       }
-      return { id };
-    } catch {
-      return null;
+    } else if (res.action === 'update') {
+      // Replace, never spread-merge: a field the user cleared is ABSENT from
+      // the response JSON, so merging would leave a removed location in place.
+      setBaseEvents(prev => prev.map(e => e.id !== event.id ? e : event));
+    } else {
+      const { detachedFrom } = res;
+      // A null override is the skip marker the expansion reads: the day leaves
+      // the series, and the standalone row appears beside it.
+      if (detachedFrom && res.occurrenceDate) {
+        const key = makeOccurrenceId(detachedFrom, res.occurrenceDate);
+        setExceptions(prev => new Map(prev).set(key, null));
+      }
+      setBaseEvents(prev => [...prev, event]);
+      // Server-side the completion rows were relabeled to the new id; the
+      // local cache still holds the occurrence id, so re-pull rather than map.
+      loadCompletions().catch(() => {});
     }
-  }, [userId]);
+    return res;
+  }, [userId, loadCompletions]);
 
   const updateEvent = useCallback(async ({ id, fields, triggeredBy }: UpdateEventInput): Promise<boolean> => {
     if (!supabase) return false;
@@ -483,69 +513,6 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }
   }, [definitions]);
 
-  const detachOccurrence = useCallback(async (id: string, fields: Partial<Omit<WorkoutEvent, 'id' | 'isCompleted'>>, triggeredBy: 'user' | 'ai' = 'user'): Promise<{ id: string } | null> => {
-    if (!supabase) return null;
-
-    const occurrence = eventsRef.current.find(e => e.id === id);
-    if (!occurrence) return null;
-    const baseId = baseIdOf(id);
-    // The exception row keys on the occurrence's originally generated date,
-    // which an earlier reschedule may have moved away from — resolve it the
-    // same way rescheduleEvent does rather than trusting the displayed date.
-    const keyDate = occurrenceDateOf(id)
-      ?? baseEventsRef.current.find(e => e.id === baseId)?.date
-      ?? occurrence.date;
-
-    const standalone: WorkoutEvent = {
-      ...occurrence,
-      ...fields,
-      id: `ai-${crypto.randomUUID()}`,
-      date: fields.date ?? occurrence.date,
-      isRecurring: false,
-      recurrenceRule: undefined,
-      recurringPattern: undefined,
-      isCompleted: false,
-    };
-
-    try {
-      const result = await postJson<{ id: string }>('/api/event-instances', {
-        action: 'detach',
-        eventId: baseId,
-        date: keyDate,
-        eventTitle: standalone.title,
-        triggeredBy,
-        event: eventToRow(standalone),
-      }, 'Detaching occurrence');
-      // Apply locally: the occurrence leaves the series, the standalone row
-      // appears — the realtime refetch reconciles later.
-      setExceptions(prev => new Map(prev).set(makeOccurrenceId(baseId, keyDate), null));
-      setBaseEvents(prev => [...prev, standalone]);
-      // Server-side the completion rows were relabeled to the new id; the
-      // local cache still holds the occurrence id, so re-pull rather than map.
-      loadCompletions().catch(() => {});
-      return result ?? { id: standalone.id };
-    } catch {
-      return null;
-    }
-  }, [loadCompletions]);
-
-  const saveTemplate = useCallback(async (input: SaveWorkoutTemplateInput): Promise<{ id: string } | null> => {
-    if (!supabase) return null;
-
-    // The caller resolves title reuse (matchTemplateByTitle) before saving —
-    // an omitted id here always means a genuinely new template.
-    const template: WorkoutTemplate = { ...input, id: input.id ?? mintTemplateId() };
-    try {
-      await postJson('/api/workout-templates', templateToRow(template), 'Saving to workout library');
-      // Optimistic: the builder's library list shows the save immediately;
-      // the realtime refetch reconciles later (and fills in updatedAt).
-      setTemplates(prev => new Map(prev).set(template.id, template));
-      return { id: template.id };
-    } catch {
-      return null;
-    }
-  }, []);
-
   const archiveTemplate = useCallback(async (id: string): Promise<boolean> => {
     if (!supabase) return false;
     try {
@@ -606,24 +573,22 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     getEventsForRange,
     toggleCompletion,
     setCompletion,
-    createEvent,
+    applyWorkoutDraft,
     updateEvent,
     deleteEvent,
     deleteEventInstance,
     deleteOccurrence,
     rescheduleEvent,
-    detachOccurrence,
     createDefinition,
     updateDefinition,
     templates,
-    saveTemplate,
     archiveTemplate,
   }), [
     events, definitions, isSyncing, isEventsLoading, loadEvents, loadCompletions,
     getEventsForDate, getEventsForRange, toggleCompletion, setCompletion,
-    createEvent, updateEvent, deleteEvent, deleteEventInstance, deleteOccurrence,
-    rescheduleEvent, detachOccurrence, createDefinition, updateDefinition,
-    templates, saveTemplate, archiveTemplate,
+    applyWorkoutDraft, updateEvent, deleteEvent, deleteEventInstance, deleteOccurrence,
+    rescheduleEvent, createDefinition, updateDefinition,
+    templates, archiveTemplate,
   ]);
 
   return (

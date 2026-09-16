@@ -4,16 +4,10 @@ import { format, parseISO } from 'date-fns';
 import { ArrowLeft, Sparkles, X } from 'lucide-react';
 import { useModalChrome } from '../../hooks/useModalChrome';
 import { useCalendar } from '../../context/calendar';
-import { useSchedule } from '../../context/schedule';
+import { useSchedule, type WorkoutDraftRequest } from '../../context/schedule';
 import { now } from '../../lib/clock';
 import { notify } from '../../lib/notify';
-import { matchTemplateByTitle } from '../../lib/schedule/templates';
-import {
-  createInputFromDraft, draftFromEvent, draftFromTemplate, draftProblem,
-  emptyDraft, eventFieldsFromDraft, templateInputFromDraft, type WorkoutDraft,
-} from '../../lib/builder/draft';
-import { REPEAT_OFF } from '../../lib/builder/repeat';
-import { validateUnilateral } from '../../lib/schedule/definitions';
+import { draftFromEvent, draftFromTemplate, emptyDraft, type WorkoutDraft } from '../../lib/builder/draft';
 import { WORKOUT_COLORS } from '../../utils/workoutColors';
 import TemplateSearch from './TemplateSearch';
 import BuilderForm from './BuilderForm';
@@ -28,10 +22,15 @@ import type { WorkoutTemplate } from '../../types/workout';
  * template and schedules the event in one step (there is deliberately no
  * save-without-scheduling). Edit mode (state.editingWorkout) skips straight
  * to the form and saves back to the event without touching the library.
+ *
+ * Both paths are one POST /api/workout-draft (#136): the draft goes to the
+ * server, which validates it and does the writing. This view holds no
+ * validation of its own — the refusal comes back as `ok: false` and lands on
+ * the cards (violations) or in a toast (a whole-draft problem).
  */
 export default function WorkoutBuilderView() {
   const { state, dispatch } = useCalendar();
-  const { definitions, templates, createEvent, updateEvent, detachOccurrence, saveTemplate, archiveTemplate } = useSchedule();
+  const { definitions, templates, applyWorkoutDraft, archiveTemplate } = useSchedule();
   const editing = state.editingWorkout;
   const close = () => dispatch({ type: 'CLOSE_COMPOSER' });
 
@@ -55,56 +54,49 @@ export default function WorkoutBuilderView() {
     setStep('form');
   };
 
-  const validate = (): boolean => {
-    const problem = draftProblem(draft);
-    if (problem) { notify(problem); return false; }
-    const violations = validateUnilateral(draft.lists, definitions);
-    setErrors(violations);
-    return violations.size === 0;
-  };
+  /**
+   * Apply (create) and Save changes (update / detach), which are the same
+   * request with a different action:
+   *   create  — no event is being edited.
+   *   detach  — a recurring occurrence saved with "This event only": the
+   *             edits become a standalone event and the day leaves the
+   *             series. The repeat picker doesn't apply; the server forces it
+   *             off (a detached day cannot itself repeat).
+   *   update  — everything else, including a series-wide save, where the
+   *             anchor must not follow whichever occurrence was opened.
+   */
+  const submit = async (scope?: 'occurrence' | 'series') => {
+    const request: WorkoutDraftRequest = !editing
+      ? { kind: 'create' }
+      : editing.isRecurring && scope === 'occurrence'
+        ? { kind: 'detach', eventId: editing.id }
+        : { kind: 'update', eventId: editing.id };
 
-  const apply = async () => {
-    if (!validate()) return;
     setSaving(true);
-    // Identity resolution before the upsert: the picked template's id, else a
-    // case-insensitive title match (reapplying an archived title revives it,
-    // reconnecting its score history), else saveTemplate mints a fresh id.
-    const existingId = draft.templateId ?? matchTemplateByTitle(templates.values(), draft.title)?.id;
-    const saved = await saveTemplate({ id: existingId, ...templateInputFromDraft(draft) });
-    const created = saved ? await createEvent(createInputFromDraft(draft, saved.id)) : null;
+    const result = await applyWorkoutDraft(draft, request);
     setSaving(false);
-    if (created) {
-      notify('Workout added');
-      close();
-    } else {
-      notify('Failed to save — try again');
-    }
-  };
 
-  const saveChanges = async (scope?: 'occurrence' | 'series') => {
-    if (!editing) return;
-    if (!validate()) return;
-    setSaving(true);
-    let ok: boolean;
-    if (editing.isRecurring && scope === 'occurrence') {
-      // Detach: the edits (schedule included) become a standalone event and
-      // this day leaves the series. The repeat picker doesn't apply — a
-      // detached day cannot itself repeat.
-      const fields = eventFieldsFromDraft({ ...draft, repeat: REPEAT_OFF }, { includeSchedule: true });
-      ok = !!(await detachOccurrence(editing.id, fields));
-    } else {
-      // Series-wide (or a plain one-off): the anchor date/times of a series
-      // must not follow whichever occurrence happened to be opened.
-      const fields = eventFieldsFromDraft(draft, { includeSchedule: !editing.isRecurring });
-      ok = await updateEvent({ id: editing.id, fields });
+    // null = the request itself failed; the transport has already toasted the
+    // detail, so this is the one line the user needs.
+    if (!result) { notify('Failed to save — try again'); return; }
+    if (!result.ok) {
+      // Per-entry violations land on the cards that caused them, silently —
+      // a toast would say less than the errors already on screen. A
+      // whole-draft problem has no card to land on, so it toasts.
+      if (result.violations && Object.keys(result.violations).length) {
+        setErrors(new Map(Object.entries(result.violations)));
+      } else {
+        notify(result.problem);
+      }
+      return;
     }
-    setSaving(false);
-    if (ok) {
-      notify(scope === 'occurrence' ? 'Saved — this day now stands alone' : 'Workout updated');
-      close();
-    } else {
-      notify('Failed to save — try again');
-    }
+
+    notify(
+      request.kind === 'create' ? 'Workout added'
+      : request.kind === 'detach' ? 'Saved — this day now stands alone'
+      : 'Workout updated',
+    );
+    close();
   };
 
   const color = WORKOUT_COLORS[draft.type];
@@ -161,7 +153,7 @@ export default function WorkoutBuilderView() {
               mode={editing ? 'edit' : 'create'}
               isRecurringSeries={!!editing?.isRecurring}
               accentColor={color.solid}
-              onSubmit={editing ? saveChanges : apply}
+              onSubmit={submit}
               onCancel={close}
             />
           )}
