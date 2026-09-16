@@ -24,11 +24,48 @@
 // project — /api/* and all non-GET supabase requests are stubbed, so nothing
 // driven here can mutate real data.
 
+import { spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
-import { chromium } from '@playwright/test';
-import { installIntercept, isExpectedConsoleError } from '../e2e/lib/intercept.mjs';
-import { readSupabaseEnv, seedFabricatedSession, driverProfile } from '../e2e/lib/session.mjs';
-import { devPort } from '../dev/port.mjs';
+import { fileURLToPath } from 'node:url';
+
+// WHY THE RE-EXEC: this file's import graph reaches TypeScript
+// (e2e/lib/intercept.mjs → src/lib/tracking/plan.ts), and those modules import
+// their siblings by `.js` specifier. Node's type stripping runs a `.ts` file but
+// does not remap `.js` → `.ts`, so plain `node` died on `../climbing.js` before a
+// line of this script ran. Playwright's loader does remap them, which is why the
+// specs passed while this CLI did not. So re-exec once through the tsx
+// devDependency and keep `node scripts/drive.mjs …` — the invocation
+// .claude/agents/app-verifier.md and the run-apex-training skill both prescribe —
+// working as documented.
+//
+// The four imports below are dynamic on purpose: static imports are linked
+// before any statement executes, so a static import of intercept.mjs would crash
+// before this guard could run. Everything above it is a node: builtin, so the
+// re-exec survives the very failure it exists to prevent.
+if (process.env.APEX_DRIVE_TSX !== '1' && !process.execArgv.some(arg => arg.includes('tsx'))) {
+  let tsx;
+  try {
+    tsx = import.meta.resolve('tsx');
+  } catch {
+    console.error('drive.mjs needs the tsx devDependency — install this checkout first: npm ci');
+    process.exit(1);
+  }
+  const child = spawnSync(
+    process.execPath,
+    ['--import', tsx, fileURLToPath(import.meta.url), ...process.argv.slice(2)],
+    { stdio: 'inherit', env: { ...process.env, APEX_DRIVE_TSX: '1' } },
+  );
+  if (child.error) {
+    console.error(`drive.mjs could not start tsx: ${child.error.message}`);
+    process.exit(1);
+  }
+  process.exit(child.status ?? 1);
+}
+
+const { chromium } = await import('@playwright/test');
+const { installIntercept, isExpectedConsoleError } = await import('../e2e/lib/intercept.mjs');
+const { readSupabaseEnv, seedFabricatedSession, driverProfile } = await import('../e2e/lib/session.mjs');
+const { devPort } = await import('../dev/port.mjs');
 
 const APP_URL = process.env.APP_URL ?? `http://localhost:${devPort()}/`;
 const SHOTS = 'e2e/screenshots';
