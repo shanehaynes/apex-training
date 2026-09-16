@@ -32,6 +32,9 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 /** A whole dashboard; the builder sends one. */
 export const MAX_SPECS = 24;
 
+/** One decimal is plenty for a Server-Timing duration. */
+const durMs = (ms: number): number => Math.round(ms * 10) / 10;
+
 type Slot = ChartSpec | { problem: string };
 
 function slotFromSpec(json: unknown): Slot {
@@ -88,6 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!userId) return;
   if (!(await enforceRateLimit(supabase, res, userId, 'reads'))) return;
 
+  const startedAt = performance.now();
   try {
     const [profileRes, blocksRes] = await Promise.all([
       supabase.from('profiles').select('max_hr, threshold_hr').eq('id', userId).maybeSingle(),
@@ -105,12 +109,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? await loadAnalyticsInputs(supabase, userId, window, { withHrZones: needsHrZones(valid), hr })
       : null;
 
+    const loadedAt = performance.now();
+
     const tiles: TileResult[] = specs.map(spec =>
       'problem' in spec
         ? { ok: false, problem: spec.problem }
         : inputs
           ? computeTile(spec, inputs, ctx)
           : computeTile(spec, { completions: [], sessions: [], setLogs: [], cardioLogs: [], meals: [], zoneActivities: [], categories: new Map(), events: new Map() }, ctx),
+    );
+
+    // Splits the request's two halves — reading the caller's rows versus
+    // aggregating them — so a latency check on a deployed preview can tell
+    // server work from network time. The web's dashboard runs on this call
+    // since #152, which is what made the split worth having.
+    res.setHeader(
+      'Server-Timing',
+      `data;dur=${durMs(loadedAt - startedAt)}, compute;dur=${durMs(performance.now() - loadedAt)}`,
     );
     res.status(200).json({ today: todayIso, tiles });
   } catch (err) {

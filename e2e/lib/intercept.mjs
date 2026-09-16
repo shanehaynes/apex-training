@@ -15,12 +15,14 @@
 
 import { createRequire } from 'node:module';
 import { DRIVER_USER, MOCK_SUPABASE, fabricatedSession } from './session.mjs';
+import { analyticsMock } from './mock/analytics.mjs';
 // Playwright's loader resolves these TS modules (and their .js-specifier
 // internals), so the bootstrap stub builds the tracker model with the SAME
 // pure builders the server runs — no second implementation to drift.
 import { buildLastPerformance, buildTrackerModel, setExerciseNames } from '../../src/lib/tracking/plan.ts';
 import { normalizeSeedEvent } from '../../src/lib/schedule/expand.ts';
 import { baseIdOf } from '../../src/lib/schedule/occurrence.ts';
+import { workoutDraftResponse } from './mock/workoutDraft.mjs';
 
 const seedSchedule = createRequire(import.meta.url)('../../src/data/schedule.json');
 
@@ -172,6 +174,19 @@ export async function installIntercept(context, { anonKey = null, profile, stale
     if (url.includes('/api/workout-sessions')) {
       return json(route, sessionResponse(req.postDataJSON() ?? {}));
     }
+    // The builder's Apply (#136): one POST replaced the template upsert plus
+    // create/PATCH/detach sequence, and the stub replays the service over the
+    // same pure functions — so refusals, minted ids and response shapes are
+    // the real contract.
+    if (url.includes('/api/workout-draft')) {
+      const { status, body } = workoutDraftResponse(req.postDataJSON() ?? {});
+      return route.fulfill({
+        status,
+        contentType: status === 200 ? 'application/json' : 'text/plain',
+        headers: CORS,
+        body: status === 200 ? JSON.stringify(body) : body,
+      });
+    }
     // The post-workout summary streams NDJSON text events (W3).
     if (url.includes('/api/coach-summary')) {
       return route.fulfill({
@@ -209,6 +224,14 @@ export async function installIntercept(context, { anonKey = null, profile, stale
       };
       return json(route, req.method() === 'GET' ? status : { ok: true, ...status });
     }
+    // Analytics (#152): the web reads its tiles and computes them through
+    // the API, and the provider is mounted app-wide — so EVERY spec issues
+    // the tiles GET on load, not just the analytics ones. The stub runs the
+    // app's own specFromDraft/computeTile over a fabricated history, with
+    // tile state per context; specs needing saved tiles override the GET
+    // with their own page.route.
+    if (url.includes('/api/analytics-tiles')) return analyticsMock(context).tilesRoute(route, req);
+    if (url.includes('/api/analytics-compute')) return analyticsMock(context).computeRoute(route, req);
     // Provider sync (COROS): unconfigured by default so the toolbar button
     // stays hidden in every spec that doesn't opt in. The sync spec installs
     // its own page.route (which outranks this context route) to script the
@@ -310,10 +333,6 @@ export async function installIntercept(context, { anonKey = null, profile, stale
     // Workout library (phase 33): deterministic empty list so the builder's
     // search step settles; template-specific specs override via page.route.
     if (url.includes('workout_templates')) return json(route, []);
-
-    // Analytics dashboard (phase 35): deterministic empty tile list; specs
-    // that need saved tiles override via page.route.
-    if (url.includes('analytics_tiles')) return json(route, []);
 
     // Passthrough REST reads (workout_completions, workout_sessions): the
     // fabricated session attaches its fake JWT, which the real PostgREST
