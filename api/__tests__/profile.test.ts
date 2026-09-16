@@ -144,7 +144,7 @@ describe('GET /api/profile', () => {
     // is due (see loadKeyStatus in AuthContext.tsx).
     expect(body()).toEqual({
       hasAnthropicKey: false, anthropicKeyLast4: null,
-      coachModel: null, coachModelLabel: 'Opus 4.8',
+      coachModel: null, coachModelLabel: 'Opus 5',
       ...PROFILE_DEFAULTS,
       coachModels: expect.any(Array),
       termsAccepted: null, termsCurrent: false,
@@ -158,7 +158,7 @@ describe('GET /api/profile', () => {
     expect(statusCode()).toBe(200);
     expect(body()).toEqual({
       hasAnthropicKey: true, anthropicKeyLast4: 'tail',
-      coachModel: null, coachModelLabel: 'Opus 4.8',
+      coachModel: null, coachModelLabel: 'Opus 5',
       ...PROFILE_DEFAULTS,
       coachModels: expect.any(Array),
       termsAccepted: null, termsCurrent: false,
@@ -178,7 +178,7 @@ describe('GET /api/profile', () => {
     mockedAdmin.mockReturnValue(makeAdmin({ key: null, coachModel: 'claude-retired-1' }));
     const retired = makeRes();
     await handler(makeReq('GET'), retired.res);
-    expect(retired.body()).toMatchObject({ coachModel: 'claude-retired-1', coachModelLabel: 'Opus 4.8' });
+    expect(retired.body()).toMatchObject({ coachModel: 'claude-retired-1', coachModelLabel: 'Opus 5' });
   });
 
   // W11: the You tab needs the whole profiles row, and the native app reads it

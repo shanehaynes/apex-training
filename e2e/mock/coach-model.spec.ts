@@ -26,7 +26,7 @@ test('the coach header offers the model catalog, priced', async ({ page }) => {
   ]);
 
   // A user who has never chosen sits on the app default, not a blank select.
-  await expect(picker).toHaveValue('claude-opus-4-8');
+  await expect(picker).toHaveValue('claude-opus-5');
 });
 
 test('picking a model saves it and sends it with the next turn', async ({ page }) => {

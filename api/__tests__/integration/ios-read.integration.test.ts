@@ -185,9 +185,11 @@ const TILE_PREFIX = `${FX}-tile-`;
 const TILE_WINDOW = { kind: 'fixed', startDate: '2026-09-01', endDateExclusive: '2026-10-01' };
 const TILE_SPECS: Array<{ id: string; spec: Record<string, unknown> }> = [
   { id: `${TILE_PREFIX}sessions`, spec: { version: 1, title: 'Sessions', chartType: 'kpi', range: TILE_WINDOW, bucket: 'total', series: [{ id: 's1', measure: 'session-count' }] } },
-  // No exercise filter: the 09-08 rows carry the alias spelling ('fx press')
-  // and the engine filters on the logged name, browser and server alike.
-  { id: `${TILE_PREFIX}tonnage`, spec: { version: 1, title: 'Tonnage', chartType: 'bar', range: TILE_WINDOW, bucket: 'week', series: [{ id: 's1', measure: 'tonnage' }] } },
+  // Filtered on the canonical name while the 09-08 rows carry the alias
+  // spelling ('fx press'): the engine resolves filter values and row names
+  // alike through the alias index the loader supplies (#101), so the tile
+  // counts every press set rather than only the one logged after the rename.
+  { id: `${TILE_PREFIX}tonnage`, spec: { version: 1, title: 'Tonnage', chartType: 'bar', range: TILE_WINDOW, bucket: 'week', series: [{ id: 's1', measure: 'tonnage', filters: { exerciseNames: ['Fixture Press'] } }] } },
   { id: `${TILE_PREFIX}time`, spec: { version: 1, title: 'Training time by type', chartType: 'stacked-bar', range: TILE_WINDOW, bucket: 'week', series: [{ id: 's1', measure: 'training-time', groupBy: 'event-type' }] } },
   { id: `${TILE_PREFIX}grade`, spec: { version: 1, title: 'Max grade', chartType: 'table', range: TILE_WINDOW, bucket: 'iso-month', series: [{ id: 's1', measure: 'max-grade', filters: { gradeScale: 'yds' } }] } },
   { id: `${TILE_PREFIX}hr`, spec: { version: 1, title: 'Avg heart rate', chartType: 'line', range: TILE_WINDOW, bucket: 'week', series: [{ id: 's1', measure: 'avg-hr' }] } },
@@ -965,9 +967,12 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     // the tracked finish do not write completions.
     expect(tiles[0].ok).toBe(true);
     expect(tiles[0].data!.series[0].points).toEqual([1]);
-    // Tonnage from the real logs: 100×5 + 110×3 (09-08) and 120×3 (09-22); autofilled rows excluded.
+    // Tonnage from the real logs, filtered on the canonical 'Fixture Press':
+    // 100×5 + 110×3 logged 09-08 under the alias 'fx press', 120×3 logged
+    // 09-22 under the canonical name; autofilled rows excluded.
     expect(tiles[1].ok).toBe(true);
     const weekly = tiles[1].data!.series[0].points.map(p => p ?? 0);
+    expect(weekly).toEqual([0, 830, 0, 360, 0]);
     expect(weekly.reduce((a, b) => a + b, 0)).toBe(1190);
     // The split fans out per workout type — the key the phone colours by.
     expect(tiles[2].data!.series.map(s => s.key)).toContain('s1:weights');
@@ -1134,7 +1139,7 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     // W6: the coach model rides on the profile response so the native app's
     // badge never reads the profiles row directly. The seeded user has no
     // pick, so the label is the default's.
-    expect(prof.body).toMatchObject({ coachModel: null, coachModelLabel: 'Opus 4.8' });
+    expect(prof.body).toMatchObject({ coachModel: null, coachModelLabel: 'Opus 5' });
     // W11 widened the same response to the rest of the profiles row, so the
     // You tab reads one endpoint instead of the table.
     expect(prof.body).toMatchObject({ displayName: 'agent', avatarKey: 'goat' });

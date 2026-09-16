@@ -20,6 +20,7 @@ import { resolveUnits, type QuantityEntry } from './units.js';
 import { shiftedDaySet, passesDayFilter } from './dayFilter.js';
 import { ZONE_LABELS, zoneBounds, type HrSettings } from './hrZones.js';
 import { baseIdOf } from '../schedule/occurrence.js';
+import { canonicalNameOf, type AliasIndex } from '../schedule/definitions.js';
 import type { Period } from '../review/isoMonth';
 
 // ─── The aggregation engine ──────────────────────────────────────────────────
@@ -28,9 +29,18 @@ import type { Period } from '../review/isoMonth';
 // only draws and the coach only edits the spec (the review-stats doctrine).
 //
 // The engine re-filters is_autofilled / is_completed defensively even though
-// fetch.ts already excludes them at the query: correctness must not depend
+// the loaders already exclude them at the query: correctness must not depend
 // on who fetched the inputs (tests and the builder preview construct them
 // directly).
+//
+// Exercise names resolve through the optional aliasIndex a loader supplies
+// (issue #101), so a tile filtered on the canonical name counts rows logged
+// under an alias or a pre-rename spelling, and group_by 'exercise' keeps a
+// renamed exercise as ONE series. The canonicalization happens here rather
+// than in the loader because the loader rewriting rows would break the other
+// direction — a tile saved with an alias spelling must keep matching — so
+// filter values, row names and group keys all resolve the same way, and the
+// rows themselves are never touched. With no index, behaviour is as before.
 
 /** One synced activity's HR stream, reduced to zone seconds at fetch. */
 export interface ZoneActivity {
@@ -55,6 +65,12 @@ export interface AnalyticsInputs {
   zoneActivities: ZoneActivity[];
   /** exercise_definitions id → category (identifies pitch rows). */
   categories: Map<string, string>;
+  /**
+   * Optional: every known spelling → its canonical name. Supplied, exercise
+   * name filters and group keys unify aliases and pre-rename spellings;
+   * omitted, names compare literally (the pre-#101 behaviour).
+   */
+  aliasIndex?: AliasIndex;
   /** workout_events base id → sport/title/type (recurring occurrences resolve via their base). */
   events: Map<string, EventLite>;
 }
@@ -202,6 +218,14 @@ function extractPoints(
 ): Point[] {
   const def = MEASURES[s.measure];
   const f = s.filters ?? {};
+
+  // One canonicalizer for filter values, row names and group keys alike, so
+  // both directions match: an alias-spelled row under a canonical filter, and
+  // a canonically-logged row under a tile saved with the alias. Unknown names
+  // pass through, and the trim/lowercase comparison still sits on top.
+  const canonical = (name: string): string =>
+    inputs.aliasIndex ? canonicalNameOf(name, inputs.aliasIndex) : name;
+  const exerciseKey = (name: string): string => canonical(name).trim().toLowerCase();
   const dayFilterDays = f.dayFilter ? shiftedDaySet(inputs.completions, f.dayFilter) : null;
 
   const keepDate = (date: string): boolean =>
@@ -209,7 +233,7 @@ function extractPoints(
     (!dayFilterDays || passesDayFilter(date, dayFilterDays, f.dayFilter!.mode));
 
   const typeSet = f.eventTypes?.length ? new Set<string>(f.eventTypes) : null;
-  const nameSet = f.exerciseNames?.length ? new Set(f.exerciseNames.map(n => n.trim().toLowerCase())) : null;
+  const nameSet = f.exerciseNames?.length ? new Set(f.exerciseNames.map(exerciseKey)) : null;
   const categorySet = f.categories?.length ? new Set(f.categories) : null;
   const sportSet = f.sports?.length ? new Set<Sport>(f.sports) : null;
   const titleSet = f.workoutTitles?.length ? new Set(f.workoutTitles.map(t => t.trim().toLowerCase())) : null;
@@ -233,7 +257,7 @@ function extractPoints(
       if (!type || !typeSet.has(type)) return false;
     }
     if (!sportPasses(row.event_id, row.event_date)) return false;
-    if (nameSet && !nameSet.has(row.exercise_name.trim().toLowerCase())) return false;
+    if (nameSet && !nameSet.has(exerciseKey(row.exercise_name))) return false;
     if (categorySet) {
       const category = row.definition_id ? inputs.categories.get(row.definition_id) : undefined;
       if (!category || !categorySet.has(category)) return false;
@@ -249,7 +273,7 @@ function extractPoints(
       switch (s.groupBy) {
         case 'event-type': return shared.eventTypeOf.get(completionKey(row.event_id, row.event_date)) ?? 'unknown';
         case 'sport': return shared.sportOf(row.event_id, row.event_date) ?? 'unspecified';
-        case 'exercise': return row.exercise_name;
+        case 'exercise': return canonical(row.exercise_name);
         case 'category': return categoryOf(row);
         default: return '';
       }
