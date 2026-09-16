@@ -93,7 +93,7 @@ Recurring patterns to port as `TextStyle`s:
 | 56px top nav (avatar · wordmark · period controls · actions) | Navigation bar per tab; wordmark as the Schedule title view; period controls as a toolbar; avatar in You |
 | 60px bottom nav: Calendar · FAB(+) · Coach · Analytics | 4-tab `TabView` (Schedule · Coach · Analytics · You); the FAB becomes a toolbar "+" on Schedule with a menu (Workout / Meal) |
 | 300px chat sidebar | the Coach tab |
-| z-index ladder (modal 100 → tracker 110 → summary 120 → overlays 130 → editors 140 → toasts 200) | presentation policy: sheets for detail/composer/builder, `fullScreenCover` for the tracker, summary as an overlay inside the tracker cover, toasts in a top-level `ZStack` above the tab bar |
+| z-index ladder (modal 100 → tracker 110 → summary 120 → overlays 130 → editors 140 → toasts 200) | presentation policy: sheets for detail/composer/builder, `fullScreenCover` for the tracker, summary as an overlay inside the tracker cover, toasts in their own passthrough `UIWindow` one level above the app's (D-032), so they float over every presentation |
 | Content max-widths (tracker 640, forms 720, profile 520) | `readableContentGuide`-style max width on iPad; full width on iPhone |
 | Safe-area: only 5 places use `env(safe-area-inset-bottom)` and `viewport-fit=cover` is missing | free with SwiftUI; keep bottom bars above the home indicator |
 
@@ -108,7 +108,7 @@ Recurring patterns to port as `TextStyle`s:
 | `.modal-backdrop` + `.modal` | `.sheet` with `.presentationDetents([.medium, .large])`, `.presentationDragIndicator(.visible)`, `SheetHeader(title:, close:)` |
 | `.library-view` etc. full-screen overlays | pushed screens in a `NavigationStack` |
 | `.tracker-confirm` sticky bar | `ConfirmBar(message:, primary:, secondary:)` in `safeAreaInset(edge: .bottom)` |
-| `.toasts` | `ToastHost` above the tab bar; `ToastBus.post` |
+| `.toasts` | `ToastHost`, hosted in the overlay window (`ToastWindow` in the app target), anchored to the top of the screen; `ToastBus.post` from anywhere |
 | `.library-field` + `__input` | `FormField(label:, text:, keyboard:)` — mono label, elevated fill, 44pt; `apexFieldChrome()` gives any control the same box |
 | `<input type=date/time>` | `DateField` / `TimeField` — native compact pickers in the field box, pinned to UTC (U9) |
 | `.builder-type-chip` radio groups | `ChipRow(label:, options:, selection:)` — a `FlowLayout` of `Chip`s, one selected |
@@ -120,7 +120,7 @@ Recurring patterns to port as `TextStyle`s:
 | `TileTooltip` | `ScrubCard` on `bgElevated`, pinned by a tap on the chart |
 | `.an-chip--dimmed` | `Chip(isDimmed:)` at 40 % opacity, still tappable so the reason shows; `MultiChipRow` shows it under the row; `Chip(tint:)` carries a workout type's colour |
 | `TileBuilder` two columns | `TileBuilderSheet`: the form over the preview, `VSplit` with `DraftCoachDrawer` when the coach is open |
-| `notify()` on a refused save | inside a sheet the refusal is an `InlineError` line above the action bar's buttons (`builder.problem`, `analytics.builder.saveproblem`, `schedule.event.edit.problem`) — toasts belong to the presenting screen, a sheet covers `ToastHost` |
+| `notify()` on a refused save | a refusal of a sheet's own action stays inline: an `InlineError` line above the action bar's buttons (`builder.problem`, `analytics.builder.saveproblem`, `schedule.event.edit.problem`), next to what was asked. Every other toast — the tracker's, COROS's, the copy field's — renders over presentations through the overlay window (D-032) |
 | `BuilderCoachPanel`, `AnalyticsCoachPanel` | `DraftCoachDrawer(coach:, copy:)` — one drawer, two copies |
 | `.block-bar__track/__fill`, `.type-bar-row__track` | `AttainmentBar(value:, target:, state:)` |
 | `.event-chip`, `.day-event-card` | `EventChip` (month), `EventCard` (day) with a 3pt left rail in the type's `border` colour and a 44pt completion control |
