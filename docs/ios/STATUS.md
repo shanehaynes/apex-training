@@ -40,7 +40,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 
 ## Recent sessions
 - 2026-09-16 · W10 · PR B: the Library — `LibraryModel` over the schedule's cached definitions and
-  templates (one read path, D-032), decorated by one `search_exercises` call cached under
+  templates (one read path, D-033), decorated by one `search_exercises` call cached under
   `library_stats` (U11: last performed and "in N workouts" on the phone), `LibraryView` (search,
   category chips, archived divider), `ExerciseDetailView` (tags, aliases, notes, the PR and session
   cards, the trend as a tap-to-pin `TileChartView`, recent sessions) over `get_exercise_history`,
