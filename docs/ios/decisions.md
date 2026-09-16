@@ -369,7 +369,8 @@ The brief said "port the builder"; these are the lines drawn while doing it.
   template identity (draft id › case-insensitive title › a minted `wt-`), `eventToRow`, the
   retro-log rule and the services. Swift never learned a row shape (D-008). The alternative —
   porting ~600 lines of tested serialisers — was a second drift surface for nothing. The web
-  keeps its client-side Apply for now (#136).
+  kept its client-side Apply at the time; #136 moved it onto this endpoint, so the sequence now
+  exists once.
 - **User-facing validation answers `ok:false` on 200.** `draftProblem` and `validateUnilateral`
   come back as `{ ok:false, problem, violations }` — the `/api/coach-tool` convention — so the
   client keeps the text and the per-entry map; `ApexClient` would drop a 4xx body. 4xx stays for

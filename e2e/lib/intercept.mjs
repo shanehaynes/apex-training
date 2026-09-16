@@ -22,6 +22,7 @@ import { analyticsMock } from './mock/analytics.mjs';
 import { buildLastPerformance, buildTrackerModel, setExerciseNames } from '../../src/lib/tracking/plan.ts';
 import { normalizeSeedEvent } from '../../src/lib/schedule/expand.ts';
 import { baseIdOf } from '../../src/lib/schedule/occurrence.ts';
+import { workoutDraftResponse } from './mock/workoutDraft.mjs';
 
 const seedSchedule = createRequire(import.meta.url)('../../src/data/schedule.json');
 
@@ -172,6 +173,19 @@ export async function installIntercept(context, { anonKey = null, profile, stale
 
     if (url.includes('/api/workout-sessions')) {
       return json(route, sessionResponse(req.postDataJSON() ?? {}));
+    }
+    // The builder's Apply (#136): one POST replaced the template upsert plus
+    // create/PATCH/detach sequence, and the stub replays the service over the
+    // same pure functions — so refusals, minted ids and response shapes are
+    // the real contract.
+    if (url.includes('/api/workout-draft')) {
+      const { status, body } = workoutDraftResponse(req.postDataJSON() ?? {});
+      return route.fulfill({
+        status,
+        contentType: status === 200 ? 'application/json' : 'text/plain',
+        headers: CORS,
+        body: status === 200 ? JSON.stringify(body) : body,
+      });
     }
     // The post-workout summary streams NDJSON text events (W3).
     if (url.includes('/api/coach-summary')) {
