@@ -5,10 +5,11 @@ import { fail, succeed, type ServiceResult } from './result.js';
 import type { TablesInsert } from '../../../src/lib/db/types.js';
 
 // The workout library (phase 33), extracted from api/_lib/handlers/
-// workoutTemplates.ts (W7) so the HTTP door and the builder's server-side
-// Apply (api/_lib/services/workoutDraft.ts) share one implementation. Upserts
-// are scoped to (user_id, id) — the caller reuses an existing template's id
-// for same-title saves, so "save again" overwrites instead of duplicating.
+// workoutTemplates.ts (W7) so the HTTP door and the builder's Apply
+// (api/_lib/services/workoutDraft.ts, which every client posts since #136)
+// share one implementation. Upserts are scoped to (user_id, id) — the caller
+// reuses an existing template's id for same-title saves, so "save again"
+// overwrites instead of duplicating.
 // Templates are never hard-deleted (workout-level score history keys on the
 // template id): archive is the only other write.
 
