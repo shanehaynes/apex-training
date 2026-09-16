@@ -1,6 +1,8 @@
 // Live coverage for retro-logging: an event composed onto a day that has
-// already passed auto-completes on creation (ScheduleContext.createEvent) —
-// locally, in workout_completions, and as a plan-filled quick session.
+// already passed auto-completes on creation — locally, in
+// workout_completions, and as a plan-filled quick session. Since #136 that
+// whole sequence is one POST /api/workout-draft, so this is also the live
+// end-to-end proof of the builder's Apply.
 
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
@@ -74,9 +76,10 @@ test('an event added to a past day is completed on creation', async ({ page }) =
     return data?.length ?? 0;
   }, { timeout: 15000 }).toBeGreaterThan(0);
 
-  // The local stack has no realtime publication, so the created event only
-  // renders after a reload — which also proves the completed state comes back
-  // from the server (workout_completions), not just local state.
+  // Apply places the created event locally, but reload anyway: that is what
+  // proves the row and its completed state come back from the SERVER
+  // (workout_events + workout_completions) rather than from local state —
+  // the local stack has no realtime publication to reconcile the two.
   await page.reload();
   await expect(page.locator('.event-chip__main').first()).toBeVisible({ timeout: 20000 });
   await page.waitForFunction(t => {

@@ -9,9 +9,10 @@ import type { WorkoutTemplateRow } from '../../../src/lib/db/types.js';
 // HTTP door onto api/_lib/services/templates.ts: the workout library
 // (phase 33), served as /api/workout-templates by the consolidated router
 // (_lib/app.ts). POST upserts scoped to (user_id, id); PATCH exists only to
-// archive/unarchive. No AI cap or mutation log: the coach has no template
-// tools — only the user's Apply writes here (and, for the native client,
-// /api/workout-draft through the same service).
+// archive/unarchive — which is all either client sends here now, since Apply
+// upserts the template inside /api/workout-draft through the same service
+// (#136). No AI cap or mutation log: the coach has no template tools, so
+// every write here is the user's own.
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabase = getSupabaseAdmin();

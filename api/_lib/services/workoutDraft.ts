@@ -19,12 +19,13 @@ import { matchTemplateByTitle, mintTemplateId, rowToTemplate, templateToRow } fr
 import type { WorkoutEventRow, WorkoutTemplateRow } from '../../../src/lib/db/types.js';
 import type { WorkoutEvent } from '../../../src/types/workout.js';
 
-// The builder's Apply, server-side (docs/ios/backend-changes.md, W7). The web
-// runs this sequence in WorkoutBuilderView.tsx over ScheduleContext; a native
-// client sends the same WorkoutDraft JSON it hands /api/coach-tool and the
-// server does the rest with the same pure functions (src/lib/builder/draft.ts)
-// and the same services the HTTP handlers use — so nothing about templates,
-// row shapes, anchor snapping or retro-logging is reimplemented in Swift.
+// The builder's Apply, server-side (docs/ios/backend-changes.md, W7). Every
+// client sends the same WorkoutDraft JSON it hands /api/coach-tool — the web
+// through ScheduleContext.applyWorkoutDraft (#136), a native client through
+// ApexCore — and the server does the rest with the same pure functions
+// (src/lib/builder/draft.ts) and the same services the HTTP handlers use, so
+// nothing about templates, row shapes, anchor snapping or retro-logging is
+// reimplemented in Swift or run a second time in the browser.
 //
 //   create  → upsert the template (existing id › case-insensitive title › a
 //             fresh wt- id), then insert the event referencing it; a one-off
