@@ -76,6 +76,8 @@ final class YouTransport: HTTPTransport, @unchecked Sendable {
         let method = request.httpMethod ?? "GET"
         let answer: Answer? = lock.withLock {
             requests.append(Recorded(method: method, path: path, body: body, query: request.url?.query ?? ""))
+            // A route may be keyed by its query too ("POST /api/blocks?resource=cycle" — W10).
+            if let query = request.url?.query, !query.isEmpty, let keyed = routes["\(method) \(path)?\(query)"] { return keyed }
             if let action = body?["action"] as? String, let keyed = routes["\(method) \(path) \(action)"] { return keyed }
             // `POST /api/query` is one path for every tool (W10 keys the library's).
             if let tool = body?["tool"] as? String, let keyed = routes["\(method) \(path) \(tool)"] { return keyed }

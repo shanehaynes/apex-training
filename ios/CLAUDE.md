@@ -137,6 +137,13 @@ own stats — last performed, references — decorate the rows it knows), `get_e
 `query-get_exercise_history.json` for Fixture Press by any of its current spellings and the tool's
 own 400 for anything else, and `PATCH /api/exercise-definitions?id=` is replayed into both reads with
 the handler's rule that a rename appends the old name as an alias.
+Blocks (W10) are answered too: `get_training_blocks` is the list fixture plus every block and
+objective the session wrote (`current` recomputed for the fixed clock), and with `block_id` the
+requested block's summary over `query-get_training_blocks-detail.json`'s progress; `POST
+/api/blocks?resource=cycle` answers by spec — the refusal fixture for a blank name, the conflict
+fixture for a start inside the seeded base block, else `blocks-cycle.json` re-prefixed with the
+caller's name; `?batch=1`, the single POST, PATCH and DELETE are remembered (ids `mock-block-N`),
+`POST /api/objectives` mints `mock-objective-N`.
 
 **Realtime on the local stack** needs the tables in the `supabase_realtime` publication —
 phase40 adds every table a client subscribes to; a stack reset before it has nothing. The hub

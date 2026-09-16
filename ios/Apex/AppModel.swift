@@ -153,7 +153,8 @@ final class AppModel {
                 templates: { [weak self] in await self?.schedule.templates() ?? [] },
                 refreshSchedule: { [weak self] in await self?.schedule.refresh(reason: .afterEdit) },
                 archiveTemplate: { [weak self] id, archived in await self?.schedule.archiveTemplate(id: id, archived: archived) ?? false }
-            )
+            ),
+            blocks: BlocksDependencies(client: client, cache: cache, clock: clock, realtime: hub)
         ))
     }
 
@@ -313,6 +314,7 @@ final class AppModel {
         coach?.shutdown()
         coach = nil
         coachServices = nil
+        you?.shutdown()
         you = nil
         queueOwner = nil
         Task {
