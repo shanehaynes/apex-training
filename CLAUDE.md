@@ -104,8 +104,13 @@ sweep.
 A `PreToolUse` hook ([.claude/settings.json](.claude/settings.json) →
 `scripts/hooks/bash-guard.mjs`) mechanically blocks the three rules above that
 used to be prose only: `pkill` on vite, `git reset --hard`/`git clean -f`
-(after reviewing `git status`, prefix the command with `APEX_DESTRUCTIVE_OK=1`
-to proceed), and building or committing in the primary checkout.
+(after reviewing `git status`, re-run with `APEX_DESTRUCTIVE_OK=1` immediately
+in front of that one git command — it covers that command only, not the rest
+of the line, and not a shell it launches), and building or committing in the
+primary checkout. The hook parses the command, so a guarded name that is only
+*mentioned* — in a commit message, a PR body, a `grep` pattern, a quoted
+heredoc body — is data and does not block; `bash -c`, `eval`, `$(…)` and
+heredocs fed to a shell are followed as code.
 
 ## Commits and merging
 
