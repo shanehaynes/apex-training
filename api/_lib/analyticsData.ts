@@ -5,14 +5,21 @@ import type { Sport } from '../../src/types/workout.js';
 import type { Period } from '../../src/lib/review/isoMonth.js';
 import type { AnalyticsInputs, EventLite, ZoneActivity } from '../../src/lib/analytics/engine.js';
 import { zoneBounds, zoneSeconds, type HrSettings } from '../../src/lib/analytics/hrZones.js';
+import { buildAliasIndex } from '../../src/lib/schedule/definitions.js';
 
-// Service-role port of src/lib/analytics/fetch.ts (W8): everything the
-// analytics engine needs for one window, scoped by the verified user id.
-// Two deliberate differences from the browser loader: every table pages
-// through fetchAllPages (PostgREST's 1000-row default silently truncated a
-// heavy user's set logs in the browser), and nothing is read into React
-// state — the handler computes and returns TileData, so raw rows never
-// leave the function.
+// Service-role loader for the analytics engine (W8): everything the engine
+// needs for one window, scoped by the verified user id. Two deliberate
+// differences from a browser-side loader: every table pages through
+// fetchAllPages (PostgREST's 1000-row default silently truncated a heavy
+// user's set logs), and nothing is read into React state — the handler
+// computes and returns TileData, so raw rows never leave the function.
+//
+// Exercise names resolve through the alias index, the same step the tracker
+// (trackerSession.ts) and the MCP readers take: the definitions are already
+// fetched for their categories, so the index rides along on the inputs and
+// the engine canonicalizes filter values, row names and group keys against
+// it (issue #101). The log rows are handed over exactly as logged — the
+// engine, not the loader, does the resolving.
 //
 // The HR stream fetch is conditional: streams.hr is the heavy column
 // (≤2000 points per activity), pulled only when some tile computes
@@ -60,9 +67,10 @@ export async function loadAnalyticsInputs(
     fetchAllPages<{ id: string; title: string; type: string; sport: string | null }>('workout_events', (from, to) =>
       supabase.from('workout_events').select('id,title,type,sport').eq('user_id', userId).order('id').range(from, to),
     ),
-    // Small table, unwindowed: categories identify pitch rows.
-    fetchAllPages<{ id: string; category: string }>('exercise_definitions', (from, to) =>
-      supabase.from('exercise_definitions').select('id,category').eq('user_id', userId).order('id').range(from, to),
+    // Small table, unwindowed: categories identify pitch rows, and the names
+    // build the alias index the engine resolves exercise filters through.
+    fetchAllPages<{ id: string; category: string; canonical_name: string; aliases: string[] | null }>('exercise_definitions', (from, to) =>
+      supabase.from('exercise_definitions').select('id,category,canonical_name,aliases').eq('user_id', userId).order('id').range(from, to),
     ),
     bounds
       ? fetchAllPages<{ event_id: string; event_date: string; hr: unknown }>('activity_streams', (from, to) =>
@@ -75,6 +83,10 @@ export async function loadAnalyticsInputs(
 
   const categories = new Map<string, string>();
   for (const d of definitions) categories.set(d.id, d.category);
+
+  const aliasIndex = buildAliasIndex(
+    definitions.map(d => ({ canonicalName: d.canonical_name, aliases: d.aliases ?? [] })),
+  );
 
   const eventMap = new Map<string, EventLite>();
   for (const e of events) eventMap.set(e.id, { title: e.title, type: e.type, sport: (e.sport ?? null) as Sport | null });
@@ -91,5 +103,5 @@ export async function loadAnalyticsInputs(
     }
   }
 
-  return { completions, sessions, setLogs, cardioLogs, meals, zoneActivities, categories, events: eventMap };
+  return { completions, sessions, setLogs, cardioLogs, meals, zoneActivities, categories, aliasIndex, events: eventMap };
 }
