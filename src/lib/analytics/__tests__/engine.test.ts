@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { computeTile, type TileResult } from '../engine';
 import { computeStrengthStats } from '../../review/stats';
+import { buildAliasIndex } from '../../schedule/definitions';
 import type { StatsPeriod } from '../../review/types';
 import {
   makeCardio,
@@ -368,5 +369,57 @@ describe('computeTile — axes', () => {
     });
     const data = dataOf(computeTile(spec, makeInputs(), makeCtx()));
     expect(data.series.map(s => s.axis)).toEqual(['left', 'right']);
+  });
+});
+
+describe('computeTile — alias spellings (issue #101)', () => {
+  // The shape the W8 integration case exposed: two sets logged under the
+  // alias, one logged under the canonical name after the rename.
+  const aliasIndex = buildAliasIndex([{ canonicalName: 'Fixture Press', aliases: ['fx press'] }]);
+  const setLogs = [
+    makeSet('2026-09-08', 'fx press', '100', '5'),       // 500
+    makeSet('2026-09-08', 'fx press', '110', '3'),       // 330
+    makeSet('2026-09-22', 'Fixture Press', '120', '3'),  // 360
+  ];
+  const tonnageOf = (exerciseNames: string[]) => makeSpec({ measure: 'tonnage', filters: { exerciseNames } });
+  const byExercise = makeSpec({ measure: 'tonnage', groupBy: 'exercise' });
+
+  it('counts alias-spelled rows under a filter naming the canonical exercise', () => {
+    const data = dataOf(computeTile(tonnageOf(['Fixture Press']), makeInputs({ setLogs, aliasIndex }), makeCtx()));
+    expect(data.series[0].points[0]).toBe(1190);
+  });
+
+  it('matches a canonically-logged row against a tile saved with the alias spelling', () => {
+    const data = dataOf(computeTile(tonnageOf(['fx press']), makeInputs({ setLogs, aliasIndex }), makeCtx()));
+    expect(data.series[0].points[0]).toBe(1190);
+  });
+
+  it('resolves a filter spelling with mangled case and whitespace', () => {
+    const data = dataOf(computeTile(tonnageOf(['  fIxTuRe   PRESS ']), makeInputs({ setLogs, aliasIndex }), makeCtx()));
+    expect(data.series[0].points[0]).toBe(1190);
+  });
+
+  it('keeps a renamed exercise as ONE series, keyed canonically', () => {
+    const data = dataOf(computeTile(byExercise, makeInputs({ setLogs, aliasIndex }), makeCtx()));
+    expect(data.series.map(s => s.key)).toEqual(['s1:Fixture Press']);
+    expect(data.series[0].points[0]).toBe(1190);
+  });
+
+  it('compares names literally with no index — the pre-#101 behaviour, pinned', () => {
+    const filtered = dataOf(computeTile(tonnageOf(['Fixture Press']), makeInputs({ setLogs }), makeCtx()));
+    expect(filtered.series[0].points[0]).toBe(360);  // the two alias rows miss the filter
+    const grouped = dataOf(computeTile(byExercise, makeInputs({ setLogs }), makeCtx()));
+    expect(grouped.series.map(s => s.key).sort()).toEqual(['s1:Fixture Press', 's1:fx press']);
+  });
+
+  it('resolves cardio rows through the same path', () => {
+    const index = buildAliasIndex([{ canonicalName: 'Morning Run', aliases: ['am run'] }]);
+    const cardioLogs = [
+      makeCardio('2026-09-08', 'am run', '5 mi', null),
+      makeCardio('2026-09-10', 'Morning Run', '3 mi', null),
+    ];
+    const spec = makeSpec({ measure: 'distance', filters: { exerciseNames: ['Morning Run'] } });
+    const data = dataOf(computeTile(spec, makeInputs({ cardioLogs, aliasIndex: index }), makeCtx()));
+    expect(data.series[0].points[0]).toBe(8);
   });
 });

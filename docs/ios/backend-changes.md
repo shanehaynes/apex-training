@@ -317,9 +317,9 @@ Landed 2026-09-11 (`phase41_provider_client.sql`, `handlers/providerSync.ts`,
 | `coach-summary` v2 (streaming) | W3 | buildSessionRecap | yes | summary | 80 | — |
 | `chat` v2 + `label` | W5a | prompt.ts, draft describers, promptSummary.ts | yes | chat | 260 | — |
 | `coach-tool` | W5b | tools.ts + services extraction | yes | writes/reads | 670 | — |
-| `analytics-compute` | W8 | engine.ts, spec.ts, hrZones.ts | later | reads | 200 | — |
-| `GET /api/analytics-tiles`, `{ draft }` on tiles POST and compute | W9 | draft.ts, tiles.ts | later | reads / writes | 120 | — |
-| `workout-draft`, supersets in services, `originalDate` | W7 | draft.ts, templates.ts, mapping.ts, supersets.ts | later | writes | 300 | — |
+| `analytics-compute` | W8 | engine.ts, spec.ts, hrZones.ts | yes (#179) | reads | 200 | — |
+| `GET /api/analytics-tiles`, `{ draft }` on tiles POST and compute | W9 | draft.ts, tiles.ts | yes (#179) | reads / writes | 120 | — |
+| `workout-draft`, supersets in services, `originalDate` | W7 | draft.ts, templates.ts, mapping.ts, supersets.ts | yes (#178) | writes | 300 | — |
 | `blocks?resource=cycle` | W10 | cadence.ts | yes | writes | 60 | — |
 | account deletion | W11 | exists: `DELETE /api/account` | — | — | 0 | — |
 | COROS `client:'ios'` + scheme redirect | W11 | providers/* | no | providerSync | 40 | **yes** (phase41 `provider_connections.client`) |
