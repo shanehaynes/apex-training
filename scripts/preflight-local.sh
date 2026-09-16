@@ -86,8 +86,13 @@ esac
 REASON=""
 REMEDY=""
 
+# Scoped to THIS project (scripts/lib/project-id.sh). One Docker daemon serves
+# every project on this machine, so an unscoped prefix match would probe — and
+# repair — a different project's stack.
+. scripts/lib/project-id.sh
+
 container_named() {
-  docker ps --format '{{.Names}}' 2>/dev/null | grep "^supabase_$1_" | head -1
+  apex_container "$1"
 }
 
 probe_docker() {
@@ -101,7 +106,7 @@ probe_docker() {
 probe_containers() {
   local missing=()
   for svc in db auth rest kong; do
-    [ -z "$(container_named "$svc")" ] && missing+=("supabase_${svc}_*")
+    [ -z "$(container_named "$svc")" ] && missing+=("supabase_${svc}_$(apex_project_id)")
   done
   if [ ${#missing[@]} -gt 0 ]; then
     REASON="containers not running: ${missing[*]}"
@@ -242,8 +247,7 @@ wait_for_healthy() {
 # instead of seconds. Verified by stopping a container and watching it happen.
 repair() {
   local stopped
-  stopped=$(docker ps -a --format '{{.Names}} {{.State}}' 2>/dev/null \
-    | awk '$1 ~ /^supabase_/ && $2 != "running" { print $1 }')
+  stopped=$(apex_stopped_containers)
   if [ -n "$stopped" ]; then
     log "  repairing: docker start $(echo "$stopped" | tr '\n' ' ')"
     # shellcheck disable=SC2086
