@@ -49,7 +49,7 @@ Needs `ANTHROPIC_API_KEY` in the environment, or as an `ANTHROPIC_API_KEY=` line
 
 ```bash
 npm run eval                                  # full suite, default model (Sonnet)
-npm run eval -- --model claude-opus-4-8       # the production arm
+npm run eval -- --model claude-opus-5         # the production arm
 npm run eval -- --case pulley                 # substring-match a single case
 npm run eval -- --dims constraints,integrity  # cheap smoke: judge-free dimensions
 npm run eval:diff -- evals/results/A.json evals/results/B.json
