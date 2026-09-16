@@ -1,6 +1,6 @@
 import Foundation
 
-/// The one piece of `src/lib/nutrition` that runs on the phone (D-032): the
+/// The one piece of `src/lib/nutrition` that runs on the phone (D-033): the
 /// composer's live "derived kcal" placeholder cannot round-trip to the server
 /// on every keystroke. Four constants, pinned against vectors the web repo
 /// emits from its own `derivedCalories` (`ios/Fixtures/nutrition-derived.json`).

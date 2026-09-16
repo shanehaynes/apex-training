@@ -542,7 +542,37 @@ The brief said "port the dashboard and the tile builder"; these are the lines dr
 - **Exit condition.** Drop the rule when the deployment floor reaches a runtime where the upstream
   issues are closed, and re-run ApexTests on the oldest supported simulator before doing so.
 
-## D-032 · W10 reads stay API-only; the derived-kcal placeholder is the one nutrition port
+## D-032 · Toasts live in their own window above the app's
+**Status:** decided by Shane · Mac session · 2026-09-16 · #167
+- **The problem.** `ToastHost` sat in the root `ZStack` of `ApexApp`, so any `ToastBus.post` that
+  fired while a `.sheet` or `.fullScreenCover` was up rendered under the presentation. #167 lists
+  every reachable site: `ScheduleModel+Edits` (commit, archiveTemplate, createDefinition) under
+  `EventSheet` and the builders; `CoachModel`'s toast through `DraftCoachDrawer`; seven
+  `TrackerModel` sites under the tracker cover; `CopyField` inside `TokenRevealSheet`;
+  `CorosModel` under `SyncConfirmationSheet`.
+- **Options.** (1) Host `ToastHost` in a passthrough overlay `UIWindow` — one fix, every site.
+  (2) Convert each site to an inline line the way the sheet-save refusals were — a
+  dozen edits, a new inline surface per screen, and the tracker's success toasts have no natural
+  inline home. (3) Re-mount `ToastHost` inside every presented root — one more thing every new
+  sheet must remember, and the toast still dies with the sheet.
+- **Decision: (1).** `ToastWindow.swift` in the app target: a `UIWindow` subclass at
+  `.normal + 1` on the app's `UIWindowScene`, `rootViewController` a clear `UIHostingController`
+  around `ToastHost`, created once by a zero-size `UIViewRepresentable` in `RootView`'s background
+  when its `didMoveToWindow` yields the scene. `ToastHost` writes the stack's global frame to
+  `ToastBus.frame`; the window's `hitTest` returns `nil` outside that frame, so UIKit hands the
+  touch to the app's window and every control under a toast keeps working, sheet or not.
+  `ApexUI` stays UIKit-free — the window is the app target's, and W10's four new sheets inherit
+  it without a line of code.
+- **What stays.** A refusal of a sheet's *own* action is still an `InlineError` above its action
+  bar (`builder.problem`, `analytics.builder.saveproblem`, `schedule.event.edit.problem`): the
+  answer belongs next to the button that asked. The tracker, COROS and copy-field toasts stay
+  toasts — the window makes them visible. Toasts anchor to the top of the screen, as they always
+  have; design-spec §4/§5 said "above the tab bar" and now say this.
+- **Proved.** Smoke legs `testSpentLinkExplainsItself` and `testYouOnFixtures` (which read
+  `toast.failure` and the COROS import toast) pass; on the simulator a failed rename shows its
+  toast over the event sheet, a tracker toast shows over the cover, and a tap on the sheet
+  beneath a live toast lands.
+## D-033 · W10 reads stay API-only; the derived-kcal placeholder is the one nutrition port
 **Status:** decided · Shane, 2026-09-16 · Mac session (PR A)
 - **The question.** The W10 brief had the phone reading `meals`, `meal_favorites`,
   `training_blocks`, `objectives` and `exercise_definitions` directly over RLS (the SELECT

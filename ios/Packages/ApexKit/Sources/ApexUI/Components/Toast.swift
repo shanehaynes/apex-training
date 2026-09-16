@@ -23,6 +23,12 @@ public final class ToastBus {
 
     public private(set) var toasts: [Toast] = []
 
+    /// Where the stack is drawn, in the hosting window's coordinates (the
+    /// window fills the screen, so SwiftUI's global space is its space). The
+    /// overlay window (`ToastWindow` in the app target) passes every touch
+    /// outside it through to the app. Zero-sized while nothing is showing.
+    public var frame: CGRect = .null
+
     private init() {}
 
     // Under MainActor default isolation the deinit would be synthesized as
@@ -48,7 +54,9 @@ public final class ToastBus {
     }
 }
 
-/// Renders the bus above everything, including the tab bar.
+/// Renders the bus. The app target hosts it in its own passthrough
+/// `UIWindow` above the main one, so toasts float over every sheet and
+/// `fullScreenCover` (D-032) instead of under them.
 public struct ToastHost: View {
     @State private var bus = ToastBus.shared
 
@@ -75,6 +83,7 @@ public struct ToastHost: View {
         }
         .padding(.horizontal, Spacing.screen)
         .animation(Motion.spring, value: bus.toasts)
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { bus.frame = $0 }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .allowsHitTesting(!bus.toasts.isEmpty)
     }

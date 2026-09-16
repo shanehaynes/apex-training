@@ -1,7 +1,7 @@
 import XCTest
 @testable import ApexCore
 
-/// D-032: the one `src/lib/nutrition` function that runs on the phone, pinned
+/// D-033: the one `src/lib/nutrition` function that runs on the phone, pinned
 /// against vectors the web repo computes with its own `derivedCalories` and
 /// emits to `ios/Fixtures/nutrition-derived.json`. A drift on either side
 /// fails here, not in a composer showing a different number than the web.

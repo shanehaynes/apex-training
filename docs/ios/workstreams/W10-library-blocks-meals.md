@@ -11,7 +11,7 @@ restored (U11, U12).
 In:
 - Backend (Linux): `POST /api/blocks?resource=cycle { spec } → { blocks }` over
   `blocks/cadence.ts`; web cycle preview switches to the endpoint. (`normalizeSupersets` in the
-  services landed with W7.) Reads stay API-only (Shane, 2026-09-16; D-032): the query tools grew
+  services landed with W7.) Reads stay API-only (Shane, 2026-09-16; D-033): the query tools grew
   ids, `block_id`, `today`, objectives, the meal fat split and reference counts, and
   `GET /api/meal-favorites` was added, rather than the phone reading the five tables over RLS.
 - Library: search + category chips, rows with last-performed / in-N-workouts
@@ -32,7 +32,7 @@ Out: nothing deferred.
 `/api/query` (`get_training_blocks`, `get_exercise_history`, `search_exercises`, `get_meals`),
 `/api/exercise-definitions`, `/api/workout-templates`, `/api/blocks` (+ `?resource=cycle`,
 `?batch=1`), `/api/objectives`, `/api/meals`, `/api/meal-favorites`; definitions and templates
-from the cached `/api/schedule?include=`. No direct table reads (D-032).
+from the cached `/api/schedule?include=`. No direct table reads (D-033).
 
 ## Acceptance
 - Integration test for `resource=cycle` equals the web's `cadence.ts` preview.
@@ -48,9 +48,9 @@ from the cached `/api/schedule?include=`. No direct table reads (D-032).
   sentences (now shared from `src/lib/nutrition/mapping.ts`), the web `CycleEditor` switched to
   the endpoint (+ `e2e/lib/mock/blocks.mjs`), eight new fixtures + two regenerated, ApexCore
   models/forms/endpoints (`Blocks`, `BlockForm`, `Library` + `ExerciseHistoryResult`,
-  `DefinitionForm`, `MealFavorite`, `MealForm`, `Nutrition` — the D-032 Atwater port pinned by
+  `DefinitionForm`, `MealFavorite`, `MealForm`, `Nutrition` — the D-033 Atwater port pinned by
   `nutrition-derived.json`), 29 new `swift test` cases green natively and in `swift:6.1`.
-  Decisions: D-032. Traps: `app.ts` rewrote `?resource=cycle` to `block` (dispatch first);
+  Decisions: D-033. Traps: `app.ts` rewrote `?resource=cycle` to `block` (dispatch first);
   `cadence.ts`/`validate.ts` lacked `.js` specifiers; `normalize()` collapses distinct uuids
   (rewrite seeded ids first); `blocks-cycle.spec.ts` counted the preview POSTs (filter on
   `batch=1`); the detail's attainment carries derived rows the planned calendar adds.

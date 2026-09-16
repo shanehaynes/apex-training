@@ -1405,7 +1405,7 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     expect(commit.statusCode).toBe(200);
     expect((commit.body as { ids: string[] }).ids).toHaveLength(4);
 
-    // ---- D-032: the Atwater vectors the Swift port is pinned against,
+    // ---- D-033: the Atwater vectors the Swift port is pinned against,
     // computed by the web's own derivedCalories. Halves round up; nothing
     // set is null, not zero.
     const inputs = [

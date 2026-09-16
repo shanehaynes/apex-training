@@ -308,12 +308,12 @@ instead of opening a second read path.
   `query-get_training_blocks-detail.json`, `query-get_exercise_history.json`,
   `meal-favorites.json`, `blocks-cycle.json` (asserted equal to `generateCycle(spec)` and
   committed through `?batch=1`), `blocks-cycle-conflict.json`, `blocks-cycle-problem.json`,
-  `nutrition-derived.json` (the D-032 vectors); `query-get_meals.json` and
+  `nutrition-derived.json` (the D-033 vectors); `query-get_meals.json` and
   `query-search_exercises.json` regenerated.
 - ApexCore: `Models/Blocks.swift`, `Blocks/BlockForm.swift`, `Models/Library.swift` widened +
   `ExerciseHistoryResult`, `Library/DefinitionForm.swift`, `Models/Meals.swift` widened +
   `MealFavorite`, `Nutrition/MealForm.swift`, `Nutrition/Nutrition.swift` (the Atwater port,
-  D-032), the W10 `Endpoint` factories, `CacheKind.mealFavorites/.libraryStats` and the
+  D-033), the W10 `Endpoint` factories, `CacheKind.mealFavorites/.libraryStats` and the
   `ScheduleCacheKey` entries. (Superset re-lettering in the services landed with W7.)
 
 ## W11 — profile, COROS, account (Linux + Mac)

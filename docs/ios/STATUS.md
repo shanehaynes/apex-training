@@ -41,11 +41,14 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 ## Recent sessions
 - 2026-09-16 · W10 · PR A: the cycle preview endpoint (`?resource=cycle`, preview only, `rows`
   for the batch commit, named conflicts, `reads` bucket), the query tools widened for API-only
-  reads (D-032: `block_id`/`today`/objectives on `get_training_blocks`, ids + fat split on
+  reads (D-033: `block_id`/`today`/objectives on `get_training_blocks`, ids + fat split on
   `get_meals`, ids + `references` on `search_exercises`), `GET /api/meal-favorites`, `/api/meals`
   validation with the composer's sentences, the web `CycleEditor` on the endpoint, eight fixtures,
   the ApexCore layer (models, `BlockForm`, `MealForm`, `DefinitionForm`, the Atwater port). Linux
   gate green. B Library next, from the same worktree.
+- 2026-09-16 · fix · #167: `ToastHost` moved out of the root `ZStack` into a passthrough overlay
+  `UIWindow` (`ios/Apex/ToastWindow.swift`, D-032), so toasts posted under a sheet or the tracker
+  cover render over it; sheet-save refusals stay inline. W10's new sheets inherit it.
 - 2026-09-15 · fix · The apexcore-linux flake in `testCancelPurgesTheSessionAndSendsOneCancel`
   (23 of 50 runs locally): its retry could fire before `cancelSession`, because `TestClock`
   never waits. The four tests that read the queue between a failure and its retry now hold it on
