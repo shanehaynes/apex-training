@@ -1,33 +1,34 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Copy, MoreVertical, Pencil, Trash2 } from 'lucide-react';
-import { computeTile } from '../../lib/analytics/engine';
-import type { AnalyticsTile } from '../../lib/analytics/tiles';
-import type { AnalyticsData } from '../../hooks/useAnalyticsData';
+import type { TileView } from '../../context/analytics';
+import type { TileResult } from '../../lib/analytics/engine';
 import TileRenderer from './TileRenderer';
 
 // One dashboard tile: header (the drag handle), chart body, and the
 // excluded-entries footnote. The kebab is a two-step delete — a dashboard
 // tile is cheap to rebuild, but not cheap enough for a one-tap destroy.
+//
+// Since #152 the card does not compute anything: the grid asks the server
+// for every tile at once (useTileResults) and hands each card its result.
 
 interface Props {
-  tile: AnalyticsTile;
-  data: AnalyticsData;
+  tile: TileView;
+  /** undefined = this tile's compute call is still in flight. */
+  result: TileResult | undefined;
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
 }
 
-export default function TileCard({ tile, data, onEdit, onDuplicate, onDelete }: Props) {
+export default function TileCard({ tile, result, onEdit, onDuplicate, onDelete }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  const result = useMemo(
-    () => (tile.spec ? computeTile(tile.spec, data.inputs, data.ctx) : null),
-    [tile.spec, data.inputs, data.ctx],
-  );
-
   const excluded = result?.ok ? result.data.excluded : null;
   const excludedCount = (excluded?.otherUnit ?? 0) + (excluded?.unparseable ?? 0);
+  // A tile whose stored spec no longer validates is never sent to compute —
+  // it renders its error tile immediately rather than waiting for a result.
+  const pending = tile.spec !== null && result === undefined;
 
   const closeMenu = () => {
     setMenuOpen(false);
@@ -71,7 +72,9 @@ export default function TileCard({ tile, data, onEdit, onDuplicate, onDelete }: 
         </div>
       </header>
       <div className="tile-card__body">
-        <TileRenderer spec={tile.spec} result={result} />
+        {pending
+          ? <div className="an-loading" data-testid="tile-loading">Loading…</div>
+          : <TileRenderer spec={tile.spec} result={result ?? null} />}
       </div>
       {excludedCount > 0 && (
         <div className="tile-card__foot" title="Entries whose units could not join this chart — mixed units or unparseable text.">
