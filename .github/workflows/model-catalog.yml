@@ -12,7 +12,7 @@
 # model — a repo-wide red light for something no commit did, and the one signal
 # that tells a session whether it can trust main would start lying. Drift is
 # news about the outside world, not a regression, so it gets its own workflow
-# and its own badge and leaves CI meaning what it has always meant.
+# and its own red light, and leaves CI meaning what it has always meant.
 #
 # The script ALWAYS exits 0 by design (it feeds a read-only status sweep, where
 # a missing key must never fail the report), so turning its output into a signal
@@ -44,8 +44,18 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          out=$(node scripts/check-models.mjs 2>&1)
+          # The script is built never to fail, so its OUTPUT is the signal. But
+          # if it ever does die — models.ts renamed, a node fault — the default
+          # shell's `-e` would abort this step at the assignment and the
+          # captured stderr would never be printed: a red run with an empty
+          # log. Capture the status instead, print unconditionally, then decide.
+          out=$(node scripts/check-models.mjs 2>&1) && rc=0 || rc=$?
           printf '%s\n' "$out"
+
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::scripts/check-models.mjs exited $rc without finishing — the catalog was not checked."
+            exit 1
+          fi
 
           # Drift. Every ACTION line is repeated as an annotation so the run
           # summary names the model without anyone opening the log.
