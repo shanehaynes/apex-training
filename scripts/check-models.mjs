@@ -9,9 +9,14 @@
 // in CI, a test, or a user report — the catalog would quietly rot. This is the
 // thing that notices.
 //
-// Read-only and ALWAYS exits 0: it is wired into supervisor-report.sh, which
-// is a status sweep, not a gate. A missing key or an unreachable API is a
-// skipped check, never a failure.
+// Two callers: scripts/supervisor-report.sh, the read-only health sweep, and
+// the nightly .github/workflows/model-catalog.yml, so drift surfaces on its own
+// rather than waiting for somebody to run the sweep.
+//
+// Read-only and ALWAYS exits 0: the sweep is a status report, not a gate, so a
+// missing key or an unreachable API is a skipped check, never a failure. The
+// workflow is what turns drift into a signal — it greps these lines for ACTION
+// rather than trusting an exit code, and warns when the check says it skipped.
 //
 // What it CANNOT tell you: pricing. GET /v1/models returns no $/MTok, so the
 // numbers in the catalog stay hand-maintained — check them against
