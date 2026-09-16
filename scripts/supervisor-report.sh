@@ -152,6 +152,54 @@ else
 fi
 
 echo
+echo "── primary checkout"
+# CLAUDE.md: ~/projects/apex-training "stays on main, clean, always". Nothing
+# watched it, so twelve untracked eval runs — $25.70 of API spend, held nowhere
+# else — sat in its git status for five weeks (#145). A standing ?? line is how
+# a reader learns to skim past that status, and skimming it is what eventually
+# deletes another session's only copy of something.
+#
+# Being behind origin/main is NOT an ACTION: every manual merge leaves the
+# primary behind until someone pulls, and an ACTION that fires on a normal day
+# trains exactly the skimming this section exists to prevent. This sweep never
+# fetches, so the comparison is only as fresh as the last fetch.
+primary=$PWD
+primary_branch=$(git branch --show-current 2>/dev/null)
+dirty=$(git status --porcelain 2>/dev/null)
+
+if [ -z "$primary_branch" ]; then
+  echo "ACTION $primary is on a detached HEAD at $(git rev-parse --short HEAD 2>/dev/null) — the primary checkout stays on main; work belongs in a worktree (CLAUDE.md)"
+elif [ "$primary_branch" != main ]; then
+  echo "ACTION $primary is on '$primary_branch', not main — the primary checkout stays on main; work belongs in a worktree (CLAUDE.md)"
+fi
+
+if [ -n "$dirty" ]; then
+  n=$(printf '%s\n' "$dirty" | wc -l | tr -d ' ')
+  noun=entries; [ "$n" = 1 ] && noun=entry
+  echo "ACTION $primary has $n uncommitted $noun — it is meant to be clean:"
+  printf '%s\n' "$dirty" | head -5 | sed 's/^/     /'
+  [ "$n" -gt 5 ] && echo "     … and $((n - 5)) more — git -C $primary status"
+  echo "     find whose work this is before anything cleans it; it may be a session's only copy (CONTRIBUTING.md, \"Never do this\")"
+fi
+
+behind=0
+if git rev-parse --verify --quiet origin/main >/dev/null 2>&1; then
+  behind=$(git rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
+else
+  echo "   no origin/main ref in this checkout — behind-check skipped"
+fi
+# Only meaningful advice while it is on main: off main, the ACTION above is the
+# fix, and an ff-only merge would be aimed at the wrong branch.
+if [ "$primary_branch" = main ] && [ "$behind" -gt 0 ]; then
+  commits=commits; [ "$behind" = 1 ] && commits=commit
+  echo "   behind origin/main by $behind $commits as of the last fetch (this sweep does not fetch) — git -C $primary merge --ff-only origin/main"
+fi
+
+if [ "$primary_branch" = main ] && [ -z "$dirty" ] && [ "$behind" = 0 ]; then
+  echo "   on main, clean"
+fi
+
+echo
 echo "── merged branches and worktrees to retire (git-tidy.sh dry run)"
 scripts/git-tidy.sh 2>/dev/null | sed 's/^/   /' || echo "   git-tidy.sh failed"
 
