@@ -78,9 +78,9 @@ private struct EventSheetContent: View {
     @State private var dayDraft: DayKey
     @State private var startDraft: Int?
     @State private var endDraft: Int?
-    /// The schedule editor's last refusal. A toast would render under the
-    /// sheet (`ToastHost` lives in the root `ZStack`), so it lives here until
-    /// the next edit.
+    /// The schedule editor's last refusal. A refusal of the sheet's own action
+    /// stays inline, next to the buttons that asked (design-spec §5), so it
+    /// lives here until the next edit.
     @State private var scheduleProblem: String?
     @State private var confirmDelete: Bool
     @State private var isDeleting = false

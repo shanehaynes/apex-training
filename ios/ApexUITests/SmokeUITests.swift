@@ -101,6 +101,34 @@ final class SmokeUITests: XCTestCase {
         attach(app, name: "06-completed")
     }
 
+    /// #167 / D-032: a toast posted while a sheet is up renders over it, and a
+    /// tap on the sheet beneath a live toast still lands — `ToastHost` sits in
+    /// its own passthrough window above the app's.
+    func testToastFloatsOverTheSheetOnFixtures() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockFail", "events"]
+        app.launch()
+        signIn(app)
+
+        openEvent(app, card: "Fixture Run")
+        app.buttons["schedule.event.title"].tap()
+        let field = app.textFields["schedule.event.title.field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.typeText(" PM\n")
+        let toast = app.staticTexts["toast.failure"]
+        XCTAssertTrue(toast.waitForExistence(timeout: 10))
+        XCTAssertTrue(toast.isHittable, "the toast is on top, not under the sheet")
+        XCTAssertTrue(app.buttons["schedule.event.title"].exists, "the sheet is still up")
+        attach(app, name: "19-toast-over-sheet")
+
+        // Passthrough: with the toast showing, the sheet's completion button takes the tap.
+        let complete = app.buttons["schedule.event.complete"]
+        XCTAssertTrue(toast.exists)
+        complete.tap()
+        let flipped = expectation(for: NSPredicate(format: "label == %@", "Completed"), evaluatedWith: complete)
+        wait(for: [flipped], timeout: 10)
+    }
+
     /// sign in → event → Start Workout → a ghost commits on focus → the first
     /// saves fail, the chip says so, the retry clears it → Finish → confirm →
     /// summary streams → Back. All on fixtures (W4).

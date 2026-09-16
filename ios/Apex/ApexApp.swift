@@ -28,18 +28,18 @@ struct ApexApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ZStack {
-                RootView()
-                ToastHost()
-            }
-            .environment(model)
-            // Dark only (D-010) — belt and braces with UIUserInterfaceStyle,
-            // which SwiftUI previews do not read.
-            .preferredColorScheme(.dark)
-            .onChange(of: scenePhase) { _, phase in model.scenePhase(phase) }
-            // Universal links (`/auth/callback`, `/app/...`) and `apextraining://`
-            // both arrive here (architecture.md §3).
-            .onOpenURL { url in Task { await model.open(url) } }
+            RootView()
+                // Toasts live in their own window above this one (ToastWindow.swift),
+                // so they float over sheets and covers too.
+                .background(ToastWindowAttacher())
+                .environment(model)
+                // Dark only (D-010) — belt and braces with UIUserInterfaceStyle,
+                // which SwiftUI previews do not read.
+                .preferredColorScheme(.dark)
+                .onChange(of: scenePhase) { _, phase in model.scenePhase(phase) }
+                // Universal links (`/auth/callback`, `/app/...`) and `apextraining://`
+                // both arrive here (architecture.md §3).
+                .onOpenURL { url in Task { await model.open(url) } }
         }
     }
 }
