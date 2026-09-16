@@ -2,13 +2,13 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { GridLayout, type Layout, type LayoutItem } from 'react-grid-layout';
 import { Plus, X } from 'lucide-react';
 import 'react-grid-layout/css/styles.css';
+import { notify } from '../../lib/notify';
 import { useCalendar } from '../../context/calendar';
-import { useAnalytics } from '../../context/analytics';
-import { useAnalyticsData } from '../../hooks/useAnalyticsData';
+import { useAnalytics, type TileView } from '../../context/analytics';
+import { DASHBOARD_DEBOUNCE_MS, useTileResults, type TileRequest } from '../../hooks/useTileResults';
 import { useModalChrome } from '../../hooks/useModalChrome';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
-import { mintTileId, type AnalyticsTile } from '../../lib/analytics/tiles';
-import type { ChartSpec } from '../../lib/analytics/spec';
+import { mintTileId } from '../../lib/analytics/tiles';
 import TileCard from './TileCard';
 import TileBuilder from './TileBuilder';
 
@@ -20,8 +20,12 @@ import TileBuilder from './TileBuilder';
 //   { kind: 'grid' } | { kind: 'edit', tile | null }
 // Layout commits are debounced after the last drag/resize settles and write
 // only the tiles that moved.
+//
+// The whole grid computes in ONE request (#152): useTileResults posts every
+// tile's spec to /api/analytics-compute and each card renders the result it
+// is handed, instead of every card aggregating raw rows in the render path.
 
-type Mode = { kind: 'grid' } | { kind: 'edit'; tile: AnalyticsTile | null };
+type Mode = { kind: 'grid' } | { kind: 'edit'; tile: TileView | null };
 
 const GRID_CONFIG = { cols: 12, rowHeight: 56, margin: [12, 12] as [number, number] };
 const LAYOUT_COMMIT_MS = 600;
@@ -64,11 +68,13 @@ export default function AnalyticsView() {
     else close();
   });
 
-  const specs = useMemo(
-    () => tiles.map(t => t.spec).filter((s): s is ChartSpec => s !== null),
+  // A tile whose stored spec no longer validates is not sent: it has nothing
+  // to compute and renders the renderer's error tile instead.
+  const requests = useMemo<TileRequest[]>(
+    () => tiles.flatMap(t => (t.spec ? [{ key: t.id, spec: t.spec }] : [])),
     [tiles],
   );
-  const data = useAnalyticsData(specs);
+  const results = useTileResults(requests, DASHBOARD_DEBOUNCE_MS);
 
   const [width, measureRef] = useMeasuredWidth();
 
@@ -104,11 +110,18 @@ export default function AnalyticsView() {
     }, LAYOUT_COMMIT_MS);
   }, [tiles, saveLayouts]);
 
-  const duplicate = useCallback((tile: AnalyticsTile) => {
-    if (!tile.spec) return;
-    const spec: ChartSpec = { ...tile.spec, title: `${tile.spec.title} (copy)` };
+  // Duplicate sends the source tile's DRAFT: the server builds the copy's
+  // spec the same way it built the original's, so a refusal here would be
+  // the same one the builder shows — surfaced as a toast.
+  const duplicate = useCallback(async (tile: TileView) => {
+    if (!tile.draft) return;
     const y = tiles.reduce((max, t) => Math.max(max, t.layout.y + t.layout.h), 0);
-    saveTile(mintTileId(), spec, { ...tile.layout, x: 0, y });
+    const result = await saveTile(
+      mintTileId(),
+      { ...tile.draft, title: `${tile.draft.title} (copy)` },
+      { ...tile.layout, x: 0, y },
+    );
+    if (result && !result.ok) notify(result.problem);
   }, [tiles, saveTile]);
 
   const sortedForMobile = useMemo(
@@ -156,7 +169,7 @@ export default function AnalyticsView() {
               <div key={tile.id} className="analytics-stack__item">
                 <TileCard
                   tile={tile}
-                  data={data}
+                  result={results[tile.id]}
                   onEdit={() => setMode({ kind: 'edit', tile })}
                   onDuplicate={() => duplicate(tile)}
                   onDelete={() => removeTile(tile.id)}
@@ -179,7 +192,7 @@ export default function AnalyticsView() {
               <div key={tile.id}>
                 <TileCard
                   tile={tile}
-                  data={data}
+                  result={results[tile.id]}
                   onEdit={() => setMode({ kind: 'edit', tile })}
                   onDuplicate={() => duplicate(tile)}
                   onDelete={() => removeTile(tile.id)}
