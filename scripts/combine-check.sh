@@ -36,7 +36,7 @@ echo "── fetching origin" >&2
 git fetch origin --prune --quiet
 
 if [ "${#branches[@]}" -eq 0 ]; then
-  GH="${GH:-$(command -v /home/shanehaynes/bin/gh || command -v gh || true)}"
+  GH="${GH:-$(command -v "$HOME/bin/gh" || command -v gh || true)}"
   if [ -z "$GH" ]; then
     echo "error: no branches given and gh not found to list open PRs" >&2
     exit 64

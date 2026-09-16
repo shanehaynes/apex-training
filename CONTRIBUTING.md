@@ -12,7 +12,7 @@ incident that produced this document is written up at the end.
 
 **The primary checkout is never a workspace.**
 
-`~/projects/apex-training` stays on `main`, clean, always. It is where you read
+`~/Developer/apex-training` stays on `main`, clean, always. It is where you read
 code, run `git log`, and cut new branches from. Nothing is ever built there.
 
 Every piece of work happens in a worktree. No exceptions, including "this is a
@@ -135,10 +135,16 @@ an organization, the queue is a settings change away rather than a code one.
 
 ### Autonomous merging: what the babysitter may do alone
 
-`scripts/merge-babysit.sh --yes` is allow-listed in
-[.claude/settings.json](.claude/settings.json), so an unattended Claude
-session can run the merge loop without a human pressing the button. That
-authority is bounded on four sides:
+`scripts/merge-babysit.sh --yes` is the only merge path: the guard hook blocks
+a direct `gh pr merge`, so every merge goes through the loop and its audit
+trail. Running it is still an ordinary permission prompt —
+[.claude/settings.json](.claude/settings.json) carries the hook wiring and
+nothing else, so **no session may currently run the loop unattended.** Adding a
+`permissions.allow` entry for it there is what would grant that, and it is
+Shane's to add: the policy holds that file for exactly this reason.
+
+Granted or not, the authority the loop can exercise is bounded on four sides —
+which is why granting it is a small decision rather than a large one:
 
 - **Branch protection is the floor.** The babysitter cannot land anything the
   required CI checks have not passed — that is GitHub's rule, not the
@@ -190,7 +196,7 @@ current, or whether you have just reverted somebody's refactor. Merging carries
 that information; copying discards it.
 
 **Never commit from the primary checkout.** If you find yourself typing
-`git commit` in `~/projects/apex-training`, stop — you are on `main`.
+`git commit` in `~/Developer/apex-training`, stop — you are on `main`.
 
 **Never `git reset --hard` or `git clean -fd` in a shared checkout** without
 first checking `git status` for work that exists nowhere else. Another session's

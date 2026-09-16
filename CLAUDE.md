@@ -18,7 +18,7 @@ see each other's uncommitted changes. Assume you are not alone.
 
 ### Never work in the primary checkout
 
-`~/projects/apex-training` stays on `main`, clean, always. Read code there; do
+`~/Developer/apex-training` stays on `main`, clean, always. Read code there; do
 not build there, do not commit there.
 
 Start every task — including one-line fixes — with:
@@ -119,8 +119,9 @@ once, prove they combine with `scripts/combine-check.sh` (pairwise
 `merge-tree`; `--check` also builds the combined tree and runs `agent:check`
 on it).
 
-The babysitter is allow-listed and may merge without a human — but only what
-`scripts/merge-policy.mjs` allows. Migrations, `.github/`, `vercel.json`,
+The babysitter is the only merge path, and it merges only what
+`scripts/merge-policy.mjs` allows. It is not allow-listed today, so running it
+still prompts. Migrations, `.github/`, `vercel.json`,
 dependency manifests, and every file of the automation itself are HELD for
 Shane, who grants one PR with the `shipit` label; the guard hook blocks
 `gh pr merge` and self-applied `shipit`, so the babysitter is the only merge

@@ -13,8 +13,10 @@
 # the stacked-PR trap that once merged #23 into its base and took production
 # down, so those are reported and skipped, never merged.
 #
-# --yes is allow-listed in .claude/settings.json, so an unattended session may
-# run it. That authority is bounded: branch protection means nothing red can
+# --yes is not allow-listed in .claude/settings.json today, so running it still
+# prompts; a permissions.allow entry there is what would let an unattended
+# session run the loop, and that entry is Shane's to add. The bounds below hold
+# either way: branch protection means nothing red can
 # land, and scripts/merge-policy.mjs HOLDs any PR touching migrations, CI,
 # routing, dependencies, or the automation itself — a human grants those per
 # PR with the `shipit` label. `touch .claude/AUTOMERGE_OFF` in the primary
@@ -24,7 +26,7 @@ set -euo pipefail
 
 # Harness shells can miss ~/bin even with ~/.zshenv, so prefer the absolute
 # path when it exists.
-GH="${GH:-$(command -v /home/shanehaynes/bin/gh || command -v gh || true)}"
+GH="${GH:-$(command -v "$HOME/bin/gh" || command -v gh || true)}"
 if [ -z "$GH" ]; then
   echo "error: gh not found" >&2
   exit 1
