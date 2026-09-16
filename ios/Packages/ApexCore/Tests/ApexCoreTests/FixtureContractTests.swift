@@ -202,7 +202,7 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertTrue(profile.termsCurrent)
         // W6: the seeded user has no model pick, so the label is the default's.
         XCTAssertNil(profile.coachModel)
-        XCTAssertEqual(profile.coachModelLabel, "Opus 4.8")
+        XCTAssertEqual(profile.coachModelLabel, "Opus 5")
     }
 
     /// A profile cached by a build that predates the coach fields still decodes.
