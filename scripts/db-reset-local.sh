@@ -30,7 +30,11 @@ fi
 # works — and repair it — before spending minutes seeding into it.
 scripts/preflight-local.sh --fix --quiet || exit 1
 
-DB_CONTAINER=$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -1 || true)
+# Scoped to THIS project's container, never whatever Docker lists first: one
+# daemon serves every project on this machine, and an unscoped match would
+# truncate a different project's tables (scripts/lib/project-id.sh).
+. scripts/lib/project-id.sh
+DB_CONTAINER=$(apex_container db)
 if [ -z "$DB_CONTAINER" ]; then
   echo "error: local Supabase stack is not running — run 'supabase start' first" >&2
   exit 1
