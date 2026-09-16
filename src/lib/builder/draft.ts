@@ -230,8 +230,10 @@ function packedClimbing(draft: WorkoutDraft): ClimbingTargets | undefined {
 }
 
 /**
- * The library upsert for Apply. No id: the caller resolves identity first
- * (draft.templateId, else matchTemplateByTitle, else saveTemplate mints).
+ * The library upsert for Apply. No id: identity is resolved first — the
+ * draft's templateId, else matchTemplateByTitle, else a freshly minted one
+ * (api/_lib/services/workoutDraft.ts). The web calls this a second time to
+ * place the saved template locally against the id the response reports.
  */
 export function templateInputFromDraft(draft: WorkoutDraft): Omit<SaveWorkoutTemplateInput, 'id'> {
   return {
@@ -283,8 +285,9 @@ export function createInputFromDraft(draft: WorkoutDraft, templateId: string): C
 }
 
 /**
- * Edit-mode fields for updateEvent. Only the fields the builder edits — the
- * absent keys (subtitle, coverImageUrl, source…) stay untouched.
+ * Edit-mode fields for /api/workout-draft's update and detach. Only the
+ * fields the builder edits — the absent keys (subtitle, coverImageUrl,
+ * source…) stay untouched.
  * includeSchedule=false skips date/times: a recurring series is edited
  * series-wide, where the anchor date must not follow the opened occurrence.
  *

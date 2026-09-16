@@ -36,6 +36,21 @@ test('the coach configures the tile and cannot save it', async ({ page }) => {
       body: ndjson(events),
     });
   });
+
+  // The preview is a server call since #152. Capture what the builder asks to
+  // be computed and prove nothing was saved; fallback() hands both on to the
+  // intercept layer's analytics mock, which answers them for real.
+  const previews: Array<{ drafts?: Array<Record<string, unknown>>; today?: string }> = [];
+  await page.route('**/api/analytics-compute', route => {
+    previews.push(route.request().postDataJSON() as { drafts?: Array<Record<string, unknown>> });
+    return route.fallback();
+  });
+  const saves: unknown[] = [];
+  await page.route('**/api/analytics-tiles', route => {
+    if (route.request().method() === 'POST') saves.push(route.request().postDataJSON());
+    return route.fallback();
+  });
+
   await gotoCalendar(page);
 
   await page.getByTestId('nav-analytics').click();
@@ -73,6 +88,21 @@ test('the coach configures the tile and cannot save it', async ({ page }) => {
   expect(chatBodies[0].withTools).toBe(true);
   expect(chatBodies[1].withTools).toBe(false);
 
+  // The coach's draft is what the preview asked the server to compute — the
+  // browser builds no spec, so this body IS the chart on screen.
+  expect(previews.length).toBeGreaterThan(0);
+  const last = previews.at(-1)!;
+  expect(last.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  expect(last.drafts).toHaveLength(1);
+  expect(last.drafts![0]).toMatchObject({
+    title: 'Weekly running mileage',
+    chartType: 'line',
+    bucket: 'week',
+    displayUnit: 'mi',
+    series: [{ id: 's1', measure: 'distance', sports: ['running'] }],
+  });
+
   // Nothing was written anywhere — Save is still the user's.
   await expect(page.getByTestId('tile-save')).toHaveText('Save tile');
+  expect(saves, 'the coach never saves').toHaveLength(0);
 });

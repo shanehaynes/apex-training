@@ -1,6 +1,17 @@
 import { test, expect, gotoCalendar, shot, supabaseRef } from '../lib/fixtures';
 
 test('day modal, builder flow, and pre-filtered exercise picker', async ({ page }) => {
+  // Since #136 Apply is one POST /api/workout-draft; `legacy` proves the old
+  // template-upsert-then-insert sequence is gone (see builder-create.spec.ts).
+  const drafts: Array<Record<string, unknown>> = [];
+  const legacy: string[] = [];
+  page.on('request', req => {
+    const { pathname } = new URL(req.url());
+    if (pathname === '/api/workout-draft') drafts.push(req.postDataJSON());
+    else if (req.method() !== 'GET' && ['/api/events', '/api/workout-templates'].includes(pathname)) {
+      legacy.push(`${req.method()} ${pathname}`);
+    }
+  });
   await gotoCalendar(page);
 
   // Day-number click on a cell that has events opens the day overview modal.
@@ -55,15 +66,21 @@ test('day modal, builder flow, and pre-filtered exercise picker', async ({ page 
     await page.keyboard.press('Escape');
   }
 
-  // Apply. Signed in, POST /api/workout-templates and /api/events are both
-  // stubbed and the builder closes; offline saveTemplate returns null →
-  // failure toast, stays open.
+  // Apply. Signed in, the stubbed POST /api/workout-draft applies the draft
+  // like the service would and the builder closes; offline applyWorkoutDraft
+  // returns null before it posts → failure toast, stays open.
   await page.locator('.exercise-editor__save').click();
   if (!supabaseRef()) {
     await expect(page.locator('.composer-view'), 'builder stays open when the save fails').toBeVisible();
     await expect(page.getByText('Failed to save').first(), 'offline save surfaces the failure toast').toBeVisible();
+    expect(drafts, 'offline never reaches the network').toEqual([]);
   } else {
     await expect(page.locator('.composer-view'), 'builder closes after a successful apply').toHaveCount(0);
+    expect(drafts.length, 'exactly one POST, carrying the whole draft').toBe(1);
+    expect(Object.keys(drafts[0]).sort()).toEqual(['action', 'draft', 'today']);
+    expect(drafts[0].action).toEqual({ kind: 'create' });
+    expect((drafts[0].draft as { title: string }).title).toBe('Day Modal Spec');
   }
+  expect(legacy, 'the client-side Apply sequence is gone').toEqual([]);
   await shot(page, 'builder-applied');
 });

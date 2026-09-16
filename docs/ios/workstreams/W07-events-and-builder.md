@@ -39,7 +39,8 @@ Out: meals composer (W10).
   picker, exercise editor, picker, coach drawer); **D** smoke legs, 0.6.0, docs, TestFlight
   dry-run. Plan of record: `~/.claude/plans/lets-get-a-plan-starry-llama.md` on Shane's Mac.
   Shane decided (2026-09-09): a server endpoint applies the draft; the web keeps its
-  client-side Apply for now (#136); four PRs; TestFlight build 5 on his go.
+  client-side Apply for now (#136 — since landed: the web posts the same endpoint); four PRs;
+  TestFlight build 5 on his go.
   - **Corrections to this brief found on the way in:** "server re-letters supersets" was only
     true for the draft reducer and the coach executors — a direct `/api/events` or
     `/api/workout-templates` write stored whatever labels arrived (the fix was filed under
