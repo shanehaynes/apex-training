@@ -47,7 +47,7 @@ export const COACH_MODELS: readonly CoachModelOption[] = [
     id: 'claude-opus-5',
     label: 'Opus 5',
     badge: 'claude opus 5',
-    blurb: 'Newest and sharpest. Same price as Opus 4.8.',
+    blurb: 'Newest and sharpest. The default.',
     inputPerMTok: 5,
     outputPerMTok: 25,
     params: { thinking: { type: 'adaptive' } },
@@ -56,7 +56,7 @@ export const COACH_MODELS: readonly CoachModelOption[] = [
     id: 'claude-opus-4-8',
     label: 'Opus 4.8',
     badge: 'claude opus 4.8',
-    blurb: 'Strong reasoning on planning-heavy turns. The default.',
+    blurb: 'The previous Opus, same price. Strong on planning-heavy turns.',
     inputPerMTok: 5,
     outputPerMTok: 25,
     params: { thinking: { type: 'adaptive' } },
@@ -84,7 +84,7 @@ export const COACH_MODELS: readonly CoachModelOption[] = [
 ];
 
 /** What a user who has never chosen runs on; profiles.coach_model stays null. */
-export const DEFAULT_COACH_MODEL = 'claude-opus-4-8';
+export const DEFAULT_COACH_MODEL = 'claude-opus-5';
 
 /**
  * Live models deliberately kept OUT of the picker, with the reason. Without

@@ -10,7 +10,7 @@ import type { CaseResult, EvalCase } from './src/types';
 
 // On-demand eval runner.
 //   npm run eval                                # full suite on the default (Sonnet) model
-//   npm run eval -- --model claude-opus-4-8     # production arm
+//   npm run eval -- --model claude-opus-5       # production arm
 //   npm run eval -- --case pulley-injury        # single case (substring match)
 //   npm run eval -- --dims constraints,refusal  # restrict checked dimensions
 
