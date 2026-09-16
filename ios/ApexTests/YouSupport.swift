@@ -65,6 +65,11 @@ final class YouTransport: HTTPTransport, @unchecked Sendable {
         lock.withLock { requests.filter { $0.path == path && (action == nil || $0.body?["action"] as? String == action) } }
     }
 
+    /// The `/api/query` calls for one tool.
+    func queries(tool: String) -> [Recorded] {
+        lock.withLock { requests.filter { $0.path == "/api/query" && $0.body?["tool"] as? String == tool } }
+    }
+
     func send(_ request: URLRequest) async throws -> HTTPResponse {
         let path = request.url?.path ?? ""
         let body = request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
@@ -72,6 +77,8 @@ final class YouTransport: HTTPTransport, @unchecked Sendable {
         let answer: Answer? = lock.withLock {
             requests.append(Recorded(method: method, path: path, body: body, query: request.url?.query ?? ""))
             if let action = body?["action"] as? String, let keyed = routes["\(method) \(path) \(action)"] { return keyed }
+            // `POST /api/query` is one path for every tool (W10 keys the library's).
+            if let tool = body?["tool"] as? String, let keyed = routes["\(method) \(path) \(tool)"] { return keyed }
             return routes["\(method) \(path)"]
         }
         switch answer {

@@ -144,7 +144,16 @@ final class AppModel {
             onProfileChanged: { [weak self] in Task { await self?.coach?.refreshProfile() } },
             onScheduleChanged: { [weak self] in Task { await self?.schedule.refresh(reason: .afterEdit) } },
             onAccountDeleted: { [weak self] in self?.signOut() },
-            signOut: { [weak self] in self?.signOut() }
+            signOut: { [weak self] in self?.signOut() },
+            // W10: the Library reads the schedule's cached definitions and
+            // templates (one read path, D-032) and hands its writes back to it.
+            library: LibraryDependencies(
+                client: client, cache: cache, clock: clock,
+                definitions: { [weak self] in await self?.schedule.definitions() ?? [] },
+                templates: { [weak self] in await self?.schedule.templates() ?? [] },
+                refreshSchedule: { [weak self] in await self?.schedule.refresh(reason: .afterEdit) },
+                archiveTemplate: { [weak self] id, archived in await self?.schedule.archiveTemplate(id: id, archived: archived) ?? false }
+            )
         ))
     }
 

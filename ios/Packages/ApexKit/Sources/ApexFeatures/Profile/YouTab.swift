@@ -8,13 +8,18 @@ import SwiftUI
 /// Blocks and Meals join these sections in W10.
 public struct YouTab: View {
     private let model: YouModel?
+    private let routes: RouteBus?
+    @State private var path: [YouRoute] = []
 
-    public init(model: YouModel?) {
+    /// `routes` is the deep-link bus this tab consumes `.library` from (W10):
+    /// `/app/library/<id>` pushes the library and then the exercise.
+    public init(model: YouModel?, routes: RouteBus? = nil) {
         self.model = model
+        self.routes = routes
     }
 
     public var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             if let model {
                 YouRootView(model: model)
             } else {
@@ -22,6 +27,14 @@ public struct YouTab: View {
                     .navigationTitle("You")
             }
         }
+        .onChange(of: routes?.pending, initial: true) { _, _ in consumeRoute() }
+    }
+
+    private func consumeRoute() {
+        guard let routes, model?.library != nil,
+              let link = routes.take(where: { if case .library = $0 { true } else { false } }),
+              case .library(let definitionId) = link else { return }
+        path = [.library, .exercise(id: definitionId)]
     }
 }
 
@@ -117,6 +130,12 @@ public struct YouRootView: View {
         }
 
         SettingsSection("Training") {
+            if model.library != nil {
+                SettingsLink("Exercise library", symbol: ApexIcon.dumbbell.systemName, to: YouRoute.library, identifier: "you.row.library")
+                SettingsDivider()
+                SettingsLink("Workout library", symbol: ApexIcon.template.systemName, to: YouRoute.workoutLibrary, identifier: "you.row.templates")
+                SettingsDivider()
+            }
             SettingsLink("Heart-rate zones", value: model.heartRateLabel, symbol: ApexIcon.heartPulse.systemName, to: YouRoute.heartRate, identifier: "you.row.heartrate")
         }
 
@@ -160,6 +179,9 @@ public struct YouRootView: View {
         case .avatar: AvatarPickerView(model: model)
         case .password: ChangePasswordView(model: model)
         case .heartRate: HeartRateZonesView(model: model)
+        case .library: libraryScreen { LibraryView(model: $0) }
+        case .exercise(let id): libraryScreen { ExerciseDetailView(model: $0, id: id) }
+        case .workoutLibrary: libraryScreen { WorkoutLibraryView(model: $0) }
         case .coachProfile: CoachProfileView(model: model)
         case .coachModel: CoachModelPickerView(model: model)
         case .coros: CorosView(model: model.coros)
@@ -169,6 +191,19 @@ public struct YouRootView: View {
         case .activity: ActivityLogView(model: model.activity)
         case .deleteAccount: DeleteAccountView(model: model)
         case .about: AboutView(model: model)
+        }
+    }
+}
+
+extension YouRootView {
+    /// The three Library screens share one model; without one (a build that
+    /// wired no library) the route shows the empty state instead of crashing.
+    @ViewBuilder
+    fileprivate func libraryScreen<Screen: View>(@ViewBuilder _ screen: (LibraryModel) -> Screen) -> some View {
+        if let library = model.library {
+            screen(library)
+        } else {
+            EmptyState(eyebrow: "Library", message: "Sign in to see your library.", symbol: ApexIcon.dumbbell.systemName)
         }
     }
 }

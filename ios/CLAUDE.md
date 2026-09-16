@@ -131,6 +131,12 @@ the `apextraining://connected` callback itself (so Reconnect needs no browser), 
 come from their fixtures, and `-apexMockCoros expired` (or `disconnected`) starts the connection in
 that state. The emitter's `<timestamp>`/`<uuid>`/`<last4>`/`<token>` placeholders are put back with
 stand-ins so dates parse.
+The Library (W10) is answered too: `POST /api/query { tool: "search_exercises" }` is built from the
+schedule fixture's definitions plus every definition the session added or PATCHed (the fixture's
+own stats — last performed, references — decorate the rows it knows), `get_exercise_history` answers
+`query-get_exercise_history.json` for Fixture Press by any of its current spellings and the tool's
+own 400 for anything else, and `PATCH /api/exercise-definitions?id=` is replayed into both reads with
+the handler's rule that a rename appends the old name as an alias.
 
 **Realtime on the local stack** needs the tables in the `supabase_realtime` publication —
 phase40 adds every table a client subscribes to; a stack reset before it has nothing. The hub

@@ -16,6 +16,8 @@ public final class YouModel {
     public let coros: CorosModel
     public let connector: ConnectorModel
     public let activity: ActivityLogModel
+    /// The Library screens (W10); nil when the services carry no library.
+    public let library: LibraryModel?
 
     public private(set) var profile: ProfileResponse?
     public private(set) var isLoading = false
@@ -29,6 +31,7 @@ public final class YouModel {
         self.coros = CorosModel(services: services)
         self.connector = ConnectorModel(services: services)
         self.activity = ActivityLogModel(services: services)
+        self.library = services.library.map(LibraryModel.init(deps:))
     }
 
     // Under the package's MainActor default isolation the deinit would be

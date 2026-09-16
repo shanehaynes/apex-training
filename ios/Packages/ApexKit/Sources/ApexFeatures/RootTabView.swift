@@ -49,7 +49,7 @@ public struct RootTabView: View {
             }
             .tabItem { Label("Analytics", systemImage: "chart.line.uptrend.xyaxis") }
             .tag(AppTab.analytics)
-            YouTab(model: you)
+            YouTab(model: you, routes: routes)
                 .tabItem { Label("You", systemImage: "person") }
                 .tag(AppTab.you)
         }
