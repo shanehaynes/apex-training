@@ -133,9 +133,11 @@ function validateJsonb(resource: Resource, row: Record<string, unknown>): void {
 
 /**
  * Ceiling on a single batch. Mirrors MAX_CYCLE_BLOCKS in
- * src/lib/blocks/cadence.ts — the only producer of batches today.
+ * src/lib/blocks/cadence.ts — the only producer of batches today. Exported
+ * so a test can pin the two equal: the cycle preview enforces the generator's
+ * cap and the commit enforces this one, and they must refuse the same plan.
  */
-const MAX_BATCH_ROWS = 24;
+export const MAX_BATCH_ROWS = 24;
 
 /**
  * Validate and shape one row of a batch. Returns the allowlisted columns or

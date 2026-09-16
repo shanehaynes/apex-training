@@ -13,6 +13,9 @@ public enum CacheKind: String, Sendable, CaseIterable {
     case analyticsTiles = "analytics_tiles"
     case analyticsResult = "analytics_result"
     case trackerBootstrap = "tracker_bootstrap"
+    /// W10: the favorites list, and the library's per-exercise stats.
+    case mealFavorites = "meal_favorites"
+    case libraryStats = "library_stats"
 }
 
 public struct CacheEntry: Sendable, Equatable {

@@ -8,7 +8,7 @@ import { useMeals } from '../../context/meals';
 import { toDisplayTime, toInputTime } from '../../lib/time';
 import { now } from '../../lib/clock';
 import { notify } from '../../lib/notify';
-import { derivedCalories, validateFatSplit } from '../../lib/nutrition/mapping';
+import { derivedCalories, validateFatSplit, FAT_SPLIT_MESSAGE, negativeMacroMessage } from '../../lib/nutrition/mapping';
 import { MEAL_TYPES, type CreateMealInput, type MealFavorite, type MealType } from '../../types/nutrition';
 
 const MEAL_TYPE_LABELS: Record<MealType, string> = {
@@ -79,13 +79,13 @@ export default function AddMealView() {
       ['Alcohol', parseGrams(alcohol)],
     ];
     const invalid = fields.find(([, v]) => v !== undefined && Number.isNaN(v));
-    if (invalid) { notify(`${invalid[0]} must be a number of at least 0`); return null; }
+    if (invalid) { notify(negativeMacroMessage(invalid[0])); return null; }
 
     const [cal, proteinG, carbsG, fiberG, sugarG, fatTotalG, fatSaturatedG, fatTransG, alcoholG] =
       fields.map(([, v]) => v);
 
     if (!validateFatSplit(fatTotalG, fatSaturatedG, fatTransG)) {
-      notify("Total fat can't be less than saturated + trans");
+      notify(FAT_SPLIT_MESSAGE);
       return null;
     }
 

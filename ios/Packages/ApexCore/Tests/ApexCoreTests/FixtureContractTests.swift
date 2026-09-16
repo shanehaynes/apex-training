@@ -493,4 +493,158 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertEqual(detach.event?.isRecurring, false)
         XCTAssertEqual(detach.date, "2026-09-30")
     }
+
+    // MARK: - W10
+
+    /// The list read: every block and objective with ids, the current block
+    /// with its week, and no progress (the list needs none).
+    func testTrainingBlocksListDecodes() throws {
+        let list = try decode(QueryEnvelope<TrainingBlocksQueryResult>.self, from: "query-get_training_blocks.json")
+        XCTAssertEqual(list.tool, "get_training_blocks")
+        XCTAssertEqual(list.result.today, "2026-09-08")
+        let blocks = try XCTUnwrap(list.result.blocks)
+        XCTAssertEqual(blocks.map(\.id), ["ios-fixture-block-spring", "ios-fixture-block-base"])
+        XCTAssertEqual(blocks.map(\.currentWeek), [nil, 2])
+        XCTAssertEqual(blocks.map(\.weeks), [4, 4])
+        XCTAssertTrue(blocks[0].weeklyTargets.isEmpty)
+        XCTAssertEqual(blocks[1].weeklyTargets.cardioMinutes, 60)
+        XCTAssertEqual(blocks[1].objectiveId, "ios-fixture-objective-1")
+        XCTAssertEqual(blocks[1].objective?.id, blocks[1].objectiveId)
+        XCTAssertNil(blocks[1].progress)
+
+        let current = try XCTUnwrap(list.result.current)
+        XCTAssertEqual(current.id, "ios-fixture-block-base")
+        XCTAssertNil(current.progress)
+        XCTAssertNil(list.result.block)
+
+        let objectives = try XCTUnwrap(list.result.objectives)
+        XCTAssertEqual(objectives.map(\.id), ["ios-fixture-objective-1"])
+        XCTAssertEqual(objectives[0].discipline, "alpine")
+        XCTAssertEqual(objectives[0].targetDate, "2027-05-01")
+    }
+
+    /// The detail read: one block's progress by id — to date, per week,
+    /// the authored and derived targets, and the PR set inside the block.
+    func testTrainingBlockDetailDecodes() throws {
+        let detail = try decode(QueryEnvelope<TrainingBlocksQueryResult>.self, from: "query-get_training_blocks-detail.json")
+        let block = try XCTUnwrap(detail.result.block)
+        XCTAssertEqual(block.id, "ios-fixture-block-base")
+        XCTAssertEqual(block.currentWeek, 2)
+        let progress = try XCTUnwrap(block.progress)
+        XCTAssertEqual(progress.weeksTotal, 4)
+        XCTAssertEqual(progress.weeksElapsed, 1)
+        XCTAssertEqual(progress.currentWeek, 2)
+        XCTAssertEqual(progress.weeks.map(\.isComplete), [true, false, false, false])
+        XCTAssertEqual(progress.weeks[1].sessionsCompleted, 1)
+        XCTAssertEqual(progress.weeks[1].startDate, "2026-09-07")
+
+        let toDate = progress.toDate.attainment
+        XCTAssertEqual(toDate.filter { !$0.isDerived }.map(\.key), ["cardioMinutes", "strengthSessions"])
+        XCTAssertTrue(toDate.contains { $0.isDerived })
+        XCTAssertEqual(toDate[0].label, "Cardio")
+        XCTAssertEqual(toDate[0].unit, "min")
+        XCTAssertEqual(toDate[0].pct, 0)
+
+        let pr = try XCTUnwrap(progress.prs.first)
+        XCTAssertEqual(pr.kind, "oneRM")
+        XCTAssertEqual(pr.exerciseName, "Fixture Press")
+        XCTAssertEqual(pr.date, "2026-09-22")
+        XCTAssertTrue(pr.description.hasPrefix("est. 1RM 132"))
+        // The current block is named, but its progress was not computed twice.
+        XCTAssertNil(detail.result.current?.progress)
+    }
+
+    /// Alias-aware history: asked by the former spelling, answered under the
+    /// canonical name with the stats the detail screen renders.
+    func testExerciseHistoryDecodes() throws {
+        let history = try decode(QueryEnvelope<ExerciseHistoryResult>.self, from: "query-get_exercise_history.json")
+        XCTAssertEqual(history.tool, "get_exercise_history")
+        XCTAssertEqual(history.result.canonicalName, "Fixture Press")
+        XCTAssertEqual(history.result.resolvedFrom, "fx press")
+        XCTAssertEqual(history.result.statKind, "oneRM")
+        XCTAssertEqual(history.result.statUnit, "est. 1RM")
+        XCTAssertEqual(history.result.allTimeBest?.display, "132")
+        XCTAssertEqual(history.result.totalSessions, 2)
+        XCTAssertEqual(history.result.trend.map(\.date), ["2026-09-08", "2026-09-22"])
+        XCTAssertEqual(history.result.recentSessions.first?.sets, ["120 × 3"])
+    }
+
+    /// The library decoration carries ids and reference counts since W10.
+    func testSearchExercisesCarriesIdsAndReferences() throws {
+        let search = try decode(QueryEnvelope<SearchExercisesResult>.self, from: "query-search_exercises.json")
+        let entry = try XCTUnwrap(search.result.exercises.first)
+        XCTAssertEqual(entry.id, "ios-fixture-def")
+        XCTAssertEqual(entry.references, 1)
+        XCTAssertEqual(entry.muscleGroups, ["chest"])
+        XCTAssertEqual(entry.equipment, ["barbell"])
+        XCTAssertEqual(entry.lastPerformed, "2026-09-22")
+        XCTAssertNotNil(entry.defaultPrescription)
+    }
+
+    /// Meal items carry their id and the whole fat split since W10.
+    func testMealItemsCarryIdsAndTheFatSplit() throws {
+        let meals = try decode(QueryEnvelope<MealsQueryResult>.self, from: "query-get_meals.json")
+        let items = try XCTUnwrap(meals.result.days.first?.meals)
+        XCTAssertEqual(items.map(\.id), ["ios-fixture-meal-1", "ios-fixture-meal-2"])
+        XCTAssertEqual(items[1].fatSaturatedG, 4)
+        XCTAssertEqual(items[1].fatTransG, 0)
+        XCTAssertNil(items[1].alcoholG)
+        // The split never changes the derived calories.
+        XCTAssertEqual(items[1].calories, 594)
+    }
+
+    func testMealFavoritesDecode() throws {
+        let favorites = try decode(MealFavoritesResponse.self, from: "meal-favorites.json")
+        let oats = try XCTUnwrap(favorites.favorites.first)
+        XCTAssertEqual(oats.id, "ios-fixture-fav-1")
+        XCTAssertEqual(oats.title, "Fixture Overnight Oats")
+        XCTAssertEqual(oats.mealType, "breakfast")
+        XCTAssertEqual(oats.calories, 420)
+        XCTAssertEqual(oats.fatSaturatedG, 2)
+        XCTAssertNil(oats.fatTransG)
+        XCTAssertEqual(oats.notes, "Prep the night before.")
+    }
+
+    /// The three answers a cycle preview can give: the blocks with the rows
+    /// that commit them, a named conflict, and the generator's refusal.
+    func testCyclePreviewFixturesDecode() throws {
+        let ok = try decode(CyclePreviewResponse.self, from: "blocks-cycle.json")
+        XCTAssertTrue(ok.ok)
+        XCTAssertNil(ok.problem)
+        XCTAssertNil(ok.conflict)
+        XCTAssertEqual(ok.totalWeeks, 8)
+        let blocks = try XCTUnwrap(ok.blocks)
+        XCTAssertEqual(blocks.map(\.phase), ["build", "recovery", "build", "recovery"])
+        XCTAssertEqual(blocks[0].name, "Fixture Cycle · Build 1")
+        XCTAssertEqual(blocks[0].startDate, "2027-01-04")
+        XCTAssertEqual(blocks[0].objectiveId, "ios-fixture-objective-1")
+        XCTAssertEqual(blocks[1].weeklyTargets.cardioMinutes, 150)
+        XCTAssertEqual(blocks[1].weeklyTargets.vert, .init(value: 1500, unit: "ft"))
+        // One row per block, ready to send back as the batch body.
+        let rows = try XCTUnwrap(ok.rows)
+        XCTAssertEqual(rows.count, blocks.count)
+        XCTAssertEqual(rows[0], .object([
+            "objective_id": .string("ios-fixture-objective-1"),
+            "name": .string("Fixture Cycle · Build 1"),
+            "intent": .string("Winter build"),
+            "phase": .string("build"),
+            "start_date": .string("2027-01-04"),
+            "end_date_exclusive": .string("2027-01-25"),
+            "weekly_targets": .object([
+                "cardioMinutes": .number(300), "strengthSessions": .number(2),
+                "vert": .object(["value": .number(3000), "unit": .string("ft")]),
+            ]),
+        ]))
+
+        let conflict = try decode(CyclePreviewResponse.self, from: "blocks-cycle-conflict.json")
+        XCTAssertTrue(conflict.ok)
+        XCTAssertEqual(conflict.conflict?.name, "Fixture Base Block")
+        XCTAssertEqual(conflict.conflict?.startDate, "2026-08-31")
+        XCTAssertEqual(conflict.blocks?.count, 4)
+
+        let problem = try decode(CyclePreviewResponse.self, from: "blocks-cycle-problem.json")
+        XCTAssertFalse(problem.ok)
+        XCTAssertEqual(problem.problem, "A cycle needs a name")
+        XCTAssertNil(problem.blocks)
+    }
 }

@@ -1,0 +1,338 @@
+{
+  "tool": "get_training_blocks",
+  "result": {
+    "today": "2026-09-08",
+    "current": {
+      "id": "ios-fixture-block-base",
+      "name": "Fixture Base Block",
+      "intent": "Aerobic base before the spring push.",
+      "phase": "base",
+      "objective_id": "ios-fixture-objective-1",
+      "start_date": "2026-08-31",
+      "end_date_exclusive": "2026-09-28",
+      "weeks": 4,
+      "current_week": 2,
+      "weekly_targets": {
+        "cardioMinutes": 60,
+        "strengthSessions": 1
+      },
+      "objective": {
+        "id": "ios-fixture-objective-1",
+        "name": "Fixture Spring Objective",
+        "discipline": "alpine",
+        "target_date": "2027-05-01",
+        "status": "active",
+        "notes": ""
+      },
+      "progress": null
+    },
+    "block": {
+      "id": "ios-fixture-block-base",
+      "name": "Fixture Base Block",
+      "intent": "Aerobic base before the spring push.",
+      "phase": "base",
+      "objective_id": "ios-fixture-objective-1",
+      "start_date": "2026-08-31",
+      "end_date_exclusive": "2026-09-28",
+      "weeks": 4,
+      "current_week": 2,
+      "weekly_targets": {
+        "cardioMinutes": 60,
+        "strengthSessions": 1
+      },
+      "objective": {
+        "id": "ios-fixture-objective-1",
+        "name": "Fixture Spring Objective",
+        "discipline": "alpine",
+        "target_date": "2027-05-01",
+        "status": "active",
+        "notes": ""
+      },
+      "progress": {
+        "weeks_total": 4,
+        "weeks_elapsed": 1,
+        "current_week": 2,
+        "to_date": {
+          "attainment": [
+            {
+              "key": "cardioMinutes",
+              "label": "Cardio",
+              "unit": "min",
+              "target": 60,
+              "source": "authored",
+              "targetForWindow": 60,
+              "actual": 0,
+              "pct": 0
+            },
+            {
+              "key": "strengthSessions",
+              "label": "Strength",
+              "unit": "sessions",
+              "target": 1,
+              "source": "authored",
+              "targetForWindow": 1,
+              "actual": 0,
+              "pct": 0
+            },
+            {
+              "key": "climbingSessions",
+              "label": "Climbing",
+              "unit": "sessions",
+              "target": 2,
+              "source": "derived",
+              "targetForWindow": 2,
+              "actual": 0,
+              "pct": 0
+            },
+            {
+              "key": "longSessionMinutes",
+              "label": "Long session",
+              "unit": "min",
+              "target": 80,
+              "source": "derived",
+              "targetForWindow": 80,
+              "actual": 0,
+              "pct": 0
+            }
+          ],
+          "totals": {
+            "sessionsCompleted": 1,
+            "sessionsByType": {
+              "weights": 1
+            },
+            "totalDurationMinutes": 60,
+            "activeDays": 1,
+            "weeksActive": 1
+          }
+        },
+        "weeks": [
+          {
+            "index": 1,
+            "start_date": "2026-08-31",
+            "is_complete": true,
+            "sessions_completed": 0,
+            "attainment": [
+              {
+                "key": "cardioMinutes",
+                "label": "Cardio",
+                "unit": "min",
+                "target": 60,
+                "source": "authored",
+                "targetForWindow": 60,
+                "actual": 0,
+                "pct": 0
+              },
+              {
+                "key": "strengthSessions",
+                "label": "Strength",
+                "unit": "sessions",
+                "target": 1,
+                "source": "authored",
+                "targetForWindow": 1,
+                "actual": 0,
+                "pct": 0
+              },
+              {
+                "key": "climbingSessions",
+                "label": "Climbing",
+                "unit": "sessions",
+                "target": 2,
+                "source": "derived",
+                "targetForWindow": 2,
+                "actual": 0,
+                "pct": 0
+              },
+              {
+                "key": "longSessionMinutes",
+                "label": "Long session",
+                "unit": "min",
+                "target": 80,
+                "source": "derived",
+                "targetForWindow": 80,
+                "actual": 0,
+                "pct": 0
+              }
+            ]
+          },
+          {
+            "index": 2,
+            "start_date": "2026-09-07",
+            "is_complete": false,
+            "sessions_completed": 1,
+            "attainment": [
+              {
+                "key": "cardioMinutes",
+                "label": "Cardio",
+                "unit": "min",
+                "target": 60,
+                "source": "authored",
+                "targetForWindow": 60,
+                "actual": 0,
+                "pct": 0
+              },
+              {
+                "key": "strengthSessions",
+                "label": "Strength",
+                "unit": "sessions",
+                "target": 1,
+                "source": "authored",
+                "targetForWindow": 1,
+                "actual": 1,
+                "pct": 1
+              },
+              {
+                "key": "climbingSessions",
+                "label": "Climbing",
+                "unit": "sessions",
+                "target": 3,
+                "source": "derived",
+                "targetForWindow": 3,
+                "actual": 0,
+                "pct": 0
+              },
+              {
+                "key": "longSessionMinutes",
+                "label": "Long session",
+                "unit": "min",
+                "target": 240,
+                "source": "derived",
+                "targetForWindow": 240,
+                "actual": 60,
+                "pct": 0.25
+              },
+              {
+                "key": "vert",
+                "label": "Vertical gain",
+                "unit": "ft",
+                "target": 800,
+                "source": "derived",
+                "targetForWindow": 800,
+                "actual": 800,
+                "pct": 1
+              },
+              {
+                "key": "distance",
+                "label": "Distance",
+                "unit": "mi",
+                "target": 5,
+                "source": "derived",
+                "targetForWindow": 5,
+                "actual": 5,
+                "pct": 1
+              }
+            ]
+          },
+          {
+            "index": 3,
+            "start_date": "2026-09-14",
+            "is_complete": false,
+            "sessions_completed": 0,
+            "attainment": [
+              {
+                "key": "cardioMinutes",
+                "label": "Cardio",
+                "unit": "min",
+                "target": 60,
+                "source": "authored",
+                "targetForWindow": 60,
+                "actual": 0,
+                "pct": 0
+              },
+              {
+                "key": "strengthSessions",
+                "label": "Strength",
+                "unit": "sessions",
+                "target": 1,
+                "source": "authored",
+                "targetForWindow": 1,
+                "actual": 0,
+                "pct": 0
+              },
+              {
+                "key": "climbingSessions",
+                "label": "Climbing",
+                "unit": "sessions",
+                "target": 2,
+                "source": "derived",
+                "targetForWindow": 2,
+                "actual": 0,
+                "pct": 0
+              },
+              {
+                "key": "longSessionMinutes",
+                "label": "Long session",
+                "unit": "min",
+                "target": 80,
+                "source": "derived",
+                "targetForWindow": 80,
+                "actual": 0,
+                "pct": 0
+              }
+            ]
+          },
+          {
+            "index": 4,
+            "start_date": "2026-09-21",
+            "is_complete": false,
+            "sessions_completed": 0,
+            "attainment": [
+              {
+                "key": "cardioMinutes",
+                "label": "Cardio",
+                "unit": "min",
+                "target": 60,
+                "source": "authored",
+                "targetForWindow": 60,
+                "actual": 0,
+                "pct": 0
+              },
+              {
+                "key": "strengthSessions",
+                "label": "Strength",
+                "unit": "sessions",
+                "target": 1,
+                "source": "authored",
+                "targetForWindow": 1,
+                "actual": 0,
+                "pct": 0
+              },
+              {
+                "key": "climbingSessions",
+                "label": "Climbing",
+                "unit": "sessions",
+                "target": 2,
+                "source": "derived",
+                "targetForWindow": 2,
+                "actual": 0,
+                "pct": 0
+              },
+              {
+                "key": "longSessionMinutes",
+                "label": "Long session",
+                "unit": "min",
+                "target": 80,
+                "source": "derived",
+                "targetForWindow": 80,
+                "actual": 0,
+                "pct": 0
+              }
+            ]
+          }
+        ],
+        "prs": [
+          {
+            "kind": "oneRM",
+            "exerciseName": "Fixture Press",
+            "estimatedOneRM": 132,
+            "weight": 120,
+            "reps": 3,
+            "previousOneRM": 121.00000000000001,
+            "previousDate": "2026-09-08",
+            "date": "2026-09-22",
+            "description": "est. 1RM 132 (120 × 3), up from 121 on Sep 8"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -549,4 +549,121 @@ public struct Endpoint: Sendable, Equatable {
         }
         return providerSync(Body(provider: provider, timezone: timezone, decisions: decisions))
     }
+
+    // MARK: - W10 library, blocks, meals
+    //
+    // Every write carries user attribution twice — a top-level `triggered_by`
+    // on inserts and one inside `log` — because the server reads one or the
+    // other by route: omitted, definitions and meals charge the AI mutation
+    // cap and blocks default their audit row to `ai`. Rows and fields are
+    // `[String: JSONValue]` built by BlockForm / MealForm / DefinitionForm,
+    // so a cleared column travels as an explicit null.
+
+    private static let userTrigger: JSONValue = .string("user")
+
+    private static func withTrigger(_ row: [String: JSONValue], logKey: String, name: String) -> [String: JSONValue] {
+        var body = row
+        body["triggered_by"] = userTrigger
+        body["log"] = .object([logKey: .string(name), "triggered_by": userTrigger])
+        return body
+    }
+
+    private static func patchBody(fields: [String: JSONValue], logKey: String, name: String) -> Data {
+        json(["fields": .object(fields), "log": .object([logKey: .string(name), "triggered_by": userTrigger])] as [String: JSONValue])
+    }
+
+    private static func deleteBody(logKey: String, name: String) -> Data {
+        json(["log": .object([logKey: .string(name), "triggered_by": userTrigger])] as [String: JSONValue])
+    }
+
+    /// The cycle generator's preview (`POST /api/blocks?resource=cycle`).
+    /// Writes nothing; answers the dated blocks, the batch rows that commit
+    /// them, and the first existing block they would overlap.
+    public static func cyclePreview(spec: CycleSpec) -> Endpoint {
+        struct Body: Encodable { let spec: CycleSpec }
+        return Endpoint(
+            method: .post, path: "api/blocks",
+            query: [URLQueryItem(name: "resource", value: "cycle")], body: json(Body(spec: spec))
+        )
+    }
+
+    /// Commit a previewed cycle in one statement (`?batch=1`). `rows` are the
+    /// server's own from the preview, sent back verbatim; `firstName` labels
+    /// the audit entry the way the web does (the first block's name).
+    public static func createBlocks(rows: [JSONValue], firstName: String) -> Endpoint {
+        let body: [String: JSONValue] = [
+            "rows": .array(rows),
+            "log": .object(["resource_name": .string(firstName), "triggered_by": userTrigger]),
+        ]
+        return Endpoint(method: .post, path: "api/blocks", query: [URLQueryItem(name: "batch", value: "1")], body: json(body))
+    }
+
+    /// One block (`POST /api/blocks`); `row` is `BlockForm.row()`.
+    public static func createBlock(row: [String: JSONValue], name: String) -> Endpoint {
+        Endpoint(method: .post, path: "api/blocks", body: json(withTrigger(row, logKey: "resource_name", name: name)))
+    }
+
+    public static func updateBlock(id: String, fields: [String: JSONValue], name: String) -> Endpoint {
+        Endpoint(method: .patch, path: "api/blocks", query: [URLQueryItem(name: "id", value: id)],
+                 body: patchBody(fields: fields, logKey: "resource_name", name: name))
+    }
+
+    public static func deleteBlock(id: String, name: String) -> Endpoint {
+        Endpoint(method: .delete, path: "api/blocks", query: [URLQueryItem(name: "id", value: id)],
+                 body: deleteBody(logKey: "resource_name", name: name))
+    }
+
+    /// The inline "new objective" (`POST /api/objectives`), with the columns
+    /// the web's `objectiveToRow` fixes: empty notes, no capabilities, active.
+    public static func createObjective(name: String, targetDate: String?, discipline: String?) -> Endpoint {
+        let row: [String: JSONValue] = [
+            "name": .string(name),
+            "target_date": targetDate.map(JSONValue.string) ?? .null,
+            "discipline": discipline.map(JSONValue.string) ?? .null,
+            "notes": .string(""),
+            "required_capabilities": .array([]),
+            "status": .string("active"),
+        ]
+        return Endpoint(method: .post, path: "api/objectives", body: json(withTrigger(row, logKey: "resource_name", name: name)))
+    }
+
+    /// The library editor's save (`PATCH /api/exercise-definitions?id=`):
+    /// only the changed columns (`DefinitionForm.changedFields`). Archive and
+    /// restore are the same call with `archived_at` set or null. A rename
+    /// needs no alias bookkeeping here — the server appends the old name.
+    public static func updateDefinition(id: String, fields: [String: JSONValue], name: String) -> Endpoint {
+        Endpoint(method: .patch, path: "api/exercise-definitions", query: [URLQueryItem(name: "id", value: id)],
+                 body: patchBody(fields: fields, logKey: "definition_name", name: name))
+    }
+
+    /// `POST /api/meals` with the flat row (`MealForm.row`).
+    public static func createMeal(row: [String: JSONValue]) -> Endpoint {
+        var body = row
+        body["triggered_by"] = userTrigger
+        return Endpoint(method: .post, path: "api/meals", body: json(body))
+    }
+
+    /// `PATCH /api/meals?id=` with every column (`MealForm.fields`).
+    public static func updateMeal(id: String, fields: [String: JSONValue], title: String) -> Endpoint {
+        Endpoint(method: .patch, path: "api/meals", query: [URLQueryItem(name: "id", value: id)],
+                 body: patchBody(fields: fields, logKey: "meal_title", name: title))
+    }
+
+    public static func deleteMeal(id: String, title: String) -> Endpoint {
+        Endpoint(method: .delete, path: "api/meals", query: [URLQueryItem(name: "id", value: id)],
+                 body: deleteBody(logKey: "meal_title", name: title))
+    }
+
+    /// The favorites list (`GET /api/meal-favorites`).
+    public static let mealFavorites = Endpoint(path: "api/meal-favorites")
+
+    /// Upsert one favorite (`MealForm.favoriteRow`). No attribution: favorites
+    /// carry no audit log and no AI cap.
+    public static func saveMealFavorite(row: [String: JSONValue]) -> Endpoint {
+        Endpoint(method: .post, path: "api/meal-favorites", body: json(row))
+    }
+
+    public static func deleteMealFavorite(id: String) -> Endpoint {
+        Endpoint(method: .delete, path: "api/meal-favorites", query: [URLQueryItem(name: "id", value: id)])
+    }
 }

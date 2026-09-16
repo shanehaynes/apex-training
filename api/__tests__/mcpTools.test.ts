@@ -4,6 +4,7 @@ import { getScheduleTool } from '../_lib/mcp/tools/schedule';
 import { getExerciseHistoryTool, getPrsTool } from '../_lib/mcp/tools/tracking';
 import { searchExercisesTool } from '../_lib/mcp/tools/library';
 import { getMealsTool } from '../_lib/mcp/tools/meals';
+import { getTrainingBlocksTool } from '../_lib/mcp/tools/blocks';
 
 // Tool-level tests over fixture rows: the plumbing between the service-role
 // queries and the pure src/lib computations. No handler/HTTP involved.
@@ -323,5 +324,127 @@ describe('get_meals — day totals', () => {
       totals: expect.objectContaining({ calories: 1110, proteinG: 70 }),
     });
     expect(payload.days[0].meals).toBeUndefined(); // include_items defaults false
+  });
+});
+
+// ─── W10 widenings ─────────────────────────────────────────────────────────
+
+const blockRow = (id: string, name: string, start: string, end: string, extra: Record<string, unknown> = {}) => ({
+  id, user_id: 'user-123', name, intent: '', phase: 'base', objective_id: null,
+  start_date: start, end_date_exclusive: end, weekly_targets: { cardioMinutes: 60 },
+  created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', ...extra,
+});
+
+describe('get_training_blocks — ids, current week, objectives, block_id (W10)', () => {
+  const fixtures = {
+    training_blocks: [
+      blockRow('blk-spring', 'Spring Block', '2026-03-02', '2026-03-30'),
+      blockRow('blk-base', 'Base Block', '2026-08-31', '2026-09-28', { objective_id: 'obj-1' }),
+    ],
+    objectives: [
+      { id: 'obj-1', user_id: 'user-123', name: 'Spring Objective', target_date: '2027-05-01', discipline: 'alpine',
+        notes: '', required_capabilities: [], status: 'active', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+    ],
+  };
+
+  it('summaries carry ids, the objective id, and a current_week from the caller\'s today', async () => {
+    const payload = (await getTrainingBlocksTool.run(makeAdmin(fixtures), 'user-123', {
+      scope: 'all', include_progress: false, include_objectives: true, today: '2026-09-08',
+    })) as {
+      today: string;
+      current: { id: string; current_week: number | null; objective: { id: string } | null } | null;
+      blocks: Array<{ id: string; objective_id: string | null; current_week: number | null; weeks: number }>;
+      objectives: Array<{ id: string; name: string }>;
+    };
+    expect(payload.today).toBe('2026-09-08');
+    expect(payload.current).toMatchObject({ id: 'blk-base', current_week: 2, objective: { id: 'obj-1' } });
+    expect(payload.blocks.map(b => [b.id, b.objective_id, b.current_week, b.weeks])).toEqual([
+      ['blk-spring', null, null, 4],
+      ['blk-base', 'obj-1', 2, 4],
+    ]);
+    expect(payload.objectives).toEqual([
+      { id: 'obj-1', name: 'Spring Objective', discipline: 'alpine', target_date: '2027-05-01', status: 'active', notes: '' },
+    ]);
+  });
+
+  it('leaves the objectives list out unless asked, and defaults today to the clock', async () => {
+    const payload = (await getTrainingBlocksTool.run(makeAdmin(fixtures), 'user-123', {
+      include_progress: false,
+    })) as { today: string; objectives?: unknown; block?: unknown };
+    expect(payload.objectives).toBeUndefined();
+    expect(payload.block).toBeUndefined();
+    expect(payload.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('block_id answers the named block under "block" and refuses one the caller does not have', async () => {
+    const payload = (await getTrainingBlocksTool.run(makeAdmin(fixtures), 'user-123', {
+      block_id: 'blk-spring', include_progress: false, today: '2026-09-08',
+    })) as { block: { id: string; current_week: number | null; progress: unknown }; current: { id: string } | null };
+    expect(payload.block).toMatchObject({ id: 'blk-spring', current_week: null, progress: null });
+    // The current block is still named; only the progress moved.
+    expect(payload.current?.id).toBe('blk-base');
+
+    await expect(getTrainingBlocksTool.run(makeAdmin(fixtures), 'user-123', { block_id: 'blk-nope', today: '2026-09-08' }))
+      .rejects.toThrow('block_id does not name one of your blocks.');
+  });
+});
+
+describe('search_exercises — ids and references (W10)', () => {
+  it('carries the definition id, and counts planned workouts on request (a series counts once)', async () => {
+    const admin = makeAdmin({
+      exercise_definitions: [
+        { id: 'bench', canonical_name: 'Bench Press', aliases: [], archived_at: null,
+          category: 'weights', muscle_groups: [], equipment: [], is_unilateral: false,
+          default_sets: null, default_reps: null, default_duration: null, default_weight: null,
+          default_rest: null, technique_notes: null },
+        { id: 'row', canonical_name: 'Cable Row', aliases: [], archived_at: null,
+          category: 'weights', muscle_groups: [], equipment: [], is_unilateral: false,
+          default_sets: null, default_reps: null, default_duration: null, default_weight: null,
+          default_rest: null, technique_notes: null },
+      ],
+      workout_set_logs: [],
+      workout_cardio_logs: [],
+      workout_events: [
+        { ...baseEventRow, id: 'evt-weekly', type: 'weights', title: 'Push', date: '2026-08-05',
+          is_recurring: true, recurrence_rule: 'FREQ=WEEKLY;BYDAY=WE',
+          exercises: [{ id: 'e1', name: 'Bench Press', definitionId: 'bench', category: 'strength', sets: 3, reps: '5' }] },
+        { ...baseEventRow, id: 'evt-once', type: 'weights', title: 'Pull', date: '2026-08-07', is_recurring: false,
+          warmup: [{ id: 'w1', name: 'Bench Press', definitionId: 'bench', category: 'strength', sets: 1, reps: '10' }],
+          exercises: [] },
+      ],
+    });
+
+    const plain = (await searchExercisesTool.run(admin, 'user-123', {})) as {
+      exercises: Array<{ id: string; references?: number }>;
+    };
+    expect(plain.exercises.map(e => e.id)).toEqual(['bench', 'row']);
+    expect(plain.exercises[0].references).toBeUndefined();
+
+    const counted = (await searchExercisesTool.run(admin, 'user-123', { include_references: true })) as {
+      exercises: Array<{ id: string; references: number }>;
+    };
+    expect(counted.exercises.map(e => [e.id, e.references])).toEqual([['bench', 2], ['row', 0]]);
+  });
+});
+
+describe('get_meals — items carry ids and the full fat split (W10)', () => {
+  it('lists each meal with its id, saturated and trans fat, and alcohol', async () => {
+    const admin = makeAdmin({
+      meals: [
+        {
+          id: 'meal-1', title: 'Oats', date: '2026-08-01', time: '07:15', meal_type: 'breakfast',
+          calories: null, protein_g: 20, carbs_g: 60, fiber_g: 5, sugar_g: 8,
+          fat_total_g: 10, fat_saturated_g: 2, fat_trans_g: 0, alcohol_g: null, notes: '',
+        },
+      ],
+    });
+    const payload = (await getMealsTool.run(admin, 'user-123', {
+      start_date: '2026-08-01', end_date: '2026-08-01', include_items: true,
+    })) as { days: Array<{ meals: Array<Record<string, unknown>> }> };
+    expect(payload.days[0].meals[0]).toEqual({
+      id: 'meal-1', title: 'Oats', time: '07:15', meal_type: 'breakfast', calories: 410,
+      protein_g: 20, carbs_g: 60, fiber_g: 5, sugar_g: 8,
+      fat_total_g: 10, fat_saturated_g: 2, fat_trans_g: 0, alcohol_g: null, notes: null,
+    });
   });
 });

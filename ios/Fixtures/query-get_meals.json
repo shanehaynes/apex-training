@@ -15,6 +15,7 @@
         },
         "meals": [
           {
+            "id": "ios-fixture-meal-1",
             "title": "Fixture Oats",
             "time": "07:15",
             "meal_type": "breakfast",
@@ -24,9 +25,13 @@
             "fiber_g": null,
             "sugar_g": null,
             "fat_total_g": 12,
+            "fat_saturated_g": null,
+            "fat_trans_g": null,
+            "alcohol_g": null,
             "notes": null
           },
           {
+            "id": "ios-fixture-meal-2",
             "title": "Fixture Chicken Bowl",
             "time": "12:45",
             "meal_type": "lunch",
@@ -36,6 +41,9 @@
             "fiber_g": null,
             "sugar_g": null,
             "fat_total_g": 18,
+            "fat_saturated_g": 4,
+            "fat_trans_g": 0,
+            "alcohol_g": null,
             "notes": null
           }
         ]

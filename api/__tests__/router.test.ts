@@ -4,11 +4,17 @@ import handler from '../_lib/app';
 import { handleTrainingBlocks } from '../_lib/trainingBlocks';
 import eventsHandler from '../_lib/handlers/events';
 import analyticsTilesHandler from '../_lib/handlers/analyticsTiles';
+import blockCycleHandler from '../_lib/handlers/blockCycle';
 
 // The router bridges to (req, res) handlers, so mocked handlers respond the
 // same way the real ones do: by writing to res, never by returning a value.
 vi.mock('../_lib/trainingBlocks.js', () => ({
   handleTrainingBlocks: vi.fn(async (_req: VercelRequest, res: VercelResponse) => {
+    res.status(200).json({ ok: true });
+  }),
+}));
+vi.mock('../_lib/handlers/blockCycle.js', () => ({
+  default: vi.fn(async (_req: VercelRequest, res: VercelResponse) => {
     res.status(200).json({ ok: true });
   }),
 }));
@@ -44,6 +50,7 @@ beforeEach(() => {
   vi.mocked(handleTrainingBlocks).mockClear();
   vi.mocked(eventsHandler).mockClear();
   vi.mocked(analyticsTilesHandler).mockClear();
+  vi.mocked(blockCycleHandler).mockClear();
 });
 
 describe('consolidated API router', () => {
@@ -59,6 +66,28 @@ describe('consolidated API router', () => {
     const req = makeReq('GET', '/api/blocks?batch=1');
     await handler(req, res);
     expect(handleTrainingBlocks).toHaveBeenCalledOnce();
+    expect(req.query.resource).toBe('block');
+  });
+
+  // W10: the cycle preview shares the path. The injection above would turn
+  // `cycle` into `block` and hand the preview to the writes handler.
+  it('routes /api/blocks?resource=cycle to the cycle preview, untouched', async () => {
+    const { res } = makeRes();
+    const req = makeReq('POST', '/api/blocks?resource=cycle');
+    req.query.resource = 'cycle';
+    await handler(req, res);
+    expect(blockCycleHandler).toHaveBeenCalledOnce();
+    expect(handleTrainingBlocks).not.toHaveBeenCalled();
+    expect(req.query.resource).toBe('cycle');
+  });
+
+  it('still injects resource=block when the query names something else', async () => {
+    const { res } = makeRes();
+    const req = makeReq('POST', '/api/blocks?resource=objective');
+    req.query.resource = 'objective';
+    await handler(req, res);
+    expect(handleTrainingBlocks).toHaveBeenCalledOnce();
+    expect(blockCycleHandler).not.toHaveBeenCalled();
     expect(req.query.resource).toBe('block');
   });
 

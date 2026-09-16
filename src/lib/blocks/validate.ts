@@ -1,7 +1,7 @@
 import { getISODay, parseISO } from 'date-fns';
 import type { TrainingBlock } from '../../types/blocks';
-import { blockWeeks } from './period';
-import { parseWeeklyTargets, TargetValidationError } from './targets';
+import { blockWeeks } from './period.js';
+import { parseWeeklyTargets, TargetValidationError } from './targets.js';
 
 // Mirrors the CHECK constraints in phase19_training_blocks.sql. The DB is the
 // real guard — this exists so the editor and the API can reject with a

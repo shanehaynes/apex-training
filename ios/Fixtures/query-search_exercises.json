@@ -5,6 +5,7 @@
     "total_matches": 1,
     "exercises": [
       {
+        "id": "ios-fixture-def",
         "canonical_name": "Fixture Press",
         "category": "strength",
         "aliases": [
@@ -26,7 +27,8 @@
         },
         "technique_notes": null,
         "last_performed": "2026-09-22",
-        "archived": false
+        "archived": false,
+        "references": 1
       }
     ]
   }

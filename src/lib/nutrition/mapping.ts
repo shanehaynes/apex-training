@@ -139,6 +139,30 @@ export function validateFatSplit(total?: number, saturated?: number, trans?: num
   return total >= (saturated ?? 0) + (trans ?? 0);
 }
 
+// ─── Refusal copy ────────────────────────────────────────────────────────────
+// The composer and `/api/meals` refuse the same things with the same words
+// (W10): a native composer shows the server's sentence inline, so the text
+// lives once, next to the rule it explains.
+
+/** Column → the label a person sees, in the composer's field order. */
+export const MACRO_LABELS: ReadonlyArray<readonly [column: keyof MealRow, label: string]> = [
+  ['calories', 'Calories'],
+  ['protein_g', 'Protein'],
+  ['carbs_g', 'Carbs'],
+  ['fiber_g', 'Fiber'],
+  ['sugar_g', 'Sugar'],
+  ['fat_total_g', 'Total fat'],
+  ['fat_saturated_g', 'Saturated fat'],
+  ['fat_trans_g', 'Trans fat'],
+  ['alcohol_g', 'Alcohol'],
+];
+
+export function negativeMacroMessage(label: string): string {
+  return `${label} must be a number of at least 0`;
+}
+
+export const FAT_SPLIT_MESSAGE = "Total fat can't be less than saturated + trans";
+
 export interface DayMacros {
   calories: number;
   proteinG: number;

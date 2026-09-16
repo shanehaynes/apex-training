@@ -1,0 +1,15 @@
+{
+  "favorites": [
+    {
+      "id": "ios-fixture-fav-1",
+      "title": "Fixture Overnight Oats",
+      "mealType": "breakfast",
+      "calories": 420,
+      "proteinG": 18,
+      "carbsG": 60,
+      "fatTotalG": 12,
+      "fatSaturatedG": 2,
+      "notes": "Prep the night before."
+    }
+  ]
+}

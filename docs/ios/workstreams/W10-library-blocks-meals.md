@@ -1,7 +1,7 @@
 # W10 — Library, Blocks, Meals (under You)
 
 **Machine:** both (small backend part on Linux) · **Depends on:** W2 · **Unblocks:** —
-**Status:** blocked on W2
+**Status:** in progress — PR A (backend + ApexCore) up; B Library, C Blocks, D Meals, E release to follow
 
 ## Goal
 The three data-management areas as pushed screens from the You tab, with the phone-hidden stats
@@ -10,8 +10,10 @@ restored (U11, U12).
 ## Scope
 In:
 - Backend (Linux): `POST /api/blocks?resource=cycle { spec } → { blocks }` over
-  `blocks/cadence.ts`; run `normalizeSupersets` in the events/templates services; web cycle
-  preview switches to the endpoint.
+  `blocks/cadence.ts`; web cycle preview switches to the endpoint. (`normalizeSupersets` in the
+  services landed with W7.) Reads stay API-only (Shane, 2026-09-16; D-032): the query tools grew
+  ids, `block_id`, `today`, objectives, the meal fat split and reference counts, and
+  `GET /api/meal-favorites` was added, rather than the phone reading the five tables over RLS.
 - Library: search + category chips, rows with last-performed / in-N-workouts
   (`/api/query search_exercises` + `last_performed_by_name`), archived section; detail (tags,
   aliases, notes, PR card, trend chart via `get_exercise_history`, recent sessions); editor
@@ -27,9 +29,10 @@ In:
 Out: nothing deferred.
 
 ## Backend contract consumed
-`/api/query`, `/api/exercise-definitions`, `/api/workout-templates`, `/api/blocks`,
-`/api/objectives`, `/api/meals`, `/api/meal-favorites`; direct reads of `meals`, `meal_favorites`,
-`training_blocks`, `objectives`, `exercise_definitions`.
+`/api/query` (`get_training_blocks`, `get_exercise_history`, `search_exercises`, `get_meals`),
+`/api/exercise-definitions`, `/api/workout-templates`, `/api/blocks` (+ `?resource=cycle`,
+`?batch=1`), `/api/objectives`, `/api/meals`, `/api/meal-favorites`; definitions and templates
+from the cached `/api/schedule?include=`. No direct table reads (D-032).
 
 ## Acceptance
 - Integration test for `resource=cycle` equals the web's `cadence.ts` preview.
@@ -37,4 +40,17 @@ Out: nothing deferred.
 - Device: rename an exercise → history follows (alias); create a cycle → blocks appear on web.
 
 ## Session log
-- (none yet)
+- 2026-09-16 · PR A (backend + ApexCore, Linux-provable): `POST /api/blocks?resource=cycle`
+  (preview only; `blocks` + `rows` + `conflict`; `reads` bucket; router dispatch before the
+  resource patch), `get_training_blocks` `block_id`/`today`/`include_objectives` + ids +
+  `current_week`, `get_meals` ids + fat split, `search_exercises` ids + `references`,
+  `GET /api/meal-favorites`, `/api/meals` macro + fat-split validation with the composer's own
+  sentences (now shared from `src/lib/nutrition/mapping.ts`), the web `CycleEditor` switched to
+  the endpoint (+ `e2e/lib/mock/blocks.mjs`), eight new fixtures + two regenerated, ApexCore
+  models/forms/endpoints (`Blocks`, `BlockForm`, `Library` + `ExerciseHistoryResult`,
+  `DefinitionForm`, `MealFavorite`, `MealForm`, `Nutrition` — the D-032 Atwater port pinned by
+  `nutrition-derived.json`), 29 new `swift test` cases green natively and in `swift:6.1`.
+  Decisions: D-032. Traps: `app.ts` rewrote `?resource=cycle` to `block` (dispatch first);
+  `cadence.ts`/`validate.ts` lacked `.js` specifiers; `normalize()` collapses distinct uuids
+  (rewrite seeded ids first); `blocks-cycle.spec.ts` counted the preview POSTs (filter on
+  `batch=1`); the detail's attainment carries derived rows the planned calendar adds.

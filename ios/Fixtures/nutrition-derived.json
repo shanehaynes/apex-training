@@ -1,0 +1,65 @@
+{
+  "vectors": [
+    {
+      "input": {
+        "proteinG": 48,
+        "carbsG": 60,
+        "fatTotalG": 18
+      },
+      "output": 594
+    },
+    {
+      "input": {
+        "proteinG": 20,
+        "carbsG": 60,
+        "fatTotalG": 10,
+        "alcoholG": 14
+      },
+      "output": 508
+    },
+    {
+      "input": {
+        "proteinG": 22,
+        "carbsG": 78,
+        "fatTotalG": 12
+      },
+      "output": 508
+    },
+    {
+      "input": {
+        "carbsG": 0.125
+      },
+      "output": 1
+    },
+    {
+      "input": {
+        "fatTotalG": 0.0555
+      },
+      "output": 0
+    },
+    {
+      "input": {
+        "proteinG": 12.5
+      },
+      "output": 50
+    },
+    {
+      "input": {
+        "alcoholG": 7
+      },
+      "output": 49
+    },
+    {
+      "input": {
+        "proteinG": 0,
+        "carbsG": 0,
+        "fatTotalG": 0
+      },
+      "output": 0
+    },
+    {
+      "input": {},
+      "output": null
+    }
+  ]
+}

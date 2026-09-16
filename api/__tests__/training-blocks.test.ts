@@ -1,8 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handleTrainingBlocks as handler } from '../_lib/trainingBlocks';
+import { handleTrainingBlocks as handler, MAX_BATCH_ROWS } from '../_lib/trainingBlocks';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 import { requireUser } from '../_lib/auth';
+import { MAX_CYCLE_BLOCKS } from '../../src/lib/blocks/cadence';
+
+// The cycle preview refuses a plan past MAX_CYCLE_BLOCKS; the batch commit
+// refuses one past MAX_BATCH_ROWS. Mirrored by comment until W10 — a plan
+// the preview allowed and the commit refused would be a dead end.
+describe('batch cap', () => {
+  it('equals the cycle generator\'s cap', () => {
+    expect(MAX_BATCH_ROWS).toBe(MAX_CYCLE_BLOCKS);
+  });
+});
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
 vi.mock('../_lib/auth.js', () => ({ requireUser: vi.fn(async () => 'user-123') }));

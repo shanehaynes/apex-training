@@ -16,6 +16,7 @@
 import { createRequire } from 'node:module';
 import { DRIVER_USER, MOCK_SUPABASE, fabricatedSession } from './session.mjs';
 import { analyticsMock } from './mock/analytics.mjs';
+import { cyclePreviewRoute } from './mock/blocks.mjs';
 // Playwright's loader resolves these TS modules (and their .js-specifier
 // internals), so the bootstrap stub builds the tracker model with the SAME
 // pure builders the server runs — no second implementation to drift.
@@ -232,6 +233,10 @@ export async function installIntercept(context, { anonKey = null, profile, stale
     // with their own page.route.
     if (url.includes('/api/analytics-tiles')) return analyticsMock(context).tilesRoute(route, req);
     if (url.includes('/api/analytics-compute')) return analyticsMock(context).computeRoute(route, req);
+    // The cycle editor's preview (W10): the stub runs the app's own cadence.ts
+    // over the posted spec, so the rows the spec counts are the real ones.
+    // The `?batch=1` commit still falls through to the `{ ok: true }` below.
+    if (url.includes('/api/blocks') && url.includes('resource=cycle')) return cyclePreviewRoute(route, req);
     // Provider sync (COROS): unconfigured by default so the toolbar button
     // stays hidden in every spec that doesn't opt in. The sync spec installs
     // its own page.route (which outranks this context route) to script the

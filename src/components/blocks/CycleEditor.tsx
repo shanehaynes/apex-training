@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { format, parseISO, startOfISOWeek } from 'date-fns';
 import { useBlocks } from '../../context/blocks';
 import { notify } from '../../lib/notify';
+import { postJson } from '../../lib/api';
 import { OBJECTIVE_DISCIPLINES } from '../../types/blocks';
 import type { ObjectiveDiscipline, TrainingBlock, WeeklyTargets } from '../../types/blocks';
 import { TARGET_META } from '../../lib/blocks/targets';
@@ -14,9 +15,7 @@ import {
   DEFAULT_WEEKS_OFF,
   DEFAULT_WEEKS_ON,
   cycleTotalWeeks,
-  generateCycle,
-  isCycleSpecError,
-  overlapsExisting,
+  type CycleSpec,
 } from '../../lib/blocks/cadence';
 import { now } from '../../lib/clock';
 
@@ -26,7 +25,26 @@ import { now } from '../../lib/clock';
 //
 // The preview below the form is the point of the screen: 3-on/1-off is a
 // rhythm, and a list of dated blocks is the only way to see it before it
-// exists.
+// exists. Since W10 the server draws it — `POST /api/blocks?resource=cycle`
+// runs the same cadence.ts the browser used to, and names any existing block
+// the cycle would overlap — so the native editor and this one preview the
+// same thing.
+
+const PREVIEW_DEBOUNCE_MS = 300;
+
+type PreviewBlock = Omit<TrainingBlock, 'id'>;
+interface CycleConflict { id: string; name: string; startDate: string; endDateExclusive: string }
+type CyclePreviewResponse =
+  | { ok: true; blocks: PreviewBlock[]; rows: unknown[]; totalWeeks: number; conflict: CycleConflict | null }
+  | { ok: false; problem: string };
+
+interface PreviewState {
+  blocks: PreviewBlock[];
+  error: string | null;
+  conflict: CycleConflict | null;
+  /** True between an edit and the answer to it — the rows shown are stale. */
+  pending: boolean;
+}
 
 const toMonday = (date: string) => format(startOfISOWeek(parseISO(date)), 'yyyy-MM-dd');
 
@@ -55,7 +73,7 @@ const shortRange = (block: Pick<TrainingBlock, 'startDate' | 'endDateExclusive'>
 };
 
 export default function CycleEditor({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const { blocks, objectives, createBlocks, createObjective } = useBlocks();
+  const { objectives, createBlocks, createObjective } = useBlocks();
   const defaultStart = format(startOfISOWeek(now()), 'yyyy-MM-dd');
 
   const [name, setName] = useState('');
@@ -100,7 +118,7 @@ export default function CycleEditor({ onClose, onSaved }: { onClose: () => void;
     return out;
   }, [targets, vertUnit, distanceUnit]);
 
-  const spec = useMemo(() => ({
+  const spec = useMemo<CycleSpec>(() => ({
     startDate,
     weeksOn: intOr(weeksOn, DEFAULT_WEEKS_ON),
     weeksOff: intOr(weeksOff, DEFAULT_WEEKS_OFF),
@@ -112,23 +130,34 @@ export default function CycleEditor({ onClose, onSaved }: { onClose: () => void;
     recoveryScale,
   }), [startDate, weeksOn, weeksOff, cycles, name, intent, objectiveId, weeklyTargets, recoveryScale]);
 
-  // The preview doubles as validation: a spec that can't generate shows its
-  // reason here rather than failing only on submit.
-  const preview = useMemo(() => {
-    try {
-      return { blocks: generateCycle(spec), error: null as string | null };
-    } catch (err) {
-      return { blocks: [], error: err instanceof Error ? err.message : 'That cycle can’t be built' };
-    }
+  // The preview doubles as validation: a spec the server can't generate shows
+  // its reason here rather than failing only on submit. Debounced, and a
+  // generation counter drops any answer that arrives after a newer edit.
+  const [preview, setPreview] = useState<PreviewState>({ blocks: [], error: null, conflict: null, pending: true });
+  const generation = useRef(0);
+  useEffect(() => {
+    const mine = ++generation.current;
+    setPreview(p => ({ ...p, pending: true }));
+    const timer = setTimeout(async () => {
+      let next: PreviewState;
+      try {
+        const answer = await postJson<CyclePreviewResponse>('/api/blocks?resource=cycle', { spec }, 'Preview cycle');
+        next = answer.ok
+          ? { blocks: answer.blocks, error: null, conflict: answer.conflict, pending: false }
+          : { blocks: [], error: answer.problem, conflict: null, pending: false };
+      } catch {
+        // Transport failures already toasted in src/lib/api.ts.
+        next = { blocks: [], error: 'The preview could not be drawn — check your connection', conflict: null, pending: false };
+      }
+      if (mine === generation.current) setPreview(next);
+    }, PREVIEW_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
   }, [spec]);
 
-  const conflict = useMemo(
-    () => (preview.blocks.length ? overlapsExisting(preview.blocks, blocks) : null),
-    [preview.blocks, blocks],
-  );
-
+  const conflict = preview.conflict;
   const totalWeeks = cycleTotalWeeks(spec);
-  const canSave = !!name.trim() && preview.blocks.length > 0 && !preview.error && !conflict && !saving;
+  const canSave =
+    !!name.trim() && preview.blocks.length > 0 && !preview.error && !conflict && !preview.pending && !saving;
 
   async function addObjective() {
     const trimmed = objectiveName.trim();
@@ -152,13 +181,14 @@ export default function CycleEditor({ onClose, onSaved }: { onClose: () => void;
   async function save() {
     setSaving(true);
     try {
-      await createBlocks(generateCycle(spec));
+      // The blocks the server previewed are the blocks that get created.
+      await createBlocks(preview.blocks);
       notify(`Added ${preview.blocks.length} blocks — ${totalWeeks} weeks`);
       onSaved();
     } catch (err) {
-      // Spec and block validation carry readable messages; transport failures
+      // Block validation carries a readable message; transport failures
       // already toasted in src/lib/api.ts.
-      if (isCycleSpecError(err) || isValidationError(err)) notify(err.message);
+      if (isValidationError(err)) notify(err.message);
       setSaving(false);
     }
   }

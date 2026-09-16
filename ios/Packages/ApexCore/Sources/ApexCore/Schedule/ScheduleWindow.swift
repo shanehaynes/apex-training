@@ -43,4 +43,12 @@ public enum ScheduleCacheKey {
     public static func trackerBootstrap(eventId: String, eventDate: String) -> String {
         "\(eventId)|\(eventDate)"
     }
+
+    // W10. The blocks list is one envelope (blocks + objectives); a block's
+    // progress is cached on its own, per block, and trusted only for the
+    // `today` it was computed for.
+    public static let blocks = "all"
+    public static func blockProgress(id: String) -> String { "progress:\(id)" }
+    public static let mealFavorites = "all"
+    public static let libraryStats = "all"
 }
