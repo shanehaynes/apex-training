@@ -74,6 +74,11 @@
         "series": [
           {
             "id": "s1",
+            "filters": {
+              "exerciseNames": [
+                "Fixture Press"
+              ]
+            },
             "measure": "tonnage"
           }
         ],
@@ -99,7 +104,9 @@
             "eventTypes": [],
             "sports": [],
             "workoutTitles": [],
-            "exerciseNames": [],
+            "exerciseNames": [
+              "Fixture Press"
+            ],
             "categories": [],
             "mealTypes": [],
             "gradeScale": "",
