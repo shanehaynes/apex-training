@@ -449,7 +449,8 @@ The brief said "port the dashboard and the tile builder"; these are the lines dr
   user-facing problems answer `200 { ok:false, problem }` (the coach-tool convention). The
   builder's live preview is that endpoint with one draft, so the same `chartDraftProblem` text
   the web shows appears under the phone's form. `ChartDraft` in Swift is a dumb Codable mirror:
-  constructors only, no validator ported. Spec bodies stay accepted for the web.
+  constructors only, no validator ported. Spec bodies stay accepted, but since #152 the web sends
+  drafts as well — one validation path serving both clients, which was the point of the shape.
 - **The catalog is generated, not typed** — the third generator after tokens and DB types.
   `gen-analytics-catalog.mjs` loads `spec.ts`, the new `labels.ts` (the option labels, out of
   the React component so node can import them) and `workoutColors.ts` under node's type
@@ -479,7 +480,9 @@ The brief said "port the dashboard and the tile builder"; these are the lines dr
 - **Delete is the kebab then a confirming dialog** — the web's two taps.
 - **The coach drawer generalised.** `DraftCoachDrawer(coach:copy:)` serves the workout builder
   and the tile builder; the analytics session is store-less like the builder's.
-- **The web's switch to the draft endpoints is #152**, not W9.
+- **The web's switch to the draft endpoints is #152**, not W9. It landed there in full: tile read,
+  Save, dashboard compute and builder preview, with the browser's 1000-row PostgREST cap gone with
+  it.
 
 ## D-030 · The You tab's shape, and how the COROS browser closes without a backend (W11)
 **Status:** decided · W11 Mac session · 2026-09-13
