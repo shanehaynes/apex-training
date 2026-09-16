@@ -114,7 +114,9 @@ heredocs fed to a shell are followed as code.
 
 ## Commits and merging
 
-Commits and PRs land as Shane alone — no co-author trailers, no attribution.
+Commits and PRs land as Shane alone — no co-author trailers, no attribution; the
+`attribution` block in [.claude/settings.json](.claude/settings.json) enforces
+that for every session rather than leaving it to each one to remember.
 Open PRs with `gh pr create`. `main` requires branches to be up to date, so
 once one PR merges every other open PR needs `git merge origin/main && git push`
 and a fresh CI run before it can merge (CONTRIBUTING.md, "Merging more than
