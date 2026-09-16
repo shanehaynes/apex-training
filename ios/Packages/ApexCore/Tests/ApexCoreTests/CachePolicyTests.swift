@@ -26,6 +26,9 @@ final class CachePolicyTests: XCTestCase {
     func testKindRawValuesAreStable() {
         XCTAssertEqual(CacheKind.scheduleWindow.rawValue, "schedule_window")
         XCTAssertEqual(CacheKind.trackerBootstrap.rawValue, "tracker_bootstrap")
-        XCTAssertEqual(CacheKind.allCases.count, 10)
+        // W10 added the favorites list and the library's per-exercise stats.
+        XCTAssertEqual(CacheKind.mealFavorites.rawValue, "meal_favorites")
+        XCTAssertEqual(CacheKind.libraryStats.rawValue, "library_stats")
+        XCTAssertEqual(CacheKind.allCases.count, 12)
     }
 }

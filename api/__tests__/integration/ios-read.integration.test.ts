@@ -28,6 +28,11 @@ import analyticsTilesHandler from '../../_lib/handlers/analyticsTiles';
 import workoutDraftHandler from '../../_lib/handlers/workoutDraft';
 import mutationsLogHandler from '../../_lib/handlers/mutationsLog';
 import mcpTokensHandler from '../../_lib/handlers/mcpTokens';
+import blockCycleHandler from '../../_lib/handlers/blockCycle';
+import { handleTrainingBlocks } from '../../_lib/trainingBlocks';
+import { handleMealFavorites } from '../../_lib/mealFavorites';
+import { generateCycle, type CycleSpec } from '../../../src/lib/blocks/cadence';
+import { derivedCalories } from '../../../src/lib/nutrition/mapping';
 import { emptyDraft } from '../../../src/lib/builder/draft';
 import { emptyChartDraft } from '../../../src/lib/analytics/draft';
 import { buildChatContext } from '../../_lib/coach/context';
@@ -213,6 +218,15 @@ const LOG_EVENT_TITLE = 'Fixture Push Day';
 const LOG_DEF_NAME = 'Fixture Press';
 const LOG_BLOCK_NAME = 'Fixture Base Block';
 const LOG_OBJECTIVE_NAME = 'Fixture Spring Objective';
+// W10: blocks and objectives are keyed by server uuids, so they are seeded on
+// agent, carved by name, and their ids rewritten to these before a fixture is
+// written — normalize() collapses every uuid to the one literal `<uuid>`,
+// which would leave two blocks sharing an id in the Swift list.
+const OBJECTIVE_NAME = LOG_OBJECTIVE_NAME;
+const BASE_BLOCK_NAME = LOG_BLOCK_NAME;
+const SPRING_BLOCK_NAME = 'Fixture Spring Block';
+const STABLE_IDS = { objective: `${FX}-objective-1`, base: `${FX}-block-base`, spring: `${FX}-block-spring` };
+const FAVORITE_ID = `${FX}-fav-1`;
 
 /** Replace volatile values so a fixture is byte-stable across stack resets. */
 function normalize(value: unknown, key = ''): unknown {
@@ -260,6 +274,21 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
   let agent: { token: string; userId: string };
   let agent2: { token: string; userId: string };
   let admin: SupabaseClient;
+  /** Server-minted uuid → the stable id the fixture carries (W10). */
+  const seededIds = new Map<string, string>();
+  const realId = (stable: string) => [...seededIds].find(([, s]) => s === stable)![0];
+
+  /** Rewrite every seeded uuid in a payload to its stable id, before normalize(). */
+  function stabilize<T>(value: T): T {
+    const walk = (v: unknown): unknown => {
+      if (Array.isArray(v)) return v.map(walk);
+      if (v && typeof v === 'object') {
+        return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, walk(x)]));
+      }
+      return typeof v === 'string' && seededIds.has(v) ? seededIds.get(v) : v;
+    };
+    return walk(value) as T;
+  }
 
   async function signIn(email: string, password: string) {
     const res = await fetch(`${env.url}/auth/v1/token?grant_type=password`, {
@@ -285,6 +314,13 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     await admin.from('exercise_definitions').delete().like('id', `${FX}%`);
     await admin.from('activity_streams').delete().like('event_id', `${FX}%`);
     await admin.from('meals').delete().in('id', MEAL_IDS);
+    // W10 (agent's side). Blocks before objectives (the FK), and the cycle
+    // the preview test commits is named 'Fixture Cycle …', so the LIKE takes
+    // it with the seeded pair.
+    await admin.from('meal_favorites').delete().like('id', `${FX}%`);
+    await admin.from('training_blocks').delete().eq('user_id', agent.userId).like('name', 'Fixture%');
+    await admin.from('objectives').delete().eq('user_id', agent.userId).like('name', 'Fixture%');
+    await admin.from('block_mutations_log').delete().eq('user_id', agent.userId).like('resource_name', 'Fixture%');
 
     // W11 (agent2's side). The provider rows are a per-user singleton, and
     // apply writes events keyed `coros-<activityId>` rather than FX-prefixed
@@ -393,9 +429,37 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
         calories: 520, protein_g: 22, carbs_g: 78, fat_total_g: 12 },
       // No stored calories: the server derives them (Atwater), which is the
       // reason the app asks the server rather than adding grams itself.
+      // The fat split rides along since W10: the phone's composer reopens a
+      // meal with it. Calories stay derived (594) — the split is not summed.
       { id: MEAL_IDS[1], user_id: agent.userId, title: 'Fixture Chicken Bowl', date: FIXTURE_DAY, time: '12:45', meal_type: 'lunch',
-        protein_g: 48, carbs_g: 60, fat_total_g: 18 },
+        protein_g: 48, carbs_g: 60, fat_total_g: 18, fat_saturated_g: 4, fat_trans_g: 0 },
     ])).error);
+    fail('favorite', (await admin.from('meal_favorites').insert({
+      id: FAVORITE_ID, user_id: agent.userId, title: 'Fixture Overnight Oats', meal_type: 'breakfast',
+      calories: 420, protein_g: 18, carbs_g: 60, fat_total_g: 12, fat_saturated_g: 2, notes: 'Prep the night before.',
+    })).error);
+
+    // ---- W10: an objective and two blocks on agent. The base block covers
+    // FIXTURE_DAY (its second week) and the tracked 09-22 finish (a PR inside
+    // the block); the spring block is in the past with no targets, the case
+    // `block_id` exists for. Ids are server uuids: see STABLE_IDS.
+    const objective = await admin.from('objectives').insert({
+      user_id: agent.userId, name: OBJECTIVE_NAME, target_date: '2027-05-01', discipline: 'alpine',
+      notes: '', required_capabilities: [], status: 'active',
+    }).select('id').single();
+    fail('objective', objective.error);
+    seededIds.set(objective.data!.id, STABLE_IDS.objective);
+    const blocks = await admin.from('training_blocks').insert([
+      { user_id: agent.userId, name: BASE_BLOCK_NAME, intent: 'Aerobic base before the spring push.', phase: 'base',
+        objective_id: objective.data!.id, start_date: '2026-08-31', end_date_exclusive: '2026-09-28',
+        weekly_targets: { cardioMinutes: 60, strengthSessions: 1 } },
+      { user_id: agent.userId, name: SPRING_BLOCK_NAME, intent: '', phase: 'build', objective_id: null,
+        start_date: '2026-03-02', end_date_exclusive: '2026-03-30', weekly_targets: {} },
+    ]).select('id, name');
+    fail('blocks', blocks.error);
+    for (const row of blocks.data!) {
+      seededIds.set(row.id, row.name === BASE_BLOCK_NAME ? STABLE_IDS.base : STABLE_IDS.spring);
+    }
     fail('completion', (await admin.from('workout_completions').insert({
       user_id: agent.userId, event_id: DONE_OCCURRENCE, event_date: '2026-09-08', event_title: 'Fixture Push Day',
       event_type: 'weights', duration_minutes: 60, is_completed: true, completed_at: '2026-09-08T18:30:00Z',
@@ -1124,7 +1188,12 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     expect(mealDays[0].totals.calories).toBe(1114);
     fixture('query-get_meals.json', meals.body);
 
-    fixture('query-search_exercises.json', (await query(agent.token, { tool: 'search_exercises', args: { query: 'fixture' } })).body);
+    // W10: entries carry their id and, on request, how many planned workouts
+    // use them — the weekly base is the one event with fx press.
+    const search = await query(agent.token, { tool: 'search_exercises', args: { query: 'fixture', include_references: true } });
+    expect((search.body as { result: { exercises: Array<{ id: string; references: number }> } }).result.exercises)
+      .toEqual([expect.objectContaining({ id: DEF_ID, references: 1 })]);
+    fixture('query-search_exercises.json', search.body);
     fixture('query-get_prs.json', (await query(agent.token, { tool: 'get_prs', args: { exercise_name: 'Fixture Press' } })).body);
 
     // The fixture pins the NO-KEY state. getAnthropicKey is mocked for the
@@ -1220,5 +1289,136 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     expect(apply.statusCode).toBe(200);
     expect(apply.body).toEqual({ created: 1, filled: 1, errors: [] });
     fixture('provider-apply.json', apply.body);
+  });
+
+  // W10 — Library, Blocks, Meals. Blocks and objectives are on agent, whose
+  // schedule and logs give the base block something to attain.
+  it('emits the blocks, exercise-history, favorites, cycle-preview and nutrition fixtures', async () => {
+    type Block = { id: string; name: string; objective_id: string | null; current_week: number | null; progress: unknown };
+    type BlocksResult = { today: string; current: Block | null; block?: Block; blocks?: Block[]; objectives?: Array<{ id: string; name: string }> };
+    const isFixture = (b: { name: string } | null | undefined) => !!b && b.name.startsWith('Fixture');
+    const carve = (r: BlocksResult): BlocksResult => ({
+      ...r,
+      current: isFixture(r.current) ? r.current : null,
+      blocks: r.blocks?.filter(isFixture),
+      objectives: r.objectives?.filter(isFixture),
+    });
+
+    // ---- The list read: every block and objective, no progress, today pinned.
+    const list = await query(agent.token, {
+      tool: 'get_training_blocks',
+      args: { scope: 'all', include_progress: false, include_objectives: true, today: FIXTURE_DAY },
+    });
+    expect(list.statusCode).toBe(200);
+    const listBody = list.body as { tool: string; result: BlocksResult };
+    const carvedList = { tool: listBody.tool, result: carve(listBody.result) };
+    expect(carvedList.result.current).toMatchObject({ name: BASE_BLOCK_NAME, current_week: 2, progress: null });
+    expect(carvedList.result.blocks!.map(b => b.name)).toEqual([SPRING_BLOCK_NAME, BASE_BLOCK_NAME]);
+    expect(carvedList.result.blocks![0].current_week).toBeNull();
+    expect(carvedList.result.blocks![1].objective_id).toBe(realId(STABLE_IDS.objective));
+    expect(carvedList.result.objectives!.map(o => o.name)).toEqual([OBJECTIVE_NAME]);
+    fixture('query-get_training_blocks.json', stabilize(carvedList));
+
+    // ---- The detail read: one block's progress, by id. Week 1 is complete
+    // on FIXTURE_DAY; the tracked 09-22 finish is a PR inside the block.
+    const detail = await query(agent.token, {
+      tool: 'get_training_blocks', args: { block_id: realId(STABLE_IDS.base), today: FIXTURE_DAY },
+    });
+    expect(detail.statusCode).toBe(200);
+    const detailBody = detail.body as { tool: string; result: BlocksResult };
+    const progress = detailBody.result.block!.progress as {
+      weeks_total: number; weeks_elapsed: number; current_week: number | null;
+      to_date: { attainment: Array<{ key: string; source: string }> };
+      weeks: Array<{ index: number; is_complete: boolean }>;
+      prs: Array<{ kind: string; exerciseName: string; description: string }>;
+    };
+    expect(detailBody.result.block).toMatchObject({ name: BASE_BLOCK_NAME, current_week: 2 });
+    expect(progress).toMatchObject({ weeks_total: 4, weeks_elapsed: 1, current_week: 2 });
+    expect(progress.weeks.map(w => w.is_complete)).toEqual([true, false, false, false]);
+    // The two authored targets, plus whatever the planned calendar derives
+    // (the crag day and its long approach add climbing and long-session rows).
+    expect(progress.to_date.attainment.filter(a => a.source === 'authored').map(a => a.key))
+      .toEqual(['cardioMinutes', 'strengthSessions']);
+    expect(progress.to_date.attainment.some(a => a.source === 'derived')).toBe(true);
+    expect(progress.prs).toEqual([expect.objectContaining({ kind: 'oneRM', exerciseName: 'Fixture Press' })]);
+    // The current block's progress is not computed twice.
+    expect(detailBody.result.current?.progress).toBeNull();
+    fixture('query-get_training_blocks-detail.json', stabilize({ tool: detailBody.tool, result: carve(detailBody.result) }));
+
+    // ---- Exercise history by a former spelling: alias-aware, oneRM stats.
+    const history = await query(agent.token, { tool: 'get_exercise_history', args: { exercise_name: 'fx press' } });
+    expect(history.statusCode).toBe(200);
+    expect((history.body as { result: unknown }).result).toMatchObject({
+      canonical_name: 'Fixture Press', resolved_from: 'fx press', stat_kind: 'oneRM', total_sessions: 2,
+    });
+    fixture('query-get_exercise_history.json', history.body);
+
+    // ---- Favorites: the phone's composer reads them through the API.
+    const favorites = makeRes();
+    await handleMealFavorites(makeReq({ method: 'GET', token: agent.token }), favorites.res);
+    expect(favorites.statusCode).toBe(200);
+    const favs = (favorites.body as { favorites: Array<{ id: string; title: string }> }).favorites.filter(f => f.id.startsWith(FX));
+    expect(favs.map(f => f.title)).toEqual(['Fixture Overnight Oats']);
+    fixture('meal-favorites.json', { favorites: favs });
+
+    // ---- The cycle preview: the brief's acceptance is that the endpoint
+    // equals cadence.ts's own preview. A Wednesday start snaps to its Monday.
+    const cycle = async (spec: unknown) => {
+      const c = makeRes();
+      await blockCycleHandler(makeReq({ method: 'POST', token: agent.token, query: { resource: 'cycle' }, body: { spec } }), c.res);
+      return c;
+    };
+    const spec: CycleSpec = {
+      startDate: '2027-01-06', weeksOn: 3, weeksOff: 1, cycles: 2, namePrefix: 'Fixture Cycle',
+      intent: 'Winter build', objectiveId: realId(STABLE_IDS.objective),
+      weeklyTargets: { cardioMinutes: 300, strengthSessions: 2, vert: { value: 3000, unit: 'ft' } },
+      recoveryScale: 0.5,
+    };
+    const ok = await cycle(spec);
+    expect(ok.statusCode).toBe(200);
+    const okBody = ok.body as { ok: boolean; blocks: ReturnType<typeof generateCycle>; rows: unknown[]; totalWeeks: number; conflict: unknown };
+    expect(okBody).toMatchObject({ ok: true, totalWeeks: 8, conflict: null });
+    expect(okBody.blocks).toEqual(generateCycle(spec));
+    expect(okBody.blocks.map(b => b.name)).toEqual(['Fixture Cycle · Build 1', 'Fixture Cycle · Recovery 1', 'Fixture Cycle · Build 2', 'Fixture Cycle · Recovery 2']);
+    expect(okBody.blocks[0].startDate).toBe('2027-01-04');
+    expect(okBody.blocks[1].weeklyTargets).toEqual({ cardioMinutes: 150, strengthSessions: 1, vert: { value: 1500, unit: 'ft' } });
+    fixture('blocks-cycle.json', stabilize(ok.body));
+
+    // Overlapping the seeded base block names it; the preview still renders.
+    const conflict = await cycle({ ...spec, startDate: '2026-08-31' });
+    expect(conflict.statusCode).toBe(200);
+    expect(conflict.body).toMatchObject({ ok: true, conflict: { name: BASE_BLOCK_NAME, startDate: '2026-08-31' } });
+    fixture('blocks-cycle-conflict.json', stabilize(conflict.body));
+
+    const problem = await cycle({ ...spec, namePrefix: '' });
+    expect(problem.statusCode).toBe(200);
+    expect(problem.body).toEqual({ ok: false, problem: 'A cycle needs a name' });
+    fixture('blocks-cycle-problem.json', problem.body);
+
+    // The rows commit through the batch insert untouched — what the phone
+    // does after a preview. cleanup() takes them by name.
+    const commit = makeRes();
+    await handleTrainingBlocks(makeReq({
+      method: 'POST', token: agent.token, query: { resource: 'block', batch: '1' },
+      body: { rows: okBody.rows, log: { resource_name: okBody.blocks[0].name, triggered_by: 'user' } },
+    }), commit.res);
+    expect(commit.statusCode).toBe(200);
+    expect((commit.body as { ids: string[] }).ids).toHaveLength(4);
+
+    // ---- D-033: the Atwater vectors the Swift port is pinned against,
+    // computed by the web's own derivedCalories. Halves round up; nothing
+    // set is null, not zero.
+    const inputs = [
+      { proteinG: 48, carbsG: 60, fatTotalG: 18 },
+      { proteinG: 20, carbsG: 60, fatTotalG: 10, alcoholG: 14 },
+      { proteinG: 22, carbsG: 78, fatTotalG: 12 },
+      { carbsG: 0.125 },
+      { fatTotalG: 0.0555 },
+      { proteinG: 12.5 },
+      { alcoholG: 7 },
+      { proteinG: 0, carbsG: 0, fatTotalG: 0 },
+      {},
+    ];
+    fixture('nutrition-derived.json', { vectors: inputs.map(input => ({ input, output: derivedCalories(input) })) });
   });
 });

@@ -572,3 +572,39 @@ The brief said "port the dashboard and the tile builder"; these are the lines dr
   `toast.failure` and the COROS import toast) pass; on the simulator a failed rename shows its
   toast over the event sheet, a tracker toast shows over the cover, and a tap on the sheet
   beneath a live toast lands.
+## D-033 · W10 reads stay API-only; the derived-kcal placeholder is the one nutrition port
+**Status:** decided · Shane, 2026-09-16 · Mac session (PR A)
+- **The question.** The W10 brief had the phone reading `meals`, `meal_favorites`,
+  `training_blocks`, `objectives` and `exercise_definitions` directly over RLS (the SELECT
+  policies exist). Every screen since W6 reads through the API, and D-028 chose that posture
+  for the profile explicitly. Meanwhile the tools the screens would otherwise use returned no
+  ids (`search_exercises`, `get_meals`), computed progress only for the block covering today
+  (`get_training_blocks`), and listed no objectives or favorites.
+- **Options.** (a) Direct PostgREST reads per the brief: less backend work, but a second read
+  path, a new client dependency in ApexFeatures, no fixtures for those reads, and a reversal of
+  D-028. (b) Widen the API: ids and the missing fields on the tools, `block_id` + `today` +
+  `include_objectives` on `get_training_blocks`, `include_references` on `search_exercises`,
+  `GET /api/meal-favorites`. More work in PR A; one read path, one cache, one mock.
+- **Decision: (b).** Definitions and templates keep coming from the cached
+  `/api/schedule?include=`; everything else the three screens show is a tool result or an API
+  list, with a fixture. `today` travels on every blocks call because the server has no user
+  zone and a fixture that read the clock would drift daily.
+- **The cycle preview is preview-only.** `POST /api/blocks?resource=cycle` answers `blocks`
+  (to render) and `rows` (the exact `?batch=1` body) and the first existing block it would
+  overlap; the commit stays the batch insert. It runs in the `reads` bucket: a debounced
+  preview writes nothing and would exhaust `writes` (120/hour) in one editing session.
+- **The one D-008 exception.** The composer's live "derived kcal" placeholder cannot
+  round-trip to the server per keystroke (a debounced call was the alternative; dropping the
+  placeholder the other). `Nutrition.derivedCalories` ports the four Atwater constants and is
+  pinned by `nutrition-derived.json`, vectors the web repo emits from its own `derivedCalories`
+  (`ApexCore/Tests/NutritionContractTests`). Nothing else from `src/lib/nutrition` is ported:
+  `validateFatSplit` and the non-negative checks moved INTO `/api/meals` instead, refusing with
+  the composer's sentences (which now live once, in `src/lib/nutrition/mapping.ts`), so the
+  native composer shows the server's text inline.
+- **Snapping is component code.** `BlockForm` snaps the start to its Monday and the end to its
+  Sunday because `BlockEditor.tsx` does that in the component, not in a tested `src/lib`
+  module (the D-024 mould). Week counts and the current week are not computed on the phone —
+  the tool sends `weeks` and `current_week`.
+- **Consequences.** PR B/C/D read only what PR A's fixtures pin; the mock replays writes into
+  these same reads. A tool that gains a field later is a fixture regeneration, not a schema
+  change. The web's cycle editor now previews through the same endpoint.

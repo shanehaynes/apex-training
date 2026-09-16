@@ -30,6 +30,7 @@ import query from './handlers/query.js';
 import coachTool from './handlers/coachTool.js';
 import workoutDraft from './handlers/workoutDraft.js';
 import analyticsCompute from './handlers/analyticsCompute.js';
+import blockCycle from './handlers/blockCycle.js';
 import { handleTrainingBlocks } from './trainingBlocks.js';
 import { handleMeals } from './meals.js';
 import { handleMealFavorites } from './mealFavorites.js';
@@ -57,8 +58,14 @@ const bridge =
 export const app = new Hono<Env>().basePath('/api');
 app.all('/events', bridge(events));
 // handleTrainingBlocks dispatches on query.resource internally (its original
-// contract as an events.ts delegate); the clean paths inject it.
-app.all('/blocks', bridge(handleTrainingBlocks, r => { r.query.resource = 'block'; }));
+// contract as an events.ts delegate); the clean paths inject it. The cycle
+// preview (W10) shares the path, so `?resource=cycle` is dispatched before
+// the injection that would otherwise rewrite it to 'block'.
+app.all('/blocks', bridge(async (req, res) => {
+  if (req.query.resource === 'cycle') return blockCycle(req, res);
+  req.query.resource = 'block';
+  return handleTrainingBlocks(req, res);
+}));
 app.all('/objectives', bridge(handleTrainingBlocks, r => { r.query.resource = 'objective'; }));
 app.all('/meals', bridge(handleMeals));
 app.all('/meal-favorites', bridge(handleMealFavorites));

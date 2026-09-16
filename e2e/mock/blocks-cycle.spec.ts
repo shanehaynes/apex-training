@@ -65,11 +65,13 @@ test('recovery weeks carry reduced targets, in the same unit', async ({ page }) 
 test('saving posts one batched request, not one per block', async ({ page }) => {
   await openCycleEditor(page);
 
+  // Since W10 the preview itself POSTs (`?resource=cycle`) on every edit; only
+  // the commit (`?batch=1`) is the write this test counts.
   const posts: string[] = [];
+  const previews: string[] = [];
   page.on('request', req => {
-    if (req.url().includes('/api/blocks') && req.method() === 'POST') {
-      posts.push(req.url());
-    }
+    if (!req.url().includes('/api/blocks') || req.method() !== 'POST') return;
+    (req.url().includes('batch=1') ? posts : previews).push(req.url());
   });
 
   await page.locator('.library-field__input').first().fill('Spring Alpine');
@@ -82,6 +84,9 @@ test('saving posts one batched request, not one per block', async ({ page }) => 
 
   await expect.poll(() => posts.length, { message: 'exactly one batched POST' }).toBe(1);
   expect(posts[0]).toContain('batch=1');
+  // And the preview went through the endpoint, not the browser.
+  expect(previews.length).toBeGreaterThan(0);
+  expect(previews.every(u => u.includes('resource=cycle'))).toBe(true);
 });
 
 test('a nameless cycle cannot be saved', async ({ page }) => {

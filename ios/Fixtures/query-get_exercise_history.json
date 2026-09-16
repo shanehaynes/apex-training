@@ -1,0 +1,39 @@
+{
+  "tool": "get_exercise_history",
+  "result": {
+    "canonical_name": "Fixture Press",
+    "resolved_from": "fx press",
+    "stat_kind": "oneRM",
+    "stat_unit": "est. 1RM",
+    "all_time_best": {
+      "display": "132",
+      "date": "2026-09-22"
+    },
+    "total_sessions": 2,
+    "trend": [
+      {
+        "date": "2026-09-08",
+        "value": 121.00000000000001
+      },
+      {
+        "date": "2026-09-22",
+        "value": 132
+      }
+    ],
+    "recent_sessions": [
+      {
+        "date": "2026-09-22",
+        "sets": [
+          "120 × 3"
+        ]
+      },
+      {
+        "date": "2026-09-08",
+        "sets": [
+          "100 × 5",
+          "110 × 3"
+        ]
+      }
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 import { addDays, format, parseISO, startOfISOWeek } from 'date-fns';
 import type { TrainingBlock, WeeklyTargets } from '../../types/blocks';
-import { validateBlock } from './validate';
+import { validateBlock } from './validate.js';
 
 // ─── Training cycles ──────────────────────────────────────────────────────────
 // The periodization rhythm the calendar could never express: N weeks of work

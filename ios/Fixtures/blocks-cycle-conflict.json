@@ -1,0 +1,142 @@
+{
+  "ok": true,
+  "blocks": [
+    {
+      "name": "Fixture Cycle · Build 1",
+      "intent": "Winter build",
+      "phase": "build",
+      "objectiveId": "ios-fixture-objective-1",
+      "startDate": "2026-08-31",
+      "endDateExclusive": "2026-09-21",
+      "weeklyTargets": {
+        "cardioMinutes": 300,
+        "strengthSessions": 2,
+        "vert": {
+          "value": 3000,
+          "unit": "ft"
+        }
+      }
+    },
+    {
+      "name": "Fixture Cycle · Recovery 1",
+      "intent": "Winter build",
+      "phase": "recovery",
+      "objectiveId": "ios-fixture-objective-1",
+      "startDate": "2026-09-21",
+      "endDateExclusive": "2026-09-28",
+      "weeklyTargets": {
+        "cardioMinutes": 150,
+        "strengthSessions": 1,
+        "vert": {
+          "value": 1500,
+          "unit": "ft"
+        }
+      }
+    },
+    {
+      "name": "Fixture Cycle · Build 2",
+      "intent": "Winter build",
+      "phase": "build",
+      "objectiveId": "ios-fixture-objective-1",
+      "startDate": "2026-09-28",
+      "endDateExclusive": "2026-10-19",
+      "weeklyTargets": {
+        "cardioMinutes": 300,
+        "strengthSessions": 2,
+        "vert": {
+          "value": 3000,
+          "unit": "ft"
+        }
+      }
+    },
+    {
+      "name": "Fixture Cycle · Recovery 2",
+      "intent": "Winter build",
+      "phase": "recovery",
+      "objectiveId": "ios-fixture-objective-1",
+      "startDate": "2026-10-19",
+      "endDateExclusive": "2026-10-26",
+      "weeklyTargets": {
+        "cardioMinutes": 150,
+        "strengthSessions": 1,
+        "vert": {
+          "value": 1500,
+          "unit": "ft"
+        }
+      }
+    }
+  ],
+  "rows": [
+    {
+      "objective_id": "ios-fixture-objective-1",
+      "name": "Fixture Cycle · Build 1",
+      "intent": "Winter build",
+      "phase": "build",
+      "start_date": "2026-08-31",
+      "end_date_exclusive": "2026-09-21",
+      "weekly_targets": {
+        "cardioMinutes": 300,
+        "strengthSessions": 2,
+        "vert": {
+          "value": 3000,
+          "unit": "ft"
+        }
+      }
+    },
+    {
+      "objective_id": "ios-fixture-objective-1",
+      "name": "Fixture Cycle · Recovery 1",
+      "intent": "Winter build",
+      "phase": "recovery",
+      "start_date": "2026-09-21",
+      "end_date_exclusive": "2026-09-28",
+      "weekly_targets": {
+        "cardioMinutes": 150,
+        "strengthSessions": 1,
+        "vert": {
+          "value": 1500,
+          "unit": "ft"
+        }
+      }
+    },
+    {
+      "objective_id": "ios-fixture-objective-1",
+      "name": "Fixture Cycle · Build 2",
+      "intent": "Winter build",
+      "phase": "build",
+      "start_date": "2026-09-28",
+      "end_date_exclusive": "2026-10-19",
+      "weekly_targets": {
+        "cardioMinutes": 300,
+        "strengthSessions": 2,
+        "vert": {
+          "value": 3000,
+          "unit": "ft"
+        }
+      }
+    },
+    {
+      "objective_id": "ios-fixture-objective-1",
+      "name": "Fixture Cycle · Recovery 2",
+      "intent": "Winter build",
+      "phase": "recovery",
+      "start_date": "2026-10-19",
+      "end_date_exclusive": "2026-10-26",
+      "weekly_targets": {
+        "cardioMinutes": 150,
+        "strengthSessions": 1,
+        "vert": {
+          "value": 1500,
+          "unit": "ft"
+        }
+      }
+    }
+  ],
+  "totalWeeks": 8,
+  "conflict": {
+    "id": "ios-fixture-block-base",
+    "name": "Fixture Base Block",
+    "startDate": "2026-08-31",
+    "endDateExclusive": "2026-09-28"
+  }
+}

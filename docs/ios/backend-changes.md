@@ -262,9 +262,59 @@ the API and sends the builder's `ChartDraft`, and the server runs the same pure 
   browser is gone; `e2e/lib/mock/analytics.mjs` answers the three routes in the mock suite, since
   the app-wide provider makes every spec issue the tiles GET.
 
-## W10 — `POST /api/blocks?resource=cycle { spec }` → `{ blocks }` (Linux, small)
-Wraps `blocks/cadence.ts` (`CycleSpecError`, overlap checks). Web switches its preview to it.
-(Superset re-lettering in the services landed with W7.)
+## W10 — the cycle preview, the query tools widened, meals validated (Linux)
+
+Landed 2026-09-16 (PR A of W10). Shane's call: the phone reads through the API only — no
+PostgREST from the phone, extending D-028 — so the tools grew what the three screens need
+instead of opening a second read path.
+
+- **`POST /api/blocks?resource=cycle { spec }`** (`handlers/blockCycle.ts`): runs
+  `blocks/cadence.ts` server-side. Preview only, nothing written. Answers
+  `200 { ok:true, blocks, rows, totalWeeks, conflict }` — `blocks` camelCase for rendering,
+  `rows` the exact `?batch=1` insert rows so a client commits what it was shown without
+  spelling a column, `conflict` the first existing block the cycle would overlap (`{ id, name,
+  startDate, endDateExclusive } | null`; the DB exclusion constraint stays the real guard on
+  commit) — or `200 { ok:false, problem }` with the generator's or the per-block validator's
+  own words (the `/api/workout-draft` convention). 400 for a body that is not a spec. Rate
+  bucket **`reads`**, not `writes`: the preview fires on a 300 ms debounce and would exhaust
+  120/hour in one editing session. The router dispatches `resource=cycle` before the patch that
+  injects `resource=block` (`app.ts`); `api/__tests__/router.test.ts` pins both branches, and
+  `training-blocks.test.ts` pins `MAX_BATCH_ROWS === MAX_CYCLE_BLOCKS`. `cadence.ts` and
+  `validate.ts` entered the API import graph here and gained their `.js` specifiers. **The web's
+  `CycleEditor` previews through it too** (debounced, latest-wins); `e2e/lib/mock/blocks.mjs`
+  answers it in the mock suite with the real `generateCycle`.
+- **`get_training_blocks`** (additive): `today` (the caller's local date — the server has no
+  user zone and a fixture that read the clock would drift daily), `block_id` (progress for ANY
+  block, answered under `block`; the detail screen for a past block had no other path),
+  `include_objectives` (every objective with its id, for the editor's picker); summaries gain
+  `id`, `objective_id`, `current_week`, and the nested objective its `id`. One progress
+  computation per call: the named block when there is one, else the current.
+- **`get_meals`** items gain `id`, `fat_saturated_g`, `fat_trans_g`, `alcohol_g` — the phone's
+  list edits and deletes by id and its composer reopens the split it saved.
+- **`search_exercises`** entries gain `id`; `include_references` adds `references`, the web
+  library's "in N workouts" (`countDefinitionReferences` over the base events, server-side —
+  the phone holds only a window of the schedule); `limit` ceiling 100 → 500.
+- **`GET /api/meal-favorites`** → `{ favorites }` (camelCase via `rowToFavorite`, title order),
+  under the `reads` bucket. POST/DELETE unchanged.
+- **`/api/meals` validates** (`services/meals.ts`): every present macro a finite number ≥ 0,
+  and the fat split (`validateFatSplit`) judged as it will exist after a PATCH merges (a fat
+  edit reads the other two columns first; a foreign id is a 404). Refusals are 400 with the
+  composer's own sentences, which now live once in `src/lib/nutrition/mapping.ts`
+  (`MACRO_LABELS`, `negativeMacroMessage`, `FAT_SPLIT_MESSAGE`) and the web composer uses. Before
+  this a bad macro was a raw 500 from the CHECK constraint.
+- **Fixtures** (agent; blocks and objectives carved by `Fixture` name and their server uuids
+  rewritten to `ios-fixture-block-base` / `-spring` / `-objective-1` before `normalize()`, which
+  would otherwise collapse them to one `<uuid>`): `query-get_training_blocks.json`,
+  `query-get_training_blocks-detail.json`, `query-get_exercise_history.json`,
+  `meal-favorites.json`, `blocks-cycle.json` (asserted equal to `generateCycle(spec)` and
+  committed through `?batch=1`), `blocks-cycle-conflict.json`, `blocks-cycle-problem.json`,
+  `nutrition-derived.json` (the D-033 vectors); `query-get_meals.json` and
+  `query-search_exercises.json` regenerated.
+- ApexCore: `Models/Blocks.swift`, `Blocks/BlockForm.swift`, `Models/Library.swift` widened +
+  `ExerciseHistoryResult`, `Library/DefinitionForm.swift`, `Models/Meals.swift` widened +
+  `MealFavorite`, `Nutrition/MealForm.swift`, `Nutrition/Nutrition.swift` (the Atwater port,
+  D-033), the W10 `Endpoint` factories, `CacheKind.mealFavorites/.libraryStats` and the
+  `ScheduleCacheKey` entries. (Superset re-lettering in the services landed with W7.)
 
 ## W11 — profile, COROS, account (Linux + Mac)
 
@@ -320,7 +370,7 @@ Landed 2026-09-11 (`phase41_provider_client.sql`, `handlers/providerSync.ts`,
 | `analytics-compute` | W8 | engine.ts, spec.ts, hrZones.ts | yes (#179) | reads | 200 | — |
 | `GET /api/analytics-tiles`, `{ draft }` on tiles POST and compute | W9 | draft.ts, tiles.ts | yes (#179) | reads / writes | 120 | — |
 | `workout-draft`, supersets in services, `originalDate` | W7 | draft.ts, templates.ts, mapping.ts, supersets.ts | yes (#178) | writes | 300 | — |
-| `blocks?resource=cycle` | W10 | cadence.ts | yes | writes | 60 | — |
+| `blocks?resource=cycle`, tools widened (`get_training_blocks` `block_id`/`today`/objectives, `get_meals` ids + split, `search_exercises` ids + references), `GET /api/meal-favorites`, `/api/meals` validation | W10 | cadence.ts, mapping.ts (nutrition) | yes (cycle preview) | reads / writes | 320 | — |
 | account deletion | W11 | exists: `DELETE /api/account` | — | — | 0 | — |
 | COROS `client:'ios'` + scheme redirect | W11 | providers/* | no | providerSync | 40 | **yes** (phase41 `provider_connections.client`) |
 | `GET /api/profile` widened (profiles row, feed URL, model catalog) | W11 | models.ts, oauth/common.ts | no | — | 50 | — |

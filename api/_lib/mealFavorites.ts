@@ -4,15 +4,17 @@ import { requireUser } from './auth.js';
 import { pickAllowed, MEAL_FAVORITE_COLUMNS } from './allowlist.js';
 import { enforceRateLimit } from './rateLimit.js';
 import type { MealFavoriteRow, TablesInsert } from '../../src/lib/db/types.js';
+import { rowToFavorite } from '../../src/lib/nutrition/mapping.js';
 
 // Meal favorites (phase 24): user-only meal templates, served as
 // /api/meal-favorites by the consolidated router (_lib/app.ts) — a delegate
 // rather than its own function file (12-function deploy cap; see the
-// training-blocks delegate). POST upserts scoped to (user_id, id) —
-// the client reuses an existing favorite's id for same-title saves, so
-// "save again" overwrites instead of duplicating. No AI cap or mutation
-// log: the coach has no favorite tools, and favorites are cosmetic templates,
-// not audit-worthy data.
+// training-blocks delegate). GET lists the caller's favorites (W10: the
+// phone's composer reads them here, the web still reads PostgREST). POST
+// upserts scoped to (user_id, id) — the client reuses an existing
+// favorite's id for same-title saves, so "save again" overwrites instead of
+// duplicating. No AI cap or mutation log: the coach has no favorite tools,
+// and favorites are cosmetic templates, not audit-worthy data.
 
 export async function handleMealFavorites(req: VercelRequest, res: VercelResponse) {
   const supabase = getSupabaseAdmin();
@@ -24,7 +26,23 @@ export async function handleMealFavorites(req: VercelRequest, res: VercelRespons
   const userId = await requireUser(req, res);
   if (!userId) return;
 
-  if (!(await enforceRateLimit(supabase, res, userId, 'writes'))) return;
+  // The list shares the read bucket with the other native-client reads.
+  if (!(await enforceRateLimit(supabase, res, userId, req.method === 'GET' ? 'reads' : 'writes'))) return;
+
+  if (req.method === 'GET') {
+    const { data, error } = await supabase
+      .from('meal_favorites')
+      .select('*')
+      .eq('user_id', userId)
+      .order('title', { ascending: true });
+    if (error) {
+      console.error('[api/meal-favorites] list failed:', error.message);
+      res.status(500).send('Failed to load favorites');
+      return;
+    }
+    res.status(200).json({ favorites: ((data ?? []) as MealFavoriteRow[]).map(rowToFavorite) });
+    return;
+  }
 
   if (req.method === 'POST') {
     const row = (req.body ?? {}) as Partial<MealFavoriteRow>;

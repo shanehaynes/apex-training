@@ -1,0 +1,78 @@
+{
+  "tool": "get_training_blocks",
+  "result": {
+    "today": "2026-09-08",
+    "current": {
+      "id": "ios-fixture-block-base",
+      "name": "Fixture Base Block",
+      "intent": "Aerobic base before the spring push.",
+      "phase": "base",
+      "objective_id": "ios-fixture-objective-1",
+      "start_date": "2026-08-31",
+      "end_date_exclusive": "2026-09-28",
+      "weeks": 4,
+      "current_week": 2,
+      "weekly_targets": {
+        "cardioMinutes": 60,
+        "strengthSessions": 1
+      },
+      "objective": {
+        "id": "ios-fixture-objective-1",
+        "name": "Fixture Spring Objective",
+        "discipline": "alpine",
+        "target_date": "2027-05-01",
+        "status": "active",
+        "notes": ""
+      },
+      "progress": null
+    },
+    "blocks": [
+      {
+        "id": "ios-fixture-block-spring",
+        "name": "Fixture Spring Block",
+        "intent": "",
+        "phase": "build",
+        "objective_id": null,
+        "start_date": "2026-03-02",
+        "end_date_exclusive": "2026-03-30",
+        "weeks": 4,
+        "current_week": null,
+        "weekly_targets": {},
+        "objective": null
+      },
+      {
+        "id": "ios-fixture-block-base",
+        "name": "Fixture Base Block",
+        "intent": "Aerobic base before the spring push.",
+        "phase": "base",
+        "objective_id": "ios-fixture-objective-1",
+        "start_date": "2026-08-31",
+        "end_date_exclusive": "2026-09-28",
+        "weeks": 4,
+        "current_week": 2,
+        "weekly_targets": {
+          "cardioMinutes": 60,
+          "strengthSessions": 1
+        },
+        "objective": {
+          "id": "ios-fixture-objective-1",
+          "name": "Fixture Spring Objective",
+          "discipline": "alpine",
+          "target_date": "2027-05-01",
+          "status": "active",
+          "notes": ""
+        }
+      }
+    ],
+    "objectives": [
+      {
+        "id": "ios-fixture-objective-1",
+        "name": "Fixture Spring Objective",
+        "discipline": "alpine",
+        "target_date": "2027-05-01",
+        "status": "active",
+        "notes": ""
+      }
+    ]
+  }
+}

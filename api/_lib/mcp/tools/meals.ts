@@ -51,8 +51,12 @@ export const getMealsTool: McpToolDef = {
         date,
         meal_count: meals.length,
         totals: sumDayMacros(meals),
+        // Items carry their id and every stored macro (W10): the phone's
+        // meal list edits and deletes through `/api/meals?id=`, and its
+        // composer reopens a meal with the fat split and alcohol it saved.
         meals: includeItems
           ? meals.map(m => ({
+              id: m.id,
               title: m.title,
               time: m.time ?? null,
               meal_type: m.mealType ?? null,
@@ -62,6 +66,9 @@ export const getMealsTool: McpToolDef = {
               fiber_g: m.fiberG ?? null,
               sugar_g: m.sugarG ?? null,
               fat_total_g: m.fatTotalG ?? null,
+              fat_saturated_g: m.fatSaturatedG ?? null,
+              fat_trans_g: m.fatTransG ?? null,
+              alcohol_g: m.alcoholG ?? null,
               notes: m.notes || null,
             }))
           : undefined,
