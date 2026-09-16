@@ -6,9 +6,11 @@
 // The held list is a blast-radius boundary, not a style call. Held:
 //
 //   - every path that defines the automation's own authority — this policy,
-//     the babysitter, the guard hooks, .claude/settings.json, and each script
-//     that settings file allow-lists. The agent must never be able to merge
-//     an expansion of what the agent may do.
+//     the babysitter, the guard hooks, .claude/settings.json, and every script
+//     a permissions grant in that file would cover. The agent must never be
+//     able to merge an expansion of what the agent may do. This holds whether
+//     or not a grant exists: none does today — no session is allow-listed to
+//     run the merge loop — and editing these paths is how that would change.
 //   - .github/: required CI checks are the floor under every autonomous
 //     merge, so changes to them need the human whose floor it is.
 //   - supabase/migrations/: applied to production by hand — merging one
@@ -35,12 +37,12 @@ export const HELD = [
   { path: 'scripts/hooks/', reason: 'the guard layer' },
   { path: 'scripts/merge-policy.mjs', reason: 'this policy' },
   { path: 'scripts/merge-policy.d.mts', reason: 'this policy' },
-  { path: 'scripts/merge-babysit.sh', reason: 'the merge actor (allow-listed in settings)' },
-  { path: 'scripts/deploy-verify.sh', reason: 'post-merge verification (allow-listed in settings)' },
-  { path: 'scripts/git-tidy.sh', reason: 'removes worktrees (allow-listed in settings)' },
-  { path: 'scripts/supervisor-report.sh', reason: 'allow-listed in settings' },
+  { path: 'scripts/merge-babysit.sh', reason: 'the merge actor' },
+  { path: 'scripts/deploy-verify.sh', reason: 'post-merge verification' },
+  { path: 'scripts/git-tidy.sh', reason: 'removes worktrees' },
+  { path: 'scripts/supervisor-report.sh', reason: 'the supervisor sweep' },
   { path: 'scripts/prod-schema-check.mjs', reason: 'run by supervisor-report.sh holding the production service-role key' },
-  { path: 'scripts/combine-check.sh', reason: 'allow-listed in settings' },
+  { path: 'scripts/combine-check.sh', reason: 'the cross-branch gate' },
   { path: '.github/', reason: 'CI is the merge floor' },
   { path: 'supabase/migrations/', reason: 'applied to production by hand' },
   { path: 'vercel.json', reason: 'production routing (the /api/ blackhole, PR #25)' },

@@ -17,7 +17,7 @@ set -uo pipefail
 cd "$(cd "$(dirname "$0")/.." && pwd -P)" || exit 1
 cd "$(git rev-parse --git-common-dir)/.." || exit 1
 
-GH="${GH:-$(command -v /home/shanehaynes/bin/gh || command -v gh || true)}"
+GH="${GH:-$(command -v "$HOME/bin/gh" || command -v gh || true)}"
 
 # Epoch seconds for a UTC timestamp of the form 2026-09-10T11:18:01Z — what
 # git-new.sh writes to claims.tsv and what gh returns — or nothing, with a
