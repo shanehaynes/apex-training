@@ -11,6 +11,8 @@ enum ScheduleSheet: Identifiable, Hashable {
     case builder(BuilderRoute)
     /// "Edit exercises" on the event sheet: series-wide, sections only.
     case editExercises(id: String)
+    /// The meal composer (W10): a new meal on a day, or one to edit.
+    case mealComposer(MealComposerRoute)
 
     var id: String {
         switch self {
@@ -18,6 +20,7 @@ enum ScheduleSheet: Identifiable, Hashable {
         case .day(let day): "day:\(day.string)"
         case .builder(let route): "builder:\(route.id)"
         case .editExercises(let id): "exercises:\(id)"
+        case .mealComposer(let route): "meal:\(route.id)"
         }
     }
 }

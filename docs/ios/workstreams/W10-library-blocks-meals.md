@@ -77,3 +77,13 @@ from the cached `/api/schedule?include=`. No direct table reads (D-033).
   `BlocksModelTests` (9), `BlocksSnapshotTests` (7). U9 and U12 ticked. Traps: a local
   `Decodable` struct inside a MainActor class is MainActor-isolated too (`nonisolated struct`);
   after merging main, `xcodegen generate` again — a file main added is not in the old project.
+- 2026-09-16 · PR D (Meals, Mac, stacked on C): `ApexFeatures/Meals/` — `MealsModel` +
+  `MealsDependencies` (`onMealsChanged` → `ScheduleModel.refreshMeals()`, now public), one
+  instance built in `AppModel.ensureQueue` and handed to both `RootTabView(meals:)` → `ScheduleTab`
+  and `YouServices.meals`; `MealComposerSheet`, `MealsDayListView`; `ScheduleSheet.mealComposer`,
+  the "+" `Menu`, `DaySheet(onAddMeal:onOpenMeal:)`, `DayView(onAddMeal:)`;
+  `MealsQueryResult.Item: Hashable` (a sheet route carries it); mock `mealsQuery`/favorites/
+  `mealProblem`; `MealsSupport`, `MealsModelTests` (7), `MealsSnapshotTests` (5); the builder
+  smoke legs tap "Add workout" after "+". Traps: a `Menu`'s items are found by label in XCUITest,
+  not by identifier; `UIApplication.sendAction(resignFirstResponder)` is the keyboard Done for a
+  sheet of decimal-pad fields.

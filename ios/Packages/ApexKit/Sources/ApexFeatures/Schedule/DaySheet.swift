@@ -10,12 +10,20 @@ public struct DaySheet: View {
     let day: DayKey
     let onOpenEvent: (ScheduleEvent) -> Void
     let onClose: () -> Void
+    /// The composer (W10): nil hides Add meal and leaves the rows static.
+    let onAddMeal: ((DayKey) -> Void)?
+    let onOpenMeal: ((MealsQueryResult.Item) -> Void)?
 
-    public init(model: ScheduleModel, day: DayKey, onOpenEvent: @escaping (ScheduleEvent) -> Void, onClose: @escaping () -> Void) {
+    public init(
+        model: ScheduleModel, day: DayKey, onOpenEvent: @escaping (ScheduleEvent) -> Void, onClose: @escaping () -> Void,
+        onAddMeal: ((DayKey) -> Void)? = nil, onOpenMeal: ((MealsQueryResult.Item) -> Void)? = nil
+    ) {
         self.model = model
         self.day = day
         self.onOpenEvent = onOpenEvent
         self.onClose = onClose
+        self.onAddMeal = onAddMeal
+        self.onOpenMeal = onOpenMeal
     }
 
     public var body: some View {
@@ -41,7 +49,7 @@ public struct DaySheet: View {
                             }
                         }
                     }
-                    MealsSection(day: meals)
+                    MealsSection(day: meals, onAddMeal: onAddMeal.map { add in { add(day) } }, onOpenMeal: onOpenMeal)
                 }
                 .padding(.horizontal, Spacing.screen)
                 .padding(.vertical, Spacing.md)
@@ -61,15 +69,34 @@ public struct DaySheet: View {
 /// Totals line then one row per meal (`mealSummary` on the web).
 struct MealsSection: View {
     let day: MealsQueryResult.Day?
+    var onAddMeal: (() -> Void)? = nil
+    var onOpenMeal: ((MealsQueryResult.Item) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("Meals").apexEyebrow()
+            HStack {
+                Text("Meals").apexEyebrow()
+                Spacer(minLength: 0)
+                if let onAddMeal {
+                    Button(action: onAddMeal) {
+                        Label("Add meal", systemImage: ApexIcon.plus.systemName)
+                            .font(.apex(.display, size: TypeScale.xs, weight: .medium, relativeTo: .caption))
+                            .foregroundStyle(ApexColor.accent)
+                            .frame(minHeight: 44)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("schedule.daysheet.addmeal")
+                }
+            }
             if let day, day.mealCount > 0 {
                 Text("\(Int(day.totals.calories)) kcal / \(grams(day.totals.proteinG)) g protein / \(grams(day.totals.carbsG)) g carbs / \(grams(day.totals.fatTotalG)) g fat")
                     .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
                     .foregroundStyle(ApexColor.textSecondary)
-                ForEach(Array((day.meals ?? []).enumerated()), id: \.offset) { _, meal in
+                ForEach(Array((day.meals ?? []).enumerated()), id: \.offset) { index, meal in
+                    Button {
+                        onOpenMeal?(meal)
+                    } label: {
                     HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
                         if let type = meal.mealType {
                             Text(type.capitalized)
@@ -95,6 +122,11 @@ struct MealsSection: View {
                         }
                     }
                     .padding(.vertical, Spacing.xs)
+                    .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(onOpenMeal == nil)
+                    .accessibilityIdentifier("schedule.daysheet.meal.\(meal.id ?? String(index))")
                 }
             } else {
                 Text("No meals logged").apexBody()

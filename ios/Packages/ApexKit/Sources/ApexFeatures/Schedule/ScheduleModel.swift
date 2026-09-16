@@ -105,7 +105,7 @@ public final class ScheduleModel {
                     guard let self, !Task.isCancelled else { return }
                     switch group {
                     case .schedule: await self.refresh(reason: .realtime)
-                    case .meals: await self.reloadMeals()
+                    case .meals: await self.refreshMeals()
                     default: continue
                     }
                 }
@@ -365,7 +365,8 @@ public final class ScheduleModel {
         }
     }
 
-    private func reloadMeals() async {
+    /// Every month again — realtime, and the meals model after a write (W10).
+    public func refreshMeals() async {
         mealsMonthsLoaded.removeAll()
         await loadMeals(for: selectedDay)
     }

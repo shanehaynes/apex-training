@@ -36,6 +36,8 @@ final class AppModel {
     /// The You tab's model (W11), per signed-in user like the coach. Nil until
     /// `ensureQueue`.
     private(set) var you: YouModel?
+    /// The meals model the Schedule and You tabs share (W10).
+    private(set) var meals: MealsModel?
 
     private let pool: DatabasePool?
     private var queueOwner: String?
@@ -138,6 +140,15 @@ final class AppModel {
         coachServices = services
         coach = CoachModel(services: services)
 
+        meals?.stop()
+        let mealsModel = MealsModel(deps: MealsDependencies(
+            client: client, cache: cache, clock: clock, realtime: hub,
+            // A write from either tab re-reads the schedule's own months so
+            // the Day view follows at once, not on the realtime echo.
+            onMealsChanged: { [weak self] in await self?.schedule.refreshMeals() }
+        ))
+        meals = mealsModel
+
         you = YouModel(services: YouServices(
             client: client, publicOrigin: AppConfig.publicOrigin, email: email, clock: clock, versionLabel: AppConfig.versionLabel,
             changePassword: { [weak self] password in await self?.changePassword(password) },
@@ -154,7 +165,8 @@ final class AppModel {
                 refreshSchedule: { [weak self] in await self?.schedule.refresh(reason: .afterEdit) },
                 archiveTemplate: { [weak self] id, archived in await self?.schedule.archiveTemplate(id: id, archived: archived) ?? false }
             ),
-            blocks: BlocksDependencies(client: client, cache: cache, clock: clock, realtime: hub)
+            blocks: BlocksDependencies(client: client, cache: cache, clock: clock, realtime: hub),
+            meals: mealsModel
         ))
     }
 
@@ -316,6 +328,8 @@ final class AppModel {
         coachServices = nil
         you?.shutdown()
         you = nil
+        meals?.stop()
+        meals = nil
         queueOwner = nil
         Task {
             await hub?.reset()

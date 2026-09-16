@@ -10,6 +10,8 @@ struct DayView: View {
     let onOpen: (ScheduleEvent) -> Void
     /// The empty day's "Add workout" (W7).
     var onAdd: ((DayKey) -> Void)? = nil
+    /// The meals line opens the composer on the day (W10); nil leaves it static.
+    var onAddMeal: ((DayKey) -> Void)? = nil
 
     var body: some View {
         ScrollView {
@@ -22,7 +24,12 @@ struct DayView: View {
                         removal: .opacity
                     ))
                 eventList
-                MealsRow(day: model.meals(on: model.selectedDay))
+                if let onAddMeal {
+                    Button { onAddMeal(model.selectedDay) } label: { MealsRow(day: model.meals(on: model.selectedDay)) }
+                        .buttonStyle(.plain)
+                } else {
+                    MealsRow(day: model.meals(on: model.selectedDay))
+                }
             }
             .padding(.horizontal, Spacing.screen)
             .padding(.bottom, Spacing.xxl)

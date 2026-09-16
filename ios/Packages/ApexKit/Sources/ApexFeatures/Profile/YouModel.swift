@@ -20,6 +20,8 @@ public final class YouModel {
     public let library: LibraryModel?
     /// The Blocks screens (W10); nil when the services carry no blocks.
     public let blocks: BlocksModel?
+    /// The meals model the Schedule tab shares (W10).
+    public var meals: MealsModel? { services.meals }
 
     public private(set) var profile: ProfileResponse?
     public private(set) var isLoading = false
