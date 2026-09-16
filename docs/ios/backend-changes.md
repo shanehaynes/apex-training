@@ -197,8 +197,11 @@ client keeps the text. 4xx stays for malformed bodies, ownership (404), a detach
 cap is never charged. `validateUnilateral` moved from the editor component into
 `schedule/definitions.ts` so the API can import it. Handler `api/_lib/handlers/workoutDraft.ts`,
 orchestration `api/_lib/services/workoutDraft.ts`, templates upsert extracted to
-`services/templates.ts`. **Web stays on its client-side Apply for now** (tracked as a GitHub
-issue; the builder e2e specs pin today's request shapes).
+`services/templates.ts`. **The web posts this endpoint too** (#136): `WorkoutBuilderView` hands
+the draft to `ScheduleContext.applyWorkoutDraft` and places the response's `event` /
+`templateId` / `occurrenceDate`, so the flow has one implementation and the `ok:false` body
+drives the web's toast and per-card errors as well. Validation is server-authoritative — the
+browser no longer pre-checks, which costs a refused Apply one `writes` token.
 
 Also in W7:
 - **Supersets re-letter on every write.** `normalizeSupersets` used to run only in the web's

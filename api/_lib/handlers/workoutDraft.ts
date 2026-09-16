@@ -6,8 +6,8 @@ import { applyWorkoutDraft, type WorkoutDraftAction } from '../services/workoutD
 import { sendFailure } from '../services/result.js';
 import type { WorkoutDraft } from '../../../src/lib/builder/draft.js';
 
-// POST /api/workout-draft — the builder's Apply for native clients
-// (docs/ios/backend-changes.md, W7). Body:
+// POST /api/workout-draft — the builder's Apply, for every client
+// (docs/ios/backend-changes.md, W7; the web joined in #136). Body:
 //
 //   { draft, today, action: { kind: 'create' }
 //                         | { kind: 'update', eventId }
