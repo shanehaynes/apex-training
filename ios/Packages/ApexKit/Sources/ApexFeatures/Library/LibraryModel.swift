@@ -5,7 +5,7 @@ import Observation
 
 /// What the Library screens need from the app (W10): the client and cache,
 /// and the schedule's own cached definitions and templates — the one read
-/// path for both (D-032), with ids — plus the hooks that keep the schedule
+/// path for both (D-033), with ids — plus the hooks that keep the schedule
 /// in step after a library write. Built by `AppModel` over `ScheduleModel`.
 public struct LibraryDependencies: Sendable {
     public var client: ApexClient
