@@ -1,7 +1,7 @@
 # W10 — Library, Blocks, Meals (under You)
 
 **Machine:** both (small backend part on Linux) · **Depends on:** W2 · **Unblocks:** —
-**Status:** done — A #184, B #185, C #186, D #187 merged 2026-09-17; E (release: smoke legs, 0.8.0, docs) up. Device acceptance (below) is Shane's on build 7.
+**Status:** done — A–E (#184–#188) merged 2026-09-17; TestFlight build 7 (0.8.0/353) uploaded the same day. Device acceptance (below) is Shane's on build 7.
 
 ## Goal
 The three data-management areas as pushed screens from the You tab, with the phone-hidden stats
@@ -101,3 +101,5 @@ from the cached `/api/schedule?include=`. No direct table reads (D-033).
   The six `DateField`/`TimeField` snapshots (block editor ×2, cycle ×2, meal composer ×2) drift by a
   few points between runs — the compact `DatePicker` pill settles a beat after layout — so they
   were reviewed by eye, not re-recorded.
+- 2026-09-17 · E merged (#188); Shane uploaded build 7 (0.8.0/353 — one past the dry run's 352,
+  `git rev-list --count` moved with the merge). W10 worktree retired.
