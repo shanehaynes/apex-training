@@ -27,6 +27,9 @@ public struct YouServices: Sendable {
     /// drops the session the way the web does.
     public var onAccountDeleted: @MainActor @Sendable () -> Void
     public var signOut: @MainActor @Sendable () -> Void
+    /// The Library screens' reads over the schedule's cache (W10); nil hides
+    /// the rows (previews, tests that do not exercise them).
+    public var library: LibraryDependencies?
 
     public init(
         client: ApexClient, publicOrigin: URL, email: String?, timeZone: TimeZone = .current,
@@ -35,7 +38,8 @@ public struct YouServices: Sendable {
         onProfileChanged: @escaping @MainActor @Sendable () -> Void = {},
         onScheduleChanged: @escaping @MainActor @Sendable () -> Void = {},
         onAccountDeleted: @escaping @MainActor @Sendable () -> Void = {},
-        signOut: @escaping @MainActor @Sendable () -> Void = {}
+        signOut: @escaping @MainActor @Sendable () -> Void = {},
+        library: LibraryDependencies? = nil
     ) {
         self.client = client
         self.publicOrigin = publicOrigin
@@ -48,6 +52,7 @@ public struct YouServices: Sendable {
         self.onScheduleChanged = onScheduleChanged
         self.onAccountDeleted = onAccountDeleted
         self.signOut = signOut
+        self.library = library
     }
 
     /// `<origin>/api/mcp` — what an AI app is given as its server URL.
@@ -60,6 +65,8 @@ public struct YouServices: Sendable {
 public enum YouRoute: Hashable, Sendable {
     case name, avatar, password
     case heartRate
+    /// W10: the exercise library, one exercise, the workout library.
+    case library, exercise(id: String), workoutLibrary
     case coachProfile, coachModel
     case coros, calendarFeed, connector, connectorGuide
     case activity, deleteAccount, about

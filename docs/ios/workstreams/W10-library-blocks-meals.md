@@ -54,3 +54,16 @@ from the cached `/api/schedule?include=`. No direct table reads (D-033).
   `cadence.ts`/`validate.ts` lacked `.js` specifiers; `normalize()` collapses distinct uuids
   (rewrite seeded ids first); `blocks-cycle.spec.ts` counted the preview POSTs (filter on
   `batch=1`); the detail's attainment carries derived rows the planned calendar adds.
+- 2026-09-16 · PR B (Library, Mac, stacked on A): `ApexFeatures/Library/` — `LibraryModel` +
+  `LibraryDependencies` (closures over `ScheduleModel.definitions()/templates()/refresh/
+  archiveTemplate`, built in `AppModel.ensureQueue`; no realtime subscription of its own — the
+  hub's stream has one consumer, the schedule, which rewrites the cache these lists read),
+  `LibraryView`, `ExerciseDetailView` (+ `StatCard`), `DefinitionEditorSheet`,
+  `WorkoutLibraryView`; `YouRoute.library/.exercise(id:)/.workoutLibrary`, `YouServices.library`,
+  `YouModel.library`, the two rows under Training, `YouTab(routes:)` consuming `.library` into a
+  `NavigationStack(path:)`; mock `searchExercises`/`exerciseHistory`/`patchDefinition` over
+  `currentDefinitions()`; `YouTransport` keyed by query tool; `LibrarySupport`,
+  `LibraryModelTests` (11), `LibrarySnapshotTests` (8). U11 ticked. Traps: `XCTAssertNil(await …)`
+  again (bind first); the model's static label helpers are MainActor-isolated under the package
+  default, so a synchronous test that calls them is `@MainActor`; the detail's history is `@State`
+  loaded in `.task`, so snapshots pass it in through the `history:` init.

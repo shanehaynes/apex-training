@@ -19,7 +19,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W7 | Event CRUD + builder | done (#137, #138, #139, #140) | Mac | TestFlight build 5 (0.6.0/312) uploaded 2026-09-11; Shane's device run outstanding |
 | W8 | Backend analytics compute | done (PR #100) | Linux | web switched in #179 — dashboard and preview |
 | W9 | Analytics tab (editable layout) | done (#153, #154, #155, #156) | Mac | TestFlight build 6 (0.7.0/324) uploaded 2026-09-14; Shane's device run outstanding |
-| W10 | Library, Blocks, Meals | in progress (`feat/w10-a-backend-core`, PR A) | both | A backend+ApexCore → B Library → C Blocks → D Meals → E release (0.8.0, build 7) |
+| W10 | Library, Blocks, Meals | in progress (A #184 in review, B `feat/w10-b-library` up) | both | A backend+ApexCore → B Library → C Blocks → D Meals → E release (0.8.0, build 7) |
 | W11 | Profile, integrations, account | done (#149, #157) | both | on TestFlight build 6; phase41 in prod (2026-09-16); device runs are Shane's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
 | W13 | Release + polish | blocked | Mac | App Store gate |
@@ -39,6 +39,15 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-16 · W10 · PR B: the Library — `LibraryModel` over the schedule's cached definitions and
+  templates (one read path, D-033), decorated by one `search_exercises` call cached under
+  `library_stats` (U11: last performed and "in N workouts" on the phone), `LibraryView` (search,
+  category chips, archived divider), `ExerciseDetailView` (tags, aliases, notes, the PR and session
+  cards, the trend as a tap-to-pin `TileChartView`, recent sessions) over `get_exercise_history`,
+  `DefinitionEditorSheet` (changed columns only, the rename hint, Archive/Restore, refusals inline,
+  the success toast flushed by the detail after dismiss), `WorkoutLibraryView` (archive/restore
+  through the schedule); rows under You → Training; `/app/library/<id>` consumed by `YouTab` through
+  the route bus; mock routes with the rename-appends-alias replay; 11 model tests, 8 snapshots.
 - 2026-09-16 · W10 · PR A: the cycle preview endpoint (`?resource=cycle`, preview only, `rows`
   for the batch commit, named conflicts, `reads` bucket), the query tools widened for API-only
   reads (D-033: `block_id`/`today`/objectives on `get_training_blocks`, ids + fat split on

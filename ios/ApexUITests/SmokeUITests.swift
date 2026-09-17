@@ -403,9 +403,8 @@ final class SmokeUITests: XCTestCase {
         XCTAssertEqual(titleField.value as? String, "Fixture Template Push")
         attach(app, name: "25-builder-coach")
 
-        app.buttons["builder.apply"].tap()
-        let card = app.buttons["event.card.Fixture Template Push"]
-        XCTAssertTrue(card.waitForExistence(timeout: 15))
+        // Re-sent if dropped: the keyboard's first-show tip was up under the sheet once in CI.
+        tapUntil(app.buttons["builder.apply"], shows: app.buttons["event.card.Fixture Template Push"])
         attach(app, name: "26-builder-applied")
     }
 
@@ -433,15 +432,30 @@ final class SmokeUITests: XCTestCase {
 
     /// Taps a field and types once it has keyboard focus — a type sent a beat
     /// early fails with "Neither element nor any descendant has keyboard focus"
-    /// on a starved runner (the `testCoachKeySetupOnFixtures` flake).
+    /// on a starved runner (the `testCoachKeySetupOnFixtures` flake). Then it
+    /// reads the field back: the simulator's keyboard drops keystrokes under
+    /// the same starvation (a token minted as "Claud"), and its first-show
+    /// "slide to type" tip swallows them outright, so what did not land is
+    /// erased and typed again, twice at most.
     private func type(_ text: String, into field: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(field.waitForExistence(timeout: 10), "missing field: \(field)", file: file, line: line)
+        let before = field.value as? String ?? ""
         for _ in 0..<3 {
-            field.tap()
-            let focused = NSPredicate { object, _ in (object as? XCUIElement)?.value(forKey: "hasKeyboardFocus") as? Bool == true }
-            if XCTWaiter().wait(for: [expectation(for: focused, evaluatedWith: field)], timeout: 3) == .completed { break }
+            for _ in 0..<3 {
+                field.tap()
+                let focused = NSPredicate { object, _ in (object as? XCUIElement)?.value(forKey: "hasKeyboardFocus") as? Bool == true }
+                if XCTWaiter().wait(for: [expectation(for: focused, evaluatedWith: field)], timeout: 3) == .completed { break }
+            }
+            field.typeText(text)
+            let after = field.value as? String ?? ""
+            // Erase only what this attempt added; an empty field reads back its placeholder.
+            let landed = after.hasPrefix(before) ? after.count - before.count : (after == before ? 0 : after.count)
+            // A secure field reads back bullets, so it is judged by count; autocorrect may recase the rest.
+            let whole = field.elementType == .secureTextField ? landed == text.count : after.lowercased().hasSuffix(text.lowercased())
+            if whole { return }
+            if landed > 0 { field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: landed)) }
         }
-        field.typeText(text)
+        XCTFail("typing \"\(text)\" into \(field) never landed whole", file: file, line: line)
     }
 
     /// Taps a control and waits for what it should open, re-sending the tap
@@ -451,8 +465,10 @@ final class SmokeUITests: XCTestCase {
         for _ in 0..<3 {
             button.tap()
             if target.waitForExistence(timeout: 10) { return }
+            // The tap landed and the button went with it: the target is only late.
+            if !button.exists { break }
         }
-        XCTFail("\(target) never appeared after tapping \(button)", file: file, line: line)
+        XCTAssertTrue(target.waitForExistence(timeout: 10), "\(target) never appeared after tapping \(button)", file: file, line: line)
     }
 
     /// sign in → Analytics → six seeded tiles → tap a bar pins its value →
@@ -633,8 +649,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(tokenName.waitForExistence(timeout: 10))
         XCTAssertTrue(app.otherElements["connector.token.ios-fixture laptop"].waitForExistence(timeout: 10))
         attach(app, name: "w11-02-connector")
-        tokenName.tap()
-        tokenName.typeText("Claude Code")
+        type("Claude Code", into: tokenName)
         app.buttons["connector.create"].tap()
         let reveal = app.staticTexts["token.reveal.value"]
         XCTAssertTrue(reveal.waitForExistence(timeout: 10))

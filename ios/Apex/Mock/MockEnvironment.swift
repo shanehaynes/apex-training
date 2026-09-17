@@ -117,6 +117,8 @@ actor FixtureTransport: HTTPTransport {
         var added: [(base: [String: Any], stub: [String: Any])] = []
         var archivedTemplates: [String: Any] = [:]
         var addedDefinitions: [[String: Any]] = []
+        /// camelCase overrides per definition id (PATCH /api/exercise-definitions, W10).
+        var patchedDefinitions: [String: [String: Any]] = [:]
     }
 
     init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false, corosStatus: String = "connected") {
@@ -256,10 +258,17 @@ actor FixtureTransport: HTTPTransport {
                     "aliases": [], "muscleGroups": [], "equipment": [], "isUnilateral": body?["is_unilateral"] ?? false,
                 ])
                 return ok(Data(#"{"id":"\(body?["id"] as? String ?? "")"}"#.utf8))
+            case ("PATCH", "/api/exercise-definitions"):
+                return try patchDefinition(id: queryValue("id", in: query), fields: body?["fields"] as? [String: Any] ?? [:])
             case ("POST", "/api/query"):
                 let body = request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
                 let tool = body?["tool"] as? String ?? "unknown"
-                return ok(try Fixtures.data("query-\(tool).json"))
+                let args = body?["args"] as? [String: Any] ?? [:]
+                switch tool {
+                case "search_exercises": return ok(try searchExercises(args))
+                case "get_exercise_history": return try exerciseHistory(args)
+                default: return ok(try Fixtures.data("query-\(tool).json"))
+                }
             case ("POST", "/api/completions"):
                 if let body = request.httpBody,
                    let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
@@ -732,11 +741,95 @@ actor FixtureTransport: HTTPTransport {
             }
             object["templates"] = templates
         }
-        if var definitions = object["definitions"] as? [[String: Any]] {
-            definitions.append(contentsOf: edits.addedDefinitions)
-            object["definitions"] = definitions
+        if object["definitions"] is [[String: Any]] {
+            object["definitions"] = (try? currentDefinitions()) ?? []
         }
         return (try? JSONSerialization.data(withJSONObject: object)) ?? data
+    }
+
+    // MARK: - W10 library
+
+    /// The fixture's definitions plus every one the session added, with the
+    /// session's PATCHes applied — what `/api/schedule` and `search_exercises`
+    /// both answer from, so the list and the detail agree.
+    private func currentDefinitions() throws -> [[String: Any]] {
+        var definitions = (try scheduleObject()["definitions"] as? [[String: Any]]) ?? []
+        definitions.append(contentsOf: edits.addedDefinitions)
+        return definitions.map { definition in
+            guard let id = definition["id"] as? String, let patch = edits.patchedDefinitions[id] else { return definition }
+            return definition.merging(patch) { _, new in new }
+        }
+    }
+
+    /// The editor's PATCH, reflected the way the handler stores it: only the
+    /// sent columns, and a rename appends the old name as an alias
+    /// (`api/_lib/services/definitions.ts`).
+    private func patchDefinition(id: String, fields: [String: Any]) throws -> HTTPResponse {
+        guard let current = try currentDefinitions().first(where: { $0["id"] as? String == id }) else {
+            return HTTPResponse(status: 404, headers: [:], body: Data("Definition not found".utf8))
+        }
+        var patch = edits.patchedDefinitions[id] ?? [:]
+        for (column, value) in fields {
+            patch[Self.camel(column)] = value
+        }
+        if let newName = fields["canonical_name"] as? String, let oldName = current["canonicalName"] as? String, newName != oldName {
+            var aliases = (fields["aliases"] as? [String]) ?? (current["aliases"] as? [String]) ?? []
+            if !aliases.contains(oldName) { aliases.append(oldName) }
+            patch["aliases"] = aliases.filter { $0 != newName }
+        }
+        edits.patchedDefinitions[id] = patch
+        return ok(Data(#"{"ok":true}"#.utf8))
+    }
+
+    /// `search_exercises` over the current definitions: the fixture's stats
+    /// (last performed, references) for the ones it knows, none for the rest.
+    private func searchExercises(_ args: [String: Any]) throws -> Data {
+        let fixture = (try JSONSerialization.jsonObject(with: try Fixtures.data("query-search_exercises.json"))) as? [String: Any] ?? [:]
+        let known = ((fixture["result"] as? [String: Any])?["exercises"] as? [[String: Any]] ?? [])
+            .reduce(into: [String: [String: Any]]()) { acc, entry in if let id = entry["id"] as? String { acc[id] = entry } }
+        let includeArchived = args["include_archived"] as? Bool ?? false
+        let includeReferences = args["include_references"] as? Bool ?? false
+        let needle = (args["query"] as? String ?? "").lowercased()
+        let entries: [[String: Any]] = try currentDefinitions().compactMap { definition in
+            let id = definition["id"] as? String ?? ""
+            let name = definition["canonicalName"] as? String ?? ""
+            let aliases = definition["aliases"] as? [String] ?? []
+            let archived = !(definition["archivedAt"] is NSNull) && definition["archivedAt"] != nil
+            if archived && !includeArchived { return nil }
+            if !needle.isEmpty, !name.lowercased().contains(needle), !aliases.contains(where: { $0.lowercased().contains(needle) }) { return nil }
+            var entry: [String: Any] = [
+                "id": id, "canonical_name": name, "category": definition["category"] ?? "strength", "aliases": aliases,
+                "muscle_groups": definition["muscleGroups"] ?? [], "equipment": definition["equipment"] ?? [],
+                "is_unilateral": definition["isUnilateral"] ?? false,
+                "default_prescription": [
+                    "sets": definition["defaultSets"] ?? NSNull(), "reps": definition["defaultReps"] ?? NSNull(),
+                    "duration": definition["defaultDuration"] ?? NSNull(), "weight": definition["defaultWeight"] ?? NSNull(),
+                    "rest": definition["defaultRest"] ?? NSNull(),
+                ],
+                "technique_notes": definition["techniqueNotes"] ?? NSNull(),
+                "last_performed": known[id]?["last_performed"] ?? NSNull(),
+                "archived": archived,
+            ]
+            if includeReferences { entry["references"] = known[id]?["references"] ?? 0 }
+            return entry
+        }
+        let result: [String: Any] = ["query": needle.isEmpty ? NSNull() : needle, "total_matches": entries.count, "exercises": entries]
+        return try JSONSerialization.data(withJSONObject: ["tool": "search_exercises", "result": result])
+    }
+
+    /// The fixture's history for Fixture Press by any of its current
+    /// spellings (a rename keeps the old one as an alias); the tool's own 400
+    /// for anything else, which the detail reads as "no logged history".
+    private func exerciseHistory(_ args: [String: Any]) throws -> HTTPResponse {
+        let asked = (args["exercise_name"] as? String ?? "").lowercased()
+        let press = try currentDefinitions().first { $0["id"] as? String == "ios-fixture-def" }
+        var spellings = ["fixture press", "fx press"]
+        if let name = press?["canonicalName"] as? String { spellings.append(name.lowercased()) }
+        spellings.append(contentsOf: (press?["aliases"] as? [String] ?? []).map { $0.lowercased() })
+        guard spellings.contains(asked) else {
+            return HTTPResponse(status: 400, headers: [:], body: Data("No logged history for \"\(args["exercise_name"] ?? "")\". Use search_exercises to find the right name.".utf8))
+        }
+        return ok(try Fixtures.data("query-get_exercise_history.json"))
     }
 }
 
