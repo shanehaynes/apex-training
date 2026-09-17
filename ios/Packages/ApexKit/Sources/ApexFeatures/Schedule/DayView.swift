@@ -33,7 +33,7 @@ struct DayView: View {
             }
             .padding(.horizontal, Spacing.screen)
             .padding(.bottom, Spacing.xxl)
-            .animation(Motion.spring, value: model.selectedDay)
+            .animation(Motion.current, value: model.selectedDay)
         }
         .background(ApexColor.bgPrimary)
         .refreshable { await model.refresh(reason: .pullToRefresh) }
@@ -53,7 +53,7 @@ struct DayView: View {
             )
         }
         return WeekStrip(days: days, selectedID: model.selectedDay.string) { picked in
-            if let day = DayKey(picked.id) { withAnimation(Motion.spring) { model.select(day) } }
+            if let day = DayKey(picked.id) { Motion.animate { model.select(day) } }
         }
         .padding(.top, Spacing.xs)
         .simultaneousGesture(swipe(days: 7))
@@ -121,7 +121,7 @@ struct DayView: View {
         DragGesture(minimumDistance: 40, coordinateSpace: .local).onEnded { value in
             let dx = value.translation.width, dy = value.translation.height
             guard abs(dx) > abs(dy) * 1.5, abs(dx) > 50 else { return }
-            withAnimation(Motion.spring) {
+            Motion.animate {
                 if days == 1 { model.step(dx < 0 ? 1 : -1) } else { model.select(model.selectedDay.adding(days: dx < 0 ? days : -days)) }
             }
         }

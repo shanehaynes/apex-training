@@ -27,7 +27,7 @@ public struct EventChip: View {
                     .foregroundStyle(ApexPalette.positive)
             }
             Text(label)
-                .font(.apex(.display, size: 10, weight: .medium, relativeTo: .caption2))
+                .font(.apex(.display, size: TypeScale.micro, weight: .medium, relativeTo: .caption2))
                 .foregroundStyle(isCompleted ? ApexColor.textMuted : ApexColor.textPrimary)
                 .lineLimit(1)
                 .truncationMode(.tail)

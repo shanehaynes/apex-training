@@ -36,8 +36,8 @@ public struct TrackerScreen: View {
                     .transition(.opacity)
             }
         }
-        .animation(Motion.spring, value: model.gate)
-        .animation(Motion.spring, value: model.summary == nil)
+        .animation(Motion.current, value: model.gate)
+        .animation(Motion.current, value: model.summary == nil)
         .toolbar { keyboardAccessory }
         .sheet(item: $swapTarget) { target in
             SwapPickerSheet(model: model, target: target) { swapTarget = nil }
@@ -242,16 +242,18 @@ struct TrackerHeader: View {
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("tracker.title")
-                    HStack(spacing: Spacing.sm) {
-                        Text(model.dateLabel)
-                            .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
-                            .foregroundStyle(ApexColor.textMuted)
-                        Text("·").foregroundStyle(ApexColor.textMuted)
-                        Text(model.elapsedLabel)
-                            .font(.apex(.mono, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
-                            .monospacedDigit()
-                            .foregroundStyle(model.isFinished ? ApexColor.textMuted : ApexColor.textPrimary)
-                            .accessibilityIdentifier("tracker.elapsed")
+                    // Date · timer on one line while they fit; at the accessibility
+                    // sizes the timer would wrap mid-digit, so they stack instead (W13).
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: Spacing.sm) {
+                            dateText
+                            Text("·").foregroundStyle(ApexColor.textMuted)
+                            elapsedText
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            dateText
+                            elapsedText
+                        }
                     }
                 }
                 .padding(.top, 10)
@@ -303,6 +305,23 @@ struct TrackerHeader: View {
         }
         .background(ApexColor.bgPrimary)
     }
+
+    private var dateText: some View {
+        Text(model.dateLabel)
+            .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
+            .foregroundStyle(ApexColor.textMuted)
+            .lineLimit(1)
+    }
+
+    private var elapsedText: some View {
+        Text(model.elapsedLabel)
+            .font(.apex(.mono, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
+            .monospacedDigit()
+            .lineLimit(1)
+            .foregroundStyle(model.isFinished ? ApexColor.textMuted : ApexColor.textPrimary)
+            .accessibilityIdentifier("tracker.elapsed")
+    }
+
 }
 
 /// "N sets pending sync" — quiet, like the freshness banner.

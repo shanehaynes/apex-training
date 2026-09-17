@@ -57,8 +57,9 @@ struct TrackedExerciseView: View {
                 } label: {
                     HStack(spacing: 3) {
                         ApexIcon.ghost.image.font(.system(size: 11))
-                        Text("Use last")
+                        Text("Use last").lineLimit(1)
                     }
+                    .fixedSize()
                     .font(.apex(.display, size: TypeScale.micro, weight: .semibold, relativeTo: .caption2))
                     .foregroundStyle(ApexColor.textSecondary)
                     .padding(.horizontal, Spacing.sm)
@@ -123,7 +124,7 @@ struct TrackedExerciseView: View {
                 }
                 Color.clear.frame(width: 32)
             }
-            .font(.apex(.mono, size: 10, relativeTo: .caption2))
+            .font(.apex(.mono, size: TypeScale.micro, relativeTo: .caption2))
             .tracking(0.8)
             .textCase(.uppercase)
             .foregroundStyle(ApexColor.textMuted)

@@ -61,7 +61,7 @@ public struct BuilderSheet: View {
     private var header: some View {
         HStack(spacing: Spacing.sm) {
             if !builder.isEditing, builder.step == .form {
-                Button { withAnimation(Motion.spring) { builder.backToSearch() } } label: {
+                Button { Motion.animate { builder.backToSearch() } } label: {
                     ApexIcon.chevronLeft.image.font(.system(size: 15, weight: .medium)).foregroundStyle(ApexColor.textMuted)
                         .frame(width: 44, height: 44).contentShape(.rect)
                 }
@@ -77,7 +77,7 @@ public struct BuilderSheet: View {
             }
             Spacer(minLength: 0)
             if builder.canCoach {
-                Button { withAnimation(Motion.spring) { builder.coachOpen.toggle() } } label: {
+                Button { Motion.animate { builder.coachOpen.toggle() } } label: {
                     ApexIcon.sparkles.image
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(builder.coachOpen ? ApexColor.bgPrimary : ApexColor.textMuted)
@@ -144,7 +144,7 @@ public struct BuilderSheet: View {
                     .disabled(builder.isSaving)
                     ApexButton(builder.isEditing ? "Save changes" : "Apply", isLoading: builder.isSaving) {
                         if builder.asksScope {
-                            withAnimation(Motion.spring) { builder.choosingScope = true }
+                            Motion.animate { builder.choosingScope = true }
                         } else {
                             Task { if await builder.apply() { onClose() } }
                         }
