@@ -1,7 +1,7 @@
 # W13 — Release engineering + polish
 
 **Machine:** Mac · **Depends on:** everything · **Unblocks:** App Store submission
-**Status:** in review — A #190 (HELD), B #191, C #193, D #194 (polish); App Store submission is Shane's console work
+**Status:** B #191 and D #194 merged 2026-09-17; C #193 in review (blocked only by Vercel's preview rate limit); A #190 HELD for `shipit`; App Store submission is Shane's console work
 
 ## Goal
 Repeatable TestFlight releases, App Store readiness, and the remaining UX checklist items.
