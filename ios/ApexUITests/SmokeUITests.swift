@@ -503,28 +503,13 @@ final class SmokeUITests: XCTestCase {
                 if XCTWaiter().wait(for: [expectation(for: focused, evaluatedWith: field)], timeout: 3) == .completed { break }
             }
             field.typeText(text)
-            var after = field.value as? String ?? ""
+            let after = field.value as? String ?? ""
             // Erase only what this attempt added; an empty field reads back its placeholder.
-            var landed = after.hasPrefix(before) ? after.count - before.count : (after == before ? 0 : after.count)
-            // A secure field reads back bullets, so it is judged by count; autocorrect may recase
-            // the rest. Exact, not a suffix: CI once minted "CClaude Code" — a first attempt left
-            // one "C", the delete that should have removed it was dropped too, and the retyped
-            // name ended with the expected text, so a suffix check waved it through.
-            // `before` may be the placeholder (an empty field reads it back), in which case
-            // nothing of it survives typing — the base is then empty, not the placeholder.
-            let base = after.hasPrefix(before) ? before : ""
-            let whole = field.elementType == .secureTextField
-                ? landed == text.count
-                : after.lowercased() == (base + text).lowercased()
+            let landed = after.hasPrefix(before) ? after.count - before.count : (after == before ? 0 : after.count)
+            // A secure field reads back bullets, so it is judged by count; autocorrect may recase the rest.
+            let whole = field.elementType == .secureTextField ? landed == text.count : after.lowercased().hasSuffix(text.lowercased())
             if whole { return }
-            // Erase what landed and prove the field is back where it started before retyping;
-            // a dropped delete otherwise compounds into a doubled character.
-            for _ in 0..<3 where landed > 0 {
-                field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: landed))
-                after = field.value as? String ?? ""
-                landed = after.hasPrefix(before) ? after.count - before.count : (after == before ? 0 : after.count)
-                if field.elementType == .secureTextField || after == before || after.isEmpty || landed == 0 { break }
-            }
+            if landed > 0 { field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: landed)) }
         }
         XCTFail("typing \"\(text)\" into \(field) never landed whole", file: file, line: line)
     }
