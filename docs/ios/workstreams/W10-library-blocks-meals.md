@@ -1,7 +1,7 @@
 # W10 — Library, Blocks, Meals (under You)
 
 **Machine:** both (small backend part on Linux) · **Depends on:** W2 · **Unblocks:** —
-**Status:** in progress — PR A (backend + ApexCore) up; B Library, C Blocks, D Meals, E release to follow
+**Status:** done — A #184, B #185, C #186, D #187 merged 2026-09-17; E (release: smoke legs, 0.8.0, docs) up. Device acceptance (below) is Shane's on build 7.
 
 ## Goal
 The three data-management areas as pushed screens from the You tab, with the phone-hidden stats
@@ -87,3 +87,17 @@ from the cached `/api/schedule?include=`. No direct table reads (D-033).
   smoke legs tap "Add workout" after "+". Traps: a `Menu`'s items are found by label in XCUITest,
   not by identifier; `UIApplication.sendAction(resignFirstResponder)` is the keyboard Done for a
   sheet of decimal-pad fields.
+- 2026-09-17 · PR E (release): `testLibraryOnFixtures`, `testBlocksOnFixtures`,
+  `testMealsOnFixtures` (attachments `w10-01`…`w10-15`; every opening tap through `tapUntil`,
+  every field through `type(_:into:)`), `MARKETING_VERSION` 0.8.0, STATUS/brief/screens/
+  architecture closed out; `testflight.sh --dry-run` from the worktree. Before it, B needed one
+  more commit: CI failed #185 twice on keyboard flakes — a builder Apply tap dropped under the
+  simulator keyboard's first-show tip, then `typeText("Claude Code")` landing as "Claud" — so the
+  typing helper now reads the field back and retypes, and Apply goes through the retrying tap.
+  Trap found writing the legs: an `.accessibilityIdentifier` on a container (the cycle preview,
+  the objectives list, the detail's sections, the favorites row) is what XCUITest reads for every
+  child — the rows' own identifiers never surface. Those containers now declare
+  `.accessibilityElement(children: .contain)` first, and the legs match the children by identifier.
+  The six `DateField`/`TimeField` snapshots (block editor ×2, cycle ×2, meal composer ×2) drift by a
+  few points between runs — the compact `DatePicker` pill settles a beat after layout — so they
+  were reviewed by eye, not re-recorded.

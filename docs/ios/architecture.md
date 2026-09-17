@@ -159,8 +159,9 @@ cache(kind TEXT, key TEXT, json BLOB, fetched_at REAL, PRIMARY KEY (kind, key))
 ```
 
 Kinds: `schedule_window` (the `/api/schedule` response for `[today-60d, today+120d]`),
-`definitions`, `templates`, `blocks`, `objectives`, `meals_window`, `profile`,
-`analytics_tiles`, `analytics_result:<tileId>`, `tracker_bootstrap:<eventId>|<date>`.
+`definitions`, `templates`, `blocks`, `objectives`, `meals_window`, `meal_favorites`,
+`library_stats` (the `search_exercises` stats, W10), `profile`, `analytics_tiles`,
+`analytics_result:<tileId>`, `tracker_bootstrap:<eventId>|<date>`.
 
 Policy (`ApexCore.CachePolicy`): stale-while-revalidate. Render the cached value immediately,
 refresh on `.active` and on a debounced realtime event, and show "cached · updated 3h ago" when
