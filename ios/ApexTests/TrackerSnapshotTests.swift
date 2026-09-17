@@ -110,6 +110,13 @@ final class TrackerSnapshotTests: XCTestCase {
         snapshot(TrackerScreen(model: model, onClose: {}).environment(\.sizeCategory, .extraExtraLarge), named: "tracker-xxl")
     }
 
+    /// The largest accessibility size (W13): set rows wrap, the confirm bar stays.
+    @MainActor
+    func testTrackerScreenAccessibilityXXXL() async {
+        let (model, _) = await model()
+        snapshot(TrackerScreen(model: model, onClose: {}).environment(\.dynamicTypeSize, .accessibility3), named: "tracker-axxxl", size: CGSize(width: 393, height: 1400))
+    }
+
     @MainActor
     func testTrackerFinished() async {
         let (model, _) = await model(finished: true)

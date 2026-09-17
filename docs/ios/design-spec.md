@@ -84,7 +84,9 @@ Recurring patterns to port as `TextStyle`s:
   durations 150 / 250 / 300 ms. Web conventions: month slide `x: ±40, 0.28s`; day fade
   `y: 8, 0.18s`; modal `scale 0.94 → 1, y 10 → 0, 0.25s`; chip press `scale 1.02`; FAB rotates
   45° when its menu opens; typing indicator 1.2s bounce; chat cursor 0.9s blink. Respect
-  `accessibilityReduceMotion`.
+  `accessibilityReduceMotion`: `Motion.animate { }` and `Motion.current` (ApexUI,
+  `MotionAccessibility.swift`) are the house spring gated on the setting — use them instead of
+  `withAnimation(Motion.spring)`; a view with its own transition reads the environment value.
 
 ## 4. Chrome and layout
 

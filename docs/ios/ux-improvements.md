@@ -1,44 +1,52 @@
 # UX improvements over the mobile web
 
 The brief: functionality identical, aesthetics matching, and a large aggregate of small and
-medium improvements. This is the checklist. Each row names the web evidence (so a session can
-see what "worse" looks like today) and the workstream that owns the fix. Tick rows in the
-workstream's session log, not here — this file is the inventory.
+medium improvements. This is the checklist, audited to a close by W13 (2026-09-17). Each row
+names the web evidence (so a session can see what "worse" looks like today), the workstream
+that owned the fix, and the **status with its evidence** — a file, a test, or a session log
+entry a reader can open. A row that is not shipped says so and names the Backlog reason.
 
-| # | Improvement | Web today (evidence) | Owner |
-|---|---|---|---|
-| U1 | Every tap target ≥ 44pt | `.tracker-set__remove` 24px, `.event-chip__check` 22px, `.composer-difficulty__dot` 14px, `.tile-card__menu-btn` 26px (`src/styles/app.css`) | all UI workstreams; audited in W13 |
-| U2 | Native numeric keyboards with an input-accessory bar (Next / Done) and set-to-set focus advance | `type="text"` + `inputMode` everywhere, no `enterKeyHint`, no focus advance (`TrackerExercise.tsx`) | W4 |
-| U3 | Keyboard-avoiding tracker confirm bar and chat composer | `.tracker-confirm` is `position: fixed` and is covered by the keyboard; the coach input needed a regression spec (`e2e/mock/mobile-chat.spec.ts`) | W4, W6 |
-| U4 | No zoom-on-focus, ever | only `.chat-input` and `.auth-input` are 16px; everything else 12–14px zooms iOS Safari | inherent to native |
-| U5 | Sheets with detents, grab handle and drag-to-dismiss for event and day detail | modal scales in (`scale 0.94 → 1`) even when CSS turns it into a bottom sheet; no handle (`app.css:1659`) | W2 |
-| U6 | Swipe between days and months; long-press a day to add | chevron taps only; no gestures | W2 |
-| U7 | Completion toggle reachable from every view | month/week check circles are `opacity: 0` until `:hover` (`app.css:339,566`) — impossible on touch. iOS: Day cards carry a 44pt control; a month chip opens the day sheet, whose rows carry the same control (D-023 note) | W2 |
-| U8 | Toasts render above the tab bar | `.toasts { bottom: 20px }` sits under the 60px mobile nav | W1 (toast component) |
-| U9 | Native date / time / select pickers in dark | `type="date"`/`type="time"`/`<select>` render light-mode controls; only `.modal-meta-input` sets `color-scheme: dark` | W7, W10, W11 |
-| U10 | Reorder exercises with a real drag handle (`List.onMove`) | framer-motion `Reorder` from an 18px grip with `touch-action: none` (`EventExerciseEditor.tsx`) | W7 |
-| U11 | Library rows show "last performed" and "in N workouts" on phone | `.library-row__stats` hidden at ≤768px (`app.css:3439`) | W10 |
-| U12 | Block by-week attainment visible on phone | `.block-weeks__attainment` hidden at ≤768px (`app.css:5935`) | W10 |
-| U13 | Chart values on tap/scrub, not hover; tile menus and dimmed-chip reasons visible without hover | recharts hover tooltips; `title=` attributes carry the only explanation (`TileBuilder.tsx`) | W9 |
-| U14 | Stream charts (HR / elevation / route) scrub with a drag gesture | `onPointerMove` crosshair (`StreamCharts.tsx:93`) | W2 (event detail) |
-| U15 | Keep the screen awake during a tracked workout | none | W4 |
-| U16 | Haptics: set logged, PR hit, workout completed, action confirmed | none | W4, W6, W13 |
-| U17 | Pull-to-refresh and a "cached · updated 3h ago" affordance | none; failed reads toast | W2 |
-| U18 | Log a whole workout offline; sets replay when back online | writes fail offline | W4 |
-| U19 | Share sheet / copy for the ICS URL and MCP tokens; `webcal://` subscribe button | `navigator.clipboard.writeText` only | W11 |
-| U20 | Password AutoFill + Face ID via associated domains | real `<form>`s help Keychain, but no app association | W1 (AASA), W2 |
-| U21 | Dynamic Type across the app; tabular numerals for all numbers | fixed px sizes (9–13px micro text) | W13 audit |
-| U22 | Multiline composer with an explicit Send; no Enter/Shift-Enter idiom | Enter sends, Shift-Enter newlines (desktop idiom) | W6 |
-| U23 | Universal links open invite and recovery emails in the app | links land on the web Site URL | W2 |
-| U24 | Settings as grouped native sections (You tab) | one long profile page | W11 |
-| U25 | Elapsed-timer Live Activity in the Dynamic Island with the workout title | none | W12 |
-| U26 | Analytics tiles legible on a phone: readable tick text, KPI rows that wrap on purpose, table tiles with sticky headers, editable order and size | fixed 260px stack, 10px ticks, no editing (`AnalyticsView.tsx:154`) | W9 |
-| U27 | Tracker header never truncates the title mid-word; date and timer on their own line | "Morning Moveme…" at 390px (regenerate `e2e/screenshots/tracker-mobile.png` with `npm run e2e`) | W4 |
-| U28 | Shadow-fill of last session's values stays, with a clearer "ghost" treatment and a one-tap "use last" per exercise | commits the whole row on first focus, then `select()` (`TrackerExercise.tsx:322`) — keep, improve affordance | W4 |
-| U29 | Duration entry keeps the "microwave" digit buffer but without the blur/refocus keyboard-swap hack | `DurationInput.tsx:70` re-focuses to change the iOS keyboard | W4 |
-| U30 | Sync confirmations as a bottom sheet queue, not a top-right popover | `position: fixed; top: 64px; right: 16px` (`ProviderSyncControls.tsx`) | W11 |
-| U31 | Coach model badge and key status in the composer header; 402 opens the key screen in one tap | inline CTA opens the whole profile | W6 |
-| U32 | Onboarding as a native paged flow with the setup nudge as a dismissible card on the Schedule tab | 6-step tour + nudge above the nav (`OnboardingHost.tsx`) | W13 |
+| # | Improvement | Web today (evidence) | Owner | Status · evidence |
+|---|---|---|---|---|
+| U1 | Every tap target ≥ 44pt | `.tracker-set__remove` 24px, `.event-chip__check` 22px, `.composer-difficulty__dot` 14px, `.tile-card__menu-btn` 26px (`src/styles/app.css`) | all UI workstreams; audited in W13 | **done** · every icon-only control carries `.frame(width: 44, height: 44)` or `.frame(minHeight: 44)` (`ApexButton`, `Chip`, `PeriodBar.stepButton`, the tile kebab, the composer's send/stop, the sheet close); the W13 audit script found no `Button` whose label is an icon without one; the month chip (18pt) is open-only by design and completion lives on the day sheet (D-023) |
+| U2 | Native numeric keyboards with an input-accessory bar (Next / Done) and set-to-set focus advance | `type="text"` + `inputMode` everywhere, no `enterKeyHint`, no focus advance (`TrackerExercise.tsx`) | W4 | **done** · W4 PR B: keyboard accessory Next / Done / Use last / Abc·123, focus advance in `TrackedExerciseView`; `testTrackerOnFixtures` |
+| U3 | Keyboard-avoiding tracker confirm bar and chat composer | `.tracker-confirm` is `position: fixed` and is covered by the keyboard; the coach input needed a regression spec (`e2e/mock/mobile-chat.spec.ts`) | W4, W6 | **done** · `safeAreaInset(edge: .bottom)` in `TrackerScreen` and `CoachScreen`; W4 PR B and W6 PR B session logs |
+| U4 | No zoom-on-focus, ever | only `.chat-input` and `.auth-input` are 16px; everything else 12–14px zooms iOS Safari | inherent to native | **done** · native text fields never zoom |
+| U5 | Sheets with detents, grab handle and drag-to-dismiss for event and day detail | modal scales in (`scale 0.94 → 1`) even when CSS turns it into a bottom sheet; no handle (`app.css:1659`) | W2 | **done** · `ScheduleTab` presents `EventSheet` / `DaySheet` with `.presentationDetents([.medium, .large])` and `.presentationDragIndicator(.visible)` |
+| U6 | Swipe between days and months; long-press a day to add | chevron taps only; no gestures | W2 | **done** · `DayView.swipe(days:)` (day strip ±1, week strip ±7), `MonthView` `DragGesture(minimumDistance: 40)` with the web's slide, `.onLongPressGesture { onAdd?(day) }` on a month cell |
+| U7 | Completion toggle reachable from every view | month/week check circles are `opacity: 0` until `:hover` (`app.css:339,566`) — impossible on touch | W2 | **done** · Day cards carry a 44pt control; a month chip opens the day sheet whose rows carry the same control (D-023); `testScheduleOnFixtures` flips one |
+| U8 | Toasts render above the tab bar | `.toasts { bottom: 20px }` sits under the 60px mobile nav | W1 (toast component) | **done, differently** · toasts anchor to the top in their own passthrough `UIWindow` above every presentation (D-032, #167); `testToastFloatsOverTheSheetOnFixtures` |
+| U9 | Native date / time / select pickers in dark | `type="date"`/`type="time"`/`<select>` render light-mode controls; only `.modal-meta-input` sets `color-scheme: dark` | W7, W10, W11 | **done** · `FormField.swift` `DateField` / `TimeField` over `DatePicker` (compact), `ChipPicker` for selects; the app is dark-only (D-010) so every picker is |
+| U10 | Reorder exercises with a real drag handle (`List.onMove`) | framer-motion `Reorder` from an 18px grip with `touch-action: none` (`EventExerciseEditor.tsx`) | W7 | **done** · `ExerciseSectionsEditor` `.onMove`; W7 PR C session log |
+| U11 | Library rows show "last performed" and "in N workouts" on phone | `.library-row__stats` hidden at ≤768px (`app.css:3439`) | W10 | **done** · `LibraryView` rows: `lastPerformedLabel`, `referencesLabel`; `testLibraryOnFixtures` |
+| U12 | Block by-week attainment visible on phone | `.block-weeks__attainment` hidden at ≤768px (`app.css:5935`) | W10 | **done** · `BlockDetailView` `AttainmentBars`; `testBlocksOnFixtures` reads the detail's attainment |
+| U13 | Chart values on tap/scrub, not hover; tile menus and dimmed-chip reasons visible without hover | recharts hover tooltips; `title=` attributes carry the only explanation (`TileBuilder.tsx`) | W9 | **done** · `TileChartView.scrubKey` (tap pins a value), the tile kebab `Menu`, `MultiChipRow.dimReason` shown on tap; `testAnalyticsDashboardOnFixtures`, `testTileKebabOnFixtures` |
+| U14 | Stream charts (HR / elevation / route) scrub with a drag gesture | `onPointerMove` crosshair (`StreamCharts.tsx:93`) | W2 (event detail) | **done** · `StreamChartsView` `DragGesture(minimumDistance: 0)` crosshair |
+| U15 | Keep the screen awake during a tracked workout | none | W4 | **done** · `TrackerHost` sets `isIdleTimerDisabled` for the cover's life |
+| U16 | Haptics: set logged, PR hit, workout completed, action confirmed | none | W4, W6, W13 | **done** · design-spec §9 in full after W13: `.impact(.light)` set logged, `.success` PR and workout completed (tracker Finish, and now the sheet's / day card's control via `ScheduleModel.completedCount`), `.impact(.medium)` action confirmed (tracker and coach), `.selection` on `ApexSegmented`, `ChipPicker` and `MultiChipRow` |
+| U17 | Pull-to-refresh and a "cached · updated 3h ago" affordance | none; failed reads toast | W2 | **done** · `.refreshable` on `DayView` and `MonthView`; `FreshnessBanner` under the period bar when the cache speaks for itself |
+| U18 | Log a whole workout offline; sets replay when back online | writes fail offline | W4 | **done** · `WriteQueue` + `GRDBWriteQueueStore` + `WriteQueueDriver`; the airplane-mode device run passed 2026-09-11 on build 306 (STATUS.md) |
+| U19 | Share sheet / copy for the ICS URL and MCP tokens; `webcal://` subscribe button | `navigator.clipboard.writeText` only | W11 | **done** · `CalendarFeedView` copy / `ShareLink` / `webcal://`; `CopyField` inside `TokenRevealSheet` |
+| U20 | Password AutoFill + Face ID via associated domains | real `<form>`s help Keychain, but no app association | W1 (AASA), W2 | **done** · `webcredentials:` and `applinks:` in `Apex.entitlements`; `SignInView` `.textContentType(.username / .password)`; `testSignInScreenOffersAutoFillableFields` |
+| U21 | Dynamic Type across the app; tabular numerals for all numbers | fixed px sizes (9–13px micro text) | W13 audit | **done** · every `Text` font goes through `.apex(_:size:relativeTo:)` (a grep for `.apex(` without `relativeTo` is empty after W13, the Live Activity included; the only `.font(.system(size:))` left are SF Symbol icons); the four 10pt texts (month chip, event chip, stream-chart ticks, the set row's micro label) now sit on the 11pt `TypeScale.micro` floor; numbers use JetBrains Mono, which is monospaced by construction, and the Inter-set numerals (`DayView`'s date, "Step 1 of 8") carry `.monospacedDigit()`; `.accessibility3` snapshots for the day, the tracker, the dashboard and the coach thread (`*-axxxl.png`) |
+| U22 | Multiline composer with an explicit Send; no Enter/Shift-Enter idiom | Enter sends, Shift-Enter newlines (desktop idiom) | W6 | **done** · `Composer` `TextField(axis: .vertical)` with a Send button and no submit-on-return |
+| U23 | Universal links open invite and recovery emails in the app | links land on the web Site URL | W2 | **done** · `applinks:` entitlement, `public/.well-known/apple-app-site-association` served by `vercel.json`, `DeepLink` + `AuthService.handle`; `AuthLinkUITests` |
+| U24 | Settings as grouped native sections (You tab) | one long profile page | W11 | **done** · `YouRootView` `SettingsSection`s; `testYouOnFixtures` |
+| U25 | Elapsed-timer Live Activity in the Dynamic Island with the workout title | none | W12 | **done** · `ApexActivity` + `ApexWidgets`; device run passed 2026-09-11 (STATUS.md) |
+| U26 | Analytics tiles legible on a phone: readable tick text, KPI rows that wrap on purpose, table tiles with sticky headers, editable order and size | fixed 260px stack, 10px ticks, no editing (`AnalyticsView.tsx:154`) | W9 | **done** · `TileRenderers` (`pinnedViews: [.sectionHeaders]`, wrapping KPI rows), edit mode with reorder and S/M/L (D-011); `testAnalyticsDashboardOnFixtures` |
+| U27 | Tracker header never truncates the title mid-word; date and timer on their own line | "Morning Moveme…" at 390px | W4 | **done** · `TrackerScreen` title `.lineLimit(2)` with the date and timer on their own line; `tracker-16e.png` snapshot |
+| U28 | Shadow-fill of last session's values stays, with a clearer "ghost" treatment and a one-tap "use last" per exercise | commits the whole row on first focus, then `select()` (`TrackerExercise.tsx:322`) | W4 | **done** · `TrackedExerciseView` ghost rows + "Use last" per exercise; `TrackerEditor` shadow commit tests |
+| U29 | Duration entry keeps the "microwave" digit buffer but without the blur/refocus keyboard-swap hack | `DurationInput.tsx:70` re-focuses to change the iOS keyboard | W4 | **done** · `DurationField` + `DurationBuffer` port (D-024); the keyboard type switches on the accessory bar, no refocus |
+| U30 | Sync confirmations as a bottom sheet queue, not a top-right popover | `position: fixed; top: 64px; right: 16px` (`ProviderSyncControls.tsx`) | W11 | **done** · `SyncConfirmationSheet` from `CorosView`, "N more after this"; `testYouOnFixtures` |
+| U31 | Coach model badge and key status in the composer header; 402 opens the key screen in one tap | inline CTA opens the whole profile | W6 | **done** · `CoachScreen.header` badge, `coach.keysetup.add` → `AnthropicKeyView`; `testCoachKeySetupOnFixtures` |
+| U32 | Onboarding as a native paged flow with the setup nudge as a dismissible card on the Schedule tab | 6-step tour + nudge above the nav (`OnboardingHost.tsx`) | W13 | **done** · `WelcomeFlowView` (paged, once per account) and `SetupNudgeCard` (D-035); `testOnboardingOnFixtures`, `OnboardingSnapshotTests` |
+
+Nothing moved to the Backlog: every row shipped. Reduce Motion, which the design spec asks for
+alongside U21, landed in W13 too — `Motion.animate` / `Motion.current` gate the house spring on
+`UIAccessibility.isReduceMotionEnabled`, and the two views with their own transitions (the
+month slide, the chat cursor) read `accessibilityReduceMotion` themselves.
 
 Backlog (not in this roadmap): rest timer between sets, push notifications, HealthKit write,
-Apple Watch, home-screen widget for today's workout.
+Apple Watch, home-screen widget for today's workout. Icons keep fixed point sizes (SF Symbols
+next to text scale with Dynamic Type only through text styles); a pass that sizes them
+`relativeTo:` their neighbour is a nicety, not a checklist row.

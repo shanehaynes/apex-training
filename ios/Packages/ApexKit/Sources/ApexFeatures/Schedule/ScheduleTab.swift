@@ -149,6 +149,8 @@ public struct ScheduleTab: View {
             .presentationDragIndicator(.visible)
             .presentationBackground(ApexColor.bgSurface)
         }
+        // design-spec §9: workout completed, from the sheet or a day card.
+        .sensoryFeedback(.success, trigger: model.completedCount)
         .fullScreenCover(item: $trackerRoute) { route in
             if let deps = trackerDependencies {
                 TrackerHost(route: route, deps: deps)
@@ -262,7 +264,7 @@ struct PeriodBar: View {
                     .contentTransition(.numericText())
                     .accessibilityIdentifier("schedule.period")
                 stepButton(ApexIcon.chevronRight, label: "Next", delta: 1)
-                Button("Today") { withAnimation(Motion.spring) { model.goToToday() } }
+                Button("Today") { Motion.animate { model.goToToday() } }
                     .font(.apex(.display, size: TypeScale.xs, weight: .semibold, relativeTo: .caption))
                     .foregroundStyle(model.isShowingToday ? ApexColor.textMuted : ApexColor.textPrimary)
                     .padding(.horizontal, Spacing.md)
@@ -282,7 +284,7 @@ struct PeriodBar: View {
     }
 
     private func stepButton(_ icon: ApexIcon, label: String, delta: Int) -> some View {
-        Button { withAnimation(Motion.spring) { model.step(delta) } } label: {
+        Button { Motion.animate { model.step(delta) } } label: {
             icon.image
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(ApexColor.textSecondary)

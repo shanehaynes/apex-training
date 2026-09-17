@@ -26,13 +26,8 @@ final class SmokeUITests: XCTestCase {
     }
 
     private func signIn(_ app: XCUIApplication) {
-        let email = app.textFields["signin.email"]
-        XCTAssertTrue(email.waitForExistence(timeout: 10))
-        email.tap()
-        email.typeText("agent@apex.local")
-        let password = app.secureTextFields["signin.password"]
-        password.tap()
-        password.typeText("apex-agent-password")
+        type("agent@apex.local", into: app.textFields["signin.email"])
+        type("apex-agent-password", into: app.secureTextFields["signin.password"])
         app.buttons["Sign in"].tap()
     }
 
@@ -58,10 +53,12 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.secureTextFields["signin.password"].exists)
         XCTAssertTrue(app.buttons["Sign in"].exists)
 
-        // Invite-only has to be stated, not implied (App Store 5.1.1).
+        // Invite-only has to be stated, not implied (App Store 5.1.1) — and
+        // stated with a way forward: the contact link, not a dead end (W13).
         XCTAssertTrue(app.staticTexts.containing(
             NSPredicate(format: "label CONTAINS[c] 'invite-only'")
         ).firstMatch.exists)
+        XCTAssertTrue(app.links["signin.invite"].exists || app.buttons["signin.invite"].exists, "no invite contact link")
 
         attach(app, name: "01-sign-in")
     }
@@ -231,19 +228,17 @@ final class SmokeUITests: XCTestCase {
         let composer = app.textFields["coach.composer"]
         XCTAssertTrue(composer.waitForExistence(timeout: 10))
         type("skip next week", into: composer)
-        app.buttons["coach.send"].tap()
 
         // The card replaces the composer once the stream ends; the label is the server's.
         let card = app.otherElements["coach.card"]
-        XCTAssertTrue(card.waitForExistence(timeout: 20))
+        tapUntil(app.buttons["coach.send"], shows: card)
         XCTAssertEqual(app.staticTexts["coach.card.label"].label, "Delete: Fixture Push Day · 2026-09-29 (this instance)")
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Clearing it'")).firstMatch.exists)
         XCTAssertFalse(app.textFields["coach.composer"].exists)
         attach(app, name: "12-coach-card")
 
-        app.buttons["coach.card.confirm"].tap()
         let followUp = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Done — Fixture Push Day'")).firstMatch
-        XCTAssertTrue(followUp.waitForExistence(timeout: 20))
+        tapUntil(app.buttons["coach.card.confirm"], shows: followUp)
         XCTAssertTrue(app.textFields["coach.composer"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.otherElements["coach.card"].exists)
         attach(app, name: "13-coach-followup")
