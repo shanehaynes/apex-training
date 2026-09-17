@@ -70,7 +70,7 @@ public struct ChipRow<Value: Hashable & Sendable>: View {
             FlowLayout(spacing: Spacing.xs) {
                 ForEach(options, id: \.value) { option in
                     Chip(option.label, isSelected: option.value == selection) {
-                        withAnimation(Motion.spring) { selection = option.value }
+                        Motion.animate { selection = option.value }
                     }
                     .accessibilityAddTraits(option.value == selection ? .isSelected : [])
                 }
@@ -78,6 +78,8 @@ public struct ChipRow<Value: Hashable & Sendable>: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(identifier ?? "chips.\((label ?? "row").lowercased())")
+        // design-spec §9: `.selection` on chip changes.
+        .sensoryFeedback(.selection, trigger: selection)
     }
 }
 

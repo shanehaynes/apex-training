@@ -82,7 +82,7 @@ public struct ToastHost: View {
             }
         }
         .padding(.horizontal, Spacing.screen)
-        .animation(Motion.spring, value: bus.toasts)
+        .animation(Motion.current, value: bus.toasts)
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { bus.frame = $0 }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .allowsHitTesting(!bus.toasts.isEmpty)

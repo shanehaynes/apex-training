@@ -22,7 +22,7 @@ struct SeriesEditorView: View {
                 Text("Series \(index + 1)").apexEyebrow()
                 Spacer()
                 if builder.draft.series.count > 1 {
-                    Button { withAnimation(Motion.spring) { builder.removeSeries(id) } } label: {
+                    Button { Motion.animate { builder.removeSeries(id) } } label: {
                         ApexIcon.close.image.font(.system(size: 13)).foregroundStyle(ApexColor.textMuted)
                             .frame(width: 44, height: 44).contentShape(.rect)
                     }
@@ -49,7 +49,7 @@ struct SeriesEditorView: View {
                             selection: seriesField(\.gradeScale), identifier: "series.\(id).gradescale")
                 }
                 Button {
-                    withAnimation(Motion.spring) {
+                    Motion.animate {
                         if filtersOpen { builder.filtersOpen.remove(id) } else { builder.filtersOpen.insert(id) }
                     }
                 } label: {
@@ -89,9 +89,9 @@ struct SeriesEditorView: View {
                             let reason = builder.measureDimReason(seriesId: id, measureId: measureId)
                             Chip(AnalyticsCatalog.measure(measureId)?.label ?? measureId, isSelected: series.measure == measureId, isDimmed: reason != nil) {
                                 if let reason {
-                                    withAnimation(Motion.spring) { measureReason = reason }
+                                    Motion.animate { measureReason = reason }
                                 } else {
-                                    withAnimation(Motion.spring) {
+                                    Motion.animate {
                                         measureReason = nil
                                         builder.setMeasure(id, measureId)
                                     }

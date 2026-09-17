@@ -77,7 +77,7 @@ struct TimeChart: View {
                     AxisValueLabel {
                         if let v = value.as(Double.self) {
                             Text(String(Int(v.rounded())))
-                                .font(.apex(.mono, size: 10, relativeTo: .caption2))
+                                .font(.apex(.mono, size: TypeScale.micro, relativeTo: .caption2))
                                 .foregroundStyle(ApexColor.textMuted)
                         }
                     }
