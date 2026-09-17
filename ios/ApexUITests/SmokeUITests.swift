@@ -26,13 +26,8 @@ final class SmokeUITests: XCTestCase {
     }
 
     private func signIn(_ app: XCUIApplication) {
-        let email = app.textFields["signin.email"]
-        XCTAssertTrue(email.waitForExistence(timeout: 10))
-        email.tap()
-        email.typeText("agent@apex.local")
-        let password = app.secureTextFields["signin.password"]
-        password.tap()
-        password.typeText("apex-agent-password")
+        type("agent@apex.local", into: app.textFields["signin.email"])
+        type("apex-agent-password", into: app.secureTextFields["signin.password"])
         app.buttons["Sign in"].tap()
     }
 
