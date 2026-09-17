@@ -1,7 +1,7 @@
 # W13 — Release engineering + polish
 
 **Machine:** Mac · **Depends on:** everything · **Unblocks:** App Store submission
-**Status:** in review — A #190 (HELD), B #191, C #193, D #194 (polish); App Store submission is Shane's console work
+**Status:** B #191 and D #194 merged 2026-09-17; C #193 in review (blocked only by Vercel's preview rate limit); A #190 HELD for `shipit`; App Store submission is Shane's console work
 
 ## Goal
 Repeatable TestFlight releases, App Store readiness, and the remaining UX checklist items.
@@ -55,6 +55,12 @@ Out: anything on the Backlog.
     `OnboardingModel` / `WelcomeFlowView` / `SetupNudgeCard`; `RouteBus.pendingYou`. Traps: a new
     test file needs `xcodegen generate` again or `-only-testing` runs zero tests; the COROS step
     needs the provider status before the You tab has loaded it, so the model asks at `start()`.
+    CI trap (twice on this PR, `testYouOnFixtures`): the runner minted a token named "CClaude
+    Code" — the smoke's `type(_:into:)` landed one "C", its delete was dropped too, and the
+    retyped name passed a *suffix* check. An exact-value rewrite of the helper failed two other
+    legs locally with a message the new code cannot emit (a stale test bundle, most likely), so it
+    was withdrawn — the hardening is a follow-up, not this PR. The `ios` job is not a required
+    check (`check`, `e2e-mock`, `full` are).
   - **D — polish (#194).** Haptics per design-spec §9 (the tracker and coach already had four of five;
     `.selection` on `ApexSegmented`, `ChipPicker`, `MultiChipRow`; `.success` on sheet/day-card
     completion via `ScheduleModel.completedCount`). Dynamic Type: every text through

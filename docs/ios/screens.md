@@ -24,7 +24,7 @@ Tabs (D-012): **Schedule · Coach · Analytics · You**.
 | `WorkoutBuilderView.tsx` + `TemplateSearch` + `BuilderForm` + `RepeatPicker` | **Builder sheet** (`.large`): template search (substring, type chips, archive, "Build '<q>'") → form: type chips, sport, scoring, title, date, duration, start/end, repeat (day chips + every N weeks + ends), climbing/cardio fields, location, tags, description, difficulty; scope bar for recurring edits (this only / series) | W7 | native pickers (U9) |
 | `EventExerciseEditor.tsx` + `ExercisePicker` | exercise sections editor: `List` with `.onMove` drag handles, per-exercise prescription row (sets/reps/duration/weight/rest), superset chain toggle, remove; picker: search-first, exact-match-or-create, inline create (category, unilateral) | W7 | U10 |
 | `BuilderCoachPanel` | builder coach: a chat drawer inside the builder sheet whose single tool updates the draft server-side (`/api/coach-tool` reduce) | W7 | |
-| `OnboardingHost` (`WelcomeFlow`, `SetupNudge`) | paged welcome flow on first run; setup nudge card at the top of Day view; dismiss persists via `PATCH /api/profile { onboarding_dismissed }` | W13 | U32 |
+| `OnboardingHost` (`WelcomeFlow`, `SetupNudge`) | `WelcomeFlowView` — a `fullScreenCover` over the tabs on first run, paged (`TabView(.page)`), Skip / Back / Next / Start training, a step's own button (copy the starter plan in place; the key, connector and COROS buttons leave for the You tab and spend the flow); `SetupNudgeCard` between the period bar and the day; copy from the generated `OnboardingCatalog`, verdicts from the profile's `onboarding` block (D-035); dismiss persists via `PATCH /api/profile { onboarding_dismissed }`, the card's close is session-only | W13 | U32 |
 
 ## Coach tab
 

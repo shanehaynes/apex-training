@@ -29,6 +29,10 @@ public struct ProfileResponse: Codable, Sendable, Equatable {
     /// The picker's options, server-owned so no client hand-ports the catalog
     /// (D-008). Ordered most → least capable, which is also a cost ladder.
     public let coachModels: [CoachModelOption]?
+    /// W13: the welcome flow's latch and the setup card's verdicts, computed
+    /// server-side with the web's own progress logic (D-008, D-035). Optional
+    /// because a profile cached by an older build must still decode.
+    public let onboarding: OnboardingState?
 
     public init(
         hasAnthropicKey: Bool, anthropicKeyLast4: String?, termsAccepted: TermsAcceptance?,
@@ -36,7 +40,8 @@ public struct ProfileResponse: Codable, Sendable, Equatable {
         displayName: String? = nil, avatarKey: String? = nil,
         coachGoal: String? = nil, coachContext: String? = nil,
         maxHr: Int? = nil, thresholdHr: Int? = nil,
-        calendarFeedUrl: String? = nil, coachModels: [CoachModelOption]? = nil
+        calendarFeedUrl: String? = nil, coachModels: [CoachModelOption]? = nil,
+        onboarding: OnboardingState? = nil
     ) {
         self.hasAnthropicKey = hasAnthropicKey
         self.anthropicKeyLast4 = anthropicKeyLast4
@@ -52,6 +57,43 @@ public struct ProfileResponse: Codable, Sendable, Equatable {
         self.thresholdHr = thresholdHr
         self.calendarFeedUrl = calendarFeedUrl
         self.coachModels = coachModels
+        self.onboarding = onboarding
+    }
+
+    /// `onboarding` on the profile response.
+    public struct OnboardingState: Codable, Sendable, Equatable {
+        /// When the welcome flow was finished or skipped; nil = show it.
+        public let dismissedAt: String?
+        /// False for the template source (Shane's own account): no flow, no card.
+        public let applies: Bool
+        public let setup: Setup
+
+        public struct Setup: Codable, Sendable, Equatable {
+            public let template: Bool
+            public let key: Bool
+            public let goal: Bool
+            public init(template: Bool, key: Bool, goal: Bool) {
+                self.template = template
+                self.key = key
+                self.goal = goal
+            }
+            /// Whether a checklist row the card shows is done.
+            public func isDone(_ id: OnboardingCatalog.ChecklistID) -> Bool? {
+                switch id {
+                case .template: template
+                case .key: key
+                case .goal: goal
+                case .coros, .connector: nil
+                }
+            }
+            public var allDone: Bool { template && key && goal }
+        }
+
+        public init(dismissedAt: String?, applies: Bool, setup: Setup) {
+            self.dismissedAt = dismissedAt
+            self.applies = applies
+            self.setup = setup
+        }
     }
 
     /// One entry of the coach model catalog (`src/lib/coach/models.ts`). The

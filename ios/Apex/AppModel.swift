@@ -38,6 +38,9 @@ final class AppModel {
     private(set) var you: YouModel?
     /// The meals model the Schedule and You tabs share (W10).
     private(set) var meals: MealsModel?
+    /// First-run state (W13): the welcome flow and the Schedule tab's setup
+    /// card, per signed-in user like the rest. Nil until `ensureQueue`.
+    private(set) var onboarding: OnboardingModel?
 
     private let pool: DatabasePool?
     private var queueOwner: String?
@@ -152,7 +155,13 @@ final class AppModel {
         you = YouModel(services: YouServices(
             client: client, publicOrigin: AppConfig.publicOrigin, email: email, clock: clock, versionLabel: AppConfig.versionLabel,
             changePassword: { [weak self] password in await self?.changePassword(password) },
-            onProfileChanged: { [weak self] in Task { await self?.coach?.refreshProfile() } },
+            onProfileChanged: { [weak self] in
+                Task {
+                    await self?.coach?.refreshProfile()
+                    // A saved key or goal ticks a setup row (W13).
+                    await self?.onboarding?.refresh()
+                }
+            },
             onScheduleChanged: { [weak self] in Task { await self?.schedule.refresh(reason: .afterEdit) } },
             onAccountDeleted: { [weak self] in self?.signOut() },
             signOut: { [weak self] in self?.signOut() },
@@ -168,6 +177,21 @@ final class AppModel {
             blocks: BlocksDependencies(client: client, cache: cache, clock: clock, realtime: hub),
             meals: mealsModel
         ))
+
+        let onboardingModel = OnboardingModel(deps: OnboardingModel.Dependencies(
+            client: client, routes: routes,
+            // The provider status is the You tab's lazy read; the flow needs it
+            // before the tab is ever opened, so ask for it here.
+            corosConfigured: { [weak self] in
+                guard let coros = self?.you?.coros else { return false }
+                await coros.refreshStatus()
+                return coros.isConfigured
+            },
+            onTemplateCopied: { [weak self] in await self?.schedule.refresh(reason: .afterEdit) },
+            openKeySheet: { [weak self] in self?.you?.showKeySheet = true }
+        ))
+        onboarding = onboardingModel
+        Task { await onboardingModel.start() }
     }
 
     /// The You tab's change-password: the same SDK call the set-password
@@ -330,6 +354,7 @@ final class AppModel {
         you = nil
         meals?.stop()
         meals = nil
+        onboarding = nil
         queueOwner = nil
         Task {
             await hub?.reset()

@@ -12,6 +12,7 @@ public struct RootTabView: View {
     private let coachServices: CoachServices?
     private let you: YouModel?
     private let meals: MealsModel?
+    private let onboarding: OnboardingModel?
     private let email: String?
     private let onSignOut: () -> Void
     @Bindable private var routes: RouteBus
@@ -20,12 +21,14 @@ public struct RootTabView: View {
     /// and the tab consumes it. The default is a fresh bus, for previews.
     public init(
         schedule: ScheduleModel, analytics: AnalyticsModel? = nil, tracker: TrackerServices? = nil, coach: CoachModel? = nil,
-        coachServices: CoachServices? = nil, you: YouModel? = nil, meals: MealsModel? = nil, email: String?, routes: RouteBus = RouteBus(), onSignOut: @escaping () -> Void
+        coachServices: CoachServices? = nil, you: YouModel? = nil, meals: MealsModel? = nil, onboarding: OnboardingModel? = nil,
+        email: String?, routes: RouteBus = RouteBus(), onSignOut: @escaping () -> Void
     ) {
         self.schedule = schedule
         self.analytics = analytics
         self.you = you
         self.meals = meals
+        self.onboarding = onboarding
         self.tracker = tracker
         self.coach = coach
         self.coachServices = coachServices
@@ -36,7 +39,7 @@ public struct RootTabView: View {
 
     public var body: some View {
         TabView(selection: $routes.tab) {
-            ScheduleTab(model: schedule, tracker: tracker, routes: routes, coachServices: coachServices, meals: meals)
+            ScheduleTab(model: schedule, tracker: tracker, routes: routes, coachServices: coachServices, meals: meals, onboarding: onboarding)
                 .tabItem { Label("Schedule", systemImage: "calendar") }
                 .tag(AppTab.schedule)
             CoachTab(model: coach)
