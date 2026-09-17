@@ -231,19 +231,17 @@ final class SmokeUITests: XCTestCase {
         let composer = app.textFields["coach.composer"]
         XCTAssertTrue(composer.waitForExistence(timeout: 10))
         type("skip next week", into: composer)
-        app.buttons["coach.send"].tap()
 
         // The card replaces the composer once the stream ends; the label is the server's.
         let card = app.otherElements["coach.card"]
-        XCTAssertTrue(card.waitForExistence(timeout: 20))
+        tapUntil(app.buttons["coach.send"], shows: card)
         XCTAssertEqual(app.staticTexts["coach.card.label"].label, "Delete: Fixture Push Day · 2026-09-29 (this instance)")
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Clearing it'")).firstMatch.exists)
         XCTAssertFalse(app.textFields["coach.composer"].exists)
         attach(app, name: "12-coach-card")
 
-        app.buttons["coach.card.confirm"].tap()
         let followUp = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Done — Fixture Push Day'")).firstMatch
-        XCTAssertTrue(followUp.waitForExistence(timeout: 20))
+        tapUntil(app.buttons["coach.card.confirm"], shows: followUp)
         XCTAssertTrue(app.textFields["coach.composer"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.otherElements["coach.card"].exists)
         attach(app, name: "13-coach-followup")
