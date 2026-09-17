@@ -18,6 +18,9 @@ public enum AppTab: Hashable, Sendable {
 public final class RouteBus {
     public var tab: AppTab = .schedule
     public private(set) var pending: DeepLink?
+    /// A You-tab screen to push next (W13: the onboarding buttons that leave
+    /// for a settings screen). The You tab consumes it when it can.
+    public var pendingYou: YouRoute?
 
     public init() {}
 

@@ -1,4 +1,4 @@
-import { CHECKLIST_ITEMS, type ChecklistId, type ChecklistItem } from './content';
+import { CHECKLIST_ITEMS, type ChecklistId, type ChecklistItem } from './content.js';
 
 // Setup progress, as pure functions over the signals the app already holds.
 // Nothing here is self-reported: a row is ticked because the feature's own

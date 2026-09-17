@@ -52,12 +52,15 @@ interface AdminState {
 const EMPTY_PROFILE = {
   display_name: null, avatar_key: null, coach_goal: null,
   coach_context: null, max_hr: null, threshold_hr: null, ics_token: null,
+  is_template_source: false, template_copied_at: null, onboarding_dismissed_at: null,
 };
 
 /** GET's response minus the fields each test is actually about. */
 const PROFILE_DEFAULTS = {
   displayName: null, avatarKey: null, coachGoal: null, coachContext: null,
   maxHr: null, thresholdHr: null, calendarFeedUrl: null,
+  // W13: a fresh account with no key — the welcome flow is due, nothing ticked.
+  onboarding: { dismissedAt: null, applies: true, setup: { template: false, key: false, goal: false } },
 };
 
 // Minimal chainable fake covering exactly the query shapes profile.ts uses.
@@ -160,6 +163,8 @@ describe('GET /api/profile', () => {
       hasAnthropicKey: true, anthropicKeyLast4: 'tail',
       coachModel: null, coachModelLabel: 'Opus 5',
       ...PROFILE_DEFAULTS,
+      // The stored key ticks the checklist's key row (W13).
+      onboarding: { ...PROFILE_DEFAULTS.onboarding, setup: { ...PROFILE_DEFAULTS.onboarding.setup, key: true } },
       coachModels: expect.any(Array),
       termsAccepted: null, termsCurrent: false,
     });
@@ -224,6 +229,29 @@ describe('GET /api/profile', () => {
   // The picker's options come from the server so a native client never
   // hand-ports the catalog (D-008). `params` is a request shape, not a
   // picker's business, and must not leak into it.
+  // W13: the native app reads its onboarding state here; the verdicts are
+  // src/lib/onboarding/progress.ts's, not a second implementation.
+  it('reports the onboarding state with the checklist verdicts computed server-side', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({
+      key: 'sk-ant-api03-secret-tail',
+      profile: { template_copied_at: '2026-09-01T00:00:00Z', coach_goal: '  Climb 5.13a  ', onboarding_dismissed_at: '2026-09-02T00:00:00Z' },
+    }));
+    const { res, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect((body() as { onboarding: unknown }).onboarding).toEqual({
+      dismissedAt: '2026-09-02T00:00:00Z',
+      applies: true,
+      setup: { template: true, key: true, goal: true },
+    });
+  });
+
+  it('marks onboarding as not applying to the template source account', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({ key: null, profile: { is_template_source: true } }));
+    const { res, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect((body() as { onboarding: { applies: boolean } }).onboarding.applies).toBe(false);
+  });
+
   it('serves the coach model catalog without request params', async () => {
     mockedAdmin.mockReturnValue(makeAdmin({ key: null }));
     const { res, body } = makeRes();

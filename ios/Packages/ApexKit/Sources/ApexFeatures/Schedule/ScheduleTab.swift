@@ -12,6 +12,8 @@ public struct ScheduleTab: View {
     private let coachServices: CoachServices?
     /// The meal composer (W10); nil keeps "+" a plain Add workout.
     private let meals: MealsModel?
+    /// The setup card (W13, U32); nil shows none.
+    private let onboarding: OnboardingModel?
     @State private var sheet: ScheduleSheet?
     @State private var trackerRoute: TrackerRoute?
     /// Set while the event sheet is still dismissing: presenting the cover over
@@ -24,12 +26,16 @@ public struct ScheduleTab: View {
 
     /// `tracker: nil` hides Start Workout (the app before a user is signed in).
     /// `routes` is the deep-link bus this tab consumes `.tracker` from (W12).
-    public init(model: ScheduleModel, tracker: TrackerServices? = nil, routes: RouteBus? = nil, coachServices: CoachServices? = nil, meals: MealsModel? = nil) {
+    public init(
+        model: ScheduleModel, tracker: TrackerServices? = nil, routes: RouteBus? = nil, coachServices: CoachServices? = nil,
+        meals: MealsModel? = nil, onboarding: OnboardingModel? = nil
+    ) {
         self.model = model
         self.tracker = tracker
         self.routes = routes
         self.coachServices = coachServices
         self.meals = meals
+        self.onboarding = onboarding
     }
 
     private var trackerDependencies: TrackerDependencies? {
@@ -50,6 +56,11 @@ public struct ScheduleTab: View {
                 PeriodBar(model: model)
                 if let label = model.freshnessLabel {
                     FreshnessBanner(label)
+                }
+                if let onboarding, onboarding.showsNudge {
+                    SetupNudgeCard(model: onboarding)
+                        .padding(.horizontal, Spacing.screen)
+                        .padding(.bottom, Spacing.md)
                 }
                 content
             }

@@ -49,5 +49,14 @@
     "privacyVersion": "privacy-v1",
     "acceptedAt": "<timestamp>"
   },
-  "termsCurrent": true
+  "termsCurrent": true,
+  "onboarding": {
+    "dismissedAt": "<timestamp>",
+    "applies": true,
+    "setup": {
+      "template": false,
+      "key": false,
+      "goal": false
+    }
+  }
 }

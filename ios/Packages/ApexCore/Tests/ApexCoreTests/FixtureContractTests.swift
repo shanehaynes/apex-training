@@ -226,6 +226,21 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertEqual(models.map(\.label), ["Opus 5", "Opus 4.8", "Sonnet 5", "Haiku 4.5"])
     }
 
+    // MARK: - W13
+
+    /// The profile carries the onboarding block: the seeded user has dismissed
+    /// the flow (the migration stamped existing rows) and has done nothing.
+    func testProfileCarriesTheOnboardingState() throws {
+        let profile = try decode(ProfileResponse.self, from: "profile.json")
+        let onboarding = try XCTUnwrap(profile.onboarding)
+        XCTAssertEqual(onboarding.dismissedAt, "<timestamp>")
+        XCTAssertTrue(onboarding.applies)
+        XCTAssertEqual(onboarding.setup, .init(template: false, key: false, goal: false))
+        XCTAssertFalse(onboarding.setup.allDone)
+        XCTAssertEqual(onboarding.setup.isDone(.key), false)
+        XCTAssertNil(onboarding.setup.isDone(.coros), "the card never answers the two remote rows")
+    }
+
     /// Every source the feed can carry, and both attribution badges.
     func testActivityLogDecodes() throws {
         let log = try decode(ActivityLogResponse.self, from: "mutations-log.json")

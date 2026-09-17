@@ -444,6 +444,11 @@ public struct Endpoint: Sendable, Equatable {
         profilePatch(["coach_model": id.map(JSONValue.string) ?? .null])
     }
 
+    /// Copy the starter plan (Shane's recurring workouts) into this account.
+    /// Idempotent server-side: `profiles.template_copied_at` is the lock, and a
+    /// second call answers `{ alreadyCopied: true }` (W13, the welcome flow).
+    public static let copyTemplate = Endpoint(method: .post, path: "api/template-copy", body: json([String: String]()))
+
     /// A one-way latch — there is no un-dismiss, and only `true` is accepted.
     public static let dismissOnboarding = Endpoint(
         method: .patch, path: "api/profile", body: json(["onboarding_dismissed": JSONValue.bool(true)])
