@@ -7,6 +7,7 @@ import { enforceRateLimit } from '../rateLimit.js';
 import { isCurrent, latestAcceptance } from '../legal.js';
 import { COACH_MODELS, isCoachModelId, resolveCoachModel } from '../../../src/lib/coach/models.js';
 import { publicOrigin } from '../oauth/common.js';
+import { localSetupDone } from '../../../src/lib/onboarding/progress.js';
 
 // Profile reads/writes, same posture as every other table: the browser
 // reads profiles via RLS (own row only) and mutates through this
@@ -51,7 +52,7 @@ async function profileFields(
 ) {
   const { data, error } = await supabase
     .from('profiles')
-    .select('display_name, avatar_key, coach_goal, coach_context, coach_model, max_hr, threshold_hr, ics_token')
+    .select('display_name, avatar_key, coach_goal, coach_context, coach_model, max_hr, threshold_hr, ics_token, is_template_source, template_copied_at, onboarding_dismissed_at')
     .eq('id', userId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -66,6 +67,29 @@ async function profileFields(
     coachModel: stored,
     coachModelLabel: resolveCoachModel(stored).label,
     calendarFeedUrl: data?.ics_token ? `${publicOrigin(req)}/api/calendar-feed?token=${data.ics_token}` : null,
+    // W13: the native app's onboarding reads its state from here rather than
+    // the profiles row, and the "done" verdicts are computed with the same
+    // src/lib/onboarding/progress.ts the web uses (D-008). `applies` is the
+    // OnboardingHost rule — the template source is Shane's own account, set up
+    // by definition. The key signal is filled in by the caller, which already
+    // knows it.
+    onboardingRow: {
+      dismissedAt: data?.onboarding_dismissed_at ?? null,
+      isTemplateSource: data?.is_template_source === true,
+      templateCopiedAt: data?.template_copied_at ?? null,
+      coachGoal: data?.coach_goal ?? '',
+    },
+  };
+}
+
+function onboardingState(
+  row: { dismissedAt: string | null; isTemplateSource: boolean; templateCopiedAt: string | null; coachGoal: string },
+  hasAnthropicKey: boolean,
+) {
+  return {
+    dismissedAt: row.dismissedAt,
+    applies: !row.isTemplateSource,
+    setup: localSetupDone({ templateCopiedAt: row.templateCopiedAt, hasAnthropicKey, coachGoal: row.coachGoal }),
   };
 }
 
@@ -102,12 +126,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         latestAcceptance(supabase, userId),
         profileFields(supabase, userId, req),
       ]);
+      const { onboardingRow, ...rest } = fields;
       res.status(200).json({
         ...keys,
-        ...fields,
+        ...rest,
         coachModels: coachModelCatalog(),
         termsAccepted: accepted,
         termsCurrent: isCurrent(accepted),
+        onboarding: onboardingState(onboardingRow, keys.hasAnthropicKey),
       });
     } catch (err) {
       console.error('[api/profile] status failed:', err instanceof Error ? err.message : err);

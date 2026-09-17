@@ -17,6 +17,10 @@ import Foundation
 ///                                   key-setup state (the fixture has no key)
 ///   -apexMockCoros expired          the COROS connection starts expired (or
 ///                                   `disconnected`); the default is connected
+///   -apexMockFreshUser              the profile's onboarding is not dismissed,
+///                                   so the welcome flow shows after sign-in
+///                                   (W13); without it every leg lands on the
+///                                   tabs, as the fixture user always has
 ///
 /// W7: the sheet's and the builder's writes (`/api/events`, `/api/event-instances`,
 /// `/api/workout-draft`, templates, definitions) are remembered and replayed
@@ -38,7 +42,8 @@ struct MockEnvironment {
         transport = FixtureTransport(
             failingRoute: failing, failOnce: failOnce, clock: clock,
             hasKey: CommandLine.arguments.contains("-apexMockHasKey"),
-            corosStatus: Self.argument("-apexMockCoros") ?? "connected"
+            corosStatus: Self.argument("-apexMockCoros") ?? "connected",
+            freshUser: CommandLine.arguments.contains("-apexMockFreshUser")
         )
         streams = FixtureStreams()
     }
@@ -95,6 +100,10 @@ actor FixtureTransport: HTTPTransport {
     private var corosStatus = "connected"
     private var corosAutoSync = true
     private var corosSynced = false
+    /// W13: the welcome flow's latch and the starter-plan copy, replayed into
+    /// the profile's `onboarding` block. A non-fresh user starts dismissed.
+    private var onboardingDismissed: Bool
+    private var templateCopied = false
 
     /// W9: the dashboard's writes, replayed into later tile reads.
     private var tileEdits = TileEdits()
@@ -132,12 +141,13 @@ actor FixtureTransport: HTTPTransport {
         var deletedFavorites: Set<String> = []
     }
 
-    init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false, corosStatus: String = "connected") {
+    init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false, corosStatus: String = "connected", freshUser: Bool = false) {
         self.failingRoute = failingRoute
         self.failOnce = failOnce
         self.clock = clock
         self.hasKey = hasKey
         self.corosStatus = corosStatus
+        self.onboardingDismissed = !freshUser
     }
 
     /// The coach stream arrives line by line, a beat apart, so the typing
@@ -188,15 +198,22 @@ actor FixtureTransport: HTTPTransport {
                 let start = query.split(separator: "&").first { $0.hasPrefix("start=") }?.dropFirst(6) ?? ""
                 return ok(applyEdits(to: applyCompletions(to: try Fixtures.data(start >= "2026-10-28" ? "schedule-empty.json" : "schedule.json"))))
             case ("GET", "/api/profile"):
-                return ok(withProfileEdits(withKey(unscrubbed(try Fixtures.data("profile.json")))))
+                return ok(withOnboarding(withProfileEdits(withKey(unscrubbed(try Fixtures.data("profile.json"))))))
             case ("PATCH", "/api/profile"):
                 if let entry = body?["anthropic_api_key"] {
                     hasKey = !(entry is NSNull)
                 }
+                if body?["onboarding_dismissed"] as? Bool == true { onboardingDismissed = true }
                 for key in ["display_name", "avatar_key", "coach_goal", "coach_context", "coach_model", "max_hr", "threshold_hr"] {
                     if let value = body?[key] { profileEdits[key] = value }
                 }
                 return ok(Data(#"{"ok":true,"hasAnthropicKey":\(hasKey),"anthropicKeyLast4":\(hasKey ? "\"mock\"" : "null")}"#.utf8))
+            // W13: the starter plan. Idempotent like the handler; the mock's
+            // schedule does not grow (the fixture window is what it is).
+            case ("POST", "/api/template-copy"):
+                if templateCopied { return ok(Data(#"{"alreadyCopied":true}"#.utf8)) }
+                templateCopied = true
+                return ok(Data(#"{"events":3,"definitions":1}"#.utf8))
             // W11 — the You tab.
             case ("GET", "/api/mutations-log"):
                 return ok(unscrubbed(try Fixtures.data("mutations-log.json")))
@@ -434,6 +451,20 @@ actor FixtureTransport: HTTPTransport {
             #"{"type":"text","delta":"\#((index == 0 ? "" : " ") + word.replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "\n", with: "\\n"))"}"#
         }
         return Data((deltas + [#"{"type":"done"}"#]).joined(separator: "\n").appending("\n").utf8)
+    }
+
+    /// The handler's `onboarding` block over the mock's own signals (W13):
+    /// dismissed unless `-apexMockFreshUser`, the copy and the key as this
+    /// session set them, the goal from the profile edits.
+    private func withOnboarding(_ data: Data) -> Data {
+        guard var object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return data }
+        let goal = (profileEdits["coach_goal"] as? String ?? object["coachGoal"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        object["onboarding"] = [
+            "dismissedAt": onboardingDismissed ? CompletionRows.isoTimestamp(clock.now.addingTimeInterval(-86_400)) : NSNull(),
+            "applies": true,
+            "setup": ["template": templateCopied, "key": hasKey, "goal": !goal.isEmpty],
+        ] as [String: Any]
+        return (try? JSONSerialization.data(withJSONObject: object)) ?? data
     }
 
     private func withKey(_ data: Data) -> Data {

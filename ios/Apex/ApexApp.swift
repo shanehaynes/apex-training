@@ -78,11 +78,27 @@ struct RootView: View {
                 onCancel: { model.cancelPasswordSetup() }
             )
         case .signedIn(let userID, let email):
-            RootTabView(schedule: model.schedule, analytics: model.analytics, tracker: model.trackerServices, coach: model.coach, coachServices: model.coachServices, you: model.you, meals: model.meals, email: email, routes: model.routes) {
+            RootTabView(
+                schedule: model.schedule, analytics: model.analytics, tracker: model.trackerServices, coach: model.coach,
+                coachServices: model.coachServices, you: model.you, meals: model.meals, onboarding: model.onboarding,
+                email: email, routes: model.routes
+            ) {
                 model.signOut()
             }
                 .onAppear { model.ensureQueue(owner: userID, email: email) }
                 .task { model.replayParkedLink() }
+                // The first-run tour (W13): full screen, once per account. The
+                // model reads its own verdict from the profile; a template
+                // source or a dismissed flow never presents.
+                .fullScreenCover(isPresented: Binding(
+                    get: { model.onboarding?.showsWelcome ?? false },
+                    set: { shown in if !shown { Task { await model.onboarding?.dismissWelcome() } } }
+                )) {
+                    if let onboarding = model.onboarding {
+                        WelcomeFlowView(model: onboarding)
+                            .preferredColorScheme(.dark)
+                    }
+                }
         }
     }
 }

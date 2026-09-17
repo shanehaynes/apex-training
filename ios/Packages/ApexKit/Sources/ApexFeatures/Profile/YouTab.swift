@@ -28,6 +28,8 @@ public struct YouTab: View {
             }
         }
         .onChange(of: routes?.pending, initial: true) { _, _ in consumeRoute() }
+        .onChange(of: routes?.pendingYou, initial: true) { _, _ in consumeYouRoute() }
+        .onChange(of: model == nil) { _, _ in consumeYouRoute() }
     }
 
     private func consumeRoute() {
@@ -35,6 +37,14 @@ public struct YouTab: View {
               let link = routes.take(where: { if case .library = $0 { true } else { false } }),
               case .library(let definitionId) = link else { return }
         path = [.library, .exercise(id: definitionId)]
+    }
+
+    /// W13: a settings screen the onboarding sent us to, once there is a model
+    /// to show it over.
+    private func consumeYouRoute() {
+        guard let routes, model != nil, let route = routes.pendingYou else { return }
+        routes.pendingYou = nil
+        path = [route]
     }
 }
 

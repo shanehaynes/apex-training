@@ -608,3 +608,38 @@ The brief said "port the dashboard and the tile builder"; these are the lines dr
 - **Consequences.** PR B/C/D read only what PR A's fixtures pin; the mock replays writes into
   these same reads. A tool that gains a field later is a fixture regeneration, not a schema
   change. The web's cycle editor now previews through the same endpoint.
+
+## D-035 · Onboarding: the copy is generated, the verdicts are the server's
+**Status:** decided · Mac session · 2026-09-17 · W13
+- **The question.** `src/lib/onboarding/` has a `__tests__` dir, so principle 1 (D-008) says Swift
+  does not reimplement it. But it holds two different things: `content.ts` — every word a new user
+  reads (eight steps, five checklist rows, two notes, the guide URL), which is data — and
+  `progress.ts` — `localSetupDone` / `checklistRows`, which is logic with test vectors.
+- **Options for the copy.** (a) A fixture emitted by the web repo's integration suite like
+  `ios/Fixtures/*.json`, decoded at runtime — but the emitter runs against the local stack, which
+  the copy does not need, and a bundled JSON is one more file the Release build must carry;
+  (b) a plain Swift catalog generated from `content.ts` by a dependency-free script with `--check`
+  in `ci:guards`, the `AnalyticsCatalog` mould (D-029). **Decision: (b)** —
+  `ios/scripts/gen-onboarding-catalog.mjs` → `ApexCore/Onboarding/Generated/OnboardingCatalog.swift`.
+  The script also refuses an action kind or checklist id the Swift enums do not know, so a new
+  kind on the web fails the guard instead of silently rendering a dead button.
+- **Options for the verdicts.** (a) Port the three booleans of `localSetupDone` to Swift — twelve
+  lines, and a second implementation of a tested module; (b) `GET /api/profile` answers an
+  `onboarding` block — `dismissedAt`, `applies` (`!is_template_source`, the `OnboardingHost` rule)
+  and `setup` computed by importing `progress.ts` into the handler, the way `analyticsCompute.ts`
+  imports the engine. **Decision: (b).** The phone reads verdicts; the model never decides one. The
+  block carries only the three rows the web's nudge shows (`NUDGE_IDS`): the COROS and connector
+  rows cost a request each on the web and the full checklist is not a phone surface — the You tab's
+  own rows already show that state.
+- **The flow's shape.** A `fullScreenCover` over the tabs, paged with swipe, once per account.
+  Unlike the web (where "open profile" overlays the flow), a button that leaves for a settings
+  screen dismisses the flow first — it is one-shot, and the card carries on. The key button opens
+  the key sheet directly; the goal, connector and COROS buttons push their You screen through
+  `RouteBus.pendingYou`, a new field the You tab consumes. The card's close is session-only, as on
+  the web. The mock replays the dismissal, the copy and the key into the block so the smoke sees a
+  row tick.
+- **Consequences.** A reworded step is a regenerate-and-commit; a new checklist row is a change in
+  `content.ts`, the Swift `ChecklistID` enum and, if the card should show it, the server's
+  `setup`. `ProfileResponse.onboarding` is optional so a cached profile from an older build still
+  decodes.
+

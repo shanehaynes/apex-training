@@ -129,8 +129,13 @@ The You tab (W11) is answered too: every profile PATCH is replayed into the next
 tokens minted through `POST /api/mcp-tokens` appear in the list, COROS `connect-start` answers with
 the `apextraining://connected` callback itself (so Reconnect needs no browser), `preview`/`apply`
 come from their fixtures, and `-apexMockCoros expired` (or `disconnected`) starts the connection in
-that state. The emitter's `<timestamp>`/`<uuid>`/`<last4>`/`<token>` placeholders are put back with
+that state.
+The emitter's `<timestamp>`/`<uuid>`/`<last4>`/`<token>` placeholders are put back with
 stand-ins so dates parse.
+Onboarding (W13) is answered too: the profile's `onboarding` block reads dismissed unless
+`-apexMockFreshUser` (which puts the welcome flow up after sign-in), `PATCH { onboarding_dismissed }`
+latches it, `POST /api/template-copy` answers `{ events: 3 }` once and `{ alreadyCopied: true }`
+after, and the block's `setup` verdicts follow the copy, the key and the coach goal this session set.
 The Library (W10) is answered too: `POST /api/query { tool: "search_exercises" }` is built from the
 schedule fixture's definitions plus every definition the session added or PATCHed (the fixture's
 own stats — last performed, references — decorate the rows it knows), `get_exercise_history` answers
@@ -179,6 +184,9 @@ Uploading publishes a build to Apple. Confirm with Shane before running it witho
   (measures, sport blocklist, limits), `src/lib/analytics/labels.ts` (the builder's option
   labels) or `src/utils/workoutColors.ts` (type labels). Writes
   `ApexCore/Analytics/Generated/AnalyticsCatalog.swift`; `--check` runs in `npm run ci:guards`.
+- `node ios/scripts/gen-onboarding-catalog.mjs` — after any change to `src/lib/onboarding/content.ts`
+  (the welcome steps, the checklist rows, the notes). Writes
+  `ApexCore/Onboarding/Generated/OnboardingCatalog.swift`; `--check` runs in `npm run ci:guards`.
 - `npm run db:types` — after any migration. It writes
   `Packages/ApexKit/Sources/ApexAuth/Generated/DatabaseTypes.swift` as well as the TS types.
 - `node ios/scripts/render-icon.mjs` — after editing `Design/app-icon.svg`.

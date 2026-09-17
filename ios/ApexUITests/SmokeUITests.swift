@@ -287,6 +287,59 @@ final class SmokeUITests: XCTestCase {
         attach(app, name: "16-coach-key-saved")
     }
 
+    /// A fresh account (W13, U32): sign in → the welcome flow → Next through
+    /// it, copying the starter plan on the way → Start training → the Schedule
+    /// tab shows the setup card with the copy ticked → its key button lands on
+    /// the You tab's key sheet. All on fixtures (`-apexMockFreshUser`).
+    func testOnboardingOnFixtures() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockFreshUser"]
+        app.launch()
+        signIn(app)
+
+        let title = app.staticTexts["onboarding.welcome.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 20))
+        XCTAssertEqual(title.label, "Welcome to Apex")
+        XCTAssertEqual(app.staticTexts["onboarding.welcome.count"].label, "STEP 1 OF 8")
+        attach(app, name: "w13-01-welcome")
+
+        let next = app.buttons["onboarding.welcome.next"]
+        next.tap()
+        XCTAssertTrue(app.staticTexts["Your calendar"].waitForExistence(timeout: 5))
+        // The step's own button: the starter plan, with the web's toast.
+        let copy = app.buttons["onboarding.welcome.action"]
+        XCTAssertTrue(copy.exists)
+        copy.tap()
+        XCTAssertTrue(app.staticTexts["Added 3 recurring workouts"].waitForExistence(timeout: 10))
+        attach(app, name: "w13-02-welcome-copied")
+
+        for _ in 0..<6 { next.tap() }
+        XCTAssertTrue(app.staticTexts["A few last things"].waitForExistence(timeout: 5))
+        XCTAssertEqual(next.label, "Start training")
+        attach(app, name: "w13-03-welcome-last")
+        next.tap()
+
+        // The card, over the fixture day, with the copy already ticked.
+        let card = app.otherElements["onboarding.nudge"]
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["event.card.Fixture Push Day"].waitForExistence(timeout: 20))
+        XCTAssertEqual(app.staticTexts["onboarding.nudge.score"].label, "1/3")
+        XCTAssertFalse(app.buttons["onboarding.nudge.action.template"].exists, "a done row has no button")
+        attach(app, name: "w13-04-nudge")
+
+        // Its key button: the You tab, key sheet up.
+        tapUntil(app.buttons["onboarding.nudge.action.key"], shows: app.secureTextFields["key.field"])
+        attach(app, name: "w13-05-nudge-to-key")
+        app.buttons["Close"].firstMatch.tap()
+
+        // Back on Schedule the card is still there; its close is session-only.
+        app.tabBars.buttons["Schedule"].tap()
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
+        app.buttons["onboarding.nudge.dismiss"].tap()
+        XCTAssertFalse(card.waitForExistence(timeout: 2))
+        attach(app, name: "w13-06-nudge-dismissed")
+    }
+
     /// sign in → the day → rename the run inline → delete this day only on the
     /// series → link a circuit exercise into the superset → delete the run →
     /// the "+" opens the builder. All on fixtures; the mock replays every write

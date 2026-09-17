@@ -312,7 +312,7 @@ presents the occurrence. Compact: glyph + timer; minimal: glyph; expanded: title
 count + Open; Lock Screen: banner on `bgSurface`. Pair with `isIdleTimerDisabled` while the
 tracker is frontmost. Decisions: D-026.
 
-## 13. Type and contract sync (three CI-checked mechanisms)
+## 13. Type and contract sync (five CI-checked mechanisms)
 
 1. `scripts/db-types.sh` emits both `src/lib/db/database.types.ts` and
    `ios/Packages/ApexKit/Sources/ApexAuth/Generated/DatabaseTypes.swift`; `--check` covers both.
@@ -322,5 +322,10 @@ tracker is frontmost. Decisions: D-026.
 4. `gen-analytics-catalog.mjs --check` — the tile builder's measures, labels and sport blocklist
    from `src/lib/analytics/{spec,labels}.ts` into `ApexCore/Analytics/Generated/AnalyticsCatalog.swift`
    (W9, D-029).
+5. `gen-onboarding-catalog.mjs --check` — the welcome flow's steps, the checklist rows and the
+   notes from `src/lib/onboarding/content.ts` into
+   `ApexCore/Onboarding/Generated/OnboardingCatalog.swift` (W13, D-035). Copy only: which rows
+   are done is `GET /api/profile`'s `onboarding` block, computed with the web's own
+   `src/lib/onboarding/progress.ts`.
 No TS→Swift codegen of `src/types/workout.ts`; the fixture contract catches the same drift with
 far less machinery.

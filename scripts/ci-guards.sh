@@ -34,6 +34,12 @@ node ios/scripts/gen-tokens.mjs --check
 # cannot draw. Loads the TS under node's type stripping — no dependencies.
 node ios/scripts/gen-analytics-catalog.mjs --check
 
+# The onboarding copy (welcome steps, checklist rows) is generated from
+# src/lib/onboarding/content.ts the same way (D-035, W13): a step reworded on
+# the web that never reached OnboardingCatalog.swift is a phone telling a new
+# user something the laptop no longer says.
+node ios/scripts/gen-onboarding-catalog.mjs --check
+
 # Every class in a MainActor-default iOS target declares `nonisolated deinit`,
 # or its synthesized isolated deinit aborts on the iOS 17/18 runtime
 # (docs/ios/decisions.md D-031). CI's ios job runs iOS 26 only and cannot see
