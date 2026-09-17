@@ -49,7 +49,7 @@ public struct TileBuilderSheet: View {
             Text(builder.title).apexTitle().lineLimit(1).accessibilityIdentifier("analytics.builder.heading")
             Spacer(minLength: 0)
             if builder.canCoach {
-                Button { withAnimation(Motion.spring) { builder.coachOpen.toggle() } } label: {
+                Button { Motion.animate { builder.coachOpen.toggle() } } label: {
                     ApexIcon.sparkles.image
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(builder.coachOpen ? ApexColor.bgPrimary : ApexColor.textMuted)
@@ -136,7 +136,7 @@ struct TileBuilderFormView: View {
                     SeriesEditorView(builder: builder, series: series, index: index)
                 }
                 if builder.canAddSeries {
-                    Button { withAnimation(Motion.spring) { builder.addSeries() } } label: {
+                    Button { Motion.animate { builder.addSeries() } } label: {
                         Label("Add series", systemImage: ApexIcon.plus.systemName)
                             .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
                             .foregroundStyle(ApexColor.accent)

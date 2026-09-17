@@ -99,7 +99,7 @@ public struct MealComposerSheet: View {
                     ForEach(model.favorites) { favorite in
                         HStack(spacing: 0) {
                             Chip(favorite.title) {
-                                withAnimation(Motion.spring) { form.apply(favorite) }
+                                Motion.animate { form.apply(favorite) }
                             }
                             .accessibilityIdentifier("meals.favorite.\(favorite.id)")
                             Button {
@@ -127,7 +127,7 @@ public struct MealComposerSheet: View {
             HStack(spacing: Spacing.xs) {
                 ForEach(MealForm.types, id: \.self) { type in
                     Chip(type.capitalized, isSelected: form.mealType == type) {
-                        withAnimation(Motion.spring) { form.mealType = form.mealType == type ? nil : type }
+                        Motion.animate { form.mealType = form.mealType == type ? nil : type }
                     }
                     .accessibilityAddTraits(form.mealType == type ? .isSelected : [])
                     .accessibilityIdentifier("meals.composer.type.\(type)")
@@ -189,7 +189,7 @@ public struct MealComposerSheet: View {
                 .accessibilityIdentifier("meals.composer.library")
                 if editing != nil, !confirmDelete {
                     Button {
-                        withAnimation(Motion.spring) { confirmDelete = true }
+                        Motion.animate { confirmDelete = true }
                     } label: {
                         ApexIcon.trash.image
                             .font(.system(size: 15, weight: .medium))

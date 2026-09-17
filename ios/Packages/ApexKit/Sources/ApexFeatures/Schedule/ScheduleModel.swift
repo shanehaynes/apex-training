@@ -53,6 +53,9 @@ public final class ScheduleModel {
     public private(set) var fetchedAt: Date?
     public private(set) var lastRefreshFailed = false
     public private(set) var isRefreshing = false
+    /// `.sensoryFeedback` trigger (design-spec §9): bumps when a workout is
+    /// marked complete from a sheet or a day card; never reset.
+    public private(set) var completedCount = 0
     /// Set only when there is nothing cached to show instead.
     public private(set) var loadError: String?
     public private(set) var profile: ProfileResponse?
@@ -276,6 +279,10 @@ public final class ScheduleModel {
     public func toggleCompletion(_ event: ScheduleEvent) async {
         guard index != nil else { return }
         let target = !event.isCompleted
+        // design-spec §9: `.success` on workout completed — the sheet's and the
+        // day card's control, not only the tracker's Finish (W13). Fires on the
+        // optimistic flip; a rollback is a toast, not a second buzz.
+        if target { completedCount += 1 }
         let rows = CompletionRows.build(for: event, isNowCompleted: target, now: deps.clock.now)
         index = index?.settingCompletion(id: event.id, isCompleted: target, completedAt: rows.completionRow.completedAt)
         do {

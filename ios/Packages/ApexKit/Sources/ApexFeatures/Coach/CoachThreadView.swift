@@ -44,7 +44,7 @@ struct CoachThreadView: View {
 
     private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool = true) {
         if animated {
-            withAnimation(Motion.spring) { proxy.scrollTo(bottomID, anchor: .bottom) }
+            Motion.animate { proxy.scrollTo(bottomID, anchor: .bottom) }
         } else {
             proxy.scrollTo(bottomID, anchor: .bottom)
         }

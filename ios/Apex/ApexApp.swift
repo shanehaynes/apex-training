@@ -57,6 +57,7 @@ struct RootView: View {
             }
         case .signedOut(let reason):
             SignInView(
+                inviteContact: AppConfig.inviteContactURL,
                 onSignIn: { email, password in
                     await model.signIn(email: email, password: password)
                 },
