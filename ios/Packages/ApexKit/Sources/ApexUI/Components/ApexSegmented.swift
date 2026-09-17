@@ -13,10 +13,16 @@ public struct ApexSegmented<Value: Hashable & Sendable>: View {
     }
 
     public var body: some View {
+        segments
+            // design-spec §9: `.selection` on segment changes.
+            .sensoryFeedback(.selection, trigger: selection)
+    }
+
+    private var segments: some View {
         HStack(spacing: 0) {
             ForEach(options, id: \.value) { option in
                 Button {
-                    withAnimation(Motion.spring) { selection = option.value }
+                    Motion.animate { selection = option.value }
                 } label: {
                     Text(option.label)
                         .font(.apex(.display, size: TypeScale.xs, weight: .semibold, relativeTo: .caption))

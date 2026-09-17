@@ -92,6 +92,13 @@ final class ScheduleSnapshotTests: XCTestCase {
         snapshot(ScheduleTab(model: model).environment(\.sizeCategory, .extraExtraLarge), named: "day-xxl")
     }
 
+    /// The largest accessibility size (W13): the day still reads, nothing overlaps.
+    @MainActor
+    func testDayAccessibilityXXXL() async {
+        let model = await model()
+        snapshot(ScheduleTab(model: model).environment(\.dynamicTypeSize, .accessibility3), named: "day-axxxl", size: CGSize(width: 393, height: 1200))
+    }
+
     @MainActor
     func testMonth() async {
         let model = await model()

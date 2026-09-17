@@ -42,9 +42,9 @@ public struct MultiChipRow: View {
                     let isOff = dimmed(option.value) && !values.contains(option.value)
                     Chip(option.label, isSelected: values.contains(option.value), isDimmed: isOff, tint: tint(option.value)) {
                         if isOff {
-                            withAnimation(Motion.spring) { showReason = true }
+                            Motion.animate { showReason = true }
                         } else {
-                            withAnimation(Motion.spring) { onToggle(option.value) }
+                            Motion.animate { onToggle(option.value) }
                         }
                     }
                     .accessibilityAddTraits(values.contains(option.value) ? .isSelected : [])
@@ -60,5 +60,7 @@ public struct MultiChipRow: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(id)
+        // design-spec §9: `.selection` on chip changes.
+        .sensoryFeedback(.selection, trigger: values)
     }
 }

@@ -77,7 +77,7 @@ public struct BlockEditorSheet: View {
                     Button(objective.name) { form.objectiveId = objective.id }
                 }
                 Divider()
-                Button { withAnimation(Motion.spring) { addingObjective = true } } label: {
+                Button { Motion.animate { addingObjective = true } } label: {
                     Label("New objective", systemImage: ApexIcon.plus.systemName)
                 }
             } label: {
@@ -112,7 +112,7 @@ public struct BlockEditorSheet: View {
             }
             ChipRow("Discipline", options: [("", "—")] + ObjectiveDiscipline.all.map { ($0, $0.capitalized) }, selection: $objectiveDiscipline, identifier: "blocks.objective.discipline")
             HStack(spacing: Spacing.sm) {
-                ApexButton("Cancel", kind: .secondary) { withAnimation(Motion.spring) { addingObjective = false } }
+                ApexButton("Cancel", kind: .secondary) { Motion.animate { addingObjective = false } }
                 ApexButton("Add objective", isLoading: isSaving) { Task { await addObjective() } }
                     .disabled(objectiveName.trimmingCharacters(in: .whitespaces).isEmpty)
                     .accessibilityIdentifier("blocks.objective.add")
@@ -134,7 +134,7 @@ public struct BlockEditorSheet: View {
         case .created(let objective):
             form.objectiveId = objective.id
             objectiveName = ""
-            withAnimation(Motion.spring) { addingObjective = false }
+            Motion.animate { addingObjective = false }
         case .problem(let text):
             problem = text
         }
@@ -211,7 +211,7 @@ public struct BlockEditorSheet: View {
             HStack(spacing: Spacing.sm) {
                 if isEditing, !confirmDelete {
                     Button {
-                        withAnimation(Motion.spring) { confirmDelete = true }
+                        Motion.animate { confirmDelete = true }
                     } label: {
                         Label("Delete", systemImage: ApexIcon.trash.systemName)
                             .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))

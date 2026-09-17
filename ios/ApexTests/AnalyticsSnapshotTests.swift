@@ -196,6 +196,13 @@ final class AnalyticsSnapshotTests: XCTestCase {
         snapshot(AnalyticsTab(model: model).environment(\.sizeCategory, .extraExtraLarge), named: "dashboard-xxl", size: CGSize(width: 393, height: 1400))
     }
 
+    /// The largest accessibility size (W13): KPI rows wrap, ticks stay legible.
+    @MainActor
+    func testDashboardAccessibilityXXXL() async {
+        let model = await model()
+        snapshot(AnalyticsTab(model: model).environment(\.dynamicTypeSize, .accessibility3), named: "dashboard-axxxl", size: CGSize(width: 393, height: 1800))
+    }
+
     // MARK: - The tile builder (PR C)
 
     @MainActor

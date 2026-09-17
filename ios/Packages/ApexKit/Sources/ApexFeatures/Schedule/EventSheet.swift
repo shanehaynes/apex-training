@@ -358,7 +358,7 @@ private struct EventSheetContent: View {
             .accessibilityIdentifier("schedule.event.delete.panel")
         } else {
             Button {
-                withAnimation(Motion.spring) { confirmDelete = true }
+                Motion.animate { confirmDelete = true }
             } label: {
                 Label("Delete workout", systemImage: ApexIcon.trash.systemName)
                     .font(.apex(.display, size: TypeScale.xs, weight: .medium, relativeTo: .caption))
@@ -392,7 +392,7 @@ private struct EventSheetContent: View {
         dayDraft = event.day
         startDraft = event.startTime.flatMap(TimeLabel.minutes)
         endDraft = event.endTime.flatMap(TimeLabel.minutes)
-        withAnimation(Motion.spring) { isEditingSchedule = true }
+        Motion.animate { isEditingSchedule = true }
     }
 
     private func commitSchedule() async {
