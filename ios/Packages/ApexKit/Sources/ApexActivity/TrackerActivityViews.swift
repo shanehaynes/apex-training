@@ -80,18 +80,18 @@ public enum TrackerActivityViews {
                         .textCase(.uppercase)
                         .foregroundStyle(state.isDone ? ApexPalette.positive : ApexColor.textMuted)
                     Text(attributes.title)
-                        .font(.apex(.display, size: TypeScale.base, weight: .semibold))
+                        .font(.apex(.display, size: TypeScale.base, weight: .semibold, relativeTo: .body))
                         .foregroundStyle(ApexColor.textPrimary)
                         .lineLimit(2)
                         .truncationMode(.tail)
                     if let label = exerciseLabel(state.exerciseCount) {
                         Text(label)
-                            .font(.apex(.display, size: TypeScale.sm))
+                            .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
                             .foregroundStyle(ApexColor.textSecondary)
                     }
                 }
                 Spacer(minLength: Spacing.sm)
-                Timer(state: state, font: .apex(.mono, size: TypeScale.xl, weight: .medium))
+                Timer(state: state, font: .apex(.mono, size: TypeScale.xl, weight: .medium, relativeTo: .title3))
             }
             .padding(Spacing.lg)
             .accessibilityElement(children: .combine)
@@ -119,7 +119,7 @@ public enum TrackerActivityViews {
         public init(state: State) { self.state = state }
 
         public var body: some View {
-            Timer(state: state, font: .apex(.mono, size: TypeScale.lg, weight: .medium))
+            Timer(state: state, font: .apex(.mono, size: TypeScale.lg, weight: .medium, relativeTo: .headline))
                 .padding(.trailing, Spacing.xs)
         }
     }
@@ -135,7 +135,7 @@ public enum TrackerActivityViews {
 
         public var body: some View {
             Text(attributes.title)
-                .font(.apex(.display, size: TypeScale.sm, weight: .semibold))
+                .font(.apex(.display, size: TypeScale.sm, weight: .semibold, relativeTo: .callout))
                 .foregroundStyle(ApexColor.textPrimary)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -150,14 +150,14 @@ public enum TrackerActivityViews {
         public var body: some View {
             HStack(spacing: Spacing.sm) {
                 Text(state.isDone ? "Done" : (exerciseLabel(state.exerciseCount) ?? "In progress"))
-                    .font(.apex(.display, size: TypeScale.xs))
+                    .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
                     .foregroundStyle(ApexColor.textSecondary)
                 Spacer()
                 HStack(spacing: Spacing.xs) {
                     Text("Open")
                     Image(systemName: ApexIcon.chevronRight.systemName)
                 }
-                .font(.apex(.display, size: TypeScale.xs, weight: .medium))
+                .font(.apex(.display, size: TypeScale.xs, weight: .medium, relativeTo: .caption))
                 .foregroundStyle(ApexColor.accent)
             }
             .padding(.horizontal, Spacing.xs)

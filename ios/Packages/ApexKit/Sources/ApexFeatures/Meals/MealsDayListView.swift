@@ -66,7 +66,7 @@ public struct MealsDayListView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("meals.day")
             step(ApexIcon.chevronRight, label: "Next day", delta: 1)
-            Button("Today") { withAnimation(Motion.spring) { model.goToToday() } }
+            Button("Today") { Motion.animate { model.goToToday() } }
                 .font(.apex(.display, size: TypeScale.xs, weight: .semibold, relativeTo: .caption))
                 .foregroundStyle(model.selectedDay == model.today ? ApexColor.textMuted : ApexColor.textPrimary)
                 .padding(.horizontal, Spacing.md)
@@ -79,7 +79,7 @@ public struct MealsDayListView: View {
     }
 
     private func step(_ icon: ApexIcon, label: String, delta: Int) -> some View {
-        Button { withAnimation(Motion.spring) { model.select(model.selectedDay.adding(days: delta)) } } label: {
+        Button { Motion.animate { model.select(model.selectedDay.adding(days: delta)) } } label: {
             icon.image
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(ApexColor.textSecondary)

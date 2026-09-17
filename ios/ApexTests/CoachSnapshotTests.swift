@@ -61,6 +61,13 @@ final class CoachSnapshotTests: XCTestCase {
         snapshot(screen(model).environment(\.sizeCategory, .extraExtraLarge), named: "thread-xxl")
     }
 
+    /// The largest accessibility size (W13): the thread and the composer still fit.
+    @MainActor
+    func testThreadAccessibilityXXXL() async {
+        let model = await threadModel()
+        snapshot(screen(model).environment(\.dynamicTypeSize, .accessibility3), named: "thread-axxxl", size: CGSize(width: 393, height: 1400))
+    }
+
     @MainActor
     func testStreamingAndTyping() async {
         let transport = CoachTransport.healthy()

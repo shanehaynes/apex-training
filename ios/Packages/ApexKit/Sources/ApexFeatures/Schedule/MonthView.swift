@@ -34,7 +34,7 @@ struct MonthView: View {
             }
             .padding(.horizontal, Spacing.sm)
             .padding(.bottom, Spacing.xxl)
-            .animation(.timingCurve(0.16, 1, 0.3, 1, duration: 0.28), value: model.selectedDay.monthStart)
+            .animation(reduceMotion ? nil : .timingCurve(0.16, 1, 0.3, 1, duration: 0.28), value: model.selectedDay.monthStart)
         }
         .background(ApexColor.bgPrimary)
         .refreshable { await model.refresh(reason: .pullToRefresh) }
@@ -42,7 +42,7 @@ struct MonthView: View {
             DragGesture(minimumDistance: 40).onEnded { value in
                 let dx = value.translation.width, dy = value.translation.height
                 guard abs(dx) > abs(dy) * 1.5, abs(dx) > 50 else { return }
-                withAnimation { model.step(dx < 0 ? 1 : -1) }
+                Motion.animate { model.step(dx < 0 ? 1 : -1) }
             }
         )
         .accessibilityIdentifier("schedule.month")
@@ -110,7 +110,7 @@ struct MonthDayCell: View {
             if events.count > Self.maxVisible {
                 Button(action: onOpenDay) {
                     Text("+\(events.count - Self.maxVisible) more")
-                        .font(.apex(.display, size: 10, weight: .semibold, relativeTo: .caption2))
+                        .font(.apex(.display, size: TypeScale.micro, weight: .semibold, relativeTo: .caption2))
                         .foregroundStyle(ApexPalette.positive)
                         .padding(.leading, 4)
                         .frame(maxWidth: .infinity, minHeight: 16, alignment: .leading)
