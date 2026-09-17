@@ -75,9 +75,10 @@ platform :ios do
 
     api_key = app_store_connect_api_key(key_id: key_id, issuer_id: issuer_id, key_filepath: key_path)
 
-    # xcodebuild's own authentication for -allowProvisioningUpdates: gym does
-    # not pass the api_key through to xcodebuild, so these ride on xcargs for
-    # the archive and on export_xcargs for the export, as testflight.sh does.
+    # xcodebuild's own authentication for -allowProvisioningUpdates on the
+    # ARCHIVE: gym passes the api_key to xcodebuild only for the export step,
+    # so the archive gets these on xcargs (as testflight.sh does) and the
+    # export must not — a second -authenticationKeyPath is a hard error.
     auth = [
       "-allowProvisioningUpdates",
       "-authenticationKeyPath #{key_path.shellescape}",
@@ -95,7 +96,6 @@ platform :ios do
       output_directory: "build/export-#{build_number}",
       output_name: "Apex-#{build_number}.ipa",
       xcargs: "#{auth} CURRENT_PROJECT_VERSION=#{build_number}",
-      export_xcargs: auth,
       # The same options testflight.sh writes to its ExportOptions plist. The
       # export always writes the .ipa to disk; pilot does the upload, so one
       # credential path covers both and a dry run is just "stop here".
