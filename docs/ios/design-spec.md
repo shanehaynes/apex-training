@@ -122,7 +122,7 @@ Recurring patterns to port as `TextStyle`s:
 | `TileBuilder` two columns | `TileBuilderSheet`: the form over the preview, `VSplit` with `DraftCoachDrawer` when the coach is open |
 | `notify()` on a refused save | a refusal of a sheet's own action stays inline: an `InlineError` line above the action bar's buttons (`builder.problem`, `analytics.builder.saveproblem`, `schedule.event.edit.problem`), next to what was asked. Every other toast — the tracker's, COROS's, the copy field's — renders over presentations through the overlay window (D-032) |
 | `BuilderCoachPanel`, `AnalyticsCoachPanel` | `DraftCoachDrawer(coach:, copy:)` — one drawer, two copies |
-| `.block-bar__track/__fill`, `.type-bar-row__track` | `AttainmentBar(value:, target:, state:)` |
+| `.block-bar__track/__fill`, `.type-bar-row__track` | `AttainmentBar(label:, valueText:, pct:, isDerived:, note:)` — state from the rounded percentage (met ≥100, close ≥85, under); the derived tag and the unmatched-units note ride along (W10) |
 | `.event-chip`, `.day-event-card` | `EventChip` (month), `EventCard` (day) with a 3pt left rail in the type's `border` colour and a 44pt completion control |
 | `.day-strip` (7 cells, dots) | `WeekStrip` — a horizontally paging 7-day strip with up to 3 type dots |
 | Avatar picker (24 SVGs, 34/64px) | `AvatarView(key:, size:)` from `Avatars.xcassets` |

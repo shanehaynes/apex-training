@@ -119,6 +119,11 @@ actor FixtureTransport: HTTPTransport {
         var addedDefinitions: [[String: Any]] = []
         /// camelCase overrides per definition id (PATCH /api/exercise-definitions, W10).
         var patchedDefinitions: [String: [String: Any]] = [:]
+        /// Blocks and objectives the session wrote, in the tool's snake_case
+        /// summary shape (W10). Keyed by id; a deleted block is removed.
+        var blocks: [String: [String: Any]] = [:]
+        var deletedBlocks: Set<String> = []
+        var objectives: [[String: Any]] = []
     }
 
     init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false, corosStatus: String = "connected") {
@@ -267,8 +272,40 @@ actor FixtureTransport: HTTPTransport {
                 switch tool {
                 case "search_exercises": return ok(try searchExercises(args))
                 case "get_exercise_history": return try exerciseHistory(args)
+                case "get_training_blocks": return try trainingBlocks(args)
                 default: return ok(try Fixtures.data("query-\(tool).json"))
                 }
+            case ("POST", "/api/blocks") where queryValue("resource", in: query) == "cycle":
+                return try cyclePreview(body?["spec"] as? [String: Any])
+            case ("POST", "/api/blocks") where queryValue("batch", in: query) == "1":
+                let rows = body?["rows"] as? [[String: Any]] ?? []
+                let ids = try rows.map { try rememberBlock($0) }
+                return ok(try JSONSerialization.data(withJSONObject: ["ids": ids]))
+            case ("POST", "/api/blocks"):
+                var row = body ?? [:]
+                row["triggered_by"] = nil
+                row["log"] = nil
+                return ok(try JSONSerialization.data(withJSONObject: ["id": try rememberBlock(row)]))
+            case ("PATCH", "/api/blocks"):
+                let id = queryValue("id", in: query)
+                guard var block = try currentBlocks().first(where: { $0["id"] as? String == id }) else {
+                    return HTTPResponse(status: 404, headers: [:], body: Data("Block not found".utf8))
+                }
+                for (column, value) in body?["fields"] as? [String: Any] ?? [:] { block[column] = value }
+                edits.blocks[id] = try decorated(block)
+                return ok(Data(#"{"ok":true}"#.utf8))
+            case ("DELETE", "/api/blocks"):
+                let id = queryValue("id", in: query)
+                edits.blocks[id] = nil
+                edits.deletedBlocks.insert(id)
+                return ok(Data(#"{"ok":true}"#.utf8))
+            case ("POST", "/api/objectives"):
+                let id = "mock-objective-\(edits.objectives.count + 1)"
+                edits.objectives.append([
+                    "id": id, "name": body?["name"] ?? "", "discipline": body?["discipline"] ?? NSNull(),
+                    "target_date": body?["target_date"] ?? NSNull(), "status": body?["status"] ?? "active", "notes": body?["notes"] ?? "",
+                ])
+                return ok(try JSONSerialization.data(withJSONObject: ["id": id]))
             case ("POST", "/api/completions"):
                 if let body = request.httpBody,
                    let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
@@ -815,6 +852,104 @@ actor FixtureTransport: HTTPTransport {
         }
         let result: [String: Any] = ["query": needle.isEmpty ? NSNull() : needle, "total_matches": entries.count, "exercises": entries]
         return try JSONSerialization.data(withJSONObject: ["tool": "search_exercises", "result": result])
+    }
+
+    // MARK: - W10 blocks
+
+    private static let mockToday = "2026-09-08"
+
+    private func blocksListFixture() throws -> [String: Any] {
+        ((try JSONSerialization.jsonObject(with: try Fixtures.data("query-get_training_blocks.json"))) as? [String: Any])?["result"] as? [String: Any] ?? [:]
+    }
+
+    /// The fixture's blocks plus the session's, minus the deleted, oldest first.
+    private func currentBlocks() throws -> [[String: Any]] {
+        var blocks = (try blocksListFixture()["blocks"] as? [[String: Any]]) ?? []
+        blocks = blocks.filter { !edits.deletedBlocks.contains($0["id"] as? String ?? "") }
+            .map { block in
+                guard let id = block["id"] as? String, let patched = edits.blocks[id] else { return block }
+                return patched
+            }
+        for (id, block) in edits.blocks where !blocks.contains(where: { $0["id"] as? String == id }) { blocks.append(block) }
+        return blocks.sorted { ($0["start_date"] as? String ?? "") < ($1["start_date"] as? String ?? "") }
+    }
+
+    private func currentObjectives() throws -> [[String: Any]] {
+        ((try blocksListFixture()["objectives"] as? [[String: Any]]) ?? []) + edits.objectives
+    }
+
+    /// The tool's `weeks`, `current_week` and nested `objective` for a row the
+    /// session wrote — scaffolding for the mock, never app logic.
+    private func decorated(_ row: [String: Any]) throws -> [String: Any] {
+        var block = row
+        let start = DayKey(row["start_date"] as? String ?? "") ?? DayKey(Self.mockToday)!
+        let end = DayKey(row["end_date_exclusive"] as? String ?? "") ?? start.adding(days: 7)
+        let weeks = max(1, start.days(until: end) / 7)
+        block["weeks"] = weeks
+        let today = DayKey(Self.mockToday)!
+        block["current_week"] = (start <= today && today < end) ? start.days(until: today) / 7 + 1 : NSNull()
+        if block["intent"] == nil { block["intent"] = "" }
+        if block["phase"] == nil { block["phase"] = NSNull() }
+        if block["weekly_targets"] == nil { block["weekly_targets"] = [String: Any]() }
+        let objectiveId = row["objective_id"] as? String
+        block["objective_id"] = objectiveId ?? NSNull()
+        block["objective"] = try currentObjectives().first { $0["id"] as? String == objectiveId } ?? NSNull()
+        return block
+    }
+
+    private func rememberBlock(_ row: [String: Any]) throws -> String {
+        let id = "mock-block-\(edits.blocks.count + edits.deletedBlocks.count + 1)"
+        var block = row
+        block["id"] = id
+        edits.blocks[id] = try decorated(block)
+        return id
+    }
+
+    /// `get_training_blocks`: the list with the session's writes, `current`
+    /// recomputed for the fixed clock; `block_id` answers the detail fixture's
+    /// progress under the requested block's summary.
+    private func trainingBlocks(_ args: [String: Any]) throws -> HTTPResponse {
+        let blocks = try currentBlocks()
+        let today = DayKey(Self.mockToday)!
+        let current = blocks.first { block in
+            guard let s = DayKey(block["start_date"] as? String ?? ""), let e = DayKey(block["end_date_exclusive"] as? String ?? "") else { return false }
+            return s <= today && today < e
+        }
+        var result: [String: Any] = ["today": Self.mockToday, "current": current.map { var c = $0; c["progress"] = NSNull(); return c } ?? NSNull()]
+        if let blockId = args["block_id"] as? String {
+            guard var block = blocks.first(where: { $0["id"] as? String == blockId }) else {
+                return HTTPResponse(status: 400, headers: [:], body: Data("block_id does not name one of your blocks.".utf8))
+            }
+            let detail = ((try JSONSerialization.jsonObject(with: try Fixtures.data("query-get_training_blocks-detail.json"))) as? [String: Any])?["result"] as? [String: Any]
+            block["progress"] = (detail?["block"] as? [String: Any])?["progress"] ?? NSNull()
+            result["block"] = block
+        } else {
+            if args["scope"] as? String == "all" { result["blocks"] = blocks }
+            if args["include_objectives"] as? Bool == true { result["objectives"] = try currentObjectives() }
+        }
+        return ok(try JSONSerialization.data(withJSONObject: ["tool": "get_training_blocks", "result": result]))
+    }
+
+    /// The cycle preview by its spec: the generator's refusal for a blank
+    /// name, the conflict fixture for a start inside the seeded base block,
+    /// else the ok fixture re-prefixed with the caller's name.
+    private func cyclePreview(_ spec: [String: Any]?) throws -> HTTPResponse {
+        guard let spec else { return HTTPResponse(status: 400, headers: [:], body: Data("spec must be an object".utf8)) }
+        let prefix = (spec["namePrefix"] as? String ?? "").trimmingCharacters(in: .whitespaces)
+        if prefix.isEmpty { return ok(try Fixtures.data("blocks-cycle-problem.json")) }
+        let start = spec["startDate"] as? String ?? ""
+        if start < "2026-09-28" { return ok(try Fixtures.data("blocks-cycle-conflict.json")) }
+        guard var object = (try JSONSerialization.jsonObject(with: try Fixtures.data("blocks-cycle.json"))) as? [String: Any] else {
+            return ok(try Fixtures.data("blocks-cycle.json"))
+        }
+        let rename: ([String: Any], String) -> [String: Any] = { block, key in
+            var next = block
+            if let name = block[key] as? String { next[key] = name.replacingOccurrences(of: "Fixture Cycle", with: prefix) }
+            return next
+        }
+        object["blocks"] = (object["blocks"] as? [[String: Any]] ?? []).map { rename($0, "name") }
+        object["rows"] = (object["rows"] as? [[String: Any]] ?? []).map { rename($0, "name") }
+        return ok(try JSONSerialization.data(withJSONObject: object))
     }
 
     /// The fixture's history for Fixture Press by any of its current

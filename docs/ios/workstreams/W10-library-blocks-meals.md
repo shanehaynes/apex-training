@@ -67,3 +67,13 @@ from the cached `/api/schedule?include=`. No direct table reads (D-033).
   again (bind first); the model's static label helpers are MainActor-isolated under the package
   default, so a synchronous test that calls them is `@MainActor`; the detail's history is `@State`
   loaded in `.task`, so snapshots pass it in through the `history:` init.
+- 2026-09-16 · PR C (Blocks, Mac, stacked on B): `ApexFeatures/Blocks/` — `BlocksModel` +
+  `BlocksDependencies` (the AnalyticsDependencies shape, realtime `.blocks`), `BlocksView`,
+  `BlockDetailView` (+ `AttainmentBars`, `BlockWeeksTable`), `BlockEditorSheet`,
+  `CycleEditorSheet`; `ApexUI/Components/AttainmentBar` (design-spec §5's row, built);
+  `YouRoute.blocks/.block(id:)`, `YouServices.blocks`, `YouModel.blocks` + `shutdown()` (sign-out
+  stops the subscription), the Training-blocks row; mock `trainingBlocks`/`cyclePreview`/
+  `rememberBlock` + objectives; `YouTransport` keyed by query string; `BlocksSupport`,
+  `BlocksModelTests` (9), `BlocksSnapshotTests` (7). U9 and U12 ticked. Traps: a local
+  `Decodable` struct inside a MainActor class is MainActor-isolated too (`nonisolated struct`);
+  after merging main, `xcodegen generate` again — a file main added is not in the old project.

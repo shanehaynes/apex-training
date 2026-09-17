@@ -122,6 +122,11 @@ targets:
     platform: iOS
     sources:
       - path: ApexTests
+        # The snapshot references are read from disk by SnapshotTesting (via
+        # #filePath), never from the bundle — and two suites recording a
+        # "list.png" would otherwise collide at copy time.
+        excludes:
+          - "__Snapshots__"
     # Deliberately not SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor. XCTestCase's
     # init and setUp overrides are nonisolated, so a MainActor default makes
     # every subclass fail to compile. Tests that touch MainActor code annotate

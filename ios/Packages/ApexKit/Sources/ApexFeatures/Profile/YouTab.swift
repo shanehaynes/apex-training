@@ -130,6 +130,10 @@ public struct YouRootView: View {
         }
 
         SettingsSection("Training") {
+            if model.blocks != nil {
+                SettingsLink("Training blocks", value: model.blocks?.current?.name, symbol: ApexIcon.layers.systemName, to: YouRoute.blocks, identifier: "you.row.blocks")
+                SettingsDivider()
+            }
             if model.library != nil {
                 SettingsLink("Exercise library", symbol: ApexIcon.dumbbell.systemName, to: YouRoute.library, identifier: "you.row.library")
                 SettingsDivider()
@@ -182,6 +186,8 @@ public struct YouRootView: View {
         case .library: libraryScreen { LibraryView(model: $0) }
         case .exercise(let id): libraryScreen { ExerciseDetailView(model: $0, id: id) }
         case .workoutLibrary: libraryScreen { WorkoutLibraryView(model: $0) }
+        case .blocks: blocksScreen { BlocksView(model: $0) }
+        case .block(let id): blocksScreen { BlockDetailView(model: $0, id: id) }
         case .coachProfile: CoachProfileView(model: model)
         case .coachModel: CoachModelPickerView(model: model)
         case .coros: CorosView(model: model.coros)
@@ -204,6 +210,17 @@ extension YouRootView {
             screen(library)
         } else {
             EmptyState(eyebrow: "Library", message: "Sign in to see your library.", symbol: ApexIcon.dumbbell.systemName)
+        }
+    }
+}
+
+extension YouRootView {
+    @ViewBuilder
+    fileprivate func blocksScreen<Screen: View>(@ViewBuilder _ screen: (BlocksModel) -> Screen) -> some View {
+        if let blocks = model.blocks {
+            screen(blocks)
+        } else {
+            EmptyState(eyebrow: "Blocks", message: "Sign in to see your training blocks.", symbol: ApexIcon.layers.systemName)
         }
     }
 }

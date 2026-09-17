@@ -30,6 +30,8 @@ public struct YouServices: Sendable {
     /// The Library screens' reads over the schedule's cache (W10); nil hides
     /// the rows (previews, tests that do not exercise them).
     public var library: LibraryDependencies?
+    /// The Blocks screens (W10); nil hides the row.
+    public var blocks: BlocksDependencies?
 
     public init(
         client: ApexClient, publicOrigin: URL, email: String?, timeZone: TimeZone = .current,
@@ -39,7 +41,8 @@ public struct YouServices: Sendable {
         onScheduleChanged: @escaping @MainActor @Sendable () -> Void = {},
         onAccountDeleted: @escaping @MainActor @Sendable () -> Void = {},
         signOut: @escaping @MainActor @Sendable () -> Void = {},
-        library: LibraryDependencies? = nil
+        library: LibraryDependencies? = nil,
+        blocks: BlocksDependencies? = nil
     ) {
         self.client = client
         self.publicOrigin = publicOrigin
@@ -53,6 +56,7 @@ public struct YouServices: Sendable {
         self.onAccountDeleted = onAccountDeleted
         self.signOut = signOut
         self.library = library
+        self.blocks = blocks
     }
 
     /// `<origin>/api/mcp` — what an AI app is given as its server URL.
@@ -67,6 +71,8 @@ public enum YouRoute: Hashable, Sendable {
     case heartRate
     /// W10: the exercise library, one exercise, the workout library.
     case library, exercise(id: String), workoutLibrary
+    /// W10: the training blocks, one block.
+    case blocks, block(id: String)
     case coachProfile, coachModel
     case coros, calendarFeed, connector, connectorGuide
     case activity, deleteAccount, about
