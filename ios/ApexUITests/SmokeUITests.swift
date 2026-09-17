@@ -58,10 +58,12 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.secureTextFields["signin.password"].exists)
         XCTAssertTrue(app.buttons["Sign in"].exists)
 
-        // Invite-only has to be stated, not implied (App Store 5.1.1).
+        // Invite-only has to be stated, not implied (App Store 5.1.1) — and
+        // stated with a way forward: the contact link, not a dead end (W13).
         XCTAssertTrue(app.staticTexts.containing(
             NSPredicate(format: "label CONTAINS[c] 'invite-only'")
         ).firstMatch.exists)
+        XCTAssertTrue(app.links["signin.invite"].exists || app.buttons["signin.invite"].exists, "no invite contact link")
 
         attach(app, name: "01-sign-in")
     }
