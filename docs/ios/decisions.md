@@ -608,3 +608,24 @@ The brief said "port the dashboard and the tile builder"; these are the lines dr
 - **Consequences.** PR B/C/D read only what PR A's fixtures pin; the mock replays writes into
   these same reads. A tool that gains a field later is a fixture regeneration, not a schema
   change. The web's cycle editor now previews through the same endpoint.
+
+## D-034 · The workflow's build number is the commit count, not the run number
+**Status:** decided · Mac session · 2026-09-17 · W13
+- **The question.** The W13 brief had `.github/workflows/testflight.yml` stamping
+  `CURRENT_PROJECT_VERSION` from `github.run_number`. `ios/scripts/testflight.sh` has shipped
+  seven builds stamped from `git rev-list --count HEAD`, and App Store Connect has already
+  accepted 353 for 0.8.0. A new workflow's run number starts at 1, and App Store Connect rejects
+  a build number it has already seen for a marketing version — the usual way a release gets stuck.
+- **Options.** (a) `run_number` — rejected for every build until it passes the highest number
+  the script ever stamped; (b) `run_number` plus an offset (say 1000) — two counters, one per
+  path, that a future `MARKETING_VERSION` bump would let cross again, and a constant somebody
+  has to remember not to lower; (c) `git rev-list --count HEAD` in the workflow too.
+- **Decision: (c).** One rule, one monotonic function of the branch, and the script and the
+  lane agree on it without coordination. The workflow checks out with `fetch-depth: 0` so the
+  count is the real one (a shallow clone would stamp 1). Two archives of the same commit collide,
+  which is correct: they are the same code. A release branch behind `main` stamps a lower number
+  than `main`'s next build — the cost of a graph-based counter, and the script has always had it.
+- **Consequences.** `ios/fastlane/Fastfile` computes the number itself and does not accept one.
+  If the count is ever exhausted for a version (an archive of the same commit twice, on purpose),
+  the answer is a new commit or a `MARKETING_VERSION` bump, not an override.
+
