@@ -124,6 +124,12 @@ actor FixtureTransport: HTTPTransport {
         var blocks: [String: [String: Any]] = [:]
         var deletedBlocks: Set<String> = []
         var objectives: [[String: Any]] = []
+        /// Meals (snake_case rows with their `date`) and favorites (camelCase,
+        /// the GET's shape) the session wrote (W10).
+        var meals: [String: [String: Any]] = [:]
+        var deletedMeals: Set<String> = []
+        var favorites: [String: [String: Any]] = [:]
+        var deletedFavorites: Set<String> = []
     }
 
     init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false, corosStatus: String = "connected") {
@@ -273,8 +279,45 @@ actor FixtureTransport: HTTPTransport {
                 case "search_exercises": return ok(try searchExercises(args))
                 case "get_exercise_history": return try exerciseHistory(args)
                 case "get_training_blocks": return try trainingBlocks(args)
+                case "get_meals": return ok(try mealsQuery(args))
                 default: return ok(try Fixtures.data("query-\(tool).json"))
                 }
+            case ("GET", "/api/meal-favorites"):
+                return ok(try JSONSerialization.data(withJSONObject: ["favorites": try currentFavorites()]))
+            case ("POST", "/api/meal-favorites"):
+                var favorite: [String: Any] = [:]
+                for (column, value) in body ?? [:] { favorite[Self.camel(column)] = value }
+                if favorite["notes"] == nil || favorite["notes"] is NSNull { favorite["notes"] = "" }
+                let id = favorite["id"] as? String ?? ""
+                edits.favorites[id] = favorite
+                edits.deletedFavorites.remove(id)
+                return ok(try JSONSerialization.data(withJSONObject: ["id": id]))
+            case ("DELETE", "/api/meal-favorites"):
+                let id = queryValue("id", in: query)
+                edits.favorites[id] = nil
+                edits.deletedFavorites.insert(id)
+                return ok(Data(#"{"ok":true}"#.utf8))
+            case ("POST", "/api/meals"):
+                var row = body ?? [:]
+                row["triggered_by"] = nil
+                if let problem = Self.mealProblem(row) { return HTTPResponse(status: 400, headers: [:], body: Data(problem.utf8)) }
+                let id = row["id"] as? String ?? "meal-mock"
+                edits.meals[id] = row
+                return ok(try JSONSerialization.data(withJSONObject: ["id": id]))
+            case ("PATCH", "/api/meals"):
+                let id = queryValue("id", in: query)
+                guard var meal = try currentMeals().first(where: { $0["id"] as? String == id }) else {
+                    return HTTPResponse(status: 404, headers: [:], body: Data("Meal not found".utf8))
+                }
+                for (column, value) in body?["fields"] as? [String: Any] ?? [:] { meal[column] = value }
+                if let problem = Self.mealProblem(meal) { return HTTPResponse(status: 400, headers: [:], body: Data(problem.utf8)) }
+                edits.meals[id] = meal
+                return ok(Data(#"{"ok":true}"#.utf8))
+            case ("DELETE", "/api/meals"):
+                let id = queryValue("id", in: query)
+                edits.meals[id] = nil
+                edits.deletedMeals.insert(id)
+                return ok(Data(#"{"ok":true}"#.utf8))
             case ("POST", "/api/blocks") where queryValue("resource", in: query) == "cycle":
                 return try cyclePreview(body?["spec"] as? [String: Any])
             case ("POST", "/api/blocks") where queryValue("batch", in: query) == "1":
@@ -950,6 +993,103 @@ actor FixtureTransport: HTTPTransport {
         object["blocks"] = (object["blocks"] as? [[String: Any]] ?? []).map { rename($0, "name") }
         object["rows"] = (object["rows"] as? [[String: Any]] ?? []).map { rename($0, "name") }
         return ok(try JSONSerialization.data(withJSONObject: object))
+    }
+
+    // MARK: - W10 meals
+
+    private static let macroLabels: [(column: String, label: String)] = [
+        ("calories", "Calories"), ("protein_g", "Protein"), ("carbs_g", "Carbs"), ("fiber_g", "Fiber"), ("sugar_g", "Sugar"),
+        ("fat_total_g", "Total fat"), ("fat_saturated_g", "Saturated fat"), ("fat_trans_g", "Trans fat"), ("alcohol_g", "Alcohol"),
+    ]
+
+    private static func number(_ value: Any?) -> Double? {
+        guard let value, !(value is NSNull) else { return nil }
+        return (value as? NSNumber)?.doubleValue
+    }
+
+    /// `api/_lib/services/meals.ts`: every macro a number ≥ 0, the fat total
+    /// never below saturated + trans — with the composer's own sentences.
+    private static func mealProblem(_ row: [String: Any]) -> String? {
+        for field in macroLabels {
+            guard let value = row[field.column], !(value is NSNull) else { continue }
+            guard let n = number(value), n.isFinite, n >= 0 else { return "\(field.label) must be a number of at least 0" }
+        }
+        if let total = number(row["fat_total_g"]), total < (number(row["fat_saturated_g"]) ?? 0) + (number(row["fat_trans_g"]) ?? 0) {
+            return "Total fat can't be less than saturated + trans"
+        }
+        return nil
+    }
+
+    /// The fixture's meals (each with its day) plus the session's, minus the deleted.
+    private func currentMeals() throws -> [[String: Any]] {
+        let fixture = ((try JSONSerialization.jsonObject(with: try Fixtures.data("query-get_meals.json"))) as? [String: Any])?["result"] as? [String: Any]
+        var rows: [[String: Any]] = []
+        for day in fixture?["days"] as? [[String: Any]] ?? [] {
+            for var meal in day["meals"] as? [[String: Any]] ?? [] {
+                meal["date"] = day["date"]
+                rows.append(meal)
+            }
+        }
+        rows = rows.filter { !edits.deletedMeals.contains($0["id"] as? String ?? "") }
+            .map { meal in
+                guard let id = meal["id"] as? String, let patched = edits.meals[id] else { return meal }
+                return patched
+            }
+        for (id, meal) in edits.meals where !rows.contains(where: { $0["id"] as? String == id }) { rows.append(meal) }
+        return rows
+    }
+
+    private func currentFavorites() throws -> [[String: Any]] {
+        let fixture = ((try JSONSerialization.jsonObject(with: try Fixtures.data("meal-favorites.json"))) as? [String: Any])?["favorites"] as? [[String: Any]] ?? []
+        var favorites = fixture.filter { !edits.deletedFavorites.contains($0["id"] as? String ?? "") }
+            .map { favorite in
+                guard let id = favorite["id"] as? String, let saved = edits.favorites[id] else { return favorite }
+                return saved
+            }
+        for (id, favorite) in edits.favorites where !favorites.contains(where: { $0["id"] as? String == id }) { favorites.append(favorite) }
+        return favorites.sorted { ($0["title"] as? String ?? "") < ($1["title"] as? String ?? "") }
+    }
+
+    /// `get_meals` over the current meals: per-day totals summed the way the
+    /// tool sums them (stored calories, else Atwater 4/4/9/7; tenth-gram macros).
+    private func mealsQuery(_ args: [String: Any]) throws -> Data {
+        let start = args["start_date"] as? String ?? ""
+        let end = args["end_date"] as? String ?? "9999"
+        let includeItems = args["include_items"] as? Bool ?? false
+        var byDate: [String: [[String: Any]]] = [:]
+        for meal in try currentMeals() {
+            guard let date = meal["date"] as? String, date >= start, date <= end else { continue }
+            byDate[date, default: []].append(meal)
+        }
+        let tenth: (Double) -> Double = { ($0 * 10).rounded() / 10 }
+        let days: [[String: Any]] = byDate.keys.sorted().map { date in
+            let meals = byDate[date]!.sorted { (TimeLabel.minutes($0["time"] as? String ?? "") ?? 0) < (TimeLabel.minutes($1["time"] as? String ?? "") ?? 0) }
+            var calories = 0.0, protein = 0.0, carbs = 0.0, fat = 0.0
+            let items: [[String: Any]] = meals.map { meal in
+                let p = Self.number(meal["protein_g"]), c = Self.number(meal["carbs_g"]), f = Self.number(meal["fat_total_g"]), a = Self.number(meal["alcohol_g"])
+                let derived = Nutrition.derivedCalories(proteinG: p, carbsG: c, fatTotalG: f, alcoholG: a).map(Double.init)
+                let kcal = Self.number(meal["calories"]) ?? derived
+                calories += kcal ?? 0
+                protein += p ?? 0
+                carbs += c ?? 0
+                fat += f ?? 0
+                var item: [String: Any] = [:]
+                for key in ["id", "title", "time", "meal_type", "protein_g", "carbs_g", "fiber_g", "sugar_g", "fat_total_g", "fat_saturated_g", "fat_trans_g", "alcohol_g"] {
+                    item[key] = meal[key] ?? NSNull()
+                }
+                item["calories"] = kcal ?? NSNull()
+                item["notes"] = (meal["notes"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? NSNull()
+                return item
+            }
+            var day: [String: Any] = [
+                "date": date, "meal_count": meals.count,
+                "totals": ["calories": calories.rounded(), "proteinG": tenth(protein), "carbsG": tenth(carbs), "fatTotalG": tenth(fat)],
+            ]
+            if includeItems { day["meals"] = items }
+            return day
+        }
+        let result: [String: Any] = ["start_date": start, "end_date": end, "days": days]
+        return try JSONSerialization.data(withJSONObject: ["tool": "get_meals", "result": result])
     }
 
     /// The fixture's history for Fixture Press by any of its current

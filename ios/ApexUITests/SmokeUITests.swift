@@ -19,6 +19,12 @@ final class SmokeUITests: XCTestCase {
         return app
     }
 
+    /// The "+" menu's first item (W10 made "+" a menu: Add workout / Add meal).
+    private func tapAddWorkout(_ app: XCUIApplication) {
+        let item = app.buttons["Add workout"]
+        if item.waitForExistence(timeout: 3) { item.tap() }
+    }
+
     private func signIn(_ app: XCUIApplication) {
         let email = app.textFields["signin.email"]
         XCTAssertTrue(email.waitForExistence(timeout: 10))
@@ -362,10 +368,11 @@ final class SmokeUITests: XCTestCase {
         attach(app, name: "21-superset-of-three")
         app.buttons["Close"].firstMatch.tap()
 
-        // The "+" opens the builder on the selected day.
+        // The "+" offers a workout or a meal (W10); the builder is the first item.
         let add = app.buttons["schedule.add"]
         XCTAssertTrue(add.waitForExistence(timeout: 10))
         add.tap()
+        tapAddWorkout(app)
         XCTAssertTrue(app.otherElements["builder"].waitForExistence(timeout: 10) || app.staticTexts["Add Workout"].waitForExistence(timeout: 5))
         attach(app, name: "22-builder-entry")
     }
@@ -380,6 +387,7 @@ final class SmokeUITests: XCTestCase {
         let add = app.buttons["schedule.add"]
         XCTAssertTrue(add.waitForExistence(timeout: 20))
         add.tap()
+        tapAddWorkout(app)
         let template = app.buttons["builder.template.ios-fixture-template"]
         XCTAssertTrue(template.waitForExistence(timeout: 10))
         attach(app, name: "23-builder-search")

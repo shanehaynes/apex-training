@@ -134,6 +134,10 @@ public struct YouRootView: View {
                 SettingsLink("Training blocks", value: model.blocks?.current?.name, symbol: ApexIcon.layers.systemName, to: YouRoute.blocks, identifier: "you.row.blocks")
                 SettingsDivider()
             }
+            if model.meals != nil {
+                SettingsLink("Meals", symbol: ApexIcon.utensils.systemName, to: YouRoute.meals, identifier: "you.row.meals")
+                SettingsDivider()
+            }
             if model.library != nil {
                 SettingsLink("Exercise library", symbol: ApexIcon.dumbbell.systemName, to: YouRoute.library, identifier: "you.row.library")
                 SettingsDivider()
@@ -188,6 +192,12 @@ public struct YouRootView: View {
         case .workoutLibrary: libraryScreen { WorkoutLibraryView(model: $0) }
         case .blocks: blocksScreen { BlocksView(model: $0) }
         case .block(let id): blocksScreen { BlockDetailView(model: $0, id: id) }
+        case .meals:
+            if let meals = model.meals {
+                MealsDayListView(model: meals)
+            } else {
+                EmptyState(eyebrow: "Meals", message: "Sign in to see your meals.", symbol: ApexIcon.utensils.systemName)
+            }
         case .coachProfile: CoachProfileView(model: model)
         case .coachModel: CoachModelPickerView(model: model)
         case .coros: CorosView(model: model.coros)

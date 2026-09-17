@@ -19,7 +19,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W7 | Event CRUD + builder | done (#137, #138, #139, #140) | Mac | TestFlight build 5 (0.6.0/312) uploaded 2026-09-11; Shane's device run outstanding |
 | W8 | Backend analytics compute | done (PR #100) | Linux | web switched in #179 — dashboard and preview |
 | W9 | Analytics tab (editable layout) | done (#153, #154, #155, #156) | Mac | TestFlight build 6 (0.7.0/324) uploaded 2026-09-14; Shane's device run outstanding |
-| W10 | Library, Blocks, Meals | in progress (A #184, B #185 in review; C `feat/w10-c-blocks` up) | both | A backend+ApexCore → B Library → C Blocks → D Meals → E release (0.8.0, build 7) |
+| W10 | Library, Blocks, Meals | in progress (A #184, B #185, C #186 in review; D `feat/w10-d-meals` up) | both | A backend+ApexCore → B Library → C Blocks → D Meals → E release (0.8.0, build 7) |
 | W11 | Profile, integrations, account | done (#149, #157) | both | on TestFlight build 6; phase41 in prod (2026-09-16); device runs are Shane's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
 | W13 | Release + polish | blocked | Mac | App Store gate |
@@ -39,6 +39,16 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-16 · W10 · PR D: Meals — `MealsModel` (one instance for both tabs: `get_meals` per
+  month, sharing the schedule's `meals_window` entries; `GET /api/meal-favorites` cached; realtime
+  `.meals`; a write re-reads its months and calls the schedule's `refreshMeals()`),
+  `MealComposerSheet` (favorites chips with remove, date + time, the type row with tap-to-clear,
+  nine decimal-pad macros with the D-033 derived-kcal placeholder and a keyboard Done, Save to
+  library with the notice inline, refusals inline — the server's fat-split sentence included —
+  a two-tap delete in edit mode), `MealsDayListView` under You → Meals; the Schedule "+" is now
+  a menu (Add workout / Add meal), the Day sheet gained Add meal and tappable meal rows, the Day
+  view's meals line opens the composer; mock routes with the composer's refusals; 7 model
+  tests, 5 snapshots; the two builder smoke legs tap the menu's first item.
 - 2026-09-16 · W10 · PR C: Blocks — `BlocksModel` over `get_training_blocks` (the list with
   `today`, cached; a block's progress by `block_id`, cached per day and dropped on a write;
   realtime `.blocks`), `BlocksView` (rows with "week 2 of 4", the objectives, "+" → block or

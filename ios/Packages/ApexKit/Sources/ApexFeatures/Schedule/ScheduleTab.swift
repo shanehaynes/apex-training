@@ -10,6 +10,8 @@ public struct ScheduleTab: View {
     private let routes: RouteBus?
     /// The builder's coach drawer (W7); nil hides the drawer.
     private let coachServices: CoachServices?
+    /// The meal composer (W10); nil keeps "+" a plain Add workout.
+    private let meals: MealsModel?
     @State private var sheet: ScheduleSheet?
     @State private var trackerRoute: TrackerRoute?
     /// Set while the event sheet is still dismissing: presenting the cover over
@@ -22,11 +24,12 @@ public struct ScheduleTab: View {
 
     /// `tracker: nil` hides Start Workout (the app before a user is signed in).
     /// `routes` is the deep-link bus this tab consumes `.tracker` from (W12).
-    public init(model: ScheduleModel, tracker: TrackerServices? = nil, routes: RouteBus? = nil, coachServices: CoachServices? = nil) {
+    public init(model: ScheduleModel, tracker: TrackerServices? = nil, routes: RouteBus? = nil, coachServices: CoachServices? = nil, meals: MealsModel? = nil) {
         self.model = model
         self.tracker = tracker
         self.routes = routes
         self.coachServices = coachServices
+        self.meals = meals
     }
 
     private var trackerDependencies: TrackerDependencies? {
@@ -55,23 +58,46 @@ public struct ScheduleTab: View {
             .toolbar {
                 ToolbarItem(placement: .principal) { Wordmark() }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        sheet = .builder(.create(date: model.selectedDay))
-                    } label: {
-                        ApexIcon.plus.image
-                            .font(.system(size: 17, weight: .medium))
-                            .foregroundStyle(ApexColor.textPrimary)
-                            .frame(width: 44, height: 44)
-                            .contentShape(.rect)
+                    // With a composer wired, "+" offers a workout or a meal (the
+                    // web's FAB, W10); without one it stays the builder's door.
+                    if meals != nil {
+                        Menu {
+                            Button { sheet = .builder(.create(date: model.selectedDay)) } label: {
+                                Label("Add workout", systemImage: ApexIcon.dumbbell.systemName)
+                            }
+                            .accessibilityIdentifier("schedule.add.workout")
+                            Button { sheet = .mealComposer(.create(model.selectedDay)) } label: {
+                                Label("Add meal", systemImage: ApexIcon.utensils.systemName)
+                            }
+                            .accessibilityIdentifier("schedule.add.meal")
+                        } label: {
+                            ApexIcon.plus.image
+                                .font(.system(size: 17, weight: .medium))
+                                .foregroundStyle(ApexColor.textPrimary)
+                                .frame(width: 44, height: 44)
+                                .contentShape(.rect)
+                        }
+                        .accessibilityLabel("Add")
+                        .accessibilityIdentifier("schedule.add")
+                    } else {
+                        Button {
+                            sheet = .builder(.create(date: model.selectedDay))
+                        } label: {
+                            ApexIcon.plus.image
+                                .font(.system(size: 17, weight: .medium))
+                                .foregroundStyle(ApexColor.textPrimary)
+                                .frame(width: 44, height: 44)
+                                .contentShape(.rect)
+                        }
+                        .accessibilityLabel("Add workout")
+                        .accessibilityIdentifier("schedule.add")
                     }
-                    .accessibilityLabel("Add workout")
-                    .accessibilityIdentifier("schedule.add")
                 }
             }
             .toolbarBackground(ApexColor.bgPrimary, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
         }
-        .sheet(item: $sheet, onDismiss: presentPending) { item in
+        .sheet(item: $sheet, onDismiss: { meals?.flushNotice(); presentPending() }) { item in
             Group {
                 switch item {
                 case .event(let id):
@@ -93,14 +119,29 @@ public struct ScheduleTab: View {
                     )
                     .presentationDetents([.medium, .large])
                 case .day(let day):
-                    DaySheet(model: model, day: day, onOpenEvent: { sheet = .event(id: $0.id) }, onClose: { sheet = nil })
-                        .presentationDetents([.medium, .large])
+                    DaySheet(
+                        model: model, day: day, onOpenEvent: { sheet = .event(id: $0.id) }, onClose: { sheet = nil },
+                        onAddMeal: meals == nil ? nil : { day in
+                            pendingSheet = .mealComposer(.create(day))
+                            sheet = nil
+                        },
+                        onOpenMeal: meals == nil ? nil : { item in
+                            pendingSheet = .mealComposer(.edit(day: day, item: item))
+                            sheet = nil
+                        }
+                    )
+                    .presentationDetents([.medium, .large])
                 case .builder(let route):
                     BuilderSheet(model: model, route: route, coachServices: coachServices, onClose: { sheet = nil })
                         .presentationDetents([.large])
                 case .editExercises(let id):
                     if let event = model.event(id: id) {
                         EditExercisesSheet(model: model, event: event, onClose: { sheet = nil })
+                            .presentationDetents([.large])
+                    }
+                case .mealComposer(let route):
+                    if let meals {
+                        MealComposerSheet(model: meals, route: route, onClose: { sheet = nil })
                             .presentationDetents([.large])
                     }
                 }
@@ -191,7 +232,10 @@ public struct ScheduleTab: View {
         } else {
             switch model.mode {
             case .day:
-                DayView(model: model, onOpen: { sheet = .event(id: $0.id) }, onAdd: { sheet = .builder(.create(date: $0)) })
+                DayView(
+                    model: model, onOpen: { sheet = .event(id: $0.id) }, onAdd: { sheet = .builder(.create(date: $0)) },
+                    onAddMeal: meals == nil ? nil : { sheet = .mealComposer(.create($0)) }
+                )
             case .month:
                 MonthView(
                     model: model, onOpenDay: { sheet = .day($0) }, onOpenEvent: { sheet = .event(id: $0.id) },

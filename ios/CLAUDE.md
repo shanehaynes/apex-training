@@ -144,6 +144,11 @@ requested block's summary over `query-get_training_blocks-detail.json`'s progres
 fixture for a start inside the seeded base block, else `blocks-cycle.json` re-prefixed with the
 caller's name; `?batch=1`, the single POST, PATCH and DELETE are remembered (ids `mock-block-N`),
 `POST /api/objectives` mints `mock-objective-N`.
+Meals (W10) are answered too: `get_meals` is built from the fixture's meals plus every meal the
+session wrote or PATCHed (per-day totals re-summed: stored calories else Atwater, tenth-gram
+macros), `POST /api/meals` and the PATCH refuse a negative macro or a fat total below
+saturated + trans with the composer's own sentences, `GET /api/meal-favorites` is the fixture plus
+the session's saves minus its deletes.
 
 **Realtime on the local stack** needs the tables in the `supabase_realtime` publication —
 phase40 adds every table a client subscribes to; a stack reset before it has nothing. The hub

@@ -41,7 +41,7 @@ public struct MealsQueryResult: Codable, Sendable, Equatable {
     /// deletes through `/api/meals?id=`) and the whole stored fat split, so
     /// the composer can reopen it exactly as it was saved. Both are optional
     /// in the decoder so a response from before W10 still reads.
-    public struct Item: Codable, Sendable, Equatable {
+    public struct Item: Codable, Sendable, Equatable, Hashable {
         public let id: String?
         public let title: String
         public let time: String?
