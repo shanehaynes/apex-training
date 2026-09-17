@@ -19,7 +19,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W7 | Event CRUD + builder | done (#137, #138, #139, #140) | Mac | TestFlight build 5 (0.6.0/312) uploaded 2026-09-11; Shane's device run outstanding |
 | W8 | Backend analytics compute | done (PR #100) | Linux | web switched in #179 — dashboard and preview |
 | W9 | Analytics tab (editable layout) | done (#153, #154, #155, #156) | Mac | TestFlight build 6 (0.7.0/324) uploaded 2026-09-14; Shane's device run outstanding |
-| W10 | Library, Blocks, Meals | done (#184, #185, #186, #187; E release PR) | both | TestFlight build 7 (0.8.0) — upload on Shane's go; device acceptance is Shane's |
+| W10 | Library, Blocks, Meals | done (#184–#188) | both | TestFlight build 7 (0.8.0/353) uploaded 2026-09-17; device acceptance is Shane's |
 | W11 | Profile, integrations, account | done (#149, #157) | both | on TestFlight build 6; phase41 in prod (2026-09-16); device runs are Shane's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
 | W13 | Release + polish | blocked | Mac | App Store gate |
@@ -29,8 +29,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    You tab): W9 (reorder and resize on the phone → the web dashboard shows the new `y/h`; a spec
    the web rejects shows the server's message in the builder; the coach drawer on a real key) and
    W11 (COROS connect inside the app, a sync that fills a planned workout, a bad key's Anthropic
-   message). phase38/41/42 are applied in prod (Shane, 2026-09-16). W10 landed 2026-09-17 (build 7
-   carries it once uploaded); W13 is next. The W7, W9 and W11 worktrees were tidied 2026-09-16 — the two git-ignored
+   message). phase38/41/42 are applied in prod (Shane, 2026-09-16). W10 landed 2026-09-17 and build 7
+   (0.8.0/353) carries it; W13 is next. The W7, W9 and W11 worktrees were tidied 2026-09-16 — the two git-ignored
    release files died with them (item 3).
 2. Still open from earlier: the W2 device runs; two W12 timings nobody has clocked (30 minutes
    backgrounded, the 5-minute Done linger on the Lock Screen).
@@ -39,6 +39,9 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-17 · W10 · TestFlight build 7 (0.8.0/353) uploaded by Shane from the W10 worktree via
+  `ios/scripts/testflight.sh`; the worktree is retired. W10 device acceptance (rename → alias on
+  web, cycle → blocks on web, fat-split refusal inline) is his on build 7.
 - 2026-09-17 · W10 · PR E (release): the three smoke legs (`testLibraryOnFixtures` — rename
   keeps the alias, template archive; `testBlocksOnFixtures` — the base block's week, the detail's
   attainment, a cycle preview that names the conflicting block, a new block; `testMealsOnFixtures`
