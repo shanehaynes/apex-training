@@ -608,4 +608,3 @@ The brief said "port the dashboard and the tile builder"; these are the lines dr
 - **Consequences.** PR B/C/D read only what PR A's fixtures pin; the mock replays writes into
   these same reads. A tool that gains a field later is a fixture regeneration, not a schema
   change. The web's cycle editor now previews through the same endpoint.
-
