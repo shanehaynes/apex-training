@@ -133,6 +133,8 @@ public struct ExerciseDetailView: View {
                 sub: stats.recentSessions.first.flatMap { DayKey($0.date) }.map { "last \(LibraryModel.shortDate($0))" } ?? "",
                 symbol: nil
             )
+            // A container identifier would otherwise shadow the children's own (XCUITest reads the parent's).
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("library.detail.sessions")
         }
     }

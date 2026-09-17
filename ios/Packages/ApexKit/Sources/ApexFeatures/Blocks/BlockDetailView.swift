@@ -125,6 +125,8 @@ public struct BlockDetailView: View {
                 AttainmentBars(rows: progress.toDate.attainment)
             }
         }
+        // A container identifier would otherwise shadow the children's own (XCUITest reads the parent's).
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("block.detail.todate")
     }
 
@@ -132,6 +134,8 @@ public struct BlockDetailView: View {
         section("This week", sub: "week \(index), in progress") {
             AttainmentBars(rows: week.attainment)
         }
+        // A container identifier would otherwise shadow the children's own (XCUITest reads the parent's).
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("block.detail.thisweek")
     }
 
@@ -139,6 +143,8 @@ public struct BlockDetailView: View {
         section("By week") {
             BlockWeeksTable(weeks: progress.weeks, currentWeek: progress.currentWeek)
         }
+        // A container identifier would otherwise shadow the children's own (XCUITest reads the parent's).
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("block.detail.byweek")
     }
 
@@ -168,6 +174,8 @@ public struct BlockDetailView: View {
                 }
             }
         }
+        // A container identifier would otherwise shadow the children's own (XCUITest reads the parent's).
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("block.detail.prs")
     }
 }

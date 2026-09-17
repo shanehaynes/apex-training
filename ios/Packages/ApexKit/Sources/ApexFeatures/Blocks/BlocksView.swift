@@ -123,6 +123,8 @@ public struct BlocksView: View {
                 }
             }
         }
+        // A container identifier would otherwise shadow the children's own (XCUITest reads the parent's).
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("blocks.objectives")
     }
 }

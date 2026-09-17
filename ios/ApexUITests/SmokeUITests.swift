@@ -699,6 +699,180 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "activity.row.4").firstMatch.exists)
         attach(app, name: "w11-07-activity")
     }
+
+    // MARK: - W10 · Library, Blocks, Meals
+
+    private func any(_ app: XCUIApplication, _ identifier: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
+
+    private func waitForLabel(_ element: XCUIElement, _ label: String, timeout: TimeInterval = 10, file: StaticString = #filePath, line: UInt = #line) {
+        let matches = NSPredicate(format: "label == %@", label)
+        let result = XCTWaiter().wait(for: [expectation(for: matches, evaluatedWith: element)], timeout: timeout)
+        XCTAssertEqual(result, .completed, "\(element) never read “\(label)”: \(element.label)", file: file, line: line)
+    }
+
+    /// A text field's text is its `value`; its `label` is the field's name.
+    private func waitForValue(_ field: XCUIElement, _ value: String, timeout: TimeInterval = 10, file: StaticString = #filePath, line: UInt = #line) {
+        let matches = NSPredicate(format: "value == %@", value)
+        let result = XCTWaiter().wait(for: [expectation(for: matches, evaluatedWith: field)], timeout: timeout)
+        XCTAssertEqual(result, .completed, "\(field) never held “\(value)”: \(String(describing: field.value))", file: file, line: line)
+    }
+
+    /// sign in → You → Exercise library → the fixture definition's row → the
+    /// detail with its history → Edit → a rename shows the alias hint → Save →
+    /// the title and the alias line follow (the mock replays the PATCH with
+    /// the handler's rename-appends-alias rule) → back → Workout library →
+    /// Archive the fixture template → its button reads Restore.
+    func testLibraryOnFixtures() {
+        let app = launch(mock: true)
+        signIn(app)
+        let youTab = app.tabBars.buttons["You"]
+        XCTAssertTrue(youTab.waitForExistence(timeout: 20))
+        youTab.tap()
+        tapUntil(app.buttons["you.row.library"], shows: app.textFields["library.search"])
+        let row = app.buttons["library.row.ios-fixture-def"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        XCTAssertTrue(row.label.contains("Fixture Press"), row.label)
+        attach(app, name: "w10-01-library")
+
+        let title = app.staticTexts["library.detail.title"]
+        tapUntil(row, shows: title)
+        XCTAssertEqual(title.label, "Fixture Press")
+        XCTAssertTrue(any(app, "library.detail.sessions").waitForExistence(timeout: 10), "the history fixture answers by name")
+        attach(app, name: "w10-02-exercise")
+
+        let name = app.textFields["library.editor.name"]
+        tapUntil(app.buttons["library.edit"], shows: name)
+        type(" II", into: name)
+        XCTAssertTrue(app.staticTexts["library.editor.renamehint"].waitForExistence(timeout: 5))
+        attach(app, name: "w10-03-editor")
+        app.buttons["library.editor.save"].tap()
+        waitForLabel(title, "Fixture Press II")
+        let aliases = app.staticTexts["library.detail.aliases"]
+        XCTAssertTrue(aliases.waitForExistence(timeout: 5))
+        XCTAssertTrue(aliases.label.contains("Fixture Press"), aliases.label)
+        attach(app, name: "w10-04-renamed")
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let archive = app.buttons["library.template.archive.ios-fixture-template"]
+        tapUntil(app.buttons["library.templates"], shows: archive)
+        XCTAssertEqual(archive.label, "Archive")
+        archive.tap()
+        waitForLabel(archive, "Restore")
+        attach(app, name: "w10-05-templates")
+    }
+
+    /// sign in → You → Training blocks → the base block's row says week 2 of
+    /// 4 and the objective is listed → its detail: this week's attainment and
+    /// the by-week table → back → "+" → New cycle → a name draws the preview,
+    /// and the Monday of the fixed week lies inside the base block so the
+    /// conflict line names it and Create stays off → Cancel → New block →
+    /// Save → the mock's block joins the list.
+    func testBlocksOnFixtures() {
+        let app = launch(mock: true)
+        signIn(app)
+        let youTab = app.tabBars.buttons["You"]
+        XCTAssertTrue(youTab.waitForExistence(timeout: 20))
+        youTab.tap()
+        let base = app.buttons["block.row.ios-fixture-block-base"]
+        tapUntil(app.buttons["you.row.blocks"], shows: base)
+        XCTAssertTrue(base.label.contains("Fixture Base Block"), base.label)
+        XCTAssertTrue(base.label.contains("week 2 of 4"), base.label)
+        let objective = any(app, "blocks.objective.ios-fixture-objective-1")
+        XCTAssertTrue(objective.waitForExistence(timeout: 5), "the objectives section lists the fixture objective")
+        XCTAssertTrue(objective.label.contains("Fixture Spring Objective"), objective.label)
+        attach(app, name: "w10-06-blocks")
+
+        tapUntil(base, shows: any(app, "block.detail.thisweek"))
+        XCTAssertEqual(app.staticTexts["block.detail.week"].label, "week 2 of 4")
+        let weekOne = any(app, "block.weeks.row.1")
+        XCTAssertTrue(weekOne.waitForExistence(timeout: 10), "the by-week table starts at the block's first Monday")
+        XCTAssertTrue(weekOne.label.contains("Aug 31"), weekOne.label)
+        attach(app, name: "w10-07-block-detail")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        tapUntil(app.buttons["blocks.add"], shows: app.buttons["New cycle"])
+        app.buttons["New cycle"].tap()
+        let cycleName = app.textFields["blocks.cycle.name"]
+        XCTAssertTrue(cycleName.waitForExistence(timeout: 10))
+        type("Fixture Winter", into: cycleName)
+        cycleName.typeText("\n") // Return drops the keyboard; the preview sits under it.
+        let conflict = app.staticTexts["blocks.cycle.conflict"]
+        if !conflict.waitForExistence(timeout: 10) { app.swipeUp() }
+        XCTAssertTrue(conflict.waitForExistence(timeout: 10), "the preview names the block the cycle overlaps")
+        XCTAssertTrue(conflict.label.contains("Fixture Base Block"), conflict.label)
+        XCTAssertTrue(any(app, "blocks.cycle.preview.row.0").exists, "the conflict answer still carries the dated preview")
+        XCTAssertFalse(app.buttons["blocks.cycle.create"].isEnabled)
+        attach(app, name: "w10-08-cycle")
+        app.buttons["Cancel"].tap()
+
+        tapUntil(app.buttons["blocks.add"], shows: app.buttons["New block"])
+        app.buttons["New block"].tap()
+        let blockName = app.textFields["blocks.editor.name"]
+        XCTAssertTrue(blockName.waitForExistence(timeout: 10))
+        type("Fixture Taper", into: blockName)
+        attach(app, name: "w10-09-block-editor")
+        app.buttons["blocks.editor.save"].tap()
+        let created = app.buttons["block.row.mock-block-1"]
+        XCTAssertTrue(created.waitForExistence(timeout: 10))
+        XCTAssertTrue(created.label.contains("Fixture Taper"), created.label)
+        attach(app, name: "w10-10-block-created")
+    }
+
+    /// sign in → Schedule "+" → Add meal → the composer opened from Schedule
+    /// has the favorites (it starts the model itself) → a chip fills the form
+    /// → Add meal → the toast and the day's meals row count three → You →
+    /// Meals → the day list carries the new row → open it → a fat split the
+    /// server refuses shows inline → Delete → confirm → the row is gone.
+    func testMealsOnFixtures() {
+        let app = launch(mock: true)
+        signIn(app)
+        let add = app.buttons["schedule.add"]
+        XCTAssertTrue(add.waitForExistence(timeout: 20))
+        let title = app.textFields["meals.composer.title"]
+        tapUntil(add, shows: app.buttons["Add meal"])
+        app.buttons["Add meal"].tap()
+        XCTAssertTrue(title.waitForExistence(timeout: 10))
+        XCTAssertEqual(app.staticTexts["meals.composer.day"].label, "Tuesday, Sep 8")
+        let favorite = app.buttons["meals.favorite.ios-fixture-fav-1"]
+        XCTAssertTrue(favorite.waitForExistence(timeout: 10), "favorites load when the composer opens from Schedule")
+        attach(app, name: "w10-11-composer")
+        favorite.tap()
+        waitForValue(title, "Fixture Overnight Oats", timeout: 5)
+        app.buttons["meals.composer.save"].tap()
+        XCTAssertTrue(app.staticTexts["Meal added"].waitForExistence(timeout: 10))
+        let mealsRow = app.staticTexts.matching(NSPredicate(format: "label CONTAINS '3 meals'")).firstMatch
+        XCTAssertTrue(mealsRow.waitForExistence(timeout: 10), "the day's meals row counts the new meal")
+        attach(app, name: "w10-12-day-meals")
+
+        app.tabBars.buttons["You"].tap()
+        tapUntil(app.buttons["you.row.meals"], shows: app.staticTexts["meals.rollup"])
+        XCTAssertTrue(app.staticTexts["meals.rollup"].label.contains("kcal"), app.staticTexts["meals.rollup"].label)
+        let oats = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'meals.row.' AND label CONTAINS 'Fixture Overnight Oats'")).firstMatch
+        XCTAssertTrue(oats.waitForExistence(timeout: 10))
+        attach(app, name: "w10-13-meals")
+
+        let saturated = app.textFields["meals.composer.fatsaturated"]
+        tapUntil(oats, shows: saturated)
+        // Typing appends to what the favorite filled in, so the split is made absurd rather than
+        // exact; the lower field goes first because the decimal pad would cover a row below the focused one.
+        type("9999", into: saturated)
+        type("1", into: app.textFields["meals.composer.fattotal"])
+        app.buttons["meals.composer.save"].tap()
+        let problem = app.staticTexts["meals.composer.problem"]
+        XCTAssertTrue(problem.waitForExistence(timeout: 10))
+        XCTAssertEqual(problem.label, "Total fat can't be less than saturated + trans")
+        attach(app, name: "w10-14-composer-refusal")
+
+        app.buttons["meals.composer.delete"].tap()
+        let confirm = app.buttons["meals.composer.delete.confirm"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        XCTAssertTrue(app.staticTexts["Meal deleted"].waitForExistence(timeout: 10))
+        XCTAssertFalse(oats.exists)
+        attach(app, name: "w10-15-meal-deleted")
+    }
 }
 
 /// The auth links (D-020, architecture.md §3) on the mock: an invite hand-off
