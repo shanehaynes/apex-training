@@ -55,6 +55,10 @@ Out: anything on the Backlog.
     `OnboardingModel` / `WelcomeFlowView` / `SetupNudgeCard`; `RouteBus.pendingYou`. Traps: a new
     test file needs `xcodegen generate` again or `-only-testing` runs zero tests; the COROS step
     needs the provider status before the You tab has loaded it, so the model asks at `start()`.
+    CI trap (twice on this PR, `testYouOnFixtures`): the runner minted a token named "CClaude
+    Code" — the smoke's `type(_:into:)` landed one "C", its delete was dropped too, and the
+    retyped name passed a *suffix* check. The helper now demands the exact value and proves the
+    erase before retyping. The `ios` job is not a required check (`check`, `e2e-mock`, `full` are).
   - **D — polish (#194).** Haptics per design-spec §9 (the tracker and coach already had four of five;
     `.selection` on `ApexSegmented`, `ChipPicker`, `MultiChipRow`; `.success` on sheet/day-card
     completion via `ScheduleModel.completedCount`). Dynamic Type: every text through
