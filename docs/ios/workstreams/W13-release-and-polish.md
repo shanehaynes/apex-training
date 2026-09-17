@@ -1,7 +1,7 @@
 # W13 — Release engineering + polish
 
 **Machine:** Mac · **Depends on:** everything · **Unblocks:** App Store submission
-**Status:** in review — A #190 (HELD), B #191, C #193, D (polish); App Store submission is Shane's console work
+**Status:** in review — A #190 (HELD), B #191, C #193, D #194 (polish); App Store submission is Shane's console work
 
 ## Goal
 Repeatable TestFlight releases, App Store readiness, and the remaining UX checklist items.
@@ -52,7 +52,7 @@ Out: anything on the Backlog.
     `OnboardingModel` / `WelcomeFlowView` / `SetupNudgeCard`; `RouteBus.pendingYou`. Traps: a new
     test file needs `xcodegen generate` again or `-only-testing` runs zero tests; the COROS step
     needs the provider status before the You tab has loaded it, so the model asks at `start()`.
-  - **D — polish.** Haptics per design-spec §9 (the tracker and coach already had four of five;
+  - **D — polish (#194).** Haptics per design-spec §9 (the tracker and coach already had four of five;
     `.selection` on `ApexSegmented`, `ChipPicker`, `MultiChipRow`; `.success` on sheet/day-card
     completion via `ScheduleModel.completedCount`). Dynamic Type: every text through
     `.apex(relativeTo:)` (the only fixed sizes left are SF Symbol icons), four 10pt texts to the

@@ -22,10 +22,10 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W10 | Library, Blocks, Meals | done (#184–#188) | both | TestFlight build 7 (0.8.0/353) uploaded 2026-09-17; device acceptance is Shane's |
 | W11 | Profile, integrations, account | done (#149, #157) | both | on TestFlight build 6; phase41 in prod (2026-09-16); device runs are Shane's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
-| W13 | Release + polish | in review (#190 HELD, #191, #193, D) | Mac | App Store gate: Shane fills the console (app-store.md) and adds the three ASC secrets |
+| W13 | Release + polish | in review (#190 HELD, #191, #193, #194) | Mac | App Store gate: Shane fills the console (app-store.md) and adds the three ASC secrets |
 
 ## Next up
-1. W13 (2026-09-17): merge #191 (App Store readiness), #193 (onboarding) and PR D (polish + this
+1. W13 (2026-09-17): merge #191 (App Store readiness), #193 (onboarding) and #194 (polish + this
    board) through the babysitter, then merge `origin/main` into #190 (release engineering, HELD —
    `decisions.md` D-034/D-035 both append) and grant it `shipit`. Then, in this order: add the
    three Actions secrets (`ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_BASE64` — #190's body; the
@@ -56,7 +56,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   screenshots at 1320 × 2868 (two legs failed on CPU contention, re-run pending). **C** #193:
   onboarding (D-035) — generated `OnboardingCatalog`, the server's `onboarding` block on the
   profile, `WelcomeFlowView` + `SetupNudgeCard`, `-apexMockFreshUser`, 7 unit + 5 snapshots +
-  `testOnboardingOnFixtures`. **D**: haptics (`.selection` on segments and chips, `.success` on
+  `testOnboardingOnFixtures`. **D** #194: haptics (`.selection` on segments and chips, `.success` on
   sheet/day-card completion), Dynamic Type (11pt floor on four texts, `relativeTo:` on the Live
   Activity, `-axxxl` snapshots for four screens), Reduce Motion (`Motion.animate` /
   `Motion.current` over 34 sites), VoiceOver audit clean, `ux-improvements.md` fully audited
