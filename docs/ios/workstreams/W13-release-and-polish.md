@@ -45,8 +45,11 @@ Out: anything on the Backlog.
     resource in `project.yml`; "Request an invite" on the sign-in screen from `APEX_INVITE_CONTACT`
     (Base.xcconfig → Info.plist → `AppConfig.inviteContactURL`); `docs/ios/app-store.md` with the
     App Privacy table, the review notes, the demo-account steps, the screenshot set. Pro Max run:
-    63 shots at 1320 × 2868; `testEventEditsOnFixtures` and `testYouOnFixtures` timed out under
-    three concurrent builds.
+    63 shots at 1320 × 2868. Trap: `testEventEditsOnFixtures` (`SmokeUITests.swift:363`, the
+    `editor.link.fx-c3` tap does not flip to "Unlink") and `testYouOnFixtures` (`:693`,
+    `you.row.activity` not found after the COROS back tap) fail on the **iPhone 17 Pro Max** and
+    pass on the iPhone 17 — reproduced on an idle machine, so it is the device's layout, not
+    contention. Unfixed; the App Store set does not need their later attachments.
   - **C — onboarding (#193, D-035).** Copy generated from `content.ts`; verdicts from the
     server (`GET /api/profile` → `onboarding`, `progress.ts` imported into the handler);
     `OnboardingModel` / `WelcomeFlowView` / `SetupNudgeCard`; `RouteBus.pendingYou`. Traps: a new
