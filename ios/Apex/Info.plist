@@ -48,6 +48,8 @@
 	<string>$(SUPABASE_ANON_KEY)</string>
 	<key>APEX_CONFIGURATION</key>
 	<string>$(CONFIGURATION)</string>
+	<key>APEX_INVITE_CONTACT</key>
+	<string>$(APEX_INVITE_CONTACT)</string>
 	<!-- The Local configuration talks to 127.0.0.1 over http, which ATS blocks by
 	     default. NSAllowsLocalNetworking is the narrow exception: it permits
 	     local addresses only and does not weaken anything for production. -->

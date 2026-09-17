@@ -18,6 +18,13 @@ enum AppConfig {
         components?.query = nil
         return components?.url ?? apiBase
     }()
+    /// The sign-in screen's "Request an invite" destination (W13); nil when the
+    /// configuration sets none, in which case the screen states invite-only
+    /// without a link.
+    static let inviteContactURL: URL? = {
+        let raw = string("APEX_INVITE_CONTACT")
+        return raw.isEmpty ? nil : URL(string: raw)
+    }()
     /// "0.6.0 (312)" — the About screen's line.
     static let versionLabel: String = {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""

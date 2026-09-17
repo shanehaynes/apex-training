@@ -5,6 +5,7 @@ import SwiftUI
 /// is invite-only, so the screen says so and gives a way forward instead of a
 /// dead end (App Store guideline 5.1.1 wants exactly this).
 public struct SignInView: View {
+    private let inviteContact: URL?
     private let onSignIn: (String, String) async -> String?
     private let onForgotPassword: (String) async -> String?
 
@@ -17,10 +18,14 @@ public struct SignInView: View {
 
     private enum Field { case email, password }
 
+    /// `inviteContact` is where "Request an invite" goes (a `mailto:`, from the
+    /// build configuration); nil states invite-only without offering a link.
     public init(
+        inviteContact: URL? = nil,
         onSignIn: @escaping (String, String) async -> String?,
         onForgotPassword: @escaping (String) async -> String?
     ) {
+        self.inviteContact = inviteContact
         self.onSignIn = onSignIn
         self.onForgotPassword = onForgotPassword
     }
@@ -77,11 +82,20 @@ public struct SignInView: View {
                 .foregroundStyle(ApexColor.textSecondary)
                 .frame(minHeight: 44)
 
-                Text("Apex is invite-only. If you need an account, ask Shane for an invite.")
-                    .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
-                    .foregroundStyle(ApexColor.textMuted)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, Spacing.lg)
+                VStack(spacing: Spacing.xs) {
+                    Text("Apex is invite-only. Accounts are created by invitation, not sign-up.")
+                        .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
+                        .foregroundStyle(ApexColor.textMuted)
+                        .multilineTextAlignment(.center)
+                    if let inviteContact {
+                        Link("Request an invite", destination: inviteContact)
+                            .font(.apex(.display, size: TypeScale.xs, weight: .semibold, relativeTo: .caption))
+                            .foregroundStyle(ApexColor.textSecondary)
+                            .frame(minHeight: 44)
+                            .accessibilityIdentifier("signin.invite")
+                    }
+                }
+                .padding(.top, Spacing.lg)
 
                 Spacer(minLength: Spacing.xxl)
             }

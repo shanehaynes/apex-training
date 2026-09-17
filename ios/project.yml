@@ -45,6 +45,13 @@ targets:
     platform: iOS
     sources:
       - path: Apex
+        excludes:
+          - PrivacyInfo.xcprivacy
+      # The privacy manifest (W13), named explicitly as a resource so a
+      # generator that files .xcprivacy under "unknown" can never drop it from
+      # the bundle — App Store Connect rejects an upload without it.
+      - path: Apex/PrivacyInfo.xcprivacy
+        buildPhase: resources
       # The fixture JSON, as a folder reference, so the -apexMockClient seam
       # can answer /api/* in-process. Release excludes it (Release.xcconfig).
       - path: Fixtures
