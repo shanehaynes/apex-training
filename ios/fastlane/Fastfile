@@ -1,0 +1,126 @@
+# The release lane. One lane, `beta`: archive → export → TestFlight, with the
+# App Store Connect API key doing the signing (`-allowProvisioningUpdates`)
+# and the upload. It is the workflow's path (.github/workflows/testflight.yml)
+# and runs unchanged on a Mac:
+#
+#   cd ios && fastlane beta                 archive, export, upload
+#   cd ios && fastlane beta dry_run:true    archive and export, do not upload
+#
+# CREDENTIALS — the same three values ios/scripts/testflight.sh reads, from
+# the same places, so a Mac that can run the script can run the lane:
+#   APEX_ASC_KEY_ID      the key id      } from the environment, or from
+#   APEX_ASC_ISSUER_ID   the issuer id   } ios/Config/appstoreconnect.env
+#   ~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8   the private key
+# The workflow sets the first two from repo secrets and writes the third from
+# a base64 secret before calling this lane (the secret names are in the
+# workflow). Nothing here reads a secret by any other route.
+#
+# BUILD NUMBERS — `git rev-list --count HEAD`, exactly as testflight.sh
+# stamps them, and not GitHub's run number (docs/ios/decisions.md D-034):
+# App Store Connect has already accepted 353 for 0.8.0 from the script, a
+# new workflow's run_number starts at 1, and two counters that can collide
+# is how a release gets stuck. The commit count is one monotonic function of
+# the branch both paths agree on. MARKETING_VERSION stays in ios/project.yml.
+#
+# fastlane runs `sh` from this directory (ios/fastlane) and every action from
+# its parent (ios/): the git and script calls below say `..`; gym's paths do
+# not.
+
+default_platform(:ios)
+
+TEAM_ID = "G44GWSXFK2"
+KEY_DIR = File.expand_path("~/.appstoreconnect/private_keys")
+
+# ios/Config/appstoreconnect.env is a two-line KEY=VALUE file; the environment
+# wins over it so the workflow's secrets are never shadowed by a stray copy.
+def load_local_env
+  path = File.expand_path("../Config/appstoreconnect.env", __dir__)
+  return unless File.file?(path)
+  File.foreach(path) do |line|
+    next if line.strip.empty? || line.strip.start_with?("#")
+    key, value = line.strip.split("=", 2)
+    ENV[key] ||= value.to_s.strip if key && value
+  end
+end
+
+def require_env(name)
+  value = ENV[name].to_s.strip
+  UI.user_error!("#{name} is not set — see the header of ios/fastlane/Fastfile") if value.empty?
+  value
+end
+
+def marketing_version
+  yml = File.read(File.expand_path("../project.yml", __dir__))
+  yml[/^\s*MARKETING_VERSION:\s*"?([^"\n]+)"?/, 1] || "?"
+end
+
+platform :ios do
+  desc "Archive, export and upload to TestFlight (`dry_run:true` exports without uploading)"
+  lane :beta do |options|
+    dry_run = options[:dry_run].to_s == "true"
+
+    load_local_env
+    key_id = require_env("APEX_ASC_KEY_ID")
+    issuer_id = require_env("APEX_ASC_ISSUER_ID")
+    key_path = File.join(KEY_DIR, "AuthKey_#{key_id}.p8")
+    UI.user_error!("no API key at #{key_path} (downloaded once from App Store Connect)") unless File.file?(key_path)
+
+    build_number = sh("git -C .. rev-list --count HEAD", log: false).strip
+    version = marketing_version
+    UI.header("TestFlight — #{version} (build #{build_number}) — #{dry_run ? 'dry run: export only' : 'upload'}")
+
+    # The anon key the Release build bakes in (git-ignored, per worktree).
+    sh("cd .. && (scripts/secrets.sh --check >/dev/null 2>&1 || scripts/secrets.sh)")
+    sh("cd .. && ([ -d Apex.xcodeproj ] || xcodegen generate)")
+
+    api_key = app_store_connect_api_key(key_id: key_id, issuer_id: issuer_id, key_filepath: key_path)
+
+    # xcodebuild's own authentication for -allowProvisioningUpdates on the
+    # ARCHIVE: gym passes the api_key to xcodebuild only for the export step,
+    # so the archive gets these on xcargs (as testflight.sh does) and the
+    # export must not — a second -authenticationKeyPath is a hard error.
+    auth = [
+      "-allowProvisioningUpdates",
+      "-authenticationKeyPath #{key_path.shellescape}",
+      "-authenticationKeyID #{key_id}",
+      "-authenticationKeyIssuerID #{issuer_id}",
+    ].join(" ")
+
+    build_app(
+      project: "Apex.xcodeproj",
+      scheme: "Apex",
+      configuration: "Release",
+      # gym spells the method the pre-Xcode-15.4 way and translates it.
+      export_method: "app-store",
+      archive_path: "build/Apex-#{build_number}.xcarchive",
+      output_directory: "build/export-#{build_number}",
+      output_name: "Apex-#{build_number}.ipa",
+      xcargs: "#{auth} CURRENT_PROJECT_VERSION=#{build_number}",
+      # The same options testflight.sh writes to its ExportOptions plist. The
+      # export always writes the .ipa to disk; pilot does the upload, so one
+      # credential path covers both and a dry run is just "stop here".
+      export_options: {
+        teamID: TEAM_ID,
+        signingStyle: "automatic",
+        uploadSymbols: true,
+        manageAppVersionAndBuildNumber: false,
+        destination: "export",
+      },
+    )
+
+    if dry_run
+      UI.success("exported #{lane_context[SharedValues::IPA_OUTPUT_PATH]} (not uploaded)")
+      next
+    end
+
+    upload_to_testflight(
+      api_key: api_key,
+      ipa: lane_context[SharedValues::IPA_OUTPUT_PATH],
+      # Processing takes 5–15 minutes and the runner has nothing to do with
+      # the result; the build appears in TestFlight on its own.
+      skip_waiting_for_build_processing: true,
+      changelog: options[:changelog].to_s.empty? ? nil : options[:changelog].to_s,
+    )
+    UI.success("uploaded #{version} (build #{build_number}) — App Store Connect takes 5–15 minutes to process it")
+  end
+end

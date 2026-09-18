@@ -89,6 +89,23 @@ Gates: W0→W2, W3→W4, W5a/b→W6, W8→W9, W4→W12. Parallel: W0 ∥ W1; W3 
 W10 ∥ W7/W9; W12 ∥ W7–W11. Migrations: only W11 (`provider_connections.client`, possibly FK
 cascades for account deletion). Current state: [STATUS.md](STATUS.md).
 
+## Release cadence
+
+TestFlight builds expire **90 days after upload**, and an expired build is an app the
+testers cannot open. Ship a new one at least every 60 days, and after any merge worth
+testing on a phone:
+
+```bash
+gh workflow run testflight.yml            # no local steps; needs the three ASC_* secrets
+ios/scripts/testflight.sh                 # the same release from a Mac worktree
+```
+
+Both stamp the build number from `git rev-list --count HEAD` (D-034) and read
+`MARKETING_VERSION` from `ios/project.yml` — bump that when a release carries a workstream.
+The workflow needs `ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_KEY_P8_BASE64` in the repository's
+Actions secrets; the App Store Connect API key behind them never expires, but a revoked or
+re-created key means re-setting all three. Details: [testing-and-ci.md](testing-and-ci.md#testflight).
+
 ## Backlog (deferred on purpose — do not lose these)
 
 - Rest timer between sets (D-015)
@@ -124,3 +141,5 @@ cascades for account deletion). Current state: [STATUS.md](STATUS.md).
 
 - 2026-09-02 — v1. Plan created; all twelve design questions answered by Shane; monorepo
   decided; roadmap W0–W13.
+- 2026-09-17 — W13: "Release cadence" section (90-day TestFlight expiry, the workflow and
+  its three secrets).

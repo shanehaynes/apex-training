@@ -52,3 +52,7 @@ ios/Packages/*/.swiftpm/
 ios/Config/Secrets.xcconfig
 ios/Config/*.local.xcconfig
 ios/Config/appstoreconnect.env
+# fastlane writes these next to the Fastfile on every run
+ios/fastlane/report.xml
+ios/fastlane/README.md
+ios/fastlane/test_output/
