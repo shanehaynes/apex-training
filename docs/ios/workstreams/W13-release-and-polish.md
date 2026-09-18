@@ -59,7 +59,7 @@ Out: anything on the Backlog.
     Code" — the smoke's `type(_:into:)` landed one "C", its delete was dropped too, and the
     retyped name passed a *suffix* check. An exact-value rewrite of the helper failed two other
     legs locally with a message the new code cannot emit (a stale test bundle, most likely), so it
-    was withdrawn — the hardening is a follow-up, not this PR. The `ios` job is not a required
+    was withdrawn — the hardening landed as #195 (below). The `ios` job is not a required
     check (`check`, `e2e-mock`, `full` are).
   - **D — polish (#194).** Haptics per design-spec §9 (the tracker and coach already had four of five;
     `.selection` on `ApexSegmented`, `ChipPicker`, `MultiChipRow`; `.success` on sheet/day-card
@@ -71,5 +71,15 @@ Out: anything on the Backlog.
     slide gated. VoiceOver: an audit script over every `Button`/`Menu` with an icon-only label
     found each carries `accessibilityLabel`. `ux-improvements.md` gained a Status column with
     evidence per row; nothing moved to Backlog.
+  - **Follow-up — `type(_:into:)` hardened (#195).** Success is the exact value (`after ==
+    base + text`, case-insensitive; `base` is `before` only while `after` still starts with it,
+    since an empty field reads back its placeholder; secure fields by bullet count). The value is
+    waited on (`XCTWaiter`, 3 s) after the type and after each erase, since the read lags
+    keystrokes on a starved runner; the erase is proven back to `before` before the retype,
+    re-erased three times at most; the `XCTFail` carries the read-back value. Proven on the
+    iPhone 17 with a fresh `-derivedDataPath`: You, Coach key, Builder, Tile builder, Onboarding,
+    Library legs. Trap: the earlier attempt's "message the new code cannot emit" was a stale
+    `ApexUITests` bundle under `ios/build/dd` — clear its test products (or use a fresh
+    derived-data path) before trusting a local result.
   - Not done: the optional favicon web PR (Backlog in MASTER); the App Store submission itself
     (console work, `app-store.md`); the end-to-end proof of the workflow (needs the secrets).
