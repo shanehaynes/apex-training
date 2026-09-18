@@ -489,29 +489,63 @@ final class SmokeUITests: XCTestCase {
     /// Taps a field and types once it has keyboard focus — a type sent a beat
     /// early fails with "Neither element nor any descendant has keyboard focus"
     /// on a starved runner (the `testCoachKeySetupOnFixtures` flake). Then it
-    /// reads the field back: the simulator's keyboard drops keystrokes under
-    /// the same starvation (a token minted as "Claud"), and its first-show
-    /// "slide to type" tip swallows them outright, so what did not land is
-    /// erased and typed again, twice at most.
+    /// waits for the field to read back exactly what it should: the simulator's
+    /// keyboard drops keystrokes under the same starvation (a token minted as
+    /// "Claud"), its first-show "slide to type" tip swallows them outright, and
+    /// the read itself can lag the keystrokes. What did land is erased, the
+    /// erase is proven before the retype — a dropped delete once minted
+    /// "CClaude Code", and a suffix check accepted it — and the text is typed
+    /// again, twice at most.
     private func type(_ text: String, into field: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(field.waitForExistence(timeout: 10), "missing field: \(field)", file: file, line: line)
+        let secure = field.elementType == .secureTextField
+        // An empty field reads back its placeholder, so typing either extends
+        // `before` (text) or replaces it (a placeholder): the base is `before`
+        // only while the value still starts with it.
         let before = field.value as? String ?? ""
-        for _ in 0..<3 {
-            for _ in 0..<3 {
-                field.tap()
-                let focused = NSPredicate { object, _ in (object as? XCUIElement)?.value(forKey: "hasKeyboardFocus") as? Bool == true }
-                if XCTWaiter().wait(for: [expectation(for: focused, evaluatedWith: field)], timeout: 3) == .completed { break }
-            }
-            field.typeText(text)
-            let after = field.value as? String ?? ""
-            // Erase only what this attempt added; an empty field reads back its placeholder.
-            let landed = after.hasPrefix(before) ? after.count - before.count : (after == before ? 0 : after.count)
-            // A secure field reads back bullets, so it is judged by count; autocorrect may recase the rest.
-            let whole = field.elementType == .secureTextField ? landed == text.count : after.lowercased().hasSuffix(text.lowercased())
-            if whole { return }
-            if landed > 0 { field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: landed)) }
+        func read() -> String { field.value as? String ?? "" }
+        func base(of value: String) -> String { value.hasPrefix(before) ? before : "" }
+        // A secure field reads back bullets, so it is judged by count; autocorrect may recase the rest.
+        func whole(_ value: String) -> Bool {
+            secure ? value.count == base(of: value).count + text.count : value.lowercased() == (base(of: value) + text).lowercased()
         }
-        XCTFail("typing \"\(text)\" into \(field) never landed whole", file: file, line: line)
+        // The value can lag the keystrokes on a starved runner: give it a moment to settle.
+        func settles(_ predicate: @escaping (String) -> Bool) -> Bool {
+            let matches = NSPredicate { object, _ in predicate((object as? XCUIElement)?.value as? String ?? "") }
+            return XCTWaiter().wait(for: [expectation(for: matches, evaluatedWith: field)], timeout: 3) == .completed
+        }
+        // A tap on a field that already holds text would move the cursor, so it is sent only to win focus.
+        func focus() {
+            let focused = NSPredicate { object, _ in (object as? XCUIElement)?.value(forKey: "hasKeyboardFocus") as? Bool == true }
+            for _ in 0..<3 {
+                if focused.evaluate(with: field) { return }
+                field.tap()
+                if XCTWaiter().wait(for: [expectation(for: focused, evaluatedWith: field)], timeout: 3) == .completed { return }
+            }
+        }
+
+        var after = before
+        for _ in 0..<3 {
+            focus()
+            field.typeText(text)
+            if settles(whole) { return }
+            after = read()
+            if whole(after) { return }
+            // Erase what this attempt added and prove the field is back to `before` before typing again.
+            var erased = false
+            for _ in 0..<3 {
+                let landed = after.count - base(of: after).count
+                if landed > 0 {
+                    focus()
+                    field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: landed))
+                }
+                if settles({ $0 == before }) { erased = true; break }
+                after = read()
+                if after == before { erased = true; break }
+            }
+            if !erased { break }
+        }
+        XCTFail("typing \"\(text)\" into \(field) never landed whole: it reads \"\(read())\" (was \"\(before)\")", file: file, line: line)
     }
 
     /// Taps a control and waits for what it should open, re-sending the tap

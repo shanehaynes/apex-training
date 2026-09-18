@@ -51,6 +51,10 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-17 · smoke · #195: `type(_:into:)` judges the exact value (base + text, placeholder-aware,
+  bullets by count), waits for the value to settle after typing and after each erase, and proves
+  the erase before retyping — the "CClaude Code" CI trap from #193. Six typing legs proven on the
+  iPhone 17 from a fresh derived-data path (a stale `ios/build/dd` test bundle sank the first try).
 - 2026-09-17 · W13 · Four PRs, independent, from three worktrees. **A** #190 (HELD):
   `ios/fastlane/Fastfile` `beta` lane + `.github/workflows/testflight.yml` (`workflow_dispatch`,
   three secrets, build number = `git rev-list --count`, D-034); MASTER "Release cadence";
