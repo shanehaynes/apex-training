@@ -22,21 +22,16 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W10 | Library, Blocks, Meals | done (#184–#188) | both | TestFlight build 7 (0.8.0/353) uploaded 2026-09-17; device acceptance is Shane's |
 | W11 | Profile, integrations, account | done (#149, #157) | both | on TestFlight build 6; phase41 in prod (2026-09-16); device runs are Shane's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
-| W13 | Release + polish | #191, #194 done; #193 in review; #190 HELD | Mac | App Store gate: Shane fills the console (app-store.md) and adds the three ASC secrets |
+| W13 | Release + polish | done (#190, #191, #193, #194) | Mac | App Store gate: Shane fills the console (app-store.md) and adds the three ASC secrets |
 
 ## Next up
-1. W13 (2026-09-17): #191 and #194 landed through the babysitter. **#193 (onboarding) is green on
-   every required check but Vercel's preview deploy failed with "Deployment rate limited — retry in
-   24 hours", and the babysitter counts any failing check** — Shane merges it by hand, or re-runs
-   the Vercel check after the limit clears and the babysitter takes it. #190 (release engineering,
-   HELD) is current with `main` and no longer touches `decisions.md` (D-034 rides in #193), so it
-   has no conflict left: grant it `shipit`. Then, in this order: add the
-   three Actions secrets (`ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_BASE64` — #190's body; the
-   lane itself is proven — a signed dry-run export on this Mac), run
-   `gh workflow run testflight.yml` for build 8 (0.9.0 once the four PRs are in — bump
-   `MARKETING_VERSION`), fill App Store Connect from `docs/ios/app-store.md` (App Privacy, the
-   demo account with a saved key, the review notes, the 6.9" screenshots — regenerate on a quiet
-   machine or take device shots), submit.
+1. W13 landed (#190, #191, #193, #194 — all merged 2026-09-17/18) and the three `ASC_*` Actions
+   secrets are set (2026-09-18). **Next: the first workflow release** — `gh workflow run
+   testflight.yml` on `main` ships 0.9.0 at the commit count; it uploads to Apple, so it runs on
+   Shane's go. Then the console work in [app-store.md](app-store.md): App Privacy, the demo
+   account with a saved key, the review notes, the 6.9" screenshots
+   (`ios/scripts/screenshots.sh 'iPhone 17 Pro Max'` from any worktree — the earlier set died with
+   its worktree), submit. Open follow-up: the smoke's `type(_:into:)` hardening (a session is on it).
 2. Shane's device runs on TestFlight build 6 (0.7.0/324, carries W9's Analytics tab and W11's
    You tab): W9 (reorder and resize on the phone → the web dashboard shows the new `y/h`; a spec
    the web rejects shows the server's message in the builder; the coach drawer on a real key) and
