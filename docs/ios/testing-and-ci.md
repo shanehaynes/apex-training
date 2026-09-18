@@ -155,10 +155,29 @@ rule people remember.
    and separate from the App ID — an **App Store Connect app record** for that bundle id, or
    the upload is rejected.
 
-3. Later, if this ever needs to run in CI: `.github/workflows/testflight.yml` on
-   `workflow_dispatch` (HELD), calling the same script with the key from repo secrets and
-   `github.run_number` as the build number.
-4. Builds expire after 90 days — W13 sets a release cadence note in MASTER.md.
+3. **From GitHub, with no local steps** (W13): `.github/workflows/testflight.yml` on
+   `workflow_dispatch` calls `ios/fastlane/Fastfile`'s `beta` lane — archive and export with
+   the API key signing (`-allowProvisioningUpdates`), then `upload_to_testflight`.
+
+   ```bash
+   gh workflow run testflight.yml                      # main
+   gh workflow run testflight.yml --ref <branch>       # a branch
+   gh workflow run testflight.yml -f changelog="…"     # a What to Test note
+   ```
+
+   It needs three repository secrets, all from the same API key the script uses
+   (Settings → Secrets and variables → Actions): `ASC_KEY_ID`, `ASC_ISSUER_ID`, and
+   `ASC_KEY_P8_BASE64` (`base64 -i ~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8 |
+   tr -d '\n'`). The job fails at its first step naming whichever is missing. The lane
+   runs on a Mac too — `cd ios && fastlane beta dry_run:true` archives and exports without
+   uploading — reading the ids from the environment or `ios/Config/appstoreconnect.env`.
+
+   The build number is `git rev-list --count HEAD` in both paths, not the workflow's run
+   number ([D-034](decisions.md#d-034--the-workflows-build-number-is-the-commit-count-not-the-run-number)).
+   The workflow and the Fastfile are HELD paths / release automation: Shane merges changes
+   to them with the `shipit` label.
+4. Builds expire 90 days after upload — the cadence note is in
+   [MASTER.md](MASTER.md#release-cadence).
 
 ## App Store gate (W13)
 

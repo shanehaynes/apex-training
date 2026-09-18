@@ -1,0 +1,6 @@
+# fastlane's per-app constants. Neither is secret; both are also in
+# ios/project.yml (PRODUCT_BUNDLE_IDENTIFIER, DEVELOPMENT_TEAM), which stays
+# the source of truth for the build — this file only tells pilot which App
+# Store Connect record the upload belongs to.
+app_identifier("com.shanehaynes.apextraining")
+team_id("G44GWSXFK2")
