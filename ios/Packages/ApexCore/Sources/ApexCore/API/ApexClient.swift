@@ -147,6 +147,13 @@ public actor ApexClient {
         }
         do {
             _ = try await tokens.refresh()
+        } catch let error as URLError {
+            // A refresh the network never delivered says nothing about the
+            // session. Signing out here wipes the Keychain for every user
+            // whenever the auth host is unreachable — a paused Supabase would
+            // sign the fleet out — so this is a network failure, same as
+            // `accessToken()` treats it.
+            throw APIError.network("\(error)")
         } catch {
             await tokens.signOut()
             throw APIError.unauthorized
