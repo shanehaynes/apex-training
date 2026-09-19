@@ -34,6 +34,11 @@ export const ENV_KEYS = [
   // Bearer token guarding /api/review-cron and /api/provider-cron. Vercel
   // project env (Vercel sends it on cron runs); locally only to curl a cron.
   'CRON_SECRET',
+  // Optional HTTP endpoint every unhandled API error is POSTed to
+  // (errorReport.ts) — a Sentry ingest URL, a chat webhook, anything that
+  // takes a POST. Vercel project env; unset means log-only, which is what
+  // local dev, e2e and previews want.
+  'APEX_ERROR_WEBHOOK_URL',
   // Gmail address review emails are sent from (also the From). Vercel project
   // env; `.env.local` only to test mail delivery.
   'GMAIL_USER',

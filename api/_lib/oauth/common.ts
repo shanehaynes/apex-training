@@ -50,18 +50,31 @@ export function publicOrigin(req: VercelRequest): string {
   return normalizeOrigin(optionalEnv('VITE_PUBLIC_ORIGIN')) ?? requestOrigin(req);
 }
 
+/**
+ * VITE_PUBLIC_ORIGIN, if it is set to a usable origin; undefined otherwise.
+ *
+ * The answer publicOrigin() would use before falling back to the request
+ * host, without a request to fall back to — which is what health.ts needs to
+ * publish `publicOrigin: bool` on /api/version. Quiet on purpose: an uptime
+ * monitor probes /api/version every few minutes, and a warning per probe
+ * would bury the rest of an hour's log retention.
+ */
+export function configuredPublicOrigin(): string | undefined {
+  return normalizeOrigin(optionalEnv('VITE_PUBLIC_ORIGIN'), true);
+}
+
 /** Origin part of a configured URL, or undefined if it isn't a usable one. */
-function normalizeOrigin(value: string | undefined): string | undefined {
+function normalizeOrigin(value: string | undefined, quiet = false): string | undefined {
   if (!value) return undefined;
   let url: URL;
   try {
     url = new URL(value);
   } catch {
-    console.warn(`[oauth] VITE_PUBLIC_ORIGIN is not a URL: ${value} — falling back to the request host`);
+    if (!quiet) console.warn(`[oauth] VITE_PUBLIC_ORIGIN is not a URL: ${value} — falling back to the request host`);
     return undefined;
   }
   if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-    console.warn(`[oauth] VITE_PUBLIC_ORIGIN is not http(s): ${value} — falling back to the request host`);
+    if (!quiet) console.warn(`[oauth] VITE_PUBLIC_ORIGIN is not http(s): ${value} — falling back to the request host`);
     return undefined;
   }
   return url.origin;

@@ -34,6 +34,7 @@ import blockCycle from './handlers/blockCycle.js';
 import { handleTrainingBlocks } from './trainingBlocks.js';
 import { handleMeals } from './meals.js';
 import { handleMealFavorites } from './mealFavorites.js';
+import { reportError } from './errorReport.js';
 
 // All consolidated /api/* routes live here, served by the single catch-all
 // function api/[...path].ts — the Vercel Hobby plan caps a deployment at 12
@@ -48,10 +49,27 @@ import { handleMealFavorites } from './mealFavorites.js';
 type NodeHandler = (req: VercelRequest, res: VercelResponse) => void | Promise<void>;
 type Env = { Bindings: { incoming: VercelRequest; outgoing: VercelResponse } };
 
+// Every consolidated route's errors funnel through here — the one place the
+// API has that sees an unhandled throw. reportError logs a structured,
+// grep-able line and, when APEX_ERROR_WEBHOOK_URL is set, forwards it
+// (errorReport.ts explains why that rather than an SDK). The error is then
+// rethrown unchanged: the seam observes, it does not change what a caller
+// sees, so a handler that throws still produces exactly the 500 it did
+// before. Standalone functions (api/chat.ts, calendar-feed.ts,
+// review-cron.ts) do not pass through here — the same reason /api/version's
+// fields are a body, not a header.
 const bridge =
   (h: NodeHandler, patch?: (req: VercelRequest) => void) => async (c: Context<Env>) => {
     if (patch) patch(c.env.incoming);
-    await h(c.env.incoming, c.env.outgoing);
+    try {
+      await h(c.env.incoming, c.env.outgoing);
+    } catch (err) {
+      await reportError(err, {
+        route: new URL(c.req.url).pathname,
+        method: c.env.incoming.method,
+      });
+      throw err;
+    }
     return RESPONSE_ALREADY_SENT;
   };
 

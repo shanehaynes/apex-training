@@ -14,8 +14,9 @@ on:
     branches: [main]
   # Nightly supervisor run: prove main is still green from scratch — the full
   # job rebuilds the database from every migration, so this also catches
-  # anything that only breaks on a clean build. The evals job runs only here
-  # (and on manual dispatch), not per-PR: it spends real API tokens.
+  # anything that only breaks on a clean build. Two jobs run only here (and on
+  # manual dispatch), not per-PR: evals, which spends real API tokens, and
+  # prod-checks, which probes production over the network.
   schedule:
     - cron: '0 10 * * *'
   workflow_dispatch:
@@ -185,6 +186,71 @@ jobs:
           name: ios-results
           path: ios/build/Apex.xcresult
           retention-days: 7
+
+  # Production probes. Nightly/manual only: they read PRODUCTION over the
+  # network, so a per-PR run would be dozens of pointless round-trips a day
+  # against a free-tier project, and a Supabase outage would turn every open
+  # PR red for something no branch did.
+  #
+  # Both checks answer questions no commit and no test can: production's
+  # database is migrated by hand in the Supabase SQL Editor, and its auth
+  # redirects live in a dashboard. On 2026-09-15 production was missing three
+  # migrations while /api/version reported current code, and before that every
+  # invited user met Vercel's SSO wall instead of the app.
+  #
+  # Exit codes are the contract (both scripts document them): 1 is drift and
+  # fails this job; 2 is "could not look" — paused project, no credentials,
+  # DNS — which is an outage, not a regression, so it stays green and says so
+  # as a notice. The same split scripts/supervisor-report.sh uses.
+  #
+  # NOTE: .github/workflows/supervisor.yml runs both of these too, through the
+  # sweep, and files an issue. This job is the tighter loop — it fails the
+  # nightly CI run directly; the sweep is the one that opens the issue.
+  prod-checks:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # prod-schema-check.mjs compares production against database.types.ts as
+      # of origin/main, read out of git rather than the working tree.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      # No `npm ci`: both scripts use node: builtins and curl only.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Production database schema
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          node scripts/prod-schema-check.mjs && rc=0 || rc=$?
+          case "$rc" in
+            0) ;;
+            2) echo "::notice::Production schema not checked (no credentials, or the project was unreachable). Add the VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY repository secrets if this keeps happening." ;;
+            1) echo "::error::Production's database is missing objects main's code uses — apply the migrations named above in the Supabase SQL Editor."; exit 1 ;;
+            *) echo "::error::scripts/prod-schema-check.mjs exited $rc — the schema was not checked."; exit 1 ;;
+          esac
+
+      # Always runs, even when the schema check just failed: the two are
+      # independent, and learning about both in one run beats two nights.
+      - name: Production auth configuration
+        if: always()
+        env:
+          # The script defaults to the production project and needs no key for
+          # its redirect checks; the URL is passed so the probe follows the
+          # secret rather than a value baked into the script.
+          APEX_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+        run: |
+          scripts/auth-redirect-check.sh && rc=0 || rc=$?
+          case "$rc" in
+            0) ;;
+            2) echo "::notice::Supabase was unreachable — auth configuration not checked this run." ;;
+            1) echo "::error::Production's Supabase auth configuration is wrong — see the output above and DEPLOY_MULTI_USER.md step 1."; exit 1 ;;
+            *) echo "::error::scripts/auth-redirect-check.sh exited $rc — the auth configuration was not checked."; exit 1 ;;
+          esac
 
   # Coach eval suite (deterministic checkers + LLM judge). Nightly/manual
   # only — it calls the Anthropic API, so per-PR runs would spend tokens on
