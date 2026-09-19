@@ -47,4 +47,22 @@ public struct GRDBCacheStore: CacheStore {
             try db.execute(sql: "DELETE FROM cache WHERE kind = ?", arguments: [kind.rawValue])
         }
     }
+
+    public func delete(kind: CacheKind, key: String) async throws {
+        try await pool.write { db in
+            try db.execute(
+                sql: "DELETE FROM cache WHERE kind = ? AND key = ?",
+                arguments: [kind.rawValue, key]
+            )
+        }
+    }
+
+    public func purge(kind: CacheKind, fetchedBefore cutoff: Date) async throws {
+        try await pool.write { db in
+            try db.execute(
+                sql: "DELETE FROM cache WHERE kind = ? AND fetched_at < ?",
+                arguments: [kind.rawValue, cutoff.timeIntervalSince1970]
+            )
+        }
+    }
 }

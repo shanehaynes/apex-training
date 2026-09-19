@@ -48,6 +48,40 @@ final class PersistenceTests: XCTestCase {
         XCTAssertNotNil(blocks)
     }
 
+    /// #221: cancelling one workout deleted every cached tracker bootstrap,
+    /// including the prefetch for tomorrow's.
+    func testDeleteRemovesOneRowAndLeavesTheRestOfTheKind() async throws {
+        let store = try makeStore()
+        let now = Date(timeIntervalSince1970: 1_790_078_400)
+        try await store.write(CacheEntry(kind: .trackerBootstrap, key: "e1__2026-09-22", json: Data("a".utf8), fetchedAt: now))
+        try await store.write(CacheEntry(kind: .trackerBootstrap, key: "e2__2026-09-23", json: Data("b".utf8), fetchedAt: now))
+
+        try await store.delete(kind: .trackerBootstrap, key: "e1__2026-09-22")
+
+        let cancelled = try await store.read(kind: .trackerBootstrap, key: "e1__2026-09-22")
+        let tomorrow = try await store.read(kind: .trackerBootstrap, key: "e2__2026-09-23")
+        XCTAssertNil(cancelled)
+        XCTAssertNotNil(tomorrow)
+    }
+
+    func testAgeSweepDropsOnlyOldRowsOfThatKind() async throws {
+        let store = try makeStore()
+        let now = Date(timeIntervalSince1970: 1_790_078_400)
+        let cutoff = now.addingTimeInterval(-CachePolicy.trackerBootstrapRetention)
+        try await store.write(CacheEntry(kind: .trackerBootstrap, key: "old", json: Data("a".utf8), fetchedAt: cutoff.addingTimeInterval(-60)))
+        try await store.write(CacheEntry(kind: .trackerBootstrap, key: "fresh", json: Data("b".utf8), fetchedAt: now))
+        try await store.write(CacheEntry(kind: .profile, key: "me", json: Data("c".utf8), fetchedAt: cutoff.addingTimeInterval(-60)))
+
+        try await store.purge(kind: .trackerBootstrap, fetchedBefore: cutoff)
+
+        let old = try await store.read(kind: .trackerBootstrap, key: "old")
+        let fresh = try await store.read(kind: .trackerBootstrap, key: "fresh")
+        let profile = try await store.read(kind: .profile, key: "me")
+        XCTAssertNil(old)
+        XCTAssertNotNil(fresh)
+        XCTAssertNotNil(profile)
+    }
+
     func testMissingKeyReadsAsNil() async throws {
         let store = try makeStore()
         let read = try await store.read(kind: .mealsWindow, key: "nope")
