@@ -60,15 +60,3 @@ public struct UpdateRequiredView: View {
         .accessibilityIdentifier("update.required")
     }
 }
-
-#Preview {
-    UpdateRequiredView(
-        message: UpdateRequiredPreviewCopy.message,
-        appStore: URL(string: "https://apps.apple.com/app/id0000000000")
-    )
-    .preferredColorScheme(.dark)
-}
-
-enum UpdateRequiredPreviewCopy {
-    static let message = "This version of Apex is out of date and can no longer sync. Update to keep training."
-}
