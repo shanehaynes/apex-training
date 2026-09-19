@@ -103,6 +103,11 @@ public actor ChatSession {
     /// The stored tool_result row being grown across settles, if any.
     private var toolResultRow: StoredMessage?
     private var streamTask: Task<Void, Never>?
+    /// Which thread the session is on, as a number that only ever goes up.
+    /// `load` and `startNewConversation` bump it; a stream task captures the
+    /// value it started under, so a task they cancelled can tell — whenever it
+    /// finally wakes — that the conversation it was streaming into is gone.
+    private var epoch = 0
     private var subscribers: [UUID: AsyncStream<Event>.Continuation] = [:]
 
     public init(
@@ -173,6 +178,7 @@ public actor ChatSession {
     public func load(conversationId: String) async {
         guard let store else { return }
         stop()
+        epoch += 1
         guard let stored = try? await store.conversation(id: conversationId) else { return }
         let rows = (try? await store.messages(in: conversationId)) ?? []
         conversation = stored
@@ -210,6 +216,7 @@ public actor ChatSession {
     /// abandoned "new" never litters the list.
     public func startNewConversation() {
         stop()
+        epoch += 1
         conversation = nil
         apiMessages = []
         messages = []
@@ -279,6 +286,13 @@ public actor ChatSession {
     public func stop() {
         streamTask?.cancel()
     }
+
+    /// Is the turn that started at `turnEpoch` still the session's? A stopped
+    /// stream can wake long after `load` / `startNewConversation` moved on, and
+    /// everything it would do then — a delta, a stored partial, `.idle` over
+    /// the state `load` just derived — lands on the thread the user opened
+    /// instead of the one it was streaming. When this is false it does nothing.
+    private func isCurrent(_ turnEpoch: Int) -> Bool { turnEpoch == epoch }
 
     // MARK: - Draft tools (builder / analytics)
 
@@ -405,6 +419,7 @@ public actor ChatSession {
             mode: config.mode, messages: ActionQueue.historyWindow(apiMessages), withTools: withTools,
             today: config.today(), draft: config.draft, model: config.model
         )
+        let turnEpoch = epoch
         let task = Task { [client] in
             var text = ""
             var toolUses: [ToolUseBlock] = []
@@ -414,7 +429,7 @@ public actor ChatSession {
                     switch event {
                     case .text(let delta):
                         text += delta
-                        self.setPartial(text)
+                        if self.isCurrent(turnEpoch) { self.setPartial(text) }
                     case .toolUse:
                         if let block = ToolUseBlock(event) { toolUses.append(block) }
                     case .done:
@@ -423,12 +438,14 @@ public actor ChatSession {
                         throw APIError.server(status: 200, message: message)
                     }
                 }
+                guard self.isCurrent(turnEpoch) else { return }
                 if Task.isCancelled {
                     await self.finishStopped(partial: text)
                 } else {
                     await self.finishStream(text: text, toolUses: toolUses, withTools: withTools)
                 }
             } catch {
+                guard self.isCurrent(turnEpoch) else { return }
                 if Task.isCancelled {
                     await self.finishStopped(partial: text)
                 } else {

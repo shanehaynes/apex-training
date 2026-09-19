@@ -410,6 +410,55 @@ final class ChatSessionTests: XCTestCase {
         XCTAssertEqual(folds[0].apiContent?.blocks?.count, 2)
     }
 
+    /// A conversation switch mid-stream. The cancelled turn belongs to the
+    /// thread it was streaming into, and must not follow the user to the one
+    /// they just opened: nothing of it is stored under the new id, its `.idle`
+    /// does not stomp the card `load` just derived, and its last delta does not
+    /// land in the new thread's partial.
+    func testSwitchingConversationMidStreamDropsTheAbandonedTurn() async throws {
+        let store = MemoryConversationStore()
+        // A thread with a card still waiting — the one the user switches to.
+        let seeding = makeSession(ScriptedTransport([.ndjson(try fixtureLines)]), store: store)
+        await seeding.send("skip next week")
+        let u200 = await seeding.conversation?.id
+        let pendingId = try XCTUnwrap(u200)
+
+        let gate = Gate()
+        let transport = ScriptedTransport([.ndjson(text("Clearing ", done: false), holdOpen: gate)])
+        let session = makeSession(transport, store: store)
+        let sending = Task { await session.send("hi") }
+        let p1 = await waitUntil { await session.partial == "Clearing " }
+        XCTAssertTrue(p1)
+        let u201 = await session.conversation?.id
+        let abandonedId = try XCTUnwrap(u201)
+
+        await session.load(conversationId: pendingId)
+        await sending.value
+        await gate.open()
+
+        // Nothing of it was written to the thread now open…
+        let opened = try await store.messages(in: pendingId)
+        XCTAssertEqual(opened.map(\.kind), [.turn, .turn])
+        XCTAssertEqual(opened.map(\.displayText), ["skip next week", "Clearing it. "])
+        // …and the thread it was streaming into kept only the user's own row.
+        let abandoned = try await store.messages(in: abandonedId)
+        XCTAssertEqual(abandoned.map(\.displayText), ["hi"])
+
+        let p2 = await session.messages.map(\.text)
+        XCTAssertEqual(p2, ["skip next week", "Clearing it. "])
+        let p3 = await session.partial
+        XCTAssertEqual(p3, "")
+        let p4 = await session.conversation?.id
+        XCTAssertEqual(p4, pendingId)
+        let p5 = await waitUntil { await transport.streamCancellations == 1 }
+        XCTAssertTrue(p5)
+        // The card survives: the abandoned turn did not set `.idle` over it.
+        guard case .awaitingConfirmation(let head, 1, 1) = await session.state else {
+            return XCTFail("expected the loaded card, got \(await session.state)")
+        }
+        XCTAssertEqual(head.displayLabel, fixtureLabel)
+    }
+
     // MARK: - Errors → inline states
 
     func test402ProducesANoticeAndBlocksUntilAKeyIsAdded() async throws {
