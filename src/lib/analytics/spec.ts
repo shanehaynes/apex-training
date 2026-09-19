@@ -209,11 +209,22 @@ const MEAL_TYPE_VALUES: readonly MealType[] = ['breakfast', 'lunch', 'dinner', '
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 export const MAX_ROLLING_DAYS = 1830; // ~5 years
+const MS_PER_DAY = 86_400_000;
 export const DEFAULT_GROUP_LIMIT = 6;
 export const MAX_GROUP_LIMIT = 12;
 
 const isStringArrayOf = <T extends string>(v: unknown, allowed: readonly T[]): v is T[] =>
   Array.isArray(v) && v.every(x => typeof x === 'string' && (allowed as readonly string[]).includes(x));
+
+/**
+ * Days spanned by a half-open YYYY-MM-DD range. NaN when a string matches
+ * DATE_PATTERN but is not a parseable date ('9999-99-99'), which is why the
+ * caller checks Number.isFinite before the cap: an unparseable span must not
+ * slip past it as a silently-false comparison.
+ */
+export function rangeSpanDays(startDate: string, endDateExclusive: string): number {
+  return (Date.parse(`${endDateExclusive}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`)) / MS_PER_DAY;
+}
 
 /**
  * Every violation in one instructive message, or null for a valid spec.
@@ -244,6 +255,13 @@ export function specProblem(spec: ChartSpec): string | null {
       problems.push('fixed range needs YYYY-MM-DD startDate and endDateExclusive');
     } else if (r.startDate >= r.endDateExclusive) {
       problems.push('fixed range must start before it ends');
+    } else {
+      // Same ceiling as a rolling range: unbounded here would defeat
+      // unionWindow, which widens the dashboard's single fetch to the
+      // largest range any tile asks for.
+      const days = rangeSpanDays(r.startDate, r.endDateExclusive);
+      if (!Number.isFinite(days)) problems.push('fixed range needs real calendar dates');
+      else if (days > MAX_ROLLING_DAYS) problems.push(`fixed range must span at most ${MAX_ROLLING_DAYS} days`);
     }
   } else if (r.kind === 'preset') {
     if (!PRESETS.includes(r.preset)) problems.push(`preset must be one of ${PRESETS.join(', ')}`);
