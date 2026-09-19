@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import handler from '../_lib/handlers/mcpTokens';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 import { enforceRateLimit } from '../_lib/rateLimit';
-import { sha256hex } from '../_lib/mcp/tokens';
+import { resolveMcpToken, sha256hex } from '../_lib/mcp/tokens';
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
 vi.mock('../_lib/auth.js', () => ({ requireUser: vi.fn(async () => 'user-123') }));
@@ -156,5 +156,74 @@ describe('DELETE /api/mcp-tokens — revoke', () => {
     const { res, statusCode } = makeRes();
     await handler(makeReq('DELETE'), res);
     expect(statusCode()).toBe(400);
+  });
+});
+
+// ─── Mint → resolve round trip ───────────────────────────────────────────────
+// A real (if tiny) mcp_tokens store, so the token the handler mints is the one
+// resolveMcpToken looks up — the expiry default is only worth something if the
+// resolution path actually enforces it.
+
+type Row = Record<string, unknown>;
+
+function makeStore(rows: Row[]) {
+  return {
+    from() {
+      const filters: Array<(r: Row) => boolean> = [];
+      let inserted: Row | null = null;
+      let head = false;
+      const match = (r: Row) => filters.every(f => f(r));
+      const api: Record<string, unknown> = {
+        select: (_cols?: string, opts?: { head?: boolean }) => {
+          if (opts?.head) head = true;
+          return api;
+        },
+        eq: (k: string, v: unknown) => { filters.push(r => r[k] === v); return api; },
+        is: (k: string, v: unknown) => { filters.push(r => (v === null ? r[k] == null : r[k] === v)); return api; },
+        // resolveMcpToken's expiry clause: "expires_at.is.null,expires_at.gt.<iso>"
+        or: (expr: string) => {
+          const gt = expr.match(/expires_at\.gt\.(.+)$/)?.[1];
+          filters.push(r => r.expires_at == null || (gt !== undefined && String(r.expires_at) > gt));
+          return api;
+        },
+        order: () => api,
+        update: () => api,
+        insert: (row: Row) => { inserted = { id: `tok-${rows.length + 1}`, ...row }; rows.push(inserted); return api; },
+        single: async () => ({ data: inserted, error: null }),
+        maybeSingle: async () => ({ data: rows.find(match) ?? null, error: null }),
+        then: (resolve: (v: unknown) => unknown) =>
+          Promise.resolve(head ? { count: rows.filter(match).length, error: null } : { data: rows.filter(match), error: null })
+            .then(resolve),
+      };
+      return api;
+    },
+  } as unknown as NonNullable<ReturnType<typeof getSupabaseAdmin>>;
+}
+
+const asReq = (token: string) =>
+  ({ headers: { authorization: `Bearer ${token}` } }) as unknown as VercelRequest;
+
+describe('a minted token expires', () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('resolves for a year, and not a day past it', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-19T00:00:00Z'));
+    const rows: Row[] = [];
+    const store = makeStore(rows);
+    mockedAdmin.mockReturnValue(store);
+
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('POST', { name: 'Laptop' }), res);
+    expect(statusCode()).toBe(200);
+    const { token } = body() as { token: string };
+
+    expect(rows[0].expires_at).toBe(new Date('2027-09-19T00:00:00Z').toISOString());
+
+    expect(await resolveMcpToken(store, asReq(token))).toBe('user-123');
+    vi.setSystemTime(new Date('2027-09-18T00:00:00Z'));
+    expect(await resolveMcpToken(store, asReq(token))).toBe('user-123');
+    vi.setSystemTime(new Date('2027-09-20T00:00:00Z'));
+    expect(await resolveMcpToken(store, asReq(token))).toBeNull();
   });
 });

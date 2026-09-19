@@ -10,6 +10,15 @@ import { generateMcpToken, sha256hex } from '../mcp/tokens.js';
 
 const MAX_ACTIVE_TOKENS = 10;
 const MAX_NAME_LENGTH = 60;
+/**
+ * Default lifetime for a freshly minted PAT. The column has always existed
+ * and resolveMcpToken has always honoured it — mint simply never set it, so
+ * every PAT was a bearer credential that outlived any plausible use. A year
+ * is long enough that a working setup is not a recurring chore, short enough
+ * that a leaked token stops working. Tokens minted before this stay
+ * non-expiring (expires_at null) until they are revoked.
+ */
+const TOKEN_TTL_DAYS = 365;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabase = getSupabaseAdmin();
@@ -90,6 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         token_hash: sha256hex(token),
         token_last4: token.slice(-4),
         name,
+        expires_at: new Date(Date.now() + TOKEN_TTL_DAYS * 86_400_000).toISOString(),
       })
       .select('id')
       .single();

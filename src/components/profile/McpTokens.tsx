@@ -132,7 +132,8 @@ export default function McpTokens({ onShowGuide }: Props) {
       {freshToken && (
         <p className="profile-hint">
           Copy this token now — it won't be shown again. Send it as{' '}
-          <code>Authorization: Bearer &lt;token&gt;</code>.
+          <code>Authorization: Bearer &lt;token&gt;</code>. It expires a year
+          from today; mint a new one then.
         </p>
       )}
 
