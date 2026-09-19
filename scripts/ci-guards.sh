@@ -40,6 +40,15 @@ node ios/scripts/gen-analytics-catalog.mjs --check
 # user something the laptop no longer says.
 node ios/scripts/gen-onboarding-catalog.mjs --check
 
+# The iOS dependency graph's transitive half. Direct versions are exact-pinned
+# in ios/project.yml and ApexKit's manifest; everything below them is decided by
+# resolution, which happens inside the git-ignored .xcodeproj (D-005). So
+# ios/Package.resolved is committed and ios/scripts/sync-package-resolved.sh
+# installs it before every build — which makes a stale file worse than none.
+# This proves it still agrees with the manifests. Warns rather than fails while
+# the file is absent: only a Mac can write the first one.
+node ios/scripts/check-package-resolved.mjs --check
+
 # Every class in a MainActor-default iOS target declares `nonisolated deinit`,
 # or its synthesized isolated deinit aborts on the iOS 17/18 runtime
 # (docs/ios/decisions.md D-031). CI's ios job runs iOS 26 only and cannot see

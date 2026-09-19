@@ -157,9 +157,34 @@ jobs:
             echo "no ios/ changes"
             echo "skip=1" >> "$GITHUB_ENV"
           fi
+      # The macos-26 image carries seven Xcodes and rotates which one is the
+      # default (it moved to 26.6 on 2026-07-21, and 27 is already on the image
+      # as a preview). A default that changes under us changes the compiler, the
+      # SDK and the simulator runtime with no commit of ours in between, so the
+      # version is a file in the repo. Bumping ios/.xcode-version is how the
+      # toolchain moves — deliberately, in a PR this job then proves.
+      #
+      # It must come after the checkout (it reads a repo file) and after the skip
+      # check, so a web-only PR still finishes in seconds.
+      - name: Select the pinned Xcode
+        if: env.skip != '1'
+        run: |
+          version=$(tr -d '[:space:]' < ios/.xcode-version)
+          app="/Applications/Xcode_${version}.app"
+          if [ ! -d "$app" ]; then
+            echo "::error::Xcode $version (ios/.xcode-version) is not on this runner image. Installed:"
+            ls -d /Applications/Xcode*.app
+            exit 1
+          fi
+          sudo xcode-select -s "$app/Contents/Developer"
+          xcodebuild -version
       - run: brew install xcodegen
         if: env.skip != '1'
       - run: xcodegen generate --spec ios/project.yml
+        if: env.skip != '1'
+      # The committed transitive resolution, in place before xcodebuild resolves
+      # the package graph. A no-op while ios/Package.resolved is absent.
+      - run: ios/scripts/sync-package-resolved.sh
         if: env.skip != '1'
       # CODE_SIGNING_ALLOWED=NO: a simulator build needs no identity, and the
       # runner has none. Local is the only configuration whose Supabase values
