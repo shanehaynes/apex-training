@@ -164,6 +164,15 @@ jobs:
       # CODE_SIGNING_ALLOWED=NO: a simulator build needs no identity, and the
       # runner has none. Local is the only configuration whose Supabase values
       # are committed, so it is the only one CI can build.
+      #
+      # -retry-tests-on-failure -test-iterations 2: a failed test is run once
+      # more and the suite passes if the second run does. The point is not the
+      # extra chance — the tests already had one, inside themselves, where
+      # nobody could see it (#192, #195: a starved runner drops a synthesized
+      # tap, so the helpers re-sent taps and a run that flaked still reported a
+      # clean pass). The retry belongs here because xcodebuild records it: the
+      # .xcresult marks the test "passed on retry", and that is the only place
+      # the real flake rate is visible.
       - name: Build and test
         if: env.skip != '1'
         run: |
@@ -174,6 +183,8 @@ jobs:
             -destination 'platform=iOS Simulator,name=iPhone 17' \
             -derivedDataPath ios/build/dd \
             -resultBundlePath ios/build/Apex.xcresult \
+            -retry-tests-on-failure \
+            -test-iterations 2 \
             CODE_SIGNING_ALLOWED=NO \
             test
       # The UI smoke signs in against a Supabase stack the runner does not have,
