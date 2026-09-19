@@ -408,6 +408,11 @@ public actor ChatSession {
         let task = Task { [client] in
             var text = ""
             var toolUses: [ToolUseBlock] = []
+            // `done` is the only proof the turn finished: a server-side cut
+            // (a Vercel timeout, a dropped connection closed gracefully) ends
+            // the byte stream without throwing, and would otherwise look
+            // exactly like a completed turn.
+            var sawDone = false
             do {
                 let events = try await client.wireEvents(for: request)
                 for try await event in events {
@@ -418,15 +423,17 @@ public actor ChatSession {
                     case .toolUse:
                         if let block = ToolUseBlock(event) { toolUses.append(block) }
                     case .done:
-                        break
+                        sawDone = true
                     case .error(let message):
                         throw APIError.server(status: 200, message: message)
                     }
                 }
                 if Task.isCancelled {
                     await self.finishStopped(partial: text)
-                } else {
+                } else if sawDone {
                     await self.finishStream(text: text, toolUses: toolUses, withTools: withTools)
+                } else {
+                    await self.finishTruncated(partial: text, withTools: withTools)
                 }
             } catch {
                 if Task.isCancelled {
@@ -487,6 +494,21 @@ public actor ChatSession {
             setState(.blocked(.rateLimited(until: clock.now.addingTimeInterval(retryAfter ?? 600))))
         default:
             if let failureCopy { await notice(failureCopy) }
+            setState(.idle)
+        }
+    }
+
+    /// The stream ended without `done`. Whatever arrived is a fragment, not
+    /// the turn: it renders stopped and stays out of `apiMessages`, so the
+    /// next message cannot send a truncated answer back as history. Cut
+    /// before a single token, there is nothing to show stopped — that is the
+    /// same no-answer the empty-reply notice already covers.
+    private func finishTruncated(partial text: String, withTools: Bool) async {
+        if !text.isEmpty {
+            await finishStopped(partial: text)
+        } else {
+            setPartial("")
+            if withTools { await notice(ChatCopy.emptyReply) }
             setState(.idle)
         }
     }
