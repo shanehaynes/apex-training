@@ -44,6 +44,12 @@ final class AppModel {
 
     private let pool: DatabasePool?
     private var queueOwner: String?
+    /// Non-nil while an owner change is tearing down: the account to build
+    /// once it finishes (#199).
+    private var switchingOwner: (owner: String, email: String?)?
+    /// Filled at the end of `init(auth:)`: the token provider's expiry hook is
+    /// built before `self` exists. Nil under the mock, which has no GoTrue.
+    private let expiry: ExpiryHook?
     private var queueDriver: WriteQueueDriver?
     private let streams: (any ActivityStreamsReading)?
     private let hub: RealtimeHub?
@@ -66,8 +72,13 @@ final class AppModel {
         self.auth = auth
         self.clock = SystemClock()
         auth.start()
+        // The provider is built before `self` exists, so the expiry hook
+        // reaches the model through a box filled at the end of this init.
+        let expiry = ExpiryHook()
+        self.expiry = expiry
         let tokens = SupabaseTokenProvider(auth: auth.auth) { [weak auth] in
             await MainActor.run { auth?.expire(reason: "Session expired. Sign in again.") }
+            await expiry.fire()
         }
         let client = ApexClient(baseURL: AppConfig.apiBase, transport: URLSessionTransport(), tokens: tokens)
         let pool = Self.openDatabase()
@@ -81,12 +92,17 @@ final class AppModel {
         self.hub = hub
         self.schedule = Self.makeSchedule(client: client, cache: cache, clock: SystemClock(), streams: streams, realtime: hub)
         self.analytics = Self.makeAnalytics(client: client, cache: cache, clock: SystemClock(), realtime: hub)
+        // An expired session is the same owner, so their cached rows stay: they
+        // still render the moment the session comes back. The presenters do not
+        // stay — a stopped one never starts again (#199).
+        expiry.run = { [weak self] in await self?.tearDown(purgeCache: false) }
     }
 
     #if DEBUG
     init(mock: MockEnvironment) {
         self.auth = nil
         self.clock = mock.clock
+        self.expiry = nil
         let client = ApexClient(baseURL: AppConfig.apiBase, transport: mock.transport, tokens: mock.tokens)
         self.client = client
         self.pool = nil
@@ -106,8 +122,29 @@ final class AppModel {
 
     /// Called once the root knows who is signed in. Idempotent per owner. The
     /// queue outlives nothing: a new owner gets a new queue over their own rows.
+    ///
+    /// A *different* owner is a full teardown first (#199): the last account's
+    /// models, realtime subscriptions and cached rows all go — awaited — before
+    /// anything is built to read over them.
     func ensureQueue(owner: String, email: String?) {
-        guard queueOwner != owner, let client else { return }
+        guard let client else { return }
+        // `.onAppear` drives this and can fire again inside the teardown's
+        // awaits, so the latest ask wins and is built when the teardown ends.
+        if switchingOwner != nil {
+            switchingOwner = (owner, email)
+            return
+        }
+        guard queueOwner != owner else { return }
+        if queueOwner != nil {
+            switchingOwner = (owner, email)
+            Task {
+                await tearDown(purgeCache: true)
+                let next = switchingOwner
+                switchingOwner = nil
+                if let next { ensureQueue(owner: next.owner, email: next.email) }
+            }
+            return
+        }
         queueOwner = owner
         let store: any WriteQueueStore = pool.map { GRDBWriteQueueStore(pool: $0, owner: owner) } ?? MemoryWriteQueueStore()
         // Backoff runs on real time even under the mock: its TestClock would make
@@ -339,6 +376,24 @@ final class AppModel {
     #endif
 
     func signOut() {
+        Task {
+            // Another account may sign in next; nothing cached belongs to it.
+            await tearDown(purgeCache: true)
+            if let auth { await auth.signOut() } else { mockState = .signedOut(reason: nil) }
+        }
+    }
+
+    /// Everything built for the signed-in account, unbuilt in order.
+    ///
+    /// The purge is *awaited* before `schedule` and `analytics` are replaced: a
+    /// presenter built over the cache while the purge was still in flight would
+    /// read — and write back — the outgoing owner's rows (#199). They are
+    /// replaced rather than stopped because `start()` latches on `started`,
+    /// which `stop()` never clears, so a surviving instance never loads again.
+    ///
+    /// `purgeCache: false` is the session-expiry path: the owner has not
+    /// changed, so the cached rows are still theirs and still render.
+    func tearDown(purgeCache: Bool) async {
         schedule.stop()
         analytics.stop()
         // The queue's rows stay (per owner); the instance goes with the session.
@@ -346,7 +401,7 @@ final class AppModel {
         queueDriver = nil
         trackerServices = nil
         // Nothing in the island belongs to the next account.
-        if let activity { Task { await activity.endAll() } }
+        if let activity { await activity.endAll() }
         coach?.shutdown()
         coach = nil
         coachServices = nil
@@ -356,14 +411,13 @@ final class AppModel {
         meals = nil
         onboarding = nil
         queueOwner = nil
-        Task {
-            await hub?.reset()
-            // Another account may sign in next; nothing cached belongs to it.
+        await hub?.reset()
+        if purgeCache {
             for kind in CacheKind.allCases { try? await cache?.purge(kind: kind) }
-            if let auth { await auth.signOut() } else { mockState = .signedOut(reason: nil) }
         }
-        schedule = Self.makeSchedule(client: client!, cache: cache, clock: clock, streams: streams, realtime: hub)
-        analytics = Self.makeAnalytics(client: client!, cache: cache, clock: clock, realtime: hub)
+        guard let client else { return }
+        schedule = Self.makeSchedule(client: client, cache: cache, clock: clock, streams: streams, realtime: hub)
+        analytics = Self.makeAnalytics(client: client, cache: cache, clock: clock, realtime: hub)
     }
 
     /// Realtime lives only while the scene is active (architecture.md §8); the
@@ -439,4 +493,21 @@ final class AppModel {
         }
         return message
     }
+}
+
+/// The box `AppModel.init(auth:)` hands `SupabaseTokenProvider`: the provider is
+/// built while the model is still initializing, so the expiry callback cannot
+/// capture `self` at the point it is made (#199).
+@MainActor
+private final class ExpiryHook {
+    var run: (@MainActor @Sendable () async -> Void)?
+
+    /// Called from the provider's nonisolated closure.
+    func fire() async {
+        await run?()
+    }
+
+    // The token provider can be released on any thread; see AppModel's deinit
+    // note (D-031) for why the synthesized one would abort there.
+    nonisolated deinit {}
 }
