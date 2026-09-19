@@ -331,7 +331,7 @@ public final class TrackerModel {
     }
 
     public func hasShadows(section: String, exerciseId: String) -> Bool {
-        editor.exercise(section: section, id: exerciseId)?.sets.contains { $0.shadow != nil } ?? false
+        editor.exercise(section: section, id: exerciseId)?.hasShadows ?? false
     }
 
     public func addSet(section: String, exerciseId: String) {
@@ -386,7 +386,9 @@ public final class TrackerModel {
     }
 
     public func perSideWarning(for tracked: TrackedExercise) -> String? {
-        guard editor.needsPerSideWarning(section: tracked.section, exerciseId: tracked.exercise.id, swappedTo: definition(for: tracked)) else { return nil }
+        // Answered from `tracked`, not from a second lookup in the editor: a row
+        // that read the editor observed every other row's keystrokes.
+        guard TrackerEditor.needsPerSideWarning(for: tracked, swappedTo: definition(for: tracked)) else { return nil }
         return "\(tracked.exercise.name) is unilateral — reps are counted per side, so check they read that way (e.g. \"8 each arm\")."
     }
 
