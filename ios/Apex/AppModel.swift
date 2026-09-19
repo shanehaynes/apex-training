@@ -65,6 +65,8 @@ final class AppModel {
     /// what is on screen is only as fresh as the last refresh. Persistent on
     /// purpose — the toast announces it once, this stays until a join lands.
     private(set) var liveUpdatesUnavailable = false
+    /// The one consumer of the hub's availability stream (#223).
+    private var realtimeStatus: Task<Void, Never>?
 
     init(auth: AuthService) {
         self.auth = auth
@@ -85,22 +87,6 @@ final class AppModel {
         self.hub = hub
         self.schedule = Self.makeSchedule(client: client, cache: cache, clock: SystemClock(), streams: streams, realtime: hub)
         self.analytics = Self.makeAnalytics(client: client, cache: cache, clock: SystemClock(), realtime: hub)
-        observeRealtimeAvailability(hub)
-    }
-
-    /// Mirror the hub's join verdict into observable state (#223). The toast
-    /// says it once; `liveUpdatesUnavailable` is what a banner would render.
-    private func observeRealtimeAvailability(_ hub: RealtimeHub) {
-        Task { [weak self] in
-            for await availability in hub.availability {
-                guard let self else { return }
-                guard availability.isDegraded != self.liveUpdatesUnavailable else { continue }
-                self.liveUpdatesUnavailable = availability.isDegraded
-                if availability.isDegraded {
-                    ToastBus.shared.post("Live updates unavailable — pull to refresh.", level: .failure)
-                }
-            }
-        }
     }
 
     #if DEBUG
@@ -212,6 +198,27 @@ final class AppModel {
         ))
         onboarding = onboardingModel
         Task { await onboardingModel.start() }
+        observeRealtimeAvailability()
+    }
+
+    /// Mirror the hub's join verdict into observable state (#223): once the
+    /// bounded rejoin attempts run out, what is on screen is only as fresh as
+    /// the last refresh. Started with the signed-in account — the hub joins
+    /// nothing before there is one — and started once: the stream has a single
+    /// consumer, and the hub outlives any one account. The toast says it once;
+    /// `liveUpdatesUnavailable` is what a status line would render.
+    private func observeRealtimeAvailability() {
+        guard realtimeStatus == nil, let hub else { return }
+        realtimeStatus = Task { [weak self] in
+            for await availability in hub.availability {
+                guard let self else { return }
+                guard availability.isDegraded != self.liveUpdatesUnavailable else { continue }
+                self.liveUpdatesUnavailable = availability.isDegraded
+                if availability.isDegraded {
+                    ToastBus.shared.post("Live updates unavailable — pull to refresh.", level: .failure)
+                }
+            }
+        }
     }
 
     /// The You tab's change-password: the same SDK call the set-password
