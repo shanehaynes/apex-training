@@ -76,16 +76,16 @@ final class AppModel {
         let tokens = SupabaseTokenProvider(auth: auth.auth) { [weak auth] in
             await MainActor.run { auth?.expire(reason: "Session expired. Sign in again.") }
         }
-        let transport = URLSessionTransport()
-        let client = ApexClient(
-            baseURL: AppConfig.apiBase, transport: transport, tokens: tokens, clientTag: AppConfig.clientTag
-        )
-        self.transport = transport
+        let client = ApexClient(baseURL: AppConfig.apiBase, transport: URLSessionTransport(), tokens: tokens, clientTag: AppConfig.clientTag)
         let pool = Self.openDatabase()
         let cache: (any CacheStore)? = pool.map { GRDBCacheStore(pool: $0) }
         let streams = SupabaseActivityStreams(client: auth.supabase)
         let hub = RealtimeHub(client: auth.supabase)
         self.client = client
+        // A second instance, not the client's: `URLSessionTransport` is a
+        // stateless wrapper over `URLSession.shared`, so both are the one
+        // session the app has.
+        self.transport = URLSessionTransport()
         self.pool = pool
         self.cache = cache
         self.streams = streams
@@ -98,12 +98,13 @@ final class AppModel {
     init(mock: MockEnvironment) {
         self.auth = nil
         self.clock = mock.clock
-        let client = ApexClient(
-            baseURL: AppConfig.apiBase, transport: mock.transport, tokens: mock.tokens, clientTag: AppConfig.clientTag
-        )
-        self.transport = mock.transport
+        let client = ApexClient(baseURL: AppConfig.apiBase, transport: mock.transport, tokens: mock.tokens)
         self.client = client
         self.pool = nil
+        // No `clientTag` on the mock's client, deliberately: its transport is
+        // in-process, so no server ever reads the header, and a fixture build
+        // has no business announcing itself as one the gate could retire.
+        self.transport = mock.transport
         self.cache = mock.cache
         self.streams = mock.streams
         self.hub = nil
@@ -117,15 +118,6 @@ final class AppModel {
     // (swiftlang/swift#87316, D-031). Nothing here needs the actor to die.
     nonisolated deinit {}
     #endif
-
-    /// The launch check (G8): has the server retired this build? Everything
-    /// about the read fails open — offline, a 500, an unparseable body all
-    /// leave the app running — so this only ever turns the screen ON.
-    func checkMinimumBuild() async {
-        updateRequired = await UpdateGate.check(
-            build: AppConfig.buildNumber, baseURL: AppConfig.apiBase, transport: transport
-        )
-    }
 
     /// Called once the root knows who is signed in. Idempotent per owner. The
     /// queue outlives nothing: a new owner gets a new queue over their own rows.
@@ -339,6 +331,15 @@ final class AppModel {
         guard let client, let data = try? await client.data(for: .profile),
               let profile = try? JSONDecoder().decode(ProfileResponse.self, from: data) else { return }
         needsTermsAcceptance = !profile.termsCurrent
+    }
+
+    /// The launch check (G8): has the server retired this build? Everything
+    /// about the read fails open — offline, a 500, an unparseable body all
+    /// leave the app running — so this only ever turns the screen ON.
+    func checkMinimumBuild() async {
+        updateRequired = await UpdateGate.check(
+            build: AppConfig.buildNumber, baseURL: AppConfig.apiBase, transport: transport
+        )
     }
 
     #if DEBUG
