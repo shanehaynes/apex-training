@@ -172,7 +172,14 @@ jobs:
       # does not exist) and the two manifests that pin the direct versions.
       # The prefix restore-key means a manifest edit warms from the last
       # build rather than starting from nothing.
-      - uses: actions/cache@v6
+      #
+      # Restore here, save at the end and only on main, because the entry is
+      # 803 MB (measured) and a cache saved on a branch is visible only to that
+      # branch — thirty open iOS branches would each write their own copy into
+      # a 10 GB repo budget and evict each other, and everyone else, for no
+      # hit. Saved from main it is one entry that every PR restores from.
+      - uses: actions/cache/restore@v6
+        id: swiftpm
         if: env.skip != '1'
         with:
           path: |
@@ -221,6 +228,17 @@ jobs:
             -test-iterations 2 \
             CODE_SIGNING_ALLOWED=NO \
             test
+      # Only from main (see the restore step), and only when the exact key was
+      # not already there: a prefix restore is a warm start, not a reason to
+      # write 803 MB back.
+      - uses: actions/cache/save@v6
+        if: env.skip != '1' && github.ref == 'refs/heads/main' && steps.swiftpm.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            ios/build/dd/SourcePackages
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('ios/Package.resolved', 'ios/Packages/ApexKit/Package.swift', 'ios/project.yml') }}
+
       # The UI smoke signs in against a Supabase stack the runner does not have,
       # so it skips itself there; the .xcresult is what a Linux session reads
       # with `gh run download` when it needs to see what happened.

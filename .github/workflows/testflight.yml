@@ -113,7 +113,11 @@ jobs:
       # does not exist) and the two manifests that pin the direct versions.
       # The prefix restore-key means a manifest edit warms from the last
       # build rather than starting from nothing.
-      - uses: actions/cache@v6
+      #
+      # Restore only. ci.yml's ios job writes this cache from main, where one
+      # 803 MB entry serves every run; a release happens a few times a month
+      # and has no business rewriting it.
+      - uses: actions/cache/restore@v6
         with:
           path: |
             ~/Library/Caches/org.swift.swiftpm
