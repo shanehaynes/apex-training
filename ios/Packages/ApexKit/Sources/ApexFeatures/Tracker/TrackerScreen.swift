@@ -1,6 +1,8 @@
 import ApexCore
 import ApexUI
+import Combine
 import SwiftUI
+import UIKit
 
 /// The tracker (`TrackerView.tsx`): header, section groups, the finish gate in
 /// a bottom inset the keyboard lifts, the summary as an overlay inside the
@@ -12,6 +14,10 @@ public struct TrackerScreen: View {
     @FocusState private var focus: FieldID?
     @State private var swapTarget: SwapTarget?
     @State private var durationModeToggle = 0
+    /// A select-all asked for before the field took over as first responder.
+    @State private var selectAllPending = false
+    /// The field that began editing since the last focus change, if any.
+    @State private var editingField: UITextField?
 
     public init(model: TrackerModel, onClose: @escaping () -> Void) {
         self.model = model
@@ -46,6 +52,9 @@ public struct TrackerScreen: View {
                 .presentationBackground(ApexColor.bgSurface)
         }
         .onChange(of: focus) { old, new in focusChanged(from: old, to: new) }
+        .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { note in
+            didBeginEditing(note.object as? UITextField)
+        }
         // The summary and the cancel confirm are modal moments: no input keeps the keyboard.
         .onChange(of: model.summary == nil) { _, hidden in if !hidden { focus = nil } }
         .onChange(of: model.gate) { _, gate in if gate == .confirmCancel || gate == .needsScore { focus = nil } }
@@ -192,19 +201,45 @@ public struct TrackerScreen: View {
     /// first keystroke replaces rather than appends (the web's `focusShadow`).
     private func focusChanged(from old: FieldID?, to new: FieldID?) {
         if case .set(let key, _) = old { model.didLeaveSet(key) }
-        switch new {
-        case .set(let key, _):
-            if model.focusSet(at: key) { selectAllSoon() }
-        case .cardio(let key, let field):
-            if model.focusCardio(field, at: key) { selectAllSoon() }
-        case nil:
-            break
+        let wantsSelectAll: Bool = switch new {
+        case .set(let key, _): model.focusSet(at: key)
+        case .cardio(let key, let field): model.focusCardio(field, at: key)
+        case nil: false
         }
+        selectAll(wantsSelectAll)
     }
 
-    private func selectAllSoon() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            UIApplication.shared.sendAction(#selector(UIResponder.selectAll(_:)), to: nil, from: nil, for: nil)
+    /// `@FocusState` and UIKit's first responder do not change in a fixed
+    /// order, and the 50 ms `asyncAfter` this replaces was a guess at one: when
+    /// it fired early there was no first responder to take `selectAll`, or the
+    /// field being left took it, and the next keystroke appended to the ghost
+    /// value that had just been committed instead of replacing it.
+    ///
+    /// Both orders are covered instead, off the field's own begin-editing:
+    ///
+    /// - A tap makes the field first responder *before* SwiftUI publishes the
+    ///   focus change, so `editingField` already holds it — select now.
+    /// - A programmatic move (the keyboard accessory's Next, or Use last) runs
+    ///   this *before* UIKit hands over, so the request waits for the
+    ///   notification and is spent on the field that actually takes over.
+    private func selectAll(_ wanted: Bool) {
+        if wanted, let field = editingField {
+            selectAllPending = false
+            field.selectAll(nil)
+        } else {
+            selectAllPending = wanted
+        }
+        // Whatever began editing belonged to the focus that just ended.
+        editingField = nil
+    }
+
+    private func didBeginEditing(_ field: UITextField?) {
+        guard let field else { return }
+        if selectAllPending {
+            selectAllPending = false
+            field.selectAll(nil)
+        } else {
+            editingField = field
         }
     }
 }
