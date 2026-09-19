@@ -99,7 +99,9 @@ function clientTimestamp(res: VercelResponse, value: unknown, label: string): Da
   const t = typeof value === 'string' ? Date.parse(value) : NaN;
   const now = Date.now();
   if (Number.isNaN(t) || t < now - MAX_PAST_MS || t > now + MAX_FUTURE_MS) {
-    console.warn(`[api/workout-sessions] ${label} outside the accepted window:`, value);
+    // Truncated: this is unvalidated request data, and the log is not a place
+    // to let a caller write as much of it as it likes.
+    console.warn(`[api/workout-sessions] ${label} outside the accepted window:`, String(value).slice(0, 64));
     res.status(400).send(TIMESTAMP_WINDOW_BODY);
     return null;
   }
