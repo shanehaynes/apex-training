@@ -12,9 +12,10 @@ final class WriteQueueTests: XCTestCase {
 
     private func makeQueue(
         _ transport: ScriptedTransport, store: MemoryWriteQueueStore = MemoryWriteQueueStore(),
-        clock: any ApexClock = TestClock(now: Date(timeIntervalSince1970: 1_788_868_800))
+        clock: any ApexClock = TestClock(now: Date(timeIntervalSince1970: 1_788_868_800)),
+        policy: RetryPolicy = .default
     ) -> WriteQueue {
-        WriteQueue(store: store, client: makeClient(transport), clock: clock)
+        WriteQueue(store: store, client: makeClient(transport), clock: clock, policy: policy)
     }
 
     private func save(_ rows: [SetLogRow], removed: [SetKey] = []) -> TrackerOpPayload {
@@ -289,6 +290,76 @@ final class WriteQueueTests: XCTestCase {
         let v30 = await store.all.count
         XCTAssertEqual(v30, 0)
         await recorder.stop()
+    }
+
+    func testAForever500StopsAtTheCeilingAndTheSessionDrainsPastIt() async throws {
+        // Four 500s against a three-attempt ceiling, then the finish behind it.
+        let transport = ScriptedTransport([
+            .status(500, body: "boom"), .status(500, body: "boom"),
+            .status(500, body: "boom"), .status(500, body: "boom"), .ok(),
+        ])
+        let store = MemoryWriteQueueStore()
+        // Holds each backoff so the ladder is asserted, not raced.
+        let clock = HeldClock()
+        let queue = makeQueue(transport, store: store, clock: clock, policy: RetryPolicy(maxAttempts: 3))
+        let recorder = EventRecorder()
+        await recorder.start(await queue.subscribe())
+        try await queue.enqueue(save([setRow(1), setRow(2)]), for: session)
+        try await queue.enqueue(.finish(FinishPayload(autofillRows: [], finishedAt: nil)), for: session)
+
+        await queue.flush(session)
+        // Still retrying, and the finish is still held behind the save.
+        let firstPass = await transport.requests.map(\.action)
+        XCTAssertEqual(firstPass, ["save"])
+        clock.open()
+        await queue.awaitRetries()
+
+        let message = "Could not sync after 4 attempts. boom"
+        let sent = await transport.requests.map(\.action)
+        XCTAssertEqual(sent, ["save", "save", "save", "save", "finish"])
+        XCTAssertEqual(clock.sleeps, [1, 2, 4])
+        let remaining = await store.all
+        XCTAssertEqual(remaining.map(\.state), [.failed])
+        XCTAssertEqual(remaining[0].attempts, 4)
+        XCTAssertEqual(remaining[0].lastError, message)
+        let status = await queue.status(for: session)
+        XCTAssertEqual(status.pendingOps, 0)
+        XCTAssertFalse(status.hasPendingFinish)
+        XCTAssertEqual(status.failedOps, 1)
+        XCTAssertEqual(status.failedSets, 2)
+        XCTAssertEqual(status.lastError, message)
+        let failure = QueueEvent.failed(session, .save, message)
+        let events = await recorder.waitFor { $0.contains(failure) }
+        XCTAssertTrue(events.contains(failure))
+
+        // Retry from the bar starts the ladder over: the next send succeeds.
+        await queue.retryFailed(session)
+        await queue.awaitRetries()
+        let after = await transport.requests.map(\.action)
+        XCTAssertEqual(after, ["save", "save", "save", "save", "finish", "save"])
+        let empty = await store.all.count
+        XCTAssertEqual(empty, 0)
+        await recorder.stop()
+    }
+
+    func testANetworkOutageStillRetriesUpToTheCeiling() async throws {
+        // The default policy grants eight retries before giving up; nine
+        // failures in a row is what a permanently broken op looks like.
+        let transport = ScriptedTransport([.throwNetwork])
+        let store = MemoryWriteQueueStore()
+        let clock = HeldClock()
+        let queue = makeQueue(transport, store: store, clock: clock)
+        try await queue.enqueue(save([setRow(1)]), for: session)
+        await queue.flush(session)
+        clock.open()
+        await queue.awaitRetries()
+
+        let sent = await transport.count
+        XCTAssertEqual(sent, 9)
+        XCTAssertEqual(clock.sleeps, [1, 2, 4, 8, 16, 32, 64, 128])
+        let remaining = await store.all
+        XCTAssertEqual(remaining.map(\.state), [.failed])
+        XCTAssertEqual(remaining[0].lastError, "Could not sync after 9 attempts. No connection.")
     }
 
     func testTimestampOutsideTheWindowIsResentUnstampedOnce() async throws {
