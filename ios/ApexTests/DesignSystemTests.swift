@@ -57,4 +57,18 @@ final class DesignSystemTests: XCTestCase {
             XCTAssertNotNil(UIImage(systemName: icon.systemName), "\(icon) → \(icon.systemName) is not an SF Symbol")
         }
     }
+
+    /// The coach's text is model output. A link in it keeps its words and loses
+    /// its destination, so no message can send anyone to Safari on one tap.
+    func testCoachMarkdownKeepsLinkTextAndDropsTheDestination() {
+        let attributed = MarkdownText.attributed("Read [the protocol](https://example.com/x) before Friday.")
+        XCTAssertEqual(String(attributed.characters), "Read the protocol before Friday.")
+        XCTAssertTrue(attributed.runs.allSatisfy { $0.link == nil }, "a link survived the strip")
+
+        // A bare URL is text either way, and the other inline styles are untouched.
+        let styled = MarkdownText.attributed("**Heavy** day — see https://example.com")
+        XCTAssertEqual(String(styled.characters), "Heavy day — see https://example.com")
+        XCTAssertTrue(styled.runs.allSatisfy { $0.link == nil })
+        XCTAssertTrue(styled.runs.contains { $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true })
+    }
 }
