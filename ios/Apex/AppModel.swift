@@ -61,6 +61,10 @@ final class AppModel {
     /// Whether the set-password screen must also collect acceptance: the terms
     /// gate 403s every other read for an invitee who never accepted on the web.
     private(set) var needsTermsAcceptance = false
+    /// The realtime hub ran out of rejoin attempts for some group (#223):
+    /// what is on screen is only as fresh as the last refresh. Persistent on
+    /// purpose — the toast announces it once, this stays until a join lands.
+    private(set) var liveUpdatesUnavailable = false
 
     init(auth: AuthService) {
         self.auth = auth
@@ -81,6 +85,22 @@ final class AppModel {
         self.hub = hub
         self.schedule = Self.makeSchedule(client: client, cache: cache, clock: SystemClock(), streams: streams, realtime: hub)
         self.analytics = Self.makeAnalytics(client: client, cache: cache, clock: SystemClock(), realtime: hub)
+        observeRealtimeAvailability(hub)
+    }
+
+    /// Mirror the hub's join verdict into observable state (#223). The toast
+    /// says it once; `liveUpdatesUnavailable` is what a banner would render.
+    private func observeRealtimeAvailability(_ hub: RealtimeHub) {
+        Task { [weak self] in
+            for await availability in hub.availability {
+                guard let self else { return }
+                guard availability.isDegraded != self.liveUpdatesUnavailable else { continue }
+                self.liveUpdatesUnavailable = availability.isDegraded
+                if availability.isDegraded {
+                    ToastBus.shared.post("Live updates unavailable — pull to refresh.", level: .failure)
+                }
+            }
+        }
     }
 
     #if DEBUG
