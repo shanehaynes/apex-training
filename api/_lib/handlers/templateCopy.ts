@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { optionalEnv } from '../env.js';
 import { requireUser } from '../auth.js';
+import { enforceRateLimit } from '../rateLimit.js';
 import { cloneEventRow, collectDefinitionIds } from '../../../src/lib/template/clone.js';
 import type { ExerciseDefinitionRow, TablesInsert, WorkoutEventRow } from '../../../src/lib/db/types.js';
 
@@ -40,6 +41,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const userId = await requireUser(req, res);
   if (!userId) return;
+
+  if (!(await enforceRateLimit(supabase, res, userId, 'reads'))) return;
 
   const sourceId = await resolveSourceUserId(supabase);
   if (!sourceId) {

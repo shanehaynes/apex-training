@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import handler from '../_lib/handlers/mcpTokens';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
+import { enforceRateLimit } from '../_lib/rateLimit';
 import { sha256hex } from '../_lib/mcp/tokens';
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
@@ -127,6 +128,12 @@ describe('GET /api/mcp-tokens — list', () => {
     const { tokens } = body() as { tokens: Array<Record<string, unknown>> };
     expect(tokens).toHaveLength(1);
     expect(tokens[0]).not.toHaveProperty('token_hash');
+  });
+
+  it('charges the reads bucket (the mutations charge writes)', async () => {
+    const { res } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(vi.mocked(enforceRateLimit).mock.calls.at(-1)![3]).toBe('reads');
   });
 });
 

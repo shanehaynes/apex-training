@@ -22,6 +22,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!userId) return;
 
   if (req.method === 'GET') {
+    if (!(await enforceRateLimit(supabase, res, userId, 'reads'))) return;
+
     const [patRes, grantRes] = await Promise.all([
       supabase
         .from('mcp_tokens')
