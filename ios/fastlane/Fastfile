@@ -155,6 +155,10 @@ platform :ios do
       configuration: "Release",
       # gym spells the method the pre-Xcode-15.4 way and translates it.
       export_method: "app-store",
+      # Where gym would otherwise pick a path of its own. Named so the resolved
+      # package checkout lands at ios/build/dd/SourcePackages, which is the path
+      # the workflow caches (and the one CI's ios job already builds into).
+      derived_data_path: "build/dd",
       archive_path: "build/Apex-#{build_number}.xcarchive",
       output_directory: "build/export-#{build_number}",
       output_name: "Apex-#{build_number}.ipa",

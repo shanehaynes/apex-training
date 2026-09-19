@@ -159,6 +159,28 @@ jobs:
           fi
       - run: brew install xcodegen
         if: env.skip != '1'
+      # The SwiftPM graph, cached. supabase-swift and GRDB are clones from
+      # github.com, and swift-syntax (pulled in by snapshot-testing and by
+      # supabase's macros) is the expensive one: an unreachable host, or a
+      # tag deleted upstream, fails this job for reasons that have nothing to
+      # do with the commit. ~/Library/Caches/org.swift.swiftpm is SwiftPM's
+      # shared clone cache and SourcePackages is the checkout xcodebuild
+      # resolves into, under the -derivedDataPath below.
+      #
+      # Keyed on what decides the graph: the committed resolution when there
+      # is one (ios/Package.resolved, hashFiles simply ignores a path that
+      # does not exist) and the two manifests that pin the direct versions.
+      # The prefix restore-key means a manifest edit warms from the last
+      # build rather than starting from nothing.
+      - uses: actions/cache@v6
+        if: env.skip != '1'
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            ios/build/dd/SourcePackages
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('ios/Package.resolved', 'ios/Packages/ApexKit/Package.swift', 'ios/project.yml') }}
+          restore-keys: |
+            swiftpm-${{ runner.os }}-
       - run: xcodegen generate --spec ios/project.yml
         if: env.skip != '1'
       # CODE_SIGNING_ALLOWED=NO: a simulator build needs no identity, and the
