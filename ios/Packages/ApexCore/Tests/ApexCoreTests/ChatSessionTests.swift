@@ -705,6 +705,42 @@ final class ChatSessionTests: XCTestCase {
         XCTAssertEqual(v88, "Clearing it. ")
     }
 
+    /// A wire event this build has never seen is dropped, not thrown: the rest
+    /// of the message still arrives. Adding `thinking`/`usage`/`ping` server-side
+    /// must not end the stream of an already-shipped binary — the web's
+    /// collector (src/lib/coach/wire.ts) skips the same line.
+    func testUnknownWireEventIsDropped() async throws {
+        var lines = try fixtureLines
+        lines.insert(#"{"type":"thinking","delta":"hmm"}"#, at: 1)
+        lines.insert(#"{"type":"usage","input_tokens":12}"#, at: lines.count - 1)
+
+        // The client never hands an unknown event on: the stream is the three
+        // events the fixture carries, in order, and nothing else.
+        let client = makeClient(ScriptedTransport([.ndjson(lines)]))
+        var seen: [ChatWireEvent] = []
+        for try await event in try await client.wireEvents(for: .chat(
+            mode: .chat, messages: [], withTools: true, today: today, draft: nil, model: nil
+        )) {
+            seen.append(event)
+        }
+        XCTAssertEqual(seen.count, 3)
+        XCTAssertEqual(seen.first, .text(delta: "Clearing it. "))
+        XCTAssertEqual(seen.last, .done)
+        XCTAssertFalse(seen.contains { if case .unknown = $0 { return true } else { return false } })
+
+        // And end to end: the turn still reaches the confirmation card.
+        let transport = ScriptedTransport([.ndjson(lines)])
+        let session = makeSession(transport)
+        await session.send("skip next week")
+
+        guard case .awaitingConfirmation(let head, 1, 1) = await session.state else {
+            return XCTFail("unknown events should not end the stream: \(await session.state)")
+        }
+        XCTAssertEqual(head.displayLabel, fixtureLabel)
+        let text = await session.messages.last?.text
+        XCTAssertEqual(text, "Clearing it. ")
+    }
+
     // MARK: - Builder mode (W7): the draft tool runs without a card
 
     private var builderLines: [String] {

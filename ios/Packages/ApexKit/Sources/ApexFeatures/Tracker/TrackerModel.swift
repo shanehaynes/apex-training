@@ -520,7 +520,7 @@ public final class TrackerModel {
                     summary?.coachText = text
                 case .error(let message):
                     throw APIError.server(status: 200, message: message)
-                case .done, .toolUse:
+                case .done, .toolUse, .unknown:
                     break
                 }
             }
