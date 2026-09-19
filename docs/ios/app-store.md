@@ -133,3 +133,105 @@ carry a 2026-09-08 date. No text overlays, no device frames: Apple's own frame i
 
 If a rejection arrives, record the exact guideline number and Apple's wording in
 [STATUS.md](STATUS.md) and the W13 brief, and the fix plan under it, before touching code.
+
+## 6. Release safety — phased release, an expedited fix, and the first week
+
+The backend addresses are frozen into the binary (`APEX_API_BASE`, `SUPABASE_URL`,
+`SUPABASE_ANON_KEY` in `ios/Apex/Info.plist`, filled from `ios/Config/*.xcconfig`), so a bad
+build cannot be fixed from the server: the only rollback is another build through App Review.
+Everything below is the plan for that, and it is App Store Connect work, not code.
+
+### Phased Release does not apply to 1.0 — plan around it
+
+Apple's help is explicit that phased release is for **version updates**: "When you release a
+version update of your app, you can choose to release the new version to the App Store in
+stages", and it rolls out to users with automatic updates on over seven days (1%, 2%, 5%, 10%,
+20%, 50%, 100%). A first version has no installed base to update, so there is no phased-release
+control on 1.0 and nothing to enable on it. The ceiling on a bad 1.0 is therefore however many
+people install it on day one — which, for an invite-only app, is the invite list.
+
+So for **1.0**, the day-one controls are these, in the order you would reach for them:
+
+1. **Release it yourself, not automatically.** App Store Connect → **Apps** → Apex Training →
+   the version in the **sidebar** → **App Store Version Release** → select **"Manually release
+   this version"** → **Save** (top right). Approval then parks the version at *Pending Developer
+   Release* instead of shipping it while you are asleep. Release it with **Release This Version**
+   → **Confirm** on the version page; it can take up to 24 hours to appear on the App Store.
+2. **Smoke the released build yourself before telling anyone.** Install from the public App
+   Store listing on a device that has never had a TestFlight build, sign in, open Coach, log a
+   set. The frozen config is exactly what a TestFlight build cannot prove — a Release build
+   points at production, and the first real proof that the shipped `APEX_API_BASE` is right is a
+   fresh install from the store.
+3. **If the build is broken, pull the listing while you fix it.** Apps → Apex Training →
+   **Pricing and Availability** → bottom of the page → **Remove App From Sale** → **Remove**.
+   Removal takes up to 24 hours and only stops *new* downloads: people who already installed it
+   keep the broken build and can redownload it, so this buys quiet, not a rollback. The fix is
+   still 1.0.1.
+4. **Submit 1.0.1 and request an expedited review** (below).
+
+### From 1.0.1 on, turn phased release on with the version
+
+Every update after 1.0 gets it, and it is free:
+
+> Apps → Apex Training → the version in the **sidebar** → scroll to **Phased Release for
+> Automatic Updates** → select **"Release update over a 7-day period using phased release"** →
+> **Save**.
+
+Set it when you create the version, at *Prepare for Submission*, and treat that as the rule —
+Apple's help does list *Waiting for Review* and *In Review* among the statuses where the option
+is still available, but a submission is a bad moment to be discovering which statuses Apple
+honours. Two controls exist once it is live, on the *Ready for Distribution* version's page:
+**Pause Phased Release** (up to 30 days total, and it resumes on the day it paused) and
+**Release to All Users** (top right) when a release is proven good and you want the rest of the
+installed base on it. Note the hole in it: phased release only throttles *automatic* updates.
+Anyone who opens the App Store and taps Update gets the new build immediately, so a phased
+rollout reduces exposure, it does not gate it.
+
+### Requesting an expedited review
+
+Apple reviews about 90% of submissions in under 24 hours, so the normal path is usually fast
+enough. Expedite only when users are stuck on a broken build.
+
+1. Upload and submit the fix version normally first — the request references a submission.
+2. Go to <https://developer.apple.com/contact/app-store/?topic=expedite> (Apple Developer
+   sign-in required; it is also linked from the
+   [App Review page](https://developer.apple.com/distribute/app-review/)) and pick the
+   **critical bug fix** reason.
+3. Write, in the request: what the bug does to users ("every launch on iOS 26 crashes before the
+   sign-in screen"), **the steps to reproduce it on the version currently on the App Store** —
+   Apple asks for these by name — the version number of the fix waiting in review, and what
+   changed in it. Keep it to a paragraph and make it checkable.
+4. Do not stack requests. Apple grants expedites on a limited basis and says outright that
+   repeated requests may stop being prioritised, so spending one on a cosmetic bug costs the
+   next real outage. One a release at the very most.
+
+If the fix is only a guideline dispute rather than a crash, do not expedite: for apps already on
+the App Store, Apple no longer holds bug fixes over non-legal guideline violations — ship the
+fix and answer the guideline in the next submission.
+
+### Crash checks for the first week
+
+Crash reports for an App Store build come from users who have opted into sharing diagnostics
+(TestFlight users always share, App Store users only if they said yes), and there is no crash
+SDK in this app, so Xcode's Organizer is the whole picture. **Xcode → Window → Organizer →
+Crashes**, with **Apex Training** and the shipped version selected.
+
+| When | What to look at | What makes it an incident |
+|---|---|---|
+| Day 0, ~2h after release and again that evening | Crashes, sorted by count | Any crash at all in a build with a handful of users — one report means one of very few installs |
+| Days 1–7, once each morning | Crashes for the released version; the trend, not the total | A crash rising with installs, or anything in `ApexClient`/`ApexAuth` (a config or token bug hits everyone) |
+| Day 7 | Crashes, plus Organizer → **Metrics** for launch time and hangs | Anything still open decides whether 1.0.1 is a fix release or a planned one |
+| After that | Weekly, and always within a day of releasing a version | — |
+
+Expect the list to be thin and lagging: reports arrive in Apple's own batches rather than live,
+so an empty Organizer on release day is not evidence of a healthy build. Treat the signal you
+control as primary — the fresh-install smoke in step 2 above, and Supabase's API logs, where a
+build that cannot reach the backend shows up as the absence of requests from new accounts.
+Record anything you act on in [STATUS.md](STATUS.md), as with a rejection.
+
+Sources, current as of 2026-09-19:
+[phased release](https://developer.apple.com/help/app-store-connect/update-your-app/release-a-version-update-in-phases/) ·
+[version release options](https://developer.apple.com/help/app-store-connect/manage-your-apps-availability/select-an-app-store-version-release-option/) ·
+[app availability](https://developer.apple.com/help/app-store-connect/manage-your-apps-availability/manage-availability-for-your-app-on-the-app-store/) ·
+[App Review and the expedite form](https://developer.apple.com/distribute/app-review/) ·
+[crash reports in Organizer](https://developer.apple.com/documentation/xcode/acquiring-crash-reports-and-diagnostic-logs).
