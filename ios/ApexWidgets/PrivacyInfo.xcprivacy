@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The widget extension's privacy manifest. Apple scans every binary in
+	     the upload separately (ITMS-91053 names the one it is missing), so the
+	     app's Apex/PrivacyInfo.xcprivacy does not cover this one.
+
+	     It is three keys of nothing, and that is the honest answer rather than
+	     a stub. The extension is a thin @main bundle over ApexActivity's views
+	     (ApexWidgets/ApexWidgetsBundle.swift): it links ApexActivity, ApexUI
+	     and ApexCore and nothing else — no supabase-swift, no GRDB, no network
+	     of its own. It renders the Live Activity state ActivityKit hands it,
+	     which the app has already collected and declared. So: it tracks
+	     nothing, collects nothing itself, and calls no required-reason API —
+	     no UserDefaults (the app's one use is in ApexAuth, which this does not
+	     link), no file timestamps, no disk space, no boot time, no active
+	     keyboards.
+
+	     Anything that changes those facts — reading a defaults suite shared
+	     with the app, say, or a dependency arriving under ApexUI — has to be
+	     declared here as well as in the app's manifest. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array/>
+</dict>
+</plist>

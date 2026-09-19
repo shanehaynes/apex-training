@@ -201,7 +201,9 @@ rule people remember.
 
 ## App Store gate (W13)
 
-- `PrivacyInfo.xcprivacy` listing required-reason APIs (UserDefaults, file timestamps).
+- `PrivacyInfo.xcprivacy` listing required-reason APIs (UserDefaults, file timestamps), and a
+  second one for the `ApexWidgets` extension — App Store Connect scans each binary in the
+  upload on its own (ITMS-91053), and the extension links neither supabase-swift nor GRDB.
 - App Privacy answers: email (account), fitness data the user enters (linked to identity), no
   tracking, no HealthKit.
 - In-app account deletion (guideline 5.1.1(v)) → `DELETE /api/profile` (W11).
