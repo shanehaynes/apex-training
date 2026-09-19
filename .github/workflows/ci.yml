@@ -165,6 +165,18 @@ jobs:
       # runner has none. Local is the only configuration whose Supabase values
       # are committed, so it is the only one CI can build.
       #
+      # OS=26.5 rather than "whatever iPhone 17 the image has": a destination
+      # with no OS matches every runtime that carries the device, and xcodebuild
+      # then picks the first and says so in a warning nobody reads — the runs
+      # this job has made so far matched two (arm64 and x86_64 of the same
+      # 26.5 device). A runner image that adds a second runtime would silently
+      # change what the tests ran on. Pinned, an image that drops 26.5 fails
+      # here with "Unable to find a device matching the provided destination
+      # specifier" instead, which is a bump to make deliberately. The runtime
+      # the image ships is in any ios job log, on the line xcodebuild prints
+      # for the destination it chose; `xcrun simctl list runtimes` on a runner
+      # is the other way.
+      #
       # -retry-tests-on-failure -test-iterations 2: a failed test is run once
       # more and the suite passes if the second run does. The point is not the
       # extra chance — the tests already had one, inside themselves, where
@@ -180,7 +192,7 @@ jobs:
             -project ios/Apex.xcodeproj \
             -scheme Apex \
             -configuration Local \
-            -destination 'platform=iOS Simulator,name=iPhone 17' \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' \
             -derivedDataPath ios/build/dd \
             -resultBundlePath ios/build/Apex.xcresult \
             -retry-tests-on-failure \

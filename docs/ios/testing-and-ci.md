@@ -80,7 +80,7 @@ ios:
       if: env.skip != '1'
     - run: xcodegen generate --spec ios/project.yml
       if: env.skip != '1'
-    - run: xcodebuild -project ios/Apex.xcodeproj -scheme Apex -configuration Local -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ios/build/dd -resultBundlePath ios/build/Apex.xcresult -retry-tests-on-failure -test-iterations 2 CODE_SIGNING_ALLOWED=NO test
+    - run: xcodebuild -project ios/Apex.xcodeproj -scheme Apex -configuration Local -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -derivedDataPath ios/build/dd -resultBundlePath ios/build/Apex.xcresult -retry-tests-on-failure -test-iterations 2 CODE_SIGNING_ALLOWED=NO test
       if: env.skip != '1'
     - uses: actions/upload-artifact@v7
       if: always() && env.skip != '1'
@@ -98,6 +98,12 @@ not inside the tests: the smoke's helpers used to re-send taps a starved runner 
 ([#192](https://github.com/shanehaynes/apex-training/issues/192)), which made a flaky run
 indistinguishable from a clean one. A test that needs two runs every time is a bug report, not
 a green check.
+
+Why `OS=26.5`: a destination without one matches every runtime that carries an iPhone 17, and
+xcodebuild picks the first — so the image deciding to ship a second runtime would change what
+the tests ran on, quietly. Pinned, that same image change fails the job with "Unable to find a
+device matching the provided destination specifier", and the pin moves in a PR. `screenshots.sh`
+takes the runtime as its second argument for the same reason.
 
 ## Local loop on the Mac
 
