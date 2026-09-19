@@ -32,10 +32,10 @@ interface AcceptanceRow {
   accepted_at: string;
 }
 
-/** Counts occurrences of the fail-closed path, for log alerting. */
-let failClosedCount = 0;
-export function termsGateFailClosedCount(): number {
-  return failClosedCount;
+/** Counts lookups that could not be answered at all, for log alerting. */
+let lookupFailureCount = 0;
+export function termsGateLookupFailureCount(): number {
+  return lookupFailureCount;
 }
 
 /**
@@ -71,24 +71,37 @@ export function isCurrent(status: AcceptanceStatus | null): boolean {
     && status.privacyVersion === PRIVACY_VERSION;
 }
 
+/** What the gate can conclude. Three answers, because two is one too few. */
+export type TermsGateVerdict = 'accepted' | 'not-accepted' | 'unavailable';
+
 /**
- * The gate's question. FAILS CLOSED, unlike the rate limiter next door: a
- * limiter that fails open costs us some quota, whereas a consent gate that
- * fails open lets an induced database error bypass consent entirely. The
- * cost of the choice is that an unapplied phase39 migration 403s every
- * authenticated request — which is why the migration says to run it first,
- * and why the failure is logged under a stable, grep-able tag.
+ * The gate's question. STILL DENIES on a lookup failure, unlike the rate
+ * limiter next door — a limiter that fails open costs us some quota, whereas
+ * a consent gate that fails open lets an induced database error bypass
+ * consent entirely. What changed is only how the denial is reported.
+ *
+ * Collapsing "could not tell" into "has not accepted" was the bug: it became
+ * `403 terms-acceptance-required`, which RetryPolicy.classify reads as a
+ * permanent verdict, so a one-second Postgres blip during an offline flush
+ * failed a queued workout forever and put a bogus "accept the updated terms"
+ * prompt in front of someone who had already accepted them. `unavailable`
+ * gets a 503 instead: the request is refused exactly as before, but the
+ * client is told to come back rather than to give up.
+ *
+ * Note the failure mode this preserves: an unapplied phase39 migration makes
+ * every authenticated request 503 — which is why the migration says to run it
+ * first, and why the failure is logged under a stable, grep-able tag.
  */
-export async function hasAcceptedCurrent(supabase: Admin, userId: string): Promise<boolean> {
+export async function termsGateVerdict(supabase: Admin, userId: string): Promise<TermsGateVerdict> {
   try {
-    return isCurrent(await latestAcceptance(supabase, userId));
+    return isCurrent(await latestAcceptance(supabase, userId)) ? 'accepted' : 'not-accepted';
   } catch (err) {
-    failClosedCount += 1;
+    lookupFailureCount += 1;
     console.error(
-      `[legal] TERMS-GATE-FAIL-CLOSED #${failClosedCount} — acceptance lookup failed, denying request:`,
+      `[legal] TERMS-GATE-UNAVAILABLE #${lookupFailureCount} — acceptance lookup failed, refusing request as retryable:`,
       err instanceof Error ? err.message : err,
     );
-    return false;
+    return 'unavailable';
   }
 }
 
@@ -144,3 +157,12 @@ export async function recordAcceptance(
 
 /** The body the gate returns on a 403, and the string the client matches on. */
 export const TERMS_REQUIRED_BODY = 'terms-acceptance-required';
+
+/**
+ * The body the gate returns on a 503, when it could not reach the acceptance
+ * ledger at all. Same bare-string convention as TERMS_REQUIRED_BODY, and
+ * deliberately a DIFFERENT token: one means "agree to something", the other
+ * means "try again", and a client that cannot tell them apart shows the wrong
+ * screen for the wrong reason.
+ */
+export const TERMS_UNAVAILABLE_BODY = 'terms-check-unavailable';

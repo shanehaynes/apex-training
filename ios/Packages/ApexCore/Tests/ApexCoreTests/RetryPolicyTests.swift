@@ -28,6 +28,18 @@ final class RetryPolicyTests: XCTestCase {
         XCTAssertEqual(policy.classify(.decoding("x"), attempts: 0), .fail(APIError.decoding("x").description))
     }
 
+    /// The stable body the handler sends now (TIMESTAMP_WINDOW_BODY in
+    /// api/_lib/handlers/workoutSessions.ts).
+    func testTimestampWindowRejectionMatchesTheStableBody() {
+        XCTAssertTrue(RetryPolicy.isTimestampWindowRejection(.server(status: 400, message: "timestamp-out-of-window")))
+        XCTAssertEqual(RetryPolicy.timestampWindowBody, "timestamp-out-of-window")
+        // Status still has to agree: the same token from a 500 is not this.
+        XCTAssertFalse(RetryPolicy.isTimestampWindowRejection(.server(status: 500, message: "timestamp-out-of-window")))
+        XCTAssertFalse(RetryPolicy.isTimestampWindowRejection(.server(status: 400, message: "constraint-violation")))
+    }
+
+    /// An installed build meets whichever server is deployed, so the old prose
+    /// keeps matching for one release. Delete with the prose in the handler.
     func testTimestampWindowRejection() {
         XCTAssertTrue(RetryPolicy.isTimestampWindowRejection(.server(status: 400, message: "startedAt must be an ISO timestamp within the last 7 days")))
         XCTAssertFalse(RetryPolicy.isTimestampWindowRejection(.server(status: 400, message: "Invalid score")))

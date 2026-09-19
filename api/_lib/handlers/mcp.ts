@@ -5,7 +5,7 @@ import { resolveMcpToken } from '../mcp/tokens.js';
 import { handleMcpMessage, isJsonRpcRequest, RPC_INVALID_REQUEST, RPC_PARSE_ERROR } from '../mcp/protocol.js';
 import { MCP_TOOLS } from '../mcp/toolRegistry.js';
 import { OAUTH_SCOPE, publicOrigin } from '../oauth/common.js';
-import { hasAcceptedCurrent, TERMS_REQUIRED_BODY } from '../legal.js';
+import { termsGateVerdict, TERMS_REQUIRED_BODY, TERMS_UNAVAILABLE_BODY } from '../legal.js';
 
 // Remote MCP server endpoint (Streamable HTTP, stateless). One POST per
 // JSON-RPC message, application/json back — the 2025-06-18 spec allows a
@@ -47,8 +47,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // their behalf — the consent that matters here is the account holder's,
   // and the MCP client cannot give it for them. This path does not go
   // through requireUser (token auth, not JWT), so the check is explicit.
-  if (!(await hasAcceptedCurrent(supabase, userId))) {
+  const verdict = await termsGateVerdict(supabase, userId);
+  if (verdict === 'not-accepted') {
     res.status(403).send(`${TERMS_REQUIRED_BODY} — sign in to Apex Training and accept the updated terms to restore API access.`);
+    return;
+  }
+  // A ledger we could not read is not a refusal to consent. Telling an MCP
+  // client to go get consent it already has sends its user on an errand that
+  // fixes nothing; 503 tells it to come back.
+  if (verdict === 'unavailable') {
+    res.status(503).send(`${TERMS_UNAVAILABLE_BODY} — could not verify terms acceptance right now; retry shortly.`);
     return;
   }
 
