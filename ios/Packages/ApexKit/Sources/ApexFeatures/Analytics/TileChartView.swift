@@ -1,3 +1,4 @@
+import Accessibility
 import ApexCore
 import ApexUI
 import Charts
@@ -12,7 +13,9 @@ import SwiftUI
 /// trailing axis labels are scaled back — one chart, one plot, aligned.
 /// Value inspection is a tap or a hold-then-drag that shows a card — never a hover (U13).
 public struct TileChartView: View {
-    public enum Kind: String, Sendable {
+    /// `nonisolated` so `TileChartDescriptor`, which is outside the module's
+    /// default main-actor isolation, can switch on it.
+    public nonisolated enum Kind: String, Sendable {
         case line, area, bar
         case stackedBar = "stacked-bar"
     }
@@ -70,9 +73,19 @@ public struct TileChartView: View {
                 }
             }
         }
+        // `.contain` alone left a VoiceOver user with the tile's title and then
+        // silence: a Swift Chart publishes nothing on its own. The label is the
+        // shape of the data in one sentence (the same summary `StreamChartsView`
+        // gives its activity charts), and the descriptor is the chart rotor —
+        // axes, series and every bucket by name, so the numbers can be walked
+        // rather than guessed at.
         .accessibilityElement(children: .contain)
+        .accessibilityLabel(descriptor.summary)
+        .accessibilityChartDescriptor(descriptor)
         .accessibilityIdentifier("tile.chart.\(kind.rawValue)")
     }
+
+    private var descriptor: TileChartDescriptor { TileChartDescriptor(kind: kind, data: data) }
 
     private var legend: some View {
         FlowLayout(spacing: Spacing.sm) {
@@ -241,4 +254,106 @@ public struct TileChartView: View {
     private func label(for key: String) -> String {
         data.buckets.first { $0.key == key }?.label ?? key
     }
+}
+
+/// The chart rotor's view of a tile: a categorical x-axis of buckets, a numeric
+/// y-axis in the tile's unit, and one series descriptor per plotted series with
+/// every non-gap point named. VoiceOver reads the values, plays the audio graph
+/// and lets the user walk the series — none of which a `Chart` offers by itself.
+///
+/// Its own `nonisolated` type rather than a conformance on `TileChartView`:
+/// ApexFeatures compiles with `defaultIsolation(MainActor.self)`, and an
+/// isolated method cannot witness `AXChartDescriptorRepresentable`'s
+/// requirements. `Kind` and `TileData` are both `Sendable`, so the copy costs
+/// nothing.
+public nonisolated struct TileChartDescriptor: AXChartDescriptorRepresentable {
+    public let kind: TileChartView.Kind
+    public let data: TileData
+
+    public init(kind: TileChartView.Kind, data: TileData) {
+        self.kind = kind
+        self.data = data
+    }
+
+    /// The tile in one sentence, for `.accessibilityLabel` and the descriptor's
+    /// own summary: "Line chart. Sep–Nov. Volume: 1,000 lb to 4,500 lb across
+    /// 12 points."
+    public var summary: String {
+        var parts = ["\(kindLabel) chart"]
+        if let range = data.rangeLabel, !range.isEmpty { parts.append(range) }
+        if data.series.isEmpty {
+            parts.append("No series plotted")
+        } else {
+            parts.append(contentsOf: data.series.map(Self.seriesSummary))
+        }
+        return parts.joined(separator: ". ") + "."
+    }
+
+    private var kindLabel: String {
+        switch kind {
+        case .line: "Line"
+        case .area: "Area"
+        case .bar: "Bar"
+        case .stackedBar: "Stacked bar"
+        }
+    }
+
+    /// Low and high by their *displayed* value, so a grade series reads
+    /// "5.10a to 5.12c" rather than the ranks behind it.
+    static func seriesSummary(_ series: TileData.Series) -> String {
+        let plotted = series.points.enumerated().compactMap { index, value in value.map { (index, $0) } }
+        guard let low = plotted.min(by: { $0.1 < $1.1 }), let high = plotted.max(by: { $0.1 < $1.1 }) else {
+            return "\(series.label): no values"
+        }
+        if plotted.count == 1 {
+            return "\(series.label): \(TileFormat.value(series, at: high.0)), one point"
+        }
+        return "\(series.label): \(TileFormat.value(series, at: low.0)) to \(TileFormat.value(series, at: high.0)) across \(plotted.count) points"
+    }
+
+    public func makeChartDescriptor() -> AXChartDescriptor {
+        let categories = data.buckets.map { $0.label.isEmpty ? $0.key : $0.label }
+        let xAxis = AXCategoricalDataAxisDescriptor(title: "Bucket", categoryOrder: categories)
+
+        let values = data.series.flatMap { $0.points.compactMap { $0 } }
+        let low = values.min() ?? 0
+        let high = values.max() ?? 1
+        let yAxis = AXNumericDataAxisDescriptor(
+            title: data.series.first?.unit ?? "Value",
+            // A flat series would be a zero-width range, which the rotor cannot
+            // step through.
+            range: low...(high > low ? high : low + 1),
+            gridlinePositions: []
+        ) { TileFormat.value($0) }
+
+        // `isContinuous` is what tells VoiceOver whether the points are a line
+        // to sweep or bars to step between.
+        let continuous = kind == .line || kind == .area
+        let series = data.series.map { series in
+            AXDataSeriesDescriptor(
+                name: series.label,
+                isContinuous: continuous,
+                dataPoints: series.points.enumerated().compactMap { index, value in
+                    guard let value, index < categories.count else { return nil }
+                    return AXDataPoint(
+                        x: categories[index],
+                        y: value,
+                        additionalValues: [],
+                        label: TileFormat.value(series, at: index)
+                    )
+                }
+            )
+        }
+
+        return AXChartDescriptor(
+            title: data.rangeLabel,
+            summary: summary,
+            xAxis: xAxis,
+            yAxis: yAxis,
+            additionalAxes: [],
+            series: series
+        )
+    }
+
+    public func updateChartDescriptor(_ descriptor: AXChartDescriptor) {}
 }

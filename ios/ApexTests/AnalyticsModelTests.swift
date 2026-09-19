@@ -374,4 +374,36 @@ final class AnalyticsModelTests: XCTestCase {
         XCTAssertTrue(model.tiles.isEmpty)
         XCTAssertEqual(transport.count("POST", "/api/analytics-compute"), 0)
     }
+
+    /// A Swift Chart says nothing to VoiceOver on its own. The summary is what
+    /// the tile reads as, and what the chart rotor opens with.
+    func testChartAccessibilitySummaryNamesTheShapeOfTheData() {
+        let data = TileData(
+            buckets: [.init(key: "2026-07", label: "Jul"), .init(key: "2026-08", label: "Aug"), .init(key: "2026-09", label: "Sep")],
+            series: [
+                TileData.Series(key: "s1", label: "Tonnage", unitKind: "weight", unit: "lb", axis: "left", points: [1000, nil, 4500]),
+            ],
+            rangeLabel: "Jul–Sep"
+        )
+        XCTAssertEqual(
+            TileChartDescriptor(kind: .line, data: data).summary,
+            "Line chart. Jul–Sep. Tonnage: 1,000 lb to 4,500 lb across 2 points."
+        )
+
+        // A grade series reads as grades, never as the ranks behind them.
+        let grades = TileData(
+            buckets: [.init(key: "2026-08", label: "Aug"), .init(key: "2026-09", label: "Sep")],
+            series: [
+                TileData.Series(key: "g", label: "Hardest send", unitKind: "grade", unit: nil, axis: "left", points: [3, 7], gradeLabels: ["5.10a", "5.12c"]),
+            ]
+        )
+        XCTAssertEqual(
+            TileChartDescriptor(kind: .bar, data: grades).summary,
+            "Bar chart. Hardest send: 5.10a to 5.12c across 2 points."
+        )
+
+        // Nothing plotted still says something.
+        let empty = TileData(buckets: [], series: [])
+        XCTAssertEqual(TileChartDescriptor(kind: .stackedBar, data: empty).summary, "Stacked bar chart. No series plotted.")
+    }
 }
