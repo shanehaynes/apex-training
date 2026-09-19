@@ -470,7 +470,10 @@ final class WriteQueueTests: XCTestCase {
 
     func testStatusDedupesKeysAcrossPendingSaves() async throws {
         let transport = ScriptedTransport([.throwNetwork])
-        let queue = makeQueue(transport)
+        // Holds the retry: the ops must still be pending when the status is read,
+        // and a transport that always fails would otherwise reach the ceiling.
+        let clock = HeldClock()
+        let queue = makeQueue(transport, clock: clock)
         try await queue.enqueue(.start(startedAt: nil), for: session)
         await queue.flush(session)  // start fails → pending; later saves cannot merge into it
         try await queue.enqueue(save([setRow(1), setRow(2)]), for: session)
@@ -496,11 +499,18 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertNil(v40)
         let v41 = await queue.status(for: other)
         XCTAssertEqual(v41, .idle)
+
+        // Let the held retry wind down rather than leaving it suspended.
+        await queue.purgeAll()
+        clock.open()
+        await queue.awaitRetries()
     }
 
     func testARelaunchReplaysWhatTheLastRunLeft() async throws {
         let store = MemoryWriteQueueStore()
-        let first = makeQueue(ScriptedTransport([.throwNetwork]), store: store)
+        // The first run's retry is held: this is the crash-before-it-retried case.
+        let clock = HeldClock()
+        let first = makeQueue(ScriptedTransport([.throwNetwork]), store: store, clock: clock)
         try await first.enqueue(save([setRow(1)]), for: session)
         await first.flush(session)
         let v42 = await store.all.count
@@ -513,6 +523,10 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(v43, ["save"])
         let v44 = await store.all.count
         XCTAssertEqual(v44, 0)
+
+        await first.purgeAll()
+        clock.open()
+        await first.awaitRetries()
     }
 
     func testConcurrentFlushesCoalesceToOneChain() async throws {
