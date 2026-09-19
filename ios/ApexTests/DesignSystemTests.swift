@@ -60,6 +60,7 @@ final class DesignSystemTests: XCTestCase {
 
     /// The coach's text is model output. A link in it keeps its words and loses
     /// its destination, so no message can send anyone to Safari on one tap.
+    @MainActor
     func testCoachMarkdownKeepsLinkTextAndDropsTheDestination() {
         let attributed = MarkdownText.attributed("Read [the protocol](https://example.com/x) before Friday.")
         XCTAssertEqual(String(attributed.characters), "Read the protocol before Friday.")
