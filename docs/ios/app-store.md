@@ -34,6 +34,11 @@ same page the About screen links to. Terms: `/terms`.
 - **Age rating** 4+ (no objectionable content; the coach is text about the user's own training)
 - **Copyright** © 2026 Shane Haynes
 - **Support URL** `https://github.com/shanehaynes/apex-training` (README + WELCOME.md)
+- **Invite contact** the sign-in screen's "Request an invite" link comes from
+  `APEX_INVITE_CONTACT` in `ios/Config/Base.xcconfig` — the one line to change, and the only
+  place the address lives. Point it at a forwarding alias **before the archive**: it ships in
+  the binary and is frozen there afterwards (#214). No screenshot is affected; the address is
+  never drawn on screen and the set below has no sign-in shot.
 - **Marketing URL** `https://apextrainingcalendar.vercel.app`
 - **Sign in with Apple** not required: the app offers only its own email + password, no
   third-party or social login (guideline 4.8 applies to third-party login only).
