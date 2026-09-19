@@ -94,6 +94,196 @@ describe('rule: look before destroying', () => {
   });
 });
 
+// --------------------------------------------------------------------------
+// #180 — the destructive commands the rules did not cover. One describe per
+// row of the issue's table: the blocked form, the allowed neighbour beside it,
+// and the override on the invocation itself.
+// --------------------------------------------------------------------------
+
+describe('#180: git checkout over the working tree', () => {
+  it('blocks a pathspec checkout, a bare `.`, and -f', () => {
+    expect(inTree('git checkout -- src/App.tsx')).toMatch(/overwrites uncommitted work/);
+    expect(inTree('git checkout .')).toMatch(/overwrites uncommitted work/);
+    expect(inTree('git checkout -f main')).toMatch(/overwrites uncommitted work/);
+    expect(inTree('git checkout --force')).toMatch(/overwrites uncommitted work/);
+    expect(inTree('git checkout HEAD -- .')).toMatch(/overwrites uncommitted work/);
+  });
+
+  it('allows switching branches, -b/-B/--orphan, and -p', () => {
+    expect(inTree('git checkout main')).toBeNull();
+    expect(inTree('git checkout -b fix/thing origin/main')).toBeNull();
+    expect(inTree('git checkout -B fix/thing')).toBeNull();
+    expect(inTree('git checkout --orphan gh-pages')).toBeNull();
+    expect(inTree('git checkout -p -- src/App.tsx')).toBeNull();
+  });
+
+  it('honours the override on that invocation only', () => {
+    expect(inTree('APEX_DESTRUCTIVE_OK=1 git checkout -- src/App.tsx')).toBeNull();
+    expect(inTree('APEX_DESTRUCTIVE_OK=1 ls && git checkout .')).toMatch(/overwrites uncommitted work/);
+  });
+});
+
+describe('#180: git restore', () => {
+  it('blocks a worktree restore, including --staged --worktree', () => {
+    expect(inTree('git restore src/App.tsx')).toMatch(/discards uncommitted changes/);
+    expect(inTree('git restore .')).toMatch(/discards uncommitted changes/);
+    expect(inTree('git restore --source=HEAD~1 src/')).toMatch(/discards uncommitted changes/);
+    expect(inTree('git restore --staged --worktree src/App.tsx')).toMatch(/discards uncommitted changes/);
+  });
+
+  it('allows --staged, which only unstages', () => {
+    expect(inTree('git restore --staged src/App.tsx')).toBeNull();
+    expect(inTree('git restore -S .')).toBeNull();
+  });
+
+  it('honours the override', () => {
+    expect(inTree('APEX_DESTRUCTIVE_OK=1 git restore src/App.tsx')).toBeNull();
+  });
+});
+
+describe('#180: git stash drop/clear', () => {
+  it('blocks drop and clear — the stack is shared with every worktree', () => {
+    expect(inTree('git stash drop')).toMatch(/stash stack is shared/);
+    expect(inTree('git stash drop stash@{2}')).toMatch(/stash stack is shared/);
+    expect(inTree('git stash clear')).toMatch(/stash stack is shared/);
+  });
+
+  it('allows listing, showing and applying', () => {
+    expect(inTree('git stash list')).toBeNull();
+    expect(inTree('git stash show -p stash@{0}')).toBeNull();
+    expect(inTree('git stash apply 0f1e2d3')).toBeNull();
+    expect(inTree('git stash push -u -m "my-tag"')).toBeNull();
+  });
+
+  it('honours the override', () => {
+    expect(inTree('APEX_DESTRUCTIVE_OK=1 git stash drop stash@{0}')).toBeNull();
+  });
+});
+
+describe('#180: git branch -D', () => {
+  it('blocks the force delete, clustered or spelled out', () => {
+    expect(inTree('git branch -D fix/thing')).toMatch(/force-deletes a branch/);
+    expect(inTree('git branch -d --force fix/thing')).toMatch(/force-deletes a branch/);
+    expect(inTree('git branch --delete --force fix/thing')).toMatch(/force-deletes a branch/);
+  });
+
+  it('allows -d, listing and the read-only queries', () => {
+    expect(inTree('git branch -d fix/thing')).toBeNull();
+    expect(inTree('git branch --show-current')).toBeNull();
+    expect(inTree('git branch -vv --sort=-committerdate')).toBeNull();
+    expect(inTree('git branch -a')).toBeNull();
+  });
+
+  it('honours the override', () => {
+    expect(inTree('APEX_DESTRUCTIVE_OK=1 git branch -D fix/thing')).toBeNull();
+  });
+});
+
+describe('#180: git worktree remove --force', () => {
+  it('blocks the forced removal', () => {
+    expect(inTree('git worktree remove --force .claude/worktrees/fix-thing')).toMatch(
+      /uncommitted changes in it/,
+    );
+    expect(inTree('git worktree remove -f .claude/worktrees/fix-thing')).toMatch(
+      /uncommitted changes in it/,
+    );
+  });
+
+  it('allows the checked removal, list, prune and add', () => {
+    expect(inTree('git worktree remove .claude/worktrees/fix-thing')).toBeNull();
+    expect(inTree('git worktree list')).toBeNull();
+    expect(inTree('git worktree prune')).toBeNull();
+    expect(inTree('git worktree add ../x fix/thing')).toBeNull();
+    expect(inTree('scripts/git-tidy.sh --yes')).toBeNull();
+  });
+
+  it('honours the override', () => {
+    expect(inTree('APEX_DESTRUCTIVE_OK=1 git worktree remove -f ../x')).toBeNull();
+  });
+});
+
+describe('#180: git push --force (the weakest row)', () => {
+  it('blocks --force, -f, +ref and --mirror', () => {
+    expect(inTree('git push --force origin main')).toMatch(/overwrites the remote branch/);
+    expect(inTree('git push -f')).toMatch(/overwrites the remote branch/);
+    expect(inTree('git push origin +main:main')).toMatch(/overwrites the remote branch/);
+    expect(inTree('git push --mirror backup')).toMatch(/overwrites the remote branch/);
+  });
+
+  it('allows --force-with-lease, --force-if-includes and an ordinary push', () => {
+    expect(inTree('git push --force-with-lease origin fix/thing')).toBeNull();
+    expect(inTree('git push --force-with-lease=fix/thing origin fix/thing')).toBeNull();
+    expect(inTree('git push --force-if-includes --force-with-lease')).toBeNull();
+    expect(inTree('git push -u origin fix/thing')).toBeNull();
+    expect(inTree('git push')).toBeNull();
+  });
+
+  it('honours the override', () => {
+    expect(inTree('APEX_DESTRUCTIVE_OK=1 git push --force origin fix/thing')).toBeNull();
+  });
+});
+
+describe('#180: kill by pgrep/pidof of vite', () => {
+  it('blocks a kill fed by a vite pid lookup, via substitution or pipe', () => {
+    expect(inTree('kill $(pgrep -f vite)')).toMatch(/every session/);
+    expect(inTree('kill -9 `pgrep -f vite`')).toMatch(/every session/);
+    expect(inTree('kill $(pidof vite)')).toMatch(/every session/);
+    expect(inTree('pgrep -f vite | xargs kill')).toMatch(/every session/);
+    expect(inTree('pgrep -f vite | xargs kill -9')).toMatch(/every session/);
+  });
+
+  it('allows the lookup itself and the per-worktree port form CLAUDE.md teaches', () => {
+    expect(inTree('pgrep -f vite')).toBeNull();
+    expect(inTree('lsof -i :$(npm run -s port)')).toBeNull();
+    expect(inTree('lsof -ti :$(npm run -s port) | xargs kill')).toBeNull();
+    expect(inTree('kill 48213')).toBeNull();
+    expect(inTree('kill $(pgrep -f my-own-daemon)')).toBeNull();
+  });
+});
+
+describe('#180: gh api graphql mutations', () => {
+  it('blocks the merge mutations', () => {
+    expect(inTree("gh api graphql -f query='mutation { mergePullRequest(input: {}) { clientMutationId } }'")).toMatch(
+      /merge-babysit/,
+    );
+    expect(inTree('gh api graphql -f query="mutation { enablePullRequestAutoMerge(input: {}) { x } }"')).toMatch(
+      /merge-babysit/,
+    );
+  });
+
+  it('blocks labelling by node id, which cannot be checked for shipit', () => {
+    expect(inTree("gh api graphql -f query='mutation { addLabelsToLabelable(input: {}) { x } }'")).toMatch(
+      /authority boundary/,
+    );
+  });
+
+  it('allows graphql reads and the mutation names as prose', () => {
+    expect(inTree("gh api graphql -f query='query { viewer { login } }'")).toBeNull();
+    expect(inTree('gh issue create --title "Never call mergePullRequest by hand" --body x')).toBeNull();
+    expect(inTree('gh pr create --base main --title x --body "addLabelsToLabelable is blocked"')).toBeNull();
+  });
+});
+
+describe('#180: the new rows survive an unparseable command line', () => {
+  it.each([
+    ['checkout', "echo 'oops; git checkout -- src/App.tsx"],
+    ['restore', "echo 'oops; git restore src/App.tsx"],
+    ['stash drop', "echo 'oops; git stash drop"],
+    ['branch -D', "echo 'oops; git branch -D fix/thing"],
+    ['worktree remove -f', "echo 'oops; git worktree remove -f ../x"],
+    ['push --force', "echo 'oops; git push --force origin main"],
+  ])('falls back to the legacy regex for %s', (_label, command) => {
+    expect(() => parseShell(command)).toThrow(ShellParseError);
+    expect(inTree(command)).toMatch(/APEX_DESTRUCTIVE_OK=1/);
+  });
+
+  it('keeps the allowed neighbours allowed on that path too', () => {
+    expect(inTree("echo 'oops; git push --force-with-lease origin fix/thing")).toBeNull();
+    expect(inTree("echo 'oops; git restore --staged src/App.tsx")).toBeNull();
+    expect(inTree("echo 'oops; git branch -d fix/thing")).toBeNull();
+  });
+});
+
 describe('rule: merge authority flows through the babysitter', () => {
   it('blocks direct gh pr merge, by name, absolute path, or API', () => {
     expect(decide('gh pr merge 61 --squash', worktree, worktree)).toMatch(/merge-babysit/);
