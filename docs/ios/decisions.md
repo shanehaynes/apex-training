@@ -663,3 +663,79 @@ The brief said "port the dashboard and the tile builder"; these are the lines dr
   `setup`. `ProfileResponse.onboarding` is optional so a cached profile from an older build still
   decodes.
 
+
+## D-036 · Stay on Supabase Free and Vercel Hobby; Pro on a proven backup path and a measured number
+**Status:** decided · 2026-09-19 · #225 (Patch 1 P9) · the custom-domain half is **open**, owner Shane
+- **The question.** The infrastructure seat first ranked the free tiers a gate item and withdrew it
+  in debate. Supabase Free has no provider backups and no PITR, so production's RPO is infinite
+  (#198); Vercel Hobby has no log drains, an hour of runtime-log retention, and a duration ceiling
+  it cannot raise. The counter-argument was that nothing has actually hurt yet: `vercel.json:28-31`'s
+  two daily crons keep the Free project from pausing, and the Hobby terms-of-service argument could
+  not be sourced from the tree. Upgrading both is $25 + $20 a month before add-ons, for risk that
+  has not yet been measured.
+- **Options.** (1) Upgrade both now — buys backups and drains immediately, but pays monthly for a
+  backup path nobody has proved works: Pro's daily backups would sit next to a `backup.yml` that has
+  skipped or failed every run, and two untested restore paths are not better than one. (2) Stay free
+  indefinitely — cheapest, and the honest position if this stays a single-user calendar, but it makes
+  the App Store launch the moment the plan stops being defensible. (3) Upgrade each on its own
+  trigger, named in advance so the decision is not re-litigated every time something is slow.
+- **Decision: (3), with the triggers written down.**
+  - **Supabase Pro ($25/mo) once #198 has proved the backup path end to end** — a non-zero artifact,
+    a green restore drill, and one bundle decrypted and restored into a fresh project by hand. Pro is
+    the second copy, not the first: buying it before the drill would leave the repo's own backup
+    still unproven. Note what Pro does and does not include — "Daily backups stored for 7 days" is in
+    the plan; **PITR is a separate add-on at $100/mo per 7 days of retention**, so the issue's
+    "Supabase Pro (PITR, provider backups)" is two purchases, and only the first is bought at this
+    trigger. Free's other cost is the pause: "Free projects are paused after 1 week of inactivity",
+    which is the whole reason the two crons exist.
+    (Source: <https://supabase.com/pricing>, read 2026-09-19.)
+  - **Vercel Pro ($20/seat/mo) on either of two triggers** — a measured chat p99 above the Hobby
+    duration ceiling, or a log drain wanted for #224 (P8). Ceiling, exactly: Hobby is **300s default
+    and 300s maximum**; Pro is 300s default, **800s configurable**, 1800s extended (beta). `api/chat.ts`
+    sets no `maxDuration`, so it runs at the 300s default today and Pro would buy nothing until a
+    turn genuinely needs more than five minutes — which is why the trigger is a measured number and
+    not a hunch. Drains are the firmer trigger: "Drains are available to all users on the Pro and
+    Enterprise plans… you'll need to upgrade to Pro", and Hobby keeps "1 hour of logs" against Pro's
+    "1 day", which is what makes `rateLimit.ts`'s `RATE-LIMIT-FAIL-OPEN` tag unconsumable today.
+    (Sources: <https://vercel.com/docs/functions/limitations>, <https://vercel.com/docs/plans/hobby>,
+    <https://vercel.com/docs/drains>, read 2026-09-19.)
+- **The two-cron premise is wrong, and the correction matters.** #225 says Hobby's two-cron daily cap
+  is exactly what `vercel.json` uses and that a third cron needs Pro. It does not: Vercel now allows
+  **100 cron jobs per project on every plan**, and Hobby's restriction is *frequency*, not count —
+  "Hobby accounts are limited to cron jobs that run once per day", with per-hour scheduling precision
+  (±59 min). So a third *daily* cron (a backup verifier, a supervisor sweep) is free; what needs Pro
+  is any cron running more than once a day, or one that must fire at a precise minute. This removes
+  the cheapest-looking argument for Vercel Pro and leaves the two real ones above.
+  (Source: <https://vercel.com/docs/cron-jobs/usage-and-pricing>, read 2026-09-19.)
+- **The Hobby-terms argument can now be sourced — off the tree, from Vercel.** It was unsourceable
+  inside the repo because it is not a repo fact: "Hobby teams are restricted to non-commercial
+  personal use only. All commercial usage of the platform requires either a Pro or Enterprise plan",
+  where commercial means "any Deployment that is used for the purpose of financial gain of anyone
+  involved in any part of the production of the project", with requesting payment and advertising a
+  product as examples, and donations explicitly excluded. Apex is a free single-user app with no
+  payments, no ads and no paid contributor, so it is within Hobby today. **A third trigger follows
+  from this:** the day the app charges for anything, carries advertising, or pays somebody to work on
+  it, Vercel Pro stops being a performance question and becomes a terms question — shipping a free
+  app on the App Store does not by itself cross that line.
+  (Source: <https://vercel.com/docs/limits/fair-use-guidelines#commercial-usage>, read 2026-09-19.)
+- **Open, and separate: does a custom domain replace `apextrainingcalendar.vercel.app`?** This is not
+  a plan question and it has a deadline the plan questions do not. The hostname is already load-bearing
+  in four places that are expensive to change after the first App Store release:
+  `ios/Apex/Apex.entitlements:10-11` (`applinks:` and `webcredentials:`), the AASA served from
+  `public/.well-known/apple-app-site-association`, the privacy-policy and marketing URLs in App Store
+  Connect (`docs/ios/app-store.md:27,37`), and `APEX_API_BASE` in both xcconfigs. Moving after launch
+  means an entitlements change, a new provisioning profile, a new build, and a window where installed
+  copies still trust the old domain — while every shipped build keeps pointing at whatever was frozen.
+  The options are (a) keep the Vercel hostname, free and already working, at the cost of the
+  vendor-branded URL being permanent in the shipped app; (b) buy a domain and cut over **before** the
+  first App Store submission, one afternoon of DNS plus an AASA re-verify, and the Vercel host stays a
+  valid second entry in `associated-domains` for as long as old builds are installed; (c) defer, which
+  in practice chooses (a) by the time the choice is noticed. **Decide (a) or (b) before the first
+  App Store build, not after.** Pro is not needed for a custom domain on Hobby, so this decision is
+  independent of both triggers above — but a paid Pro team does include one free first-year domain,
+  which is the only way the two questions touch.
+- **Consequences.** Neither upgrade is scheduled, and no lane should treat either as available:
+  #224's log drain is explicitly gated on the Vercel trigger and its uptime monitor must therefore be
+  an external free service, not a drain. #198 is a hard prerequisite for the Supabase upgrade, not a
+  parallel track. If the chat p99 is ever measured (P8's business), record the number here rather than
+  reopening the argument. Supersede this entry rather than editing it if a trigger fires.
