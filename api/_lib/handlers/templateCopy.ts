@@ -67,7 +67,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
   if (!locked || locked.length === 0) {
-    res.status(200).json({ alreadyCopied: true });
+    // Losing the claim does not mean the plan is on the calendar: the winner
+    // may still be mid-copy (the inserts happen after this point), and a
+    // failed copy releases the claim again. So report WHEN the claim we lost
+    // to was stamped and let the caller decide — a stamp from seconds ago is
+    // a copy in flight, a null one is a claim that was just released.
+    const { data: profile, error: readErr } = await supabase
+      .from('profiles')
+      .select('template_copied_at')
+      .eq('id', userId)
+      .maybeSingle();
+    if (readErr) {
+      console.error('[api/template-copy] claim read-back failed:', readErr.message);
+      res.status(500).send('Failed to start copy');
+      return;
+    }
+    // The other reason the UPDATE matched nothing: there is no profile row.
+    if (!profile) {
+      res.status(404).send('No profile for this account');
+      return;
+    }
+    res.status(200).json({ alreadyCopied: true, copiedAt: profile.template_copied_at });
     return;
   }
 

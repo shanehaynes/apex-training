@@ -19,6 +19,8 @@ interface AdminState {
   lockRows: Array<{ id: string }>;
   /** What the readback sees on the profile when the claim loses. */
   copiedAt: string | null;
+  /** No profiles row at all — the other reason the lock UPDATE matches nothing. */
+  profileMissing?: boolean;
   sourceEvents: Array<Record<string, unknown>>;
   /** Recorded: every profiles UPDATE payload, in order. */
   profileUpdates: Array<Record<string, unknown>>;
@@ -33,7 +35,7 @@ function makeAdmin(state: AdminState) {
       const settle = (): { data: unknown; error: null } => {
         if (table === 'profiles') {
           if (op === 'update') return { data: state.lockRows, error: null };
-          return { data: { template_copied_at: state.copiedAt }, error: null };
+          return { data: state.profileMissing ? null : { template_copied_at: state.copiedAt }, error: null };
         }
         if (table === 'workout_events') {
           if (op === 'insert') return { data: null, error: null };
@@ -99,5 +101,48 @@ describe('POST /api/template-copy — throttle', () => {
     const { res } = makeRes();
     await handler(makeReq(), res);
     expect(state.profileUpdates).toEqual([]);
+  });
+});
+
+describe('POST /api/template-copy — a lost claim', () => {
+  it('copies when it wins the claim', async () => {
+    state.sourceEvents = [{ id: 'src-1', user_id: 'source-1', title: 'Push day' }];
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq(), res);
+    expect(statusCode()).toBe(200);
+    expect(body()).toEqual({ events: 1, definitions: 0 });
+    expect(state.insertedEvents).toBe(1);
+  });
+
+  // The claim is stamped BEFORE the inserts, so a racing caller that loses it
+  // cannot conclude the plan is on the calendar — it gets the stamp instead
+  // and decides for itself (a fresh one means a copy still in flight).
+  it('answers with the stamp it lost to, not a bare alreadyCopied', async () => {
+    state.lockRows = [];
+    state.copiedAt = '2026-09-19T12:00:00Z';
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq(), res);
+    expect(statusCode()).toBe(200);
+    expect(body()).toEqual({ alreadyCopied: true, copiedAt: '2026-09-19T12:00:00Z' });
+    expect(state.insertedEvents).toBe(0);
+  });
+
+  // A copy that failed releases the claim, so a caller can lose the race and
+  // still find nothing copied. A null stamp is how it learns that.
+  it('reports a null stamp when the claim was released underneath it', async () => {
+    state.lockRows = [];
+    state.copiedAt = null;
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq(), res);
+    expect(statusCode()).toBe(200);
+    expect(body()).toEqual({ alreadyCopied: true, copiedAt: null });
+  });
+
+  it('404s when there is no profile row to claim', async () => {
+    state.lockRows = [];
+    state.profileMissing = true;
+    const { res, statusCode } = makeRes();
+    await handler(makeReq(), res);
+    expect(statusCode()).toBe(404);
   });
 });
