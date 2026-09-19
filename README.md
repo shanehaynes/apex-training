@@ -319,6 +319,8 @@ Deploys as a Vite app on Vercel ([vercel.json](vercel.json)) with two crons: per
 
 **Backups, with restore drills.** Production runs on Supabase's free tier, which keeps no backups, so the repo makes its own. Nightly, [`scripts/db-backup.sh`](scripts/db-backup.sh) dumps the schema and every `auth` and `public` row, encrypts the bundle to an [age](https://github.com/FiloSottile/age) public key committed in the repo, and uploads it as a 90-day artifact. Then — the part that matters — [`scripts/db-restore-drill.sh`](scripts/db-restore-drill.sh) restores that same dump into a throwaway stack on the runner and *checks* it: users and events exist, every row count matches the dump, the signup trigger is back, and the schema matches the committed types. **A backup that cannot be restored turns the run red.** The repo is public, so the encryption is what keeps password hashes and training data private.
 
+**Where the keys themselves live** — the escrow location of every secret, who besides Shane can mint an App Store Connect API key, and how the Apple Account is recovered without the release machine — is [docs/ops-runbook.md](docs/ops-runbook.md). A restore is only as good as the age private key that decrypts the bundle and the `API_KEY_ENCRYPTION_SECRET` that makes the restored rows readable.
+
 <details>
 <summary><b>Backup setup, restoring a bundle, and disaster recovery</b></summary>
 
