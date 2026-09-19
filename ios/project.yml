@@ -73,9 +73,11 @@ targets:
       - path: scripts/verify-release-config.sh
         name: Verify Release configuration
         shell: /bin/bash
-        # A gate an incremental build may skip is not a gate; this also silences
-        # the "will be run during every build" warning the phase would earn for
-        # declaring no outputs.
+        # A gate an incremental build may skip is not a gate. Declaring no
+        # outputs would earn a *warning* that the phase runs every time;
+        # unchecking "Based on dependency analysis" — which is what this maps to
+        # — makes that every-build behaviour deliberate, and Xcode says so with a
+        # note instead.
         basedOnDependencyAnalysis: false
         # The phase says what is wrong itself; dumping every build setting into
         # the log on every build of every configuration is noise.
