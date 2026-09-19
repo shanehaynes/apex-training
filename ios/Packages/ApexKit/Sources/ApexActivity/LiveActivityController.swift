@@ -19,9 +19,24 @@ import os
 public nonisolated struct LiveActivityController: TrackerActivityPublishing {
     public static let doneLingers: TimeInterval = 5 * 60
 
+    /// How long a running activity's content is trusted. A session finished on
+    /// the web, or an app killed mid-workout, leaves ActivityKit rendering a
+    /// timer nobody is updating; past this the system marks the activity stale
+    /// and the views say so instead of counting up forever. Four hours is
+    /// longer than any real session and short enough that a forgotten one does
+    /// not lie all day.
+    public static let staleAfter: TimeInterval = 4 * 60 * 60
+
     private let log = Logger(subsystem: "com.shanehaynes.apextraining", category: "activity")
 
     public init() {}
+
+    /// The moment this content stops being believable: `startedAt + 4h` while
+    /// the workout is running, and nothing for a finished one — a `.done` state
+    /// carries a fixed total that is as true in an hour as it is now.
+    public static func staleDate(for state: TrackerActivityAttributes.ContentState) -> Date? {
+        state.isDone ? nil : state.startedAt.addingTimeInterval(staleAfter)
+    }
 
     // MARK: - TrackerActivityPublishing
 
@@ -31,7 +46,7 @@ public nonisolated struct LiveActivityController: TrackerActivityPublishing {
             // Left behind by a kill, or the same session re-opened: keep it,
             // and only touch it if the snapshot moved.
             if live.content.state != snapshot.state {
-                await live.update(ActivityContent(state: snapshot.state, staleDate: nil))
+                await live.update(ActivityContent(state: snapshot.state, staleDate: Self.staleDate(for: snapshot.state)))
             }
             return
         }
@@ -42,7 +57,7 @@ public nonisolated struct LiveActivityController: TrackerActivityPublishing {
         do {
             _ = try Activity.request(
                 attributes: snapshot.attributes,
-                content: ActivityContent(state: snapshot.state, staleDate: nil),
+                content: ActivityContent(state: snapshot.state, staleDate: Self.staleDate(for: snapshot.state)),
                 pushType: nil
             )
         } catch {
@@ -56,7 +71,7 @@ public nonisolated struct LiveActivityController: TrackerActivityPublishing {
             guard let activity = Self.live(for: session) else { return }
             var state = activity.content.state
             state.phase = .done(totalSeconds: totalSeconds)
-            await activity.end(ActivityContent(state: state, staleDate: nil), dismissalPolicy: .after(.now + Self.doneLingers))
+            await activity.end(ActivityContent(state: state, staleDate: Self.staleDate(for: state)), dismissalPolicy: .after(.now + Self.doneLingers))
         } else {
             // A cancel after a finish: the activity is already `.ended` and
             // lingering on the Lock Screen as "Done" — that has to go too, so
