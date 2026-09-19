@@ -174,6 +174,12 @@ rule people remember.
 
    The build number is `git rev-list --count HEAD` in both paths, not the workflow's run
    number ([D-034](decisions.md#d-034--the-workflows-build-number-is-the-commit-count-not-the-run-number)).
+   The count is monotonic along a branch but not at Apple — a branch that uploaded
+   count+3 and then squash-merged leaves `main` at count+1, which App Store Connect
+   rejects — so the lane raises it to one past the highest build the version already has
+   there, and `-f build_number=357` (`APEX_BUILD_NUMBER=357` for the script and a local
+   lane run) stamps a number outright when even that is wrong, which is what a build
+   rejected in processing needs.
    The workflow and the Fastfile are HELD paths / release automation: Shane merges changes
    to them with the `shipit` label.
 4. Builds expire 90 days after upload — the cadence note is in
