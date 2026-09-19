@@ -45,6 +45,24 @@ public struct CompletionLogRow: Codable, Sendable, Equatable {
     public let durationMinutes: Int?
     /// `"complete"` or `"uncomplete"` — anything else is a 400.
     public let action: String
+    /// One uuid per toggle, minted by `CompletionRows.build` and stored with
+    /// the queued op, so every replay of that op carries it unchanged and the
+    /// server can drop the repeat (`workout_completion_log` is append-only and
+    /// two genuine toggles to the same action are otherwise identical). Nil
+    /// only for ops queued by a build from before the column existed, which
+    /// decode with `decodeIfPresent` and keep the old at-least-once behaviour.
+    public let clientToggleId: String?
+
+    public init(eventId: String, eventDate: String, eventType: String, eventTitle: String,
+                durationMinutes: Int?, action: String, clientToggleId: String? = nil) {
+        self.eventId = eventId
+        self.eventDate = eventDate
+        self.eventType = eventType
+        self.eventTitle = eventTitle
+        self.durationMinutes = durationMinutes
+        self.action = action
+        self.clientToggleId = clientToggleId
+    }
 
     enum CodingKeys: String, CodingKey {
         case eventId = "event_id"
@@ -53,6 +71,7 @@ public struct CompletionLogRow: Codable, Sendable, Equatable {
         case eventTitle = "event_title"
         case durationMinutes = "duration_minutes"
         case action
+        case clientToggleId = "client_toggle_id"
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -63,12 +82,18 @@ public struct CompletionLogRow: Codable, Sendable, Equatable {
         try c.encode(eventTitle, forKey: .eventTitle)
         try c.encode(durationMinutes, forKey: .durationMinutes)
         try c.encode(action, forKey: .action)
+        try c.encode(clientToggleId, forKey: .clientToggleId)
     }
 }
 
 public enum CompletionRows {
-    public static func build(for event: ScheduleEvent, isNowCompleted: Bool, now: Date)
-        -> (completionRow: CompletionRow, logRow: CompletionLogRow) {
+    /// `toggleId` exists for tests; production callers let it mint a fresh one,
+    /// which is the point — one id per toggle, carried by every replay of the
+    /// op this row is queued in.
+    public static func build(
+        for event: ScheduleEvent, isNowCompleted: Bool, now: Date,
+        toggleId: String = UUID().uuidString.lowercased()
+    ) -> (completionRow: CompletionRow, logRow: CompletionLogRow) {
         let completionRow = CompletionRow(
             eventId: event.id,
             eventDate: event.date,
@@ -84,7 +109,8 @@ public enum CompletionRows {
             eventType: event.type.rawValue,
             eventTitle: event.title,
             durationMinutes: event.estimatedDuration,
-            action: isNowCompleted ? "complete" : "uncomplete"
+            action: isNowCompleted ? "complete" : "uncomplete",
+            clientToggleId: toggleId
         )
         return (completionRow, logRow)
     }

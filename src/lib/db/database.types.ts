@@ -980,6 +980,7 @@ export type Database = {
       workout_completion_log: {
         Row: {
           action: string
+          client_toggle_id: string | null
           duration_minutes: number | null
           event_date: string
           event_id: string
@@ -991,6 +992,7 @@ export type Database = {
         }
         Insert: {
           action: string
+          client_toggle_id?: string | null
           duration_minutes?: number | null
           event_date: string
           event_id: string
@@ -1002,6 +1004,7 @@ export type Database = {
         }
         Update: {
           action?: string
+          client_toggle_id?: string | null
           duration_minutes?: number | null
           event_date?: string
           event_id?: string

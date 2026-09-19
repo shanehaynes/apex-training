@@ -1746,6 +1746,7 @@ internal enum PublicSchema {
   }
   internal struct WorkoutCompletionLogSelect: Codable, Hashable, Sendable {
     internal let action: String
+    internal let clientToggleId: UUID?
     internal let durationMinutes: Int32?
     internal let eventDate: String
     internal let eventId: String
@@ -1756,6 +1757,7 @@ internal enum PublicSchema {
     internal let userId: UUID
     internal enum CodingKeys: String, CodingKey {
       case action = "action"
+      case clientToggleId = "client_toggle_id"
       case durationMinutes = "duration_minutes"
       case eventDate = "event_date"
       case eventId = "event_id"
@@ -1768,6 +1770,7 @@ internal enum PublicSchema {
   }
   internal struct WorkoutCompletionLogInsert: Codable, Hashable, Sendable {
     internal let action: String
+    internal let clientToggleId: UUID?
     internal let durationMinutes: Int32?
     internal let eventDate: String
     internal let eventId: String
@@ -1778,6 +1781,7 @@ internal enum PublicSchema {
     internal let userId: UUID
     internal enum CodingKeys: String, CodingKey {
       case action = "action"
+      case clientToggleId = "client_toggle_id"
       case durationMinutes = "duration_minutes"
       case eventDate = "event_date"
       case eventId = "event_id"
@@ -1790,6 +1794,7 @@ internal enum PublicSchema {
   }
   internal struct WorkoutCompletionLogUpdate: Codable, Hashable, Sendable {
     internal let action: String?
+    internal let clientToggleId: UUID?
     internal let durationMinutes: Int32?
     internal let eventDate: String?
     internal let eventId: String?
@@ -1800,6 +1805,7 @@ internal enum PublicSchema {
     internal let userId: UUID?
     internal enum CodingKeys: String, CodingKey {
       case action = "action"
+      case clientToggleId = "client_toggle_id"
       case durationMinutes = "duration_minutes"
       case eventDate = "event_date"
       case eventId = "event_id"
