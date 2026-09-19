@@ -81,7 +81,6 @@ final class AppModel {
         self.hub = hub
         self.schedule = Self.makeSchedule(client: client, cache: cache, clock: SystemClock(), streams: streams, realtime: hub)
         self.analytics = Self.makeAnalytics(client: client, cache: cache, clock: SystemClock(), realtime: hub)
-        if let cache { Task { await Self.sweepStaleBootstraps(cache, now: SystemClock().now) } }
     }
 
     #if DEBUG
@@ -434,7 +433,11 @@ final class AppModel {
     /// launch over it would be worse than losing offline reads.
     private static func openDatabase() -> DatabasePool? {
         do {
-            return try ApexDatabase.makePool()
+            let pool = try ApexDatabase.makePool()
+            // Opening the file is launch, and it happens exactly once — the
+            // place to prune what the cache accumulates between runs (#221).
+            Task { await sweepStaleBootstraps(GRDBCacheStore(pool: pool), now: SystemClock().now) }
+            return pool
         } catch {
             ToastBus.shared.post("Offline cache unavailable.", level: .failure)
             return nil
