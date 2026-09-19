@@ -23,11 +23,55 @@ public struct TileChartView: View {
     let kind: Kind
     let data: TileData
 
+    // Everything the plot is laid out from, computed once in `init`. All of it
+    // is a pure function of `kind` and `data`, and `body` re-runs on every
+    // scrub tap and on every frame the enclosing scroll view moves — as
+    // computed properties the colour assignment, the axis maxima and the whole
+    // point list were rebuilt each pass, on a page of tiles at once.
+    private let colors: [SeriesColor]
+    private let bucketKeys: [String]
+    private let isGrade: Bool
+    private let showsPoints: Bool
+    private let hasRightAxis: Bool
+    /// What a right-axis value is multiplied by to land in the left domain.
+    private let rightToLeft: Double
+    /// The largest right-axis value, for the trailing axis's own ticks.
+    private let rightAxisMax: Double
+    private let points: [Point]
+    /// Every bucket up to eight; past that, evenly spaced ticks — a tick text
+    /// you cannot read is not a tick (U26).
+    private let tickKeys: [String]
+    private let bucketLabels: [String: String]
+    /// VoiceOver's view of the tile, built once for the same reason.
+    private let descriptor: TileChartDescriptor
+    private let accessibilitySummary: String
+
     @State private var scrubKey: String?
 
     public init(kind: Kind, data: TileData) {
         self.kind = kind
         self.data = data
+
+        let bucketKeys = data.buckets.map(\.key)
+        let rightSeries = Set(data.series.indices.filter { data.series[$0].axis == "right" })
+        let leftMax = Self.axisMax(data, indices: data.series.indices.filter { !rightSeries.contains($0) })
+        let rightMax = Self.axisMax(data, indices: data.series.indices.filter { rightSeries.contains($0) })
+        let ratio = leftMax / rightMax
+
+        self.colors = SeriesColors.assign(keys: data.series.map(\.key))
+        self.bucketKeys = bucketKeys
+        self.isGrade = data.series.contains { $0.unitKind == "grade" }
+        self.showsPoints = data.buckets.count <= 60
+        self.hasRightAxis = !rightSeries.isEmpty
+        self.rightToLeft = ratio
+        self.rightAxisMax = rightMax
+        self.points = Self.plot(data, bucketKeys: bucketKeys, rightSeries: rightSeries, ratio: ratio)
+        self.tickKeys = Self.evenTicks(bucketKeys)
+        self.bucketLabels = Dictionary(data.buckets.map { ($0.key, $0.label) }, uniquingKeysWith: { first, _ in first })
+
+        let descriptor = TileChartDescriptor(kind: kind, data: data)
+        self.descriptor = descriptor
+        self.accessibilitySummary = descriptor.summary
     }
 
     /// One plotted point: series, bucket, value. `run` splits a series at
@@ -41,20 +85,11 @@ public struct TileChartView: View {
         let run: Int
     }
 
-    private var colors: [SeriesColor] { SeriesColors.assign(keys: data.series.map(\.key)) }
-    private var bucketKeys: [String] { data.buckets.map(\.key) }
-    private var isGrade: Bool { data.series.contains { $0.unitKind == "grade" } }
-    private var showsPoints: Bool { data.buckets.count <= 60 }
-    private var rightSeries: Set<Int> { Set(data.series.indices.filter { data.series[$0].axis == "right" }) }
-    private var hasRightAxis: Bool { !rightSeries.isEmpty }
-
-    /// The largest value on each axis — the rescaling ratio between them.
-    private func axisMax(right: Bool) -> Double {
-        let values = data.series.indices.filter { rightSeries.contains($0) == right }
-            .flatMap { data.series[$0].points.compactMap { $0 } }
+    /// The largest value on one axis. Never zero: the other axis divides by it.
+    private static func axisMax(_ data: TileData, indices: [Int]) -> Double {
+        let values = indices.flatMap { data.series[$0].points.compactMap { $0 } }
         return max(values.max() ?? 0, 1)
     }
-    private var rightToLeft: Double { axisMax(right: false) / axisMax(right: true) }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -80,12 +115,10 @@ public struct TileChartView: View {
         // axes, series and every bucket by name, so the numbers can be walked
         // rather than guessed at.
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(descriptor.summary)
+        .accessibilityLabel(accessibilitySummary)
         .accessibilityChartDescriptor(descriptor)
         .accessibilityIdentifier("tile.chart.\(kind.rawValue)")
     }
-
-    private var descriptor: TileChartDescriptor { TileChartDescriptor(kind: kind, data: data) }
 
     private var legend: some View {
         FlowLayout(spacing: Spacing.sm) {
@@ -102,9 +135,8 @@ public struct TileChartView: View {
         .accessibilityIdentifier("tile.legend")
     }
 
-    private var points: [Point] {
+    private static func plot(_ data: TileData, bucketKeys: [String], rightSeries: Set<Int>, ratio: Double) -> [Point] {
         var out: [Point] = []
-        let ratio = rightToLeft
         for (i, series) in data.series.enumerated() {
             let scale = rightSeries.contains(i) ? ratio : 1
             var run = 0
@@ -202,7 +234,7 @@ public struct TileChartView: View {
                 }
                 if hasRightAxis {
                     // Round numbers on the right axis, placed where they fall on the left scale.
-                    AxisMarks(position: .trailing, values: Self.niceTicks(upTo: axisMax(right: true)).map { $0 * ratio }) { value in
+                    AxisMarks(position: .trailing, values: Self.niceTicks(upTo: rightAxisMax).map { $0 * ratio }) { value in
                         AxisValueLabel {
                             if let v = value.as(Double.self) {
                                 Text(TileFormat.value(v / ratio))
@@ -242,17 +274,14 @@ public struct TileChartView: View {
         return stride(from: 0, through: max, by: step).map { $0 }
     }
 
-    /// Every bucket up to eight; past that, evenly spaced ticks — a tick
-    /// text you cannot read is not a tick (U26).
-    private var tickKeys: [String] {
-        let keys = bucketKeys
+    private static func evenTicks(_ keys: [String]) -> [String] {
         guard keys.count > 8 else { return keys }
         let step = Int((Double(keys.count) / 6).rounded(.up))
         return stride(from: 0, to: keys.count, by: step).map { keys[$0] }
     }
 
     private func label(for key: String) -> String {
-        data.buckets.first { $0.key == key }?.label ?? key
+        bucketLabels[key] ?? key
     }
 }
 
