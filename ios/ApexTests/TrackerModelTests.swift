@@ -438,9 +438,11 @@ final class TrackerModelTests: XCTestCase {
         let (model, _) = make(healthy(), cache: cache)
         await model.open()
         let mine = ScheduleCacheKey.trackerBootstrap(eventId: Self.event.id, eventDate: Self.event.date)
-        XCTAssertNotNil(try await cache.read(kind: .trackerBootstrap, key: mine))
+        let written = try await cache.read(kind: .trackerBootstrap, key: mine)
+        XCTAssertNotNil(written)
 
-        XCTAssertTrue(await model.cancelWorkout())
+        let ok = await model.cancelWorkout()
+        XCTAssertTrue(ok)
 
         let cancelled = try await cache.read(kind: .trackerBootstrap, key: mine)
         let kept = try await cache.read(kind: .trackerBootstrap, key: tomorrow)
