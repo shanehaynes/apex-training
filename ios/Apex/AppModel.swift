@@ -163,7 +163,7 @@ final class AppModel {
                 }
             },
             onScheduleChanged: { [weak self] in Task { await self?.schedule.refresh(reason: .afterEdit) } },
-            onAccountDeleted: { [weak self] in self?.signOut() },
+            onAccountDeleted: { [weak self] in self?.accountDeleted() },
             signOut: { [weak self] in self?.signOut() },
             // W10: the Library reads the schedule's cached definitions and
             // templates (one read path, D-032) and hands its writes back to it.
@@ -192,6 +192,30 @@ final class AppModel {
         ))
         onboarding = onboardingModel
         Task { await onboardingModel.start() }
+    }
+
+    /// The account is gone server-side (`api/_lib/handlers/account.ts`), so the
+    /// two per-owner stores on this device have to go with it (#220): queued
+    /// `tracker_ops` would 404 forever — sign-out deliberately keeps them, since
+    /// an ordinary session ends with work still worth flushing — and the coach
+    /// history belongs to a user who no longer exists. Both are cleared, and
+    /// *awaited*, before the sign-out: it drops `trackerServices` and
+    /// `coachServices`, the only handles that still reach those rows.
+    func accountDeleted() {
+        Task { [weak self] in
+            await self?.purgeDeviceData()
+            self?.signOut()
+        }
+    }
+
+    /// Conversations and queued writes for the signed-in owner. Both stores are
+    /// owner-scoped, so another account's rows on the same device survive.
+    private func purgeDeviceData() async {
+        // First, so a stream in flight cannot append a message back into the
+        // store just emptied. Sign-out calls it again; it is idempotent.
+        coach?.shutdown()
+        if let queue = trackerServices?.queue { await queue.purgeAll() }
+        if let store = coachServices?.store { try? await store.deleteAll() }
     }
 
     /// The You tab's change-password: the same SDK call the set-password
