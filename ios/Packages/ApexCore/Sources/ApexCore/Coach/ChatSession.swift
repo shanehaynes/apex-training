@@ -417,7 +417,9 @@ public actor ChatSession {
                         self.setPartial(text)
                     case .toolUse:
                         if let block = ToolUseBlock(event) { toolUses.append(block) }
-                    case .done:
+                    // `.unknown` never arrives — `ApexClient` drops it — but the
+                    // switch has to stay exhaustive.
+                    case .done, .unknown:
                         break
                     case .error(let message):
                         throw APIError.server(status: 200, message: message)
