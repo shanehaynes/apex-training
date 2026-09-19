@@ -61,6 +61,13 @@ final class AppModel {
     /// Whether the set-password screen must also collect acceptance: the terms
     /// gate 403s every other read for an invitee who never accepted on the web.
     private(set) var needsTermsAcceptance = false
+    /// Non-nil once `/api/version` has said this build is below the floor it
+    /// serves (G8): the root shows the blocking screen instead of the app. The
+    /// read fails open, so nothing but a positive verdict ever sets it.
+    private(set) var updateRequired: String?
+    /// Kept for the update check, which is unauthenticated and so cannot go
+    /// through `client` — a launch that is not signed in still needs an answer.
+    private let transport: any HTTPTransport
 
     init(auth: AuthService) {
         self.auth = auth
@@ -69,7 +76,11 @@ final class AppModel {
         let tokens = SupabaseTokenProvider(auth: auth.auth) { [weak auth] in
             await MainActor.run { auth?.expire(reason: "Session expired. Sign in again.") }
         }
-        let client = ApexClient(baseURL: AppConfig.apiBase, transport: URLSessionTransport(), tokens: tokens)
+        let transport = URLSessionTransport()
+        let client = ApexClient(
+            baseURL: AppConfig.apiBase, transport: transport, tokens: tokens, clientTag: AppConfig.clientTag
+        )
+        self.transport = transport
         let pool = Self.openDatabase()
         let cache: (any CacheStore)? = pool.map { GRDBCacheStore(pool: $0) }
         let streams = SupabaseActivityStreams(client: auth.supabase)
@@ -87,7 +98,10 @@ final class AppModel {
     init(mock: MockEnvironment) {
         self.auth = nil
         self.clock = mock.clock
-        let client = ApexClient(baseURL: AppConfig.apiBase, transport: mock.transport, tokens: mock.tokens)
+        let client = ApexClient(
+            baseURL: AppConfig.apiBase, transport: mock.transport, tokens: mock.tokens, clientTag: AppConfig.clientTag
+        )
+        self.transport = mock.transport
         self.client = client
         self.pool = nil
         self.cache = mock.cache
@@ -103,6 +117,15 @@ final class AppModel {
     // (swiftlang/swift#87316, D-031). Nothing here needs the actor to die.
     nonisolated deinit {}
     #endif
+
+    /// The launch check (G8): has the server retired this build? Everything
+    /// about the read fails open — offline, a 500, an unparseable body all
+    /// leave the app running — so this only ever turns the screen ON.
+    func checkMinimumBuild() async {
+        updateRequired = await UpdateGate.check(
+            build: AppConfig.buildNumber, baseURL: AppConfig.apiBase, transport: transport
+        )
+    }
 
     /// Called once the root knows who is signed in. Idempotent per owner. The
     /// queue outlives nothing: a new owner gets a new queue over their own rows.
