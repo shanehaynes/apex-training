@@ -271,7 +271,10 @@ struct TrackerHeader: View {
                         .font(.apex(.display, size: TypeScale.sm, weight: .semibold, relativeTo: .callout))
                         .foregroundStyle(ApexPalette.positive)
                         .padding(.horizontal, Spacing.md)
-                        .frame(minHeight: 36)
+                        // 44pt is the HIG minimum, and this one sits next to
+                        // the back button (already 44) in a sweaty-handed
+                        // screen — the capsule grows, the type does not.
+                        .frame(minHeight: 44)
                         .overlay(Capsule().strokeBorder(ApexPalette.positive.opacity(0.6), lineWidth: 1))
                     }
                     .buttonStyle(.plain)
@@ -288,7 +291,9 @@ struct TrackerHeader: View {
                         .font(.apex(.display, size: TypeScale.sm, weight: .semibold, relativeTo: .callout))
                         .foregroundStyle(ApexColor.bgPrimary)
                         .padding(.horizontal, Spacing.lg)
-                        .frame(minHeight: 36)
+                        // The HIG minimum, as above: the one button that ends
+                        // a workout should not be the smallest target on screen.
+                        .frame(minHeight: 44)
                         .background(ApexColor.accent, in: .capsule)
                     }
                     .buttonStyle(.plain)
