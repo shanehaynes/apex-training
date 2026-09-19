@@ -49,6 +49,13 @@ final class AppModel {
     private let hub: RealtimeHub?
     private let clock: any ApexClock
     private var mockState: AuthState = .signedOut(reason: nil)
+    /// Non-nil once `/api/version` has said this build is below the floor it
+    /// serves (G8): the root shows the blocking screen instead of the app. The
+    /// read fails open, so nothing but a positive verdict ever sets it.
+    private(set) var updateRequired: String?
+    /// Kept for the update check, which is unauthenticated and so cannot go
+    /// through `client` — a launch that is not signed in still needs an answer.
+    private let transport: any HTTPTransport
     /// A link that arrived before the stored session was read; replayed once it is.
     private var parkedURL: URL?
     /// Non-auth links (`/app/...`) and the tab selection: the tabs consume from
@@ -61,13 +68,6 @@ final class AppModel {
     /// Whether the set-password screen must also collect acceptance: the terms
     /// gate 403s every other read for an invitee who never accepted on the web.
     private(set) var needsTermsAcceptance = false
-    /// Non-nil once `/api/version` has said this build is below the floor it
-    /// serves (G8): the root shows the blocking screen instead of the app. The
-    /// read fails open, so nothing but a positive verdict ever sets it.
-    private(set) var updateRequired: String?
-    /// Kept for the update check, which is unauthenticated and so cannot go
-    /// through `client` — a launch that is not signed in still needs an answer.
-    private let transport: any HTTPTransport
 
     init(auth: AuthService) {
         self.auth = auth
