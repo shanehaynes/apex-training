@@ -168,3 +168,10 @@ export async function exchangeCode(code: string, verifier: string): Promise<Toke
 export async function refreshTokens(refreshToken: string): Promise<TokenResponse> {
   return tokenRequest({ grant_type: 'refresh_token', refresh_token: refreshToken });
 }
+
+// There is deliberately no revokeTokens(). COROS advertises an RFC 7009
+// revocation endpoint but does not accept public-client authentication there,
+// and Apex is a public client — so disconnecting cannot end the grant upstream
+// and the user is told to remove Apex in the COROS app instead. The evidence,
+// the live probe, and the test that fires if COROS ever changes its mind:
+// src/lib/sync/corosRevocation.ts and api/__tests__/coros-revocation.test.ts.

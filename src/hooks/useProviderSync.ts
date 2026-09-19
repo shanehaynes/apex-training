@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, postJson } from '../lib/api';
 import { notify } from '../lib/notify';
 import { useAuth } from '../context/auth';
+import { COROS_DISCONNECT_NOTICE } from '../lib/sync/corosRevocation';
 import { useSchedule } from '../context/schedule';
 
 // The COROS sync flow (useTemplateCopy shape, plus a confirmation queue).
@@ -59,6 +60,8 @@ export function useProviderSync() {
   const [pendingFillCount, setPendingFillCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  /** Set after a disconnect: the upstream grant COROS still holds (#231). */
+  const [disconnectNotice, setDisconnectNotice] = useState<string | null>(null);
   /** FILL proposals awaiting the user, head = the one on screen. The ref is
    *  the source of truth; state mirrors it for render. Settling mutates the
    *  ref outside any state updater so StrictMode's double-invoked updaters
@@ -91,6 +94,7 @@ export function useProviderSync() {
 
   const startConnect = useCallback(async () => {
     setIsConnecting(true);
+    setDisconnectNotice(null);
     try {
       const { authorizeUrl } = await postJson<{ authorizeUrl: string }>(
         '/api/provider-sync', { action: 'connect-start', provider: 'coros' }, 'COROS connect',
@@ -114,9 +118,15 @@ export function useProviderSync() {
 
   const disconnect = useCallback(async () => {
     try {
-      await postJson('/api/provider-sync', { action: 'disconnect', provider: 'coros' }, 'COROS disconnect');
+      const result = await postJson<{ notice?: string }>(
+        '/api/provider-sync', { action: 'disconnect', provider: 'coros' }, 'COROS disconnect',
+      );
       setStatus('disconnected');
       setLastSyncedAt(null);
+      // The grant stays live at COROS — Apex cannot revoke it. Keep the
+      // server's sentence on screen rather than toasting it away: a toast the
+      // user blinks past is not a disclosure.
+      setDisconnectNotice(result.notice ?? COROS_DISCONNECT_NOTICE);
       notify('COROS disconnected');
     } catch {
       /* toasted */
@@ -224,6 +234,7 @@ export function useProviderSync() {
     refreshStatus,
     startConnect,
     disconnect,
+    disconnectNotice,
     runSync,
     confirmFill,
   };
