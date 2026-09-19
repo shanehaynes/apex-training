@@ -515,12 +515,17 @@ public final class TrackerModel {
             let events = try await services.client.wireEvents(for: .coachSummary(eventId: session.eventId, eventDate: session.eventDate))
             for try await event in events {
                 switch event {
+                // An event type this build does not know; `ApexClient` drops
+                // these, so one never arrives. Its own arm, never folded into
+                // another, so a later change to `.done` cannot pick it up.
+                case .unknown:
+                    break
                 case .text(let delta):
                     text += delta
                     summary?.coachText = text
                 case .error(let message):
                     throw APIError.server(status: 200, message: message)
-                case .done, .toolUse, .unknown:
+                case .done, .toolUse:
                     break
                 }
             }
