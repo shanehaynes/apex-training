@@ -37,6 +37,12 @@ public protocol CacheStore: Sendable {
     func read(kind: CacheKind, key: String) async throws -> CacheEntry?
     func write(_ entry: CacheEntry) async throws
     func purge(kind: CacheKind) async throws
+    /// One row, not the whole kind: cancelling one workout must not take the
+    /// prefetched bootstrap for tomorrow's with it.
+    func delete(kind: CacheKind, key: String) async throws
+    /// Every row of `kind` last fetched before `cutoff`. The launch-time sweep
+    /// for kinds keyed by date, which otherwise accumulate forever.
+    func purge(kind: CacheKind, fetchedBefore cutoff: Date) async throws
 }
 
 /// Stale-while-revalidate (D-007): render the cached value immediately, refresh
@@ -51,4 +57,9 @@ public struct CachePolicy: Sendable {
     public static func isStale(_ entry: CacheEntry, now: Date) -> Bool {
         now.timeIntervalSince(entry.fetchedAt) > staleAfter
     }
+
+    /// A tracker bootstrap is keyed by event *and date*, so two a day pile up
+    /// and none of them is ever read again once the day is past. A week is long
+    /// enough that no plausible offline gap loses a prefetch.
+    public static let trackerBootstrapRetention: TimeInterval = 7 * 24 * 60 * 60
 }

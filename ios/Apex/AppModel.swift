@@ -81,6 +81,7 @@ final class AppModel {
         self.hub = hub
         self.schedule = Self.makeSchedule(client: client, cache: cache, clock: SystemClock(), streams: streams, realtime: hub)
         self.analytics = Self.makeAnalytics(client: client, cache: cache, clock: SystemClock(), realtime: hub)
+        if let cache { Task { await Self.sweepStaleBootstraps(cache, now: SystemClock().now) } }
     }
 
     #if DEBUG
@@ -397,6 +398,16 @@ final class AppModel {
               let bootstrap = try? JSONDecoder().decode(TrackerBootstrap.self, from: entry.json),
               let session = bootstrap.session else { return false }
         return session.startedAt != nil && session.finishedAt == nil
+    }
+
+    /// Tracker bootstraps are keyed by event *and* date: the schedule prefetches
+    /// two a day and nothing ever reads yesterday's again. Sweep them at launch
+    /// rather than letting the SQLite file grow for the life of the install.
+    static func sweepStaleBootstraps(_ cache: any CacheStore, now: Date) async {
+        try? await cache.purge(
+            kind: .trackerBootstrap,
+            fetchedBefore: now.addingTimeInterval(-CachePolicy.trackerBootstrapRetention)
+        )
     }
 
     private static func makeSchedule(
