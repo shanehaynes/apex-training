@@ -10,6 +10,7 @@ import {
   MAX_SERIES,
   MEASURES,
   MEASURE_IDS,
+  rangeSpanDays,
   WORKOUT_TYPES,
   specProblem,
   type Aggregation,
@@ -140,6 +141,13 @@ export function chartDraftProblem(draft: ChartDraft): string | null {
       return 'Fixed range needs both dates (YYYY-MM-DD).';
     }
     if (draft.startDate > draft.endDate) return 'The range must start before it ends.';
+    // Mirrors the fixed-range ceiling in specProblem, in the form's voice.
+    // The dates here are inclusive, hence the +1. A NaN span means a
+    // pattern-shaped non-date ('9999-99-99'), which addDay below would throw
+    // on rather than reject.
+    const span = rangeSpanDays(draft.startDate, draft.endDate) + 1;
+    if (!Number.isFinite(span)) return 'Fixed range needs both dates (YYYY-MM-DD).';
+    if (span > MAX_ROLLING_DAYS) return `A fixed range can cover at most ${MAX_ROLLING_DAYS} days.`;
   }
   if (draft.series.length === 0) return 'Add at least one series.';
   if (draft.series.length > MAX_SERIES) return `At most ${MAX_SERIES} series.`;

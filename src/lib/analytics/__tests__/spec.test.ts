@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { maxDayOffset, needsHrZones, specProblem, upgradeSpec, type ChartSpec } from '../spec';
+import { MAX_ROLLING_DAYS, maxDayOffset, needsHrZones, specProblem, upgradeSpec, type ChartSpec } from '../spec';
 import { makeSpec } from './helpers';
 
 describe('specProblem', () => {
@@ -42,6 +42,26 @@ describe('specProblem', () => {
       measure: 'protein',
       filters: { dayFilter: { eventTypes: ['weights'], offsetDays: 9, mode: 'include' } },
     }))).toContain('offsetDays');
+  });
+
+  // A fixed range used to be checked for format and ordering only, so a
+  // thousand-year window sailed through and widened unionWindow's single
+  // fetch to match. It now answers to the same ceiling as a rolling range.
+  it('caps a fixed range at MAX_ROLLING_DAYS', () => {
+    const fixed = (startDate: string, endDateExclusive: string) =>
+      specProblem(makeSpec({ measure: 'distance' }, { range: { kind: 'fixed', startDate, endDateExclusive } }));
+
+    // Exactly the cap is fine; one day more is not.
+    expect(fixed('2021-01-01', '2026-01-05')).toBeNull();        // 1830 days
+    expect(fixed('2021-01-01', '2026-01-06')).toContain('at most 1830 days'); // 1831
+    expect(fixed('1900-01-01', '2900-01-01')).toContain(`at most ${MAX_ROLLING_DAYS} days`);
+    expect(upgradeSpec(makeSpec({ measure: 'distance' }, {
+      range: { kind: 'fixed', startDate: '1900-01-01', endDateExclusive: '2900-01-01' },
+    }))).toBeNull();
+
+    // DATE_PATTERN admits '9999-99-99', whose span is NaN — and a NaN
+    // comparison must not read as "under the cap".
+    expect(fixed('2026-01-01', '9999-99-99')).toContain('real calendar dates');
   });
 
   it('caps a tile at two unit kinds, and stacked bars at one', () => {

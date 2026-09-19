@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { optionalEnv } from '../env.js';
 import { requireUser } from '../auth.js';
+import { enforceRateLimit } from '../rateLimit.js';
 import { cloneEventRow, collectDefinitionIds } from '../../../src/lib/template/clone.js';
 import type { ExerciseDefinitionRow, TablesInsert, WorkoutEventRow } from '../../../src/lib/db/types.js';
 
@@ -41,6 +42,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const userId = await requireUser(req, res);
   if (!userId) return;
 
+  if (!(await enforceRateLimit(supabase, res, userId, 'reads'))) return;
+
   const sourceId = await resolveSourceUserId(supabase);
   if (!sourceId) {
     res.status(500).send('No template source configured');
@@ -64,7 +67,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
   if (!locked || locked.length === 0) {
-    res.status(200).json({ alreadyCopied: true });
+    // Losing the claim does not mean the plan is on the calendar: the winner
+    // may still be mid-copy (the inserts happen after this point), and a
+    // failed copy releases the claim again. So report WHEN the claim we lost
+    // to was stamped and let the caller decide — a stamp from seconds ago is
+    // a copy in flight, a null one is a claim that was just released.
+    const { data: profile, error: readErr } = await supabase
+      .from('profiles')
+      .select('template_copied_at')
+      .eq('id', userId)
+      .maybeSingle();
+    if (readErr) {
+      console.error('[api/template-copy] claim read-back failed:', readErr.message);
+      res.status(500).send('Failed to start copy');
+      return;
+    }
+    // The other reason the UPDATE matched nothing: there is no profile row.
+    if (!profile) {
+      res.status(404).send('No profile for this account');
+      return;
+    }
+    res.status(200).json({ alreadyCopied: true, copiedAt: profile.template_copied_at });
     return;
   }
 

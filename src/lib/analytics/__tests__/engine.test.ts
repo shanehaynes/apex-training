@@ -38,7 +38,9 @@ describe('computeTile — problems', () => {
 
     const tooMany = computeTile(
       makeSpec({ measure: 'distance' }, {
-        range: { kind: 'fixed', startDate: '2020-01-01', endDateExclusive: '2026-01-01' },
+        // Two years of days is past MAX_BUCKETS but inside the fixed-range
+        // cap, so the bucket ceiling is what answers.
+        range: { kind: 'fixed', startDate: '2024-01-01', endDateExclusive: '2026-01-01' },
         bucket: 'day',
       }),
       makeInputs(),
