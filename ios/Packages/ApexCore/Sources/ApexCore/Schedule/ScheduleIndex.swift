@@ -41,9 +41,12 @@ public struct ScheduleEvent: Identifiable, Sendable, Equatable, Hashable {
 /// `ScheduleResponse` indexed for rendering: events by day, sorted the way the
 /// web sorts them (start time ascending, untimed last, then title).
 public struct ScheduleIndex: Sendable, Equatable {
-    public let response: ScheduleResponse
-    public let byDay: [DayKey: [ScheduleEvent]]
-    private let byId: [String: ScheduleEvent]
+    // `private(set) var` rather than `let` so a completion flip can patch the
+    // one event it touches instead of rebuilding the whole window; nothing
+    // outside can still mutate them.
+    public private(set) var response: ScheduleResponse
+    public private(set) var byDay: [DayKey: [ScheduleEvent]]
+    private var byId: [String: ScheduleEvent]
 
     public init(_ response: ScheduleResponse) {
         self.response = response
@@ -100,18 +103,37 @@ public struct ScheduleIndex: Sendable, Equatable {
     /// The optimistic flip: the same window with one stub's completion changed.
     /// Returns a new index (and, through `response`, the JSON to write back to
     /// the cache so an offline relaunch shows the flip).
+    ///
+    /// Patched in place rather than rebuilt: every tap used to re-key the whole
+    /// 180-day window — a `DayKey` parse per occurrence and a sort per day — on
+    /// the main actor. Completion is not part of `displayOrder`, so the flipped
+    /// event goes back at exactly the offset it came from.
     public func settingCompletion(id: String, isCompleted: Bool, completedAt: String?) -> ScheduleIndex {
-        let occurrences = response.occurrences.map { stub -> Occurrence in
-            guard stub.id == id else { return stub }
-            var flipped = stub
-            flipped.isCompleted = isCompleted
-            flipped.completedAt = isCompleted ? completedAt : nil
-            return flipped
+        guard let position = response.occurrences.firstIndex(where: { $0.id == id }) else { return self }
+        var flipped = response.occurrences[position]
+        flipped.isCompleted = isCompleted
+        flipped.completedAt = isCompleted ? completedAt : nil
+
+        var copy = self
+        copy.response = replacingOccurrence(at: position, with: flipped)
+        // An occurrence whose base is missing was never indexed (it cannot be
+        // rendered); the response still carries its flip, as the rebuild did.
+        if let existing = byId[id], let event = ScheduleEvent(occurrence: flipped, base: existing.base) {
+            copy.byId[id] = event
+            if let row = copy.byDay[event.day]?.firstIndex(where: { $0.id == id }) {
+                copy.byDay[event.day]?[row] = event
+            }
         }
-        return ScheduleIndex(ScheduleResponse(
+        return copy
+    }
+
+    private func replacingOccurrence(at position: Int, with occurrence: Occurrence) -> ScheduleResponse {
+        var occurrences = response.occurrences
+        occurrences[position] = occurrence
+        return ScheduleResponse(
             window: response.window, bases: response.bases, occurrences: occurrences,
             definitions: response.definitions, templates: response.templates
-        ))
+        )
     }
 
     // MARK: - Optimistic edits (W7)
@@ -164,6 +186,23 @@ public struct ScheduleIndex: Sendable, Equatable {
         var occurrences = response.occurrences.filter { $0.id != occurrence.id }
         occurrences.append(occurrence)
         return rebuilt(bases: bases, occurrences: occurrences)
+    }
+
+    // MARK: - Off-actor codec
+    // `ApexFeatures` is a `defaultIsolation(MainActor)` module, so decoding a
+    // window there ran the whole parse — 180 days of occurrences, definitions
+    // and templates — on the main actor. These two are nonisolated (ApexCore
+    // is not MainActor by default) and take and return `Sendable` values, so a
+    // caller can hand the job to `Task.detached` and get back only the result.
+
+    /// Decode a `/api/schedule` window and index it.
+    public static func decode(_ json: Data) throws -> ScheduleIndex {
+        ScheduleIndex(try JSONDecoder().decode(ScheduleResponse.self, from: json))
+    }
+
+    /// The window as it should be written back to the cache.
+    public func encodedResponse() throws -> Data {
+        try JSONEncoder().encode(response)
     }
 }
 

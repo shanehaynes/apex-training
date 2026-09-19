@@ -61,6 +61,53 @@ final class ScheduleIndexTests: XCTestCase {
         XCTAssertEqual(back.response.occurrences.count, 6)
     }
 
+    /// The flip patches the one event it touches: the day keeps its order, the
+    /// other days keep their identity, and the response still carries the change
+    /// for the cache write.
+    func testSettingCompletionPatchesInPlace() throws {
+        let index = ScheduleIndex(try response(sample))
+        let day = DayKey("2026-09-08")!
+        let before = index.events(on: day).map(\.id)
+
+        let flipped = index.settingCompletion(id: "a__2026-09-08", isCompleted: true, completedAt: "2026-09-08T18:00:00.000Z")
+        XCTAssertEqual(flipped.events(on: day).map(\.id), before, "completion is not part of displayOrder")
+        XCTAssertEqual(flipped.count, index.count)
+        XCTAssertTrue(flipped.events(on: day).first { $0.id == "a__2026-09-08" }!.isCompleted, "the day's copy flipped too")
+        XCTAssertEqual(
+            flipped.response.occurrences.first { $0.id == "a__2026-09-08" }?.completedAt,
+            "2026-09-08T18:00:00.000Z"
+        )
+        XCTAssertEqual(flipped.events(on: DayKey("2026-09-15")!).map(\.id), ["a__2026-09-15"], "other days are untouched")
+        // The same window rebuilt from scratch is the same index, so nothing
+        // downstream can tell the patch from the rebuild it replaced.
+        XCTAssertEqual(flipped, ScheduleIndex(flipped.response))
+    }
+
+    func testSettingCompletionOnAnUnknownIdIsANoOp() throws {
+        let index = ScheduleIndex(try response(sample))
+        XCTAssertEqual(index.settingCompletion(id: "nope", isCompleted: true, completedAt: "t"), index)
+    }
+
+    /// An orphan (no base) is not rendered and so is not indexed, but it is
+    /// still in the window the cache writes back — the rebuild flipped it, and
+    /// so does the patch.
+    func testSettingCompletionStillFlipsAnUnindexedStub() throws {
+        let index = ScheduleIndex(try response(sample))
+        let flipped = index.settingCompletion(id: "orphan", isCompleted: true, completedAt: "2026-09-09T08:00:00.000Z")
+        XCTAssertTrue(flipped.response.occurrences.first { $0.id == "orphan" }!.isCompleted)
+        XCTAssertNil(flipped.event(id: "orphan"))
+        XCTAssertEqual(flipped.count, index.count)
+    }
+
+    /// The pair `ScheduleModel` hands to `Task.detached`: what `decode` builds
+    /// and what `encodedResponse` writes back must round-trip.
+    func testDecodeAndEncodeRoundTripTheWindow() throws {
+        let index = try ScheduleIndex.decode(Data(sample.utf8))
+        XCTAssertEqual(index.count, 5)
+        let again = try ScheduleIndex.decode(index.encodedResponse())
+        XCTAssertEqual(again, index)
+    }
+
     func testMonthGridPadsToWholeRows() {
         // September 2026 starts on a Tuesday.
         let mondayFirst = MonthGrid.cells(year: 2026, month: 9, firstWeekday: 2)
