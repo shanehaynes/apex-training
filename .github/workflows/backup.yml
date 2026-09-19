@@ -1,10 +1,12 @@
 # Nightly encrypted dump of the production database, proven by a restore.
 #
 # Production is Supabase Free, which keeps no backups. This dumps it with the
-# Supabase CLI (scripts/db-backup.sh), encrypts the bundle to the public key in
-# scripts/backup/age-recipient.txt, uploads it as an artifact, and THEN restores
-# the plaintext into a throwaway `supabase start` on the runner
-# (scripts/db-restore-drill.sh). Upload comes first on purpose: a drill can
+# Supabase CLI (scripts/db-backup.sh), encrypts the bundle to the public keys in
+# scripts/backup/age-recipient.txt (plus a throwaway key minted for the run, so
+# the drill can open it), uploads it as an artifact, and THEN restores
+# that same bundle into a throwaway `supabase start` on the runner
+# (scripts/db-restore-drill.sh: decrypt the .age, diff it against the
+# plaintext, restore, check). Upload comes first on purpose: a drill can
 # fail for reasons that are not the backup's (the CLI's local auth schema
 # lagging production's, production lagging main's migrations), and that must
 # turn the run red without costing the night's only backup.
@@ -65,6 +67,41 @@ jobs:
       - name: Install age
         if: steps.gate.outputs.run == 'true'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq age
+
+      # The drill decrypts the uploaded bundle (scripts/db-restore-drill.sh),
+      # which needs a private key. Rather than park a real backup key in a
+      # public repo's Actions secrets — where every workflow run could read it,
+      # and where it would undo "the private key lives only with Shane" — mint
+      # a throwaway identity here and add it as an EXTRA recipient for this run
+      # only. The committed keys stay recipients, so the artifact is still
+      # Shane's to open; the throwaway lives in RUNNER_TEMP and dies with the
+      # job, and anyone who could read it could already read the plaintext dump
+      # sitting beside it. Its public half is not secret, so nothing is masked.
+      # What this cannot prove is that the escrowed key opens a bundle — only
+      # the by-hand restore does (README, "Backups").
+      - name: Mint a throwaway key for the restore drill
+        id: drillkey
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          # db-backup.sh checks the recipients file it is handed, and the one
+          # handed to it below always has the throwaway in it. So check the
+          # committed file here, or an empty age-recipient.txt would encrypt
+          # the night's bundle to a key that dies with this runner.
+          if ! grep -qE '^age1[0-9a-z]+$' scripts/backup/age-recipient.txt; then
+            echo "::error::scripts/backup/age-recipient.txt holds no age1... public key — a bundle only the throwaway drill key can open is not a backup (README, Backups)."
+            exit 1
+          fi
+          key="$RUNNER_TEMP/drill-age.key"
+          age-keygen -o "$key" >/dev/null 2>&1
+          pub=$(sed -n 's/^# public key: //p' "$key")
+          [ -n "$pub" ] || { echo "::error::age-keygen produced no public key"; exit 1; }
+          rcpt="$RUNNER_TEMP/age-recipients.txt"
+          cat scripts/backup/age-recipient.txt > "$rcpt"
+          printf '%s\n' "$pub" >> "$rcpt"
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+          echo "recipients=$rcpt" >> "$GITHUB_OUTPUT"
+
       # `latest`, like ci.yml's full job: the newest CLI ships the newest local
       # auth schema, which is what the restored auth rows must fit into.
       - uses: supabase/setup-cli@v3
@@ -77,6 +114,8 @@ jobs:
 
       - name: Dump and encrypt
         if: steps.gate.outputs.run == 'true'
+        env:
+          APEX_AGE_RECIPIENTS: ${{ steps.drillkey.outputs.recipients }}
         run: scripts/db-backup.sh backup
       - uses: actions/upload-artifact@v7
         if: steps.gate.outputs.run == 'true'
@@ -87,6 +126,10 @@ jobs:
           compression-level: 0     # age output is incompressible
           if-no-files-found: error
 
+      # Reads back the same backup/*.age the upload above took: the drill
+      # decrypts it, diffs it against the plaintext, and only then restores.
       - name: Restore drill
         if: steps.gate.outputs.run == 'true'
+        env:
+          APEX_AGE_IDENTITY: ${{ steps.drillkey.outputs.key }}
         run: scripts/db-restore-drill.sh backup
