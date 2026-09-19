@@ -45,21 +45,20 @@ public struct RetryPolicy: Sendable, Equatable {
         }
     }
 
-    /// The stable body the handler sends for a `startedAt` / `finishedAt`
-    /// outside its window (`TIMESTAMP_WINDOW_BODY` in
-    /// api/_lib/handlers/workoutSessions.ts).
-    public static let timestampWindowBody = "timestamp-out-of-window"
-
     /// The handler's 400 for a `startedAt` / `finishedAt` outside its window
-    /// (`clientTimestamp` in api/_lib/handlers/workoutSessions.ts), which
-    /// WriteQueue answers by stripping the stale timestamp and retrying.
-    ///
-    /// The old prose is still matched: an installed build talks to whatever
-    /// server is deployed, so the token and the sentence have to be accepted
-    /// together for one release. Drop the prose once no shipped build predates
-    /// the token.
+    /// (`clientTimestamp` in api/_lib/handlers/workoutSessions.ts).
     public static func isTimestampWindowRejection(_ error: APIError) -> Bool {
         guard case .server(let status, let message) = error, status == 400, let message else { return false }
+        // The stable body, and the prose the handler used to send instead. An
+        // installed build meets whichever server is deployed, so both have to
+        // be accepted for one release; drop the sentence when the handler does.
         return message.contains(timestampWindowBody) || message.contains("within the last 7 days")
     }
+
+    /// The stable body that 400 carries now — `TIMESTAMP_WINDOW_BODY` in
+    /// api/_lib/handlers/workoutSessions.ts. A token rather than a sentence
+    /// because WriteQueue branches on it (resend unstamped, rather than fail
+    /// the op), and matching prose was a rewording away from silently
+    /// dropping a queued workout.
+    public static let timestampWindowBody = "timestamp-out-of-window"
 }
