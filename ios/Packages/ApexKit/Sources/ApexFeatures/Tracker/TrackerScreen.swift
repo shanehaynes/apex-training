@@ -36,8 +36,8 @@ public struct TrackerScreen: View {
                     .transition(.opacity)
             }
         }
-        .animation(Motion.current, value: model.gate)
-        .animation(Motion.current, value: model.summary == nil)
+        .apexAnimation(model.gate)
+        .apexAnimation(model.summary == nil)
         .toolbar { keyboardAccessory }
         .sheet(item: $swapTarget) { target in
             SwapPickerSheet(model: model, target: target) { swapTarget = nil }

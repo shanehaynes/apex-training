@@ -83,7 +83,7 @@ public struct CoachScreen: View {
             .presentationBackground(ApexColor.bgSurface)
         }
         .sensoryFeedback(.impact(weight: .medium), trigger: model.confirmCount)
-        .animation(Motion.current, value: model.pending?.action.toolUseId)
+        .apexAnimation(model.pending?.action.toolUseId)
         .task { await model.start() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("coach.screen")
