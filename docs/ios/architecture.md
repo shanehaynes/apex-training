@@ -210,7 +210,9 @@ tracker_ops(id INTEGER PRIMARY KEY AUTOINCREMENT, owner TEXT, event_id, event_da
   `visibilitychange` analog); a registered `BGAppRefreshTask` for opportunistic flushes; and
   after every enqueue.
 - Failure classes (`RetryPolicy`): network / 5xx / 429 → retry with 1s·2ⁿ backoff capped at 300s,
-  `Retry-After` honoured; `.unauthorized` → pause (the client has already refreshed once: either
+  `Retry-After` honoured, up to `maxAttempts` (8, ~20–60 min) — past that the op fails rather than
+  retrying forever, because a permanent 5xx on a strict-FIFO session would otherwise hold the
+  `finish` behind it indefinitely; `.unauthorized` → pause (the client has already refreshed once: either
   the user is signed out, or the phone is offline with an expired JWT — the queue waits for the
   next external trigger); other 4xx → `failed`, surfaced in the tracker ("2 sets could not be
   saved — Retry · Discard"), never dropped, and not blocking later ops for the session.
