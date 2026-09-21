@@ -122,6 +122,20 @@ final class TrackerModelTests: XCTestCase {
         return ScheduleIndex(schedule).events(on: DayKey("2026-09-22")!).first { $0.id == "ios-fixture-weekly__2026-09-22" }!
     }
 
+    /// The queue key for the tracked occurrence.
+    private static var sessionKey: SessionKey { SessionKey(eventId: event.id, eventDate: event.date) }
+
+    /// Drains the queue once the transport is answering again. A send that kept
+    /// failing while it was down can have exhausted `RetryPolicy.maxAttempts`
+    /// and be sitting in `failed`; Retry is what the tracker's own bar does, and
+    /// it puts the op back on the queue with a fresh ladder.
+    private static func drain(_ queue: WriteQueue) async {
+        await queue.awaitRetries()
+        await queue.retryFailed(sessionKey)
+        await queue.flush()
+        await queue.awaitRetries()
+    }
+
     private let press1 = SetKey(section: "exercise", exerciseId: "fx-press", setNumber: 1)
     private let press2 = SetKey(section: "exercise", exerciseId: "fx-press", setNumber: 2)
 
@@ -177,7 +191,7 @@ final class TrackerModelTests: XCTestCase {
         XCTAssertTrue(transport.requests(action: "start").first?.body?.contains(CompletionRows.isoTimestamp(Self.now)) == true)
 
         transport.set("POST /api/workout-sessions start")
-        await queue.awaitRetries()
+        await Self.drain(queue)
         let left = await store.all.count
         XCTAssertEqual(left, 0)
     }
@@ -296,8 +310,7 @@ final class TrackerModelTests: XCTestCase {
         XCTAssertEqual(model.syncLabel, "1 set pending sync")
 
         transport.offline = false
-        await queue.awaitRetries()
-        await queue.flush()
+        await Self.drain(queue)
         let w2 = await store.all.count
         XCTAssertEqual(w2, 0)
     }
@@ -397,8 +410,7 @@ final class TrackerModelTests: XCTestCase {
         XCTAssertEqual(ops.filter { $0 == .completion }.count, 1)
 
         transport.offline = false
-        await queue.awaitRetries()
-        await queue.flush()
+        await Self.drain(queue)
         let deadline = Date().addingTimeInterval(2)
         while model.summary?.pendingSync != false, Date() < deadline { try await Task.sleep(for: .milliseconds(10)) }
         XCTAssertEqual(model.summary?.prs.count, 1)
