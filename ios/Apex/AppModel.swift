@@ -184,6 +184,11 @@ final class AppModel {
         // learns whose rows it is looking at.
         cacheOwner.set(owner)
         let cache = cache ?? MemoryCacheStore()
+        // Now that the store knows whose rows it holds, prune what the cache
+        // accumulated between runs (#221): tracker bootstraps are keyed by event
+        // and date, the schedule prefetches two a day, and nothing reads
+        // yesterday's again.
+        Task { await Self.sweepStaleBootstraps(cache, now: SystemClock().now) }
         let publisher: any TrackerActivityPublishing
         if CommandLine.arguments.contains("-apexUITest") {
             publisher = NoActivityPublisher()
@@ -602,11 +607,11 @@ final class AppModel {
     /// launch over it would be worse than losing offline reads.
     private static func openDatabase() -> DatabasePool? {
         do {
-            let pool = try ApexDatabase.makePool()
-            // Opening the file is launch, and it happens exactly once — the
-            // place to prune what the cache accumulates between runs (#221).
-            Task { await sweepStaleBootstraps(GRDBCacheStore(pool: pool), now: SystemClock().now) }
-            return pool
+            // The stale-bootstrap sweep (#221) used to run here, at launch. Since
+            // #270 every cache statement carries an owner and a store built before
+            // the session is restored has none — so a sweep here purged nothing.
+            // It runs once the owner is known instead (`ensureQueue(owner:email:)`).
+            return try ApexDatabase.makePool()
         } catch {
             ToastBus.shared.post("Offline cache unavailable.", level: .failure)
             return nil
