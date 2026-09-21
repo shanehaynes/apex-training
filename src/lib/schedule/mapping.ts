@@ -183,6 +183,14 @@ export function buildCompletionRows(
     event_title:      event.title,
     duration_minutes: event.estimatedDuration ?? null,
     action:           isNowCompleted ? 'complete' : 'uncomplete',
+    // One id per toggle, minted here and never regenerated for the same
+    // rows: it is what lets the server tell a re-send of this toggle (the
+    // iOS write queue replays a stored op until the server ACKs; a browser
+    // double-click sends twice) from a genuine later toggle of the same
+    // occurrence to the same action, whose payload is otherwise identical.
+    // Opaque — the log's ordering and history still come from logged_at,
+    // which the server stamps.
+    client_toggle_id: crypto.randomUUID(),
   };
   return { completionRow, logRow };
 }

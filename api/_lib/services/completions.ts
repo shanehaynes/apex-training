@@ -9,6 +9,9 @@ import type { TablesInsert } from '../../../src/lib/db/types.js';
 
 type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 
+/** client_toggle_id is a uuid column: a malformed one is a 22P02, not a row. */
+const UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 export async function recordCompletion(
   supabase: Admin,
   userId: string,
@@ -32,6 +35,10 @@ export async function recordCompletion(
   if (log.picked.action !== 'complete' && log.picked.action !== 'uncomplete') {
     return fail(400, "logRow.action must be 'complete' or 'uncomplete'");
   }
+  const toggleId = log.picked.client_toggle_id;
+  if (toggleId != null && (typeof toggleId !== 'string' || !UUID_PATTERN.test(toggleId))) {
+    return fail(400, 'logRow.client_toggle_id must be a UUID');
+  }
 
   const now = new Date().toISOString();
   const [{ error: upsertErr }, { error: logErr }] = await Promise.all([
@@ -41,9 +48,20 @@ export async function recordCompletion(
         { ...completion.picked, user_id: userId, updated_at: now } as TablesInsert<'workout_completions'>,
         { onConflict: 'user_id,event_id' },
       ),
+    // Not .insert(): the iOS tracker queues this op durably and replays it
+    // until the server ACKs, so a lost response used to append a second,
+    // identical audit row. The replay is byte-identical to the original and
+    // logged_at is stamped per insert, so the only thing that can tell it
+    // from a genuine later toggle of the same occurrence to the same action
+    // is the id the client minted once for this toggle. Rows without one —
+    // an op queued by an app build from before the column — keep the old
+    // at-least-once behaviour: NULLs never conflict in a unique index.
     supabase
       .from('workout_completion_log')
-      .insert({ ...log.picked, user_id: userId } as TablesInsert<'workout_completion_log'>),
+      .upsert(
+        { ...log.picked, user_id: userId } as TablesInsert<'workout_completion_log'>,
+        { onConflict: 'user_id,client_toggle_id', ignoreDuplicates: true },
+      ),
   ]);
   if (upsertErr) console.error('[api/completions] upsert failed:', upsertErr.message);
   if (logErr) console.error('[api/completions] log insert failed:', logErr.message);
