@@ -3,9 +3,15 @@ import SwiftUI
 
 /// The coach's text, rendered (D-014). Block structure comes from
 /// `ApexCore.MarkdownBlocks` (tested on Linux); each block's inline styles —
-/// bold, italic, code, links — go through `AttributedString(markdown:)` with
+/// bold, italic, code — go through `AttributedString(markdown:)` with
 /// whitespace preserved, so a single newline still breaks the line the way
 /// the web's `pre-wrap` did. Anything the parser refuses renders as plain text.
+///
+/// **Links are not clickable.** This text is model output: a `[tap here](https://…)`
+/// the coach wrote — or repeated from a workout note, a meal name, anything a
+/// tool read back — would otherwise be one tap from Safari with nothing shown
+/// first. `attributed(_:)` keeps the link's words and drops its destination, so
+/// the sentence still reads and nothing in a message can navigate on its own.
 public struct MarkdownText: View {
     private let blocks: [MarkdownBlock]
     private let color: Color
@@ -62,11 +68,24 @@ public struct MarkdownText: View {
     }
 
     private func inline(_ text: String) -> Text {
+        Text(Self.attributed(text))
+    }
+
+    /// One inline run of coach markdown, with every link destination removed.
+    /// Static and public so the tests can assert on the runs directly.
+    public static func attributed(_ text: String) -> AttributedString {
         var options = AttributedString.MarkdownParsingOptions()
         options.interpretedSyntax = .inlineOnlyPreservingWhitespace
-        if let attributed = try? AttributedString(markdown: text, options: options) {
-            return Text(attributed)
+        guard var attributed = try? AttributedString(markdown: text, options: options) else {
+            return AttributedString(text)
         }
-        return Text(text)
+        // Collect first: mutating through `runs` while iterating it is not
+        // allowed. Clearing an attribute leaves the text alone, so the ranges
+        // stay valid across the loop.
+        let linked = attributed.runs.filter { $0.link != nil }.map(\.range)
+        for range in linked {
+            attributed[range].link = nil
+        }
+        return attributed
     }
 }

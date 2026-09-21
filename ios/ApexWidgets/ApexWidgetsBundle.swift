@@ -29,7 +29,10 @@ struct TrackerLiveActivity: Widget {
             // Every placement opens the tracker on this session. PR B teaches
             // `DeepLink` the route; until then `DeepLink.parse` returns nil and
             // the app just comes to the front.
-            TrackerActivityViews.LockScreen(attributes: context.attributes, state: context.state)
+            // `isStale` goes true once `LiveActivityController.staleDate` has
+            // passed with no update — a session finished on the web, or an app
+            // killed mid-workout. The views stop the timer and say so.
+            TrackerActivityViews.LockScreen(attributes: context.attributes, state: context.state, isStale: context.isStale)
                 .activityBackgroundTint(ApexColor.bgSurface)
                 .activitySystemActionForegroundColor(ApexColor.textPrimary)
                 .widgetURL(context.attributes.url)
@@ -39,18 +42,18 @@ struct TrackerLiveActivity: Widget {
                     TrackerActivityViews.ExpandedLeading(state: context.state)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    TrackerActivityViews.ExpandedTrailing(state: context.state)
+                    TrackerActivityViews.ExpandedTrailing(state: context.state, isStale: context.isStale)
                 }
                 DynamicIslandExpandedRegion(.center) {
                     TrackerActivityViews.ExpandedCenter(attributes: context.attributes, state: context.state)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    TrackerActivityViews.ExpandedBottom(state: context.state)
+                    TrackerActivityViews.ExpandedBottom(state: context.state, isStale: context.isStale)
                 }
             } compactLeading: {
                 TrackerActivityViews.CompactLeading(state: context.state)
             } compactTrailing: {
-                TrackerActivityViews.CompactTrailing(state: context.state)
+                TrackerActivityViews.CompactTrailing(state: context.state, isStale: context.isStale)
             } minimal: {
                 TrackerActivityViews.Minimal(state: context.state)
             }
