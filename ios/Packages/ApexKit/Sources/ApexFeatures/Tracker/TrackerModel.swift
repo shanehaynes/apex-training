@@ -590,7 +590,9 @@ public final class TrackerModel {
             ToastBus.shared.post("Could not cancel: \(error.localizedDescription)", level: .failure)
             return false
         }
-        try? await services.cache.purge(kind: .trackerBootstrap)
+        // This session's row only: the prefetched bootstrap for tomorrow's
+        // workout is what lets the tracker open with no signal.
+        try? await services.cache.delete(kind: .trackerBootstrap, key: cacheKey)
         isPresented = false
         timerTask?.cancel()
         await services.activity.end(session, totalSeconds: nil)

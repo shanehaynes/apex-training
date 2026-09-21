@@ -399,6 +399,16 @@ final class AppModel {
         return session.startedAt != nil && session.finishedAt == nil
     }
 
+    /// Tracker bootstraps are keyed by event *and* date: the schedule prefetches
+    /// two a day and nothing ever reads yesterday's again. Sweep them at launch
+    /// rather than letting the SQLite file grow for the life of the install.
+    static func sweepStaleBootstraps(_ cache: any CacheStore, now: Date) async {
+        try? await cache.purge(
+            kind: .trackerBootstrap,
+            fetchedBefore: now.addingTimeInterval(-CachePolicy.trackerBootstrapRetention)
+        )
+    }
+
     private static func makeSchedule(
         client: ApexClient, cache: (any CacheStore)?, clock: any ApexClock,
         streams: (any ActivityStreamsReading)?, realtime: (any RealtimeChanges)?
@@ -423,7 +433,11 @@ final class AppModel {
     /// launch over it would be worse than losing offline reads.
     private static func openDatabase() -> DatabasePool? {
         do {
-            return try ApexDatabase.makePool()
+            let pool = try ApexDatabase.makePool()
+            // Opening the file is launch, and it happens exactly once — the
+            // place to prune what the cache accumulates between runs (#221).
+            Task { await sweepStaleBootstraps(GRDBCacheStore(pool: pool), now: SystemClock().now) }
+            return pool
         } catch {
             ToastBus.shared.post("Offline cache unavailable.", level: .failure)
             return nil
