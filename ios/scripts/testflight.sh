@@ -138,6 +138,12 @@ xcodebuild -exportArchive \
   -exportPath "$EXPORT_DIR" \
   "${AUTH[@]}"
 
+# No Fixtures/, this project's anon key, production origins (G11). In upload
+# mode xcodebuild may leave no .ipa behind (destination=upload uploads from the
+# archive), so there the loop is a no-op and fastlane's beta lane — which always
+# exports to disk before uploading — is the binding gate.
+for ipa in "$EXPORT_DIR"/*.ipa; do [ -f "$ipa" ] || continue; scripts/assert-ipa.sh "$ipa"; done
+
 if [ "$MODE" = upload ]; then
   echo "── uploaded build $BUILD_NUMBER — App Store Connect takes 5–15 minutes to process it"
 else

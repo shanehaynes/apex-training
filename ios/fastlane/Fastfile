@@ -108,6 +108,9 @@ platform :ios do
       },
     )
 
+    # No Fixtures/, this project's anon key, production origins (G11).
+    sh("cd .. && scripts/assert-ipa.sh #{lane_context[SharedValues::IPA_OUTPUT_PATH].shellescape}")
+
     if dry_run
       UI.success("exported #{lane_context[SharedValues::IPA_OUTPUT_PATH]} (not uploaded)")
       next
