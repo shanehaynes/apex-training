@@ -166,9 +166,15 @@ public struct TrackerEditor: Sendable, Equatable {
     /// state the side convention — a planned unilateral entry already says so
     /// in its prescription, and repeating it would nag.
     public func needsPerSideWarning(section: String, exerciseId: String, swappedTo: ExerciseDefinition?) -> Bool {
-        guard let tracked = exercise(section: section, id: exerciseId), tracked.substitutedFrom != nil,
-              let swappedTo, swappedTo.isUnilateral == true
-        else { return false }
+        guard let tracked = exercise(section: section, id: exerciseId) else { return false }
+        return Self.needsPerSideWarning(for: tracked, swappedTo: swappedTo)
+    }
+
+    /// The same question asked of an exercise already in hand — the tracker row
+    /// has one, and looking it up in the editor again only made the row observe
+    /// every other exercise's edits.
+    public static func needsPerSideWarning(for tracked: TrackedExercise, swappedTo: ExerciseDefinition?) -> Bool {
+        guard tracked.substitutedFrom != nil, let swappedTo, swappedTo.isUnilateral == true else { return false }
         return tracked.sets.contains { !$0[.reps].isEmpty && !CountSpec.hasPerSideCount($0[.reps]) }
     }
 

@@ -20,7 +20,8 @@ public struct ActivityLogView: View {
                     if entries.isEmpty {
                         Text("No changes logged yet.").apexBody()
                     } else {
-                        SettingsSection {
+                        // Lazy: the log is every schedule and library change.
+                        SettingsSection(lazy: true) {
                             ForEach(Array(entries.enumerated()), id: \.offset) { index, entry in
                                 if index > 0 { SettingsDivider() }
                                 row(entry, index: index)

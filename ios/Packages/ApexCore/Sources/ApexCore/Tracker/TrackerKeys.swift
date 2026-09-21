@@ -87,6 +87,14 @@ extension TrackedSet {
     public var hasAnyActual: Bool { SetField.allCases.contains { !self[$0].isEmpty } }
 }
 
+extension TrackedExercise {
+    /// Whether any row still carries last session's suggestion — what puts the
+    /// "Use last" pill on the header. On the exercise rather than on the editor
+    /// so a tracker row can answer it from the value it was handed, instead of
+    /// reading (and so observing) the whole editor per keystroke.
+    public var hasShadows: Bool { sets.contains { $0.shadow != nil } }
+}
+
 extension ShadowValues {
     public subscript(field: SetField) -> String {
         switch field {

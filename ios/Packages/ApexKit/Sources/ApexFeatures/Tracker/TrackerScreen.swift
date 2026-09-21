@@ -80,7 +80,10 @@ public struct TrackerScreen: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .ready:
             ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.xl) {
+                // Lazy, both levels: a workout's sections and their exercises are
+                // a `TextField` per set each, and every one of them used to be
+                // built — and laid out again on every keystroke.
+                LazyVStack(alignment: .leading, spacing: Spacing.xl) {
                     if model.isFinished {
                         Text("This workout is finished — reps and weights are still editable, and edits save as you type.")
                             .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
@@ -88,7 +91,7 @@ public struct TrackerScreen: View {
                             .accessibilityIdentifier("tracker.finished-note")
                     }
                     ForEach(model.editor.groups, id: \.section) { group in
-                        VStack(alignment: .leading, spacing: Spacing.lg) {
+                        LazyVStack(alignment: .leading, spacing: Spacing.lg) {
                             SectionRule(label: group.label)
                             ForEach(group.exercises, id: \.exercise.id) { tracked in
                                 TrackedExerciseView(

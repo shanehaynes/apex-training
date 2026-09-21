@@ -73,6 +73,10 @@ public final class ScheduleModel {
     private var realtimeTask: Task<Void, Never>?
     private var mealsMonthsLoaded: Set<String> = []
     private var streamCache: [String: ActivityStreamRecord?] = [:]
+    private var persistTask: Task<Void, Never>?
+
+    /// How long a coalesced cache write waits for the rest of its burst.
+    static let persistDebounce: Duration = .milliseconds(400)
 
     public init(deps: ScheduleDependencies) {
         self.deps = deps
@@ -119,6 +123,10 @@ public final class ScheduleModel {
     public func stop() {
         realtimeTask?.cancel()
         realtimeTask = nil
+        // A debounced write must not outlive the model: a sign-out purges the
+        // cache, and a late write would put the outgoing owner's window back.
+        persistTask?.cancel()
+        persistTask = nil
         if let realtime = deps.realtime {
             Task {
                 await realtime.unsubscribe(.schedule)
@@ -129,8 +137,8 @@ public final class ScheduleModel {
 
     private func loadCache() async {
         if let entry = try? await deps.cache.read(kind: .scheduleWindow, key: ScheduleCacheKey.window),
-           let response = try? JSONDecoder().decode(ScheduleResponse.self, from: entry.json) {
-            index = ScheduleIndex(response)
+           let cached = try? await Self.buildIndex(from: entry.json) {
+            index = cached
             fetchedAt = entry.fetchedAt
         }
         if let entry = try? await deps.cache.read(kind: .profile, key: ScheduleCacheKey.profile),
@@ -153,9 +161,10 @@ public final class ScheduleModel {
             let data = try await deps.client.data(
                 for: .schedule(start: window.start.string, end: window.end.string, include: ["definitions", "templates"])
             )
-            let response = try JSONDecoder().decode(ScheduleResponse.self, from: data)
+            let built = try await Self.buildIndex(from: data)
+            let response = built.response
             let now = deps.clock.now
-            index = ScheduleIndex(response)
+            index = built
             fetchedAt = now
             lastRefreshFailed = false
             loadError = nil
@@ -188,6 +197,17 @@ public final class ScheduleModel {
             pendingRefresh = nil
             await refresh(reason: next)
         }
+    }
+
+    /// Decode one window and index it away from the main actor.
+    ///
+    /// `ApexFeatures` is a `defaultIsolation(MainActor)` module, so this whole
+    /// parse — 60 days back, 120 forward, plus every definition and template —
+    /// used to run on the main actor at launch, on every foreground, on every
+    /// realtime echo and after every completion toggle. `Data` in and
+    /// `ScheduleIndex` out are both `Sendable`, so only the result comes back.
+    private static func buildIndex(from json: Data) async throws -> ScheduleIndex {
+        try await Task.detached(priority: .userInitiated) { try ScheduleIndex.decode(json) }.value
     }
 
     private func loadProfile() async {
@@ -312,7 +332,7 @@ public final class ScheduleModel {
     public func applyCompletionLocally(id: String, isCompleted: Bool, completedAt: String?) {
         guard index != nil else { return }
         index = index?.settingCompletion(id: id, isCompleted: isCompleted, completedAt: completedAt)
-        Task { await persistIndex() }
+        schedulePersist()
     }
 
     // MARK: - Tracker prefetch
@@ -338,11 +358,29 @@ public final class ScheduleModel {
     }
 
     /// Write the current window back so an offline relaunch shows the flip.
+    /// The encode is the whole window, so it goes to a detached task the same
+    /// way the decode does.
     func persistIndex() async {
-        guard let index, let json = try? JSONEncoder().encode(index.response) else { return }
+        guard let index else { return }
+        let writtenAt = fetchedAt ?? deps.clock.now
+        guard let json = await Task.detached(priority: .utility, operation: { try? index.encodedResponse() }).value else { return }
         try? await deps.cache.write(CacheEntry(
-            kind: .scheduleWindow, key: ScheduleCacheKey.window, json: json, fetchedAt: fetchedAt ?? deps.clock.now
+            kind: .scheduleWindow, key: ScheduleCacheKey.window, json: json, fetchedAt: writtenAt
         ))
+    }
+
+    /// Debounced: the tracker flips completions in bursts (a finish, then the
+    /// calendar echo), and each flip would otherwise re-encode the window. The
+    /// first arms a write a beat later; every flip until then rides on it and
+    /// the last state wins.
+    private func schedulePersist() {
+        guard persistTask == nil else { return }
+        persistTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.persistDebounce)
+            guard !Task.isCancelled, let self else { return }
+            self.persistTask = nil
+            await self.persistIndex()
+        }
     }
 
     // MARK: - Meals
