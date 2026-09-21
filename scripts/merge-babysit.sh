@@ -257,7 +257,23 @@ fleet_pass() {
     ready=0
     note=""
     case "$state" in
-      CLEAN) ready=1 ;;
+      CLEAN)
+        # CLEAN can be a moment stale — a head pushed seconds ago still reads
+        # CLEAN until its checks register — so read the checks regardless.
+        if reason=$(required_green "$number"); then
+          ready=1
+        else
+          rc=$?
+          if [ "$rc" -eq 1 ]; then
+            echo "SKIP  #$number has failing check(s): $reason ($title)"
+            skipped="$skipped $number"
+          else
+            echo "WAIT  #$number: CI still running on its head; next pass. ($title)"
+            actionable=1
+          fi
+          continue
+        fi
+        ;;
       BEHIND)
         # BEHIND only exists while the up-to-date rule is on — a dry run
         # before the flip. Plan as if the rule were off, and say so; with
