@@ -130,8 +130,10 @@ The babysitter is the only merge path, and it merges only what
 `scripts/merge-policy.mjs` allows. It is **not** allow-listed today, so running
 it still prompts; granting an unattended run means adding a `permissions.allow`
 entry to `.claude/settings.json`, which the policy holds for exactly that
-reason. Migrations, `.github/`, `vercel.json`,
-dependency manifests, and every file of the automation itself are HELD for
+reason. Migrations, `.github/`, `scripts/ci-guards.sh`, `vercel.json`,
+dependency manifests, the iOS release surface (`ios/fastlane/`, `ios/scripts/`,
+`ios/project.yml`, `ios/Config/`, the entitlements, the `Info.plist`s and
+`PrivacyInfo.xcprivacy`), and every file of the automation itself are HELD for
 Shane, who grants one PR with the `shipit` label; the guard hook blocks
 `gh pr merge` and self-applied `shipit`, so the babysitter is the only merge
 path. Kill switch: `touch .claude/AUTOMERGE_OFF` in the primary checkout.

@@ -205,8 +205,12 @@ makes granting it a small decision rather than a large one:
   with it off, the union proof stands in, and the script refuses to run in
   the mode that does not match the setting.
 - **The merge policy is the boundary** ([scripts/merge-policy.mjs](scripts/merge-policy.mjs)):
-  a PR touching `supabase/migrations/`, `.github/`, `vercel.json`, the
-  dependency manifests, or any file of the automation itself — the policy,
+  a PR touching `supabase/migrations/`, `.github/`, `scripts/ci-guards.sh`
+  (where the floor's content lives — `ci.yml` delegates to it), `vercel.json`,
+  the dependency manifests, the iOS release surface (`ios/fastlane/` and
+  `ios/scripts/` ship a build; `ios/project.yml`, `ios/Config/`, the
+  entitlements, the `Info.plist`s and `PrivacyInfo.xcprivacy` decide what Apple
+  receives), or any file of the automation itself — the policy,
   the babysitter, the guard hooks, `.claude/settings.json`, every script such a
   grant would cover — is `HOLD`ed, never merged. The first principle of the
   held list: **the agent must never be able to merge an expansion of its own

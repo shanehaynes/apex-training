@@ -11,8 +11,14 @@
 //     able to merge an expansion of what the agent may do. This holds whether
 //     or not a grant exists: none does today — no session is allow-listed to
 //     run the merge loop — and editing these paths is how that would change.
-//   - .github/: required CI checks are the floor under every autonomous
-//     merge, so changes to them need the human whose floor it is.
+//   - .github/ and scripts/ci-guards.sh: required CI checks are the floor
+//     under every autonomous merge, and the guards script is where the
+//     floor's content now lives (ci.yml delegates to it), so changes to
+//     either need the human whose floor it is.
+//   - the iOS release surface: ios/fastlane/ and ios/scripts/ are the lane
+//     that ships a build, and ios/project.yml, ios/Config/, the
+//     entitlements, the Info.plists and PrivacyInfo.xcprivacy decide what
+//     Apple receives — none of it is provable by CI here.
 //   - supabase/migrations/: applied to production by hand — merging one
 //     creates an obligation only a human can discharge.
 //   - vercel.json: once blackholed every /api/ route (PR #25); CI cannot see
@@ -44,6 +50,15 @@ export const HELD = [
   { path: 'scripts/prod-schema-check.mjs', reason: 'run by supervisor-report.sh holding the production service-role key' },
   { path: 'scripts/combine-check.sh', reason: 'the cross-branch gate' },
   { path: '.github/', reason: 'CI is the merge floor' },
+  { path: 'scripts/ci-guards.sh', reason: "the merge floor's content" },
+  { path: 'ios/fastlane/', reason: 'the release lane' },
+  { path: 'ios/scripts/', reason: 'the release lane' },
+  { path: 'ios/project.yml', reason: 'what Apple receives' },
+  { path: 'ios/Config/', reason: 'what Apple receives' },
+  { path: 'ios/Apex/Apex.entitlements', reason: 'what Apple receives' },
+  { path: 'ios/Apex/Info.plist', reason: 'what Apple receives' },
+  { path: 'ios/Apex/PrivacyInfo.xcprivacy', reason: 'what Apple receives' },
+  { path: 'ios/ApexWidgets/Info.plist', reason: 'what Apple receives' },
   { path: 'supabase/migrations/', reason: 'applied to production by hand' },
   { path: 'vercel.json', reason: 'production routing (the /api/ blackhole, PR #25)' },
   { path: 'package.json', reason: 'dependency changes deserve a human eye' },
