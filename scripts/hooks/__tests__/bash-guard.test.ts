@@ -48,6 +48,31 @@ describe('checkout topology', () => {
   });
 });
 
+describe('a chain that opens with cd into a worktree', () => {
+  // A subagent's Bash cwd is the primary checkout for every call; the only
+  // way it can build or commit is `cd <worktree> && …`, which never runs
+  // anything in the cwd. The hook used to count the cwd anyway.
+  it('lets xcodebuild, xcodegen and git commit run in the worktree from a primary cwd', () => {
+    expect(inPrimary(`cd ${worktree}/ios && xcodegen generate && xcodebuild -scheme Apex build`)).toBeNull();
+    expect(inPrimary(`cd ${worktree} && git commit -m x`)).toBeNull();
+  });
+
+  it('still blocks a build that runs in the cwd, or after a cd it cannot read', () => {
+    expect(inPrimary('xcodebuild -scheme Apex build')).toMatch(/primary checkout/);
+    expect(inPrimary(`cd "$W" && xcodebuild build`)).toMatch(/primary checkout/);
+    expect(inPrimary(`cd ${worktree} && cd - && git commit -m x`)).toMatch(/primary checkout/);
+    expect(inPrimary(`git commit -m x && cd ${worktree}`)).toMatch(/primary checkout/);
+  });
+
+  it('honours an invocation that names its own directory over the cwd', () => {
+    expect(inPrimary(`git -C ${worktree} commit -m x`)).toBeNull();
+    expect(inPrimary(`xcodebuild -project ${worktree}/ios/Apex.xcodeproj -scheme Apex build`)).toBeNull();
+    expect(inPrimary(`xcodegen generate --spec ${worktree}/ios/project.yml`)).toBeNull();
+    expect(inTree(`git -C ${primary} commit -m x`)).toMatch(/primary checkout/);
+    expect(inTree(`xcodebuild -project ${primary}/ios/Apex.xcodeproj build`)).toMatch(/primary checkout/);
+  });
+});
+
 describe('effectiveDirs', () => {
   it('includes cwd and literal cd targets, skipping unexpanded variables', () => {
     const dirs = effectiveDirs(`cd ${primary} && git commit -m x; cd "$OTHER" && ls`, worktree);

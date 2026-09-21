@@ -116,7 +116,10 @@ immediately in front of that one git command — it covers that command only, no
 the rest of the line, and not a shell it launches. The hook parses the command,
 so a guarded name that is only *mentioned* — in a commit message, a PR body, a
 `grep` pattern, a quoted heredoc body — is data and does not block; `bash -c`,
-`eval`, `$(…)` and heredocs fed to a shell are followed as code.
+`eval`, `$(…)` and heredocs fed to a shell are followed as code. It judges each
+command by the directory it would actually run in: a chain that opens with
+`cd <worktree>`, or a `git -C` / `xcodebuild -project` naming one, builds there
+even when the shell's cwd is the primary — which is every subagent's cwd.
 
 ## Commits and merging
 
