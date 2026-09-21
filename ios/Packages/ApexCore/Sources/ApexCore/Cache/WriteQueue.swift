@@ -207,9 +207,11 @@ public actor WriteQueue {
                     emit(.paused)
                     return
                 case .fail(let message):
-                    // Permanent: keep it, show it, and let the rest of the
-                    // session sync — blocking behind a client bug would mean the
-                    // whole workout never lands.
+                    // Permanent, either by status or by running out of retries
+                    // (`RetryPolicy.maxAttempts`): keep it, show it, and let the
+                    // rest of the session sync — blocking behind one op the
+                    // server will never take would mean the whole workout never
+                    // lands.
                     var next = op
                     next.attempts += 1
                     next.lastError = message

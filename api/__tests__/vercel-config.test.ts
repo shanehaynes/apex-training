@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { app } from '../_lib/app';
@@ -11,8 +11,10 @@ import { app } from '../_lib/app';
 // catch-all was blackholed when the SPA rewrite matched `/api/*`); a cron
 // pointing at a route that no longer exists is a nightly 404 that nobody is
 // emailed about; a discovery rewrite with the wrong `kind` makes every MCP
-// client's connect flow fail at the first step. This test reads the file and
-// pins each of those, plus the response headers the site ships with.
+// client's connect flow fail at the first step; a function whose maxDuration
+// key doesn't match its filename runs at the account default and is killed
+// mid-stream. This test reads the file and pins each of those, plus the
+// response headers the site ships with.
 //
 // The headers are the baseline set — HSTS, nosniff, a frame policy (the OAuth
 // consent page at /connect is a clickjacking target), a referrer policy, and
@@ -39,6 +41,7 @@ import { app } from '../_lib/app';
 //   cross-origin. A global CORS header would widen the surface for no caller.
 
 interface VercelConfig {
+  functions?: Record<string, { maxDuration?: number }>;
   rewrites: Array<{ source: string; destination: string }>;
   headers?: Array<{ source: string; headers: Array<{ key: string; value: string }> }>;
   crons: Array<{ path: string; schedule: string }>;
@@ -90,6 +93,73 @@ function sourceToRegExp(source: string): RegExp {
 function rewriteFor(path: string) {
   return config.rewrites.find(r => sourceToRegExp(r.source).test(path));
 }
+
+// Every root-level api/*.ts is its own function, and an unpinned one runs at
+// whatever default the account happens to have — a number that cannot be read
+// from this tree. A platform timeout on /api/chat closes the NDJSON socket
+// mid-stream: no `done` line, the caller's own Anthropic key already billed.
+// So each function pins its duration somewhere, and this pins the pinning.
+//
+// Vercel matches these keys as `key === fileName || minimatch(fileName, key)`
+// (fs-detectors, getFunction), first match in insertion order winning. Both
+// halves matter here: minimatch reads `[...path]` as a character class, so the
+// catch-all can ONLY be configured by its exact literal path, and a glob key
+// like `api/*.ts` would silently swallow every entry listed after it. Hence
+// exact paths, and a test that keeps them exact.
+describe('vercel.json functions', () => {
+  // Root-level api/*.ts only — _lib/ is helpers behind the router, and
+  // ci-guards.sh pins this set at four.
+  const ROOT_FUNCTIONS = readdirSync(join(ROOT, 'api'))
+    .filter(f => f.endsWith('.ts'))
+    .sort();
+
+  // 60s is the legacy (non-fluid) Hobby serverless maximum; with fluid compute
+  // the Hobby ceiling is 300s. Nothing in the repo records which of the two
+  // this project runs on, so every value stays inside the smaller one and is
+  // valid either way. Raising the ceiling is a deliberate change that has to
+  // confirm fluid compute is enabled first.
+  const BOTH_PLANS_MAX = 60;
+
+  it('keys only exact, existing root-level function paths', () => {
+    const entries = Object.entries(config.functions ?? {});
+    expect(entries.length).toBeGreaterThan(0);
+    for (const [key, cfg] of entries) {
+      expect(key, 'keys are paths under api/').toMatch(/^api\//);
+      const file = key.slice('api/'.length);
+      expect(file, 'a glob key would shadow later entries').not.toMatch(/[*?]/);
+      expect(ROOT_FUNCTIONS, `${key} is not a root-level api function`).toContain(file);
+      expect(Number.isInteger(cfg.maxDuration), `${key} maxDuration is an integer`).toBe(true);
+      expect(cfg.maxDuration, `${key} maxDuration`).toBeGreaterThan(0);
+      expect(
+        cfg.maxDuration,
+        `${key} exceeds the duration valid on both fluid and legacy Hobby`,
+      ).toBeLessThanOrEqual(BOTH_PLANS_MAX);
+    }
+  });
+
+  it('leaves no function running at the unverified account default', () => {
+    for (const file of ROOT_FUNCTIONS) {
+      const inConfig = config.functions?.[`api/${file}`]?.maxDuration !== undefined;
+      const inCode = /^export const maxDuration = \d+;$/m.test(
+        readFileSync(join(ROOT, 'api', file), 'utf8'),
+      );
+      expect(inConfig || inCode, `api/${file} pins no maxDuration`).toBe(true);
+      // Two sources of truth for one function is a silent precedence question.
+      expect(inConfig && inCode, `api/${file} pins maxDuration twice`).toBe(false);
+    }
+  });
+
+  // /api/coach-summary streams from inside the catch-all (_lib/app.ts →
+  // handlers/coachSummary.ts), so cutting the catch-all shorter than chat
+  // truncates the same kind of response chat's own budget was set for.
+  it('never makes the catch-all shorter than chat', () => {
+    const chat = config.functions?.['api/chat.ts']?.maxDuration;
+    const catchAll = config.functions?.['api/[...path].ts']?.maxDuration;
+    expect(chat, 'api/chat.ts has no maxDuration').toBeDefined();
+    expect(catchAll, 'api/[...path].ts has no maxDuration').toBeDefined();
+    expect(catchAll).toBeGreaterThanOrEqual(chat as number);
+  });
+});
 
 describe('vercel.json rewrites', () => {
   it('sends SPA routes to index.html but never /api/*', () => {
