@@ -132,57 +132,58 @@ public struct YouRootView: View {
     @ViewBuilder
     private var sections: some View {
         SettingsSection("Account") {
-            SettingsLink("Name", value: model.profile?.displayName?.nilIfBlank ?? "Add", symbol: ApexIcon.person.systemName, to: YouRoute.name, identifier: "you.row.name")
+            SettingsLink("Name", value: model.profile?.displayName?.nilIfBlank ?? "Add", to: YouRoute.name, identifier: "you.row.name")
             SettingsDivider()
-            SettingsLink("Avatar", value: Avatars.avatar(for: model.avatarKey).label, symbol: "face.smiling", to: YouRoute.avatar, identifier: "you.row.avatar")
+            SettingsLink("Avatar", value: Avatars.avatar(for: model.avatarKey).label, to: YouRoute.avatar, identifier: "you.row.avatar")
             SettingsDivider()
-            SettingsLink("Change password", symbol: ApexIcon.lock.systemName, to: YouRoute.password, identifier: "you.row.password")
+            SettingsLink("Change password", to: YouRoute.password, identifier: "you.row.password")
         }
 
+        // ux-review §3.8: the old grouping was the web's page list — three
+        // daily-use rows beside two set-once ones. Blocks, Meals and the
+        // Library are what a training week touches; the two libraries are one
+        // screen with a segment, and heart-rate zones sit beside the watch
+        // whose data they interpret.
         SettingsSection("Training") {
             if model.blocks != nil {
-                SettingsLink("Training blocks", value: model.blocks?.current?.name, symbol: ApexIcon.layers.systemName, to: YouRoute.blocks, identifier: "you.row.blocks")
+                SettingsLink("Training blocks", value: model.blocks?.current?.name, to: YouRoute.blocks, identifier: "you.row.blocks")
                 SettingsDivider()
             }
             if model.meals != nil {
-                SettingsLink("Meals", symbol: ApexIcon.utensils.systemName, to: YouRoute.meals, identifier: "you.row.meals")
+                SettingsLink("Meals", to: YouRoute.meals, identifier: "you.row.meals")
                 SettingsDivider()
             }
-            if model.library != nil {
-                SettingsLink("Exercise library", symbol: ApexIcon.dumbbell.systemName, to: YouRoute.library, identifier: "you.row.library")
-                SettingsDivider()
-                SettingsLink("Workout library", symbol: ApexIcon.template.systemName, to: YouRoute.workoutLibrary, identifier: "you.row.templates")
-                SettingsDivider()
-            }
-            SettingsLink("Heart-rate zones", value: model.heartRateLabel, symbol: ApexIcon.heartPulse.systemName, to: YouRoute.heartRate, identifier: "you.row.heartrate")
+            SettingsLink("Library", value: "Exercises · Workouts", to: YouRoute.library, identifier: "you.row.library")
         }
 
         SettingsSection("AI coach", footer: "The coach runs on your own Anthropic key — every chat, post-workout summary and monthly review is billed to it.") {
-            SettingsLink("Goal & context", value: model.profile?.coachGoal?.nilIfBlank ?? "Not set", symbol: ApexIcon.flag.systemName, to: YouRoute.coachProfile, identifier: "you.row.coach")
+            SettingsLink("Goal & context", value: model.profile?.coachGoal?.nilIfBlank ?? "Not set", to: YouRoute.coachProfile, identifier: "you.row.coach")
             SettingsDivider()
-            SettingsLink("Model", value: model.selectedModel?.label ?? model.profile?.coachModelLabel, symbol: ApexIcon.sparkles.systemName, to: YouRoute.coachModel, identifier: "you.row.model")
+            SettingsLink("Model", value: model.selectedModel?.label ?? model.profile?.coachModelLabel, to: YouRoute.coachModel, identifier: "you.row.model")
             SettingsDivider()
-            SettingsButton("Anthropic key", value: model.keyStatusLabel, symbol: ApexIcon.key.systemName, identifier: "you.row.key") {
+            SettingsButton("Anthropic key", value: model.keyStatusLabel, identifier: "you.row.key") {
                 model.showKeySheet = true
             }
         }
 
         SettingsSection("Integrations") {
             if model.coros.isConfigured {
-                SettingsLink("COROS", value: model.coros.statusLabel, symbol: ApexIcon.watch.systemName, to: YouRoute.coros, identifier: "you.row.coros")
+                SettingsLink("COROS", value: model.coros.statusLabel, to: YouRoute.coros, identifier: "you.row.coros")
                 SettingsDivider()
             }
-            SettingsLink("Calendar feed", symbol: ApexIcon.calendar.systemName, to: YouRoute.calendarFeed, identifier: "you.row.feed")
+            SettingsLink("Heart-rate zones", value: model.heartRateLabel, to: YouRoute.heartRate, identifier: "you.row.heartrate")
             SettingsDivider()
-            SettingsLink("AI connector", value: model.connector.statusLabel, symbol: ApexIcon.connector.systemName, to: YouRoute.connector, identifier: "you.row.connector")
+            SettingsLink("Calendar feed", to: YouRoute.calendarFeed, identifier: "you.row.feed")
+            SettingsDivider()
+            SettingsLink("AI connector", value: model.connector.statusLabel, to: YouRoute.connector, identifier: "you.row.connector")
         }
 
         SettingsSection("Data") {
-            SettingsLink("Activity log", symbol: ApexIcon.activityLog.systemName, to: YouRoute.activity, identifier: "you.row.activity")
+            SettingsLink("Activity log", to: YouRoute.activity, identifier: "you.row.activity")
             SettingsDivider()
-            SettingsLink("About", symbol: ApexIcon.info.systemName, to: YouRoute.about, identifier: "you.row.about")
+            SettingsLink("About", to: YouRoute.about, identifier: "you.row.about")
             SettingsDivider()
-            SettingsLink("Delete account", symbol: ApexIcon.trash.systemName, tone: .destructive, to: YouRoute.deleteAccount, identifier: "you.row.delete")
+            SettingsLink("Delete account", tone: .destructive, to: YouRoute.deleteAccount, identifier: "you.row.delete")
         }
 
         ApexButton("Sign out", kind: .secondary) { model.signOut() }
@@ -197,9 +198,12 @@ public struct YouRootView: View {
         case .avatar: AvatarPickerView(model: model)
         case .password: ChangePasswordView(model: model)
         case .heartRate: HeartRateZonesView(model: model)
-        case .library: libraryScreen { LibraryView(model: $0) }
+        // `.library` is the Library screen the regrouped row pushes; the two
+        // library routes still exist and still land on their own screen, so a
+        // deep link and the onboarding are unchanged.
+        case .library: libraryScreen { LibraryHomeView(model: $0) }
         case .exercise(let id): libraryScreen { ExerciseDetailView(model: $0, id: id) }
-        case .workoutLibrary: libraryScreen { WorkoutLibraryView(model: $0) }
+        case .workoutLibrary: libraryScreen { WorkoutLibraryView(model: $0).youScreen("Workout library") }
         case .blocks: blocksScreen { BlocksView(model: $0) }
         case .block(let id): blocksScreen { BlockDetailView(model: $0, id: id) }
         case .meals:

@@ -60,7 +60,10 @@ public struct SettingsRow<Trailing: View>: View {
     private let tone: Tone
     private let showsChevron: Bool
     private let trailing: Trailing
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
+    /// `symbol` is kept for the rows that still want a glyph; the You tab
+    /// passes none (ux-review §3.8: 17 rows, 17 thin line icons).
     public init(
         _ title: String, symbol: String? = nil, tone: Tone = .normal, showsChevron: Bool = true,
         @ViewBuilder trailing: () -> Trailing
@@ -73,35 +76,88 @@ public struct SettingsRow<Trailing: View>: View {
     }
 
     public var body: some View {
-        HStack(spacing: Spacing.md) {
-            if let symbol {
-                Image(systemName: symbol)
-                    .fontWeight(.light)
-                    .font(.system(size: 16))
-                    .foregroundStyle(tone == .destructive ? ApexPalette.dangerText : ApexColor.textSecondary)
-                    .frame(width: 22)
+        layout
+            .padding(.horizontal, Spacing.lg)
+            .frame(minHeight: 48)
+            .contentShape(.rect)
+    }
+
+    /// ux-review §3.10. At the default sizes the row is one line: the title is
+    /// its identity and a long value truncates first. From `.accessibility1`
+    /// up, iOS Settings wraps the title and drops the value onto its own line
+    /// rather than showing "Training bloc…" — so the row offers the one-line
+    /// shape unclipped and falls to the stacked one the moment it stops
+    /// fitting.
+    @ViewBuilder
+    private var layout: some View {
+        if dynamicTypeSize >= .accessibility1 {
+            ViewThatFits(in: .horizontal) {
+                line(lineLimit: nil)
+                stacked
             }
-            Text(title)
-                .font(.apex(.display, size: TypeScale.base, relativeTo: .body))
-                .foregroundStyle(tone == .destructive ? ApexPalette.dangerText : ApexColor.textPrimary)
-                .lineLimit(1)
+        } else {
+            line(lineLimit: 1)
+        }
+    }
+
+    private func line(lineLimit limit: Int?) -> some View {
+        HStack(spacing: Spacing.md) {
+            icon
+            titleText
+                .lineLimit(limit)
                 // The title is the row's identity; a long value truncates first.
                 .layoutPriority(1)
             Spacer(minLength: Spacing.sm)
-            trailing
-                .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
-                .foregroundStyle(ApexColor.textMuted)
-                .lineLimit(1)
+            value
+                .lineLimit(limit)
                 .truncationMode(.tail)
-            if showsChevron {
-                ApexIcon.chevronRight.image
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(ApexColor.textMuted)
-            }
+            chevron
         }
-        .padding(.horizontal, Spacing.lg)
-        .frame(minHeight: 48)
-        .contentShape(.rect)
+    }
+
+    private var stacked: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.md) {
+            icon
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                titleText.lineLimit(nil)
+                value.lineLimit(nil).multilineTextAlignment(.leading)
+            }
+            Spacer(minLength: 0)
+            chevron
+        }
+        .padding(.vertical, Spacing.sm)
+    }
+
+    @ViewBuilder
+    private var icon: some View {
+        if let symbol {
+            Image(systemName: symbol)
+                .fontWeight(.light)
+                .font(.system(size: 16))
+                .foregroundStyle(tone == .destructive ? ApexPalette.dangerText : ApexColor.textSecondary)
+                .frame(width: 22)
+        }
+    }
+
+    private var titleText: some View {
+        Text(title)
+            .font(.apex(.display, size: TypeScale.base, relativeTo: .body))
+            .foregroundStyle(tone == .destructive ? ApexPalette.dangerText : ApexColor.textPrimary)
+    }
+
+    private var value: some View {
+        trailing
+            .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
+            .foregroundStyle(ApexColor.textMuted)
+    }
+
+    @ViewBuilder
+    private var chevron: some View {
+        if showsChevron {
+            ApexIcon.chevronRight.image
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(ApexColor.textMuted)
+        }
     }
 }
 
@@ -171,7 +227,8 @@ public struct SettingsToggle: View {
         SettingsRow(title, symbol: symbol, showsChevron: false) {
             Toggle("", isOn: $isOn)
                 .labelsHidden()
-                .tint(ApexPalette.positive)
+                // ux-review §3.8: the app's tint, not the "done" signal.
+                .tint(ApexColor.accent)
                 .accessibilityIdentifier(identifier ?? "")
         }
     }
