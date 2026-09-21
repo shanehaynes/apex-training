@@ -4,6 +4,7 @@ import handler from '../_lib/handlers/providerSync';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 import { distanceLabel, elevationLabel, utcToLocal } from '../_lib/providers/sync';
 import { parseQuantity } from '../../src/lib/tracking/records';
+import { COROS_DISCONNECT_NOTICE } from '../../src/lib/sync/corosRevocation';
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
 vi.mock('../_lib/auth.js', () => ({ requireUser: vi.fn(async () => 'user-123') }));
@@ -118,11 +119,17 @@ describe('provider-sync handler', () => {
     expect(statusCode()).toBe(503);
   });
 
-  it('disconnect deletes the connection row', async () => {
+  it('disconnect deletes the connection row and discloses the surviving grant', async () => {
     state.connections = [{ user_id: 'user-123', provider: 'coros', status: 'connected' }];
     const { res, body } = makeRes();
     await handler(makeReq({ action: 'disconnect', provider: 'coros' }), res);
-    expect(body()).toEqual({ ok: true });
+    // Apex cannot revoke upstream (#231) — the response has to say so rather
+    // than answering a bare ok that reads like the grant is gone.
+    expect(body()).toEqual({
+      ok: true,
+      upstreamRevoked: false,
+      notice: COROS_DISCONNECT_NOTICE,
+    });
     expect(state.connections).toEqual([]);
   });
 

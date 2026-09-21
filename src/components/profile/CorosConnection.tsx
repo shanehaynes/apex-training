@@ -14,7 +14,10 @@ function formatWhen(iso: string | null): string {
 }
 
 export default function CorosConnection() {
-  const { status, configured, lastSyncedAt, isConnecting, startConnect, disconnect, autoSync, setAutoSync } = useProviderSync();
+  const {
+    status, configured, lastSyncedAt, isConnecting,
+    startConnect, disconnect, disconnectNotice, autoSync, setAutoSync,
+  } = useProviderSync();
 
   if (!configured) return null;
 
@@ -43,6 +46,11 @@ export default function CorosConnection() {
             on their own; matches to planned workouts wait for your confirmation — the
             Sync button shows a badge when any are waiting.
           </label>
+          <p className="profile-hint">
+            Disconnecting deletes Apex's copy of your COROS tokens. It cannot withdraw
+            the permission you gave COROS — remove Apex from your connected apps in the
+            COROS app (Profile → Settings → 3rd Party Apps) to end that too.
+          </p>
           <button className="auth-submit" onClick={disconnect}>
             Disconnect COROS
           </button>
@@ -59,6 +67,9 @@ export default function CorosConnection() {
         </>
       ) : (
         <>
+          {disconnectNotice && (
+            <p className="profile-hint" role="status">{disconnectNotice}</p>
+          )}
           <p className="profile-hint">
             Connect your COROS account to pull activities — with heart rate, GPS, and
             elevation — straight into the calendar. You'll sign in on COROS's site;
