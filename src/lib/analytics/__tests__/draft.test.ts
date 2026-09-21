@@ -46,6 +46,21 @@ describe('chartDraftProblem / specFromDraft', () => {
     }
   });
 
+  it('refuses a fixed range past the rolling ceiling, and a non-date that addDay would throw on', () => {
+    const tooWide = validDraft();
+    tooWide.rangeKind = 'fixed';
+    tooWide.startDate = '1900-01-01';
+    tooWide.endDate = '2900-01-01';
+    expect(chartDraftProblem(tooWide)).toContain('at most 1830 days');
+    expect(specFromDraft(tooWide)).toHaveProperty('error');
+
+    const bogus = validDraft();
+    bogus.rangeKind = 'fixed';
+    bogus.startDate = '2026-01-01';
+    bogus.endDate = '9999-99-99';
+    expect(chartDraftProblem(bogus)).toContain('YYYY-MM-DD');
+  });
+
   it('kpi charts silently take the total bucket', () => {
     const draft = validDraft();
     draft.chartType = 'kpi';
