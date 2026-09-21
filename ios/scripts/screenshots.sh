@@ -7,7 +7,15 @@
 #   ios/scripts/screenshots.sh                       # iPhone 17 (iOS 26)
 #   ios/scripts/screenshots.sh 'iPhone 16' 18.6      # a second chrome generation
 #
-# Output: ios/build/screens/*.png
+# Output: ios/build/screens/<device>/*.png
+#
+# A red leg still yields its earlier attachments: xcodebuild's exit status is
+# captured, the export and the rename always run, and the script exits with
+# that status at the end — so a failing run is still red, but the folder is
+# not left empty (on the iPhone 17 Pro Max two legs fail by device layout and
+# ~60 screenshots are still worth having). The folder holds .png only; the
+# failed legs' own attachments (hierarchy plists, recordings) stay in the
+# .xcresult the exit message names.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -25,6 +33,7 @@ OUT="build/screens/$SLUG"
 rm -rf "$RESULT" "$OUT"
 mkdir -p "$OUT"
 
+status=0
 xcodebuild \
   -project Apex.xcodeproj \
   -scheme Apex \
@@ -34,7 +43,10 @@ xcodebuild \
   -resultBundlePath "$RESULT" \
   -only-testing:ApexUITests \
   CODE_SIGNING_ALLOWED=NO \
-  test
+  test || status=$?
+
+# No bundle at all means the build itself failed, not a leg: nothing to export.
+[ -d "$RESULT" ] || { echo "no result bundle at $RESULT (xcodebuild exited $status)" >&2; exit "${status:-1}"; }
 
 # The exporter names files by UUID and records the real names in manifest.json,
 # so rename them back — "01-sign-in.png" is what makes a PR readable.
@@ -53,9 +65,16 @@ for test in json.load(open(manifest)):
         clean = re.sub(r"_\d+_[0-9A-F-]{36}(?=\.png$)", "", name)
         os.replace(src, os.path.join(out, clean))
 PYTHON
-find "$OUT" -name '*.txt' -delete
-rm -f "$OUT/manifest.json"
+# A failed leg also attaches UI-hierarchy plists and a failure recording under
+# bare UUIDs; the .xcresult keeps those, the folder keeps only the screenshots.
+find "$OUT" -type f ! -name '*.png' -delete
 
 echo
 echo "screenshots in $OUT:"
 find "$OUT" -name '*.png' | sort
+
+if [ "$status" -ne 0 ]; then
+  echo
+  echo "xcodebuild exited $status — one or more legs failed; see $RESULT" >&2
+fi
+exit "$status"

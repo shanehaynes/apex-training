@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireUser } from '../_lib/auth';
+import { AuthApiError, AuthRetryableFetchError } from '@supabase/supabase-js';
+import { AUTH_UNAVAILABLE_BODY, requireUser } from '../_lib/auth';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 import { TERMS_REQUIRED_BODY, TERMS_UNAVAILABLE_BODY } from '../_lib/legal';
 import { PRIVACY_VERSION, TERMS_VERSION } from '../../src/lib/legal/versions';
@@ -82,10 +83,16 @@ describe('requireUser', () => {
   });
 
   it('401s when the token does not validate', async () => {
-    getUser.mockResolvedValue({ data: { user: null }, error: { message: 'invalid JWT' } });
-    const { res, statusCode } = makeRes();
+    // What GoTrue actually hands back for a bad/expired JWT: an AuthApiError
+    // carrying the 401 it answered with.
+    getUser.mockResolvedValue({
+      data: { user: null },
+      error: new AuthApiError('invalid JWT: token is expired', 401, 'bad_jwt'),
+    });
+    const { res, statusCode, body } = makeRes();
     expect(await requireUser(makeReq('Bearer expired'), res)).toBeNull();
     expect(statusCode()).toBe(401);
+    expect(body()).toBe('Invalid or expired token');
     expect(getUser).toHaveBeenCalledWith('expired');
   });
 
@@ -178,5 +185,66 @@ describe('requireUser — terms gate', () => {
     const { res, statusCode } = makeRes();
     expect(await requireUser(makeReq('Bearer nope'), res)).toBeNull();
     expect(statusCode()).toBe(401);
+  });
+});
+
+// "GoTrue said no" and "GoTrue did not answer" are different answers, and
+// rendering the second as 401 is what makes a Supabase blip look like a mass
+// sign-out: iOS reads 401 as a dead session, pauses the write queue and (until
+// G3) signs out. 503 is retryable in RetryPolicy.classify, so the queue backs
+// off and the session survives.
+describe('requireUser — Supabase Auth unreachable', () => {
+  it('503s auth-unavailable when fetch itself failed (AuthRetryableFetchError, status 0)', async () => {
+    getUser.mockResolvedValue({
+      data: { user: null },
+      error: new AuthRetryableFetchError('fetch failed', 0),
+    });
+    const { res, statusCode, body } = makeRes();
+    expect(await requireUser(makeReq('Bearer good-token'), res)).toBeNull();
+    expect(statusCode()).toBe(503);
+    expect(body()).toBe(AUTH_UNAVAILABLE_BODY);
+  });
+
+  it('503s when GoTrue answered 5xx', async () => {
+    getUser.mockResolvedValue({
+      data: { user: null },
+      error: new AuthRetryableFetchError('Service Unavailable', 503),
+    });
+    const { res, statusCode, body } = makeRes();
+    expect(await requireUser(makeReq('Bearer good-token'), res)).toBeNull();
+    expect(statusCode()).toBe(503);
+    expect(body()).toBe(AUTH_UNAVAILABLE_BODY);
+  });
+
+  it('503s on a bare 5xx-shaped error that is not one of auth-js\'s classes', async () => {
+    getUser.mockResolvedValue({ data: { user: null }, error: { message: 'Bad Gateway', status: 502 } });
+    const { res, statusCode, body } = makeRes();
+    expect(await requireUser(makeReq('Bearer good-token'), res)).toBeNull();
+    expect(statusCode()).toBe(503);
+    expect(body()).toBe(AUTH_UNAVAILABLE_BODY);
+  });
+
+  it('still 401s a 403 from GoTrue — that is a verdict, not an outage', async () => {
+    getUser.mockResolvedValue({
+      data: { user: null },
+      error: new AuthApiError('User from sub claim in JWT does not exist', 403, 'user_not_found'),
+    });
+    const { res, statusCode, body } = makeRes();
+    expect(await requireUser(makeReq('Bearer deleted-user'), res)).toBeNull();
+    expect(statusCode()).toBe(401);
+    expect(body()).toBe('Invalid or expired token');
+  });
+
+  it('never reaches the terms gate when auth is unreachable', async () => {
+    const admin = makeAdmin(CURRENT_ROW);
+    mockedAdmin.mockReturnValue(admin);
+    getUser.mockResolvedValue({
+      data: { user: null },
+      error: new AuthRetryableFetchError('fetch failed', 0),
+    });
+    const { res, statusCode } = makeRes();
+    expect(await requireUser(makeReq('Bearer good-token'), res)).toBeNull();
+    expect(statusCode()).toBe(503);
+    expect((admin as unknown as { from: ReturnType<typeof vi.fn> }).from).not.toHaveBeenCalled();
   });
 });
