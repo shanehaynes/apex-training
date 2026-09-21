@@ -31,6 +31,15 @@ final class SmokeUITests: XCTestCase {
         app.buttons["Sign in"].tap()
     }
 
+    /// Today rides in the Day/Month toolbar menu (ux-review §3.2): four
+    /// controls is the most the bar holds with the date still legible.
+    private func tapToday(_ app: XCUIApplication) {
+        app.buttons["schedule.period"].tap()
+        let today = app.buttons["Today"]
+        XCTAssertTrue(today.waitForExistence(timeout: 5), "Today is not in the period menu")
+        today.tap()
+    }
+
     /// Taps an event card and waits for its sheet.
     ///
     /// One tap. A starved CI runner does drop a synthesized one (#192), and
@@ -398,7 +407,7 @@ final class SmokeUITests: XCTestCase {
         app.buttons["Next"].tap()
         app.buttons["Next"].tap()
         XCTAssertTrue(app.buttons["event.card.Fixture Push Day"].waitForExistence(timeout: 10))
-        app.buttons["Today"].tap()
+        tapToday(app)
 
         // Edit exercises on the circuit: link the plank into the superset, save, reopen.
         openEvent(app, card: "Fixture Circuit")
