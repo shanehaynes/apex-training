@@ -18,6 +18,7 @@
 #
 # The deadline defaults to 10 minutes per open PR (floor 90) so a large fleet
 # is not abandoned two-thirds of the way through; --max-minutes overrides.
+# A transient GitHub API failure listing PRs is retried, not fatal.
 #
 # It only merges PRs based on main: a PR still pointing at another branch is
 # the stacked-PR trap that once merged #23 into its base and took production
@@ -122,10 +123,18 @@ while :; do
   # Assign before the loop: a failure inside `<<EOF $(list_prs) EOF` would
   # read as an empty PR list and report success while doing nothing — which
   # is exactly how this script once behaved when run outside the repo.
-  if ! prs=$(list_prs); then
-    echo "error: could not list open PRs — gh auth, network, or repo access" >&2
-    exit 1
-  fi
+  # A transient API timeout must not end an unattended run that has hours
+  # left: retry with backoff, and only give up when it stays down.
+  attempt=0
+  until prs=$(list_prs); do
+    attempt=$(( attempt + 1 ))
+    if [ "$attempt" -ge 5 ]; then
+      echo "error: could not list open PRs after $attempt attempts — gh auth, network, or repo access" >&2
+      exit 1
+    fi
+    echo "── could not list open PRs (attempt $attempt); retrying in $(( attempt * 30 ))s" >&2
+    sleep $(( attempt * 30 ))
+  done
 
   # The deadline scales with the fleet: one branch in flight at a time means
   # one CI cycle per PR, and a fixed 90 minutes abandons anything above ~13.
