@@ -15,6 +15,7 @@ detail lives in the linked files. If you are a Claude session picking up iOS wor
 | [ux-improvements.md](ux-improvements.md) | The checklist of small and medium improvements over the mobile web, with evidence |
 | [testing-and-ci.md](testing-and-ci.md) | What Linux vs Mac sessions can verify, CI jobs, TestFlight, App Store gate |
 | [app-store.md](app-store.md) | App Store submission: the App Privacy answers, review notes, the demo account, screenshots |
+| [../ops-runbook.md](../ops-runbook.md) | Ops runbook: every escrowed secret and where it lives, ASC key regeneration, Apple Account recovery, DR restore pointers (#252) |
 | [workstreams/](workstreams/) | One self-contained brief per workstream (W0–W13) |
 
 ## Vision
