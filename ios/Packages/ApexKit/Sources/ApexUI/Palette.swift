@@ -1,29 +1,32 @@
 import SwiftUI
 
-/// Colours the web uses but never tokenised, so `gen-tokens.mjs` has no source
-/// to read them from. They are listed in design-spec.md §1 as "promote to a
-/// token" — if that ever happens on the web, move them into the generator and
-/// delete them here.
+/// The semantic signals, by the name every call site already uses. The values
+/// are no longer here: design-spec §1's "promote to a token" rows were promoted
+/// to `src/styles/tokens.css`, so `gen-tokens.mjs` emits them as `ApexSignal`
+/// and one palette serves both clients. This enum is the stable call-site name.
 public enum ApexPalette {
-    /// Hover and emphasis borders (`#3d3530`).
-    public static let borderStrong = Color(hex: 0x3D3530)
+    /// Hover and emphasis borders.
+    public static let borderStrong = ApexSignal.borderStrong
     /// The de-facto "done" colour: completion ticks, today headings, overflow links.
-    public static let positive = Color(hex: 0xF97316)
+    public static let positive = ApexSignal.positive
     /// The now-line on the day view.
-    public static let danger = Color(hex: 0xEF4444)
-    public static let dangerText = Color(hex: 0xF87171)
-    public static let destructive = Color(hex: 0xB91C1C)
-    public static let userBubble = Color(hex: 0x1E3A5F)
-    public static let userBubbleBorder = Color(hex: 0x2A5080)
-    /// The one mark colour of the synced-activity stream charts (`StreamCharts.tsx`),
-    /// a shade darker than the sync-badge accent so it clears 3:1 on the sheet.
-    public static let streamMark = Color(hex: 0xEA690B)
+    public static let danger = ApexSignal.danger
+    public static let dangerText = ApexSignal.dangerText
+    public static let destructive = ApexSignal.destructive
+    /// The user's chat bubble: `bgElevated` and a hairline — their own words
+    /// need no colour of their own.
+    public static let userBubble = ApexSignal.userBubble
+    public static let userBubbleBorder = ApexSignal.userBubbleBorder
+    /// The one mark colour of the synced-activity stream charts
+    /// (`StreamCharts.tsx`) — the app's single signal, which clears 3:1 on the
+    /// sheet with room to spare.
+    public static let streamMark = ApexSignal.streamMark
 
     /// Block attainment semantics (design-spec §1).
     public enum Attainment {
-        public static let met = Color(hex: 0x2EB82E)
-        public static let close = Color(hex: 0xF97316)
-        public static let under = ApexColor.textMuted
+        public static let met = ApexSignal.attainmentMet
+        public static let close = ApexSignal.attainmentClose
+        public static let under = ApexSignal.attainmentUnder
     }
 }
 

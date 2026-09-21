@@ -7,7 +7,7 @@ import type { RenderedSeries } from '../engine';
 // vectors are copied verbatim into SeriesColorsTests, so a change here is a
 // change there.
 
-const RAMP = ['#f97316', '#38bdf8', '#4ade80', '#facc15', '#c084fc', '#fb7185', '#2dd4bf', '#a3a3a3'];
+const RAMP = ['#e8601c', '#ede8df', '#d4a53a', '#8fae7d', '#7d9bb8', '#c98a84', '#6fa89b', '#8f8781'];
 
 const series = (...keys: string[]): RenderedSeries[] =>
   keys.map(key => ({ key, label: key, unitKind: 'count', unit: '', axis: 'left', points: [] }));

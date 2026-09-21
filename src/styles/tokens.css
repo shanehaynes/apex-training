@@ -5,11 +5,26 @@
   --bg-primary:    #0d0c0b;
   --bg-surface:    #161412;
   --bg-elevated:   #201e1b;
-  --border-subtle: #2e2a25;
-  --text-primary:  #f1f5f9;
-  --text-secondary:#a09590;
-  --text-muted:    #8a7f7c;
+  /* The ink at 13%: a translucent hairline reads as a line, a solid grey as a box. */
+  --border-subtle: rgba(237, 232, 223, 0.13);
+  --border-strong: #3d3530;  /* hover and emphasis borders */
+  --text-primary:  #ede8df;  /* warm ink on a warm ground */
+  --text-secondary:#b8b3a9;
+  --text-muted:    #8f8781;
   --accent-primary:#e8e2d9;  /* warm off-white — today bubbles, active toggles, focus rings */
+
+  /* Semantic signals. One burnt-orange signal; reds desaturated toward the
+     ground. Contrast is WCAG 2 against --bg-surface: text needs 4.5, marks 3. */
+  --positive:           #e8601c;  /* "done": completion ticks, today headings, overflow links */
+  --danger:             #d9483b;  /* the now-line and danger hairlines (mark, 4.3) */
+  --danger-text:        #e98a7f;  /* danger copy (text, 7.4) */
+  --destructive:        #b91c1c;  /* destructive button fill, white text (6.5 on fill) */
+  --stream-mark:        var(--positive);  /* the one mark colour of the stream charts */
+  --user-bubble:        var(--bg-elevated);      /* the user's words need no colour */
+  --user-bubble-border: var(--border-subtle);
+  --attainment-met:     #7c9a6d;  /* a sage, not green-500's cousin */
+  --attainment-close:   var(--positive);
+  --attainment-under:   var(--text-muted);
 
   /* Workout type colors */
   --color-stretching-solid:  #4a3f6b;

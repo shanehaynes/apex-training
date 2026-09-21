@@ -33,6 +33,10 @@ struct ApexApp: App {
                 // so they float over sheets and covers too.
                 .background(ToastWindowAttacher())
                 .environment(model)
+                // At the window, not inside the tab view: sign-in and
+                // set-password are presented outside it, and a tint applied
+                // there left their carets and focus rings system blue (B5).
+                .tint(ApexColor.accent)
                 // Dark only (D-010) — belt and braces with UIUserInterfaceStyle,
                 // which SwiftUI previews do not read.
                 .preferredColorScheme(.dark)
