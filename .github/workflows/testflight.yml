@@ -95,10 +95,14 @@ jobs:
         working-directory: ios
         run: fastlane beta changelog:"${{ github.event.inputs.changelog }}"
 
-      # The .ipa that was uploaded, for the record; the archive's dSYMs went up
-      # with it (uploadSymbols).
+      # Only on failure, to inspect an export that never reached Apple. The repo
+      # is public, so artifacts are downloadable by any logged-in GitHub user
+      # (backup.yml's header says the same, which is why it encrypts): a
+      # successful run has no reason to republish the signed production build
+      # Apple already has. The archive's dSYMs went up with it (uploadSymbols),
+      # and fastlane's own logs stay in the run's log output either way.
       - uses: actions/upload-artifact@v7
-        if: always()
+        if: failure()
         with:
           name: testflight-ipa
           path: ios/build/export-*/*.ipa
