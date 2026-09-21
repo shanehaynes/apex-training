@@ -26,6 +26,13 @@ Out: anything on the Backlog.
 - `ux-improvements.md` fully accounted for.
 
 ## Session log
+- 2026-09-19 · Linux · The committee-review fleet: 36 PRs #237–#273 answer #235/#236 (see
+  STATUS.md, 2026-09-19). Release-surface changes for W13: #245 Release-only build phase on the
+  anon key and API base, #243 `secrets.sh` JWT assertion, #266 `assert-ipa.sh` after export, #237
+  failure-only `.ipa` artifact, #272 Xcode/fastlane/Package.resolved pins and the anon key from a
+  secret, #273 `build_number` override, recorded test retries, `OS=` pin, SwiftPM cache, widget
+  privacy manifest; #261 runs `prod-schema-check.mjs` before the archive. #212 (first
+  `testflight.yml` run, device run) stays Shane's.
 - 2026-09-17 · Mac · One session, four PRs, three worktrees (`chore/w13-release`, then
   `chore/w13-appstore` in the same worktree; `feat/w13-onboarding`; `chore/w13-polish`).
   - **A — release engineering (#190, HELD).** `ios/fastlane/Fastfile` `beta`: `build_app` with the
@@ -33,7 +40,7 @@ Out: anything on the Backlog.
     ExportOptions as `testflight.sh`, `upload_to_testflight`; `dry_run:true` stops after the export.
     `.github/workflows/testflight.yml`: `workflow_dispatch`, `fetch-depth: 0`, a first step that
     names any missing secret, `secrets.sh` for the anon key, concurrency group without cancel,
-    the `.ipa` as an artifact. **Build number = `git rev-list --count HEAD`, not `run_number`
+    the `.ipa` as an artifact (failure-only since #237 — the repo is public). **Build number = `git rev-list --count HEAD`, not `run_number`
     (D-034)**: App Store Connect has seen 353 for 0.8.0. Proven: `fastlane beta dry_run:true`
     archives with the key signing and exports a signed `Apex-355.ipa`, no upload. Traps: the
     issuer id lives only in git-ignored `appstoreconnect.env` (recovered from the memory note when
