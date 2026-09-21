@@ -2,9 +2,11 @@ import ApexCore
 import ApexUI
 import SwiftUI
 
-/// The default surface: a week strip, the big date, the day's cards with their
-/// 44pt completion controls, and the meals line. Swipe the strip for ±1 week,
-/// the body for ±1 day (U6 — the web has no gestures at all).
+/// The default surface: a week strip, the day's cards with their 44pt
+/// completion controls, and the meals line. The date is the navigation title
+/// (ux-review §3.2) and the strip's highlighted cell — no numeral, no TODAY
+/// pill. Swipe the strip for ±1 week, the body for ±1 day (U6 — the web has no
+/// gestures at all).
 struct DayView: View {
     @Bindable var model: ScheduleModel
     let onOpen: (ScheduleEvent) -> Void
@@ -12,18 +14,23 @@ struct DayView: View {
     var onAdd: ((DayKey) -> Void)? = nil
     /// The meals line opens the composer on the day (W10); nil leaves it static.
     var onAddMeal: ((DayKey) -> Void)? = nil
+    /// The setup card (W13, U32); nil shows none. It rides *inside* the scroll
+    /// content now rather than pinned above it (ux-review §3.2).
+    var onboarding: OnboardingModel? = nil
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
+                if let onboarding, onboarding.showsNudge {
+                    SetupNudgeCard(model: onboarding)
+                }
                 weekStrip
-                header
+                eventList
                     .id(model.selectedDay)
                     .transition(.asymmetric(
                         insertion: .move(edge: model.lastStepDirection > 0 ? .trailing : .leading).combined(with: .opacity),
                         removal: .opacity
                     ))
-                eventList
                 if let onAddMeal {
                     Button { onAddMeal(model.selectedDay) } label: { MealsRow(day: model.meals(on: model.selectedDay)) }
                         .buttonStyle(.plain)
@@ -57,33 +64,6 @@ struct DayView: View {
         }
         .padding(.top, Spacing.xs)
         .simultaneousGesture(swipe(days: 7))
-    }
-
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: Spacing.md) {
-            Text("\(model.selectedDay.day)")
-                .font(.apex(.display, size: 42, weight: .bold, relativeTo: .largeTitle))
-                .tracking(-1.7)
-                .foregroundStyle(ApexColor.textPrimary)
-                .monospacedDigit()
-            VStack(alignment: .leading, spacing: 2) {
-                Text(MonthNames.weekdayLong[model.selectedDay.weekday - 1])
-                    .font(.apex(.display, size: TypeScale.base, weight: .semibold, relativeTo: .headline))
-                    .foregroundStyle(ApexColor.textPrimary)
-                Text("\(MonthNames.long[model.selectedDay.month - 1]) \(String(model.selectedDay.year))")
-                    .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
-                    .foregroundStyle(ApexColor.textMuted)
-            }
-            Spacer()
-            if model.selectedDay == model.today {
-                Text("Today")
-                    .apexEyebrow()
-                    .foregroundStyle(ApexPalette.positive)
-                    .padding(.horizontal, Spacing.sm)
-                    .padding(.vertical, 3)
-                    .overlay(Capsule().strokeBorder(ApexPalette.positive.opacity(0.5), lineWidth: 1))
-            }
-        }
     }
 
     @ViewBuilder

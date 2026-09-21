@@ -81,7 +81,9 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["schedule.meals"].label.contains("1114 kcal"))
         attach(app, name: "02-day")
 
-        // Month: the fourth event is an overflow chip; it opens the day sheet.
+        // Month: the fourth event is the overflow count; it opens the day sheet.
+        // Day/Month is a toolbar menu now, not a segmented control (ux-review §3.2).
+        app.buttons["schedule.period"].tap()
         app.buttons["Month"].tap()
         let more = app.buttons["schedule.month.more.2026-09-08"]
         XCTAssertTrue(more.waitForExistence(timeout: 10))
@@ -318,7 +320,9 @@ final class SmokeUITests: XCTestCase {
         let card = app.otherElements["onboarding.nudge"]
         XCTAssertTrue(card.waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["event.card.Fixture Push Day"].waitForExistence(timeout: 20))
-        XCTAssertEqual(app.staticTexts["onboarding.nudge.score"].label, "1/3")
+        // Collapsed it is one line; the rows are one tap away (ux-review §3.2).
+        XCTAssertEqual(app.staticTexts["onboarding.nudge.score"].label, "1 of 3")
+        app.buttons["onboarding.nudge.summary"].tap()
         XCTAssertFalse(app.buttons["onboarding.nudge.action.template"].exists, "a done row has no button")
         attach(app, name: "w13-04-nudge")
 
@@ -327,7 +331,8 @@ final class SmokeUITests: XCTestCase {
         attach(app, name: "w13-05-nudge-to-key")
         app.buttons["Close"].firstMatch.tap()
 
-        // Back on Schedule the card is still there; its close is session-only.
+        // Back on Schedule the card is still there; closing it persists (the
+        // UI-test world does not write the flag — SetupNudgeDismissal).
         app.tabBars.buttons["Schedule"].tap()
         XCTAssertTrue(card.waitForExistence(timeout: 10))
         app.buttons["onboarding.nudge.dismiss"].tap()

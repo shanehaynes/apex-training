@@ -66,7 +66,14 @@ public struct EventCard: View {
                                 .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
                                 .foregroundStyle(ApexColor.textMuted)
                         }
-                        WorkoutTypeBadge(rawType: rawType)
+                        // The rail already says the type in colour; a solid
+                        // filled chip said it a second time (ux-review §3.2).
+                        // Muted text, no fill — type carries hierarchy, colour
+                        // carries meaning.
+                        Text(palette.label)
+                            .font(.apex(.display, size: TypeScale.micro, weight: .medium, relativeTo: .caption2))
+                            .tracking(0.3)
+                            .foregroundStyle(ApexColor.textSecondary)
                             .padding(.top, 2)
                     }
                     Spacer(minLength: 0)
