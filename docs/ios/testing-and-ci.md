@@ -117,6 +117,9 @@ ios/scripts/screenshots.sh             # runs the smoke, writes ios/build/screen
 ios/scripts/screenshots.sh 'iPhone 16' 18.6 # the iOS 18 chrome, if that runtime is installed
 ```
 
+A red leg does not skip the export: `screenshots.sh` captures xcodebuild's status, always
+exports and renames what the run attached, prints the list, then exits with that status.
+
 The first generate + build in a fresh worktree takes several minutes: supabase-swift pulls
 `swift-syntax`, whose macro plugin compiles from source.
 
