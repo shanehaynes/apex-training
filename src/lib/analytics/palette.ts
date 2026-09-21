@@ -9,20 +9,24 @@ import type { RenderedSeries } from './engine';
 // other series draws from a fixed 8-color ramp, assigned deterministically
 // by position so a tile's colors never reshuffle between renders.
 //
-// Ramp hues are picked against the dark surfaces (tokens.css --bg-surface
-// #161412): all sit in the mid-lightness band that clears 3:1 contrast on
-// it — the StreamCharts standard — and stay distinguishable from each other
+// Ramp hues are desaturated and warm-biased to sit on the dark surfaces
+// (tokens.css --bg-surface #161412): all clear 5:1 contrast on it — well past
+// the 3:1 StreamCharts standard — and stay distinguishable from each other
 // under deuteranopia (varied lightness, not just hue).
+//
+// Slots 1 and 2 are the signal (--positive) and the ink (--text-primary) on
+// purpose: a one- or two-series chart then carries no chroma but the chroma
+// that means something.
 
 const SERIES_RAMP = [
-  '#f97316', // orange — the house accent
-  '#38bdf8', // sky
-  '#4ade80', // green
-  '#facc15', // yellow
-  '#c084fc', // violet
-  '#fb7185', // rose
-  '#2dd4bf', // teal
-  '#a3a3a3', // neutral
+  '#e8601c', // signal — burnt orange (--positive)
+  '#ede8df', // ink (--text-primary)
+  '#d4a53a', // ochre
+  '#8fae7d', // sage
+  '#7d9bb8', // steel
+  '#c98a84', // rose
+  '#6fa89b', // teal
+  '#8f8781', // dim (--text-muted)
 ] as const;
 
 const WORKOUT_TYPE_KEYS = Object.keys(WORKOUT_COLORS) as WorkoutType[];

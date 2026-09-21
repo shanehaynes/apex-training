@@ -15,11 +15,29 @@ public enum ApexColor {
     public static let bgPrimary = Color(hex: 0x0D0C0B)
     public static let bgSurface = Color(hex: 0x161412)
     public static let bgElevated = Color(hex: 0x201E1B)
-    public static let borderSubtle = Color(hex: 0x2E2A25)
-    public static let textPrimary = Color(hex: 0xF1F5F9)
-    public static let textSecondary = Color(hex: 0xA09590)
-    public static let textMuted = Color(hex: 0x8A7F7C)
+    public static let borderSubtle = Color(hex: 0xEDE8DF).opacity(0.13)
+    public static let textPrimary = Color(hex: 0xEDE8DF)
+    public static let textSecondary = Color(hex: 0xB8B3A9)
+    public static let textMuted = Color(hex: 0x8F8781)
     public static let accent = Color(hex: 0xE8E2D9)
+}
+
+/// The semantic signals: what a colour *means* rather than where it sits.
+/// These used to live in Swift only (`ApexPalette`), which is how the two
+/// clients drift; design-spec §1 promoted them to `tokens.css`. `ApexPalette`
+/// stays as the call-site name and forwards here.
+public enum ApexSignal {
+    public static let borderStrong = Color(hex: 0x3D3530)
+    public static let positive = Color(hex: 0xE8601C)
+    public static let danger = Color(hex: 0xD9483B)
+    public static let dangerText = Color(hex: 0xE98A7F)
+    public static let destructive = Color(hex: 0xB91C1C)
+    public static let userBubble = Color(hex: 0x201E1B)
+    public static let userBubbleBorder = Color(hex: 0xEDE8DF).opacity(0.13)
+    public static let streamMark = Color(hex: 0xE8601C)
+    public static let attainmentMet = Color(hex: 0x7C9A6D)
+    public static let attainmentClose = Color(hex: 0xE8601C)
+    public static let attainmentUnder = Color(hex: 0x8F8781)
 }
 
 /// One workout type's colours. `fill` and `glow` carry their own opacity, so
@@ -121,14 +139,14 @@ public enum WorkoutTypeTokens {
 /// Analytics series ramp, assigned by series position (src/lib/analytics/palette.ts).
 public enum ChartPalette {
     public static let seriesRamp: [Color] = [
-        Color(hex: 0xF97316),
-        Color(hex: 0x38BDF8),
-        Color(hex: 0x4ADE80),
-        Color(hex: 0xFACC15),
-        Color(hex: 0xC084FC),
-        Color(hex: 0xFB7185),
-        Color(hex: 0x2DD4BF),
-        Color(hex: 0xA3A3A3),
+        Color(hex: 0xE8601C),
+        Color(hex: 0xEDE8DF),
+        Color(hex: 0xD4A53A),
+        Color(hex: 0x8FAE7D),
+        Color(hex: 0x7D9BB8),
+        Color(hex: 0xC98A84),
+        Color(hex: 0x6FA89B),
+        Color(hex: 0x8F8781),
     ]
 }
 
