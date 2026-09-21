@@ -300,6 +300,19 @@ final class AppModel {
 
     // MARK: - Links
 
+    #if DEBUG
+    /// The simulator hatch for the refusal below. `ios/CLAUDE.md`'s recipe mints
+    /// a token pair off the local stack and hands it to the app with
+    /// `simctl openurl` — exactly the shape #201 refuses — so a DEBUG build
+    /// launched with `-apexAllowAuthLinkWhileSignedIn` takes one anyway, and the
+    /// hand-off can be driven without signing out between accounts. Compiled out
+    /// of Release, so TestFlight and the App Store never have it.
+    private static let allowsAuthTokensWhileSignedIn =
+        CommandLine.arguments.contains("-apexAllowAuthLinkWhileSignedIn")
+    #else
+    private static let allowsAuthTokensWhileSignedIn = false
+    #endif
+
     /// `.onOpenURL`: universal links and `apextraining://` both land here.
     func open(_ url: URL) async {
         guard let link = DeepLink.parse(url) else { return }
@@ -309,6 +322,21 @@ final class AppModel {
         }
         switch link {
         case .authCode, .authTokens, .authError:
+            // Session fixation (#201). A token pair in a fragment *is* a whole
+            // session, and anything can hand us one: a web page, a QR code,
+            // another app. Adopting it while somebody is signed in swaps the
+            // account behind their back — around `signOut()`, so the previous
+            // account's cache is served to the new session and their workouts
+            // land in the sender's account. Refuse on state, not origin: the
+            // web hand-off (`src/lib/auth/landing.ts`, D-020) legitimately
+            // builds `apextraining://auth#…` for invite acceptance, so
+            // demanding the universal-link origin would break invites on a
+            // phone. `.authCode` is PKCE and app-initiated; `.authError`
+            // carries no session. Neither changes.
+            if case .authTokens = link, case .signedIn = state, !Self.allowsAuthTokensWhileSignedIn {
+                ToastBus.shared.post("Sign out first to use a sign-in link for another account.", level: .failure)
+                return
+            }
             let outcome: AuthLinkOutcome
             if let auth {
                 outcome = await auth.handle(link, originalURL: url)

@@ -169,6 +169,9 @@ targets:
         product: ApexCore
         link: false
       - package: ApexKit
+        product: ApexAuth
+        link: false
+      - package: ApexKit
         product: ApexUI
         link: false
       - package: ApexKit
