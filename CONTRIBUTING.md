@@ -119,11 +119,17 @@ scripts/merge-babysit.sh          # dry run: where every open PR sits in the loo
 scripts/merge-babysit.sh --yes    # run the loop unattended until they all land
 ```
 
-runs it for them: merge whatever is green and current, update-branch the rest
-(GitHub's update-branch API — a merge of `main` into the branch, never a
-rebase), wait for CI, repeat. PRs with conflicts or failing checks are
-reported and skipped, and a PR not based on `main` is never merged — that is
-the stacked-PR trap that took production down (see above about #23).
+runs it for them: merge whatever is green and current, update-branch the
+**next** one (GitHub's update-branch API — a merge of `main` into the branch,
+never a rebase), wait for CI, repeat. It updates one branch at a time, oldest
+PR first: merges are serial, so updating every waiting PR after each merge
+buys no wall clock — the next merge puts them all behind again — and costs a
+full CI run per PR per merge (435 runs for a fleet of 29, against 29). Pass
+`--in-flight=2` to hedge against the one updated PR going red. The deadline
+defaults to ten minutes per open PR, floor 90; `--max-minutes` overrides. PRs
+with conflicts or failing checks are reported and skipped, and a PR not based
+on `main` is never merged — that is the stacked-PR trap that took production
+down (see above about #23).
 
 The thing that would replace the loop is GitHub's **merge queue** — press
 *Merge when ready* on every green PR and the queue tests and lands each one on

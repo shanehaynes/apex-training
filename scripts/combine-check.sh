@@ -41,9 +41,17 @@ if [ "${#branches[@]}" -eq 0 ]; then
     echo "error: no branches given and gh not found to list open PRs" >&2
     exit 64
   fi
+  # gh's default --limit is 30 and it truncates silently: a 39-PR fleet was
+  # once checked as 30 and reported "pairs conflict" as if it had seen them
+  # all. Ask for far more than any fleet, and refuse to report if we hit it.
+  pr_limit=200
   while IFS= read -r b; do branches+=("$b"); done < <(
-    "$GH" pr list --state open --base main --json headRefName --jq '.[].headRefName'
+    "$GH" pr list --state open --base main --limit "$pr_limit" --json headRefName --jq '.[].headRefName'
   )
+  if [ "${#branches[@]}" -ge "$pr_limit" ]; then
+    echo "error: $pr_limit open PR branches returned — the list may be truncated; raise pr_limit" >&2
+    exit 1
+  fi
   if [ "${#branches[@]}" -lt 2 ]; then
     echo "fewer than two open PR branches — nothing to combine."
     exit 0
