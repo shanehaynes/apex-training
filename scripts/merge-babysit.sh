@@ -193,8 +193,46 @@ merge_pr() {
 # One pass: fold every ready PR onto origin/main in merge order, prove the
 # folded tree, merge the PRs in that order. Sets actionable/merged_* like the
 # serial pass does, so end_of_pass decides whether to loop.
+
+# The contexts branch protection requires — the floor. Read once.
+required_contexts=""
+required_contexts_loaded=0
+load_required_contexts() {
+  [ "$required_contexts_loaded" -eq 1 ] && return 0
+  required_contexts=$("$GH" api "repos/{owner}/{repo}/branches/main/protection/required_status_checks" \
+    --jq '.contexts | join(" ")' 2>/dev/null) || return 1
+  required_contexts_loaded=1
+}
+
+# Is this PR's head green where it matters? 0: every required check passed
+# and no check failed outright; 1 (reason on stdout): a required check is
+# red or cancelled, or a non-required job failed — advisory, but not
+# something to merge past blind; 2: still pending. mergeStateStatus alone
+# cannot say: UNSTABLE covers a superseded run's CANCELLED job and a failed
+# preview deploy alike, and neither is what the floor is about.
+required_green() {
+  local rollup ctx st red
+  load_required_contexts || return 2
+  rollup=$("$GH" pr view "$1" --json statusCheckRollup \
+    --jq '.statusCheckRollup[] | "\(.name // .context)\t\(.conclusion // .state // "")"') || return 2
+  for ctx in $required_contexts; do
+    st=$(printf '%s\n' "$rollup" | awk -F'\t' -v c="$ctx" '$1 == c { print $2; exit }')
+    case "$st" in
+      SUCCESS) ;;
+      FAILURE|ERROR|TIMED_OUT|CANCELLED|ACTION_REQUIRED) echo "$ctx=$st (required)"; return 1 ;;
+      *) return 2 ;;
+    esac
+  done
+  red=$(printf '%s\n' "$rollup" | awk -F'\t' '$2 == "FAILURE" || $2 == "ERROR" || $2 == "TIMED_OUT" { printf "%s=%s ", $1, $2 }')
+  if [ -n "$red" ]; then
+    echo "${red% }"
+    return 1
+  fi
+  return 0
+}
+
 fleet_pass() {
-  local number base draft state head title verdict tree head_sha base_sha cur failed i n before
+  local number base draft state head title verdict tree head_sha base_sha cur i n before ready note reason rc
   local -a numbers=() heads=() titles=()
 
   git fetch -q origin --prune
@@ -216,68 +254,82 @@ fleet_pass() {
       continue
     fi
 
+    ready=0
+    note=""
     case "$state" in
-      CLEAN|BEHIND)
+      CLEAN) ready=1 ;;
+      BEHIND)
         # BEHIND only exists while the up-to-date rule is on — a dry run
         # before the flip. Plan as if the rule were off, and say so; with
         # --yes the rule is off (checked above), so BEHIND means it came back.
-        if [ "$state" = BEHIND ]; then
-          if [ "$apply" -eq 1 ]; then
-            echo "SKIP  #$number is BEHIND — the up-to-date rule came back on mid-run. ($title)"
-            skipped="$skipped $number"
-            continue
-          fi
-          # BEHIND says nothing about checks; read them so the plan is honest.
-          failed=$("$GH" pr checks "$number" 2>/dev/null | grep -c $'\tfail' || true)
-          if [ "${failed:-0}" -gt 0 ]; then
-            echo "SKIP  #$number has $failed failing check(s) — fix before it can merge. ($title)"
-            skipped="$skipped $number"
-            continue
-          fi
-        fi
-        if ! verdict=$(policy_check "$number"); then
-          echo "HOLD  #$number — ${verdict:-policy gave no verdict (fail closed)}"
-          echo "      a human grants this one with: gh pr edit $number --add-label shipit  ($title)"
+        if [ "$apply" -eq 1 ]; then
+          echo "SKIP  #$number is BEHIND — the up-to-date rule came back on mid-run. ($title)"
           skipped="$skipped $number"
           continue
         fi
-        if ! head_sha=$(git rev-parse --quiet --verify "refs/remotes/origin/$head"); then
-          echo "SKIP  #$number — origin/$head is not a branch of this repo (a fork?). ($title)"
-          skipped="$skipped $number"
-          continue
-        fi
-        if ! tree=$(git merge-tree --write-tree "$cur" "$head_sha" 2>/dev/null); then
-          echo "SKIP  #$number conflicts with an earlier PR in this fleet — merge origin/main into it after they land. ($title)"
-          skipped="$skipped $number"
-          continue
-        fi
-        cur=$(git commit-tree "$tree" -p "$cur" -p "$head_sha" -m "throwaway fleet fold")
-        numbers+=("$number"); heads+=("$head"); titles+=("$title")
-        if [ "$state" = BEHIND ]; then
-          echo "FLEET #$number — behind, checks green; ready once the up-to-date rule is off. ($title)"
+        if reason=$(required_green "$number"); then
+          ready=1
+          note=" — behind, checks green; ready once the up-to-date rule is off"
         else
-          echo "FLEET #$number ($title)"
+          rc=$?
+          if [ "$rc" -eq 1 ]; then
+            echo "SKIP  #$number has failing check(s): $reason ($title)"
+            skipped="$skipped $number"
+          else
+            echo "WAIT  #$number: behind, CI still running. ($title)"
+            actionable=1
+          fi
+          continue
         fi
         ;;
       DIRTY)
         echo "SKIP  #$number conflicts with main — resolve in its worktree (git merge --no-edit origin/main && git push). ($title)"
         skipped="$skipped $number"
+        continue
         ;;
       BLOCKED|UNSTABLE|UNKNOWN)
-        failed=$("$GH" pr checks "$number" 2>/dev/null | grep -c $'\tfail' || true)
-        if [ "${failed:-0}" -gt 0 ]; then
-          echo "SKIP  #$number has $failed failing check(s) — fix before it can merge. ($title)"
-          skipped="$skipped $number"
+        if reason=$(required_green "$number"); then
+          ready=1
+          note=" — $state, but every required check passed"
         else
-          echo "WAIT  #$number: $state — CI still running; next pass. ($title)"
-          actionable=1
+          rc=$?
+          if [ "$rc" -eq 1 ]; then
+            echo "SKIP  #$number has failing check(s): $reason ($title)"
+            skipped="$skipped $number"
+          else
+            echo "WAIT  #$number: $state — CI still running; next pass. ($title)"
+            actionable=1
+          fi
+          continue
         fi
         ;;
       *)
         echo "SKIP  #$number in unhandled state '$state'. ($title)"
         skipped="$skipped $number"
+        continue
         ;;
     esac
+    [ "$ready" -eq 1 ] || continue
+
+    if ! verdict=$(policy_check "$number"); then
+      echo "HOLD  #$number — ${verdict:-policy gave no verdict (fail closed)}"
+      echo "      a human grants this one with: gh pr edit $number --add-label shipit  ($title)"
+      skipped="$skipped $number"
+      continue
+    fi
+    if ! head_sha=$(git rev-parse --quiet --verify "refs/remotes/origin/$head"); then
+      echo "SKIP  #$number — origin/$head is not a branch of this repo (a fork?). ($title)"
+      skipped="$skipped $number"
+      continue
+    fi
+    if ! tree=$(git merge-tree --write-tree "$cur" "$head_sha" 2>/dev/null); then
+      echo "SKIP  #$number conflicts with an earlier PR in this fleet — merge origin/main into it after they land. ($title)"
+      skipped="$skipped $number"
+      continue
+    fi
+    cur=$(git commit-tree "$tree" -p "$cur" -p "$head_sha" -m "throwaway fleet fold")
+    numbers+=("$number"); heads+=("$head"); titles+=("$title")
+    echo "FLEET #$number$note ($title)"
   done <<EOF
 $prs
 EOF
