@@ -21,6 +21,10 @@ final class AppModel {
     let auth: AuthService?
     private(set) var client: ApexClient?
     private(set) var cache: (any CacheStore)?
+    /// Whose rows `cache` reads and writes (#217). The store is built here,
+    /// before the stored session has been restored; `ensureQueue` fills this
+    /// in the moment it knows, and again on an account switch.
+    private let cacheOwner: CacheOwner
     private(set) var schedule: ScheduleModel
     /// The Analytics tab's model (W9): tiles and results over the same cache.
     private(set) var analytics: AnalyticsModel
@@ -84,7 +88,9 @@ final class AppModel {
         }
         let client = ApexClient(baseURL: AppConfig.apiBase, transport: URLSessionTransport(), tokens: tokens, clientTag: AppConfig.clientTag)
         let pool = Self.openDatabase()
-        let cache: (any CacheStore)? = pool.map { GRDBCacheStore(pool: $0) }
+        let cacheOwner = CacheOwner()
+        self.cacheOwner = cacheOwner
+        let cache: (any CacheStore)? = pool.map { GRDBCacheStore(pool: $0, owner: cacheOwner) }
         let streams = SupabaseActivityStreams(client: auth.supabase)
         let hub = RealtimeHub(client: auth.supabase)
         self.client = client
@@ -112,6 +118,8 @@ final class AppModel {
         // has no business announcing itself as one the gate could retire.
         self.transport = mock.transport
         self.cache = mock.cache
+        // Unused: the mock's cache is a process-lifetime `MemoryCacheStore`.
+        self.cacheOwner = CacheOwner()
         self.streams = mock.streams
         self.hub = nil
         self.schedule = Self.makeSchedule(client: client, cache: mock.cache, clock: mock.clock, streams: mock.streams, realtime: nil)
@@ -134,6 +142,10 @@ final class AppModel {
         // Backoff runs on real time even under the mock: its TestClock would make
         // every retry instant, and the smoke wants to see the pending chip.
         let queue = WriteQueue(store: store, client: client, clock: SystemClock())
+        // The read cache is per owner too (#217). Its store was built before
+        // anyone was signed in and has read nothing since; this is where it
+        // learns whose rows it is looking at.
+        cacheOwner.set(owner)
         let cache = cache ?? MemoryCacheStore()
         let publisher: any TrackerActivityPublishing
         if CommandLine.arguments.contains("-apexUITest") {
