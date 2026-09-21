@@ -204,15 +204,27 @@ const MSG_PRIMARY =
 // about quoting and heredocs, which is why the parser replaced it; still the
 // fallback when the parser throws.
 function legacyEffectiveDirs(command, cwd) {
-  const dirs = [resolve(cwd)];
-  for (const segment of command.split(/(?:&&|\|\||[;|\n])/)) {
-    const m = segment.trim().match(/^cd\s+(?:"([^"$]+)"|'([^']+)'|([^\s"'$]+))/);
-    if (!m) continue;
-    let target = m[1] ?? m[2] ?? m[3];
-    if (target.startsWith('~')) target = join(homedir(), target.slice(1));
-    dirs.push(resolve(cwd, target));
+  // The directory each segment would run in, walked in order: a literal `cd`
+  // moves it, anything else records it. The hook cwd is a directory a command
+  // ran in only when some segment ran before a `cd` (or after one this cannot
+  // read) — a chain that opens with `cd <worktree>` never touches the cwd.
+  const dirs = new Set();
+  let current = resolve(cwd);
+  for (const raw of command.split(/(?:&&|\|\||[;|\n])/)) {
+    const segment = raw.trim();
+    if (!segment) continue;
+    if (/^(cd|pushd)(\s|$)/.test(segment)) {
+      const m = segment.match(/^(?:cd|pushd)\s+(?:"([^"$]+)"|'([^']+)'|([^\s"'$]+))\s*$/);
+      if (!m) { dirs.add(resolve(cwd)); current = resolve(cwd); continue; }
+      let target = m[1] ?? m[2] ?? m[3];
+      if (target.startsWith('~')) target = join(homedir(), target.slice(1));
+      current = resolve(cwd, target);
+      continue;
+    }
+    dirs.add(current);
   }
-  return dirs;
+  if (!dirs.size) dirs.add(resolve(cwd));
+  return [...dirs];
 }
 
 export function legacyDecide(command, cwd, projectDir) {
@@ -1264,6 +1276,14 @@ function invocationDirs(inv, cwd) {
   if (b === 'git') target = optionValue(inv.argv, new Set(['-C', '--git-dir', '--work-tree']));
   else if (b === 'npm') target = optionValue(inv.argv, new Set(['--prefix', '-C', '--cwd']));
   else if (b === 'swift') target = optionValue(inv.argv, new Set(['--package-path', '-C']));
+  else if (b === 'xcodebuild') {
+    // The project or workspace file names the checkout the build runs in.
+    const file = optionValue(inv.argv, new Set(['-project', '-workspace']));
+    if (file) target = dirname(file);
+  } else if (b === 'xcodegen') {
+    target = optionValue(inv.argv, new Set(['--spec', '-s', '--project', '-p']));
+    if (target && /\.ya?ml$/.test(target)) target = dirname(target);
+  }
   if (!target) return [];
   return [resolveTarget(target, cwd)];
 }
@@ -1274,19 +1294,32 @@ function resolveTarget(target, cwd) {
 }
 
 function dirsFromCommands(commands, cwd) {
-  const dirs = [resolve(cwd)];
+  // Walk the chain in order: a literal `cd`/`pushd` moves the directory in
+  // effect, every other command records it. `cd "$SOMEWHERE"` (unexpanded) or
+  // a bare `cd` is a move this cannot read, so the hook cwd is recorded for it
+  // and stays in effect — the conservative answer. A chain that opens with
+  // `cd <worktree>` therefore never names the cwd, which is what lets a
+  // session whose Bash cwd is the primary checkout build in its worktree.
+  const dirs = new Set();
+  let current = resolve(cwd);
   for (const cmd of commands) {
     if (!cmd.words.length) continue;
     const b = base(cmd.words[0].value);
-    if (b !== 'cd' && b !== 'pushd') continue;
+    if (b !== 'cd' && b !== 'pushd') { dirs.add(current); continue; }
+    let target = null;
+    let unknown = false;
     for (const w of cmd.words.slice(1)) {
       if (isOption(w.value)) continue;
-      if (w.dynamic || w.value === '') break;
-      dirs.push(resolveTarget(w.value, cwd));
+      if (w.dynamic || w.value === '' || w.value === '-') unknown = true;
+      else target = resolveTarget(w.value, cwd);
       break;
     }
+    if (target && !unknown) { current = target; continue; }
+    current = resolve(cwd);
+    dirs.add(current);
   }
-  return dirs;
+  if (!dirs.size) dirs.add(resolve(cwd));
+  return [...dirs];
 }
 
 // Directories a command may execute in: the hook cwd plus any literal `cd`
@@ -1326,7 +1359,11 @@ function decideParsed(commands, cwd, projectDir) {
     const primary = primaryRootOf(projectDir);
     const shared = dirsFromCommands(expanded, cwd);
     for (const inv of banned) {
-      for (const dir of [...shared, ...invocationDirs(inv, cwd)]) {
+      // An invocation that names its own directory (`git -C`, `xcodebuild
+      // -project`, …) runs there, not in the shell's cwd — so its target
+      // replaces the chain's directories rather than joining them.
+      const own = invocationDirs(inv, cwd);
+      for (const dir of own.length ? own : shared) {
         const root = checkoutRoot(dir);
         if (root && root === primary && isPrimaryCheckout(root)) return MSG_PRIMARY;
       }
