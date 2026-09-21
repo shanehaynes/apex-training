@@ -22,6 +22,24 @@ DEVELOPMENT_TEAM = G44GWSXFK2
 // Where the sign-in screen sends someone who needs an account (W13): invite-only
 // has to come with a way forward, not a dead end (App Store 5.1.1). A mailto:
 // has no slashes, so it survives the comment rule above.
+//
+// The line below is the only place the shipped contact address lives. It runs
+// Base.xcconfig -> Info.plist ($(APEX_INVITE_CONTACT)) -> AppConfig
+// .inviteContactURL -> SignInView's "Request an invite" Link, and no other
+// configuration overrides it (Debug/Local/Release do not set it). The web
+// sign-in has no equivalent link at all, so there is nothing to keep in step.
+//
+// It ships inside the binary and is frozen there once the build is archived, in
+// front of every scraper that downloads the app, so it must not stay a personal
+// address (#214). Once the forwarding alias exists the swap is this one line:
+//
+//   sed -i 's|^APEX_INVITE_CONTACT = .*|APEX_INVITE_CONTACT = mailto:ALIAS?subject=Apex%20invite|' ios/Config/Base.xcconfig
+//
+// Only the label is drawn on screen ("Request an invite"), never the address, so
+// no screenshot has to be retaken: the App Store set in docs/ios/app-store.md
+// does not include the sign-in screen, and the committed snapshot of it
+// (ApexTests/__Snapshots__/ScheduleSnapshotTests/testSignInScreen.1.png) shows
+// the label only.
 APEX_INVITE_CONTACT = mailto:shanehaynes.sah@gmail.com?subject=Apex%20invite
 
 // Where the update screen sends a build the server has retired (G8). Empty
