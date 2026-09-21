@@ -164,7 +164,7 @@ carry a 2026-09-08 date. No text overlays, no device frames: Apple's own frame i
 | 3.1.1 — "paying" for a feature outside IAP | the key is a credential, not a purchase; no price, no purchase flow, the app works without it — the notes say so |
 | 2.1 — a crash or an empty screen on review | the demo account has a starter plan and one logged workout (§3 step 3) |
 | 2.3.3 — screenshots that do not match the app | the fixture screenshots are the app; prefer device shots from a real account |
-| Missing privacy manifest / required-reason API reason | `PrivacyInfo.xcprivacy` declares UserDefaults (CA92.1) and file timestamps (C617.1); GRDB ships its own |
+| Missing privacy manifest / required-reason API reason | `ios/Apex/PrivacyInfo.xcprivacy` declares UserDefaults (CA92.1) and file timestamps (C617.1); GRDB ships its own; `ios/ApexWidgets/PrivacyInfo.xcprivacy` declares the extension's nothing, because the scan is per binary (ITMS-91053) |
 | App Privacy answers disagree with the manifest | §1 is the manifest, row for row |
 
 If a rejection arrives, record the exact guideline number and Apple's wording in

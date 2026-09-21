@@ -123,6 +123,14 @@ targets:
     platform: iOS
     sources:
       - path: ApexWidgets
+        excludes:
+          - PrivacyInfo.xcprivacy
+      # The extension's own privacy manifest, named as a resource for the same
+      # reason as the app's: App Store Connect scans each binary in the upload
+      # separately (ITMS-91053), and a generator that files .xcprivacy under
+      # "unknown" would drop it from the bundle.
+      - path: ApexWidgets/PrivacyInfo.xcprivacy
+        buildPhase: resources
     configFiles:
       Debug: Config/Debug.xcconfig
       Local: Config/Local.xcconfig

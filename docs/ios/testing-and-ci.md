@@ -80,7 +80,7 @@ ios:
       if: env.skip != '1'
     - run: xcodegen generate --spec ios/project.yml
       if: env.skip != '1'
-    - run: xcodebuild -project ios/Apex.xcodeproj -scheme Apex -configuration Local -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ios/build/dd -resultBundlePath ios/build/Apex.xcresult CODE_SIGNING_ALLOWED=NO test
+    - run: xcodebuild -project ios/Apex.xcodeproj -scheme Apex -configuration Local -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -derivedDataPath ios/build/dd -resultBundlePath ios/build/Apex.xcresult -retry-tests-on-failure -test-iterations 2 CODE_SIGNING_ALLOWED=NO test
       if: env.skip != '1'
     - uses: actions/upload-artifact@v7
       if: always() && env.skip != '1'
@@ -90,6 +90,20 @@ ios:
 Why the early-exit instead of `on.paths`: the merge queue's `merge_group` event and required
 status checks do not compose with path filters — a required check that never starts blocks the
 queue. The job always starts and finishes green in seconds for web-only PRs.
+
+Why `-retry-tests-on-failure -test-iterations 2`: a failed test is run once more and the job
+is green if the second run passes — and the `.xcresult` marks it "passed on retry", which is
+the only record of how often the suite actually flakes. The retry deliberately lives here and
+not inside the tests: the smoke's helpers used to re-send taps a starved runner had dropped
+([#192](https://github.com/shanehaynes/apex-training/issues/192)), which made a flaky run
+indistinguishable from a clean one. A test that needs two runs every time is a bug report, not
+a green check.
+
+Why `OS=26.5`: a destination without one matches every runtime that carries an iPhone 17, and
+xcodebuild picks the first — so the image deciding to ship a second runtime would change what
+the tests ran on, quietly. Pinned, that same image change fails the job with "Unable to find a
+device matching the provided destination specifier", and the pin moves in a PR. `screenshots.sh`
+takes the runtime as its second argument for the same reason.
 
 ## Local loop on the Mac
 
@@ -187,6 +201,12 @@ rule people remember.
 
    The build number is `git rev-list --count HEAD` in both paths, not the workflow's run
    number ([D-034](decisions.md#d-034--the-workflows-build-number-is-the-commit-count-not-the-run-number)).
+   The count is monotonic along a branch but not at Apple — a branch that uploaded
+   count+3 and then squash-merged leaves `main` at count+1, which App Store Connect
+   rejects — so the lane raises it to one past the highest build the version already has
+   there, and `-f build_number=357` (`APEX_BUILD_NUMBER=357` for the script and a local
+   lane run) stamps a number outright when even that is wrong, which is what a build
+   rejected in processing needs.
    The workflow and the Fastfile are HELD paths / release automation: Shane merges changes
    to them with the `shipit` label.
 4. Builds expire 90 days after upload — the cadence note is in
@@ -194,7 +214,9 @@ rule people remember.
 
 ## App Store gate (W13)
 
-- `PrivacyInfo.xcprivacy` listing required-reason APIs (UserDefaults, file timestamps).
+- `PrivacyInfo.xcprivacy` listing required-reason APIs (UserDefaults, file timestamps), and a
+  second one for the `ApexWidgets` extension — App Store Connect scans each binary in the
+  upload on its own (ITMS-91053), and the extension links neither supabase-swift nor GRDB.
 - App Privacy answers: email (account), fitness data the user enters (linked to identity), no
   tracking, no HealthKit.
 - In-app account deletion (guideline 5.1.1(v)) → `DELETE /api/profile` (W11).

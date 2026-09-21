@@ -31,19 +31,19 @@ final class SmokeUITests: XCTestCase {
         app.buttons["Sign in"].tap()
     }
 
-    /// Taps an event card and waits for its sheet. A starved CI runner can
-    /// drop a synthesized tap — the run that lost one took ten seconds just to
-    /// find the card, and its recording shows the day view never moving — so
-    /// a tap that opens nothing is sent again, twice at most.
+    /// Taps an event card and waits for its sheet.
+    ///
+    /// One tap. A starved CI runner does drop a synthesized one (#192), and
+    /// this helper used to re-send it twice — which turned a flaky run into a
+    /// passing one and left the flake rate unmeasured. CI now runs the suite
+    /// with `-retry-tests-on-failure -test-iterations 2`, so a dropped tap
+    /// fails the test, the test is re-run, and the .xcresult says it was.
     private func openEvent(_ app: XCUIApplication, card: String, file: StaticString = #filePath, line: UInt = #line) {
         let button = app.buttons["event.card.\(card)"]
         XCTAssertTrue(button.waitForExistence(timeout: 20), "missing card: \(card)", file: file, line: line)
+        button.tap()
         let title = app.buttons["schedule.event.title"]
-        for _ in 0..<3 {
-            button.tap()
-            if title.waitForExistence(timeout: 10) { return }
-        }
-        XCTFail("the event sheet never opened for \(card)", file: file, line: line)
+        XCTAssertTrue(title.waitForExistence(timeout: 10), "the event sheet never opened for \(card)", file: file, line: line)
     }
 
     func testSignInScreenOffersAutoFillableFields() {
@@ -548,16 +548,15 @@ final class SmokeUITests: XCTestCase {
         XCTFail("typing \"\(text)\" into \(field) never landed whole: it reads \"\(read())\" (was \"\(before)\")", file: file, line: line)
     }
 
-    /// Taps a control and waits for what it should open, re-sending the tap
-    /// a starved runner dropped (the `openEvent` lesson), twice at most.
+    /// Taps a control and waits for what it should open.
+    ///
+    /// One tap, for the same reason as `openEvent`: the re-sends this helper
+    /// used to make (#192) hid every dropped tap inside a passing test, and
+    /// CI's `-retry-tests-on-failure` re-runs the whole test instead, on the
+    /// record.
     private func tapUntil(_ button: XCUIElement, shows target: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(button.waitForExistence(timeout: 20), "missing: \(button)", file: file, line: line)
-        for _ in 0..<3 {
-            button.tap()
-            if target.waitForExistence(timeout: 10) { return }
-            // The tap landed and the button went with it: the target is only late.
-            if !button.exists { break }
-        }
+        button.tap()
         XCTAssertTrue(target.waitForExistence(timeout: 10), "\(target) never appeared after tapping \(button)", file: file, line: line)
     }
 

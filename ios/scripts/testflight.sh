@@ -23,6 +23,16 @@
 # App Store Connect rejects a build number it has already seen for a marketing
 # version, so this stamps CURRENT_PROJECT_VERSION from `git rev-list --count`,
 # which only ever increases. MARKETING_VERSION stays in ios/project.yml.
+#
+# The count increases along one line of commits, which is not the same as being
+# ahead of Apple: a branch that uploaded count+3 and then squash-merged leaves
+# main at count+1, and an upload rejected in processing burns its number for
+# good. APEX_BUILD_NUMBER stamps a number of your choosing instead —
+#
+#   APEX_BUILD_NUMBER=357 ios/scripts/testflight.sh
+#
+# — the same variable ios/fastlane/Fastfile and the TestFlight workflow honour
+# (there it is the `build_number` dispatch input).
 set -euo pipefail
 cd "$(cd "$(dirname "$0")/.." && pwd -P)"
 
@@ -76,11 +86,14 @@ KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"
 # ── the anon key the Release build bakes in ─────────────────────────────────
 scripts/secrets.sh --check >/dev/null 2>&1 || scripts/secrets.sh
 
-BUILD_NUMBER="$(git rev-list --count HEAD)"
+BUILD_NUMBER="${APEX_BUILD_NUMBER:-$(git rev-list --count HEAD)}"
+case "$BUILD_NUMBER" in
+  '' | *[!0-9]*) fail "APEX_BUILD_NUMBER must be a positive integer, got \"$BUILD_NUMBER\"" ;;
+esac
 VERSION="$(sed -nE 's/^ *MARKETING_VERSION: *"?([^"]+)"?/\1/p' project.yml | head -1)"
 
 echo "── TestFlight"
-echo "   version:  ${VERSION:-?} (build $BUILD_NUMBER)"
+echo "   version:  ${VERSION:-?} (build $BUILD_NUMBER${APEX_BUILD_NUMBER:+, from APEX_BUILD_NUMBER})"
 echo "   key:      $KEY_ID"
 echo "   mode:     $MODE"
 

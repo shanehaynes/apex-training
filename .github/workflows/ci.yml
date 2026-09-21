@@ -181,6 +181,35 @@ jobs:
           xcodebuild -version
       - run: brew install xcodegen
         if: env.skip != '1'
+      # The SwiftPM graph, cached. supabase-swift and GRDB are clones from
+      # github.com, and swift-syntax (pulled in by snapshot-testing and by
+      # supabase's macros) is the expensive one: an unreachable host, or a
+      # tag deleted upstream, fails this job for reasons that have nothing to
+      # do with the commit. ~/Library/Caches/org.swift.swiftpm is SwiftPM's
+      # shared clone cache and SourcePackages is the checkout xcodebuild
+      # resolves into, under the -derivedDataPath below.
+      #
+      # Keyed on what decides the graph: the committed resolution when there
+      # is one (ios/Package.resolved, hashFiles simply ignores a path that
+      # does not exist) and the two manifests that pin the direct versions.
+      # The prefix restore-key means a manifest edit warms from the last
+      # build rather than starting from nothing.
+      #
+      # Restore here, save at the end and only on main, because the entry is
+      # 803 MB (measured) and a cache saved on a branch is visible only to that
+      # branch — thirty open iOS branches would each write their own copy into
+      # a 10 GB repo budget and evict each other, and everyone else, for no
+      # hit. Saved from main it is one entry that every PR restores from.
+      - uses: actions/cache/restore@v6
+        id: swiftpm
+        if: env.skip != '1'
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            ios/build/dd/SourcePackages
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('ios/Package.resolved', 'ios/Packages/ApexKit/Package.swift', 'ios/project.yml') }}
+          restore-keys: |
+            swiftpm-${{ runner.os }}-
       - run: xcodegen generate --spec ios/project.yml
         if: env.skip != '1'
       # The committed transitive resolution, in place before xcodebuild resolves
@@ -190,6 +219,27 @@ jobs:
       # CODE_SIGNING_ALLOWED=NO: a simulator build needs no identity, and the
       # runner has none. Local is the only configuration whose Supabase values
       # are committed, so it is the only one CI can build.
+      #
+      # OS=26.5 rather than "whatever iPhone 17 the image has": a destination
+      # with no OS matches every runtime that carries the device, and xcodebuild
+      # then picks the first and says so in a warning nobody reads — the runs
+      # this job has made so far matched two (arm64 and x86_64 of the same
+      # 26.5 device). A runner image that adds a second runtime would silently
+      # change what the tests ran on. Pinned, an image that drops 26.5 fails
+      # here with "Unable to find a device matching the provided destination
+      # specifier" instead, which is a bump to make deliberately. The runtime
+      # the image ships is in any ios job log, on the line xcodebuild prints
+      # for the destination it chose; `xcrun simctl list runtimes` on a runner
+      # is the other way.
+      #
+      # -retry-tests-on-failure -test-iterations 2: a failed test is run once
+      # more and the suite passes if the second run does. The point is not the
+      # extra chance — the tests already had one, inside themselves, where
+      # nobody could see it (#192, #195: a starved runner drops a synthesized
+      # tap, so the helpers re-sent taps and a run that flaked still reported a
+      # clean pass). The retry belongs here because xcodebuild records it: the
+      # .xcresult marks the test "passed on retry", and that is the only place
+      # the real flake rate is visible.
       - name: Build and test
         if: env.skip != '1'
         run: |
@@ -197,11 +247,24 @@ jobs:
             -project ios/Apex.xcodeproj \
             -scheme Apex \
             -configuration Local \
-            -destination 'platform=iOS Simulator,name=iPhone 17' \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' \
             -derivedDataPath ios/build/dd \
             -resultBundlePath ios/build/Apex.xcresult \
+            -retry-tests-on-failure \
+            -test-iterations 2 \
             CODE_SIGNING_ALLOWED=NO \
             test
+      # Only from main (see the restore step), and only when the exact key was
+      # not already there: a prefix restore is a warm start, not a reason to
+      # write 803 MB back.
+      - uses: actions/cache/save@v6
+        if: env.skip != '1' && github.ref == 'refs/heads/main' && steps.swiftpm.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            ios/build/dd/SourcePackages
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('ios/Package.resolved', 'ios/Packages/ApexKit/Package.swift', 'ios/project.yml') }}
+
       # The UI smoke signs in against a Supabase stack the runner does not have,
       # so it skips itself there; the .xcresult is what a Linux session reads
       # with `gh run download` when it needs to see what happened.

@@ -27,6 +27,23 @@
 # is how a release gets stuck. The commit count is one monotonic function of
 # the branch both paths agree on. MARKETING_VERSION stays in ios/project.yml.
 #
+# That count is monotonic along one line of commits, which is not the same as
+# monotonic at App Store Connect. A branch that stamped count+3 and then
+# squash-merged leaves `main` at count+1 — below a number Apple has already
+# seen, and it rejects those; an upload rejected in processing burns its number
+# the same way, with nothing to stamp instead. Two answers, in order:
+#
+#   APEX_BUILD_NUMBER=357 bundle exec fastlane beta   stamp exactly this
+#                                                     (the workflow's
+#                                                     `build_number` input)
+#   otherwise                                         the commit count, raised
+#                                                     to one past the highest
+#                                                     build App Store Connect
+#                                                     holds for this version
+#
+# The raise is what makes an ordinary run safe after a squash merge; the
+# override is for when even that is wrong. A dry run never asks Apple.
+#
 # fastlane runs `sh` from this directory (ios/fastlane) and every action from
 # its parent (ios/): the git and script calls below say `..`; gym's paths do
 # not.
@@ -34,6 +51,9 @@
 default_platform(:ios)
 
 TEAM_ID = "G44GWSXFK2"
+# The app record the latest build number is asked about;
+# PRODUCT_BUNDLE_IDENTIFIER in ios/project.yml is the same string.
+APP_IDENTIFIER = "com.shanehaynes.apextraining"
 KEY_DIR = File.expand_path("~/.appstoreconnect/private_keys")
 
 # ios/Config/appstoreconnect.env is a two-line KEY=VALUE file; the environment
@@ -54,6 +74,16 @@ def require_env(name)
   value
 end
 
+# APEX_BUILD_NUMBER, validated; nil when it is unset or empty. The workflow
+# passes its `build_number` input through this variable, so an input nobody
+# filled in arrives as an empty string rather than an absent one.
+def build_number_override
+  value = ENV["APEX_BUILD_NUMBER"].to_s.strip
+  return nil if value.empty?
+  UI.user_error!("APEX_BUILD_NUMBER must be a positive integer (got #{value.inspect})") unless value.match?(/\A[1-9]\d*\z/)
+  value
+end
+
 def marketing_version
   yml = File.read(File.expand_path("../project.yml", __dir__))
   yml[/^\s*MARKETING_VERSION:\s*"?([^"\n]+)"?/, 1] || "?"
@@ -70,9 +100,8 @@ platform :ios do
     key_path = File.join(KEY_DIR, "AuthKey_#{key_id}.p8")
     UI.user_error!("no API key at #{key_path} (downloaded once from App Store Connect)") unless File.file?(key_path)
 
-    build_number = sh("git -C .. rev-list --count HEAD", log: false).strip
     version = marketing_version
-    UI.header("TestFlight — #{version} (build #{build_number}) — #{dry_run ? 'dry run: export only' : 'upload'}")
+    UI.header("TestFlight — #{version} — #{dry_run ? 'dry run: export only' : 'upload'}")
 
     # The anon key the Release build bakes in (git-ignored, per worktree).
     sh("cd .. && (scripts/secrets.sh --check >/dev/null 2>&1 || scripts/secrets.sh)")
@@ -97,12 +126,50 @@ platform :ios do
       "-authenticationKeyIssuerID #{issuer_id}",
     ].join(" ")
 
+    # The build number (see the header): the override when there is one, else the
+    # commit count raised past whatever App Store Connect already holds for this
+    # version. Asking needs the API key, which is why this sits here and not at
+    # the top of the lane; a dry run uploads nothing, can collide with nothing,
+    # and so does not ask at all.
+    commit_count = sh("git -C .. rev-list --count HEAD", log: false).strip
+    build_number = build_number_override
+    if build_number
+      UI.important("build #{build_number} from APEX_BUILD_NUMBER (the commit count is #{commit_count})")
+    else
+      build_number = commit_count
+      unless dry_run
+        latest = begin
+          latest_testflight_build_number(
+            api_key: api_key,
+            app_identifier: APP_IDENTIFIER,
+            version: version,
+            initial_build_number: 0,
+          ).to_i
+        rescue StandardError => error
+          # Not fatal: a version with no builds yet, or an App Store Connect
+          # that will not answer. The commit count is still a number no earlier
+          # build of this branch has used.
+          UI.important("could not ask App Store Connect for the latest build of #{version} (#{error.message}) — stamping the commit count")
+          0
+        end
+        if latest >= build_number.to_i
+          UI.important("App Store Connect already has build #{latest} for #{version} — stamping #{latest + 1}, not the commit count #{build_number}")
+          build_number = (latest + 1).to_s
+        end
+      end
+    end
+    UI.header("#{version} (build #{build_number})")
+
     build_app(
       project: "Apex.xcodeproj",
       scheme: "Apex",
       configuration: "Release",
       # gym spells the method the pre-Xcode-15.4 way and translates it.
       export_method: "app-store",
+      # Where gym would otherwise pick a path of its own. Named so the resolved
+      # package checkout lands at ios/build/dd/SourcePackages, which is the path
+      # the workflow caches (and the one CI's ios job already builds into).
+      derived_data_path: "build/dd",
       archive_path: "build/Apex-#{build_number}.xcarchive",
       output_directory: "build/export-#{build_number}",
       output_name: "Apex-#{build_number}.ipa",

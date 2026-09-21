@@ -5,6 +5,7 @@
 #   gh workflow run testflight.yml                       # main
 #   gh workflow run testflight.yml --ref <branch>        # a branch
 #   gh workflow run testflight.yml -f changelog="…"      # a What to Test note
+#   gh workflow run testflight.yml -f build_number=357   # stamp this build number
 #
 # SECRETS (Settings → Secrets and variables → Actions), all from the App
 # Store Connect API key testflight.sh already uses:
@@ -27,6 +28,14 @@
 # what makes that count the real one), the same rule as testflight.sh — see
 # docs/ios/decisions.md D-034 for why not github.run_number.
 #
+# `build_number` overrides that count for one run (APEX_BUILD_NUMBER below,
+# which the Fastfile and testflight.sh both honour). Two things need it: a
+# squash merge, where the branch stamped count+3 and `main` then lands at
+# count+1 — lower than a number App Store Connect has already seen, which it
+# rejects; and an upload Apple rejects in processing, which burns the number
+# for good. Left empty the count stands, and the lane raises it past the
+# highest build App Store Connect holds for this version anyway.
+#
 # Builds expire 90 days after upload (docs/ios/MASTER.md, "Release cadence").
 name: TestFlight
 
@@ -35,6 +44,10 @@ on:
     inputs:
       changelog:
         description: "What to Test (optional; shown to testers)"
+        required: false
+        default: ""
+      build_number:
+        description: "Build number to stamp (optional; default: the commit count)"
         required: false
         default: ""
 
@@ -58,6 +71,10 @@ jobs:
     env:
       APEX_ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       APEX_ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      # Empty unless the dispatch set it; the lane then falls back to the commit
+      # count. The Fastfile and ios/scripts/testflight.sh read the same variable,
+      # so a Mac run overrides the number the same way.
+      APEX_BUILD_NUMBER: ${{ github.event.inputs.build_number }}
       # fastlane insists on a UTF-8 locale.
       LC_ALL: en_US.UTF-8
       LANG: en_US.UTF-8
@@ -106,6 +123,33 @@ jobs:
           printf '%s' "$P8" | base64 --decode > "$key"
           chmod 600 "$key"
           grep -q 'BEGIN PRIVATE KEY' "$key" || { echo "::error::ASC_KEY_P8_BASE64 did not decode to a .p8"; exit 1; }
+
+      # The SwiftPM graph, cached. supabase-swift and GRDB are clones from
+      # github.com, and swift-syntax (pulled in by snapshot-testing and by
+      # supabase's macros) is the expensive one: an unreachable host, or a
+      # tag deleted upstream, fails this job for reasons that have nothing to
+      # do with the commit. ~/Library/Caches/org.swift.swiftpm is SwiftPM's
+      # shared clone cache and SourcePackages is the checkout xcodebuild
+      # resolves into: ios/fastlane/Fastfile points gym's derived data at
+      # ios/build/dd, so the release path and CI's ios job cache the same one.
+      #
+      # Keyed on what decides the graph: the committed resolution when there
+      # is one (ios/Package.resolved, hashFiles simply ignores a path that
+      # does not exist) and the two manifests that pin the direct versions.
+      # The prefix restore-key means a manifest edit warms from the last
+      # build rather than starting from nothing.
+      #
+      # Restore only. ci.yml's ios job writes this cache from main, where one
+      # 803 MB entry serves every run; a release happens a few times a month
+      # and has no business rewriting it.
+      - uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            ios/build/dd/SourcePackages
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('ios/Package.resolved', 'ios/Packages/ApexKit/Package.swift', 'ios/project.yml') }}
+          restore-keys: |
+            swiftpm-${{ runner.os }}-
 
       - run: brew install xcodegen
 
