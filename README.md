@@ -6,7 +6,7 @@
 
 React 19 · TypeScript (strict) · Vercel serverless · Supabase Postgres under row-level security · Claude · a native SwiftUI client
 
-Apex Training is a production, multi-user web app with a native iOS port in flight. It plans recurring training on a calendar, tracks sessions set by set, computes personal records and period statistics deterministically, and puts a Claude-powered coach next to that data — one that can propose changes to your week but can never make one without your confirmation. It syncs a COROS watch, publishes an ICS feed, emails a review when a training month closes, and exposes a read-only [MCP](https://modelcontextprotocol.io) server behind a full OAuth 2.1 authorization server so Claude or ChatGPT can answer questions about your training from wherever you already are.
+Apex Training is a production, multi-user web app with a native iOS app shipping through TestFlight. It plans recurring training on a calendar, tracks sessions set by set, computes personal records and period statistics deterministically, and puts a Claude-powered coach next to that data — one that can propose changes to your week but can never make one without your confirmation. It syncs a COROS watch, publishes an ICS feed, emails a review when a training month closes, and exposes a read-only [MCP](https://modelcontextprotocol.io) server behind a full OAuth 2.1 authorization server so Claude or ChatGPT can answer questions about your training from wherever you already are.
 
 ![Calendar month view with coach sidebar](docs/screenshots/calendar.png)
 
@@ -32,12 +32,12 @@ Apex Training is a production, multi-user web app with a native iOS port in flig
 | | |
 |---|---|
 | **Frontend** | React 19, TypeScript (strict), Vite 8, Tailwind 4, Recharts, Framer Motion, react-grid-layout |
-| **Backend** | Vercel serverless functions on Node 24 — **33 routes behind 4 deployed functions**, routed by Hono |
-| **Data** | Supabase Postgres: **29 tables**, per-user RLS on every one, **38 ordered migrations**, generated types checked in CI |
-| **AI** | Claude via each user's own key, NDJSON streaming, 10 write tools behind confirmation cards, 8 read-only MCP tools |
-| **Native** | SwiftUI iOS app — **~27,000 lines of Swift**, GRDB offline cache + write queue, shipping to TestFlight |
-| **Tests** | **1,174 unit tests** · **67 Playwright e2e cases** · **443 Swift tests** · 6 CI jobs |
-| **Size** | ~56,000 lines of TypeScript across app and API, ~2,500 lines of SQL |
+| **Backend** | Vercel serverless functions on Node 24 — **36 routes behind 4 deployed functions**: 33 through one Hono catch-all, 3 standalone |
+| **Data** | Supabase Postgres: **29 tables**, per-user RLS on every one, **40 ordered migrations**, generated types checked in CI |
+| **AI** | Claude via each user's own key and their choice of model from a nightly-checked catalog, NDJSON streaming, 10 write tools behind confirmation cards, 8 read-only MCP tools |
+| **Native** | SwiftUI iOS app — **~31,000 lines of Swift** (plus ~12,000 of tests), GRDB offline cache + write queue, all fourteen workstreams landed, 0.9.0 on TestFlight |
+| **Tests** | **1,310 unit tests** + 42 integration tests against a real Postgres · **68 Playwright e2e cases** · **665 Swift tests** · 6 CI jobs and 3 scheduled or manual workflows |
+| **Size** | ~59,000 lines of TypeScript across app and API, ~2,600 lines of SQL |
 
 Live deployment: [apextrainingcalendar.vercel.app](https://apextrainingcalendar.vercel.app) — invite-only, a handful of real accounts, and the author's own daily training log.
 Using the app rather than working on it? [WELCOME.md](WELCOME.md) is the user guide.
@@ -53,7 +53,7 @@ Every number the app shows — an estimated 1RM, a completion rate, a training b
 Three consequences follow, and they explain most of the structure of this repo:
 
 1. **A model regression cannot corrupt a number.** The blast radius of a bad prompt is bad prose.
-2. **The domain logic is React-free and testable.** Recurrence expansion, tracker model synthesis, PR detection, occurrence identity, period statistics, the analytics engine, the chat wire protocol — all of it is plain TypeScript with a `__tests__` directory beside it, which is why there are 1,174 unit tests rather than a thin shell of component snapshots.
+2. **The domain logic is React-free and testable.** Recurrence expansion, tracker model synthesis, PR detection, occurrence identity, period statistics, the analytics engine, the chat wire protocol — all of it is plain TypeScript with a `__tests__` directory beside it, which is why there are 1,310 unit tests rather than a thin shell of component snapshots.
 3. **A second client is cheap.** The iOS app reimplements none of it (see [the port](#native-ios-port-parity-without-a-second-implementation)).
 
 The corollary on the write side: **nothing the coach proposes takes effect on its own.** Every mutation it suggests arrives as a Confirm/Cancel card whose labels are resolved against live application state — not against the model's prose — and nothing executes until the user says so.
@@ -73,7 +73,7 @@ It exists because the logic previously existed *twice*, independently, and had d
 ### Security model: an anon key that can only read your own rows
 
 - **Every table is under per-user RLS.** A signed-in browser reads only its own rows; an unauthenticated one gets zero rows from every table.
-- **The browser never writes directly.** All writes go through the API layer, which holds the service-role key and verifies the caller's JWT ([`api/_lib/auth.ts`](api/_lib/auth.ts)). Cross-user isolation is not asserted in a comment — it is exercised in CI by integration tests that run against a real Postgres with real JWTs ([`api/__tests__/integration/`](api/__tests__/)).
+- **The browser never writes directly.** All writes go through the API layer, which holds the service-role key and verifies the caller's JWT ([`api/_lib/auth.ts`](api/_lib/auth.ts)) — a token it cannot verify is a 401, but Supabase Auth being unreachable is a `503 auth-unavailable`, so a GoTrue blip does not log every user out. Cross-user isolation is not asserted in a comment — it is exercised in CI by integration tests that run against a real Postgres with real JWTs ([`api/__tests__/integration/`](api/__tests__/)).
 - **No Anthropic key ever reaches the browser, and none is a server env var.** Each user saves their own key in-app; it is stored server-side encrypted with AES-256-GCM ([`api/_lib/keyCrypto.ts`](api/_lib/keyCrypto.ts)) and the browser only ever sees its last four characters. Usage bills to the user's own account.
 - **Per-user rate limiting** with fixed-window counters in Postgres that *fail open* — a runaway request loop is the threat model, not precise throttling, and a broken limiter must not take the app down ([phase18](supabase/migrations/phase18_rate_limits.sql)).
 - **Security headers** (HSTS, `nosniff`, `X-Frame-Options: DENY`, referrer and permissions policy) are set at the edge in [vercel.json](vercel.json); a clickwrap terms gate sits in front of the authenticated API, with data export and account deletion deliberately exempt from it, because the right to leave cannot be held hostage to accepting terms.
@@ -98,7 +98,7 @@ Connecting it to claude.ai or ChatGPT meant implementing the authorization side 
 
 The chat path is the most failure-prone surface in the app, so its invariants are written down and tested:
 
-- **The model id lives in exactly one place** — `COACH_MODEL` in [`src/lib/coach/model.ts`](src/lib/coach/model.ts) — imported by the chat function, the summary handler, the review generator, the UI badge, and the eval suite's production arm. A model bump is a one-line change.
+- **The model is the user's choice, resolved in one place.** The coach spends the user's own key, so which model it runs on is a direct line on their bill: a picker in the coach header writes `profiles.coach_model`, and the chat function, the summary handler, the review generator, the UI badge, and the eval suite's production arm all resolve through the catalog in [`src/lib/coach/models.ts`](src/lib/coach/models.ts), falling back to the one default in [`model.ts`](src/lib/coach/model.ts) — Opus 5 today, a one-line bump. The catalog is hand-maintained and would rot silently (a retired id just falls back), so [`scripts/check-models.mjs`](scripts/check-models.mjs) diffs it against Anthropic's Models API every night in [its own workflow](.github/workflows/model-catalog.yml) and turns drift into a red run.
 - **Prompt caching** sets three `ephemeral` breakpoints (last tool schema, system block, final message block) so each turn re-reads tools, system prompt, and the conversation prefix at cache-read pricing.
 - **Aborts propagate upstream.** The response's `close` event trips an `AbortController` passed to `client.messages.stream()`, so pressing Stop or closing the tab cancels the Anthropic generation instead of letting it bill to completion.
 - **Confirmation cards resolve ids against live state,** not the model's prose; an id that resolves to nothing is surfaced as such rather than rendered as a plausible label. Confirm is latched synchronously by a ref, so a double-click cannot run an executor twice.
@@ -119,11 +119,13 @@ The design decision worth reading is the **quality decomposition**: each dimensi
 
 The harness imports the production prompt builder, tool schemas, and executors directly, and mirrors the client's confirm-and-flush loop exactly — so the thing measured is the coach as shipped. Each result file records the model, judge model, git commit, and a hash of the coach behavior surface, so a prompt or schema edit between two runs is visible in the diff. It runs nightly in CI, not per-PR: it spends real tokens.
 
+The suite is also the fitness function for a bounded prompt-evolution search ([`.claude/workflows/coach-prompt-evolution.js`](.claude/workflows/coach-prompt-evolution.js)): variant agents each propose one edit to the system prompt, every variant is scored by a full run in an isolated worktree, and a variant becomes champion only by **dominance** — no dimension regresses, at least one strictly improves — with each run's lineage saved under [`evals/lineage/`](evals/lineage/README.md).
+
 ### Analytics as a serializable spec the coach can edit
 
 The analytics dashboard is user-composed tiles on a draggable, resizable grid. A tile is not code — it is a **versioned `ChartSpec` stored as JSONB** ([`src/lib/analytics/spec.ts`](src/lib/analytics/spec.ts)): measure, aggregation, time bucket, date range (rolling, fixed, or preset including *current training block*), series with inlined filters, units, and a day-level join against the training calendar ("protein on strength days", "resting HR the day after a hard session").
 
-That one decision buys three things: the engine ([`engine.ts`](src/lib/analytics/engine.ts)) is pure and fully testable; the renderer only draws; and **the coach can build a chart for you** by editing the draft spec through a reducer tool, with deep validation living in the spec module rather than scattered across the handler and the UI. A server-side port of the same engine ([`/api/analytics-compute`](api/_lib/handlers/analyticsCompute.ts)) serves native clients, paging every table properly — PostgREST's 1000-row default had been silently truncating a heavy user's set logs in the browser.
+That one decision buys three things: the engine ([`engine.ts`](src/lib/analytics/engine.ts)) is pure and fully testable; the renderer only draws; and **the coach can build a chart for you** by editing the draft spec through a reducer tool, with deep validation living in the spec module rather than scattered across the handler and the UI. The same engine runs server-side ([`/api/analytics-compute`](api/_lib/handlers/analyticsCompute.ts)), and both the web dashboard and the iOS app now read, save, and compute tiles through the API rather than against PostgREST — the server pages every table properly, where PostgREST's 1000-row default had been silently truncating a heavy user's set logs in the browser.
 
 ### Watch sync that refuses to overwrite your plan
 
@@ -151,13 +153,13 @@ The migration comment names the thing it is *not*: this is not connection poolin
 
 ### Native iOS port: parity without a second implementation
 
-The [`ios/`](ios/) directory holds a SwiftUI app (iOS 17 floor, Swift 6, XcodeGen-generated project, shipping to TestFlight) organized around one rule:
+The [`ios/`](ios/) directory holds a SwiftUI app (iOS 17 floor, Swift 6, XcodeGen-generated project, 0.9.0 on TestFlight) organized around one rule:
 
 > **Swift never reimplements anything that has a `__tests__` directory under `src/lib/`.**
 
-The server owns recurrence, PR detection, statistics, alias resolution, analytics compute, prompt assembly, and tool execution — reached through read endpoints added for the port (`/api/schedule`, `/api/query`, `/api/analytics-compute`, `/api/coach-tool`, `/api/workout-draft`). Swift owns UI state and nothing else. Two more decisions keep that honest in CI: **design tokens are generated** from the web's own source files and drift fails the build, and **`ApexCore` is SDK-free** so a Linux CI job can prove the shared core with `swift test` on every push — no Mac required for the logic that matters.
+The server owns recurrence, PR detection, statistics, alias resolution, analytics compute, prompt assembly, and tool execution — reached through endpoints added for the port (`/api/schedule`, `/api/query`, `/api/analytics-compute`, `/api/coach-tool`, `/api/workout-draft`, the cycle preview on `/api/blocks`). Each time one of those landed, the web client was switched onto it in the same PR, so the two clients drive one code path rather than two that agree today. Swift owns UI state and nothing else. Two more decisions keep that honest in CI: **three catalogs are generated** from the web's own source files — design tokens, the analytics measure catalog, the onboarding copy — and drift in any of them fails the build; and **`ApexCore` is SDK-free** so a Linux CI job can prove the shared core with `swift test` on every push — no Mac required for the logic that matters. Invite, recovery, and shared `/app/*` links open in the app through universal links served from the web origin ([`apple-app-site-association`](public/.well-known/apple-app-site-association)).
 
-The port is planned in the open: [docs/ios/MASTER.md](docs/ios/MASTER.md) holds the vision and roadmap, [decisions.md](docs/ios/decisions.md) records every decision *with the options that were rejected and why*, and [STATUS.md](docs/ios/STATUS.md) is a living board across fourteen workstreams.
+The port is planned in the open: [docs/ios/MASTER.md](docs/ios/MASTER.md) holds the vision and roadmap, [decisions.md](docs/ios/decisions.md) records every decision *with the options that were rejected and why*, and [STATUS.md](docs/ios/STATUS.md) is a living board across fourteen workstreams — all of them landed as of September 2026. Releases go out through a fastlane `beta` lane, from a Mac or from a manual [TestFlight workflow](.github/workflows/testflight.yml) that stamps the build number from the commit count; App Store submission is the open gate ([app-store.md](docs/ios/app-store.md)).
 
 ---
 
@@ -171,7 +173,7 @@ Browser (React 19 SPA)                           iOS (SwiftUI + GRDB cache)
    │                                               │
    └── writes + AI ───► Vercel functions ◄─────────┘
                              │  service-role key, verifies the caller JWT
-                             ├── Hono router → 29 handlers
+                             ├── Hono router → 30 handlers
                              ├── Anthropic  (per-user key, NDJSON stream)
                              ├── COROS MCP  (activity sync, FIT decode)
                              └── Gmail SMTP (period reviews)
@@ -201,12 +203,12 @@ api/                 4 deployed serverless functions
   review-cron.ts       standalone: daily review-email cron
   calendar-feed.ts     standalone: per-user ICS feed
   _lib/
-    handlers/          29 route handlers
+    handlers/          30 route handlers
     services/          write services shared by web, iOS, and the coach's executors
     providers/coros/   OAuth, MCP client, FIT decode, sport mapping
     mcp/               MCP protocol, tool registry, token auth
     oauth/             OAuth 2.1 authorization server
-supabase/            schema.sql + 38 ordered phaseN migrations
+supabase/            schema.sql + 40 ordered phaseN migrations
 evals/               adversarial eval suite for the coach
 ios/                 SwiftUI app — ApexCore (SDK-free), ApexKit, features, widgets
 e2e/                 Playwright: mock (stubbed writes) and live (real stack) projects
@@ -216,7 +218,7 @@ scripts/             ops, backup/restore drills, CI guards, repo automation
 **Why only four serverless functions.** Vercel's Hobby plan caps a deployment at twelve, so per-endpoint files do not scale. Everything except chat (streaming, heavy imports), the cron target, and the public-token ICS feed routes through one catch-all into a Hono router. The constraint is enforced mechanically: `npm run ci:guards` fails the build if a fifth root-level `api/*.ts` appears, in a script that both CI *and* the local pre-push gate run — so a branch cannot pass locally and go red in CI.
 
 <details>
-<summary><b>API surface — 33 routes</b></summary>
+<summary><b>API surface — 36 routes</b></summary>
 
 | Endpoint | Purpose |
 |---|---|
@@ -224,10 +226,10 @@ scripts/             ops, backup/restore drills, CI guards, repo automation
 | `/api/completions` | Completion toggles + history log |
 | `/api/workout-sessions` | Tracker lifecycle: start / save / finish / cancel / summary |
 | `/api/workout-templates`, `/api/workout-draft` | Named workouts, scoring types (for-time, AMRAP), builder drafts |
-| `/api/blocks`, `/api/objectives` | Training blocks (Monday-aligned, non-overlapping) and objectives |
+| `/api/blocks`, `/api/objectives` | Training blocks (Monday-aligned, non-overlapping) and objectives; `?resource=cycle` previews a periodized cycle and names any block it would collide with |
 | `/api/meals`, `/api/meal-favorites` | Meal logging and saved favorites |
 | `/api/exercise-definitions` | Exercise library writes (reads come from PostgREST directly) |
-| `/api/analytics-tiles`, `/api/analytics-compute` | Saved tile specs; server-side tile computation for native clients |
+| `/api/analytics-tiles`, `/api/analytics-compute` | Saved tile specs; server-side tile computation for every client |
 | `/api/schedule`, `/api/query` | Native read surface: expanded schedule window; JWT door onto the MCP read tools |
 | `/api/chat`, `/api/coach-summary`, `/api/coach-tool` | Streaming chat; post-workout summary; confirmed tool execution |
 | `/api/profile`, `/api/account`, `/api/terms-acceptance` | Profile and coach fields; data export and deletion; clickwrap |
@@ -243,9 +245,9 @@ scripts/             ops, backup/restore drills, CI guards, repo automation
 <details>
 <summary><b>Data model — 29 tables</b></summary>
 
-Events and scheduling (`workout_events`, `recurring_exceptions`, `workout_completions`), tracking (`workout_sessions`, `workout_set_logs`, `workout_cardio_logs`, `workout_templates`), library (`exercise_definitions`), planning (`training_blocks`, `objectives`), nutrition (`meals`, `meal_favorites`), analytics (`analytics_tiles`), integrations (`provider_connections`, `provider_activity_imports`, `activity_streams`, `mcp_tokens`, `oauth_clients`, `oauth_codes`), accounts (`profiles`, `user_api_keys`, `terms_acceptances`, `reviews`, `api_request_counts`), and four append-only mutation logs.
+Events and scheduling (`workout_events`, `recurring_exceptions`, `workout_completions`, `workout_completion_log`), tracking (`workout_sessions`, `workout_set_logs`, `workout_cardio_logs`, `workout_templates`), library (`exercise_definitions`), planning (`training_blocks`, `objectives`), nutrition (`meals`, `meal_favorites`), analytics (`analytics_tiles`), integrations (`provider_connections`, `provider_activity_imports`, `activity_streams`, `mcp_tokens`, `oauth_clients`, `oauth_codes`), accounts (`profiles`, `user_api_keys`, `terms_acceptances`, `reviews`, `api_request_counts`), and four append-only mutation logs.
 
-Migrations are `supabase/migrations/phaseN_*.sql`, applied in `sort -V` order. The number is a **repo-global counter**: two branches can both add `phase41_*.sql`, merge cleanly, and leave an apply order nobody chose — so `scripts/next-phase.sh` issues the number and a test fails the second PR to claim one. **Next free number: phase41.**
+Migrations are `supabase/migrations/phaseN_*.sql`, applied in `sort -V` order. The number is a **repo-global counter**: two branches can both add `phase43_*.sql`, merge cleanly, and leave an apply order nobody chose — so `scripts/next-phase.sh` issues the number (it reads every open branch's claims, not just `main`) and a test fails the second PR to claim one.
 
 The generated types in `src/lib/db/database.types.ts` are regenerated from a local stack built by every migration from scratch, and CI fails on drift — the committed types must match a database that is actually reachable from an empty schema.
 
@@ -269,7 +271,7 @@ Per-set logging against planned targets, debounced autosave, tap-to-fill from yo
 
 ### The coach
 
-A chat rail that can see today's workouts, the week's schedule, recent completion rates, the exercise library, the active training block, and today's meals. It writes a daily briefing on request, summarizes a session after you finish it, and can create and edit workouts, set a session's exercises, build analytics tiles, and log meals — each as a Confirm/Cancel card. Everything it did is logged under Profile → Coach activity.
+A chat rail that can see today's workouts, the week's schedule, recent completion rates, the exercise library, the active training block, and today's meals, running on whichever Claude model you pick in its header — the picker reads as a cost ladder, since it is your key being spent. It writes a daily briefing on request, summarizes a session after you finish it, and can create and edit workouts, set a session's exercises, build analytics tiles, and log meals — each as a Confirm/Cancel card. Everything it did is logged under Profile → Coach activity.
 
 ### Training blocks, library, meals
 
@@ -297,12 +299,14 @@ npm run eval            # coach eval suite (spends real API tokens)
 
 | Job | What it proves |
 |---|---|
-| `check` | Build, 1,174 unit tests, lint, serverless-function count guard, design-token drift, `ApexCore` import purity, `npm audit --omit=dev` |
-| `e2e-mock` | Full UI flows against stubbed writes (Playwright) |
-| `full` | A **real local Supabase stack**: every migration applied from scratch, generated-types drift check, handler integration tests with real JWTs and RLS cross-user isolation, then live e2e |
+| `check` | Build, 1,310 unit tests, lint, then the guards: serverless-function count, drift in the three generated iOS catalogs (design tokens, analytics measures, onboarding copy), the `nonisolated deinit` rule, `ApexCore` import purity, `npm audit --omit=dev` |
+| `e2e-mock` | 56 full UI flows against stubbed writes (Playwright) |
+| `full` | A **real local Supabase stack**: every migration applied from scratch, generated-types drift check, 42 handler integration tests with real JWTs and RLS cross-user isolation, then 12 live e2e flows |
 | `apexcore-linux` | The iOS shared core builds and tests on Linux — the gate that keeps it free of Apple-only imports |
 | `ios` | XcodeGen + `xcodebuild test` on a simulator, unit and UI tests, `.xcresult` uploaded |
 | `evals` | The coach eval suite — nightly and on demand only, because it spends tokens |
+
+Three more workflows live outside `ci.yml` on purpose: the nightly [backup](.github/workflows/backup.yml) with its restore drill; the nightly [model-catalog](.github/workflows/model-catalog.yml) check, kept separate so that Anthropic shipping a model never reads as `main` being broken; and the manual [TestFlight](.github/workflows/testflight.yml) release, which publishes a build to Apple and so never fires on push.
 
 Four testing decisions worth knowing:
 
@@ -315,7 +319,7 @@ Four testing decisions worth knowing:
 
 ## Operations
 
-Deploys as a Vite app on Vercel ([vercel.json](vercel.json)) with two crons: period reviews at 14:00 UTC and provider sync at 03:30 UTC. [`scripts/deploy-verify.sh`](scripts/deploy-verify.sh) checks that the deployed build is the commit you think it is, via an unauthenticated `/api/version`. [`scripts/supervisor-report.sh`](scripts/supervisor-report.sh) prints everything needing attention — main's status, local stack drift, production schema drift, the last nightly backup, whether the primary checkout is still on `main` and clean, stale worktrees, open PRs — in one read-only sweep. The schema check is [`scripts/prod-schema-check.mjs`](scripts/prod-schema-check.mjs): production migrations are applied by hand, so it confirms production has every table, column and function `main`'s code expects, and names the migration behind anything missing.
+Deploys as a Vite app on Vercel ([vercel.json](vercel.json)) with two crons — period reviews at 14:00 UTC and provider sync at 03:30 UTC — and `maxDuration` pinned on the three functions that can stream (60 s for chat and the catch-all, 15 s for the ICS feed) so a long coach turn is a design decision rather than the platform default. [`scripts/deploy-verify.sh`](scripts/deploy-verify.sh) checks that the deployed build is the commit you think it is, via an unauthenticated `/api/version`. [`scripts/supervisor-report.sh`](scripts/supervisor-report.sh) prints everything needing attention — main's status, local stack drift, production schema drift, coach model catalog drift, the last nightly backup, whether the primary checkout is still on `main` and clean, stale worktrees, open PRs — in one read-only sweep. The schema check is [`scripts/prod-schema-check.mjs`](scripts/prod-schema-check.mjs): production migrations are applied by hand, so it confirms production has every table, column and function `main`'s code expects, and names the migration behind anything missing.
 
 **Backups, with restore drills.** Production runs on Supabase's free tier, which keeps no backups, so the repo makes its own. Nightly, [`scripts/db-backup.sh`](scripts/db-backup.sh) dumps the schema and every `auth` and `public` row, encrypts the bundle to an [age](https://github.com/FiloSottile/age) public key committed in the repo, and uploads it as a 90-day artifact. Then — the part that matters — [`scripts/db-restore-drill.sh`](scripts/db-restore-drill.sh) restores that same dump into a throwaway stack on the runner and *checks* it: users and events exist, every row count matches the dump, the signup trigger is back, and the schema matches the committed types. **A backup that cannot be restored turns the run red.** The repo is public, so the encryption is what keeps password hashes and training data private.
 
@@ -364,9 +368,9 @@ Apex Training is written largely by Claude Code sessions working in parallel, un
 - **Declared intent.** Each worktree records a claim; a new session is shown every other session's claims before it writes a line, so overlap is caught when it is cheapest to avoid.
 - **Shared resources take a lock rather than trusting good manners.** One Postgres serves the whole machine, so anything that resets tables takes a machine-wide lock and a second session queues rather than corrupting the first.
 - **Guard hooks make three rules mechanical** rather than advisory ([`scripts/hooks/bash-guard.mjs`](scripts/hooks/bash-guard.mjs)): no killing a shared dev server by name, no command that throws work away without looking first (`git reset --hard`, `git clean -f`, `git checkout -- .`, `git restore`, `git stash drop`, `git branch -D`, `git worktree remove --force`, `git push --force` — the working tree, the shared stash stack or an unmerged branch may hold another session's only copy of its work), and no building or committing in the primary checkout. Each rule leaves its safe neighbour alone — `git checkout -b`, `git restore --staged`, `git branch -d`, `git push --force-with-lease` — and a reviewed command re-runs with `APEX_DESTRUCTIVE_OK=1` on that one invocation. They fail *open* — a broken guard must not brick every session.
-- **A merge policy the agent cannot widen.** [`scripts/merge-policy.mjs`](scripts/merge-policy.mjs) lets an unattended babysitter merge green, up-to-date PRs, but **holds** migrations, `.github/`, `vercel.json`, dependency manifests, and — importantly — every file that defines the automation's own authority, including the policy itself and the hooks. A human grants a per-PR exception with a `shipit` label, which the hooks forbid the agent from applying to its own PR. Unlike the guards, this one fails *closed*: no verdict, no merge. Kill switch: `touch .claude/AUTOMERGE_OFF`.
+- **A merge policy the agent cannot widen.** [`scripts/merge-policy.mjs`](scripts/merge-policy.mjs) lets the babysitter (`scripts/merge-babysit.sh`, the only merge path — the guard hook blocks a direct `gh pr merge`) merge green, up-to-date PRs, but **holds** migrations, `.github/`, `vercel.json`, dependency manifests, and — importantly — every file that defines the automation's own authority, including the policy itself and the hooks. A human grants a per-PR exception with a `shipit` label, which the hooks forbid the agent from applying to its own PR. Unlike the guards, this one fails *closed*: no verdict, no merge. Kill switch: `touch .claude/AUTOMERGE_OFF`.
 
-That last rule is the whole idea in one line: **the agent must never be able to merge an expansion of what the agent may do.**
+That last rule is the whole idea in one line: **the agent must never be able to merge an expansion of what the agent may do.** It cuts both ways: no session is allow-listed to run the babysitter unattended today — every run is still a permission prompt — and granting that means adding an entry to `.claude/settings.json`, which the policy holds for exactly this reason.
 
 ---
 
