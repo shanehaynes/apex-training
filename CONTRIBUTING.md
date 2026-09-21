@@ -259,17 +259,28 @@ that information; copying discards it.
 
 **Never `git reset --hard` or `git clean -fd` in a shared checkout** without
 first checking `git status` for work that exists nowhere else. Another session's
-only copy of something may be sitting there.
+only copy of something may be sitting there. The same goes for every other way
+to throw work away: `git checkout -- <path>` / `.` / `-f`, `git restore`,
+`git stash drop`/`clear` (the stash stack is shared with every worktree, so the
+entry you drop may not be yours), `git branch -D`, `git worktree remove
+--force`, and `git push --force`.
 
 All three rules above are now enforced mechanically, not just by prose: a
 `PreToolUse` hook (`.claude/settings.json` → `scripts/hooks/bash-guard.mjs`)
-blocks builds and commits in the primary checkout, `pkill`/`killall` on vite,
-and destructive git commands. It matches the words the shell will run, not the
+blocks builds and commits in the primary checkout, killing vite by name
+(`pkill`/`killall`, or a `kill` fed by `pgrep -f vite`), and the destructive
+git commands listed above. It matches the words the shell will run, not the
 raw text, so writing *about* `git clean -fd` in a commit message or a PR body
-is fine. For the destructive ones, review `git status` first and then re-run
-with `APEX_DESTRUCTIVE_OK=1` immediately in front of that one git command —
-the override covers that command alone, not the rest of the line and not a
-shell it launches. It exists so the hook makes you look, not so it stops you.
+is fine, and the safe neighbour of each rule stays allowed: `git checkout -b`,
+`git restore --staged`, `git branch -d`, `git push --force-with-lease`,
+`lsof -ti :$(npm run -s port) | xargs kill`. For the destructive ones, look
+first — `git status`, `git stash list`, `git log` on the branch — and then
+re-run with `APEX_DESTRUCTIVE_OK=1` immediately in front of that one git
+command — the override covers that command alone, not the rest of the line and
+not a shell it launches. It exists so the hook makes you look, not so it stops
+you. The merge and label rules cover the GraphQL spellings too
+(`gh api graphql` with `mergePullRequest` or `addLabelsToLabelable`), not just
+`gh pr merge` and `--add-label shipit`.
 
 ## Parallel-session hazards specific to this repo
 
