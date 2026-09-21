@@ -78,12 +78,13 @@ public struct SignInView: View {
                         }
                     }
                 }
-                .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
-                .foregroundStyle(ApexColor.textSecondary)
+                // Footnote weight, not the button's: the user came to sign in.
+                .font(.apex(.display, size: TypeScale.xs, relativeTo: .footnote))
+                .foregroundStyle(ApexColor.textMuted)
                 .frame(minHeight: 44)
 
                 VStack(spacing: Spacing.xs) {
-                    Text("Apex is invite-only. Accounts are created by invitation, not sign-up.")
+                    Text("Apex is invite-only.")
                         .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
                         .foregroundStyle(ApexColor.textMuted)
                         .multilineTextAlignment(.center)

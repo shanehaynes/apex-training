@@ -58,6 +58,5 @@ public struct RootTabView: View {
                 .tabItem { Label("You", systemImage: "person") }
                 .tag(AppTab.you)
         }
-        .tint(ApexColor.accent)
     }
 }

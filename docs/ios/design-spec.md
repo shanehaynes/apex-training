@@ -13,21 +13,36 @@ document explains the system; the generator carries the numbers.
 | `--bg-primary` | `#0d0c0b` | screen background | `Color.apex.bgPrimary` |
 | `--bg-surface` | `#161412` | cards, sheet bodies, inputs | `.bgSurface` |
 | `--bg-elevated` | `#201e1b` | nav bars, menus, toasts, chat header | `.bgElevated` |
-| `--border-subtle` | `#2e2a25` | dividers, grid lines, input borders | `.borderSubtle` |
-| *(untokenised)* | `#3d3530` | strong/hover border | `.borderStrong` — promote to a token |
-| `--text-primary` | `#f1f5f9` | headings, values | `.textPrimary` |
-| `--text-secondary` | `#a09590` | body copy, metadata | `.textSecondary` |
-| `--text-muted` | `#8a7f7c` | labels, placeholders, helper text | `.textMuted` |
+| `--border-subtle` | `#ede8df` @ 13% | dividers, grid lines, input borders | `.borderSubtle` |
+| `--border-strong` | `#3d3530` | strong/hover border | `.borderStrong` |
+| `--text-primary` | `#ede8df` | headings, values | `.textPrimary` |
+| `--text-secondary` | `#b8b3a9` | body copy, metadata | `.textSecondary` |
+| `--text-muted` | `#8f8781` | labels, placeholders, helper text | `.textMuted` |
 | `--accent-primary` | `#e8e2d9` | warm off-white: today bubble, active segment, focus ring, FAB, send button | `.accent` |
-| *(untokenised)* | `#f97316` | the de-facto "done / positive" colour (completion ticks, today headings, overflow links); also `morning-routine` solid | `.positive` — promote |
-| *(untokenised)* | `#ef4444` / `#f87171` / `#b91c1c` | now-line; danger text; destructive button | `.danger`, `.dangerText`, `.destructive` |
-| *(untokenised)* | `#1e3a5f` bg / `#2a5080` border | user chat bubble | `.userBubble` |
+| `--positive` | `#e8601c` | the "done / positive" signal (completion ticks, today headings, overflow links) | `.positive` |
+| `--danger` / `--danger-text` / `--destructive` | `#d9483b` / `#e98a7f` / `#b91c1c` | now-line; danger text; destructive button | `.danger`, `.dangerText`, `.destructive` |
+| `--user-bubble` | `--bg-elevated` + a hairline | user chat bubble | `.userBubble` |
+| `--stream-mark` | `--positive` | the single mark of the synced-activity stream charts | `.streamMark` |
+
+The ink is warm because the ground is (`#f1f5f9` was slate-100, cool on a warm charcoal), the
+hairline is the ink at 13% because a translucent rule reads as a line where a solid grey reads
+as a box, and there is one non-neutral signal rather than a Tailwind default per meaning.
+Contrast is WCAG 2 against `--bg-surface` `#161412`, the worst of the three grounds: text
+clears 4.5 (primary 15.1 · secondary 8.8 · muted 5.2 · dangerText 7.4), marks clear 3.0
+(positive 5.4 · danger 4.3 · attainment-met 5.9), and `--destructive` carries white text at 6.5.
+
+`ApexColor` holds the ground and the ink; `ApexSignal` holds the semantics above. `ApexPalette`
+is the call-site name and forwards to `ApexSignal` — both are generated from `tokens.css`, so
+neither client can drift.
 
 Translucent chrome: top nav `rgba(20,18,16,0.92)` + blur 12; tab bar `rgba(16,14,13,0.96)` +
 blur 16 + saturate 180% → use `.ultraThinMaterial` tinted with `bgElevated` for both. Modal
 backdrop `rgba(0,0,0,0.72)` + blur 4 → system sheet dimming is close enough.
 
-Attainment semantics (blocks): met `#2eb82e`, close `#f97316`, under `textMuted`.
+Attainment semantics (blocks): met `--attainment-met` `#7c9a6d` (a sage, not green-500's
+cousin), close `--positive`, under `--text-muted`. Note `AttainmentBar` still reads the
+climbing and morning-routine workout colours rather than these tokens — a call-site fix, not a
+token one.
 
 ### Workout-type colours (`src/utils/workoutColors.ts` is canonical; `tokens.css` lags it)
 
@@ -46,10 +61,12 @@ emphasis (selected chip, PR trophy tint). Swift: `WorkoutType.palette` with `sol
 `fill`, `glow` (shadow radius 10, opacity as above).
 
 ### Chart ramp (`src/lib/analytics/palette.ts`)
-`#f97316` orange · `#38bdf8` sky · `#4ade80` green · `#facc15` yellow · `#c084fc` violet ·
-`#fb7185` rose · `#2dd4bf` teal · `#a3a3a3` neutral — assigned by series position; workout-type
-groups override with their `border` colour so "weights" is the same red everywhere. All clear
-3:1 on `#161412` and stay distinguishable under deuteranopia.
+`#e8601c` signal · `#ede8df` ink · `#d4a53a` ochre · `#8fae7d` sage · `#7d9bb8` steel ·
+`#c98a84` rose · `#6fa89b` teal · `#8f8781` dim — assigned by series position; workout-type
+groups override with their `border` colour so "weights" is the same red everywhere. Slots 1–2
+are the signal and the ink on purpose: a one- or two-series chart then carries no chroma but
+the chroma that means something. All clear 5:1 on `#161412` (the standard is 3:1) and stay
+distinguishable under deuteranopia.
 
 ## 2. Typography
 
