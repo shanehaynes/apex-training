@@ -96,7 +96,8 @@ before this document: 7 worktrees, 15 merged-but-undeleted local branches, and
 ### Merging more than one PR
 
 `main` requires a branch to be **up to date** before it merges (see "Repo
-settings"). So the moment one PR lands, every other open PR is "out of date" —
+settings"; "Fleet mode" below is what happens when that rule is off). So the
+moment one PR lands, every other open PR is "out of date" —
 not conflicted, just behind — and has to take the new `main` and re-run CI
 before it can merge. Five parallel PRs are five serial rounds of
 update → CI → merge, about ten minutes each for the `full` job, and the order
@@ -140,6 +141,51 @@ ruleset fails validation with an empty error for exactly that reason. `ci.yml`
 keeps its inert `merge_group` trigger so that if the repository ever moves to
 an organization, the queue is a settings change away rather than a code one.
 
+#### Fleet mode: every ready PR in one CI cycle
+
+The serial loop exists because of one setting: `main` requires branches to be
+up to date. With that rule **off**, a green PR is mergeable however far behind
+`main` it sits, so nothing forces a CI cycle per merge. What the rule bought
+was a guarantee that the exact tree landing on `main` had passed CI; fleet
+mode replaces it with a local proof of the union:
+
+```bash
+scripts/merge-babysit.sh --fleet          # dry run: plan the fleet, in merge order
+scripts/merge-babysit.sh --fleet --yes    # prove the union, then merge it back to back
+```
+
+Each pass folds every ready PR onto `origin/main` in merge order (oldest
+first) with `git merge-tree` — a PR that will not fold onto the ones before it
+is skipped, not the fleet — runs `agent:check` on the folded tree in a
+throwaway worktree (`scripts/combine-check.sh --check --sequential`), and only
+then squash-merges the PRs in that same order, a few seconds apart. Thirty
+PRs land in about the time one serial cycle took. Nothing else changes: the
+policy and its `shipit` grant, the kill switch, the merge log, the post-merge
+`deploy-verify` (given three minutes per merge — Vercel builds every push to
+`main` in turn), and the comment on every merged PR, which now names the
+proof it landed under.
+
+The mode has to match the setting, and the script checks before doing
+anything: `--fleet --yes` refuses while the rule is on (every PR would be
+BEHIND and nothing could merge), and the serial loop refuses `--yes` while the
+rule is off (it would merge every green PR back to back with no proof at
+all). Flipping the rule is a branch-protection change — the merge floor, so
+Shane's — and it is one call each way:
+
+```bash
+gh api -X PATCH repos/{owner}/{repo}/branches/main/protection/required_status_checks -F strict=false   # fleet mode
+gh api -X PATCH repos/{owner}/{repo}/branches/main/protection/required_status_checks -F strict=true    # serial loop
+```
+
+Honest limits. The proof runs what the `check` and `e2e-mock` jobs run; the
+`full` job (a Supabase stack built from every migration, the live e2e) is not
+re-run on the union, only per PR on its own base. `main`'s own CI runs
+*after* each merge, and Vercel deploys on the push, so a collision the proof
+cannot see reaches production before CI reports it — which is what
+`deploy-verify.sh` and a revert are for. `--no-check` skips the proof; use it
+only when you have just run `combine-check.sh --check --sequential` on the
+same fleet by hand and `main` has not moved since.
+
 ### Autonomous merging: what the babysitter may do alone
 
 `scripts/merge-babysit.sh --yes` is the only merge path: the guard hook blocks a
@@ -154,7 +200,10 @@ makes granting it a small decision rather than a large one:
 
 - **Branch protection is the floor.** The babysitter cannot land anything the
   required CI checks have not passed — that is GitHub's rule, not the
-  script's, and no autonomy change may weaken those checks.
+  script's, and no autonomy change may weaken those checks. The up-to-date
+  rule is the one part of the floor that is a choice ("Fleet mode" above):
+  with it off, the union proof stands in, and the script refuses to run in
+  the mode that does not match the setting.
 - **The merge policy is the boundary** ([scripts/merge-policy.mjs](scripts/merge-policy.mjs)):
   a PR touching `supabase/migrations/`, `.github/`, `vercel.json`, the
   dependency manifests, or any file of the automation itself — the policy,
@@ -447,7 +496,9 @@ hand.
 - **`main` protected**, requiring the `check`, `e2e-mock`, and `full` jobs,
   blocking force-pushes, and **requiring branches to be up to date before
   merging**. That last one is what makes parallel PRs merge serially — see
-  "Merging more than one PR".
+  "Merging more than one PR". It is also the one setting the babysitter reads:
+  with it off, only `--fleet` will merge (it proves the union first); with it
+  on, only the serial loop will ("Fleet mode").
 - **No merge queue — not by choice.** GitHub only offers it to
   organization-owned public repositories and Enterprise Cloud; a
   personal-account repository cannot enable it. If the repository is ever
