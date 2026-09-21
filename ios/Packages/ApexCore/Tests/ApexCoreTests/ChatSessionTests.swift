@@ -547,6 +547,53 @@ final class ChatSessionTests: XCTestCase {
         XCTAssertEqual(v65, ChatCopy.emptyReply)
     }
 
+    /// A clean EOF with no `done` line — a Vercel timeout, or a dropped
+    /// connection closed gracefully. The fragment is the user's to see and
+    /// the model's never to hear.
+    func testStreamThatEndsWithoutDoneIsStoppedNotAFinishedTurn() async throws {
+        let store = MemoryConversationStore()
+        let transport = ScriptedTransport([.ndjson(text("Start with three sets of ", done: false))])
+        let session = makeSession(transport, store: store)
+
+        await session.send("plan me")
+
+        let d1 = await session.state
+        XCTAssertEqual(d1, .idle)
+        let d2 = await session.partial
+        XCTAssertEqual(d2, "")
+        let d3 = await session.apiMessages
+        XCTAssertEqual(d3, [.user("plan me")])
+        let d4 = await session.messages.map(\.text)
+        XCTAssertEqual(d4, ["plan me", "Start with three sets of "])
+        let d5 = await session.messages.map(\.kind)
+        XCTAssertEqual(d5, [.turn, .stopped])
+
+        let u201 = await session.conversation?.id
+        let rows = try await store.messages(in: try XCTUnwrap(u201))
+        XCTAssertEqual(rows.map(\.kind), [.turn, .stopped])
+        XCTAssertNil(rows[1].apiContent)
+        let d6 = await session.canSend
+        XCTAssertTrue(d6)
+    }
+
+    /// Cut before the first token, with a tool_use already on the wire: no
+    /// card, no history, just the no-answer notice.
+    func testStreamCutBeforeAnyTextNoticesAndPresentsNoCard() async throws {
+        let transport = ScriptedTransport([.ndjson([toolUse("tu_1", label: fixtureLabel)])])
+        let session = makeSession(transport)
+
+        await session.send("delete it")
+
+        let d7 = await session.state
+        XCTAssertEqual(d7, .idle)
+        let d8 = await session.apiMessages
+        XCTAssertEqual(d8, [.user("delete it")])
+        let d9 = await session.messages.map(\.text)
+        XCTAssertEqual(d9, ["delete it", ChatCopy.emptyReply])
+        let d10 = await session.messages.map(\.kind)
+        XCTAssertEqual(d10, [.turn, .notice])
+    }
+
     func testNetworkFailureIsTheGenericNoticeToo() async throws {
         let transport = ScriptedTransport([.throwNetwork])
         let session = makeSession(transport)
