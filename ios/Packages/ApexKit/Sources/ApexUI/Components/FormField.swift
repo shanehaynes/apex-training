@@ -55,16 +55,45 @@ public struct ChipRow<Value: Hashable & Sendable>: View {
     private let label: String?
     private let options: [(value: Value, label: String)]
     @Binding private var selection: Value
+    private let collapseAbove: Int?
     private let identifier: String?
 
-    public init(_ label: String? = nil, options: [(value: Value, label: String)], selection: Binding<Value>, identifier: String? = nil) {
+    /// `collapseAbove: n` renders as a `MenuPicker` once there are more than `n`
+    /// options — ux-review §1.3, "where a value has more than four options …
+    /// use a Picker (menu style)". `nil`, the default, is the chip flow
+    /// whatever the count, so no existing call site changes.
+    ///
+    /// The accessibility identifier is the row's either way: a caller that
+    /// collapses keeps the element its tests already find.
+    public init(
+        _ label: String? = nil, options: [(value: Value, label: String)], selection: Binding<Value>,
+        collapseAbove: Int? = nil, identifier: String? = nil
+    ) {
         self.label = label
         self.options = options
         self._selection = selection
+        self.collapseAbove = collapseAbove
         self.identifier = identifier
     }
 
+    private var resolvedIdentifier: String {
+        identifier ?? "chips.\((label ?? "row").lowercased())"
+    }
+
+    /// True when the option count has passed the caller's ceiling.
+    public var isCollapsed: Bool {
+        collapseAbove.map { options.count > $0 } ?? false
+    }
+
     public var body: some View {
+        if isCollapsed {
+            MenuPicker(label, options: options, selection: $selection, identifier: resolvedIdentifier)
+        } else {
+            chips
+        }
+    }
+
+    private var chips: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             if let label { Text(label).apexFieldLabel() }
             FlowLayout(spacing: Spacing.xs) {
@@ -77,7 +106,7 @@ public struct ChipRow<Value: Hashable & Sendable>: View {
             }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier(identifier ?? "chips.\((label ?? "row").lowercased())")
+        .accessibilityIdentifier(resolvedIdentifier)
         // design-spec §9: `.selection` on chip changes.
         .sensoryFeedback(.selection, trigger: selection)
     }
