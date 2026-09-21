@@ -50,6 +50,34 @@ same page the About screen links to. Terms: `/terms`.
 - **Account deletion** (5.1.1(v)): You → Data → Delete account → `DELETE /api/account`
   (W11), typed confirmation, signs out. Mention it in the review notes; reviewers look for it.
 
+### Before the archive: prove production's schema
+
+Archiving freezes `APEX_API_BASE` and the Supabase project into the binary, so a shipped build
+can only ever talk to the database production has *today* — and production's migrations are
+pasted into the SQL editor by hand, where a skipped one is invisible from the app. In September
+2026 production ran four days missing phase38, phase41 and `phase32_quarantine`, so
+`GET /api/profile` and `DELETE /api/account` 500'd while `/api/version` reported current code.
+A 500 on account deletion is the 5.1.1(v) rejection above, arriving by a different door.
+
+So before every archive, from the primary checkout (it reads `VITE_SUPABASE_URL` and
+`SUPABASE_SERVICE_ROLE_KEY` out of `.env.local`; the key goes into request headers only and
+`limit=0` means no row is ever read):
+
+```bash
+node scripts/prod-schema-check.mjs     # exit 0 in sync · 1 drift · 2 could not check
+```
+
+On exit 1 it names each missing table, column or function together with the
+`supabase/migrations/phaseN_*.sql` that creates it. Paste those files into Supabase → SQL Editor
+in `sort -V` order, then re-run until it exits 0 — do not archive on a 1. `ios/scripts/testflight.sh`
+runs the same check before it archives and stops there too (`APEX_SKIP_SCHEMA_CHECK=1` overrides
+it), so this is a second pair of eyes on the same gate, not a different one. What it cannot see:
+triggers, RLS policies, grants, constraints, defaults, column types, function signatures and
+realtime publication membership — a migration that only changes those can still be missing.
+
+Last hand-run: **2026-09-19, exit 0** — all 30 tables (344 columns) and 2 functions `main` expects
+are present in production.
+
 ## 3. App Review Information
 
 ### Sign-in required: the demo account
