@@ -61,6 +61,27 @@ targets:
       Debug: Config/Debug.xcconfig
       Local: Config/Local.xcconfig
       Release: Config/Release.xcconfig
+    # The Release gate (G9): a build whose anon key is still REPLACE_ME — the
+    # state of any worktree without the git-ignored Config/Secrets.xcconfig —
+    # archives, uploads and passes ASC processing, then traps at launch for
+    # every user. This refuses to build it instead. XcodeGen inlines the file's
+    # contents into the .pbxproj rather than invoking it by path, so the phase
+    # reads nothing from disk and needs no inputFiles under
+    # ENABLE_USER_SCRIPT_SANDBOXING: YES — but `xcodegen generate` must be re-run
+    # after editing the script, or the project keeps the old copy.
+    preBuildScripts:
+      - path: scripts/verify-release-config.sh
+        name: Verify Release configuration
+        shell: /bin/bash
+        # A gate an incremental build may skip is not a gate. Declaring no
+        # outputs would earn a *warning* that the phase runs every time;
+        # unchecking "Based on dependency analysis" — which is what this maps to
+        # — makes that every-build behaviour deliberate, and Xcode says so with a
+        # note instead.
+        basedOnDependencyAnalysis: false
+        # The phase says what is wrong itself; dumping every build setting into
+        # the log on every build of every configuration is noise.
+        showEnvVars: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shanehaynes.apextraining
