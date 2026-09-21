@@ -12,6 +12,10 @@ import {
   type SyncProvider,
 } from '../providers/connection.js';
 import { buildAuthorizeUrl, generatePkce, generateState, isCorosConfigured } from '../providers/coros/oauth.js';
+import {
+  COROS_DISCONNECT_NOTICE,
+  COROS_UPSTREAM_REVOCATION_SUPPORTED,
+} from '../../../src/lib/sync/corosRevocation.js';
 
 // Fitness-provider sync (phase27): connection lifecycle + the two-phase
 // activity grab. Single consolidated route (12-function cap) with
@@ -102,7 +106,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       case 'disconnect': {
         await disconnect(supabase, userId, provider);
-        res.status(200).json({ ok: true });
+        // upstreamRevoked is false and says so out loud: Apex drops its tokens
+        // but cannot end the grant at COROS (src/lib/sync/corosRevocation.ts),
+        // and a user who clicked Disconnect is entitled to know that.
+        res.status(200).json({
+          ok: true,
+          upstreamRevoked: COROS_UPSTREAM_REVOCATION_SUPPORTED,
+          notice: COROS_DISCONNECT_NOTICE,
+        });
         return;
       }
       case 'set-auto-sync': {

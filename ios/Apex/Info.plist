@@ -50,6 +50,10 @@
 	<string>$(CONFIGURATION)</string>
 	<key>APEX_INVITE_CONTACT</key>
 	<string>$(APEX_INVITE_CONTACT)</string>
+	<!-- G8: where the "update required" screen sends a build /api/version has
+	     retired. Empty until the app has an App Store id. -->
+	<key>APEX_APP_STORE_URL</key>
+	<string>$(APEX_APP_STORE_URL)</string>
 	<!-- The Local configuration talks to 127.0.0.1 over http, which ATS blocks by
 	     default. NSAllowsLocalNetworking is the narrow exception: it permits
 	     local addresses only and does not weaken anything for production. -->

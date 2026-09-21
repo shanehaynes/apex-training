@@ -55,6 +55,14 @@ export const ENV_KEYS = [
   // Vercel itself, never by hand). /api/version reports it so
   // scripts/deploy-verify.sh can prove which build production serves.
   'VERCEL_GIT_COMMIT_SHA',
+  // Oldest iOS CFBundleVersion this deployment serves; /api/version publishes
+  // it and the app shows a blocking update screen below it (clientVersion.ts).
+  // Vercel project env; unset or 0 gates nothing.
+  'APEX_MIN_BUILD',
+  // Optional line that update screen shows instead of the default wording —
+  // say what broke, when the gate is raised for a specific reason.
+  // Vercel project env.
+  'APEX_UPDATE_MESSAGE',
 ] as const;
 
 export type EnvKey = (typeof ENV_KEYS)[number];

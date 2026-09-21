@@ -2,13 +2,20 @@
 // PreToolUse hook for the Bash tool (wired in .claude/settings.json): the
 // mechanical form of three CLAUDE.md rules that used to be prose only.
 //
-//   1. Never `pkill -f vite` — that is every session's dev server.
-//   2. Never `git reset --hard` / `git clean -f` without looking first — the
-//      working tree may hold another session's only copy of its work.
+//   1. Never kill vite by name — `pkill -f vite`, or a `kill` handed every PID
+//      `pgrep`/`pidof` can find for it. That is every session's dev server.
+//   2. Never throw work away without looking first — the working tree, the
+//      shared stash stack or an unmerged branch may hold another session's
+//      only copy of its work. `git reset --hard`, `git clean -f`,
+//      `git checkout -- <path>`, `git restore`, `git stash drop`/`clear`,
+//      `git branch -D`, `git worktree remove --force`, `git push --force`.
 //      Reviewed and safe? Re-run with APEX_DESTRUCTIVE_OK=1 immediately in
 //      front of that one git command.
 //   3. Never build or commit in the primary checkout — it stays on main,
 //      clean. Worktrees (scripts/git-new.sh) are the workspace.
+//
+// Plus the two authority rules the automation draws around itself: merging
+// goes through scripts/merge-babysit.sh, and the `shipit` label is Shane's.
 //
 // The rules match the words the shell will actually run, not the raw command
 // text: a commit message, a PR body, a grep pattern or a quoted heredoc body
@@ -78,15 +85,30 @@ export function primaryRootOf(projectDir) {
 // ---------------------------------------------------------------------------
 
 const PKILL_VITE = /\b(pkill|killall)\b[^|;&]*\bvite\b/;
+// `kill $(pgrep -f vite)` is the same act spelled with a substitution. The
+// parsed path ties the pids to the kill; here, any of the three on one line.
+const KILL_VITE = /\bkill\b[^|;&]*\b(pgrep|pidof)\b[^|;&)]*\bvite\b|\b(pgrep|pidof)\b[^|;&]*\bvite\b[^;&]*\|[^;&]*\bkill\b/;
 const DESTRUCTIVE_GIT = /\bgit\b[^|;&()]*\b(reset\s+--hard|clean\s+(-[A-Za-z]*f[A-Za-z]*\b|[^|;&]*--force))/;
+// #180 — the rest of the commands that throw work away. Coarse on purpose:
+// this path only runs for input the tokenizer refused, where a false block
+// costs one APEX_DESTRUCTIVE_OK=1 and a miss costs somebody's only copy.
+const DESTRUCTIVE_GIT_MORE = [
+  /\bgit\b[^|;&()]*\bcheckout\b[^|;&]*(\s--(\s|$)|\s-[A-Za-z]*f[A-Za-z]*(\s|$)|\s--force\b|\s\.(\s|$))/,
+  /\bgit\b[^|;&()]*\brestore\b(?![^|;&]*--staged)/,
+  /\bgit\b[^|;&()]*\bstash\s+(drop|clear)\b/,
+  /\bgit\b[^|;&()]*\bbranch\b[^|;&]*\s-[A-Za-z]*D[A-Za-z]*(\s|$)/,
+  /\bgit\b[^|;&()]*\bworktree\s+remove\b[^|;&]*(\s-[A-Za-z]*f[A-Za-z]*(\s|$)|\s--force\b)/,
+  /\bgit\b[^|;&()]*\bpush\b[^|;&]*(\s--force(\s|$)|\s--mirror\b|\s-[A-Za-z]*f[A-Za-z]*(\s|$)|\s\+[^\s|;&]+)/,
+];
 // Merging flows through scripts/merge-babysit.sh, which enforces the merge
 // policy; a direct `gh pr merge` (or the API route under it) bypasses both
 // the policy and the audit trail. `\bgh\b` also matches an absolute path.
-const GH_MERGE = /\bgh\b[^|;&]*\bpr\s+merge\b|\bgh\s+api\b[^|;&]*\/merge\b/;
+const GH_MERGE = /\bgh\b[^|;&]*\bpr\s+merge\b|\bgh\s+api\b[^|;&]*(\/merge\b|\b(mergePullRequest|enablePullRequestAutoMerge)\b)/;
 // The shipit label is the human's per-PR grant for held paths
 // (scripts/merge-policy.mjs). The agent applying it to its own PR would
 // dissolve the authority boundary the label exists to draw.
-const SHIPIT_GRANT = /--add-label[^|;&]*\bshipit\b|\bgh\s+api\b[^|;&]*\blabels\b[^|;&]*\bshipit\b/;
+const SHIPIT_GRANT =
+  /--add-label[^|;&]*\bshipit\b|\bgh\s+api\b[^|;&]*\blabels\b[^|;&]*\bshipit\b|\bgh\s+api\b[^|;&]*\baddLabelsToLabelable\b/;
 // What "do not build there, do not commit there" means concretely. The Xcode
 // entries are the same rule, not a new one: `xcodegen` writes ios/Apex.xcodeproj
 // into whatever checkout it runs in, and `xcodebuild`/`swift build` write build
@@ -100,12 +122,62 @@ const MSG_PKILL =
   'Blocked: `pkill`/`killall` on vite kills every session’s dev server, not just yours (CLAUDE.md). ' +
   'Kill only your own: `lsof -i :$(npm run -s port)`, then kill that PID.';
 
+// Every destructive-git message ends the same way: look first, then override
+// the one invocation. Only the first sentence — what this command throws away
+// and what the safe neighbour is — differs.
+const DESTRUCTIVE_TAIL =
+  'If you have looked and it is safe, re-run with APEX_DESTRUCTIVE_OK=1 immediately in front of that ' +
+  'one git command — it covers that command only, not the rest of the line, and not a shell it launches.';
+
 const MSG_DESTRUCTIVE =
   'Blocked: `git reset --hard` / `git clean -f` can destroy another session’s only copy of its work ' +
   '(CONTRIBUTING.md, “Never do this”). First run `git status` and read the file list; commit anything ' +
-  'that exists nowhere else to a branch. If you have looked and it is safe, re-run with ' +
-  'APEX_DESTRUCTIVE_OK=1 immediately in front of that one git command — it covers that command only, ' +
-  'not the rest of the line, and not a shell it launches.';
+  'that exists nowhere else to a branch. ' +
+  DESTRUCTIVE_TAIL;
+
+const MSG_CHECKOUT_PATH =
+  'Blocked: `git checkout -- <path>` / `git checkout .` / `git checkout -f` overwrites uncommitted work ' +
+  'with HEAD, and in a shared checkout that work may be another session’s only copy (CONTRIBUTING.md, ' +
+  '“Never do this”). Run `git status` and `git diff` on those paths first. Switching branches ' +
+  '(`git checkout <branch>`), `git checkout -b`, and `-p` are not blocked. ' +
+  DESTRUCTIVE_TAIL;
+
+const MSG_RESTORE =
+  'Blocked: `git restore <path>` discards uncommitted changes in the working tree — the same harm as ' +
+  '`git checkout -- <path>`, and it may be work that exists nowhere else (CONTRIBUTING.md, “Never do ' +
+  'this”). `git restore --staged <path>` only unstages and is allowed; `git diff` first. ' +
+  DESTRUCTIVE_TAIL;
+
+const MSG_STASH_DROP =
+  'Blocked: the stash stack is shared with the primary checkout and every other worktree, so ' +
+  '`git stash drop` / `git stash clear` can throw away another session’s only copy of its work ' +
+  '(CLAUDE.md). Run `git stash list` and identify your own entry by its message first. ' +
+  DESTRUCTIVE_TAIL;
+
+const MSG_BRANCH_DELETE =
+  'Blocked: `git branch -D` force-deletes a branch whose commits may be unmerged and referenced by ' +
+  'nothing else — another session’s work, or your own before a PR. Lowercase `git branch -d` refuses ' +
+  'exactly that case; `scripts/git-tidy.sh` retires merged branches with their worktrees. ' +
+  DESTRUCTIVE_TAIL;
+
+const MSG_WORKTREE_REMOVE =
+  'Blocked: `git worktree remove --force` deletes a worktree that still has uncommitted changes in it ' +
+  '— the force flag exists to override exactly the check that protects them, and the worktree may not ' +
+  'be yours (CLAUDE.md). Run `git -C <worktree> status` first; `scripts/git-tidy.sh` retires merged ' +
+  'worktrees safely. ' +
+  DESTRUCTIVE_TAIL;
+
+const MSG_PUSH_FORCE =
+  'Blocked: `git push --force` / `-f` / `+<ref>` / `--mirror` overwrites the remote branch whatever is ' +
+  'on it now, including a commit another session pushed while you were working. `--force-with-lease` ' +
+  '(and `--force-if-includes`) are allowed and are what you want after a rebase: they refuse when the ' +
+  'remote moved. ' +
+  DESTRUCTIVE_TAIL;
+
+const MSG_KILL_VITE =
+  'Blocked: killing every pid `pgrep`/`pidof` reports for vite kills every session’s dev server, not ' +
+  'just yours (CLAUDE.md). Kill only your own: `lsof -i :$(npm run -s port)`, then kill that PID — ' +
+  '`lsof -ti :$(npm run -s port) | xargs kill` is fine, because the port is per-worktree.';
 
 const MSG_GH_MERGE =
   'Blocked: merge through `scripts/merge-babysit.sh --yes`, which enforces the merge policy ' +
@@ -116,6 +188,12 @@ const MSG_SHIPIT =
   'Blocked: the `shipit` label is Shane’s per-PR grant for policy-held paths — the agent applying it ' +
   'itself would dissolve the authority boundary (CONTRIBUTING.md, “Autonomous merging”). Ask Shane to ' +
   'label the PR.';
+
+const MSG_GRAPHQL_LABEL =
+  'Blocked: `addLabelsToLabelable` labels a PR by opaque node id, so the guard cannot tell whether the ' +
+  'label is `shipit` — Shane’s per-PR grant for policy-held paths, which the agent applying itself ' +
+  'would dissolve the authority boundary of (CONTRIBUTING.md, “Autonomous merging”). Use ' +
+  '`gh pr edit <n> --add-label <name>` for ordinary labels; ask Shane for `shipit`.';
 
 const MSG_PRIMARY =
   'Blocked: this would run in the primary checkout, which stays on main, clean — never build or ' +
@@ -139,7 +217,9 @@ function legacyEffectiveDirs(command, cwd) {
 
 export function legacyDecide(command, cwd, projectDir) {
   if (PKILL_VITE.test(command)) return MSG_PKILL;
-  if (DESTRUCTIVE_GIT.test(command) && !command.includes('APEX_DESTRUCTIVE_OK=1')) return MSG_DESTRUCTIVE;
+  if (KILL_VITE.test(command)) return MSG_KILL_VITE;
+  const destructive = DESTRUCTIVE_GIT.test(command) || DESTRUCTIVE_GIT_MORE.some((re) => re.test(command));
+  if (destructive && !command.includes('APEX_DESTRUCTIVE_OK=1')) return MSG_DESTRUCTIVE;
   if (GH_MERGE.test(command)) return MSG_GH_MERGE;
   if (SHIPIT_GRANT.test(command)) return MSG_SHIPIT;
   if (PRIMARY_BANNED.test(command)) {
@@ -206,7 +286,7 @@ class ShellParser {
   newCommand(depth) {
     return {
       words: [], env: [], redirects: [], heredocs: [],
-      hereString: null, pipeFrom: null, depth,
+      hereString: null, pipeFrom: null, subs: [], depth,
     };
   }
 
@@ -316,7 +396,12 @@ class ShellParser {
       }
 
       const before = this.i;
+      const outBefore = this.out.length;
       const w = this.readWord(depth);
+      // Commands the word's own expansions contributed — `kill $(pgrep -f
+      // vite)` needs the substitution tied to the command it feeds, not just
+      // enumerated somewhere in the line.
+      if (this.out.length > outBefore) cmd.subs.push(...this.out.slice(outBefore));
       if (!w) {
         if (this.i === before) this.i++; // never spin on an unexpected byte
         continue;
@@ -667,7 +752,7 @@ const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh', 'mksh', 'ash']);
 // -fd`, `ssh host pkill -f vite`) without letting a quoted string do it.
 const EMBED_NAMES = new Set([
   ...Object.keys(WRAPPERS), ...SHELLS,
-  'eval', 'pkill', 'killall', 'git', 'gh', 'npm', 'npx',
+  'eval', 'pkill', 'killall', 'kill', 'git', 'gh', 'npm', 'npx',
   'xcodebuild', 'xcodegen', 'swift', 'git-clean', 'git-reset', 'git-commit',
 ]);
 
@@ -748,10 +833,13 @@ function optionValue(argv, names) {
   return null;
 }
 
-function synth(argv, depth, noEmbed = false) {
+// `subs` carries over for an embedded slice (`watch kill $(pgrep -f vite)`):
+// the substitution still feeds the command the slice starts at. `pipeFrom`
+// deliberately does not — stdin belongs to the whole original command.
+function synth(argv, depth, noEmbed = false, subs = []) {
   return {
     words: argv, env: [], redirects: [], heredocs: [],
-    hereString: null, pipeFrom: null, depth, noEmbed,
+    hereString: null, pipeFrom: null, subs, depth, noEmbed,
   };
 }
 
@@ -846,7 +934,13 @@ function invocationsFor(commands) {
       continue;
     }
 
-    invocations.push({ argv, env, depth: cmd.depth });
+    invocations.push({
+      argv,
+      env,
+      depth: cmd.depth,
+      subs: cmd.subs ?? [],
+      pipeFrom: cmd.pipeFrom ?? null,
+    });
 
     const b = base(argv[0].value);
 
@@ -914,7 +1008,7 @@ function invocationsFor(commands) {
         const w = argv[j];
         if (w.quoted || w.dynamic) continue;
         if (!EMBED_NAMES.has(base(w.value))) continue;
-        queue.push(synth(argv.slice(j), cmd.depth, true));
+        queue.push(synth(argv.slice(j), cmd.depth, true, cmd.subs ?? []));
       }
     }
   }
@@ -939,6 +1033,78 @@ function isPkillVite(inv) {
   return inv.argv.slice(1).some((w) => /\bvite\b/.test(w.value));
 }
 
+// `pgrep -f vite` / `pidof vite`: a pid list that is every session's server.
+function isVitePidLookup(cmd) {
+  const words = cmd?.words ?? [];
+  if (!words.length) return false;
+  const b = base(words[0].value);
+  if (b !== 'pgrep' && b !== 'pidof') return false;
+  return words.slice(1).some((w) => /\bvite\b/.test(w.value));
+}
+
+// A `kill` fed by such a lookup — through a substitution (`kill $(pgrep -f
+// vite)`) or an upstream pipeline stage (`pgrep -f vite | xargs kill`). The
+// lookup on its own is read-only and stays allowed, and so does
+// `lsof -ti :$(npm run -s port) | xargs kill`: that port is only ever this
+// worktree's, which is what CLAUDE.md tells sessions to use.
+function isKillVite(inv) {
+  if (base(inv.argv[0].value) !== 'kill') return false;
+  if ((inv.subs ?? []).some(isVitePidLookup)) return true;
+  for (let up = inv.pipeFrom; up; up = up.pipeFrom) {
+    if (isVitePidLookup(up)) return true;
+    if ((up.subs ?? []).some(isVitePidLookup)) return true;
+  }
+  return false;
+}
+
+// --- the destructive-git family -------------------------------------------
+// One matcher per row, each naming what it would throw away. All of them go
+// through the same APEX_DESTRUCTIVE_OK=1 override in decideParsed.
+
+const GIT_CHECKOUT_VALUE_OPTS = new Set([
+  '-b', '-B', '--orphan', '--conflict', '--pathspec-from-file', '--recurse-submodules',
+]);
+const GIT_STASH_VALUE_OPTS = new Set(['-m', '--message']);
+const GIT_PUSH_VALUE_OPTS = new Set([
+  '--repo', '-o', '--push-option', '--receive-pack', '--exec', '--recurse-submodules', '--signed',
+]);
+
+/** Subcommand arguments split at `--`: options before, pathspecs after. */
+function splitPathspec(args) {
+  const k = args.findIndex((w) => w.value === '--');
+  return k === -1 ? { opts: args, paths: [] } : { opts: args.slice(0, k), paths: args.slice(k + 1) };
+}
+
+/** Positional arguments of a git subcommand, up to `--`. */
+function subPositionals(args, valueOpts = new Set()) {
+  const out = [];
+  for (let j = 0; j < args.length; j++) {
+    const v = args[j].value;
+    if (v === '--') break;
+    if (isOption(v)) {
+      if (v.indexOf('=') === -1 && valueOpts.has(v)) j++;
+      continue;
+    }
+    out.push(v);
+  }
+  return out;
+}
+
+/** An exact long option, `--name` or `--name=value`. `--force-with-lease` is not `--force`. */
+function hasLong(args, ...names) {
+  return args.some((w) => names.includes(optionName(w.value)));
+}
+
+/** A letter inside a short cluster: `-f`, `-fd`, `-xf`. */
+function hasShort(args, letter) {
+  return args.some((w) => /^-[A-Za-z]+$/.test(w.value) && w.value.slice(1).includes(letter));
+}
+
+function gitSub(inv, name) {
+  const g = gitParts(inv);
+  return g && g.sub === name ? g : null;
+}
+
 function isDestructiveGit(inv) {
   const g = gitParts(inv);
   if (!g) return false;
@@ -947,8 +1113,107 @@ function isDestructiveGit(inv) {
   return g.args.some((w) => w.value === '--force' || /^-[A-Za-z]*f[A-Za-z]*$/.test(w.value));
 }
 
+// `git checkout -- <path>`, `git checkout .`, `git checkout -f`: HEAD over the
+// working tree. Switching branches, `-b`/`-B`/`--orphan` with no pathspec, and
+// the per-hunk `-p` are left alone.
+function isCheckoutDiscard(inv) {
+  const g = gitSub(inv, 'checkout');
+  if (!g) return false;
+  const { opts, paths } = splitPathspec(g.args);
+  if (hasLong(opts, '--patch') || hasShort(opts, 'p')) return false;
+  if (hasLong(opts, '--force') || hasShort(opts, 'f')) return true;
+  if (paths.length) return true;
+  return subPositionals(opts, GIT_CHECKOUT_VALUE_OPTS).includes('.');
+}
+
+// `git restore <path>` is the modern spelling of the same discard. Only
+// `--staged` on its own (unstage, keep the file) is not.
+function isRestoreDiscard(inv) {
+  const g = gitSub(inv, 'restore');
+  if (!g) return false;
+  const { opts } = splitPathspec(g.args);
+  const staged = hasLong(opts, '--staged') || hasShort(opts, 'S');
+  const worktree = hasLong(opts, '--worktree') || hasShort(opts, 'W');
+  return !staged || worktree;
+}
+
+// The stash stack is one per repository — shared with the primary checkout and
+// every other worktree, so a drop may not be dropping your own entry.
+function isStashDiscard(inv) {
+  const g = gitSub(inv, 'stash');
+  if (!g) return false;
+  const p = subPositionals(g.args, GIT_STASH_VALUE_OPTS);
+  return p[0] === 'drop' || p[0] === 'clear';
+}
+
+// `git branch -D` (or `-d --force`) deletes an unmerged branch — commits that
+// may be referenced by nothing else. Lowercase `-d` alone refuses that case.
+function isBranchForceDelete(inv) {
+  const g = gitSub(inv, 'branch');
+  if (!g) return false;
+  const { opts } = splitPathspec(g.args);
+  if (hasShort(opts, 'D')) return true;
+  const del = hasLong(opts, '--delete') || hasShort(opts, 'd');
+  return del && (hasLong(opts, '--force') || hasShort(opts, 'f'));
+}
+
+// `git worktree remove --force` overrides the check that refuses to delete a
+// worktree with uncommitted changes in it.
+function isWorktreeForceRemove(inv) {
+  const g = gitSub(inv, 'worktree');
+  if (!g) return false;
+  if (subPositionals(g.args)[0] !== 'remove') return false;
+  const { opts } = splitPathspec(g.args);
+  return hasLong(opts, '--force') || hasShort(opts, 'f');
+}
+
+// The weakest row of #180: branch protection already refuses this on `main`.
+// `--force-with-lease` / `--force-if-includes` are routine after a rebase and
+// stay allowed — they are exactly the forms that refuse when the remote moved.
+function isForcePush(inv) {
+  const g = gitSub(inv, 'push');
+  if (!g) return false;
+  const { opts } = splitPathspec(g.args);
+  if (hasLong(opts, '--force', '--mirror')) return true;
+  if (hasShort(opts, 'f')) return true;
+  return subPositionals(g.args, GIT_PUSH_VALUE_OPTS).some((v) => v.startsWith('+') && v.length > 1);
+}
+
+const DESTRUCTIVE_RULES = [
+  [isDestructiveGit, MSG_DESTRUCTIVE],
+  [isCheckoutDiscard, MSG_CHECKOUT_PATH],
+  [isRestoreDiscard, MSG_RESTORE],
+  [isStashDiscard, MSG_STASH_DROP],
+  [isBranchForceDelete, MSG_BRANCH_DELETE],
+  [isWorktreeForceRemove, MSG_WORKTREE_REMOVE],
+  [isForcePush, MSG_PUSH_FORCE],
+];
+
+/** The reason this invocation throws work away, or null. */
+function destructiveReason(inv) {
+  for (const [match, message] of DESTRUCTIVE_RULES) {
+    if (match(inv)) return message;
+  }
+  return null;
+}
+
+// A GraphQL mutation is the same act as the REST route, spelled differently:
+// only the mutation name identifies it, and it sits inside a `-f query=…`
+// value. Gated on `gh api graphql` so that writing the name in a PR body or
+// an issue title stays data.
+const GRAPHQL_MERGE = /\b(mergePullRequest|enablePullRequestAutoMerge)\b/;
+const GRAPHQL_LABEL = /\baddLabelsToLabelable\b/;
+
+function isGhGraphql(inv, mutation) {
+  if (base(inv.argv[0].value) !== 'gh') return false;
+  const p = positionals(inv.argv, GH_VALUE_OPTS);
+  if (p[0] !== 'api' || p[1] !== 'graphql') return false;
+  return inv.argv.some((w) => mutation.test(w.value));
+}
+
 function isGhMerge(inv) {
   if (base(inv.argv[0].value) !== 'gh') return false;
+  if (isGhGraphql(inv, GRAPHQL_MERGE)) return true;
   const p = positionals(inv.argv, GH_VALUE_OPTS);
   if (p[0] === 'pr' && p[1] === 'merge') return true;
   return p[0] === 'api' && inv.argv.some((w) => /\/merge\b/.test(w.value));
@@ -1040,17 +1305,20 @@ function decideParsed(commands, cwd, projectDir) {
   const { invocations, expanded } = invocationsFor(commands);
 
   if (invocations.some(isPkillVite)) return MSG_PKILL;
+  if (invocations.some(isKillVite)) return MSG_KILL_VITE;
 
   for (const inv of invocations) {
-    if (!isDestructiveGit(inv)) continue;
+    const reason = destructiveReason(inv);
+    if (!reason) continue;
     // The override is an environment assignment on this very invocation —
     // directly, or handed on by a wrapper like `env`. Exported earlier, set on
     // a neighbour in the chain, or merely quoted somewhere in the line: no.
     if (inv.env.get('APEX_DESTRUCTIVE_OK') === '1') continue;
-    return MSG_DESTRUCTIVE;
+    return reason;
   }
 
   if (invocations.some(isGhMerge)) return MSG_GH_MERGE;
+  if (invocations.some((inv) => isGhGraphql(inv, GRAPHQL_LABEL))) return MSG_GRAPHQL_LABEL;
   if (invocations.some(isShipitGrant)) return MSG_SHIPIT;
 
   const banned = invocations.filter(isPrimaryBanned);

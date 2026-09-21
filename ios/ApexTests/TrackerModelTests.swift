@@ -440,6 +440,28 @@ final class TrackerModelTests: XCTestCase {
         XCTAssertEqual(w3, 0)
     }
 
+    /// #221: cancelling deleted every cached bootstrap, so tomorrow's prefetch
+    /// — the thing that lets the tracker open with no signal — went with it.
+    @MainActor
+    func testCancelDeletesOnlyItsOwnCachedBootstrap() async throws {
+        let cache = MemoryCacheStore()
+        let tomorrow = ScheduleCacheKey.trackerBootstrap(eventId: "ios-fixture-weekly__2026-09-23", eventDate: "2026-09-23")
+        try await cache.write(CacheEntry(kind: .trackerBootstrap, key: tomorrow, json: Self.fixture("bootstrap-peek.json"), fetchedAt: Self.now))
+        let (model, _) = make(healthy(), cache: cache)
+        await model.open()
+        let mine = ScheduleCacheKey.trackerBootstrap(eventId: Self.event.id, eventDate: Self.event.date)
+        let written = try await cache.read(kind: .trackerBootstrap, key: mine)
+        XCTAssertNotNil(written)
+
+        let ok = await model.cancelWorkout()
+        XCTAssertTrue(ok)
+
+        let cancelled = try await cache.read(kind: .trackerBootstrap, key: mine)
+        let kept = try await cache.read(kind: .trackerBootstrap, key: tomorrow)
+        XCTAssertNil(cancelled, "the cancelled session's own row goes")
+        XCTAssertNotNil(kept, "tomorrow's prefetched bootstrap stays")
+    }
+
     // MARK: - Swap
 
     @MainActor

@@ -410,6 +410,55 @@ final class ChatSessionTests: XCTestCase {
         XCTAssertEqual(folds[0].apiContent?.blocks?.count, 2)
     }
 
+    /// A conversation switch mid-stream. The cancelled turn belongs to the
+    /// thread it was streaming into, and must not follow the user to the one
+    /// they just opened: nothing of it is stored under the new id, its `.idle`
+    /// does not stomp the card `load` just derived, and its last delta does not
+    /// land in the new thread's partial.
+    func testSwitchingConversationMidStreamDropsTheAbandonedTurn() async throws {
+        let store = MemoryConversationStore()
+        // A thread with a card still waiting — the one the user switches to.
+        let seeding = makeSession(ScriptedTransport([.ndjson(try fixtureLines)]), store: store)
+        await seeding.send("skip next week")
+        let u200 = await seeding.conversation?.id
+        let pendingId = try XCTUnwrap(u200)
+
+        let gate = Gate()
+        let transport = ScriptedTransport([.ndjson(text("Clearing ", done: false), holdOpen: gate)])
+        let session = makeSession(transport, store: store)
+        let sending = Task { await session.send("hi") }
+        let p1 = await waitUntil { await session.partial == "Clearing " }
+        XCTAssertTrue(p1)
+        let u201 = await session.conversation?.id
+        let abandonedId = try XCTUnwrap(u201)
+
+        await session.load(conversationId: pendingId)
+        await sending.value
+        await gate.open()
+
+        // Nothing of it was written to the thread now open…
+        let opened = try await store.messages(in: pendingId)
+        XCTAssertEqual(opened.map(\.kind), [.turn, .turn])
+        XCTAssertEqual(opened.map(\.displayText), ["skip next week", "Clearing it. "])
+        // …and the thread it was streaming into kept only the user's own row.
+        let abandoned = try await store.messages(in: abandonedId)
+        XCTAssertEqual(abandoned.map(\.displayText), ["hi"])
+
+        let p2 = await session.messages.map(\.text)
+        XCTAssertEqual(p2, ["skip next week", "Clearing it. "])
+        let p3 = await session.partial
+        XCTAssertEqual(p3, "")
+        let p4 = await session.conversation?.id
+        XCTAssertEqual(p4, pendingId)
+        let p5 = await waitUntil { await transport.streamCancellations == 1 }
+        XCTAssertTrue(p5)
+        // The card survives: the abandoned turn did not set `.idle` over it.
+        guard case .awaitingConfirmation(let head, 1, 1) = await session.state else {
+            return XCTFail("expected the loaded card, got \(await session.state)")
+        }
+        XCTAssertEqual(head.displayLabel, fixtureLabel)
+    }
+
     // MARK: - Errors → inline states
 
     func test402ProducesANoticeAndBlocksUntilAKeyIsAdded() async throws {
@@ -496,6 +545,53 @@ final class ChatSessionTests: XCTestCase {
         XCTAssertEqual(v64, [.user("hi")])
         let v65 = await session.messages.last?.text
         XCTAssertEqual(v65, ChatCopy.emptyReply)
+    }
+
+    /// A clean EOF with no `done` line — a Vercel timeout, or a dropped
+    /// connection closed gracefully. The fragment is the user's to see and
+    /// the model's never to hear.
+    func testStreamThatEndsWithoutDoneIsStoppedNotAFinishedTurn() async throws {
+        let store = MemoryConversationStore()
+        let transport = ScriptedTransport([.ndjson(text("Start with three sets of ", done: false))])
+        let session = makeSession(transport, store: store)
+
+        await session.send("plan me")
+
+        let d1 = await session.state
+        XCTAssertEqual(d1, .idle)
+        let d2 = await session.partial
+        XCTAssertEqual(d2, "")
+        let d3 = await session.apiMessages
+        XCTAssertEqual(d3, [.user("plan me")])
+        let d4 = await session.messages.map(\.text)
+        XCTAssertEqual(d4, ["plan me", "Start with three sets of "])
+        let d5 = await session.messages.map(\.kind)
+        XCTAssertEqual(d5, [.turn, .stopped])
+
+        let u201 = await session.conversation?.id
+        let rows = try await store.messages(in: try XCTUnwrap(u201))
+        XCTAssertEqual(rows.map(\.kind), [.turn, .stopped])
+        XCTAssertNil(rows[1].apiContent)
+        let d6 = await session.canSend
+        XCTAssertTrue(d6)
+    }
+
+    /// Cut before the first token, with a tool_use already on the wire: no
+    /// card, no history, just the no-answer notice.
+    func testStreamCutBeforeAnyTextNoticesAndPresentsNoCard() async throws {
+        let transport = ScriptedTransport([.ndjson([toolUse("tu_1", label: fixtureLabel)])])
+        let session = makeSession(transport)
+
+        await session.send("delete it")
+
+        let d7 = await session.state
+        XCTAssertEqual(d7, .idle)
+        let d8 = await session.apiMessages
+        XCTAssertEqual(d8, [.user("delete it")])
+        let d9 = await session.messages.map(\.text)
+        XCTAssertEqual(d9, ["delete it", ChatCopy.emptyReply])
+        let d10 = await session.messages.map(\.kind)
+        XCTAssertEqual(d10, [.turn, .notice])
     }
 
     func testNetworkFailureIsTheGenericNoticeToo() async throws {
@@ -703,6 +799,42 @@ final class ChatSessionTests: XCTestCase {
         XCTAssertEqual(head.displayLabel, fixtureLabel)
         let v88 = await session.messages.last?.text
         XCTAssertEqual(v88, "Clearing it. ")
+    }
+
+    /// A wire event this build has never seen is dropped, not thrown: the rest
+    /// of the message still arrives. Adding `thinking`/`usage`/`ping` server-side
+    /// must not end the stream of an already-shipped binary — the web's
+    /// collector (src/lib/coach/wire.ts) skips the same line.
+    func testUnknownWireEventIsDropped() async throws {
+        var lines = try fixtureLines
+        lines.insert(#"{"type":"thinking","delta":"hmm"}"#, at: 1)
+        lines.insert(#"{"type":"usage","input_tokens":12}"#, at: lines.count - 1)
+
+        // The client never hands an unknown event on: the stream is the three
+        // events the fixture carries, in order, and nothing else.
+        let client = makeClient(ScriptedTransport([.ndjson(lines)]))
+        var seen: [ChatWireEvent] = []
+        for try await event in try await client.wireEvents(for: .chat(
+            mode: .chat, messages: [], withTools: true, today: today, draft: nil, model: nil
+        )) {
+            seen.append(event)
+        }
+        XCTAssertEqual(seen.count, 3)
+        XCTAssertEqual(seen.first, .text(delta: "Clearing it. "))
+        XCTAssertEqual(seen.last, .done)
+        XCTAssertFalse(seen.contains { if case .unknown = $0 { return true } else { return false } })
+
+        // And end to end: the turn still reaches the confirmation card.
+        let transport = ScriptedTransport([.ndjson(lines)])
+        let session = makeSession(transport)
+        await session.send("skip next week")
+
+        guard case .awaitingConfirmation(let head, 1, 1) = await session.state else {
+            return XCTFail("unknown events should not end the stream: \(await session.state)")
+        }
+        XCTAssertEqual(head.displayLabel, fixtureLabel)
+        let text = await session.messages.last?.text
+        XCTAssertEqual(text, "Clearing it. ")
     }
 
     // MARK: - Builder mode (W7): the draft tool runs without a card

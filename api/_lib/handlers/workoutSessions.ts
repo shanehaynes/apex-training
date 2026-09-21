@@ -11,6 +11,7 @@ import {
 import { enforceRateLimit } from '../rateLimit.js';
 import { applyQuickComplete, buildBootstrap, buildFinishSummary, loadResolvedOccurrence } from '../trackerSession.js';
 import { sendFailure } from '../services/result.js';
+import { sendWriteFailure } from '../pgError.js';
 import { buildQuickCompleteLogs } from '../../../src/lib/tracking/plan.js';
 import type { CardioLogRow, SetLogRow, TablesInsert, TrackedSection, WorkoutSessionRow } from '../../../src/lib/db/types.js';
 import { sessionScoreFromRow } from '../../../src/lib/tracking/records.js';
@@ -80,6 +81,16 @@ const MAX_PAST_MS = 7 * 24 * 3600 * 1000;
 const MAX_FUTURE_MS = 5 * 60 * 1000;
 
 /**
+ * The 400 body for a client timestamp outside that window. A bare stable
+ * token, not prose, because the native write queue acts on this one: it
+ * strips the stale timestamp and retries rather than failing the op
+ * (WriteQueue.swift → RetryPolicy.isTimestampWindowRejection). Matching a
+ * sentence was a rename away from silently dropping a queued workout.
+ * Which field was at fault goes to the log; no client branches on it.
+ */
+export const TIMESTAMP_WINDOW_BODY = 'timestamp-out-of-window';
+
+/**
  * Parse an optional client timestamp. Returns undefined when absent, the
  * Date when sane, or null after sending the 400 itself.
  */
@@ -88,7 +99,10 @@ function clientTimestamp(res: VercelResponse, value: unknown, label: string): Da
   const t = typeof value === 'string' ? Date.parse(value) : NaN;
   const now = Date.now();
   if (Number.isNaN(t) || t < now - MAX_PAST_MS || t > now + MAX_FUTURE_MS) {
-    res.status(400).send(`${label} must be an ISO timestamp within the last 7 days`);
+    // Truncated: this is unvalidated request data, and the log is not a place
+    // to let a caller write as much of it as it likes.
+    console.warn(`[api/workout-sessions] ${label} outside the accepted window:`, String(value).slice(0, 64));
+    res.status(400).send(TIMESTAMP_WINDOW_BODY);
     return null;
   }
   return new Date(t);
@@ -246,7 +260,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const now = new Date().toISOString();
-    const ops: PromiseLike<{ error: { message: string } | null }>[] = [];
+    // `code` rides along so sendWriteFailure can read the SQLSTATE class.
+    const ops: PromiseLike<{ error: { message: string; code?: string } | null }>[] = [];
 
     if (setLogs.length) {
       ops.push(supabase
@@ -278,8 +293,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const results = await Promise.all(ops);
     const failed = results.find(r => r.error);
     if (failed?.error) {
-      console.error('[api/workout-sessions] save failed:', failed.error.message);
-      res.status(500).send('Failed to save logs');
+      sendWriteFailure(res, '[api/workout-sessions] save', failed.error, 'Failed to save logs');
       return;
     }
 
@@ -346,8 +360,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .eq('user_id', userId).eq('event_id', eventId)
       .eq('event_date', eventDate);
     if (updateErr) {
-      console.error('[api/workout-sessions] finish update failed:', updateErr.message);
-      res.status(500).send('Failed to finish session');
+      sendWriteFailure(res, '[api/workout-sessions] finish update', updateErr, 'Failed to finish session');
       return;
     }
 
@@ -361,8 +374,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           { onConflict: SET_LOG_CONFLICT, ignoreDuplicates: true },
         );
       if (fillErr) {
-        console.error('[api/workout-sessions] finish autofill failed:', fillErr.message);
-        res.status(500).send('Failed to record skipped sets');
+        sendWriteFailure(res, '[api/workout-sessions] finish autofill', fillErr, 'Failed to record skipped sets');
         return;
       }
     }
@@ -559,8 +571,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ]);
     const failed = results.find(r => r.error);
     if (failed?.error) {
-      console.error('[api/workout-sessions] swap-exercise failed:', failed.error.message);
-      res.status(500).send('Failed to swap exercise');
+      sendWriteFailure(res, '[api/workout-sessions] swap-exercise', failed.error, 'Failed to swap exercise');
       return;
     }
 
@@ -577,8 +588,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ]);
     const failed = results.find(r => r.error);
     if (failed?.error) {
-      console.error('[api/workout-sessions] cancel failed:', failed.error.message);
-      res.status(500).send('Failed to cancel session');
+      sendWriteFailure(res, '[api/workout-sessions] cancel', failed.error, 'Failed to cancel session');
       return;
     }
 

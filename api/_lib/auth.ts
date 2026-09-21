@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { isAuthRetryableFetchError } from '@supabase/supabase-js';
 import { getSupabaseAdmin } from './supabaseAdmin.js';
-import { hasAcceptedCurrent, TERMS_REQUIRED_BODY } from './legal.js';
+import { termsGateVerdict, TERMS_REQUIRED_BODY, TERMS_UNAVAILABLE_BODY } from './legal.js';
 
 // The service-role client bypasses RLS, so verifying the caller's JWT and
 // stamping/filtering every query by the verified uid IS the security model
@@ -99,9 +99,19 @@ export async function requireUser(
     return null;
   }
 
-  if (!options.skipTermsGate && !(await hasAcceptedCurrent(supabase, data.user.id))) {
-    res.status(403).send(TERMS_REQUIRED_BODY);
-    return null;
+  if (!options.skipTermsGate) {
+    // "Has not accepted" is a verdict; "could not check" is an outage. Only
+    // the first is permanent, so only the first gets a 4xx — see
+    // termsGateVerdict in legal.ts.
+    const verdict = await termsGateVerdict(supabase, data.user.id);
+    if (verdict === 'not-accepted') {
+      res.status(403).send(TERMS_REQUIRED_BODY);
+      return null;
+    }
+    if (verdict === 'unavailable') {
+      res.status(503).send(TERMS_UNAVAILABLE_BODY);
+      return null;
+    }
   }
 
   return data.user.id;

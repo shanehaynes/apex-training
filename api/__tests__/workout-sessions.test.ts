@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import handler from '../_lib/handlers/workoutSessions';
+import handler, { TIMESTAMP_WINDOW_BODY } from '../_lib/handlers/workoutSessions';
+import { CONSTRAINT_VIOLATION_BODY } from '../_lib/pgError';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
@@ -40,6 +41,8 @@ interface UpdateCall {
 interface AdminState {
   upserts: Record<string, Record<string, unknown>[]>;
   updates: UpdateCall[];
+  /** Scripted PostgREST failure for every write, for the status-mapping tests. */
+  writeError?: { message: string; code?: string };
 }
 
 /**
@@ -48,11 +51,12 @@ interface AdminState {
  * awaitable. Records the filters so a test can assert what a write was
  * scoped to — the user_id/event scoping is the security-relevant part.
  */
-function updateChain(call: UpdateCall) {
+function updateChain(call: UpdateCall, state: AdminState) {
+  const result = () => ({ error: state.writeError ?? null });
   const chain = {
     eq(column: string, value: unknown) { call.filters[column] = value; return chain; },
     is(column: string, value: unknown) { call.filters[column] = value; return chain; },
-    then<T>(resolve: (r: { error: null }) => T) { return Promise.resolve({ error: null }).then(resolve); },
+    then<T>(resolve: (r: ReturnType<typeof result>) => T) { return Promise.resolve(result()).then(resolve); },
   };
   return chain;
 }
@@ -63,12 +67,12 @@ function makeAdmin(state: AdminState) {
       return {
         upsert: async (rows: Record<string, unknown>[] | Record<string, unknown>) => {
           state.upserts[table] = Array.isArray(rows) ? rows : [rows];
-          return { error: null };
+          return { error: state.writeError ?? null };
         },
         update: (patch: Record<string, unknown>) => {
           const call: UpdateCall = { table, patch, filters: {} };
           state.updates.push(call);
-          return updateChain(call);
+          return updateChain(call, state);
         },
         // The finish action's session fetch — a minute-old started_at gives
         // it a sane duration to compute.
@@ -310,11 +314,26 @@ describe('POST /api/workout-sessions — bootstrap and client timestamps', () =>
     expect(ok.statusCode()).toBe(200);
     expect(state.upserts['workout_sessions'][0].started_at).toBe(twoHoursAgo);
 
+    // The body is the stable token, not a sentence: the native write queue
+    // branches on it (RetryPolicy.isTimestampWindowRejection) to resend the
+    // op unstamped instead of failing it permanently.
     for (const bad of ['yesterday', new Date(Date.now() - 8 * 86400_000).toISOString(), new Date(Date.now() + 3600_000).toISOString()]) {
-      const { res, statusCode } = makeRes();
+      const { res, statusCode, body } = makeRes();
       await handler(makeReq({ action: 'start', eventId: 'evt-1', eventDate: '2026-08-07', startedAt: bad }), res);
       expect(statusCode(), bad).toBe(400);
+      expect(body(), bad).toBe(TIMESTAMP_WINDOW_BODY);
     }
+  });
+
+  it('400s a finishedAt outside the window with the same stable body', async () => {
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq({
+      action: 'finish', eventId: 'evt-1', eventDate: '2026-08-07', autofillRows: [],
+      finishedAt: new Date(Date.now() - 8 * 86400_000).toISOString(),
+    }), res);
+    expect(statusCode()).toBe(400);
+    expect(body()).toBe(TIMESTAMP_WINDOW_BODY);
+    expect(state.updates).toEqual([]);
   });
 
   it('finish stamps a client finishedAt, rejects one before the start, and returns PRs + recap', async () => {
@@ -396,5 +415,67 @@ describe('POST /api/workout-sessions — finish score validation', () => {
       expect(statusCode(), JSON.stringify(score)).toBe(400);
       expect(state.updates).toEqual([]);
     }
+  });
+});
+
+// The native write queue retries a 5xx forever and fails a 4xx once
+// (RetryPolicy.swift). A row Postgres refuses on every attempt must therefore
+// not come back as 500, and a connection reset must not come back as 400.
+describe('POST /api/workout-sessions — write failures carry their SQLSTATE verdict', () => {
+  const save = () => makeReq({
+    action: 'save', eventId: 'evt-1', eventDate: '2026-08-07', setLogs: [setLog],
+  });
+  const finishReq = () => makeReq({
+    action: 'finish', eventId: 'evt-1', eventDate: '2026-08-07', autofillRows: [],
+  });
+
+  it('400s constraint-violation on save for an integrity violation (class 23)', async () => {
+    for (const code of ['23502', '23503', '23505', '23514', '23P01']) {
+      state.writeError = { message: `violates constraint (${code})`, code };
+      const { res, statusCode, body } = makeRes();
+      await handler(save(), res);
+      expect(statusCode(), code).toBe(400);
+      expect(body(), code).toBe(CONSTRAINT_VIOLATION_BODY);
+    }
+  });
+
+  it('400s on a data exception too (class 22), and never echoes the Postgres text', async () => {
+    state.writeError = { message: 'invalid input syntax for type integer: "abc"', code: '22P02' };
+    const { res, statusCode, body } = makeRes();
+    await handler(save(), res);
+    expect(statusCode()).toBe(400);
+    expect(body()).toBe(CONSTRAINT_VIOLATION_BODY);
+    expect(String(body())).not.toContain('invalid input syntax');
+  });
+
+  it('keeps 500 for a transient failure, so the queue retries it', async () => {
+    for (const code of ['08006', '40001', '53300', '57014']) {
+      state.writeError = { message: 'server closed the connection', code };
+      const { res, statusCode, body } = makeRes();
+      await handler(save(), res);
+      expect(statusCode(), code).toBe(500);
+      expect(body(), code).toBe('Failed to save logs');
+    }
+  });
+
+  it('keeps 500 when there is no SQLSTATE at all — unknown is not permanent', async () => {
+    state.writeError = { message: 'fetch failed' };
+    const { res, statusCode } = makeRes();
+    await handler(save(), res);
+    expect(statusCode()).toBe(500);
+  });
+
+  it('classifies the finish update the same way, from the same helper', async () => {
+    state.writeError = { message: 'value too long for type character varying(200)', code: '22001' };
+    const permanent = makeRes();
+    await handler(finishReq(), permanent.res);
+    expect(permanent.statusCode()).toBe(400);
+    expect(permanent.body()).toBe(CONSTRAINT_VIOLATION_BODY);
+
+    state.writeError = { message: 'deadlock detected', code: '40P01' };
+    const transient = makeRes();
+    await handler(finishReq(), transient.res);
+    expect(transient.statusCode()).toBe(500);
+    expect(transient.body()).toBe('Failed to finish session');
   });
 });

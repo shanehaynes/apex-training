@@ -36,6 +36,32 @@ esac
 
 fail() { echo "error: $*" >&2; exit 1; }
 
+# ── pre-flight: production's database must match main ───────────────────────
+# Self-contained; nothing below depends on it. Archiving freezes APEX_API_BASE
+# and the Supabase project into the binary, and production's migrations are
+# pasted into the SQL Editor by hand, where a skipped one is invisible from the
+# build: on 2026-09-15 production ran four days missing phase38, phase41 and
+# phase32_quarantine, so GET /api/profile and DELETE /api/account 500'd — the
+# second of those is a 5.1.1(v) rejection — while /api/version read current.
+# prod-schema-check.mjs exits 0 in sync, 1 drift, 2 it could not check (no
+# credentials in .env.local, project unreachable). An outage is not drift, so
+# only a 1 stops the build. APEX_SKIP_SCHEMA_CHECK=1 skips it entirely.
+# docs/ios/app-store.md §2, "Before the archive".
+if [ "${APEX_SKIP_SCHEMA_CHECK:-}" = 1 ]; then
+  echo "── production schema check skipped (APEX_SKIP_SCHEMA_CHECK=1)"
+elif ! command -v node >/dev/null 2>&1; then
+  echo "warning: node not found — production's schema was not checked" >&2
+else
+  echo "── checking production's schema against main"
+  SCHEMA_STATUS=0
+  node ../scripts/prod-schema-check.mjs || SCHEMA_STATUS=$?
+  case "$SCHEMA_STATUS" in
+    0) ;;
+    1) fail "production is missing the migrations listed above — paste them into Supabase → SQL Editor and re-run (APEX_SKIP_SCHEMA_CHECK=1 overrides)" ;;
+    *) echo "warning: could not check production's schema (exit $SCHEMA_STATUS) — continuing" >&2 ;;
+  esac
+fi
+
 # ── credentials ─────────────────────────────────────────────────────────────
 ENV_FILE=Config/appstoreconnect.env
 [ -f "$ENV_FILE" ] && . "./$ENV_FILE"
@@ -111,6 +137,12 @@ xcodebuild -exportArchive \
   -exportOptionsPlist "$PLIST" \
   -exportPath "$EXPORT_DIR" \
   "${AUTH[@]}"
+
+# No Fixtures/, this project's anon key, production origins (G11). In upload
+# mode xcodebuild may leave no .ipa behind (destination=upload uploads from the
+# archive), so there the loop is a no-op and fastlane's beta lane — which always
+# exports to disk before uploading — is the binding gate.
+for ipa in "$EXPORT_DIR"/*.ipa; do [ -f "$ipa" ] || continue; scripts/assert-ipa.sh "$ipa"; done
 
 if [ "$MODE" = upload ]; then
   echo "── uploaded build $BUILD_NUMBER — App Store Connect takes 5–15 minutes to process it"

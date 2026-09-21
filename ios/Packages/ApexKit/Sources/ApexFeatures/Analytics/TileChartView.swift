@@ -1,3 +1,4 @@
+import Accessibility
 import ApexCore
 import ApexUI
 import Charts
@@ -12,7 +13,9 @@ import SwiftUI
 /// trailing axis labels are scaled back — one chart, one plot, aligned.
 /// Value inspection is a tap or a hold-then-drag that shows a card — never a hover (U13).
 public struct TileChartView: View {
-    public enum Kind: String, Sendable {
+    /// `nonisolated` so `TileChartDescriptor`, which is outside the module's
+    /// default main-actor isolation, can switch on it.
+    public nonisolated enum Kind: String, Sendable {
         case line, area, bar
         case stackedBar = "stacked-bar"
     }
@@ -20,11 +23,55 @@ public struct TileChartView: View {
     let kind: Kind
     let data: TileData
 
+    // Everything the plot is laid out from, computed once in `init`. All of it
+    // is a pure function of `kind` and `data`, and `body` re-runs on every
+    // scrub tap and on every frame the enclosing scroll view moves — as
+    // computed properties the colour assignment, the axis maxima and the whole
+    // point list were rebuilt each pass, on a page of tiles at once.
+    private let colors: [SeriesColor]
+    private let bucketKeys: [String]
+    private let isGrade: Bool
+    private let showsPoints: Bool
+    private let hasRightAxis: Bool
+    /// What a right-axis value is multiplied by to land in the left domain.
+    private let rightToLeft: Double
+    /// The largest right-axis value, for the trailing axis's own ticks.
+    private let rightAxisMax: Double
+    private let points: [Point]
+    /// Every bucket up to eight; past that, evenly spaced ticks — a tick text
+    /// you cannot read is not a tick (U26).
+    private let tickKeys: [String]
+    private let bucketLabels: [String: String]
+    /// VoiceOver's view of the tile, built once for the same reason.
+    private let descriptor: TileChartDescriptor
+    private let accessibilitySummary: String
+
     @State private var scrubKey: String?
 
     public init(kind: Kind, data: TileData) {
         self.kind = kind
         self.data = data
+
+        let bucketKeys = data.buckets.map(\.key)
+        let rightSeries = Set(data.series.indices.filter { data.series[$0].axis == "right" })
+        let leftMax = Self.axisMax(data, indices: data.series.indices.filter { !rightSeries.contains($0) })
+        let rightMax = Self.axisMax(data, indices: data.series.indices.filter { rightSeries.contains($0) })
+        let ratio = leftMax / rightMax
+
+        self.colors = SeriesColors.assign(keys: data.series.map(\.key))
+        self.bucketKeys = bucketKeys
+        self.isGrade = data.series.contains { $0.unitKind == "grade" }
+        self.showsPoints = data.buckets.count <= 60
+        self.hasRightAxis = !rightSeries.isEmpty
+        self.rightToLeft = ratio
+        self.rightAxisMax = rightMax
+        self.points = Self.plot(data, bucketKeys: bucketKeys, rightSeries: rightSeries, ratio: ratio)
+        self.tickKeys = Self.evenTicks(bucketKeys)
+        self.bucketLabels = Dictionary(data.buckets.map { ($0.key, $0.label) }, uniquingKeysWith: { first, _ in first })
+
+        let descriptor = TileChartDescriptor(kind: kind, data: data)
+        self.descriptor = descriptor
+        self.accessibilitySummary = descriptor.summary
     }
 
     /// One plotted point: series, bucket, value. `run` splits a series at
@@ -38,20 +85,11 @@ public struct TileChartView: View {
         let run: Int
     }
 
-    private var colors: [SeriesColor] { SeriesColors.assign(keys: data.series.map(\.key)) }
-    private var bucketKeys: [String] { data.buckets.map(\.key) }
-    private var isGrade: Bool { data.series.contains { $0.unitKind == "grade" } }
-    private var showsPoints: Bool { data.buckets.count <= 60 }
-    private var rightSeries: Set<Int> { Set(data.series.indices.filter { data.series[$0].axis == "right" }) }
-    private var hasRightAxis: Bool { !rightSeries.isEmpty }
-
-    /// The largest value on each axis — the rescaling ratio between them.
-    private func axisMax(right: Bool) -> Double {
-        let values = data.series.indices.filter { rightSeries.contains($0) == right }
-            .flatMap { data.series[$0].points.compactMap { $0 } }
+    /// The largest value on one axis. Never zero: the other axis divides by it.
+    private static func axisMax(_ data: TileData, indices: [Int]) -> Double {
+        let values = indices.flatMap { data.series[$0].points.compactMap { $0 } }
         return max(values.max() ?? 0, 1)
     }
-    private var rightToLeft: Double { axisMax(right: false) / axisMax(right: true) }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -70,7 +108,15 @@ public struct TileChartView: View {
                 }
             }
         }
+        // `.contain` alone left a VoiceOver user with the tile's title and then
+        // silence: a Swift Chart publishes nothing on its own. The label is the
+        // shape of the data in one sentence (the same summary `StreamChartsView`
+        // gives its activity charts), and the descriptor is the chart rotor —
+        // axes, series and every bucket by name, so the numbers can be walked
+        // rather than guessed at.
         .accessibilityElement(children: .contain)
+        .accessibilityLabel(accessibilitySummary)
+        .accessibilityChartDescriptor(descriptor)
         .accessibilityIdentifier("tile.chart.\(kind.rawValue)")
     }
 
@@ -89,9 +135,8 @@ public struct TileChartView: View {
         .accessibilityIdentifier("tile.legend")
     }
 
-    private var points: [Point] {
+    private static func plot(_ data: TileData, bucketKeys: [String], rightSeries: Set<Int>, ratio: Double) -> [Point] {
         var out: [Point] = []
-        let ratio = rightToLeft
         for (i, series) in data.series.enumerated() {
             let scale = rightSeries.contains(i) ? ratio : 1
             var run = 0
@@ -189,7 +234,7 @@ public struct TileChartView: View {
                 }
                 if hasRightAxis {
                     // Round numbers on the right axis, placed where they fall on the left scale.
-                    AxisMarks(position: .trailing, values: Self.niceTicks(upTo: axisMax(right: true)).map { $0 * ratio }) { value in
+                    AxisMarks(position: .trailing, values: Self.niceTicks(upTo: rightAxisMax).map { $0 * ratio }) { value in
                         AxisValueLabel {
                             if let v = value.as(Double.self) {
                                 Text(TileFormat.value(v / ratio))
@@ -229,16 +274,115 @@ public struct TileChartView: View {
         return stride(from: 0, through: max, by: step).map { $0 }
     }
 
-    /// Every bucket up to eight; past that, evenly spaced ticks — a tick
-    /// text you cannot read is not a tick (U26).
-    private var tickKeys: [String] {
-        let keys = bucketKeys
+    private static func evenTicks(_ keys: [String]) -> [String] {
         guard keys.count > 8 else { return keys }
         let step = Int((Double(keys.count) / 6).rounded(.up))
         return stride(from: 0, to: keys.count, by: step).map { keys[$0] }
     }
 
     private func label(for key: String) -> String {
-        data.buckets.first { $0.key == key }?.label ?? key
+        bucketLabels[key] ?? key
     }
+}
+
+/// The chart rotor's view of a tile: a categorical x-axis of buckets, a numeric
+/// y-axis in the tile's unit, and one series descriptor per plotted series with
+/// every non-gap point named. VoiceOver reads the values, plays the audio graph
+/// and lets the user walk the series — none of which a `Chart` offers by itself.
+///
+/// Its own `nonisolated` type rather than a conformance on `TileChartView`:
+/// ApexFeatures compiles with `defaultIsolation(MainActor.self)`, and an
+/// isolated method cannot witness `AXChartDescriptorRepresentable`'s
+/// requirements. `Kind` and `TileData` are both `Sendable`, so the copy costs
+/// nothing.
+public nonisolated struct TileChartDescriptor: AXChartDescriptorRepresentable {
+    public let kind: TileChartView.Kind
+    public let data: TileData
+
+    public init(kind: TileChartView.Kind, data: TileData) {
+        self.kind = kind
+        self.data = data
+    }
+
+    /// The tile in one sentence, for `.accessibilityLabel` and the descriptor's
+    /// own summary: "Line chart. Sep–Nov. Volume: 1,000 lb to 4,500 lb across
+    /// 12 points."
+    public var summary: String {
+        var parts = ["\(kindLabel) chart"]
+        if let range = data.rangeLabel, !range.isEmpty { parts.append(range) }
+        if data.series.isEmpty {
+            parts.append("No series plotted")
+        } else {
+            parts.append(contentsOf: data.series.map(Self.seriesSummary))
+        }
+        return parts.joined(separator: ". ") + "."
+    }
+
+    private var kindLabel: String {
+        switch kind {
+        case .line: "Line"
+        case .area: "Area"
+        case .bar: "Bar"
+        case .stackedBar: "Stacked bar"
+        }
+    }
+
+    /// Low and high by their *displayed* value, so a grade series reads
+    /// "5.10a to 5.12c" rather than the ranks behind it.
+    static func seriesSummary(_ series: TileData.Series) -> String {
+        let plotted = series.points.enumerated().compactMap { index, value in value.map { (index, $0) } }
+        guard let low = plotted.min(by: { $0.1 < $1.1 }), let high = plotted.max(by: { $0.1 < $1.1 }) else {
+            return "\(series.label): no values"
+        }
+        if plotted.count == 1 {
+            return "\(series.label): \(TileFormat.value(series, at: high.0)), one point"
+        }
+        return "\(series.label): \(TileFormat.value(series, at: low.0)) to \(TileFormat.value(series, at: high.0)) across \(plotted.count) points"
+    }
+
+    public func makeChartDescriptor() -> AXChartDescriptor {
+        let categories = data.buckets.map { $0.label.isEmpty ? $0.key : $0.label }
+        let xAxis = AXCategoricalDataAxisDescriptor(title: "Bucket", categoryOrder: categories)
+
+        let values = data.series.flatMap { $0.points.compactMap { $0 } }
+        let low = values.min() ?? 0
+        let high = values.max() ?? 1
+        let yAxis = AXNumericDataAxisDescriptor(
+            title: data.series.first?.unit ?? "Value",
+            // A flat series would be a zero-width range, which the rotor cannot
+            // step through.
+            range: low...(high > low ? high : low + 1),
+            gridlinePositions: []
+        ) { TileFormat.value($0) }
+
+        // `isContinuous` is what tells VoiceOver whether the points are a line
+        // to sweep or bars to step between.
+        let continuous = kind == .line || kind == .area
+        let series = data.series.map { series in
+            AXDataSeriesDescriptor(
+                name: series.label,
+                isContinuous: continuous,
+                dataPoints: series.points.enumerated().compactMap { index, value in
+                    guard let value, index < categories.count else { return nil }
+                    return AXDataPoint(
+                        x: categories[index],
+                        y: value,
+                        additionalValues: [],
+                        label: TileFormat.value(series, at: index)
+                    )
+                }
+            )
+        }
+
+        return AXChartDescriptor(
+            title: data.rangeLabel,
+            summary: summary,
+            xAxis: xAxis,
+            yAxis: yAxis,
+            additionalAxes: [],
+            series: series
+        )
+    }
+
+    public func updateChartDescriptor(_ descriptor: AXChartDescriptor) {}
 }

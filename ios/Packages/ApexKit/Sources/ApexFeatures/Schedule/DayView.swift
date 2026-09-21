@@ -33,7 +33,7 @@ struct DayView: View {
             }
             .padding(.horizontal, Spacing.screen)
             .padding(.bottom, Spacing.xxl)
-            .animation(Motion.current, value: model.selectedDay)
+            .apexAnimation(model.selectedDay)
         }
         .background(ApexColor.bgPrimary)
         .refreshable { await model.refresh(reason: .pullToRefresh) }

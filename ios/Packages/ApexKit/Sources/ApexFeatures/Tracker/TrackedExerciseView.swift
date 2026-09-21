@@ -51,7 +51,7 @@ struct TrackedExerciseView: View {
                     .accessibilityLabel("Superset \(superset) — alternate sets with its partners")
             }
             Spacer(minLength: 0)
-            if model.hasShadows(section: tracked.section, exerciseId: tracked.exercise.id) {
+            if tracked.hasShadows {
                 Button {
                     model.useLast(section: tracked.section, exerciseId: tracked.exercise.id)
                 } label: {
@@ -161,6 +161,12 @@ struct TrackedExerciseView: View {
 /// One set (`SetRow`): number · target · inputs · remove. A shadowed row shows
 /// its ghost as an italic placeholder until first focus commits it; an extra
 /// row says "extra" where the target would be and can be removed.
+///
+/// Every value it shows comes from the `TrackedSet` it was handed, never from
+/// `model.editor`: reading the editor here registered each of a workout's set
+/// rows as an observer of the *whole* editor, so one keystroke in one field
+/// invalidated every field in every exercise. `TrackerScreen` holds the one
+/// subscription; the fresh value flows down from there.
 struct SetRowView: View {
     let model: TrackerModel
     let tracked: TrackedExercise
@@ -228,7 +234,7 @@ struct SetRowView: View {
         let ghost = set.shadow?[field] ?? ""
         if field == .duration {
             DurationField(
-                value: Binding(get: { model.set(at: key)?[.duration] ?? "" }, set: { model.setValue($0, .duration, at: key) }),
+                value: Binding(get: { set[.duration] }, set: { model.setValue($0, .duration, at: key) }),
                 ghost: ghost.isEmpty ? nil : ghost,
                 id: id,
                 focus: focus,
@@ -238,7 +244,7 @@ struct SetRowView: View {
             .accessibilityIdentifier("tracker.input.\(tracked.exercise.id).\(set.setNumber).time")
         } else {
             TrackerTextField(
-                text: Binding(get: { model.set(at: key)?[field] ?? "" }, set: { model.setValue($0, field, at: key) }),
+                text: Binding(get: { set[field] }, set: { model.setValue($0, field, at: key) }),
                 ghost: ghost,
                 keyboard: field == .weight && climbing ? .default : .decimalPad,
                 id: id,
@@ -284,7 +290,7 @@ struct CardioRowView: View {
     var focus: FocusState<FieldID?>.Binding
 
     private var key: CardioKey { CardioKey(section: tracked.section, exerciseId: tracked.exercise.id) }
-    private var cardio: CardioLog { model.editor.exercise(section: tracked.section, id: tracked.exercise.id)?.cardio ?? CardioLog() }
+    private var cardio: CardioLog { tracked.cardio ?? CardioLog() }
 
     private static let fields: [(CardioField, String, String, UIKeyboardType)] = [
         (.durationMinutes, "Duration (min)", "45", .decimalPad),

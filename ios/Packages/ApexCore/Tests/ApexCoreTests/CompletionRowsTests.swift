@@ -5,7 +5,7 @@ final class CompletionRowsTests: XCTestCase {
     // The server's allowlists, copied literally from api/_lib/allowlist.ts.
     // If either side changes, this test is what says so.
     private let completionColumns: Set<String> = ["event_id", "event_date", "event_type", "event_title", "duration_minutes", "is_completed", "completed_at"]
-    private let logColumns: Set<String> = ["event_id", "event_date", "event_type", "event_title", "duration_minutes", "action"]
+    private let logColumns: Set<String> = ["event_id", "event_date", "event_type", "event_title", "duration_minutes", "action", "client_toggle_id"]
 
     private func event() throws -> ScheduleEvent {
         let json = """
@@ -44,6 +44,36 @@ final class CompletionRowsTests: XCTestCase {
         XCTAssertEqual(rows.logRow.action, "uncomplete")
         // Nulls are sent explicitly, like the web's rows; the key set stays whole.
         XCTAssertEqual(try keys(JSONEncoder().encode(rows.completionRow)), completionColumns)
+    }
+
+    // The whole point of the id: the queued op carries one value for the life
+    // of that toggle, so a replay is recognisable, while the next toggle of
+    // the same occurrence to the same action is not mistaken for one.
+    func testEachToggleGetsItsOwnIdAndTheQueuedOpKeepsIt() throws {
+        let event = try event()
+        let first = CompletionRows.build(for: event, isNowCompleted: true, now: Date()).logRow
+        let second = CompletionRows.build(for: event, isNowCompleted: true, now: Date()).logRow
+        XCTAssertNotNil(first.clientToggleId)
+        XCTAssertNotEqual(first.clientToggleId, second.clientToggleId)
+        XCTAssertEqual(UUID(uuidString: try XCTUnwrap(first.clientToggleId))?.uuidString.lowercased(),
+                       first.clientToggleId)
+
+        let rows = CompletionRows.build(for: event, isNowCompleted: true, now: Date())
+        let payload = TrackerOpPayload.completion(completionRow: rows.completionRow, logRow: rows.logRow)
+        let replayed = try JSONDecoder().decode(TrackerOpPayload.self, from: try JSONEncoder().encode(payload))
+        XCTAssertEqual(replayed, payload)
+    }
+
+    /// An op queued by a build from before the column decodes with a nil id
+    /// (and the server keeps its old at-least-once behaviour for it).
+    func testLogRowFromAnOlderBuildDecodesWithoutTheId() throws {
+        let json = """
+        {"event_id":"a__2026-09-08","event_date":"2026-09-08","event_type":"weights",
+         "event_title":"Push","duration_minutes":60,"action":"complete"}
+        """
+        let row = try JSONDecoder().decode(CompletionLogRow.self, from: Data(json.utf8))
+        XCTAssertNil(row.clientToggleId)
+        XCTAssertEqual(row.action, "complete")
     }
 
     func testEndpointBodies() throws {

@@ -159,6 +159,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // No upstream revocation happens here, and it is not an oversight: the
+  // provider_connections row (tokens included) cascades away with the auth
+  // user, but the OAuth grant itself lives at COROS, whose revocation endpoint
+  // refuses public clients — see src/lib/sync/corosRevocation.ts for the
+  // evidence. The user is told to remove Apex in the COROS app before they
+  // delete (COROS_DELETE_NOTICE, shown in Profile → Your data), because
+  // afterwards there is no account left to tell.
+  //
   // Deleting the auth user cascades into every table that references it,
   // which is all of USER_DATA_TABLES — verified by api/__tests__/account.test.ts.
   const { error } = await supabase.auth.admin.deleteUser(userId);

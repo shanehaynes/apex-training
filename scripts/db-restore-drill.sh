@@ -11,7 +11,10 @@
 # that is real users' data and their password hashes — so
 # `npm run db:reset-local` afterwards puts the fixtures back.
 #
-# Steps: drop the app's public objects (leaving btree_gist, which the
+# Steps: decrypt the .age bundle sitting next to the plaintext and diff the
+# two (the bundle is what gets uploaded, so it is the thing that has to be
+# restorable — see "the encrypted bundle" below), drop the app's public
+# objects (leaving btree_gist, which the
 # migration installed into public), truncate the auth tables the dump refills,
 # load schema + data in one transaction, recreate the one trigger a schema
 # dump cannot carry (on_auth_user_created is ON auth.users, an excluded
@@ -44,6 +47,74 @@ done
 for f in schema.sql data.sql manifest.txt; do
   [ -f "$dir/$f" ] || { echo "error: $dir/$f not found" >&2; exit 1; }
 done
+fail() { echo "FAIL: $*" >&2; exit 1; }
+
+# ── the encrypted bundle ───────────────────────────────────────────────────
+# Restoring the plaintext proves the dump. It does not prove the thing that
+# actually leaves the runner: the .age bundle is what gets uploaded and what a
+# disaster recovery starts from, and a run that dumps perfectly while writing
+# an unopenable bundle (wrong recipient file, a tar that lost a member, a
+# truncated write) is green today. So decrypt the bundle and diff it against
+# the plaintext about to be restored, before touching the database.
+#
+# The private key comes from APEX_AGE_IDENTITY: in CI a throwaway identity
+# minted for the run and added as an extra recipient
+# (.github/workflows/backup.yml), by hand the real key out of the password
+# manager. What no CI drill can prove is that *Shane's escrowed* key opens a
+# bundle — only the by-hand restore does (README, "Backups").
+#
+# On the canonical repo a missing key or bundle is a FAILURE, not a skip: the
+# same lesson as backup.yml's SUPABASE_DB_URL gate, where green "skipped" runs
+# passed for backups that were never taken. Elsewhere (a fork, a developer
+# drilling an already-extracted bundle) it is a notice.
+shopt -s nullglob
+bundles=("$dir"/*.age)
+shopt -u nullglob
+[ "${#bundles[@]}" -le 1 ] || fail "$dir holds ${#bundles[@]} .age bundles — pass a directory with one"
+bundle=${bundles[0]-}
+identity=${APEX_AGE_IDENTITY:-}
+
+if [ -z "$bundle" ] || [ -z "$identity" ]; then
+  why="no .age bundle in $dir"
+  [ -n "$bundle" ] && why="APEX_AGE_IDENTITY is not set"
+  if [ "${GITHUB_REPOSITORY:-}" = "shanehaynes/apex-training" ]; then
+    echo "::error::restore drill cannot verify the encrypted bundle — $why. The bundle is what gets uploaded; an unverified one is not a backup (README, Backups)."
+    exit 1
+  fi
+  echo "── skipping the bundle check ($why) — verifying the plaintext only"
+else
+  echo "── decrypting ${bundle##*/} and diffing it against the plaintext"
+  command -v age >/dev/null || fail "age is not installed (apt install age / brew install age)"
+  [ -f "$identity" ] || fail "APEX_AGE_IDENTITY=$identity is not a file"
+  dec=$(mktemp -d); trap 'rm -rf "$dec"' EXIT
+  age -d -i "$identity" -o "$dec/bundle.tar.gz" "$bundle" \
+    || fail "${bundle##*/} does not decrypt with $identity"
+  tar -C "$dec" -xzf "$dec/bundle.tar.gz" || fail "${bundle##*/} decrypts but is not a tarball"
+  rm -f "$dec/bundle.tar.gz"
+  for f in schema.sql data.sql manifest.txt meta.txt; do
+    [ -f "$dec/$f" ] || fail "the bundle holds no $f"
+  done
+  members=0
+  for f in "$dec"/*; do
+    b=${f##*/}
+    [ -f "$dir/$b" ] || fail "the bundle holds $b, which $dir does not — it is not this dump"
+    cmp -s "$f" "$dir/$b" || fail "the bundle's $b differs from $dir/$b"
+    members=$((members + 1))
+  done
+  rm -rf "$dec"; trap - EXIT
+  echo "   ok: the bundle decrypts and its $members files are byte-identical to the plaintext"
+
+  # age's header is plaintext: one "-> X25519" stanza per recipient. Count
+  # them, because a bundle that only the run's throwaway key can open dies
+  # with the runner and would still pass every check above. In CI that means
+  # at least two — the committed key(s) plus the throwaway.
+  stanzas=$(head -c 16384 "$bundle" | awk '/^--- /{exit} /^-> /{n++} END{print n+0}')
+  echo "   the bundle is encrypted to $stanzas recipients"
+  if [ "${GITHUB_REPOSITORY:-}" = "shanehaynes/apex-training" ] && [ "$stanzas" -lt 2 ]; then
+    echo "::error::the bundle is encrypted to $stanzas recipient — expected the key(s) in scripts/backup/age-recipient.txt plus this run's throwaway drill key. A bundle only the throwaway opens is not a backup."
+    exit 1
+  fi
+fi
 
 scripts/preflight-local.sh --fix --quiet || exit 1
 
@@ -57,7 +128,6 @@ if [ -z "$DB_CONTAINER" ]; then
   exit 1
 fi
 db() { docker exec -i "$DB_CONTAINER" psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres "$@"; }
-fail() { echo "FAIL: $*" >&2; exit 1; }
 
 echo "── dropping the app's public objects"
 # Dynamic, so a table added by a later migration is not missed the way

@@ -206,6 +206,9 @@ export const COMPLETION_COLUMNS: ReadonlySet<string> = new Set([
   'completed_at',
 ]);
 
+// client_toggle_id is the one client-supplied value here, and it is opaque:
+// the replay dedupe key (see recordCompletion), never read back, ordered by,
+// or trusted as a timestamp. logged_at stays server-stamped.
 export const COMPLETION_LOG_COLUMNS: ReadonlySet<string> = new Set([
   'event_id',
   'event_date',
@@ -213,6 +216,7 @@ export const COMPLETION_LOG_COLUMNS: ReadonlySet<string> = new Set([
   'event_title',
   'duration_minutes',
   'action',
+  'client_toggle_id',
 ]);
 
 // Tracker rows (api/workout-sessions.ts). Mirrors SetLogRow / CardioLogRow in

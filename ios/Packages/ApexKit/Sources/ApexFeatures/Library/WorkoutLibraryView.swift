@@ -37,8 +37,9 @@ public struct WorkoutLibraryView: View {
         .accessibilityIdentifier("library.templates.root")
     }
 
+    /// Lazy: every workout ever applied from the builder, with no ceiling.
     private func rows(_ templates: [WorkoutTemplate], archived: Bool) -> some View {
-        SettingsSection {
+        SettingsSection(lazy: true) {
             ForEach(Array(templates.enumerated()), id: \.element.id) { index, template in
                 if index > 0 { SettingsDivider() }
                 HStack(alignment: .center, spacing: Spacing.md) {

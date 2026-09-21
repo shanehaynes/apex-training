@@ -8,6 +8,12 @@ public enum ChatWireEvent: Decodable, Sendable, Equatable {
     case toolUse(id: String, name: String, input: Data, label: String?)
     case done
     case error(message: String)
+    /// A `type` this build has never heard of. The web collector
+    /// (src/lib/coach/wire.ts) silently skips such a line, so Swift must too:
+    /// a server that starts emitting `thinking`, `usage`, `ping` or `citation`
+    /// must not kill the stream of an already-shipped binary. `ApexClient`
+    /// drops these before they reach `ChatSession`.
+    case unknown(type: String)
 
     private enum CodingKeys: String, CodingKey {
         case type, delta, id, name, input, label, error, message
@@ -37,9 +43,7 @@ public enum ChatWireEvent: Decodable, Sendable, Equatable {
                 ?? "Unknown error"
             self = .error(message: message)
         default:
-            throw DecodingError.dataCorruptedError(
-                forKey: .type, in: container, debugDescription: "unknown chat event type \"\(type)\""
-            )
+            self = .unknown(type: type)
         }
     }
 }

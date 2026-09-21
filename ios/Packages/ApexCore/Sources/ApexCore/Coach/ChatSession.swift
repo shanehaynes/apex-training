@@ -103,6 +103,11 @@ public actor ChatSession {
     /// The stored tool_result row being grown across settles, if any.
     private var toolResultRow: StoredMessage?
     private var streamTask: Task<Void, Never>?
+    /// Which thread the session is on, as a number that only ever goes up.
+    /// `load` and `startNewConversation` bump it; a stream task captures the
+    /// value it started under, so a task they cancelled can tell — whenever it
+    /// finally wakes — that the conversation it was streaming into is gone.
+    private var epoch = 0
     private var subscribers: [UUID: AsyncStream<Event>.Continuation] = [:]
 
     public init(
@@ -173,6 +178,7 @@ public actor ChatSession {
     public func load(conversationId: String) async {
         guard let store else { return }
         stop()
+        epoch += 1
         guard let stored = try? await store.conversation(id: conversationId) else { return }
         let rows = (try? await store.messages(in: conversationId)) ?? []
         conversation = stored
@@ -210,6 +216,7 @@ public actor ChatSession {
     /// abandoned "new" never litters the list.
     public func startNewConversation() {
         stop()
+        epoch += 1
         conversation = nil
         apiMessages = []
         messages = []
@@ -279,6 +286,13 @@ public actor ChatSession {
     public func stop() {
         streamTask?.cancel()
     }
+
+    /// Is the turn that started at `turnEpoch` still the session's? A stopped
+    /// stream can wake long after `load` / `startNewConversation` moved on, and
+    /// everything it would do then — a delta, a stored partial, `.idle` over
+    /// the state `load` just derived — lands on the thread the user opened
+    /// instead of the one it was streaming. When this is false it does nothing.
+    private func isCurrent(_ turnEpoch: Int) -> Bool { turnEpoch == epoch }
 
     // MARK: - Draft tools (builder / analytics)
 
@@ -405,30 +419,46 @@ public actor ChatSession {
             mode: config.mode, messages: ActionQueue.historyWindow(apiMessages), withTools: withTools,
             today: config.today(), draft: config.draft, model: config.model
         )
+        let turnEpoch = epoch
         let task = Task { [client] in
             var text = ""
             var toolUses: [ToolUseBlock] = []
+            // `done` is the only proof the turn finished: a server-side cut
+            // (a Vercel timeout, a dropped connection closed gracefully) ends
+            // the byte stream without throwing, and would otherwise look
+            // exactly like a completed turn.
+            var sawDone = false
             do {
                 let events = try await client.wireEvents(for: request)
                 for try await event in events {
                     switch event {
+                    // An event type this build does not know. `ApexClient` drops
+                    // these, so one never actually arrives — but the switch has to
+                    // stay exhaustive, and it must never share an arm with `.done`:
+                    // an unknown event is not proof the turn finished.
+                    case .unknown:
+                        break
                     case .text(let delta):
                         text += delta
-                        self.setPartial(text)
+                        if self.isCurrent(turnEpoch) { self.setPartial(text) }
                     case .toolUse:
                         if let block = ToolUseBlock(event) { toolUses.append(block) }
                     case .done:
-                        break
+                        sawDone = true
                     case .error(let message):
                         throw APIError.server(status: 200, message: message)
                     }
                 }
+                guard self.isCurrent(turnEpoch) else { return }
                 if Task.isCancelled {
                     await self.finishStopped(partial: text)
-                } else {
+                } else if sawDone {
                     await self.finishStream(text: text, toolUses: toolUses, withTools: withTools)
+                } else {
+                    await self.finishTruncated(partial: text, withTools: withTools)
                 }
             } catch {
+                guard self.isCurrent(turnEpoch) else { return }
                 if Task.isCancelled {
                     await self.finishStopped(partial: text)
                 } else {
@@ -487,6 +517,21 @@ public actor ChatSession {
             setState(.blocked(.rateLimited(until: clock.now.addingTimeInterval(retryAfter ?? 600))))
         default:
             if let failureCopy { await notice(failureCopy) }
+            setState(.idle)
+        }
+    }
+
+    /// The stream ended without `done`. Whatever arrived is a fragment, not
+    /// the turn: it renders stopped and stays out of `apiMessages`, so the
+    /// next message cannot send a truncated answer back as history. Cut
+    /// before a single token, there is nothing to show stopped — that is the
+    /// same no-answer the empty-reply notice already covers.
+    private func finishTruncated(partial text: String, withTools: Bool) async {
+        if !text.isEmpty {
+            await finishStopped(partial: text)
+        } else {
+            setPartial("")
+            if withTools { await notice(ChatCopy.emptyReply) }
             setState(.idle)
         }
     }

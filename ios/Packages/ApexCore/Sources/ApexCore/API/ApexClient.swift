@@ -16,11 +16,18 @@ public actor ApexClient {
     private let baseURL: URL
     private let transport: HTTPTransport
     private let tokens: TokenProvider
+    private let clientTag: String?
 
-    public init(baseURL: URL, transport: HTTPTransport, tokens: TokenProvider) {
+    /// `clientTag` is what every request announces itself as in `X-Apex-Client`
+    /// — `ios/<CFBundleShortVersionString>+<CFBundleVersion>`, built by
+    /// `ClientTag.ios` from the app's bundle. Nil (the default, and what the
+    /// tests use) sends no header at all: nothing here reads a bundle, so
+    /// ApexCore stays Linux-buildable.
+    public init(baseURL: URL, transport: HTTPTransport, tokens: TokenProvider, clientTag: String? = nil) {
         self.baseURL = baseURL
         self.transport = transport
         self.tokens = tokens
+        self.clientTag = clientTag
     }
 
     public func send<T: Decodable & Sendable>(_ endpoint: Endpoint, as type: T.Type) async throws -> T {
@@ -53,9 +60,13 @@ public actor ApexClient {
                 var parser = NDJSONLineParser()
                 do {
                     for try await chunk in bytes {
-                        for line in parser.consume(chunk) { continuation.yield(try Self.decodeWire(line)) }
+                        for line in parser.consume(chunk) {
+                            if let event = try Self.decodeWire(line) { continuation.yield(event) }
+                        }
                     }
-                    for line in parser.finish() { continuation.yield(try Self.decodeWire(line)) }
+                    for line in parser.finish() {
+                        if let event = try Self.decodeWire(line) { continuation.yield(event) }
+                    }
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -65,12 +76,18 @@ public actor ApexClient {
         }
     }
 
-    private static func decodeWire(_ line: String) throws -> ChatWireEvent {
+    /// `nil` for an event type this build does not know: the web skips those,
+    /// and a shipped binary that threw instead would lose the rest of the
+    /// message the first time the server added a wire event.
+    private static func decodeWire(_ line: String) throws -> ChatWireEvent? {
+        let event: ChatWireEvent
         do {
-            return try JSONDecoder().decode(ChatWireEvent.self, from: Data(line.utf8))
+            event = try JSONDecoder().decode(ChatWireEvent.self, from: Data(line.utf8))
         } catch {
             throw APIError.decoding("wire event: \(error)")
         }
+        if case .unknown = event { return nil }
+        return event
     }
 
     private func perform(_ endpoint: Endpoint, allowRefresh: Bool) async throws -> Data {
@@ -147,6 +164,13 @@ public actor ApexClient {
         }
         do {
             _ = try await tokens.refresh()
+        } catch let error as URLError {
+            // A refresh the network never delivered says nothing about the
+            // session. Signing out here wipes the Keychain for every user
+            // whenever the auth host is unreachable — a paused Supabase would
+            // sign the fleet out — so this is a network failure, same as
+            // `accessToken()` treats it.
+            throw APIError.network("\(error)")
         } catch {
             await tokens.signOut()
             throw APIError.unauthorized
@@ -161,6 +185,10 @@ public actor ApexClient {
         request.httpMethod = endpoint.method.rawValue
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Which build is calling. Without it the server cannot tell an app
+        // request from a browser one, and an App Store binary is invisible
+        // until it starts failing — see ClientTag.
+        if let clientTag { request.setValue(clientTag, forHTTPHeaderField: ClientTag.header) }
         request.httpBody = endpoint.body
         return request
     }

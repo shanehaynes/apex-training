@@ -145,7 +145,7 @@ public struct TokenRevealSheet: View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             SheetHeader(title: "Your new token", onClose: onDone)
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                Text("Copy this token now — it won't be shown again. Send it as `Authorization: Bearer <token>`.")
+                Text("Copy this token now — it won't be shown again. Send it as `Authorization: Bearer <token>`. It expires a year from today; mint a new one then.")
                     .apexBody()
                     .fixedSize(horizontal: false, vertical: true)
                 CopyField(value: token, toast: "Token copied", identifier: "token.reveal")

@@ -37,6 +37,9 @@ struct ApexApp: App {
                 // which SwiftUI previews do not read.
                 .preferredColorScheme(.dark)
                 .onChange(of: scenePhase) { _, phase in model.scenePhase(phase) }
+                // G8: ask the server whether this build is one it still
+                // serves. Fails open, so a launch with no network is a launch.
+                .task { await model.checkMinimumBuild() }
                 // Universal links (`/auth/callback`, `/app/...`) and `apextraining://`
                 // both arrive here (architecture.md §3).
                 .onOpenURL { url in Task { await model.open(url) } }
@@ -48,6 +51,18 @@ struct RootView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        // A build the server has retired gets this instead of the app, signed
+        // in or not: the writes it would make are the reason it is blocked.
+        if let message = model.updateRequired {
+            UpdateRequiredView(message: message, appStore: AppConfig.appStoreURL)
+                .preferredColorScheme(.dark)
+        } else {
+            signedInContent
+        }
+    }
+
+    @ViewBuilder
+    private var signedInContent: some View {
         switch model.state {
         case .restoring:
             // Never flash the sign-in screen at a user who is already signed in.

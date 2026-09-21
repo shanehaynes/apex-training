@@ -20,6 +20,19 @@ final class ActivityAttributesTests: XCTestCase {
         XCTAssertFalse(TrackerActivityAttributes.ContentState(startedAt: .now).isDone)
     }
 
+    /// A running activity has to go stale on its own: the app that would update
+    /// it may be gone (killed mid-workout, or the session finished on the web).
+    func testRunningContentGoesStaleFourHoursAfterTheStart() {
+        let started = Date(timeIntervalSince1970: 1_790_080_920)
+        let running = TrackerActivityAttributes.ContentState(startedAt: started, exerciseCount: 6)
+        XCTAssertEqual(LiveActivityController.staleAfter, 4 * 60 * 60)
+        XCTAssertEqual(LiveActivityController.staleDate(for: running), started.addingTimeInterval(4 * 60 * 60))
+
+        // A finished total is as true in an hour as it is now.
+        let done = TrackerActivityAttributes.ContentState(startedAt: started, phase: .done(totalSeconds: 2530))
+        XCTAssertNil(LiveActivityController.staleDate(for: done))
+    }
+
     func testTapURLIsTheCustomSchemeTrackerRoute() {
         let url = TrackerActivityURL.make(eventId: "ios-fixture-weekly__2026-09-22", eventDate: "2026-09-22")
         XCTAssertEqual(url.absoluteString, "apextraining://app/tracker/ios-fixture-weekly__2026-09-22/2026-09-22")

@@ -53,6 +53,36 @@ describe('held paths outside the authority chain', () => {
     }
   });
 
+  it("holds the merge floor's content, which ci.yml delegates to", () => {
+    expect(decide(['scripts/ci-guards.sh'], [])).toMatch(/the merge floor's content/);
+  });
+
+  it('holds the iOS release lane', () => {
+    for (const path of ['ios/fastlane/Fastfile', 'ios/scripts/testflight.sh']) {
+      expect(decide([path], []), path).toMatch(/the release lane/);
+    }
+  });
+
+  it('holds what Apple receives', () => {
+    for (const path of [
+      'ios/project.yml',
+      'ios/Config/Release.xcconfig',
+      'ios/Apex/Apex.entitlements',
+      'ios/Apex/Info.plist',
+      'ios/Apex/PrivacyInfo.xcprivacy',
+      'ios/ApexWidgets/Info.plist',
+    ]) {
+      expect(decide([path], []), path).toMatch(/what Apple receives/);
+    }
+  });
+
+  it('still auto-merges ordinary iOS source', () => {
+    expect(decide(
+      ['ios/Packages/ApexCore/Sources/ApexCore/API/ApexClient.swift', 'ios/Packages/ApexCore/Tests/ApexCoreTests/WriteQueueTests.swift'],
+      [],
+    )).toBeNull();
+  });
+
   it('one held path holds the whole PR, and the message names it', () => {
     const verdict = decide(['src/lib/coach/prompt.ts', 'vercel.json'], []);
     expect(verdict).toMatch(/vercel\.json/);

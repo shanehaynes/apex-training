@@ -70,6 +70,9 @@ export interface SimpleCommand {
   hereString: ShellWord | null;
   /** The upstream side of a pipeline, so `echo … | bash` can be followed. */
   pipeFrom: SimpleCommand | null;
+  /** Commands the substitutions inside this command's own words would run, so
+   * `kill $(pgrep -f vite)` keeps the pid lookup tied to the kill. */
+  subs: SimpleCommand[];
   /** 0 at the top level; one deeper inside `$(…)`, backquotes, a subshell, or parsed code. */
   depth: number;
 }

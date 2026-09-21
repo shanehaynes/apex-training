@@ -106,6 +106,16 @@ xcrun simctl openurl booted 'apextraining://auth#access_token=…&refresh_token=
 `type=invite|recovery` lands on set-password; an `#error=…&error_code=otp_expired…` fragment
 shows the spent-link toast. A signed build (Keychain) is needed for the session to persist.
 
+The app must be **signed out** for that to work: a token fragment is a whole session, so
+`AppModel.open(_:)` refuses `.authTokens` while the state is `.signedIn` and toasts "Sign out
+first to use a sign-in link for another account" (#201 — session fixation; `.authCode` and
+`.authError` are unaffected). To hand a second account's tokens to an already-signed-in
+simulator, relaunch the DEBUG build with the hatch:
+
+```bash
+xcrun simctl launch booted com.shanehaynes.apextraining -apexAllowAuthLinkWhileSignedIn
+```
+
 **Fixtures instead of a backend:** launch with `-apexMockClient` and the app answers every
 `/api/*` route from `ios/Fixtures/` in-process (`ios/Apex/Mock/`, DEBUG only), accepts any
 credentials, and fixes "today" to 2026-09-08, the day the fixtures put four events on. This is

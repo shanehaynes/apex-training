@@ -19,6 +19,14 @@ public actor MemoryCacheStore: CacheStore {
         entries = entries.filter { !$0.key.hasPrefix("\(kind.rawValue)/") }
     }
 
+    public func delete(kind: CacheKind, key: String) async throws {
+        entries["\(kind.rawValue)/\(key)"] = nil
+    }
+
+    public func purge(kind: CacheKind, fetchedBefore cutoff: Date) async throws {
+        entries = entries.filter { $0.value.kind != kind || $0.value.fetchedAt >= cutoff }
+    }
+
     /// For tests: everything written so far.
     public var all: [CacheEntry] { Array(entries.values) }
 }

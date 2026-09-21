@@ -7,11 +7,18 @@ import SwiftUI
 public struct SettingsSection<Content: View>: View {
     private let title: String?
     private let footer: String?
+    private let isLazy: Bool
     private let content: Content
 
-    public init(_ title: String? = nil, footer: String? = nil, @ViewBuilder content: () -> Content) {
+    /// `lazy: true` swaps the row container for a `LazyVStack`, for the sections
+    /// whose content is a collection with no ceiling — the exercise library, the
+    /// workout library, the activity log. Everything else keeps the eager stack:
+    /// a lazy container costs a scroll-position pass it does not need for four
+    /// fixed rows, and only a container inside a `ScrollView` is lazy at all.
+    public init(_ title: String? = nil, footer: String? = nil, lazy: Bool = false, @ViewBuilder content: () -> Content) {
         self.title = title
         self.footer = footer
+        self.isLazy = lazy
         self.content = content()
     }
 
@@ -20,11 +27,9 @@ public struct SettingsSection<Content: View>: View {
             if let title {
                 Text(title).apexEyebrow().padding(.horizontal, Spacing.xs)
             }
-            VStack(spacing: 0) {
-                content
-            }
-            .background(ApexColor.bgSurface, in: .rect(cornerRadius: Radius.lg))
-            .overlay(RoundedRectangle(cornerRadius: Radius.lg).strokeBorder(ApexColor.borderSubtle, lineWidth: 1))
+            rows
+                .background(ApexColor.bgSurface, in: .rect(cornerRadius: Radius.lg))
+                .overlay(RoundedRectangle(cornerRadius: Radius.lg).strokeBorder(ApexColor.borderSubtle, lineWidth: 1))
             if let footer {
                 Text(footer)
                     .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
@@ -32,6 +37,15 @@ public struct SettingsSection<Content: View>: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, Spacing.xs)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var rows: some View {
+        if isLazy {
+            LazyVStack(spacing: 0) { content }
+        } else {
+            VStack(spacing: 0) { content }
         }
     }
 }

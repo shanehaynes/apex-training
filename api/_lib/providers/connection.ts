@@ -288,7 +288,11 @@ export async function recordSync(
   if (error) throw new Error(`recordSync failed: ${error.message}`);
 }
 
-/** Drop the connection row; the imports ledger and streams stay. */
+/** Drop the connection row; the imports ledger and streams stay.
+ *
+ *  Local only. The user's OAuth grant survives at COROS, because COROS's
+ *  revocation endpoint refuses public clients (src/lib/sync/corosRevocation.ts)
+ *  — the disconnect response carries the sentence that tells them so. */
 export async function disconnect(
   supabase: Admin, userId: string, provider: SyncProvider,
 ): Promise<void> {

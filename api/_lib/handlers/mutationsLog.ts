@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
+import { enforceRateLimit } from '../rateLimit.js';
 
 // Read-only feed of the caller's mutation audit logs, merged across events,
 // definitions, and blocks/objectives — backs the "Coach activity" list in
@@ -32,6 +33,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const userId = await requireUser(req, res);
   if (!userId) return;
+
+  if (!(await enforceRateLimit(supabase, res, userId, 'reads'))) return;
 
   const [events, definitions, blocks] = await Promise.all([
     supabase

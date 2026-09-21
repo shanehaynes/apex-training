@@ -16,16 +16,20 @@ final class ApexClientAuthTests: XCTestCase {
         private(set) var refreshCount = 0
         private(set) var signOutCount = 0
         private let refreshFails: Bool
+        /// A specific error for `refresh()` to throw — a transport failure, say.
+        private let refreshError: Error?
 
-        init(tokens: [String] = ["t1", "t2"], refreshFails: Bool = false) {
+        init(tokens: [String] = ["t1", "t2"], refreshFails: Bool = false, refreshError: Error? = nil) {
             self.tokens = tokens
             self.refreshFails = refreshFails
+            self.refreshError = refreshError
         }
 
         func accessToken() async throws -> String { tokens.first ?? "t1" }
 
         func refresh() async throws -> String {
             refreshCount += 1
+            if let refreshError { throw refreshError }
             if refreshFails { throw APIError.unauthorized }
             if tokens.count > 1 { tokens.removeFirst() }
             return tokens.first ?? "t1"
@@ -116,6 +120,45 @@ final class ApexClientAuthTests: XCTestCase {
         let calls = await transport.callCount
         XCTAssertEqual(signOuts, 1)
         XCTAssertEqual(calls, 1, "a failed refresh must not retry the request")
+    }
+
+    /// A refresh that never reached the auth host says nothing about the
+    /// session: signing out there wipes the Keychain of every user whenever
+    /// Supabase is paused or unreachable, and nobody can sign back in until it
+    /// returns. It is a network failure, exactly as `accessToken()` treats one.
+    func testRefreshTransportFailureIsNetworkAndDoesNotSignOut() async throws {
+        let transport = FakeTransport([HTTPResponse(status: 401)])
+        let tokens = FakeTokens(refreshError: URLError(.cannotConnectToHost))
+
+        do {
+            _ = try await client(transport, tokens).data(for: .profile)
+            XCTFail("expected .network")
+        } catch let error as APIError {
+            guard case .network = error else { return XCTFail("got \(error)") }
+        }
+
+        let refreshes = await tokens.refreshCount
+        let signOuts = await tokens.signOutCount
+        let calls = await transport.callCount
+        XCTAssertEqual(refreshes, 1)
+        XCTAssertEqual(signOuts, 0, "a transport failure must never sign out")
+        XCTAssertEqual(calls, 1, "a failed refresh must not retry the request")
+    }
+
+    /// The streaming path runs the same policy, so it must not sign out either.
+    func testStreamRefreshTransportFailureIsNetworkAndDoesNotSignOut() async throws {
+        let transport = FakeTransport([HTTPResponse(status: 401)])
+        let tokens = FakeTokens(refreshError: URLError(.networkConnectionLost))
+
+        do {
+            _ = try await client(transport, tokens).stream(.profile)
+            XCTFail("expected .network")
+        } catch let error as APIError {
+            guard case .network = error else { return XCTFail("got \(error)") }
+        }
+
+        let signOuts = await tokens.signOutCount
+        XCTAssertEqual(signOuts, 0, "a transport failure must never sign out")
     }
 
     /// Non-401 failures are returned as-is: no refresh, no sign-out.

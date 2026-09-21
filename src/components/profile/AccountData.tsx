@@ -3,6 +3,7 @@ import { Download, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/auth';
 import { deleteAccount, downloadAccountExport } from '../../lib/api';
 import { LEGAL_DOCUMENTS } from '../../lib/legal/versions';
+import { COROS_DELETE_NOTICE } from '../../lib/sync/corosRevocation';
 
 // Export and delete — the two capabilities legal/privacy-v1.md §6 promises.
 // They exist because the policy says they do; writing "you may request
@@ -75,6 +76,8 @@ export default function AccountData() {
         activities, and review history permanently. It cannot be undone, and we
         cannot recover it for you. Export first if you want a copy.
       </p>
+
+      <p className="profile-hint account-data__danger-note">{COROS_DELETE_NOTICE}</p>
 
       {!confirmOpen ? (
         <button

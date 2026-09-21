@@ -21,6 +21,10 @@ final class AppModel {
     let auth: AuthService?
     private(set) var client: ApexClient?
     private(set) var cache: (any CacheStore)?
+    /// Whose rows `cache` reads and writes (#217). The store is built here,
+    /// before the stored session has been restored; `ensureQueue` fills this
+    /// in the moment it knows, and again on an account switch.
+    private let cacheOwner: CacheOwner
     private(set) var schedule: ScheduleModel
     /// The Analytics tab's model (W9): tiles and results over the same cache.
     private(set) var analytics: AnalyticsModel
@@ -44,11 +48,24 @@ final class AppModel {
 
     private let pool: DatabasePool?
     private var queueOwner: String?
+    /// Non-nil while an owner change is tearing down: the account to build
+    /// once it finishes (#199).
+    private var switchingOwner: (owner: String, email: String?)?
+    /// Filled at the end of `init(auth:)`: the token provider's expiry hook is
+    /// built before `self` exists. Nil under the mock, which has no GoTrue.
+    private let expiry: ExpiryHook?
     private var queueDriver: WriteQueueDriver?
     private let streams: (any ActivityStreamsReading)?
     private let hub: RealtimeHub?
     private let clock: any ApexClock
     private var mockState: AuthState = .signedOut(reason: nil)
+    /// Non-nil once `/api/version` has said this build is below the floor it
+    /// serves (G8): the root shows the blocking screen instead of the app. The
+    /// read fails open, so nothing but a positive verdict ever sets it.
+    private(set) var updateRequired: String?
+    /// Kept for the update check, which is unauthenticated and so cannot go
+    /// through `client` — a launch that is not signed in still needs an answer.
+    private let transport: any HTTPTransport
     /// A link that arrived before the stored session was read; replayed once it is.
     private var parkedURL: URL?
     /// Non-auth links (`/app/...`) and the tab selection: the tabs consume from
@@ -61,36 +78,64 @@ final class AppModel {
     /// Whether the set-password screen must also collect acceptance: the terms
     /// gate 403s every other read for an invitee who never accepted on the web.
     private(set) var needsTermsAcceptance = false
+    /// The realtime hub ran out of rejoin attempts for some group (#223):
+    /// what is on screen is only as fresh as the last refresh. Persistent on
+    /// purpose — the toast announces it once, this stays until a join lands.
+    private(set) var liveUpdatesUnavailable = false
+    /// The one consumer of the hub's availability stream (#223).
+    private var realtimeStatus: Task<Void, Never>?
 
     init(auth: AuthService) {
         self.auth = auth
         self.clock = SystemClock()
         auth.start()
+        // The provider is built before `self` exists, so the expiry hook
+        // reaches the model through a box filled at the end of this init.
+        let expiry = ExpiryHook()
+        self.expiry = expiry
         let tokens = SupabaseTokenProvider(auth: auth.auth) { [weak auth] in
             await MainActor.run { auth?.expire(reason: "Session expired. Sign in again.") }
+            await expiry.fire()
         }
-        let client = ApexClient(baseURL: AppConfig.apiBase, transport: URLSessionTransport(), tokens: tokens)
+        let client = ApexClient(baseURL: AppConfig.apiBase, transport: URLSessionTransport(), tokens: tokens, clientTag: AppConfig.clientTag)
         let pool = Self.openDatabase()
-        let cache: (any CacheStore)? = pool.map { GRDBCacheStore(pool: $0) }
+        let cacheOwner = CacheOwner()
+        self.cacheOwner = cacheOwner
+        let cache: (any CacheStore)? = pool.map { GRDBCacheStore(pool: $0, owner: cacheOwner) }
         let streams = SupabaseActivityStreams(client: auth.supabase)
         let hub = RealtimeHub(client: auth.supabase)
         self.client = client
+        // A second instance, not the client's: `URLSessionTransport` is a
+        // stateless wrapper over `URLSession.shared`, so both are the one
+        // session the app has.
+        self.transport = URLSessionTransport()
         self.pool = pool
         self.cache = cache
         self.streams = streams
         self.hub = hub
         self.schedule = Self.makeSchedule(client: client, cache: cache, clock: SystemClock(), streams: streams, realtime: hub)
         self.analytics = Self.makeAnalytics(client: client, cache: cache, clock: SystemClock(), realtime: hub)
+        // An expired session is the same owner, so their cached rows stay: they
+        // still render the moment the session comes back. The presenters do not
+        // stay — a stopped one never starts again (#199).
+        expiry.run = { [weak self] in await self?.tearDown(purgeCache: false) }
     }
 
     #if DEBUG
     init(mock: MockEnvironment) {
         self.auth = nil
         self.clock = mock.clock
+        self.expiry = nil
         let client = ApexClient(baseURL: AppConfig.apiBase, transport: mock.transport, tokens: mock.tokens)
         self.client = client
         self.pool = nil
+        // No `clientTag` on the mock's client, deliberately: its transport is
+        // in-process, so no server ever reads the header, and a fixture build
+        // has no business announcing itself as one the gate could retire.
+        self.transport = mock.transport
         self.cache = mock.cache
+        // Unused: the mock's cache is a process-lifetime `MemoryCacheStore`.
+        self.cacheOwner = CacheOwner()
         self.streams = mock.streams
         self.hub = nil
         self.schedule = Self.makeSchedule(client: client, cache: mock.cache, clock: mock.clock, streams: mock.streams, realtime: nil)
@@ -106,13 +151,38 @@ final class AppModel {
 
     /// Called once the root knows who is signed in. Idempotent per owner. The
     /// queue outlives nothing: a new owner gets a new queue over their own rows.
+    ///
+    /// A *different* owner is a full teardown first (#199): the last account's
+    /// models, realtime subscriptions and cached rows all go — awaited — before
+    /// anything is built to read over them.
     func ensureQueue(owner: String, email: String?) {
-        guard queueOwner != owner, let client else { return }
+        guard let client else { return }
+        // `.onAppear` drives this and can fire again inside the teardown's
+        // awaits, so the latest ask wins and is built when the teardown ends.
+        if switchingOwner != nil {
+            switchingOwner = (owner, email)
+            return
+        }
+        guard queueOwner != owner else { return }
+        if queueOwner != nil {
+            switchingOwner = (owner, email)
+            Task {
+                await tearDown(purgeCache: true)
+                let next = switchingOwner
+                switchingOwner = nil
+                if let next { ensureQueue(owner: next.owner, email: next.email) }
+            }
+            return
+        }
         queueOwner = owner
         let store: any WriteQueueStore = pool.map { GRDBWriteQueueStore(pool: $0, owner: owner) } ?? MemoryWriteQueueStore()
         // Backoff runs on real time even under the mock: its TestClock would make
         // every retry instant, and the smoke wants to see the pending chip.
         let queue = WriteQueue(store: store, client: client, clock: SystemClock())
+        // The read cache is per owner too (#217). Its store was built before
+        // anyone was signed in and has read nothing since; this is where it
+        // learns whose rows it is looking at.
+        cacheOwner.set(owner)
         let cache = cache ?? MemoryCacheStore()
         let publisher: any TrackerActivityPublishing
         if CommandLine.arguments.contains("-apexUITest") {
@@ -163,7 +233,7 @@ final class AppModel {
                 }
             },
             onScheduleChanged: { [weak self] in Task { await self?.schedule.refresh(reason: .afterEdit) } },
-            onAccountDeleted: { [weak self] in self?.signOut() },
+            onAccountDeleted: { [weak self] in self?.accountDeleted() },
             signOut: { [weak self] in self?.signOut() },
             // W10: the Library reads the schedule's cached definitions and
             // templates (one read path, D-032) and hands its writes back to it.
@@ -192,6 +262,51 @@ final class AppModel {
         ))
         onboarding = onboardingModel
         Task { await onboardingModel.start() }
+        observeRealtimeAvailability()
+    }
+
+    /// Mirror the hub's join verdict into observable state (#223): once the
+    /// bounded rejoin attempts run out, what is on screen is only as fresh as
+    /// the last refresh. Started with the signed-in account — the hub joins
+    /// nothing before there is one — and started once: the stream has a single
+    /// consumer, and the hub outlives any one account. The toast says it once;
+    /// `liveUpdatesUnavailable` is what a status line would render.
+    private func observeRealtimeAvailability() {
+        guard realtimeStatus == nil, let hub else { return }
+        realtimeStatus = Task { [weak self] in
+            for await availability in hub.availability {
+                guard let self else { return }
+                guard availability.isDegraded != self.liveUpdatesUnavailable else { continue }
+                self.liveUpdatesUnavailable = availability.isDegraded
+                if availability.isDegraded {
+                    ToastBus.shared.post("Live updates unavailable — pull to refresh.", level: .failure)
+                }
+            }
+        }
+    }
+
+    /// The account is gone server-side (`api/_lib/handlers/account.ts`), so the
+    /// two per-owner stores on this device have to go with it (#220): queued
+    /// `tracker_ops` would 404 forever — sign-out deliberately keeps them, since
+    /// an ordinary session ends with work still worth flushing — and the coach
+    /// history belongs to a user who no longer exists. Both are cleared, and
+    /// *awaited*, before the sign-out: it drops `trackerServices` and
+    /// `coachServices`, the only handles that still reach those rows.
+    func accountDeleted() {
+        Task { [weak self] in
+            await self?.purgeDeviceData()
+            self?.signOut()
+        }
+    }
+
+    /// Conversations and queued writes for the signed-in owner. Both stores are
+    /// owner-scoped, so another account's rows on the same device survive.
+    private func purgeDeviceData() async {
+        // First, so a stream in flight cannot append a message back into the
+        // store just emptied. Sign-out calls it again; it is idempotent.
+        coach?.shutdown()
+        if let queue = trackerServices?.queue { await queue.purgeAll() }
+        if let store = coachServices?.store { try? await store.deleteAll() }
     }
 
     /// The You tab's change-password: the same SDK call the set-password
@@ -234,6 +349,19 @@ final class AppModel {
 
     // MARK: - Links
 
+    #if DEBUG
+    /// The simulator hatch for the refusal below. `ios/CLAUDE.md`'s recipe mints
+    /// a token pair off the local stack and hands it to the app with
+    /// `simctl openurl` — exactly the shape #201 refuses — so a DEBUG build
+    /// launched with `-apexAllowAuthLinkWhileSignedIn` takes one anyway, and the
+    /// hand-off can be driven without signing out between accounts. Compiled out
+    /// of Release, so TestFlight and the App Store never have it.
+    private static let allowsAuthTokensWhileSignedIn =
+        CommandLine.arguments.contains("-apexAllowAuthLinkWhileSignedIn")
+    #else
+    private static let allowsAuthTokensWhileSignedIn = false
+    #endif
+
     /// `.onOpenURL`: universal links and `apextraining://` both land here.
     func open(_ url: URL) async {
         guard let link = DeepLink.parse(url) else { return }
@@ -243,6 +371,21 @@ final class AppModel {
         }
         switch link {
         case .authCode, .authTokens, .authError:
+            // Session fixation (#201). A token pair in a fragment *is* a whole
+            // session, and anything can hand us one: a web page, a QR code,
+            // another app. Adopting it while somebody is signed in swaps the
+            // account behind their back — around `signOut()`, so the previous
+            // account's cache is served to the new session and their workouts
+            // land in the sender's account. Refuse on state, not origin: the
+            // web hand-off (`src/lib/auth/landing.ts`, D-020) legitimately
+            // builds `apextraining://auth#…` for invite acceptance, so
+            // demanding the universal-link origin would break invites on a
+            // phone. `.authCode` is PKCE and app-initiated; `.authError`
+            // carries no session. Neither changes.
+            if case .authTokens = link, case .signedIn = state, !Self.allowsAuthTokensWhileSignedIn {
+                ToastBus.shared.post("Sign out first to use a sign-in link for another account.", level: .failure)
+                return
+            }
             let outcome: AuthLinkOutcome
             if let auth {
                 outcome = await auth.handle(link, originalURL: url)
@@ -318,6 +461,15 @@ final class AppModel {
         needsTermsAcceptance = !profile.termsCurrent
     }
 
+    /// The launch check (G8): has the server retired this build? Everything
+    /// about the read fails open — offline, a 500, an unparseable body all
+    /// leave the app running — so this only ever turns the screen ON.
+    func checkMinimumBuild() async {
+        updateRequired = await UpdateGate.check(
+            build: AppConfig.buildNumber, baseURL: AppConfig.apiBase, transport: transport
+        )
+    }
+
     #if DEBUG
     /// The mock has no GoTrue: an invite/recovery fragment lands on set-password,
     /// anything else with tokens signs in, an error fragment shows the reason.
@@ -339,6 +491,24 @@ final class AppModel {
     #endif
 
     func signOut() {
+        Task {
+            // Another account may sign in next; nothing cached belongs to it.
+            await tearDown(purgeCache: true)
+            if let auth { await auth.signOut() } else { mockState = .signedOut(reason: nil) }
+        }
+    }
+
+    /// Everything built for the signed-in account, unbuilt in order.
+    ///
+    /// The purge is *awaited* before `schedule` and `analytics` are replaced: a
+    /// presenter built over the cache while the purge was still in flight would
+    /// read — and write back — the outgoing owner's rows (#199). They are
+    /// replaced rather than stopped because `start()` latches on `started`,
+    /// which `stop()` never clears, so a surviving instance never loads again.
+    ///
+    /// `purgeCache: false` is the session-expiry path: the owner has not
+    /// changed, so the cached rows are still theirs and still render.
+    func tearDown(purgeCache: Bool) async {
         schedule.stop()
         analytics.stop()
         // The queue's rows stay (per owner); the instance goes with the session.
@@ -346,7 +516,7 @@ final class AppModel {
         queueDriver = nil
         trackerServices = nil
         // Nothing in the island belongs to the next account.
-        if let activity { Task { await activity.endAll() } }
+        if let activity { await activity.endAll() }
         coach?.shutdown()
         coach = nil
         coachServices = nil
@@ -356,14 +526,13 @@ final class AppModel {
         meals = nil
         onboarding = nil
         queueOwner = nil
-        Task {
-            await hub?.reset()
-            // Another account may sign in next; nothing cached belongs to it.
+        await hub?.reset()
+        if purgeCache {
             for kind in CacheKind.allCases { try? await cache?.purge(kind: kind) }
-            if let auth { await auth.signOut() } else { mockState = .signedOut(reason: nil) }
         }
-        schedule = Self.makeSchedule(client: client!, cache: cache, clock: clock, streams: streams, realtime: hub)
-        analytics = Self.makeAnalytics(client: client!, cache: cache, clock: clock, realtime: hub)
+        guard let client else { return }
+        schedule = Self.makeSchedule(client: client, cache: cache, clock: clock, streams: streams, realtime: hub)
+        analytics = Self.makeAnalytics(client: client, cache: cache, clock: clock, realtime: hub)
     }
 
     /// Realtime lives only while the scene is active (architecture.md §8); the
@@ -399,6 +568,16 @@ final class AppModel {
         return session.startedAt != nil && session.finishedAt == nil
     }
 
+    /// Tracker bootstraps are keyed by event *and* date: the schedule prefetches
+    /// two a day and nothing ever reads yesterday's again. Sweep them at launch
+    /// rather than letting the SQLite file grow for the life of the install.
+    static func sweepStaleBootstraps(_ cache: any CacheStore, now: Date) async {
+        try? await cache.purge(
+            kind: .trackerBootstrap,
+            fetchedBefore: now.addingTimeInterval(-CachePolicy.trackerBootstrapRetention)
+        )
+    }
+
     private static func makeSchedule(
         client: ApexClient, cache: (any CacheStore)?, clock: any ApexClock,
         streams: (any ActivityStreamsReading)?, realtime: (any RealtimeChanges)?
@@ -423,7 +602,11 @@ final class AppModel {
     /// launch over it would be worse than losing offline reads.
     private static func openDatabase() -> DatabasePool? {
         do {
-            return try ApexDatabase.makePool()
+            let pool = try ApexDatabase.makePool()
+            // Opening the file is launch, and it happens exactly once — the
+            // place to prune what the cache accumulates between runs (#221).
+            Task { await sweepStaleBootstraps(GRDBCacheStore(pool: pool), now: SystemClock().now) }
+            return pool
         } catch {
             ToastBus.shared.post("Offline cache unavailable.", level: .failure)
             return nil
@@ -439,4 +622,21 @@ final class AppModel {
         }
         return message
     }
+}
+
+/// The box `AppModel.init(auth:)` hands `SupabaseTokenProvider`: the provider is
+/// built while the model is still initializing, so the expiry callback cannot
+/// capture `self` at the point it is made (#199).
+@MainActor
+private final class ExpiryHook {
+    var run: (@MainActor @Sendable () async -> Void)?
+
+    /// Called from the provider's nonisolated closure.
+    func fire() async {
+        await run?()
+    }
+
+    // The token provider can be released on any thread; see AppModel's deinit
+    // note (D-031) for why the synthesized one would abort there.
+    nonisolated deinit {}
 }

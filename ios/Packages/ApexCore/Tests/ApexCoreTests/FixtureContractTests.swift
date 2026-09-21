@@ -431,12 +431,23 @@ final class FixtureContractTests: XCTestCase {
 
     /// The coach stream, parsed exactly the way the app will: bytes → lines →
     /// one wire event per line.
+    ///
+    /// The fixture is emitter-written, so the forward-compatibility line is
+    /// spliced in here rather than in `chat-stream.ndjson`: a `type` this build
+    /// has never seen decodes as `.unknown` instead of throwing, which is what
+    /// lets the server add a wire event without breaking a shipped binary.
+    /// `ApexClient.decodeWire` then drops it — `testUnknownWireEventIsDropped`.
     func testChatStreamDecodes() throws {
+        let futureLine = #"{"type":"thinking","delta":"…"}"# + "\n"
+        let body = try load("chat-stream.ndjson") + Data(futureLine.utf8)
         var parser = NDJSONLineParser()
         var events: [ChatWireEvent] = []
-        for line in parser.consume(try load("chat-stream.ndjson")) + parser.finish() {
+        for line in parser.consume(body) + parser.finish() {
             events.append(try JSONDecoder().decode(ChatWireEvent.self, from: Data(line.utf8)))
         }
+
+        XCTAssertEqual(events.last, .unknown(type: "thinking"))
+        events.removeLast()
 
         XCTAssertEqual(events.count, 3)
         XCTAssertEqual(events[0], .text(delta: "Clearing it. "))

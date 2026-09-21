@@ -76,8 +76,11 @@ public struct LibraryView: View {
         }
     }
 
+    /// Lazy: the library is every exercise the account knows, and the search
+    /// field above re-evaluates this on each keystroke — eagerly that was the
+    /// whole list built per character.
     private func rows(_ definitions: [ExerciseDefinition]) -> some View {
-        SettingsSection {
+        SettingsSection(lazy: true) {
             ForEach(Array(definitions.enumerated()), id: \.element.id) { index, definition in
                 if index > 0 { SettingsDivider() }
                 NavigationLink(value: YouRoute.exercise(id: definition.id)) {

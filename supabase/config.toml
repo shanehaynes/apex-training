@@ -21,7 +21,13 @@ max_rows = 1000
 # without explicit GRANTs. When unset, new entities are NOT auto-exposed, matching the new cloud
 # default. Set to `true` to keep the legacy behaviour of auto-exposing new entities; this is
 # deprecated and the field is removed on 2026-10-30 once the always-revoked behaviour is permanent.
-auto_expose_new_tables = true
+#
+# Off: auto-exposure is how phase42 happened — phase32_quarantine was created
+# without RLS and anon held SELECT/INSERT/DELETE on every user's workout rows
+# from the moment the table existed. Grants are now written out by hand in
+# supabase/migrations/phase44_data_api_grants.sql, and a new table reaches the
+# Data API only when its own migration says so.
+auto_expose_new_tables = false
 
 [api.tls]
 # Enable HTTPS endpoints locally using a self-signed certificate.
