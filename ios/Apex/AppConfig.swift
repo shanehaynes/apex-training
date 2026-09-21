@@ -1,3 +1,4 @@
+import ApexCore
 import Foundation
 
 /// Build configuration, read from the Info.plist keys that the xcconfig files
@@ -27,10 +28,27 @@ enum AppConfig {
     }()
     /// "0.6.0 (312)" — the About screen's line.
     static let versionLabel: String = {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
-        return build.isEmpty ? version : "\(version) (\(build))"
+        build.isEmpty ? shortVersion : "\(shortVersion) (\(build))"
     }()
+
+    /// `ios/0.6.0+312` — the `X-Apex-Client` every request carries (G8), so a
+    /// server log can say which build produced the traffic.
+    static let clientTag: String = ClientTag.ios(version: shortVersion, build: build)
+
+    /// `CFBundleVersion` as the integer `/api/version`'s `minBuild` is compared
+    /// against; 0 when it is not a plain integer, which never blocks.
+    static let buildNumber: Int = ClientTag.buildNumber(build)
+
+    /// Where the update screen sends someone whose build the server has
+    /// retired; nil while there is no App Store listing to send them to, in
+    /// which case the screen states the requirement without a dead link.
+    static let appStoreURL: URL? = {
+        let raw = string("APEX_APP_STORE_URL")
+        return raw.isEmpty ? nil : URL(string: raw)
+    }()
+
+    private static let shortVersion = string("CFBundleShortVersionString")
+    private static let build = string("CFBundleVersion")
 
     /// Fails the launch rather than shipping a build pointed at the wrong backend.
     ///

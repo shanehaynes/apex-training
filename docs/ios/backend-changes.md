@@ -351,6 +351,52 @@ Landed 2026-09-11 (`phase41_provider_client.sql`, `handlers/providerSync.ts`,
 - **Invite hand-off (W2, web)**: the SPA root shows "Open in the Apex app" when the hash carries
   `type=invite`, linking to `apextraining://auth#<same hash>`.
 
+## G8 — the client version header and the minimum-build gate
+
+Everything above assumes what `api/_lib/allowlist.ts` says out loud: "Vercel deploys are atomic,
+so a legitimate client is never ahead of the server." That is true of the web and false of an
+App Store binary, which runs for as long as someone leaves it installed. `pickAllowed` 400s an
+unknown request key, `RetryPolicy` maps a 400 to a permanent `.fail`, and the user sees
+"N sets could not be saved" — forever, with no way to tell them why. G8 is the two halves that
+answer it.
+
+### `X-Apex-Client: ios/<CFBundleShortVersionString>+<CFBundleVersion>`
+Stamped by `ApexClient.request` on every call (`ClientTag` in ApexCore; nil, the default,
+sends no header, so the tests and previews are unaffected). `api/_lib/clientVersion.ts`
+`clientTag(req)` reads it — sanitised at the boundary, because the value is logged and a
+newline is how one request forges a second log line — and `api/chat.ts` logs it in the
+`[api/chat] usage` line as `client`, `'web'` when absent.
+
+### `GET /api/version` → `{ sha, minBuild, message? }`
+Already routed and already unauthenticated, which is what the check needs: it has to answer a
+launch that is not signed in yet. `minBuild` is the oldest `CFBundleVersion` the deployment
+serves, from `APEX_MIN_BUILD` (Vercel project env; unset or 0 gates nothing, and a
+non-integer or negative value reads as unset — a typo in a dashboard field must not lock every
+installed build out). `APEX_UPDATE_MESSAGE` fills `message` when the gate is raised for a
+reason worth naming.
+
+**A body field, not a response header.** The Hono bridge in `api/_lib/app.ts` wraps the
+catch-all only, so a header set there would be missing from `api/chat.ts`,
+`api/calendar-feed.ts` and `api/review-cron.ts` — the client would read the floor from some
+endpoints and not others.
+
+The app fetches it once at launch (`UpdateGate.check`, ApexCore) and shows a blocking
+`UpdateRequiredView` below the floor, with the App Store link from `APEX_APP_STORE_URL`
+(`Base.xcconfig` → Info.plist → `AppConfig.appStoreURL`; empty until the app has a listing,
+and the screen then states the requirement without a dead link). Every step fails open —
+offline, a 500, an unparseable body, an unreadable `CFBundleVersion` all leave the app
+running. A write that 400s forever is bad; an app that will not open because the network was
+down on the wrong morning is worse.
+
+### Allowlists are append-only
+**Never remove or rename a key in `api/_lib/allowlist.ts` while builds that send it are still
+installed.** Add the new spelling, keep the old one accepted, and drop the old one only once
+`APEX_MIN_BUILD` has been raised past every build that sent it. The same goes for a request
+key a handler validates, an enum value it accepts, and the anon key itself — which cannot be
+rotated at all until a floor exists that can force the old builds off it. The gate is the
+lever; it only exists in binaries that carry it, which is why it landed in the Gate rather
+than in Patch 1.
+
 ## Not in this roadmap (Backlog)
 `device_tokens` migration + `/api/devices` + APNs sender (push), `coach_conversations` table
 (server chat persistence).
@@ -374,3 +420,4 @@ Landed 2026-09-11 (`phase41_provider_client.sql`, `handlers/providerSync.ts`,
 | account deletion | W11 | exists: `DELETE /api/account` | — | — | 0 | — |
 | COROS `client:'ios'` + scheme redirect | W11 | providers/* | no | providerSync | 40 | **yes** (phase41 `provider_connections.client`) |
 | `GET /api/profile` widened (profiles row, feed URL, model catalog) | W11 | models.ts, oauth/common.ts | no | — | 50 | — |
+| `X-Apex-Client` logged, `GET /api/version` → `{ sha, minBuild, message? }` | G8 | clientVersion.ts | no | — | 60 | — |

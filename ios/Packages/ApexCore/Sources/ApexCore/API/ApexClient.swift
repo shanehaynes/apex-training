@@ -16,11 +16,18 @@ public actor ApexClient {
     private let baseURL: URL
     private let transport: HTTPTransport
     private let tokens: TokenProvider
+    private let clientTag: String?
 
-    public init(baseURL: URL, transport: HTTPTransport, tokens: TokenProvider) {
+    /// `clientTag` is what every request announces itself as in `X-Apex-Client`
+    /// — `ios/<CFBundleShortVersionString>+<CFBundleVersion>`, built by
+    /// `ClientTag.ios` from the app's bundle. Nil (the default, and what the
+    /// tests use) sends no header at all: nothing here reads a bundle, so
+    /// ApexCore stays Linux-buildable.
+    public init(baseURL: URL, transport: HTTPTransport, tokens: TokenProvider, clientTag: String? = nil) {
         self.baseURL = baseURL
         self.transport = transport
         self.tokens = tokens
+        self.clientTag = clientTag
     }
 
     public func send<T: Decodable & Sendable>(_ endpoint: Endpoint, as type: T.Type) async throws -> T {
@@ -178,6 +185,10 @@ public actor ApexClient {
         request.httpMethod = endpoint.method.rawValue
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Which build is calling. Without it the server cannot tell an app
+        // request from a browser one, and an App Store binary is invisible
+        // until it starts failing — see ClientTag.
+        if let clientTag { request.setValue(clientTag, forHTTPHeaderField: ClientTag.header) }
         request.httpBody = endpoint.body
         return request
     }

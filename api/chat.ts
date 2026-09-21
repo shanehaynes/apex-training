@@ -4,6 +4,7 @@ import { requireUser } from './_lib/auth.js';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
 import { getAnthropicKey } from './_lib/anthropicKey.js';
 import { enforceRateLimit } from './_lib/rateLimit.js';
+import { clientTag } from './_lib/clientVersion.js';
 import { analyticsToolSchemas, builderToolSchemas, coachToolSchemas } from '../src/lib/coach/schemas.js';
 import { resolveCoachModel } from '../src/lib/coach/models.js';
 import type { ChatWireEvent } from '../src/lib/coach/wire.js';
@@ -261,6 +262,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (usage) {
       console.log('[api/chat] usage', {
         model: coachModel.id,
+        // Which build produced this traffic (clientVersion.ts). Absent for the
+        // web, whose bundle always matches the deployment serving it.
+        client: clientTag(req) ?? 'web',
         withTools,
         input:      usage.input_tokens ?? 0,
         cacheRead:  usage.cache_read_input_tokens ?? 0,

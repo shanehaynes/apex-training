@@ -49,6 +49,13 @@ final class AppModel {
     private let hub: RealtimeHub?
     private let clock: any ApexClock
     private var mockState: AuthState = .signedOut(reason: nil)
+    /// Non-nil once `/api/version` has said this build is below the floor it
+    /// serves (G8): the root shows the blocking screen instead of the app. The
+    /// read fails open, so nothing but a positive verdict ever sets it.
+    private(set) var updateRequired: String?
+    /// Kept for the update check, which is unauthenticated and so cannot go
+    /// through `client` — a launch that is not signed in still needs an answer.
+    private let transport: any HTTPTransport
     /// A link that arrived before the stored session was read; replayed once it is.
     private var parkedURL: URL?
     /// Non-auth links (`/app/...`) and the tab selection: the tabs consume from
@@ -69,12 +76,16 @@ final class AppModel {
         let tokens = SupabaseTokenProvider(auth: auth.auth) { [weak auth] in
             await MainActor.run { auth?.expire(reason: "Session expired. Sign in again.") }
         }
-        let client = ApexClient(baseURL: AppConfig.apiBase, transport: URLSessionTransport(), tokens: tokens)
+        let client = ApexClient(baseURL: AppConfig.apiBase, transport: URLSessionTransport(), tokens: tokens, clientTag: AppConfig.clientTag)
         let pool = Self.openDatabase()
         let cache: (any CacheStore)? = pool.map { GRDBCacheStore(pool: $0) }
         let streams = SupabaseActivityStreams(client: auth.supabase)
         let hub = RealtimeHub(client: auth.supabase)
         self.client = client
+        // A second instance, not the client's: `URLSessionTransport` is a
+        // stateless wrapper over `URLSession.shared`, so both are the one
+        // session the app has.
+        self.transport = URLSessionTransport()
         self.pool = pool
         self.cache = cache
         self.streams = streams
@@ -90,6 +101,10 @@ final class AppModel {
         let client = ApexClient(baseURL: AppConfig.apiBase, transport: mock.transport, tokens: mock.tokens)
         self.client = client
         self.pool = nil
+        // No `clientTag` on the mock's client, deliberately: its transport is
+        // in-process, so no server ever reads the header, and a fixture build
+        // has no business announcing itself as one the gate could retire.
+        self.transport = mock.transport
         self.cache = mock.cache
         self.streams = mock.streams
         self.hub = nil
@@ -316,6 +331,15 @@ final class AppModel {
         guard let client, let data = try? await client.data(for: .profile),
               let profile = try? JSONDecoder().decode(ProfileResponse.self, from: data) else { return }
         needsTermsAcceptance = !profile.termsCurrent
+    }
+
+    /// The launch check (G8): has the server retired this build? Everything
+    /// about the read fails open — offline, a 500, an unparseable body all
+    /// leave the app running — so this only ever turns the screen ON.
+    func checkMinimumBuild() async {
+        updateRequired = await UpdateGate.check(
+            build: AppConfig.buildNumber, baseURL: AppConfig.apiBase, transport: transport
+        )
     }
 
     #if DEBUG

@@ -24,3 +24,9 @@ DEVELOPMENT_TEAM = G44GWSXFK2
 // has no slashes, so it survives the comment rule above.
 APEX_INVITE_CONTACT = mailto:shanehaynes.sah@gmail.com?subject=Apex%20invite
 
+// Where the update screen sends a build the server has retired (G8). Empty
+// until the app has an App Store id — the screen then states the requirement
+// without offering a dead link. Fill in as:
+//   APEX_APP_STORE_URL = https:$(SLASH)$(SLASH)apps.apple.com$(SLASH)app$(SLASH)id<id>
+APEX_APP_STORE_URL =
+
