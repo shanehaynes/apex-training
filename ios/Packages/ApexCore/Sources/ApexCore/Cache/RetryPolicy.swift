@@ -74,6 +74,16 @@ public struct RetryPolicy: Sendable, Equatable {
     /// (`clientTimestamp` in api/_lib/handlers/workoutSessions.ts).
     public static func isTimestampWindowRejection(_ error: APIError) -> Bool {
         guard case .server(let status, let message) = error, status == 400, let message else { return false }
-        return message.contains("within the last 7 days")
+        // The stable body, and the prose the handler used to send instead. An
+        // installed build meets whichever server is deployed, so both have to
+        // be accepted for one release; drop the sentence when the handler does.
+        return message.contains(timestampWindowBody) || message.contains("within the last 7 days")
     }
+
+    /// The stable body that 400 carries now — `TIMESTAMP_WINDOW_BODY` in
+    /// api/_lib/handlers/workoutSessions.ts. A token rather than a sentence
+    /// because WriteQueue branches on it (resend unstamped, rather than fail
+    /// the op), and matching prose was a rewording away from silently
+    /// dropping a queued workout.
+    public static let timestampWindowBody = "timestamp-out-of-window"
 }

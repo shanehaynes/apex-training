@@ -3,7 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { AuthApiError, AuthRetryableFetchError } from '@supabase/supabase-js';
 import { AUTH_UNAVAILABLE_BODY, requireUser } from '../_lib/auth';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
-import { TERMS_REQUIRED_BODY } from '../_lib/legal';
+import { TERMS_REQUIRED_BODY, TERMS_UNAVAILABLE_BODY } from '../_lib/legal';
 import { PRIVACY_VERSION, TERMS_VERSION } from '../../src/lib/legal/versions';
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
@@ -145,14 +145,30 @@ describe('requireUser — terms gate', () => {
   });
 
   // Unlike the rate limiter, which fails OPEN so a database hiccup cannot
-  // take the app down, the consent gate fails CLOSED — otherwise an induced
-  // error is a bypass.
-  it('fails closed when the acceptance lookup errors', async () => {
+  // take the app down, the consent gate still DENIES on a lookup failure —
+  // otherwise an induced error is a bypass. But it denies as 503, not 403:
+  // 403 terms-acceptance-required is a permanent verdict in
+  // RetryPolicy.classify, so a one-second Postgres blip during an offline
+  // flush used to fail a queued workout forever and demand that the user
+  // accept terms they had already accepted.
+  it('503s terms-check-unavailable when the acceptance lookup errors', async () => {
     mockedAdmin.mockReturnValue(makeAdmin(null, { error: 'connection reset' }));
     const { res, statusCode, body } = makeRes();
     expect(await requireUser(makeReq('Bearer good-token'), res)).toBeNull();
-    expect(statusCode()).toBe(403);
-    expect(body()).toBe(TERMS_REQUIRED_BODY);
+    expect(statusCode()).toBe(503);
+    expect(body()).toBe(TERMS_UNAVAILABLE_BODY);
+  });
+
+  it('keeps the two bodies distinct — "try again" must not read as "go accept"', () => {
+    expect(TERMS_UNAVAILABLE_BODY).not.toBe(TERMS_REQUIRED_BODY);
+    expect(TERMS_UNAVAILABLE_BODY).not.toContain(TERMS_REQUIRED_BODY);
+  });
+
+  it('still refuses outright — an unreadable ledger is never a pass', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin(CURRENT_ROW, { error: 'connection reset' }));
+    const { res, statusCode } = makeRes();
+    expect(await requireUser(makeReq('Bearer good-token'), res)).toBeNull();
+    expect(statusCode()).toBe(503);
   });
 
   it('skipTermsGate lets the exempt endpoints through unaccepted', async () => {
