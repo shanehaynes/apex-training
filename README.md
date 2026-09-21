@@ -295,7 +295,7 @@ npm run eval            # coach eval suite (spends real API tokens)
 
 `tsc -b` builds **five strict projects** — app, node, api, e2e, and `evals/` — all referenced from the root [tsconfig.json](tsconfig.json), so the eval harness is typechecked like production code.
 
-**Six CI jobs**, five of them on every push, pull request, and merge-queue branch:
+**Seven CI jobs**, five of them on every push, pull request, and merge-queue branch:
 
 | Job | What it proves |
 |---|---|
@@ -304,6 +304,7 @@ npm run eval            # coach eval suite (spends real API tokens)
 | `full` | A **real local Supabase stack**: every migration applied from scratch, generated-types drift check, 42 handler integration tests with real JWTs and RLS cross-user isolation, then 12 live e2e flows |
 | `apexcore-linux` | The iOS shared core builds and tests on Linux — the gate that keeps it free of Apple-only imports |
 | `ios` | XcodeGen + `xcodebuild test` on a simulator, unit and UI tests, `.xcresult` uploaded |
+| `prod-checks` | Production's database schema and Supabase auth configuration, probed over the network — nightly and on demand only. Drift fails; an unreachable project stays green with a notice |
 | `evals` | The coach eval suite — nightly and on demand only, because it spends tokens |
 
 Three more workflows live outside `ci.yml` on purpose: the nightly [backup](.github/workflows/backup.yml) with its restore drill; the nightly [model-catalog](.github/workflows/model-catalog.yml) check, kept separate so that Anthropic shipping a model never reads as `main` being broken; and the manual [TestFlight](.github/workflows/testflight.yml) release, which publishes a build to Apple and so never fires on push.
@@ -360,6 +361,12 @@ npm run db:reset-local
 
 </details>
 
+**Watching production.** `GET /api/version` is the health endpoint: unauthenticated, no database, no network, and it answers the two questions no external probe could otherwise ask — `publicOrigin` and `keyEncryption`, booleans for whether `VITE_PUBLIC_ORIGIN` and `API_KEY_ENCRYPTION_SECRET` are configured. Both variables fail *soft* (the first falls back to the request host, the second stores users' Anthropic keys in plaintext with a log warning), which is right for dev and wrong in production, and the booleans are what makes the difference visible from outside. Never the values: a boolean cannot leak a key or a domain. `scripts/deploy-verify.sh` asserts both, plus that the Apple App Site Association file, `/privacy` and `/terms` still answer 200. Point a free uptime monitor at the same URL every five minutes.
+
+Unhandled errors from the consolidated `/api/*` routes funnel through one seam ([`api/_lib/errorReport.ts`](api/_lib/errorReport.ts), wired into the Hono bridge in [`api/_lib/app.ts`](api/_lib/app.ts)): a single structured `[apex/error]` line tagged `APEX-API-ERROR`, and a POST to `APEX_ERROR_WEBHOOK_URL` when one is set. No SDK and no dependency — Vercel's Hobby plan has no log drains and about an hour of retention, so the seam exists to be pointed at something, and pointing it at Sentry later is a URL, not a rewrite.
+
+And the supervisor sweep itself runs nightly in CI ([`.github/workflows/supervisor.yml`](.github/workflows/supervisor.yml)): it runs `supervisor-report.sh --no-local`, fails on any `ACTION` line, and opens or updates one fixed-title issue so a red night is a thing you can see rather than another ignored email. `--no-local` drops the sections that describe *this machine* — the shared Supabase stack, the primary checkout, worktrees and session claims — and keeps the ones about production and the repo. Four consecutive red nightly backups went unnoticed before this existed.
+
 ---
 
 ## How this repository is built
@@ -401,6 +408,7 @@ Plain `vite` does not run the serverless functions, so writes and AI features de
 | `VITE_PUBLIC_ORIGIN` | client + server | the canonical origin this deployment publishes as. Every URL that leaves the app is built from it — OAuth issuer and endpoints, the MCP endpoint, the ICS feed, password-reset redirects. Unset, those follow the request's `Host`, so a user on a deployment URL copies that protected host into Claude or their calendar app. Set it in production; leave it unset for local dev, e2e, and previews |
 | `API_KEY_ENCRYPTION_SECRET` | server only | encrypts stored per-user Anthropic keys at rest (AES-256-GCM). Any long random string — `openssl rand -base64 32`. Unset, keys are stored in plaintext with a loud server-log warning on every save; set it later and existing rows are re-encrypted on first read. Rotating it invalidates saved keys |
 | `CRON_SECRET` | server only | bearer token guarding the cron endpoints |
+| `APEX_ERROR_WEBHOOK_URL` | server only | optional. Every unhandled error from the consolidated `/api/*` routes is logged as a one-line `[apex/error] {...}` record tagged `APEX-API-ERROR`; set this and the same record is also POSTed there (a Sentry ingest URL, a chat webhook, a forwarder of your own). One attempt, 2s timeout, failures swallowed — a webhook that is down never affects a request. Unset = log only, which is right for dev, e2e and previews |
 | `GMAIL_USER` / `GMAIL_APP_PASSWORD` | server only | Gmail SMTP for review emails ([app password](https://myaccount.google.com/apppasswords); 2-Step Verification must be on) |
 | `SEED_SOURCE_USER_ID` | server only | the account whose recurring workouts seed new users; falls back to the `profiles` row with `is_template_source = true` |
 | `COROS_CLIENT_ID` / `COROS_REDIRECT_URI` | server only | watch sync; register with `node scripts/coros-spike.mjs register <callback-url>` |

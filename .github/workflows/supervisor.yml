@@ -1,0 +1,162 @@
+# The supervisor sweep, on a schedule instead of on somebody remembering.
+#
+# scripts/supervisor-report.sh is the detector for everything that rots
+# between sessions — main's CI, production's auth configuration, production's
+# database schema, the nightly backup, where every open PR sits. It was only
+# ever run by hand. Four consecutive red nightly backups went unnoticed while
+# it existed: GitHub's own failure emails had already fired and had already
+# been filtered away, so another email was never going to be the answer. An
+# issue is: it has one URL, it stays open until the thing is fixed, and it is
+# the same place the rest of this repo's work lives.
+#
+# --no-local drops the sections about Shane's machine (the shared Supabase
+# stack, the primary checkout, git-tidy, worktree age, session claims), which
+# a runner cannot see and must not report an all-clear about. See the README's
+# "Operations" section for which half is covered where. Everything about
+# PRODUCTION and the REPOSITORY runs here:
+#
+#   covered nightly here        only on Shane's box (run the sweep by hand)
+#   ────────────────────        ──────────────────────────────────────────
+#   main's latest CI run        the shared local Supabase stack's schema
+#   coach model catalog         the primary checkout: on main, and clean
+#   production auth config      git-tidy's dry run (merged branches)
+#   production DB schema        worktree age
+#   the nightly backup          session claims (.claude/state/claims.tsv)
+#   open PRs + combine check
+#
+# Its own workflow, not a job in ci.yml, for the reason model-catalog.yml
+# gives: the sweep asks `gh run list --workflow CI --branch main` whether main
+# is green, so a sweep job inside CI would answer its own question, and an
+# unapplied production migration would read as "main is broken" — which it is
+# not. Drift in the world is not a regression in the code.
+#
+# The script always exits 0 (it is a report), so turning its output into a
+# signal is this workflow's job: any ACTION line fails the run and lands in a
+# single fixed-title issue, updated rather than duplicated.
+name: Supervisor
+
+on:
+  schedule:
+    # 11:00 UTC: after the 04:30 backup, CI's 10:00 nightly and the 10:30
+    # catalog check, so it reports on the night that just happened rather than
+    # on the one before.
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+
+# contents: read for the checkout; issues: write to open, update and close the
+# one report issue. Nothing here writes to the repository or to production.
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: supervisor
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # gh, for the sweep's own `gh run list` / `gh pr list` calls and for the
+      # issue steps below.
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_TITLE: 'Supervisor sweep: attention needed'
+    steps:
+      # Full history: the sweep's combine check runs `git merge-tree` across
+      # every open PR branch, and prod-schema-check.mjs reads
+      # database.types.ts out of origin/main rather than the working tree.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      # No `npm ci`: the scripts the sweep runs import node: builtins only.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Sweep
+        env:
+          # The production schema check. Both must be set together or it
+          # reports itself skipped (and the step below warns rather than
+          # passing quietly).
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          # The script is built never to fail, so its OUTPUT is the signal —
+          # but capture the status anyway, because a script that dies at the
+          # assignment under the default shell's -e would leave a red run with
+          # an empty log.
+          out=$(scripts/supervisor-report.sh --no-local 2>&1) && rc=0 || rc=$?
+          printf '%s\n' "$out"
+          printf '%s\n' "$out" > sweep.txt
+
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::scripts/supervisor-report.sh exited $rc without finishing — nothing was swept."
+            exit 1
+          fi
+
+          grep '^ACTION' sweep.txt > actions.txt || true
+          # A sweep that could not look at production is not a clean sweep.
+          if grep -q 'skipped' sweep.txt; then
+            grep 'skipped' sweep.txt | sed 's/^ *//; s/^/::warning::/'
+          fi
+
+      # Split from the sweep so the issue is filed even when a later step
+      # would have failed, and so the sweep step's own log stays readable.
+      - name: File or update the report issue
+        run: |
+          set -euo pipefail
+
+          # One issue, for the life of the repository: found by exact title in
+          # any state, reopened if it was closed. A new issue per night would
+          # be the same email problem wearing a different hat.
+          existing=$(gh issue list --state all --limit 100 --json number,title,state \
+            --jq ".[] | select(.title == \"$ISSUE_TITLE\") | \"\(.number) \(.state)\"" | head -1 || true)
+          number=${existing%% *}
+          state=${existing#* }
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          if [ ! -s actions.txt ]; then
+            echo "No ACTION lines — the sweep is clean."
+            if [ -n "$number" ] && [ "$state" = OPEN ]; then
+              gh issue comment "$number" --body "Clean sweep on $(date -u +%Y-%m-%d) — closing. [Run]($run_url)"
+              gh issue close "$number"
+            fi
+            exit 0
+          fi
+
+          # The body carries the ACTION lines only, not the whole report: this
+          # repository is public, and the full sweep prints hosts, branch names
+          # and PR titles that have no reason to be mirrored into an issue.
+          # The run log has everything.
+          {
+            echo "The nightly sweep found things that need a human. Updated in place each night; closed automatically on the first clean sweep."
+            echo
+            echo "**$(date -u '+%Y-%m-%d %H:%M') UTC** — [full report]($run_url)"
+            echo
+            sed 's/^ACTION /- /' actions.txt
+            echo
+            echo "Run it yourself with \`scripts/supervisor-report.sh\` (no \`--no-local\`, which adds the sections about your own machine)."
+          } > body.md
+
+          # The body is rewritten every night (nobody is notified for an edit),
+          # and a comment — which does notify — is posted only when the issue
+          # goes from closed to open again. A nightly comment on a standing
+          # issue is the email problem all over again.
+          if [ -n "$number" ]; then
+            if [ "$state" = CLOSED ]; then
+              gh issue reopen "$number"
+              gh issue comment "$number" --body-file body.md
+            fi
+            gh issue edit "$number" --body-file body.md
+            echo "Updated #$number"
+          else
+            gh issue create --title "$ISSUE_TITLE" --body-file body.md
+          fi
+
+      - name: Fail on any ACTION line
+        run: |
+          if [ -s actions.txt ]; then
+            sed 's/^ACTION /::error::ACTION /' actions.txt
+            exit 1
+          fi

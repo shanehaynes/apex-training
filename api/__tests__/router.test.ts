@@ -141,6 +141,29 @@ describe('consolidated API router', () => {
     expect(body()).toHaveProperty('sha');
   });
 
+  // The error seam (issue #224). It observes and rethrows, so the caller's
+  // experience of a throwing handler is exactly what it was before: Hono
+  // catches the rethrow and this answers 500, as it did with no seam at all.
+  it('reports an unhandled handler error without changing the response', async () => {
+    const boom = new Error('handler exploded');
+    vi.mocked(eventsHandler).mockRejectedValueOnce(boom);
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('POST', '/api/events'), res);
+    expect(statusCode()).toBe(500);
+
+    const line = logged.mock.calls.map(c => String(c[0])).find(l => l.startsWith('[apex/error] '));
+    expect(line).toBeDefined();
+    expect(JSON.parse(line!.slice('[apex/error] '.length))).toMatchObject({
+      tag: 'APEX-API-ERROR',
+      route: '/api/events',
+      method: 'POST',
+      message: 'handler exploded',
+    });
+    logged.mockRestore();
+  });
+
   it('404s unknown paths with the distinctive router message', async () => {
     const { res, statusCode, body } = makeRes();
     await handler(makeReq('GET', '/api/nonexistent'), res);

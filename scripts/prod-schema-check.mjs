@@ -25,9 +25,11 @@
 // OpenAPI document at GET /rest/v1/. Each missing object is printed with the
 // migration that creates it.
 //
-// Credentials: VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY from .env.local
-// — this checkout's, else the primary checkout's. The key goes in request
-// headers only and is never printed.
+// Credentials: VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY — from the
+// environment when both are set (that is how the nightly CI job passes the
+// repository secrets; a runner has no .env.local), else from .env.local, this
+// checkout's and then the primary checkout's. The key goes in request headers
+// only and is never printed.
 //
 // Exit codes: 0 in sync; 1 drift; 2 could not check (no credentials, project
 // unreachable or paused, key rejected) — an outage is not drift, so
@@ -439,10 +441,18 @@ function migrationsAt(ref) {
     .map((path) => ({ file: path.slice(MIGRATIONS_DIR.length), sql: git('show', `${ref}:${path}`) }));
 }
 
-// Same resolution as scripts/check-models.mjs: this checkout's .env.local,
-// then the primary checkout's — .env.local is gitignored, so a fresh worktree
-// has none of its own and falls through via its .git file.
+// The environment first — a CI runner has secrets and no .env.local, and an
+// explicit export is also how you aim this at a project other than the one
+// .env.local describes. Then the same resolution as scripts/check-models.mjs:
+// this checkout's .env.local, then the primary checkout's — .env.local is
+// gitignored, so a fresh worktree has none of its own and falls through via
+// its .git file. Both halves are required together: a URL from one source and
+// a key from the other would probe one project with another's credentials.
 function credentials() {
+  const envUrl = process.env.VITE_SUPABASE_URL?.trim();
+  const envKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (envUrl && envKey) return { url: envUrl.replace(/\/+$/, ''), key: envKey };
+
   const dirs = [root];
   try {
     const gitdir = readFileSync(join(root, '.git'), 'utf8').match(/^gitdir:\s*(.+?)\s*$/m);
@@ -481,7 +491,7 @@ async function main(argv) {
 
   const creds = credentials();
   if (!creds) {
-    console.log('no VITE_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in .env.local — production schema check skipped');
+    console.log('no VITE_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in the environment or .env.local — production schema check skipped');
     return 2;
   }
   if (fetchRef) {

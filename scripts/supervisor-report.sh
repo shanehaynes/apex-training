@@ -3,7 +3,7 @@
 # in one report. Lines starting with "ACTION" need a human or a session;
 # everything else is status. Never mutates anything — safe from anywhere.
 #
-#   scripts/supervisor-report.sh
+#   scripts/supervisor-report.sh [--no-local]
 #
 # Covers: is main green, is the shared local stack current, do production's
 # auth redirects still reach the public app, does production's database have
@@ -11,7 +11,23 @@
 # still on main and clean, what git-tidy would clean, which worktrees look
 # abandoned, and where every open PR sits in the merge loop
 # (scripts/merge-babysit.sh runs that loop).
+#
+# --no-local (or APEX_SUPERVISOR_NO_LOCAL=1) drops the sections that describe
+# THIS MACHINE and nothing else: the shared local Supabase stack, the primary
+# checkout, the git-tidy dry run, worktree age, and session claims. A CI runner
+# is a fresh clone with no worktrees, no claims file and no stack, so those
+# sections there would report either "skipped" or — worse — a confident
+# all-clear about a machine the run cannot see. Everything about PRODUCTION
+# and the REPOSITORY still runs. .github/workflows/supervisor.yml is the
+# caller, and README "Operations" says which half is covered where.
+#
+# Exit status is always 0: this is a report. A caller that wants a gate greps
+# for ACTION, which is what the workflow does.
 set -uo pipefail
+
+# Resolved before the cd below, because after it a relative $0 names the
+# PRIMARY checkout's copy of this file — --help would print that one's text.
+self="$(cd "$(dirname "$0")" && pwd -P)/$(basename "$0")"
 
 # Anchor on the checkout this script lives in (so it runs from anywhere),
 # then hop to the primary checkout, which owns .claude/worktrees/.
@@ -19,6 +35,16 @@ cd "$(cd "$(dirname "$0")/.." && pwd -P)" || exit 1
 cd "$(git rev-parse --git-common-dir)/.." || exit 1
 
 GH="${GH:-$(command -v "$HOME/bin/gh" || command -v gh || true)}"
+
+local_sections=1
+[ "${APEX_SUPERVISOR_NO_LOCAL:-}" = 1 ] && local_sections=0
+for arg in "$@"; do
+  case "$arg" in
+    --no-local) local_sections=0 ;;
+    -h|--help) sed -n '2,/^set -/{/^set -/d;p;}' "$self" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "usage: scripts/supervisor-report.sh [--no-local]" >&2; exit 64 ;;
+  esac
+done
 
 # Epoch seconds for a UTC timestamp of the form 2026-09-10T11:18:01Z — what
 # git-new.sh writes to claims.tsv and what gh returns — or nothing, with a
@@ -46,6 +72,7 @@ else
   echo "   gh not found — skipped"
 fi
 
+if [ "$local_sections" = 1 ]; then
 echo
 echo "── shared local Supabase stack"
 if scripts/preflight-local.sh >/dev/null 2>&1; then
@@ -56,6 +83,7 @@ if scripts/preflight-local.sh >/dev/null 2>&1; then
   fi
 else
   echo "   stack not running — drift check skipped (npm run stack:fix to bring it up)"
+fi
 fi
 
 echo
@@ -85,11 +113,28 @@ else
   auth_out=$(scripts/auth-redirect-check.sh 2>&1); auth_code=$?
 fi
 case $auth_code in
-  0) echo "   invites and resets land on the public domain" ;;
-  2) [ -n "$auth_out" ] && echo "   Supabase unreachable — redirect check skipped" ;;
+  0) echo "   $(printf '%s\n' "$auth_out" | tail -1 | sed 's/^─* *//')" ;;
+  2) [ -n "$auth_out" ] && echo "   Supabase unreachable — auth check skipped" ;;
   *)
     echo "$auth_out" | sed 's/^/   /'
-    echo "ACTION Supabase auth redirects point off the public domain — invites and password resets land on Vercel's SSO wall; fix Authentication → URL Configuration (DEPLOY_MULTI_USER.md step 1)"
+    # The script exits 1 for either of two unrelated dashboard failures, and
+    # they have different fixes, so the headline has to say which one fired.
+    # It used to always say "redirects" — a sign-up failure then produced an
+    # ACTION pointing at URL Configuration, which is not where the toggle is.
+    # Split on the script's own section headings rather than on the wording of
+    # any one ✗ line: the headings are the structure, the wording is not.
+    auth_signup=$(printf '%s\n' "$auth_out" | awk '/^── .*sign-up/{s=1} s')
+    auth_redirects=$(printf '%s\n' "$auth_out" | awk '/^── .*sign-up/{s=1} !s')
+    auth_named=0
+    if printf '%s\n' "$auth_redirects" | grep -q '✗'; then
+      auth_named=1
+      echo "ACTION Supabase auth redirects point off the public domain — invites and password resets land on Vercel's SSO wall; fix Authentication → URL Configuration (DEPLOY_MULTI_USER.md step 1)"
+    fi
+    if printf '%s\n' "$auth_signup" | grep -q '✗'; then
+      auth_named=1
+      echo "ACTION production Supabase sign-up is open, or a pinned auth setting drifted — /api/* has no allowlist behind that toggle and docs/ios/app-store.md rests App Review 5.1.1 on invite-only; fix Authentication → Sign In / Up (DEPLOY_MULTI_USER.md step 1.2)"
+    fi
+    [ "$auth_named" = 0 ] && echo "ACTION scripts/auth-redirect-check.sh failed (exit $auth_code) — read its output above; production's auth configuration is not provably correct"
     ;;
 esac
 
@@ -99,14 +144,15 @@ echo "── production database schema"
 # skipped one shows up only as 500s: on 2026-09-15 prod lacked phase38, phase41
 # and phase32_quarantine while /api/version reported current code. The check
 # reads PostgREST's schema only (limit=0 probes and the OpenAPI document) with
-# the production service-role key from .env.local. Exit 1 is drift; 2 is
-# "could not check" (unreachable, key rejected) — status, never an ACTION, as
-# with the redirect check above.
+# the production service-role key from the environment, else .env.local. Exit 1
+# is drift; 2 is "could not check" (unreachable, key rejected) — status, never
+# an ACTION, as with the redirect check above.
 if [ ! -f scripts/prod-schema-check.mjs ]; then
   echo "   prod-schema-check.mjs not in this checkout — skipped"
-elif ! grep -qE '^VITE_SUPABASE_URL=.' .env.local 2>/dev/null \
-  || ! grep -qE '^SUPABASE_SERVICE_ROLE_KEY=.' .env.local 2>/dev/null; then
-  echo "   no VITE_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in .env.local — skipped"
+elif { [ -z "${VITE_SUPABASE_URL:-}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; } \
+  && { ! grep -qE '^VITE_SUPABASE_URL=.' .env.local 2>/dev/null \
+    || ! grep -qE '^SUPABASE_SERVICE_ROLE_KEY=.' .env.local 2>/dev/null; }; then
+  echo "   no VITE_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in the environment or .env.local — skipped"
 else
   schema_out=$(node scripts/prod-schema-check.mjs 2>&1); schema_code=$?
   printf '%s\n' "$schema_out" | sed 's/^/   /'
@@ -151,6 +197,7 @@ else
   echo "   gh not found — skipped"
 fi
 
+if [ "$local_sections" = 1 ]; then
 echo
 echo "── primary checkout"
 # CLAUDE.md: ~/projects/apex-training "stays on main, clean, always". Nothing
@@ -245,6 +292,7 @@ if [ -s "$claims" ]; then
 else
   echo "   none recorded"
 fi
+fi   # end of the local-machine sections (--no-local)
 
 echo
 echo "── open PRs"
