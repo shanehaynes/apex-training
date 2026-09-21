@@ -5,6 +5,9 @@ in-app account deletion since W11, the invite link on the sign-in screen); every
 filled in by hand in [App Store Connect](https://appstoreconnect.apple.com) by Shane, because
 the console has no API for most of it and the demo account needs a real key.
 
+> Who can mint an App Store Connect API key, where each secret is escrowed, and how to recover
+> the Apple Account without the release machine: [ops-runbook.md](../ops-runbook.md).
+
 ## 1. App Privacy (App Store Connect → App → App Privacy)
 
 These answers must match `PrivacyInfo.xcprivacy`, which App Store Connect reads from the
