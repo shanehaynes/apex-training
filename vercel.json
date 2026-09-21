@@ -2,6 +2,11 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "functions": {
+    "api/calendar-feed.ts": { "maxDuration": 15 },
+    "api/chat.ts": { "maxDuration": 60 },
+    "api/[...path].ts": { "maxDuration": 60 }
+  },
   "rewrites": [
     { "source": "/.well-known/oauth-protected-resource/:path*", "destination": "/api/oauth-metadata?kind=resource" },
     { "source": "/.well-known/oauth-protected-resource", "destination": "/api/oauth-metadata?kind=resource" },
