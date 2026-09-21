@@ -91,6 +91,31 @@ the script in any worktree you do a device or Release build from.
 A local user to sign in as: `agent@apex.local` / `apex-agent-password`
 (`scripts/create-local-users.mjs`).
 
+## Toolchain pins
+
+Three files hold the release toolchain still, because a hosted runner's image
+rolls forward on its own schedule and a signed build must not change with it:
+
+| file | pins | moved by |
+| --- | --- | --- |
+| `ios/.xcode-version` | the Xcode both macOS jobs `xcode-select` to (`26.6`) | editing it in a PR; CI's `ios` job then builds with it |
+| `ios/Gemfile` + `Gemfile.lock` | fastlane, run as `bundle exec fastlane beta` | `cd ios && bundle update fastlane` on a Mac |
+| `ios/Package.resolved` | the **transitive** SwiftPM graph (direct versions are exact in `project.yml` and `ApexKit/Package.swift`) | `ios/scripts/sync-package-resolved.sh --update` after a resolve |
+
+`ios/scripts/sync-package-resolved.sh` copies the committed resolution into the
+generated workspace before anything resolves — `testflight.sh`, the `beta` lane
+and CI all call it. After bumping a direct version, refresh it in the same
+commit:
+
+```bash
+cd ios && xcodegen generate \
+  && xcodebuild -resolvePackageDependencies -project Apex.xcodeproj -scheme Apex \
+  && scripts/sync-package-resolved.sh --update
+```
+
+`scripts/ci-guards.sh` runs `node ios/scripts/check-package-resolved.mjs --check`,
+which fails a PR whose committed resolution disagrees with the manifests.
+
 The simulator reaches the API through this worktree's vite server, and it dials `127.0.0.1`.
 Node 26 binds vite to `::1` only, so start it as `npm run dev:agent -- --host 127.0.0.1` or
 every `/api/*` call fails with "No connection" while the web works fine in a browser.

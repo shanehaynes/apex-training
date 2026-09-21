@@ -12,8 +12,13 @@ import PackageDescription
 // build the whole package on Linux. See docs/ios/decisions.md D-021.
 //
 // Versions are pinned exactly because the .xcodeproj is generated (D-005), so
-// Package.resolved lives inside a git-ignored directory and cannot be committed.
-// This manifest is the only place a version can be held still.
+// the resolution SwiftPM writes lives inside a git-ignored directory. This
+// manifest is where the DIRECT versions are held still; the transitive graph is
+// held by ios/Package.resolved, which is committed at the top of ios/ and copied
+// into the generated workspace before every build by
+// ios/scripts/sync-package-resolved.sh. Bump a version here and the resolution
+// has to be refreshed on a Mac (`--update`) in the same commit —
+// scripts/ci-guards.sh fails the PR that forgets.
 let package = Package(
     name: "ApexKit",
     platforms: [.iOS(.v17)],

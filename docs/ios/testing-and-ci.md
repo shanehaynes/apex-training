@@ -171,9 +171,19 @@ rule people remember.
    It needs three repository secrets, all from the same API key the script uses
    (Settings → Secrets and variables → Actions): `ASC_KEY_ID`, `ASC_ISSUER_ID`, and
    `ASC_KEY_P8_BASE64` (`base64 -i ~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8 |
-   tr -d '\n'`). The job fails at its first step naming whichever is missing. The lane
-   runs on a Mac too — `cd ios && fastlane beta dry_run:true` archives and exports without
-   uploading — reading the ids from the environment or `ios/Config/appstoreconnect.env`.
+   tr -d '\n'`). The job fails at its first step naming whichever is missing. A fourth,
+   `SUPABASE_ANON_KEY`, is optional: set, the workflow writes `ios/Config/Secrets.xcconfig`
+   from it; unset, it falls back to scraping the deployed web bundle
+   (`ios/scripts/secrets.sh`), which makes the release depend on the site being up. Either
+   way `ios/scripts/secrets.sh --check` asserts the key before anything is built. The lane
+   runs on a Mac too — `cd ios && bundle exec fastlane beta dry_run:true` archives and
+   exports without uploading — reading the ids from the environment or
+   `ios/Config/appstoreconnect.env`.
+
+   Both macOS jobs `xcode-select` to `ios/.xcode-version` first, fastlane is pinned in
+   `ios/Gemfile`, and the transitive SwiftPM graph is pinned by `ios/Package.resolved`
+   (`ios/scripts/sync-package-resolved.sh` installs it before anything resolves) —
+   `ios/CLAUDE.md`, "Toolchain pins".
 
    The build number is `git rev-list --count HEAD` in both paths, not the workflow's run
    number ([D-034](decisions.md#d-034--the-workflows-build-number-is-the-commit-count-not-the-run-number)).

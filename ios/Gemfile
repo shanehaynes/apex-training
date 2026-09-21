@@ -1,0 +1,28 @@
+# fastlane, pinned.
+#
+# WHY THIS EXISTS
+# .github/workflows/testflight.yml used to call bare `fastlane` — whichever
+# version the macos-26 image happened to ship that week. The `beta` lane leans
+# on version-specific gym behaviour (it hands xcodebuild its own
+# -authenticationKey* flags on xcargs because gym passes the api_key to the
+# export step only, and it reads SharedValues::IPA_OUTPUT_PATH back out), so a
+# runner image that rolls fastlane forward can break a release with no commit of
+# ours in between. This file, `bundle exec fastlane beta`, and the lockfile are
+# what hold it still.
+#
+# 2.238.0 is the version the image ships today, so pinning it changes nothing
+# about the builds we have been making — it only stops the next roll.
+#
+# THE LOCKFILE
+# Gemfile.lock pins fastlane's own dependency graph and must be committed. It
+# can only be generated where bundler runs, which is not the Linux box these
+# agents work on:
+#
+#   cd ios && bundle install && git add Gemfile.lock
+#
+# Until it exists, ruby/setup-ruby's bundler-cache runs `bundle lock` itself and
+# the transitive versions still float; once it does, bundler runs in deployment
+# mode and a Gemfile edit without a matching lock fails the job.
+source "https://rubygems.org"
+
+gem "fastlane", "2.238.0"

@@ -56,3 +56,7 @@ ios/Config/appstoreconnect.env
 ios/fastlane/report.xml
 ios/fastlane/README.md
 ios/fastlane/test_output/
+# `bundle install` output — ios/Gemfile and ios/Gemfile.lock are committed, the
+# installed gems are not.
+ios/.bundle/
+ios/vendor/

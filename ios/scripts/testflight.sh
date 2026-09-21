@@ -91,6 +91,12 @@ fi
 
 [ -d Apex.xcodeproj ] || xcodegen generate
 
+# The committed transitive resolution, installed into the generated workspace
+# before xcodebuild resolves the package graph: direct versions are exact in the
+# manifests, everything below them is whatever resolution chose on the day. A
+# no-op while ios/Package.resolved is absent.
+scripts/sync-package-resolved.sh
+
 ARCHIVE="build/Apex-$BUILD_NUMBER.xcarchive"
 EXPORT_DIR="build/export-$BUILD_NUMBER"
 rm -rf "$ARCHIVE" "$EXPORT_DIR"

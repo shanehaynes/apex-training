@@ -15,6 +15,14 @@
 #                       base64 -i ~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8 | tr -d '\n'
 # Without them the job stops at "Check secrets" and names what is missing.
 #
+# One optional secret:
+#   SUPABASE_ANON_KEY   the production anon key the Release build bakes in. It
+#                       is public by construction (the web ships it in every
+#                       page), and ios/scripts/secrets.sh can scrape it back out
+#                       of the deployed bundle — which is the fallback when this
+#                       is unset. Set it so a release does not depend on the web
+#                       deploy being up: Supabase → Project Settings → API.
+#
 # The build number is `git rev-list --count HEAD` (fetch-depth 0 below is
 # what makes that count the real one), the same rule as testflight.sh — see
 # docs/ios/decisions.md D-034 for why not github.run_number.
@@ -72,6 +80,23 @@ jobs:
           # The build number is the commit count; a shallow clone would stamp 1.
           fetch-depth: 0
 
+      # The same pin as ci.yml's ios job, and for a stronger reason: the image
+      # carries seven Xcodes and rotates the default, so without this the
+      # compiler, SDK and signing behaviour behind a signed production archive
+      # could change between two runs of the same commit. Bump ios/.xcode-version
+      # in a PR — CI's ios job builds with it before any release does.
+      - name: Select the pinned Xcode
+        run: |
+          version=$(tr -d '[:space:]' < ios/.xcode-version)
+          app="/Applications/Xcode_${version}.app"
+          if [ ! -d "$app" ]; then
+            echo "::error::Xcode $version (ios/.xcode-version) is not on this runner image. Installed:"
+            ls -d /Applications/Xcode*.app
+            exit 1
+          fi
+          sudo xcode-select -s "$app/Contents/Developer"
+          xcodebuild -version
+
       - name: Install the App Store Connect API key
         env:
           P8: ${{ secrets.ASC_KEY_P8_BASE64 }}
@@ -84,16 +109,52 @@ jobs:
 
       - run: brew install xcodegen
 
-      # The production anon key the Release build bakes in — public by
-      # construction (the web ships it in every page), fetched from the site
-      # rather than stored as a fourth secret.
-      - run: ios/scripts/secrets.sh
+      # fastlane from ios/Gemfile rather than whatever the image ships, and
+      # `bundle exec` below so the lane can only ever run that version. With
+      # ios/Gemfile.lock committed, bundler runs in deployment mode and refuses a
+      # Gemfile the lock does not match; until it is (it can only be generated
+      # where bundler runs — see ios/Gemfile), this resolves fastlane's own
+      # dependencies fresh and caches the result.
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4.10"
+          bundler-cache: true
+          working-directory: ios
+
+      # The production anon key the Release build bakes in. Public by
+      # construction — the web ships it in every page load — but the release
+      # should not depend on the web deploy being up, or on a scrape finding the
+      # right JWT in a minified bundle, so the repo secret is the source and the
+      # scrape is the fallback. Either way ios/scripts/secrets.sh --check has the
+      # last word: it asserts the key is this project's unexpired anon key.
+      - name: Write ios/Config/Secrets.xcconfig
+        env:
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -n "$SUPABASE_ANON_KEY" ]; then
+            mkdir -p ios/Config
+            {
+              printf '%s\n' '// Written by .github/workflows/testflight.yml from the SUPABASE_ANON_KEY repo secret.'
+              printf 'SUPABASE_ANON_KEY = %s\n' "$SUPABASE_ANON_KEY"
+            } > ios/Config/Secrets.xcconfig
+            echo "wrote ios/Config/Secrets.xcconfig from the SUPABASE_ANON_KEY secret"
+          else
+            echo "::notice::no SUPABASE_ANON_KEY secret — scraping the deployed bundle instead"
+            ios/scripts/secrets.sh
+          fi
+          ios/scripts/secrets.sh --check
 
       - run: xcodegen generate --spec ios/project.yml
 
+      # The committed transitive resolution, in place before gym lets xcodebuild
+      # resolve the package graph. The beta lane calls this too, for a Mac run
+      # that never goes through this workflow; both are no-ops while
+      # ios/Package.resolved is absent.
+      - run: ios/scripts/sync-package-resolved.sh
+
       - name: Archive, export, upload
         working-directory: ios
-        run: fastlane beta changelog:"${{ github.event.inputs.changelog }}"
+        run: bundle exec fastlane beta changelog:"${{ github.event.inputs.changelog }}"
 
       # Only on failure, to inspect an export that never reached Apple. The repo
       # is public, so artifacts are downloadable by any logged-in GitHub user

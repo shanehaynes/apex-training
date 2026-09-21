@@ -3,8 +3,13 @@
 # and the upload. It is the workflow's path (.github/workflows/testflight.yml)
 # and runs unchanged on a Mac:
 #
-#   cd ios && fastlane beta                 archive, export, upload
-#   cd ios && fastlane beta dry_run:true    archive and export, do not upload
+#   cd ios && bundle exec fastlane beta               archive, export, upload
+#   cd ios && bundle exec fastlane beta dry_run:true  archive and export, do not upload
+#
+# Through `bundle exec`, and fastlane's version pinned in ios/Gemfile: this lane
+# leans on version-specific gym behaviour (the xcargs authentication split
+# below, SharedValues::IPA_OUTPUT_PATH), so the version cannot be whatever the
+# runner image happens to ship.
 #
 # CREDENTIALS — the same three values ios/scripts/testflight.sh reads, from
 # the same places, so a Mac that can run the script can run the lane:
@@ -72,6 +77,12 @@ platform :ios do
     # The anon key the Release build bakes in (git-ignored, per worktree).
     sh("cd .. && (scripts/secrets.sh --check >/dev/null 2>&1 || scripts/secrets.sh)")
     sh("cd .. && ([ -d Apex.xcodeproj ] || xcodegen generate)")
+
+    # The committed transitive resolution (ios/Package.resolved), installed into
+    # the generated workspace before gym lets xcodebuild resolve the graph:
+    # direct versions are exact in the manifests, everything below them is not.
+    # A no-op while the file is absent.
+    sh("cd .. && scripts/sync-package-resolved.sh")
 
     api_key = app_store_connect_api_key(key_id: key_id, issuer_id: issuer_id, key_filepath: key_path)
 
