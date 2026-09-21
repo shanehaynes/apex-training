@@ -102,7 +102,7 @@
 .nav-arrow:hover {
   background: var(--bg-elevated);
   color: var(--text-primary);
-  border-color: #3d3530;
+  border-color: var(--border-strong);
 }
 
 .top-nav__right {
@@ -1334,7 +1334,7 @@
     height: 46px;
     margin-top: -14px;
     border-radius: 50%;
-    border: 1px solid #3d3530;
+    border: 1px solid var(--border-strong);
     background: var(--accent-primary);
     color: var(--bg-primary);
     display: flex;
@@ -2423,7 +2423,7 @@
 }
 
 .tracker-confirm__go--danger {
-  background: #b91c1c;
+  background: var(--destructive);
 }
 
 .tracker-confirm__go:disabled,
@@ -2516,7 +2516,7 @@
 
 .tracker-cancel:hover:not(:disabled) {
   color: var(--danger);
-  border-color: #b91c1c;
+  border-color: var(--destructive);
 }
 
 .tracker-cancel:disabled {
@@ -2812,7 +2812,7 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   background: var(--bg-elevated);
   color: var(--text-primary);
   border: 1px solid var(--border-subtle);
-  border-left: 3px solid #b91c1c;
+  border-left: 3px solid var(--destructive);
   border-radius: var(--radius-md);
   padding: 9px 14px;
   font-family: var(--font-display);
@@ -3541,7 +3541,7 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 
 .modal-delete:hover {
   color: var(--danger);
-  border-color: #b91c1c;
+  border-color: var(--destructive);
 }
 
 .modal-danger__text {
@@ -3577,7 +3577,7 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 }
 
 .modal-danger__btn--danger {
-  border-color: #b91c1c;
+  border-color: var(--destructive);
   color: var(--danger);
 }
 
@@ -3653,7 +3653,7 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 }
 
 .editor-card__remove:hover {
-  color: #b91c1c;
+  color: var(--destructive);
   background: var(--bg-elevated);
 }
 
@@ -3701,7 +3701,7 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 .editor-card__error {
   margin-top: 6px;
   font-size: var(--text-xs);
-  color: #b91c1c;
+  color: var(--destructive);
 }
 
 .exercise-editor__add {
@@ -4261,7 +4261,7 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 }
 
 .builder-template-card:hover {
-  border-color: #3d3530;
+  border-color: var(--border-strong);
   transform: translateY(-1px);
 }
 
@@ -4341,7 +4341,7 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
   justify-content: center;
   gap: 8px;
   padding: 13px;
-  border: 1px dashed #3d3530;
+  border: 1px dashed var(--border-strong);
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-primary);
@@ -4382,7 +4382,7 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 }
 
 .builder-type-chip:hover {
-  border-color: #3d3530;
+  border-color: var(--border-strong);
 }
 
 /* Sport picker (phase 37): same button language as the scoring toggle. */
@@ -4420,7 +4420,7 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 
 .builder-scoring__btn:hover,
 .builder-sport__btn:hover {
-  border-color: #3d3530;
+  border-color: var(--border-strong);
 }
 
 .builder-scoring__hint {
@@ -4507,7 +4507,7 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 }
 
 .builder-repeat__day:hover {
-  border-color: #3d3530;
+  border-color: var(--border-strong);
 }
 
 .builder-repeat__interval {
@@ -6985,7 +6985,7 @@ ol.legal__list { list-style: decimal outside; }
 }
 
 .tile-card__menu button:hover { background: var(--bg-surface); color: var(--text-primary); }
-.tile-card__menu-danger:hover { color: #fb7185 !important; }
+.tile-card__menu-danger:hover { color: var(--danger-text) !important; }
 
 .tile-card__body {
   flex: 1;
@@ -7273,7 +7273,7 @@ ol.legal__list { list-style: decimal outside; }
   cursor: pointer;
 }
 
-.an-series__remove:hover { color: #fb7185; background: var(--bg-elevated); }
+.an-series__remove:hover { color: var(--danger-text); background: var(--bg-elevated); }
 
 .an-filters-toggle {
   display: block;

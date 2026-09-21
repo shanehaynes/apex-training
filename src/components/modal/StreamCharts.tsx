@@ -4,17 +4,17 @@ import { formatElapsed } from '../../lib/time';
 // Time-series charts for a synced activity: heart-rate line, elevation
 // profile, and the GPS route drawn as an equirectangular outline — no tile
 // server, so coordinates never leave the app. Single series per chart, so
-// the chart title carries identity (no legends). All ink uses text tokens;
-// the one mark color (#ea690b) is validated against the modal surface for
-// lightness band + 3:1 contrast (see PR notes) — a shade darker than the
-// sync-badge accent for exactly that reason.
+// the chart title carries identity (no legends). All ink uses text tokens,
+// and the one mark colour is --stream-mark read from tokens.css — the same
+// token iOS's StreamChartsView draws with, so the two clients cannot drift
+// apart the next time the palette moves.
 
 export interface Streams {
   hr?: [number, number][];
   gps?: [number, number, number, number?][];
 }
 
-const MARK = '#ea690b';
+const MARK = 'var(--stream-mark)';
 const W = 560;
 const H = 96;
 const PAD = { top: 14, right: 8, bottom: 16, left: 34 };

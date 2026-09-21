@@ -459,27 +459,32 @@ export const GPT_CHAT: FigureSpec = {
 
 /* ---------- Apex itself ---------- */
 
+// Unlike the vendor figures above, this one draws *our* screen, so it reads
+// the real tokens: after a palette move the picture still shows the app the
+// user is looking at. (var() resolves in SVG presentation attributes, as the
+// stream charts already rely on.)
+
 function ApexTokenSvg() {
   return (
     <Chrome label="Apex Training — Profile">
-      <rect x={1} y={34} width={638} height={365} fill="#0d0c0b" />
-      <T x={40} y={78} size={10} weight={700} fill="#8a7f7c">AI CONNECTOR</T>
-      <T x={40} y={102} size={11.5} fill="#a09590">Query your training data from Claude or ChatGPT.</T>
+      <rect x={1} y={34} width={638} height={365} fill="var(--bg-primary)" />
+      <T x={40} y={78} size={10} weight={700} fill="var(--text-muted)">AI CONNECTOR</T>
+      <T x={40} y={102} size={11.5} fill="var(--text-secondary)">Query your training data from Claude or ChatGPT.</T>
 
-      <rect x={40} y={120} width={430} height={30} rx={6} fill="#161412" stroke="#2e2a25" />
-      <T x={52} y={139} size={10.5} mono fill="#f1f5f9">https://your-apex-site.vercel.app/api/mcp</T>
-      <rect x={480} y={120} width={34} height={30} rx={6} fill="#201e1b" stroke="#2e2a25" />
-      <rect x={489} y={129} width={11} height={11} rx={2} fill="none" stroke="#a09590" strokeWidth={1.3} />
-      <rect x={493} y={133} width={11} height={11} rx={2} fill="none" stroke="#a09590" strokeWidth={1.3} />
+      <rect x={40} y={120} width={430} height={30} rx={6} fill="var(--bg-surface)" stroke="var(--border-subtle)" />
+      <T x={52} y={139} size={10.5} mono fill="var(--text-primary)">https://your-apex-site.vercel.app/api/mcp</T>
+      <rect x={480} y={120} width={34} height={30} rx={6} fill="var(--bg-elevated)" stroke="var(--border-subtle)" />
+      <rect x={489} y={129} width={11} height={11} rx={2} fill="none" stroke="var(--text-secondary)" strokeWidth={1.3} />
+      <rect x={493} y={133} width={11} height={11} rx={2} fill="none" stroke="var(--text-secondary)" strokeWidth={1.3} />
 
-      <rect x={40} y={214} width={430} height={30} rx={6} fill="#161412" stroke="#2e2a25" />
-      <T x={52} y={233} size={10.5} fill="#8a7f7c">Token name (e.g. Claude Desktop)</T>
-      <rect x={480} y={214} width={104} height={30} rx={6} fill="#e8e2d9" />
-      <T x={532} y={233} size={11} weight={600} fill="#161412" anchor="middle">Create token</T>
+      <rect x={40} y={214} width={430} height={30} rx={6} fill="var(--bg-surface)" stroke="var(--border-subtle)" />
+      <T x={52} y={233} size={10.5} fill="var(--text-muted)">Token name (e.g. Claude Desktop)</T>
+      <rect x={480} y={214} width={104} height={30} rx={6} fill="var(--accent-primary)" />
+      <T x={532} y={233} size={11} weight={600} fill="var(--bg-surface)" anchor="middle">Create token</T>
 
-      <rect x={40} y={278} width={544} height={30} rx={6} fill="#161412" stroke="#2e2a25" />
-      <T x={52} y={297} size={10.5} mono fill="#f1f5f9">apx_7f3c1e9b…</T>
-      <T x={40} y={330} size={10.5} fill="#a09590">Copy this token now — it won&apos;t be shown again.</T>
+      <rect x={40} y={278} width={544} height={30} rx={6} fill="var(--bg-surface)" stroke="var(--border-subtle)" />
+      <T x={52} y={297} size={10.5} mono fill="var(--text-primary)">apx_7f3c1e9b…</T>
+      <T x={40} y={330} size={10.5} fill="var(--text-secondary)">Copy this token now — it won&apos;t be shown again.</T>
 
       <Mark x={36} y={210} w={552} h={38} />
       <Mark x={36} y={274} w={552} h={38} />
