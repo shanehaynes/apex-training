@@ -25,6 +25,16 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W13 | Release + polish | done (#190, #191, #193, #194) | Mac | App Store gate: Shane fills the console (app-store.md) and adds the three ASC secrets |
 
 ## Next up
+0. **The 2026-09-18 committee review is answered in code (2026-09-19).** 36 PRs, #237–#273, one per
+   issue in #235 (gate) and #236 (patch 1), every one CI-green including the macOS job. Land the
+   gate PRs before `testflight.yml` runs; #247 (merge policy) first so the release surface is HELD
+   when #245/#266/#272/#273 land; #259 and #262 carry phase43/phase44 (SQL before code). Two
+   textually-clean pairs need a hand at merge time — #244+#270 (owner filter on the new cache
+   delete/sweep) and #271+#253 (one line in `version.ts` and its test); everything else combines
+   clean (`scripts/combine-check.sh`, 2026-09-19). Shane's console list is in each PR body and the
+   memory note `apex-ios-review-fleet-2026-09-19`; #212 (the first workflow run and a device run)
+   is his alone. Related: [app-store.md](app-store.md) §6 (release safety, 1.0 has no phased
+   release) and the ops runbook at [../ops-runbook.md](../ops-runbook.md).
 1. W13 landed (#190, #191, #193, #194 — all merged 2026-09-17/18) and the three `ASC_*` Actions
    secrets are set (2026-09-18). **Next: the first workflow release** — `gh workflow run
    testflight.yml` on `main` ships 0.9.0 at the commit count; it uploads to Apple, so it runs on
@@ -46,6 +56,17 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-19 · review fleet · Linux. One Fable 5.1 coordinator, 37 Opus 5 lanes, one per open
+  issue from the 2026-09-18 committee review (#198–#234, #180); 36 PRs #237–#273, all green.
+  Gate: teardown #246, refresh #238, deep link #265, stream `done` #239, unknown event #241,
+  retry ceiling #250, client version + minBuild #253, Release gate #245, secrets.sh #243,
+  assert-ipa #266, maxDuration #248, signup proof #257, schema pre-flight #261, release-safety
+  docs #242, invite contact #255, ipa artifact #237, runbook #252, restore drill #249. Patch 1:
+  cache owner #270, 400/503 #260, auth 503 #251, delete purge #263, cancel bootstrap #244, chat
+  switch #269, realtime rejoin #254, observability #271, plans D-036 #240, toolchain pins #272,
+  merge policy #247, release plumbing #273, throttles #258, RLS guard + phase44 #262, COROS
+  disclosure #264, main-actor decode #267, a11y #268, completion log phase43 #259; bash-guard
+  #256. Lessons in the memory note `apex-ios-review-fleet-2026-09-19`.
 - 2026-09-17 · smoke · #195: `type(_:into:)` judges the exact value (base + text, placeholder-aware,
   bullets by count), waits for the value to settle after typing and after each erase, and proves
   the erase before retyping — the "CClaude Code" CI trap from #193. Six typing legs proven on the
