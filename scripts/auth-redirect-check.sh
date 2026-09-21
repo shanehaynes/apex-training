@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Prove Supabase's auth redirects still point at the PUBLIC production domain.
+# Prove Supabase's auth redirects still point at the PUBLIC production domain,
+# and that production still refuses new sign-ups.
 #
 # WHY THIS EXISTS
 # Every invite, password-reset and confirmation link GoTrue mails is built from
@@ -15,24 +16,34 @@
 # resetPassword() sends redirectTo: publicOrigin() and the public domain was not
 # on the allow-list either.
 #
+# "Allow new users to sign up" is the same kind of field — dashboard-only, with
+# nothing in the repo able to see it — and docs/ios/app-store.md rests App
+# Review guideline 5.1.1 on it being off. Check 4 reads it back.
+#
 #   scripts/auth-redirect-check.sh
 #
-# APEX_PROD_URL     overrides the expected public origin
-# APEX_SUPABASE_URL overrides the Supabase project origin
+# APEX_PROD_URL          overrides the expected public origin
+# APEX_SUPABASE_URL      overrides the Supabase project origin
+# APEX_SUPABASE_ANON_KEY the anon key for check 4 (see "CREDENTIALS" there)
 #
-# Read-only and unauthenticated: it needs no keys, writes nothing, and consumes
-# nothing. The probe token is deliberately bogus — GoTrue answers a bad token by
-# redirecting to the origin it *would* have used with `#error=otp_expired`, which
-# is precisely the configuration we want to read back, and burns no real link.
+# Writes nothing and consumes nothing. Checks 1-3 need no keys at all: the
+# probe token is deliberately bogus — GoTrue answers a bad token by redirecting
+# to the origin it *would* have used with `#error=otp_expired`, which is
+# precisely the configuration we want to read back, and burns no real link.
+# Check 4 needs the anon key, the one that ships in every page load, and never
+# completes a signup.
 #
-# Exit codes: 0 configured correctly, 1 misconfigured, 2 could not reach the
-# project at all (paused, offline, DNS). Callers that run unattended —
-# scripts/supervisor-report.sh — must treat 2 as "skipped", not as an ACTION:
-# a Supabase outage is not a configuration drift. That is also why this is not
-# in CI, which has to stay hermetic.
+# Exit codes: 0 configured correctly, 1 misconfigured (redirects off the public
+# domain, or sign-up open), 2 could not reach the project at all (paused,
+# offline, DNS). Callers that run unattended — scripts/supervisor-report.sh —
+# must treat 2 as "skipped", not as an ACTION: a Supabase outage is not a
+# configuration drift. That is also why this is not in CI, which has to stay
+# hermetic.
 #
 # Honest limits: it reads the fallback GoTrue actually uses, not the dashboard
-# fields themselves, and it can only test allow-list entries it is told to try.
+# fields themselves; it can only test allow-list entries it is told to try; and
+# with no anon key check 4 says so and is skipped rather than failing, because
+# "I could not look" is not "sign-up is open".
 set -uo pipefail
 
 # Runnable from anywhere.
@@ -45,7 +56,9 @@ supabase="${APEX_SUPABASE_URL:-https://prmlzrkcfvmfapauoxqn.supabase.co}"
 
 for arg in "$@"; do
   case "$arg" in
-    -h|--help) sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    # The whole header, however long it grows — a hard-coded line range goes
+    # stale the first time somebody documents a new check.
+    -h|--help) sed -n '2,/^set -/{/^set -/d;p;}' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "usage: scripts/auth-redirect-check.sh" >&2; exit 64 ;;
   esac
 done
@@ -68,6 +81,7 @@ verify_location() {
 }
 
 failed=0
+signup_verified=1   # cleared by check 4 when it cannot look (see there)
 echo "── Supabase auth redirect configuration"
 echo "   project:  $supabase"
 echo "   expected: $prod"
@@ -149,8 +163,209 @@ case "$sso" in
     fi ;;
 esac
 
+# ── 4. Sign-up must be refused, and the readable auth settings pinned ────────
+#
+# Deliberately one self-contained block: it is the only part of this script
+# that needs a key, and the nightly-CI wiring (issue #224) edits the parts
+# above it.
+#
+# WHY: docs/ios/app-store.md tells Apple the app is invite-only and rests
+# guideline 5.1.1 on it, and the only control is a dashboard toggle
+# (DEPLOY_MULTI_USER.md step 1.2). Nothing in the repo can see that toggle —
+# supabase/config.toml describes the *local* stack and says the opposite — and
+# there is no allowlist behind it: requireUser() (api/_lib/auth.ts) accepts any
+# valid JWT for the project, and handle_new_user() (phase14) provisions a
+# profile for every auth.users insert. With the toggle on, anyone who reads the
+# project ref and anon key out of a page load gets a fully working account.
+#
+# CREDENTIALS: GoTrue answers both endpoints 401 without an `apikey` header, so
+# unlike the checks above this one needs the anon key — the key that ships in
+# every page load, so not a secret in any useful sense.
+# APEX_SUPABASE_ANON_KEY, then VITE_SUPABASE_ANON_KEY from the environment,
+# then VITE_SUPABASE_ANON_KEY from .env.local (this checkout's, then the
+# primary checkout's — the resolution scripts/prod-schema-check.mjs uses), and
+# from .env.local only when that file's VITE_SUPABASE_URL is the project being
+# probed, so a dev file pointing at the local stack cannot hand production a
+# key it will only reject.
+
+# The anon key for $supabase, or nothing. Never printed.
+anon_key_for_project() {
+  if [ -n "${APEX_SUPABASE_ANON_KEY:-}" ]; then printf '%s' "$APEX_SUPABASE_ANON_KEY"; return; fi
+  if [ -n "${VITE_SUPABASE_ANON_KEY:-}" ]; then printf '%s' "$VITE_SUPABASE_ANON_KEY"; return; fi
+
+  local dirs=("$PWD") gitdir primary dir url key
+  # A worktree has no .env.local of its own (it is gitignored); its .git file
+  # points into the primary checkout, which does.
+  if [ -f .git ]; then
+    gitdir=$(sed -n 's/^gitdir: *//p' .git)
+    if [ -n "$gitdir" ]; then
+      primary=$(cd "$gitdir/../../.." 2>/dev/null && pwd -P)
+      [ -n "$primary" ] && dirs+=("$primary")
+    fi
+  fi
+  for dir in "${dirs[@]}"; do
+    [ -f "$dir/.env.local" ] || continue
+    url=$(sed -n 's/^VITE_SUPABASE_URL=//p' "$dir/.env.local" | head -1 | tr -d "\"' \r")
+    key=$(sed -n 's/^VITE_SUPABASE_ANON_KEY=//p' "$dir/.env.local" | head -1 | tr -d "\"' \r")
+    [ -n "$key" ] && [ "$(origin_of "$url")" = "$supabase" ] || continue
+    printf '%s' "$key"
+    return
+  done
+}
+
+# The value at dotted path $1 in the JSON on stdin, or nothing.
+json_at() {
+  node -e '
+    let s = "";
+    process.stdin.on("data", (d) => (s += d)).on("end", () => {
+      let v;
+      try { v = JSON.parse(s); } catch { return; }
+      for (const k of process.argv[1].split(".")) {
+        if (v === null || typeof v !== "object") return;
+        v = v[k];
+      }
+      if (v !== undefined && v !== null && typeof v !== "object") process.stdout.write(String(v));
+    });
+  ' "$1" 2>/dev/null
+}
+
+# The external providers GoTrue reports as enabled, sorted and space separated.
+enabled_providers() {
+  node -e '
+    let s = "";
+    process.stdin.on("data", (d) => (s += d)).on("end", () => {
+      let v;
+      try { v = JSON.parse(s).external; } catch { return; }
+      if (v === null || typeof v !== "object") return;
+      process.stdout.write(Object.keys(v).filter((k) => v[k] === true).sort().join(" "));
+    });
+  ' 2>/dev/null
+}
+
+signup_disabled_check() {
+  echo
+  echo "── production sign-up (the App Review notes claim invite-only)"
+
+  local key settings probe_email res code body error_code msg providers pin want why got
+
+  key=$(anon_key_for_project)
+  if [ -z "$key" ]; then
+    signup_verified=0
+    echo "   — no anon key for $supabase (APEX_SUPABASE_ANON_KEY, or a .env.local whose" >&2
+    echo "     VITE_SUPABASE_URL is this project). Sign-up NOT verified this run." >&2
+    return
+  fi
+
+  settings=$(curl -s --max-time 15 -H "apikey: $key" "$supabase/auth/v1/settings" 2>/dev/null)
+  got=$(printf '%s' "$settings" | json_at disable_signup)
+  if [ -z "$got" ]; then
+    signup_verified=0
+    echo "   — GET /auth/v1/settings carried no disable_signup (key rejected, or project" >&2
+    echo "     down). Sign-up NOT verified this run." >&2
+    return
+  fi
+
+  # 4a. The toggle as GoTrue reports it. This is also the gate on the POST
+  #     below: we only send a signup request to a project that has already said
+  #     it refuses them.
+  if [ "$got" = true ]; then
+    echo "   ✓ disable_signup is true"
+  else
+    echo "   ✗ disable_signup is false — ANYONE CAN CREATE AN ACCOUNT on $supabase" >&2
+    echo "     docs/ios/app-store.md tells Apple the app is invite-only (guideline 5.1.1)," >&2
+    echo "     /api/* has no allowlist, and handle_new_user() provisions a profile for every" >&2
+    echo "     new auth.users row. Supabase → Authentication → Sign In / Up → turn OFF" >&2
+    echo "     \"Allow new users to sign up\" (DEPLOY_MULTI_USER.md step 1.2)." >&2
+    echo "     No signup request was sent: this check never completes a signup." >&2
+    failed=1
+    return
+  fi
+
+  # 4b. The endpoint itself, because the settings document is only a claim
+  #     about the endpoint, and the endpoint is what a stranger actually meets.
+  #     GoTrue refuses a disabled instance before it parses the body, so the
+  #     probe body carries an address — which keeps the no-email-and-no-phone
+  #     path, the one that creates an *anonymous* user, unreachable — and no
+  #     password, so it cannot complete a signup even against an instance whose
+  #     toggle is off. Belt (4a), braces (no password), and an address that
+  #     cannot resolve.
+  probe_email="apex-signup-probe-$(date -u +%s)-$$@example.invalid"
+  res=$(curl -s -w $'\n%{http_code}' --max-time 15 -X POST \
+    -H "apikey: $key" -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$probe_email\"}" "$supabase/auth/v1/signup" 2>/dev/null)
+  code=${res##*$'\n'}
+  body=${res%$'\n'*}
+  error_code=$(printf '%s' "$body" | json_at error_code)
+  msg=$(printf '%s' "$body" | json_at msg)
+
+  # error_code is the modern field; older GoTrue sends the message only.
+  if [ "$code" = 422 ] && { [ "$error_code" = signup_disabled ] || [ "${msg#Signups not allowed}" != "$msg" ]; }; then
+    echo "   ✓ POST /auth/v1/signup is refused: 422 ${error_code:-signup_disabled}"
+  elif [ -n "$(printf '%s' "$body" | json_at id)" ] || [ -n "$(printf '%s' "$body" | json_at access_token)" ]; then
+    # Unreachable by construction — 4a gates it and the body has no password —
+    # so if it ever fires, say exactly what to do about it.
+    echo "   ✗ POST /auth/v1/signup CREATED SOMETHING ($code) for $probe_email" >&2
+    echo "     Delete that user in Supabase → Authentication → Users, then turn sign-up off." >&2
+    failed=1
+  else
+    echo "   ✗ POST /auth/v1/signup answered $code ${error_code:-${msg:-with no error code}}," >&2
+    echo "     not 422 signup_disabled. Sign-up is not provably closed." >&2
+    failed=1
+  fi
+
+  # 4c. The rest of what this endpoint exposes, pinned because there is no
+  #     other committed record of it. A drift fails, so an intentional change
+  #     has to be made here too — that is what "pinned" buys.
+  while IFS='|' read -r pin want why; do
+    [ -n "$pin" ] || continue
+    got=$(printf '%s' "$settings" | json_at "$pin")
+    if [ "$got" = "$want" ]; then
+      echo "   ✓ $pin is $want"
+    else
+      echo "   ✗ $pin is ${got:-unreadable}, pinned at $want — $why" >&2
+      echo "     If that was deliberate, change the pin in scripts/auth-redirect-check.sh." >&2
+      failed=1
+    fi
+  done <<'PINS'
+mailer_autoconfirm|false|invited addresses would be confirmed without the email round-trip
+phone_autoconfirm|false|phone sign-up is not used at all
+saml_enabled|false|no SSO tenant is configured, and an enabled one is another way in
+passkeys_enabled|false|not part of the shipped sign-in flow
+PINS
+
+  # 4d. Every enabled provider is a door, and `anonymous_users` is a sign-*up*
+  #     door that ignores disable_signup entirely. Exactly one is expected.
+  providers=$(printf '%s' "$settings" | enabled_providers)
+  if [ "$providers" = email ]; then
+    echo "   ✓ email is the only enabled auth provider"
+  else
+    echo "   ✗ enabled auth providers: ${providers:-none} — expected exactly \"email\"" >&2
+    echo "     anonymous_users self-provisions accounts regardless of disable_signup; an" >&2
+    echo "     OAuth provider is a second door into an invite-only app." >&2
+    failed=1
+  fi
+
+  # Printed on every run so a green check is not read as more than it is: what
+  # is above is everything the anon key can see. Password minimum length,
+  # password_requirements, leaked-password (HIBP) protection and MFA are not in
+  # GET /auth/v1/settings and have no committed record anywhere; reading them
+  # back needs the Management API and a personal access token this repo does
+  # not hold and should not:
+  #
+  #   curl -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+  #     https://api.supabase.com/v1/projects/<project-ref>/config/auth
+  echo "   · not readable with the anon key: password minimum length, password_requirements,"
+  echo "     leaked-password protection, MFA. GET /auth/v1/settings does not carry them —"
+  echo "     they need the Management API and a personal access token (comment above)."
+}
+signup_disabled_check
+
 if [ "$failed" -ne 0 ]; then
-  echo "── FAILED: auth links do not lead to the public app (see DEPLOY_MULTI_USER.md)" >&2
+  echo "── FAILED: auth links do not lead to the public app, or sign-up is open (see DEPLOY_MULTI_USER.md)" >&2
   exit 1
 fi
-echo "── auth redirects lead to $prod"
+if [ "$signup_verified" -eq 1 ]; then
+  echo "── auth redirects lead to $prod, and sign-up is closed"
+else
+  echo "── auth redirects lead to $prod (sign-up NOT verified — see above)"
+fi

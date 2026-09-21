@@ -12,7 +12,13 @@ throughout.
    (phase9 aborts if this user doesn't exist — it backfills all existing data
    to your account by this email.)
 2. Authentication → Sign In / Up: turn **off** "Allow new users to sign up"
-   (invite-only; email+password sign-in keeps working).
+   (invite-only; email+password sign-in keeps working). `/api/*` has no user
+   allowlist behind this toggle and `handle_new_user()` provisions a profile
+   for every new `auth.users` row, so with it on a stranger gets a working
+   account — and docs/ios/app-store.md rests App Review guideline 5.1.1 on it
+   being off. `scripts/auth-redirect-check.sh` reads it back (it needs the anon
+   key from `.env.local` for that check) and refuses to call it closed on
+   anything but GoTrue's `422 signup_disabled`.
 3. Authentication → URL Configuration. **Read this twice — it is the one step
    that has actually gone wrong.** "Your production Vercel URL" is ambiguous,
    and the wrong reading breaks every invite you will ever send:
