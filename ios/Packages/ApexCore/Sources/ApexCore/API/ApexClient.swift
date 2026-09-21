@@ -53,9 +53,13 @@ public actor ApexClient {
                 var parser = NDJSONLineParser()
                 do {
                     for try await chunk in bytes {
-                        for line in parser.consume(chunk) { continuation.yield(try Self.decodeWire(line)) }
+                        for line in parser.consume(chunk) {
+                            if let event = try Self.decodeWire(line) { continuation.yield(event) }
+                        }
                     }
-                    for line in parser.finish() { continuation.yield(try Self.decodeWire(line)) }
+                    for line in parser.finish() {
+                        if let event = try Self.decodeWire(line) { continuation.yield(event) }
+                    }
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -65,12 +69,18 @@ public actor ApexClient {
         }
     }
 
-    private static func decodeWire(_ line: String) throws -> ChatWireEvent {
+    /// `nil` for an event type this build does not know: the web skips those,
+    /// and a shipped binary that threw instead would lose the rest of the
+    /// message the first time the server added a wire event.
+    private static func decodeWire(_ line: String) throws -> ChatWireEvent? {
+        let event: ChatWireEvent
         do {
-            return try JSONDecoder().decode(ChatWireEvent.self, from: Data(line.utf8))
+            event = try JSONDecoder().decode(ChatWireEvent.self, from: Data(line.utf8))
         } catch {
             throw APIError.decoding("wire event: \(error)")
         }
+        if case .unknown = event { return nil }
+        return event
     }
 
     private func perform(_ endpoint: Endpoint, allowRefresh: Bool) async throws -> Data {

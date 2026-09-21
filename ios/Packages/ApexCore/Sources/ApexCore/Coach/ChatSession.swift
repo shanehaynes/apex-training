@@ -412,6 +412,12 @@ public actor ChatSession {
                 let events = try await client.wireEvents(for: request)
                 for try await event in events {
                     switch event {
+                    // An event type this build does not know. `ApexClient` drops
+                    // these, so one never actually arrives — but the switch has to
+                    // stay exhaustive, and it must never share an arm with `.done`:
+                    // an unknown event is not proof the turn finished.
+                    case .unknown:
+                        break
                     case .text(let delta):
                         text += delta
                         self.setPartial(text)
