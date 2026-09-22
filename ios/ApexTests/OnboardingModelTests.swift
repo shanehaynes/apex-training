@@ -46,6 +46,74 @@ final class OnboardingModelTests: XCTestCase {
         XCTAssertEqual(model.welcomeSteps.map(\.id), ["welcome", "calendar", "tracker", "coach", "structure", "coros", "connectors", "more"])
     }
 
+    /// ux-review §3.9: the eight steps are shown on four pages. The grouping is
+    /// the app's, not the catalog's, so this is where the two are held together.
+    @MainActor
+    func testTheEightStepsAreGroupedOntoFourPages() async {
+        let transport = YouTransport()
+        transport.set("GET /api/profile", .json(200, Self.profile(dismissed: false)))
+        let (model, _, _) = make(transport)
+        await model.start()
+        XCTAssertEqual(
+            model.welcomePages.map { $0.steps.map(\.id) },
+            [["welcome", "calendar"], ["tracker", "structure"], ["coach"], ["coros", "connectors", "more"]]
+        )
+    }
+
+    /// The coach page is the only one to carry a checklist row, and it is the
+    /// goal — the key button is the step's own.
+    @MainActor
+    func testOnlyTheCoachPageCarriesTheGoalRow() async {
+        let transport = YouTransport()
+        transport.set("GET /api/profile", .json(200, Self.profile(dismissed: false)))
+        transport.set("PATCH /api/profile", .json(200, Data(#"{"ok":true}"#.utf8)))
+        let (model, routes, _) = make(transport)
+        await model.start()
+        let pages = model.welcomePages
+        XCTAssertEqual(pages.compactMap { model.extraRow(for: $0)?.id }, [.goal])
+        let coach = pages.first { $0.steps.contains { $0.id == "coach" } }!
+        let row = model.extraRow(for: coach)!
+        await model.run(row.action, for: row.id.rawValue)
+        XCTAssertEqual(routes.tab, .you)
+        XCTAssertEqual(routes.pendingYou, .coachProfile)
+    }
+
+    /// Every step the catalog knows is on exactly one page: a step added to
+    /// content.ts and left out of the grouping table would otherwise vanish
+    /// from the flow with nothing to say so.
+    @MainActor
+    func testEveryCatalogStepAppearsOnExactlyOnePage() async {
+        let transport = YouTransport()
+        transport.set("GET /api/profile", .json(200, Self.profile(dismissed: false)))
+        let (model, _, _) = make(transport)
+        await model.start()
+        let placed = model.welcomePages.flatMap { $0.steps.map(\.id) }
+        XCTAssertEqual(placed.sorted(), OnboardingCatalog.welcomeSteps.map(\.id).sorted())
+        XCTAssertEqual(Set(placed).count, placed.count, "a step on two pages")
+    }
+
+    /// ux-review B4: the copy named a week view the app does not have (D-009),
+    /// and told a phone user what a phone does. The generated catalog carries
+    /// content.ts's `iosBody` for those two steps.
+    func testTheIOSCopyNamesNoWeekViewAndNoPhoneCaveat() {
+        let bodies = OnboardingCatalog.welcomeSteps.map(\.body)
+        XCTAssertFalse(bodies.contains { $0.localizedCaseInsensitiveContains("week view") })
+        XCTAssertEqual(OnboardingCatalog.welcomeSteps.first { $0.id == "calendar" }?.body.hasPrefix("Month or day."), true)
+        XCTAssertFalse(bodies.contains { $0.localizedCaseInsensitiveContains("On a phone") })
+    }
+
+    /// Filtering a step out cannot leave an empty page or renumber the rest.
+    @MainActor
+    func testTheCorosPageSurvivesWithoutItsFirstStep() async {
+        let transport = YouTransport()
+        transport.set("GET /api/profile", .json(200, Self.profile(dismissed: false)))
+        let (model, _, _) = make(transport, coros: false)
+        await model.start()
+        XCTAssertEqual(model.welcomePages.count, 4)
+        XCTAssertEqual(model.welcomePages.last?.steps.map(\.id), ["connectors", "more"])
+        XCTAssertEqual(model.welcomePages.map(\.id), ["welcome", "tracker", "coach", "connectors"])
+    }
+
     @MainActor
     func testDismissedAccountShowsTheCardWithTheServersVerdicts() async {
         let transport = YouTransport()

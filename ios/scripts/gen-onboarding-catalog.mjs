@@ -49,6 +49,10 @@ const KINDS = ['copy-template', 'open-profile', 'connect-coros'];
 const CHECKLIST_IDS = ['template', 'key', 'goal', 'coros', 'connector'];
 for (const step of WELCOME_STEPS) {
   if (step.action && !KINDS.includes(step.action.kind)) fail(`welcome step "${step.id}" uses unknown action kind "${step.action.kind}" — add it to KINDS here and to OnboardingCatalog.ActionKind`);
+  if (step.iosBody !== undefined && (typeof step.iosBody !== 'string' || !step.iosBody.trim())) {
+    fail(`welcome step "${step.id}" has an empty iosBody — drop the field to use body`);
+  }
+  if (step.iosBody === step.body) fail(`welcome step "${step.id}" repeats body in iosBody — drop the field`);
 }
 for (const item of CHECKLIST_ITEMS) {
   if (!CHECKLIST_IDS.includes(item.id)) fail(`checklist item "${item.id}" is not in CHECKLIST_IDS — add it here and to OnboardingCatalog.ChecklistID`);
@@ -66,9 +70,13 @@ const kindCase = (kind) => ({ 'copy-template': '.copyTemplate', 'open-profile': 
 const action = (a) => (a ? `Action(label: ${q(a.label)}, kind: ${kindCase(a.kind)})` : 'nil');
 const link = (l) => (l ? `Link(label: ${q(l.label)}, href: ${q(l.href)})` : 'nil');
 
-const steps = WELCOME_STEPS.map((s) => `        Step(
+// A step's `iosBody` replaces its `body` here and nowhere else: the web keeps
+// its own sentence, the phone gets the one that is true of the phone (no week
+// view, D-009). The marker comment keeps the swap visible to a reader diffing
+// this file against content.ts.
+const steps = WELCOME_STEPS.map((s) => `${s.iosBody ? '        // body: content.ts `iosBody` — the web says something else here.\n' : ''}        Step(
             id: ${q(s.id)}, title: ${q(s.title)},
-            body: ${q(s.body)},
+            body: ${q(s.iosBody ?? s.body)},
             action: ${action(s.action)}, link: ${link(s.link)}, requiresCoros: ${!!s.requiresCoros}
         ),`);
 const items = CHECKLIST_ITEMS.map((i) => `        ChecklistItem(
@@ -121,6 +129,8 @@ public enum OnboardingCatalog {
     public struct Step: Sendable, Hashable, Identifiable {
         public let id: String
         public let title: String
+        /// The step's words for this app: content.ts's \`iosBody\` where it has
+        /// one, else its \`body\`. The web renders \`body\` regardless.
         public let body: String
         public let action: Action?
         /// Opens outside the flow — the flow is one-shot, don't navigate out of it.

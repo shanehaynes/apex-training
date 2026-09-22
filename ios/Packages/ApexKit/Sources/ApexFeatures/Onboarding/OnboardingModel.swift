@@ -53,8 +53,9 @@ public final class OnboardingModel {
     /// The card's close is session-only (the web's `hidden`): the full list
     /// lives on the You tab, so nothing is lost and no flag is spent.
     public var nudgeHidden = false
-    /// The welcome flow's page.
-    public var stepIndex = 0
+    /// The welcome flow's page — a page, not a step: several steps share one
+    /// (`welcomePages`).
+    public var pageIndex = 0
 
     public init(deps: Dependencies) {
         self.deps = deps
@@ -105,6 +106,48 @@ public final class OnboardingModel {
 
     public var welcomeSteps: [OnboardingCatalog.Step] {
         OnboardingCatalog.welcomeSteps.filter { !$0.requiresCoros || corosConfigured }
+    }
+
+    /// One page of the welcome flow: the steps it carries, in catalog order.
+    public struct WelcomePage: Identifiable, Sendable, Hashable {
+        /// The first step on the page — stable across a `requiresCoros` filter,
+        /// which an index is not.
+        public var id: String { steps[0].id }
+        public let steps: [OnboardingCatalog.Step]
+    }
+
+    /// Eight text-only pages were eight-tenths empty (ux-review §3.9), so the
+    /// app groups them by intent into four. **iOS only** — the web's tour is
+    /// still one step per page.
+    ///
+    /// A table over step *ids*, not indices or counts: a step the catalog adds
+    /// gets a page of its own rather than disappearing, and
+    /// `OnboardingModelTests` fails if the table and the catalog disagree.
+    static let welcomePageGroups: [[String]] = [
+        ["welcome", "calendar"],
+        ["tracker", "structure"],
+        ["coach"],
+        ["coros", "connectors", "more"],
+    ]
+
+    public var welcomePages: [WelcomePage] {
+        let steps = welcomeSteps
+        let byID = Dictionary(steps.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var pages = Self.welcomePageGroups.compactMap { ids -> WelcomePage? in
+            let group = ids.compactMap { byID[$0] }
+            return group.isEmpty ? nil : WelcomePage(steps: group)
+        }
+        let grouped = Set(Self.welcomePageGroups.joined())
+        pages.append(contentsOf: steps.filter { !grouped.contains($0.id) }.map { WelcomePage(steps: [$0]) })
+        return pages
+    }
+
+    /// The coach page carries the goal row as well as the key: a key with no
+    /// goal is half a coach, and that page is one step where the others are
+    /// two or three. It is the checklist's row (`ChecklistID.goal`), not a
+    /// ninth step — nothing about the web's tour changes.
+    public func extraRow(for page: WelcomePage) -> OnboardingCatalog.ChecklistItem? {
+        page.steps.contains { $0.id == "coach" } ? OnboardingCatalog.checklistItem(.goal) : nil
     }
 
     public var nudgeRows: [NudgeRow] {

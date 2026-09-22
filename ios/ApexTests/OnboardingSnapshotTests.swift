@@ -35,23 +35,35 @@ final class OnboardingSnapshotTests: XCTestCase {
         assertSnapshot(of: framed, as: .image(layout: .fixed(width: size.width, height: size.height)), named: name)
     }
 
+    /// Page 1 of 4: welcome + the calendar, with the starter-plan button.
     @MainActor
-    func testWelcomeFirstStep() {
+    func testWelcomeFirstPage() {
         snapshot(WelcomeFlowView(model: model(dismissed: false)), named: "welcome-1")
     }
 
+    /// Page 3: the coach step, plus the checklist's goal row under it.
     @MainActor
-    func testWelcomeCoachStepWithAction() {
+    func testWelcomeCoachPageWithAction() {
         let model = model(dismissed: false)
-        model.stepIndex = 3
+        model.pageIndex = 2
         snapshot(WelcomeFlowView(model: model), named: "welcome-coach")
     }
 
+    /// Page 4, the longest: COROS + connectors + the last things, at xxL.
     @MainActor
-    func testWelcomeLastStepLargeType() {
+    func testWelcomeLastPageLargeType() {
         let model = model(dismissed: false)
-        model.stepIndex = 7
+        model.pageIndex = 3
         snapshot(WelcomeFlowView(model: model).environment(\.sizeCategory, .extraExtraLarge), named: "welcome-last-xxl")
+    }
+
+    /// Page 2 at the accessibility sizes, where two headings and two bodies
+    /// have the least room.
+    @MainActor
+    func testWelcomeLogPageAccessibilityType() {
+        let model = model(dismissed: false)
+        model.pageIndex = 1
+        snapshot(WelcomeFlowView(model: model).environment(\.sizeCategory, .accessibilityExtraExtraExtraLarge), named: "welcome-log-axxxl")
     }
 
     /// Collapsed — one line high, which is all it is until it is asked for.
