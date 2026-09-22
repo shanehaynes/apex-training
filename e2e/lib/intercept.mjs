@@ -194,6 +194,22 @@ export async function installIntercept(context, { anonKey = null, profile, stale
         status: 200, contentType: 'application/x-ndjson', headers: CORS, body: MOCK_SUMMARY_NDJSON,
       });
     }
+    // Coach thread persistence (D-013). useChat hydrates on mount and saves
+    // write-behind after every turn, so every coach spec now touches this
+    // route. An empty list is the "no stored thread" state each of them
+    // already assumes, and the writes answer ok so the fail-open warn path
+    // never fires (the console-error fixture would see it).
+    if (url.includes('/api/coach-conversations')) {
+      if (req.method() === 'GET') {
+        return json(route, url.includes('id=')
+          ? { conversation: { id: 'mock-conversation-1', mode: 'chat', title: null, created_at: '2026-08-29T00:00:00.000Z', updated_at: '2026-08-29T00:00:00.000Z' }, messages: [] }
+          : { conversations: [] });
+      }
+      return json(route, { ok: true, id: 'mock-conversation-1', conversation: {
+        id: 'mock-conversation-1', mode: 'chat', title: null,
+        created_at: '2026-08-29T00:00:00.000Z', updated_at: '2026-08-29T00:00:00.000Z',
+      }, messages: [] });
+    }
     // MCP connector tokens (profile section): empty list, and a fixed fake
     // token on mint so the one-time reveal UI renders.
     if (url.includes('/api/mcp-tokens')) {

@@ -1,6 +1,10 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '../context/auth';
-import { ApiError, authHeaders } from '../lib/api';
+import {
+  ApiError, authHeaders,
+  appendCoachMessages, createCoachConversation, listCoachConversations, loadCoachConversation,
+} from '../lib/api';
+import type { CoachMode, NewCoachMessage, StoredCoachMessage } from '../lib/api';
 import { createWireCollector } from '../lib/coach/wire';
 import { toPendingActions, settleHead, appendUserText } from '../lib/coach/actionQueue';
 import type { ApiMessage, PendingAction, TextBlock, ToolResultBlock } from '../lib/coach/actionQueue';
@@ -11,6 +15,10 @@ export type { PendingAction } from '../lib/coach/actionQueue';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface DisplayMessage {
+  /** Stable across re-renders: the stored row id, or a locally minted one for
+   *  a message that has not been saved (or whose save failed). The render
+   *  loop keys on this rather than on the array index. */
+  id: string;
   role: 'user' | 'assistant';
   content: string;
 }
@@ -23,6 +31,11 @@ const KEY_SETUP_MESSAGE =
 const RATE_LIMIT_MESSAGE =
   'The coach is taking a breather — too many requests in a short window. Try again in a few minutes.';
 
+/** The hidden prompt behind Coach's Notes — history the model needs, and a
+ *  message the user never wrote, so it is stored with display_text null
+ *  (docs/ios/decisions.md D-025). */
+export const BRIEFING_PROMPT = 'Give me my coaching briefing for today.';
+
 function isMissingKeyError(err: unknown): boolean {
   return err instanceof ApiError && err.status === 402;
 }
@@ -31,11 +44,124 @@ function isRateLimitError(err: unknown): boolean {
   return err instanceof ApiError && err.status === 429;
 }
 
+let localIdCounter = 0;
+/** Id for a message that exists only in memory. Never collides with a stored
+ *  uuid, and is not asked to survive anything. */
+function localMessageId(): string {
+  localIdCounter += 1;
+  return `local-${localIdCounter}`;
+}
+
+// ─── Persistence shape (exported for testing) ─────────────────────────────────
+
+/**
+ * Rebuild both halves of the thread from stored rows (D-013 / D-025).
+ *
+ * `apiMessages` is replayed with the SAME `appendUserText` fold the live path
+ * uses, because that is what a stored row is: the delta the live path
+ * appended, not the message it produced. A plain user turn that followed an
+ * unanswered tool_result flush folded into that message in memory, and must
+ * fold into it again here — a tool_result has to open the user turn after a
+ * tool_use, and splitting them would make the first replayed request invalid.
+ *
+ * Rows with `api_content` null are display-only (a notice, a stopped partial)
+ * and never reach the model; rows with `display_text` null are hidden (the
+ * briefing prompt) and never reach the thread.
+ */
+export function hydrateFromRows(rows: StoredCoachMessage[]): {
+  messages: DisplayMessage[];
+  apiMessages: ApiMessage[];
+} {
+  const messages: DisplayMessage[] = [];
+  let apiMessages: ApiMessage[] = [];
+
+  for (const row of rows) {
+    if (row.display_text !== null && row.display_text !== undefined) {
+      messages.push({ id: row.id, role: row.role, content: row.display_text });
+    }
+    if (row.api_content === null || row.api_content === undefined) continue;
+    if (row.role === 'user' && typeof row.api_content === 'string') {
+      apiMessages = appendUserText(apiMessages, row.api_content);
+    } else {
+      apiMessages = [...apiMessages, { role: row.role, content: row.api_content } as ApiMessage];
+    }
+  }
+
+  return { messages, apiMessages };
+}
+
+/** One stored turn. `displayText` null makes it a hidden row. */
+export function turnRow(
+  role: 'user' | 'assistant',
+  apiContent: unknown,
+  displayText: string | null,
+): NewCoachMessage {
+  return { role, api_content: apiContent, display_text: displayText, kind: 'turn' };
+}
+
+/**
+ * What a completed chat turn stores. The user row carries the PLAIN TEXT, not
+ * the message `appendUserText` produced: a stored row is the delta, and
+ * hydrateFromRows replays the same fold. `assistantText` empty (a turn that
+ * was only tool_use blocks) stores an assistant row with nothing to render.
+ */
+export function rowsForUserTurn(
+  userText: string,
+  assistantApiContent: unknown,
+  assistantText: string,
+): NewCoachMessage[] {
+  return [
+    turnRow('user', userText, userText),
+    turnRow('assistant', assistantApiContent, assistantText || null),
+  ];
+}
+
+/** What a settled tool_result flush stores: model history with nothing to render. */
+export function rowsForToolFlush(
+  flushed: ToolResultBlock[],
+  assistantText: string,
+): NewCoachMessage[] {
+  return [
+    turnRow('user', flushed, null),
+    turnRow('assistant', assistantText, assistantText || null),
+  ];
+}
+
+/** What Coach's Notes stores: the synthetic prompt HIDDEN, the briefing shown. */
+export function rowsForBriefing(assistantText: string): NewCoachMessage[] {
+  return [
+    turnRow('user', BRIEFING_PROMPT, null),
+    turnRow('assistant', assistantText, assistantText || null),
+  ];
+}
+
+/**
+ * The write-behind save itself, FAIL-OPEN by contract: the rows are already
+ * on screen and already in `apiMessages`, so a rejection is a console.warn
+ * and `false`, never a throw. The thread carries on in memory exactly as it
+ * did before persistence existed. Module-level so the contract is testable
+ * without rendering the hook.
+ */
+export async function saveRows(
+  ensureConversationId: () => Promise<string>,
+  rows: NewCoachMessage[],
+): Promise<boolean> {
+  if (rows.length === 0) return false;
+  try {
+    const id = await ensureConversationId();
+    await appendCoachMessages(id, rows);
+    return true;
+  } catch (err) {
+    console.warn('[apex] coach thread not saved:', err);
+    return false;
+  }
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export interface UseChatOptions {
   /** 'builder' scopes the server's tool list to update_workout_draft. */
-  toolMode?: 'chat' | 'builder' | 'analytics';
+  toolMode?: CoachMode;
 }
 
 /**
@@ -56,6 +182,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
   // model pick for free, and none of them has to thread it through.
   // undefined/null just means "server picks the default" — see models.ts.
   const { profile } = useAuth();
+  const mode: CoachMode = toolMode ?? 'chat';
   const [messages,       setMessages]       = useState<DisplayMessage[]>([]);
   const [apiMessages,    setApiMessages]    = useState<ApiMessage[]>([]);
   // A response may carry several tool_use blocks — each is confirmed or
@@ -71,6 +198,71 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
   // are memoized on other state, so a switch in the picker with no other
   // change would otherwise keep sending the previous model.
   const coachModel = profile?.coach_model ?? undefined;
+
+  // ── Thread persistence (D-013) ────────────────────────────────────────────
+  // The id lives in a ref as well as in state: saves run inside async
+  // callbacks that captured an earlier render, and the one thing they must
+  // not do is create a second conversation because the state had not landed.
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const conversationIdRef = useRef<string | null>(null);
+
+  const setConversation = useCallback((id: string | null) => {
+    conversationIdRef.current = id;
+    setConversationId(id);
+  }, []);
+
+  // Hydrate from the newest thread for this surface. Every failure here is
+  // swallowed: the thread the user gets is the empty one the app had before
+  // persistence existed, which is a worse experience and not a broken one.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { conversations } = await listCoachConversations(mode);
+        const newest = conversations?.[0];
+        if (!newest || cancelled) return;
+        const { messages: rows } = await loadCoachConversation(newest.id);
+        if (cancelled) return;
+        const hydrated = hydrateFromRows(rows ?? []);
+        setConversation(newest.id);
+        setMessages(hydrated.messages);
+        setApiMessages(hydrated.apiMessages);
+      } catch (err) {
+        console.warn('[apex] coach thread did not load:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [mode, setConversation]);
+
+  const ensureConversation = useCallback(async (): Promise<string> => {
+    if (conversationIdRef.current) return conversationIdRef.current;
+    const { conversation } = await createCoachConversation(mode);
+    setConversation(conversation.id);
+    return conversation.id;
+  }, [mode, setConversation]);
+
+  const persist = useCallback(
+    (rows: NewCoachMessage[]) => saveRows(ensureConversation, rows),
+    [ensureConversation],
+  );
+
+  /** Start an empty thread: a new conversation, and nothing on screen. */
+  const newThread = useCallback(async (): Promise<void> => {
+    setMessages([]);
+    setApiMessages([]);
+    setPendingActions([]);
+    setHeldResults([]);
+    setStreamingContent('');
+    // Created eagerly so the empty thread is a real one the next reload finds
+    // — but a failure is not fatal: persist() creates one on the first save.
+    setConversation(null);
+    try {
+      const { conversation } = await createCoachConversation(mode);
+      setConversation(conversation.id);
+    } catch (err) {
+      console.warn('[apex] new coach thread not created:', err);
+    }
+  }, [mode, setConversation]);
 
   // ── Core streaming helper — reads NDJSON wire events from /api/chat ───────
 
@@ -122,7 +314,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     setIsLoading(true);
     setStreamingContent('');
 
-    const userDisplayMsg: DisplayMessage = { role: 'user', content };
+    const userDisplayMsg: DisplayMessage = { id: localMessageId(), role: 'user', content };
 
     setMessages(prev => [...prev, userDisplayMsg]);
 
@@ -152,26 +344,33 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
       if (toolUses.length > 0) {
         // Show any pre-tool text Claude spoke, then surface the pending
         // actions — one confirmation card at a time, in emission order
-        if (text) setMessages(prev => [...prev, { role: 'assistant', content: text }]);
+        if (text) setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: text }]);
         setHeldResults([]);
         setPendingActions(toPendingActions(toolUses));
       } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: text }]);
+        setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: text }]);
       }
+
+      // The turn completed: store the user's words and the assistant's reply
+      // as one batch.
+      void persist(rowsForUserTurn(content, assistantApiMsg.content, text));
     } catch (err: unknown) {
+      // Nothing is stored for a failed turn: the user message never reached a
+      // reply, and a half-turn replayed on the next load would be a question
+      // the coach appears to have ignored.
       if (isMissingKeyError(err)) {
-        setMessages(prev => [...prev, { role: 'assistant', content: KEY_SETUP_MESSAGE }]);
+        setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: KEY_SETUP_MESSAGE }]);
       } else if (isRateLimitError(err)) {
-        setMessages(prev => [...prev, { role: 'assistant', content: RATE_LIMIT_MESSAGE }]);
+        setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: RATE_LIMIT_MESSAGE }]);
       } else if (err instanceof Error && err.name !== 'AbortError') {
-        setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I ran into an error. Please try again.' }]);
+        setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: 'Sorry, I ran into an error. Please try again.' }]);
       }
     } finally {
       setIsLoading(false);
       setStreamingContent('');
       abortRef.current = null;
     }
-  }, [apiMessages, coachModel]);
+  }, [apiMessages, coachModel, persist]);
 
   // ── settleAction — shared confirm/cancel step ──────────────────────────────
 
@@ -198,18 +397,19 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
 
     try {
       const { text } = await streamResponse(withResult, ctx, false);
-      setMessages(prev => [...prev, { role: 'assistant', content: text }]);
+      setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: text }]);
       setApiMessages(prev => [...prev, { role: 'assistant', content: text }]);
+      void persist(rowsForToolFlush(flushed, text));
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError' && failureMessage) {
-        setMessages(prev => [...prev, { role: 'assistant', content: failureMessage }]);
+        setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: failureMessage }]);
       }
     } finally {
       setIsLoading(false);
       setStreamingContent('');
       abortRef.current = null;
     }
-  }, [pendingActions, heldResults, apiMessages, coachModel]);
+  }, [pendingActions, heldResults, apiMessages, coachModel, persist]);
 
   // ── confirmAction ──────────────────────────────────────────────────────────
 
@@ -247,28 +447,45 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     setPendingActions([]);
     setHeldResults([]);
 
-    const syntheticUser: ApiMessage = { role: 'user', content: 'Give me my coaching briefing for today.' };
+    const syntheticUser: ApiMessage = { role: 'user', content: BRIEFING_PROMPT };
+
+    // A briefing replaces the thread on screen, so it replaces the thread in
+    // storage too: a fresh conversation rather than a briefing appended to
+    // yesterday's chat. Best-effort — a failure leaves persist() to create
+    // one, which is the same fail-open path every other save takes.
+    let fresh: string | null = null;
+    try {
+      const { conversation } = await createCoachConversation(mode);
+      fresh = conversation.id;
+      setConversation(fresh);
+    } catch (err) {
+      console.warn('[apex] briefing thread not created:', err);
+      setConversation(null);
+    }
 
     try {
       const { text } = await streamResponse([syntheticUser], ctx, false);
       const assistantMsg: ApiMessage = { role: 'assistant', content: text };
       // Seed apiMessages so follow-up chat has valid history
       setApiMessages([syntheticUser, assistantMsg]);
-      setMessages([{ role: 'assistant', content: text }]);
+      setMessages([{ id: localMessageId(), role: 'assistant', content: text }]);
+      // The synthetic prompt is stored HIDDEN (display_text null): the model
+      // needs it in history, the user never wrote it and never sees it.
+      void persist(rowsForBriefing(text));
     } catch (err: unknown) {
       if (isMissingKeyError(err)) {
-        setMessages([{ role: 'assistant', content: KEY_SETUP_MESSAGE }]);
+        setMessages([{ id: localMessageId(), role: 'assistant', content: KEY_SETUP_MESSAGE }]);
       } else if (isRateLimitError(err)) {
-        setMessages([{ role: 'assistant', content: RATE_LIMIT_MESSAGE }]);
+        setMessages([{ id: localMessageId(), role: 'assistant', content: RATE_LIMIT_MESSAGE }]);
       } else if (err instanceof Error && err.name !== 'AbortError') {
-        setMessages([{ role: 'assistant', content: "Couldn't reach the coaching server. Please try again." }]);
+        setMessages([{ id: localMessageId(), role: 'assistant', content: "Couldn't reach the coaching server. Please try again." }]);
       }
     } finally {
       setIsLoading(false);
       setStreamingContent('');
       abortRef.current = null;
     }
-  }, [coachModel]);
+  }, [coachModel, mode, persist, setConversation]);
 
   const abort = useCallback(() => { abortRef.current?.(); }, []);
 
@@ -280,10 +497,14 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     pendingAction: pendingActions[0] ?? null,
     /** How many actions remain (including the one showing), for "1 of N" UI. */
     pendingActionCount: pendingActions.length,
+    /** The stored thread this panel is writing to; null until the first save. */
+    conversationId,
     sendMessage,
     confirmAction,
     cancelAction,
     triggerInitial,
+    /** Clear the panel and start a fresh stored thread. */
+    newThread,
     abort,
   };
 }

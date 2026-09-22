@@ -44,6 +44,8 @@ export const USER_DATA_TABLES = [
   'terms_acceptances',
   'api_request_counts',
   'coach_runs',
+  'coach_conversations',
+  'coach_messages',
 ] as const;
 
 /**

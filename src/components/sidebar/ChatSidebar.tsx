@@ -8,7 +8,7 @@ import { postJson } from '../../lib/api';
 import { useChat } from '../../hooks/useChat';
 import CoachModelPicker from '../coach/CoachModelPicker';
 import { findCoachTool } from '../../lib/coach/tools';
-import { Send, Square, NotebookPen, Check, X, KeyRound } from 'lucide-react';
+import { Send, Square, NotebookPen, Check, X, KeyRound, MessageSquarePlus } from 'lucide-react';
 import { now } from '../../lib/clock';
 
 // ─── Confirmation card ────────────────────────────────────────────────────────
@@ -58,7 +58,8 @@ export default function ChatSidebar() {
   const { meals } = useMeals();
   const {
     messages, isLoading, streamingContent,
-    pendingAction, pendingActionCount, sendMessage, confirmAction, cancelAction, triggerInitial, abort,
+    pendingAction, pendingActionCount, sendMessage, confirmAction, cancelAction, triggerInitial,
+    newThread, abort,
   } = useChat();
   const { dispatch } = useCalendar();
   const { anthropicKey } = useAuth();
@@ -181,8 +182,11 @@ export default function ChatSidebar() {
           </div>
         )}
 
-        {messages.map((msg, i) => (
-          <div key={i} className={`chat-msg chat-msg--${msg.role}`}>
+        {/* Keyed on the message id, not the array index: a hydrated thread and
+            a live one are the same list, and an index key would make React
+            reuse a hydrated node for a newly streamed message. */}
+        {messages.map(msg => (
+          <div key={msg.id} className={`chat-msg chat-msg--${msg.role}`}>
             <p className="chat-msg__text">{msg.content}</p>
           </div>
         ))}
@@ -213,14 +217,29 @@ export default function ChatSidebar() {
       </div>
 
       <div className="chat-sidebar__actions">
-        <button
-          className="chat-notes-btn"
-          onClick={() => runExclusive(async () => triggerInitial(await resolveContext()))}
-          disabled={isLoading || actionBusy || !!pendingAction || needsKey}
-        >
-          <NotebookPen size={13} />
-          Coach's Notes
-        </button>
+        {/* Two buttons in a row the stylesheet lays out as a block; the flex
+            wrapper is inline so this PR carries no stylesheet change. */}
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            className="chat-notes-btn"
+            onClick={() => runExclusive(async () => triggerInitial(await resolveContext()))}
+            disabled={isLoading || actionBusy || !!pendingAction || needsKey}
+          >
+            <NotebookPen size={13} />
+            Coach's Notes
+          </button>
+          {/* The thread now survives a reload (D-013), so there has to be a
+              way to leave one behind. Allowed without a key: starting an
+              empty thread asks nothing of Anthropic. */}
+          <button
+            className="chat-notes-btn"
+            onClick={() => runExclusive(async () => newThread())}
+            disabled={isLoading || actionBusy || !!pendingAction}
+          >
+            <MessageSquarePlus size={13} />
+            New thread
+          </button>
+        </div>
       </div>
 
       <div className="chat-sidebar__input-row">
