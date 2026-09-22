@@ -18,6 +18,13 @@ export interface WelcomeStep {
   id: string;
   title: string;
   body: string;
+  /**
+   * The same step, worded for the iOS app, where that app is a different
+   * thing — it has no week view (D-009) and "on a phone" is where the reader
+   * already is. The web always renders `body`; `gen-onboarding-catalog.mjs`
+   * emits this into the Swift catalog and falls back to `body`.
+   */
+  iosBody?: string;
   action?: StepAction;
   /** Opens in a new tab — the flow is one-shot, don't navigate out of it. */
   link?: { label: string; href: string };
@@ -38,6 +45,7 @@ export const WELCOME_STEPS: WelcomeStep[] = [
     id: 'calendar',
     title: 'Your calendar',
     body: 'Month, week, or day. Tap any day to add a workout or a meal, and workouts can repeat on a rule. Want a head start? Copy Shane’s recurring plan.',
+    iosBody: 'Month or day. Tap any day to add a workout or a meal, and workouts can repeat on a rule. Want a head start? Copy Shane’s recurring plan.',
     action: { label: 'Copy the starter plan', kind: 'copy-template' },
   },
   {
@@ -73,6 +81,7 @@ export const WELCOME_STEPS: WelcomeStep[] = [
     id: 'more',
     title: 'A few last things',
     body: 'Subscribe to your schedule from Apple or Google Calendar, and expect a review email when a training month closes. On a phone, Apex shows one day at a time.',
+    iosBody: 'Subscribe to your schedule from Apple or Google Calendar, and expect a review email when a training month closes. Everything here syncs with the web app.',
     link: { label: 'Read the full guide', href: GUIDE_URL },
   },
 ];

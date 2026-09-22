@@ -42,6 +42,8 @@ public enum OnboardingCatalog {
     public struct Step: Sendable, Hashable, Identifiable {
         public let id: String
         public let title: String
+        /// The step's words for this app: content.ts's `iosBody` where it has
+        /// one, else its `body`. The web renders `body` regardless.
         public let body: String
         public let action: Action?
         /// Opens outside the flow — the flow is one-shot, don't navigate out of it.
@@ -83,9 +85,10 @@ public enum OnboardingCatalog {
             body: "Plan your training on a calendar, log it as you go, and let a coach that reads your actual numbers help you steer. Here is the whole app in about a minute.",
             action: nil, link: nil, requiresCoros: false
         ),
+        // body: content.ts `iosBody` — the web says something else here.
         Step(
             id: "calendar", title: "Your calendar",
-            body: "Month, week, or day. Tap any day to add a workout or a meal, and workouts can repeat on a rule. Want a head start? Copy Shane’s recurring plan.",
+            body: "Month or day. Tap any day to add a workout or a meal, and workouts can repeat on a rule. Want a head start? Copy Shane’s recurring plan.",
             action: Action(label: "Copy the starter plan", kind: .copyTemplate), link: nil, requiresCoros: false
         ),
         Step(
@@ -113,9 +116,10 @@ public enum OnboardingCatalog {
             body: "Connect Apex as a tool and ask about your training from Claude or ChatGPT. Strictly read-only — an assistant can look at everything and change nothing.",
             action: Action(label: "Set up a connector", kind: .openProfile), link: nil, requiresCoros: false
         ),
+        // body: content.ts `iosBody` — the web says something else here.
         Step(
             id: "more", title: "A few last things",
-            body: "Subscribe to your schedule from Apple or Google Calendar, and expect a review email when a training month closes. On a phone, Apex shows one day at a time.",
+            body: "Subscribe to your schedule from Apple or Google Calendar, and expect a review email when a training month closes. Everything here syncs with the web app.",
             action: nil, link: Link(label: "Read the full guide", href: "https://github.com/shanehaynes/apex-training/blob/main/WELCOME.md"), requiresCoros: false
         ),
     ]

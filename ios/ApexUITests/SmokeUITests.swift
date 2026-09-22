@@ -306,21 +306,26 @@ final class SmokeUITests: XCTestCase {
         let title = app.staticTexts["onboarding.welcome.title"]
         XCTAssertTrue(title.waitForExistence(timeout: 20))
         XCTAssertEqual(title.label, "Welcome to Apex")
-        XCTAssertEqual(app.staticTexts["onboarding.welcome.count"].label, "STEP 1 OF 8")
+        // Four pages now, and the dots are the only progress indicator
+        // (ux-review §3.9) — they carry the count as a value, not as text.
+        let dots = app.otherElements["onboarding.welcome.count"]
+        XCTAssertEqual(dots.value as? String, "1 of 4")
         attach(app, name: "w13-01-welcome")
 
+        // The calendar shares page one, and brings its own button: the starter
+        // plan, with the web's toast.
+        XCTAssertTrue(app.staticTexts["onboarding.welcome.title.calendar"].exists)
         let next = app.buttons["onboarding.welcome.next"]
-        next.tap()
-        XCTAssertTrue(app.staticTexts["Your calendar"].waitForExistence(timeout: 5))
-        // The step's own button: the starter plan, with the web's toast.
         let copy = app.buttons["onboarding.welcome.action"]
         XCTAssertTrue(copy.exists)
         copy.tap()
         XCTAssertTrue(app.staticTexts["Added 3 recurring workouts"].waitForExistence(timeout: 10))
         attach(app, name: "w13-02-welcome-copied")
 
-        for _ in 0..<6 { next.tap() }
-        XCTAssertTrue(app.staticTexts["A few last things"].waitForExistence(timeout: 5))
+        for _ in 0..<3 { next.tap() }
+        XCTAssertTrue(app.staticTexts["onboarding.welcome.title.more"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["onboarding.welcome.title.more"].label, "A few last things")
+        XCTAssertEqual(dots.value as? String, "4 of 4")
         XCTAssertEqual(next.label, "Start training")
         attach(app, name: "w13-03-welcome-last")
         next.tap()

@@ -3,9 +3,14 @@ import ApexUI
 import SwiftUI
 
 /// The first-run tour (W13, U32): the web's `WelcomeFlow` as a native paged
-/// flow — swipe or Next between steps, a step's own button where it has one,
+/// flow — swipe or Next between pages, a step's own button where it has one,
 /// Skip at any point, Start training at the end. Shows exactly once per
 /// account: finishing or skipping latches `profiles.onboarding_dismissed_at`.
+///
+/// Four pages, not the web's eight (ux-review §3.9): the catalog's steps
+/// grouped by intent in `OnboardingModel.welcomePages`. One progress
+/// indicator, the dots — the "STEP 2 OF 8" eyebrow said the same thing a third
+/// time, after the dots and Back/Next.
 public struct WelcomeFlowView: View {
     @Bindable private var model: OnboardingModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -14,8 +19,8 @@ public struct WelcomeFlowView: View {
         self.model = model
     }
 
-    private var steps: [OnboardingCatalog.Step] { model.welcomeSteps }
-    private var isLast: Bool { model.stepIndex >= steps.count - 1 }
+    private var pages: [OnboardingModel.WelcomePage] { model.welcomePages }
+    private var isLast: Bool { model.pageIndex >= pages.count - 1 }
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -36,14 +41,14 @@ public struct WelcomeFlowView: View {
             .padding(.horizontal, Spacing.screen)
             .padding(.top, Spacing.sm)
 
-            TabView(selection: $model.stepIndex) {
-                ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
-                    page(step, index: index)
+            TabView(selection: $model.pageIndex) {
+                ForEach(Array(pages.enumerated()), id: \.element.id) { index, page in
+                    self.page(page)
                         .tag(index)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .animation(reduceMotion ? nil : Motion.spring, value: model.stepIndex)
+            .animation(reduceMotion ? nil : Motion.spring, value: model.pageIndex)
 
             footer
         }
@@ -52,33 +57,18 @@ public struct WelcomeFlowView: View {
         .accessibilityIdentifier("onboarding.welcome")
     }
 
-    private func page(_ step: OnboardingCatalog.Step, index: Int) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.lg) {
-                Text("Step \(index + 1) of \(steps.count)")
-                    .apexEyebrow()
-                    .monospacedDigit()
-                    .accessibilityIdentifier("onboarding.welcome.count")
-                Text(step.title)
-                    .apexTitle()
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("onboarding.welcome.title")
-                Text(step.body)
-                    .apexBody()
-                    .fixedSize(horizontal: false, vertical: true)
-                if let action = step.action {
-                    ApexButton(action.label, kind: .secondary, isLoading: action.kind == .copyTemplate && model.isCopying) {
-                        Task { await model.run(action, for: step.id) }
-                    }
-                    .accessibilityIdentifier("onboarding.welcome.action")
-                    .padding(.top, Spacing.sm)
+    private func page(_ page: OnboardingModel.WelcomePage) -> some View {
+        // The identifiers the smoke drives are the page's, not the step's, so
+        // they stay unique however the steps regroup: the page's first step
+        // carries the bare id, the rest carry theirs suffixed.
+        let firstActionID = page.steps.first { $0.action != nil }?.id
+        return ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.xl) {
+                ForEach(Array(page.steps.enumerated()), id: \.element.id) { position, step in
+                    section(step, isPageTitle: position == 0, ownsPageAction: step.id == firstActionID)
                 }
-                if let link = step.link, let url = URL(string: link.href) {
-                    Link(link.label, destination: url)
-                        .font(.apex(.display, size: TypeScale.sm, weight: .semibold, relativeTo: .callout))
-                        .foregroundStyle(ApexColor.textSecondary)
-                        .frame(minHeight: 44)
-                        .accessibilityIdentifier("onboarding.welcome.link")
+                if let row = model.extraRow(for: page) {
+                    checklistSection(row)
                 }
             }
             .frame(maxWidth: 480, alignment: .leading)
@@ -88,19 +78,84 @@ public struct WelcomeFlowView: View {
         }
     }
 
+    @ViewBuilder
+    private func section(_ step: OnboardingCatalog.Step, isPageTitle: Bool, ownsPageAction: Bool) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.lg) {
+            title(step, isPageTitle: isPageTitle)
+            Text(step.body)
+                .apexBody()
+                .fixedSize(horizontal: false, vertical: true)
+            if let action = step.action {
+                ApexButton(action.label, kind: .secondary, isLoading: action.kind == .copyTemplate && model.isCopying) {
+                    Task { await model.run(action, for: step.id) }
+                }
+                .accessibilityIdentifier(ownsPageAction ? "onboarding.welcome.action" : "onboarding.welcome.action.\(step.id)")
+                .padding(.top, Spacing.xs)
+            }
+            if let link = step.link, let url = URL(string: link.href) {
+                Link(link.label, destination: url)
+                    .font(.apex(.display, size: TypeScale.sm, weight: .semibold, relativeTo: .callout))
+                    .foregroundStyle(ApexColor.textSecondary)
+                    .frame(minHeight: 44)
+                    .accessibilityIdentifier("onboarding.welcome.link")
+            }
+        }
+    }
+
+    /// A checklist row shown inside the flow — same shape as a step, different
+    /// source (`OnboardingModel.extraRow(for:)`).
+    private func checklistSection(_ row: OnboardingCatalog.ChecklistItem) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.lg) {
+            Text(row.label)
+                .font(.apex(.display, size: TypeScale.lg, weight: .semibold, relativeTo: .headline))
+                .foregroundStyle(ApexColor.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("onboarding.welcome.title.\(row.id.rawValue)")
+            Text(row.hint)
+                .apexBody()
+                .fixedSize(horizontal: false, vertical: true)
+            ApexButton(row.action.label, kind: .secondary) {
+                Task { await model.run(row.action, for: row.id.rawValue) }
+            }
+            .accessibilityIdentifier("onboarding.welcome.action.\(row.id.rawValue)")
+            .padding(.top, Spacing.xs)
+        }
+    }
+
+    @ViewBuilder
+    private func title(_ step: OnboardingCatalog.Step, isPageTitle: Bool) -> some View {
+        let text = Text(step.title).fixedSize(horizontal: false, vertical: true)
+        if isPageTitle {
+            text
+                .apexTitle()
+                .accessibilityIdentifier("onboarding.welcome.title")
+        } else {
+            // A second heading on the same page, a step down from the page's
+            // own title — sentence case, because it is a sentence, and the
+            // smoke matches these labels verbatim.
+            text
+                .font(.apex(.display, size: TypeScale.lg, weight: .semibold, relativeTo: .headline))
+                .foregroundStyle(ApexColor.textPrimary)
+                .accessibilityIdentifier("onboarding.welcome.title.\(step.id)")
+        }
+    }
+
     private var footer: some View {
         VStack(spacing: Spacing.lg) {
             HStack(spacing: Spacing.sm) {
-                ForEach(steps.indices, id: \.self) { index in
+                ForEach(pages.indices, id: \.self) { index in
                     Circle()
-                        .fill(index == model.stepIndex ? ApexColor.textPrimary : ApexColor.borderSubtle)
+                        .fill(index == model.pageIndex ? ApexColor.textPrimary : ApexColor.borderSubtle)
                         .frame(width: 6, height: 6)
                 }
             }
-            .accessibilityHidden(true)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Page")
+            .accessibilityValue("\(model.pageIndex + 1) of \(pages.count)")
+            .accessibilityIdentifier("onboarding.welcome.count")
             HStack(spacing: Spacing.md) {
-                if model.stepIndex > 0 {
-                    ApexButton("Back", kind: .secondary) { model.stepIndex -= 1 }
+                if model.pageIndex > 0 {
+                    ApexButton("Back", kind: .secondary) { model.pageIndex -= 1 }
                         .frame(maxWidth: 120)
                         .accessibilityIdentifier("onboarding.welcome.back")
                 }
@@ -108,7 +163,7 @@ public struct WelcomeFlowView: View {
                     if isLast {
                         Task { await model.dismissWelcome() }
                     } else {
-                        model.stepIndex += 1
+                        model.pageIndex += 1
                     }
                 }
                 .accessibilityIdentifier("onboarding.welcome.next")
