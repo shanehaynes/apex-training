@@ -232,6 +232,120 @@ internal enum PublicSchema {
       case userId = "user_id"
     }
   }
+  internal struct CoachRunsSelect: Codable, Hashable, Sendable {
+    internal let cacheReadTokens: Int32
+    internal let cacheWriteTokens: Int32
+    internal let client: String?
+    internal let createdAt: String
+    internal let error: String?
+    internal let id: UUID
+    internal let inputTokens: Int32
+    internal let latencyMs: Int32?
+    internal let mode: String
+    internal let model: String
+    internal let outputTokens: Int32
+    internal let promptVersion: String
+    internal let requestId: String
+    internal let stopReason: String?
+    internal let toolUseCount: Int32
+    internal let userId: UUID
+    internal let withTools: Bool
+    internal enum CodingKeys: String, CodingKey {
+      case cacheReadTokens = "cache_read_tokens"
+      case cacheWriteTokens = "cache_write_tokens"
+      case client = "client"
+      case createdAt = "created_at"
+      case error = "error"
+      case id = "id"
+      case inputTokens = "input_tokens"
+      case latencyMs = "latency_ms"
+      case mode = "mode"
+      case model = "model"
+      case outputTokens = "output_tokens"
+      case promptVersion = "prompt_version"
+      case requestId = "request_id"
+      case stopReason = "stop_reason"
+      case toolUseCount = "tool_use_count"
+      case userId = "user_id"
+      case withTools = "with_tools"
+    }
+  }
+  internal struct CoachRunsInsert: Codable, Hashable, Sendable {
+    internal let cacheReadTokens: Int32?
+    internal let cacheWriteTokens: Int32?
+    internal let client: String?
+    internal let createdAt: String?
+    internal let error: String?
+    internal let id: UUID?
+    internal let inputTokens: Int32?
+    internal let latencyMs: Int32?
+    internal let mode: String
+    internal let model: String
+    internal let outputTokens: Int32?
+    internal let promptVersion: String
+    internal let requestId: String
+    internal let stopReason: String?
+    internal let toolUseCount: Int32?
+    internal let userId: UUID
+    internal let withTools: Bool
+    internal enum CodingKeys: String, CodingKey {
+      case cacheReadTokens = "cache_read_tokens"
+      case cacheWriteTokens = "cache_write_tokens"
+      case client = "client"
+      case createdAt = "created_at"
+      case error = "error"
+      case id = "id"
+      case inputTokens = "input_tokens"
+      case latencyMs = "latency_ms"
+      case mode = "mode"
+      case model = "model"
+      case outputTokens = "output_tokens"
+      case promptVersion = "prompt_version"
+      case requestId = "request_id"
+      case stopReason = "stop_reason"
+      case toolUseCount = "tool_use_count"
+      case userId = "user_id"
+      case withTools = "with_tools"
+    }
+  }
+  internal struct CoachRunsUpdate: Codable, Hashable, Sendable {
+    internal let cacheReadTokens: Int32?
+    internal let cacheWriteTokens: Int32?
+    internal let client: String?
+    internal let createdAt: String?
+    internal let error: String?
+    internal let id: UUID?
+    internal let inputTokens: Int32?
+    internal let latencyMs: Int32?
+    internal let mode: String?
+    internal let model: String?
+    internal let outputTokens: Int32?
+    internal let promptVersion: String?
+    internal let requestId: String?
+    internal let stopReason: String?
+    internal let toolUseCount: Int32?
+    internal let userId: UUID?
+    internal let withTools: Bool?
+    internal enum CodingKeys: String, CodingKey {
+      case cacheReadTokens = "cache_read_tokens"
+      case cacheWriteTokens = "cache_write_tokens"
+      case client = "client"
+      case createdAt = "created_at"
+      case error = "error"
+      case id = "id"
+      case inputTokens = "input_tokens"
+      case latencyMs = "latency_ms"
+      case mode = "mode"
+      case model = "model"
+      case outputTokens = "output_tokens"
+      case promptVersion = "prompt_version"
+      case requestId = "request_id"
+      case stopReason = "stop_reason"
+      case toolUseCount = "tool_use_count"
+      case userId = "user_id"
+      case withTools = "with_tools"
+    }
+  }
   internal struct DefinitionMutationsLogSelect: Codable, Hashable, Sendable {
     internal let definitionId: String
     internal let definitionName: String

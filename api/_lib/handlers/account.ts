@@ -43,6 +43,7 @@ export const USER_DATA_TABLES = [
   'analytics_tiles',
   'terms_acceptances',
   'api_request_counts',
+  'coach_runs',
 ] as const;
 
 /**
