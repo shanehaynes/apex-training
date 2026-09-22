@@ -108,10 +108,13 @@ handed every pid `pgrep`/`pidof` finds for it — `lsof -ti :$(npm run -s port) 
 xargs kill` stays fine, the port is yours), commands that throw work away
 without a copy, and building or committing in the primary checkout. The
 destructive set is `git reset --hard`, `git clean -f`, `git checkout -- <path>`
-/ `.` / `-f`, `git restore` (not `--staged`), `git stash drop`/`clear` (the
-stack is shared with every worktree), `git branch -D`, `git worktree remove
---force`, and `git push --force`/`-f`/`+ref`/`--mirror` (`--force-with-lease`
-stays allowed). Look first, then re-run with `APEX_DESTRUCTIVE_OK=1`
+/ `.` / `-f`, `git restore` (not `--staged`), `git stash drop`/`clear`, a
+bare `git stash` / `push` without `-m`, `git stash pop`, and `git stash apply`
+with no ref (the stack is shared with every worktree, so an entry you cannot
+name may be another session's — tag it: `git stash push -u -m "<unique-tag>"`,
+`git stash list --format='%H %gs'`, `git stash apply <sha>`), `git branch -D`,
+`git worktree remove --force`, and `git push --force`/`-f`/`+ref`/`--mirror`
+(`--force-with-lease` stays allowed). Look first, then re-run with `APEX_DESTRUCTIVE_OK=1`
 immediately in front of that one git command — it covers that command only, not
 the rest of the line, and not a shell it launches. The hook parses the command,
 so a guarded name that is only *mentioned* — in a commit message, a PR body, a

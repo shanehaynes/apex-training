@@ -265,6 +265,20 @@ to throw work away: `git checkout -- <path>` / `.` / `-f`, `git restore`,
 entry you drop may not be yours), `git branch -D`, `git worktree remove
 --force`, and `git push --force`.
 
+**Never stash without a tag, and never `git stash pop`.** The stash stack is one
+per repository, shared by the primary checkout and every worktree, and other
+sessions push and pop it while you work. A bare `git stash` reverts your
+tracked edits into an entry nothing can later tell from anyone else's; `git
+stash pop` and a ref-less `git stash apply` act on whatever any session pushed
+last. Prefer a temporary WIP commit on your branch. If you must stash:
+
+```bash
+git stash push -u -m "<unique-tag>"
+git stash list --format='%H %gs'      # capture your entry's SHA by its tag
+git stash apply <sha>                 # not pop
+git stash list --format='%H %gs'      # re-find the tag, then drop that stash@{n}
+```
+
 All three rules above are now enforced mechanically, not just by prose: a
 `PreToolUse` hook (`.claude/settings.json` → `scripts/hooks/bash-guard.mjs`)
 blocks builds and commits in the primary checkout, killing vite by name
@@ -273,6 +287,7 @@ git commands listed above. It matches the words the shell will run, not the
 raw text, so writing *about* `git clean -fd` in a commit message or a PR body
 is fine, and the safe neighbour of each rule stays allowed: `git checkout -b`,
 `git restore --staged`, `git branch -d`, `git push --force-with-lease`,
+`git stash push -u -m "<tag>"` and `git stash apply <sha>`,
 `lsof -ti :$(npm run -s port) | xargs kill`. For the destructive ones, look
 first — `git status`, `git stash list`, `git log` on the branch — and then
 re-run with `APEX_DESTRUCTIVE_OK=1` immediately in front of that one git
