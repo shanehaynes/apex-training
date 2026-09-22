@@ -2,11 +2,20 @@ import ApexCore
 import ApexUI
 import SwiftUI
 
-/// The tile builder (`TileBuilder.tsx`): the form over a live preview the
-/// server computes, the coach drawer under a sparkle, Save in a bottom bar the
-/// keyboard lifts (U3). `.large` only; a dirty draft cannot be swiped away
-/// (architecture §3).
+/// The tile builder (`TileBuilder.tsx`): the live preview pinned under the
+/// title, the form scrolling beneath it, the coach drawer under a sparkle,
+/// Save in a bottom bar the keyboard lifts (U3). `.large` only; a dirty draft
+/// cannot be swiped away (architecture §3).
+///
+/// ux-review §3.7: the preview used to sit at the *bottom* of the form, below
+/// every control, so it was never on screen while the user was choosing — the
+/// one thing the whole sheet exists to show. It is now a pinned band, and the
+/// chart redraws under the title as each choice lands.
 public struct TileBuilderSheet: View {
+    /// The pinned band's chart area. Tall enough to read a trend, short enough
+    /// that the first form fields are still above the fold on a 6.1" phone.
+    static let previewHeight: CGFloat = 120
+
     let onClose: () -> Void
     @State private var builder: TileBuilderModel
 
@@ -25,10 +34,14 @@ public struct TileBuilderSheet: View {
         @Bindable var builder = builder
         VStack(spacing: 0) {
             header
+            // The band travels with the form into the split rather than
+            // sitting above it: the coach drawer keeps exactly the half of
+            // the sheet it had before, and the preview is still on screen
+            // while the coach rewrites the draft under it.
             if builder.coachOpen, let coach = builder.coach {
-                VSplit(top: { TileBuilderFormView(builder: builder) }, bottom: { DraftCoachDrawer(coach: coach, copy: .analytics) })
+                VSplit(top: { formPane }, bottom: { DraftCoachDrawer(coach: coach, copy: .analytics) })
             } else {
-                TileBuilderFormView(builder: builder)
+                formPane
             }
         }
         .background(ApexColor.bgSurface)
@@ -42,6 +55,13 @@ public struct TileBuilderSheet: View {
         .onDisappear { builder.shutdown() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("analytics.builder")
+    }
+
+    private var formPane: some View {
+        VStack(spacing: 0) {
+            previewBand
+            TileBuilderFormView(builder: builder)
+        }
     }
 
     private var header: some View {
@@ -79,6 +99,57 @@ public struct TileBuilderSheet: View {
         .padding(.top, Spacing.sm)
     }
 
+    /// The live preview, pinned: the server's chart, or its problem in the
+    /// web's words. A hairline is all that separates it from the form — the
+    /// band and the sheet share `bgSurface` so the chart reads as part of the
+    /// sheet's chrome rather than as the first card in the list.
+    private var previewBand: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(spacing: Spacing.sm) {
+                Text("Preview").apexFieldLabel()
+                if builder.preview == .loading {
+                    ProgressView().controlSize(.mini).tint(ApexColor.textMuted)
+                }
+                Spacer(minLength: 0)
+            }
+            previewBody
+                .frame(maxWidth: .infinity)
+                .frame(height: Self.previewHeight)
+        }
+        .padding(.horizontal, Spacing.screen)
+        .padding(.top, Spacing.sm)
+        .padding(.bottom, Spacing.md)
+        .background(ApexColor.bgSurface)
+        .overlay(alignment: .bottom) { Rectangle().fill(ApexColor.borderSubtle).frame(height: 1) }
+    }
+
+    @ViewBuilder
+    private var previewBody: some View {
+        switch builder.preview {
+        case .idle, .loading:
+            // Not "no data" — the request is in flight, and the spinner above
+            // says so. An empty ground keeps the band from jumping.
+            Color.clear
+        // `children: .contain` is load-bearing: every renderer under here sets
+        // identifiers of its own (`tile.kpi.<key>`, `tile.problem`), and a
+        // modifier nearer the leaf wins — without a container element of its
+        // own the band's name would simply not exist. It stopped existing the
+        // moment a sparse line started drawing through `KPIRowView`.
+        case .ready(let data):
+            TileBodyView(chartType: builder.draft.chartType, data: data)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("analytics.builder.preview")
+        case .problem(let text):
+            TileProblemView(text: text)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("analytics.builder.problem")
+        case .failed(let text):
+            TileProblemView(text: text)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("analytics.builder.failed")
+        }
+    }
+
     /// Cancel + Save, with the last refusal above them: a toast would render
     /// under the sheet, so the server's text lives here until the next edit.
     private var actionBar: some View {
@@ -100,105 +171,5 @@ public struct TileBuilderSheet: View {
         .padding(Spacing.screen)
         .background(ApexColor.bgSurface)
         .overlay(alignment: .top) { Rectangle().fill(ApexColor.borderSubtle).frame(height: 1) }
-    }
-}
-
-/// The config column and the preview, stacked for the phone.
-struct TileBuilderFormView: View {
-    @Bindable var builder: TileBuilderModel
-
-    private var draft: ChartDraft { builder.draft }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.lg) {
-                FormField("Title", text: field(\.title), placeholder: "Weekly mileage", identifier: "analytics.builder.title")
-                ChipRow("Chart", options: AnalyticsCatalog.chartTypes.map { ($0.value, $0.label) }, selection: field(\.chartType), identifier: "analytics.builder.chart")
-                ChipRow("Range", options: AnalyticsCatalog.rangeKinds.map { ($0.value, $0.label) }, selection: field(\.rangeKind), identifier: "analytics.builder.range")
-                switch draft.rangeKind {
-                case "rolling":
-                    FormField("Days back", text: field(\.rollingDays), placeholder: "90", keyboard: .numberPad, identifier: "analytics.builder.days")
-                case "preset":
-                    ChipRow("Preset", options: AnalyticsCatalog.presets.map { ($0.value, $0.label) }, selection: field(\.preset), identifier: "analytics.builder.preset")
-                default:
-                    HStack(spacing: Spacing.sm) {
-                        DateField("From", day: dayBinding(\.startDate), identifier: "analytics.builder.from")
-                        DateField("To (inclusive)", day: dayBinding(\.endDate), identifier: "analytics.builder.to")
-                    }
-                }
-                if builder.showsBucket {
-                    ChipRow("Bucket", options: AnalyticsCatalog.buckets.map { ($0.value, $0.label) }, selection: field(\.bucket), identifier: "analytics.builder.bucket")
-                }
-                if builder.showsDisplayUnit {
-                    ChipRow("Display unit", options: [("", "As logged")] + AnalyticsCatalog.displayUnits.map { ($0, $0) }, selection: field(\.displayUnit), identifier: "analytics.builder.unit")
-                }
-                ForEach(Array(draft.series.enumerated()), id: \.element.id) { index, series in
-                    SeriesEditorView(builder: builder, series: series, index: index)
-                }
-                if builder.canAddSeries {
-                    Button { Motion.animate { builder.addSeries() } } label: {
-                        Label("Add series", systemImage: ApexIcon.plus.systemName)
-                            .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
-                            .foregroundStyle(ApexColor.accent)
-                            .frame(minHeight: 44)
-                            .contentShape(.rect)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("analytics.builder.addseries")
-                }
-                preview
-            }
-            .padding(.horizontal, Spacing.screen)
-            .padding(.top, Spacing.md)
-            .padding(.bottom, Spacing.xxl)
-        }
-        .scrollDismissesKeyboard(.interactively)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("analytics.builder.form")
-    }
-
-    /// The live preview: the server's chart, or its problem in the web's words.
-    private var preview: some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack {
-                Text("Preview").apexFieldLabel()
-                Spacer()
-                if builder.preview == .loading {
-                    ProgressView().controlSize(.mini).tint(ApexColor.textMuted)
-                }
-            }
-            Group {
-                switch builder.preview {
-                case .idle, .loading:
-                    Color.clear
-                case .ready(let data):
-                    TileBodyView(chartType: draft.chartType, data: data)
-                        .accessibilityIdentifier("analytics.builder.preview")
-                case .problem(let text):
-                    TileProblemView(text: text)
-                        .accessibilityIdentifier("analytics.builder.problem")
-                case .failed(let text):
-                    TileProblemView(text: text)
-                        .accessibilityIdentifier("analytics.builder.failed")
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: draft.chartType == "kpi" ? TileHeight.small.points : TileHeight.medium.points)
-            .padding(Spacing.md)
-            .background(ApexColor.bgPrimary, in: .rect(cornerRadius: Radius.lg))
-            .overlay(RoundedRectangle(cornerRadius: Radius.lg).strokeBorder(ApexColor.borderSubtle, lineWidth: 1))
-        }
-    }
-
-    private func field(_ keyPath: WritableKeyPath<ChartDraft, String>) -> Binding<String> {
-        Binding(get: { draft[keyPath: keyPath] }, set: { value in builder.update { $0[keyPath: keyPath] = value } })
-    }
-
-    /// `yyyy-MM-dd` in the draft ↔ a day in the picker; an empty field opens on today.
-    private func dayBinding(_ keyPath: WritableKeyPath<ChartDraft, String>) -> Binding<DayKey> {
-        Binding(
-            get: { DayKey(draft[keyPath: keyPath]) ?? builder.model.today },
-            set: { day in builder.update { $0[keyPath: keyPath] = day.string } }
-        )
     }
 }

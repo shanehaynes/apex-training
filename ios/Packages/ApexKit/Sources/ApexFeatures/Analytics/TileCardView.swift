@@ -48,7 +48,8 @@ public struct TileCardView: View {
                 .accessibilityIdentifier("tile.menu.\(tile.id)")
             }
             // A stat row sizes to its numbers; every chart takes the tile's height.
-            body(height: tile.chartType == "kpi" ? nil : TileHeight.nearest(h: tile.layout.h).points)
+            // A line with one point draws as a stat row, so it sizes to its numbers too.
+            body(height: sizesToContent ? nil : TileHeight.nearest(h: tile.layout.h).points)
             if case .ok(let data) = result, let note = TileFormat.excluded(count: data.excludedCount) {
                 Text(note)
                     .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption2))
@@ -65,6 +66,15 @@ public struct TileCardView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tile.card.\(tile.id)")
+    }
+
+    /// True when the body is a stat row rather than a chart — the saved type,
+    /// or a line the data is too sparse to draw (ux-review §3.7). Reserving
+    /// 250pt for it is the empty tile the review is about.
+    private var sizesToContent: Bool {
+        if tile.chartType == "kpi" { return true }
+        guard case .ok(let data) = result else { return false }
+        return TileBodyView.rendersAsStat(chartType: tile.chartType ?? "line", data: data)
     }
 
     @ViewBuilder
@@ -89,24 +99,5 @@ public struct TileCardView: View {
         .frame(height: height)
         .frame(minHeight: 96)
         .accessibilityIdentifier("tile.body.\(tile.id)")
-    }
-}
-
-/// The renderer switch (`TileRenderer.tsx`): charts, the stat row, the table.
-public struct TileBodyView: View {
-    let chartType: String
-    let data: TileData
-
-    public init(chartType: String, data: TileData) {
-        self.chartType = chartType
-        self.data = data
-    }
-
-    public var body: some View {
-        switch chartType {
-        case "kpi": KPIRowView(data: data)
-        case "table": TileTableView(data: data)
-        default: TileChartView(kind: TileChartView.Kind(rawValue: chartType) ?? .line, data: data)
-        }
     }
 }

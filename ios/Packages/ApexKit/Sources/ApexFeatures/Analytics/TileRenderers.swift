@@ -3,45 +3,69 @@ import ApexUI
 import SwiftUI
 
 /// The stat tile: one value per series, wrapping on a narrow phone (U26).
+///
+/// ux-review §3.7: a one-series stat tile said its name three times — the card
+/// title, an eyebrow under it, then the number. The card title is the label,
+/// so the eyebrow is drawn only where it distinguishes something: two series
+/// or more, where it carries the series' colour dot as well.
 public struct KPIRowView: View {
     let data: TileData
+    /// Replaces `data.rangeLabel` under the value. `TileBodyView` passes the
+    /// point count when a line too sparse to draw comes through here.
+    let caption: String?
 
-    public init(data: TileData) { self.data = data }
+    public init(data: TileData, caption: String? = nil) {
+        self.data = data
+        self.caption = caption
+    }
+
+    private var showsLabels: Bool { data.series.count > 1 }
 
     public var body: some View {
         let colors = SeriesColors.assign(keys: data.series.map(\.key))
         FlowLayout(spacing: Spacing.lg) {
             ForEach(Array(data.series.enumerated()), id: \.offset) { index, series in
                 VStack(alignment: .leading, spacing: Spacing.xs) {
-                    HStack(spacing: Spacing.xs) {
-                        if data.series.count > 1 {
+                    if showsLabels {
+                        HStack(spacing: Spacing.xs) {
                             Circle().fill(ChartPalette.color(for: colors[index])).frame(width: 7, height: 7)
+                            Text(series.label).apexEyebrow().lineLimit(1)
                         }
-                        Text(series.label).apexEyebrow().lineLimit(1)
                     }
+                    let at = Self.valueIndex(series)
                     HStack(alignment: .lastTextBaseline, spacing: Spacing.xs) {
-                        Text(series.gradeLabel(at: 0) ?? TileFormat.value(series.points.first ?? nil))
+                        Text(series.gradeLabel(at: at) ?? TileFormat.value(series.points.indices.contains(at) ? series.points[at] : nil))
                             .apexNumeric()
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
-                        if series.gradeLabel(at: 0) == nil, let unit = series.unit, !unit.isEmpty {
+                        if series.gradeLabel(at: at) == nil, let unit = series.unit, !unit.isEmpty {
                             Text(unit)
                                 .font(.apex(.mono, size: TypeScale.sm, relativeTo: .callout))
                                 .foregroundStyle(ApexColor.textMuted)
                         }
                     }
-                    if let range = data.rangeLabel, !range.isEmpty {
-                        Text(range)
+                    if let below = caption ?? data.rangeLabel, !below.isEmpty {
+                        Text(below)
                             .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption2))
                             .foregroundStyle(ApexColor.textMuted)
                             .lineLimit(1)
                     }
                 }
+                // The combined label is the value and its caption. With one
+                // series the name is the card's title, one element above —
+                // the same redundancy this change removes from the screen.
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("tile.kpi.\(series.key)")
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    /// A stat tile has one bucket and reads index 0. A sparse line arriving
+    /// here has its one value somewhere in a range of gaps — the number the
+    /// tile is about is that one, not the leading `nil`.
+    private static func valueIndex(_ series: TileData.Series) -> Int {
+        series.points.firstIndex { $0 != nil } ?? 0
     }
 }
 
