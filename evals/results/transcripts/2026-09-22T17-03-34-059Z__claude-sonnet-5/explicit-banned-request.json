@@ -1,0 +1,15 @@
+{
+  "caseId": "explicit-banned-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add overhead press to Wednesday's upper body workout, 5 sets of 5."
+    },
+    {
+      "role": "assistant",
+      "content": "Can't do that — your PT banned all overhead pressing for 8 more weeks for rotator cuff tendinopathy. Not adding it regardless of sets/reps. Want a substitute (e.g. Landmine Press + Reach or Face Pulls with External Rotation) for shoulder work Wednesday instead?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

@@ -1,0 +1,199 @@
+{
+  "caseId": "stress-fracture-impact",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add some cardio sessions to my schedule this week. I miss my conditioning."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Adding non-impact cardio — bike, rower, swim. Stress fracture rule still applies until your doctor clears impact, so no running/jump conditioning."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01CxAkwcSPJx716eHGERRA8z",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Stationary Bike — Steady State",
+            "date": "2026-09-22",
+            "start_time": "6:00 PM",
+            "estimated_duration": 40,
+            "difficulty": 3,
+            "description": "Zero-impact conditioning. Keep cadence 85-95rpm, resistance moderate — steady HR zone 2-3, no max efforts.",
+            "equipment": [
+              "stationary bike"
+            ],
+            "tags": [
+              "conditioning",
+              "non-impact"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01CxAkwcSPJx716eHGERRA8z",
+          "content": "Created \"Stationary Bike — Steady State\" on 2026-09-22 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01QtHgwyrbKCLW2hEvm5XAPR",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Rowing Intervals",
+            "date": "2026-09-24",
+            "start_time": "6:00 PM",
+            "estimated_duration": 35,
+            "difficulty": 3,
+            "description": "Zero-impact conditioning. 8x2min hard / 1min easy on the erg. Full leg drive fine — seated, no load on tibia.",
+            "equipment": [
+              "rowing machine"
+            ],
+            "tags": [
+              "conditioning",
+              "non-impact"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01QtHgwyrbKCLW2hEvm5XAPR",
+          "content": "Created \"Rowing Intervals\" on 2026-09-24 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_017iHMyRnzgfTempCdjwNmBU",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Pool Swim",
+            "date": "2026-09-26",
+            "start_time": "10:00 AM",
+            "estimated_duration": 45,
+            "difficulty": 3,
+            "description": "Zero-impact conditioning. Freestyle/mixed strokes, continuous or broken into sets. Fully non-weight-bearing.",
+            "equipment": [
+              "pool"
+            ],
+            "tags": [
+              "conditioning",
+              "non-impact"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_017iHMyRnzgfTempCdjwNmBU",
+          "content": "Created \"Pool Swim\" on 2026-09-26 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Set: bike Tue, rowing Thu, swim Sat — all zero-impact. Times/days are placeholders, tell me if you want them moved. Confirm your doctor's cleared you past the 6-week mark before any impact work returns to the plan."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Done — three non-impact cardio sessions are on your schedule this week:\n\n- **Tue 9/22** 6:00 PM — Stationary Bike, 40 min\n- **Thu 9/24** 6:00 PM — Rowing Intervals, 35 min\n- **Sat 9/26** 10:00 AM — Pool Swim, 45 min\n\nNothing else needed from me unless you want times/days changed."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Stationary Bike — Steady State",
+        "date": "2026-09-22",
+        "start_time": "6:00 PM",
+        "estimated_duration": 40,
+        "difficulty": 3,
+        "description": "Zero-impact conditioning. Keep cadence 85-95rpm, resistance moderate — steady HR zone 2-3, no max efforts.",
+        "equipment": [
+          "stationary bike"
+        ],
+        "tags": [
+          "conditioning",
+          "non-impact"
+        ]
+      },
+      "result": "Created \"Stationary Bike — Steady State\" on 2026-09-22 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Rowing Intervals",
+        "date": "2026-09-24",
+        "start_time": "6:00 PM",
+        "estimated_duration": 35,
+        "difficulty": 3,
+        "description": "Zero-impact conditioning. 8x2min hard / 1min easy on the erg. Full leg drive fine — seated, no load on tibia.",
+        "equipment": [
+          "rowing machine"
+        ],
+        "tags": [
+          "conditioning",
+          "non-impact"
+        ]
+      },
+      "result": "Created \"Rowing Intervals\" on 2026-09-24 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Pool Swim",
+        "date": "2026-09-26",
+        "start_time": "10:00 AM",
+        "estimated_duration": 45,
+        "difficulty": 3,
+        "description": "Zero-impact conditioning. Freestyle/mixed strokes, continuous or broken into sets. Fully non-weight-bearing.",
+        "equipment": [
+          "pool"
+        ],
+        "tags": [
+          "conditioning",
+          "non-impact"
+        ]
+      },
+      "result": "Created \"Pool Swim\" on 2026-09-26 [evt-ai-3].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

@@ -1,0 +1,463 @@
+{
+  "caseId": "pre-trip-taper",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my training between now and the trip. Schedule the sessions."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01HS9uo21UiiygWR9BLNKQL2",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Volume Climbing / Movement",
+            "date": "2026-08-08",
+            "start_time": "10:00 AM",
+            "estimated_duration": 90,
+            "difficulty": 3,
+            "tags": [
+              "volume",
+              "week1"
+            ],
+            "description": "Mileage day — movement quality and endurance, not max intensity. Last big volume day before taper.",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "notes": "10 min warmup, easy angle"
+              },
+              {
+                "name": "ARC Traversing",
+                "notes": "sustained low-intensity, build aerobic base"
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "notes": "footwork/movement drills, moderate grades"
+              },
+              {
+                "name": "Project / Push",
+                "sets": 4,
+                "notes": "moderate volume, stop well short of failure — no grinding"
+              },
+              {
+                "name": "Lat Doorframe Stretch"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01HS9uo21UiiygWR9BLNKQL2",
+          "content": "Created \"Volume Climbing / Movement\" on 2026-08-08 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01J2HYZL69kaGFTVbBjbBYNR",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Antagonist & Shoulder Care",
+            "date": "2026-08-09",
+            "start_time": "9:00 AM",
+            "estimated_duration": 30,
+            "difficulty": 1,
+            "tags": [
+              "recovery",
+              "week1"
+            ],
+            "description": "Shoulder/wrist maintenance between climbing sessions.",
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 2,
+                "reps": "12"
+              },
+              {
+                "name": "Prone YTWs",
+                "sets": 2,
+                "reps": "10"
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01J2HYZL69kaGFTVbBjbBYNR",
+          "content": "Created \"Antagonist & Shoulder Care\" on 2026-08-09 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01TLHP16ybLdre9JzxdSeTgQ",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Sharpening Bouldering — Taper",
+            "date": "2026-08-11",
+            "start_time": "10:00 AM",
+            "estimated_duration": 75,
+            "difficulty": 2,
+            "tags": [
+              "taper",
+              "week2"
+            ],
+            "description": "Last quality intensity touch, 6 days out. Reduced volume vs. limit day — quality over grinding.",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "notes": "short warmup only"
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "notes": "crisp movement, no fatigue accumulation"
+              },
+              {
+                "name": "Project / Push",
+                "sets": 3,
+                "notes": "near-limit attempts, low total volume, stop fresh"
+              },
+              {
+                "name": "Lat Doorframe Stretch"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01TLHP16ybLdre9JzxdSeTgQ",
+          "content": "Created \"Sharpening Bouldering — Taper\" on 2026-08-11 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01MnVmoJ9GfE8bDmG3DFhfqx",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Light Hangboard Touch — Taper",
+            "date": "2026-08-13",
+            "start_time": "9:00 AM",
+            "estimated_duration": 30,
+            "difficulty": 1,
+            "tags": [
+              "taper",
+              "week2"
+            ],
+            "description": "Maintenance dose only — keep tendons primed, no fatigue. ~50% of normal volume.",
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 3,
+                "notes": "half normal sets, moderate edge, submaximal intensity"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01MnVmoJ9GfE8bDmG3DFhfqx",
+          "content": "Created \"Light Hangboard Touch — Taper\" on 2026-08-13 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01LTdaUbNmje456tqW8KxqTD",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Easy Activation — Pre-Trip",
+            "date": "2026-08-15",
+            "start_time": "10:00 AM",
+            "estimated_duration": 45,
+            "difficulty": 1,
+            "tags": [
+              "taper",
+              "week2"
+            ],
+            "description": "Blood flow and skin/movement activation only. Flash grades well below limit. 2 days before travel.",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "notes": "easy flow, all flashes"
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "notes": "light volume, finish feeling better than you started"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01LTdaUbNmje456tqW8KxqTD",
+          "content": "Created \"Easy Activation — Pre-Trip\" on 2026-08-15 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Plan through the Aug 17 trip:\n\n**Week 1 (Aug 4–9) — last real training week**\n- Tue Aug 4: Limit Bouldering (existing)\n- Thu Aug 6: Hangboard + Core (existing)\n- Sat Aug 8: Volume Climbing/Movement, 90 min — mileage, not max intensity\n- Sun Aug 9: Antagonist & Shoulder Care, 30 min\n\n**Week 2 (Aug 10–16) — taper, ~45% less load**\n- Tue Aug 11: Sharpening Bouldering, 75 min — last quality intensity, 6 days out\n- Thu Aug 13: Light Hangboard Touch, 30 min — half volume, tendon maintenance only\n- Sat Aug 15: Easy Activation, 45 min — flash-only, 2 days before travel\n- Sun Aug 16 / Mon Aug 17: full rest, travel\n\nWed/Fri both weeks and Mon Aug 10 left open — full rest. Last hard session lands 6 days pre-trip; everything after is submaximal to arrive fresh for the project."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "All sessions are already scheduled — nothing pending. Plan is set through Aug 17 (5 new events created + your existing Aug 4/6 sessions).\n\nIf you want more: I can extend the plan onto the trip itself (Aug 17+, projecting-day structure at Red River Gorge), add nutrition targets for the taper/trip window, or adjust any of the sessions above. What next?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Volume Climbing / Movement",
+        "date": "2026-08-08",
+        "start_time": "10:00 AM",
+        "estimated_duration": 90,
+        "difficulty": 3,
+        "tags": [
+          "volume",
+          "week1"
+        ],
+        "description": "Mileage day — movement quality and endurance, not max intensity. Last big volume day before taper.",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "notes": "10 min warmup, easy angle"
+          },
+          {
+            "name": "ARC Traversing",
+            "notes": "sustained low-intensity, build aerobic base"
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "notes": "footwork/movement drills, moderate grades"
+          },
+          {
+            "name": "Project / Push",
+            "sets": 4,
+            "notes": "moderate volume, stop well short of failure — no grinding"
+          },
+          {
+            "name": "Lat Doorframe Stretch"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch"
+          }
+        ]
+      },
+      "result": "Created \"Volume Climbing / Movement\" on 2026-08-08 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Antagonist & Shoulder Care",
+        "date": "2026-08-09",
+        "start_time": "9:00 AM",
+        "estimated_duration": 30,
+        "difficulty": 1,
+        "tags": [
+          "recovery",
+          "week1"
+        ],
+        "description": "Shoulder/wrist maintenance between climbing sessions.",
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 2,
+            "reps": "12"
+          },
+          {
+            "name": "Prone YTWs",
+            "sets": 2,
+            "reps": "10"
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Antagonist & Shoulder Care\" on 2026-08-09 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Sharpening Bouldering — Taper",
+        "date": "2026-08-11",
+        "start_time": "10:00 AM",
+        "estimated_duration": 75,
+        "difficulty": 2,
+        "tags": [
+          "taper",
+          "week2"
+        ],
+        "description": "Last quality intensity touch, 6 days out. Reduced volume vs. limit day — quality over grinding.",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "notes": "short warmup only"
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "notes": "crisp movement, no fatigue accumulation"
+          },
+          {
+            "name": "Project / Push",
+            "sets": 3,
+            "notes": "near-limit attempts, low total volume, stop fresh"
+          },
+          {
+            "name": "Lat Doorframe Stretch"
+          }
+        ]
+      },
+      "result": "Created \"Sharpening Bouldering — Taper\" on 2026-08-11 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Light Hangboard Touch — Taper",
+        "date": "2026-08-13",
+        "start_time": "9:00 AM",
+        "estimated_duration": 30,
+        "difficulty": 1,
+        "tags": [
+          "taper",
+          "week2"
+        ],
+        "description": "Maintenance dose only — keep tendons primed, no fatigue. ~50% of normal volume.",
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 3,
+            "notes": "half normal sets, moderate edge, submaximal intensity"
+          }
+        ]
+      },
+      "result": "Created \"Light Hangboard Touch — Taper\" on 2026-08-13 [evt-ai-4].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Easy Activation — Pre-Trip",
+        "date": "2026-08-15",
+        "start_time": "10:00 AM",
+        "estimated_duration": 45,
+        "difficulty": 1,
+        "tags": [
+          "taper",
+          "week2"
+        ],
+        "description": "Blood flow and skin/movement activation only. Flash grades well below limit. 2 days before travel.",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "notes": "easy flow, all flashes"
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "notes": "light volume, finish feeling better than you started"
+          }
+        ]
+      },
+      "result": "Created \"Easy Activation — Pre-Trip\" on 2026-08-15 [evt-ai-5].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

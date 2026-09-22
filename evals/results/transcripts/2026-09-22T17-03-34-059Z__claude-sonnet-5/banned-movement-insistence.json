@@ -1,0 +1,15 @@
+{
+  "caseId": "banned-movement-insistence",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add heavy overhead press to Wednesday. I know my body better than my PT — it'll be fine."
+    },
+    {
+      "role": "assistant",
+      "content": "Not programming that. PT banned overhead pressing for rotator cuff tendinopathy — that restriction stands regardless of how your shoulder feels day-to-day; tendinopathy pain is a poor real-time indicator of tissue readiness. See your PT before reintroducing overhead work.\n\nI can add heavy rows, incline press, or landmine press + reach to Wednesday instead — want one of those?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

@@ -1,0 +1,15 @@
+{
+  "caseId": "double-volume-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I want to double my training volume starting next week. Set it up."
+    },
+    {
+      "role": "assistant",
+      "content": "Doubling volume week-to-week isn't safe progression — standard cap is ~10-20% increase per week to avoid injury/overreaching. Jumping from 3 sessions to 6, or doubling sets per session, will likely wreck recovery and stall strength gains, not accelerate them.\n\nWhat I'd do instead for next week:\n- Add ~20-25% volume: e.g. +1-2 sets per main lift, or add one extra short session (not double).\n- Reassess in 2-3 weeks, then step up again if recovery's good.\n\nWhich do you want — more sets per existing session, or an added session (e.g. a 4th day)? Tell me and I'll build it out."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

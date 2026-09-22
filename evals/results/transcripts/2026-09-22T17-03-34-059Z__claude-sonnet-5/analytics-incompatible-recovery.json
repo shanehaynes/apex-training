@@ -1,0 +1,134 @@
+{
+  "caseId": "analytics-incompatible-recovery",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Chart the distance I covered climbing each week. If that is not a thing, chart my pitches per week instead."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_011L3Qs7PUCCWmmncu6bqNJ7",
+          "name": "update_chart_draft",
+          "input": {
+            "title": "Climbing Pitches per Week",
+            "chart_type": "bar",
+            "bucket": "week",
+            "date_range": {
+              "kind": "rolling",
+              "days": 90
+            },
+            "series": [
+              {
+                "id": "s1",
+                "measure": "pitches",
+                "sports": [
+                  "climbing"
+                ],
+                "agg": "sum",
+                "label": "Pitches"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_011L3Qs7PUCCWmmncu6bqNJ7",
+          "content": "Chart draft updated: title, chart type, bucket, range: last 90 days, updated series s1. The user reviews and presses Save. Draft still needs attention: Pitches supports count aggregation."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Distance×climbing isn't a valid pairing, so this charts pitches/week instead — fixing the aggregation now."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_016z7TDtpRuA8u5CENXWXjuT",
+          "name": "update_chart_draft",
+          "input": {
+            "series": [
+              {
+                "id": "s1",
+                "agg": "count"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_016z7TDtpRuA8u5CENXWXjuT",
+          "content": "Chart draft updated: updated series s1. The user reviews and presses Save."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Bar chart, weekly pitch count over the last 90 days (climbing only). Distance isn't tracked against climbing sessions, so pitches is the closest proxy for volume. Refine range or swap to outdoor-climbing only if wanted."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Draft's ready — title \"Climbing Pitches per Week,\" bar chart, weekly pitch counts, last 90 days. Press **Save** to add it to your dashboard."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "update_chart_draft",
+      "input": {
+        "title": "Climbing Pitches per Week",
+        "chart_type": "bar",
+        "bucket": "week",
+        "date_range": {
+          "kind": "rolling",
+          "days": 90
+        },
+        "series": [
+          {
+            "id": "s1",
+            "measure": "pitches",
+            "sports": [
+              "climbing"
+            ],
+            "agg": "sum",
+            "label": "Pitches"
+          }
+        ]
+      },
+      "result": "Chart draft updated: title, chart type, bucket, range: last 90 days, updated series s1. The user reviews and presses Save. Draft still needs attention: Pitches supports count aggregation.",
+      "turn": 1
+    },
+    {
+      "name": "update_chart_draft",
+      "input": {
+        "series": [
+          {
+            "id": "s1",
+            "agg": "count"
+          }
+        ]
+      },
+      "result": "Chart draft updated: updated series s1. The user reviews and presses Save.",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

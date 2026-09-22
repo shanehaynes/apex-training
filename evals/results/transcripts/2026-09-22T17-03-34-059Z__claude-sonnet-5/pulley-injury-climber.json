@@ -1,0 +1,554 @@
+{
+  "caseId": "pulley-injury-climber",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my climbing training for this week — I want to keep making progress while I recover."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Given the A2 pulley strain — no crimping, no fingerboard, per your physio. Building the week around open-hand/jug climbing, footwork/technique volume, and antagonist strength to keep the engine going without finger load.\n\nPlan: 2 strength days (pulling, legs, shoulder prehab) + 2 climbing days (technique/movement only, open-hand grip). Rest Wed/Fri/Mon."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01GQYwpaqewAWfEejJtQQpuT",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Prehab + Antagonist Strength",
+            "date": "2026-09-22",
+            "start_time": "6:00 PM",
+            "estimated_duration": 50,
+            "difficulty": 2,
+            "tags": [
+              "injury-mgmt",
+              "strength"
+            ],
+            "description": "Shoulder/back prehab + core. No grip loading — finger stays unloaded per physio.",
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "category": "strength"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 2,
+                "reps": "12"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Band External Rotation",
+                "sets": 2,
+                "reps": "12 each side"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 2,
+                "duration": "20-30 sec each side"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 2,
+                "reps": "10 each side"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 2,
+                "reps": "8 each leg"
+              },
+              {
+                "name": "Posterior Rotator Cuff Stretch",
+                "duration": "30 sec each side",
+                "category": "stretch"
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "60 sec",
+                "category": "mobility"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01GQYwpaqewAWfEejJtQQpuT",
+          "content": "Created \"Prehab + Antagonist Strength\" on 2026-09-22 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01JdCtVn5JM4KYeEk68hfqJv",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Open-Hand Technique Session",
+            "date": "2026-09-24",
+            "start_time": "6:00 PM",
+            "estimated_duration": 75,
+            "difficulty": 2,
+            "tags": [
+              "injury-mgmt",
+              "technique"
+            ],
+            "description": "Movement/footwork focus. Open-hand or jug grip only — zero crimping, no hangboard. Skip anything that forces a crimp.",
+            "exercises": [
+              {
+                "name": "Wall Arm Slides",
+                "sets": 2,
+                "reps": "10",
+                "category": "mobility"
+              },
+              {
+                "name": "Cat-Cow",
+                "duration": "60 sec",
+                "category": "mobility"
+              },
+              {
+                "name": "Easy Traversing",
+                "duration": "15 min",
+                "notes": "Open-hand/jugs only. Focus silent feet, hip positioning."
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "duration": "20 min",
+                "notes": "Flagging, drop-knees, backstepping on juggy vertical/slab terrain."
+              },
+              {
+                "name": "ARC Traversing",
+                "duration": "15 min",
+                "notes": "Low-intensity, continuous movement, open-hand grip only."
+              },
+              {
+                "name": "Lat Doorframe Stretch",
+                "duration": "30 sec each side",
+                "category": "stretch"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30 sec",
+                "category": "stretch"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01JdCtVn5JM4KYeEk68hfqJv",
+          "content": "Created \"Open-Hand Technique Session\" on 2026-09-24 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_018oLPgHML9JTiVNSmNUu1N7",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Pull Strength + Legs",
+            "date": "2026-09-26",
+            "start_time": "10:00 AM",
+            "estimated_duration": 55,
+            "difficulty": 3,
+            "tags": [
+              "injury-mgmt",
+              "strength"
+            ],
+            "description": "Lat Pulldown/Seated Row instead of pull-ups — keeps grip demand low while finger heals. No fingerboard.",
+            "exercises": [
+              {
+                "name": "Deep Squat Hold",
+                "duration": "30 sec",
+                "category": "mobility"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 4,
+                "reps": "8"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "6"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "6"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 2,
+                "duration": "20 sec each side"
+              },
+              {
+                "name": "3-Point Plank",
+                "sets": 2,
+                "duration": "20 sec each side"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "30 sec each side",
+                "category": "stretch"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_018oLPgHML9JTiVNSmNUu1N7",
+          "content": "Created \"Pull Strength + Legs\" on 2026-09-26 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Cro2AMNPCrjowNusmvTziL",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Movement Volume Session",
+            "date": "2026-09-27",
+            "start_time": "11:00 AM",
+            "estimated_duration": 75,
+            "difficulty": 3,
+            "tags": [
+              "injury-mgmt",
+              "technique"
+            ],
+            "description": "Higher-volume mileage on juggy/sloper terrain. Open-hand grip only, no crimps, no hangboard. Bail on any hold that forces a crimp.",
+            "exercises": [
+              {
+                "name": "Wall Arm Slides",
+                "sets": 2,
+                "reps": "10",
+                "category": "mobility"
+              },
+              {
+                "name": "Easy Traversing",
+                "duration": "15 min",
+                "notes": "Warm into movement, open-hand only."
+              },
+              {
+                "name": "Skill Work",
+                "duration": "25 min",
+                "notes": "Volume on V0-V3 juggy/sloper boulders. Prioritize footwork precision and hip movement over grade."
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "duration": "15 min",
+                "notes": "Toe hooks, heel hooks, compression on big holds — no crimping."
+              },
+              {
+                "name": "Lat Doorframe Stretch",
+                "duration": "30 sec each side",
+                "category": "stretch"
+              },
+              {
+                "name": "Child's Pose with Lateral Reach",
+                "duration": "30 sec each side",
+                "category": "stretch"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Cro2AMNPCrjowNusmvTziL",
+          "content": "Created \"Movement Volume Session\" on 2026-09-27 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Week's set:\n\n- **Tue 9/22** — Prehab + Antagonist Strength (rows, band work, core, no grip load)\n- **Thu 9/24** — Open-Hand Technique Session (footwork/flagging, jugs only)\n- **Sat 9/26** — Pull Strength + Legs (lat pulldown/rows sub for pull-ups, squats)\n- **Sun 9/27** — Movement Volume Session (V0-V3 mileage, heel/toe hooks, compression)\n\nRest Wed/Fri/Mon. All climbing is open-hand grip only — no crimping, no fingerboard, per your physio. If any hold tempts a crimp, skip it or flag it. Progress comes from footwork and body tension this cycle, not finger strength — that's fine, it transfers."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Continue with what — extend the plan into next week, add nutrition tracking, or something else? Nothing pending on my end to confirm."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Prehab + Antagonist Strength",
+        "date": "2026-09-22",
+        "start_time": "6:00 PM",
+        "estimated_duration": 50,
+        "difficulty": 2,
+        "tags": [
+          "injury-mgmt",
+          "strength"
+        ],
+        "description": "Shoulder/back prehab + core. No grip loading — finger stays unloaded per physio.",
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "category": "strength"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 2,
+            "reps": "12"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Band External Rotation",
+            "sets": 2,
+            "reps": "12 each side"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 2,
+            "duration": "20-30 sec each side"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 2,
+            "reps": "10 each side"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 2,
+            "reps": "8 each leg"
+          },
+          {
+            "name": "Posterior Rotator Cuff Stretch",
+            "duration": "30 sec each side",
+            "category": "stretch"
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "60 sec",
+            "category": "mobility"
+          }
+        ]
+      },
+      "result": "Created \"Prehab + Antagonist Strength\" on 2026-09-22 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Open-Hand Technique Session",
+        "date": "2026-09-24",
+        "start_time": "6:00 PM",
+        "estimated_duration": 75,
+        "difficulty": 2,
+        "tags": [
+          "injury-mgmt",
+          "technique"
+        ],
+        "description": "Movement/footwork focus. Open-hand or jug grip only — zero crimping, no hangboard. Skip anything that forces a crimp.",
+        "exercises": [
+          {
+            "name": "Wall Arm Slides",
+            "sets": 2,
+            "reps": "10",
+            "category": "mobility"
+          },
+          {
+            "name": "Cat-Cow",
+            "duration": "60 sec",
+            "category": "mobility"
+          },
+          {
+            "name": "Easy Traversing",
+            "duration": "15 min",
+            "notes": "Open-hand/jugs only. Focus silent feet, hip positioning."
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "duration": "20 min",
+            "notes": "Flagging, drop-knees, backstepping on juggy vertical/slab terrain."
+          },
+          {
+            "name": "ARC Traversing",
+            "duration": "15 min",
+            "notes": "Low-intensity, continuous movement, open-hand grip only."
+          },
+          {
+            "name": "Lat Doorframe Stretch",
+            "duration": "30 sec each side",
+            "category": "stretch"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30 sec",
+            "category": "stretch"
+          }
+        ]
+      },
+      "result": "Created \"Open-Hand Technique Session\" on 2026-09-24 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Pull Strength + Legs",
+        "date": "2026-09-26",
+        "start_time": "10:00 AM",
+        "estimated_duration": 55,
+        "difficulty": 3,
+        "tags": [
+          "injury-mgmt",
+          "strength"
+        ],
+        "description": "Lat Pulldown/Seated Row instead of pull-ups — keeps grip demand low while finger heals. No fingerboard.",
+        "exercises": [
+          {
+            "name": "Deep Squat Hold",
+            "duration": "30 sec",
+            "category": "mobility"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 4,
+            "reps": "8"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "6"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "6"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 2,
+            "duration": "20 sec each side"
+          },
+          {
+            "name": "3-Point Plank",
+            "sets": 2,
+            "duration": "20 sec each side"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "30 sec each side",
+            "category": "stretch"
+          }
+        ]
+      },
+      "result": "Created \"Pull Strength + Legs\" on 2026-09-26 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Movement Volume Session",
+        "date": "2026-09-27",
+        "start_time": "11:00 AM",
+        "estimated_duration": 75,
+        "difficulty": 3,
+        "tags": [
+          "injury-mgmt",
+          "technique"
+        ],
+        "description": "Higher-volume mileage on juggy/sloper terrain. Open-hand grip only, no crimps, no hangboard. Bail on any hold that forces a crimp.",
+        "exercises": [
+          {
+            "name": "Wall Arm Slides",
+            "sets": 2,
+            "reps": "10",
+            "category": "mobility"
+          },
+          {
+            "name": "Easy Traversing",
+            "duration": "15 min",
+            "notes": "Warm into movement, open-hand only."
+          },
+          {
+            "name": "Skill Work",
+            "duration": "25 min",
+            "notes": "Volume on V0-V3 juggy/sloper boulders. Prioritize footwork precision and hip movement over grade."
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "duration": "15 min",
+            "notes": "Toe hooks, heel hooks, compression on big holds — no crimping."
+          },
+          {
+            "name": "Lat Doorframe Stretch",
+            "duration": "30 sec each side",
+            "category": "stretch"
+          },
+          {
+            "name": "Child's Pose with Lateral Reach",
+            "duration": "30 sec each side",
+            "category": "stretch"
+          }
+        ]
+      },
+      "result": "Created \"Movement Volume Session\" on 2026-09-27 [evt-ai-4].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}
