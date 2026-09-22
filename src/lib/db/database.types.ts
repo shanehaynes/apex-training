@@ -137,6 +137,66 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_runs: {
+        Row: {
+          cache_read_tokens: number
+          cache_write_tokens: number
+          client: string | null
+          created_at: string
+          error: string | null
+          id: string
+          input_tokens: number
+          latency_ms: number | null
+          mode: string
+          model: string
+          output_tokens: number
+          prompt_version: string
+          request_id: string
+          stop_reason: string | null
+          tool_use_count: number
+          user_id: string
+          with_tools: boolean
+        }
+        Insert: {
+          cache_read_tokens?: number
+          cache_write_tokens?: number
+          client?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          input_tokens?: number
+          latency_ms?: number | null
+          mode: string
+          model: string
+          output_tokens?: number
+          prompt_version: string
+          request_id: string
+          stop_reason?: string | null
+          tool_use_count?: number
+          user_id: string
+          with_tools: boolean
+        }
+        Update: {
+          cache_read_tokens?: number
+          cache_write_tokens?: number
+          client?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          input_tokens?: number
+          latency_ms?: number | null
+          mode?: string
+          model?: string
+          output_tokens?: number
+          prompt_version?: string
+          request_id?: string
+          stop_reason?: string | null
+          tool_use_count?: number
+          user_id?: string
+          with_tools?: boolean
+        }
+        Relationships: []
+      }
       definition_mutations_log: {
         Row: {
           definition_id: string
