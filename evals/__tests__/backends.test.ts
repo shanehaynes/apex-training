@@ -105,8 +105,19 @@ const resultMessage = (over: Record<string, unknown> = {}) =>
     ...over,
   } as unknown as SDKMessage);
 
+const toolResultMessage = (blocks: Array<{ tool_use_id: string; text: string }>) =>
+  ({
+    type: 'user',
+    message: {
+      content: blocks.map(b => ({
+        type: 'tool_result', tool_use_id: b.tool_use_id,
+        content: [{ type: 'text', text: b.text }],
+      })),
+    },
+  } as unknown as SDKMessage);
+
 /** Drives the coach tool the way a real session would: the SDK executes the
- *  MCP handler between the tool_use block and the assistant reply. */
+ *  MCP handler, then reports the result back as a user message. */
 function fakeSdk(script: (tools: FakeTools) => Promise<SDKMessage[]> | SDKMessage[]) {
   const seen: Options[] = [];
   const runQuery = ({ options, tools }: { prompt: string; options: Options; tools: FakeTools }) => {
@@ -121,7 +132,10 @@ function fakeSdk(script: (tools: FakeTools) => Promise<SDKMessage[]> | SDKMessag
 async function callTool(tools: FakeTools, name: string, input: Record<string, unknown>) {
   const def = tools.find(t => t.name === name);
   if (!def) throw new Error(`fake SDK: no tool ${name}`);
-  await (def as unknown as { handler: (a: unknown, e: unknown) => Promise<unknown> }).handler(input, {});
+  const out = await (def as unknown as {
+    handler: (a: unknown, e: unknown) => Promise<{ content: Array<{ text: string }> }>;
+  }).handler(input, {});
+  return out.content.map(c => c.text).join('');
 }
 
 describe('makeAgentSdkBackend', () => {
@@ -135,9 +149,15 @@ describe('makeAgentSdkBackend', () => {
           { type: 'tool_use', id: 'tu-1', name: `${MCP_PREFIX}create_event`, input: EVENT_INPUT },
         ]),
       ];
-      // The SDK runs the tool inside its own session, then keeps going.
-      await callTool(tools, 'create_event', EVENT_INPUT);
-      return [...before, assistantMessage([{ type: 'text', text: 'Done.' }], 'end_turn'), resultMessage()];
+      // The SDK runs the tool inside its own session, reports the result back
+      // as a user message, then keeps going.
+      const text = await callTool(tools, 'create_event', EVENT_INPUT);
+      return [
+        ...before,
+        toolResultMessage([{ tool_use_id: 'tu-1', text }]),
+        assistantMessage([{ type: 'text', text: 'Done.' }], 'end_turn'),
+        resultMessage(),
+      ];
     });
 
     const result = await runCase(BASE_CASE, makeAgentSdkBackend({ model: 'claude-sonnet-5', runQuery }));
@@ -163,6 +183,73 @@ describe('makeAgentSdkBackend', () => {
     expect(options.settingSources).toEqual([]); // no personal config
     expect(options.model).toBe('claude-sonnet-5');
     expect(options.systemPrompt).toContain('EXERCISE LIBRARY');
+  });
+
+  // Regression: the first live run attached call 2's result to call 5 and gave
+  // calls 2-4 "Unknown tool", because the pairing was derived from the order
+  // the MCP handlers finished in. The SDK streams the next assistant message
+  // before a handler's promise resolves, so only its own tool_use_id is
+  // authoritative.
+  it('pairs each result with its own call across several sequential rounds', async () => {
+    const titles = ['First', 'Second', 'Third'];
+    const { runQuery } = fakeSdk(async tools => {
+      const out: SDKMessage[] = [initMessage()];
+      for (const [i, title] of titles.entries()) {
+        const input = { ...EVENT_INPUT, title, date: `2026-08-0${i + 4}` };
+        out.push(assistantMessage([
+          { type: 'tool_use', id: `tu-${i}`, name: `${MCP_PREFIX}create_event`, input },
+        ]));
+        const text = await callTool(tools, 'create_event', input);
+        out.push(toolResultMessage([{ tool_use_id: `tu-${i}`, text }]));
+      }
+      out.push(assistantMessage([{ type: 'text', text: 'Week is set.' }], 'end_turn'), resultMessage());
+      return out;
+    });
+
+    const result = await runCase(BASE_CASE, makeAgentSdkBackend({ model: 'claude-sonnet-5', runQuery }));
+
+    expect(result.anomalies).toEqual([]);
+    expect(result.toolCalls).toHaveLength(3);
+    for (const [i, title] of titles.entries()) {
+      expect(result.toolCalls[i].input.title).toBe(title);
+      // Each call's recorded result names that call's own event.
+      expect(result.toolCalls[i].result).toContain(`Created "${title}"`);
+    }
+    expect(result.finalEvents.map(e => e.title)).toEqual(titles);
+    expect(JSON.stringify(result.transcript)).not.toContain('Unknown tool');
+  });
+
+  it('does not invent a result for a tool_use the SDK never executed', async () => {
+    const { runQuery } = fakeSdk(() => [
+      initMessage(),
+      assistantMessage([
+        { type: 'tool_use', id: 'tu-1', name: `${MCP_PREFIX}create_event`, input: EVENT_INPUT },
+      ], 'end_turn'),
+      resultMessage(),
+    ]);
+    const result = await runCase(BASE_CASE, makeAgentSdkBackend({ model: 'claude-sonnet-5', runQuery }));
+    // Recorded as an anomaly, NOT as a confirmed mutation.
+    expect(result.anomalies).toEqual(['sdkToolUseUnexecuted:create_event (turn 1)']);
+    expect(result.toolCalls).toHaveLength(0);
+    expect(result.finalEvents).toHaveLength(0);
+    expect(JSON.stringify(result.transcript)).not.toContain('Unknown tool');
+  });
+
+  it('closes the query so subprocesses do not accumulate across a suite', async () => {
+    let closed = 0;
+    const runQuery = () => {
+      const iter = (async function* () {
+        yield initMessage([]);
+        yield assistantMessage([{ type: 'text', text: 'ok' }], 'end_turn');
+        yield resultMessage();
+      })();
+      return Object.assign(iter, { close: () => { closed += 1; } });
+    };
+    await runCase(
+      { ...BASE_CASE, script: [{ kind: 'user', text: 'One.' }, { kind: 'user', text: 'Two.' }] },
+      makeAgentSdkBackend({ model: 'claude-sonnet-5', runQuery }),
+    );
+    expect(closed).toBe(2);
   });
 
   it('resumes the session on the next scripted turn', async () => {

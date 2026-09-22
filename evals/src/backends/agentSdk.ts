@@ -84,11 +84,15 @@ export function tokensFromSdkUsage(usage: SdkUsage | undefined) {
   };
 }
 
-interface Executed {
-  name: string;
-  input: Record<string, unknown>;
-  resultText: string;
-  consumed: boolean;
+/** MCP tool_result content is a block array (or, defensively, a bare string). */
+export function textOfToolResult(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .map(b => (b && typeof b === 'object' && (b as { type?: string }).type === 'text'
+      ? String((b as { text?: unknown }).text ?? '')
+      : ''))
+    .join('');
 }
 
 export interface AgentSdkBackendOptions {
@@ -127,7 +131,6 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
   const runTurn = async (req: TurnRequest): Promise<TurnOutcome> => {
     const { userText, transcript, buildSystem, executeTool, toolMode, turnIndex, session, anomaly } = req;
 
-    const executed: Executed[] = [];
     const sdkTools = schemasFor(toolMode).map(schema =>
       tool(
         schema.name,
@@ -142,39 +145,31 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
             resultText = 'The operation failed — something went wrong on the backend.';
             anomaly(`executorThrew:${schema.name}: ${err instanceof Error ? err.message : String(err)}`);
           }
-          executed.push({ name: schema.name, input, resultText, consumed: false });
           return { content: [{ type: 'text' as const, text: resultText }] };
         },
       ),
     );
 
-    const matchExecuted = (name: string, input: Record<string, unknown>): Executed | undefined => {
-      const exact = executed.findIndex(
-        e => !e.consumed && e.name === name && JSON.stringify(e.input) === JSON.stringify(input),
-      );
-      // Zod parse can normalize the input on the way to the handler, so an
-      // exact match is preferred but not required; order within a name is the
-      // fallback, which is how the SDK runs them anyway.
-      const i = exact >= 0 ? exact : executed.findIndex(e => !e.consumed && e.name === name);
-      if (i < 0) return undefined;
-      executed[i].consumed = true;
-      return executed[i];
-    };
-
     transcript.push({ role: 'user', content: userText });
 
     let pending: Array<TextBlock | ToolUseBlock> = [];
-    let outstanding: ToolUseBlock[] = [];
     const assistantBlocks: Array<TextBlock | ToolUseBlock> = [];
     const texts: string[] = [];
     const toolCalls: TurnToolCall[] = [];
+    // The SDK's OWN user messages carry the tool_use_id → result pairing. Do
+    // not re-derive it from the order the MCP handlers happened to finish in:
+    // the SDK streams the next assistant message before the handler's promise
+    // has resolved, so an order-based pairing drifts and silently attaches one
+    // call's result to another call.
+    const toolUseById = new Map<string, ToolUseBlock>();
+    const settled = new Set<string>();
     let stopReason: string | null = null;
     let usage = { inputTokens: 0, outputTokens: 0 };
     let sessionId = session?.id;
 
     // One assistant message per contiguous run of blocks, a tool_result user
-    // message per settled round — the same ApiMessage[] shape the checkers
-    // and the judge read from the API backend.
+    // message per round — the same ApiMessage[] shape the checkers and the
+    // judge read from the API backend.
     const flushAssistant = () => {
       if (!pending.length) return;
       const onlyText = pending.length === 1 && pending[0].type === 'text';
@@ -185,18 +180,21 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
       pending = [];
     };
 
-    const settle = () => {
-      if (!outstanding.length) return;
+    const recordToolResults = (blocks: Array<{ tool_use_id?: unknown; content?: unknown }>) => {
       flushAssistant();
-      const results = outstanding.map(toolUse => {
-        const hit = matchExecuted(toolUse.name, toolUse.input);
-        if (!hit) anomaly(`sdkToolResultMissing:${toolUse.name} (turn ${turnIndex})`);
-        const resultText = hit?.resultText ?? `Unknown tool "${toolUse.name}".`;
-        toolCalls.push({ name: toolUse.name, input: toolUse.input, resultText });
-        return { type: 'tool_result' as const, tool_use_id: toolUse.id, content: resultText };
+      const results = blocks.map(block => {
+        const id = String(block.tool_use_id ?? '');
+        const resultText = textOfToolResult(block.content);
+        const toolUse = toolUseById.get(id);
+        if (toolUse) {
+          toolCalls.push({ name: toolUse.name, input: toolUse.input, resultText });
+          settled.add(id);
+        } else {
+          anomaly(`sdkToolResultUnmatched:${id} (turn ${turnIndex})`);
+        }
+        return { type: 'tool_result' as const, tool_use_id: id, content: resultText };
       });
       transcript.push({ role: 'user', content: results } as ApiMessage);
-      outstanding = [];
     };
 
     const options: Options = {
@@ -223,13 +221,14 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
       ...(sessionId ? { resume: sessionId } : {}),
     };
 
-    let stream: AsyncIterable<SDKMessage>;
+    // Each query() spawns a Claude Code subprocess; without the close() below
+    // they accumulate for the length of a suite run.
+    const stream = runQuery({
+      prompt: userText,
+      options,
+      tools: sdkTools as unknown as Array<SdkMcpToolDefinition<never>>,
+    }) as AsyncIterable<SDKMessage> & { close?: () => void };
     try {
-      stream = runQuery({
-        prompt: userText,
-        options,
-        tools: sdkTools as unknown as Array<SdkMcpToolDefinition<never>>,
-      });
       for await (const message of stream) {
         if (message.type === 'system' && message.subtype === 'init') {
           sessionId = message.session_id;
@@ -255,7 +254,6 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
               `Agent SDK returned a synthetic message instead of model output: ${prose || '(no text)'}`,
             );
           }
-          settle();
           for (const block of apiMessage.content) {
             // Thinking never enters history — the wire protocol drops it.
             if (block.type === 'text') {
@@ -270,11 +268,23 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
                 input: (block.input ?? {}) as Record<string, unknown>,
               };
               pending.push(toolUse);
-              outstanding.push(toolUse);
+              toolUseById.set(toolUse.id, toolUse);
               assistantBlocks.push(toolUse);
             }
           }
           if (apiMessage.stop_reason) stopReason = apiMessage.stop_reason;
+          continue;
+        }
+
+        // The SDK reports every tool it ran back as a user message, which is
+        // the authoritative pairing — see toolUseById above.
+        if (message.type === 'user') {
+          const content = (message as unknown as { message?: { content?: unknown } }).message?.content;
+          const blocks = Array.isArray(content)
+            ? (content as Array<{ type?: string; tool_use_id?: unknown; content?: unknown }>)
+              .filter(b => b?.type === 'tool_result')
+            : [];
+          if (blocks.length) recordToolResults(blocks);
           continue;
         }
 
@@ -293,10 +303,19 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
     } catch (err) {
       if (err instanceof AgentSdkBackendError) throw err;
       throw new AgentSdkBackendError(err instanceof Error ? err.message : String(err));
+    } finally {
+      stream.close?.();
     }
 
-    settle();
     flushAssistant();
+
+    // A tool_use the SDK never reported a result for (maxTurns cut the round
+    // short, say) is NOT recorded as a call: the coach proposed it, nothing
+    // executed it, and inventing a result would put a mutation in the record
+    // that never happened.
+    for (const [id, toolUse] of toolUseById) {
+      if (!settled.has(id)) anomaly(`sdkToolUseUnexecuted:${toolUse.name} (turn ${turnIndex})`);
+    }
 
     if (stopReason && stopReason !== 'end_turn' && stopReason !== 'tool_use') {
       anomaly(`stop_reason:${stopReason} (turn ${turnIndex})`);
