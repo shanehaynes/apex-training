@@ -88,29 +88,60 @@ export function makeAnthropicCaller(client: Anthropic, model: string): CallModel
 // harness sessions — which don't inherit an interactive shell's exports —
 // can run the suite too. Being gitignored, .env.local never reaches a fresh
 // worktree, so a worktree falls through to the primary checkout's copy (its
-// .git file points home) — one line there covers every checkout. Only this
-// one key is read from the file: the runner has no other env surface, and a
-// general dotenv load would invite one.
-export function evalApiKey(root = process.cwd()): string | undefined {
-  if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY;
-  const read = (dir: string) => {
-    try {
-      const raw = readFileSync(join(dir, '.env.local'), 'utf8');
-      return raw.match(/^ANTHROPIC_API_KEY=(\S+)\s*$/m)?.[1];
-    } catch {
-      return undefined;
-    }
-  };
-  const own = read(root);
+// .git file points home) — one line there covers every checkout. Only the
+// two credential keys below are read from the file: the runner has no other
+// env surface, and a general dotenv load would invite one.
+
+/** One `KEY=value` line of a .env.local, or undefined. Never partial. */
+function readEnvLocalKey(dir: string, key: string): string | undefined {
+  let raw: string;
+  try {
+    raw = readFileSync(join(dir, '.env.local'), 'utf8');
+  } catch {
+    return undefined;
+  }
+  const lines = raw.split(/\r?\n/);
+  const i = lines.findIndex(line => line.startsWith(`${key}=`));
+  if (i === -1) return undefined;
+  // A credential pasted with a hard wrap (a terminal folded it, or an editor
+  // did) parses as a SILENTLY TRUNCATED value — the regex stops at the end of
+  // the line and the result is a token that looks fine and fails to
+  // authenticate with no hint as to why. A continuation line carries no
+  // `KEY=` of its own and isn't a comment, which is enough to catch it.
+  const next = lines[i + 1];
+  if (next !== undefined && next.trim() && !/^\s*(#|[A-Za-z_][A-Za-z0-9_]*=)/.test(next)) {
+    throw new Error(
+      `${key} in ${join(dir, '.env.local')} is wrapped across two lines, so it would load ` +
+        'truncated. Join the value onto one line.',
+    );
+  }
+  return lines[i].slice(key.length + 1).trim() || undefined;
+}
+
+/** `.env.local` here, else the primary checkout's (a worktree never has one). */
+function readCredential(root: string, key: string): string | undefined {
+  const own = readEnvLocalKey(root, key);
   if (own) return own;
+  let primary: string | undefined;
   try {
     // A linked worktree's .git is a file: `gitdir: <primary>/.git/worktrees/<name>`.
     const gitdir = readFileSync(join(root, '.git'), 'utf8').match(/^gitdir:\s*(.+?)\s*$/m);
-    if (gitdir) return read(resolve(root, gitdir[1], '..', '..', '..'));
+    if (gitdir) primary = resolve(root, gitdir[1], '..', '..', '..');
   } catch {
     // .git is a directory (primary) or absent — nowhere further to look.
   }
-  return undefined;
+  // Outside the try: a malformed credential in the primary's .env.local must
+  // surface, not be swallowed as "no .git file here".
+  return primary ? readEnvLocalKey(primary, key) : undefined;
+}
+
+export function evalApiKey(root = process.cwd()): string | undefined {
+  return process.env.ANTHROPIC_API_KEY || readCredential(root, 'ANTHROPIC_API_KEY');
+}
+
+/** Subscription credential for the agent-sdk backend (`claude setup-token`). */
+export function evalOauthToken(root = process.cwd()): string | undefined {
+  return process.env.CLAUDE_CODE_OAUTH_TOKEN || readCredential(root, 'CLAUDE_CODE_OAUTH_TOKEN');
 }
 
 export function makeClient(): Anthropic {

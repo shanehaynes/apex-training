@@ -3,7 +3,7 @@ import { execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import type { CaseResult, RunResult, VerdictStatus } from './types';
+import type { BackendKind, CaseResult, RunResult, VerdictStatus } from './types';
 import { PROMPT_VERSION } from '../../src/lib/coach/prompt';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -34,6 +34,7 @@ const DIMENSIONS = ['constraints', 'progression', 'refusal', 'integrity'] as con
 export function buildRunResult(
   model: string,
   judgeModel: string,
+  backend: BackendKind,
   cases: CaseResult[],
 ): RunResult {
   const timestamp = new Date().toISOString();
@@ -54,6 +55,7 @@ export function buildRunResult(
     timestamp,
     model,
     judgeModel,
+    backend,
     gitCommit: gitCommit(),
     promptVersion: PROMPT_VERSION,
     promptFileHash: promptFileHash(),
@@ -73,9 +75,11 @@ function round(n: number, places: number): number {
   return Math.round(n * f) / f;
 }
 
-export function writeRunResult(run: RunResult): string {
-  mkdirSync(RESULTS_DIR, { recursive: true });
-  const path = join(RESULTS_DIR, `${run.runId}.json`);
+/** `outPath` names the file outright (--out); the default is the timestamped
+ *  runId under results/, which is what every existing invocation gets. */
+export function writeRunResult(run: RunResult, outPath?: string): string {
+  const path = outPath ?? join(RESULTS_DIR, `${run.runId}.json`);
+  mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify(run, null, 2));
   return path;
 }
@@ -101,8 +105,8 @@ export function printRunTable(run: RunResult): void {
   const idWidth = Math.max(...run.cases.map(c => c.id.length), 8);
   const header = `${'case'.padEnd(idWidth)}  cons prog refu intg  turns  tools  cost      latency`;
   console.log(
-    `\nmodel: ${run.model}   judge: ${run.judgeModel}   commit: ${run.gitCommit.slice(0, 8)}   ` +
-    `prompt: ${run.promptVersion ?? 'unversioned'}`);
+    `\nmodel: ${run.model}   backend: ${run.backend ?? 'api'}   judge: ${run.judgeModel}   ` +
+    `commit: ${run.gitCommit.slice(0, 8)}   prompt: ${run.promptVersion ?? 'unversioned'}`);
   console.log(header);
   console.log('-'.repeat(header.length));
   for (const c of run.cases) {
@@ -112,7 +116,8 @@ export function printRunTable(run: RunResult): void {
     };
     console.log(
       `${c.id.padEnd(idWidth)}  ${cell('constraints')} ${cell('progression')} ${cell('refusal')} ${cell('integrity')}  ` +
-      `${String(c.turns).padEnd(5)}  ${String(c.toolCallCount).padEnd(5)}  $${c.costUsd.toFixed(4)}  ${(c.latencyMs / 1000).toFixed(1)}s` +
+      `${String(c.turns).padEnd(5)}  ${String(c.toolCallCount).padEnd(5)}  ` +
+      `${c.usageUnavailable ? 'n/a      ' : `$${c.costUsd.toFixed(4)}`}  ${(c.latencyMs / 1000).toFixed(1)}s` +
       (c.error ? `  ERROR: ${c.error}` : '') +
       (c.anomalies.length ? `  [${c.anomalies.join('; ')}]` : ''),
     );

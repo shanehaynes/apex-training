@@ -6,47 +6,38 @@ import { applyChartDraftUpdate, describeChartDraft, emptyChartDraft, type DraftU
 import { buildAnalyticsPrompt } from '../../src/lib/coach/prompt';
 import { createMemoryDeps } from './memoryDeps';
 import { loadLibrary } from './library';
+import { makeApiBackend } from './backends/api';
 import type {
   ApiMessage,
+  Backend,
   CallModel,
   EvalCase,
   HarnessResult,
   RecordedToolCall,
-  TextBlock,
-  ToolUseBlock,
+  SessionHandle,
   TurnRecord,
 } from './types';
 
-// The conversation runner. Mirrors useChat.ts + actionQueue.ts:
-//   user msg → stream WITH tools → confirm EVERY tool_use in emission order
-//   via the real executors against in-memory deps → flush all results as ONE
-//   tool_result user message → re-stream with tools OFF → next script step.
-//   Thinking blocks are dropped from history (the wire protocol has no
-//   thinking event). The system prompt is rebuilt from the mutated fixture
-//   before every call, as ChatSidebar's resolveSystemPrompt does.
+// The conversation runner. It owns the fixture, the in-memory deps, the real
+// tool executors and the production prompt builders; a BACKEND owns how one
+// scripted turn reaches a model. See types.ts (`TurnRequest`) for why the seam
+// sits at the turn and not at the single API call.
+//
+// Passing a bare CallModel still works and is exactly the old behavior — it is
+// wrapped in the API backend, whose loop is the loop this file used to hold.
 
 const DEFAULT_CONTINUE = 'Yes, continue.';
 
-function extractBlocks(content: HarnessResultContent): { text: string; toolUses: ToolUseBlock[] } {
-  let text = '';
-  const toolUses: ToolUseBlock[] = [];
-  for (const block of content) {
-    if (block.type === 'text' && typeof block.text === 'string') text += block.text;
-    if (block.type === 'tool_use') {
-      toolUses.push({
-        type: 'tool_use',
-        id: String(block.id),
-        name: String(block.name),
-        input: (block.input ?? {}) as Record<string, unknown>,
-      });
-    }
-  }
-  return { text, toolUses };
-}
+export async function runCase(
+  evalCase: EvalCase,
+  backendOrCallModel: CallModel | Backend,
+): Promise<HarnessResult> {
+  // A CallModel is a bare function; a Backend is an object. Tests and every
+  // existing caller hand over the former.
+  const backend: Backend = typeof backendOrCallModel === 'function'
+    ? makeApiBackend(backendOrCallModel)
+    : backendOrCallModel;
 
-type HarnessResultContent = Array<Record<string, unknown> & { type: string }>;
-
-export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise<HarnessResult> {
   const definitions = evalCase.fixture.definitions ?? loadLibrary();
   const { deps, state } = createMemoryDeps(evalCase.fixture.events, definitions, evalCase.fixture.meals ?? []);
   const today = parseISO(evalCase.fixture.today);
@@ -57,6 +48,8 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
   const toolCalls: RecordedToolCall[] = [];
   const anomalies: string[] = [];
   const usage = { inputTokens: 0, outputTokens: 0 };
+  let usageUnavailable = false;
+  let session: SessionHandle | undefined;
   const startedAt = Date.now();
 
   // builder mode: the sidebar loop is replaced by the builder-coach loop —
@@ -111,103 +104,54 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
     return tool.execute(input, deps);
   };
 
-  // Long thinking streams get killed by flaky networks / sleeping machines
-  // ("terminated"); the SDK doesn't retry a stream that dies mid-body, so the
-  // harness does — the request is stateless, nothing mutates until a response
-  // is processed. Real API errors (4xx) surface immediately.
-  const call = async (withTools: boolean) => {
-    let lastError: unknown;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const response = await callModel({
-          system: buildSystem(),
-          messages: transcript,
-          withTools,
-          ...(mode === 'builder' || mode === 'analytics' ? { toolMode: mode } : {}),
-        });
-        usage.inputTokens += response.usage.inputTokens;
-        usage.outputTokens += response.usage.outputTokens;
-        return response;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (/^4\d\d/.test(message)) throw err;
-        lastError = err;
-        anomalies.push(`streamRetry:attempt ${attempt + 1} failed: ${message.slice(0, 80)}`);
-        await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
-      }
-    }
-    throw lastError;
-  };
-
-  // One full turn: user text → tools-on stream → confirm every tool_use →
-  // one flushed tool_result message + tools-off follow-up. Returns whether
-  // any tool call was confirmed this turn.
+  // One scripted turn. Returns whether any tool call was confirmed, which is
+  // what auto-continue keys on.
   const runTurn = async (userText: string): Promise<boolean> => {
-    transcript.push({ role: 'user', content: userText });
     const turnStart = Date.now();
-    const response = await call(true);
-
-    const { text, toolUses } = extractBlocks(response.content);
-    if (response.stopReason && response.stopReason !== 'end_turn' && response.stopReason !== 'tool_use') {
-      anomalies.push(`stop_reason:${response.stopReason} (turn ${turns.length + 1})`);
-    }
-
-    const assistantContent: Array<TextBlock | ToolUseBlock> = [];
-    if (text) assistantContent.push({ type: 'text', text });
-    assistantContent.push(...toolUses);
-    transcript.push({
-      role: 'assistant',
-      content: assistantContent.length === 1 && assistantContent[0].type === 'text'
-        ? text
-        : assistantContent,
+    const outcome = await backend.runTurn({
+      userText,
+      transcript,
+      buildSystem,
+      executeTool,
+      ...(mode === 'builder' || mode === 'analytics' ? { toolMode: mode } : {}),
+      turnIndex: turns.length + 1,
+      session,
+      anomaly: text => anomalies.push(text),
     });
 
-    let assistantText = text;
-    if (toolUses.length) {
-      // Every tool_use is confirmed in emission order (actionQueue.ts holds
-      // the results and flushes them as ONE user message once the last one
-      // settles — the API requires a tool_result per tool_use up front).
-      const results: Array<{ type: 'tool_result'; tool_use_id: string; content: string }> = [];
-      for (const toolUse of toolUses) {
-        let result: string;
-        try {
-          result = await executeTool(toolUse.name, toolUse.input);
-        } catch (err) {
-          result = 'The operation failed — something went wrong on the backend.';
-          anomalies.push(`executorThrew:${toolUse.name}: ${err instanceof Error ? err.message : String(err)}`);
-        }
-        toolCalls.push({ name: toolUse.name, input: toolUse.input, result, turn: turns.length + 1 });
-        results.push({ type: 'tool_result', tool_use_id: toolUse.id, content: result });
-      }
-      transcript.push({ role: 'user', content: results });
-
-      const followup = await call(false);
-      const followupBlocks = extractBlocks(followup.content);
-      if (followupBlocks.toolUses.length) {
-        anomalies.push(`toolUseWithToolsOff (turn ${turns.length + 1})`);
-      }
-      transcript.push({ role: 'assistant', content: followupBlocks.text });
-      assistantText = [text, followupBlocks.text].filter(Boolean).join('\n');
+    if (outcome.session) session = outcome.session;
+    if (outcome.usage) {
+      usage.inputTokens += outcome.usage.inputTokens;
+      usage.outputTokens += outcome.usage.outputTokens;
+    } else {
+      usageUnavailable = true;
+    }
+    for (const call of outcome.toolCalls) {
+      toolCalls.push({ name: call.name, input: call.input, result: call.resultText, turn: turns.length + 1 });
     }
 
     turns.push({
       userText,
-      assistantText,
-      stopReason: response.stopReason,
+      assistantText: outcome.assistantText,
+      stopReason: outcome.stopReason,
       latencyMs: Date.now() - turnStart,
     });
-    return toolUses.length > 0;
+    return outcome.toolCalls.length > 0;
   };
 
-  let lastTurnHadToolCall = false;
-  for (const step of evalCase.script) {
-    if (step.kind === 'user') {
-      lastTurnHadToolCall = await runTurn(step.text);
-    } else {
-      for (let i = 0; i < step.max && lastTurnHadToolCall; i++) {
-        lastTurnHadToolCall = await runTurn(step.text ?? DEFAULT_CONTINUE);
+  try {
+    let lastTurnHadToolCall = false;
+    for (const step of evalCase.script) {
+      if (step.kind === 'user') {
+        lastTurnHadToolCall = await runTurn(step.text);
+      } else {
+        for (let i = 0; i < step.max && lastTurnHadToolCall; i++) {
+          lastTurnHadToolCall = await runTurn(step.text ?? DEFAULT_CONTINUE);
+        }
       }
     }
+  } finally {
+    backend.endCase?.();
   }
 
   return {
@@ -222,6 +166,7 @@ export async function runCase(evalCase: EvalCase, callModel: CallModel): Promise
     ...(mode === 'analytics' ? { finalChartDraft: chartDraft } : {}),
     anomalies,
     usage,
+    ...(usageUnavailable ? { usageUnavailable: true } : {}),
     latencyMs: Date.now() - startedAt,
   };
 }
