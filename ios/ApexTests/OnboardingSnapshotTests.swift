@@ -54,13 +54,35 @@ final class OnboardingSnapshotTests: XCTestCase {
         snapshot(WelcomeFlowView(model: model).environment(\.sizeCategory, .extraExtraLarge), named: "welcome-last-xxl")
     }
 
+    /// Collapsed — one line high, which is all it is until it is asked for.
     @MainActor
     func testNudgeCardOneOfThree() {
         snapshot(SetupNudgeCard(model: model(dismissed: true, key: true)).padding(Spacing.screen), named: "nudge", size: CGSize(width: 393, height: 240))
     }
 
+    /// Open: the three rows, each button going where it says.
+    @MainActor
+    func testNudgeCardExpanded() {
+        snapshot(
+            SetupNudgeCard(model: model(dismissed: true, key: true), initiallyExpanded: true).padding(Spacing.screen),
+            named: "nudge-expanded", size: CGSize(width: 393, height: 280)
+        )
+    }
+
     @MainActor
     func testNudgeCardLargeType() {
-        snapshot(SetupNudgeCard(model: model(dismissed: true)).padding(Spacing.screen).environment(\.sizeCategory, .extraExtraLarge), named: "nudge-xxl", size: CGSize(width: 393, height: 360))
+        snapshot(SetupNudgeCard(model: model(dismissed: true), initiallyExpanded: true).padding(Spacing.screen).environment(\.sizeCategory, .extraExtraLarge), named: "nudge-xxl", size: CGSize(width: 393, height: 360))
+    }
+
+    /// ux-review §3.10: at accessibility sizes the rows wrap instead of
+    /// truncating ("Finish settin…", "Add a start…") — the button no longer
+    /// claims the width.
+    @MainActor
+    func testNudgeCardAccessibilityXXXL() {
+        snapshot(
+            SetupNudgeCard(model: model(dismissed: true, key: true), initiallyExpanded: true).padding(Spacing.screen)
+                .environment(\.dynamicTypeSize, .accessibility3),
+            named: "nudge-axxxl", size: CGSize(width: 393, height: 700)
+        )
     }
 }

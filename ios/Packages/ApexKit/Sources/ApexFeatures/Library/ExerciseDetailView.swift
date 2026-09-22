@@ -30,6 +30,17 @@ public struct ExerciseDetailView: View {
         }
         .youScreen(model.definition(id: id)?.canonicalName ?? "Exercise")
         .toolbar {
+            // ux-review §3.8: the name was the inline title *and* an H1 under
+            // it. It stays the title only — as a principal item, because the
+            // identifier the smoke reads cannot ride on `.navigationTitle`.
+            ToolbarItem(placement: .principal) {
+                Text(model.definition(id: id)?.canonicalName ?? "Exercise")
+                    .font(.apex(.display, size: TypeScale.base, weight: .semibold, relativeTo: .headline))
+                    .foregroundStyle(ApexColor.textPrimary)
+                    .lineLimit(1)
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("library.detail.title")
+            }
             if model.definition(id: id) != nil {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Edit") { editing = true }
@@ -76,32 +87,24 @@ public struct ExerciseDetailView: View {
         }
     }
 
+    /// The tags, and the archived marker. "in N workouts" used to sit among
+    /// them as a chip — it is a count, not a tag, so it is a stat card now
+    /// (ux-review §3.8).
     private func header(_ definition: ExerciseDefinition) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
-                Text(definition.canonicalName)
-                    .font(.apex(.display, size: TypeScale.xl, weight: .bold, relativeTo: .title2))
-                    .tracking(-0.3)
-                    .foregroundStyle(ApexColor.textPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("library.detail.title")
-                if definition.archivedAt != nil {
-                    Text("archived")
-                        .font(.apex(.mono, size: TypeScale.micro, weight: .medium, relativeTo: .caption2))
-                        .foregroundStyle(ApexColor.textMuted)
-                        .padding(.horizontal, Spacing.sm).padding(.vertical, 3)
-                        .overlay(Capsule().strokeBorder(ApexColor.borderSubtle, lineWidth: 1))
-                        .accessibilityIdentifier("library.detail.archived")
-                }
+            if definition.archivedAt != nil {
+                Text("archived")
+                    .font(.apex(.mono, size: TypeScale.micro, weight: .medium, relativeTo: .caption2))
+                    .foregroundStyle(ApexColor.textMuted)
+                    .padding(.horizontal, Spacing.sm).padding(.vertical, 3)
+                    .overlay(Capsule().strokeBorder(ApexColor.borderSubtle, lineWidth: 1))
+                    .accessibilityIdentifier("library.detail.archived")
             }
             FlowLayout(spacing: Spacing.xs) {
                 if let category = definition.category { Chip(category) }
                 if definition.isUnilateral == true { Chip("per side") }
                 ForEach(definition.muscleGroups ?? [], id: \.self) { Chip($0) }
                 ForEach(definition.equipment ?? [], id: \.self) { Chip($0, tint: ApexColor.borderSubtle) }
-                if let count = model.referenceCount(definition) {
-                    Chip(LibraryModel.referencesText(count))
-                }
             }
         }
     }
@@ -110,10 +113,13 @@ public struct ExerciseDetailView: View {
     private var historySection: some View {
         switch history {
         case nil:
+            statCards(nil)
             Text("Loading history…").apexBody()
         case .none?:
+            statCards(nil)
             Text("No logged history yet.").apexBody().accessibilityIdentifier("library.detail.nohistory")
         case .failed(let message)?:
+            statCards(nil)
             Text(message).apexBody()
         case .history(let stats)?:
             statCards(stats)
@@ -122,20 +128,36 @@ public struct ExerciseDetailView: View {
         }
     }
 
-    private func statCards(_ stats: ExerciseHistoryResult) -> some View {
-        HStack(spacing: Spacing.md) {
-            if let best = stats.allTimeBest {
-                StatCard(label: "Best \(stats.statUnit)", value: best.display, sub: DayKey(best.date).map(LibraryModel.shortDate) ?? best.date, symbol: ApexIcon.trophy.systemName)
-                    .accessibilityIdentifier("library.detail.best")
+    /// Best · Sessions · Workouts. The third card is the "in N workouts" count
+    /// the header used to show as a chip; it is known before the history is,
+    /// so the row draws whatever it has.
+    @ViewBuilder
+    private func statCards(_ stats: ExerciseHistoryResult?) -> some View {
+        let references = model.definition(id: id).flatMap { model.referenceCount($0) }
+        if stats != nil || references != nil {
+            HStack(alignment: .top, spacing: Spacing.md) {
+                if let stats {
+                    if let best = stats.allTimeBest {
+                        StatCard(label: "Best \(stats.statUnit)", value: best.display, sub: DayKey(best.date).map(LibraryModel.shortDate) ?? best.date, symbol: ApexIcon.trophy.systemName)
+                            .accessibilityIdentifier("library.detail.best")
+                    }
+                    StatCard(
+                        label: "Sessions", value: String(stats.totalSessions),
+                        sub: stats.recentSessions.first.flatMap { DayKey($0.date) }.map { "last \(LibraryModel.shortDate($0))" } ?? "",
+                        symbol: nil
+                    )
+                    // A container identifier would otherwise shadow the children's own (XCUITest reads the parent's).
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("library.detail.sessions")
+                }
+                if let references {
+                    StatCard(
+                        label: "Workouts", value: String(references),
+                        sub: references == 1 ? "references it" : "reference it", symbol: nil
+                    )
+                    .accessibilityIdentifier("library.detail.references")
+                }
             }
-            StatCard(
-                label: "Sessions", value: String(stats.totalSessions),
-                sub: stats.recentSessions.first.flatMap { DayKey($0.date) }.map { "last \(LibraryModel.shortDate($0))" } ?? "",
-                symbol: nil
-            )
-            // A container identifier would otherwise shadow the children's own (XCUITest reads the parent's).
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("library.detail.sessions")
         }
     }
 

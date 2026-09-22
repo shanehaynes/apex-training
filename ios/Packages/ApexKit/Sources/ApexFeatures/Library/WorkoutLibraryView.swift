@@ -2,7 +2,9 @@ import ApexCore
 import ApexUI
 import SwiftUI
 
-/// The workout library (`TemplateSearch.tsx`'s list, as its own screen):
+/// The workout library (`TemplateSearch.tsx`'s list, as the Library screen's
+/// Workouts segment — `LibraryHomeView` owns the chrome, the `.workoutLibrary`
+/// route still opens it on its own):
 /// saved workouts newest first, each with its type and size, and Archive /
 /// Restore — the web only archives; the builder revives a title by reuse.
 public struct WorkoutLibraryView: View {
@@ -30,7 +32,6 @@ public struct WorkoutLibraryView: View {
             }
             .padding(Spacing.screen)
         }
-        .youScreen("Workout library")
         .task { await model.start() }
         .refreshable { await model.reload() }
         .accessibilityElement(children: .contain)

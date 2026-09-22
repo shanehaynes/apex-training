@@ -41,6 +41,10 @@ final class BlocksSnapshotTests: XCTestCase {
         let model = await loaded()
         snapshot(NavigationStack { BlocksView(model: model) }, named: "list")
         snapshot(NavigationStack { BlocksView(model: model) }.environment(\.sizeCategory, .extraExtraLarge), named: "list-xxl")
+        snapshot(
+            NavigationStack { BlocksView(model: model) }.environment(\.sizeCategory, .accessibilityExtraExtraExtraLarge),
+            named: "list-axxxl", size: CGSize(width: 393, height: 1000)
+        )
         let empty = makeBlocksModel({ let t = YouTransport(); t.set("POST /api/query get_training_blocks", .json(200, Data(#"{"tool":"get_training_blocks","result":{"today":"2026-09-08","current":null,"blocks":[],"objectives":[]}}"#.utf8))); return t }())
         await empty.start()
         snapshot(NavigationStack { BlocksView(model: empty) }, named: "list-empty", size: CGSize(width: 393, height: 520))

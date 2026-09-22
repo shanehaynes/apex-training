@@ -97,6 +97,13 @@ public struct BlocksView: View {
         }
     }
 
+    /// "May 1, 2027" — the objective's target day, which the API sends as
+    /// `2027-05-01` and the row used to print raw (ux-review §3.8).
+    static func targetDate(_ iso: String) -> String {
+        guard let day = DayKey(iso) else { return iso }
+        return "\(MonthNames.long[day.month - 1]) \(day.day), \(day.year)"
+    }
+
     private var objectivesSection: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Label("Objectives", systemImage: ApexIcon.flag.systemName).apexEyebrow()
@@ -110,9 +117,10 @@ public struct BlocksView: View {
                             .lineLimit(2)
                         Spacer(minLength: Spacing.sm)
                         if let date = objective.targetDate {
-                            Text(date)
+                            Text(Self.targetDate(date))
                                 .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
                                 .foregroundStyle(ApexColor.textMuted)
+                                .lineLimit(1)
                         }
                         if let discipline = objective.discipline { Chip(discipline) }
                     }
@@ -144,10 +152,13 @@ struct BlockRow: View {
                     .font(.apex(.display, size: TypeScale.base, weight: .medium, relativeTo: .body))
                     .foregroundStyle(ApexColor.textPrimary)
                     .lineLimit(1)
+                // ux-review §3.8: "Aug 31 – Sep 27 · base ·…" cut itself off
+                // on every block that carries an objective.
                 Text(meta)
                     .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
                     .foregroundStyle(ApexColor.textMuted)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: Spacing.sm)
             Text(BlocksModel.weekLabel(block))

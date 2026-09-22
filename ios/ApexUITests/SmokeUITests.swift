@@ -31,6 +31,15 @@ final class SmokeUITests: XCTestCase {
         app.buttons["Sign in"].tap()
     }
 
+    /// Today rides in the Day/Month toolbar menu (ux-review §3.2): four
+    /// controls is the most the bar holds with the date still legible.
+    private func tapToday(_ app: XCUIApplication) {
+        app.buttons["schedule.period"].tap()
+        let today = app.buttons["Today"]
+        XCTAssertTrue(today.waitForExistence(timeout: 5), "Today is not in the period menu")
+        today.tap()
+    }
+
     /// Taps an event card and waits for its sheet.
     ///
     /// One tap. A starved CI runner does drop a synthesized one (#192), and
@@ -90,7 +99,9 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["schedule.meals"].label.contains("1114 kcal"))
         attach(app, name: "02-day")
 
-        // Month: the fourth event is an overflow chip; it opens the day sheet.
+        // Month: the fourth event is the overflow count; it opens the day sheet.
+        // Day/Month is a toolbar menu now, not a segmented control (ux-review §3.2).
+        app.buttons["schedule.period"].tap()
         app.buttons["Month"].tap()
         let more = app.buttons["schedule.month.more.2026-09-08"]
         XCTAssertTrue(more.waitForExistence(timeout: 10))
@@ -332,7 +343,9 @@ final class SmokeUITests: XCTestCase {
         let card = app.otherElements["onboarding.nudge"]
         XCTAssertTrue(card.waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["event.card.Fixture Push Day"].waitForExistence(timeout: 20))
-        XCTAssertEqual(app.staticTexts["onboarding.nudge.score"].label, "1/3")
+        // Collapsed it is one line; the rows are one tap away (ux-review §3.2).
+        XCTAssertEqual(app.staticTexts["onboarding.nudge.score"].label, "1 of 3")
+        app.buttons["onboarding.nudge.summary"].tap()
         XCTAssertFalse(app.buttons["onboarding.nudge.action.template"].exists, "a done row has no button")
         attach(app, name: "w13-04-nudge")
 
@@ -341,7 +354,8 @@ final class SmokeUITests: XCTestCase {
         attach(app, name: "w13-05-nudge-to-key")
         app.buttons["Close"].firstMatch.tap()
 
-        // Back on Schedule the card is still there; its close is session-only.
+        // Back on Schedule the card is still there; closing it persists (the
+        // UI-test world does not write the flag — SetupNudgeDismissal).
         app.tabBars.buttons["Schedule"].tap()
         XCTAssertTrue(card.waitForExistence(timeout: 10))
         app.buttons["onboarding.nudge.dismiss"].tap()
@@ -406,7 +420,7 @@ final class SmokeUITests: XCTestCase {
         app.buttons["Next"].tap()
         app.buttons["Next"].tap()
         XCTAssertTrue(app.buttons["event.card.Fixture Push Day"].waitForExistence(timeout: 10))
-        app.buttons["Today"].tap()
+        tapToday(app)
 
         // Edit exercises on the circuit: link the plank into the superset, save, reopen.
         openEvent(app, card: "Fixture Circuit")
@@ -749,12 +763,15 @@ final class SmokeUITests: XCTestCase {
 
         // AI connector: mint → reveal → Done → listed.
         app.buttons["you.row.connector"].tap()
-        let tokenName = app.textFields["connector.name"]
-        XCTAssertTrue(tokenName.waitForExistence(timeout: 10))
+        let createToken = app.buttons["connector.create"]
+        XCTAssertTrue(createToken.waitForExistence(timeout: 10))
         XCTAssertTrue(app.otherElements["connector.token.ios-fixture laptop"].waitForExistence(timeout: 10))
         attach(app, name: "w11-02-connector")
+        // The form is a row until it is asked for (ux-review §3.8).
+        let tokenName = app.textFields["connector.name"]
+        tapUntil(createToken, shows: tokenName)
         type("Claude Code", into: tokenName)
-        app.buttons["connector.create"].tap()
+        app.buttons["connector.mint"].tap()
         let reveal = app.staticTexts["token.reveal.value"]
         XCTAssertTrue(reveal.waitForExistence(timeout: 10))
         XCTAssertTrue(reveal.label.hasPrefix("apx_mock_"))
@@ -826,7 +843,7 @@ final class SmokeUITests: XCTestCase {
         let youTab = app.tabBars.buttons["You"]
         XCTAssertTrue(youTab.waitForExistence(timeout: 20))
         youTab.tap()
-        tapUntil(app.buttons["you.row.library"], shows: app.textFields["library.search"])
+        tapUntil(app.buttons["you.row.library"], shows: app.searchFields["library.search"])
         let row = app.buttons["library.row.ios-fixture-def"]
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         XCTAssertTrue(row.label.contains("Fixture Press"), row.label)
@@ -852,7 +869,8 @@ final class SmokeUITests: XCTestCase {
 
         app.navigationBars.buttons.element(boundBy: 0).tap()
         let archive = app.buttons["library.template.archive.ios-fixture-template"]
-        tapUntil(app.buttons["library.templates"], shows: archive)
+        XCTAssertTrue(app.otherElements["library.templates"].waitForExistence(timeout: 10))
+        tapUntil(app.buttons["Workouts"], shows: archive)
         XCTAssertEqual(archive.label, "Archive")
         archive.tap()
         waitForLabel(archive, "Restore")

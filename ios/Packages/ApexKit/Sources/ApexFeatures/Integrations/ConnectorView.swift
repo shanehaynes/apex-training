@@ -8,6 +8,8 @@ public struct ConnectorView: View {
     @Bindable private var model: ConnectorModel
     @State private var revoking: McpToken?
     @State private var disconnecting: McpConnection?
+    @State private var isNaming = false
+    @FocusState private var nameFocused: Bool
 
     public init(model: ConnectorModel) {
         self.model = model
@@ -30,15 +32,7 @@ public struct ConnectorView: View {
                     CopyField("Endpoint", value: model.endpoint, toast: "Endpoint URL copied", identifier: "connector.endpoint")
                 }
 
-                VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text("New token").apexEyebrow()
-                    FormField("Name", text: $model.name, placeholder: "e.g. Claude Desktop", identifier: "connector.name")
-                        .submitLabel(.done)
-                        .onSubmit { Task { await model.mint() } }
-                    ApexButton(model.isMinting ? "Creating…" : "Create token", isLoading: model.isMinting) { Task { await model.mint() } }
-                        .disabled(!model.canMint)
-                        .accessibilityIdentifier("connector.create")
-                }
+                newToken
 
                 if !model.connections.isEmpty {
                     SettingsSection("Connected apps") {
@@ -76,6 +70,7 @@ public struct ConnectorView: View {
         .task { await model.load() }
         .sheet(item: $model.minted) { minted in
             TokenRevealSheet(token: minted.token) { model.minted = nil }
+                .onAppear { isNaming = false }
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
                 .presentationBackground(ApexColor.bgSurface)
@@ -96,6 +91,36 @@ public struct ConnectorView: View {
             }
         } message: {
             Text("It is cut off immediately and completely; it can set itself up again.")
+        }
+    }
+
+    /// ux-review §3.8: the form used to sit open above both lists for an
+    /// action taken once or twice a year. It is a row until it is wanted.
+    @ViewBuilder
+    private var newToken: some View {
+        if isNaming {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                FormField("Name", text: $model.name, placeholder: "e.g. Claude Desktop", identifier: "connector.name")
+                    .submitLabel(.done)
+                    .onSubmit { Task { await model.mint() } }
+                    .focused($nameFocused)
+                HStack(spacing: Spacing.md) {
+                    ApexButton("Cancel", kind: .secondary) {
+                        model.name = ""
+                        Motion.animate { isNaming = false }
+                    }
+                    ApexButton(model.isMinting ? "Creating…" : "Create token", isLoading: model.isMinting) { Task { await model.mint() } }
+                        .disabled(!model.canMint)
+                        .accessibilityIdentifier("connector.mint")
+                }
+            }
+        } else {
+            SettingsSection {
+                SettingsButton("Create token…", showsChevron: false, identifier: "connector.create") {
+                    Motion.animate { isNaming = true }
+                    nameFocused = true
+                }
+            }
         }
     }
 
