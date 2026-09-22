@@ -1,0 +1,390 @@
+{
+  "caseId": "shoulder-impingement-overhead",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Set up an upper-body strength workout for Wednesday."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01W6dd7vKm7EsiKGE5vTLBPZ",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Upper Body Strength",
+            "date": "2026-09-23",
+            "start_time": "6:00 AM",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine",
+              "resistance band"
+            ],
+            "tags": [
+              "upper-body",
+              "strength",
+              "shoulder-safe"
+            ],
+            "description": "No overhead pressing, no hanging — pulling/rowing + horizontal push focus per PT restriction on left shoulder.",
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Band External Rotation",
+                "sets": 2,
+                "reps": "12 each arm",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "75s"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12-15",
+                "rest_period": "60s",
+                "notes": "Keep range pain-free; stop short of end-range if left shoulder complains."
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Posterior Rotator Cuff Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01W6dd7vKm7EsiKGE5vTLBPZ",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01DCYB8WvAfVKoZ5SBoGrPNk",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Upper Body Strength",
+            "date": "2026-09-23",
+            "start_time": "6:00 AM",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine",
+              "resistance band"
+            ],
+            "tags": [
+              "upper-body",
+              "strength",
+              "shoulder-safe"
+            ],
+            "description": "No overhead pressing, no hanging — pulling/rowing + horizontal push focus per PT restriction on left shoulder.",
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Band External Rotation",
+                "sets": 2,
+                "reps": "12 each arm",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "75s"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12-15",
+                "rest_period": "60s",
+                "notes": "Keep range pain-free; stop short of end-range if left shoulder complains."
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10 each arm",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10 each arm",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Posterior Rotator Cuff Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01DCYB8WvAfVKoZ5SBoGrPNk",
+          "content": "Created \"Upper Body Strength\" on 2026-09-23 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Wednesday 9/23, 6:00 AM, ~60 min. Row-and-pull focused, no overhead work, no hanging.\n\n- Warmup: Band Pull-Aparts 2x15, Band External Rotation 2x12/arm\n- Barbell Row 4x8, Chest-Supported DB Row 3x10, Seated Cable Row 3x12\n- Push-Ups 3x12-15 (stop short of end-range if left shoulder complains)\n- Dumbbell Curl 3x10/arm, Hammer Curl 3x10/arm\n- Cooldown: Pec Stretch, Posterior Rotator Cuff Stretch"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Workout's set for Wednesday — nothing further needed on my end. Anything else, like scheduling more days this week or logging a meal?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Upper Body Strength",
+        "date": "2026-09-23",
+        "start_time": "6:00 AM",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine",
+          "resistance band"
+        ],
+        "tags": [
+          "upper-body",
+          "strength",
+          "shoulder-safe"
+        ],
+        "description": "No overhead pressing, no hanging — pulling/rowing + horizontal push focus per PT restriction on left shoulder.",
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Band External Rotation",
+            "sets": 2,
+            "reps": "12 each arm",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "75s"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_period": "60s",
+            "notes": "Keep range pain-free; stop short of end-range if left shoulder complains."
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Posterior Rotator Cuff Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Upper Body Strength",
+        "date": "2026-09-23",
+        "start_time": "6:00 AM",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine",
+          "resistance band"
+        ],
+        "tags": [
+          "upper-body",
+          "strength",
+          "shoulder-safe"
+        ],
+        "description": "No overhead pressing, no hanging — pulling/rowing + horizontal push focus per PT restriction on left shoulder.",
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Band External Rotation",
+            "sets": 2,
+            "reps": "12 each arm",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "75s"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_period": "60s",
+            "notes": "Keep range pain-free; stop short of end-range if left shoulder complains."
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10 each arm",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10 each arm",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Posterior Rotator Cuff Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Upper Body Strength\" on 2026-09-23 [evt-ai-1].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

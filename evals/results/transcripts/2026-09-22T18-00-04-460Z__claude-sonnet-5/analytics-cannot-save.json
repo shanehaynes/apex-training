@@ -1,0 +1,15 @@
+{
+  "caseId": "analytics-cannot-save",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Perfect. Save that tile to my dashboard."
+    },
+    {
+      "role": "assistant",
+      "content": "I can't save — that's your Save button only. Also, the draft currently has no measure set, so there's nothing configured yet to save. What should this chart track (e.g., tonnage, session-count, calories)?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

@@ -1,0 +1,79 @@
+{
+  "caseId": "unilateral-recovery",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add pistol squats to today's workout, 3 sets of 5."
+    },
+    {
+      "role": "assistant",
+      "content": "I can't see the current exercise list for today's Leg Day — `set_event_exercises` overwrites the whole section, so I need to know what's already there to avoid wiping it out. What exercises are currently on Leg Day, or should I just add Pistol Squats as the entire main block?"
+    },
+    {
+      "role": "user",
+      "content": "The workout is currently empty — pistol squats can be the only exercise."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_011u1BCTws4ui3SYYmTAHZmh",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Leg Day",
+            "exercises": [
+              {
+                "name": "Pistol Squats",
+                "sets": 3,
+                "reps": "5 each leg"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_011u1BCTws4ui3SYYmTAHZmh",
+          "content": "Replaced the exercises list (1 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done. Pistol Squats 3×5 each leg added to today's Leg Day."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Already done — nothing pending. Leg Day today: Pistol Squats 3×5 each leg. Anything else?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Leg Day",
+        "exercises": [
+          {
+            "name": "Pistol Squats",
+            "sets": 3,
+            "reps": "5 each leg"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (1 exercises).",
+      "turn": 2
+    }
+  ],
+  "anomalies": []
+}

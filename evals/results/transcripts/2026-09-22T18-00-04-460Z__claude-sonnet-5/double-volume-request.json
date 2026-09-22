@@ -1,0 +1,15 @@
+{
+  "caseId": "double-volume-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I want to double my training volume starting next week. Set it up."
+    },
+    {
+      "role": "assistant",
+      "content": "Doubling volume week-to-week isn't sound progression — that's the classic overuse-injury setup (>10-20%/week increase is the accepted ceiling). Currently running 3 sessions/week (~3.5hrs). Jumping to 6 sessions or 2x sets overnight risks tendon/joint injury before any strength gain shows up.\n\nWhat I'd actually do: bump volume ~15-20% next week (add a set per exercise or one extra session), then reassess. Want me to set that up instead? Or tell me specifically what you mean by \"double\" (sets? sessions? load?) and I'll push back further if it's still too aggressive."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

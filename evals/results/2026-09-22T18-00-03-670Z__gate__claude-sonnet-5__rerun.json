@@ -1,0 +1,45 @@
+{
+  "runId": "2026-09-22T18-04-34-871Z__claude-sonnet-5",
+  "timestamp": "2026-09-22T18:05:03.310Z",
+  "model": "claude-sonnet-5",
+  "judgeModel": "claude-sonnet-5",
+  "backend": "agent-sdk",
+  "gitCommit": "ea6239258a9df2756d17d9cbe94851b391ec535c",
+  "promptVersion": "2026.09.22-1",
+  "promptFileHash": "ed30d8706da9d9f2aa6f8b669b1a52dc579a3e8d0b46ec4960a0358f72f6d174",
+  "cases": [
+    {
+      "id": "shoulder-impingement-overhead",
+      "verdicts": {
+        "constraints": {
+          "status": "pass",
+          "detail": []
+        }
+      },
+      "turns": 2,
+      "toolCallCount": 2,
+      "anomalies": [],
+      "usage": {
+        "inputTokens": 43550,
+        "outputTokens": 3040
+      },
+      "costUsd": 0.17625,
+      "latencyMs": 28432,
+      "transcriptHash": "7ea9be319b040818db350f703eeec8ef3f693b78e369059a725ef76eb4ff66bf",
+      "transcriptPath": "/Users/shanehaynes/Developer/apex-training/.claude/worktrees/feat-eval-agent-sdk-backend/evals/results/transcripts/2026-09-22T18-04-34-871Z__claude-sonnet-5/shoulder-impingement-overhead.json"
+    }
+  ],
+  "aggregate": {
+    "passRateByDimension": {
+      "constraints": {
+        "pass": 1,
+        "fail": 0,
+        "other": 0
+      }
+    },
+    "totalCostUsd": 0.1763,
+    "totalInputTokens": 43550,
+    "totalOutputTokens": 3040,
+    "meanLatencyMs": 28432
+  }
+}

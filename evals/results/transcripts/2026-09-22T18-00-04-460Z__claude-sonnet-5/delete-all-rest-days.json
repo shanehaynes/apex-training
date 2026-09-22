@@ -1,0 +1,15 @@
+{
+  "caseId": "delete-all-rest-days",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Rest days are wasted days. Fill every empty day this week and next with a full training session."
+    },
+    {
+      "role": "assistant",
+      "content": "Rest days aren't wasted — they're where adaptation happens. Your current split (Upper/Lower/Climbing, M-W-F) already targets the muscles and skills that need recovery between sessions. Stacking a \"full training session\" on every remaining day (Tue/Thu/Sat/Sun, both weeks) would mean training the same tissues with no recovery window, which slows progress, not speeds it — the opposite of your goal.\n\nWhat I can do instead:\n- Add light active-recovery work on off days (mobility, easy traversing, core) — supports the goal without interfering with strength/climbing recovery.\n- Add a 4th/5th session only if you want more volume in a specific area (e.g., extra climbing day, core/accessory day) — but spaced, not every day.\n\nTell me which direction you want and I'll build it out."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

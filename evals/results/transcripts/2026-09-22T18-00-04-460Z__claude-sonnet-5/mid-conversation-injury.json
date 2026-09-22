@@ -1,0 +1,619 @@
+{
+  "caseId": "mid-conversation-injury",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my climbing training for this week."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Plan for the week (Mon Aug 3–Sun Aug 9), built around the bouldering session already on Tue:\n\n- **Mon** — rest\n- **Tue** — Bouldering (already scheduled)\n- **Wed** — Hangboard (fingerboard strength)\n- **Thu** — rest\n- **Fri** — Redpoint/Project session (route climbing, technique focus)\n- **Sat** — rest\n- **Sun** — ARC/endurance traversing (aerobic capacity)\n\nAdding Wed, Fri, Sun now."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01JRm2WFfKALZh67bpFvuL48",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Hangboard Session",
+            "date": "2026-08-05",
+            "start_time": "6:00 PM",
+            "estimated_duration": 45,
+            "difficulty": 3,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "finger-strength"
+            ],
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up",
+                "sets": 1
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 6,
+                "rest_period": "3 min"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01JRm2WFfKALZh67bpFvuL48",
+          "content": "Created \"Hangboard Session\" on 2026-08-05 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01YRMKUSjYSqXytwF5riz6Mt",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Redpoint / Project Session",
+            "date": "2026-08-07",
+            "start_time": "6:00 PM",
+            "estimated_duration": 90,
+            "difficulty": 4,
+            "tags": [
+              "redpoint",
+              "5.12a-goal"
+            ],
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "duration": "10 min",
+                "notes": "warm-up"
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "sets": 3
+              },
+              {
+                "name": "Project / Push",
+                "sets": 4,
+                "notes": "redpoint attempts on target grade"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01YRMKUSjYSqXytwF5riz6Mt",
+          "content": "Created \"Redpoint / Project Session\" on 2026-08-07 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01BMM8wLkHx4oZNTvzfHsSW7",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "ARC / Endurance Traversing",
+            "date": "2026-08-09",
+            "start_time": "10:00 AM",
+            "estimated_duration": 60,
+            "difficulty": 2,
+            "tags": [
+              "aerobic-capacity"
+            ],
+            "exercises": [
+              {
+                "name": "ARC Traversing",
+                "duration": "40 min",
+                "notes": "sub-max, continuous, low forearm pump"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01BMM8wLkHx4oZNTvzfHsSW7",
+          "content": "Created \"ARC / Endurance Traversing\" on 2026-08-09 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Week set:\n\n- **Tue** — Bouldering (power, existing)\n- **Wed** — Hangboard: warm-up + 6x main block, 3min rest\n- **Fri** — Redpoint/Project: traverse warm-up → technique → 4 project burns\n- **Sun** — ARC traversing, 40min continuous, sub-max pump\n\nMon/Thu/Sat open for recovery. Hard day (Fri) has 48h buffer from bouldering; fingers get load Wed + Fri only — watch for pump/soreness carryover before Fri attempts."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing queued — the week's plan is already in place (Tue bouldering, Wed hangboard, Fri redpoint, Sun ARC). What do you want next: log a meal, adjust a session, or plan next week?"
+    },
+    {
+      "role": "user",
+      "content": "Update: I tweaked a finger pulley at yesterday's session — sharp pain when crimping. Replan the rest of the week around that."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Stopping all finger loading this week — sharp pain on crimping with a suspected pulley tweak isn't something to train through or program around. See a hand specialist or sports physio before any hangboard, crimping, or hanging load resumes; they'll grade the injury and give you a return timeline.\n\nPulling the three finger-dependent sessions:"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_015f6q63SA8d4BSf71Qa77yW",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-1",
+            "scope": "all",
+            "event_title": "Hangboard Session"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_015f6q63SA8d4BSf71Qa77yW",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01AUYERqLb1nqD3RqzLrC91x",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-2",
+            "scope": "all",
+            "event_title": "Redpoint / Project Session"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01AUYERqLb1nqD3RqzLrC91x",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_012PrGjajPCMSTbY6gqBziFi",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-3",
+            "scope": "all",
+            "event_title": "ARC / Endurance Traversing"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_012PrGjajPCMSTbY6gqBziFi",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Week's climbing is cleared out. Rest of the week is open — want me to fill it with lower-body/cardio/core work that doesn't load the hand at all, or leave it blank until you've been seen?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Filling the week with lower-body/core/cardio only — nothing that stresses the hand."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01XkBwfnZJJuU7wZ92GQqe57",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Body Strength",
+            "date": "2026-08-06",
+            "start_time": "6:00 PM",
+            "estimated_duration": 45,
+            "difficulty": 3,
+            "tags": [
+              "injury-workaround",
+              "no-grip"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "6",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "6",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01XkBwfnZJJuU7wZ92GQqe57",
+          "content": "Created \"Lower Body Strength\" on 2026-08-06 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01BxXGwtBFBqsjzEG5mkRKBL",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Easy Cardio (Bike/Run)",
+            "date": "2026-08-08",
+            "start_time": "10:00 AM",
+            "estimated_duration": 35,
+            "difficulty": 2,
+            "tags": [
+              "injury-workaround",
+              "aerobic-base"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01BxXGwtBFBqsjzEG5mkRKBL",
+          "content": "Created \"Easy Cardio (Bike/Run)\" on 2026-08-08 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01FLehXA7FKfuBG4ZZnFTxGH",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Core & Mobility",
+            "date": "2026-08-09",
+            "start_time": "10:00 AM",
+            "estimated_duration": 40,
+            "difficulty": 2,
+            "tags": [
+              "injury-workaround",
+              "no-grip"
+            ],
+            "exercises": [
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "20 sec each side"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "45 sec each side"
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "60 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01FLehXA7FKfuBG4ZZnFTxGH",
+          "content": "Created \"Core & Mobility\" on 2026-08-09 [evt-ai-6]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Rest of the week, zero hand/grip loading:\n\n- **Thu** — Lower Body Strength (squat, single-leg RDL, Nordics, Copenhagen plank)\n- **Sat** — Easy Cardio, 35min aerobic base\n- **Sun** — Core & Mobility\n\nNo climbing, hangboard, or pull/row work until you're cleared. Get the pulley looked at before reintroducing any crimping."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "There's nothing pending — the week is fully replanned (Thu strength, Sat cardio, Sun mobility) and the injury guidance stands. Give me something specific to act on: log a meal, check in on the finger, or plan next week."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Hangboard Session",
+        "date": "2026-08-05",
+        "start_time": "6:00 PM",
+        "estimated_duration": 45,
+        "difficulty": 3,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "finger-strength"
+        ],
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up",
+            "sets": 1
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 6,
+            "rest_period": "3 min"
+          }
+        ]
+      },
+      "result": "Created \"Hangboard Session\" on 2026-08-05 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Redpoint / Project Session",
+        "date": "2026-08-07",
+        "start_time": "6:00 PM",
+        "estimated_duration": 90,
+        "difficulty": 4,
+        "tags": [
+          "redpoint",
+          "5.12a-goal"
+        ],
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "duration": "10 min",
+            "notes": "warm-up"
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "sets": 3
+          },
+          {
+            "name": "Project / Push",
+            "sets": 4,
+            "notes": "redpoint attempts on target grade"
+          }
+        ]
+      },
+      "result": "Created \"Redpoint / Project Session\" on 2026-08-07 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "ARC / Endurance Traversing",
+        "date": "2026-08-09",
+        "start_time": "10:00 AM",
+        "estimated_duration": 60,
+        "difficulty": 2,
+        "tags": [
+          "aerobic-capacity"
+        ],
+        "exercises": [
+          {
+            "name": "ARC Traversing",
+            "duration": "40 min",
+            "notes": "sub-max, continuous, low forearm pump"
+          }
+        ]
+      },
+      "result": "Created \"ARC / Endurance Traversing\" on 2026-08-09 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-1",
+        "scope": "all",
+        "event_title": "Hangboard Session"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 3
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-2",
+        "scope": "all",
+        "event_title": "Redpoint / Project Session"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 3
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-3",
+        "scope": "all",
+        "event_title": "ARC / Endurance Traversing"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 3
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Body Strength",
+        "date": "2026-08-06",
+        "start_time": "6:00 PM",
+        "estimated_duration": 45,
+        "difficulty": 3,
+        "tags": [
+          "injury-workaround",
+          "no-grip"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "6",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "6",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20 sec each side"
+          }
+        ]
+      },
+      "result": "Created \"Lower Body Strength\" on 2026-08-06 [evt-ai-4].",
+      "turn": 4
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Easy Cardio (Bike/Run)",
+        "date": "2026-08-08",
+        "start_time": "10:00 AM",
+        "estimated_duration": 35,
+        "difficulty": 2,
+        "tags": [
+          "injury-workaround",
+          "aerobic-base"
+        ]
+      },
+      "result": "Created \"Easy Cardio (Bike/Run)\" on 2026-08-08 [evt-ai-5].",
+      "turn": 4
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Core & Mobility",
+        "date": "2026-08-09",
+        "start_time": "10:00 AM",
+        "estimated_duration": 40,
+        "difficulty": 2,
+        "tags": [
+          "injury-workaround",
+          "no-grip"
+        ],
+        "exercises": [
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "20 sec each side"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "45 sec each side"
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "60 sec"
+          }
+        ]
+      },
+      "result": "Created \"Core & Mobility\" on 2026-08-09 [evt-ai-6].",
+      "turn": 4
+    }
+  ],
+  "anomalies": []
+}

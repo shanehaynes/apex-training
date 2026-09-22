@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   REPO_ROOT,
+  DIMENSIONS,
+  GATED_DIMENSIONS,
   casePassed,
   classify,
   dominates,
@@ -25,7 +27,7 @@ describe('classify', () => {
   it('finds nothing when nothing moved', () => {
     const r = classify(baseline, fixture('candidate-clean.json'));
     expect(r).toEqual({
-      regressions: [], improvements: [], otherChanges: [],
+      regressions: [], improvements: [], otherChanges: [], advisory: {},
       newCases: [], missingCases: [], erroredCases: [],
     });
   });
@@ -202,5 +204,63 @@ describe('the prompt-evolution workflow and compare.ts stay one predicate', () =
     { pass: 0, fail: 0 }, { pass: 3, fail: 1 }, { pass: 0, fail: 4 }, { pass: 5, fail: 0 },
   ])('agrees on rate(%j)', (d) => {
     expect(lifted.rate(d)).toBe(rate(d));
+  });
+});
+
+// ─── Gated vs advisory dimensions ────────────────────────────────────────────
+
+describe('classify: gatedDimensions', () => {
+  const run = (verdicts: Record<string, Record<string, string>>): RunResultLike => ({
+    cases: Object.entries(verdicts).map(([id, dims]) => ({
+      id,
+      verdicts: Object.fromEntries(
+        Object.entries(dims).map(([d, s]) => [d, { status: s as never }])),
+    })),
+  });
+
+  const before = run({ c1: { constraints: 'pass', progression: 'pass', refusal: 'pass' } });
+
+  it('files a progression pass → fail as ADVISORY, not a regression', () => {
+    const r = classify(before, run({ c1: { constraints: 'pass', progression: 'fail', refusal: 'pass' } }));
+    expect(r.regressions).toEqual([]);
+    expect(r.advisory.progression?.regressions).toEqual([
+      { caseId: 'c1', dim: 'progression', from: 'pass', to: 'fail' },
+    ]);
+  });
+
+  it('still files a constraints pass → fail as a regression', () => {
+    const r = classify(before, run({ c1: { constraints: 'fail', progression: 'pass', refusal: 'pass' } }));
+    expect(r.regressions).toEqual([
+      { caseId: 'c1', dim: 'constraints', from: 'pass', to: 'fail' },
+    ]);
+    expect(r.advisory).toEqual({});
+  });
+
+  it('sorts refusal and integrity into the gated buckets, progression into advisory', () => {
+    const r = classify(
+      run({ c1: { constraints: 'pass', progression: 'pass', refusal: 'fail', integrity: 'pass' } }),
+      run({ c1: { constraints: 'pass', progression: 'fail', refusal: 'pass', integrity: 'fail' } }),
+    );
+    expect(r.improvements).toEqual([{ caseId: 'c1', dim: 'refusal', from: 'fail', to: 'pass' }]);
+    expect(r.regressions).toEqual([{ caseId: 'c1', dim: 'integrity', from: 'pass', to: 'fail' }]);
+    expect(r.advisory.progression?.regressions).toHaveLength(1);
+    expect(r.advisory.constraints).toBeUndefined();
+  });
+
+  it('gates every dimension when asked — how diff.ts keeps its old meaning', () => {
+    const r = classify(
+      before,
+      run({ c1: { constraints: 'pass', progression: 'fail', refusal: 'pass' } }),
+      DIMENSIONS,
+    );
+    expect(r.regressions).toEqual([
+      { caseId: 'c1', dim: 'progression', from: 'pass', to: 'fail' },
+    ]);
+    expect(r.advisory).toEqual({});
+  });
+
+  it('names the gated set explicitly, so widening it is a deliberate edit', () => {
+    expect([...GATED_DIMENSIONS]).toEqual(['constraints', 'refusal', 'integrity']);
+    expect(GATED_DIMENSIONS).not.toContain('progression');
   });
 });

@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { classify, type Change, type StoredRunResult } from './src/compare';
+import { classify, DIMENSIONS, type Change, type StoredRunResult } from './src/compare';
 
 // Compare two result files: regressions (pass→fail) first, then improvements,
 // then everything else that changed, plus cost/latency deltas.
@@ -49,7 +49,11 @@ function main() {
       'differ in tool loop, token accounting and max_tokens (evals/README.md, Backends).');
   }
 
-  const result = classify(a, b);
+  // EVERY dimension, gated or not. classify() defaults to the gate's narrower
+  // set, but diff.ts is the tool you read to see what moved — progression
+  // being too noisy to FAIL a PR on is not a reason to hide it here, and
+  // --fail-on-regression keeps the meaning it has always had.
+  const result = classify(a, b, DIMENSIONS);
 
   const print = (title: string, changes: Change[]) => {
     if (!changes.length) return;

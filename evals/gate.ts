@@ -10,7 +10,9 @@ import {
   evalSurfaceHash,
   promptFileHash,
   sha256,
+  type AdvisoryChanges,
   type CaseResultLike,
+  type Dimension,
   type RunResultLike,
   type StoredRunResult,
 } from './src/compare';
@@ -68,6 +70,10 @@ export interface Attestation {
   concurrency?: number;
   /** Present only when the flake re-run fired; those cases' verdicts come from it. */
   rerunFile?: string;
+  /** Ungated dimensions that moved against the baseline — progression today.
+   *  Recorded so the movement is on the record and readable in the PR, never
+   *  read back by eval:verify: it is information, not a standard. */
+  advisory?: Partial<Record<Dimension, AdvisoryChanges>>;
   verdicts: Record<string, Record<string, VerdictStatus>>;
   transcriptHashes: Record<string, string>;
   createdAt: string;
@@ -246,6 +252,16 @@ export async function runGate(deps: GateDeps): Promise<GateOutcome> {
   if (final.missingCases.length) {
     reasons.push(`case(s) in the baseline but not in this run: ${final.missingCases.join(', ')}`);
   }
+  // Advisory dimensions are reported whatever the verdict — including when the
+  // gate is about to fail on a gated one — and never joined to `reasons`.
+  for (const [dim, changes] of Object.entries(final.advisory)) {
+    const all = [...changes.regressions, ...changes.improvements, ...changes.otherChanges];
+    if (!all.length) continue;
+    log(`advisory (not gated) — ${dim}: ${changes.regressions.length} regression(s), ` +
+      `${changes.improvements.length} improvement(s), ${changes.otherChanges.length} other`);
+    for (const c of all) log(`  ${c.caseId} [${c.dim}] ${c.from} → ${c.to}`);
+  }
+
   if (reasons.length) return { code: 1, message: reasons.join('\n') };
 
   // (7) Attest.
@@ -260,6 +276,7 @@ export async function runGate(deps: GateDeps): Promise<GateOutcome> {
     resultFile: posix(resultRel),
     ...(deps.concurrency ? { concurrency: deps.concurrency } : {}),
     ...(rerunRel ? { rerunFile: posix(rerunRel) } : {}),
+    ...(Object.keys(final.advisory).length ? { advisory: final.advisory } : {}),
     verdicts: verdictMap(finalCases),
     transcriptHashes: Object.fromEntries(
       finalCases.filter(c => c.transcriptHash).map(c => [c.id, c.transcriptHash as string])),

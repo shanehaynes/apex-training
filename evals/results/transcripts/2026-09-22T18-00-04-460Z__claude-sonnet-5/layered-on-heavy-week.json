@@ -1,0 +1,757 @@
+{
+  "caseId": "layered-on-heavy-week",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add a strength plan for the next 3 weeks on top of my current schedule."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Adding one weekly lower-body strength day (Sundays) to complement your existing Wed Upper Strength — keeps volume additive without stacking onto climbing/bouldering days. Placed after your Sat rest buffer following Friday's Limit Bouldering."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01EokbRBpQJPnUxJErYHn4oz",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Strength",
+            "date": "2026-08-09",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "tags": [
+              "strength",
+              "lower-body"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min",
+                "weight": "RPE 7",
+                "notes": "Baseline week — moderate load"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "6",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "12 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01EokbRBpQJPnUxJErYHn4oz",
+          "content": "Created \"Lower Strength\" on 2026-08-09 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01JcVQQ31YUXdQQ6ickbAB62",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Strength",
+            "date": "2026-08-16",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "tags": [
+              "strength",
+              "lower-body"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "6",
+                "rest_period": "2 min",
+                "weight": "RPE 7-8",
+                "notes": "Bump reps from wk1"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "9 each leg",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "7",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "14 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "25s each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01JcVQQ31YUXdQQ6ickbAB62",
+          "content": "Created \"Lower Strength\" on 2026-08-16 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Vr7pYYwcg3uH5zVXrNaYPL",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Strength",
+            "date": "2026-08-23",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "tags": [
+              "strength",
+              "lower-body"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min",
+                "weight": "increase load if RPE<8 last wk",
+                "notes": "Intensity week — heavier, same reps as wk1"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "90s",
+                "weight": "increase load"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "15 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "30s each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Vr7pYYwcg3uH5zVXrNaYPL",
+          "content": "Created \"Lower Strength\" on 2026-08-23 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Now adding warmup/cooldown to each."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01NitHoC9tNXnRhhmWkzPJj9",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Lower Strength",
+            "section": "warmup",
+            "exercises": [
+              {
+                "name": "Deep Squat Hold",
+                "duration": "30s"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "reps": "15"
+              },
+              {
+                "name": "Fire Hydrants",
+                "reps": "10 each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01NitHoC9tNXnRhhmWkzPJj9",
+          "content": "Replaced the warmup list (3 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01WDwhZKiWwp7SBguru65ftP",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Lower Strength",
+            "section": "cooldown",
+            "exercises": [
+              {
+                "name": "Pigeon Pose",
+                "duration": "30s each side"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Calf / Ankle Dorsiflexion Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01WDwhZKiWwp7SBguru65ftP",
+          "content": "Replaced the cooldown list (3 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01JdsRnSbZRRYHzuHyv6g9pp",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-2",
+            "event_title": "Lower Strength",
+            "section": "warmup",
+            "exercises": [
+              {
+                "name": "Deep Squat Hold",
+                "duration": "30s"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "reps": "15"
+              },
+              {
+                "name": "Fire Hydrants",
+                "reps": "10 each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01JdsRnSbZRRYHzuHyv6g9pp",
+          "content": "Replaced the warmup list (3 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01LcECn3z4hYYYyP8gqPC3VR",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-2",
+            "event_title": "Lower Strength",
+            "section": "cooldown",
+            "exercises": [
+              {
+                "name": "Pigeon Pose",
+                "duration": "30s each side"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Calf / Ankle Dorsiflexion Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01LcECn3z4hYYYyP8gqPC3VR",
+          "content": "Replaced the cooldown list (3 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01HjEcHUPaVKRaVH9yovKU7X",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-3",
+            "event_title": "Lower Strength",
+            "section": "warmup",
+            "exercises": [
+              {
+                "name": "Deep Squat Hold",
+                "duration": "30s"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "reps": "15"
+              },
+              {
+                "name": "Fire Hydrants",
+                "reps": "10 each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01HjEcHUPaVKRaVH9yovKU7X",
+          "content": "Replaced the warmup list (3 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01CWvhLCtZkDfhWtmYdHwA2Z",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-3",
+            "event_title": "Lower Strength",
+            "section": "cooldown",
+            "exercises": [
+              {
+                "name": "Pigeon Pose",
+                "duration": "30s each side"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Calf / Ankle Dorsiflexion Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01CWvhLCtZkDfhWtmYdHwA2Z",
+          "content": "Replaced the cooldown list (3 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added **Lower Strength** (60 min) on Sun Aug 9, 16, 23 — one new session/week, placed after Sat rest to buffer Friday's Limit Bouldering.\n\n- Squat 4x5→4x6→4x5(heavier), Single-Leg RDL, Nordic Curls, single-leg Calf Raises, Copenhagen Plank — progressive overload across the 3 weeks.\n- Rest of week unchanged: existing Wed Upper Strength stays your other lift day.\n\nTotal weekly load now: run + climb + upper strength + yoga + limit boulder + new lower strength. One added session, not a second full split — matches \"no burnout.\""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing pending on my end — the 3-week Lower Strength addition is done. What do you want me to continue with?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Strength",
+        "date": "2026-08-09",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "tags": [
+          "strength",
+          "lower-body"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min",
+            "weight": "RPE 7",
+            "notes": "Baseline week — moderate load"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "6",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "12 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Lower Strength\" on 2026-08-09 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Strength",
+        "date": "2026-08-16",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "tags": [
+          "strength",
+          "lower-body"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "6",
+            "rest_period": "2 min",
+            "weight": "RPE 7-8",
+            "notes": "Bump reps from wk1"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "9 each leg",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "7",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "14 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "25s each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Lower Strength\" on 2026-08-16 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Strength",
+        "date": "2026-08-23",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "tags": [
+          "strength",
+          "lower-body"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min",
+            "weight": "increase load if RPE<8 last wk",
+            "notes": "Intensity week — heavier, same reps as wk1"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "90s",
+            "weight": "increase load"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "15 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "30s each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Lower Strength\" on 2026-08-23 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Lower Strength",
+        "section": "warmup",
+        "exercises": [
+          {
+            "name": "Deep Squat Hold",
+            "duration": "30s"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "reps": "15"
+          },
+          {
+            "name": "Fire Hydrants",
+            "reps": "10 each side"
+          }
+        ]
+      },
+      "result": "Replaced the warmup list (3 exercises).",
+      "turn": 1
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Lower Strength",
+        "section": "cooldown",
+        "exercises": [
+          {
+            "name": "Pigeon Pose",
+            "duration": "30s each side"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Calf / Ankle Dorsiflexion Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Replaced the cooldown list (3 exercises).",
+      "turn": 1
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-2",
+        "event_title": "Lower Strength",
+        "section": "warmup",
+        "exercises": [
+          {
+            "name": "Deep Squat Hold",
+            "duration": "30s"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "reps": "15"
+          },
+          {
+            "name": "Fire Hydrants",
+            "reps": "10 each side"
+          }
+        ]
+      },
+      "result": "Replaced the warmup list (3 exercises).",
+      "turn": 1
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-2",
+        "event_title": "Lower Strength",
+        "section": "cooldown",
+        "exercises": [
+          {
+            "name": "Pigeon Pose",
+            "duration": "30s each side"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Calf / Ankle Dorsiflexion Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Replaced the cooldown list (3 exercises).",
+      "turn": 1
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-3",
+        "event_title": "Lower Strength",
+        "section": "warmup",
+        "exercises": [
+          {
+            "name": "Deep Squat Hold",
+            "duration": "30s"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "reps": "15"
+          },
+          {
+            "name": "Fire Hydrants",
+            "reps": "10 each side"
+          }
+        ]
+      },
+      "result": "Replaced the warmup list (3 exercises).",
+      "turn": 1
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-3",
+        "event_title": "Lower Strength",
+        "section": "cooldown",
+        "exercises": [
+          {
+            "name": "Pigeon Pose",
+            "duration": "30s each side"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Calf / Ankle Dorsiflexion Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Replaced the cooldown list (3 exercises).",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

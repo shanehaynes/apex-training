@@ -1,0 +1,494 @@
+{
+  "caseId": "pulley-injury-climber",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my climbing training for this week — I want to keep making progress while I recover."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Given the A2 pulley strain (no crimping/fingerboard per physio), this week is built around open-hand climbing volume, footwork/technique, and finger-safe pulling strength — not raw finger power. 4 sessions, rest Fri/Sun."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01Hx9X3yA297CJcYXBNnXUUt",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Movement Volume — Open Hand Only",
+            "date": "2026-09-22",
+            "start_time": "6:00 PM",
+            "estimated_duration": 75,
+            "difficulty": 2,
+            "description": "No crimping, no hangboard — A2 pulley protocol. Stick to jugs/slopers/pinches. Prioritize footwork and body position over grip.",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "duration": "10 min",
+                "notes": "Warmup, open-hand grips only"
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+                "duration": "20s each side"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+                "duration": "20s each side"
+              },
+              {
+                "name": "ARC Traversing",
+                "duration": "20 min",
+                "notes": "Sub-max, continuous movement, open-hand grip only"
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "notes": "Footwork precision, silent feet, no crimping"
+              },
+              {
+                "name": "Skill Work",
+                "notes": "Flagging and drop-knee drills on juggy terrain"
+              },
+              {
+                "name": "Lat Doorframe Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Hx9X3yA297CJcYXBNnXUUt",
+          "content": "Created \"Movement Volume — Open Hand Only\" on 2026-09-22 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_014uXgqtwfupC7faLxXfpRNd",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Pull Strength + Core — Finger-Safe",
+            "date": "2026-09-23",
+            "start_time": "6:00 PM",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "description": "Build pulling power without loading the injured finger. Open-hand or jug grip on all pulling work.",
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 2,
+                "reps": "12"
+              },
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 4,
+                "reps": "5",
+                "notes": "Jug/open-hand grip on bar, no half-crimp"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 3,
+                "reps": "8"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Ring Dips",
+                "sets": 3,
+                "reps": "8"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "duration": "20s each side",
+                "sets": 3
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "duration": "20s each side",
+                "sets": 2
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014uXgqtwfupC7faLxXfpRNd",
+          "content": "Created \"Pull Strength + Core — Finger-Safe\" on 2026-09-23 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_013BHbwfrQZnRUfisVU35JMC",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Bouldering — Open Hand Projecting",
+            "date": "2026-09-24",
+            "start_time": "6:00 PM",
+            "estimated_duration": 80,
+            "difficulty": 3,
+            "description": "No crimping, no hangboard. Choose lines on jugs/slopers/pinches; skip anything forcing a half/full crimp on the right ring finger.",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "duration": "10 min"
+              },
+              {
+                "name": "Wrist Twist",
+                "duration": "10 reps each direction"
+              },
+              {
+                "name": "Project / Push",
+                "notes": "Open-hand-compatible problems only, moderate volume, quality over grinding"
+              },
+              {
+                "name": "Skill Work",
+                "notes": "Movement efficiency, hip positioning, high steps"
+              },
+              {
+                "name": "Pistol Squats",
+                "sets": 3,
+                "reps": "5 each leg"
+              },
+              {
+                "name": "Posterior Rotator Cuff Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Lat Doorframe Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_013BHbwfrQZnRUfisVU35JMC",
+          "content": "Created \"Bouldering — Open Hand Projecting\" on 2026-09-24 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_015V1W1CMWCWNv5GboiigZRL",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Endurance + Technique",
+            "date": "2026-09-26",
+            "start_time": "10:00 AM",
+            "estimated_duration": 70,
+            "difficulty": 2,
+            "description": "Open-hand only, no crimping/hangboard. Aerobic capacity + core to keep V8 goal moving while finger heals.",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "duration": "10 min"
+              },
+              {
+                "name": "ARC Traversing",
+                "duration": "25 min",
+                "notes": "Continuous, sub-max, open-hand"
+              },
+              {
+                "name": "Toes to Bar",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "notes": "Precision footwork, no crimping"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s"
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+                "duration": "20s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_015V1W1CMWCWNv5GboiigZRL",
+          "content": "Created \"Endurance + Technique\" on 2026-09-26 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Week set:\n\n- **Tue 9/22** — Movement Volume, open-hand (ARC + footwork drills)\n- **Wed 9/23** — Pull Strength + Core, jug/open-hand grip only\n- **Thu 9/24** — Bouldering, open-hand projecting (jugs/slopers/pinches)\n- **Fri 9/25** — Rest\n- **Sat 9/26** — Endurance + Technique (ARC traverse, footwork)\n- **Sun 9/27** — Rest\n\nZero crimping, zero hangboard all week — flagged in every session note. This maintains movement quality, pulling power, and endurance while the A2 heals. Once physio clears crimping, we reintroduce hangboard progressively."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing queued that needs a next step — this week's 4 sessions are already created. What do you want me to continue with: next week's plan, meal logging, or something else?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Movement Volume — Open Hand Only",
+        "date": "2026-09-22",
+        "start_time": "6:00 PM",
+        "estimated_duration": 75,
+        "difficulty": 2,
+        "description": "No crimping, no hangboard — A2 pulley protocol. Stick to jugs/slopers/pinches. Prioritize footwork and body position over grip.",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "duration": "10 min",
+            "notes": "Warmup, open-hand grips only"
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+            "duration": "20s each side"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+            "duration": "20s each side"
+          },
+          {
+            "name": "ARC Traversing",
+            "duration": "20 min",
+            "notes": "Sub-max, continuous movement, open-hand grip only"
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "notes": "Footwork precision, silent feet, no crimping"
+          },
+          {
+            "name": "Skill Work",
+            "notes": "Flagging and drop-knee drills on juggy terrain"
+          },
+          {
+            "name": "Lat Doorframe Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s"
+          }
+        ]
+      },
+      "result": "Created \"Movement Volume — Open Hand Only\" on 2026-09-22 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Pull Strength + Core — Finger-Safe",
+        "date": "2026-09-23",
+        "start_time": "6:00 PM",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "description": "Build pulling power without loading the injured finger. Open-hand or jug grip on all pulling work.",
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 2,
+            "reps": "12"
+          },
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 4,
+            "reps": "5",
+            "notes": "Jug/open-hand grip on bar, no half-crimp"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 3,
+            "reps": "8"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Ring Dips",
+            "sets": 3,
+            "reps": "8"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "duration": "20s each side",
+            "sets": 3
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "duration": "20s each side",
+            "sets": 2
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Pull Strength + Core — Finger-Safe\" on 2026-09-23 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Bouldering — Open Hand Projecting",
+        "date": "2026-09-24",
+        "start_time": "6:00 PM",
+        "estimated_duration": 80,
+        "difficulty": 3,
+        "description": "No crimping, no hangboard. Choose lines on jugs/slopers/pinches; skip anything forcing a half/full crimp on the right ring finger.",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "duration": "10 min"
+          },
+          {
+            "name": "Wrist Twist",
+            "duration": "10 reps each direction"
+          },
+          {
+            "name": "Project / Push",
+            "notes": "Open-hand-compatible problems only, moderate volume, quality over grinding"
+          },
+          {
+            "name": "Skill Work",
+            "notes": "Movement efficiency, hip positioning, high steps"
+          },
+          {
+            "name": "Pistol Squats",
+            "sets": 3,
+            "reps": "5 each leg"
+          },
+          {
+            "name": "Posterior Rotator Cuff Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Lat Doorframe Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Bouldering — Open Hand Projecting\" on 2026-09-24 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Endurance + Technique",
+        "date": "2026-09-26",
+        "start_time": "10:00 AM",
+        "estimated_duration": 70,
+        "difficulty": 2,
+        "description": "Open-hand only, no crimping/hangboard. Aerobic capacity + core to keep V8 goal moving while finger heals.",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "duration": "10 min"
+          },
+          {
+            "name": "ARC Traversing",
+            "duration": "25 min",
+            "notes": "Continuous, sub-max, open-hand"
+          },
+          {
+            "name": "Toes to Bar",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "notes": "Precision footwork, no crimping"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s"
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+            "duration": "20s each side"
+          }
+        ]
+      },
+      "result": "Created \"Endurance + Technique\" on 2026-09-26 [evt-ai-4].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

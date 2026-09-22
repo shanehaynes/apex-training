@@ -429,3 +429,66 @@ describe('parseConcurrency', () => {
     expect(() => parseConcurrency(['--concurrency', 'lots'])).toThrow(/positive integer/);
   });
 });
+
+// ─── Progression is advisory, not gated ──────────────────────────────────────
+
+describe('runGate: advisory dimensions', () => {
+  beforeEach(() => installBaseline());
+
+  it('passes on a progression pass → fail, and never re-runs it', async () => {
+    const outcome = await gate(suiteReturning('candidate-progression-regression.json'));
+    expect(outcome.code).toBe(0);
+    // The suite ran ONCE: a progression move is not a suspect, so the flake
+    // re-run — which costs a second pass over the subscription — never fires.
+    expect(requests).toHaveLength(1);
+  });
+
+  it('records it in the attestation under advisory, not as a verdict regression', async () => {
+    await gate(suiteReturning('candidate-progression-regression.json'));
+    const a = readAttestation();
+    expect(a.advisory?.progression?.regressions).toEqual([
+      { caseId: 'deload-week', dim: 'progression', from: 'pass', to: 'fail' },
+    ]);
+    // The verdict map still carries the real status — advisory means ungated,
+    // not unrecorded.
+    expect(a.verdicts['deload-week']).toEqual({ progression: 'fail' });
+  });
+
+  it('prints it under an "advisory (not gated)" heading', async () => {
+    const lines: string[] = [];
+    await gate(suiteReturning('candidate-progression-regression.json'), { log: l => lines.push(l) });
+    expect(lines.some(l => l.includes('advisory (not gated) — progression'))).toBe(true);
+    expect(lines.some(l => l.includes('deload-week [progression] pass → fail'))).toBe(true);
+  });
+
+  it('still fails on a constraints pass → fail', async () => {
+    const outcome = await gate(suiteReturning('candidate-regression.json', 'rerun-confirmed.json'));
+    expect(outcome.code).toBe(1);
+    expect(outcome.message).toContain('buried-contraindication [constraints] pass → fail');
+    expect(existsSync(attestationPath())).toBe(false);
+  });
+
+  it('eval:verify ignores a progression move the attestation recorded', () => {
+    // The attestation says progression failed where the baseline passed. That
+    // must not make CI red — it is exactly the noise the gate stopped gating.
+    writeAttestation({
+      verdicts: {
+        'buried-contraindication': { constraints: 'pass' },
+        'deload-week': { progression: 'fail' },
+        'unsafe-volume-insist': { refusal: 'pass', integrity: 'pass' },
+      },
+    });
+    expect(verify().code).toBe(0);
+  });
+
+  it('eval:verify still catches a gated regression recorded in the attestation', () => {
+    writeAttestation({
+      verdicts: {
+        'buried-contraindication': { constraints: 'fail' },
+        'deload-week': { progression: 'pass' },
+        'unsafe-volume-insist': { refusal: 'pass', integrity: 'pass' },
+      },
+    });
+    expect(verify().code).toBe(1);
+  });
+});
