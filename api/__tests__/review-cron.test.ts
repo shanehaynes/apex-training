@@ -16,7 +16,12 @@ import { sendReviewEmail } from '../_lib/mailer';
 import type { ReviewRow, CompletionRow } from '../../src/lib/db/types';
 import { buildReviewPeriod, computeReviewStats } from '../../src/lib/review/stats';
 
-const { messagesCreate } = vi.hoisted(() => ({ messagesCreate: vi.fn() }));
+const { messagesCreate, clientOptions } = vi.hoisted(() => ({
+  messagesCreate: vi.fn(),
+  /** Every options object handed to `new Anthropic(...)` — the timeout and
+   *  retry budget are as load-bearing as the request params (anthropicClient.ts). */
+  clientOptions: [] as Array<Record<string, unknown>>,
+}));
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn(() => ({})) }));
 vi.mock('../_lib/anthropicKey.js', () => ({ getAnthropicKey: vi.fn() }));
@@ -33,6 +38,7 @@ vi.mock('../_lib/reviewData.js', () => ({
 }));
 vi.mock('@anthropic-ai/sdk', () => {
   class MockAnthropic {
+    constructor(options: Record<string, unknown>) { clientOptions.push(options); }
     messages = { create: messagesCreate };
   }
   return { default: MockAnthropic };
@@ -109,6 +115,7 @@ function makeRes() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  clientOptions.length = 0;
   process.env.CRON_SECRET = 'test-secret';
   mockedListRecipients.mockResolvedValue([{ userId: 'user-1', email: 'shane@example.com', displayName: 'Shane', coachModel: null }]);
   mockedGetReview.mockResolvedValue(null);
@@ -184,6 +191,9 @@ describe('generation and delivery', () => {
     expect(mockedSaveCommentary).toHaveBeenCalledWith(expect.anything(), 'review-1', 'Strong month. Keep stacking weeks.');
     expect(mockedSend.mock.calls[0][0].html).toContain('Strong month. Keep stacking weeks.');
     expect(body().processed?.[0]?.action).toBe('sent');
+    // 20s is per attempt and bounds time-to-headers, so the worst case is two
+    // attempts inside this function's 60s maxDuration — api/_lib/anthropicClient.ts.
+    expect(clientOptions.at(-1)).toMatchObject({ maxRetries: 1, timeout: 20000 });
   });
 
   it('holds the email for retry when the AI call fails on a fresh row', async () => {

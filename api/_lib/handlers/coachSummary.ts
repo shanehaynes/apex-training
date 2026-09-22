@@ -1,8 +1,9 @@
-import Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireUser } from '../auth.js';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { getAnthropicKey } from '../anthropicKey.js';
+import { makeAnthropicClient } from '../anthropicClient.js';
 import { enforceRateLimit } from '../rateLimit.js';
 import { streamToWireEvents, type UpstreamEvent } from '../wire.js';
 import { buildFinishSummary, loadResolvedOccurrence } from '../trackerSession.js';
@@ -97,7 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('[api/coach-summary] profile read failed:', err instanceof Error ? err.message : err);
   }
 
-  const client = new Anthropic({ apiKey });
+  const client = makeAnthropicClient(apiKey);
   const request = (recap: string) => ({
     model: coachModel.id,
     max_tokens: 300,
