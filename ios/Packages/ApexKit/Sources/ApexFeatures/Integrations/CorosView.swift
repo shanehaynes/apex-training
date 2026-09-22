@@ -72,14 +72,14 @@ public struct CorosView: View {
 
     private var connected: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
-            Hint("Sync grabs new activities from your watch — with heart rate, GPS and elevation. Activities matching a planned workout offer to fill it; everything else lands as its own event.")
+            Hint("Sync pulls new activities off the watch — heart rate, GPS, elevation — and offers to fill any planned workout they match.")
             ApexButton(model.isSyncing ? "Syncing…" : syncTitle, isLoading: model.isSyncing) {
                 Task { await model.sync() }
             }
             .accessibilityIdentifier("coros.sync")
             .accessibilityLabel(syncTitle)
-            SettingsSection(footer: "Every night around 11:30 PM ET. Unmatched activities import on their own; matches to planned workouts wait for your confirmation — Sync shows a count when any are waiting.") {
-                SettingsToggle("Sync automatically", symbol: ApexIcon.refresh.systemName, isOn: Binding(
+            SettingsSection(footer: "Every night around 11:30 PM ET, and matches wait for your confirmation — Sync shows a count when any are.") {
+                SettingsToggle("Sync automatically", isOn: Binding(
                     get: { model.autoSync },
                     set: { enabled in Task { await model.setAutoSync(enabled) } }
                 ), identifier: "coros.autosync")
@@ -102,7 +102,7 @@ public struct CorosView: View {
 
     private var disconnected: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
-            Hint("Connect your COROS account to pull activities — with heart rate, GPS, and elevation — straight into the calendar. You'll sign in on COROS's site; Apex never sees your COROS password.")
+            Hint("Connect your COROS account to pull activities straight into the calendar — you sign in on COROS's own site, and Apex never sees the password.")
             connectButton("Connect COROS")
         }
     }

@@ -38,6 +38,11 @@ final class YouSnapshotTests: XCTestCase {
         snapshot(NavigationStack { YouRootView(model: model) }, named: "root")
         snapshot(NavigationStack { YouRootView(model: model) }, named: "root-16e", size: CGSize(width: 390, height: 844))
         snapshot(NavigationStack { YouRootView(model: model) }.environment(\.sizeCategory, .extraExtraLarge), named: "root-xxl")
+        // ux-review §3.10: the rows used to read "Training bloc…" here.
+        snapshot(
+            NavigationStack { YouRootView(model: model) }.environment(\.sizeCategory, .accessibilityExtraExtraExtraLarge),
+            named: "root-axxxl", size: CGSize(width: 393, height: 1400)
+        )
     }
 
     /// The AI Coach screens: goal & context, the model picker, and the key
@@ -66,6 +71,10 @@ final class YouSnapshotTests: XCTestCase {
     func testTokenReveal() async {
         let model = await loaded()
         snapshot(NavigationStack { ConnectorView(model: model.connector) }, named: "connector", size: CGSize(width: 393, height: 760))
+        snapshot(
+            NavigationStack { ConnectorView(model: model.connector) }.environment(\.sizeCategory, .accessibilityExtraExtraExtraLarge),
+            named: "connector-axxxl", size: CGSize(width: 393, height: 1100)
+        )
         snapshot(TokenRevealSheet(token: "apx_1f9c2e7b4d6a8c0e1f9c2e7b4d6a8c0e1f9c2e7b") {}, named: "token-reveal", size: CGSize(width: 393, height: 320))
         snapshot(NavigationStack { ConnectorGuideView(endpoint: model.connector.endpoint) }, named: "connector-guide", size: CGSize(width: 393, height: 1200))
     }

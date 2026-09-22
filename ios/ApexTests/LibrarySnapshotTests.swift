@@ -43,10 +43,14 @@ final class LibrarySnapshotTests: XCTestCase {
     @MainActor
     func testList() async {
         let model = await loaded()
-        snapshot(NavigationStack { LibraryView(model: model) }, named: "list")
-        snapshot(NavigationStack { LibraryView(model: model) }.environment(\.sizeCategory, .extraExtraLarge), named: "list-xxl")
+        snapshot(NavigationStack { LibraryHomeView(model: model) }, named: "list")
+        snapshot(NavigationStack { LibraryHomeView(model: model) }.environment(\.sizeCategory, .extraExtraLarge), named: "list-xxl")
+        snapshot(
+            NavigationStack { LibraryHomeView(model: model) }.environment(\.sizeCategory, .accessibilityExtraExtraExtraLarge),
+            named: "list-axxxl"
+        )
         model.query = "nothing"
-        snapshot(NavigationStack { LibraryView(model: model) }, named: "list-empty", size: CGSize(width: 393, height: 420))
+        snapshot(NavigationStack { LibraryHomeView(model: model) }, named: "list-empty", size: CGSize(width: 393, height: 420))
     }
 
     /// The detail with its history: tags, the PR and session cards, the trend, the sessions.
@@ -56,6 +60,11 @@ final class LibrarySnapshotTests: XCTestCase {
         snapshot(NavigationStack { ExerciseDetailView(model: model, id: "ios-fixture-def", history: history()) }, named: "detail")
         snapshot(NavigationStack { ExerciseDetailView(model: model, id: "ios-fixture-def", history: history()) }, named: "detail-16e", size: CGSize(width: 390, height: 844))
         snapshot(NavigationStack { ExerciseDetailView(model: model, id: "cable-row", history: .none) }, named: "detail-nohistory", size: CGSize(width: 393, height: 420))
+        snapshot(
+            NavigationStack { ExerciseDetailView(model: model, id: "ios-fixture-def", history: history()) }
+                .environment(\.sizeCategory, .accessibilityExtraExtraExtraLarge),
+            named: "detail-axxxl", size: CGSize(width: 393, height: 1100)
+        )
     }
 
     /// The editor sheet, and the rename hint under a changed name.
@@ -69,6 +78,6 @@ final class LibrarySnapshotTests: XCTestCase {
     @MainActor
     func testWorkoutLibrary() async {
         let model = await loaded()
-        snapshot(NavigationStack { WorkoutLibraryView(model: model) }, named: "workout-library", size: CGSize(width: 393, height: 520))
+        snapshot(NavigationStack { LibraryHomeView(model: model, tab: .workouts) }, named: "workout-library", size: CGSize(width: 393, height: 520))
     }
 }

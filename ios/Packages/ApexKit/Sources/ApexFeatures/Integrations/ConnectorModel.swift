@@ -96,14 +96,25 @@ public final class ConnectorModel {
         }
     }
 
-    /// "Claude Desktop · …k9x2 · last used 2026-09-01" — the token row's line.
+    /// "…k9x2 · last used Sep 1, 2026" — the token row's line.
     public func tokenLine(_ token: McpToken) -> String {
-        let used = token.lastUsedAt.map { "last used \(IsoDate.day($0))" } ?? "never used"
+        let used = token.lastUsedAt.map { "last used \(IsoDate.shortDay($0))" } ?? "never used"
         return "…\(token.tokenLast4) · \(used)"
     }
 
     public func connectionLine(_ connection: McpConnection) -> String {
-        "signed in \(IsoDate.day(connection.createdAt))"
+        "signed in \(IsoDate.shortDay(connection.createdAt))"
+    }
+}
+
+extension IsoDate {
+    /// "Sep 8, 2026" — a created or last-used stamp for a settings row, where
+    /// the raw `2026-09-08` read as a database column (ux-review §3.8). Built
+    /// from the date part rather than the instant, like the web's
+    /// `created_at.slice(0, 10)`, so the day never slides across a zone.
+    static func shortDay(_ iso: String) -> String {
+        guard let key = DayKey(String(iso.prefix(10))) else { return day(iso) }
+        return "\(MonthNames.short[key.month - 1]) \(key.day), \(key.year)"
     }
 }
 

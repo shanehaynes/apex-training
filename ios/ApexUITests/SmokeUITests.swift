@@ -760,12 +760,15 @@ final class SmokeUITests: XCTestCase {
 
         // AI connector: mint → reveal → Done → listed.
         app.buttons["you.row.connector"].tap()
-        let tokenName = app.textFields["connector.name"]
-        XCTAssertTrue(tokenName.waitForExistence(timeout: 10))
+        let createToken = app.buttons["connector.create"]
+        XCTAssertTrue(createToken.waitForExistence(timeout: 10))
         XCTAssertTrue(app.otherElements["connector.token.ios-fixture laptop"].waitForExistence(timeout: 10))
         attach(app, name: "w11-02-connector")
+        // The form is a row until it is asked for (ux-review §3.8).
+        let tokenName = app.textFields["connector.name"]
+        tapUntil(createToken, shows: tokenName)
         type("Claude Code", into: tokenName)
-        app.buttons["connector.create"].tap()
+        app.buttons["connector.mint"].tap()
         let reveal = app.staticTexts["token.reveal.value"]
         XCTAssertTrue(reveal.waitForExistence(timeout: 10))
         XCTAssertTrue(reveal.label.hasPrefix("apx_mock_"))
@@ -837,7 +840,7 @@ final class SmokeUITests: XCTestCase {
         let youTab = app.tabBars.buttons["You"]
         XCTAssertTrue(youTab.waitForExistence(timeout: 20))
         youTab.tap()
-        tapUntil(app.buttons["you.row.library"], shows: app.textFields["library.search"])
+        tapUntil(app.buttons["you.row.library"], shows: app.searchFields["library.search"])
         let row = app.buttons["library.row.ios-fixture-def"]
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         XCTAssertTrue(row.label.contains("Fixture Press"), row.label)
@@ -863,7 +866,8 @@ final class SmokeUITests: XCTestCase {
 
         app.navigationBars.buttons.element(boundBy: 0).tap()
         let archive = app.buttons["library.template.archive.ios-fixture-template"]
-        tapUntil(app.buttons["library.templates"], shows: archive)
+        XCTAssertTrue(app.otherElements["library.templates"].waitForExistence(timeout: 10))
+        tapUntil(app.buttons["Workouts"], shows: archive)
         XCTAssertEqual(archive.label, "Archive")
         archive.tap()
         waitForLabel(archive, "Restore")
