@@ -218,6 +218,78 @@ describe('#180: git stash drop/clear', () => {
   });
 });
 
+describe('git stash push / pop / apply on the shared stack', () => {
+  // A subagent ran a bare `git stash` inside a compound command and reverted
+  // its own tracked edits; the pop that recovered them could as easily have
+  // applied another session's entry. Every form that acts on an entry it
+  // cannot name is blocked; the tagged-push, apply-by-SHA pattern is not.
+  it('blocks a stash push with no message — bare, push, or save', () => {
+    expect(inTree('git stash')).toMatch(/bare `git stash`/);
+    expect(inTree('git stash -u')).toMatch(/bare `git stash`/);
+    expect(inTree('git stash --include-untracked')).toMatch(/bare `git stash`/);
+    expect(inTree('git stash push')).toMatch(/bare `git stash`/);
+    expect(inTree('git stash push -u')).toMatch(/bare `git stash`/);
+    expect(inTree('git stash push -- src/App.tsx')).toMatch(/bare `git stash`/);
+    expect(inTree('git stash save')).toMatch(/bare `git stash`/);
+    expect(inTree('git -C /somewhere stash')).toMatch(/bare `git stash`/);
+    expect(inTree('npm test && git stash')).toMatch(/bare `git stash`/);
+  });
+
+  it('blocks pop, with or without a ref', () => {
+    expect(inTree('git stash pop')).toMatch(/`git stash pop` applies and drops/);
+    expect(inTree('git stash pop stash@{1}')).toMatch(/`git stash pop` applies and drops/);
+  });
+
+  it('blocks apply with no ref', () => {
+    expect(inTree('git stash apply')).toMatch(/`git stash apply` with no ref/);
+    expect(inTree('git stash apply --index')).toMatch(/`git stash apply` with no ref/);
+    expect(inTree('git stash apply -q')).toMatch(/`git stash apply` with no ref/);
+  });
+
+  it('every block message spells out the safe pattern', () => {
+    for (const command of ['git stash', 'git stash pop', 'git stash apply']) {
+      const reason = inTree(command);
+      expect(reason).toMatch(/git stash push -u -m "<unique-tag>"/);
+      expect(reason).toMatch(/git stash list --format='%H %gs'/);
+      expect(reason).toMatch(/git stash apply <sha>/);
+      expect(reason).toMatch(/APEX_DESTRUCTIVE_OK=1/);
+    }
+  });
+
+  it('allows a tagged push in every spelling', () => {
+    expect(inTree('git stash push -u -m "my-tag"')).toBeNull();
+    expect(inTree('git stash push --message=my-tag')).toBeNull();
+    expect(inTree('git stash push --message my-tag')).toBeNull();
+    expect(inTree('git stash push -mmy-tag')).toBeNull();
+    expect(inTree('git stash push -um my-tag')).toBeNull();
+    expect(inTree('git stash -u -m "my-tag"')).toBeNull(); // options with no subcommand are `push`
+    expect(inTree('git stash save "my-tag"')).toBeNull();
+  });
+
+  it('allows apply by SHA, by stash@{n}, or by a variable holding one', () => {
+    expect(inTree('git stash apply 0f1e2d3')).toBeNull();
+    expect(inTree('git stash apply stash@{0}')).toBeNull();
+    expect(inTree('git stash apply "$sha"')).toBeNull();
+    expect(inTree('git stash apply --index $sha')).toBeNull();
+  });
+
+  it('allows the read-only subcommands and the documented list format', () => {
+    expect(inTree("git stash list --format='%H %gs'")).toBeNull();
+    expect(inTree('git stash show -p stash@{0}')).toBeNull();
+  });
+
+  it('honours the override on each form', () => {
+    expect(inTree('APEX_DESTRUCTIVE_OK=1 git stash')).toBeNull();
+    expect(inTree('APEX_DESTRUCTIVE_OK=1 git stash pop')).toBeNull();
+    expect(inTree('APEX_DESTRUCTIVE_OK=1 git stash apply')).toBeNull();
+  });
+
+  it('treats a mention as data', () => {
+    expect(inTree('git commit -m "guard: git stash pop is blocked now"')).toBeNull();
+    expect(inTree('grep -rn "git stash" CONTRIBUTING.md')).toBeNull();
+  });
+});
+
 describe('#180: git branch -D', () => {
   it('blocks the force delete, clustered or spelled out', () => {
     expect(inTree('git branch -D fix/thing')).toMatch(/force-deletes a branch/);
@@ -327,6 +399,14 @@ describe('#180: the new rows survive an unparseable command line', () => {
     ['checkout', "echo 'oops; git checkout -- src/App.tsx"],
     ['restore', "echo 'oops; git restore src/App.tsx"],
     ['stash drop', "echo 'oops; git stash drop"],
+    ['bare stash', "echo 'oops; git stash"],
+    ['stash -u', "echo 'oops; git stash -u"],
+    ['stash push', "echo 'oops; git stash push"],
+    ['stash push -- path', "echo 'oops; git stash push -- src/App.tsx"],
+    ['stash save', "echo 'oops; git stash save"],
+    ['stash pop', "echo 'oops; git stash pop"],
+    ['stash apply', "echo 'oops; git stash apply"],
+    ['stash apply --index', "echo 'oops; git stash apply --index"],
     ['branch -D', "echo 'oops; git branch -D fix/thing"],
     ['worktree remove -f', "echo 'oops; git worktree remove -f ../x"],
     ['push --force', "echo 'oops; git push --force origin main"],
@@ -339,6 +419,13 @@ describe('#180: the new rows survive an unparseable command line', () => {
     expect(inTree("echo 'oops; git push --force-with-lease origin fix/thing")).toBeNull();
     expect(inTree("echo 'oops; git restore --staged src/App.tsx")).toBeNull();
     expect(inTree("echo 'oops; git branch -d fix/thing")).toBeNull();
+    expect(inTree("echo 'oops; git stash push -u -m my-tag")).toBeNull();
+    expect(inTree("echo 'oops; git stash -m my-tag")).toBeNull();
+    expect(inTree("echo 'oops; git stash push --message=my-tag")).toBeNull();
+    expect(inTree("echo 'oops; git stash save my-tag")).toBeNull();
+    expect(inTree("echo 'oops; git stash apply 0f1e2d3")).toBeNull();
+    expect(inTree("echo 'oops; git stash apply stash@{0}")).toBeNull();
+    expect(inTree("echo 'oops; git stash list")).toBeNull();
   });
 });
 

@@ -9,6 +9,10 @@
 //      only copy of its work. `git reset --hard`, `git clean -f`,
 //      `git checkout -- <path>`, `git restore`, `git stash drop`/`clear`,
 //      `git branch -D`, `git worktree remove --force`, `git push --force`.
+//      And the stash forms that lose track of whose entry is whose on that
+//      shared stack: a bare `git stash` (or `push` without `-m`), `git stash
+//      pop`, and `git stash apply` with no ref — the safe pattern is a tagged
+//      push, `git stash list --format='%H %gs'`, `git stash apply <sha>`.
 //      Reviewed and safe? Re-run with APEX_DESTRUCTIVE_OK=1 immediately in
 //      front of that one git command.
 //   3. Never build or commit in the primary checkout — it stays on main,
@@ -95,7 +99,14 @@ const DESTRUCTIVE_GIT = /\bgit\b[^|;&()]*\b(reset\s+--hard|clean\s+(-[A-Za-z]*f[
 const DESTRUCTIVE_GIT_MORE = [
   /\bgit\b[^|;&()]*\bcheckout\b[^|;&]*(\s--(\s|$)|\s-[A-Za-z]*f[A-Za-z]*(\s|$)|\s--force\b|\s\.(\s|$))/,
   /\bgit\b[^|;&()]*\brestore\b(?![^|;&]*--staged)/,
-  /\bgit\b[^|;&()]*\bstash\s+(drop|clear)\b/,
+  /\bgit\b[^|;&()]*\bstash\s+(drop|clear|pop)\b/,
+  // A stash push with no message: `git stash`, `git stash -u`, `git stash push`,
+  // `git stash save` — only option words (none of them a message) up to the
+  // end of the command. Anything positional after `stash` is a subcommand.
+  /\bgit\b[^|;&()]*\bstash(\s+(push|save))?(?![^|;&]*(\s-[A-Za-z]*m|\s--message))(\s+-[^\s|;&]*)*(\s+--\s[^|;&]*)?\s*($|[|;&)])/,
+  // `git stash apply` with only options after it applies stash@{0} — whatever
+  // any session pushed last.
+  /\bgit\b[^|;&()]*\bstash\s+apply(\s+-[^\s|;&]*)*\s*($|[|;&)])/,
   /\bgit\b[^|;&()]*\bbranch\b[^|;&]*\s-[A-Za-z]*D[A-Za-z]*(\s|$)/,
   /\bgit\b[^|;&()]*\bworktree\s+remove\b[^|;&]*(\s-[A-Za-z]*f[A-Za-z]*(\s|$)|\s--force\b)/,
   /\bgit\b[^|;&()]*\bpush\b[^|;&]*(\s--force(\s|$)|\s--mirror\b|\s-[A-Za-z]*f[A-Za-z]*(\s|$)|\s\+[^\s|;&]+)/,
@@ -152,6 +163,34 @@ const MSG_STASH_DROP =
   'Blocked: the stash stack is shared with the primary checkout and every other worktree, so ' +
   '`git stash drop` / `git stash clear` can throw away another session’s only copy of its work ' +
   '(CLAUDE.md). Run `git stash list` and identify your own entry by its message first. ' +
+  DESTRUCTIVE_TAIL;
+
+// The stash stack is shared, so every entry on it has to be findable by whoever
+// pushed it, and nothing may act on "the top" — that is whatever any session
+// pushed last. The safe pattern is the one in CONTRIBUTING.md ("Never do this").
+const STASH_SAFE_PATTERN =
+  'The safe pattern: `git stash push -u -m "<unique-tag>"`, capture your entry’s SHA with ' +
+  '`git stash list --format=\'%H %gs\'`, restore with `git stash apply <sha>`, and drop it ' +
+  'afterwards by re-finding the tag. A temporary WIP commit on your branch needs none of this. ';
+
+const MSG_STASH_PUSH =
+  'Blocked: a bare `git stash` (or `git stash push`/`save` without `-m`) reverts your tracked edits ' +
+  'onto a stack shared with the primary checkout and every other worktree, as an entry nothing can ' +
+  'later tell from another session’s (CLAUDE.md). ' +
+  STASH_SAFE_PATTERN +
+  DESTRUCTIVE_TAIL;
+
+const MSG_STASH_POP =
+  'Blocked: `git stash pop` applies and drops the top of a stack shared with every other worktree — ' +
+  'that entry may be another session’s, and a conflict on apply leaves it half-restored and dropped ' +
+  '(CLAUDE.md). ' +
+  STASH_SAFE_PATTERN +
+  DESTRUCTIVE_TAIL;
+
+const MSG_STASH_APPLY_TOP =
+  'Blocked: `git stash apply` with no ref applies stash@{0}, which on a stack shared with every other ' +
+  'worktree is whatever any session pushed last, not necessarily yours (CLAUDE.md). ' +
+  STASH_SAFE_PATTERN +
   DESTRUCTIVE_TAIL;
 
 const MSG_BRANCH_DELETE =
@@ -1161,6 +1200,43 @@ function isStashDiscard(inv) {
   return p[0] === 'drop' || p[0] === 'clear';
 }
 
+/** `-m <msg>`, `-m<msg>`, `-um<msg>`, `--message <msg>` or `--message=<msg>` among the option words. */
+function hasStashMessage(args) {
+  return splitPathspec(args).opts.some(
+    (w) => optionName(w.value) === '--message' || /^-[A-Za-z]*m/.test(w.value),
+  );
+}
+
+// A stash push with no message — `git stash`, `git stash -u`, `git stash push`,
+// `git stash save` — lands an entry on the shared stack that nothing can later
+// tell apart from another session's. (`git stash -m tag` is a tagged push: git
+// treats options with no subcommand as `push`.)
+function isStashUntaggedPush(inv) {
+  const g = gitSub(inv, 'stash');
+  if (!g) return false;
+  const p = subPositionals(g.args, GIT_STASH_VALUE_OPTS);
+  if (p[0] === 'save') return p.length < 2;
+  if (p[0] !== undefined && p[0] !== 'push') return false;
+  return !hasStashMessage(g.args);
+}
+
+// `git stash pop` applies and drops the top of the stack, ref or no ref — a
+// conflict on apply leaves the entry both half-restored and gone.
+function isStashPop(inv) {
+  const g = gitSub(inv, 'stash');
+  return !!g && subPositionals(g.args, GIT_STASH_VALUE_OPTS)[0] === 'pop';
+}
+
+// `git stash apply` with no ref is stash@{0}: whatever any session pushed
+// last. With a ref (a SHA, `stash@{n}`, or a variable holding one) it is the
+// documented restore step and stays allowed.
+function isStashApplyTop(inv) {
+  const g = gitSub(inv, 'stash');
+  if (!g) return false;
+  const p = subPositionals(g.args, GIT_STASH_VALUE_OPTS);
+  return p[0] === 'apply' && p.length < 2;
+}
+
 // `git branch -D` (or `-d --force`) deletes an unmerged branch — commits that
 // may be referenced by nothing else. Lowercase `-d` alone refuses that case.
 function isBranchForceDelete(inv) {
@@ -1199,6 +1275,9 @@ const DESTRUCTIVE_RULES = [
   [isCheckoutDiscard, MSG_CHECKOUT_PATH],
   [isRestoreDiscard, MSG_RESTORE],
   [isStashDiscard, MSG_STASH_DROP],
+  [isStashUntaggedPush, MSG_STASH_PUSH],
+  [isStashPop, MSG_STASH_POP],
+  [isStashApplyTop, MSG_STASH_APPLY_TOP],
   [isBranchForceDelete, MSG_BRANCH_DELETE],
   [isWorktreeForceRemove, MSG_WORKTREE_REMOVE],
   [isForcePush, MSG_PUSH_FORCE],
