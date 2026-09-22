@@ -618,15 +618,20 @@ final class SmokeUITests: XCTestCase {
         tapUntil(app.buttons["analytics.add"], shows: app.textFields["analytics.builder.title"])
         attach(app, name: "33-builder-form")
 
-        // A measure makes the draft valid; the server's preview draws.
-        let form = app.scrollViews.firstMatch
-        let tonnage = app.buttons["series.s1.measure.tonnage"]
+        // A measure makes the draft valid; the server's preview draws. The
+        // measure is a row that opens a searchable sheet now (ux-review §3.7),
+        // so the option is reached through it — its identifier is unchanged.
+        let form = app.scrollViews["analytics.builder.form"]
+        let measureRow = app.buttons["series.s1.measure"]
         var swipes = 0
-        while !tonnage.isHittable, swipes < 4 { form.swipeUp(); swipes += 1 }
+        while !measureRow.isHittable, swipes < 4 { form.swipeUp(); swipes += 1 }
+        measureRow.tap()
+        type("tonnage", into: app.textFields["series.s1.measure.search"])
+        let tonnage = app.buttons["series.s1.measure.tonnage"]
+        XCTAssertTrue(tonnage.waitForExistence(timeout: 10))
         tonnage.tap()
+        // The preview is pinned under the title: it needs no scrolling to.
         let preview = app.otherElements["analytics.builder.preview"]
-        swipes = 0
-        while !preview.exists, swipes < 6 { form.swipeUp(); swipes += 1 }
         XCTAssertTrue(preview.waitForExistence(timeout: 10))
         attach(app, name: "34-builder-preview")
 

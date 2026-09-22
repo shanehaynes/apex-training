@@ -99,9 +99,6 @@ public struct AnalyticsTab: View {
                     FreshnessBanner(label)
                         .padding(.horizontal, -Spacing.screen)
                 }
-                Text(TileFormat.tileCount(model.tiles.count))
-                    .apexFieldLabel()
-                    .accessibilityIdentifier("analytics.count")
                 ForEach(model.tiles) { tile in
                     TileCardView(
                         tile: tile,
@@ -119,5 +116,25 @@ public struct AnalyticsTab: View {
         }
         .accessibilityIdentifier("analytics.dashboard")
         .refreshable { await model.refresh(reason: .pullToRefresh) }
+        // The identifier is applied above this on purpose: a modifier nearer
+        // the leaf wins, so the count keeps its own name rather than the
+        // dashboard's.
+        .overlay(alignment: .topLeading) { countElement }
+    }
+
+    /// ux-review §3.7: "6 TILES" was a count styled as a heading, and it is
+    /// gone from the screen — the tiles are the count. The number itself is
+    /// how a save, a duplicate and a delete are known to have landed (the
+    /// smoke waits on it; the card it is waiting for is at the bottom of a
+    /// lazy stack and does not exist until scrolled to), so it stays as a
+    /// static-text accessibility element with no pixels: an overlay, so it
+    /// costs the layout nothing either.
+    private var countElement: some View {
+        Color.clear
+            .frame(width: 1, height: 1)
+            .accessibilityElement()
+            .accessibilityAddTraits(.isStaticText)
+            .accessibilityLabel(TileFormat.tileCount(model.tiles.count))
+            .accessibilityIdentifier("analytics.count")
     }
 }

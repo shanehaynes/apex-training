@@ -2,26 +2,38 @@ import ApexCore
 import ApexUI
 import SwiftUI
 
-/// `SeriesEditor` in `TileBuilder.tsx`: the grouped measure picker with its
-/// dimming, then — once a measure is chosen — aggregation, split, top-N, the
-/// grade scale, a Filters disclosure, and the series label.
+/// `SeriesEditor` in `TileBuilder.tsx`: the measure, and under a "More"
+/// disclosure everything that qualifies it — aggregation, the split, the top-N
+/// cap, the grade scale, the filters and the series label.
+///
+/// ux-review §3.7: the measure was ~20 chips in four groups, the single
+/// biggest run of pills in the app, and everything that qualifies it was laid
+/// out underneath whether or not it had been touched. The measure is one row
+/// that opens a searchable sheet; the rest opens itself only when a draft
+/// already carries one of those values, so an edit form can never hide a
+/// setting the user cannot then see.
 struct SeriesEditorView: View {
     @Bindable var builder: TileBuilderModel
     let series: SeriesDraft
     let index: Int
 
-    @State private var measureReason: String?
+    /// nil = follow the draft; a tap latches the user's choice. Latching
+    /// rather than seeding a `Bool` keeps the disclosure honest when the coach
+    /// fills the form after the view is on screen.
+    @State private var moreOpenOverride: Bool?
+    @State private var picking = false
 
     private var measure: AnalyticsCatalog.Measure? { builder.measure(for: series) }
     private var id: String { series.id }
-    private var filtersOpen: Bool { builder.filtersOpen.contains(id) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack {
-                Text("Series \(index + 1)").apexEyebrow()
-                Spacer()
-                if builder.draft.series.count > 1 {
+            // One series needs no heading: "Measure" already names it, and
+            // there is nothing to remove it from.
+            if builder.draft.series.count > 1 {
+                HStack {
+                    Text("Series \(index + 1)").apexEyebrow()
+                    Spacer()
                     Button { Motion.animate { builder.removeSeries(id) } } label: {
                         ApexIcon.close.image.font(.system(size: 13)).foregroundStyle(ApexColor.textMuted)
                             .frame(width: 44, height: 44).contentShape(.rect)
@@ -31,83 +43,112 @@ struct SeriesEditorView: View {
                     .accessibilityIdentifier("series.\(id).remove")
                 }
             }
-            measures
-            if let measure {
+            measureRow
+            if measure != nil { more }
+        }
+        .padding(Spacing.md)
+        .background(ApexColor.bgSurface, in: .rect(cornerRadius: Radius.lg))
+        .overlay(RoundedRectangle(cornerRadius: Radius.lg).strokeBorder(ApexColor.borderSubtle, lineWidth: 1))
+        .sheet(isPresented: $picking) {
+            MeasurePickerSheet(
+                seriesId: id,
+                selection: series.measure,
+                dimReason: { builder.measureDimReason(seriesId: id, measureId: $0) },
+                onSelect: { builder.setMeasure(id, $0) }
+            )
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("series.\(id)")
+    }
+
+    // MARK: - Measure
+
+    /// A `MenuPicker`-shaped row: the same field box, the same chevron — it
+    /// opens a sheet rather than a menu because twenty options in four groups
+    /// is a list, not a menu (ux-review §3.7).
+    private var measureRow: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Text("Measure").apexFieldLabel()
+            Button { picking = true } label: {
+                HStack(spacing: Spacing.sm) {
+                    Text(measure?.label ?? "Choose a measure")
+                        .font(.apex(.display, size: TypeScale.base, relativeTo: .body))
+                        .foregroundStyle(measure == nil ? ApexColor.textMuted : ApexColor.textPrimary)
+                        .lineLimit(1)
+                    Spacer(minLength: Spacing.sm)
+                    ApexIcon.chevronDown.image
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(ApexColor.textMuted)
+                }
+                .apexFieldChrome()
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Measure")
+            .accessibilityValue(measure?.label ?? "None")
+            .accessibilityIdentifier("series.\(id).measure")
+        }
+    }
+
+    // MARK: - More
+
+    private var isMoreOpen: Bool { moreOpenOverride ?? (hasAdvanced || builder.filtersOpen.contains(id)) }
+
+    /// Anything under the disclosure that is not at `SeriesDraft.empty`'s
+    /// default. Computed from the draft on every read rather than stored, so a
+    /// coach reduce opens the section the same way a loaded tile does.
+    private var hasAdvanced: Bool {
+        !series.agg.isEmpty
+            || !series.groupBy.isEmpty
+            || !series.groupLimit.isEmpty
+            || !series.gradeScale.isEmpty
+            || !series.label.isEmpty
+            || series.dayFilterOffset != "0"
+            || series.dayFilterMode != "include"
+            || TileBuilderModel.hasFilters(series)
+    }
+
+    @ViewBuilder
+    private var more: some View {
+        Button {
+            Motion.animate { moreOpenOverride = !isMoreOpen }
+        } label: {
+            HStack(spacing: Spacing.sm) {
+                Text("More").apexFieldLabel()
+                ApexIcon.chevronDown.image
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(ApexColor.textMuted)
+                    .rotationEffect(.degrees(isMoreOpen ? 0 : -90))
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("More")
+        .accessibilityValue(isMoreOpen ? "Expanded" : "Collapsed")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("series.\(id).more")
+        if isMoreOpen, let measure {
+            VStack(alignment: .leading, spacing: Spacing.md) {
                 if measure.allowedAggs.count > 1 {
                     ChipRow("Aggregation", options: [("", "Auto (\(measure.defaultAgg))")] + measure.allowedAggs.map { ($0, $0) },
-                            selection: seriesField(\.agg), identifier: "series.\(id).agg")
+                            selection: seriesField(\.agg), collapseAbove: 4, identifier: "series.\(id).agg")
                 }
                 if !measure.allowedGroupBys.isEmpty {
                     ChipRow("Split by", options: [("", "None")] + measure.allowedGroupBys.map { ($0, AnalyticsCatalog.groupByLabels[$0] ?? $0) },
-                            selection: seriesField(\.groupBy), identifier: "series.\(id).groupby")
+                            selection: seriesField(\.groupBy), collapseAbove: 4, identifier: "series.\(id).groupby")
                 }
                 if !series.groupBy.isEmpty {
                     FormField("Top groups (optional, default \(AnalyticsCatalog.defaultGroupLimit))", text: seriesField(\.groupLimit), placeholder: "6", keyboard: .numberPad, identifier: "series.\(id).grouplimit")
                 }
                 if measure.source == "pitch-logs" {
                     ChipRow("Grade scale", options: (measure.id == "max-grade" ? [] : [("", "Any")]) + AnalyticsCatalog.gradeScales.map { ($0.value, $0.label) },
-                            selection: seriesField(\.gradeScale), identifier: "series.\(id).gradescale")
+                            selection: seriesField(\.gradeScale), collapseAbove: 4, identifier: "series.\(id).gradescale")
                 }
-                Button {
-                    Motion.animate {
-                        if filtersOpen { builder.filtersOpen.remove(id) } else { builder.filtersOpen.insert(id) }
-                    }
-                } label: {
-                    HStack(spacing: Spacing.xs) {
-                        Text("Filters").apexFieldLabel()
-                        ApexIcon.chevronDown.image.font(.system(size: 10)).foregroundStyle(ApexColor.textMuted)
-                            .rotationEffect(.degrees(filtersOpen ? 0 : -90))
-                    }
-                    .frame(minHeight: 44, alignment: .leading)
-                    .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("series.\(id).filters")
-                if filtersOpen { filters(measure) }
+                filters(measure)
                 FormField("Series label (optional)", text: seriesField(\.label), identifier: "series.\(id).label")
-            }
-        }
-        .padding(Spacing.md)
-        .background(ApexColor.bgSurface, in: .rect(cornerRadius: Radius.lg))
-        .overlay(RoundedRectangle(cornerRadius: Radius.lg).strokeBorder(ApexColor.borderSubtle, lineWidth: 1))
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("series.\(id)")
-    }
-
-    /// The grouped measure picker: a measure a chosen sport rules out is dimmed,
-    /// and a tap on it shows why instead of selecting.
-    private var measures: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("Measure").apexFieldLabel()
-            ForEach(AnalyticsCatalog.measureGroups) { group in
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text(group.label)
-                        .font(.apex(.mono, size: TypeScale.micro, relativeTo: .caption2))
-                        .foregroundStyle(ApexColor.textMuted)
-                    FlowLayout(spacing: Spacing.xs) {
-                        ForEach(group.ids, id: \.self) { measureId in
-                            let reason = builder.measureDimReason(seriesId: id, measureId: measureId)
-                            Chip(AnalyticsCatalog.measure(measureId)?.label ?? measureId, isSelected: series.measure == measureId, isDimmed: reason != nil) {
-                                if let reason {
-                                    Motion.animate { measureReason = reason }
-                                } else {
-                                    Motion.animate {
-                                        measureReason = nil
-                                        builder.setMeasure(id, measureId)
-                                    }
-                                }
-                            }
-                            .accessibilityAddTraits(series.measure == measureId ? .isSelected : [])
-                            .accessibilityIdentifier("series.\(id).measure.\(measureId)")
-                        }
-                    }
-                }
-            }
-            if let measureReason {
-                Text(measureReason)
-                    .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
-                    .foregroundStyle(ApexColor.textMuted)
-                    .accessibilityIdentifier("series.\(id).measure.reason")
             }
         }
     }
@@ -168,5 +209,98 @@ struct SeriesEditorView: View {
             get: { builder.draft.series.first { $0.id == id }?[keyPath: keyPath] ?? "" },
             set: { value in builder.updateSeries(id) { $0[keyPath: keyPath] = value } }
         )
+    }
+}
+
+/// The measure picker: `SearchablePickerSheet`'s shape — sheet, house search
+/// field, grouped rows, a tap selects and dismisses — drawn here rather than
+/// with the primitive because these rows need two things it does not offer:
+///
+/// 1. an identifier keyed by the measure id (`series.s1.measure.tonnage`), the
+///    name the web, the smoke and every other agent already use. The
+///    primitive slugs the *label*, which would rename two thirds of the family
+///    ("Sessions" → `…measure.sessions`, not `session-count`);
+/// 2. the dimming a chosen sport imposes — a measure that cannot mean anything
+///    for the sports already filtered on says so in place of a checkmark,
+///    which is what the chips did and what the web does.
+///
+/// The search filter is the primitive's own static one, so the two narrow
+/// identically. Give `SearchablePickerSheet` an option-identifier hook and a
+/// per-option disabled reason and this collapses into it.
+struct MeasurePickerSheet: View {
+    let seriesId: String
+    let selection: String
+    let dimReason: (String) -> String?
+    let onSelect: (String) -> Void
+
+    @State private var query = ""
+    @Environment(\.dismiss) private var dismiss
+
+    private var groups: [PickerGroup<String>] {
+        AnalyticsCatalog.measureGroups.map { group in
+            PickerGroup(group.label, options: group.ids.map { PickerOption($0, AnalyticsCatalog.measure($0)?.label ?? $0) })
+        }
+    }
+
+    private var visible: [PickerGroup<String>] { SearchablePickerSheet<String>.filter(groups, query: query) }
+
+    var body: some View {
+        VStack(spacing: Spacing.lg) {
+            SheetHeader(title: "Measure") { dismiss() }
+            FormField("Search", text: $query, placeholder: "Search measures", identifier: "series.\(seriesId).measure.search")
+                .padding(.horizontal, Spacing.screen)
+            if visible.isEmpty {
+                EmptyState(eyebrow: "Nothing found", message: "No measure matches that search.", symbol: ApexIcon.search.systemName)
+                    .accessibilityIdentifier("series.\(seriesId).measure.empty")
+            } else {
+                list
+            }
+        }
+        .background(ApexColor.bgPrimary)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var list: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: Spacing.xl) {
+                ForEach(visible) { group in
+                    SettingsSection(group.title, lazy: true) {
+                        ForEach(Array(group.options.enumerated()), id: \.element.id) { index, option in
+                            if index > 0 { SettingsDivider() }
+                            row(option)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, Spacing.screen)
+            .padding(.bottom, Spacing.xl)
+        }
+    }
+
+    private func row(_ option: PickerOption<String>) -> some View {
+        let reason = dimReason(option.value)
+        let isSelected = option.value == selection
+        return Button {
+            guard reason == nil else { return }
+            onSelect(option.value)
+            dismiss()
+        } label: {
+            SettingsRow(option.label, showsChevron: false) {
+                if let reason {
+                    Text(reason)
+                        .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
+                        .foregroundStyle(ApexColor.textMuted)
+                } else if isSelected {
+                    ApexIcon.check.image
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(ApexColor.accent)
+                }
+            }
+            .opacity(reason == nil ? 1 : 0.5)
+        }
+        .buttonStyle(SettingsRowButtonStyle())
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityIdentifier("series.\(seriesId).measure.\(option.value)")
     }
 }

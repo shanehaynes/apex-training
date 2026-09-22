@@ -173,6 +173,29 @@ final class AnalyticsSnapshotTests: XCTestCase {
         snapshot(card(TileChartView(kind: .line, data: two)), named: "two-axes", size: CGSize(width: 393, height: 360))
     }
 
+    /// ux-review §3.7: a line with one plotted bucket drew an empty 250pt
+    /// chart with a 4px arc at the top of it. One number is a number — it
+    /// goes through the stat renderer, at the stat renderer's height.
+    @MainActor
+    func testOnePointLineDrawsAsAStat() async throws {
+        let model = await model()
+        let tile = model.tiles[4]
+        let base = try data(4)
+        let sparse = TileData(
+            buckets: base.buckets,
+            series: [TileData.Series(
+                key: "s1", label: "Avg heart rate", unitKind: "bpm", unit: "bpm", axis: "left",
+                points: base.series[0].points.indices.map { $0 == 1 ? 148 : nil }
+            )],
+            excluded: base.excluded, rangeLabel: base.rangeLabel
+        )
+        snapshot(
+            TileCardView(tile: tile, result: .ok(sparse), isComputing: false, onEdit: {}, onDuplicate: {}, onDelete: {})
+                .padding(Spacing.screen),
+            named: "one-point", size: CGSize(width: 393, height: 300)
+        )
+    }
+
     @MainActor
     func testInvalidTile() async {
         let tile = AnalyticsTile(id: "tile-old", title: "Old tile", spec: nil, draft: nil, layout: TileLayout(x: 0, y: 0, w: 12, h: 2))
@@ -245,6 +268,18 @@ final class AnalyticsSnapshotTests: XCTestCase {
         try? await Task.sleep(for: .milliseconds(50))
         _ = await builder.save()
         snapshot(TileBuilderSheet(builder: builder, onClose: {}), named: "builder-saveproblem")
+    }
+
+    /// ux-review §3.7: the preview is a pinned band under the title, not the
+    /// last thing in the form — the chart is on screen while the user is
+    /// choosing, which is the only reason the sheet exists.
+    @MainActor
+    func testBuilderPreviewIsPinnedAboveTheForm() async {
+        let builder = await builder()
+        builder.setMeasure("s1", "tonnage")
+        for _ in 0..<20 { await Task.yield() }
+        try? await Task.sleep(for: .milliseconds(50))
+        snapshot(TileBuilderSheet(builder: builder, onClose: {}), named: "builder-pinned")
     }
 
     @MainActor
