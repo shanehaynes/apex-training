@@ -324,6 +324,41 @@ showed.
 - The coach's confirmation-card model (the user decides) — the product's thesis; the card
   gets a tint, not a redesign.
 
+## 7. Status (2026-09-21, after the orchestrated implementation)
+
+Ten packages, one PR each, every worker an Opus 5 agent on its own worktree and simulator; the
+decisions are D-037…D-044. "Done" means merged or green and queued for a hand merge past Vercel's
+Hobby deploy cap.
+
+| Finding | Status | PR |
+|---|---|---|
+| §1.1 / §3.2 Schedule chrome, setup card, month dots, grid, B3 | done — first card 68% → 28.5% | #285 |
+| §1.2 / §2 Palette, B5 caret tint, §3.1 sign-in copy | done — web tokens for both clients | #284, #286 |
+| §1.3 / §3.5 Builder pills → menus, disclosure, one Add exercise | done — zero pills above the title | #283, #289 |
+| §3.7 Tile builder, "6 TILES", KPI label, one-point tile | done — preview pinned, three chips | #291 |
+| §3.3 Event sheet block, content-first, B1, B2; day sheet X | done | #288 |
+| §3.4 Tracker icon/colour; running-session affordance | done | #292, #297 |
+| §3.6 Coach empty state, bubble, card date/tint, no-key composer | done (a mid-thread key bar was added so a 402 keeps a CTA) | #292 |
+| §3.8 You root, Training regroup, blocks, library, detail, COROS, connector; §3.10 rows | done | #287 |
+| §3.8 avatar circle | **withdrawn** — the navy is the goat SVG's own disc; 24 avatars carry 24 disc colours | — |
+| §3.9 Onboarding 8 → 4, one indicator, B4 copy | done — Swift-only grouping | #296 |
+| §3.10 setup card wrapping | done | #285 |
+| §4 B6 Pro Max smoke (two bugs) + a third on the 17e | done — toast fixed in the view, two test guards | #290 |
+| §5 library at 69 rows | done | #287 |
+
+Corrections the workers made to this review, kept as written above so the reasoning survives:
+Start stays primary on a completed workout (§3.3); the running timer belongs in the time column,
+not the completion control (§3.4); "Sport appears when Type is cardio" must also show a set value
+(§3.5); `onboarding_dismissed` cannot persist the setup card's close (§3.2); "three progress
+indicators" overstates it — Back/Next is navigation (§3.9); the review undercounted the web's
+hardcoded hexes (§2); "1 session" is wrong for a nutrition tile's one-point case (§3.7).
+
+Follow-ups, none blocking: `SearchablePickerSheet` needs an id hook and a disabled reason;
+`ChatCopy.emptyWithKey` is dead; `#b91c1c` as web text at two `app.css` sites is 3.4:1; the cold
+avatar discs are a web-asset choice; the bash-guard hook resolves a relative or `$VAR`
+`-project` against the shell's cwd (a peer session is fixing it); fleet mode's union proof times
+out when Xcode builds share the Mac; every snapshot suite is to be re-recorded on the iPhone 17.
+
 ## Regenerating the evidence
 
 ```bash

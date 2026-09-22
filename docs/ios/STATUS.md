@@ -23,6 +23,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W11 | Profile, integrations, account | done (#149, #157) | both | on TestFlight build 6; phase41 in prod (2026-09-16); device runs are Shane's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
 | W13 | Release + polish | done (#190, #191, #193, #194) | Mac | App Store gate: Shane fills the console (app-store.md) and adds the three ASC secrets |
+| W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; snapshot re-record on the iPhone 17 and a device run are next |
 
 ## Next up
 0. **The 2026-09-18 committee review is answered in code (2026-09-19).** 36 PRs, #237–#273, one per
@@ -56,6 +57,15 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-21 · UX review + implementation · Mac. One Fable 5.1 orchestrator walked the app
+  (`docs/ios/ux-review.md`, #280), then ten Opus 5 workers in six waves, two at a time, each on
+  its own worktree and simulator: #283 picker primitive, #284 palette, #285 schedule chrome,
+  #287 You/library, #288 event sheet, #289 builder, #290 smoke fixes + toast, #291 tile builder,
+  #292 coach, #296 onboarding, #297 running-session card; #286 (web hexes) from Shane's own
+  session. Also #281 (the guard counted the shell cwd for every command, so no subagent could
+  build) and #282 (main did not compile for iOS since #270 — fleet mode never compiles Swift).
+  Decisions D-037…D-044. Vercel's Hobby deploy cap made the babysitter refuse most PRs; Shane
+  merged by hand.
 - 2026-09-19 · review fleet · Linux. One Fable 5.1 coordinator, 37 Opus 5 lanes, one per open
   issue from the 2026-09-18 committee review (#198–#234, #180); 36 PRs #237–#273, all green.
   Gate: teardown #246, refresh #238, deep link #265, stream `done` #239, unknown event #241,
