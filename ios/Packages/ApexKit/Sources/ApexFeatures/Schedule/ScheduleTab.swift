@@ -14,6 +14,9 @@ public struct ScheduleTab: View {
     private let meals: MealsModel?
     /// The setup card (W13, U32); nil shows none.
     private let onboarding: OnboardingModel?
+    /// The running workout (ux-review §3.4). Comes off `tracker` in the app;
+    /// the parameter is how a snapshot reaches the state without a queue.
+    private let live: LiveSessionStore?
     @State private var sheet: ScheduleSheet?
     @State private var trackerRoute: TrackerRoute?
     /// Set while the event sheet is still dismissing: presenting the cover over
@@ -28,7 +31,7 @@ public struct ScheduleTab: View {
     /// `routes` is the deep-link bus this tab consumes `.tracker` from (W12).
     public init(
         model: ScheduleModel, tracker: TrackerServices? = nil, routes: RouteBus? = nil, coachServices: CoachServices? = nil,
-        meals: MealsModel? = nil, onboarding: OnboardingModel? = nil
+        meals: MealsModel? = nil, onboarding: OnboardingModel? = nil, live: LiveSessionStore? = nil
     ) {
         self.model = model
         self.tracker = tracker
@@ -36,6 +39,7 @@ public struct ScheduleTab: View {
         self.coachServices = coachServices
         self.meals = meals
         self.onboarding = onboarding
+        self.live = live ?? tracker?.live
     }
 
     private var trackerDependencies: TrackerDependencies? {
@@ -223,6 +227,14 @@ public struct ScheduleTab: View {
             ToastBus.shared.post("That workout is not on the schedule any more.", level: .failure)
             return
         }
+        openTracker(route)
+    }
+
+    /// The one door to the cover, whoever knocks: the Live Activity's link, an
+    /// event sheet's Start, a running day card. A sheet still on screen has to
+    /// finish dismissing first — presenting the cover over it is what produces
+    /// "attempt to present while a presentation is in progress".
+    private func openTracker(_ route: TrackerRoute) {
         // Already showing it (the app was in the tracker when the island was tapped).
         if trackerRoute?.id == route.id { return }
         // Another session's tracker is up: leave it — the user is in a workout.
@@ -314,7 +326,8 @@ public struct ScheduleTab: View {
             case .day:
                 DayView(
                     model: model, onOpen: { sheet = .event(id: $0.id) }, onAdd: { sheet = .builder(.create(date: $0)) },
-                    onAddMeal: meals == nil ? nil : { sheet = .mealComposer(.create($0)) }, onboarding: onboarding
+                    onAddMeal: meals == nil ? nil : { sheet = .mealComposer(.create($0)) }, onboarding: onboarding,
+                    live: live, onResume: tracker == nil ? nil : { openTracker(TrackerRoute(event: $0)) }
                 )
             case .month:
                 MonthView(

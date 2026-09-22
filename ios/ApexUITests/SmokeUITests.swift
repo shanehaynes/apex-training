@@ -196,6 +196,50 @@ final class SmokeUITests: XCTestCase {
 
         app.buttons["tracker.summary.back"].tap()
         XCTAssertTrue(app.buttons["event.card.Fixture Push Day"].waitForExistence(timeout: 20))
+        // Finished, so the card goes back to stating a time — the running
+        // timer belongs to a session that is still open (ux-review §3.4).
+        XCTAssertFalse(app.staticTexts["event.card.Fixture Push Day.running"].exists)
+    }
+
+    /// ux-review §3.4: back out of a running workout and the day card says so
+    /// — a live timer instead of the scheduled time — and takes you straight
+    /// back into the tracker. Under the mock a non-peek `bootstrap` starts the
+    /// session seven minutes before the fixed clock, so the card counts from
+    /// 7:00 (ios/CLAUDE.md).
+    func testRunningWorkoutIsVisibleFromTheDayOnFixtures() {
+        let app = launch(mock: true)
+        signIn(app)
+
+        openEvent(app, card: "Fixture Run")
+        let start = app.buttons["schedule.event.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        start.tap()
+
+        let title = app.staticTexts["tracker.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 20))
+        XCTAssertEqual(title.label, "Fixture Run")
+
+        app.buttons["tracker.back"].tap()
+
+        let card = app.buttons["event.card.Fixture Run"]
+        XCTAssertTrue(card.waitForExistence(timeout: 20))
+        let running = app.staticTexts["event.card.Fixture Run.running"]
+        XCTAssertTrue(running.waitForExistence(timeout: 10), "the day card says nothing about the running workout")
+        XCTAssertTrue(app.staticTexts["In progress"].exists)
+        // Seven minutes, not 325 hours: the mock's start is on its fixed clock
+        // and the system ticks this label, so `TrackerHost` moves the one into
+        // the other's frame. A slow runner adds seconds, never minutes.
+        XCTAssertNotNil(
+            running.label.range(of: "^7:[0-1][0-9]$", options: .regularExpression),
+            "the card's timer reads \(running.label), not the session's elapsed"
+        )
+        attach(app, name: "20-day-running")
+
+        // The card's own tap reopens the tracker, not the event sheet.
+        card.tap()
+        XCTAssertTrue(title.waitForExistence(timeout: 20), "the card did not reopen the tracker")
+        XCTAssertFalse(app.buttons["schedule.event.title"].exists, "the event sheet came up instead")
+        attach(app, name: "21-tracker-resumed")
     }
 
     /// The live flavour: a real sign-in against the local stack.
