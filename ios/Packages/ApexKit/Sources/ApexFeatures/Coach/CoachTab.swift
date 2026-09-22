@@ -31,9 +31,16 @@ public struct CoachScreen: View {
         self.model = model
     }
 
+    /// Nothing said yet: the tab shows its own full-screen state rather than an
+    /// empty thread. The bottom bar reads this too, so the key CTA is never on
+    /// screen twice.
+    private var isEmptyState: Bool {
+        model.messages.isEmpty && !model.isStreaming && model.pending == nil
+    }
+
     public var body: some View {
         Group {
-            if model.messages.isEmpty, !model.isStreaming, model.pending == nil {
+            if isEmptyState {
                 emptyState
             } else {
                 CoachThreadView(model: model)
@@ -101,12 +108,16 @@ public struct CoachScreen: View {
         }
     }
 
+    /// One line, no icon: the sparkles said nothing the sentence does not, and
+    /// Coach's Notes lives in the toolbar — where it is still reachable once a
+    /// thread is open — rather than in two places at once (ux-review §3.6).
+    /// The sentence is local because `ChatCopy.emptyWithKey` points at the
+    /// button that has gone ("…below").
+    private static let emptyLine = "Ask anything — the coach can see your plan and your history."
+
     private var emptyState: some View {
         VStack(spacing: Spacing.lg) {
             Spacer()
-            Image(systemName: ApexIcon.sparkles.systemName)
-                .font(.system(size: 28, weight: .light))
-                .foregroundStyle(ApexColor.textMuted)
             if model.needsKey {
                 Text(ChatCopy.emptyWithoutKey)
                     .apexBody()
@@ -116,13 +127,10 @@ public struct CoachScreen: View {
                     .frame(maxWidth: 220)
                     .accessibilityIdentifier("coach.keysetup.add")
             } else {
-                Text(ChatCopy.emptyWithKey)
+                Text(Self.emptyLine)
                     .apexBody()
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 300)
-                ApexButton(ChatCopy.notesTitle, kind: .secondary) { model.notes() }
-                    .frame(maxWidth: 220)
-                    .accessibilityIdentifier("coach.empty.notes")
             }
             Spacer()
             Spacer()
@@ -139,10 +147,33 @@ public struct CoachScreen: View {
             ConfirmationCard(
                 label: pending.action.displayLabel, index: pending.index, total: pending.total,
                 isBusy: model.isExecuting || model.isActionLatched,
+                isDestructive: Self.isDestructive(pending.action.toolName),
                 onConfirm: { model.confirm() }, onCancel: { model.cancel() }
             )
+        } else if model.needsKey {
+            // Nothing to type into until a key exists (ux-review §3.6). On the
+            // empty state the full-screen CTA already says so; mid-thread — a
+            // 402 on a conversation that has turns — this bar is the only way
+            // back to the sheet, and the two never show at once.
+            if !isEmptyState { keyBar }
         } else {
             Composer(model: model)
         }
+    }
+
+    private var keyBar: some View {
+        ApexButton(ChatCopy.addKey) { model.showKeySheet = true }
+            .accessibilityIdentifier("coach.keysetup.add")
+            .padding(.horizontal, Spacing.screen)
+            .padding(.vertical, Spacing.sm)
+            .frame(maxWidth: .infinity)
+            .background(ApexColor.bgPrimary)
+            .overlay(alignment: .top) { Rectangle().fill(ApexColor.borderSubtle).frame(height: 1) }
+    }
+
+    /// The coach's destructive tools are the `delete_*` family
+    /// (`delete_event`, `delete_instance`, `delete_meal`).
+    private static func isDestructive(_ toolName: String) -> Bool {
+        toolName.lowercased().hasPrefix("delete_")
     }
 }

@@ -84,15 +84,29 @@ final class CoachSnapshotTests: XCTestCase {
         snapshot(CoachPreviews.typing(), named: "typing", size: CGSize(width: 200, height: 80))
     }
 
+    /// Nothing said yet (ux-review §3.6): one line, no icon, no second home
+    /// for Coach's Notes — and the composer, because a key is on file.
+    @MainActor
+    func testEmptyState() async {
+        let model = makeCoachModel(CoachTransport.healthy())
+        await model.start()
+        snapshot(screen(model), named: "empty")
+    }
+
     @MainActor
     func testConfirmationCards() async {
         let model = makeCoachModel(CoachTransport.healthy())
         await model.start()
         model.composerText = "skip next week"
         await model.send().value
+        // `chat-stream.ndjson` proposes a `delete_event`, so this is the destructive
+        // card: danger eyebrow, ISO date read back as prose.
         snapshot(screen(model), named: "confirm-card")
         snapshot(CoachPreviews.card(label: "Create: Leg Day — Rebuild Phase 1 · 2026-08-06 17:30", index: 2, total: 3), named: "confirm-card-2-of-3", size: CGSize(width: 393, height: 240))
-        snapshot(CoachPreviews.card(label: "Delete: Fixture Push Day · 2026-09-29 (this instance)", index: 1, total: 1, isBusy: true), named: "confirm-card-busy", size: CGSize(width: 393, height: 240))
+        snapshot(
+            CoachPreviews.card(label: "Delete: Fixture Push Day · 2026-09-29 (this instance)", index: 1, total: 1, isBusy: true, isDestructive: true),
+            named: "confirm-card-busy", size: CGSize(width: 393, height: 240)
+        )
     }
 
     @MainActor

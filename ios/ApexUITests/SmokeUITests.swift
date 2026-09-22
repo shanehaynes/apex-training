@@ -232,7 +232,7 @@ final class SmokeUITests: XCTestCase {
         // The card replaces the composer once the stream ends; the label is the server's.
         let card = app.otherElements["coach.card"]
         tapUntil(app.buttons["coach.send"], shows: card)
-        XCTAssertEqual(app.staticTexts["coach.card.label"].label, "Delete: Fixture Push Day · 2026-09-29 (this instance)")
+        XCTAssertEqual(app.staticTexts["coach.card.label"].label, "Delete: Fixture Push Day · Tue, Sep 29 (this instance)")
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Clearing it'")).firstMatch.exists)
         XCTAssertFalse(app.textFields["coach.composer"].exists)
         attach(app, name: "12-coach-card")
@@ -262,7 +262,8 @@ final class SmokeUITests: XCTestCase {
 
         let add = app.buttons["coach.keysetup.add"]
         XCTAssertTrue(add.waitForExistence(timeout: 10))
-        XCTAssertFalse(app.textFields["coach.composer"].isEnabled)
+        // No key, no composer at all — the full-screen CTA is the only move.
+        XCTAssertFalse(app.textFields["coach.composer"].exists)
         attach(app, name: "15-coach-key-setup")
 
         add.tap()
