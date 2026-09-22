@@ -5,7 +5,8 @@ import SwiftUI
 
 /// `StreamCharts.tsx` in Swift Charts: heart rate, the GPS route as an
 /// outline (no tile server, coordinates never leave the app), elevation as an
-/// area. One mark colour; min/max gridlines only; drag to scrub (U14).
+/// area. One mark colour; min/max gridlines only; tap to pin a reading (U14,
+/// D-029 — ux-review B2: a drag scrub here ate the sheet's own scroll).
 struct StreamChartsView: View {
     let record: ActivityStreamRecord
 
@@ -84,22 +85,34 @@ struct TimeChart: View {
                 }
             }
             .chartYScale(domain: minValue...(maxValue == minValue ? maxValue + 1 : maxValue))
+            // B1: an `AreaMark` whose fill runs to the y=0 baseline paints
+            // outside the plot rect — ~55pt below this 96pt chart, over the
+            // difficulty row under it. The plot clips its own marks; the
+            // outer `.clipped()` holds the axis furniture to the frame too.
+            .chartPlotStyle { plot in plot.clipped() }
+            // B2: a tap pins the sample under the finger, the same sample (or
+            // a tap past the plot) clears it — the analytics tiles' rule
+            // (D-029). `DragGesture(minimumDistance: 0)` won every vertical
+            // drag here, so at the medium detent, where the chart is most of
+            // the sheet, a swipe neither scrolled nor changed the detent.
             .chartOverlay { proxy in
                 GeometryReader { geometry in
                     Rectangle().fill(.clear).contentShape(.rect)
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
-                                .onChanged { drag in
-                                    guard let plot = proxy.plotFrame else { return }
-                                    let x = drag.location.x - geometry[plot].origin.x
-                                    guard let seconds: Double = proxy.value(atX: x) else { return }
-                                    scrub = points.min { abs($0.seconds - seconds) < abs($1.seconds - seconds) }
-                                }
-                                .onEnded { _ in scrub = nil }
-                        )
+                        .onTapGesture { location in
+                            guard let plot = proxy.plotFrame else { return }
+                            let x = location.x - geometry[plot].origin.x
+                            let pinned: Point? = (proxy.value(atX: x) as Double?).flatMap { seconds in
+                                points.min { abs($0.seconds - seconds) < abs($1.seconds - seconds) }
+                            }
+                            withAnimation(.easeOut(duration: 0.1)) {
+                                scrub = (pinned == nil || pinned?.id == scrub?.id) ? nil : pinned
+                            }
+                        }
                 }
             }
             .frame(height: 96)
+            .clipped()
+            .animation(nil, value: scrub?.id)
             .accessibilityLabel("\(title): \(Int(minValue))–\(Int(maxValue)) \(unit) over \(TimeLabel.elapsed(seconds: points.last?.seconds ?? 0))")
         }
     }

@@ -7,6 +7,11 @@ import SwiftUI
 /// difficulty, Edit exercises, Edit workout, Delete (this day / the series).
 /// Renders from the model by id, never from a copy, so a completion or a
 /// realtime edit shows while the sheet is up.
+///
+/// ux-review §3.3: content first, actions in a bottom bar — Start Workout is
+/// the one primary, everything else lives in its menu — and the metadata is
+/// one Planned · Actual block rather than 13 icon+value pairs that showed the
+/// plan and the measured actual side by side without saying which was which.
 public struct EventSheet: View {
     let model: ScheduleModel
     let eventId: String
@@ -116,12 +121,11 @@ private struct EventSheetContent: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.lg) {
                     header
-                    metaStrip
+                    whenLine
                     if isEditingSchedule { scheduleEditor }
+                    PlannedActualBlock(event: event, record: streams)
                     if let streams { SyncMetricsView(record: streams) }
                     difficulty
-                    actions
-                    editActions
                     if let description = base.description, !description.isEmpty {
                         Text(description).apexBody()
                     }
@@ -129,13 +133,17 @@ private struct EventSheetContent: View {
                     if let tags = base.tags, !tags.isEmpty {
                         FlowTags(tags: tags)
                     }
-                    danger
                 }
                 .padding(.horizontal, Spacing.screen)
                 .padding(.top, Spacing.xl)
-                .padding(.bottom, Spacing.xxl)
+                .padding(.bottom, Spacing.xl)
             }
         }
+        // Before the inset, not after: an identifier applied over a
+        // `safeAreaInset` is handed to every element inside it, which cost the
+        // bar's own identifiers (Start Workout came back as `schedule.event`).
+        .accessibilityIdentifier("schedule.event")
+        .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
         .background(ApexColor.bgSurface)
         .overlay(alignment: .topTrailing) {
             Button(action: onClose) {
@@ -154,14 +162,24 @@ private struct EventSheetContent: View {
             // Opening the sheet is intent: make sure this workout can start offline.
             if onStart != nil { await model.prefetchTracker(for: event) }
         }
-        .accessibilityIdentifier("schedule.event")
     }
 
     private var header: some View {
         HStack(alignment: .top, spacing: Spacing.md) {
             RoundedRectangle(cornerRadius: 2).fill(palette.solid).frame(width: 4)
             VStack(alignment: .leading, spacing: Spacing.sm) {
-                WorkoutTypeBadge(rawType: event.type.rawValue)
+                HStack(spacing: Spacing.sm) {
+                    WorkoutTypeBadge(rawType: event.type.rawValue)
+                    // The completion used to be readable only off a button
+                    // label ("Completed"); with the control in the menu the
+                    // state has to be stated where the state belongs.
+                    if event.isCompleted {
+                        Label("Completed", systemImage: ApexIcon.checkCircle.systemName)
+                            .font(.apex(.display, size: TypeScale.micro, weight: .semibold, relativeTo: .caption2))
+                            .foregroundStyle(ApexPalette.positive)
+                            .accessibilityIdentifier("schedule.event.completed")
+                    }
+                }
                 if isEditingTitle {
                     TextField("", text: $titleDraft)
                         .apexTitle()
@@ -192,35 +210,41 @@ private struct EventSheetContent: View {
         }
     }
 
-    private var metaStrip: some View {
-        FlowLayout(spacing: Spacing.md) {
+    /// Where and when, as one line of plain text above the numbers — no icons
+    /// (ux-review §3.3). The date and the time still open the schedule editor.
+    private var whenLine: some View {
+        FlowLayout(spacing: Spacing.xs) {
             Button(action: beginScheduleEdit) {
-                meta(.calendar, "\(MonthNames.weekdayLong[event.day.weekday - 1]), \(MonthNames.short[event.day.month - 1]) \(event.day.day)")
+                lineText("\(MonthNames.weekdayLong[event.day.weekday - 1]), \(MonthNames.short[event.day.month - 1]) \(event.day.day)")
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("schedule.event.date")
             .accessibilityHint("Tap to move")
+            separator
             Button(action: beginScheduleEdit) {
-                meta(.clock, TimeLabel.range(start: event.startTime, end: event.endTime) ?? "Add a time")
+                lineText(TimeLabel.range(start: event.startTime, end: event.endTime) ?? "Add a time")
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("schedule.event.time")
-            if let minutes = event.estimatedDuration { meta(.clock, TimeLabel.duration(minutes: minutes)) }
-            if let location = base.location, !location.isEmpty { meta(.mapPin, location) }
-            if let distance = base.cardioTargets?.distance, !distance.isEmpty { meta(.route, distance) }
-            if let gain = base.cardioTargets?.elevationGain, !gain.isEmpty { meta(.trendingUp, gain) }
-            if let hr = base.cardioTargets?.avgHeartRate { meta(.heartPulse, "\(Int(hr)) bpm") }
-            if let grade = base.climbingTargets?.maxGrade, !grade.isEmpty { meta(.mountain, "Max \(grade)") }
-            if let pitches = base.climbingTargets?.totalPitches { meta(.layers, "\(pitches) pitch\(pitches == 1 ? "" : "es")") }
+            if let location = base.location, !location.isEmpty {
+                separator
+                lineText(location)
+            }
         }
     }
 
-    private func meta(_ icon: ApexIcon, _ text: String) -> some View {
-        HStack(spacing: Spacing.xs) {
-            icon.image.font(.system(size: 12))
-            Text(text).font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
-        }
-        .foregroundStyle(ApexColor.textSecondary)
+    private func lineText(_ text: String) -> some View {
+        Text(text)
+            .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
+            .foregroundStyle(ApexColor.textSecondary)
+            .contentShape(.rect)
+    }
+
+    private var separator: some View {
+        Text("·")
+            .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
+            .foregroundStyle(ApexColor.textMuted)
+            .accessibilityHidden(true)
     }
 
     /// The dots are 44pt targets (U1): tapping one sets the difficulty.
@@ -252,43 +276,127 @@ private struct EventSheetContent: View {
         .accessibilityElement(children: .contain)
     }
 
-    /// Start Workout is offered for every event, like the web's `WorkoutModal`;
-    /// a completed one reopens its editable session.
-    private var actions: some View {
-        HStack(spacing: Spacing.sm) {
-            if let onStart {
-                ApexButton(event.isCompleted ? "View / Edit Workout" : "Start Workout", kind: .secondary) {
-                    onStart(event)
+    /// One primary and one menu, in a `safeAreaInset` bar the content scrolls
+    /// under (ux-review §3.3). The delete confirmation takes the bar over
+    /// rather than opening a second surface, so the day/series choice is
+    /// where the tap that asked for it was.
+    private var bottomBar: some View {
+        VStack(spacing: 0) {
+            if confirmDelete {
+                deleteConfirm
+            } else {
+                HStack(spacing: Spacing.sm) {
+                    if let onStart {
+                        ApexButton(event.isCompleted ? "View / Edit Workout" : "Start Workout") {
+                            onStart(event)
+                        }
+                        .accessibilityIdentifier("schedule.event.start")
+                    }
+                    moreMenu(compact: onStart != nil)
                 }
-                .accessibilityIdentifier("schedule.event.start")
             }
-            ApexButton(event.isCompleted ? "Completed" : "Mark as Complete", kind: event.isCompleted ? .secondary : .primary, isLoading: isToggling) {
+        }
+        .padding(.horizontal, Spacing.screen)
+        .padding(.vertical, Spacing.md)
+        .frame(maxWidth: .infinity)
+        .background(ApexColor.bgSurface)
+        .overlay(alignment: .top) { Rectangle().fill(ApexColor.borderSubtle).frame(height: 1) }
+    }
+
+    /// Everything that is not the primary: completion, both editors, delete.
+    /// Each keeps the identifier it had as a button — the smoke opens the menu
+    /// and taps the same name.
+    private func moreMenu(compact: Bool) -> some View {
+        Menu {
+            Button {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 isToggling = true
                 Task {
                     await model.toggleCompletion(event)
                     isToggling = false
                 }
+            } label: {
+                Label(event.isCompleted ? "Mark incomplete" : "Mark as Complete",
+                      systemImage: event.isCompleted ? ApexIcon.circle.systemName : ApexIcon.check.systemName)
             }
+            .disabled(isToggling)
             .accessibilityIdentifier("schedule.event.complete")
+
+            if let onEditExercises {
+                Button {
+                    onEditExercises(event)
+                } label: {
+                    Label("Edit exercises", systemImage: ApexIcon.dumbbell.systemName)
+                }
+                .accessibilityIdentifier("schedule.event.edit.exercises")
+            }
+            if let onEditWorkout {
+                Button {
+                    onEditWorkout(event)
+                } label: {
+                    Label("Edit workout", systemImage: ApexIcon.edit.systemName)
+                }
+                .accessibilityIdentifier("schedule.event.edit.workout")
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                Motion.animate { confirmDelete = true }
+            } label: {
+                Label("Delete workout", systemImage: ApexIcon.trash.systemName)
+            }
+            .accessibilityIdentifier("schedule.event.delete")
+        } label: {
+            Group {
+                if compact {
+                    ApexIcon.kebab.image.font(.system(size: 17, weight: .medium))
+                } else {
+                    Text("More").font(.apex(.display, size: TypeScale.sm, weight: .semibold, relativeTo: .body))
+                }
+            }
+            .foregroundStyle(ApexColor.textPrimary)
+            .frame(maxWidth: compact ? CGFloat(56) : .infinity, minHeight: 44)
+            .background(ApexColor.bgSurface, in: .rect(cornerRadius: Radius.md))
+            .overlay(RoundedRectangle(cornerRadius: Radius.md).strokeBorder(ApexColor.borderSubtle, lineWidth: 1))
+            .contentShape(.rect)
+            // The label is the element the tree sees, so it carries the name:
+            // left to itself the glyph reported as an `Image` called `ellipsis`.
+            .accessibilityElement(children: .ignore)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel("More")
+            .accessibilityIdentifier("schedule.event.more")
         }
+        .frame(maxWidth: compact ? CGFloat(56) : .infinity)
     }
 
-    /// `WorkoutModal`'s Edit exercises / Edit workout.
-    @ViewBuilder
-    private var editActions: some View {
-        if onEditExercises != nil || onEditWorkout != nil {
+    /// `WorkoutModal`'s danger zone, with the web's copy for a one-off and for
+    /// a series.
+    private var deleteConfirm: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text(event.isRecurring
+                 ? "Delete this day only — anything logged for it goes too — or end the whole series, which leaves past sessions in your history."
+                 : "Delete this workout? Everything logged for it — sets, reps, weights — goes with it.")
+                .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
+                .foregroundStyle(ApexColor.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: Spacing.sm) {
-                if let onEditExercises {
-                    ApexButton("Edit exercises", kind: .secondary) { onEditExercises(event) }
-                        .accessibilityIdentifier("schedule.event.edit.exercises")
+                ApexButton("Keep", kind: .secondary) { Motion.animate { confirmDelete = false } }
+                    .disabled(isDeleting)
+                ApexButton(event.isRecurring ? "This day only" : "Delete workout", kind: .destructive, isLoading: isDeleting) {
+                    Task { await remove(scope: .occurrence) }
                 }
-                if let onEditWorkout {
-                    ApexButton("Edit workout", kind: .secondary) { onEditWorkout(event) }
-                        .accessibilityIdentifier("schedule.event.edit.workout")
+                .accessibilityIdentifier("schedule.event.delete.confirm")
+                if event.isRecurring {
+                    ApexButton("Whole series", kind: .destructive, isLoading: isDeleting) {
+                        Task { await remove(scope: .series) }
+                    }
+                    .accessibilityIdentifier("schedule.event.delete.series")
                 }
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("schedule.event.delete.panel")
     }
 
     /// The day and times through native pickers (U9); Done sends one
@@ -322,53 +430,6 @@ private struct EventSheetContent: View {
             endDraft = min(new + (end - old), 23 * 60 + 59)
         }
         .onChange(of: endDraft) { scheduleProblem = nil }
-    }
-
-    /// `WorkoutModal`'s danger zone: a delete link that unfolds into the
-    /// confirm, with the web's copy for a one-off and for a series.
-    @ViewBuilder
-    private var danger: some View {
-        if confirmDelete {
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                Text(event.isRecurring
-                     ? "Delete this day only — anything logged for it goes too — or end the whole series, which leaves past sessions in your history."
-                     : "Delete this workout? Everything logged for it — sets, reps, weights — goes with it.")
-                    .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
-                    .foregroundStyle(ApexColor.textPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: Spacing.sm) {
-                    ApexButton("Keep", kind: .secondary) { confirmDelete = false }
-                        .disabled(isDeleting)
-                    ApexButton(event.isRecurring ? "This day only" : "Delete workout", kind: .destructive, isLoading: isDeleting) {
-                        Task { await remove(scope: .occurrence) }
-                    }
-                    .accessibilityIdentifier("schedule.event.delete.confirm")
-                    if event.isRecurring {
-                        ApexButton("Whole series", kind: .destructive, isLoading: isDeleting) {
-                            Task { await remove(scope: .series) }
-                        }
-                        .accessibilityIdentifier("schedule.event.delete.series")
-                    }
-                }
-            }
-            .padding(Spacing.md)
-            .background(ApexPalette.destructive.opacity(0.12), in: .rect(cornerRadius: Radius.lg))
-            .overlay(RoundedRectangle(cornerRadius: Radius.lg).strokeBorder(ApexPalette.danger.opacity(0.4), lineWidth: 1))
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("schedule.event.delete.panel")
-        } else {
-            Button {
-                Motion.animate { confirmDelete = true }
-            } label: {
-                Label("Delete workout", systemImage: ApexIcon.trash.systemName)
-                    .font(.apex(.display, size: TypeScale.xs, weight: .medium, relativeTo: .caption))
-                    .foregroundStyle(ApexPalette.dangerText)
-                    .frame(minHeight: 44)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("schedule.event.delete")
-        }
     }
 
     private enum DeleteScope { case occurrence, series }
@@ -442,7 +503,7 @@ private struct EventSheetContent: View {
                         }
                         VStack(alignment: .leading, spacing: Spacing.sm) {
                             ForEach(group.exercises, id: \.id) { exercise in
-                                ExerciseRow(exercise: exercise, accent: palette.border)
+                                ExerciseRow(exercise: exercise)
                             }
                         }
                     }
@@ -474,7 +535,6 @@ enum SupersetGrouping {
 /// `ExerciseCard.tsx`: name, the prescription line, notes, muscle tags.
 struct ExerciseRow: View {
     let exercise: Exercise
-    let accent: Color
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -482,9 +542,11 @@ struct ExerciseRow: View {
                 .font(.apex(.display, size: TypeScale.sm, weight: .semibold, relativeTo: .callout))
                 .foregroundStyle(ApexColor.textPrimary)
             if let meta = metaLine {
+                // The prescription is text, not a signal: it was the workout
+                // type's colour, which meant nothing here (ux-review §3.3).
                 Text(meta)
                     .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
-                    .foregroundStyle(accent)
+                    .foregroundStyle(ApexColor.textSecondary)
             }
             if let planned = exercise.plannedSets, planned.count > 1 {
                 Text(planned.map { set in
@@ -528,45 +590,110 @@ struct ExerciseRow: View {
     }
 }
 
-/// `SyncMetrics.tsx`: the provider badge, the measured numbers, the charts.
-struct SyncMetricsView: View {
-    let record: ActivityStreamRecord
+/// The plan and what actually happened, in one block (ux-review §3.3). Before
+/// this the sheet showed distance, elevation and heart rate twice — once from
+/// the plan, once from the provider — with nothing saying which was which.
+///
+/// With no synced record there is nothing to compare, so the ACTUAL column is
+/// dropped rather than filled with dashes.
+struct PlannedActualBlock: View {
+    let event: ScheduleEvent
+    let record: ActivityStreamRecord?
+
+    struct Row: Identifiable {
+        let label: String
+        let planned: String?
+        let actual: String?
+        var id: String { label }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            FlowLayout(spacing: Spacing.md) {
-                HStack(spacing: Spacing.xs) {
-                    ApexIcon.watch.image.font(.system(size: 11))
-                    Text("Synced from \(SyncMetricsFormatter.providerLabel(record.provider))")
-                        .font(.apex(.display, size: TypeScale.micro, weight: .semibold, relativeTo: .caption2))
+        let rows = Self.rows(event: event, record: record)
+        if !rows.isEmpty {
+            Grid(alignment: .leading, horizontalSpacing: Spacing.lg, verticalSpacing: Spacing.sm) {
+                GridRow {
+                    Color.clear.frame(width: 0, height: 0)
+                    Text("Planned").apexFieldLabel()
+                    if record != nil { actualHeader }
                 }
-                .foregroundStyle(ApexPalette.streamMark)
-                .padding(.horizontal, Spacing.sm)
-                .padding(.vertical, 3)
-                .overlay(Capsule().strokeBorder(ApexPalette.streamMark.opacity(0.5), lineWidth: 1))
-                .accessibilityIdentifier("schedule.event.synced")
-
-                ForEach(Array(SyncMetricsFormatter.items(record.summary).enumerated()), id: \.offset) { _, item in
-                    HStack(spacing: Spacing.xs) {
-                        icon(for: item.kind).image.font(.system(size: 12))
-                        Text(item.text).font(.apex(.mono, size: TypeScale.xs, weight: .medium, relativeTo: .caption))
+                ForEach(rows) { row in
+                    GridRow {
+                        Text(row.label)
+                            .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
+                            .foregroundStyle(ApexColor.textMuted)
+                        value(row.planned)
+                        if record != nil { value(row.actual) }
                     }
-                    .foregroundStyle(ApexColor.textPrimary)
                 }
             }
-            if record.hrSamples.count > 1 || record.gpsSamples.count > 1 {
-                StreamChartsView(record: record)
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("schedule.event.metrics")
         }
     }
 
-    private func icon(for kind: SyncMetricItem.Kind) -> ApexIcon {
-        switch kind {
-        case .heartRate: .heartPulse
-        case .distance: .route
-        case .elevation: .trendingUp
-        case .calories: .flame
-        case .load: .watch
+    /// The old orange "Synced from COROS" pill, demoted to what it always was:
+    /// a caption saying where the right-hand column came from.
+    private var actualHeader: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text("Actual").apexFieldLabel()
+            Text("Synced from \(SyncMetricsFormatter.providerLabel(record?.provider ?? ""))")
+                .font(.apex(.display, size: TypeScale.micro, relativeTo: .caption2))
+                .foregroundStyle(ApexColor.textMuted)
+                .accessibilityIdentifier("schedule.event.synced")
+        }
+    }
+
+    private func value(_ text: String?) -> some View {
+        Text(text ?? "—")
+            .font(.apex(.mono, size: TypeScale.sm, relativeTo: .callout))
+            .monospacedDigit()
+            .foregroundStyle(text == nil ? ApexColor.textMuted : ApexColor.textPrimary)
+    }
+
+    /// One row per measure either side has something to say about.
+    static func rows(event: ScheduleEvent, record: ActivityStreamRecord?) -> [Row] {
+        let base = event.base
+        let measured = record.map { SyncMetricsFormatter.items($0.summary) } ?? []
+        func actual(_ kind: SyncMetricItem.Kind) -> String? { measured.first { $0.kind == kind }?.text }
+
+        var rows: [Row] = []
+        func add(_ label: String, _ planned: String?, _ actual: String?) {
+            guard planned != nil || actual != nil else { return }
+            rows.append(Row(label: label, planned: planned, actual: actual))
+        }
+
+        add("Duration", base.estimatedDuration.map { TimeLabel.duration(minutes: $0) }, record.flatMap(Self.elapsed))
+        add("Distance", base.cardioTargets?.distance.flatMap { $0.isEmpty ? nil : $0 }, actual(.distance))
+        add("Elevation", base.cardioTargets?.elevationGain.flatMap { $0.isEmpty ? nil : $0 }, actual(.elevation))
+        add("Heart rate", base.cardioTargets?.avgHeartRate.map { "\(Int($0)) bpm" }, actual(.heartRate))
+        add("Calories", nil, actual(.calories))
+        // The formatter prefixes the load with its own name for the old badge
+        // strip; in a labelled row that reads "Load  Load 88".
+        add("Load", nil, actual(.load).map { $0.replacingOccurrences(of: "Load ", with: "") })
+        add("Max grade", base.climbingTargets?.maxGrade.flatMap { $0.isEmpty ? nil : $0 }, nil)
+        add("Pitches", base.climbingTargets?.totalPitches.map { "\($0)" }, nil)
+        return rows
+    }
+
+    /// The measured duration is the last sample's clock, rounded to the minute
+    /// so it reads beside a planned "45m" — the summary row carries no time.
+    private static func elapsed(_ record: ActivityStreamRecord) -> String? {
+        let seconds = max(record.hrSamples.last?.seconds ?? 0, record.gpsSamples.last?.seconds ?? 0)
+        guard seconds > 0 else { return nil }
+        return TimeLabel.duration(minutes: max(1, Int((seconds / 60).rounded())))
+    }
+}
+
+/// `SyncMetrics.tsx`'s charts. The numbers it used to carry moved into
+/// `PlannedActualBlock`, beside the plan they are meant to be read against.
+struct SyncMetricsView: View {
+    let record: ActivityStreamRecord
+
+    @ViewBuilder
+    var body: some View {
+        if record.hrSamples.count > 1 || record.gpsSamples.count > 1 {
+            StreamChartsView(record: record)
         }
     }
 }
