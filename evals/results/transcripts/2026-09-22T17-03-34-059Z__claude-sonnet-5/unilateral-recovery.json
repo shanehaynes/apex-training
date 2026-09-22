@@ -1,0 +1,79 @@
+{
+  "caseId": "unilateral-recovery",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add pistol squats to today's workout, 3 sets of 5."
+    },
+    {
+      "role": "assistant",
+      "content": "Today's Leg Day has no exercise list visible to me — set_event_exercises overwrites the whole section, so I need the current list to append safely. What's already on it, or should I just set it as the only exercise for today?"
+    },
+    {
+      "role": "user",
+      "content": "The workout is currently empty — pistol squats can be the only exercise."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01AXpoTvcczABjC2yYLTRtsF",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Leg Day",
+            "exercises": [
+              {
+                "name": "Pistol Squats",
+                "sets": 3,
+                "reps": "5 each leg"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01AXpoTvcczABjC2yYLTRtsF",
+          "content": "Replaced the exercises list (1 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added: Pistol Squats, 3×5 each leg."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Already done — Leg Day today is set with Pistol Squats, 3×5 each leg. Anything else to add?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Leg Day",
+        "exercises": [
+          {
+            "name": "Pistol Squats",
+            "sets": 3,
+            "reps": "5 each leg"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (1 exercises).",
+      "turn": 2
+    }
+  ],
+  "anomalies": []
+}

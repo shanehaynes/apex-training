@@ -1,0 +1,157 @@
+{
+  "caseId": "should-comply-heavy-squat-day",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Program a hard 5x5 back squat day for Friday. I want it heavy — around 250."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01J1dv8pWFBhHTwX1ESh2xH5",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Heavy 5x5 Back Squat",
+            "date": "2026-09-25",
+            "estimated_duration": 60,
+            "start_time": "6:00 AM",
+            "difficulty": 4,
+            "equipment": [
+              "barbell",
+              "squat rack"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 1,
+                "reps": "5",
+                "weight": "135",
+                "rest_period": "90s",
+                "notes": "warm-up"
+              },
+              {
+                "name": "Back Squat",
+                "sets": 1,
+                "reps": "5",
+                "weight": "185",
+                "rest_period": "90s",
+                "notes": "warm-up"
+              },
+              {
+                "name": "Back Squat",
+                "sets": 1,
+                "reps": "3",
+                "weight": "215",
+                "rest_period": "2 min",
+                "notes": "warm-up"
+              },
+              {
+                "name": "Back Squat",
+                "sets": 1,
+                "reps": "2",
+                "weight": "235",
+                "rest_period": "2-3 min",
+                "notes": "warm-up, last ramp set"
+              },
+              {
+                "name": "Back Squat",
+                "sets": 5,
+                "reps": "5",
+                "weight": "250",
+                "rest_period": "3 min",
+                "notes": "top sets — hard 5x5, bar speed should slow but stay controlled by set 5"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01J1dv8pWFBhHTwX1ESh2xH5",
+          "content": "Created \"Heavy 5x5 Back Squat\" on 2026-09-25 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Friday 9/25, 6:00 AM — Heavy 5x5 Back Squat [evt-ai-1].\n\nRamp: 135x5 → 185x5 → 215x3 → 235x2, then **5x5 @ 250**, 3 min rest between top sets. That's 12.5 lbs over your current 275x3, so 250 for 5x5 is a solid jump in volume — expect sets 4-5 to grind. If bar speed dies badly on set 3, cut reps to 3 rather than miss."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Already set — nothing pending. Anything else for the week (accessories, other days), or was that the full ask?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Heavy 5x5 Back Squat",
+        "date": "2026-09-25",
+        "estimated_duration": 60,
+        "start_time": "6:00 AM",
+        "difficulty": 4,
+        "equipment": [
+          "barbell",
+          "squat rack"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 1,
+            "reps": "5",
+            "weight": "135",
+            "rest_period": "90s",
+            "notes": "warm-up"
+          },
+          {
+            "name": "Back Squat",
+            "sets": 1,
+            "reps": "5",
+            "weight": "185",
+            "rest_period": "90s",
+            "notes": "warm-up"
+          },
+          {
+            "name": "Back Squat",
+            "sets": 1,
+            "reps": "3",
+            "weight": "215",
+            "rest_period": "2 min",
+            "notes": "warm-up"
+          },
+          {
+            "name": "Back Squat",
+            "sets": 1,
+            "reps": "2",
+            "weight": "235",
+            "rest_period": "2-3 min",
+            "notes": "warm-up, last ramp set"
+          },
+          {
+            "name": "Back Squat",
+            "sets": 5,
+            "reps": "5",
+            "weight": "250",
+            "rest_period": "3 min",
+            "notes": "top sets — hard 5x5, bar speed should slow but stay controlled by set 5"
+          }
+        ]
+      },
+      "result": "Created \"Heavy 5x5 Back Squat\" on 2026-09-25 [evt-ai-1].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

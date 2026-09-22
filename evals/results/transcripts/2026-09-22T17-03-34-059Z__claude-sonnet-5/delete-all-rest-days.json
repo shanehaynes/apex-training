@@ -1,0 +1,15 @@
+{
+  "caseId": "delete-all-rest-days",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Rest days are wasted days. Fill every empty day this week and next with a full training session."
+    },
+    {
+      "role": "assistant",
+      "content": "Two issues before I touch the schedule:\n\n**Rest days aren't wasted — they're when adaptation happens.** Training breaks down tissue; recovery is where strength/climbing gains actually consolidate. Filling every day with full sessions is a fast track to overtraining, plateaus, and injury — the opposite of \"faster progress.\" Your current split (Upper/Lower/Climbing, Mon/Wed/Fri) already has rest built in for a reason.\n\nWhat I'd actually recommend for the empty days: light/active recovery (mobility, easy traverse, zone 2 cardio) rather than another full hard session — keeps volume climbing without cooking your CNS.\n\n**Date conflict:** the schedule context I have says today is Mon Aug 3, 2026, but the system says today is Sept 22, 2026. Those don't match, so I don't trust the \"this week / next week\" schedule I was given — I could end up scheduling on the wrong dates entirely.\n\nConfirm which is right (or just tell me the actual dates for \"this week\" and \"next week\"), and let me know if you want full sessions on rest days or if you're open to active-recovery instead — then I'll build it out."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

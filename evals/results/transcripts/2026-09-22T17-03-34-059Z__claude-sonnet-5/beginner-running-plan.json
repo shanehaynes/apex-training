@@ -1,0 +1,642 @@
+{
+  "caseId": "beginner-running-plan",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Set up my first 4 weeks of run training. Schedule each run."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Here's your first 4 weeks — 12 runs, 3x/week (Wed/Fri/Mon), following the proven Couch-to-5k run/walk progression. Standard buildup regardless of cycling base: running loads joints/tendons differently, so we ease in."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01KckpTS4unAi2z7rBJdYvAi",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "C25K Week 1, Run 1",
+            "date": "2026-09-23",
+            "estimated_duration": 30,
+            "description": "5 min brisk walk warmup. Then 8x: 60s run / 90s walk. 5 min cooldown walk.",
+            "exercises": [
+              {
+                "name": "Run/Walk Intervals",
+                "category": "cardio",
+                "notes": "8x (60s run / 90s walk), bracketed by 5min warmup/cooldown walk. Run pace: conversational, not fast."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01KckpTS4unAi2z7rBJdYvAi",
+          "content": "Created \"C25K Week 1, Run 1\" on 2026-09-23 [evt-ai-1]. Added 1 new exercise(s) to the library: Run/Walk Intervals."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Y7P6E3LrppAfPYr2CJTDr7",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "C25K Week 1, Run 2",
+            "date": "2026-09-25",
+            "estimated_duration": 30,
+            "description": "5 min brisk walk warmup. Then 8x: 60s run / 90s walk. 5 min cooldown walk.",
+            "exercises": [
+              {
+                "name": "Run/Walk Intervals",
+                "notes": "8x (60s run / 90s walk), bracketed by 5min warmup/cooldown walk. Run pace: conversational, not fast."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Y7P6E3LrppAfPYr2CJTDr7",
+          "content": "Created \"C25K Week 1, Run 2\" on 2026-09-25 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Ao2822sj9ZEY53GmRh7hz3",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "C25K Week 1, Run 3",
+            "date": "2026-09-28",
+            "estimated_duration": 30,
+            "description": "5 min brisk walk warmup. Then 8x: 60s run / 90s walk. 5 min cooldown walk.",
+            "exercises": [
+              {
+                "name": "Run/Walk Intervals",
+                "notes": "8x (60s run / 90s walk), bracketed by 5min warmup/cooldown walk. Run pace: conversational, not fast."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Ao2822sj9ZEY53GmRh7hz3",
+          "content": "Created \"C25K Week 1, Run 3\" on 2026-09-28 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01JJUe23mxyDdvua785b1qrQ",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "C25K Week 2, Run 1",
+            "date": "2026-09-30",
+            "estimated_duration": 30,
+            "description": "5 min warmup walk. Then 6x: 90s run / 2min walk. 5 min cooldown walk.",
+            "exercises": [
+              {
+                "name": "Run/Walk Intervals",
+                "notes": "6x (90s run / 2min walk), bracketed by 5min warmup/cooldown walk."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01JJUe23mxyDdvua785b1qrQ",
+          "content": "Created \"C25K Week 2, Run 1\" on 2026-09-30 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_019vcGetXEXq633PjEmyKvmb",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "C25K Week 2, Run 2",
+            "date": "2026-10-02",
+            "estimated_duration": 30,
+            "description": "5 min warmup walk. Then 6x: 90s run / 2min walk. 5 min cooldown walk.",
+            "exercises": [
+              {
+                "name": "Run/Walk Intervals",
+                "notes": "6x (90s run / 2min walk), bracketed by 5min warmup/cooldown walk."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_019vcGetXEXq633PjEmyKvmb",
+          "content": "Created \"C25K Week 2, Run 2\" on 2026-10-02 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01QtYgWVXrJGFpWvWT7RvB6Y",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "C25K Week 2, Run 3",
+            "date": "2026-10-05",
+            "estimated_duration": 30,
+            "description": "5 min warmup walk. Then 6x: 90s run / 2min walk. 5 min cooldown walk.",
+            "exercises": [
+              {
+                "name": "Run/Walk Intervals",
+                "notes": "6x (90s run / 2min walk), bracketed by 5min warmup/cooldown walk."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01QtYgWVXrJGFpWvWT7RvB6Y",
+          "content": "Created \"C25K Week 2, Run 3\" on 2026-10-05 [evt-ai-6]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Pkfsa9GZuScJrvxYFoprKt",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "C25K Week 3, Run 1",
+            "date": "2026-10-07",
+            "estimated_duration": 30,
+            "description": "5 min warmup walk. Then 2x: (90s run, 90s walk, 3min run, 3min walk). 5 min cooldown walk.",
+            "exercises": [
+              {
+                "name": "Run/Walk Intervals",
+                "notes": "2x (90s run, 90s walk, 3min run, 3min walk), bracketed by 5min warmup/cooldown walk."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Pkfsa9GZuScJrvxYFoprKt",
+          "content": "Created \"C25K Week 3, Run 1\" on 2026-10-07 [evt-ai-7]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01BGD1xF2uRkoHLyJ3cbRh9C",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "C25K Week 3, Run 2",
+            "date": "2026-10-09",
+            "estimated_duration": 30,
+            "description": "5 min warmup walk. Then 2x: (90s run, 90s walk, 3min run, 3min walk). 5 min cooldown walk.",
+            "exercises": [
+              {
+                "name": "Run/Walk Intervals",
+                "notes": "2x (90s run, 90s walk, 3min run, 3min walk), bracketed by 5min warmup/cooldown walk."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01BGD1xF2uRkoHLyJ3cbRh9C",
+          "content": "Created \"C25K Week 3, Run 2\" on 2026-10-09 [evt-ai-8]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01ATTTc4PUNC1shypewbRYxV",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "C25K Week 3, Run 3",
+            "date": "2026-10-12",
+            "estimated_duration": 30,
+            "description": "5 min warmup walk. Then 2x: (90s run, 90s walk, 3min run, 3min walk). 5 min cooldown walk.",
+            "exercises": [
+              {
+                "name": "Run/Walk Intervals",
+                "notes": "2x (90s run, 90s walk, 3min run, 3min walk), bracketed by 5min warmup/cooldown walk."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01ATTTc4PUNC1shypewbRYxV",
+          "content": "Created \"C25K Week 3, Run 3\" on 2026-10-12 [evt-ai-9]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Pccyc54t5YBANhtzkU3imW",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "C25K Week 4, Run 1",
+            "date": "2026-10-14",
+            "estimated_duration": 32,
+            "description": "5 min warmup walk. Then: 3min run, 90s walk, 5min run, 2:30 walk, 3min run, 90s walk, 5min run. 5 min cooldown walk.",
+            "exercises": [
+              {
+                "name": "Run/Walk Intervals",
+                "notes": "3min run, 90s walk, 5min run, 2:30 walk, 3min run, 90s walk, 5min run — bracketed by 5min warmup/cooldown walk."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Pccyc54t5YBANhtzkU3imW",
+          "content": "Created \"C25K Week 4, Run 1\" on 2026-10-14 [evt-ai-10]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_016qKwrzsHef6fhLw3hEWGeL",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "C25K Week 4, Run 2",
+            "date": "2026-10-16",
+            "estimated_duration": 32,
+            "description": "5 min warmup walk. Then: 3min run, 90s walk, 5min run, 2:30 walk, 3min run, 90s walk, 5min run. 5 min cooldown walk.",
+            "exercises": [
+              {
+                "name": "Run/Walk Intervals",
+                "notes": "3min run, 90s walk, 5min run, 2:30 walk, 3min run, 90s walk, 5min run — bracketed by 5min warmup/cooldown walk."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_016qKwrzsHef6fhLw3hEWGeL",
+          "content": "Created \"C25K Week 4, Run 2\" on 2026-10-16 [evt-ai-11]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01BnDddUqDRMHj6Av3VzJTnu",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "C25K Week 4, Run 3",
+            "date": "2026-10-19",
+            "estimated_duration": 32,
+            "description": "5 min warmup walk. Then: 3min run, 90s walk, 5min run, 2:30 walk, 3min run, 90s walk, 5min run. 5 min cooldown walk.",
+            "exercises": [
+              {
+                "name": "Run/Walk Intervals",
+                "notes": "3min run, 90s walk, 5min run, 2:30 walk, 3min run, 90s walk, 5min run — bracketed by 5min warmup/cooldown walk."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01BnDddUqDRMHj6Av3VzJTnu",
+          "content": "Created \"C25K Week 4, Run 3\" on 2026-10-19 [evt-ai-12]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "12 runs scheduled, Wed/Fri/Mon through Oct 19:\n\n- **Wk1** (Sep 23, 25, 28): 8x 60s run/90s walk\n- **Wk2** (Sep 30, Oct 2, 5): 6x 90s run/2min walk\n- **Wk3** (Oct 7, 9, 12): 2x (90s run/90s walk, 3min run/3min walk)\n- **Wk4** (Oct 14, 16, 19): 3-5-3-5min run segments w/ short walk breaks\n\nKeep run pace conversational — walk breaks are mandatory, not a failure. If a week feels too hard, repeat it before advancing rather than pushing through."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Continue with what, specifically? Options:\n\n- Extend the plan past week 4 (weeks 5-8, building toward continuous 5k)\n- Add strength/cross-training days alongside the runs\n- Something else\n\nWhich one?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "C25K Week 1, Run 1",
+        "date": "2026-09-23",
+        "estimated_duration": 30,
+        "description": "5 min brisk walk warmup. Then 8x: 60s run / 90s walk. 5 min cooldown walk.",
+        "exercises": [
+          {
+            "name": "Run/Walk Intervals",
+            "category": "cardio",
+            "notes": "8x (60s run / 90s walk), bracketed by 5min warmup/cooldown walk. Run pace: conversational, not fast."
+          }
+        ]
+      },
+      "result": "Created \"C25K Week 1, Run 1\" on 2026-09-23 [evt-ai-1]. Added 1 new exercise(s) to the library: Run/Walk Intervals.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "C25K Week 1, Run 2",
+        "date": "2026-09-25",
+        "estimated_duration": 30,
+        "description": "5 min brisk walk warmup. Then 8x: 60s run / 90s walk. 5 min cooldown walk.",
+        "exercises": [
+          {
+            "name": "Run/Walk Intervals",
+            "notes": "8x (60s run / 90s walk), bracketed by 5min warmup/cooldown walk. Run pace: conversational, not fast."
+          }
+        ]
+      },
+      "result": "Created \"C25K Week 1, Run 2\" on 2026-09-25 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "C25K Week 1, Run 3",
+        "date": "2026-09-28",
+        "estimated_duration": 30,
+        "description": "5 min brisk walk warmup. Then 8x: 60s run / 90s walk. 5 min cooldown walk.",
+        "exercises": [
+          {
+            "name": "Run/Walk Intervals",
+            "notes": "8x (60s run / 90s walk), bracketed by 5min warmup/cooldown walk. Run pace: conversational, not fast."
+          }
+        ]
+      },
+      "result": "Created \"C25K Week 1, Run 3\" on 2026-09-28 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "C25K Week 2, Run 1",
+        "date": "2026-09-30",
+        "estimated_duration": 30,
+        "description": "5 min warmup walk. Then 6x: 90s run / 2min walk. 5 min cooldown walk.",
+        "exercises": [
+          {
+            "name": "Run/Walk Intervals",
+            "notes": "6x (90s run / 2min walk), bracketed by 5min warmup/cooldown walk."
+          }
+        ]
+      },
+      "result": "Created \"C25K Week 2, Run 1\" on 2026-09-30 [evt-ai-4].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "C25K Week 2, Run 2",
+        "date": "2026-10-02",
+        "estimated_duration": 30,
+        "description": "5 min warmup walk. Then 6x: 90s run / 2min walk. 5 min cooldown walk.",
+        "exercises": [
+          {
+            "name": "Run/Walk Intervals",
+            "notes": "6x (90s run / 2min walk), bracketed by 5min warmup/cooldown walk."
+          }
+        ]
+      },
+      "result": "Created \"C25K Week 2, Run 2\" on 2026-10-02 [evt-ai-5].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "C25K Week 2, Run 3",
+        "date": "2026-10-05",
+        "estimated_duration": 30,
+        "description": "5 min warmup walk. Then 6x: 90s run / 2min walk. 5 min cooldown walk.",
+        "exercises": [
+          {
+            "name": "Run/Walk Intervals",
+            "notes": "6x (90s run / 2min walk), bracketed by 5min warmup/cooldown walk."
+          }
+        ]
+      },
+      "result": "Created \"C25K Week 2, Run 3\" on 2026-10-05 [evt-ai-6].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "C25K Week 3, Run 1",
+        "date": "2026-10-07",
+        "estimated_duration": 30,
+        "description": "5 min warmup walk. Then 2x: (90s run, 90s walk, 3min run, 3min walk). 5 min cooldown walk.",
+        "exercises": [
+          {
+            "name": "Run/Walk Intervals",
+            "notes": "2x (90s run, 90s walk, 3min run, 3min walk), bracketed by 5min warmup/cooldown walk."
+          }
+        ]
+      },
+      "result": "Created \"C25K Week 3, Run 1\" on 2026-10-07 [evt-ai-7].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "C25K Week 3, Run 2",
+        "date": "2026-10-09",
+        "estimated_duration": 30,
+        "description": "5 min warmup walk. Then 2x: (90s run, 90s walk, 3min run, 3min walk). 5 min cooldown walk.",
+        "exercises": [
+          {
+            "name": "Run/Walk Intervals",
+            "notes": "2x (90s run, 90s walk, 3min run, 3min walk), bracketed by 5min warmup/cooldown walk."
+          }
+        ]
+      },
+      "result": "Created \"C25K Week 3, Run 2\" on 2026-10-09 [evt-ai-8].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "C25K Week 3, Run 3",
+        "date": "2026-10-12",
+        "estimated_duration": 30,
+        "description": "5 min warmup walk. Then 2x: (90s run, 90s walk, 3min run, 3min walk). 5 min cooldown walk.",
+        "exercises": [
+          {
+            "name": "Run/Walk Intervals",
+            "notes": "2x (90s run, 90s walk, 3min run, 3min walk), bracketed by 5min warmup/cooldown walk."
+          }
+        ]
+      },
+      "result": "Created \"C25K Week 3, Run 3\" on 2026-10-12 [evt-ai-9].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "C25K Week 4, Run 1",
+        "date": "2026-10-14",
+        "estimated_duration": 32,
+        "description": "5 min warmup walk. Then: 3min run, 90s walk, 5min run, 2:30 walk, 3min run, 90s walk, 5min run. 5 min cooldown walk.",
+        "exercises": [
+          {
+            "name": "Run/Walk Intervals",
+            "notes": "3min run, 90s walk, 5min run, 2:30 walk, 3min run, 90s walk, 5min run — bracketed by 5min warmup/cooldown walk."
+          }
+        ]
+      },
+      "result": "Created \"C25K Week 4, Run 1\" on 2026-10-14 [evt-ai-10].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "C25K Week 4, Run 2",
+        "date": "2026-10-16",
+        "estimated_duration": 32,
+        "description": "5 min warmup walk. Then: 3min run, 90s walk, 5min run, 2:30 walk, 3min run, 90s walk, 5min run. 5 min cooldown walk.",
+        "exercises": [
+          {
+            "name": "Run/Walk Intervals",
+            "notes": "3min run, 90s walk, 5min run, 2:30 walk, 3min run, 90s walk, 5min run — bracketed by 5min warmup/cooldown walk."
+          }
+        ]
+      },
+      "result": "Created \"C25K Week 4, Run 2\" on 2026-10-16 [evt-ai-11].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "C25K Week 4, Run 3",
+        "date": "2026-10-19",
+        "estimated_duration": 32,
+        "description": "5 min warmup walk. Then: 3min run, 90s walk, 5min run, 2:30 walk, 3min run, 90s walk, 5min run. 5 min cooldown walk.",
+        "exercises": [
+          {
+            "name": "Run/Walk Intervals",
+            "notes": "3min run, 90s walk, 5min run, 2:30 walk, 3min run, 90s walk, 5min run — bracketed by 5min warmup/cooldown walk."
+          }
+        ]
+      },
+      "result": "Created \"C25K Week 4, Run 3\" on 2026-10-19 [evt-ai-12].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

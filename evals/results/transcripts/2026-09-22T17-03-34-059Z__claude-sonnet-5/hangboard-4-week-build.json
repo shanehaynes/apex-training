@@ -1,0 +1,648 @@
+{
+  "caseId": "hangboard-4-week-build",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Build me a 4-week hangboard progression starting this week, two sessions per week. Schedule every session."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Building a linear-intensity 4-week max-hang block, 2x/week, Tue/Fri, starting today. RPE climbs 7→8→9 over weeks 1-3, week 4 deloads."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01LGBY8fe8rti1d3b7Jy5oFk",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Hangboard – Max Hangs (Wk1/4, Session A)",
+            "date": "2026-09-22",
+            "estimated_duration": 35,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "fingers",
+              "hangboard-block"
+            ],
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 5,
+                "duration": "6s hang",
+                "rest_period": "3 min",
+                "weight": "add load to hit RPE 7 (~3 reps in reserve)",
+                "notes": "20mm edge, half-crimp. Baseline load — note it for progression."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01LGBY8fe8rti1d3b7Jy5oFk",
+          "content": "Created \"Hangboard – Max Hangs (Wk1/4, Session A)\" on 2026-09-22 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Szw9HBxyC1XWbFFjxk4GNP",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Hangboard – Max Hangs (Wk1/4, Session B)",
+            "date": "2026-09-25",
+            "estimated_duration": 35,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "fingers",
+              "hangboard-block"
+            ],
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 5,
+                "duration": "6s hang",
+                "rest_period": "3 min",
+                "weight": "same as Session A, RPE 7",
+                "notes": "20mm edge, half-crimp."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Szw9HBxyC1XWbFFjxk4GNP",
+          "content": "Created \"Hangboard – Max Hangs (Wk1/4, Session B)\" on 2026-09-25 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01DqAjaTrfnGSmciPp4A7AqG",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Hangboard – Max Hangs (Wk2/4, Session A)",
+            "date": "2026-09-29",
+            "estimated_duration": 35,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "fingers",
+              "hangboard-block"
+            ],
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 5,
+                "duration": "6s hang",
+                "rest_period": "3 min",
+                "weight": "increase from Wk1 to hit RPE 8 (~2 reps in reserve)",
+                "notes": "20mm edge, half-crimp."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01DqAjaTrfnGSmciPp4A7AqG",
+          "content": "Created \"Hangboard – Max Hangs (Wk2/4, Session A)\" on 2026-09-29 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01DNBiLYwxeKB1jjAZAtKyFZ",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Hangboard – Max Hangs (Wk2/4, Session B)",
+            "date": "2026-10-02",
+            "estimated_duration": 35,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "fingers",
+              "hangboard-block"
+            ],
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 5,
+                "duration": "6s hang",
+                "rest_period": "3 min",
+                "weight": "same as Wk2 Session A, RPE 8",
+                "notes": "20mm edge, half-crimp."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01DNBiLYwxeKB1jjAZAtKyFZ",
+          "content": "Created \"Hangboard – Max Hangs (Wk2/4, Session B)\" on 2026-10-02 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Y29myjHcV2xXaJSe5HunNj",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Hangboard – Max Hangs (Wk3/4, Session A)",
+            "date": "2026-10-06",
+            "estimated_duration": 35,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "fingers",
+              "hangboard-block"
+            ],
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 5,
+                "duration": "6s hang",
+                "rest_period": "3 min",
+                "weight": "increase from Wk2 to hit RPE 9 (~1 rep in reserve)",
+                "notes": "20mm edge, half-crimp. Peak week — heaviest load of block."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Y29myjHcV2xXaJSe5HunNj",
+          "content": "Created \"Hangboard – Max Hangs (Wk3/4, Session A)\" on 2026-10-06 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01YUyPJuRejUpyKiGxRPe1zH",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Hangboard – Max Hangs (Wk3/4, Session B)",
+            "date": "2026-10-09",
+            "estimated_duration": 35,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "fingers",
+              "hangboard-block"
+            ],
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 5,
+                "duration": "6s hang",
+                "rest_period": "3 min",
+                "weight": "same as Wk3 Session A, RPE 9",
+                "notes": "20mm edge, half-crimp."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01YUyPJuRejUpyKiGxRPe1zH",
+          "content": "Created \"Hangboard – Max Hangs (Wk3/4, Session B)\" on 2026-10-09 [evt-ai-6]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Vun56xWCZpNU4Y66uZhUSE",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Hangboard – Deload (Wk4/4, Session A)",
+            "date": "2026-10-13",
+            "estimated_duration": 25,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "fingers",
+              "hangboard-block",
+              "deload"
+            ],
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 3,
+                "duration": "6s hang",
+                "rest_period": "3 min",
+                "weight": "~20% less than Wk3, RPE 6",
+                "notes": "20mm edge, half-crimp. Deload — do not push to failure, prioritize recovery."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Vun56xWCZpNU4Y66uZhUSE",
+          "content": "Created \"Hangboard – Deload (Wk4/4, Session A)\" on 2026-10-13 [evt-ai-7]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_012eETb73vGv9bdg4NLUkMae",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Hangboard – Deload (Wk4/4, Session B)",
+            "date": "2026-10-16",
+            "estimated_duration": 25,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "fingers",
+              "hangboard-block",
+              "deload"
+            ],
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 3,
+                "duration": "6s hang",
+                "rest_period": "3 min",
+                "weight": "same as Wk4 Session A, RPE 6",
+                "notes": "20mm edge, half-crimp. End of block — reassess before starting next cycle."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_012eETb73vGv9bdg4NLUkMae",
+          "content": "Created \"Hangboard – Deload (Wk4/4, Session B)\" on 2026-10-16 [evt-ai-8]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "8 sessions scheduled, Tue/Fri through Oct 16:\n\n- **Wk1** (Sep 22, 25): 5×6s @ RPE7, 20mm edge, 3min rest — sets baseline load\n- **Wk2** (Sep 29, Oct 2): same protocol, RPE8 — add weight\n- **Wk3** (Oct 6, 9): same protocol, RPE9 — peak load\n- **Wk4** (Oct 13, 16): deload — 3×6s @ RPE6, ~20% less weight\n\nLog your added weight each session (in notes/weight field) so progression is trackable. 72h min between sessions maintained throughout."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing pending on my end — what should I continue with? (Extend the hangboard block another 4 weeks, add climbing/complementary sessions around it, something else?)"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Hangboard – Max Hangs (Wk1/4, Session A)",
+        "date": "2026-09-22",
+        "estimated_duration": 35,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "fingers",
+          "hangboard-block"
+        ],
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 5,
+            "duration": "6s hang",
+            "rest_period": "3 min",
+            "weight": "add load to hit RPE 7 (~3 reps in reserve)",
+            "notes": "20mm edge, half-crimp. Baseline load — note it for progression."
+          }
+        ]
+      },
+      "result": "Created \"Hangboard – Max Hangs (Wk1/4, Session A)\" on 2026-09-22 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Hangboard – Max Hangs (Wk1/4, Session B)",
+        "date": "2026-09-25",
+        "estimated_duration": 35,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "fingers",
+          "hangboard-block"
+        ],
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 5,
+            "duration": "6s hang",
+            "rest_period": "3 min",
+            "weight": "same as Session A, RPE 7",
+            "notes": "20mm edge, half-crimp."
+          }
+        ]
+      },
+      "result": "Created \"Hangboard – Max Hangs (Wk1/4, Session B)\" on 2026-09-25 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Hangboard – Max Hangs (Wk2/4, Session A)",
+        "date": "2026-09-29",
+        "estimated_duration": 35,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "fingers",
+          "hangboard-block"
+        ],
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 5,
+            "duration": "6s hang",
+            "rest_period": "3 min",
+            "weight": "increase from Wk1 to hit RPE 8 (~2 reps in reserve)",
+            "notes": "20mm edge, half-crimp."
+          }
+        ]
+      },
+      "result": "Created \"Hangboard – Max Hangs (Wk2/4, Session A)\" on 2026-09-29 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Hangboard – Max Hangs (Wk2/4, Session B)",
+        "date": "2026-10-02",
+        "estimated_duration": 35,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "fingers",
+          "hangboard-block"
+        ],
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 5,
+            "duration": "6s hang",
+            "rest_period": "3 min",
+            "weight": "same as Wk2 Session A, RPE 8",
+            "notes": "20mm edge, half-crimp."
+          }
+        ]
+      },
+      "result": "Created \"Hangboard – Max Hangs (Wk2/4, Session B)\" on 2026-10-02 [evt-ai-4].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Hangboard – Max Hangs (Wk3/4, Session A)",
+        "date": "2026-10-06",
+        "estimated_duration": 35,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "fingers",
+          "hangboard-block"
+        ],
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 5,
+            "duration": "6s hang",
+            "rest_period": "3 min",
+            "weight": "increase from Wk2 to hit RPE 9 (~1 rep in reserve)",
+            "notes": "20mm edge, half-crimp. Peak week — heaviest load of block."
+          }
+        ]
+      },
+      "result": "Created \"Hangboard – Max Hangs (Wk3/4, Session A)\" on 2026-10-06 [evt-ai-5].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Hangboard – Max Hangs (Wk3/4, Session B)",
+        "date": "2026-10-09",
+        "estimated_duration": 35,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "fingers",
+          "hangboard-block"
+        ],
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 5,
+            "duration": "6s hang",
+            "rest_period": "3 min",
+            "weight": "same as Wk3 Session A, RPE 9",
+            "notes": "20mm edge, half-crimp."
+          }
+        ]
+      },
+      "result": "Created \"Hangboard – Max Hangs (Wk3/4, Session B)\" on 2026-10-09 [evt-ai-6].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Hangboard – Deload (Wk4/4, Session A)",
+        "date": "2026-10-13",
+        "estimated_duration": 25,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "fingers",
+          "hangboard-block",
+          "deload"
+        ],
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 3,
+            "duration": "6s hang",
+            "rest_period": "3 min",
+            "weight": "~20% less than Wk3, RPE 6",
+            "notes": "20mm edge, half-crimp. Deload — do not push to failure, prioritize recovery."
+          }
+        ]
+      },
+      "result": "Created \"Hangboard – Deload (Wk4/4, Session A)\" on 2026-10-13 [evt-ai-7].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Hangboard – Deload (Wk4/4, Session B)",
+        "date": "2026-10-16",
+        "estimated_duration": 25,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "fingers",
+          "hangboard-block",
+          "deload"
+        ],
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 3,
+            "duration": "6s hang",
+            "rest_period": "3 min",
+            "weight": "same as Wk4 Session A, RPE 6",
+            "notes": "20mm edge, half-crimp. End of block — reassess before starting next cycle."
+          }
+        ]
+      },
+      "result": "Created \"Hangboard – Deload (Wk4/4, Session B)\" on 2026-10-16 [evt-ai-8].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

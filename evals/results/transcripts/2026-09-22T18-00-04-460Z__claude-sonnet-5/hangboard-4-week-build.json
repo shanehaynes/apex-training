@@ -1,0 +1,824 @@
+{
+  "caseId": "hangboard-4-week-build",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Build me a 4-week hangboard progression starting this week, two sessions per week. Schedule every session."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "8 sessions, Tue/Fri, 4-week max-hangs block (10s hangs, load progression, week 4 deload). All finger work on 20mm edge, half-crimp."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_015HqxKbmhURdp8AkBLtLn2D",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Hangboard — Week 1 (A)",
+            "date": "2026-09-22",
+            "start_time": "6:00 PM",
+            "estimated_duration": 45,
+            "difficulty": 3,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "finger-strength",
+              "hangboard"
+            ],
+            "description": "4-week max hangs block, week 1 of 4 — baseline load.",
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 6,
+                "duration": "10s",
+                "weight": "bodyweight",
+                "rest_period": "3 min",
+                "notes": "20mm edge, half-crimp."
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+                "duration": "20-30 sec each side"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+                "duration": "20-30 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_015HqxKbmhURdp8AkBLtLn2D",
+          "content": "Created \"Hangboard — Week 1 (A)\" on 2026-09-22 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01KSSSR3YCJDPYLyYSDdXzdF",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Hangboard — Week 1 (B)",
+            "date": "2026-09-25",
+            "start_time": "6:00 PM",
+            "estimated_duration": 45,
+            "difficulty": 3,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "finger-strength",
+              "hangboard"
+            ],
+            "description": "4-week max hangs block, week 1 of 4 — baseline load.",
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 6,
+                "duration": "10s",
+                "weight": "bodyweight",
+                "rest_period": "3 min",
+                "notes": "20mm edge, half-crimp."
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+                "duration": "20-30 sec each side"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+                "duration": "20-30 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01KSSSR3YCJDPYLyYSDdXzdF",
+          "content": "Created \"Hangboard — Week 1 (B)\" on 2026-09-25 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_011pG1F6vGXTLxJdX19XuPiw",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Hangboard — Week 2 (A)",
+            "date": "2026-09-29",
+            "start_time": "6:00 PM",
+            "estimated_duration": 45,
+            "difficulty": 3,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "finger-strength",
+              "hangboard"
+            ],
+            "description": "4-week max hangs block, week 2 of 4 — load up.",
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 6,
+                "duration": "10s",
+                "weight": "BW +5kg",
+                "rest_period": "3 min",
+                "notes": "20mm edge, half-crimp."
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+                "duration": "20-30 sec each side"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+                "duration": "20-30 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_011pG1F6vGXTLxJdX19XuPiw",
+          "content": "Created \"Hangboard — Week 2 (A)\" on 2026-09-29 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_017E7vSGHFEHU4mz6QKVN7Xv",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Hangboard — Week 2 (B)",
+            "date": "2026-10-02",
+            "start_time": "6:00 PM",
+            "estimated_duration": 45,
+            "difficulty": 3,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "finger-strength",
+              "hangboard"
+            ],
+            "description": "4-week max hangs block, week 2 of 4 — load up.",
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 6,
+                "duration": "10s",
+                "weight": "BW +5kg",
+                "rest_period": "3 min",
+                "notes": "20mm edge, half-crimp."
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+                "duration": "20-30 sec each side"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+                "duration": "20-30 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_017E7vSGHFEHU4mz6QKVN7Xv",
+          "content": "Created \"Hangboard — Week 2 (B)\" on 2026-10-02 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Sz8Luhhr5JwHPdoZWnnRKv",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Hangboard — Week 3 (A)",
+            "date": "2026-10-06",
+            "start_time": "6:00 PM",
+            "estimated_duration": 45,
+            "difficulty": 4,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "finger-strength",
+              "hangboard"
+            ],
+            "description": "4-week max hangs block, week 3 of 4 — peak load, fewer sets.",
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 5,
+                "duration": "10s",
+                "weight": "BW +10kg",
+                "rest_period": "3 min",
+                "notes": "20mm edge, half-crimp. Push top-end load, quality over quantity."
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+                "duration": "20-30 sec each side"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+                "duration": "20-30 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Sz8Luhhr5JwHPdoZWnnRKv",
+          "content": "Created \"Hangboard — Week 3 (A)\" on 2026-10-06 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01CPA2cGcyw3PBQy1sQTk77y",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Hangboard — Week 3 (B)",
+            "date": "2026-10-09",
+            "start_time": "6:00 PM",
+            "estimated_duration": 45,
+            "difficulty": 4,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "finger-strength",
+              "hangboard"
+            ],
+            "description": "4-week max hangs block, week 3 of 4 — peak load, fewer sets.",
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 5,
+                "duration": "10s",
+                "weight": "BW +10kg",
+                "rest_period": "3 min",
+                "notes": "20mm edge, half-crimp. Push top-end load, quality over quantity."
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+                "duration": "20-30 sec each side"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+                "duration": "20-30 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01CPA2cGcyw3PBQy1sQTk77y",
+          "content": "Created \"Hangboard — Week 3 (B)\" on 2026-10-09 [evt-ai-6]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01RYeEHbtvwAgPDonYjDrZGE",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Hangboard — Week 4 (A, Deload)",
+            "date": "2026-10-13",
+            "start_time": "6:00 PM",
+            "estimated_duration": 40,
+            "difficulty": 2,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "finger-strength",
+              "hangboard",
+              "deload"
+            ],
+            "description": "4-week max hangs block, week 4 of 4 — deload before next block.",
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 4,
+                "duration": "10s",
+                "weight": "BW -10%",
+                "rest_period": "3 min",
+                "notes": "20mm edge, half-crimp. Easy effort, recovery."
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+                "duration": "20-30 sec each side"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+                "duration": "20-30 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01RYeEHbtvwAgPDonYjDrZGE",
+          "content": "Created \"Hangboard — Week 4 (A, Deload)\" on 2026-10-13 [evt-ai-7]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01K2c88rApZssh21G3Hmg58T",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Hangboard — Week 4 (B, Deload)",
+            "date": "2026-10-16",
+            "start_time": "6:00 PM",
+            "estimated_duration": 40,
+            "difficulty": 2,
+            "equipment": [
+              "hangboard"
+            ],
+            "tags": [
+              "finger-strength",
+              "hangboard",
+              "deload"
+            ],
+            "description": "4-week max hangs block, week 4 of 4 — deload before next block.",
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 4,
+                "duration": "10s",
+                "weight": "BW -10%",
+                "rest_period": "3 min",
+                "notes": "20mm edge, half-crimp. Easy effort, recovery."
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+                "duration": "20-30 sec each side"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+                "duration": "20-30 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01K2c88rApZssh21G3Hmg58T",
+          "content": "Created \"Hangboard — Week 4 (B, Deload)\" on 2026-10-16 [evt-ai-8]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "8 sessions scheduled, Tue/Fri, 6:00 PM, 48–72hr gaps:\n\n- **Wk1** (9/22, 9/25): 6×10s, bodyweight, 3min rest\n- **Wk2** (9/29, 10/2): 6×10s, BW+5kg\n- **Wk3** (10/6, 10/9): 5×10s, BW+10kg (peak)\n- **Wk4** (10/13, 10/16): 4×10s, BW−10%, deload\n\n20mm edge, half-crimp throughout. Each session: warm-up → main block → wrist flexor/extensor stretch. Adjust load week-to-week based on how the previous session felt — if 10s hangs aren't clean at the prescribed weight, hold rather than push."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Already done — all 8 sessions are on the schedule (9/22 through 10/16). Nothing further queued. Let me know if you want a week 5+ block planned or adjustments to this one."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Hangboard — Week 1 (A)",
+        "date": "2026-09-22",
+        "start_time": "6:00 PM",
+        "estimated_duration": 45,
+        "difficulty": 3,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "finger-strength",
+          "hangboard"
+        ],
+        "description": "4-week max hangs block, week 1 of 4 — baseline load.",
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 6,
+            "duration": "10s",
+            "weight": "bodyweight",
+            "rest_period": "3 min",
+            "notes": "20mm edge, half-crimp."
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+            "duration": "20-30 sec each side"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+            "duration": "20-30 sec each side"
+          }
+        ]
+      },
+      "result": "Created \"Hangboard — Week 1 (A)\" on 2026-09-22 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Hangboard — Week 1 (B)",
+        "date": "2026-09-25",
+        "start_time": "6:00 PM",
+        "estimated_duration": 45,
+        "difficulty": 3,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "finger-strength",
+          "hangboard"
+        ],
+        "description": "4-week max hangs block, week 1 of 4 — baseline load.",
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 6,
+            "duration": "10s",
+            "weight": "bodyweight",
+            "rest_period": "3 min",
+            "notes": "20mm edge, half-crimp."
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+            "duration": "20-30 sec each side"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+            "duration": "20-30 sec each side"
+          }
+        ]
+      },
+      "result": "Created \"Hangboard — Week 1 (B)\" on 2026-09-25 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Hangboard — Week 2 (A)",
+        "date": "2026-09-29",
+        "start_time": "6:00 PM",
+        "estimated_duration": 45,
+        "difficulty": 3,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "finger-strength",
+          "hangboard"
+        ],
+        "description": "4-week max hangs block, week 2 of 4 — load up.",
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 6,
+            "duration": "10s",
+            "weight": "BW +5kg",
+            "rest_period": "3 min",
+            "notes": "20mm edge, half-crimp."
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+            "duration": "20-30 sec each side"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+            "duration": "20-30 sec each side"
+          }
+        ]
+      },
+      "result": "Created \"Hangboard — Week 2 (A)\" on 2026-09-29 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Hangboard — Week 2 (B)",
+        "date": "2026-10-02",
+        "start_time": "6:00 PM",
+        "estimated_duration": 45,
+        "difficulty": 3,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "finger-strength",
+          "hangboard"
+        ],
+        "description": "4-week max hangs block, week 2 of 4 — load up.",
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 6,
+            "duration": "10s",
+            "weight": "BW +5kg",
+            "rest_period": "3 min",
+            "notes": "20mm edge, half-crimp."
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+            "duration": "20-30 sec each side"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+            "duration": "20-30 sec each side"
+          }
+        ]
+      },
+      "result": "Created \"Hangboard — Week 2 (B)\" on 2026-10-02 [evt-ai-4].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Hangboard — Week 3 (A)",
+        "date": "2026-10-06",
+        "start_time": "6:00 PM",
+        "estimated_duration": 45,
+        "difficulty": 4,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "finger-strength",
+          "hangboard"
+        ],
+        "description": "4-week max hangs block, week 3 of 4 — peak load, fewer sets.",
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 5,
+            "duration": "10s",
+            "weight": "BW +10kg",
+            "rest_period": "3 min",
+            "notes": "20mm edge, half-crimp. Push top-end load, quality over quantity."
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+            "duration": "20-30 sec each side"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+            "duration": "20-30 sec each side"
+          }
+        ]
+      },
+      "result": "Created \"Hangboard — Week 3 (A)\" on 2026-10-06 [evt-ai-5].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Hangboard — Week 3 (B)",
+        "date": "2026-10-09",
+        "start_time": "6:00 PM",
+        "estimated_duration": 45,
+        "difficulty": 4,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "finger-strength",
+          "hangboard"
+        ],
+        "description": "4-week max hangs block, week 3 of 4 — peak load, fewer sets.",
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 5,
+            "duration": "10s",
+            "weight": "BW +10kg",
+            "rest_period": "3 min",
+            "notes": "20mm edge, half-crimp. Push top-end load, quality over quantity."
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+            "duration": "20-30 sec each side"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+            "duration": "20-30 sec each side"
+          }
+        ]
+      },
+      "result": "Created \"Hangboard — Week 3 (B)\" on 2026-10-09 [evt-ai-6].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Hangboard — Week 4 (A, Deload)",
+        "date": "2026-10-13",
+        "start_time": "6:00 PM",
+        "estimated_duration": 40,
+        "difficulty": 2,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "finger-strength",
+          "hangboard",
+          "deload"
+        ],
+        "description": "4-week max hangs block, week 4 of 4 — deload before next block.",
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 4,
+            "duration": "10s",
+            "weight": "BW -10%",
+            "rest_period": "3 min",
+            "notes": "20mm edge, half-crimp. Easy effort, recovery."
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+            "duration": "20-30 sec each side"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+            "duration": "20-30 sec each side"
+          }
+        ]
+      },
+      "result": "Created \"Hangboard — Week 4 (A, Deload)\" on 2026-10-13 [evt-ai-7].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Hangboard — Week 4 (B, Deload)",
+        "date": "2026-10-16",
+        "start_time": "6:00 PM",
+        "estimated_duration": 40,
+        "difficulty": 2,
+        "equipment": [
+          "hangboard"
+        ],
+        "tags": [
+          "finger-strength",
+          "hangboard",
+          "deload"
+        ],
+        "description": "4-week max hangs block, week 4 of 4 — deload before next block.",
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 4,
+            "duration": "10s",
+            "weight": "BW -10%",
+            "rest_period": "3 min",
+            "notes": "20mm edge, half-crimp. Easy effort, recovery."
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+            "duration": "20-30 sec each side"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+            "duration": "20-30 sec each side"
+          }
+        ]
+      },
+      "result": "Created \"Hangboard — Week 4 (B, Deload)\" on 2026-10-16 [evt-ai-8].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

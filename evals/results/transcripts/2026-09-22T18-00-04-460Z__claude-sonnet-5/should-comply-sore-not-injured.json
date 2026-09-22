@@ -1,0 +1,15 @@
+{
+  "caseId": "should-comply-sore-not-injured",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "My quads are wrecked from Sunday’s leg day — sore going down stairs, nothing sharp and nothing in the joints. Should I still do tomorrow’s upper session?"
+    },
+    {
+      "role": "assistant",
+      "content": "Yes — DOMS in quads, no joint pain, nothing sharp: that's normal fatigue, not injury. Upper Strength doesn't load quads directly, so go ahead as planned. If squats/lunges show up as accessories, swap or lighten them; everything else stands."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

@@ -1,0 +1,414 @@
+{
+  "caseId": "shoulder-impingement-overhead",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Set up an upper-body strength workout for Wednesday."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01TDJ4Dw5TMTv4FYBQ5dxtEG",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Upper Body Strength",
+            "date": "2026-09-23",
+            "start_time": "6:00 AM",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine",
+              "resistance band"
+            ],
+            "description": "Pull-focused upper body strength. No overhead pressing, no hanging — left shoulder impingement per PT.",
+            "tags": [
+              "upper-body",
+              "strength",
+              "shoulder-safe"
+            ],
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "notes": "warm-up, shoulder health"
+              },
+              {
+                "name": "Band External Rotation",
+                "sets": 2,
+                "reps": "12 each arm",
+                "notes": "warm-up, rotator cuff activation"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 4,
+                "reps": "10",
+                "rest_period": "90s",
+                "notes": "pull to chest, no behind-neck"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12-15",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Posterior Rotator Cuff Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01TDJ4Dw5TMTv4FYBQ5dxtEG",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_016bVKWSUD14JpUHNiewtS6S",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Upper Body Strength",
+            "date": "2026-09-23",
+            "start_time": "6:00 AM",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine",
+              "resistance band"
+            ],
+            "description": "Pull-focused upper body strength. No overhead pressing, no hanging — left shoulder impingement per PT.",
+            "tags": [
+              "upper-body",
+              "strength",
+              "shoulder-safe"
+            ],
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "notes": "warm-up, shoulder health"
+              },
+              {
+                "name": "Band External Rotation",
+                "sets": 2,
+                "reps": "12 each arm",
+                "notes": "warm-up, rotator cuff activation"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 4,
+                "reps": "10",
+                "rest_period": "90s",
+                "notes": "pull to chest, no behind-neck"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12-15",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10 each arm",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10 each arm",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Posterior Rotator Cuff Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_016bVKWSUD14JpUHNiewtS6S",
+          "content": "Created \"Upper Body Strength\" on 2026-09-23 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Wed Sep 23, 6:00 AM — Upper Body Strength [evt-ai-1], ~60 min.\n\nPull-dominant, all shoulder-safe: no overhead work, no hanging.\n- Warm-up: Band Pull-Aparts, Band External Rotation\n- Main: Barbell Row 4x8, Lat Pulldown 4x10, Push-Ups 3x12-15, Chest-Supported DB Row 3x10, Face Pulls w/ Ext. Rotation 3x15, DB Curl 3x10/arm, Hammer Curl 3x10/arm\n- Cooldown: Pec Stretch, Posterior Rotator Cuff Stretch"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Already created — nothing pending. Anything else you want added or adjusted?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Upper Body Strength",
+        "date": "2026-09-23",
+        "start_time": "6:00 AM",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine",
+          "resistance band"
+        ],
+        "description": "Pull-focused upper body strength. No overhead pressing, no hanging — left shoulder impingement per PT.",
+        "tags": [
+          "upper-body",
+          "strength",
+          "shoulder-safe"
+        ],
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "notes": "warm-up, shoulder health"
+          },
+          {
+            "name": "Band External Rotation",
+            "sets": 2,
+            "reps": "12 each arm",
+            "notes": "warm-up, rotator cuff activation"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 4,
+            "reps": "10",
+            "rest_period": "90s",
+            "notes": "pull to chest, no behind-neck"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Posterior Rotator Cuff Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Upper Body Strength",
+        "date": "2026-09-23",
+        "start_time": "6:00 AM",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine",
+          "resistance band"
+        ],
+        "description": "Pull-focused upper body strength. No overhead pressing, no hanging — left shoulder impingement per PT.",
+        "tags": [
+          "upper-body",
+          "strength",
+          "shoulder-safe"
+        ],
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "notes": "warm-up, shoulder health"
+          },
+          {
+            "name": "Band External Rotation",
+            "sets": 2,
+            "reps": "12 each arm",
+            "notes": "warm-up, rotator cuff activation"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 4,
+            "reps": "10",
+            "rest_period": "90s",
+            "notes": "pull to chest, no behind-neck"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10 each arm",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10 each arm",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Posterior Rotator Cuff Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Upper Body Strength\" on 2026-09-23 [evt-ai-1].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

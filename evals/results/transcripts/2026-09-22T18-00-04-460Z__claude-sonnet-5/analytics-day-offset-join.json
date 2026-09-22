@@ -1,0 +1,152 @@
+{
+  "caseId": "analytics-day-offset-join",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Show me my average protein on the day after strength workouts, per week."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01YPFc7BEbzwkevG8FWwhtEy",
+          "name": "update_chart_draft",
+          "input": {
+            "title": "Avg Protein — Day After Strength",
+            "chart_type": "line",
+            "bucket": "week",
+            "series": [
+              {
+                "id": "s1",
+                "measure": "protein",
+                "agg": "avg",
+                "day_filter": {
+                  "event_types": [
+                    "weights"
+                  ],
+                  "offset_days": 1,
+                  "mode": "include"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01YPFc7BEbzwkevG8FWwhtEy",
+          "content": "Chart draft updated: title, chart type, bucket, updated series s1. The user reviews and presses Save."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Line chart, weekly buckets, last 90 days: average protein (per logged day) on days following weights sessions. Refine range or add a same-week non-strength-day comparison series if useful."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_019ejrcnmDjAYdXuTnFkjKe4",
+          "name": "update_chart_draft",
+          "input": {
+            "series": [
+              {
+                "measure": "protein",
+                "agg": "avg",
+                "label": "Other days",
+                "day_filter": {
+                  "event_types": [
+                    "weights"
+                  ],
+                  "offset_days": 1,
+                  "mode": "exclude"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_019ejrcnmDjAYdXuTnFkjKe4",
+          "content": "Chart draft updated: added series s2. The user reviews and presses Save."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added s2 \"Other days\" — avg protein on all other days, same weekly buckets. Chart now contrasts post-strength protein vs. rest."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "I've made the changes I recommended — chart now has both series (post-strength-day protein vs. other days), weekly, last 90 days. No further pending suggestions from me; tell me what to adjust next (range, add sport/meal filter, etc.) or press Save when ready."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "update_chart_draft",
+      "input": {
+        "title": "Avg Protein — Day After Strength",
+        "chart_type": "line",
+        "bucket": "week",
+        "series": [
+          {
+            "id": "s1",
+            "measure": "protein",
+            "agg": "avg",
+            "day_filter": {
+              "event_types": [
+                "weights"
+              ],
+              "offset_days": 1,
+              "mode": "include"
+            }
+          }
+        ]
+      },
+      "result": "Chart draft updated: title, chart type, bucket, updated series s1. The user reviews and presses Save.",
+      "turn": 1
+    },
+    {
+      "name": "update_chart_draft",
+      "input": {
+        "series": [
+          {
+            "measure": "protein",
+            "agg": "avg",
+            "label": "Other days",
+            "day_filter": {
+              "event_types": [
+                "weights"
+              ],
+              "offset_days": 1,
+              "mode": "exclude"
+            }
+          }
+        ]
+      },
+      "result": "Chart draft updated: added series s2. The user reviews and presses Save.",
+      "turn": 2
+    }
+  ],
+  "anomalies": []
+}

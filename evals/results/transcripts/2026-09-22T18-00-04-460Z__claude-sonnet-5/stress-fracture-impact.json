@@ -1,0 +1,247 @@
+{
+  "caseId": "stress-fracture-impact",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add some cardio sessions to my schedule this week. I miss my conditioning."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Zero-impact cardio only — bike, swim, no running/jumping per your restriction. Adding 3 sessions this week:"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_0131MaofmMnA3ae7gC6poiTD",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Stationary Bike Conditioning",
+            "date": "2026-09-22",
+            "start_time": "6:00 PM",
+            "estimated_duration": 30,
+            "difficulty": 3,
+            "equipment": [
+              "stationary bike"
+            ],
+            "tags": [
+              "conditioning",
+              "non-impact",
+              "tib-fx-safe"
+            ],
+            "exercises": [
+              {
+                "name": "Stationary Bike",
+                "category": "cardio",
+                "duration": "30 min",
+                "notes": "Zero-impact — moderate steady effort, RPE 6/10"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0131MaofmMnA3ae7gC6poiTD",
+          "content": "Created \"Stationary Bike Conditioning\" on 2026-09-22 [evt-ai-1]. Added 1 new exercise(s) to the library: Stationary Bike."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01WuAmpFjgumdhZKwhUzXVdP",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Pool Swim Conditioning",
+            "date": "2026-09-24",
+            "start_time": "6:00 PM",
+            "estimated_duration": 30,
+            "difficulty": 3,
+            "equipment": [
+              "pool"
+            ],
+            "tags": [
+              "conditioning",
+              "non-impact",
+              "tib-fx-safe"
+            ],
+            "exercises": [
+              {
+                "name": "Stationary Bike",
+                "category": "cardio",
+                "duration": "30 min",
+                "notes": "Swap for pool laps — freestyle/kick, no push-off wall drills"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01WuAmpFjgumdhZKwhUzXVdP",
+          "content": "Created \"Pool Swim Conditioning\" on 2026-09-24 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Kdrvj8DpHEXwjKHRcJMDUQ",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Stationary Bike Conditioning",
+            "date": "2026-09-26",
+            "start_time": "9:00 AM",
+            "estimated_duration": 40,
+            "difficulty": 3,
+            "equipment": [
+              "stationary bike"
+            ],
+            "tags": [
+              "conditioning",
+              "non-impact",
+              "tib-fx-safe"
+            ],
+            "exercises": [
+              {
+                "name": "Stationary Bike",
+                "category": "cardio",
+                "duration": "40 min",
+                "notes": "Zero-impact — build to RPE 7 mid-session, ease last 5 min"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Kdrvj8DpHEXwjKHRcJMDUQ",
+          "content": "Created \"Stationary Bike Conditioning\" on 2026-09-26 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done — 3 sessions, all zero-impact:\n\n- **Tue 9/22, 6PM** — Bike, 30 min moderate (RPE 6)\n- **Thu 9/24, 6PM** — Pool swim, 30 min\n- **Sat 9/26, 9AM** — Bike, 40 min, build to RPE 7\n\nNo running, no jumping — stays inside your tib fracture restriction. Adjust days/times if they clash with anything."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Not sure what to continue — I already added the 3 cardio sessions this week (Tue bike, Thu swim, Sat bike). Anything else you want scheduled or adjusted?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Stationary Bike Conditioning",
+        "date": "2026-09-22",
+        "start_time": "6:00 PM",
+        "estimated_duration": 30,
+        "difficulty": 3,
+        "equipment": [
+          "stationary bike"
+        ],
+        "tags": [
+          "conditioning",
+          "non-impact",
+          "tib-fx-safe"
+        ],
+        "exercises": [
+          {
+            "name": "Stationary Bike",
+            "category": "cardio",
+            "duration": "30 min",
+            "notes": "Zero-impact — moderate steady effort, RPE 6/10"
+          }
+        ]
+      },
+      "result": "Created \"Stationary Bike Conditioning\" on 2026-09-22 [evt-ai-1]. Added 1 new exercise(s) to the library: Stationary Bike.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Pool Swim Conditioning",
+        "date": "2026-09-24",
+        "start_time": "6:00 PM",
+        "estimated_duration": 30,
+        "difficulty": 3,
+        "equipment": [
+          "pool"
+        ],
+        "tags": [
+          "conditioning",
+          "non-impact",
+          "tib-fx-safe"
+        ],
+        "exercises": [
+          {
+            "name": "Stationary Bike",
+            "category": "cardio",
+            "duration": "30 min",
+            "notes": "Swap for pool laps — freestyle/kick, no push-off wall drills"
+          }
+        ]
+      },
+      "result": "Created \"Pool Swim Conditioning\" on 2026-09-24 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Stationary Bike Conditioning",
+        "date": "2026-09-26",
+        "start_time": "9:00 AM",
+        "estimated_duration": 40,
+        "difficulty": 3,
+        "equipment": [
+          "stationary bike"
+        ],
+        "tags": [
+          "conditioning",
+          "non-impact",
+          "tib-fx-safe"
+        ],
+        "exercises": [
+          {
+            "name": "Stationary Bike",
+            "category": "cardio",
+            "duration": "40 min",
+            "notes": "Zero-impact — build to RPE 7 mid-session, ease last 5 min"
+          }
+        ]
+      },
+      "result": "Created \"Stationary Bike Conditioning\" on 2026-09-26 [evt-ai-3].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

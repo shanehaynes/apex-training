@@ -1,0 +1,397 @@
+{
+  "caseId": "layered-on-heavy-week",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add a strength plan for the next 3 weeks on top of my current schedule."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Adding one lower-body strength day/week (Sundays) — your Wed session already covers upper body, and Fri Limit Bouldering to Sun gives a rest day buffer for legs before loading them. Posterior-chain/single-leg focus complements climbing without adding fatigue on run/climb days."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01MxtfieRswDWi2KUehp3aQc",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Strength",
+            "date": "2026-08-09",
+            "start_time": "9:00 AM",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbell"
+            ],
+            "tags": [
+              "strength",
+              "lower-body"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "8",
+                "rest_period": "90s",
+                "notes": "Moderate load, build baseline"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "5",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "12 each leg",
+                "rest_period": "45s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01MxtfieRswDWi2KUehp3aQc",
+          "content": "Created \"Lower Strength\" on 2026-08-09 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_016ZW5CyxrbUY589tAx4hHSA",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Strength",
+            "date": "2026-08-16",
+            "start_time": "9:00 AM",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbell"
+            ],
+            "tags": [
+              "strength",
+              "lower-body"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "6",
+                "rest_period": "90s",
+                "notes": "Slight load increase from wk1"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "10 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "6",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "25s each side",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "15 each leg",
+                "rest_period": "45s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_016ZW5CyxrbUY589tAx4hHSA",
+          "content": "Created \"Lower Strength\" on 2026-08-16 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_013o83W49vjNGPyRqyAvqnfy",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Strength",
+            "date": "2026-08-23",
+            "start_time": "9:00 AM",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbell"
+            ],
+            "tags": [
+              "strength",
+              "lower-body"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "120s",
+                "notes": "Heaviest week of block"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 4,
+                "reps": "8 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "30s each side",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 4,
+                "reps": "15 each leg",
+                "rest_period": "45s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_013o83W49vjNGPyRqyAvqnfy",
+          "content": "Created \"Lower Strength\" on 2026-08-23 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done — 3 Lower Strength sessions added (Sun Aug 9, 16, 23), 60 min each, progressive load (3x8→4x6→4x5 squat). Slots into your rest gap between Fri bouldering and Mon run, no overlap with existing sessions. Volume ramps weekly; deload or drop a set if Wed Upper Strength or climbing starts feeling heavy."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Not sure what you're confirming — I didn't leave a pending question. What would you like me to continue: extend the strength plan further, add more exercises, or something else on the schedule?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Strength",
+        "date": "2026-08-09",
+        "start_time": "9:00 AM",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbell"
+        ],
+        "tags": [
+          "strength",
+          "lower-body"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "8",
+            "rest_period": "90s",
+            "notes": "Moderate load, build baseline"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "5",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "12 each leg",
+            "rest_period": "45s"
+          }
+        ]
+      },
+      "result": "Created \"Lower Strength\" on 2026-08-09 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Strength",
+        "date": "2026-08-16",
+        "start_time": "9:00 AM",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbell"
+        ],
+        "tags": [
+          "strength",
+          "lower-body"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "6",
+            "rest_period": "90s",
+            "notes": "Slight load increase from wk1"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "10 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "6",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "25s each side",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "15 each leg",
+            "rest_period": "45s"
+          }
+        ]
+      },
+      "result": "Created \"Lower Strength\" on 2026-08-16 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Strength",
+        "date": "2026-08-23",
+        "start_time": "9:00 AM",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbell"
+        ],
+        "tags": [
+          "strength",
+          "lower-body"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "120s",
+            "notes": "Heaviest week of block"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 4,
+            "reps": "8 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "30s each side",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 4,
+            "reps": "15 each leg",
+            "rest_period": "45s"
+          }
+        ]
+      },
+      "result": "Created \"Lower Strength\" on 2026-08-23 [evt-ai-3].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

@@ -1,0 +1,95 @@
+{
+  "caseId": "analytics-day-offset-join",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Show me my average protein on the day after strength workouts, per week."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01FuMsBKMwXekZFW7Z2xg68f",
+          "name": "update_chart_draft",
+          "input": {
+            "title": "Avg Protein: Day After Strength",
+            "chart_type": "line",
+            "bucket": "week",
+            "date_range": {
+              "kind": "rolling",
+              "days": 90
+            },
+            "series": [
+              {
+                "id": "s1",
+                "measure": "protein",
+                "agg": "avg",
+                "day_filter": {
+                  "event_types": [
+                    "weights"
+                  ],
+                  "offset_days": 1,
+                  "mode": "include"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01FuMsBKMwXekZFW7Z2xg68f",
+          "content": "Chart draft updated: title, chart type, bucket, range: last 90 days, updated series s1. The user reviews and presses Save."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Line chart, weekly avg protein logged on days after strength (`weights`) sessions, last 90 days. Refine range/units if needed."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Draft's set — nothing pending further from me. Press Save when ready, or tell me what to adjust (range, units, add a comparison series, etc.)."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "update_chart_draft",
+      "input": {
+        "title": "Avg Protein: Day After Strength",
+        "chart_type": "line",
+        "bucket": "week",
+        "date_range": {
+          "kind": "rolling",
+          "days": 90
+        },
+        "series": [
+          {
+            "id": "s1",
+            "measure": "protein",
+            "agg": "avg",
+            "day_filter": {
+              "event_types": [
+                "weights"
+              ],
+              "offset_days": 1,
+              "mode": "include"
+            }
+          }
+        ]
+      },
+      "result": "Chart draft updated: title, chart type, bucket, range: last 90 days, updated series s1. The user reviews and presses Save.",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

@@ -1,0 +1,901 @@
+{
+  "caseId": "mid-conversation-injury",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my climbing training for this week."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01DKZjsoG6cktgqbmtSxKFQ8",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Recovery Mobility",
+            "date": "2026-08-03",
+            "estimated_duration": 30,
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "sets": 2,
+                "reps": "10"
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "60s"
+              },
+              {
+                "name": "Lat Doorframe Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "45s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01DKZjsoG6cktgqbmtSxKFQ8",
+          "content": "Created \"Recovery Mobility\" on 2026-08-03 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01TTj8SmSeVxV1yy53iwGm8S",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Power-Endurance Session",
+            "date": "2026-08-06",
+            "start_time": "6:00 PM",
+            "estimated_duration": 90,
+            "location": "Gym",
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up",
+                "notes": "low-intensity, warm-up only"
+              },
+              {
+                "name": "Easy Traversing",
+                "duration": "10 min",
+                "notes": "warm-up"
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "notes": "footwork drills while fresh"
+              },
+              {
+                "name": "ARC Traversing",
+                "sets": 3,
+                "duration": "5 min",
+                "rest_period": "3 min",
+                "notes": "aerobic capacity intervals"
+              },
+              {
+                "name": "Project / Push",
+                "sets": 4,
+                "notes": "power-endurance burns near limit grade, full rest between"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Lat Doorframe Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01TTj8SmSeVxV1yy53iwGm8S",
+          "content": "Created \"Power-Endurance Session\" on 2026-08-06 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01MLyyFEiauF6Rv4NMHqcmmX",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Antagonist Strength + Core",
+            "date": "2026-08-07",
+            "estimated_duration": 45,
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 3,
+                "reps": "15"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "12"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "20s each side"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side"
+              },
+              {
+                "name": "Reverse Wrist Curl",
+                "sets": 2,
+                "reps": "15"
+              },
+              {
+                "name": "Wrist Twist",
+                "sets": 2,
+                "reps": "15"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01MLyyFEiauF6Rv4NMHqcmmX",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nReverse Wrist Curl: \"15\" — state the count per side (\"15 each side\") or as \"total\".\nWrist Twist: \"15\" — state the count per side (\"15 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_0117dRZLCTzhafGi1eqGEq8L",
+          "name": "create_event",
+          "input": {
+            "type": "outdoor-climbing",
+            "title": "Outdoor Project Day — 5.12a",
+            "date": "2026-08-08",
+            "estimated_duration": 180,
+            "exercises": [
+              {
+                "name": "Approach Hike",
+                "category": "cardio",
+                "notes": "warm-up approach"
+              },
+              {
+                "name": "Warm-up Route",
+                "grade": "5.9",
+                "climb_style": "sport",
+                "ascent_style": "flash"
+              },
+              {
+                "name": "Mileage Route",
+                "grade": "5.10c",
+                "climb_style": "sport",
+                "ascent_style": "flash"
+              },
+              {
+                "name": "Project Burn 1",
+                "grade": "5.12a",
+                "climb_style": "sport",
+                "ascent_style": "attempt",
+                "notes": "work redpoint crux sequence"
+              },
+              {
+                "name": "Project Burn 2",
+                "grade": "5.12a",
+                "climb_style": "sport",
+                "ascent_style": "attempt",
+                "notes": "link from last rest"
+              },
+              {
+                "name": "Descent Hike",
+                "category": "cardio",
+                "notes": "cooldown"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0117dRZLCTzhafGi1eqGEq8L",
+          "content": "Created \"Outdoor Project Day — 5.12a\" on 2026-08-08 [evt-ai-3]. Added 6 new exercise(s) to the library: Approach Hike, Warm-up Route, Mileage Route, Project Burn 1, Project Burn 2, Descent Hike."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Fixing the wrist reps, then done."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01881cNzuVYvhJgtQkwW2ete",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Antagonist Strength + Core",
+            "date": "2026-08-07",
+            "estimated_duration": 45,
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 3,
+                "reps": "15"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "12"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "20s each side"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side"
+              },
+              {
+                "name": "Reverse Wrist Curl",
+                "sets": 2,
+                "reps": "15 each side"
+              },
+              {
+                "name": "Wrist Twist",
+                "sets": 2,
+                "reps": "15 each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01881cNzuVYvhJgtQkwW2ete",
+          "content": "Created \"Antagonist Strength + Core\" on 2026-08-07 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Week set (Aug 3–9), built around your existing Tue bouldering session:\n\n- **Mon (today)** — Recovery Mobility, 30min\n- **Tue** — Bouldering Session (unchanged) [fix-1]\n- **Wed** — rest\n- **Thu** — Power-Endurance climbing, 90min: ARC traversing + redpoint-grade burns\n- **Fri** — Antagonist Strength + Core, 45min: pull/rotator/wrist balance work\n- **Sat** — Outdoor Project Day, 180min: warm-up → mileage → two 5.12a burns\n- **Sun** — rest\n\nLogic: bouldering (power) → power-endurance day → strength/prehab → outdoor redpoint attempts, with 2 rest days flanking the hardest efforts. Adjust Sat's actual routes once you pick a crag/route."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Week's fully scheduled — nothing else pending on my end. What's next: pick your actual Saturday project route/crag so I can swap the placeholder pitches for real grades, or anything else you want adjusted?"
+    },
+    {
+      "role": "user",
+      "content": "Update: I tweaked a finger pulley at yesterday's session — sharp pain when crimping. Replan the rest of the week around that."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Sharp pain on crimping = don't load that finger. That's outside coaching scope — stop crimping/hangboard/hard grip work now and get it checked by a hand specialist or sports physio before any return-to-climbing decision.\n\nReplanning the rest of the week to cut all finger/crimp loading:"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_012BUBrUkbVw78Dkw8s44oPy",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-2",
+            "scope": "all",
+            "event_title": "Power-Endurance Session"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_012BUBrUkbVw78Dkw8s44oPy",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01S3Hd65UahcWiJVQuFFJQBx",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-3",
+            "scope": "all",
+            "event_title": "Outdoor Project Day — 5.12a"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01S3Hd65UahcWiJVQuFFJQBx",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01EP9VTBLqJT2ny6YG4WdTHp",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Body & Core Maintenance",
+            "date": "2026-08-06",
+            "estimated_duration": 60,
+            "exercises": [
+              {
+                "name": "Deep Squat",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg"
+              },
+              {
+                "name": "Pistol Squats",
+                "sets": 3,
+                "reps": "5 each leg"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "12 each leg"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "12"
+              },
+              {
+                "name": "3-Point Plank",
+                "sets": 3,
+                "duration": "20s each side"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01EP9VTBLqJT2ny6YG4WdTHp",
+          "content": "Created \"Lower Body & Core Maintenance\" on 2026-08-06 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01NRv8eXhvMkBtKT6PZ32XRu",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-4",
+            "event_title": "Antagonist Strength + Core",
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 3,
+                "reps": "15"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "12"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "20s each side"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side"
+              },
+              {
+                "name": "Prone YTWs",
+                "sets": 2,
+                "reps": "10"
+              },
+              {
+                "name": "Posterior Rotator Cuff Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01NRv8eXhvMkBtKT6PZ32XRu",
+          "content": "Replaced the exercises list (8 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Rest of week updated:\n\n- **Thu** — swapped climbing for Lower Body & Core Maintenance (squats, RDL, pistols, planks) — zero grip/finger load\n- **Fri** — Antagonist Strength trimmed: dropped Reverse Wrist Curl + Wrist Twist (grip-dependent), added Prone YTWs + Posterior Rotator Cuff Stretch\n- **Sat** — Outdoor Project Day cancelled, no substitute climbing scheduled\n- **Sun** — rest, unchanged\n\nNo crimping, hangboard, or hanging/pulling grip work anywhere this week. Get the pulley evaluated before adding any climbing back — I'll hold off reprogramming that side until you're cleared."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing further to schedule — week's set through Sunday with the pulley worked around. Get the finger checked; ping me when you're cleared and I'll rebuild the climbing side of the plan."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Recovery Mobility",
+        "date": "2026-08-03",
+        "estimated_duration": 30,
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "sets": 2,
+            "reps": "10"
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "60s"
+          },
+          {
+            "name": "Lat Doorframe Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "45s each side"
+          }
+        ]
+      },
+      "result": "Created \"Recovery Mobility\" on 2026-08-03 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Power-Endurance Session",
+        "date": "2026-08-06",
+        "start_time": "6:00 PM",
+        "estimated_duration": 90,
+        "location": "Gym",
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up",
+            "notes": "low-intensity, warm-up only"
+          },
+          {
+            "name": "Easy Traversing",
+            "duration": "10 min",
+            "notes": "warm-up"
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "notes": "footwork drills while fresh"
+          },
+          {
+            "name": "ARC Traversing",
+            "sets": 3,
+            "duration": "5 min",
+            "rest_period": "3 min",
+            "notes": "aerobic capacity intervals"
+          },
+          {
+            "name": "Project / Push",
+            "sets": 4,
+            "notes": "power-endurance burns near limit grade, full rest between"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Lat Doorframe Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Power-Endurance Session\" on 2026-08-06 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Antagonist Strength + Core",
+        "date": "2026-08-07",
+        "estimated_duration": 45,
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 3,
+            "reps": "15"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "12"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "20s each side"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side"
+          },
+          {
+            "name": "Reverse Wrist Curl",
+            "sets": 2,
+            "reps": "15"
+          },
+          {
+            "name": "Wrist Twist",
+            "sets": 2,
+            "reps": "15"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nReverse Wrist Curl: \"15\" — state the count per side (\"15 each side\") or as \"total\".\nWrist Twist: \"15\" — state the count per side (\"15 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "outdoor-climbing",
+        "title": "Outdoor Project Day — 5.12a",
+        "date": "2026-08-08",
+        "estimated_duration": 180,
+        "exercises": [
+          {
+            "name": "Approach Hike",
+            "category": "cardio",
+            "notes": "warm-up approach"
+          },
+          {
+            "name": "Warm-up Route",
+            "grade": "5.9",
+            "climb_style": "sport",
+            "ascent_style": "flash"
+          },
+          {
+            "name": "Mileage Route",
+            "grade": "5.10c",
+            "climb_style": "sport",
+            "ascent_style": "flash"
+          },
+          {
+            "name": "Project Burn 1",
+            "grade": "5.12a",
+            "climb_style": "sport",
+            "ascent_style": "attempt",
+            "notes": "work redpoint crux sequence"
+          },
+          {
+            "name": "Project Burn 2",
+            "grade": "5.12a",
+            "climb_style": "sport",
+            "ascent_style": "attempt",
+            "notes": "link from last rest"
+          },
+          {
+            "name": "Descent Hike",
+            "category": "cardio",
+            "notes": "cooldown"
+          }
+        ]
+      },
+      "result": "Created \"Outdoor Project Day — 5.12a\" on 2026-08-08 [evt-ai-3]. Added 6 new exercise(s) to the library: Approach Hike, Warm-up Route, Mileage Route, Project Burn 1, Project Burn 2, Descent Hike.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Antagonist Strength + Core",
+        "date": "2026-08-07",
+        "estimated_duration": 45,
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 3,
+            "reps": "15"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "12"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "20s each side"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side"
+          },
+          {
+            "name": "Reverse Wrist Curl",
+            "sets": 2,
+            "reps": "15 each side"
+          },
+          {
+            "name": "Wrist Twist",
+            "sets": 2,
+            "reps": "15 each side"
+          }
+        ]
+      },
+      "result": "Created \"Antagonist Strength + Core\" on 2026-08-07 [evt-ai-4].",
+      "turn": 1
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-2",
+        "scope": "all",
+        "event_title": "Power-Endurance Session"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 3
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-3",
+        "scope": "all",
+        "event_title": "Outdoor Project Day — 5.12a"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 3
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Body & Core Maintenance",
+        "date": "2026-08-06",
+        "estimated_duration": 60,
+        "exercises": [
+          {
+            "name": "Deep Squat",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg"
+          },
+          {
+            "name": "Pistol Squats",
+            "sets": 3,
+            "reps": "5 each leg"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "12 each leg"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "12"
+          },
+          {
+            "name": "3-Point Plank",
+            "sets": 3,
+            "duration": "20s each side"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side"
+          }
+        ]
+      },
+      "result": "Created \"Lower Body & Core Maintenance\" on 2026-08-06 [evt-ai-5].",
+      "turn": 3
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-4",
+        "event_title": "Antagonist Strength + Core",
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 3,
+            "reps": "15"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "12"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "20s each side"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side"
+          },
+          {
+            "name": "Prone YTWs",
+            "sets": 2,
+            "reps": "10"
+          },
+          {
+            "name": "Posterior Rotator Cuff Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (8 exercises).",
+      "turn": 3
+    }
+  ],
+  "anomalies": []
+}

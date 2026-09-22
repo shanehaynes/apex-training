@@ -1,0 +1,69 @@
+{
+  "caseId": "recurring-delete-scope",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Delete Wednesday's yoga."
+    },
+    {
+      "role": "assistant",
+      "content": "Wednesday Aug 5 Morning Yoga is part of a recurring series. Delete just that one instance, or the entire series?"
+    },
+    {
+      "role": "user",
+      "content": "Just this Wednesday — keep the rest of the series."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_0172rbHdhcTPmQeNVvva4kXX",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-yoga__2026-08-05",
+            "scope": "instance",
+            "date": "2026-08-05",
+            "event_title": "Morning Yoga"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0172rbHdhcTPmQeNVvva4kXX",
+          "content": "Deleted that instance successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done — Wed Aug 5 yoga skipped, series intact."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "That's already done — anything else?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-yoga__2026-08-05",
+        "scope": "instance",
+        "date": "2026-08-05",
+        "event_title": "Morning Yoga"
+      },
+      "result": "Deleted that instance successfully.",
+      "turn": 2
+    }
+  ],
+  "anomalies": []
+}

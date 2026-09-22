@@ -18,6 +18,21 @@ export { promptFileHash, sha256 } from './report';
 export const DIMENSIONS = ['constraints', 'progression', 'refusal', 'integrity'] as const;
 export type Dimension = typeof DIMENSIONS[number];
 
+/**
+ * The dimensions the gate may fail a PR on.
+ *
+ * `progression` is deliberately NOT one of them. It is arithmetic over the
+ * schedule the coach actually wrote, and on multi-week planning cases the
+ * coach writes a materially different schedule every run — measured
+ * 2026-09-22, four of seven progression cases flipped between two runs of an
+ * identical tree, and a targeted re-run confirmed rather than cleared them.
+ * A single-sample baseline cannot gate a dimension that varies that much: it
+ * would fail unchanged code, which is how a gate teaches people to ignore it.
+ * So progression is computed, printed and attested as ADVISORY, and the
+ * nightly API run remains where it is actually read.
+ */
+export const GATED_DIMENSIONS = ['constraints', 'refusal', 'integrity'] as const satisfies readonly Dimension[];
+
 // ─── Reading result files leniently ──────────────────────────────────────────
 //
 // A result file on disk is whatever the run that wrote it knew how to write.
@@ -51,13 +66,23 @@ export interface Change {
   to: VerdictStatus | 'absent';
 }
 
-export interface Classification {
-  /** pass → fail, and pass → needs-taxonomy: the coach stopped being provably right. */
+/** One ungated dimension's movement: reported, never fatal. */
+export interface AdvisoryChanges {
   regressions: Change[];
-  /** fail → pass. */
   improvements: Change[];
-  /** Every other verdict move, including absent ↔ present. */
   otherChanges: Change[];
+}
+
+export interface Classification {
+  /** pass → fail, and pass → needs-taxonomy, on GATED dimensions only. */
+  regressions: Change[];
+  /** fail → pass, on gated dimensions only. */
+  improvements: Change[];
+  /** Every other verdict move on a gated dimension, including absent ↔ present. */
+  otherChanges: Change[];
+  /** Ungated dimensions, keyed by dimension. Never contributes to a failure,
+   *  and never makes a case a re-run suspect. */
+  advisory: Partial<Record<Dimension, AdvisoryChanges>>;
   /** Ids in the candidate that the baseline does not have. */
   newCases: string[];
   /** Ids in the baseline that the candidate does not have. */
@@ -90,13 +115,21 @@ export function casePassed(c: CaseResultLike): boolean {
  * errored candidate case is reported once, in `erroredCases`, and its
  * dimensions are not walked — it has no verdicts to compare.
  */
-export function classify(baseline: RunResultLike, candidate: RunResultLike): Classification {
+export function classify(
+  baseline: RunResultLike,
+  candidate: RunResultLike,
+  gatedDimensions: readonly Dimension[] = GATED_DIMENSIONS,
+): Classification {
   const byIdCandidate = new Map(candidate.cases.map(c => [c.id, c]));
   const baselineIds = new Set(baseline.cases.map(c => c.id));
+  const gated = new Set<Dimension>(gatedDimensions);
 
   const regressions: Change[] = [];
   const improvements: Change[] = [];
   const otherChanges: Change[] = [];
+  const advisory: Partial<Record<Dimension, AdvisoryChanges>> = {};
+  const advisoryFor = (dim: Dimension): AdvisoryChanges =>
+    (advisory[dim] ??= { regressions: [], improvements: [], otherChanges: [] });
   const erroredCases = candidate.cases.filter(isErrored).map(c => c.id);
   const erroredSet = new Set(erroredCases);
 
@@ -114,9 +147,12 @@ export function classify(baseline: RunResultLike, candidate: RunResultLike): Cla
       // to prove the constraint held is a regression, not a curiosity. The
       // reverse (needs-taxonomy → pass) stays an "other change" — that is a
       // taxonomy edit, which says nothing about the coach.
-      if (from === 'pass' && (to === 'fail' || to === 'needs-taxonomy')) regressions.push(change);
-      else if (from === 'fail' && to === 'pass') improvements.push(change);
-      else otherChanges.push(change);
+      const bucket = gated.has(dim)
+        ? { regressions, improvements, otherChanges }
+        : advisoryFor(dim);
+      if (from === 'pass' && (to === 'fail' || to === 'needs-taxonomy')) bucket.regressions.push(change);
+      else if (from === 'fail' && to === 'pass') bucket.improvements.push(change);
+      else bucket.otherChanges.push(change);
     }
   }
 
@@ -124,6 +160,7 @@ export function classify(baseline: RunResultLike, candidate: RunResultLike): Cla
     regressions,
     improvements,
     otherChanges,
+    advisory,
     newCases: candidate.cases.filter(c => !baselineIds.has(c.id)).map(c => c.id),
     missingCases: baseline.cases.filter(c => !byIdCandidate.has(c.id)).map(c => c.id),
     erroredCases,

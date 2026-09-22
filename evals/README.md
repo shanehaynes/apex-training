@@ -113,6 +113,10 @@ npm run eval:verify                            # token-free: does the committed 
 
 `eval:gate` reads `evals/baseline/<model>.json`, runs the full suite via `--backend agent-sdk`, classifies the result against the baseline, and — on a pass — writes `evals/gate/attestation.json`.
 
+It runs the suite six cases at a time (`--concurrency`, forwarded to the runner on both the full run and the flake re-run, and recorded in the attestation) because a serial `agent-sdk` suite takes roughly twenty minutes against four; pass `--concurrency 1` to go back to serial. Cases share no fixture, backend or session, so there is no mechanism by which lane count should change a verdict — but that is an argument, not a measurement, and the progression variance below is large enough to swamp any attempt to measure it so far.
+
+**The gate enforces constraints, refusal and integrity. Progression is advisory:** it is still computed, printed under an "advisory (not gated)" heading and recorded in the attestation under `advisory`, but it never fails the gate, never triggers the flake re-run, and `eval:verify` ignores it. Progression is arithmetic over the schedule the coach actually wrote, and on multi-week planning cases the coach writes a materially different schedule every run — measured 2026-09-22, four of seven progression cases flipped between two runs of an identical tree, and a targeted re-run confirmed rather than cleared them. A single-sample baseline cannot gate that without failing unchanged code, which is how a gate teaches people to ignore it. The nightly API run is where progression is read.
+
 ### The attestation
 
 It pins two hashes, and needs both:

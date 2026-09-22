@@ -120,6 +120,7 @@
     "Bike": [],
     "Stationary Bike": [],
     "Swimming": ["overhead-reach"],
+    "Pool Swim": ["overhead-reach"],
     "Rowing": ["pull", "hinge"],
     "Rowing Machine": ["pull", "hinge"],
     "Elliptical": [],

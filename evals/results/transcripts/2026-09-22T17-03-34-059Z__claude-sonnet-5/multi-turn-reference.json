@@ -1,0 +1,523 @@
+{
+  "caseId": "multi-turn-reference",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Create a workout for Saturday called Pull Day, about an hour."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_017Amr9o7sbi8pXsZByYNaUg",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Pull Day",
+            "date": "2026-09-26",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "tags": [
+              "pull"
+            ],
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "75s"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hanging Leg Raises",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_017Amr9o7sbi8pXsZByYNaUg",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01CFYT2EE6M8E3U5iW4f4MU2",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Pull Day",
+            "date": "2026-09-26",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "tags": [
+              "pull"
+            ],
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "75s"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hanging Leg Raises",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01CFYT2EE6M8E3U5iW4f4MU2",
+          "content": "Created \"Pull Day\" on 2026-09-26 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Pull Day set for Saturday 9/26, 60 min: Band Pull-Aparts warmup → Weighted Pull-Ups, Barbell Row, Lat Pulldown, Chest-Supported DB Row, Face Pulls, DB/Hammer Curls, Hanging Leg Raises."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Already done — Pull Day is on the schedule for Saturday 9/26 [evt-ai-1]. Nothing further pending. Anything else you want adjusted?"
+    },
+    {
+      "role": "user",
+      "content": "Now add Barbell Row (4x8) and Push-Ups (3x15) to the workout you just created."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_018d4PSrF6V7ERneddznxyBS",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Pull Day",
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "75s"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hanging Leg Raises",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_018d4PSrF6V7ERneddznxyBS",
+          "content": "Replaced the exercises list (11 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added — but note Barbell Row was already in the workout at 4x8, so it's now listed twice (2 total Barbell Row blocks). Say the word if you want the duplicate removed instead of stacked."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "No action needed — duplicate Barbell Row stays as-is. Pull Day now has 11 exercises for Saturday 9/26."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Pull Day",
+        "date": "2026-09-26",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "tags": [
+          "pull"
+        ],
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "75s"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hanging Leg Raises",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Pull Day",
+        "date": "2026-09-26",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "tags": [
+          "pull"
+        ],
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "75s"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hanging Leg Raises",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Pull Day\" on 2026-09-26 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Pull Day",
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "75s"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hanging Leg Raises",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (11 exercises).",
+      "turn": 3
+    }
+  ],
+  "anomalies": []
+}

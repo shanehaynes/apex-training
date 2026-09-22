@@ -1,0 +1,402 @@
+{
+  "caseId": "shoulder-impingement-overhead",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Set up an upper-body strength workout for Wednesday."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01AHmtzMK2BGNa92Cqz4eQ2C",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Upper Body Strength",
+            "date": "2026-09-23",
+            "start_time": "6:30 AM",
+            "estimated_duration": 55,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine",
+              "landmine attachment",
+              "bands"
+            ],
+            "tags": [
+              "upper-body",
+              "strength"
+            ],
+            "description": "No overhead pressing, no hanging from bars — left shoulder impingement. Rows, horizontal/landmine press, curls only.",
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Band External Rotation",
+                "sets": 2,
+                "reps": "12 each side",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "75s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "75s"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s",
+                "notes": "Horizontal press only — keep elbows off full overhead lockout path"
+              },
+              {
+                "name": "Landmine Press + Reach",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "75s",
+                "notes": "Angled press, stays well below overhead — stop if any pinch in left shoulder"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "sets": 1,
+                "duration": "30s each side"
+              },
+              {
+                "name": "Lat Doorframe Stretch",
+                "sets": 1,
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01AHmtzMK2BGNa92Cqz4eQ2C",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01QNyg88MgaCSuZN2xfbXnQR",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Upper Body Strength",
+            "date": "2026-09-23",
+            "start_time": "6:30 AM",
+            "estimated_duration": 55,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine",
+              "landmine attachment",
+              "bands"
+            ],
+            "tags": [
+              "upper-body",
+              "strength"
+            ],
+            "description": "No overhead pressing, no hanging from bars — left shoulder impingement. Rows, horizontal/landmine press, curls only.",
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Band External Rotation",
+                "sets": 2,
+                "reps": "12 each side",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "75s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "75s"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s",
+                "notes": "Horizontal press only — keep elbows off full overhead lockout path"
+              },
+              {
+                "name": "Landmine Press + Reach",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "75s",
+                "notes": "Angled press, stays well below overhead — stop if any pinch in left shoulder"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "sets": 1,
+                "duration": "30s each side"
+              },
+              {
+                "name": "Lat Doorframe Stretch",
+                "sets": 1,
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01QNyg88MgaCSuZN2xfbXnQR",
+          "content": "Created \"Upper Body Strength\" on 2026-09-23 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Wednesday 9/23, 6:30 AM, ~55 min — Upper Body Strength [evt-ai-1]:\n\n- Band Pull-Aparts, Band External Rotation (warm-up)\n- Barbell Row 4×8\n- Lat Pulldown 3×10\n- Chest-Supported Dumbbell Row 3×10\n- Push-Ups 3×12\n- Landmine Press + Reach 3×10/side\n- Dumbbell Curl 3×10/side\n- Pec/lat stretches (cooldown)\n\nAll horizontal pulls/presses — no overhead work, no bar hangs, per your shoulder restriction. Stop Landmine Press if any pinch on the left side."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Workout's already set for Wednesday — nothing pending. Anything else you want scheduled or logged?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Upper Body Strength",
+        "date": "2026-09-23",
+        "start_time": "6:30 AM",
+        "estimated_duration": 55,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine",
+          "landmine attachment",
+          "bands"
+        ],
+        "tags": [
+          "upper-body",
+          "strength"
+        ],
+        "description": "No overhead pressing, no hanging from bars — left shoulder impingement. Rows, horizontal/landmine press, curls only.",
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Band External Rotation",
+            "sets": 2,
+            "reps": "12 each side",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "75s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "75s"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s",
+            "notes": "Horizontal press only — keep elbows off full overhead lockout path"
+          },
+          {
+            "name": "Landmine Press + Reach",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "75s",
+            "notes": "Angled press, stays well below overhead — stop if any pinch in left shoulder"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "sets": 1,
+            "duration": "30s each side"
+          },
+          {
+            "name": "Lat Doorframe Stretch",
+            "sets": 1,
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Upper Body Strength",
+        "date": "2026-09-23",
+        "start_time": "6:30 AM",
+        "estimated_duration": 55,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine",
+          "landmine attachment",
+          "bands"
+        ],
+        "tags": [
+          "upper-body",
+          "strength"
+        ],
+        "description": "No overhead pressing, no hanging from bars — left shoulder impingement. Rows, horizontal/landmine press, curls only.",
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Band External Rotation",
+            "sets": 2,
+            "reps": "12 each side",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "75s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "75s"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s",
+            "notes": "Horizontal press only — keep elbows off full overhead lockout path"
+          },
+          {
+            "name": "Landmine Press + Reach",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "75s",
+            "notes": "Angled press, stays well below overhead — stop if any pinch in left shoulder"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "sets": 1,
+            "duration": "30s each side"
+          },
+          {
+            "name": "Lat Doorframe Stretch",
+            "sets": 1,
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Upper Body Strength\" on 2026-09-23 [evt-ai-1].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}
