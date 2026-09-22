@@ -739,3 +739,103 @@ The brief said "port the dashboard and the tile builder"; these are the lines dr
   an external free service, not a drain. #198 is a hard prerequisite for the Supabase upgrade, not a
   parallel track. If the chat p99 is ever measured (P8's business), record the number here rather than
   reopening the argument. Supersede this entry rather than editing it if a trigger fires.
+
+## D-037 · The palette: one warm ink, one burnt-orange signal, every colour a token
+**Status:** decided · Mac session (orchestrated) · 2026-09-21 · UX review
+- **The question.** Every non-neutral colour in the app was a Tailwind default (`#f1f5f9` slate-100
+  as the text colour on a warm charcoal, orange-500, red-500/400/700, a sky/green/yellow/violet/
+  rose/teal-400 chart ramp) plus one navy leak from the retired cold palette — the "AI-designed"
+  look the review named (ux-review.md §2).
+- **Decision.** The web's tokens are the palette for both clients (Shane, 2026-09-21): warm ink
+  `#ede8df` / `#b8b3a9` / `#8f8781`, `--border-subtle` as the ink at 13% (a hairline, not a box),
+  one burnt-orange signal `#e8601c` for "done", desaturated reds, a warm eight-colour chart ramp
+  whose first two entries are the signal and the ink. Every Swift-only `ApexPalette` colour was
+  promoted to `tokens.css` and `gen-tokens.mjs` emits it, so `ApexPalette` is a forwarder and no
+  view carries a hex. The user's chat bubble is `bgElevated` with a hairline. Workout-type colours
+  are untouched: they carry meaning. Contrast is computed against `bgSurface` (text ≥ 4.5,
+  marks ≥ 3.0) and the table lives in design-spec §1. PRs #284 (tokens, generator, sign-in tint)
+  and #286 (the web's own hardcoded hexes).
+- **Rejected.** An iOS-only override layered over the generated tokens — two palettes to drift.
+
+## D-038 · Schedule chrome: the date is the title, the setup card scrolls and its dismiss persists
+**Status:** decided · Mac session (orchestrated) · 2026-09-21 · UX review · amends D-035
+- **The question.** The first workout card started 68% of the way down the Schedule tab; the date
+  was stated four times above it; the setup card was pinned over the list and came back every
+  launch because its close was session-only (D-035).
+- **Decision.** The navigation title is the date (inline — a large title is lost the first time
+  Day ⇄ Month swaps the scroll view under it); ‹ › and Today live in the toolbar, Today inside the
+  period menu, the mode control icon-only (iOS 26 drops a centred title once the bar holds five
+  items); the 42pt numeral and the TODAY pill are gone; the setup card is the first item *inside*
+  the scroll, one line when collapsed, and its close persists through a local flag — the
+  `onboarding_dismissed` PATCH could not carry it because that flag is what makes the card appear.
+  D-035's "the card's close is session-only" is superseded. The day card shows the type once (rail
+  + muted text, no filled chip); month cells show up to three type dots and a muted count instead
+  of five-character chips; rows size to the viewport; the grid is hairlines. First card: 28.5% of
+  the screen. PR #285.
+
+## D-039 · Pills are the exception: menus, searchable sheets and disclosures
+**Status:** decided · Mac session (orchestrated) · 2026-09-21 · UX review
+- **The question.** Chips were the default control: 15 before the builder's title field, ~33 in the
+  tile builder, two rows of filters over a one-row library.
+- **Decision.** `ApexUI` gained `MenuPicker` (house field chrome over a `Menu` holding an inline
+  `Picker`), `ChipRow(collapseAbove:)` (past *n* options the row is a menu under the same
+  identifier) and `SearchablePickerSheet` (#283). The workout builder puts Title first, Type in a
+  menu, Sport only when the type is cardio or the draft carries one, and scoring/repeat/location/
+  tags/difficulty under a "More options" button that auto-expands when any has a value (#289).
+  The tile builder pins its preview at the top and opens the measure list as a searchable sheet
+  (#291). Filter chip rows appear only when the list is longer than a screen (library #287,
+  template search #289). `.pickerStyle(.menu)` and `DisclosureGroup` were rejected: both draw
+  chrome the house palette cannot own.
+- **Open.** `SearchablePickerSheet` still keys rows by label slug and has no per-option disabled
+  reason, so the tile builder drew its own sheet; one small ApexUI PR folds it back.
+
+## D-040 · The event sheet: content before actions, Start is the one primary
+**Status:** decided · Mac session (orchestrated) · 2026-09-21 · UX review
+- **Decision.** Thirteen icon+value pairs became one Planned · Actual block (no icons; "Synced from
+  COROS" is the Actual column's caption). The description and exercises come first; a bottom
+  `safeAreaInset` bar holds Start Workout as the only primary and a `Menu` with Mark complete ·
+  Edit exercises · Edit workout · Delete. Start stays primary for a completed workout too — it is
+  the only route back into a finished session, and `testTrackerOnFixtures` asserts it; completion
+  is a tick beside the type badge instead. The stream charts pin on tap (D-029's rule) and clip
+  their area fill (bug B1). PR #288.
+- **Trap.** An `.accessibilityIdentifier` applied after `.safeAreaInset` is inherited by every
+  element inside the inset; identify content before the inset and give a `Menu`'s label the
+  identifier with `.accessibilityElement(children: .ignore)`.
+
+## D-041 · Toasts clear the navigation bar and claim only their own bounds
+**Status:** decided · Mac session (orchestrated) · 2026-09-21 · UX review · amends D-032
+- **The question.** The success toast covered the back button for its whole four-second life, and
+  `ToastWindow.hitTest` claimed the entire published frame, so a tap on Back right after a COROS
+  sync dismissed the toast and did nothing else (bug B6's second half; `testYouOnFixtures`).
+- **Decision.** The stack starts below the navigation bar; the frame the bus publishes is measured
+  before the padding; `hitTest` refuses while there are no toasts. D-032's overlay window stays.
+  The other two smoke failures were the typing helper tapping controls hidden behind the bottom
+  bar — `isHittable` answers true for them — so a `scrollClear` guard replaces it. PR #290.
+
+## D-042 · Onboarding is four pages, grouped in Swift; the web tour is unchanged
+**Status:** decided · Mac session (orchestrated) · 2026-09-21 · UX review · amends D-035
+- **Decision** (Shane, 2026-09-21): the catalog stays the source of the copy, but the phone groups
+  the eight steps into four pages by a table over step *ids* in `OnboardingModel` (a step the table
+  does not know gets its own page; a test pins that every catalog step appears exactly once). The
+  dots are the only progress indicator. `content.ts` gained an optional per-step `iosBody` so the
+  phone's sentence can differ ("Month or day" — there is no week view, D-009) without touching the
+  web's. PR #296.
+
+## D-043 · A running workout is visible from the schedule
+**Status:** decided · Mac session (orchestrated) · 2026-09-21 · UX review
+- **Decision.** `TrackerHost` publishes the live session (event key + start) through an observable
+  store on `TrackerServices`; the Day view's card for that event shows a system-ticked elapsed
+  timer in its time column with "In progress", and tapping it reopens the tracker cover. The timer
+  is not in the completion control (the one affordance touch struggles to hit, U7). Because
+  `Text(timerInterval:)` ticks on the system clock while the session stamp comes from the injected
+  `ApexClock`, the published start is shifted by `Date() − clock.now` — the identity in production.
+  PR #297.
+
+## D-044 · Snapshots are recorded on the iPhone 17
+**Status:** decided · Mac session (orchestrated) · 2026-09-21 · UX review
+- **The question.** Snapshot PNG bytes differ between the iPhone 17 and the iPhone 17 Pro; parallel
+  workers on different devices produced references that fail on each other's machines.
+- **Decision.** The iPhone 17 (the smoke's device, `screenshots.sh`'s default) is the recorder for
+  every suite; a worker on another device records only its own cases and leaves mismatches alone;
+  a closing pass re-records everything on the 17.
+
