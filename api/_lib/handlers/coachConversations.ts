@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
 import { enforceRateLimit } from '../rateLimit.js';
+import type { Json } from '../../../src/lib/db/types.js';
 
 // Server-side coach thread persistence (docs/ios/decisions.md D-013). The web
 // thread lived in React state and died with the tab; these six operations are
@@ -51,8 +52,10 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export interface CoachMessagePayload {
   id?: string;
   role: 'user' | 'assistant';
-  /** Verbatim Anthropic content; null on a display-only row (D-025). */
-  api_content: unknown;
+  /** Verbatim Anthropic content; null on a display-only row (D-025). Typed
+   *  as the generated `Json` because that is what the jsonb column takes —
+   *  and what a value parsed out of a JSON request body already is. */
+  api_content: Json | null;
   /** What the thread renders; null on a hidden row (the briefing prompt). */
   display_text: string | null;
   kind: 'turn' | 'notice' | 'stopped';
@@ -84,7 +87,9 @@ function parseMessages(input: unknown): { rows: CoachMessagePayload[] } | { reas
     if (apiContent === null && displayText === null) return { reason: 'message has neither api_content nor display_text' };
     rows.push({
       role: m.role as 'user' | 'assistant',
-      api_content: apiContent,
+      // Sound by construction: req.body is the parsed JSON request body, so
+      // every value reachable in it is already a Json.
+      api_content: apiContent as Json | null,
       display_text: displayText as string | null,
       kind: kind as 'turn' | 'notice' | 'stopped',
     });

@@ -229,16 +229,20 @@ export default function ChatSidebar() {
             Coach's Notes
           </button>
           {/* The thread now survives a reload (D-013), so there has to be a
-              way to leave one behind. Allowed without a key: starting an
-              empty thread asks nothing of Anthropic. */}
-          <button
-            className="chat-notes-btn"
-            onClick={() => runExclusive(async () => newThread())}
-            disabled={isLoading || actionBusy || !!pendingAction}
-          >
-            <MessageSquarePlus size={13} />
-            New thread
-          </button>
+              way to leave one behind — but only once there is one: on an
+              empty pane the button would replace an empty thread with an
+              empty thread. Allowed without an API key; starting a thread
+              asks nothing of Anthropic. */}
+          {messages.length > 0 && (
+            <button
+              className="chat-notes-btn"
+              onClick={() => runExclusive(async () => newThread())}
+              disabled={isLoading || actionBusy || !!pendingAction}
+            >
+              <MessageSquarePlus size={13} />
+              New thread
+            </button>
+          )}
         </div>
       </div>
 
