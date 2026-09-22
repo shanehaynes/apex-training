@@ -97,6 +97,69 @@ CI runs the suite nightly (and on `workflow_dispatch`) once the `ANTHROPIC_API_K
 
 `.claude/workflows/coach-prompt-evolution.js` is a bounded, AVO-style search that uses this suite as its fitness function: variant agents each propose one edit to `prompt.ts`, every variant is scored by a full eval run in an isolated worktree, and a variant only becomes champion by **dominance** — no dimension regresses, at least one strictly improves — with the search stopping on a plateau. Each run's full lineage is saved under [lineage/](lineage/README.md). It spends real tokens (one suite run per variant per generation); invoke it deliberately, never as a routine check.
 
+## CI gate
+
+Before this, a coach prompt edit could merge with no eval run at all: the `evals` job is nightly-only, `eval:diff` never exited non-zero, and the merge policy did not hold anything coach-shaped. The gate closes that — but it has one hard constraint shaping every decision below.
+
+**The model runs locally; CI verifies an attestation.** The gate must spend a Claude subscription and never API credit, and subscription entitlement cannot run inside GitHub Actions under documented policy. So the expensive half runs on the developer's logged-in Claude Code, and the cheap half — which calls no model, needs no secret, and finishes in seconds — runs in CI.
+
+```bash
+npm run eval:gate                              # local: run the suite on the subscription, decide, attest
+npm run eval:baseline -- evals/results/X.json  # promote an agent-sdk result to evals/baseline/<model>.json
+npm run eval:hash                              # print the two hashes an attestation pins
+npm run eval:verify                            # token-free: does the committed attestation match this tree?
+```
+
+`eval:gate` reads `evals/baseline/<model>.json`, runs the full suite via `--backend agent-sdk`, classifies the result against the baseline, and — on a pass — writes `evals/gate/attestation.json`.
+
+### The attestation
+
+It pins two hashes, and needs both:
+
+- **`promptFileHash`** — the coach behavior surface (`prompt.ts`, `schemas.ts`, `tools.ts`, `model.ts`). What the coach *is*.
+- **`evalSurfaceHash`** — sha256 over every file under `evals/cases/` and `evals/src/`, path and content, in sorted order. What the *question* was.
+
+Without the second, the gate could be satisfied by making the test easier: loosen a rubric, delete a case, and a stale attestation would still verify. It also carries `PROMPT_VERSION`, the backend and model, the baseline path and its sha256, the result file, every case's per-dimension verdict, and the transcript hashes.
+
+`eval:verify` — the `coach-gate` CI job — re-derives both hashes from the tree and fails if either moved, if `PROMPT_VERSION` no longer matches, if the baseline's bytes changed, if any id in `evals/cases/` is missing from the attested verdicts (or vice versa), or if the attestation itself records a regression against the baseline. The job always starts and skips itself in seconds unless the PR touched `src/lib/coach/`, `api/_lib/coach/`, `api/chat.ts`, `evals/cases/`, `evals/src/`, `evals/baseline/` or `evals/gate/` — an `on.paths` filter would be the obvious way to do that, but path filters and required checks do not compose.
+
+Editing `evals/src/` or `evals/cases/` therefore invalidates the attestation by design. That is the same rule stated from the other side: change the question, re-answer it.
+
+### Why the baseline is a held path
+
+`evals/baseline/` is `HOLD`ed by [scripts/merge-policy.mjs](../scripts/merge-policy.mjs), and it is the only eval path that is. Every other held path is something CI cannot prove; the baseline is the standard CI proves things *against* — the same problem one level up. The practical shape:
+
+- A PR that does not change coach behavior needs no baseline edit, verifies against the existing one, and auto-merges as usual.
+- A PR that deliberately changes behavior must refresh the baseline, which holds it for Shane. Deciding that the coach should now answer differently is not a thing an agent gets to merge alone.
+
+`evals/gate/` is deliberately **not** held. The attestation is evidence, not a standard: it is worthless the moment its hashes stop matching the tree, so forging one costs exactly as much as running the gate.
+
+Only an `agent-sdk` result may be promoted to a baseline. `eval:baseline` refuses an API-backend file, because the two runtimes differ in tool loop, `max_tokens` control and token accounting (see **Backends** above) and comparing across them produces noise that reads like regression.
+
+### The flake re-run
+
+A model is not a pure function, so one bad sample is a suspicion, not a finding. Every case that regressed or errored is re-run **once**, with `--case a,b`, and only the second look counts: a case that is still bad is a confirmed regression, a case that recovers is a flake and its second verdict is what gets attested. There is no third look — that would be sampling until the answer is convenient.
+
+The gate also fails on a `missingCases` (a baseline case the run did not produce) and on a new case that did not pass. A new case is absent from the held baseline by construction, so there is nothing for it to regress from; it has to stand on its own.
+
+### Exit codes
+
+The same contract the production probes use:
+
+| | |
+|---|---|
+| **0** | pass |
+| **1** | fail — a confirmed regression, a stale hash, a broken attestation |
+| **2** | could not look — no baseline yet, or the subscription hit a rate/usage limit mid-run |
+
+A 2 is never a pass. If the subscription runs out of rope the gate says so and writes no attestation; CI reports a 2 as a notice and stays green, because until the first baseline lands there is nothing the gate could have attested to.
+
+### What gets committed
+
+The gate result file and its transcripts are committed **in the PR they attest**, next to `attestation.json` — roughly 40 files for a gated PR. That is the point: the attestation claims a set of verdicts, and the transcripts are what makes the claim auditable rather than trusted. Nightly `evals` runs stay CI artifacts as before.
+
+This does mean `evals/results/` grows. Prune it once it passes 50 runs — the baselines and the attested gate runs are what must survive; the rest are history.
+
 ## Judge reliability
 
 The judge is an unexamined assumption until measured. The loop:

@@ -25,6 +25,14 @@
 //     production routing.
 //   - package.json / package-lock.json: a new dependency deserves a human
 //     eye; npm audit only knows about published vulnerabilities.
+//   - evals/baseline/: the promoted eval run that defines what correct coach
+//     behavior IS. Every other held path is something CI cannot prove; this
+//     one is the standard CI proves things against, which is the same
+//     problem one level up. A PR that does not change behavior needs no
+//     baseline edit and still auto-merges; one that deliberately changes it
+//     has to refresh the baseline, and that is Shane's call, not the
+//     agent's. (evals/gate/ is NOT held: the attestation is evidence, and it
+//     is only valid while its hashes match the tree.)
 //
 // A human grants a per-PR exception with the `shipit` label — GitHub-side,
 // auditable, revocable. A review approval cannot be the token: gh acts as
@@ -63,6 +71,7 @@ export const HELD = [
   { path: 'vercel.json', reason: 'production routing (the /api/ blackhole, PR #25)' },
   { path: 'package.json', reason: 'dependency changes deserve a human eye' },
   { path: 'package-lock.json', reason: 'dependency changes deserve a human eye' },
+  { path: 'evals/baseline/', reason: 'redefines what correct coach behavior is' },
 ];
 
 export const GRANT_LABEL = 'shipit';
