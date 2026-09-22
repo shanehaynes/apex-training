@@ -10,7 +10,7 @@ import {
   tokensFromSdkUsage,
   zodShapeFromJsonSchema,
 } from '../src/backends/agentSdk';
-import { selectCases } from '../run';
+import { mapWithConcurrency, selectCases } from '../run';
 import { coachToolSchemas } from '../../src/lib/coach/schemas';
 import type { CallModel, EvalCase, ModelResponse } from '../src/types';
 
@@ -252,6 +252,49 @@ describe('makeAgentSdkBackend', () => {
     expect(closed).toBe(2);
   });
 
+  it('keeps concurrent cases on separate sessions and separate tool records', async () => {
+    const mk = (title: string, sessionId: string) => {
+      const seen: Options[] = [];
+      const runQuery = async function* ({ options, tools }: {
+        prompt: string; options: Options; tools: FakeTools;
+      }) {
+        seen.push(options);
+        yield ({ type: 'system', subtype: 'init', session_id: sessionId, tools: [] } as unknown as SDKMessage);
+        const input = { ...EVENT_INPUT, title };
+        yield assistantMessage([
+          { type: 'tool_use', id: `tu-${title}`, name: `${MCP_PREFIX}create_event`, input },
+        ]);
+        // Yield to the loop mid-case so the two cases genuinely interleave.
+        await new Promise(r => setTimeout(r, 5));
+        const text = await callTool(tools, 'create_event', input);
+        yield toolResultMessage([{ tool_use_id: `tu-${title}`, text }]);
+        yield assistantMessage([{ type: 'text', text: `${title} done.` }], 'end_turn');
+        yield ({ ...(resultMessage() as object), session_id: sessionId } as unknown as SDKMessage);
+      };
+      return { seen, runQuery };
+    };
+    const a = mk('Alpha', 'sess-a');
+    const b = mk('Bravo', 'sess-b');
+
+    const [ra, rb] = await Promise.all([
+      runCase({ ...BASE_CASE, id: 'a', script: [{ kind: 'user', text: 'One.' }, { kind: 'user', text: 'Two.' }] },
+        makeAgentSdkBackend({ model: 'claude-sonnet-5', runQuery: a.runQuery })),
+      runCase({ ...BASE_CASE, id: 'b', script: [{ kind: 'user', text: 'One.' }, { kind: 'user', text: 'Two.' }] },
+        makeAgentSdkBackend({ model: 'claude-sonnet-5', runQuery: b.runQuery })),
+    ]);
+
+    // Each case resumed only its OWN session.
+    expect(a.seen[1].resume).toBe('sess-a');
+    expect(b.seen[1].resume).toBe('sess-b');
+    // Tool records never crossed.
+    expect(new Set(ra.toolCalls.map(c => c.input.title))).toEqual(new Set(['Alpha']));
+    expect(new Set(rb.toolCalls.map(c => c.input.title))).toEqual(new Set(['Bravo']));
+    expect(JSON.stringify(ra.transcript)).not.toContain('Bravo');
+    expect(JSON.stringify(rb.transcript)).not.toContain('Alpha');
+    expect(ra.anomalies).toEqual([]);
+    expect(rb.anomalies).toEqual([]);
+  });
+
   it('resumes the session on the next scripted turn', async () => {
     const { runQuery, seen } = fakeSdk(() => [
       initMessage([]), assistantMessage([{ type: 'text', text: 'ok' }], 'end_turn'), resultMessage(),
@@ -356,6 +399,104 @@ describe('zodShapeFromJsonSchema', () => {
 });
 
 // ─── Case selection ──────────────────────────────────────────────────────────
+
+// ─── Concurrency ─────────────────────────────────────────────────────────────
+
+describe('mapWithConcurrency', () => {
+  const deferred = () => {
+    let release!: () => void;
+    const gate = new Promise<void>(r => { release = r; });
+    return { gate, release };
+  };
+
+  it('returns results in INPUT order however the workers interleave', async () => {
+    const items = [40, 10, 30, 0, 20];
+    const out = await mapWithConcurrency(items, 3, async n => {
+      await new Promise(r => setTimeout(r, n));
+      return n;
+    });
+    expect(out).toEqual(items);
+  });
+
+  it('never runs more than `limit` at once', async () => {
+    let inFlight = 0;
+    let peak = 0;
+    await mapWithConcurrency(Array.from({ length: 12 }, (_, i) => i), 4, async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise(r => setTimeout(r, 5));
+      inFlight -= 1;
+    });
+    expect(peak).toBe(4);
+  });
+
+  it('keeps every lane busy — a slow item delays only itself', async () => {
+    const slow = deferred();
+    const order: number[] = [];
+    const run = mapWithConcurrency([0, 1, 2, 3], 2, async n => {
+      if (n === 0) await slow.gate;
+      order.push(n);
+      return n;
+    });
+    // Lane 2 drains 1, 2 and 3 while lane 1 is parked on item 0.
+    await new Promise(r => setTimeout(r, 10));
+    expect(order).toEqual([1, 2, 3]);
+    slow.release();
+    expect(await run).toEqual([0, 1, 2, 3]);
+  });
+
+  it('defaults to serial for limit 1, and clamps a limit above the item count', async () => {
+    let peak = 0, inFlight = 0;
+    const track = async () => {
+      inFlight += 1; peak = Math.max(peak, inFlight);
+      await new Promise(r => setTimeout(r, 2));
+      inFlight -= 1;
+    };
+    await mapWithConcurrency([1, 2, 3], 1, track);
+    expect(peak).toBe(1);
+    peak = 0;
+    await mapWithConcurrency([1, 2], 99, track);
+    expect(peak).toBe(2);
+  });
+
+  it('runs concurrent cases in isolation — no shared fixture, transcript or events', async () => {
+    // Each case gets its OWN backend, as run.ts builds one per case.
+    const makeCase = (id: string, title: string): EvalCase => ({
+      ...BASE_CASE, id, script: [{ kind: 'user', text: `Create ${title}.` }],
+    });
+    const modelFor = (title: string): CallModel => async () => {
+      await new Promise(r => setTimeout(r, 5));
+      return {
+        content: [{
+          type: 'tool_use', id: `tu-${title}`, name: 'create_event',
+          input: { ...EVENT_INPUT, title },
+        }],
+        stopReason: 'tool_use',
+        usage: { inputTokens: 1, outputTokens: 1 },
+      };
+    };
+    const titles = ['Alpha', 'Bravo', 'Charlie', 'Delta'];
+    const out = await mapWithConcurrency(titles, 4, async title => {
+      let calls = 0;
+      const call: CallModel = async req => {
+        calls += 1;
+        return calls === 1
+          ? modelFor(title)(req)
+          : { content: [{ type: 'text', text: 'Done.' }], stopReason: 'end_turn', usage: { inputTokens: 1, outputTokens: 1 } };
+      };
+      return runCase(makeCase(title.toLowerCase(), title), makeApiBackend(call));
+    });
+
+    for (const [i, title] of titles.entries()) {
+      // One case's event never appears in another's fixture or transcript.
+      expect(out[i].finalEvents.map(e => e.title)).toEqual([title]);
+      expect(out[i].toolCalls.map(c => c.input.title)).toEqual([title]);
+      for (const other of titles.filter(t => t !== title)) {
+        expect(JSON.stringify(out[i].transcript)).not.toContain(other);
+      }
+    }
+  });
+});
 
 describe('selectCases', () => {
   const cases = ['pulley-injury', 'pulley-injury-late', 'deload-week', 'taper'].map(

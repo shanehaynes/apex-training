@@ -55,8 +55,11 @@ npm run eval -- --case deload-week,taper      # a comma-separated list matches i
 npm run eval -- --dims constraints,integrity  # cheap smoke: judge-free dimensions
 npm run eval -- --backend agent-sdk           # spend a Claude subscription, never a key
 npm run eval -- --out evals/results/mine.json # name the result file
+npm run eval -- --concurrency 6               # six cases at a time (default 1)
 npm run eval:diff -- evals/results/A.json evals/results/B.json
 ```
+
+`--concurrency` runs N cases at once, each on its own backend instance and — on `agent-sdk` — its own session, so no two cases can reach each other's conversation or tool records. Results stay in case order in the file however the runs interleave, and the per-case retry loop is unchanged. It is the practical answer to the SDK backend running one tool per round (difference 1 below): six cases at `--concurrency 6` measured 57.6s wall against 122.6s of summed per-case latency. The API backend defaults to 1 and is untouched unless you ask for more.
 
 `--judge-backend` picks the refusal judge's path independently; it defaults to `api` when a key resolves and `agent-sdk` when none does, so a machine holding only a subscription token can still run the whole suite.
 

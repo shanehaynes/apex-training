@@ -30,9 +30,10 @@ import type { Backend, BackendKind, CaseResult, EvalCase } from './src/types';
 //   npm run eval -- --dims constraints,refusal      # restrict checked dimensions
 //   npm run eval -- --backend agent-sdk             # spend a subscription, not a key
 //   npm run eval -- --out evals/results/mine.json   # name the result file
+//   npm run eval -- --concurrency 6                 # six cases at a time
 //
-// --backend defaults to `api`, so every command that worked before this flag
-// existed still runs exactly the same way.
+// --backend defaults to `api` and --concurrency to 1, so every command that
+// worked before these flags existed still runs exactly the same way.
 
 function parseArgs(argv: string[]) {
   const args = {
@@ -43,6 +44,7 @@ function parseArgs(argv: string[]) {
     backend: 'api' as BackendKind,
     judgeBackend: '' as '' | BackendKind,
     out: '',
+    concurrency: 1,
   };
   const backendArg = (raw: string): BackendKind => {
     if (raw !== 'api' && raw !== 'agent-sdk') {
@@ -58,8 +60,39 @@ function parseArgs(argv: string[]) {
     else if (argv[i] === '--backend') args.backend = backendArg(argv[++i]);
     else if (argv[i] === '--judge-backend') args.judgeBackend = backendArg(argv[++i]);
     else if (argv[i] === '--out') args.out = argv[++i];
+    else if (argv[i] === '--concurrency') {
+      const raw = argv[++i];
+      const n = Number(raw);
+      if (!Number.isInteger(n) || n < 1) {
+        throw new Error(`--concurrency must be a positive integer, got "${raw}".`);
+      }
+      args.concurrency = n;
+    }
   }
   return args;
+}
+
+/** Runs `worker` over `items`, at most `limit` at a time, and returns results
+ *  BY INPUT POSITION — the result file stays in case order however the runs
+ *  interleave. Each worker pulls the next index, so a slow case delays only
+ *  itself. A rejection propagates; runOne below never rejects, it records the
+ *  error on the case, which is what keeps one bad case from voiding a run. */
+export async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  const lanes = Math.max(1, Math.min(Math.floor(limit) || 1, items.length));
+  let next = 0;
+  await Promise.all(Array.from({ length: lanes }, async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) return;
+      results[i] = await worker(items[i], i);
+    }
+  }));
+  return results;
 }
 
 /** One value keeps the substring semantics it has always had; a comma-separated
@@ -111,26 +144,44 @@ async function main() {
   let client: Anthropic | undefined;
   const anthropic = () => (client ??= makeClient());
 
-  const backend: Backend = args.backend === 'agent-sdk'
-    ? makeAgentSdkBackend({ model: args.model, oauthToken: oauthTokenOrThrow() })
-    : makeApiBackend(makeAnthropicCaller(anthropic(), args.model));
+  // ONE BACKEND PER CASE. Neither backend keeps cross-case state today, but a
+  // shared instance is one edit away from being a shared session id or a
+  // shared tool-record buffer, and under --concurrency that would cross two
+  // cases' conversations into each other's transcripts. The factory makes the
+  // isolation structural rather than a property you have to keep re-checking.
+  const oauthToken = args.backend === 'agent-sdk' || judgeBackend === 'agent-sdk'
+    ? oauthTokenOrThrow()
+    : undefined;
+  const callModel = args.backend === 'api'
+    ? makeAnthropicCaller(anthropic(), args.model)
+    : undefined;
+  const backendFor = (): Backend => args.backend === 'agent-sdk'
+    ? makeAgentSdkBackend({ model: args.model, oauthToken })
+    : makeApiBackend(callModel!);
 
   const judge: JudgeCall = judgeBackend === 'agent-sdk'
-    ? makeAgentSdkJudge({ model: args.judgeModel, oauthToken: oauthTokenOrThrow() })
+    ? makeAgentSdkJudge({ model: args.judgeModel, oauthToken })
     : makeApiJudge(anthropic(), args.judgeModel);
 
+  const concurrency = Math.max(1, Math.min(args.concurrency, cases.length));
   console.log(
     `Running ${cases.length} case(s) on ${args.model} via ${args.backend} ` +
-    `(judge: ${args.judgeModel} via ${judgeBackend})`);
+    `(judge: ${args.judgeModel} via ${judgeBackend})` +
+    (concurrency > 1 ? ` — ${concurrency} at a time` : ''));
 
-  const results: CaseResult[] = [];
   const runStamp = new Date().toISOString().replace(/[:.]/g, '-');
   const runId = `${runStamp}__${args.model}`;
+  const startedAt = Date.now();
 
-  for (const evalCase of cases) {
-    process.stdout.write(`  ${evalCase.id} ... `);
+  const runOne = async (evalCase: EvalCase): Promise<CaseResult> => {
+    // At concurrency 1 the id is written before the case runs, as it always
+    // has been; in parallel that would interleave into nonsense, so the whole
+    // line lands at once instead.
+    if (concurrency === 1) process.stdout.write(`  ${evalCase.id} ... `);
+    const say = (status: string) => console.log(
+      concurrency === 1 ? status : `  ${evalCase.id} ... ${status}`);
     try {
-      const harness = await runCase(evalCase, backend);
+      const harness = await runCase(evalCase, backendFor());
       const verdicts: CaseResult['verdicts'] = {};
       if (evalCase.expect.constraints && wants('constraints')) {
         verdicts.constraints = checkConstraints(evalCase, harness.toolCalls, harness.finalDefinitions);
@@ -154,7 +205,8 @@ async function main() {
         anomalies: harness.anomalies,
       });
       const statuses = Object.values(verdicts).map(v => v.status);
-      results.push({
+      say(statuses.length ? statuses.join('/') : 'no-dims');
+      return {
         id: evalCase.id,
         verdicts,
         turns: harness.turns.length,
@@ -168,11 +220,11 @@ async function main() {
         latencyMs: harness.latencyMs,
         transcriptHash: sha256(JSON.stringify(harness.transcript)),
         transcriptPath,
-      });
-      console.log(statuses.length ? statuses.join('/') : 'no-dims');
+      };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      results.push({
+      say(`ERROR: ${message}`);
+      return {
         id: evalCase.id,
         verdicts: {},
         turns: 0,
@@ -184,15 +236,22 @@ async function main() {
         transcriptHash: '',
         transcriptPath: '',
         error: message,
-      });
-      console.log(`ERROR: ${message}`);
+      };
     }
-  }
+  };
+
+  const results = await mapWithConcurrency(cases, concurrency, runOne);
+  const wallMs = Date.now() - startedAt;
 
   const run = buildRunResult(args.model, args.judgeModel, args.backend, results);
   run.runId = runId;
   const path = writeRunResult(run, args.out ? resolve(args.out) : undefined);
   printRunTable(run);
+  if (concurrency > 1) {
+    console.log(
+      `wall ${(wallMs / 1000).toFixed(1)}s at concurrency ${concurrency} ` +
+      `(sum of per-case latency ${(results.reduce((s, c) => s + c.latencyMs, 0) / 1000).toFixed(1)}s)`);
+  }
   console.log(`\nResults written to ${path}`);
 }
 
