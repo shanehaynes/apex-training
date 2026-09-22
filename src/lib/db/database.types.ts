@@ -137,6 +137,74 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          mode: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mode: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mode?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      coach_messages: {
+        Row: {
+          api_content: Json | null
+          conversation_id: string
+          created_at: string
+          display_text: string | null
+          id: string
+          kind: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          api_content?: Json | null
+          conversation_id: string
+          created_at?: string
+          display_text?: string | null
+          id?: string
+          kind?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          api_content?: Json | null
+          conversation_id?: string
+          created_at?: string
+          display_text?: string | null
+          id?: string
+          kind?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "coach_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coach_runs: {
         Row: {
           cache_read_tokens: number

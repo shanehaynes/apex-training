@@ -46,6 +46,13 @@ export const RATE_LIMITS = {
    *  all. Generous for refresh-on-foreground + realtime; a 30s poll would
    *  drain it, which is the point — never poll. */
   reads:   { windowSeconds: 600,  max: 300 },
+  /** Coach thread persistence (/api/coach-conversations): hydrate on mount,
+   *  then one append per completed turn and per tool_result flush. Sized
+   *  between `reads` and `writes` — the appends ride along with /api/chat,
+   *  which its own `chat` bucket already caps at 30 per 10 minutes, so this
+   *  only has to be loose enough never to be the reason a saved thread
+   *  silently stops saving. */
+  conversations: { windowSeconds: 600, max: 200 },
 } as const;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;

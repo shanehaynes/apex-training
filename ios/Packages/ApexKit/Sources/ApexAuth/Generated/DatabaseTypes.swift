@@ -232,6 +232,114 @@ internal enum PublicSchema {
       case userId = "user_id"
     }
   }
+  internal struct CoachConversationsSelect: Codable, Hashable, Sendable {
+    internal let createdAt: String
+    internal let id: UUID
+    internal let mode: String
+    internal let title: String?
+    internal let updatedAt: String
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case createdAt = "created_at"
+      case id = "id"
+      case mode = "mode"
+      case title = "title"
+      case updatedAt = "updated_at"
+      case userId = "user_id"
+    }
+  }
+  internal struct CoachConversationsInsert: Codable, Hashable, Sendable {
+    internal let createdAt: String?
+    internal let id: UUID?
+    internal let mode: String
+    internal let title: String?
+    internal let updatedAt: String?
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case createdAt = "created_at"
+      case id = "id"
+      case mode = "mode"
+      case title = "title"
+      case updatedAt = "updated_at"
+      case userId = "user_id"
+    }
+  }
+  internal struct CoachConversationsUpdate: Codable, Hashable, Sendable {
+    internal let createdAt: String?
+    internal let id: UUID?
+    internal let mode: String?
+    internal let title: String?
+    internal let updatedAt: String?
+    internal let userId: UUID?
+    internal enum CodingKeys: String, CodingKey {
+      case createdAt = "created_at"
+      case id = "id"
+      case mode = "mode"
+      case title = "title"
+      case updatedAt = "updated_at"
+      case userId = "user_id"
+    }
+  }
+  internal struct CoachMessagesSelect: Codable, Hashable, Sendable {
+    internal let apiContent: AnyJSON?
+    internal let conversationId: UUID
+    internal let createdAt: String
+    internal let displayText: String?
+    internal let id: UUID
+    internal let kind: String
+    internal let role: String
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case apiContent = "api_content"
+      case conversationId = "conversation_id"
+      case createdAt = "created_at"
+      case displayText = "display_text"
+      case id = "id"
+      case kind = "kind"
+      case role = "role"
+      case userId = "user_id"
+    }
+  }
+  internal struct CoachMessagesInsert: Codable, Hashable, Sendable {
+    internal let apiContent: AnyJSON?
+    internal let conversationId: UUID
+    internal let createdAt: String?
+    internal let displayText: String?
+    internal let id: UUID?
+    internal let kind: String?
+    internal let role: String
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case apiContent = "api_content"
+      case conversationId = "conversation_id"
+      case createdAt = "created_at"
+      case displayText = "display_text"
+      case id = "id"
+      case kind = "kind"
+      case role = "role"
+      case userId = "user_id"
+    }
+  }
+  internal struct CoachMessagesUpdate: Codable, Hashable, Sendable {
+    internal let apiContent: AnyJSON?
+    internal let conversationId: UUID?
+    internal let createdAt: String?
+    internal let displayText: String?
+    internal let id: UUID?
+    internal let kind: String?
+    internal let role: String?
+    internal let userId: UUID?
+    internal enum CodingKeys: String, CodingKey {
+      case apiContent = "api_content"
+      case conversationId = "conversation_id"
+      case createdAt = "created_at"
+      case displayText = "display_text"
+      case id = "id"
+      case kind = "kind"
+      case role = "role"
+      case userId = "user_id"
+    }
+  }
   internal struct CoachRunsSelect: Codable, Hashable, Sendable {
     internal let cacheReadTokens: Int32
     internal let cacheWriteTokens: Int32

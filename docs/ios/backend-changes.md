@@ -397,9 +397,65 @@ rotated at all until a floor exists that can force the old builds off it. The ga
 lever; it only exists in binaries that carry it, which is why it landed in the Gate rather
 than in Patch 1.
 
+## Coach conversations — server thread persistence (D-013, web first)
+
+D-013 chose local-only storage for iOS and put the server table on the Backlog, with the GRDB
+tables deliberately shaped like it so the later move would be a sync rather than a rewrite.
+This is that table, landed from the web side: `src/hooks/useChat.ts` kept the thread in React
+state and a refresh lost it. The columns, the nullability and the `kind` vocabulary are the
+ones `ConversationStore` already uses, so iOS's move is `ConversationStore` gaining a remote
+implementation — no schema negotiation. **iOS is unchanged by this PR.**
+
+**Not applicable to production until the Privacy Policy changes.** `coach_messages` stores
+prompt and reply text; `legal/privacy-v1.md` (lines ~50, 95, 148) says prompt contents are not
+logged. phase45's `coach_runs` could promise the opposite because it holds only counts. See the
+migration header.
+
+### `GET /api/coach-conversations?mode=chat|builder|analytics`
+The caller's threads for one coach surface, newest activity first, capped at 20. Bucket
+`conversations` `{ windowSeconds: 600, max: 200 }`.
+
+```jsonc
+{ "conversations": [ { "id": "…", "mode": "chat", "title": null,
+                       "created_at": "2026-09-22T11:00:00Z", "updated_at": "2026-09-22T12:40:00Z" } ] }
+```
+
+### `GET /api/coach-conversations?id=<uuid>`
+One thread's messages, oldest first, capped at the same 80 `/api/chat` accepts.
+
+```jsonc
+{
+  "conversation": { "id": "…", "mode": "chat", "title": null, "created_at": "…", "updated_at": "…" },
+  "messages": [
+    // api_content null = display-only (a notice, a stopped partial); display_text null = hidden
+    // from the thread (the synthetic briefing prompt). D-025.
+    { "id": "…", "role": "user", "api_content": "Give me my coaching briefing for today.",
+      "display_text": null, "kind": "turn", "created_at": "…" },
+    { "id": "…", "role": "assistant", "api_content": "Here is today…",
+      "display_text": "Here is today…", "kind": "turn", "created_at": "…" }
+  ]
+}
+```
+
+### `POST /api/coach-conversations { mode, title? }` · `{ id, messages: [] }`
+The two POSTs are told apart by the body: `messages` present is an append, absent is a create.
+An append stores the batch and bumps `updated_at`; `413 Conversation too large` once the thread
+would pass 80 messages or the batch passes 400 KB — the same caps `api/chat.ts:179` enforces,
+moved to where the growth happens. Each message is `{ role, api_content, display_text, kind }`
+and must carry at least one of `api_content` / `display_text`.
+
+```jsonc
+{ "conversation": { "id": "…", … } }                       // create
+{ "ok": true, "messages": [ { "id": "…", … } ] }           // append
+```
+
+### `PATCH /api/coach-conversations { id, title }` · `DELETE { id }`
+Rename (title trimmed to 120 characters; empty stores null) and delete — `coach_messages`
+cascades. Both answer `404 Conversation not found` for an id this user does not own, rather
+than a 403 that would confirm it exists.
+
 ## Not in this roadmap (Backlog)
-`device_tokens` migration + `/api/devices` + APNs sender (push), `coach_conversations` table
-(server chat persistence).
+`device_tokens` migration + `/api/devices` + APNs sender (push).
 
 ## Summary
 
@@ -421,3 +477,4 @@ than in Patch 1.
 | COROS `client:'ios'` + scheme redirect | W11 | providers/* | no | providerSync | 40 | **yes** (phase41 `provider_connections.client`) |
 | `GET /api/profile` widened (profiles row, feed URL, model catalog) | W11 | models.ts, oauth/common.ts | no | — | 50 | — |
 | `X-Apex-Client` logged, `GET /api/version` → `{ sha, minBuild, message? }` | G8 | clientVersion.ts | no | — | 60 | — |
+| `/api/coach-conversations` (list · load · create · append · rename · delete) | D-013 | new tables; shaped as `ConversationStore` | **yes** (useChat) | conversations | 330 | **yes** (phase46 `coach_conversations`, `coach_messages`) |
