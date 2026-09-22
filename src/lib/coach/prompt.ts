@@ -7,6 +7,10 @@ import type { ExerciseDefinition, WorkoutEvent } from '../../types/workout';
 import type { Meal } from '../../types/nutrition';
 import type { BlockPromptSummary } from '../blocks/promptSummary';
 
+// Bump on any behavior-visible edit to this file, schemas.ts or tools.ts.
+// Date-dot-serial (YYYY.MM.DD-n), not semver: a prompt has no compatibility contract.
+export const PROMPT_VERSION = '2026.09.21-1';
+
 // The coach's system prompt: live schedule context (with bracketed ids the
 // tools reference), the exercise-library name list, plus a 4-week
 // completion-rate summary. Pure — computed client-side from ScheduleContext
