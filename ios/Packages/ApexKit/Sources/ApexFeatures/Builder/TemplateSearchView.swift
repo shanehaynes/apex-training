@@ -8,12 +8,23 @@ struct TemplateSearchView: View {
     @Bindable var builder: BuilderModel
     @FocusState private var searching: Bool
 
+    /// A filter is worth eight chips only once the list is long enough to need
+    /// filtering (ux-review §1.3, §3.5). Below that the chips are three rows of
+    /// furniture over one row of content, so they are not drawn at all.
+    private static let filterThreshold = 8
+
+    /// Counted over the same library the list draws — archived templates are
+    /// not on screen, so they do not argue for a filter.
+    private var showsTypeFilter: Bool {
+        builder.templates.filter { $0.archivedAt == nil }.count > Self.filterThreshold
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 HStack(spacing: Spacing.sm) {
                     ApexIcon.search.image.font(.system(size: 14)).foregroundStyle(ApexColor.textMuted)
-                    TextField("", text: $builder.query, prompt: Text("Search your library, or name a new workout").foregroundStyle(ApexColor.textMuted))
+                    TextField("", text: $builder.query, prompt: Text("Search or name a workout").foregroundStyle(ApexColor.textMuted))
                         .font(.apex(.display, size: TypeScale.base, relativeTo: .body))
                         .foregroundStyle(ApexColor.textPrimary)
                         .autocorrectionDisabled()
@@ -23,13 +34,17 @@ struct TemplateSearchView: View {
                         .accessibilityIdentifier("builder.search")
                 }
                 .apexFieldChrome()
-                FlowLayout(spacing: Spacing.xs) {
-                    Chip("All", isSelected: builder.typeFilter == nil) { builder.typeFilter = nil }
-                    ForEach(WorkoutDraft.typeOrder, id: \.rawValue) { type in
-                        Chip(WorkoutDraft.label(for: type), isSelected: builder.typeFilter == type) {
-                            builder.typeFilter = builder.typeFilter == type ? nil : type
+                if showsTypeFilter {
+                    FlowLayout(spacing: Spacing.xs) {
+                        Chip("All", isSelected: builder.typeFilter == nil) { builder.typeFilter = nil }
+                        ForEach(WorkoutDraft.typeOrder, id: \.rawValue) { type in
+                            Chip(WorkoutDraft.label(for: type), isSelected: builder.typeFilter == type) {
+                                builder.typeFilter = builder.typeFilter == type ? nil : type
+                            }
                         }
                     }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("builder.search.types")
                 }
             }
             .padding(.horizontal, Spacing.screen)
@@ -38,7 +53,7 @@ struct TemplateSearchView: View {
             List {
                 if builder.filteredTemplates.isEmpty {
                     Text(builder.templates.isEmpty
-                         ? "Your library is empty. Build a workout and Apply saves it here."
+                         ? "Your library is empty. Every workout you add is saved here."
                          : "Nothing matches — build it fresh below.")
                         .apexBody()
                         .listRowBackground(ApexColor.bgSurface)

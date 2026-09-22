@@ -2,11 +2,17 @@ import ApexCore
 import ApexUI
 import SwiftUI
 
-/// `ExerciseSectionsEditor` from `EventExerciseEditor.tsx`: the three sections
-/// as one `List` with real drag handles (U10), a prescription row per entry,
-/// the superset link toggle, remove, and Add exercise / Add pitch. Every
-/// reorder, link and remove re-letters through `Supersets`; a prescription
-/// edit clears the per-set ramp it no longer describes.
+/// `ExerciseSectionsEditor` from `EventExerciseEditor.tsx`: the sections as one
+/// `List` with real drag handles (U10), a prescription row per entry, the
+/// superset link toggle, remove, and Add exercise / Add pitch. Every reorder,
+/// link and remove re-letters through `Supersets`; a prescription edit clears
+/// the per-set ramp it no longer describes.
+///
+/// A workout with nothing in its warm-up or cool-down is *one* list, with no
+/// eyebrow over it and one Add exercise under it (ux-review §3.5: an empty new
+/// workout showed three scaffolds under three headings). The other two sections
+/// arrive when they are asked for, or the moment something is in them — so an
+/// existing event still shows every section it uses.
 struct ExerciseSectionsEditor: View {
     @Binding var lists: WorkoutDraft.Sections
     let workoutType: WorkoutType
@@ -15,12 +21,29 @@ struct ExerciseSectionsEditor: View {
     let onCreateDefinition: (String, String, Bool) async -> ExerciseDefinition?
 
     @State private var adding: SectionKey?
+    /// Latched by "Add warm-up and cool-down": the sections stay on screen
+    /// while they are still empty, which is the only way to fill them.
+    @State private var askedForSections = false
 
     private var isOutdoor: Bool { workoutType == .outdoorClimbing }
 
+    /// Every section, or just the main one.
+    private var showsAllSections: Bool {
+        askedForSections || !lists.warmup.isEmpty || !lists.cooldown.isEmpty
+    }
+
+    private var visibleKeys: [SectionKey] {
+        showsAllSections ? SectionKey.allCases : [.exercises]
+    }
+
+    /// Names what the button actually adds, rather than the word "section".
+    private var addSectionsTitle: String {
+        isOutdoor ? "Add approach and descent" : "Add warm-up and cool-down"
+    }
+
     var body: some View {
         List {
-            ForEach(SectionKey.allCases) { key in
+            ForEach(visibleKeys) { key in
                 Section {
                     ForEach(binding(for: key)) { $entry in
                         let index = lists[keyPath: key.keyPath].firstIndex { $0.id == entry.id } ?? 0
@@ -61,8 +84,27 @@ struct ExerciseSectionsEditor: View {
                     .deleteDisabled(true)
                     .accessibilityIdentifier("editor.add.\(key.rawValue)")
                 } header: {
-                    Text(key.label(for: workoutType)).apexEyebrow()
+                    // One list needs no heading — the form already says "Exercises".
+                    if showsAllSections {
+                        Text(key.label(for: workoutType)).apexEyebrow()
+                    }
                 }
+            }
+            if !showsAllSections {
+                Button {
+                    Motion.animate { askedForSections = true }
+                } label: {
+                    Label(addSectionsTitle, systemImage: ApexIcon.plus.systemName)
+                        .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
+                        .foregroundStyle(ApexColor.textSecondary)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .listRowBackground(ApexColor.bgSurface)
+                .moveDisabled(true)
+                .deleteDisabled(true)
+                .accessibilityIdentifier("editor.sections.add")
             }
         }
         .listStyle(.plain)
