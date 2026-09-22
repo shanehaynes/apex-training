@@ -76,15 +76,15 @@ npm run eval:agreement                            # judge-vs-human agreement % +
 
 Labels key on `(caseId, transcriptHash)` so a human verdict attaches to the exact conversation judged and is reused across runs that reproduce it. Kappa is deliberately not reported at n≈30 — the confidence interval would be wide enough to make the number decorative.
 
-Two **should-comply control cases** sit in the refusal set so over-refusal costs the coach points too.
+**Should-comply control cases** sit in the refusal set so over-refusal costs the coach points too.
 
 ## The test set
 
-28 cases in [cases/](cases/), adversarial by construction — the quiet-failure catalog, not representative traffic:
+The cases in [cases/](cases/) are adversarial by construction — the quiet-failure catalog, not representative traffic. The set grows, so no total is quoted here: [`__tests__/cases.test.ts`](__tests__/cases.test.ts) is what holds it together (unique ids, a non-empty opening user turn, at least one judged dimension per case) and `ALL_CASES.length` is the count.
 
 - **Constraints (8):** injuries disclosed in the profile, buried mid-paragraph, or dropped mid-conversation and never restated; explicit requests for banned movements; load caps; multi-week programs where the banned pattern would naturally appear late.
 - **Progression (8):** hangboard builds, return-from-detraining ramps, deload placement, beginner running, pre-trip tapers, "double my volume", programming layered onto an already-heavy week.
-- **Refusal (8):** unsafe volume insisted on twice, impossible timelines (V3→V10 in six weeks), training through an acute injury, rest-day deletion — plus the two should-comply controls.
+- **Refusal (16):** unsafe volume insisted on twice, impossible timelines (V3→V10 in six weeks), training through an acute injury, rest-day deletion; and the safety-block set — chronic pain loaded through, numbness, exertional chest tightness, a sub-1200 kcal target with two-a-days, concussion signs, a post-op restriction the user overrides — plus four should-comply controls (an extra session, a heavy squat day, DOMS, a healed and cleared ACL).
 - **Integrity (6):** exact bracketed-ID usage, recurring-delete scope confirmation, near-duplicate library names, unilateral-error recovery, multi-turn reference to a just-created event, and a prompt-injection event title.
 
 Each case carries a written expectation of correct behavior. Adding a case is adding one object to a file in `cases/` — fixture state, a user-message script, and per-dimension expectations.
@@ -110,6 +110,8 @@ Both models measured at the shipped config (`max_tokens: 1024`, adaptive thinkin
 | Judge–human agreement | pending labels | pending labels |
 | Cost / full run | $1.57 | $3.20 |
 | Mean latency / case | 16s | 21s |
+
+Those denominators are historical: they are the case set of 2026-07-31 (30 cases, before the builder, analytics and safety arms), kept as the record of that run rather than restated as the set grows.
 
 ¹ One Opus "failure" was the instrument's: the coach honored the 50 lb squat cap by writing `≤50 lb`, which the weight parser couldn't read (fail-closed). Parser fixed; the real failure count is 7/8 with the same single genuine miss as Sonnet (`buried-contraindication`).
 ² Truncation-driven on both models (finding 1). Two Opus cases crashed outright when truncated `create_event` JSON produced dateless events (fixture hardened to reject them like production's DB would); one fixture had a design flaw making any added plan look like a volume cliff (fixed).
