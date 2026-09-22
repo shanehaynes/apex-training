@@ -2,11 +2,59 @@ import ApexCore
 import ApexUI
 import SwiftUI
 
-/// The exercise library (`LibraryView.tsx`): search, category chips, rows
-/// with last-performed and "in N workouts" — shown on the phone too (U11) —
-/// and the archived section under a divider.
+/// The Library screen the You tab's one "Library" row pushes (ux-review §3.8):
+/// a two-segment host over the exercise library and the workout library, which
+/// used to be two rows of a five-row Training group. The segment is the whole
+/// of the regroup — both screens, both routes and every identifier under them
+/// are unchanged.
+public struct LibraryHomeView: View {
+    public nonisolated enum Tab: Hashable, Sendable { case exercises, workouts }
+
+    private let model: LibraryModel
+    @State private var tab: Tab
+
+    /// `tab` lets a snapshot open on the Workouts segment; the screen itself
+    /// always opens on Exercises.
+    public init(model: LibraryModel, tab: Tab = .exercises) {
+        self.model = model
+        _tab = State(initialValue: tab)
+    }
+
+    public var body: some View {
+        VStack(spacing: 0) {
+            ApexSegmented(
+                selection: $tab,
+                options: [(Tab.exercises, "Exercises"), (Tab.workouts, "Workouts")]
+            )
+            .padding(.horizontal, Spacing.screen)
+            .padding(.bottom, Spacing.sm)
+            // The control that reaches the workout library, and so the
+            // identifier the old "Workout library" row carried.
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("library.templates")
+
+            switch tab {
+            case .exercises: LibraryView(model: model)
+            case .workouts: WorkoutLibraryView(model: model)
+            }
+        }
+        .youScreen("Library")
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("library.home")
+    }
+}
+
+/// The exercise library (`LibraryView.tsx`): search in the navigation bar,
+/// category chips once there are enough rows to need filtering, rows with the
+/// name over its category and stats — shown on the phone too (U11) — and the
+/// archived section under a divider.
 public struct LibraryView: View {
     @Bindable private var model: LibraryModel
+
+    /// ux-review §3.8: filter controls over a short list are clutter. Seven
+    /// category chips earn their place at the seeded stack's 69 rows and not
+    /// at the dozen a new account has.
+    private static let chipThreshold = 12
 
     public init(model: LibraryModel) {
         self.model = model
@@ -15,7 +63,12 @@ public struct LibraryView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                controls
+                if model.definitions.count > Self.chipThreshold {
+                    ChipRow(
+                        options: LibraryModel.categories.map { ($0, $0 == "all" ? "All" : $0.capitalized) },
+                        selection: $model.category, identifier: "library.categories"
+                    )
+                }
                 if model.isLoading, model.definitions.isEmpty {
                     ProgressView().tint(ApexColor.textMuted).frame(maxWidth: .infinity)
                 } else if model.active.isEmpty, model.archived.isEmpty {
@@ -30,50 +83,17 @@ public struct LibraryView: View {
             }
             .padding(Spacing.screen)
         }
-        .youScreen("Exercise library")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(value: YouRoute.workoutLibrary) {
-                    ApexIcon.template.image
-                }
-                .accessibilityLabel("Workout library")
-                .accessibilityIdentifier("library.templates")
-            }
-        }
+        .searchable(
+            text: $model.query, placement: .navigationBarDrawer(displayMode: .always),
+            prompt: Text("Search exercises")
+        )
+        .autocorrectionDisabled()
+        .textInputAutocapitalization(.never)
+        .searchFieldIdentifier("library.search")
         .task { await model.start() }
         .refreshable { await model.reload() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("library.root")
-    }
-
-    private var controls: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack(spacing: Spacing.sm) {
-                ApexIcon.search.image.font(.system(size: 14)).foregroundStyle(ApexColor.textMuted)
-                TextField("", text: $model.query, prompt: Text("Search exercises…").foregroundStyle(ApexColor.textMuted))
-                    .font(.apex(.display, size: TypeScale.base, relativeTo: .body))
-                    .foregroundStyle(ApexColor.textPrimary)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                    .accessibilityIdentifier("library.search")
-                if !model.query.isEmpty {
-                    Button { model.query = "" } label: {
-                        ApexIcon.close.image.font(.system(size: 13)).foregroundStyle(ApexColor.textMuted)
-                            .frame(width: 32, height: 32).contentShape(.rect)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear search")
-                }
-            }
-            .apexFieldChrome()
-            ChipRow(
-                options: LibraryModel.categories.map { ($0, $0 == "all" ? "All" : $0.capitalized) },
-                selection: $model.category, identifier: "library.categories"
-            )
-            Text("\(model.active.count) exercise\(model.active.count == 1 ? "" : "s")")
-                .apexEyebrow()
-                .accessibilityIdentifier("library.count")
-        }
     }
 
     /// Lazy: the library is every exercise the account knows, and the search
@@ -108,7 +128,10 @@ public struct LibraryView: View {
     }
 }
 
-/// One library row: name, category · muscle groups, and the two stats.
+/// One library row: the name on its own full-width line, then category ·
+/// muscle groups and the two stats beneath it. The stats used to be a trailing
+/// column claiming ~40% of the row, which truncated every long name at the
+/// seeded stack's density (ux-review §5, "Adductor Stretch — L…").
 struct LibraryRow: View {
     let definition: ExerciseDefinition
     let last: String?
@@ -121,19 +144,20 @@ struct LibraryRow: View {
                     .font(.apex(.display, size: TypeScale.base, weight: .medium, relativeTo: .body))
                     .foregroundStyle(ApexColor.textPrimary)
                     .lineLimit(1)
-                Text(meta)
-                    .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
-                    .foregroundStyle(ApexColor.textMuted)
-                    .lineLimit(1)
+                if !meta.isEmpty {
+                    Text(meta)
+                        .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
+                        .foregroundStyle(ApexColor.textMuted)
+                        .lineLimit(1)
+                }
+                if !stats.isEmpty {
+                    Text(stats)
+                        .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
+                        .foregroundStyle(ApexColor.textMuted)
+                        .lineLimit(1)
+                }
             }
             Spacer(minLength: Spacing.sm)
-            VStack(alignment: .trailing, spacing: 2) {
-                if let last { Text(last) }
-                if let references { Text(references) }
-            }
-            .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
-            .foregroundStyle(ApexColor.textSecondary)
-            .lineLimit(1)
             ApexIcon.chevronRight.image.font(.system(size: 13, weight: .medium)).foregroundStyle(ApexColor.textMuted)
         }
         .padding(.horizontal, Spacing.lg)
@@ -146,5 +170,51 @@ struct LibraryRow: View {
         var parts = [definition.category ?? ""].filter { !$0.isEmpty }
         if let groups = definition.muscleGroups, !groups.isEmpty { parts.append(groups.joined(separator: ", ")) }
         return parts.joined(separator: " · ")
+    }
+
+    private var stats: String {
+        [last, references].compactMap { $0 }.joined(separator: " · ")
+    }
+}
+
+extension View {
+    /// `.searchable` is drawn by UIKit's `UISearchBar`, and SwiftUI offers no
+    /// hook for naming its text field: an `accessibilityIdentifier` on the
+    /// searchable view lands on the content below it, not on the bar. XCUITest
+    /// reaches the field by name (`library.search`), so the bar is named
+    /// through UIKit once it is in a window.
+    func searchFieldIdentifier(_ identifier: String) -> some View {
+        background(SearchFieldNamer(identifier: identifier).frame(width: 0, height: 0))
+    }
+}
+
+private struct SearchFieldNamer: UIViewRepresentable {
+    let identifier: String
+
+    func makeUIView(context: Context) -> UIView { UIView(frame: .zero) }
+
+    /// The bar is installed by the navigation controller, which may not have
+    /// happened by the first update — hence the short retry rather than one
+    /// shot.
+    func updateUIView(_ view: UIView, context: Context) {
+        let identifier = self.identifier
+        Task { @MainActor in
+            for _ in 0..<10 {
+                if let window = view.window, let bar = Self.searchBar(in: window) {
+                    bar.accessibilityIdentifier = identifier
+                    bar.searchTextField.accessibilityIdentifier = identifier
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+        }
+    }
+
+    private static func searchBar(in root: UIView) -> UISearchBar? {
+        if let bar = root as? UISearchBar { return bar }
+        for child in root.subviews {
+            if let bar = searchBar(in: child) { return bar }
+        }
+        return nil
     }
 }
