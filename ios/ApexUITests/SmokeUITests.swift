@@ -46,6 +46,31 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(title.waitForExistence(timeout: 10), "the event sheet never opened for \(card)", file: file, line: line)
     }
 
+    /// Scrolls `container` until `element` sits clear of `bar` — the button row a
+    /// sheet keeps below its form with `safeAreaInset`.
+    ///
+    /// By frames, not `isHittable`: XCUITest computes a hit point for a row the
+    /// bar covers — and for one scrolled off the bottom of the screen entirely —
+    /// so `isHittable` answers true and the tap lands on the bar. That is how
+    /// `editor.link.fx-c3` used to hit Cancel on the Pro Max and
+    /// `meals.composer.fatsaturated` the trash on the 17e, each leaving the test
+    /// on a screen it never meant to open.
+    private func scrollClear(
+        _ element: XCUIElement, of bar: XCUIElement, in container: XCUIElement,
+        file: StaticString = #filePath, line: UInt = #line
+    ) {
+        XCTAssertTrue(bar.waitForExistence(timeout: 10), "missing bar: \(bar)", file: file, line: line)
+        for _ in 0..<6 {
+            let frame = element.frame
+            if !frame.isEmpty, frame.maxY + Self.barGap <= bar.frame.minY { return }
+            container.swipeUp()
+        }
+        XCTFail("\(element) never scrolled clear of \(bar)", file: file, line: line)
+    }
+
+    /// The padding a sheet's action bar puts above its buttons (`Spacing.screen`).
+    private static let barGap: CGFloat = 16
+
     func testSignInScreenOffersAutoFillableFields() {
         let app = launch(mock: false)
         let email = app.textFields["signin.email"]
@@ -405,6 +430,7 @@ final class SmokeUITests: XCTestCase {
         let link = app.buttons["editor.link.fx-c3"]
         XCTAssertTrue(link.waitForExistence(timeout: 5))
         XCTAssertEqual(link.label, "Link with above")
+        scrollClear(link, of: app.buttons["editor.save"], in: editor)
         link.tap()
         XCTAssertEqual(link.label, "Unlink")
         attach(app, name: "20-edit-exercises")
@@ -936,6 +962,7 @@ final class SmokeUITests: XCTestCase {
 
         let saturated = app.textFields["meals.composer.fatsaturated"]
         tapUntil(oats, shows: saturated)
+        scrollClear(saturated, of: app.buttons["meals.composer.save"], in: any(app, "meals.composer"))
         // Typing appends to what the favorite filled in, so the split is made absurd rather than
         // exact; the lower field goes first because the decimal pad would cover a row below the focused one.
         type("9999", into: saturated)
