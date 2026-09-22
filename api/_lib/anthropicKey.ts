@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { getSupabaseAdmin } from './supabaseAdmin.js';
 import { decryptSecret, encryptSecret, hasEncryptionSecret, isEncrypted } from './keyCrypto.js';
+import { makeAnthropicClient } from './anthropicClient.js';
 
 // Per-user Anthropic API keys, stored in the server-only user_api_keys
 // table (RLS enabled, no policies — the service role is the only reader)
@@ -88,7 +89,7 @@ function redactKeys(text: string): string {
  */
 export async function validateAnthropicKey(key: string): Promise<KeyCheck> {
   try {
-    const client = new Anthropic({ apiKey: key });
+    const client = makeAnthropicClient(key);
     await client.models.list({ limit: 1 });
     return { verdict: 'valid' };
   } catch (err) {

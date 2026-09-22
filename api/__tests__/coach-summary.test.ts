@@ -15,8 +15,14 @@ vi.mock('../_lib/trackerSession.js', () => ({
 
 // The Anthropic SDK: a scripted stream of text deltas.
 const deltas = ['Strong ', 'session.'];
+const { clientOptions } = vi.hoisted(() => ({
+  /** Every options object handed to `new Anthropic(...)` — the timeout and
+   *  retry budget are as load-bearing as the request params (anthropicClient.ts). */
+  clientOptions: [] as Array<Record<string, unknown>>,
+}));
 vi.mock('@anthropic-ai/sdk', () => ({
   default: class {
+    constructor(options: Record<string, unknown>) { clientOptions.push(options); }
     messages = {
       stream: () => (async function* () {
         for (const text of deltas) yield { type: 'content_block_delta', delta: { type: 'text_delta', text } };
@@ -60,6 +66,7 @@ function makeRes() {
 }
 
 beforeEach(() => {
+  clientOptions.length = 0;
   state = { session: { finished_at: '2026-08-07T10:00:00Z', total_duration_seconds: 1800, score_type: null }, updates: [] };
   vi.mocked(getSupabaseAdmin).mockReturnValue(makeAdmin());
   vi.mocked(getAnthropicKey).mockResolvedValue('sk-ant-test');
@@ -97,6 +104,14 @@ describe('POST /api/coach-summary', () => {
       { type: 'done' },
     ]);
     expect(state.updates).toEqual([expect.objectContaining({ coach_summary: 'Strong session.' })]);
+  });
+
+  it('builds the SDK client with a bounded timeout and one retry', async () => {
+    const { res } = makeRes();
+    await handler(makeReq({ eventId: 'evt-1', eventDate: '2026-08-07' }), res);
+    // 20s is per attempt and bounds time-to-headers, so two attempts stay well
+    // inside the function's budget — see api/_lib/anthropicClient.ts.
+    expect(clientOptions.at(-1)).toMatchObject({ maxRetries: 1, timeout: 20000 });
   });
 
   it('keeps the legacy one-shot JSON contract for a client-built recap', async () => {

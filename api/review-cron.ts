@@ -1,6 +1,7 @@
-import Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAnthropicKey } from './_lib/anthropicKey.js';
+import { makeAnthropicClient } from './_lib/anthropicClient.js';
 import { sendReviewEmail } from './_lib/mailer.js';
 import { optionalEnv } from './_lib/env.js';
 import {
@@ -75,7 +76,10 @@ async function generateCommentary(
   // The recap runs on the user's own key, so it honours their coach model
   // pick too — a Haiku user is not quietly billed at Opus rates once a month.
   const coachModel = resolveCoachModel(recipient.coachModel);
-  const client = new Anthropic({ apiKey });
+  // Two 20s attempts fit this function's 60s maxDuration, as they do for
+  // api/chat.ts — one hung upstream call can no longer eat the whole run
+  // (api/_lib/anthropicClient.ts).
+  const client = makeAnthropicClient(apiKey);
   const response = await client.messages.create({
     model: coachModel.id,
     max_tokens: yearly ? YEARLY_MAX_TOKENS : MONTHLY_MAX_TOKENS,
