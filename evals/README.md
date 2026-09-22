@@ -45,19 +45,48 @@ Multi-week plans still use the `auto-continue` script step ("Yes, continue.") fo
 
 ## Running
 
-Needs `ANTHROPIC_API_KEY` in the environment, or as an `ANTHROPIC_API_KEY=` line in the gitignored `.env.local` — the shell environment wins (the runner calls the API directly; the app's per-user keys are irrelevant here).
+The default backend (`--backend api`) needs `ANTHROPIC_API_KEY` in the environment, or as an `ANTHROPIC_API_KEY=` line in the gitignored `.env.local` — the shell environment wins (the runner calls the API directly; the app's per-user keys are irrelevant here). `--backend agent-sdk` needs no key at all; see **Backends** below.
 
 ```bash
-npm run eval                                  # full suite, default model (Sonnet)
+npm run eval                                  # full suite, default model (Sonnet), API backend
 npm run eval -- --model claude-opus-5         # the production arm
 npm run eval -- --case pulley                 # substring-match a single case
+npm run eval -- --case deload-week,taper      # a comma-separated list matches ids exactly
 npm run eval -- --dims constraints,integrity  # cheap smoke: judge-free dimensions
+npm run eval -- --backend agent-sdk           # spend a Claude subscription, never a key
+npm run eval -- --out evals/results/mine.json # name the result file
 npm run eval:diff -- evals/results/A.json evals/results/B.json
 ```
 
+`--judge-backend` picks the refusal judge's path independently; it defaults to `api` when a key resolves and `agent-sdk` when none does, so a machine holding only a subscription token can still run the whole suite.
+
 All eval-infrastructure LLM calls default to `claude-sonnet-5`; the coach-model comparison (the suite run on both `claude-sonnet-5` and `claude-opus-4-8`) is the first decision this instrument exists to inform — whether production can move down a tier with quality held.
 
-Each result file records the model, judge model, git commit, and a hash of the coach behavior surface (`prompt.ts`, `schemas.ts`, `tools.ts`, `model.ts` — so a prompt, schema, or executor edit between runs is visible in the diff), plus per-case cost, tokens, and latency. Full transcripts land in `results/transcripts/<runId>/` and are committed — they're the labeling substrate.
+Each result file records the model, **backend**, judge model, git commit, and a hash of the coach behavior surface (`prompt.ts`, `schemas.ts`, `tools.ts`, `model.ts` — so a prompt, schema, or executor edit between runs is visible in the diff), plus per-case cost, tokens, and latency. Full transcripts land in `results/transcripts/<runId>/` and are committed — they're the labeling substrate. Results written before the `backend` field existed do not carry it; readers fall back to `api`, which is what every one of them was.
+
+### Backends
+
+Two ways to reach a model, one harness. The seam is a whole scripted **turn**, not a single API call, because the Agent SDK cannot be driven call-by-call: `query()` takes a prompt, not a messages array carrying prior `tool_use`/`tool_result` blocks, and it executes tools inside its own session.
+
+| | `api` (default) | `agent-sdk` |
+|---|---|---|
+| Path | Anthropic Messages API | `@anthropic-ai/claude-agent-sdk` → local Claude Code |
+| Pays | `ANTHROPIC_API_KEY`, per token | the Claude **subscription** of whoever is logged in |
+| Role | production-shaped measurement of record | regression detector |
+
+`agent-sdk` spends the subscription of whoever ran `claude setup-token`, and **never an API key**: the token is read from `CLAUDE_CODE_OAUTH_TOKEN` in the environment or in `.env.local` (same worktree-to-primary fallthrough as the API key), and the subprocess environment is built with `ANTHROPIC_API_KEY` deleted, so the backend cannot silently fall back to billing a key. Built-in tools are off (`tools: []` — note that `allowedTools: []` does **not** remove them) and `settingSources: []` keeps the developer's own settings, MCP servers and slash commands out of the run.
+
+The nightly API run stays the production-shaped measurement. The SDK backend answers a narrower question — *did this prompt edit break something?* — and these differences are why it cannot answer the other one:
+
+1. **No tools-off re-stream.** Production re-streams with `tool_choice: none` after the confirmed tool results (`api/chat.ts`); the SDK just continues inside the same query, and may run several tool rounds in one scripted turn (bounded by `maxTurns`).
+2. **Prompt caching is automatic** and not controllable. Cached reads are counted as input tokens at full weight so the token column stays comparable with the API backend — which makes the dollar figure a notional API-equivalent upper bound. The run itself costs nothing.
+3. **No `max_tokens` control.** Production caps at 8192; the SDK does not expose the parameter, so the truncation anomaly that finding 1 below turns on cannot be reproduced here.
+4. **Thinking is on by default.** The production `thinking` param is passed through where `COACH_MODELS` sets one, but the SDK owns the budget.
+5. **Tool names carry the `mcp__coach__` prefix on the wire.** It is stripped before any checker, expectation or transcript sees it, but the model sees the prefixed names in its tool list.
+6. **Tool inputs round-trip through Zod.** `tool()` wants a Zod raw shape, so the production JSON Schema in `src/lib/coach/schemas.ts` is converted with `z.fromJSONSchema` — that file stays the single source of truth, and every declared field (including nested exercise entries and enums) round-trips identically. Undeclared keys are dropped before the executor sees them; production passes them through and ignores them.
+7. **The judge cannot be forced.** `refusal.ts` forces `record_verdict` with `tool_choice` on the API path; the SDK path asks for it in the prompt instead. A judge that answers in prose is a `fail`, exactly as a missing tool call has always been.
+
+A not-logged-in or erroring SDK answers with a synthetic assistant message (`model: "<synthetic>"`, e.g. `Not logged in · Please run /login`). That is a broken harness, not coach output: it fails the case with an `error` rather than being scored as a refusal.
 
 CI runs the suite nightly (and on `workflow_dispatch`) once the `ANTHROPIC_API_KEY` repo secret is set; until then the job reports itself skipped.
 
