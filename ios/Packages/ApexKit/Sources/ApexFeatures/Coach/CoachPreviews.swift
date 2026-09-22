@@ -5,10 +5,13 @@ import SwiftUI
 /// Pieces of the coach exposed for snapshot tests, which live outside this
 /// module and cannot reach the internal views.
 public enum CoachPreviews {
-    public static func card(label: String, index: Int, total: Int, isBusy: Bool = false) -> some View {
+    public static func card(label: String, index: Int, total: Int, isBusy: Bool = false, isDestructive: Bool = false) -> some View {
         VStack {
             Spacer()
-            ConfirmationCard(label: label, index: index, total: total, isBusy: isBusy, onConfirm: {}, onCancel: {})
+            ConfirmationCard(
+                label: label, index: index, total: total, isBusy: isBusy,
+                isDestructive: isDestructive, onConfirm: {}, onCancel: {}
+            )
         }
     }
 

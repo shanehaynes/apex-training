@@ -55,16 +55,16 @@ struct TrackedExerciseView: View {
                 Button {
                     model.useLast(section: tracked.section, exerciseId: tracked.exercise.id)
                 } label: {
-                    HStack(spacing: 3) {
-                        ApexIcon.ghost.image.font(.system(size: 11))
-                        Text("Use last").lineLimit(1)
-                    }
-                    .fixedSize()
-                    .font(.apex(.display, size: TypeScale.micro, weight: .semibold, relativeTo: .caption2))
-                    .foregroundStyle(ApexColor.textSecondary)
-                    .padding(.horizontal, Spacing.sm)
-                    .frame(minHeight: 28)
-                    .overlay(Capsule().strokeBorder(ApexColor.borderSubtle, lineWidth: 1))
+                    // Text only — the wand said "magic" about a control that
+                    // just copies last session's numbers (ux-review §3.4).
+                    Text("Use last")
+                        .lineLimit(1)
+                        .fixedSize()
+                        .font(.apex(.display, size: TypeScale.micro, weight: .semibold, relativeTo: .caption2))
+                        .foregroundStyle(ApexColor.textSecondary)
+                        .padding(.horizontal, Spacing.sm)
+                        .frame(minHeight: 28)
+                        .overlay(Capsule().strokeBorder(ApexColor.borderSubtle, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
                 .frame(minHeight: 44)
@@ -73,7 +73,8 @@ struct TrackedExerciseView: View {
             if let rest = tracked.exercise.restPeriod, !rest.isEmpty {
                 Text("Rest \(rest)")
                     .font(.apex(.mono, size: TypeScale.micro, relativeTo: .caption2))
-                    .foregroundStyle(palette.border)
+                    // Rest is a fact about the set, not a status (ux-review §3.4).
+                    .foregroundStyle(ApexColor.textSecondary)
             }
             if model.canSwap(tracked) {
                 Button(action: onSwap) {
