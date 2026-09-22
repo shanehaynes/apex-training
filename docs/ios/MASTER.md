@@ -112,7 +112,9 @@ re-created key means re-setting all three. Details: [testing-and-ci.md](testing-
 - Rest timer between sets (D-015)
 - Push notifications: `device_tokens` migration, `/api/devices`, APNs sender from the crons (D-017)
 - HealthKit workout write; Apple Watch companion (D-018)
-- Server-side `coach_conversations` table for cross-device chat (D-013)
+- iOS sync to the server `coach_conversations` table (landed #303; D-013 update)
+- Web coach history window before send, now that threads persist (D-025 has the iOS one)
+- Index-keyed render loops in `BuilderCoachPanel`/`AnalyticsCoachPanel`; jsdom hook tests for `useChat`
 - Light appearance (D-010)
 - Week view on phone (D-009)
 - Home-screen widget for today's workout

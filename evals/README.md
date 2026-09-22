@@ -23,7 +23,8 @@ Two design facts make the deterministic tiers possible:
 ## Architecture
 
 ```
-cases/*.ts ──▶ run.ts ──▶ src/harness.ts ──▶ Anthropic API (coach model under test)
+cases/*.ts ──▶ run.ts ──▶ src/harness.ts ──▶ backends/api.ts ──────▶ Anthropic API (key)
+                              │              backends/agentSdk.ts ─▶ Agent SDK (subscription)
                               │  real buildSystemPrompt (src/lib/coach/prompt.ts)
                               │  real tool executors (src/lib/coach/tools.ts)
                               │  in-memory CoachToolDeps (src/memoryDeps.ts)
