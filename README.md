@@ -103,10 +103,13 @@ The chat path is the most failure-prone surface in the app, so its invariants ar
 - **Aborts propagate upstream.** The response's `close` event trips an `AbortController` passed to `client.messages.stream()`, so pressing Stop or closing the tab cancels the Anthropic generation instead of letting it bill to completion.
 - **Confirmation cards resolve ids against live state,** not the model's prose; an id that resolves to nothing is surfaced as such rather than rendered as a plausible label. Confirm is latched synchronously by a ref, so a double-click cannot run an executor twice.
 - **Prompt assembly and tool execution live on the server** ([`/api/coach-tool`](api/_lib/handlers/coachTool.ts)), so no client carries the executors and the web and iOS clients cannot drift apart.
+- **Every turn leaves a row.** `coach_runs` records the request id (also returned as `x-apex-request-id`), mode, model, `PROMPT_VERSION`, token counts, tool-use count, stop reason, latency and a capped error message — never prompt text — on success, abort and failure alike, so cost, cache effectiveness and failure rate are queryable per user and per prompt version instead of buried in function logs.
+- **The prompt says what it will not do.** One `safetySection()` in every builder: scope, escalation for reported pain and injury, red flags, profile restrictions as constraints, and soreness is not injury. Eight refusal cases, two of them should-comply controls, keep it from sliding into refusing everything.
+- **Threads persist** (`/api/coach-conversations`, phase46): the web thread survives a reload and becomes eval substrate; iOS still holds its own local copy until the sync lands.
 
 ### Measuring the coach, not vibing it
 
-[`evals/`](evals/README.md) is the instrument that answers *does the coach give good advice, and how would we know if it stopped?* — **38 adversarial cases**, structured per-dimension verdicts rather than a single score, versioned as JSON and diffable across runs and models.
+[`evals/`](evals/README.md) is the instrument that answers *does the coach give good advice, and how would we know if it stopped?* — **46 adversarial cases**, structured per-dimension verdicts rather than a single score, versioned as JSON and diffable across runs and models.
 
 The design decision worth reading is the **quality decomposition**: each dimension is checked by the *cheapest instrument that can check it*, because reaching for an LLM judge on everything is the failure mode.
 
@@ -117,7 +120,9 @@ The design decision worth reading is the **quality decomposition**: each dimensi
 | Integrity (ids, library discipline, error recovery, prompt-injection resistance) | Deterministic — recorded tool calls either match or they don't |
 | Refusal / pushback correctness | LLM judge — the only genuinely fuzzy one, and its reliability is *measured* against human labels ([`npm run eval:agreement`](evals/agreement.ts)) rather than assumed |
 
-The harness imports the production prompt builder, tool schemas, and executors directly, and mirrors the client's confirm-and-flush loop exactly — so the thing measured is the coach as shipped. Each result file records the model, judge model, git commit, and a hash of the coach behavior surface, so a prompt or schema edit between two runs is visible in the diff. It runs nightly in CI, not per-PR: it spends real tokens.
+The harness imports the production prompt builder, tool schemas, and executors directly, and mirrors the client's confirm-and-flush loop exactly — so the thing measured is the coach as shipped. Each result file records the model, judge model, git commit, `PROMPT_VERSION`, the backend, and a hash of the coach behavior surface, so a prompt or schema edit between two runs is visible in the diff.
+
+It is also a gate, and the gate spends no API credit. `npm run eval:gate` runs the full suite on the developer's machine through the Agent SDK on the Claude subscription (`--backend agent-sdk`), compares with the committed [`evals/baseline/`](evals/baseline/README.md), re-runs any regression once, and writes an attestation; the token-free `coach-gate` CI job recomputes the prompt and eval-surface hashes and refuses a coach PR whose attestation does not match. The baseline is a held path, so a behavior-changing PR waits for a human and a non-regressing one does not. The nightly API-key run stays the production-shaped measurement.
 
 The suite is also the fitness function for a bounded prompt-evolution search ([`.claude/workflows/coach-prompt-evolution.js`](.claude/workflows/coach-prompt-evolution.js)): variant agents each propose one edit to the system prompt, every variant is scored by a full run in an isolated worktree, and a variant becomes champion only by **dominance** — no dimension regresses, at least one strictly improves — with each run's lineage saved under [`evals/lineage/`](evals/lineage/README.md).
 

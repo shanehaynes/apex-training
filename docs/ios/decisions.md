@@ -142,6 +142,10 @@ Options: none (web parity); local-only in GRDB; server `coach_conversations` tab
 future server table (`conversations(id, mode, title, created_at, updated_at)`,
 `messages(id, conversation_id, role, api_content_json, display_text, created_at)`) so the later
 move is a sync, not a rewrite. Server table is on the Backlog.
+**Update 2026-09-22:** the server table landed (#303, phase46: `coach_conversations` +
+`coach_messages`, `user_id` on both, service-role only) and the web thread persists through it;
+the iOS sync is the remaining Backlog item. Storing `api_content` verbatim is a privacy-policy
+change (`legal/privacy-v1.md` says prompt contents are not logged) that is Shane's edit.
 
 ## D-014 · Markdown rendering in chat — render it
 **Status:** decided · Claude (delegated by Shane) · 2026-09-02
@@ -839,3 +843,53 @@ The brief said "port the dashboard and the tile builder"; these are the lines dr
   every suite; a worker on another device records only its own cases and leaves mismatches alone;
   a closing pass re-records everything on the 17.
 
+## D-045 · The coach prompt carries a version, not just a hash
+**Status:** decided · Mac session (orchestrated) · 2026-09-22 · BCG review follow-up
+- **The question.** Eval results recorded a content hash of the coach behavior surface, so two
+  runs could be told apart but no run could say which prompt was live, and a behavior-changing
+  edit looked the same as a comment fix.
+- **Decision.** `PROMPT_VERSION` in `src/lib/coach/prompt.ts` (`YYYY.MM.DD-n`, not semver: a
+  prompt has no compatibility contract), bumped on any behavior-visible edit to `prompt.ts`,
+  `schemas.ts` or `tools.ts`. Every eval result and every `coach_runs` row records it; the gate
+  fails a hash change without a bump. (#294, #299, #308)
+
+## D-046 · Every coach turn leaves a row
+**Status:** decided · Mac session (orchestrated) · 2026-09-22 · BCG review follow-up
+- **The question.** `api/chat.ts` logged token usage to stdout and lost it; failed and aborted
+  turns left nothing; the chat function sat outside the error seam because it is its own Vercel
+  function.
+- **Decision.** `coach_runs` (phase45): one row per turn with request id, mode, model, prompt
+  version, client tag, the four token counts, tool-use count, stop reason, latency and a capped
+  error message — never prompt text, never a key. Written fail-open on all three exits; the
+  response carries `x-apex-request-id`; the non-abort failure path reports through
+  `errorReport`. The Anthropic client comes from one factory (`maxRetries: 1`, `timeout: 20 s`,
+  which bounds a hung connect, not generation). (#293, #299, #304)
+
+## D-047 · The eval gate runs locally on the subscription; CI verifies an attestation
+**Status:** decided · Shane · 2026-09-22 · BCG review follow-up
+- **The question.** A prompt change could merge with no eval run: the suite was nightly-only and
+  `eval:diff` never failed. Shane wanted the gate to spend subscription tokens, not API credit,
+  and subscription entitlement reaches models only through Claude Code and the Agent SDK, with
+  no documented policy for unattended CI use.
+- **Decision.** The harness gained a turn-level backend seam and an Agent SDK backend
+  (`--backend agent-sdk`, authenticated by `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`,
+  `tools: []` and `settingSources: []` so nothing personal leaks in, tool results paired by the
+  SDK's own `tool_use_id` messages). `npm run eval:gate` runs the full suite concurrently on the
+  developer's machine, compares with the committed `evals/baseline/`, re-runs regressions once,
+  and writes `evals/gate/attestation.json`. The token-free `coach-gate` CI job recomputes the
+  prompt and eval-surface hashes and refuses a PR whose attestation does not match. The baseline
+  is a held path: a non-regressing PR auto-merges, a behavior-changing one waits for Shane. The
+  SDK runtime differs from production (automatic caching, thinking on, no tools-off re-stream),
+  so the gate is a regression detector; the nightly API run remains the production-shaped
+  measurement. (#306, #308)
+
+## D-048 · The coach prompt carries the safety posture the terms promise
+**Status:** decided · Shane (wording at review) · 2026-09-22 · BCG review follow-up
+- **The question.** `legal/terms-v1.md` §1.1 disclaimed medical advice while the prompt had no
+  scope limit and no escalation rule, and told the model to tailor programming to the athlete's
+  free-text disclosures.
+- **Decision.** One `safetySection()` in every prompt (chat, builder, analytics, summary): scope,
+  pain and injury escalation, red flags, profile restrictions as constraints, and soreness is
+  not injury. Eight refusal cases prove it, two of them should-comply controls so the block
+  cannot pass by refusing everything; all eight pass on the first subscription record. The
+  legal-review note at `terms-v1.md:48` is resolved by this and is Shane's to edit. (#301)

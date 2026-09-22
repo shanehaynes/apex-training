@@ -67,7 +67,7 @@ questions — resolve those before or during implementation, don't guess.
   ([src/lib/coach/tools.ts](src/lib/coach/tools.ts)) exposes `create_event` / `update_event` /
   `delete_event`, and `create_event` does not accept an `exercises` array (though
   `CreateEventInput.exercises` exists in [src/lib/schedule/types.ts:18](src/lib/schedule/types.ts#L18)).
-  The EXERCISE AUTHORING RULES in [src/lib/coach/prompt.ts:66-70](src/lib/coach/prompt.ts#L66-L70)
+  The EXERCISE AUTHORING RULES block in `buildSystemPrompt` ([src/lib/coach/prompt.ts](src/lib/coach/prompt.ts))
   (one movement per entry; unilateral reps say "each side"; holds in duration) currently
   apply to no live tool path. Exercise-level coach tooling is **net-new surface**, which
   means it can be designed definition-aware from day one.
