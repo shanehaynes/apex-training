@@ -37,6 +37,10 @@ public final class LiveSessionStore {
     /// Built inside `TrackerServices`, which is assembled off the main actor.
     public nonisolated init() {}
 
+    /// D-031: a MainActor-default class needs a nonisolated deinit or deallocation
+    /// off the main actor aborts on the iOS 17/18 runtime.
+    nonisolated deinit {}
+
     /// What the tracker knows about `session`, folded in. A session that is no
     /// longer running only clears the store when the store is holding *it* —
     /// so a second occurrence opened over the first never wipes the first on
