@@ -71,6 +71,39 @@ describe('a chain that opens with cd into a worktree', () => {
     expect(inTree(`git -C ${primary} commit -m x`)).toMatch(/primary checkout/);
     expect(inTree(`xcodebuild -project ${primary}/ios/Apex.xcodeproj build`)).toMatch(/primary checkout/);
   });
+
+  it('resolves a relative path option against the chain directory, not the cwd', () => {
+    // A subagent's cwd is the primary; `cd <worktree>/ios && xcodebuild
+    // -project Apex.xcodeproj` runs in the worktree, and the relative
+    // -project used to be resolved against the cwd instead — which named
+    // the primary and discarded the correct chain directory.
+    expect(inPrimary(`cd ${worktree}/ios && xcodebuild -project Apex.xcodeproj -scheme Apex build-for-testing`)).toBeNull();
+    expect(inPrimary(`cd ${worktree}/ios && xcodebuild -workspace Apex.xcworkspace -scheme Apex build`)).toBeNull();
+    expect(inPrimary(`cd ${worktree}/ios && xcodegen generate --spec project.yml`)).toBeNull();
+    expect(inPrimary(`cd ${worktree} && git -C ios commit -m x`)).toBeNull();
+    expect(inPrimary(`cd ${worktree} && git -C . commit -m x`)).toBeNull();
+    // With no cd the relative option really is the primary — still blocked.
+    expect(inPrimary('xcodebuild -project ios/Apex.xcodeproj -scheme Apex build')).toMatch(/primary checkout/);
+    expect(inPrimary('cd ios && xcodebuild -project Apex.xcodeproj build')).toMatch(/primary checkout/);
+    expect(inPrimary('git -C ios commit -m x')).toMatch(/primary checkout/);
+    // And a relative option that walks back out of the worktree is caught.
+    expect(inTree('cd ios && git -C ../../../.. commit -m x')).toMatch(/primary checkout/);
+  });
+
+  it('treats an unexpanded variable in a path option as unknown, not as a literal path', () => {
+    // `$W/Apex.xcodeproj` must not be resolved as `<cwd>/$W/Apex.xcodeproj`;
+    // the chain directory in effect is the answer, as for a relative path.
+    expect(inPrimary(`cd ${worktree}/ios && xcodebuild -project $W/Apex.xcodeproj build`)).toBeNull();
+    expect(inPrimary(`cd ${worktree}/ios && W=${worktree}/ios && xcodebuild -project "$W/Apex.xcodeproj" build`)).toBeNull();
+    expect(inPrimary(`cd ${worktree} && git -C $W commit -m x`)).toBeNull();
+    expect(inPrimary('xcodebuild -project $W/Apex.xcodeproj build')).toMatch(/primary checkout/);
+    expect(inPrimary('git -C "$W" commit -m x')).toMatch(/primary checkout/);
+  });
+
+  it('resolves a relative cd against the directory the chain has reached', () => {
+    expect(inPrimary(`cd ${worktree} && cd ios && xcodebuild -project Apex.xcodeproj build`)).toBeNull();
+    expect(inTree(`cd .. && cd .. && cd .. && git commit -m x`)).toMatch(/primary checkout/);
+  });
 });
 
 describe('effectiveDirs', () => {
