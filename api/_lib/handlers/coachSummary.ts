@@ -6,7 +6,7 @@ import { getAnthropicKey } from '../anthropicKey.js';
 import { enforceRateLimit } from '../rateLimit.js';
 import { streamToWireEvents, type UpstreamEvent } from '../wire.js';
 import { buildFinishSummary, loadResolvedOccurrence } from '../trackerSession.js';
-import { athleteSection } from '../../../src/lib/coach/prompt.js';
+import { athleteSection, safetySection } from '../../../src/lib/coach/prompt.js';
 import { defaultCoachModel, resolveCoachModel } from '../../../src/lib/coach/models.js';
 import { sessionScoreFromRow } from '../../../src/lib/tracking/records.js';
 import type { ChatWireEvent } from '../../../src/lib/coach/wire.js';
@@ -101,7 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const request = (recap: string) => ({
     model: coachModel.id,
     max_tokens: 300,
-    system: SYSTEM_PROMPT + athlete,
+    system: SYSTEM_PROMPT + safetySection() + athlete,
     messages: [{ role: 'user' as const, content: recap }],
   });
 

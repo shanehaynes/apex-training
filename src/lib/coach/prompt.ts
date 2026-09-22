@@ -9,7 +9,7 @@ import type { BlockPromptSummary } from '../blocks/promptSummary';
 
 // Bump on any behavior-visible edit to this file, schemas.ts or tools.ts.
 // Date-dot-serial (YYYY.MM.DD-n), not semver: a prompt has no compatibility contract.
-export const PROMPT_VERSION = '2026.09.21-1';
+export const PROMPT_VERSION = '2026.09.22-1';
 
 // The coach's system prompt: live schedule context (with bracketed ids the
 // tools reference), the exercise-library name list, plus a 4-week
@@ -29,6 +29,24 @@ export function sanitizeUserText(text: string, maxLen: number): string {
 /** Single-line variant for event titles and library names. */
 export function sanitizeInlineText(text: string, maxLen: number): string {
   return sanitizeUserText(text.replace(/\s+/g, ' '), maxLen);
+}
+
+// The coach's safety posture: a scope limit, escalation rules for reported
+// pain, injury and red-flag symptoms, and the inverse — soreness is not
+// injury — so the block cannot be satisfied by refusing everything. Every
+// prompt that personalizes on the athlete's free text carries it, because
+// that text is where users record injuries and conditions (legal/terms-v1.md
+// §1.1 describes exactly this posture). Unconditional: unlike athleteSection
+// it never returns ''.
+export function safetySection(): string {
+  return `
+
+SAFETY AND SCOPE:
+- Your scope is training, nutrition logging, and scheduling. You are not a clinician: no diagnosis, no interpreting symptoms, no rehab or treatment prescription.
+- Reported acute pain, swelling, numbness, or a named injury: stop loading that region, say so once and plainly, and point to a clinician. Never program around it as if it were a preference.
+- Red flags — chest pain or tightness on exertion, fainting, concussion signs after a head impact, disordered-eating signals such as sub-1200 kcal targets, purging, or training to erase food: decline the programming request, name the reason in one line, refer in one sentence. No substitute plan.
+- Medical restrictions in the athlete's profile are constraints, not suggestions. "I know my body" does not lift one — only the clinician who set it does.
+- Soreness is not injury. DOMS, ordinary fatigue and a cleared old injury are training inputs: keep coaching.`;
 }
 
 // The user-authored profile fields (Profile → AI Coach), rendered as a
@@ -107,7 +125,7 @@ SAVED WORKOUTS: ${templates.join(' · ')}
 </workout_library>
 These already exist — suggest the user search for one instead of rebuilding it under a new name (a duplicate title would overwrite it on Apply).`;
 
-  return `You are a terse, high-signal fitness coach helping the user build ONE workout in the app's workout builder. You edit the draft form with the update_workout_draft tool — partial updates; a passed section replaces that whole section. You CANNOT save, apply, or schedule anything: only the user's Apply button does that, and your edits live only in the form until then. Never claim to have saved or scheduled.${today ? `\n\nToday: ${format(today, 'EEEE, MMMM d, yyyy')}` : ''}
+  return `You are a terse, high-signal fitness coach helping the user build ONE workout in the app's workout builder. You edit the draft form with the update_workout_draft tool — partial updates; a passed section replaces that whole section. You CANNOT save, apply, or schedule anything: only the user's Apply button does that, and your edits live only in the form until then. Never claim to have saved or scheduled.${safetySection()}${today ? `\n\nToday: ${format(today, 'EEEE, MMMM d, yyyy')}` : ''}
 
 <workout_draft>
 CURRENT DRAFT:
@@ -214,7 +232,7 @@ When adding exercises to events, use EXACTLY these names to reference them. Any 
       `\nToday's totals: ${totals.calories} kcal · P ${totals.proteinG} / C ${totals.carbsG} / F ${totals.fatTotalG}`;
 
 
-  return `You are a terse, high-signal fitness coach in the user's training app. You have live schedule access and can create, update, or delete events via tools, and log or edit meals (macros in grams; calories auto-derive 4/4/9 unless given).${athleteSection(athlete?.goal, athlete?.context)}${blockSection(block)}
+  return `You are a terse, high-signal fitness coach in the user's training app. You have live schedule access and can create, update, or delete events via tools, and log or edit meals (macros in grams; calories auto-derive 4/4/9 unless given).${safetySection()}${athleteSection(athlete?.goal, athlete?.context)}${blockSection(block)}
 
 Today: ${dayName}
 
@@ -270,7 +288,7 @@ WORKOUTS MARKED "OTHER SPORT": ${others.join(' · ')}
 </other_workouts>
 With sports:["other"], narrow to these via workout_titles (exact titles).`;
 
-  return `You are a terse, high-signal analytics assistant helping the user build ONE chart tile in their training app's dashboard. You configure the tile with the update_chart_draft tool — partial updates; a series entry with a matching id merges, without an id appends. You CANNOT save the tile: only the user's Save button does that. The app computes every number the chart shows — never state, estimate, or promise chart values; configure and describe what the tile WILL show.${today ? `\n\nToday: ${format(today, 'EEEE, MMMM d, yyyy')}` : ''}
+  return `You are a terse, high-signal analytics assistant helping the user build ONE chart tile in their training app's dashboard. You configure the tile with the update_chart_draft tool — partial updates; a series entry with a matching id merges, without an id appends. You CANNOT save the tile: only the user's Save button does that. The app computes every number the chart shows — never state, estimate, or promise chart values; configure and describe what the tile WILL show.${safetySection()}${today ? `\n\nToday: ${format(today, 'EEEE, MMMM d, yyyy')}` : ''}
 
 <chart_draft>
 CURRENT DRAFT:
