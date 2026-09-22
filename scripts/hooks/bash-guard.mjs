@@ -952,6 +952,9 @@ function invocationsFor(commands) {
       depth: cmd.depth,
       subs: cmd.subs ?? [],
       pipeFrom: cmd.pipeFrom ?? null,
+      // The simple command this came from, so decideParsed can look up the
+      // directory the chain had moved to by the time it runs.
+      cmd,
     });
 
     const b = base(argv[0].value);
@@ -1269,8 +1272,11 @@ function isPrimaryBanned(inv) {
 // Directories an invocation names for itself: `git -C`, `npm --prefix`,
 // `swift --package-path`. Legacy matched none of these forms at all, so
 // recognising the command without honouring its target would leave the hole
-// the widening was meant to close.
-function invocationDirs(inv, cwd) {
+// the widening was meant to close. `dir` is where the invocation itself runs
+// — the chain directory after any leading `cd`, not the shell's cwd — so a
+// relative `-project Apex.xcodeproj` after `cd <worktree>/ios` lands in the
+// worktree rather than in whatever the hook was started from.
+function invocationDirs(inv, dir) {
   const b = base(inv.argv[0].value);
   let target = null;
   if (b === 'git') target = optionValue(inv.argv, new Set(['-C', '--git-dir', '--work-tree']));
@@ -1285,7 +1291,7 @@ function invocationDirs(inv, cwd) {
     if (target && /\.ya?ml$/.test(target)) target = dirname(target);
   }
   if (!target) return [];
-  return [resolveTarget(target, cwd)];
+  return [resolveTarget(target, dir)];
 }
 
 function resolveTarget(target, cwd) {
@@ -1293,33 +1299,42 @@ function resolveTarget(target, cwd) {
   return resolve(cwd, t);
 }
 
-function dirsFromCommands(commands, cwd) {
+function walkDirs(commands, cwd) {
   // Walk the chain in order: a literal `cd`/`pushd` moves the directory in
   // effect, every other command records it. `cd "$SOMEWHERE"` (unexpanded) or
   // a bare `cd` is a move this cannot read, so the hook cwd is recorded for it
   // and stays in effect — the conservative answer. A chain that opens with
   // `cd <worktree>` therefore never names the cwd, which is what lets a
   // session whose Bash cwd is the primary checkout build in its worktree.
+  // A relative `cd` resolves against the directory in effect, as the shell
+  // would, so `cd <worktree> && cd ios` lands in the worktree's `ios`.
+  // `byCommand` records, per simple command, the directory it runs in.
   const dirs = new Set();
+  const byCommand = new Map();
   let current = resolve(cwd);
   for (const cmd of commands) {
     if (!cmd.words.length) continue;
     const b = base(cmd.words[0].value);
-    if (b !== 'cd' && b !== 'pushd') { dirs.add(current); continue; }
+    if (b !== 'cd' && b !== 'pushd') { dirs.add(current); byCommand.set(cmd, current); continue; }
     let target = null;
     let unknown = false;
     for (const w of cmd.words.slice(1)) {
       if (isOption(w.value)) continue;
       if (w.dynamic || w.value === '' || w.value === '-') unknown = true;
-      else target = resolveTarget(w.value, cwd);
+      else target = resolveTarget(w.value, current);
       break;
     }
+    byCommand.set(cmd, current);
     if (target && !unknown) { current = target; continue; }
     current = resolve(cwd);
     dirs.add(current);
   }
   if (!dirs.size) dirs.add(resolve(cwd));
-  return [...dirs];
+  return { dirs: [...dirs], byCommand };
+}
+
+function dirsFromCommands(commands, cwd) {
+  return walkDirs(commands, cwd).dirs;
 }
 
 // Directories a command may execute in: the hook cwd plus any literal `cd`
@@ -1357,12 +1372,14 @@ function decideParsed(commands, cwd, projectDir) {
   const banned = invocations.filter(isPrimaryBanned);
   if (banned.length) {
     const primary = primaryRootOf(projectDir);
-    const shared = dirsFromCommands(expanded, cwd);
+    const { dirs: shared, byCommand } = walkDirs(expanded, cwd);
     for (const inv of banned) {
       // An invocation that names its own directory (`git -C`, `xcodebuild
       // -project`, …) runs there, not in the shell's cwd — so its target
-      // replaces the chain's directories rather than joining them.
-      const own = invocationDirs(inv, cwd);
+      // replaces the chain's directories rather than joining them. A relative
+      // target is relative to where that invocation runs, i.e. the chain
+      // directory a leading `cd` moved to, not the shell's cwd.
+      const own = invocationDirs(inv, byCommand.get(inv.cmd) ?? resolve(cwd));
       for (const dir of own.length ? own : shared) {
         const root = checkoutRoot(dir);
         if (root && root === primary && isPrimaryCheckout(root)) return MSG_PRIMARY;
