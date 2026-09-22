@@ -3,7 +3,7 @@ import ApexUI
 import SwiftUI
 
 /// The workout builder (`WorkoutBuilderView.tsx`): the template search, then
-/// the form, with the coach drawer under a sparkle; Apply / Save changes in a
+/// the form, with the coach drawer under a sparkle; one primary button in a
 /// bottom bar the keyboard lifts (U3), the scope bar when a series is being
 /// edited. `.large` only; a dirty draft cannot be swiped away (architecture §3).
 public struct BuilderSheet: View {
@@ -107,9 +107,12 @@ public struct BuilderSheet: View {
         .padding(.top, Spacing.sm)
     }
 
-    /// `BuilderForm`'s action bar: Cancel + Apply / Save changes, or — for a
-    /// recurring series — the scope question first. The last refusal sits
-    /// above the buttons: a toast would render under the sheet.
+    /// `BuilderForm`'s action bar: one primary button — "Add to calendar" or
+    /// "Save" — or, for a recurring series, the scope question first. There is
+    /// no Cancel: the sheet has a drag handle and an X, and a dirty draft
+    /// already asks before it goes (ux-review §3.5). The button's label is the
+    /// sentence that used to sit above it. The last refusal stays above the
+    /// buttons: a toast would render under the sheet.
     @ViewBuilder
     private var actionBar: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -132,25 +135,14 @@ public struct BuilderSheet: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("builder.scope")
             } else {
-                if !builder.isEditing {
-                    Text("Apply saves this workout to your library and adds it to the calendar.")
-                        .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
-                        .foregroundStyle(ApexColor.textMuted)
-                }
-                HStack(spacing: Spacing.sm) {
-                    ApexButton("Cancel", kind: .secondary) {
-                        if builder.isDirty { builder.confirmDiscard = true } else { onClose() }
+                ApexButton(builder.isEditing ? "Save" : "Add to calendar", isLoading: builder.isSaving) {
+                    if builder.asksScope {
+                        Motion.animate { builder.choosingScope = true }
+                    } else {
+                        Task { if await builder.apply() { onClose() } }
                     }
-                    .disabled(builder.isSaving)
-                    ApexButton(builder.isEditing ? "Save changes" : "Apply", isLoading: builder.isSaving) {
-                        if builder.asksScope {
-                            Motion.animate { builder.choosingScope = true }
-                        } else {
-                            Task { if await builder.apply() { onClose() } }
-                        }
-                    }
-                    .accessibilityIdentifier("builder.apply")
                 }
+                .accessibilityIdentifier("builder.apply")
             }
         }
         .padding(Spacing.screen)

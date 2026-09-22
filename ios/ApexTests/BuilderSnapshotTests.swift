@@ -68,6 +68,24 @@ final class BuilderSnapshotTests: XCTestCase {
         snapshot(BuilderSheet(builder: builder, onClose: {}), named: "form-template", size: CGSize(width: 393, height: 1400))
     }
 
+    /// A blank new workout: title first, type as a menu, and "More options"
+    /// shut over scoring, repeat, location, tags, difficulty and description.
+    @MainActor
+    func testNewWorkoutCollapsesMoreOptions() async {
+        let builder = await builder(.create(date: DayKey("2026-09-10")!))
+        builder.query = "Leg day"
+        builder.startBlank()
+        snapshot(BuilderSheet(builder: builder, onClose: {}), named: "form-blank", size: CGSize(width: 393, height: 1000))
+    }
+
+    /// An existing event carries a description, tags and a recurrence rule, so
+    /// the disclosure opens itself — an edit form must not hide what is set.
+    @MainActor
+    func testEditFormOpensMoreOptions() async {
+        let builder = await builder(.edit(eventId: "ios-fixture-weekly__2026-09-15"))
+        snapshot(BuilderSheet(builder: builder, onClose: {}), named: "form-edit-expanded", size: CGSize(width: 393, height: 1800))
+    }
+
     @MainActor
     func testFormOutdoorClimbingWithRepeat() async {
         let builder = await builder(.create(date: DayKey("2026-09-10")!))
