@@ -30,13 +30,19 @@ final class ToastWindowController {
 }
 
 /// Passes every touch through to the app's window unless it lands on a toast:
-/// `ToastHost` records the stack's frame on the bus, and a `nil` from
+/// `ToastHost` records the banners' own bounds on the bus, and a `nil` from
 /// `hitTest` makes UIKit try the next window down.
+///
+/// Both halves of that guard matter. With nothing showing the recorded frame
+/// is whatever the last toast left behind, and `super.hitTest` on an empty
+/// hosting view still answers the view rather than `nil` — the band would go
+/// on swallowing taps after the toast was gone.
 final class ToastWindow: UIWindow {
     nonisolated deinit {}
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        guard ToastBus.shared.frame.contains(point) else { return nil }
+        let bus = ToastBus.shared
+        guard !bus.toasts.isEmpty, bus.frame.contains(point) else { return nil }
         return super.hitTest(point, with: event)
     }
 }

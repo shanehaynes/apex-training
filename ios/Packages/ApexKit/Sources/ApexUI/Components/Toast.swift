@@ -23,10 +23,13 @@ public final class ToastBus {
 
     public private(set) var toasts: [Toast] = []
 
-    /// Where the stack is drawn, in the hosting window's coordinates (the
+    /// The banners' own bounds, in the hosting window's coordinates (the
     /// window fills the screen, so SwiftUI's global space is its space). The
     /// overlay window (`ToastWindow` in the app target) passes every touch
-    /// outside it through to the app. Zero-sized while nothing is showing.
+    /// outside it through to the app, so this must be the stack itself and
+    /// not the padding around it: a rectangle wider than the banner swallows
+    /// taps on whatever the toast is floating over. Zero-sized while nothing
+    /// is showing.
     public var frame: CGRect = .null
 
     private init() {}
@@ -81,12 +84,23 @@ public struct ToastHost: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .padding(.horizontal, Spacing.screen)
-        .apexAnimation(bus.toasts)
+        // Measured before the padding, so the bus carries the banners and not
+        // the transparent margin around them (see `ToastBus.frame`).
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { bus.frame = $0 }
+        .padding(.horizontal, Spacing.screen)
+        // The toast window sits above the app's, so a banner at the top of the
+        // safe area lands on the navigation bar and eats every tap on Back for
+        // the toast's whole four-second life. Start below the bar instead.
+        .padding(.top, Self.navigationBarHeight + Spacing.sm)
+        .apexAnimation(bus.toasts)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .allowsHitTesting(!bus.toasts.isEmpty)
     }
+
+    /// A navigation bar is 44pt tall below the safe area in both the inline
+    /// and the large-title layout (the large title sits under it), and this
+    /// view is already inset by the safe area by its hosting controller.
+    private static let navigationBarHeight: CGFloat = 44
 
     private func border(_ level: Toast.Level) -> Color {
         switch level {
