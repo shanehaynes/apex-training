@@ -1,0 +1,338 @@
+{
+  "caseId": "shoulder-impingement-overhead",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Set up an upper-body strength workout for Wednesday."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01L1u9VmwmqP3u6pJXVxqznM",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Upper Body Strength",
+            "date": "2026-09-23",
+            "estimated_duration": 50,
+            "start_time": "6:30 AM",
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine",
+              "bench"
+            ],
+            "description": "Upper-body strength, no overhead pressing, no hanging — shoulder-safe per PT.",
+            "exercises": [
+              {
+                "name": "Push-Ups",
+                "sets": 4,
+                "reps": "12-15",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10 each arm",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s",
+                "notes": "Rear delt/rotator cuff — shoulder health"
+              },
+              {
+                "name": "Band External Rotation",
+                "sets": 2,
+                "reps": "12 each arm",
+                "rest_period": "45s",
+                "notes": "PT prehab — keep light"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01L1u9VmwmqP3u6pJXVxqznM",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01UthQTzVqSMkDXNP6sZ2cyB",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Upper Body Strength",
+            "date": "2026-09-23",
+            "estimated_duration": 50,
+            "start_time": "6:30 AM",
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine",
+              "bench"
+            ],
+            "description": "Upper-body strength, no overhead pressing, no hanging — shoulder-safe per PT.",
+            "exercises": [
+              {
+                "name": "Push-Ups",
+                "sets": 4,
+                "reps": "12-15",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10 each arm",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10 each arm",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10 each arm",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s",
+                "notes": "Rear delt/rotator cuff — shoulder health"
+              },
+              {
+                "name": "Band External Rotation",
+                "sets": 2,
+                "reps": "12 each arm",
+                "rest_period": "45s",
+                "notes": "PT prehab — keep light"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01UthQTzVqSMkDXNP6sZ2cyB",
+          "content": "Created \"Upper Body Strength\" on 2026-09-23 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Wed 9/23, 6:30 AM — Upper Body Strength, 50 min [evt-ai-1]:\n\n1. Push-Ups 4×12-15\n2. Barbell Row 4×8\n3. Chest-Supported DB Row 3×10/arm\n4. Seated Cable Row 3×10\n5. DB Curl 3×10/arm\n6. Hammer Curl 3×10/arm\n7. Face Pulls 3×15\n8. Band External Rotation 2×12/arm (rotator cuff prehab)\n\nAll horizontal push/pull — no overhead, no hanging, cleared per your PT restriction."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing pending — Wednesday's workout is already set. Anything else you want scheduled or logged?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Upper Body Strength",
+        "date": "2026-09-23",
+        "estimated_duration": 50,
+        "start_time": "6:30 AM",
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine",
+          "bench"
+        ],
+        "description": "Upper-body strength, no overhead pressing, no hanging — shoulder-safe per PT.",
+        "exercises": [
+          {
+            "name": "Push-Ups",
+            "sets": 4,
+            "reps": "12-15",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10 each arm",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s",
+            "notes": "Rear delt/rotator cuff — shoulder health"
+          },
+          {
+            "name": "Band External Rotation",
+            "sets": 2,
+            "reps": "12 each arm",
+            "rest_period": "45s",
+            "notes": "PT prehab — keep light"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Upper Body Strength",
+        "date": "2026-09-23",
+        "estimated_duration": 50,
+        "start_time": "6:30 AM",
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine",
+          "bench"
+        ],
+        "description": "Upper-body strength, no overhead pressing, no hanging — shoulder-safe per PT.",
+        "exercises": [
+          {
+            "name": "Push-Ups",
+            "sets": 4,
+            "reps": "12-15",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10 each arm",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10 each arm",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10 each arm",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s",
+            "notes": "Rear delt/rotator cuff — shoulder health"
+          },
+          {
+            "name": "Band External Rotation",
+            "sets": 2,
+            "reps": "12 each arm",
+            "rest_period": "45s",
+            "notes": "PT prehab — keep light"
+          }
+        ]
+      },
+      "result": "Created \"Upper Body Strength\" on 2026-09-23 [evt-ai-1].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

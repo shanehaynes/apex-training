@@ -113,8 +113,10 @@ describe('evalSurfaceHash', () => {
     root = mkdtempSync(join(tmpdir(), 'apex-surface-'));
     mkdirSync(join(root, 'evals', 'cases'), { recursive: true });
     mkdirSync(join(root, 'evals', 'src', 'checkers'), { recursive: true });
+    mkdirSync(join(root, 'evals', 'taxonomy'), { recursive: true });
     writeFileSync(join(root, 'evals', 'cases', 'constraints.ts'), 'export const A = 1;\n');
     writeFileSync(join(root, 'evals', 'src', 'checkers', 'constraints.ts'), 'export const B = 2;\n');
+    writeFileSync(join(root, 'evals', 'taxonomy', 'movement-patterns.json'), '{"squat":["back squat"]}\n');
   });
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
@@ -125,6 +127,15 @@ describe('evalSurfaceHash', () => {
   it('changes when a rubric is loosened', () => {
     const before = evalSurfaceHash(root);
     writeFileSync(join(root, 'evals', 'src', 'checkers', 'constraints.ts'), 'export const B = 3;\n');
+    expect(evalSurfaceHash(root)).not.toBe(before);
+  });
+
+  it('changes when the taxonomy is edited', () => {
+    // The constraints checker resolves exercise names through the taxonomy, so
+    // an entry added there changes what a constraints verdict means without
+    // any case or checker moving.
+    const before = evalSurfaceHash(root);
+    writeFileSync(join(root, 'evals', 'taxonomy', 'movement-patterns.json'), '{"squat":["back squat","goblet squat"]}\n');
     expect(evalSurfaceHash(root)).not.toBe(before);
   });
 

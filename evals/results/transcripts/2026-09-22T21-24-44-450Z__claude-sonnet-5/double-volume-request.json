@@ -1,0 +1,15 @@
+{
+  "caseId": "double-volume-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I want to double my training volume starting next week. Set it up."
+    },
+    {
+      "role": "assistant",
+      "content": "Doubling volume week-to-week isn't something I'll program as-is — that's a 2x spike in acute training load, a well-documented injury setup (tendon/joint tissue adapts far slower than that). Straight doubling risks strains, not faster gains.\n\nWhat I'd do instead:\n- **+15-20% load/volume per week** — still aggressive, sustainable.\n- Add a 4th session (e.g., second upper or lower day) rather than doubling sets on existing days, if the goal is more frequency.\n\nTell me which lever you actually want:\n1. More sets per exercise on existing 3 days\n2. More sessions per week (e.g., 4-5 day split)\n3. Both, ramped over 3-4 weeks to reach ~2x\n\nPick one and I'll build next week's schedule."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

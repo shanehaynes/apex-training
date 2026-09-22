@@ -1,0 +1,2156 @@
+{
+  "caseId": "return-from-break-ramp",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my first 3 weeks back in the gym. Schedule all the sessions."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Return-to-training block, 3 weeks, 11 sessions. Upper/Lower split (matches your old 4x/week frequency), loads run 50–55% → 65–70% → 75–80% of pre-layoff working weight across the three weeks. Deadlift/Bench/OHP aren't in your library yet — adding them now. Nordic curls and Ring Dips held back until week 2-3 to avoid wrecking you with DOMS on day one."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01HED8svqiahHaz51MFqsqaF",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Return to Training – Lower A (Wk1)",
+            "date": "2026-09-22",
+            "estimated_duration": 50,
+            "difficulty": 2,
+            "tags": [
+              "return-to-training"
+            ],
+            "equipment": [
+              "barbell",
+              "squat rack",
+              "dumbbells"
+            ],
+            "description": "Week 1 of 3 reintroducing squat pattern after 2-month layoff. Conservative loads, form over weight.",
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "8",
+                "weight": "~50-55% pre-layoff working weight",
+                "rest_period": "2 min",
+                "notes": "First loaded squat back — controlled tempo, stop 2 reps short of failure."
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "weight": "light dumbbells",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "12 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "45s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01HED8svqiahHaz51MFqsqaF",
+          "content": "Created \"Return to Training – Lower A (Wk1)\" on 2026-09-22 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01RPgb56whZup14yBE7wfTd3",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Return to Training – Upper B (Wk1)",
+            "date": "2026-09-24",
+            "estimated_duration": 50,
+            "difficulty": 2,
+            "tags": [
+              "return-to-training"
+            ],
+            "equipment": [
+              "lat pulldown machine",
+              "dumbbells",
+              "cable machine",
+              "bands"
+            ],
+            "exercises": [
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "weight": "light",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "weight": "light",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s",
+                "notes": "Bodyweight only this week."
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "10",
+                "weight": "light",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 2,
+                "reps": "10",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01RPgb56whZup14yBE7wfTd3",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_017jDDTZzvrpdGXiPqYwUcUt",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Return to Training – Lower B (Wk1)",
+            "date": "2026-09-25",
+            "estimated_duration": 50,
+            "difficulty": 2,
+            "tags": [
+              "return-to-training"
+            ],
+            "equipment": [
+              "barbell",
+              "landmine attachment"
+            ],
+            "exercises": [
+              {
+                "name": "Deadlift",
+                "category": "strength",
+                "muscle_groups": [
+                  "hamstrings",
+                  "glutes",
+                  "back",
+                  "forearms"
+                ],
+                "sets": 3,
+                "reps": "6",
+                "weight": "~50-55% pre-layoff working weight",
+                "rest_period": "2-3 min",
+                "notes": "First pull back — reset each rep, brace hard."
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 2,
+                "duration": "15s each side",
+                "rest_period": "45s",
+                "notes": "Short holds — adductors detrained."
+              },
+              {
+                "name": "Landmine Press + Reach",
+                "sets": 2,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_017jDDTZzvrpdGXiPqYwUcUt",
+          "content": "Created \"Return to Training – Lower B (Wk1)\" on 2026-09-25 [evt-ai-2]. Added 1 new exercise(s) to the library: Deadlift."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01256baAnmHECsa3fy3yFyLs",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Return to Training – Upper A (Wk2)",
+            "date": "2026-09-28",
+            "estimated_duration": 55,
+            "difficulty": 3,
+            "tags": [
+              "return-to-training"
+            ],
+            "equipment": [
+              "barbell",
+              "bench",
+              "lat pulldown machine"
+            ],
+            "exercises": [
+              {
+                "name": "Bench Press",
+                "category": "strength",
+                "muscle_groups": [
+                  "chest",
+                  "shoulders",
+                  "triceps"
+                ],
+                "sets": 3,
+                "reps": "6",
+                "weight": "~65-70% pre-layoff working weight",
+                "rest_period": "2-3 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 3,
+                "reps": "8",
+                "weight": "moderate, ~65%",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Overhead Press",
+                "category": "strength",
+                "muscle_groups": [
+                  "shoulders",
+                  "triceps"
+                ],
+                "sets": 3,
+                "reps": "6",
+                "weight": "moderate, ~65%",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Lat Pulldown (Close Grip)",
+                "sets": 3,
+                "reps": "10",
+                "weight": "moderate",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 2,
+                "reps": "15",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 2,
+                "reps": "10",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01256baAnmHECsa3fy3yFyLs",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01AeY53HS45CrT49MegngSsF",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Return to Training – Lower A (Wk2)",
+            "date": "2026-09-29",
+            "estimated_duration": 50,
+            "difficulty": 3,
+            "tags": [
+              "return-to-training"
+            ],
+            "equipment": [
+              "barbell",
+              "squat rack",
+              "dumbbells"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "6",
+                "weight": "~65-70% pre-layoff working weight",
+                "rest_period": "2-3 min"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "10 each leg",
+                "weight": "moderate",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "15 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "45s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01AeY53HS45CrT49MegngSsF",
+          "content": "Created \"Return to Training – Lower A (Wk2)\" on 2026-09-29 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01USFjPGgbx7M5PrqtNyANNH",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Return to Training – Upper B (Wk2)",
+            "date": "2026-10-01",
+            "estimated_duration": 55,
+            "difficulty": 3,
+            "tags": [
+              "return-to-training"
+            ],
+            "equipment": [
+              "lat pulldown machine",
+              "dumbbells",
+              "cable machine",
+              "bands",
+              "dip station"
+            ],
+            "exercises": [
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "8",
+                "weight": "moderate, ~65-70%",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "weight": "moderate",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Ring Dips",
+                "sets": 3,
+                "reps": "6",
+                "rest_period": "90s",
+                "notes": "Introducing — assisted/banded if needed."
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "10",
+                "weight": "moderate",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01USFjPGgbx7M5PrqtNyANNH",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01QbmtrQnZCsdjcWZPzF9G9Z",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Return to Training – Lower B (Wk2)",
+            "date": "2026-10-02",
+            "estimated_duration": 55,
+            "difficulty": 3,
+            "tags": [
+              "return-to-training"
+            ],
+            "equipment": [
+              "barbell",
+              "landmine attachment"
+            ],
+            "exercises": [
+              {
+                "name": "Deadlift",
+                "sets": 3,
+                "reps": "5",
+                "weight": "~65-70% pre-layoff working weight",
+                "rest_period": "2-3 min"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 2,
+                "reps": "5",
+                "rest_period": "90s",
+                "notes": "First reintroduction — expect heavy DOMS, keep reps low."
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Landmine Press + Reach",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01QbmtrQnZCsdjcWZPzF9G9Z",
+          "content": "Created \"Return to Training – Lower B (Wk2)\" on 2026-10-02 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Hqwxs9R7cjzM43Z7d9w5FN",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Return to Training – Upper A (Wk3)",
+            "date": "2026-10-05",
+            "estimated_duration": 55,
+            "difficulty": 4,
+            "tags": [
+              "return-to-training"
+            ],
+            "equipment": [
+              "barbell",
+              "bench",
+              "lat pulldown machine"
+            ],
+            "exercises": [
+              {
+                "name": "Bench Press",
+                "sets": 4,
+                "reps": "5",
+                "weight": "~75-80% pre-layoff working weight",
+                "rest_period": "2-3 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "6",
+                "weight": "moderate-heavy",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Overhead Press",
+                "sets": 3,
+                "reps": "6",
+                "weight": "moderate-heavy",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Lat Pulldown (Close Grip)",
+                "sets": 3,
+                "reps": "10",
+                "weight": "moderate",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Hqwxs9R7cjzM43Z7d9w5FN",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01N5srSgfu9RbvbhZ4jyWxHe",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Return to Training – Lower A (Wk3)",
+            "date": "2026-10-06",
+            "estimated_duration": 55,
+            "difficulty": 4,
+            "tags": [
+              "return-to-training"
+            ],
+            "equipment": [
+              "barbell",
+              "squat rack",
+              "dumbbells"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "5",
+                "weight": "~75-80% pre-layoff working weight",
+                "rest_period": "2-3 min"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "10 each leg",
+                "weight": "moderate-heavy",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 4,
+                "reps": "15 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "45s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01N5srSgfu9RbvbhZ4jyWxHe",
+          "content": "Created \"Return to Training – Lower A (Wk3)\" on 2026-10-06 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01CdfmpvBdNhtueD5snwz5Tj",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Return to Training – Upper B (Wk3)",
+            "date": "2026-10-08",
+            "estimated_duration": 55,
+            "difficulty": 4,
+            "tags": [
+              "return-to-training"
+            ],
+            "equipment": [
+              "pull-up bar",
+              "dip station",
+              "dumbbells",
+              "cable machine",
+              "bands"
+            ],
+            "exercises": [
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 3,
+                "reps": "5",
+                "weight": "light added load or bodyweight",
+                "rest_period": "2 min",
+                "notes": "Reintroducing weighted work."
+              },
+              {
+                "name": "Ring Dips",
+                "sets": 3,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "8",
+                "weight": "heavier",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "10",
+                "weight": "moderate",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01CdfmpvBdNhtueD5snwz5Tj",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01LirUHaRgaizyp9UE4obF8V",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Return to Training – Lower B (Wk3)",
+            "date": "2026-10-09",
+            "estimated_duration": 55,
+            "difficulty": 4,
+            "tags": [
+              "return-to-training"
+            ],
+            "equipment": [
+              "barbell",
+              "landmine attachment"
+            ],
+            "exercises": [
+              {
+                "name": "Deadlift",
+                "sets": 4,
+                "reps": "4",
+                "weight": "~75-80% pre-layoff working weight",
+                "rest_period": "3 min"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "6",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "25s each side",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Landmine Press + Reach",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01LirUHaRgaizyp9UE4obF8V",
+          "content": "Created \"Return to Training – Lower B (Wk3)\" on 2026-10-09 [evt-ai-6]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Fixing the curl rep formats (need \"each side\" — done as total sets both arms per set) and retrying the 4 failed upper-day events."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_014sFKvrx3P5iiMEip2x7shm",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Return to Training – Upper B (Wk1)",
+            "date": "2026-09-24",
+            "estimated_duration": 50,
+            "difficulty": 2,
+            "tags": [
+              "return-to-training"
+            ],
+            "equipment": [
+              "lat pulldown machine",
+              "dumbbells",
+              "cable machine",
+              "bands"
+            ],
+            "exercises": [
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "weight": "light",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "weight": "light",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s",
+                "notes": "Bodyweight only this week."
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "10",
+                "weight": "light",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 2,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014sFKvrx3P5iiMEip2x7shm",
+          "content": "Created \"Return to Training – Upper B (Wk1)\" on 2026-09-24 [evt-ai-7]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_012pMBKkj1J59gPNxwjejNgy",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Return to Training – Upper A (Wk2)",
+            "date": "2026-09-28",
+            "estimated_duration": 55,
+            "difficulty": 3,
+            "tags": [
+              "return-to-training"
+            ],
+            "equipment": [
+              "barbell",
+              "bench",
+              "lat pulldown machine"
+            ],
+            "exercises": [
+              {
+                "name": "Bench Press",
+                "category": "strength",
+                "muscle_groups": [
+                  "chest",
+                  "shoulders",
+                  "triceps"
+                ],
+                "sets": 3,
+                "reps": "6",
+                "weight": "~65-70% pre-layoff working weight",
+                "rest_period": "2-3 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 3,
+                "reps": "8",
+                "weight": "moderate, ~65%",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Overhead Press",
+                "category": "strength",
+                "muscle_groups": [
+                  "shoulders",
+                  "triceps"
+                ],
+                "sets": 3,
+                "reps": "6",
+                "weight": "moderate, ~65%",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Lat Pulldown (Close Grip)",
+                "sets": 3,
+                "reps": "10",
+                "weight": "moderate",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 2,
+                "reps": "15",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 2,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_012pMBKkj1J59gPNxwjejNgy",
+          "content": "Created \"Return to Training – Upper A (Wk2)\" on 2026-09-28 [evt-ai-8]. Added 2 new exercise(s) to the library: Bench Press, Overhead Press."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01UvZJfL2wkJa5YWYBhRMh4a",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Return to Training – Upper B (Wk2)",
+            "date": "2026-10-01",
+            "estimated_duration": 55,
+            "difficulty": 3,
+            "tags": [
+              "return-to-training"
+            ],
+            "equipment": [
+              "lat pulldown machine",
+              "dumbbells",
+              "cable machine",
+              "bands",
+              "dip station"
+            ],
+            "exercises": [
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "8",
+                "weight": "moderate, ~65-70%",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "weight": "moderate",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Ring Dips",
+                "sets": 3,
+                "reps": "6",
+                "rest_period": "90s",
+                "notes": "Introducing — assisted/banded if needed."
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "10",
+                "weight": "moderate",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01UvZJfL2wkJa5YWYBhRMh4a",
+          "content": "Created \"Return to Training – Upper B (Wk2)\" on 2026-10-01 [evt-ai-9]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Q8Q1W7R4uzvq4LTagcEmKE",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Return to Training – Upper A (Wk3)",
+            "date": "2026-10-05",
+            "estimated_duration": 55,
+            "difficulty": 4,
+            "tags": [
+              "return-to-training"
+            ],
+            "equipment": [
+              "barbell",
+              "bench",
+              "lat pulldown machine"
+            ],
+            "exercises": [
+              {
+                "name": "Bench Press",
+                "sets": 4,
+                "reps": "5",
+                "weight": "~75-80% pre-layoff working weight",
+                "rest_period": "2-3 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "6",
+                "weight": "moderate-heavy",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Overhead Press",
+                "sets": 3,
+                "reps": "6",
+                "weight": "moderate-heavy",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Lat Pulldown (Close Grip)",
+                "sets": 3,
+                "reps": "10",
+                "weight": "moderate",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Q8Q1W7R4uzvq4LTagcEmKE",
+          "content": "Created \"Return to Training – Upper A (Wk3)\" on 2026-10-05 [evt-ai-10]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Still need the last one — Upper B (Wk3), Oct 9."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01VLQ3zJR9gAD9kwUT4DKvxb",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Return to Training – Upper B (Wk3)",
+            "date": "2026-10-08",
+            "estimated_duration": 55,
+            "difficulty": 4,
+            "tags": [
+              "return-to-training"
+            ],
+            "equipment": [
+              "pull-up bar",
+              "dip station",
+              "dumbbells",
+              "cable machine",
+              "bands"
+            ],
+            "exercises": [
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 3,
+                "reps": "5",
+                "weight": "light added load or bodyweight",
+                "rest_period": "2 min",
+                "notes": "Reintroducing weighted work."
+              },
+              {
+                "name": "Ring Dips",
+                "sets": 3,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "8",
+                "weight": "heavier",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "10",
+                "weight": "moderate",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01VLQ3zJR9gAD9kwUT4DKvxb",
+          "content": "Created \"Return to Training – Upper B (Wk3)\" on 2026-10-08 [evt-ai-11]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "All 11 sessions scheduled, Sept 22 – Oct 9.\n\n**Structure:** Upper/Lower split, Mon/Tue/Thu/Fri each full week (week 1 starts today, so only 3 sessions).\n\n| Week | Load target | Sessions |\n|---|---|---|\n| 1 | ~50-55% pre-layoff weight, 3x8/6, no Nordic curls/Ring Dips | Tue 9/22 Lower A, Thu 9/24 Upper B, Fri 9/25 Lower B |\n| 2 | ~65-70%, add Nordic Hamstring Curls (2x5) + Ring Dips (3x6) | Mon 9/28 Upper A, Tue 9/29 Lower A, Thu 10/1 Upper B, Fri 10/2 Lower B |\n| 3 | ~75-80%, 4-set main lifts, Weighted Pull-Ups back in | Mon 10/5 Upper A, Tue 10/6 Lower A, Thu 10/8 Upper B, Fri 10/9 Lower B |\n\nAdded Bench Press, Overhead Press, Deadlift to your library (weren't there before). Weight prescriptions are % of your old working weight since I don't have your actual numbers — plug those in yourself.\n\nRule for all 3 weeks: stop sets 1-2 reps short of failure, no grinding singles. If week 1 leaves you wrecked past 48hrs, tell me and I'll flatten week 2 instead of progressing it."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing's pending on my end — the 3-week schedule is fully created (11 sessions, Sept 22–Oct 9). What do you want me to continue with?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Return to Training – Lower A (Wk1)",
+        "date": "2026-09-22",
+        "estimated_duration": 50,
+        "difficulty": 2,
+        "tags": [
+          "return-to-training"
+        ],
+        "equipment": [
+          "barbell",
+          "squat rack",
+          "dumbbells"
+        ],
+        "description": "Week 1 of 3 reintroducing squat pattern after 2-month layoff. Conservative loads, form over weight.",
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "8",
+            "weight": "~50-55% pre-layoff working weight",
+            "rest_period": "2 min",
+            "notes": "First loaded squat back — controlled tempo, stop 2 reps short of failure."
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "weight": "light dumbbells",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "12 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "45s"
+          }
+        ]
+      },
+      "result": "Created \"Return to Training – Lower A (Wk1)\" on 2026-09-22 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Return to Training – Upper B (Wk1)",
+        "date": "2026-09-24",
+        "estimated_duration": 50,
+        "difficulty": 2,
+        "tags": [
+          "return-to-training"
+        ],
+        "equipment": [
+          "lat pulldown machine",
+          "dumbbells",
+          "cable machine",
+          "bands"
+        ],
+        "exercises": [
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "weight": "light",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "weight": "light",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s",
+            "notes": "Bodyweight only this week."
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10",
+            "weight": "light",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 2,
+            "reps": "10",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Return to Training – Lower B (Wk1)",
+        "date": "2026-09-25",
+        "estimated_duration": 50,
+        "difficulty": 2,
+        "tags": [
+          "return-to-training"
+        ],
+        "equipment": [
+          "barbell",
+          "landmine attachment"
+        ],
+        "exercises": [
+          {
+            "name": "Deadlift",
+            "category": "strength",
+            "muscle_groups": [
+              "hamstrings",
+              "glutes",
+              "back",
+              "forearms"
+            ],
+            "sets": 3,
+            "reps": "6",
+            "weight": "~50-55% pre-layoff working weight",
+            "rest_period": "2-3 min",
+            "notes": "First pull back — reset each rep, brace hard."
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 2,
+            "duration": "15s each side",
+            "rest_period": "45s",
+            "notes": "Short holds — adductors detrained."
+          },
+          {
+            "name": "Landmine Press + Reach",
+            "sets": 2,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Return to Training – Lower B (Wk1)\" on 2026-09-25 [evt-ai-2]. Added 1 new exercise(s) to the library: Deadlift.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Return to Training – Upper A (Wk2)",
+        "date": "2026-09-28",
+        "estimated_duration": 55,
+        "difficulty": 3,
+        "tags": [
+          "return-to-training"
+        ],
+        "equipment": [
+          "barbell",
+          "bench",
+          "lat pulldown machine"
+        ],
+        "exercises": [
+          {
+            "name": "Bench Press",
+            "category": "strength",
+            "muscle_groups": [
+              "chest",
+              "shoulders",
+              "triceps"
+            ],
+            "sets": 3,
+            "reps": "6",
+            "weight": "~65-70% pre-layoff working weight",
+            "rest_period": "2-3 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 3,
+            "reps": "8",
+            "weight": "moderate, ~65%",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Overhead Press",
+            "category": "strength",
+            "muscle_groups": [
+              "shoulders",
+              "triceps"
+            ],
+            "sets": 3,
+            "reps": "6",
+            "weight": "moderate, ~65%",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Lat Pulldown (Close Grip)",
+            "sets": 3,
+            "reps": "10",
+            "weight": "moderate",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 2,
+            "reps": "15",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 2,
+            "reps": "10",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Return to Training – Lower A (Wk2)",
+        "date": "2026-09-29",
+        "estimated_duration": 50,
+        "difficulty": 3,
+        "tags": [
+          "return-to-training"
+        ],
+        "equipment": [
+          "barbell",
+          "squat rack",
+          "dumbbells"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "6",
+            "weight": "~65-70% pre-layoff working weight",
+            "rest_period": "2-3 min"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "10 each leg",
+            "weight": "moderate",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "15 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "45s"
+          }
+        ]
+      },
+      "result": "Created \"Return to Training – Lower A (Wk2)\" on 2026-09-29 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Return to Training – Upper B (Wk2)",
+        "date": "2026-10-01",
+        "estimated_duration": 55,
+        "difficulty": 3,
+        "tags": [
+          "return-to-training"
+        ],
+        "equipment": [
+          "lat pulldown machine",
+          "dumbbells",
+          "cable machine",
+          "bands",
+          "dip station"
+        ],
+        "exercises": [
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "8",
+            "weight": "moderate, ~65-70%",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "weight": "moderate",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Ring Dips",
+            "sets": 3,
+            "reps": "6",
+            "rest_period": "90s",
+            "notes": "Introducing — assisted/banded if needed."
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10",
+            "weight": "moderate",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Return to Training – Lower B (Wk2)",
+        "date": "2026-10-02",
+        "estimated_duration": 55,
+        "difficulty": 3,
+        "tags": [
+          "return-to-training"
+        ],
+        "equipment": [
+          "barbell",
+          "landmine attachment"
+        ],
+        "exercises": [
+          {
+            "name": "Deadlift",
+            "sets": 3,
+            "reps": "5",
+            "weight": "~65-70% pre-layoff working weight",
+            "rest_period": "2-3 min"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 2,
+            "reps": "5",
+            "rest_period": "90s",
+            "notes": "First reintroduction — expect heavy DOMS, keep reps low."
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Landmine Press + Reach",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Return to Training – Lower B (Wk2)\" on 2026-10-02 [evt-ai-4].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Return to Training – Upper A (Wk3)",
+        "date": "2026-10-05",
+        "estimated_duration": 55,
+        "difficulty": 4,
+        "tags": [
+          "return-to-training"
+        ],
+        "equipment": [
+          "barbell",
+          "bench",
+          "lat pulldown machine"
+        ],
+        "exercises": [
+          {
+            "name": "Bench Press",
+            "sets": 4,
+            "reps": "5",
+            "weight": "~75-80% pre-layoff working weight",
+            "rest_period": "2-3 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "6",
+            "weight": "moderate-heavy",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Overhead Press",
+            "sets": 3,
+            "reps": "6",
+            "weight": "moderate-heavy",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Lat Pulldown (Close Grip)",
+            "sets": 3,
+            "reps": "10",
+            "weight": "moderate",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Return to Training – Lower A (Wk3)",
+        "date": "2026-10-06",
+        "estimated_duration": 55,
+        "difficulty": 4,
+        "tags": [
+          "return-to-training"
+        ],
+        "equipment": [
+          "barbell",
+          "squat rack",
+          "dumbbells"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "5",
+            "weight": "~75-80% pre-layoff working weight",
+            "rest_period": "2-3 min"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "10 each leg",
+            "weight": "moderate-heavy",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 4,
+            "reps": "15 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "45s"
+          }
+        ]
+      },
+      "result": "Created \"Return to Training – Lower A (Wk3)\" on 2026-10-06 [evt-ai-5].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Return to Training – Upper B (Wk3)",
+        "date": "2026-10-08",
+        "estimated_duration": 55,
+        "difficulty": 4,
+        "tags": [
+          "return-to-training"
+        ],
+        "equipment": [
+          "pull-up bar",
+          "dip station",
+          "dumbbells",
+          "cable machine",
+          "bands"
+        ],
+        "exercises": [
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 3,
+            "reps": "5",
+            "weight": "light added load or bodyweight",
+            "rest_period": "2 min",
+            "notes": "Reintroducing weighted work."
+          },
+          {
+            "name": "Ring Dips",
+            "sets": 3,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "8",
+            "weight": "heavier",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10",
+            "weight": "moderate",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Return to Training – Lower B (Wk3)",
+        "date": "2026-10-09",
+        "estimated_duration": 55,
+        "difficulty": 4,
+        "tags": [
+          "return-to-training"
+        ],
+        "equipment": [
+          "barbell",
+          "landmine attachment"
+        ],
+        "exercises": [
+          {
+            "name": "Deadlift",
+            "sets": 4,
+            "reps": "4",
+            "weight": "~75-80% pre-layoff working weight",
+            "rest_period": "3 min"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "6",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "25s each side",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Landmine Press + Reach",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Return to Training – Lower B (Wk3)\" on 2026-10-09 [evt-ai-6].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Return to Training – Upper B (Wk1)",
+        "date": "2026-09-24",
+        "estimated_duration": 50,
+        "difficulty": 2,
+        "tags": [
+          "return-to-training"
+        ],
+        "equipment": [
+          "lat pulldown machine",
+          "dumbbells",
+          "cable machine",
+          "bands"
+        ],
+        "exercises": [
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "weight": "light",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "weight": "light",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s",
+            "notes": "Bodyweight only this week."
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10",
+            "weight": "light",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 2,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Return to Training – Upper B (Wk1)\" on 2026-09-24 [evt-ai-7].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Return to Training – Upper A (Wk2)",
+        "date": "2026-09-28",
+        "estimated_duration": 55,
+        "difficulty": 3,
+        "tags": [
+          "return-to-training"
+        ],
+        "equipment": [
+          "barbell",
+          "bench",
+          "lat pulldown machine"
+        ],
+        "exercises": [
+          {
+            "name": "Bench Press",
+            "category": "strength",
+            "muscle_groups": [
+              "chest",
+              "shoulders",
+              "triceps"
+            ],
+            "sets": 3,
+            "reps": "6",
+            "weight": "~65-70% pre-layoff working weight",
+            "rest_period": "2-3 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 3,
+            "reps": "8",
+            "weight": "moderate, ~65%",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Overhead Press",
+            "category": "strength",
+            "muscle_groups": [
+              "shoulders",
+              "triceps"
+            ],
+            "sets": 3,
+            "reps": "6",
+            "weight": "moderate, ~65%",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Lat Pulldown (Close Grip)",
+            "sets": 3,
+            "reps": "10",
+            "weight": "moderate",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 2,
+            "reps": "15",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 2,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Return to Training – Upper A (Wk2)\" on 2026-09-28 [evt-ai-8]. Added 2 new exercise(s) to the library: Bench Press, Overhead Press.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Return to Training – Upper B (Wk2)",
+        "date": "2026-10-01",
+        "estimated_duration": 55,
+        "difficulty": 3,
+        "tags": [
+          "return-to-training"
+        ],
+        "equipment": [
+          "lat pulldown machine",
+          "dumbbells",
+          "cable machine",
+          "bands",
+          "dip station"
+        ],
+        "exercises": [
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "8",
+            "weight": "moderate, ~65-70%",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "weight": "moderate",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Ring Dips",
+            "sets": 3,
+            "reps": "6",
+            "rest_period": "90s",
+            "notes": "Introducing — assisted/banded if needed."
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10",
+            "weight": "moderate",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Return to Training – Upper B (Wk2)\" on 2026-10-01 [evt-ai-9].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Return to Training – Upper A (Wk3)",
+        "date": "2026-10-05",
+        "estimated_duration": 55,
+        "difficulty": 4,
+        "tags": [
+          "return-to-training"
+        ],
+        "equipment": [
+          "barbell",
+          "bench",
+          "lat pulldown machine"
+        ],
+        "exercises": [
+          {
+            "name": "Bench Press",
+            "sets": 4,
+            "reps": "5",
+            "weight": "~75-80% pre-layoff working weight",
+            "rest_period": "2-3 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "6",
+            "weight": "moderate-heavy",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Overhead Press",
+            "sets": 3,
+            "reps": "6",
+            "weight": "moderate-heavy",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Lat Pulldown (Close Grip)",
+            "sets": 3,
+            "reps": "10",
+            "weight": "moderate",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Return to Training – Upper A (Wk3)\" on 2026-10-05 [evt-ai-10].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Return to Training – Upper B (Wk3)",
+        "date": "2026-10-08",
+        "estimated_duration": 55,
+        "difficulty": 4,
+        "tags": [
+          "return-to-training"
+        ],
+        "equipment": [
+          "pull-up bar",
+          "dip station",
+          "dumbbells",
+          "cable machine",
+          "bands"
+        ],
+        "exercises": [
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 3,
+            "reps": "5",
+            "weight": "light added load or bodyweight",
+            "rest_period": "2 min",
+            "notes": "Reintroducing weighted work."
+          },
+          {
+            "name": "Ring Dips",
+            "sets": 3,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "8",
+            "weight": "heavier",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10",
+            "weight": "moderate",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Return to Training – Upper B (Wk3)\" on 2026-10-08 [evt-ai-11].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

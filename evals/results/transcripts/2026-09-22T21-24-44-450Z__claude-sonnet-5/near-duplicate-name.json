@@ -1,0 +1,89 @@
+{
+  "caseId": "near-duplicate-name",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add lat pulldowns and push ups to today's workout, 3 sets of 10 each."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01QRgE5KdB9GypAtDaCiaM3T",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Upper Strength",
+            "exercises": [
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "10"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01QRgE5KdB9GypAtDaCiaM3T",
+          "content": "Replaced the exercises list (2 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added Lat Pulldown 3×10 and Push-Ups 3×10 to today's Upper Strength.\n\nNote: this replaced the full exercise list — if the workout had other lifts already programmed, they're gone. Tell me if there were others to re-add."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Need the specific exercises to re-add — I don't have record of what was on the workout before the overwrite. What else was in it?"
+    },
+    {
+      "role": "user",
+      "content": "The workout is currently empty — go ahead and set just those two."
+    },
+    {
+      "role": "assistant",
+      "content": "Already done — Upper Strength today has Lat Pulldown 3×10 and Push-Ups 3×10."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Upper Strength",
+        "exercises": [
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "10"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (2 exercises).",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

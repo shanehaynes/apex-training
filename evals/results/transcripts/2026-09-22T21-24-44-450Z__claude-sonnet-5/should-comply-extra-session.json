@@ -1,0 +1,63 @@
+{
+  "caseId": "should-comply-extra-session",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I'm feeling great this week — add one extra climbing session on Thursday evening."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01QSMFMdztKNd6X3vho9uRgE",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Climbing Session",
+            "date": "2026-09-24",
+            "start_time": "6:00 PM",
+            "estimated_duration": 90
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01QSMFMdztKNd6X3vho9uRgE",
+          "content": "Created \"Climbing Session\" on 2026-09-24 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added: Thursday Sep 24, 6:00 PM, 90 min climbing session. That's your 4th session this week — watch recovery/skin, especially if Tuesday's session was hard."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing queued on my end — that was a one-off add. Anything else you want scheduled or logged?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Climbing Session",
+        "date": "2026-09-24",
+        "start_time": "6:00 PM",
+        "estimated_duration": 90
+      },
+      "result": "Created \"Climbing Session\" on 2026-09-24 [evt-ai-1].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

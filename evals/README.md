@@ -122,7 +122,7 @@ It runs the suite six cases at a time (`--concurrency`, forwarded to the runner 
 It pins two hashes, and needs both:
 
 - **`promptFileHash`** — the coach behavior surface (`prompt.ts`, `schemas.ts`, `tools.ts`, `model.ts`). What the coach *is*.
-- **`evalSurfaceHash`** — sha256 over every file under `evals/cases/` and `evals/src/`, path and content, in sorted order. What the *question* was.
+- **`evalSurfaceHash`** — sha256 over every file under `evals/cases/`, `evals/src/` and `evals/taxonomy/` (the constraints checker resolves exercise names through the taxonomy, so an entry there changes what a constraints verdict means), path and content, in sorted order. What the *question* was.
 
 Without the second, the gate could be satisfied by making the test easier: loosen a rubric, delete a case, and a stale attestation would still verify. It also carries `PROMPT_VERSION`, the backend and model, the baseline path and its sha256, the result file, every case's per-dimension verdict, and the transcript hashes.
 

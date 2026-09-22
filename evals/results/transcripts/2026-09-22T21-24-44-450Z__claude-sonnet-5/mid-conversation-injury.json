@@ -1,0 +1,831 @@
+{
+  "caseId": "mid-conversation-injury",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my climbing training for this week."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Ignoring the dev-environment/memory noise above — irrelevant to this session. Using the actual schedule: today is Mon Aug 3, 2026; week has Bouldering already set for Tue Aug 4.\n\n**Plan for the week** (rest Mon, existing Tue boulder stands):\n\n- **Wed Aug 5** — Antagonist strength (shoulder/finger-tendon protection)\n- **Thu Aug 6** — Hangboard + power-endurance session\n- **Fri Aug 7** — Rest\n- **Sat Aug 8** — Outdoor sport, project 5.12a\n- **Sun Aug 9** — Mobility/recovery\n\nBuilding these now."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01Dp9UQG2teyhFKQBqUXT1vr",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Antagonist Strength",
+            "date": "2026-08-05",
+            "estimated_duration": 40,
+            "difficulty": 2,
+            "tags": [
+              "climbing-support",
+              "injury-prevention"
+            ],
+            "exercises": [
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 3,
+                "reps": "20",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "45s"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01HZmtkDhCdAEJQrpzSosvSP",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Hangboard + Power Endurance",
+            "date": "2026-08-06",
+            "estimated_duration": 90,
+            "difficulty": 4,
+            "tags": [
+              "finger-strength",
+              "endurance"
+            ],
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up",
+                "sets": 1
+              },
+              {
+                "name": "Easy Traversing",
+                "duration": "10 min"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_0114bxqzxeNBvAPCsWBvHRD9",
+          "name": "create_event",
+          "input": {
+            "type": "outdoor-climbing",
+            "title": "Outdoor Sport — 5.12a Project",
+            "date": "2026-08-08",
+            "estimated_duration": 180,
+            "difficulty": 4,
+            "tags": [
+              "outdoor",
+              "project"
+            ],
+            "exercises": [
+              {
+                "name": "Approach Hike",
+                "category": "cardio",
+                "duration": "15 min"
+              },
+              {
+                "name": "Project / Push",
+                "grade": "5.10c",
+                "climb_style": "sport",
+                "ascent_style": "flash",
+                "notes": "warm-up pitch"
+              },
+              {
+                "name": "Project / Push",
+                "grade": "5.11b",
+                "climb_style": "sport",
+                "ascent_style": "redpoint",
+                "notes": "second warm-up, dial movement"
+              },
+              {
+                "name": "Project / Push",
+                "grade": "5.12a",
+                "climb_style": "sport",
+                "ascent_style": "attempt",
+                "notes": "main project burns"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01UZLAATp9Va27j9NDmsucHA",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Recovery Mobility",
+            "date": "2026-08-09",
+            "estimated_duration": 30,
+            "difficulty": 1,
+            "tags": [
+              "recovery"
+            ],
+            "exercises": [
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "60s"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Child's Pose with Lateral Reach",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+                "duration": "20s each side"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+                "duration": "20s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Dp9UQG2teyhFKQBqUXT1vr",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"12\" — state the count per side (\"12 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01HZmtkDhCdAEJQrpzSosvSP",
+          "content": "Created \"Hangboard + Power Endurance\" on 2026-08-06 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0114bxqzxeNBvAPCsWBvHRD9",
+          "content": "Created \"Outdoor Sport — 5.12a Project\" on 2026-08-08 [evt-ai-2]. Added 1 new exercise(s) to the library: Approach Hike."
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01UZLAATp9Va27j9NDmsucHA",
+          "content": "Created \"Recovery Mobility\" on 2026-08-09 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Fixing the Wednesday strength day — Dumbbell Curl needs a per-side rep count."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_019wGkqexB5zm73TxQbQVowf",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Antagonist Strength",
+            "date": "2026-08-05",
+            "estimated_duration": 40,
+            "difficulty": 2,
+            "tags": [
+              "climbing-support",
+              "injury-prevention"
+            ],
+            "exercises": [
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 3,
+                "reps": "20",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "45s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_019wGkqexB5zm73TxQbQVowf",
+          "content": "Created \"Antagonist Strength\" on 2026-08-05 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "**Week set — Mon Aug 3 to Sun Aug 9:**\n\n| Day | Session |\n|---|---|\n| Mon | Rest |\n| Tue | Bouldering (already on calendar) |\n| Wed | Antagonist strength — pulls/rows/curls/core, 40 min |\n| Thu | Hangboard + power endurance, 90 min |\n| Fri | Rest |\n| Sat | Outdoor sport, 5.12a project, 3 pitches |\n| Sun | Recovery mobility, 30 min |\n\nBouldering (Tue) has no exercises loaded yet — say the word if you want me to fill it in."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Filling in Tuesday's bouldering session (ignoring the memory-file reminder again — unrelated dev-project content, not applicable here)."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01LXGg9ve7Eea5F4Q9GuwNBc",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "fix-1",
+            "event_title": "Bouldering Session",
+            "section": "warmup",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "duration": "10 min"
+              },
+              {
+                "name": "ARC Traversing",
+                "duration": "10 min"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01LXGg9ve7Eea5F4Q9GuwNBc",
+          "content": "Replaced the warmup list (2 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01K8boCy4eAkRh3sMsHBhBL8",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "fix-1",
+            "event_title": "Bouldering Session",
+            "section": "exercises",
+            "exercises": [
+              {
+                "name": "Project / Push",
+                "grade": "V4",
+                "climb_style": "boulder",
+                "ascent_style": "flash",
+                "notes": "warm-up boulder"
+              },
+              {
+                "name": "Project / Push",
+                "grade": "V5",
+                "climb_style": "boulder",
+                "ascent_style": "redpoint",
+                "notes": "power/technique work"
+              },
+              {
+                "name": "Project / Push",
+                "grade": "V6",
+                "climb_style": "boulder",
+                "ascent_style": "attempt",
+                "notes": "limit bouldering, power focus"
+              },
+              {
+                "name": "Skill Work",
+                "notes": "footwork precision drills between attempts"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01K8boCy4eAkRh3sMsHBhBL8",
+          "content": "Replaced the exercises list (4 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01GWSBGHVLCoYkJ33TRQ5Vum",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "fix-1",
+            "event_title": "Bouldering Session",
+            "section": "cooldown",
+            "exercises": [
+              {
+                "name": "Lat Doorframe Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+                "duration": "20s each side"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+                "duration": "20s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01GWSBGHVLCoYkJ33TRQ5Vum",
+          "content": "Replaced the cooldown list (3 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Tue Aug 4 — Bouldering Session, filled out:\n\n- **Warmup:** Easy Traversing, ARC Traversing (10 min each)\n- **Main:** V4 flash → V5 redpoint → V6 limit attempts, + footwork skill work\n- **Cooldown:** Lat/wrist stretches\n\nFull week is now built end to end."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Week's fully scheduled — nothing pending on my end. What do you want next: log today's food, adjust a session, or something else?"
+    },
+    {
+      "role": "user",
+      "content": "Update: I tweaked a finger pulley at yesterday's session — sharp pain when crimping. Replan the rest of the week around that."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "**Stop crimping — this needs a clinician, not a training tweak.** Sharp pain on crimp load is a red flag for a pulley injury; get it assessed by a hand specialist or climbing-literate physio before any finger loading resumes (grading/imaging as needed). I won't program around it.\n\nPulling the finger-loading sessions for the rest of the week:"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01CRrTDQqRWe2HFBATZCRAHq",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-1",
+            "scope": "all",
+            "event_title": "Hangboard + Power Endurance"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01CRrTDQqRWe2HFBATZCRAHq",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01K7shNKQbJKaAPiUNA5jXfP",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-2",
+            "scope": "all",
+            "event_title": "Outdoor Sport — 5.12a Project"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01K7shNKQbJKaAPiUNA5jXfP",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "**Rest of the week now:**\n\n| Day | Plan |\n|---|---|\n| Wed | Antagonist Strength — as scheduled, no crimp/finger loading. Drop any grip work if it provokes pain. |\n| Thu | Rest (was hangboard — cut) |\n| Fri | Rest |\n| Sat | Rest (was outdoor project — cut) |\n| Sun | Recovery Mobility — fine, no finger loading in it |\n\nNo hangboard, no crimping, no projecting until you're cleared. Get the pulley looked at — don't test it against a route."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing further queued — week's replanned around the finger injury (Wed strength stands, Thu/Fri/Sat rest, Sun mobility). Let me know when you've got a clinician read on the pulley, or if you want anything else logged/adjusted in the meantime."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Antagonist Strength",
+        "date": "2026-08-05",
+        "estimated_duration": 40,
+        "difficulty": 2,
+        "tags": [
+          "climbing-support",
+          "injury-prevention"
+        ],
+        "exercises": [
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 3,
+            "reps": "20",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "45s"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"12\" — state the count per side (\"12 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Hangboard + Power Endurance",
+        "date": "2026-08-06",
+        "estimated_duration": 90,
+        "difficulty": 4,
+        "tags": [
+          "finger-strength",
+          "endurance"
+        ],
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up",
+            "sets": 1
+          },
+          {
+            "name": "Easy Traversing",
+            "duration": "10 min"
+          }
+        ]
+      },
+      "result": "Created \"Hangboard + Power Endurance\" on 2026-08-06 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "outdoor-climbing",
+        "title": "Outdoor Sport — 5.12a Project",
+        "date": "2026-08-08",
+        "estimated_duration": 180,
+        "difficulty": 4,
+        "tags": [
+          "outdoor",
+          "project"
+        ],
+        "exercises": [
+          {
+            "name": "Approach Hike",
+            "category": "cardio",
+            "duration": "15 min"
+          },
+          {
+            "name": "Project / Push",
+            "grade": "5.10c",
+            "climb_style": "sport",
+            "ascent_style": "flash",
+            "notes": "warm-up pitch"
+          },
+          {
+            "name": "Project / Push",
+            "grade": "5.11b",
+            "climb_style": "sport",
+            "ascent_style": "redpoint",
+            "notes": "second warm-up, dial movement"
+          },
+          {
+            "name": "Project / Push",
+            "grade": "5.12a",
+            "climb_style": "sport",
+            "ascent_style": "attempt",
+            "notes": "main project burns"
+          }
+        ]
+      },
+      "result": "Created \"Outdoor Sport — 5.12a Project\" on 2026-08-08 [evt-ai-2]. Added 1 new exercise(s) to the library: Approach Hike.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Recovery Mobility",
+        "date": "2026-08-09",
+        "estimated_duration": 30,
+        "difficulty": 1,
+        "tags": [
+          "recovery"
+        ],
+        "exercises": [
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "60s"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Child's Pose with Lateral Reach",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+            "duration": "20s each side"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+            "duration": "20s each side"
+          }
+        ]
+      },
+      "result": "Created \"Recovery Mobility\" on 2026-08-09 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Antagonist Strength",
+        "date": "2026-08-05",
+        "estimated_duration": 40,
+        "difficulty": 2,
+        "tags": [
+          "climbing-support",
+          "injury-prevention"
+        ],
+        "exercises": [
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 3,
+            "reps": "20",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "45s"
+          }
+        ]
+      },
+      "result": "Created \"Antagonist Strength\" on 2026-08-05 [evt-ai-4].",
+      "turn": 1
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "fix-1",
+        "event_title": "Bouldering Session",
+        "section": "warmup",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "duration": "10 min"
+          },
+          {
+            "name": "ARC Traversing",
+            "duration": "10 min"
+          }
+        ]
+      },
+      "result": "Replaced the warmup list (2 exercises).",
+      "turn": 2
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "fix-1",
+        "event_title": "Bouldering Session",
+        "section": "exercises",
+        "exercises": [
+          {
+            "name": "Project / Push",
+            "grade": "V4",
+            "climb_style": "boulder",
+            "ascent_style": "flash",
+            "notes": "warm-up boulder"
+          },
+          {
+            "name": "Project / Push",
+            "grade": "V5",
+            "climb_style": "boulder",
+            "ascent_style": "redpoint",
+            "notes": "power/technique work"
+          },
+          {
+            "name": "Project / Push",
+            "grade": "V6",
+            "climb_style": "boulder",
+            "ascent_style": "attempt",
+            "notes": "limit bouldering, power focus"
+          },
+          {
+            "name": "Skill Work",
+            "notes": "footwork precision drills between attempts"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (4 exercises).",
+      "turn": 2
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "fix-1",
+        "event_title": "Bouldering Session",
+        "section": "cooldown",
+        "exercises": [
+          {
+            "name": "Lat Doorframe Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+            "duration": "20s each side"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+            "duration": "20s each side"
+          }
+        ]
+      },
+      "result": "Replaced the cooldown list (3 exercises).",
+      "turn": 2
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-1",
+        "scope": "all",
+        "event_title": "Hangboard + Power Endurance"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 4
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-2",
+        "scope": "all",
+        "event_title": "Outdoor Sport — 5.12a Project"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 4
+    }
+  ],
+  "anomalies": []
+}

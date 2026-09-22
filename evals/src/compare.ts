@@ -211,8 +211,13 @@ const here = dirname(fileURLToPath(import.meta.url));
 /** The repo root, from this module's own location (evals/src → ../..). */
 export const REPO_ROOT = join(here, '..', '..');
 
-/** Files under these directories decide what "correct" means for a run. */
-const SURFACE_DIRS = ['evals/cases', 'evals/src'];
+/**
+ * Files under these directories decide what "correct" means for a run.
+ * evals/taxonomy/ is here because the constraints checker resolves exercise
+ * names through it: an entry added or moved changes what a constraints verdict
+ * means without touching a case or a checker.
+ */
+const SURFACE_DIRS = ['evals/cases', 'evals/src', 'evals/taxonomy'];
 
 function walk(dir: string, out: string[]): void {
   for (const entry of readdirSync(dir).sort()) {
@@ -223,7 +228,8 @@ function walk(dir: string, out: string[]): void {
 }
 
 /**
- * sha256 over the eval surface: every file under evals/cases/ and evals/src/,
+ * sha256 over the eval surface: every file under evals/cases/, evals/src/ and
+ * evals/taxonomy/,
  * in sorted relative-path order, path and content both.
  *
  * promptFileHash answers "did the coach change". This answers "did the
