@@ -882,6 +882,13 @@ The brief said "port the dashboard and the tile builder"; these are the lines dr
   SDK runtime differs from production (automatic caching, thinking on, no tools-off re-stream),
   so the gate is a regression detector; the nightly API run remains the production-shaped
   measurement. (#306, #308)
+- **Update 2026-09-22 (Shane).** The first gate run on unchanged code flipped progression on
+  four of seven cases (per-case flake 25–50%: multi-week plan volumes vary run to run and land
+  either side of the ramp and deload caps); constraints, refusal and integrity were stable. The
+  gate therefore enforces those three and reports progression as advisory in the attestation.
+  Known residue: an unknown exercise name the model invents reads `needs-taxonomy` and can flip
+  constraints on unchanged code (one taxonomy entry per occurrence), and `evals/taxonomy/` is not
+  yet in the eval-surface hash, so a taxonomy edit does not invalidate an attestation. (#310)
 
 ## D-048 · The coach prompt carries the safety posture the terms promise
 **Status:** decided · Shane (wording at review) · 2026-09-22 · BCG review follow-up
