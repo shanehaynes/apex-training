@@ -31,6 +31,15 @@ final class SmokeUITests: XCTestCase {
         app.buttons["Sign in"].tap()
     }
 
+    /// Today rides in the Day/Month toolbar menu (ux-review §3.2): four
+    /// controls is the most the bar holds with the date still legible.
+    private func tapToday(_ app: XCUIApplication) {
+        app.buttons["schedule.period"].tap()
+        let today = app.buttons["Today"]
+        XCTAssertTrue(today.waitForExistence(timeout: 5), "Today is not in the period menu")
+        today.tap()
+    }
+
     /// Taps an event card and waits for its sheet.
     ///
     /// One tap. A starved CI runner does drop a synthesized one (#192), and
@@ -71,6 +80,15 @@ final class SmokeUITests: XCTestCase {
     /// The padding a sheet's action bar puts above its buttons (`Spacing.screen`).
     private static let barGap: CGFloat = 16
 
+    /// Everything that is not Start Workout lives in the event sheet's bottom
+    /// bar menu (ux-review §3.3), so a leg that wants one opens the menu first.
+    /// The items keep the identifiers they had as buttons.
+    private func openEventMenu(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+        let more = app.descendants(matching: .any)["schedule.event.more"].firstMatch
+        XCTAssertTrue(more.waitForExistence(timeout: 10), "the event sheet has no actions menu", file: file, line: line)
+        more.tap()
+    }
+
     func testSignInScreenOffersAutoFillableFields() {
         let app = launch(mock: false)
         let email = app.textFields["signin.email"]
@@ -106,7 +124,9 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["schedule.meals"].label.contains("1114 kcal"))
         attach(app, name: "02-day")
 
-        // Month: the fourth event is an overflow chip; it opens the day sheet.
+        // Month: the fourth event is the overflow count; it opens the day sheet.
+        // Day/Month is a toolbar menu now, not a segmented control (ux-review §3.2).
+        app.buttons["schedule.period"].tap()
         app.buttons["Month"].tap()
         let more = app.buttons["schedule.month.more.2026-09-08"]
         XCTAssertTrue(more.waitForExistence(timeout: 10))
@@ -120,12 +140,15 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.otherElements["schedule.event.synced"].waitForExistence(timeout: 10)
             || app.staticTexts["Synced from COROS"].waitForExistence(timeout: 5))
         attach(app, name: "05-event")
+        openEventMenu(app)
         let complete = app.buttons["schedule.event.complete"]
-        XCTAssertTrue(complete.exists)
+        XCTAssertTrue(complete.waitForExistence(timeout: 5))
         XCTAssertEqual(complete.label, "Mark as Complete")
         complete.tap()
-        let flipped = expectation(for: NSPredicate(format: "label == %@", "Completed"), evaluatedWith: complete)
-        wait(for: [flipped], timeout: 10)
+        // The menu closes with the tap, so the flip is read off the sheet:
+        // a completed workout says so under its type badge.
+        let done = app.descendants(matching: .any)["schedule.event.completed"].firstMatch
+        XCTAssertTrue(done.waitForExistence(timeout: 10), "the sheet never said the workout was complete")
         attach(app, name: "06-completed")
     }
 
@@ -149,12 +172,14 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.buttons["schedule.event.title"].exists, "the sheet is still up")
         attach(app, name: "19-toast-over-sheet")
 
-        // Passthrough: with the toast showing, the sheet's completion button takes the tap.
-        let complete = app.buttons["schedule.event.complete"]
+        // Passthrough: with the toast showing, the sheet's own controls take the tap.
         XCTAssertTrue(toast.exists)
+        openEventMenu(app)
+        let complete = app.buttons["schedule.event.complete"]
+        XCTAssertTrue(complete.waitForExistence(timeout: 5))
         complete.tap()
-        let flipped = expectation(for: NSPredicate(format: "label == %@", "Completed"), evaluatedWith: complete)
-        wait(for: [flipped], timeout: 10)
+        let done = app.descendants(matching: .any)["schedule.event.completed"].firstMatch
+        XCTAssertTrue(done.waitForExistence(timeout: 10), "the tap under the toast never landed")
     }
 
     /// sign in → event → Start Workout → a ghost commits on focus → the first
@@ -343,7 +368,9 @@ final class SmokeUITests: XCTestCase {
         let card = app.otherElements["onboarding.nudge"]
         XCTAssertTrue(card.waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["event.card.Fixture Push Day"].waitForExistence(timeout: 20))
-        XCTAssertEqual(app.staticTexts["onboarding.nudge.score"].label, "1/3")
+        // Collapsed it is one line; the rows are one tap away (ux-review §3.2).
+        XCTAssertEqual(app.staticTexts["onboarding.nudge.score"].label, "1 of 3")
+        app.buttons["onboarding.nudge.summary"].tap()
         XCTAssertFalse(app.buttons["onboarding.nudge.action.template"].exists, "a done row has no button")
         attach(app, name: "w13-04-nudge")
 
@@ -352,7 +379,8 @@ final class SmokeUITests: XCTestCase {
         attach(app, name: "w13-05-nudge-to-key")
         app.buttons["Close"].firstMatch.tap()
 
-        // Back on Schedule the card is still there; its close is session-only.
+        // Back on Schedule the card is still there; closing it persists (the
+        // UI-test world does not write the flag — SetupNudgeDismissal).
         app.tabBars.buttons["Schedule"].tap()
         XCTAssertTrue(card.waitForExistence(timeout: 10))
         app.buttons["onboarding.nudge.dismiss"].tap()
@@ -381,10 +409,9 @@ final class SmokeUITests: XCTestCase {
         attach(app, name: "17-renamed")
 
         // Delete the one-off: the confirm names the workout, the card leaves the day.
-        let sheet = app.scrollViews.firstMatch
+        openEventMenu(app)
         let deleteLink = app.buttons["schedule.event.delete"]
-        var swipes = 0
-        while !deleteLink.isHittable, swipes < 6 { sheet.swipeUp(); swipes += 1 }
+        XCTAssertTrue(deleteLink.waitForExistence(timeout: 5))
         deleteLink.tap()
         let confirm = app.buttons["schedule.event.delete.confirm"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 5))
@@ -397,9 +424,9 @@ final class SmokeUITests: XCTestCase {
 
         // The series: "This day only" skips the occurrence; the other days stay.
         openEvent(app, card: "Fixture Push Day")
+        openEventMenu(app)
         let seriesDelete = app.buttons["schedule.event.delete"]
-        swipes = 0
-        while !seriesDelete.isHittable, swipes < 6 { app.scrollViews.firstMatch.swipeUp(); swipes += 1 }
+        XCTAssertTrue(seriesDelete.waitForExistence(timeout: 5))
         seriesDelete.tap()
         let thisDay = app.buttons["schedule.event.delete.confirm"]
         XCTAssertTrue(thisDay.waitForExistence(timeout: 5))
@@ -418,10 +445,11 @@ final class SmokeUITests: XCTestCase {
         app.buttons["Next"].tap()
         app.buttons["Next"].tap()
         XCTAssertTrue(app.buttons["event.card.Fixture Push Day"].waitForExistence(timeout: 10))
-        app.buttons["Today"].tap()
+        tapToday(app)
 
         // Edit exercises on the circuit: link the plank into the superset, save, reopen.
         openEvent(app, card: "Fixture Circuit")
+        openEventMenu(app)
         let editExercises = app.buttons["schedule.event.edit.exercises"]
         XCTAssertTrue(editExercises.waitForExistence(timeout: 10))
         editExercises.tap()
@@ -496,6 +524,7 @@ final class SmokeUITests: XCTestCase {
         let app = launch(mock: true)
         signIn(app)
         openEvent(app, card: "Fixture Push Day")
+        openEventMenu(app)
         let editWorkout = app.buttons["schedule.event.edit.workout"]
         XCTAssertTrue(editWorkout.waitForExistence(timeout: 10))
         editWorkout.tap()

@@ -4,6 +4,7 @@ import {
 } from 'recharts';
 import type { RenderedSeries, TileData, TileResult } from '../../lib/analytics/engine';
 import { seriesColors } from '../../lib/analytics/palette';
+import { cssToken } from '../../styles/tokens';
 import type { ChartSpec } from '../../lib/analytics/spec';
 
 // Computed tile data → chart, house style throughout (ExerciseDetail's
@@ -19,7 +20,10 @@ interface Props {
   result: TileResult | null;
 }
 
-const TICK = { fill: '#8a7f7c', fontSize: 10 } as const;
+/** Muted 10px ticks; the ink is read from tokens.css, not pasted, so it moves with the palette. */
+function tickStyle() {
+  return { fill: cssToken('--text-muted'), fontSize: 10 } as const;
+}
 
 /** '—' for missing; ≥1000 rounds whole with separators; else one decimal, trimmed. */
 function fmt(v: number | null | undefined): string {
@@ -72,6 +76,7 @@ function TileTooltip({ active, payload, data, colors }: {
 }
 
 export default function TileRenderer({ spec, result }: Props) {
+  const TICK = tickStyle();
   if (!spec || !result) {
     return <div className="tile-problem">This tile's saved configuration is no longer valid. Edit it to rebuild.</div>;
   }

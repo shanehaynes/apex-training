@@ -9,6 +9,8 @@ public struct DaySheet: View {
     let model: ScheduleModel
     let day: DayKey
     let onOpenEvent: (ScheduleEvent) -> Void
+    /// Kept for the presenter's sake — the sheet itself no longer draws a
+    /// close control (the drag handle is the dismissal).
     let onClose: () -> Void
     /// The composer (W10): nil hides Add meal and leaves the rows static.
     let onAddMeal: ((DayKey) -> Void)?
@@ -30,7 +32,13 @@ public struct DaySheet: View {
         let events = model.events(on: day)
         let meals = model.meals(on: day)
         VStack(spacing: 0) {
-            SheetHeader(title: "\(MonthNames.weekdayLong[day.weekday - 1])", onClose: onClose)
+            // No close button: the sheet has a drag indicator, and one
+            // dismissal is enough (ux-review §3.3).
+            Text(MonthNames.weekdayLong[day.weekday - 1])
+                .apexTitle()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Spacing.screen)
+                .padding(.top, Spacing.md)
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.lg) {
                     VStack(alignment: .leading, spacing: 2) {

@@ -7,6 +7,7 @@ import { buildAliasIndex, canonicalizeLogNames, countDefinitionReferences } from
 import { fetchExerciseHistory } from '../../lib/library/repo';
 import { buildExerciseStats, formatStatDate, formatTrendValue, type ExerciseStats } from '../../lib/library/stats';
 import DefinitionEditor from './DefinitionEditor';
+import { cssToken } from '../../styles/tokens';
 import type { ExerciseDefinition } from '../../types/workout';
 
 interface Props {
@@ -33,6 +34,9 @@ export default function ExerciseDetail({ definition, onBack, onClose }: Props) {
   const { definitions, events } = useSchedule();
   const [stats, setStats] = useState<ExerciseStats | null>(null);
   const [editing, setEditing] = useState(false);
+  // Recharts wants concrete colours: read the tokens rather than paste them.
+  const tickInk = cssToken('--text-muted');
+  const mark = cssToken('--stream-mark');
 
   const referenceCount = useMemo(
     () => countDefinitionReferences(definition.id, events),
@@ -125,13 +129,13 @@ export default function ExerciseDetail({ definition, onBack, onClose }: Props) {
                     <XAxis
                       dataKey="date"
                       tickFormatter={d => format(parseISO(d), 'MMM d')}
-                      tick={{ fill: '#8a7f7c', fontSize: 10 }}
+                      tick={{ fill: tickInk, fontSize: 10 }}
                       axisLine={false}
                       tickLine={false}
                     />
                     <YAxis
                       domain={['auto', 'auto']}
-                      tick={{ fill: '#8a7f7c', fontSize: 10 }}
+                      tick={{ fill: tickInk, fontSize: 10 }}
                       axisLine={false}
                       tickLine={false}
                       width={48}
@@ -140,9 +144,9 @@ export default function ExerciseDetail({ definition, onBack, onClose }: Props) {
                     <Line
                       type="monotone"
                       dataKey="value"
-                      stroke="#f97316"
+                      stroke={mark}
                       strokeWidth={1.5}
-                      dot={{ r: 2, fill: '#f97316', strokeWidth: 0 }}
+                      dot={{ r: 2, fill: mark, strokeWidth: 0 }}
                       activeDot={{ r: 3.5 }}
                       isAnimationActive={false}
                     />

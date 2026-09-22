@@ -53,21 +53,33 @@ public struct ScheduleTab: View {
     public var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                PeriodBar(model: model)
                 if let label = model.freshnessLabel {
                     FreshnessBanner(label)
-                }
-                if let onboarding, onboarding.showsNudge {
-                    SetupNudgeCard(model: onboarding)
-                        .padding(.horizontal, Spacing.screen)
-                        .padding(.bottom, Spacing.md)
                 }
                 content
             }
             .background(ApexColor.bgPrimary)
+            // The date is the title (ux-review §3.2): it was stated four times
+            // over — period bar, week strip, a 42pt numeral and a TODAY pill —
+            // before the first card.
+            //
+            // Inline rather than a large title that collapses on scroll. A
+            // large title is tracked against one scroll view, and Day ⇄ Month
+            // replaces it: the bar stays collapsed and the date disappears
+            // altogether for the rest of the session. Inline is always drawn,
+            // and it gives back the ~60pt the title row was holding.
+            .navigationTitle(dateTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .principal) { Wordmark() }
+                // An inline title is centred, so iOS gives it only what the
+                // *wider* of the two groups leaves twice over. Four controls
+                // is the most this bar holds with the date still legible, so
+                // Today — the one that is pressed rarely — rides in the menu.
+                ToolbarItemGroup(placement: .topBarLeading) {
+                    stepButton(ApexIcon.chevronLeft, label: "Previous", delta: -1)
+                    stepButton(ApexIcon.chevronRight, label: "Next", delta: 1)
+                }
+                ToolbarItem(placement: .topBarTrailing) { periodMenu }
                 ToolbarItem(placement: .topBarTrailing) {
                     // With a composer wired, "+" offers a workout or a meal (the
                     // web's FAB, W10); without one it stays the builder's door.
@@ -223,6 +235,61 @@ public struct ScheduleTab: View {
         }
     }
 
+    /// The date, stated once. `periodTitle` spells the year out on every
+    /// month, and "September 2026" is wider than an inline title gets next to
+    /// four controls — so the year is dropped when it is this one, which is
+    /// what the system Calendar does and what the user already knows.
+    private var dateTitle: String {
+        switch model.mode {
+        case .day:
+            return model.periodTitle
+        case .month:
+            let name = MonthNames.long[model.selectedDay.month - 1]
+            guard model.selectedDay.year != model.today.year else { return name }
+            return "\(name) \(String(model.selectedDay.year))"
+        }
+    }
+
+    /// Day ⇄ Month. A two-option segmented control was a full-width row of its
+    /// own for a switch that is thrown rarely (ux-review §1.3); a menu in the
+    /// bar costs one tap and no vertical space. Icon-only because the word
+    /// would cost the title its room — which of the two is showing is the one
+    /// thing the screen below cannot be mistaken about. Keeps `schedule.period`.
+    private var periodMenu: some View {
+        Menu {
+            Picker("View", selection: $model.mode) {
+                Text("Day").tag(ScheduleMode.day)
+                Text("Month").tag(ScheduleMode.month)
+            }
+            .pickerStyle(.inline)
+            Divider()
+            Button("Today") { Motion.animate { model.goToToday() } }
+                .disabled(model.isShowingToday)
+                .accessibilityIdentifier("schedule.today")
+        } label: {
+            ApexIcon.calendar.image
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(ApexColor.textPrimary)
+                .frame(width: 32, height: 44)
+                .contentShape(.rect)
+        }
+        .accessibilityLabel("View")
+        .accessibilityValue(model.mode == .day ? "Day" : "Month")
+        .accessibilityIdentifier("schedule.period")
+    }
+
+    private func stepButton(_ icon: ApexIcon, label: String, delta: Int) -> some View {
+        Button { Motion.animate { model.step(delta) } } label: {
+            icon.image
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(ApexColor.textSecondary)
+                .frame(width: 32, height: 44)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
     @ViewBuilder
     private var content: some View {
         if model.index == nil, let error = model.loadError {
@@ -247,63 +314,14 @@ public struct ScheduleTab: View {
             case .day:
                 DayView(
                     model: model, onOpen: { sheet = .event(id: $0.id) }, onAdd: { sheet = .builder(.create(date: $0)) },
-                    onAddMeal: meals == nil ? nil : { sheet = .mealComposer(.create($0)) }
+                    onAddMeal: meals == nil ? nil : { sheet = .mealComposer(.create($0)) }, onboarding: onboarding
                 )
             case .month:
                 MonthView(
-                    model: model, onOpenDay: { sheet = .day($0) }, onOpenEvent: { sheet = .event(id: $0.id) },
-                    onAdd: { sheet = .builder(.create(date: $0)) }
+                    model: model, onOpenDay: { sheet = .day($0) }, onAdd: { sheet = .builder(.create(date: $0)) }
                 )
             }
         }
-    }
-}
-
-/// `‹ title ›` · Today · Day|Month — the web's TopNav; the "+" sits in the
-/// navigation bar.
-struct PeriodBar: View {
-    @Bindable var model: ScheduleModel
-
-    var body: some View {
-        VStack(spacing: Spacing.sm) {
-            HStack(spacing: Spacing.sm) {
-                stepButton(ApexIcon.chevronLeft, label: "Previous", delta: -1)
-                Text(model.periodTitle)
-                    .font(.apex(.display, size: TypeScale.base, weight: .semibold, relativeTo: .headline))
-                    .foregroundStyle(ApexColor.textPrimary)
-                    .frame(maxWidth: .infinity)
-                    .contentTransition(.numericText())
-                    .accessibilityIdentifier("schedule.period")
-                stepButton(ApexIcon.chevronRight, label: "Next", delta: 1)
-                Button("Today") { Motion.animate { model.goToToday() } }
-                    .font(.apex(.display, size: TypeScale.xs, weight: .semibold, relativeTo: .caption))
-                    .foregroundStyle(model.isShowingToday ? ApexColor.textMuted : ApexColor.textPrimary)
-                    .padding(.horizontal, Spacing.md)
-                    .frame(minHeight: 32)
-                    .background(ApexColor.bgSurface, in: .capsule)
-                    .overlay(Capsule().strokeBorder(ApexColor.borderSubtle, lineWidth: 1))
-                    .disabled(model.isShowingToday)
-                    .frame(minHeight: 44)
-            }
-            ApexSegmented(selection: $model.mode, options: [(.day, "Day"), (.month, "Month")])
-                .frame(maxWidth: 220)
-        }
-        .padding(.horizontal, Spacing.screen)
-        .padding(.top, Spacing.sm)
-        .padding(.bottom, Spacing.md)
-        .background(ApexColor.bgPrimary)
-    }
-
-    private func stepButton(_ icon: ApexIcon, label: String, delta: Int) -> some View {
-        Button { Motion.animate { model.step(delta) } } label: {
-            icon.image
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(ApexColor.textSecondary)
-                .frame(width: 44, height: 44)
-                .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
     }
 }
 

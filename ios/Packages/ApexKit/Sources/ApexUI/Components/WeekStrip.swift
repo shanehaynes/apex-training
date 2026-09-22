@@ -18,7 +18,8 @@ public struct WeekStripDay: Identifiable, Hashable, Sendable {
 }
 
 /// The `.day-strip`: seven equal cells, a weekday letter, the number, and up to
-/// three type dots. The active cell fills with the accent; today gets a ring.
+/// three type dots. The active cell fills with the accent; today gets an
+/// accent ring.
 public struct WeekStrip: View {
     private let days: [WeekStripDay]
     private let selectedID: String
@@ -54,7 +55,10 @@ public struct WeekStrip: View {
                     .background(isActive ? ApexColor.accent : ApexColor.bgSurface, in: .rect(cornerRadius: Radius.md))
                     .overlay(
                         RoundedRectangle(cornerRadius: Radius.md)
-                            .strokeBorder(day.isToday && !isActive ? ApexPalette.positive : ApexColor.borderSubtle, lineWidth: 1)
+                            // Accent is "here" — the selected cell fills with
+                            // it and today rings with it. Orange is "done"
+                            // (design-spec §1, ux-review §3.2).
+                            .strokeBorder(day.isToday && !isActive ? ApexColor.accent : ApexColor.borderSubtle, lineWidth: 1)
                     )
                     .contentShape(.rect)
                 }

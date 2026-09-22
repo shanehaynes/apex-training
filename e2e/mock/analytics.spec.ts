@@ -118,6 +118,11 @@ test('a saved tile renders and edits round-trip through the builder', async ({ p
   // way to the chart only once the result lands. Scoped to the body: the
   // header's kebab is an svg too.
   await expect(page.getByTestId('tile-tile-mileage').locator('.tile-card__body svg')).toBeVisible();
+  // The axis ink is read from tokens.css at render, never pasted: the tick's
+  // fill must equal whatever --text-muted computes to on this page.
+  const ink = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim());
+  expect(ink).toMatch(/^#[0-9a-f]{6}$/);
+  await expect(page.getByTestId('tile-tile-mileage').locator('.recharts-cartesian-axis-tick-value').first()).toHaveAttribute('fill', ink);
 
   // Edit opens the builder prefilled from the draft the GET carried.
   await page.locator('.tile-card__menu-btn').click();
