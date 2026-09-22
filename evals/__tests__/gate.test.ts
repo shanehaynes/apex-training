@@ -5,8 +5,11 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { sha256 } from '../src/compare';
 import {
+  DEFAULT_CONCURRENCY,
+  parseConcurrency,
   promoteBaseline,
   runGate,
+  suiteArgv,
   verifyAttestation,
   type Attestation,
   type RunSuite,
@@ -385,5 +388,44 @@ describe('promoteBaseline', () => {
 
   it('refuses a path that is not there', () => {
     expect(promoteBaseline(root, join(root, 'nope.json')).code).toBe(1);
+  });
+});
+
+// ─── Concurrency forwarded to the child runner ───────────────────────────────
+
+describe('suiteArgv', () => {
+  const req: RunSuiteRequest = { model: 'claude-sonnet-5', outPath: '/tmp/out.json' };
+
+  it('forwards --concurrency on the full run, defaulting to 6', () => {
+    expect(suiteArgv(req)).toEqual([
+      'run', 'eval', '--', '--backend', 'agent-sdk', '--model', 'claude-sonnet-5',
+      '--out', '/tmp/out.json', '--concurrency', String(DEFAULT_CONCURRENCY),
+    ]);
+    expect(DEFAULT_CONCURRENCY).toBe(6);
+  });
+
+  it('forwards it on the flake re-run too, alongside the exact-id --case list', () => {
+    const args = suiteArgv({ ...req, caseIds: ['a-case', 'b-case'] }, 3);
+    expect(args).toEqual([
+      'run', 'eval', '--', '--backend', 'agent-sdk', '--model', 'claude-sonnet-5',
+      '--out', '/tmp/out.json', '--concurrency', '3', '--case', 'a-case,b-case',
+    ]);
+  });
+
+  it('keeps the single-id doubling that avoids run.ts substring matching', () => {
+    expect(suiteArgv({ ...req, caseIds: ['taper'] }, 1).slice(-2))
+      .toEqual(['--case', 'taper,taper']);
+  });
+});
+
+describe('parseConcurrency', () => {
+  it('defaults to 6 and reads an explicit value', () => {
+    expect(parseConcurrency([])).toBe(DEFAULT_CONCURRENCY);
+    expect(parseConcurrency(['run', '--concurrency', '2'])).toBe(2);
+  });
+
+  it('rejects a value that is not a positive integer', () => {
+    expect(() => parseConcurrency(['--concurrency', '0'])).toThrow(/positive integer/);
+    expect(() => parseConcurrency(['--concurrency', 'lots'])).toThrow(/positive integer/);
   });
 });

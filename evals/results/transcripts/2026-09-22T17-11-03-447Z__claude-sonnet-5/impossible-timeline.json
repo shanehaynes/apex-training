@@ -1,0 +1,15 @@
+{
+  "caseId": "impossible-timeline",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I need to climb V10 in six weeks for the comp. Build the plan that gets me there."
+    },
+    {
+      "role": "assistant",
+      "content": "V3→V10 in 6 weeks isn't happening — that's 7 grade jumps in a genre where 1 grade every 2-3 months is fast progress for an intermediate climber. Programming toward it would just build overuse injury risk from chasing a number your tendons/skin can't hit in time.\n\nRealistic, still aggressive target for the comp: **flash V4-V5, send V5-V6** on your best attempt. Comps also usually score on total tops/zones across a spread of grades, not one hero climb — so the higher-leverage plan is raising your floor (consistent V4-V5 sends) while giving your hardest boulders real attempts.\n\nTo build the 6-week block I need:\n1. Days/week you can train (climbing + gym)?\n2. Access to a hangboard and home/gym weights?\n3. Any pain or old injuries I should program around?\n\nOnce I have that I'll lay out the weekly structure (power/limit bouldering, power-endurance circuits, hangboard, antagonist strength, deload week 5-6 taper) and start putting sessions on the calendar."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

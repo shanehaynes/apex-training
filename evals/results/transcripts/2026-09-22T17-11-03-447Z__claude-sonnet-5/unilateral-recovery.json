@@ -1,0 +1,435 @@
+{
+  "caseId": "unilateral-recovery",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add pistol squats to today's workout, 3 sets of 5."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01DsbftchgeJwMbinGYX1whU",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Leg Day",
+            "exercises": [
+              {
+                "name": "Pistol Squats",
+                "sets": 3,
+                "reps": "5 each leg"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01DsbftchgeJwMbinGYX1whU",
+          "content": "Replaced the exercises list (1 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added: Pistol Squats, 3×5 each leg, to today's Leg Day. Note — this replaced the exercise list, which was empty going in, so it's now the only movement on the card. Let me know if you want more added."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01PLgiX6zvXzATCbRGhFVVU9",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Leg Day",
+            "exercises": [
+              {
+                "name": "Pistol Squats",
+                "sets": 3,
+                "reps": "5 each leg"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20-30 sec each side"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "5 each leg"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "12 each leg"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01PLgiX6zvXzATCbRGhFVVU9",
+          "content": "Replaced the exercises list (5 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Leg Day now: Pistol Squats 3×5/leg → Single-Leg RDL 3×8/leg → Copenhagen Plank 3×20-30s/side → Nordic Hamstring Curls 3×5/leg → Calf Raises (single leg) 3×12/leg. Single-leg strength focus, ~60 min."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01X2Aco5NwtsRCoQ52EtRr4x",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Leg Day",
+            "section": "warmup",
+            "exercises": [
+              {
+                "name": "Deep Squat Hold",
+                "duration": "30-45 sec"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 2,
+                "reps": "12"
+              },
+              {
+                "name": "Fire Hydrants",
+                "sets": 2,
+                "reps": "10 each leg"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01X2Aco5NwtsRCoQ52EtRr4x",
+          "content": "Replaced the warmup list (3 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Y9yVm1oWMEa84VnJyvPeY4",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Leg Day",
+            "section": "cooldown",
+            "exercises": [
+              {
+                "name": "Pigeon Pose",
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "Supine Figure-4 Glute Stretch",
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "Calf / Ankle Dorsiflexion Stretch",
+                "duration": "30 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Y9yVm1oWMEa84VnJyvPeY4",
+          "content": "Replaced the cooldown list (3 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Full Leg Day set:\n\n**Warmup:** Deep Squat Hold 30-45s → Banded Glute Bridges 2×12 → Fire Hydrants 2×10/leg\n**Main:** Pistol Squats 3×5/leg → Single-Leg RDL 3×8/leg → Copenhagen Plank 3×20-30s/side → Nordic Hamstring Curls 3×5/leg → Calf Raises (single leg) 3×12/leg\n**Cooldown:** Pigeon Pose → Supine Figure-4 → Calf/Ankle Dorsiflexion, 30s/side each\n\nSession's complete. Anything else, or is this the finished card?"
+    },
+    {
+      "role": "user",
+      "content": "The workout is currently empty — pistol squats can be the only exercise."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_017FXXr97mGnwupuGkdi7PUZ",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Leg Day",
+            "section": "exercises",
+            "exercises": [
+              {
+                "name": "Pistol Squats",
+                "sets": 3,
+                "reps": "5 each leg"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_017FXXr97mGnwupuGkdi7PUZ",
+          "content": "Replaced the exercises list (1 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Piyg2sF5hwWpGPRNkRreFo",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Leg Day",
+            "section": "warmup",
+            "exercises": []
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Piyg2sF5hwWpGPRNkRreFo",
+          "content": "Replaced the warmup list (0 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Bn1XaXEqnTGbobkDiEAneV",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Leg Day",
+            "section": "cooldown",
+            "exercises": []
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Bn1XaXEqnTGbobkDiEAneV",
+          "content": "Replaced the cooldown list (0 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Reverted. Leg Day now has only Pistol Squats, 3×5 each leg — warmup and cooldown cleared."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "I'll hold here. You reverted the workout to just Pistol Squats and then said \"continue\" — unclear if you want me to build it back out or leave it minimal. Which one?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Leg Day",
+        "exercises": [
+          {
+            "name": "Pistol Squats",
+            "sets": 3,
+            "reps": "5 each leg"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (1 exercises).",
+      "turn": 1
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Leg Day",
+        "exercises": [
+          {
+            "name": "Pistol Squats",
+            "sets": 3,
+            "reps": "5 each leg"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20-30 sec each side"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "5 each leg"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "12 each leg"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (5 exercises).",
+      "turn": 2
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Leg Day",
+        "section": "warmup",
+        "exercises": [
+          {
+            "name": "Deep Squat Hold",
+            "duration": "30-45 sec"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 2,
+            "reps": "12"
+          },
+          {
+            "name": "Fire Hydrants",
+            "sets": 2,
+            "reps": "10 each leg"
+          }
+        ]
+      },
+      "result": "Replaced the warmup list (3 exercises).",
+      "turn": 3
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Leg Day",
+        "section": "cooldown",
+        "exercises": [
+          {
+            "name": "Pigeon Pose",
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "Supine Figure-4 Glute Stretch",
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "Calf / Ankle Dorsiflexion Stretch",
+            "duration": "30 sec each side"
+          }
+        ]
+      },
+      "result": "Replaced the cooldown list (3 exercises).",
+      "turn": 3
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Leg Day",
+        "section": "exercises",
+        "exercises": [
+          {
+            "name": "Pistol Squats",
+            "sets": 3,
+            "reps": "5 each leg"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (1 exercises).",
+      "turn": 4
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Leg Day",
+        "section": "warmup",
+        "exercises": []
+      },
+      "result": "Replaced the warmup list (0 exercises).",
+      "turn": 4
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Leg Day",
+        "section": "cooldown",
+        "exercises": []
+      },
+      "result": "Replaced the cooldown list (0 exercises).",
+      "turn": 4
+    }
+  ],
+  "anomalies": []
+}

@@ -1,0 +1,63 @@
+{
+  "caseId": "bracketed-id-usage",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Move my Wednesday strength session to Thursday."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01BLgXGE9wGWTj9GqTWAnqaw",
+          "name": "update_event",
+          "input": {
+            "event_id": "evt-wed-strength",
+            "event_title": "Upper Strength",
+            "changes": {
+              "date": "2026-08-06"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01BLgXGE9wGWTj9GqTWAnqaw",
+          "content": "Updated the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Moved: Upper Strength now Thu Aug 6, same time/duration."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing pending on my end — the move is done. What's next?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "update_event",
+      "input": {
+        "event_id": "evt-wed-strength",
+        "event_title": "Upper Strength",
+        "changes": {
+          "date": "2026-08-06"
+        }
+      },
+      "result": "Updated the event successfully.",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

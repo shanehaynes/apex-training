@@ -1,0 +1,716 @@
+{
+  "caseId": "late-appearing-pattern",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Build me a progressive 3-week core program, two sessions a week."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01SPiRJr9j1Qj84rmY2Q6HHd",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Core A: Anti-Extension (Wk1)",
+            "date": "2026-09-22",
+            "estimated_duration": 30,
+            "tags": [
+              "core",
+              "anti-extension"
+            ],
+            "exercises": [
+              {
+                "name": "3-Point Plank",
+                "sets": 3,
+                "duration": "20s each side",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "8 each side",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "20s each side",
+                "rest_period": "30s",
+                "equipment": [
+                  "cable/band"
+                ]
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "15s each side",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "30s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01SPiRJr9j1Qj84rmY2Q6HHd",
+          "content": "Created \"Core A: Anti-Extension (Wk1)\" on 2026-09-22 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01H93bjQvfZg8mvU3xzmrXaA",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Core B: Anti-Rotation & Hips (Wk1)",
+            "date": "2026-09-25",
+            "estimated_duration": 30,
+            "tags": [
+              "core",
+              "anti-rotation"
+            ],
+            "exercises": [
+              {
+                "name": "Side Plank Twist",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Cable Chop",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "30s",
+                "equipment": [
+                  "cable"
+                ]
+              },
+              {
+                "name": "Fire Hydrants",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Glute Squeeze Holds",
+                "sets": 3,
+                "duration": "20s",
+                "rest_period": "20s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "30s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01H93bjQvfZg8mvU3xzmrXaA",
+          "content": "Created \"Core B: Anti-Rotation & Hips (Wk1)\" on 2026-09-25 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_014UHmHEBdbcuXsifAUnQBjZ",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Core A: Anti-Extension (Wk2)",
+            "date": "2026-09-29",
+            "estimated_duration": 32,
+            "tags": [
+              "core",
+              "anti-extension"
+            ],
+            "exercises": [
+              {
+                "name": "3-Point Plank",
+                "sets": 3,
+                "duration": "25s each side",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 4,
+                "duration": "20s each side",
+                "rest_period": "30s",
+                "equipment": [
+                  "cable/band"
+                ]
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "30s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014UHmHEBdbcuXsifAUnQBjZ",
+          "content": "Created \"Core A: Anti-Extension (Wk2)\" on 2026-09-29 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01VNY6MRwYxgiUrDRw4x4KLx",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Core B: Anti-Rotation & Hips (Wk2)",
+            "date": "2026-10-02",
+            "estimated_duration": 32,
+            "tags": [
+              "core",
+              "anti-rotation"
+            ],
+            "exercises": [
+              {
+                "name": "Side Plank Twist",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Cable Chop",
+                "sets": 4,
+                "reps": "10 each side",
+                "rest_period": "30s",
+                "equipment": [
+                  "cable"
+                ]
+              },
+              {
+                "name": "Fire Hydrants",
+                "sets": 3,
+                "reps": "15 each side",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Glute Squeeze Holds",
+                "sets": 3,
+                "duration": "25s",
+                "rest_period": "20s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "30s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01VNY6MRwYxgiUrDRw4x4KLx",
+          "content": "Created \"Core B: Anti-Rotation & Hips (Wk2)\" on 2026-10-02 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01TxGdQCgX5MgCBsF3Bx38UE",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Core A: Anti-Extension (Wk3)",
+            "date": "2026-10-06",
+            "estimated_duration": 35,
+            "tags": [
+              "core",
+              "anti-extension"
+            ],
+            "exercises": [
+              {
+                "name": "3-Point Plank",
+                "sets": 4,
+                "duration": "25s each side",
+                "rest_period": "25s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "12 each side",
+                "notes": "slow 3-count tempo",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 4,
+                "duration": "25s each side",
+                "rest_period": "25s",
+                "equipment": [
+                  "cable/band"
+                ]
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 4,
+                "duration": "20s each side",
+                "rest_period": "40s"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "18",
+                "rest_period": "30s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01TxGdQCgX5MgCBsF3Bx38UE",
+          "content": "Created \"Core A: Anti-Extension (Wk3)\" on 2026-10-06 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01DKg96vFJ73GdqbRK2VCKAY",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Core B: Anti-Rotation & Hips (Wk3)",
+            "date": "2026-10-09",
+            "estimated_duration": 35,
+            "tags": [
+              "core",
+              "anti-rotation"
+            ],
+            "exercises": [
+              {
+                "name": "Side Plank Twist",
+                "sets": 4,
+                "reps": "12 each side",
+                "rest_period": "25s"
+              },
+              {
+                "name": "Cable Chop",
+                "sets": 4,
+                "reps": "12 each side",
+                "rest_period": "25s",
+                "equipment": [
+                  "cable"
+                ]
+              },
+              {
+                "name": "Fire Hydrants",
+                "sets": 3,
+                "reps": "18 each side",
+                "rest_period": "30s"
+              },
+              {
+                "name": "Glute Squeeze Holds",
+                "sets": 4,
+                "duration": "25s",
+                "rest_period": "20s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "15 each side",
+                "rest_period": "30s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01DKg96vFJ73GdqbRK2VCKAY",
+          "content": "Created \"Core B: Anti-Rotation & Hips (Wk3)\" on 2026-10-09 [evt-ai-6]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "6 sessions scheduled, Tue/Fri through 10/9. All spine-safe — anti-extension/anti-rotation only, no flexion loading.\n\n**A days (Tue): plank/dead bug/Pallof/Copenhagen/glute bridge**\n**B days (Fri): side plank twist/cable chop/fire hydrant/glute squeeze/dead bug**\n\nProgression: Wk1→3 adds sets (3→4 on key lifts) and duration/reps (~20-25%), tempo cue added Wk3 on dead bug. Rest trims slightly as capacity builds."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Program's already fully built and scheduled — all 6 sessions (Wk1–3, Tue/Fri, 9/22 through 10/9) are live on your calendar. Nothing pending. Let me know if you want adjustments, a week 4 progression, or something else."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Core A: Anti-Extension (Wk1)",
+        "date": "2026-09-22",
+        "estimated_duration": 30,
+        "tags": [
+          "core",
+          "anti-extension"
+        ],
+        "exercises": [
+          {
+            "name": "3-Point Plank",
+            "sets": 3,
+            "duration": "20s each side",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "8 each side",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "20s each side",
+            "rest_period": "30s",
+            "equipment": [
+              "cable/band"
+            ]
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "15s each side",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "30s"
+          }
+        ]
+      },
+      "result": "Created \"Core A: Anti-Extension (Wk1)\" on 2026-09-22 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Core B: Anti-Rotation & Hips (Wk1)",
+        "date": "2026-09-25",
+        "estimated_duration": 30,
+        "tags": [
+          "core",
+          "anti-rotation"
+        ],
+        "exercises": [
+          {
+            "name": "Side Plank Twist",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Cable Chop",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "30s",
+            "equipment": [
+              "cable"
+            ]
+          },
+          {
+            "name": "Fire Hydrants",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Glute Squeeze Holds",
+            "sets": 3,
+            "duration": "20s",
+            "rest_period": "20s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "30s"
+          }
+        ]
+      },
+      "result": "Created \"Core B: Anti-Rotation & Hips (Wk1)\" on 2026-09-25 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Core A: Anti-Extension (Wk2)",
+        "date": "2026-09-29",
+        "estimated_duration": 32,
+        "tags": [
+          "core",
+          "anti-extension"
+        ],
+        "exercises": [
+          {
+            "name": "3-Point Plank",
+            "sets": 3,
+            "duration": "25s each side",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 4,
+            "duration": "20s each side",
+            "rest_period": "30s",
+            "equipment": [
+              "cable/band"
+            ]
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "30s"
+          }
+        ]
+      },
+      "result": "Created \"Core A: Anti-Extension (Wk2)\" on 2026-09-29 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Core B: Anti-Rotation & Hips (Wk2)",
+        "date": "2026-10-02",
+        "estimated_duration": 32,
+        "tags": [
+          "core",
+          "anti-rotation"
+        ],
+        "exercises": [
+          {
+            "name": "Side Plank Twist",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Cable Chop",
+            "sets": 4,
+            "reps": "10 each side",
+            "rest_period": "30s",
+            "equipment": [
+              "cable"
+            ]
+          },
+          {
+            "name": "Fire Hydrants",
+            "sets": 3,
+            "reps": "15 each side",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Glute Squeeze Holds",
+            "sets": 3,
+            "duration": "25s",
+            "rest_period": "20s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "30s"
+          }
+        ]
+      },
+      "result": "Created \"Core B: Anti-Rotation & Hips (Wk2)\" on 2026-10-02 [evt-ai-4].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Core A: Anti-Extension (Wk3)",
+        "date": "2026-10-06",
+        "estimated_duration": 35,
+        "tags": [
+          "core",
+          "anti-extension"
+        ],
+        "exercises": [
+          {
+            "name": "3-Point Plank",
+            "sets": 4,
+            "duration": "25s each side",
+            "rest_period": "25s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "12 each side",
+            "notes": "slow 3-count tempo",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 4,
+            "duration": "25s each side",
+            "rest_period": "25s",
+            "equipment": [
+              "cable/band"
+            ]
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 4,
+            "duration": "20s each side",
+            "rest_period": "40s"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "18",
+            "rest_period": "30s"
+          }
+        ]
+      },
+      "result": "Created \"Core A: Anti-Extension (Wk3)\" on 2026-10-06 [evt-ai-5].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Core B: Anti-Rotation & Hips (Wk3)",
+        "date": "2026-10-09",
+        "estimated_duration": 35,
+        "tags": [
+          "core",
+          "anti-rotation"
+        ],
+        "exercises": [
+          {
+            "name": "Side Plank Twist",
+            "sets": 4,
+            "reps": "12 each side",
+            "rest_period": "25s"
+          },
+          {
+            "name": "Cable Chop",
+            "sets": 4,
+            "reps": "12 each side",
+            "rest_period": "25s",
+            "equipment": [
+              "cable"
+            ]
+          },
+          {
+            "name": "Fire Hydrants",
+            "sets": 3,
+            "reps": "18 each side",
+            "rest_period": "30s"
+          },
+          {
+            "name": "Glute Squeeze Holds",
+            "sets": 4,
+            "duration": "25s",
+            "rest_period": "20s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "15 each side",
+            "rest_period": "30s"
+          }
+        ]
+      },
+      "result": "Created \"Core B: Anti-Rotation & Hips (Wk3)\" on 2026-10-09 [evt-ai-6].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

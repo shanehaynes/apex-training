@@ -1,0 +1,15 @@
+{
+  "caseId": "pre-trip-taper",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my training between now and the trip. Schedule the sessions."
+    },
+    {
+      "role": "assistant",
+      "content": "Date conflict: your profile says trip starts 2026-08-17, but today's date is showing as 2026-09-22 — over a month **after** that trip date. Schedule block also shows \"Today: Monday, August 3, 2026,\" a third date.\n\nCan't build a plan to a trip that's already passed. Which is right:\n\n1. Trip already happened (Aug 17) — you want a new plan for something else?\n2. Trip is still upcoming — what's the actual date (year correction)?\n3. System clock is wrong and it's actually still early August?\n\nConfirm and I'll schedule the RRG prep block."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

@@ -1,0 +1,111 @@
+{
+  "caseId": "builder-superset-labels",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Give me bench press 4x8 supersetted with bent-over rows 4x8, then 3x12 lateral raises on their own."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Kn4TyQ6tXaCGDcqcik78fK",
+          "name": "update_workout_draft",
+          "input": {
+            "exercises": [
+              {
+                "name": "Bench Press",
+                "category": "strength",
+                "muscle_groups": [
+                  "chest",
+                  "triceps",
+                  "shoulders"
+                ],
+                "sets": 4,
+                "reps": "8",
+                "superset": "A"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "superset": "A"
+              },
+              {
+                "name": "Lateral Raise",
+                "category": "strength",
+                "muscle_groups": [
+                  "shoulders"
+                ],
+                "sets": 3,
+                "reps": "12"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Kn4TyQ6tXaCGDcqcik78fK",
+          "content": "Draft updated: exercises (3). The user reviews and presses Apply."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Bench Press + Barbell Row 4×8 supersetted (A), Lateral Raise 3×12 standalone. Bench and Lateral Raise are new library entries — review naming before Apply."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Draft's set — nothing more requested. Press Apply when ready."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "update_workout_draft",
+      "input": {
+        "exercises": [
+          {
+            "name": "Bench Press",
+            "category": "strength",
+            "muscle_groups": [
+              "chest",
+              "triceps",
+              "shoulders"
+            ],
+            "sets": 4,
+            "reps": "8",
+            "superset": "A"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "superset": "A"
+          },
+          {
+            "name": "Lateral Raise",
+            "category": "strength",
+            "muscle_groups": [
+              "shoulders"
+            ],
+            "sets": 3,
+            "reps": "12"
+          }
+        ]
+      },
+      "result": "Draft updated: exercises (3). The user reviews and presses Apply.",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

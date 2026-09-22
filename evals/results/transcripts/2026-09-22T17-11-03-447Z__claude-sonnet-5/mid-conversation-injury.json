@@ -1,0 +1,672 @@
+{
+  "caseId": "mid-conversation-injury",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my climbing training for this week."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Using the schedule as given: today is Mon Aug 3, week runs through Sun Aug 9. You've got Tue's bouldering (60 min) already on the books. Filling out the rest for a 5.12a sport goal — power day, pull-strength/antagonist day, hangboard+technique, outdoor project day, active recovery. Rest Mon/Fri."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01LLU75xPLwmVKHyY3n8Ut3v",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Pull Strength + Antagonist",
+            "date": "2026-08-05",
+            "start_time": "6:00 PM",
+            "estimated_duration": 45,
+            "difficulty": 3,
+            "tags": [
+              "climbing-support",
+              "pull",
+              "antagonist"
+            ],
+            "exercises": [
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 3,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01LLU75xPLwmVKHyY3n8Ut3v",
+          "content": "Created \"Pull Strength + Antagonist\" on 2026-08-05 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_0178iWRJZV18WRQMTPohq6Yt",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Hangboard + Technique",
+            "date": "2026-08-06",
+            "start_time": "6:00 PM",
+            "estimated_duration": 75,
+            "difficulty": 4,
+            "tags": [
+              "fingerboard",
+              "technique"
+            ],
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up",
+                "sets": 1
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 6,
+                "rest_period": "3 min"
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "duration": "20 min",
+                "notes": "Footwork/precision drills on easy terrain, fresh fingers"
+              },
+              {
+                "name": "Toes to Bar",
+                "sets": 3,
+                "reps": "8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0178iWRJZV18WRQMTPohq6Yt",
+          "content": "Created \"Hangboard + Technique\" on 2026-08-06 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01L3uy8JPT9pGU3AYSCzHhYq",
+          "name": "create_event",
+          "input": {
+            "type": "outdoor-climbing",
+            "title": "Sport Project Day",
+            "date": "2026-08-08",
+            "start_time": "9:00 AM",
+            "estimated_duration": 150,
+            "difficulty": 4,
+            "tags": [
+              "outdoor",
+              "project",
+              "5.12a"
+            ],
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "duration": "15 min",
+                "notes": "Approach warm-up"
+              },
+              {
+                "name": "Project / Push",
+                "climb_style": "sport",
+                "grade": "5.11c",
+                "ascent_style": "redpoint",
+                "notes": "Warm-up route below limit"
+              },
+              {
+                "name": "Project / Push",
+                "climb_style": "sport",
+                "grade": "5.12a",
+                "ascent_style": "attempt",
+                "notes": "Main project — work redpoint burns"
+              },
+              {
+                "name": "Project / Push",
+                "climb_style": "sport",
+                "grade": "5.12a",
+                "ascent_style": "attempt",
+                "notes": "Second burn, focus on crux beta"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01L3uy8JPT9pGU3AYSCzHhYq",
+          "content": "Created \"Sport Project Day\" on 2026-08-08 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01RXrCthZfvMb8mcWRxD76dE",
+          "name": "create_event",
+          "input": {
+            "type": "yoga",
+            "title": "Recovery Mobility",
+            "date": "2026-08-09",
+            "start_time": "9:00 AM",
+            "estimated_duration": 30,
+            "difficulty": 1,
+            "tags": [
+              "recovery"
+            ],
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "duration": "1 min"
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "2 min"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "45s each side"
+              },
+              {
+                "name": "Child's Pose with Lateral Reach",
+                "duration": "45s each side"
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01RXrCthZfvMb8mcWRxD76dE",
+          "content": "Created \"Recovery Mobility\" on 2026-08-09 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Week's set:\n\n- **Tue 8/4** — Bouldering (existing, 60min)\n- **Wed 8/5** — Pull Strength + Antagonist (45min)\n- **Thu 8/6** — Hangboard + Technique (75min)\n- **Sat 8/8** — Sport Project Day, outdoor, pushing 5.12a (150min)\n- **Sun 8/9** — Recovery Mobility (30min)\n\nMon/Fri open as rest. Two hard days (Tue boulder, Sat project) separated by recovery — good load spacing for redpointing."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing queued to continue — the week's fully scheduled (Tue–Sun above). What do you want next: extend into next week, add nutrition targets, or something else?"
+    },
+    {
+      "role": "user",
+      "content": "Update: I tweaked a finger pulley at yesterday's session — sharp pain when crimping. Replan the rest of the week around that."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Sharp pain on crimping = stop loading that finger. That's not something to train through or program around — get it checked by a hand specialist or climbing-focused PT (pulley injuries mismanaged early can become chronic). Pulling that off the week now."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01XSBJnmYxcuqToGE2DungWi",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-2",
+            "scope": "all",
+            "event_title": "Hangboard + Technique"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01XSBJnmYxcuqToGE2DungWi",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_011grhVXYiawY5qxz4DHw9u7",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-3",
+            "scope": "all",
+            "event_title": "Sport Project Day"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_011grhVXYiawY5qxz4DHw9u7",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01SU9mStLZytdFRKiKt4dJBY",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Pull Strength + Antagonist",
+            "exercises": [
+              {
+                "name": "Lat Pulldown",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s",
+                "notes": "Controlled, open grip — stop if any finger pain"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01SU9mStLZytdFRKiKt4dJBY",
+          "content": "Replaced the exercises list (5 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_015ZF1tAWWLJdicjUV5DXfi7",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Zone 2 Cardio (Legs)",
+            "date": "2026-08-06",
+            "start_time": "6:00 PM",
+            "estimated_duration": 40,
+            "difficulty": 2,
+            "tags": [
+              "aerobic-base",
+              "no-grip"
+            ],
+            "description": "Bike or run, easy aerobic pace. No hangboard/climbing — resting the finger."
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_015ZF1tAWWLJdicjUV5DXfi7",
+          "content": "Created \"Zone 2 Cardio (Legs)\" on 2026-08-06 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Rest of week, updated:\n\n- **Wed 8/5** — Pull Strength (swapped pull-ups/barbell rows → lat pulldown/DB row — lighter, controlled grip)\n- **Thu 8/6** — Zone 2 Cardio, legs (was Hangboard+Technique, now cancelled)\n- **Sat 8/8** — Open/rest (Sport Project Day cancelled)\n- **Sun 8/9** — Recovery Mobility, unchanged\n\nNo hangboard, no crimping, no climbing until you're cleared. Get the finger looked at before touching a wall again."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Again — nothing's pending. The week is set: Wed pull strength, Thu Zone 2 cardio, Sat open/rest, Sun mobility. No climbing/hangboard until the finger's cleared.\n\nWhat would you like next — next week's plan, or something else?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Pull Strength + Antagonist",
+        "date": "2026-08-05",
+        "start_time": "6:00 PM",
+        "estimated_duration": 45,
+        "difficulty": 3,
+        "tags": [
+          "climbing-support",
+          "pull",
+          "antagonist"
+        ],
+        "exercises": [
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 3,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side"
+          }
+        ]
+      },
+      "result": "Created \"Pull Strength + Antagonist\" on 2026-08-05 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Hangboard + Technique",
+        "date": "2026-08-06",
+        "start_time": "6:00 PM",
+        "estimated_duration": 75,
+        "difficulty": 4,
+        "tags": [
+          "fingerboard",
+          "technique"
+        ],
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up",
+            "sets": 1
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 6,
+            "rest_period": "3 min"
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "duration": "20 min",
+            "notes": "Footwork/precision drills on easy terrain, fresh fingers"
+          },
+          {
+            "name": "Toes to Bar",
+            "sets": 3,
+            "reps": "8"
+          }
+        ]
+      },
+      "result": "Created \"Hangboard + Technique\" on 2026-08-06 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "outdoor-climbing",
+        "title": "Sport Project Day",
+        "date": "2026-08-08",
+        "start_time": "9:00 AM",
+        "estimated_duration": 150,
+        "difficulty": 4,
+        "tags": [
+          "outdoor",
+          "project",
+          "5.12a"
+        ],
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "duration": "15 min",
+            "notes": "Approach warm-up"
+          },
+          {
+            "name": "Project / Push",
+            "climb_style": "sport",
+            "grade": "5.11c",
+            "ascent_style": "redpoint",
+            "notes": "Warm-up route below limit"
+          },
+          {
+            "name": "Project / Push",
+            "climb_style": "sport",
+            "grade": "5.12a",
+            "ascent_style": "attempt",
+            "notes": "Main project — work redpoint burns"
+          },
+          {
+            "name": "Project / Push",
+            "climb_style": "sport",
+            "grade": "5.12a",
+            "ascent_style": "attempt",
+            "notes": "Second burn, focus on crux beta"
+          }
+        ]
+      },
+      "result": "Created \"Sport Project Day\" on 2026-08-08 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "yoga",
+        "title": "Recovery Mobility",
+        "date": "2026-08-09",
+        "start_time": "9:00 AM",
+        "estimated_duration": 30,
+        "difficulty": 1,
+        "tags": [
+          "recovery"
+        ],
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "duration": "1 min"
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "2 min"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "45s each side"
+          },
+          {
+            "name": "Child's Pose with Lateral Reach",
+            "duration": "45s each side"
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Recovery Mobility\" on 2026-08-09 [evt-ai-4].",
+      "turn": 1
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-2",
+        "scope": "all",
+        "event_title": "Hangboard + Technique"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 3
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-3",
+        "scope": "all",
+        "event_title": "Sport Project Day"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 3
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Pull Strength + Antagonist",
+        "exercises": [
+          {
+            "name": "Lat Pulldown",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s",
+            "notes": "Controlled, open grip — stop if any finger pain"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (5 exercises).",
+      "turn": 3
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Zone 2 Cardio (Legs)",
+        "date": "2026-08-06",
+        "start_time": "6:00 PM",
+        "estimated_duration": 40,
+        "difficulty": 2,
+        "tags": [
+          "aerobic-base",
+          "no-grip"
+        ],
+        "description": "Bike or run, easy aerobic pace. No hangboard/climbing — resting the finger."
+      },
+      "result": "Created \"Zone 2 Cardio (Legs)\" on 2026-08-06 [evt-ai-5].",
+      "turn": 3
+    }
+  ],
+  "anomalies": []
+}

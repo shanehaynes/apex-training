@@ -1,0 +1,1046 @@
+{
+  "caseId": "beginner-running-plan",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Set up my first 4 weeks of run training. Schedule each run."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Here's your 4-week Couch-to-5k plan — 3 runs/week (Tue/Thu/Sat), run-walk intervals progressing to continuous 5k. Your cycling base means you can move faster than a typical beginner, but intervals still matter for tendon/joint adaptation, not just cardio.\n\nScheduling all 12 sessions now."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01HiU2tsmyXu24X5EGAY73tf",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run: Intervals 1min/1min x8",
+            "date": "2026-09-22",
+            "estimated_duration": 26,
+            "difficulty": 2,
+            "tags": [
+              "run",
+              "c25k",
+              "week1"
+            ],
+            "exercises": [
+              {
+                "name": "Walk",
+                "category": "cardio",
+                "muscle_groups": [
+                  "legs",
+                  "cardiovascular"
+                ],
+                "duration": "5 min",
+                "notes": "Warm-up, easy pace"
+              },
+              {
+                "name": "Running",
+                "category": "cardio",
+                "muscle_groups": [
+                  "legs",
+                  "cardiovascular"
+                ],
+                "duration": "16 min",
+                "notes": "8 rounds: 1 min run (conversational effort) / 1 min walk"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Cool-down, easy pace"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01HiU2tsmyXu24X5EGAY73tf",
+          "content": "Created \"Run: Intervals 1min/1min x8\" on 2026-09-22 [evt-ai-1]. Added 2 new exercise(s) to the library: Walk, Running."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_014ei1DhzrymkqWPunApk9HK",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run: Intervals 1.5min/1min x7",
+            "date": "2026-09-24",
+            "estimated_duration": 28,
+            "difficulty": 2,
+            "tags": [
+              "run",
+              "c25k",
+              "week1"
+            ],
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Warm-up, easy pace"
+              },
+              {
+                "name": "Running",
+                "duration": "17.5 min",
+                "notes": "7 rounds: 1.5 min run / 1 min walk"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Cool-down, easy pace"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014ei1DhzrymkqWPunApk9HK",
+          "content": "Created \"Run: Intervals 1.5min/1min x7\" on 2026-09-24 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_011Jg8E8eCzLBxiLLh7cwfKv",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run: Intervals 2min/1min x6",
+            "date": "2026-09-26",
+            "estimated_duration": 28,
+            "difficulty": 2,
+            "tags": [
+              "run",
+              "c25k",
+              "week1"
+            ],
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Warm-up, easy pace"
+              },
+              {
+                "name": "Running",
+                "duration": "18 min",
+                "notes": "6 rounds: 2 min run / 1 min walk"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Cool-down, easy pace"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_011Jg8E8eCzLBxiLLh7cwfKv",
+          "content": "Created \"Run: Intervals 2min/1min x6\" on 2026-09-26 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Y5qFo7mHRohX5asKmaNggb",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run: Intervals 3min/1min x5",
+            "date": "2026-09-29",
+            "estimated_duration": 30,
+            "difficulty": 2,
+            "tags": [
+              "run",
+              "c25k",
+              "week2"
+            ],
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Warm-up, easy pace"
+              },
+              {
+                "name": "Running",
+                "duration": "20 min",
+                "notes": "5 rounds: 3 min run / 1 min walk"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Cool-down, easy pace"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Y5qFo7mHRohX5asKmaNggb",
+          "content": "Created \"Run: Intervals 3min/1min x5\" on 2026-09-29 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01AkU7WZZRdc6siZtvcg2hfN",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run: Intervals 4min/1min x4",
+            "date": "2026-10-01",
+            "estimated_duration": 30,
+            "difficulty": 3,
+            "tags": [
+              "run",
+              "c25k",
+              "week2"
+            ],
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Warm-up, easy pace"
+              },
+              {
+                "name": "Running",
+                "duration": "20 min",
+                "notes": "4 rounds: 4 min run / 1 min walk"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Cool-down, easy pace"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01AkU7WZZRdc6siZtvcg2hfN",
+          "content": "Created \"Run: Intervals 4min/1min x4\" on 2026-10-01 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Bo5SC8yRmkR1fWMaj2U3W7",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run: Intervals 5min/1min x4",
+            "date": "2026-10-03",
+            "estimated_duration": 34,
+            "difficulty": 3,
+            "tags": [
+              "run",
+              "c25k",
+              "week2"
+            ],
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Warm-up, easy pace"
+              },
+              {
+                "name": "Running",
+                "duration": "24 min",
+                "notes": "4 rounds: 5 min run / 1 min walk"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Cool-down, easy pace"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Bo5SC8yRmkR1fWMaj2U3W7",
+          "content": "Created \"Run: Intervals 5min/1min x4\" on 2026-10-03 [evt-ai-6]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01TLANnKcW8ingA6nVuCBz7J",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run: Intervals 8/1, 8/1, 4",
+            "date": "2026-10-06",
+            "estimated_duration": 30,
+            "difficulty": 3,
+            "tags": [
+              "run",
+              "c25k",
+              "week3"
+            ],
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Warm-up, easy pace"
+              },
+              {
+                "name": "Running",
+                "duration": "20 min",
+                "notes": "8 min run / 1 min walk / 8 min run / 1 min walk / 4 min run"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Cool-down, easy pace"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01TLANnKcW8ingA6nVuCBz7J",
+          "content": "Created \"Run: Intervals 8/1, 8/1, 4\" on 2026-10-06 [evt-ai-7]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_014qcMS217AEMSnnfV8wZJTC",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run: Intervals 10min/2min x2",
+            "date": "2026-10-08",
+            "estimated_duration": 34,
+            "difficulty": 3,
+            "tags": [
+              "run",
+              "c25k",
+              "week3"
+            ],
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Warm-up, easy pace"
+              },
+              {
+                "name": "Running",
+                "duration": "24 min",
+                "notes": "2 rounds: 10 min run / 2 min walk"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Cool-down, easy pace"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014qcMS217AEMSnnfV8wZJTC",
+          "content": "Created \"Run: Intervals 10min/2min x2\" on 2026-10-08 [evt-ai-8]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01EWCh1JSgkKcaf1TfPWGiiZ",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run: Continuous 15min",
+            "date": "2026-10-10",
+            "estimated_duration": 25,
+            "difficulty": 3,
+            "tags": [
+              "run",
+              "c25k",
+              "week3"
+            ],
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Warm-up, easy pace"
+              },
+              {
+                "name": "Running",
+                "duration": "15 min",
+                "notes": "First continuous run, no walk breaks. Conversational pace — slow down if needed to keep moving."
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Cool-down, easy pace"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01EWCh1JSgkKcaf1TfPWGiiZ",
+          "content": "Created \"Run: Continuous 15min\" on 2026-10-10 [evt-ai-9]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_0197CNSJf4bzJj8fbGmLhNbH",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run: Continuous 20min",
+            "date": "2026-10-13",
+            "estimated_duration": 30,
+            "difficulty": 3,
+            "tags": [
+              "run",
+              "c25k",
+              "week4"
+            ],
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Warm-up, easy pace"
+              },
+              {
+                "name": "Running",
+                "duration": "20 min",
+                "notes": "Continuous run, conversational pace."
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Cool-down, easy pace"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0197CNSJf4bzJj8fbGmLhNbH",
+          "content": "Created \"Run: Continuous 20min\" on 2026-10-13 [evt-ai-10]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_013aM2Qos79yv7jpoR1gwPoX",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run: Continuous 25min",
+            "date": "2026-10-15",
+            "estimated_duration": 35,
+            "difficulty": 4,
+            "tags": [
+              "run",
+              "c25k",
+              "week4"
+            ],
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Warm-up, easy pace"
+              },
+              {
+                "name": "Running",
+                "duration": "25 min",
+                "notes": "Continuous run, conversational pace."
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Cool-down, easy pace"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_013aM2Qos79yv7jpoR1gwPoX",
+          "content": "Created \"Run: Continuous 25min\" on 2026-10-15 [evt-ai-11]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01PpBwjDw9CVVATLWDbVsatS",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run: 5K Attempt",
+            "date": "2026-10-17",
+            "estimated_duration": 40,
+            "difficulty": 4,
+            "tags": [
+              "run",
+              "c25k",
+              "week4",
+              "goal"
+            ],
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Warm-up, easy pace"
+              },
+              {
+                "name": "Running",
+                "duration": "~30 min",
+                "notes": "Full 5K continuous. Start conservative — first km slower than feels necessary. Goal: finish without stopping, pace secondary."
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "Cool-down, easy pace"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01PpBwjDw9CVVATLWDbVsatS",
+          "content": "Created \"Run: 5K Attempt\" on 2026-10-17 [evt-ai-12]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "12 runs scheduled, Tue/Thu/Sat through Oct 17:\n\n- **Wk1**: 1min/1min×8 → 1.5/1×7 → 2/1×6\n- **Wk2**: 3/1×5 → 4/1×4 → 5/1×4\n- **Wk3**: 8/1,8/1,4 → 10/2×2 → 15min continuous (first no-stop run)\n- **Wk4**: 20min → 25min → **5K attempt** (Oct 17)\n\nRules: run at conversational pace, don't chase speed. If a session feels too hard, repeat it before advancing rather than pushing through. Rest days between runs are non-negotiable early on — shin/calf overuse is the main risk for a strong cyclist new to running impact."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing queued on my end — the 4-week plan is fully scheduled. What do you want me to continue with: add strength/cross-training days, extend past week 4, or something else?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run: Intervals 1min/1min x8",
+        "date": "2026-09-22",
+        "estimated_duration": 26,
+        "difficulty": 2,
+        "tags": [
+          "run",
+          "c25k",
+          "week1"
+        ],
+        "exercises": [
+          {
+            "name": "Walk",
+            "category": "cardio",
+            "muscle_groups": [
+              "legs",
+              "cardiovascular"
+            ],
+            "duration": "5 min",
+            "notes": "Warm-up, easy pace"
+          },
+          {
+            "name": "Running",
+            "category": "cardio",
+            "muscle_groups": [
+              "legs",
+              "cardiovascular"
+            ],
+            "duration": "16 min",
+            "notes": "8 rounds: 1 min run (conversational effort) / 1 min walk"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Cool-down, easy pace"
+          }
+        ]
+      },
+      "result": "Created \"Run: Intervals 1min/1min x8\" on 2026-09-22 [evt-ai-1]. Added 2 new exercise(s) to the library: Walk, Running.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run: Intervals 1.5min/1min x7",
+        "date": "2026-09-24",
+        "estimated_duration": 28,
+        "difficulty": 2,
+        "tags": [
+          "run",
+          "c25k",
+          "week1"
+        ],
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Warm-up, easy pace"
+          },
+          {
+            "name": "Running",
+            "duration": "17.5 min",
+            "notes": "7 rounds: 1.5 min run / 1 min walk"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Cool-down, easy pace"
+          }
+        ]
+      },
+      "result": "Created \"Run: Intervals 1.5min/1min x7\" on 2026-09-24 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run: Intervals 2min/1min x6",
+        "date": "2026-09-26",
+        "estimated_duration": 28,
+        "difficulty": 2,
+        "tags": [
+          "run",
+          "c25k",
+          "week1"
+        ],
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Warm-up, easy pace"
+          },
+          {
+            "name": "Running",
+            "duration": "18 min",
+            "notes": "6 rounds: 2 min run / 1 min walk"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Cool-down, easy pace"
+          }
+        ]
+      },
+      "result": "Created \"Run: Intervals 2min/1min x6\" on 2026-09-26 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run: Intervals 3min/1min x5",
+        "date": "2026-09-29",
+        "estimated_duration": 30,
+        "difficulty": 2,
+        "tags": [
+          "run",
+          "c25k",
+          "week2"
+        ],
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Warm-up, easy pace"
+          },
+          {
+            "name": "Running",
+            "duration": "20 min",
+            "notes": "5 rounds: 3 min run / 1 min walk"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Cool-down, easy pace"
+          }
+        ]
+      },
+      "result": "Created \"Run: Intervals 3min/1min x5\" on 2026-09-29 [evt-ai-4].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run: Intervals 4min/1min x4",
+        "date": "2026-10-01",
+        "estimated_duration": 30,
+        "difficulty": 3,
+        "tags": [
+          "run",
+          "c25k",
+          "week2"
+        ],
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Warm-up, easy pace"
+          },
+          {
+            "name": "Running",
+            "duration": "20 min",
+            "notes": "4 rounds: 4 min run / 1 min walk"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Cool-down, easy pace"
+          }
+        ]
+      },
+      "result": "Created \"Run: Intervals 4min/1min x4\" on 2026-10-01 [evt-ai-5].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run: Intervals 5min/1min x4",
+        "date": "2026-10-03",
+        "estimated_duration": 34,
+        "difficulty": 3,
+        "tags": [
+          "run",
+          "c25k",
+          "week2"
+        ],
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Warm-up, easy pace"
+          },
+          {
+            "name": "Running",
+            "duration": "24 min",
+            "notes": "4 rounds: 5 min run / 1 min walk"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Cool-down, easy pace"
+          }
+        ]
+      },
+      "result": "Created \"Run: Intervals 5min/1min x4\" on 2026-10-03 [evt-ai-6].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run: Intervals 8/1, 8/1, 4",
+        "date": "2026-10-06",
+        "estimated_duration": 30,
+        "difficulty": 3,
+        "tags": [
+          "run",
+          "c25k",
+          "week3"
+        ],
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Warm-up, easy pace"
+          },
+          {
+            "name": "Running",
+            "duration": "20 min",
+            "notes": "8 min run / 1 min walk / 8 min run / 1 min walk / 4 min run"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Cool-down, easy pace"
+          }
+        ]
+      },
+      "result": "Created \"Run: Intervals 8/1, 8/1, 4\" on 2026-10-06 [evt-ai-7].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run: Intervals 10min/2min x2",
+        "date": "2026-10-08",
+        "estimated_duration": 34,
+        "difficulty": 3,
+        "tags": [
+          "run",
+          "c25k",
+          "week3"
+        ],
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Warm-up, easy pace"
+          },
+          {
+            "name": "Running",
+            "duration": "24 min",
+            "notes": "2 rounds: 10 min run / 2 min walk"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Cool-down, easy pace"
+          }
+        ]
+      },
+      "result": "Created \"Run: Intervals 10min/2min x2\" on 2026-10-08 [evt-ai-8].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run: Continuous 15min",
+        "date": "2026-10-10",
+        "estimated_duration": 25,
+        "difficulty": 3,
+        "tags": [
+          "run",
+          "c25k",
+          "week3"
+        ],
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Warm-up, easy pace"
+          },
+          {
+            "name": "Running",
+            "duration": "15 min",
+            "notes": "First continuous run, no walk breaks. Conversational pace — slow down if needed to keep moving."
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Cool-down, easy pace"
+          }
+        ]
+      },
+      "result": "Created \"Run: Continuous 15min\" on 2026-10-10 [evt-ai-9].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run: Continuous 20min",
+        "date": "2026-10-13",
+        "estimated_duration": 30,
+        "difficulty": 3,
+        "tags": [
+          "run",
+          "c25k",
+          "week4"
+        ],
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Warm-up, easy pace"
+          },
+          {
+            "name": "Running",
+            "duration": "20 min",
+            "notes": "Continuous run, conversational pace."
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Cool-down, easy pace"
+          }
+        ]
+      },
+      "result": "Created \"Run: Continuous 20min\" on 2026-10-13 [evt-ai-10].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run: Continuous 25min",
+        "date": "2026-10-15",
+        "estimated_duration": 35,
+        "difficulty": 4,
+        "tags": [
+          "run",
+          "c25k",
+          "week4"
+        ],
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Warm-up, easy pace"
+          },
+          {
+            "name": "Running",
+            "duration": "25 min",
+            "notes": "Continuous run, conversational pace."
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Cool-down, easy pace"
+          }
+        ]
+      },
+      "result": "Created \"Run: Continuous 25min\" on 2026-10-15 [evt-ai-11].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run: 5K Attempt",
+        "date": "2026-10-17",
+        "estimated_duration": 40,
+        "difficulty": 4,
+        "tags": [
+          "run",
+          "c25k",
+          "week4",
+          "goal"
+        ],
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Warm-up, easy pace"
+          },
+          {
+            "name": "Running",
+            "duration": "~30 min",
+            "notes": "Full 5K continuous. Start conservative — first km slower than feels necessary. Goal: finish without stopping, pace secondary."
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "Cool-down, easy pace"
+          }
+        ]
+      },
+      "result": "Created \"Run: 5K Attempt\" on 2026-10-17 [evt-ai-12].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

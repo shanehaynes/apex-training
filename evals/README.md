@@ -112,6 +112,8 @@ npm run eval:verify                            # token-free: does the committed 
 
 `eval:gate` reads `evals/baseline/<model>.json`, runs the full suite via `--backend agent-sdk`, classifies the result against the baseline, and — on a pass — writes `evals/gate/attestation.json`.
 
+It runs the suite six cases at a time (`--concurrency`, forwarded to the runner on both the full run and the flake re-run, and recorded in the attestation) because a serial `agent-sdk` suite takes roughly twenty minutes against four; pass `--concurrency 1` to go back to serial. Cases share no fixture, backend or session, so there is no mechanism by which lane count should change a verdict — but that is an argument, not a measurement, and the progression flakiness below is large enough to swamp any attempt to measure it so far.
+
 ### The attestation
 
 It pins two hashes, and needs both:

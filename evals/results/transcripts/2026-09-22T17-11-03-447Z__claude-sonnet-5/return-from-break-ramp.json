@@ -1,0 +1,2150 @@
+{
+  "caseId": "return-from-break-ramp",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my first 3 weeks back in the gym. Schedule all the sessions."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Scheduling a 3-week return-to-lifting ramp: 4x/week upper/lower split (Tue/Wed/Fri/Sat), starting today. Loads are RPE-based, not tied to old maxes — 2 months detrained means jumping straight back to prior weights is how you get hurt. Volume/intensity climb each week; pull-ups reintroduced week 3 once the shoulders/lats are primed."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01XKwyfqGvkqvg5rkz9AVPq1",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 1: Lower A (Squat Focus)",
+            "date": "2026-09-22",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 1. RPE 6 across the board — reacclimate, don't chase old numbers.",
+            "tags": [
+              "return-to-training",
+              "lower"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "8",
+                "weight": "RPE 6 (~50-55% pre-layoff top set)",
+                "rest_period": "2 min",
+                "notes": "2 months detrained — rebuild gradually, don't chase old max."
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "10 each leg",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "5",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "12 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01XKwyfqGvkqvg5rkz9AVPq1",
+          "content": "Created \"Week 1: Lower A (Squat Focus)\" on 2026-09-22 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01EkYWG2UC8E2XV1BkHbMWLz",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 1: Upper A (Bench Focus)",
+            "date": "2026-09-23",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 1. RPE 6 across the board — reacclimate, don't chase old numbers.",
+            "tags": [
+              "return-to-training",
+              "upper"
+            ],
+            "exercises": [
+              {
+                "name": "Bench Press",
+                "category": "strength",
+                "muscle_groups": [
+                  "chest",
+                  "triceps",
+                  "shoulders"
+                ],
+                "sets": 3,
+                "reps": "8",
+                "weight": "RPE 6 (~50-55% pre-layoff top set)",
+                "rest_period": "2 min",
+                "notes": "2 months detrained — rebuild gradually, don't chase old max."
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01EkYWG2UC8E2XV1BkHbMWLz",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"12\" — state the count per side (\"12 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01XbkBXWXHrPzJ5cfh9uHtAn",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 1: Lower B (Deadlift Focus)",
+            "date": "2026-09-25",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 1. RPE 6 across the board — reacclimate, don't chase old numbers.",
+            "tags": [
+              "return-to-training",
+              "lower"
+            ],
+            "exercises": [
+              {
+                "name": "Deadlift",
+                "category": "strength",
+                "muscle_groups": [
+                  "hamstrings",
+                  "glutes",
+                  "back",
+                  "grip"
+                ],
+                "sets": 3,
+                "reps": "6",
+                "weight": "RPE 6 (~50-55% pre-layoff top set)",
+                "rest_period": "2-3 min",
+                "notes": "2 months detrained — rebuild gradually, don't chase old max."
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "15s each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hanging Leg Raises",
+                "sets": 3,
+                "reps": "8",
+                "rest_period": "90s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01XbkBXWXHrPzJ5cfh9uHtAn",
+          "content": "Created \"Week 1: Lower B (Deadlift Focus)\" on 2026-09-25 [evt-ai-2]. Added 1 new exercise(s) to the library: Deadlift."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01HWjyiHK9yeKH8A9YPaGwtE",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 1: Upper B (Press Focus)",
+            "date": "2026-09-26",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 1. RPE 6 across the board — reacclimate, don't chase old numbers.",
+            "tags": [
+              "return-to-training",
+              "upper"
+            ],
+            "exercises": [
+              {
+                "name": "Overhead Press",
+                "category": "strength",
+                "muscle_groups": [
+                  "shoulders",
+                  "triceps",
+                  "core"
+                ],
+                "sets": 3,
+                "reps": "8",
+                "weight": "RPE 6 (~50-55% pre-layoff top set)",
+                "rest_period": "2 min",
+                "notes": "2 months detrained — rebuild gradually, don't chase old max."
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown (Close Grip)",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01HWjyiHK9yeKH8A9YPaGwtE",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nHammer Curl: \"12\" — state the count per side (\"12 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_014ppExCgAXqE3fRJR3cAF5q",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 2: Lower A (Squat Focus)",
+            "date": "2026-09-29",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 2. RPE 7, volume/intensity ticking up.",
+            "tags": [
+              "return-to-training",
+              "lower"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "6",
+                "weight": "RPE 7 (~60-65%)",
+                "rest_period": "2.5 min"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "10 each leg",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "6",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "12 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014ppExCgAXqE3fRJR3cAF5q",
+          "content": "Created \"Week 2: Lower A (Squat Focus)\" on 2026-09-29 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_014xdM87JEeRFGLgrbufjHwK",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 2: Upper A (Bench Focus)",
+            "date": "2026-09-30",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 2. RPE 7, volume/intensity ticking up.",
+            "tags": [
+              "return-to-training",
+              "upper"
+            ],
+            "exercises": [
+              {
+                "name": "Bench Press",
+                "sets": 4,
+                "reps": "6",
+                "weight": "RPE 7 (~60-65%)",
+                "rest_period": "2.5 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014xdM87JEeRFGLgrbufjHwK",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"12\" — state the count per side (\"12 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Y9Ebx6dW5A6KprHy4vHfQa",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 2: Lower B (Deadlift Focus)",
+            "date": "2026-10-02",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 2. RPE 7, volume/intensity ticking up.",
+            "tags": [
+              "return-to-training",
+              "lower"
+            ],
+            "exercises": [
+              {
+                "name": "Deadlift",
+                "sets": 4,
+                "reps": "5",
+                "weight": "RPE 7 (~60-65%)",
+                "rest_period": "3 min"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hanging Leg Raises",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Y9Ebx6dW5A6KprHy4vHfQa",
+          "content": "Created \"Week 2: Lower B (Deadlift Focus)\" on 2026-10-02 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01GzQ3mhGaSqp3HLNEZaRrKJ",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 2: Upper B (Press Focus)",
+            "date": "2026-10-03",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 2. RPE 7, volume/intensity ticking up.",
+            "tags": [
+              "return-to-training",
+              "upper"
+            ],
+            "exercises": [
+              {
+                "name": "Overhead Press",
+                "sets": 4,
+                "reps": "6",
+                "weight": "RPE 7 (~60-65%)",
+                "rest_period": "2.5 min"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown (Close Grip)",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01GzQ3mhGaSqp3HLNEZaRrKJ",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nHammer Curl: \"12\" — state the count per side (\"12 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_0184fUbELFccwVBLWEPGQwTN",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 3: Lower A (Squat Focus)",
+            "date": "2026-10-06",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 3. RPE 7-8, approaching normal working loads.",
+            "tags": [
+              "return-to-training",
+              "lower"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "5",
+                "weight": "RPE 7-8 (~65-70%)",
+                "rest_period": "3 min"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "weight": "add light DB",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "7",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 4,
+                "reps": "10 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0184fUbELFccwVBLWEPGQwTN",
+          "content": "Created \"Week 3: Lower A (Squat Focus)\" on 2026-10-06 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_0152k3wBW1gPeNSUBh3UAA2Y",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 3: Upper A (Bench Focus)",
+            "date": "2026-10-07",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 3. RPE 7-8, approaching normal working loads.",
+            "tags": [
+              "return-to-training",
+              "upper"
+            ],
+            "exercises": [
+              {
+                "name": "Bench Press",
+                "sets": 4,
+                "reps": "5",
+                "weight": "RPE 7-8 (~65-70%)",
+                "rest_period": "3 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0152k3wBW1gPeNSUBh3UAA2Y",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_016iPgFzya6C6vgKwTEPq3qX",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 3: Lower B (Deadlift Focus)",
+            "date": "2026-10-09",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 3. RPE 7-8, approaching normal working loads.",
+            "tags": [
+              "return-to-training",
+              "lower"
+            ],
+            "exercises": [
+              {
+                "name": "Deadlift",
+                "sets": 4,
+                "reps": "4",
+                "weight": "RPE 7-8 (~65-70%)",
+                "rest_period": "3 min"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "25s each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hanging Leg Raises",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_016iPgFzya6C6vgKwTEPq3qX",
+          "content": "Created \"Week 3: Lower B (Deadlift Focus)\" on 2026-10-09 [evt-ai-6]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_016AmRg8352rvYFdC8gL8QNj",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 3: Upper B (Press Focus)",
+            "date": "2026-10-10",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 3. RPE 7-8, approaching normal working loads. Pull-ups reintroduced.",
+            "tags": [
+              "return-to-training",
+              "upper"
+            ],
+            "exercises": [
+              {
+                "name": "Overhead Press",
+                "sets": 4,
+                "reps": "5",
+                "weight": "RPE 7-8 (~65-70%)",
+                "rest_period": "3 min"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 3,
+                "reps": "5",
+                "weight": "bodyweight or light added, RPE 7",
+                "rest_period": "2 min",
+                "notes": "Progression from lat pulldown — reintroducing loaded vertical pull."
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_016AmRg8352rvYFdC8gL8QNj",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Fixing the curl rep formatting (Dumbbell Curl/Hammer Curl are unilateral in the library) and re-creating the 6 rejected Upper sessions."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01Gf2SgBx8mvW9StBe9EzFp9",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 1: Upper A (Bench Focus)",
+            "date": "2026-09-23",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 1. RPE 6 across the board — reacclimate, don't chase old numbers.",
+            "tags": [
+              "return-to-training",
+              "upper"
+            ],
+            "exercises": [
+              {
+                "name": "Bench Press",
+                "category": "strength",
+                "muscle_groups": [
+                  "chest",
+                  "triceps",
+                  "shoulders"
+                ],
+                "sets": 3,
+                "reps": "8",
+                "weight": "RPE 6 (~50-55% pre-layoff top set)",
+                "rest_period": "2 min",
+                "notes": "2 months detrained — rebuild gradually, don't chase old max."
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Gf2SgBx8mvW9StBe9EzFp9",
+          "content": "Created \"Week 1: Upper A (Bench Focus)\" on 2026-09-23 [evt-ai-7]. Added 1 new exercise(s) to the library: Bench Press."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_019qEiqEbGnH4Ld9hNLD7GVN",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 1: Upper B (Press Focus)",
+            "date": "2026-09-26",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 1. RPE 6 across the board — reacclimate, don't chase old numbers.",
+            "tags": [
+              "return-to-training",
+              "upper"
+            ],
+            "exercises": [
+              {
+                "name": "Overhead Press",
+                "category": "strength",
+                "muscle_groups": [
+                  "shoulders",
+                  "triceps",
+                  "core"
+                ],
+                "sets": 3,
+                "reps": "8",
+                "weight": "RPE 6 (~50-55% pre-layoff top set)",
+                "rest_period": "2 min",
+                "notes": "2 months detrained — rebuild gradually, don't chase old max."
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown (Close Grip)",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_019qEiqEbGnH4Ld9hNLD7GVN",
+          "content": "Created \"Week 1: Upper B (Press Focus)\" on 2026-09-26 [evt-ai-8]. Added 1 new exercise(s) to the library: Overhead Press."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Af2NzFJx1UXVFgS4wr8dDh",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 2: Upper A (Bench Focus)",
+            "date": "2026-09-30",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 2. RPE 7, volume/intensity ticking up.",
+            "tags": [
+              "return-to-training",
+              "upper"
+            ],
+            "exercises": [
+              {
+                "name": "Bench Press",
+                "sets": 4,
+                "reps": "6",
+                "weight": "RPE 7 (~60-65%)",
+                "rest_period": "2.5 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Af2NzFJx1UXVFgS4wr8dDh",
+          "content": "Created \"Week 2: Upper A (Bench Focus)\" on 2026-09-30 [evt-ai-9]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01ASzoitXw2n1SBSvsMBaTb8",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 2: Upper B (Press Focus)",
+            "date": "2026-10-03",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 2. RPE 7, volume/intensity ticking up.",
+            "tags": [
+              "return-to-training",
+              "upper"
+            ],
+            "exercises": [
+              {
+                "name": "Overhead Press",
+                "sets": 4,
+                "reps": "6",
+                "weight": "RPE 7 (~60-65%)",
+                "rest_period": "2.5 min"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown (Close Grip)",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01ASzoitXw2n1SBSvsMBaTb8",
+          "content": "Created \"Week 2: Upper B (Press Focus)\" on 2026-10-03 [evt-ai-10]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01KRLjFgfRDtWmUWZtzkg1o6",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 3: Upper A (Bench Focus)",
+            "date": "2026-10-07",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 3. RPE 7-8, approaching normal working loads.",
+            "tags": [
+              "return-to-training",
+              "upper"
+            ],
+            "exercises": [
+              {
+                "name": "Bench Press",
+                "sets": 4,
+                "reps": "5",
+                "weight": "RPE 7-8 (~65-70%)",
+                "rest_period": "3 min"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01KRLjFgfRDtWmUWZtzkg1o6",
+          "content": "Created \"Week 3: Upper A (Bench Focus)\" on 2026-10-07 [evt-ai-11]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01YC652r7shxzZJ74q6Fqzkt",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Week 3: Upper B (Press Focus)",
+            "date": "2026-10-10",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "description": "Return-to-training week 3. RPE 7-8, approaching normal working loads. Pull-ups reintroduced.",
+            "tags": [
+              "return-to-training",
+              "upper"
+            ],
+            "exercises": [
+              {
+                "name": "Overhead Press",
+                "sets": 4,
+                "reps": "5",
+                "weight": "RPE 7-8 (~65-70%)",
+                "rest_period": "3 min"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 3,
+                "reps": "5 each side",
+                "weight": "bodyweight or light added, RPE 7",
+                "rest_period": "2 min",
+                "notes": "Progression from lat pulldown — reintroducing loaded vertical pull."
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01YC652r7shxzZJ74q6Fqzkt",
+          "content": "Created \"Week 3: Upper B (Press Focus)\" on 2026-10-10 [evt-ai-12]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "All 12 sessions scheduled — Tue/Wed/Fri/Sat, 4x/week, through Oct 10.\n\n**Structure:** Lower A (squat) / Upper A (bench) / Lower B (deadlift) / Upper B (press), each with 4-5 accessories.\n\n**Progression:**\n- Wk1 (Sep 22–26): 3 sets, RPE 6, ~50-55% of pre-layoff loads\n- Wk2 (Sep 29–Oct 3): 4 sets on mains, RPE 7, ~60-65%\n- Wk3 (Oct 6–10): mains drop to 4-5 reps, RPE 7-8, ~65-70%; weighted pull-ups reintroduced\n\nLoad prescriptions are RPE-based, not fixed weights — you set the actual bar weight day-of based on feel. Don't override RPE 6-7 to hit old numbers early; that's the fastest way to re-injure after a 2-month layoff. Bench Press, Deadlift, and Overhead Press were added to your exercise library (they weren't there before)."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "The 3-week return-to-lifting plan is fully scheduled — nothing further queued. If you want, I can extend into weeks 4+ (progressing toward heavier singles/doubles), add conditioning days, or start logging nutrition. What's next?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 1: Lower A (Squat Focus)",
+        "date": "2026-09-22",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 1. RPE 6 across the board — reacclimate, don't chase old numbers.",
+        "tags": [
+          "return-to-training",
+          "lower"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "8",
+            "weight": "RPE 6 (~50-55% pre-layoff top set)",
+            "rest_period": "2 min",
+            "notes": "2 months detrained — rebuild gradually, don't chase old max."
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "10 each leg",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "5",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "12 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Week 1: Lower A (Squat Focus)\" on 2026-09-22 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 1: Upper A (Bench Focus)",
+        "date": "2026-09-23",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 1. RPE 6 across the board — reacclimate, don't chase old numbers.",
+        "tags": [
+          "return-to-training",
+          "upper"
+        ],
+        "exercises": [
+          {
+            "name": "Bench Press",
+            "category": "strength",
+            "muscle_groups": [
+              "chest",
+              "triceps",
+              "shoulders"
+            ],
+            "sets": 3,
+            "reps": "8",
+            "weight": "RPE 6 (~50-55% pre-layoff top set)",
+            "rest_period": "2 min",
+            "notes": "2 months detrained — rebuild gradually, don't chase old max."
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"12\" — state the count per side (\"12 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 1: Lower B (Deadlift Focus)",
+        "date": "2026-09-25",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 1. RPE 6 across the board — reacclimate, don't chase old numbers.",
+        "tags": [
+          "return-to-training",
+          "lower"
+        ],
+        "exercises": [
+          {
+            "name": "Deadlift",
+            "category": "strength",
+            "muscle_groups": [
+              "hamstrings",
+              "glutes",
+              "back",
+              "grip"
+            ],
+            "sets": 3,
+            "reps": "6",
+            "weight": "RPE 6 (~50-55% pre-layoff top set)",
+            "rest_period": "2-3 min",
+            "notes": "2 months detrained — rebuild gradually, don't chase old max."
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "15s each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hanging Leg Raises",
+            "sets": 3,
+            "reps": "8",
+            "rest_period": "90s"
+          }
+        ]
+      },
+      "result": "Created \"Week 1: Lower B (Deadlift Focus)\" on 2026-09-25 [evt-ai-2]. Added 1 new exercise(s) to the library: Deadlift.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 1: Upper B (Press Focus)",
+        "date": "2026-09-26",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 1. RPE 6 across the board — reacclimate, don't chase old numbers.",
+        "tags": [
+          "return-to-training",
+          "upper"
+        ],
+        "exercises": [
+          {
+            "name": "Overhead Press",
+            "category": "strength",
+            "muscle_groups": [
+              "shoulders",
+              "triceps",
+              "core"
+            ],
+            "sets": 3,
+            "reps": "8",
+            "weight": "RPE 6 (~50-55% pre-layoff top set)",
+            "rest_period": "2 min",
+            "notes": "2 months detrained — rebuild gradually, don't chase old max."
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown (Close Grip)",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nHammer Curl: \"12\" — state the count per side (\"12 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 2: Lower A (Squat Focus)",
+        "date": "2026-09-29",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 2. RPE 7, volume/intensity ticking up.",
+        "tags": [
+          "return-to-training",
+          "lower"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "6",
+            "weight": "RPE 7 (~60-65%)",
+            "rest_period": "2.5 min"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "10 each leg",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "6",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "12 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Week 2: Lower A (Squat Focus)\" on 2026-09-29 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 2: Upper A (Bench Focus)",
+        "date": "2026-09-30",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 2. RPE 7, volume/intensity ticking up.",
+        "tags": [
+          "return-to-training",
+          "upper"
+        ],
+        "exercises": [
+          {
+            "name": "Bench Press",
+            "sets": 4,
+            "reps": "6",
+            "weight": "RPE 7 (~60-65%)",
+            "rest_period": "2.5 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"12\" — state the count per side (\"12 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 2: Lower B (Deadlift Focus)",
+        "date": "2026-10-02",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 2. RPE 7, volume/intensity ticking up.",
+        "tags": [
+          "return-to-training",
+          "lower"
+        ],
+        "exercises": [
+          {
+            "name": "Deadlift",
+            "sets": 4,
+            "reps": "5",
+            "weight": "RPE 7 (~60-65%)",
+            "rest_period": "3 min"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hanging Leg Raises",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          }
+        ]
+      },
+      "result": "Created \"Week 2: Lower B (Deadlift Focus)\" on 2026-10-02 [evt-ai-4].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 2: Upper B (Press Focus)",
+        "date": "2026-10-03",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 2. RPE 7, volume/intensity ticking up.",
+        "tags": [
+          "return-to-training",
+          "upper"
+        ],
+        "exercises": [
+          {
+            "name": "Overhead Press",
+            "sets": 4,
+            "reps": "6",
+            "weight": "RPE 7 (~60-65%)",
+            "rest_period": "2.5 min"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown (Close Grip)",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nHammer Curl: \"12\" — state the count per side (\"12 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 3: Lower A (Squat Focus)",
+        "date": "2026-10-06",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 3. RPE 7-8, approaching normal working loads.",
+        "tags": [
+          "return-to-training",
+          "lower"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "5",
+            "weight": "RPE 7-8 (~65-70%)",
+            "rest_period": "3 min"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "weight": "add light DB",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "7",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 4,
+            "reps": "10 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Week 3: Lower A (Squat Focus)\" on 2026-10-06 [evt-ai-5].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 3: Upper A (Bench Focus)",
+        "date": "2026-10-07",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 3. RPE 7-8, approaching normal working loads.",
+        "tags": [
+          "return-to-training",
+          "upper"
+        ],
+        "exercises": [
+          {
+            "name": "Bench Press",
+            "sets": 4,
+            "reps": "5",
+            "weight": "RPE 7-8 (~65-70%)",
+            "rest_period": "3 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 3: Lower B (Deadlift Focus)",
+        "date": "2026-10-09",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 3. RPE 7-8, approaching normal working loads.",
+        "tags": [
+          "return-to-training",
+          "lower"
+        ],
+        "exercises": [
+          {
+            "name": "Deadlift",
+            "sets": 4,
+            "reps": "4",
+            "weight": "RPE 7-8 (~65-70%)",
+            "rest_period": "3 min"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "25s each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hanging Leg Raises",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          }
+        ]
+      },
+      "result": "Created \"Week 3: Lower B (Deadlift Focus)\" on 2026-10-09 [evt-ai-6].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 3: Upper B (Press Focus)",
+        "date": "2026-10-10",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 3. RPE 7-8, approaching normal working loads. Pull-ups reintroduced.",
+        "tags": [
+          "return-to-training",
+          "upper"
+        ],
+        "exercises": [
+          {
+            "name": "Overhead Press",
+            "sets": 4,
+            "reps": "5",
+            "weight": "RPE 7-8 (~65-70%)",
+            "rest_period": "3 min"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 3,
+            "reps": "5",
+            "weight": "bodyweight or light added, RPE 7",
+            "rest_period": "2 min",
+            "notes": "Progression from lat pulldown — reintroducing loaded vertical pull."
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 1: Upper A (Bench Focus)",
+        "date": "2026-09-23",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 1. RPE 6 across the board — reacclimate, don't chase old numbers.",
+        "tags": [
+          "return-to-training",
+          "upper"
+        ],
+        "exercises": [
+          {
+            "name": "Bench Press",
+            "category": "strength",
+            "muscle_groups": [
+              "chest",
+              "triceps",
+              "shoulders"
+            ],
+            "sets": 3,
+            "reps": "8",
+            "weight": "RPE 6 (~50-55% pre-layoff top set)",
+            "rest_period": "2 min",
+            "notes": "2 months detrained — rebuild gradually, don't chase old max."
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Week 1: Upper A (Bench Focus)\" on 2026-09-23 [evt-ai-7]. Added 1 new exercise(s) to the library: Bench Press.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 1: Upper B (Press Focus)",
+        "date": "2026-09-26",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 1. RPE 6 across the board — reacclimate, don't chase old numbers.",
+        "tags": [
+          "return-to-training",
+          "upper"
+        ],
+        "exercises": [
+          {
+            "name": "Overhead Press",
+            "category": "strength",
+            "muscle_groups": [
+              "shoulders",
+              "triceps",
+              "core"
+            ],
+            "sets": 3,
+            "reps": "8",
+            "weight": "RPE 6 (~50-55% pre-layoff top set)",
+            "rest_period": "2 min",
+            "notes": "2 months detrained — rebuild gradually, don't chase old max."
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown (Close Grip)",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Week 1: Upper B (Press Focus)\" on 2026-09-26 [evt-ai-8]. Added 1 new exercise(s) to the library: Overhead Press.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 2: Upper A (Bench Focus)",
+        "date": "2026-09-30",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 2. RPE 7, volume/intensity ticking up.",
+        "tags": [
+          "return-to-training",
+          "upper"
+        ],
+        "exercises": [
+          {
+            "name": "Bench Press",
+            "sets": 4,
+            "reps": "6",
+            "weight": "RPE 7 (~60-65%)",
+            "rest_period": "2.5 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Week 2: Upper A (Bench Focus)\" on 2026-09-30 [evt-ai-9].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 2: Upper B (Press Focus)",
+        "date": "2026-10-03",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 2. RPE 7, volume/intensity ticking up.",
+        "tags": [
+          "return-to-training",
+          "upper"
+        ],
+        "exercises": [
+          {
+            "name": "Overhead Press",
+            "sets": 4,
+            "reps": "6",
+            "weight": "RPE 7 (~60-65%)",
+            "rest_period": "2.5 min"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown (Close Grip)",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Week 2: Upper B (Press Focus)\" on 2026-10-03 [evt-ai-10].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 3: Upper A (Bench Focus)",
+        "date": "2026-10-07",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 3. RPE 7-8, approaching normal working loads.",
+        "tags": [
+          "return-to-training",
+          "upper"
+        ],
+        "exercises": [
+          {
+            "name": "Bench Press",
+            "sets": 4,
+            "reps": "5",
+            "weight": "RPE 7-8 (~65-70%)",
+            "rest_period": "3 min"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Week 3: Upper A (Bench Focus)\" on 2026-10-07 [evt-ai-11].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Week 3: Upper B (Press Focus)",
+        "date": "2026-10-10",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "description": "Return-to-training week 3. RPE 7-8, approaching normal working loads. Pull-ups reintroduced.",
+        "tags": [
+          "return-to-training",
+          "upper"
+        ],
+        "exercises": [
+          {
+            "name": "Overhead Press",
+            "sets": 4,
+            "reps": "5",
+            "weight": "RPE 7-8 (~65-70%)",
+            "rest_period": "3 min"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 3,
+            "reps": "5 each side",
+            "weight": "bodyweight or light added, RPE 7",
+            "rest_period": "2 min",
+            "notes": "Progression from lat pulldown — reintroducing loaded vertical pull."
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Week 3: Upper B (Press Focus)\" on 2026-10-10 [evt-ai-12].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

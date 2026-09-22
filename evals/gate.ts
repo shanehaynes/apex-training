@@ -19,6 +19,7 @@ import type { VerdictStatus } from './src/types';
 // The coach eval gate.
 //
 //   npm run eval:gate                       # run the suite locally, decide, attest
+//   npm run eval:gate -- --concurrency 3    # fewer lanes (default 6)
 //   npm run eval:baseline -- <result.json>  # promote a result file to the baseline
 //   npm run eval:hash                       # print the two hashes the attestation pins
 //   npm run eval:verify                     # token-free: check the committed attestation
@@ -44,6 +45,10 @@ export const REPO_ROOT = join(here, '..');
 export const BACKEND = 'agent-sdk';
 const BASELINE_DIR = 'evals/baseline';
 const ATTESTATION_FILE = 'evals/gate/attestation.json';
+/** The agent-sdk backend runs one tool per round, so a serial suite is ~20
+ *  minutes against ~4 at six lanes. Cases are independent and each gets its
+ *  own backend and session, so this changes timing, not verdicts. */
+export const DEFAULT_CONCURRENCY = 6;
 
 /** Non-zero child exits whose stderr matches this are "out of rope", not "broken code". */
 const LIMIT_PATTERN = /rate limit|overloaded|429|usage limit/i;
@@ -57,6 +62,10 @@ export interface Attestation {
   baselineFile: string;
   baselineSha256: string;
   resultFile: string;
+  /** Lanes the suite ran in. Absent on attestations written before the gate
+   *  could run cases side by side, which were all serial — readers fall back
+   *  to 1, exactly as they fall back for promptVersion and backend. */
+  concurrency?: number;
   /** Present only when the flake re-run fired; those cases' verdicts come from it. */
   rerunFile?: string;
   verdicts: Record<string, Record<string, VerdictStatus>>;
@@ -82,6 +91,9 @@ export interface GateDeps {
   root: string;
   model: string;
   runSuite: RunSuite;
+  /** Recorded in the attestation. The gate does not schedule anything itself —
+   *  runSuite owns that — so this is a statement about the run, not a knob. */
+  concurrency?: number;
   promptFileHash: string;
   evalSurfaceHash: string;
   promptVersion: string;
@@ -246,6 +258,7 @@ export async function runGate(deps: GateDeps): Promise<GateOutcome> {
     baselineFile: baselineRel,
     baselineSha256: sha256(baselineRaw),
     resultFile: posix(resultRel),
+    ...(deps.concurrency ? { concurrency: deps.concurrency } : {}),
     ...(rerunRel ? { rerunFile: posix(rerunRel) } : {}),
     verdicts: verdictMap(finalCases),
     transcriptHashes: Object.fromEntries(
@@ -388,15 +401,30 @@ export function promoteBaseline(root: string, resultPath: string): GateOutcome {
 
 /** The runner, by command line. Never imported — the gate must not depend on
  *  the runner's module graph to compile. */
-function spawnSuite(root: string): RunSuite {
-  return async ({ model, outPath, caseIds }) => {
-    const args = ['run', 'eval', '--', '--backend', BACKEND, '--model', model, '--out', outPath];
-    if (caseIds?.length) {
-      // run.ts treats a single value as a SUBSTRING and a comma-separated list
-      // as exact ids. Repeating one id takes the exact path without dragging a
-      // neighbouring case in.
-      args.push('--case', (caseIds.length === 1 ? [caseIds[0], caseIds[0]] : caseIds).join(','));
-    }
+/** The child runner's argv. Pure, so a test can assert what the gate forwards
+ *  without spawning npm. */
+export function suiteArgv(
+  { model, outPath, caseIds }: RunSuiteRequest,
+  concurrency: number = DEFAULT_CONCURRENCY,
+): string[] {
+  const args = [
+    'run', 'eval', '--', '--backend', BACKEND, '--model', model, '--out', outPath,
+    // Forwarded to BOTH the full run and the flake re-run: a gate that takes
+    // twenty minutes is one people route around.
+    '--concurrency', String(concurrency),
+  ];
+  if (caseIds?.length) {
+    // run.ts treats a single value as a SUBSTRING and a comma-separated list
+    // as exact ids. Repeating one id takes the exact path without dragging a
+    // neighbouring case in.
+    args.push('--case', (caseIds.length === 1 ? [caseIds[0], caseIds[0]] : caseIds).join(','));
+  }
+  return args;
+}
+
+export function spawnSuite(root: string, concurrency: number = DEFAULT_CONCURRENCY): RunSuite {
+  return async req => {
+    const args = suiteArgv(req, concurrency);
     const child = spawnSync('npm', args, { cwd: root, encoding: 'utf8', stdio: ['inherit', 'inherit', 'pipe'] });
     const stderr = `${child.stderr ?? ''}${child.error ? `\n${child.error.message}` : ''}`;
     if (stderr.trim()) process.stderr.write(stderr);
@@ -407,6 +435,16 @@ function spawnSuite(root: string): RunSuite {
 function parseModel(argv: string[]): string | null {
   const i = argv.indexOf('--model');
   return i >= 0 ? argv[i + 1] ?? null : null;
+}
+
+export function parseConcurrency(argv: string[]): number {
+  const i = argv.indexOf('--concurrency');
+  if (i < 0) return DEFAULT_CONCURRENCY;
+  const n = Number(argv[i + 1]);
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error(`--concurrency must be a positive integer, got "${argv[i + 1]}".`);
+  }
+  return n;
 }
 
 async function main(): Promise<number> {
@@ -462,10 +500,12 @@ async function main(): Promise<number> {
     }
   }
 
+  const concurrency = parseConcurrency(argv);
   const outcome = await runGate({
     root,
     model,
-    runSuite: spawnSuite(root),
+    runSuite: spawnSuite(root, concurrency),
+    concurrency,
     ...hashes,
     promptVersion: PROMPT_VERSION,
     now: () => new Date().toISOString(),

@@ -1,0 +1,15 @@
+{
+  "caseId": "analytics-cannot-save",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Perfect. Save that tile to my dashboard."
+    },
+    {
+      "role": "assistant",
+      "content": "I can't save it — there's no Save button on my end. Also, the current draft has no measure set yet (blocking problem), so there's nothing ready to save regardless. Tell me what you want charted and I'll configure it; you'll press Save when it looks right."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}
