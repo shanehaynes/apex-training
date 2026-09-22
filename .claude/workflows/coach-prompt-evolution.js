@@ -54,6 +54,12 @@ const VARIANT_SCHEMA = {
   },
 }
 
+// These two also live in evals/src/compare.ts, where evals/gate.ts and the
+// tests can reach them. They stay INLINE here because a workflow script is
+// plain JS evaluated as a function body — no module resolution, no filesystem,
+// and no TypeScript loader — so `import` is not available at all.
+// evals/__tests__/compare.test.ts lifts the two definitions below out of this
+// file and pins them to compare.ts's behavior, so the copies cannot drift.
 const rate = d => (d.pass + d.fail > 0 ? d.pass / (d.pass + d.fail) : 1)
 function dominates(candidate, incumbent) {
   let strictlyBetter = false

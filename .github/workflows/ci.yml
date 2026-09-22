@@ -340,6 +340,65 @@ jobs:
             *) echo "::error::scripts/auth-redirect-check.sh exited $rc — the auth configuration was not checked."; exit 1 ;;
           esac
 
+  # The coach eval gate, cheap half. Verifies the committed attestation in
+  # evals/gate/attestation.json: it re-derives the coach behavior hash and the
+  # eval surface hash from this tree and checks them, the PROMPT_VERSION, the
+  # baseline's sha256 and every case's verdict against what the attestation
+  # claims. It CALLS NO MODEL and needs no secret, so it finishes in seconds.
+  #
+  # The expensive half runs on the developer's machine (`npm run eval:gate`,
+  # evals/README.md → "CI gate"). That is not a convenience: the gate has to
+  # spend a Claude subscription rather than API credit, and subscription
+  # entitlement cannot run in GitHub Actions. Splitting it this way is what
+  # makes a per-PR coach gate affordable at all — the nightly `evals` job
+  # below stays the API-backed measurement of record.
+  #
+  # Shane adds this job to branch protection as a required check; that is the
+  # step that turns it from advice into a gate.
+  #
+  # Exit codes are the contract (evals/gate.ts documents them), the same split
+  # prod-checks above uses: 1 is a real failure, 2 is "could not look" — which
+  # today means the gate is not bootstrapped yet (no baseline, no attestation)
+  # and stays green as a notice.
+  coach-gate:
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      # Same reasoning as the ios job above: an `on.paths` filter and a
+      # required check do not compose — a required check that never starts
+      # blocks the merge queue forever. So the job always starts and skips
+      # itself in seconds when the PR touches nothing the coach gate covers.
+      - name: Skip when a pull request changes no coach or eval paths
+        run: |
+          base=$(git merge-base origin/main HEAD)
+          if git diff --quiet "$base" HEAD -- \
+            src/lib/coach/ api/_lib/coach/ api/chat.ts \
+            evals/cases/ evals/src/ evals/baseline/ evals/gate/ ; then
+            echo "no coach or eval changes"
+            echo "skip=1" >> "$GITHUB_ENV"
+          fi
+      - uses: actions/setup-node@v7
+        if: env.skip != '1'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+        if: env.skip != '1'
+      - name: Verify the coach gate attestation
+        if: env.skip != '1'
+        run: |
+          npm run eval:verify && rc=0 || rc=$?
+          case "$rc" in
+            0) ;;
+            2) echo "::notice::The coach eval gate is not bootstrapped yet (no baseline). Run npm run eval:gate once a baseline is promoted." ;;
+            1) echo "::error::The committed coach eval attestation does not match this tree — run \`npm run eval:gate\` locally and commit evals/gate/attestation.json with the gate result."; exit 1 ;;
+            *) echo "::error::npm run eval:verify exited $rc — the attestation was not checked."; exit 1 ;;
+          esac
+
   # Coach eval suite (deterministic checkers + LLM judge). Nightly/manual
   # only — it calls the Anthropic API, so per-PR runs would spend tokens on
   # every push. Needs the ANTHROPIC_API_KEY repo secret; without it the job

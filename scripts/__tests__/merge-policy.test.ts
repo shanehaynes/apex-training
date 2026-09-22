@@ -57,6 +57,16 @@ describe('held paths outside the authority chain', () => {
     expect(decide(['scripts/ci-guards.sh'], [])).toMatch(/the merge floor's content/);
   });
 
+  it('holds the coach eval baseline, and nothing else under evals/', () => {
+    // The baseline IS the standard the coach gate judges against, so changing
+    // it is not a code change — it is a change to what "no regression" means.
+    // The attestation next to it is only evidence and stays auto-mergeable:
+    // it is worthless the moment its hashes stop matching the tree.
+    expect(decide(['evals/baseline/claude-sonnet-5.json'], []))
+      .toMatch(/redefines what correct coach behavior is/);
+    expect(decide(['evals/gate/attestation.json', 'evals/cases/refusal.ts'], [])).toBeNull();
+  });
+
   it('holds the iOS release lane', () => {
     for (const path of ['ios/fastlane/Fastfile', 'ios/scripts/testflight.sh']) {
       expect(decide([path], []), path).toMatch(/the release lane/);
