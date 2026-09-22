@@ -111,7 +111,9 @@ for (let gen = 1; gen <= generations; gen++) {
           `NOTHING else — schemas.ts, tools.ts and model.ts are off limits (the results file ` +
           `hashes the behavior surface, so any other edit is visible). Respect the data ` +
           `conventions already encoded in prompt.ts (one movement per entry, per-side reps for ` +
-          `unilateral work). ${scoreInstructions}\n\n` +
+          `unilateral work). Bump PROMPT_VERSION at the top of prompt.ts in the same edit ` +
+          `(same date-dot-serial format, next serial) so the results file names the variant it scored. ` +
+          `${scoreInstructions}\n\n` +
           `Report diff as \`git diff src/lib/coach/prompt.ts\` INCLUDING the champion diff you ` +
           `applied (the full delta from the committed file), and editSummary as one sentence.`,
         { label: `g${gen}v${i}`, phase: 'Evolve', isolation: 'worktree', schema: VARIANT_SCHEMA },

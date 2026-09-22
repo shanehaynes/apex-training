@@ -181,6 +181,12 @@ export interface RunResult {
   model: string;
   judgeModel: string;
   gitCommit: string;
+  /** src/lib/coach/prompt.ts → PROMPT_VERSION: the hand-declared version of
+   *  the prompt this run scored. Says whether an edit was MEANT to change
+   *  behavior, where promptFileHash below says whether the bytes moved —
+   *  the two disagreeing is an unbumped edit. Results written before this
+   *  field existed do not carry it; readers fall back to 'unversioned'. */
+  promptVersion: string;
   /** sha256 over the coach behavior surface (prompt.ts, schemas.ts, tools.ts,
    *  model.ts) — detects drift between runs; schema/executor edits change
    *  coach behavior as much as prompt edits do. */

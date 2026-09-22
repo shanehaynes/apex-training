@@ -4,6 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import type { CaseResult, RunResult, VerdictStatus } from './types';
+import { PROMPT_VERSION } from '../../src/lib/coach/prompt';
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const RESULTS_DIR = join(here, '..', 'results');
@@ -54,6 +55,7 @@ export function buildRunResult(
     model,
     judgeModel,
     gitCommit: gitCommit(),
+    promptVersion: PROMPT_VERSION,
     promptFileHash: promptFileHash(),
     cases,
     aggregate: {
@@ -98,7 +100,9 @@ const STATUS_ICON: Record<VerdictStatus, string> = {
 export function printRunTable(run: RunResult): void {
   const idWidth = Math.max(...run.cases.map(c => c.id.length), 8);
   const header = `${'case'.padEnd(idWidth)}  cons prog refu intg  turns  tools  cost      latency`;
-  console.log(`\nmodel: ${run.model}   judge: ${run.judgeModel}   commit: ${run.gitCommit.slice(0, 8)}`);
+  console.log(
+    `\nmodel: ${run.model}   judge: ${run.judgeModel}   commit: ${run.gitCommit.slice(0, 8)}   ` +
+    `prompt: ${run.promptVersion ?? 'unversioned'}`);
   console.log(header);
   console.log('-'.repeat(header.length));
   for (const c of run.cases) {
