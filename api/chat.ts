@@ -1,12 +1,16 @@
-import Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireUser } from './_lib/auth.js';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
 import { getAnthropicKey } from './_lib/anthropicKey.js';
+import { makeAnthropicClient } from './_lib/anthropicClient.js';
 import { enforceRateLimit } from './_lib/rateLimit.js';
 import { clientTag } from './_lib/clientVersion.js';
+import { recordCoachRun, type CoachRunInsert } from './_lib/coachRuns.js';
+import { reportError } from './_lib/errorReport.js';
 import { analyticsToolSchemas, builderToolSchemas, coachToolSchemas } from '../src/lib/coach/schemas.js';
 import { resolveCoachModel } from '../src/lib/coach/models.js';
+import { PROMPT_VERSION } from '../src/lib/coach/prompt.js';
 import type { ChatWireEvent } from '../src/lib/coach/wire.js';
 import { streamToWireEvents as translate, type UpstreamEvent as Upstream } from './_lib/wire.js';
 import { buildChatContext, ChatContextError, isChatMode, type ChatMode } from './_lib/coach/context.js';
@@ -32,7 +36,7 @@ import { findCoachTool, type CoachToolContext } from '../src/lib/coach/tools.js'
 // The stream translator lives in api/_lib/wire.ts (shared with the summary
 // handler); re-exported so existing imports and tests keep their paths.
 export { streamToWireEvents } from './_lib/wire.js';
-export type { UpstreamEvent, UpstreamUsage } from './_lib/wire.js';
+export type { UpstreamEvent, UpstreamUsage, StreamOutcome } from './_lib/wire.js';
 
 interface Body {
   messages?: unknown;
@@ -129,6 +133,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  // One id for this turn: it tags every log line below, goes back on the
+  // response as x-apex-request-id, and is the coach_runs column that lines a
+  // stored row up with whatever the Vercel function log still holds.
+  const requestId = crypto.randomUUID();
+
   const supabase = getSupabaseAdmin();
   if (!supabase) {
     res.status(500).send('Supabase admin client not configured');
@@ -148,7 +157,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     apiKey = await getAnthropicKey(supabase, userId);
   } catch (err) {
-    console.error('[api/chat] key lookup failed:', err instanceof Error ? err.message : err);
+    console.error('[api/chat] key lookup failed:', requestId, err instanceof Error ? err.message : err);
     res.status(500).send('Failed to load API key');
     return;
   }
@@ -202,12 +211,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.status(400).send(err.message);
         return;
       }
-      console.error('[api/chat] context build failed:', err instanceof Error ? err.message : err);
+      console.error('[api/chat] context build failed:', requestId, err instanceof Error ? err.message : err);
       res.status(500).send('Failed to build coach context');
       return;
     }
   }
 
+  // Deliberately set HERE, not at the top of the handler: everything above
+  // this line is a plain HTTP error (402/413/429) that must reach the client
+  // with no headers of ours on it, which is what chat.test.ts pins.
+  res.setHeader('x-apex-request-id', requestId);
   res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache');
   // tool_use events carry the confirmation-card label, computed with the
@@ -240,8 +253,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // The bill is the caller's own key either way.
   const coachModel = resolveCoachModel(body.model);
 
+  // Everything a coach_runs row needs that is known before the call; the
+  // measured half is merged in at each exit below.
+  const runBase = {
+    user_id: userId,
+    request_id: requestId,
+    mode: toolMode,
+    model: coachModel.id,
+    prompt_version: PROMPT_VERSION,
+    // Which build produced this traffic (clientVersion.ts). 'web' when there
+    // is no tag, whose bundle always matches the deployment serving it.
+    client: clientTag(req) ?? 'web',
+    with_tools: withTools,
+  } satisfies Partial<CoachRunInsert>;
+
+  const startedAt = Date.now();
   try {
-    const client = new Anthropic({ apiKey });
+    const client = makeAnthropicClient(apiKey);
     const stream = client.messages.stream({
       model: coachModel.id,
       // max_tokens caps thinking + response text together on current models.
@@ -258,13 +286,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ...(withTools ? {} : { tool_choice: { type: 'none' as const } }),
       messages: withTools ? withConversationBreakpoint(messages) : messages,
     }, { signal: upstreamAbort.signal });
-    const usage = await translate(stream as AsyncIterable<Upstream>, send);
+    const { usage, stopReason, toolUseCount } = await translate(stream as AsyncIterable<Upstream>, send);
+    // The stored row is the queryable record; this line stays because the
+    // Vercel log is the real-time view, and the one thing a row cannot be is
+    // read while the request is still in flight.
     if (usage) {
       console.log('[api/chat] usage', {
+        requestId,
         model: coachModel.id,
-        // Which build produced this traffic (clientVersion.ts). Absent for the
-        // web, whose bundle always matches the deployment serving it.
-        client: clientTag(req) ?? 'web',
+        promptVersion: PROMPT_VERSION,
+        client: runBase.client,
         withTools,
         input:      usage.input_tokens ?? 0,
         cacheRead:  usage.cache_read_input_tokens ?? 0,
@@ -272,13 +303,54 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         output:     usage.output_tokens ?? 0,
       });
     }
+    // Awaited, not fire-and-forget: a Vercel function may be frozen the
+    // moment res.end() returns, which would drop an in-flight insert. The
+    // helper never throws and never rejects (coachRuns.ts), so the await
+    // costs one round trip and can only lose a data point, never the turn.
+    await recordCoachRun(supabase, {
+      ...runBase,
+      input_tokens:       usage?.input_tokens ?? 0,
+      cache_read_tokens:  usage?.cache_read_input_tokens ?? 0,
+      cache_write_tokens: usage?.cache_creation_input_tokens ?? 0,
+      output_tokens:      usage?.output_tokens ?? 0,
+      tool_use_count:     toolUseCount,
+      stop_reason:        stopReason,
+      latency_ms:         Date.now() - startedAt,
+    });
   } catch (err) {
+    // A failed turn is the row worth having most: zeros for the counts it
+    // never got, the elapsed time it did, and the reason. Message only —
+    // never a stack, never key material (the migration's header).
+    const failed = {
+      ...runBase,
+      input_tokens: 0,
+      cache_read_tokens: 0,
+      cache_write_tokens: 0,
+      output_tokens: 0,
+      tool_use_count: 0,
+      stop_reason: null,
+      latency_ms: Date.now() - startedAt,
+    };
     if (upstreamAbort.signal.aborted) {
       // The client went away — the abort is the intended outcome and there
-      // is nobody left to read a wire error.
+      // is nobody left to read a wire error. The row still gets written:
+      // "how often does a user stop the coach mid-answer" is a question only
+      // this branch can answer.
+      await recordCoachRun(supabase, { ...failed, error: 'client aborted' });
     } else {
-      console.error('[api/chat] stream failed:', err);
+      console.error('[api/chat] stream failed:', requestId, err);
+      // The one seam every unhandled API error passes through
+      // (errorReport.ts). This route never reaches app.ts's bridge — it is
+      // its own function — so it reports for itself.
+      await reportError(err, { route: '/api/chat', method: 'POST' });
       send({ type: 'error', message: 'Chat request failed' });
+      await recordCoachRun(supabase, {
+        ...failed,
+        // Capped: an SDK error can carry a whole upstream response body in
+        // its message, and the column promises "an error message", not a
+        // payload. 500 chars is past where any of these stop being readable.
+        error: String(err instanceof Error ? err.message : err).slice(0, 500),
+      });
     }
   }
 
