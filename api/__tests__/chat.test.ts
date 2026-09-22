@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type Anthropic from '@anthropic-ai/sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import handler, { cachedToolSchemas, streamToWireEvents, withConversationBreakpoint } from '../chat';
@@ -10,25 +10,46 @@ import type { ChatWireEvent } from '../../src/lib/coach/wire';
 // breakpoints, abort options) without any network traffic; the stream itself
 // is an empty async iterable, which streamToWireEvents drains to a bare
 // 'done'.
-const { streamMock } = vi.hoisted(() => ({
+const { streamMock, clientOptions } = vi.hoisted(() => ({
   streamMock: vi.fn((..._args: unknown[]) => (async function* (): AsyncGenerator<never> {})()),
+  /** Every options object handed to `new Anthropic(...)` — the timeout and
+   *  retry budget are as load-bearing as the request params (anthropicClient.ts). */
+  clientOptions: [] as Array<Record<string, unknown>>,
 }));
 vi.mock('@anthropic-ai/sdk', () => ({
   // A function expression, not an arrow: the handler calls `new Anthropic(...)`.
-  default: vi.fn(function () { return { messages: { stream: streamMock } }; }),
+  default: vi.fn(function (options: Record<string, unknown>) {
+    clientOptions.push(options);
+    return { messages: { stream: streamMock } };
+  }),
 }));
 
 // Handler-level mocks (the streamToWireEvents suite below never hits them).
 vi.mock('../_lib/auth.js', () => ({ requireUser: vi.fn(async () => 'user-123') }));
+// The admin double answers the two shapes the handler drives through it: the
+// key lookup's select chain, and coach_runs' insert (api/_lib/coachRuns.ts).
+const { coachRuns, insertError } = vi.hoisted(() => ({
+  coachRuns: [] as Array<Record<string, unknown>>,
+  /** Boxed so a test can make one insert fail without re-mocking the module. */
+  insertError: { value: null as { message: string } | null },
+}));
 vi.mock('../_lib/supabaseAdmin.js', () => ({
   getSupabaseAdmin: vi.fn(() => ({
-    from: () => ({
+    from: (table: string) => ({
       select: () => ({
         eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
       }),
+      insert: async (row: Record<string, unknown>) => {
+        if (table === 'coach_runs') coachRuns.push(row);
+        return { error: insertError.value };
+      },
     }),
   })),
 }));
+const { reportErrorMock } = vi.hoisted(() => ({
+  reportErrorMock: vi.fn(async (_err: unknown, _context: { route: string; method?: string }) => {}),
+}));
+vi.mock('../_lib/errorReport.js', () => ({ reportError: reportErrorMock }));
 vi.mock('../_lib/anthropicKey.js', () => ({ getAnthropicKey: vi.fn(async () => null) }));
 vi.mock('../_lib/rateLimit.js', () => ({ enforceRateLimit: vi.fn(async () => true) }));
 // The server-side prompt builder (W5a): scripted here; its own suite is
@@ -55,6 +76,14 @@ import { buildChatContext } from '../_lib/coach/context';
 
 import { getAnthropicKey } from '../_lib/anthropicKey';
 import { enforceRateLimit } from '../_lib/rateLimit';
+import { PROMPT_VERSION } from '../../src/lib/coach/prompt';
+
+beforeEach(() => {
+  coachRuns.length = 0;
+  clientOptions.length = 0;
+  insertError.value = null;
+  reportErrorMock.mockClear();
+});
 
 async function* upstream(events: UpstreamEvent[]): AsyncIterable<UpstreamEvent> {
   for (const event of events) yield event;
@@ -457,5 +486,153 @@ describe('chat handler — model selection', () => {
       { type: 'text', text: 'x', cache_control: { type: 'ephemeral' } },
     ]);
     expect(params.tools?.at(-1)).toMatchObject({ cache_control: { type: 'ephemeral' } });
+  });
+});
+
+describe('chat handler — telemetry and error seam', () => {
+  /** A stream that carries usage, one tool_use block and a stop_reason. */
+  function measuredTurn(): UpstreamEvent[] {
+    return [
+      { type: 'message_start', message: { usage: { input_tokens: 11, cache_read_input_tokens: 7, cache_creation_input_tokens: 3 } } },
+      { type: 'content_block_start', content_block: { type: 'tool_use', id: 'tu_1', name: 'delete_event' } },
+      { type: 'content_block_delta', delta: { type: 'input_json_delta', partial_json: '{"event_id":"evt-9","scope":"all"}' } },
+      { type: 'content_block_stop' },
+      { type: 'message_delta', delta: { type: 'message_delta', stop_reason: 'tool_use' }, usage: { output_tokens: 42 } },
+    ];
+  }
+
+  it('builds the SDK client with a bounded timeout and one retry', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    const { res } = makeHandlerRes();
+
+    await handler(makeHandlerReq({ messages: [{ role: 'user', content: 'hi' }], system: 'x' }), res);
+
+    // 20s is per attempt and bounds time-to-headers, so two attempts fit
+    // inside api/chat.ts's 60s maxDuration — see api/_lib/anthropicClient.ts.
+    expect(clientOptions.at(-1)).toMatchObject({ maxRetries: 1, timeout: 20000 });
+  });
+
+  it('stamps x-apex-request-id on the streaming path and records one coach_runs row', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    streamMock.mockImplementationOnce(() => upstream(measuredTurn()) as never);
+    const { res, headers } = makeHandlerRes();
+
+    await handler(makeHandlerReq({
+      mode: 'builder', today: '2026-09-03', withTools: true,
+      messages: [{ role: 'user', content: 'add bench' }],
+    }), res);
+
+    expect(headers['x-apex-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+    expect(coachRuns).toHaveLength(1);
+    expect(coachRuns[0]).toMatchObject({
+      user_id: 'user-123',
+      request_id: headers['x-apex-request-id'],
+      mode: 'builder',
+      model: COACH_MODEL,
+      prompt_version: PROMPT_VERSION,
+      client: 'web',
+      with_tools: true,
+      input_tokens: 11,
+      cache_read_tokens: 7,
+      cache_write_tokens: 3,
+      output_tokens: 42,
+      tool_use_count: 1,
+      stop_reason: 'tool_use',
+    });
+    expect(coachRuns[0]).not.toHaveProperty('error');
+    expect(typeof coachRuns[0].latency_ms).toBe('number');
+  });
+
+  it('leaves the wire output and status untouched when the row cannot be stored', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    streamMock.mockImplementationOnce(() => upstream(measuredTurn()) as never);
+    insertError.value = { message: 'permission denied for table coach_runs' };
+    const { res, statusCode, writes } = makeHandlerRes();
+
+    await handler(makeHandlerReq({ messages: [{ role: 'user', content: 'hi' }], system: 'x', withTools: true }), res);
+
+    // Telemetry fails open: the stream is the product, the row is a footnote.
+    expect(statusCode()).toBeNull();
+    const events = writes.join('').trim().split('\n').map(l => JSON.parse(l) as ChatWireEvent);
+    expect(events.map(e => e.type)).toEqual(['tool_use', 'done']);
+  });
+
+  it('reports a failed stream through the error seam and records the failure', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    streamMock.mockImplementationOnce(() => { throw new Error('upstream exploded'); });
+    const { res, writes } = makeHandlerRes();
+
+    await handler(makeHandlerReq({ messages: [{ role: 'user', content: 'hi' }], system: 'x' }), res);
+
+    expect(reportErrorMock).toHaveBeenCalledTimes(1);
+    expect(reportErrorMock.mock.calls[0][1]).toEqual({ route: '/api/chat', method: 'POST' });
+    expect(writes.join('')).toContain('"Chat request failed"');
+    expect(coachRuns).toHaveLength(1);
+    expect(coachRuns[0]).toMatchObject({
+      error: 'upstream exploded',
+      input_tokens: 0, output_tokens: 0, tool_use_count: 0, stop_reason: null,
+    });
+    // The user-facing message never carries the id, and the row never a stack.
+    expect(writes.join('')).not.toContain(coachRuns[0].request_id as string);
+    expect(String(coachRuns[0].error)).not.toContain('at ');
+  });
+
+  it('caps a runaway error message at 500 characters', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    // An SDK error can carry a whole upstream response body in its message;
+    // the column promises an error message, not a payload.
+    streamMock.mockImplementationOnce(() => { throw new Error('x'.repeat(2000)); });
+    const { res } = makeHandlerRes();
+
+    await handler(makeHandlerReq({ messages: [{ role: 'user', content: 'hi' }], system: 'x' }), res);
+
+    expect(coachRuns).toHaveLength(1);
+    expect(coachRuns[0].error).toBe('x'.repeat(500));
+  });
+
+  it('records an aborted turn without calling the error seam', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    let captured: AbortSignal | undefined;
+    streamMock.mockImplementationOnce((...args: unknown[]) => {
+      captured = (args[1] as { signal: AbortSignal }).signal;
+      const signal = captured;
+      const pending = new Promise<IteratorResult<never>>((_, reject) => {
+        const fail = () => reject(new DOMException('aborted', 'AbortError'));
+        if (signal.aborted) return fail();
+        signal.addEventListener('abort', fail);
+      });
+      return { [Symbol.asyncIterator]: () => ({ next: () => pending }) } as AsyncGenerator<never>;
+    });
+
+    const { res, disconnect } = makeHandlerRes();
+    const running = handler(makeHandlerReq({ messages: [{ role: 'user', content: 'hi' }], system: 'x' }), res);
+    await vi.waitFor(() => { if (!captured) throw new Error('stream not started'); });
+    disconnect();
+    await running;
+
+    expect(reportErrorMock).not.toHaveBeenCalled();
+    expect(coachRuns).toHaveLength(1);
+    expect(coachRuns[0]).toMatchObject({ error: 'client aborted', latency_ms: expect.any(Number) });
+  });
+});
+
+describe('chat handler — request id is absent from the plain-HTTP error paths', () => {
+  it('sets no headers on 402, 413 or 429', async () => {
+    const noKey = makeHandlerRes();
+    await handler(makeHandlerReq({ messages: [], system: 'x' }), noKey.res);
+    expect(noKey.headers['x-apex-request-id']).toBeUndefined();
+
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    const tooBig = makeHandlerRes();
+    await handler(makeHandlerReq({ messages: [], system: 'x'.repeat(100_001) }), tooBig.res);
+    expect(tooBig.headers['x-apex-request-id']).toBeUndefined();
+
+    vi.mocked(enforceRateLimit).mockImplementationOnce(async (_s, res) => {
+      res.status(429).send('Too many requests');
+      return false;
+    });
+    const limited = makeHandlerRes();
+    await handler(makeHandlerReq({ messages: [], system: 'x' }), limited.res);
+    expect(limited.headers['x-apex-request-id']).toBeUndefined();
   });
 });

@@ -8,13 +8,16 @@ import { sendReviewEmail } from './mailer.js';
 // still intact. Counters live in Postgres (api_request_counts + the
 // bump_rate_limit RPC, see supabase/migrations/phase18_rate_limits.sql).
 //
-// Scope honesty: the AI cap keys off triggered_by, which the CLIENT
-// declares (tool execution happens in the browser, so the server cannot
-// verify attribution). It is a volume guard against a runaway coach loop,
-// NOT a security boundary — a caller who lies about triggered_by is only
-// contained by the per-bucket request throttles below. A server-minted
-// per-tool_use token (issued by /api/chat) is the planned fix once the
-// api/ routing consolidation lands.
+// Scope honesty: the AI cap keys off triggered_by, and what that is worth
+// now depends on the route. The COACH path is server-stamped — tool
+// execution moved off the browser in W5b (api/_lib/handlers/coachTool.ts),
+// and api/_lib/coach/serverDeps.ts sets triggered_by: 'ai' on every mutation
+// it makes, so no caller declares it there. It stays a CLIENT-declared field
+// on /api/meals and /api/training-blocks, where the web and iOS clients only
+// ever send 'user' — so every row the cap actually counts is one the server
+// stamped itself, and a lying caller does not inflate the count, it opts out
+// of it, contained only by the per-bucket request throttles below. Still a
+// volume guard against a runaway loop, NOT a security boundary.
 
 type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 
