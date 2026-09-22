@@ -80,6 +80,20 @@ final class ScheduleSnapshotTests: XCTestCase {
         snapshot(ScheduleTab(model: model), named: "day")
     }
 
+    /// ux-review §3.4: a workout is running, so its card counts instead of
+    /// stating a time. The timer is `Date`-relative and re-based on every run,
+    /// so it reads 7:00 whenever this is recorded.
+    @MainActor
+    func testDayWithARunningSession() async {
+        let model = await model()
+        let live = LiveSessionStore()
+        live.reflect(
+            SessionKey(eventId: "ios-fixture-run", eventDate: "2026-09-08"),
+            startedAt: Date(timeIntervalSinceNow: -7 * 60), isRunning: true
+        )
+        snapshot(ScheduleTab(model: model, live: live), named: "day-running")
+    }
+
     @MainActor
     func testDayEmpty() async {
         let model = await model(empty: true, today: "2026-11-03")

@@ -11,16 +11,21 @@ public struct TrackerServices: Sendable {
     public var queue: WriteQueue
     public var clock: any ApexClock
     public var activity: any TrackerActivityPublishing
+    /// The running session, for anything outside the cover that has to say so
+    /// — today the Day view's card (ux-review §3.4). One per signed-in user,
+    /// like the queue, because it dies with the services that hold it.
+    public var live: LiveSessionStore
 
     public init(
         client: ApexClient, cache: any CacheStore, queue: WriteQueue, clock: any ApexClock = SystemClock(),
-        activity: any TrackerActivityPublishing = NoActivityPublisher()
+        activity: any TrackerActivityPublishing = NoActivityPublisher(), live: LiveSessionStore = LiveSessionStore()
     ) {
         self.client = client
         self.cache = cache
         self.queue = queue
         self.clock = clock
         self.activity = activity
+        self.live = live
     }
 }
 

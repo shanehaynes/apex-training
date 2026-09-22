@@ -17,6 +17,11 @@ struct DayView: View {
     /// The setup card (W13, U32); nil shows none. It rides *inside* the scroll
     /// content now rather than pinned above it (ux-review §3.2).
     var onboarding: OnboardingModel? = nil
+    /// The running workout, if there is one (ux-review §3.4); nil draws plain cards.
+    var live: LiveSessionStore? = nil
+    /// Where a running card's tap goes — back into the tracker, not the event
+    /// sheet. nil leaves it opening the sheet like any other card.
+    var onResume: ((ScheduleEvent) -> Void)? = nil
 
     var body: some View {
         ScrollView {
@@ -91,7 +96,16 @@ struct DayView: View {
         } else {
             VStack(spacing: Spacing.sm) {
                 ForEach(events) { event in
-                    EventCardRow(model: model, event: event, onOpen: { onOpen(event) })
+                    let runningSince = live?.startedAt(eventId: event.id, eventDate: event.date)
+                    EventCardRow(
+                        model: model, event: event, runningSince: runningSince,
+                        onOpen: {
+                            // A workout that is running wants the tracker back,
+                            // not a sheet whose Start button would resume it in
+                            // one more tap (ux-review §3.4).
+                            if runningSince != nil, let onResume { onResume(event) } else { onOpen(event) }
+                        }
+                    )
                 }
             }
         }
@@ -112,6 +126,7 @@ struct DayView: View {
 struct EventCardRow: View {
     let model: ScheduleModel
     let event: ScheduleEvent
+    var runningSince: Date? = nil
     let onOpen: () -> Void
 
     var body: some View {
@@ -122,6 +137,7 @@ struct EventCardRow: View {
             timeLabel: TimeLabel.display(event.startTime),
             durationLabel: event.estimatedDuration.map { TimeLabel.duration(minutes: $0) },
             isCompleted: event.isCompleted,
+            runningSince: runningSince,
             onOpen: onOpen,
             onToggle: {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()

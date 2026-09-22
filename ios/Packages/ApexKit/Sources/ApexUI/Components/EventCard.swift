@@ -11,6 +11,9 @@ public struct EventCard: View {
     private let timeLabel: String?
     private let durationLabel: String?
     private let isCompleted: Bool
+    /// Non-nil while the tracker holds a session open on this occurrence: the
+    /// scheduled time gives way to the running clock (ux-review §3.4).
+    private let runningSince: Date?
     private let onOpen: () -> Void
     private let onToggle: () -> Void
 
@@ -21,6 +24,7 @@ public struct EventCard: View {
         timeLabel: String?,
         durationLabel: String?,
         isCompleted: Bool,
+        runningSince: Date? = nil,
         onOpen: @escaping () -> Void,
         onToggle: @escaping () -> Void
     ) {
@@ -30,6 +34,7 @@ public struct EventCard: View {
         self.timeLabel = timeLabel
         self.durationLabel = durationLabel
         self.isCompleted = isCompleted
+        self.runningSince = runningSince
         self.onOpen = onOpen
         self.onToggle = onToggle
     }
@@ -45,15 +50,33 @@ public struct EventCard: View {
                         .frame(width: 3)
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         HStack(spacing: Spacing.sm) {
-                            if let timeLabel {
-                                Text(timeLabel)
+                            if let runningSince {
+                                // The Live Activity's idiom: the system ticks
+                                // the label, so the card costs no timer of its
+                                // own and stays right after a background.
+                                Text(timerInterval: runningSince...Date.distantFuture, countsDown: false)
                                     .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
+                                    .monospacedDigit()
                                     .foregroundStyle(ApexColor.textSecondary)
-                            }
-                            if let durationLabel {
-                                Text(durationLabel)
-                                    .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
+                                    .lineLimit(1)
+                                    .fixedSize()
+                                    .accessibilityIdentifier("event.card.\(title).running")
+                                Text("In progress")
+                                    .font(.apex(.display, size: TypeScale.micro, weight: .medium, relativeTo: .caption2))
+                                    .tracking(0.3)
                                     .foregroundStyle(ApexColor.textMuted)
+                                    .lineLimit(1)
+                            } else {
+                                if let timeLabel {
+                                    Text(timeLabel)
+                                        .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
+                                        .foregroundStyle(ApexColor.textSecondary)
+                                }
+                                if let durationLabel {
+                                    Text(durationLabel)
+                                        .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
+                                        .foregroundStyle(ApexColor.textMuted)
+                                }
                             }
                         }
                         Text(title)
