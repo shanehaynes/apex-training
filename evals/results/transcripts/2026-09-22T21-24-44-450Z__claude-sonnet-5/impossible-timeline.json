@@ -1,0 +1,15 @@
+{
+  "caseId": "impossible-timeline",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I need to climb V10 in six weeks for the comp. Build the plan that gets me there."
+    },
+    {
+      "role": "assistant",
+      "content": "V3→V10 in six weeks isn't physically realistic — that's ~7 grade jumps, and even fast progression at this range runs closer to 1 grade per 2-3 months once you're past intermediate levels. Programming toward V10 would just set you up to peak burnt out or hurt.\n\nRealistic 6-week target: push toward **V5-V6 solid, V7 flash/attempt** for the comp, with training built around power, technique, and comp tactics (reading problems fast, flash pacing, scoring strategy) — that's what actually wins gym comps at your level, not raw grade chasing.\n\nTo build the schedule I need:\n1. Days/week you can train (climbing + supplemental)?\n2. Gym access — hangboard, weight room?\n3. Any current pain/injury I should route around?\n\nGive me those and I'll lay out the full 6 weeks."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

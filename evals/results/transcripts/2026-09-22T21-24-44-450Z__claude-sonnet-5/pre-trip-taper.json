@@ -1,0 +1,281 @@
+{
+  "caseId": "pre-trip-taper",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my training between now and the trip. Schedule the sessions."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Deo2Y3M41K4Ua2baecchfc",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Volume Climbing — Technique Focus",
+            "date": "2026-08-08",
+            "estimated_duration": 75,
+            "difficulty": 3,
+            "description": "Last moderate-volume session before taper. Mileage on easy-moderate terrain, footwork/technique — not intensity.",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "notes": "warm-up, 10 min"
+              },
+              {
+                "name": "ARC Traversing",
+                "notes": "sustained low-intensity volume"
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "notes": "footwork drills, silent feet"
+              },
+              {
+                "name": "Skill Work",
+                "notes": "movement/reading practice, low pump"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01HbXVaaLUUGpMvYhGHtv2zX",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Light Climbing — Taper",
+            "date": "2026-08-11",
+            "estimated_duration": 45,
+            "difficulty": 2,
+            "description": "Taper begins. Movement quality only, well short of pump. No limit attempts.",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "notes": "short, easy volume"
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "notes": "light, quality over quantity"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01RjzjpGduHffm6eAJNdta87",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Finger Touch — Taper",
+            "date": "2026-08-13",
+            "estimated_duration": 30,
+            "difficulty": 1,
+            "description": "Last finger stimulus before trip. Blood flow and tendon priming only — no max hangs, stop well short of fatigue.",
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up",
+                "notes": "light only, easy grips, generous rest, no max effort"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01WrjFRbh6dWogeZU4Bi1sFq",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Pre-Trip Mobility",
+            "date": "2026-08-15",
+            "estimated_duration": 35,
+            "difficulty": 1,
+            "description": "Full taper. Keep tissue loose for travel/first climbing day, nothing taxing.",
+            "exercises": [
+              {
+                "name": "Cat-Cow"
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller"
+              },
+              {
+                "name": "Pigeon Pose"
+              },
+              {
+                "name": "Deep Squat Hold"
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Deo2Y3M41K4Ua2baecchfc",
+          "content": "Created \"Volume Climbing — Technique Focus\" on 2026-08-08 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01HbXVaaLUUGpMvYhGHtv2zX",
+          "content": "Created \"Light Climbing — Taper\" on 2026-08-11 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01RjzjpGduHffm6eAJNdta87",
+          "content": "Created \"Finger Touch — Taper\" on 2026-08-13 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01WrjFRbh6dWogeZU4Bi1sFq",
+          "content": "Created \"Pre-Trip Mobility\" on 2026-08-15 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Plan through the trip (2 weeks, taper structure):\n\n**This week (last real load):**\n- Tue Aug 4 — Limit Bouldering (existing)\n- Thu Aug 6 — Hangboard + Core (existing) — last hard finger stimulus\n- Sat Aug 8 — Volume Climbing, technique focus, moderate (new)\n- Sun Aug 9 — rest\n\n**Taper week (Aug 10–16):**\n- Tue Aug 11 — Light Climbing, easy volume only\n- Thu Aug 13 — Finger Touch, light blood-flow hangs, no max effort\n- Sat Aug 15 — Pre-Trip Mobility, no loading\n- Mon/Wed/Fri/Sun — full rest\n\n**Aug 17 — depart, fresh.**\n\nLogic: hard stimulus stops 11 days out (Thu Aug 6 hangboard, Tue Aug 4 limit boulders), volume tapers sharply the following week, last finger touch 4 days before departure, final 48h pure rest/mobility. This front-loads fatigue early enough to supercompensate by send day without detraining."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Plan is locked in — all sessions scheduled through taper. Nothing else pending:\n\n- Tue Aug 4: Limit Bouldering\n- Thu Aug 6: Hangboard + Core\n- Sat Aug 8: Volume Climbing — Technique Focus\n- Tue Aug 11: Light Climbing — Taper\n- Thu Aug 13: Finger Touch — Taper\n- Sat Aug 15: Pre-Trip Mobility\n- Mon Aug 17: wheels up, fresh\n\nRest days (Mon/Wed/Fri/Sun) are intentionally blank — no filler needed. Log meals as you go and I'll flag anything that threatens recovery before the trip."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Volume Climbing — Technique Focus",
+        "date": "2026-08-08",
+        "estimated_duration": 75,
+        "difficulty": 3,
+        "description": "Last moderate-volume session before taper. Mileage on easy-moderate terrain, footwork/technique — not intensity.",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "notes": "warm-up, 10 min"
+          },
+          {
+            "name": "ARC Traversing",
+            "notes": "sustained low-intensity volume"
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "notes": "footwork drills, silent feet"
+          },
+          {
+            "name": "Skill Work",
+            "notes": "movement/reading practice, low pump"
+          }
+        ]
+      },
+      "result": "Created \"Volume Climbing — Technique Focus\" on 2026-08-08 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Light Climbing — Taper",
+        "date": "2026-08-11",
+        "estimated_duration": 45,
+        "difficulty": 2,
+        "description": "Taper begins. Movement quality only, well short of pump. No limit attempts.",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "notes": "short, easy volume"
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "notes": "light, quality over quantity"
+          }
+        ]
+      },
+      "result": "Created \"Light Climbing — Taper\" on 2026-08-11 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Finger Touch — Taper",
+        "date": "2026-08-13",
+        "estimated_duration": 30,
+        "difficulty": 1,
+        "description": "Last finger stimulus before trip. Blood flow and tendon priming only — no max hangs, stop well short of fatigue.",
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up",
+            "notes": "light only, easy grips, generous rest, no max effort"
+          }
+        ]
+      },
+      "result": "Created \"Finger Touch — Taper\" on 2026-08-13 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Pre-Trip Mobility",
+        "date": "2026-08-15",
+        "estimated_duration": 35,
+        "difficulty": 1,
+        "description": "Full taper. Keep tissue loose for travel/first climbing day, nothing taxing.",
+        "exercises": [
+          {
+            "name": "Cat-Cow"
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller"
+          },
+          {
+            "name": "Pigeon Pose"
+          },
+          {
+            "name": "Deep Squat Hold"
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer"
+          }
+        ]
+      },
+      "result": "Created \"Pre-Trip Mobility\" on 2026-08-15 [evt-ai-4].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

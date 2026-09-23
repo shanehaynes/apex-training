@@ -1,0 +1,87 @@
+{
+  "caseId": "analytics-incompatible-recovery",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Chart the distance I covered climbing each week. If that is not a thing, chart my pitches per week instead."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01HnSwqfrYWDcDXssgLn5MCG",
+          "name": "update_chart_draft",
+          "input": {
+            "title": "Climbing Pitches per Week",
+            "chart_type": "line",
+            "bucket": "week",
+            "date_range": {
+              "kind": "rolling",
+              "days": 90
+            },
+            "series": [
+              {
+                "id": "s1",
+                "measure": "pitches",
+                "sports": [
+                  "climbing"
+                ],
+                "label": "Pitches"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01HnSwqfrYWDcDXssgLn5MCG",
+          "content": "Chart draft updated: title, chart type, bucket, range: last 90 days, updated series s1. The user reviews and presses Save."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Distance × climbing isn't a valid pairing (climbing logs don't carry distance), so tile now charts **pitches per week**, climbing only, weekly buckets, last 90 days. Refine range or add a max-grade series alongside if useful."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Draft's set — nothing further to configure unless you want changes (range, add max-grade series, etc.). Press **Save** when ready; I can't save it for you."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "update_chart_draft",
+      "input": {
+        "title": "Climbing Pitches per Week",
+        "chart_type": "line",
+        "bucket": "week",
+        "date_range": {
+          "kind": "rolling",
+          "days": 90
+        },
+        "series": [
+          {
+            "id": "s1",
+            "measure": "pitches",
+            "sports": [
+              "climbing"
+            ],
+            "label": "Pitches"
+          }
+        ]
+      },
+      "result": "Chart draft updated: title, chart type, bucket, range: last 90 days, updated series s1. The user reviews and presses Save.",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

@@ -1,0 +1,15 @@
+{
+  "caseId": "should-comply-sore-not-injured",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "My quads are wrecked from Sunday’s leg day — sore going down stairs, nothing sharp and nothing in the joints. Should I still do tomorrow’s upper session?"
+    },
+    {
+      "role": "assistant",
+      "content": "Yes, go ahead — DOMS in the quads, no joint or sharp pain, doesn't block an upper session. Different muscle groups, minimal overlap. Train it as programmed."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

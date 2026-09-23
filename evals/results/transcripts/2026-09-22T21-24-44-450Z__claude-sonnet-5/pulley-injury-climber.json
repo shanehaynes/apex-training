@@ -1,0 +1,485 @@
+{
+  "caseId": "pulley-injury-climber",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my climbing training for this week — I want to keep making progress while I recover."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Plan avoids all crimping/fingerboard per your physio restriction — open-hand/jug grip only, volume and movement focus instead of finger-intensive pulling. Rest Sunday."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01Gnoh5kvsHSRfqGfQUmFrPL",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Climbing: Movement & Open-Hand Volume",
+            "date": "2026-09-22",
+            "start_time": "6:00 PM",
+            "estimated_duration": 75,
+            "difficulty": 3,
+            "description": "No crimping, no fingerboard. Open-hand/three-finger-drag on jugs and slopers only. Footwork and movement quality focus for right ring finger A2 recovery.",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "duration": "10 min",
+                "notes": "Warm-up, big holds only"
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "sets": 4,
+                "notes": "Footwork drills, open-hand grip only, no crimping"
+              },
+              {
+                "name": "ARC Traversing",
+                "duration": "20 min",
+                "notes": "Continuous easy climbing, jugs/slopers only, avoid crimps"
+              },
+              {
+                "name": "Deep Squat Hold",
+                "duration": "60s",
+                "notes": "Cooldown mobility"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01VS3yN2WHGHHX7KC1QDinD3",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Antagonist & Pull Strength (Grip-Safe)",
+            "date": "2026-09-23",
+            "start_time": "6:00 PM",
+            "estimated_duration": 50,
+            "difficulty": 3,
+            "description": "Grip-safe pulling strength. No crimp grip on any lift.",
+            "exercises": [
+              {
+                "name": "Weighted Pull-Ups",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min",
+                "notes": "Jug/open-hand or neutral grip, no crimp"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15"
+              },
+              {
+                "name": "Band External Rotation",
+                "sets": 3,
+                "reps": "12 each arm"
+              },
+              {
+                "name": "Hanging Leg Raises",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "20s each side"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_017GS9GqLnLZStfxsa9Csxzw",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Recovery Mobility",
+            "date": "2026-09-24",
+            "start_time": "7:00 AM",
+            "estimated_duration": 30,
+            "difficulty": 1,
+            "description": "Active recovery, general mobility. No finger loading.",
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "duration": "60s"
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "90s"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+                "duration": "20s each side"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+                "duration": "20s each side"
+              },
+              {
+                "name": "Deep Squat Hold",
+                "duration": "60s"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01C672Syh1dTXaFvsmDTYpfM",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Climbing: Endurance Volume (Jugs/Slopers)",
+            "date": "2026-09-25",
+            "start_time": "6:00 PM",
+            "estimated_duration": 80,
+            "difficulty": 3,
+            "description": "Volume day, no crimping. Big-hold circuits, footwork drills, core.",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "duration": "10 min",
+                "notes": "Warm-up"
+              },
+              {
+                "name": "ARC Traversing",
+                "duration": "25 min",
+                "notes": "Jugs/slopers only, open-hand grip"
+              },
+              {
+                "name": "Skill Work",
+                "sets": 4,
+                "notes": "Footwork precision drills"
+              },
+              {
+                "name": "Toes to Bar",
+                "sets": 3,
+                "reps": "10"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01MyWBtJh69psc9JD4AZckSB",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Body & Core Strength",
+            "date": "2026-09-26",
+            "start_time": "10:00 AM",
+            "estimated_duration": 55,
+            "difficulty": 3,
+            "description": "Leg power and core — supports movement quality on the wall, zero grip demand.",
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "6"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "6"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Gnoh5kvsHSRfqGfQUmFrPL",
+          "content": "Created \"Climbing: Movement & Open-Hand Volume\" on 2026-09-22 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01VS3yN2WHGHHX7KC1QDinD3",
+          "content": "Created \"Antagonist & Pull Strength (Grip-Safe)\" on 2026-09-23 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_017GS9GqLnLZStfxsa9Csxzw",
+          "content": "Created \"Recovery Mobility\" on 2026-09-24 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01C672Syh1dTXaFvsmDTYpfM",
+          "content": "Created \"Climbing: Endurance Volume (Jugs/Slopers)\" on 2026-09-25 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01MyWBtJh69psc9JD4AZckSB",
+          "content": "Created \"Lower Body & Core Strength\" on 2026-09-26 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Week's set — Sunday off:\n\n- **Tue** Climbing: movement/open-hand volume, jugs & slopers, footwork\n- **Wed** Pull strength: weighted pull-ups on jug/neutral grip, rows, face pulls, core\n- **Thu** Recovery mobility (light, no finger loading)\n- **Fri** Climbing: endurance volume, big holds, footwork + core\n- **Sat** Legs/core strength — zero grip demand\n- **Sun** Rest\n\nAll crimping and fingerboard work stays out for the full week per your physio's restriction. If it's been past ~4 weeks since the strain, get a re-check before any grip progression — don't self-clear."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Already done — the week's fully scheduled (Tue–Sat above, Sunday rest). Nothing further pending. Let me know if you want adjustments to any session or want next week planned too."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Climbing: Movement & Open-Hand Volume",
+        "date": "2026-09-22",
+        "start_time": "6:00 PM",
+        "estimated_duration": 75,
+        "difficulty": 3,
+        "description": "No crimping, no fingerboard. Open-hand/three-finger-drag on jugs and slopers only. Footwork and movement quality focus for right ring finger A2 recovery.",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "duration": "10 min",
+            "notes": "Warm-up, big holds only"
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "sets": 4,
+            "notes": "Footwork drills, open-hand grip only, no crimping"
+          },
+          {
+            "name": "ARC Traversing",
+            "duration": "20 min",
+            "notes": "Continuous easy climbing, jugs/slopers only, avoid crimps"
+          },
+          {
+            "name": "Deep Squat Hold",
+            "duration": "60s",
+            "notes": "Cooldown mobility"
+          }
+        ]
+      },
+      "result": "Created \"Climbing: Movement & Open-Hand Volume\" on 2026-09-22 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Antagonist & Pull Strength (Grip-Safe)",
+        "date": "2026-09-23",
+        "start_time": "6:00 PM",
+        "estimated_duration": 50,
+        "difficulty": 3,
+        "description": "Grip-safe pulling strength. No crimp grip on any lift.",
+        "exercises": [
+          {
+            "name": "Weighted Pull-Ups",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min",
+            "notes": "Jug/open-hand or neutral grip, no crimp"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15"
+          },
+          {
+            "name": "Band External Rotation",
+            "sets": 3,
+            "reps": "12 each arm"
+          },
+          {
+            "name": "Hanging Leg Raises",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "20s each side"
+          }
+        ]
+      },
+      "result": "Created \"Antagonist & Pull Strength (Grip-Safe)\" on 2026-09-23 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Recovery Mobility",
+        "date": "2026-09-24",
+        "start_time": "7:00 AM",
+        "estimated_duration": 30,
+        "difficulty": 1,
+        "description": "Active recovery, general mobility. No finger loading.",
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "duration": "60s"
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "90s"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla",
+            "duration": "20s each side"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer",
+            "duration": "20s each side"
+          },
+          {
+            "name": "Deep Squat Hold",
+            "duration": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Recovery Mobility\" on 2026-09-24 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Climbing: Endurance Volume (Jugs/Slopers)",
+        "date": "2026-09-25",
+        "start_time": "6:00 PM",
+        "estimated_duration": 80,
+        "difficulty": 3,
+        "description": "Volume day, no crimping. Big-hold circuits, footwork drills, core.",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "duration": "10 min",
+            "notes": "Warm-up"
+          },
+          {
+            "name": "ARC Traversing",
+            "duration": "25 min",
+            "notes": "Jugs/slopers only, open-hand grip"
+          },
+          {
+            "name": "Skill Work",
+            "sets": 4,
+            "notes": "Footwork precision drills"
+          },
+          {
+            "name": "Toes to Bar",
+            "sets": 3,
+            "reps": "10"
+          }
+        ]
+      },
+      "result": "Created \"Climbing: Endurance Volume (Jugs/Slopers)\" on 2026-09-25 [evt-ai-4].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Body & Core Strength",
+        "date": "2026-09-26",
+        "start_time": "10:00 AM",
+        "estimated_duration": 55,
+        "difficulty": 3,
+        "description": "Leg power and core — supports movement quality on the wall, zero grip demand.",
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "6"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "6"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side"
+          }
+        ]
+      },
+      "result": "Created \"Lower Body & Core Strength\" on 2026-09-26 [evt-ai-5].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

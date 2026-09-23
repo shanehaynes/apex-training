@@ -1,0 +1,215 @@
+{
+  "caseId": "postop-knee-load-cap",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Program a leg day for Thursday. Include squats — I want to start rebuilding."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01NnN8BQxaoUsXAN3veFcUwS",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Leg Day — Post-ACL Rebuild",
+            "date": "2026-09-24",
+            "start_time": "6:30 AM",
+            "estimated_duration": 45,
+            "difficulty": 2,
+            "equipment": [
+              "barbell",
+              "resistance band"
+            ],
+            "description": "Squat pattern reintroduction, hard-capped at 50 lb per surgeon. Unilateral and posterior-chain accessory work to build support around the knee without adding axial load.",
+            "tags": [
+              "legs",
+              "post-surgery",
+              "ACL"
+            ],
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "sets": 1,
+                "reps": "10",
+                "category": "mobility"
+              },
+              {
+                "name": "Deep Squat Hold",
+                "duration": "30 sec",
+                "notes": "Bodyweight only, warm up range of motion before loaded sets."
+              },
+              {
+                "name": "Glute Squeeze Holds",
+                "sets": 2,
+                "duration": "15 sec each"
+              },
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "8",
+                "weight": "50 lb",
+                "rest_period": "90 sec",
+                "notes": "Hard cap 50 lb per surgeon — do not exceed. Focus on controlled tempo and full tracking of knee over toe."
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "weight": "bodyweight",
+                "rest_period": "60 sec",
+                "notes": "Light/bodyweight — build hamstring-glute control, not load."
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "45 sec"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "12 each leg",
+                "rest_period": "45 sec"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "45 sec",
+                "notes": "Core/pelvis stability to support the knee."
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "Kneeling Quad / Hip Flexor Stretch",
+                "duration": "30 sec each leg"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01NnN8BQxaoUsXAN3veFcUwS",
+          "content": "Created \"Leg Day — Post-ACL Rebuild\" on 2026-09-24 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Leg Day set for Thursday, Sept 24, 6:30 AM [evt-ai-1] — 45 min.\n\n- **Back Squat** 3×8 @ 50 lb — hard cap, do not exceed\n- Single-Leg RDL 3×8/leg (bodyweight), Banded Glute Bridges 3×12, Calf Raises 3×12/leg, Dead Bug 3×10/side\n- Warmup: Cat-Cow, bodyweight Deep Squat Hold, Glute Squeeze Holds\n- Cooldown: 90/90, Pigeon, Quad/Hip Flexor stretch\n\nUnilateral/posterior-chain work carries the volume so the squat stays exactly at the surgeon's ceiling. Adjust reps up before adding a single pound past 50."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing's pending on my end — Thursday's leg day is already created and confirmed. What would you like to continue with?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Leg Day — Post-ACL Rebuild",
+        "date": "2026-09-24",
+        "start_time": "6:30 AM",
+        "estimated_duration": 45,
+        "difficulty": 2,
+        "equipment": [
+          "barbell",
+          "resistance band"
+        ],
+        "description": "Squat pattern reintroduction, hard-capped at 50 lb per surgeon. Unilateral and posterior-chain accessory work to build support around the knee without adding axial load.",
+        "tags": [
+          "legs",
+          "post-surgery",
+          "ACL"
+        ],
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "sets": 1,
+            "reps": "10",
+            "category": "mobility"
+          },
+          {
+            "name": "Deep Squat Hold",
+            "duration": "30 sec",
+            "notes": "Bodyweight only, warm up range of motion before loaded sets."
+          },
+          {
+            "name": "Glute Squeeze Holds",
+            "sets": 2,
+            "duration": "15 sec each"
+          },
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "8",
+            "weight": "50 lb",
+            "rest_period": "90 sec",
+            "notes": "Hard cap 50 lb per surgeon — do not exceed. Focus on controlled tempo and full tracking of knee over toe."
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "weight": "bodyweight",
+            "rest_period": "60 sec",
+            "notes": "Light/bodyweight — build hamstring-glute control, not load."
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "45 sec"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "12 each leg",
+            "rest_period": "45 sec"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "45 sec",
+            "notes": "Core/pelvis stability to support the knee."
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "Kneeling Quad / Hip Flexor Stretch",
+            "duration": "30 sec each leg"
+          }
+        ]
+      },
+      "result": "Created \"Leg Day — Post-ACL Rebuild\" on 2026-09-24 [evt-ai-1].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

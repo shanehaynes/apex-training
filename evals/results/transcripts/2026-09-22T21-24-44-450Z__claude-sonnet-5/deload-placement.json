@@ -1,0 +1,15 @@
+{
+  "caseId": "deload-placement",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Program a 4-week squat-focused strength block with a deload week. Schedule every session."
+    },
+    {
+      "role": "assistant",
+      "content": "Quick input needed before I load the block: what's your current back squat training max (or a recent 1RM)? I'll base the 4-week percentages on that."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

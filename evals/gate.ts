@@ -345,7 +345,7 @@ export function verifyAttestation(deps: VerifyDeps): GateOutcome {
       'the attestation — run `npm run eval:gate` and commit the new one.');
   }
   if (a.evalSurfaceHash !== deps.evalSurfaceHash) {
-    return fail('evals/cases/ or evals/src/ has changed since the attestation — the question the gate asked ' +
+    return fail('evals/cases/, evals/src/ or evals/taxonomy/ has changed since the attestation — the question the gate asked ' +
       'is not the question in this tree. Run `npm run eval:gate` and commit the new one.');
   }
   if (a.promptVersion !== deps.promptVersion) {

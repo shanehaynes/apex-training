@@ -283,7 +283,7 @@ describe('verifyAttestation', () => {
 
   it.each([
     ['the coach behavior surface moved', { promptFileHash: 'PROMPT_HASH_B' }, /behavior surface/],
-    ['the eval surface moved', { evalSurfaceHash: 'SURFACE_HASH_B' }, /evals\/cases\/ or evals\/src\//],
+    ['the eval surface moved', { evalSurfaceHash: 'SURFACE_HASH_B' }, /evals\/cases\/, evals\/src\/ or evals\/taxonomy\//],
     ['the prompt version moved', { promptVersion: '2026.10.01-1' }, /PROMPT_VERSION/],
     ['the backend is wrong', { backend: 'api' }, /backend "api"/],
   ])('exits 1 when %s', (_label, patch, matcher) => {
