@@ -12,10 +12,18 @@
   "calendarFeedUrl": "http://localhost/api/calendar-feed?token=<uuid>",
   "coachModels": [
     {
+      "id": "claude-opus-5-5",
+      "label": "Opus 5.5",
+      "badge": "claude opus 5.5",
+      "blurb": "The newest Opus, 20% cheaper than Opus 5.",
+      "inputPerMTok": 4,
+      "outputPerMTok": 20
+    },
+    {
       "id": "claude-opus-5",
       "label": "Opus 5",
       "badge": "claude opus 5",
-      "blurb": "Newest and sharpest. The default.",
+      "blurb": "The default. The Opus the coach is evaluated on.",
       "inputPerMTok": 5,
       "outputPerMTok": 25
     },
@@ -31,9 +39,9 @@
       "id": "claude-sonnet-5",
       "label": "Sonnet 5",
       "badge": "claude sonnet 5",
-      "blurb": "About 40% cheaper. Handles most coaching turns well.",
-      "inputPerMTok": 3,
-      "outputPerMTok": 15
+      "blurb": "About 60% cheaper. Handles most coaching turns well.",
+      "inputPerMTok": 2,
+      "outputPerMTok": 10
     },
     {
       "id": "claude-haiku-4-5-20251001",

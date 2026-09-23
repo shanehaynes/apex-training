@@ -29,7 +29,7 @@ describe('MODEL_CONFIGS', () => {
       expect(config.id).toBe(key);
     }
     expect(modelConfig(DEFAULT_MODEL)).toEqual({
-      id: 'claude-sonnet-5', inputPerMTok: 3, outputPerMTok: 15,
+      id: 'claude-sonnet-5', inputPerMTok: 2, outputPerMTok: 10,
     });
   });
 
