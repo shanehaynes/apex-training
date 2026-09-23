@@ -13,7 +13,7 @@ final class CoachModelTests: XCTestCase {
         await model.start()
         XCTAssertTrue(model.needsKey)
         XCTAssertEqual(model.composerPlaceholder, ChatCopy.placeholderNeedsKey)
-        XCTAssertEqual(model.modelLabel, "Opus 5")
+        XCTAssertEqual(model.modelLabel, "Opus 5.5")
         XCTAssertFalse(model.canStartTurn)
     }
 

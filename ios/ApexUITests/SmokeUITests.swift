@@ -315,7 +315,7 @@ final class SmokeUITests: XCTestCase {
 
         // The header carries the model badge (U31) and the thread is empty.
         XCTAssertTrue(app.staticTexts["coach.model"].waitForExistence(timeout: 10))
-        XCTAssertEqual(app.staticTexts["coach.model"].label, "Opus 5")
+        XCTAssertEqual(app.staticTexts["coach.model"].label, "Opus 5.5")
         XCTAssertTrue(app.otherElements["coach.empty"].exists)
         attach(app, name: "11-coach-empty")
 

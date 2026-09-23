@@ -19,6 +19,11 @@
 export interface CoachModelParams {
   /** Adaptive thinking. Omitted entirely on models that predate it. */
   thinking?: { type: 'adaptive' };
+  /**
+   * Effort, where the model's own default is not the level the coach is tuned
+   * at. Opus 5.5 defaults to `medium`, one below every other entry's `high`.
+   */
+  output_config?: { effort: 'high' };
 }
 
 export interface CoachModelOption {
@@ -36,18 +41,30 @@ export interface CoachModelOption {
 
 // Ordered most → least capable, so the picker reads as a cost ladder.
 //
-// Adaptive thinking is the only request-shape difference today, and it is a
-// hard one: `thinking: {type:'adaptive'}` is REJECTED WITH A 400 on models
+// Adaptive thinking is the main request-shape difference, and it is a hard
+// one: `thinking: {type:'adaptive'}` is REJECTED WITH A 400 on models
 // older than Claude 4.6 (they used the now-removed budget_tokens form).
 // Haiku 4.5 is such a model, so it runs with no thinking at all — which is
 // also the point of choosing it. Never hoist `thinking` back out of these
 // entries into a shared request literal.
 export const COACH_MODELS: readonly CoachModelOption[] = [
   {
+    // Thinking cannot be disabled on Opus 5.5 (a 400 at every effort level) and
+    // its effort defaults to `medium`, so both are pinned here: `high` is the
+    // level the coach ran at on Opus 5, where it was the model default.
+    id: 'claude-opus-5-5',
+    label: 'Opus 5.5',
+    badge: 'claude opus 5.5',
+    blurb: 'Newest and sharpest, and 20% cheaper than Opus 5. The default.',
+    inputPerMTok: 4,
+    outputPerMTok: 20,
+    params: { thinking: { type: 'adaptive' }, output_config: { effort: 'high' } },
+  },
+  {
     id: 'claude-opus-5',
     label: 'Opus 5',
     badge: 'claude opus 5',
-    blurb: 'Newest and sharpest. The default.',
+    blurb: 'The previous default, at the older Opus price.',
     inputPerMTok: 5,
     outputPerMTok: 25,
     params: { thinking: { type: 'adaptive' } },
@@ -56,7 +73,7 @@ export const COACH_MODELS: readonly CoachModelOption[] = [
     id: 'claude-opus-4-8',
     label: 'Opus 4.8',
     badge: 'claude opus 4.8',
-    blurb: 'The previous Opus, same price. Strong on planning-heavy turns.',
+    blurb: 'An older Opus at the Opus 5 price. Strong on planning-heavy turns.',
     inputPerMTok: 5,
     outputPerMTok: 25,
     params: { thinking: { type: 'adaptive' } },
@@ -65,9 +82,9 @@ export const COACH_MODELS: readonly CoachModelOption[] = [
     id: 'claude-sonnet-5',
     label: 'Sonnet 5',
     badge: 'claude sonnet 5',
-    blurb: 'About 40% cheaper. Handles most coaching turns well.',
-    inputPerMTok: 3,
-    outputPerMTok: 15,
+    blurb: 'Half the price. Handles most coaching turns well.',
+    inputPerMTok: 2,
+    outputPerMTok: 10,
     params: { thinking: { type: 'adaptive' } },
   },
   {
@@ -76,7 +93,7 @@ export const COACH_MODELS: readonly CoachModelOption[] = [
     id: 'claude-haiku-4-5-20251001',
     label: 'Haiku 4.5',
     badge: 'claude haiku 4.5',
-    blurb: 'Cheapest by 5x and fastest. No extended thinking.',
+    blurb: 'A quarter of the price, and fastest. No extended thinking.',
     inputPerMTok: 1,
     outputPerMTok: 5,
     params: {},
@@ -84,7 +101,7 @@ export const COACH_MODELS: readonly CoachModelOption[] = [
 ];
 
 /** What a user who has never chosen runs on; profiles.coach_model stays null. */
-export const DEFAULT_COACH_MODEL = 'claude-opus-5';
+export const DEFAULT_COACH_MODEL = 'claude-opus-5-5';
 
 /**
  * Live models deliberately kept OUT of the picker, with the reason. Without

@@ -19,14 +19,15 @@ test('the coach header offers the model catalog, priced', async ({ page }) => {
   // point of choice, or the picker is just a model name.
   const options = await picker.locator('option').allTextContents();
   expect(options).toEqual([
+    'Opus 5.5 · $4/$20 per Mtok',
     'Opus 5 · $5/$25 per Mtok',
     'Opus 4.8 · $5/$25 per Mtok',
-    'Sonnet 5 · $3/$15 per Mtok',
+    'Sonnet 5 · $2/$10 per Mtok',
     'Haiku 4.5 · $1/$5 per Mtok',
   ]);
 
   // A user who has never chosen sits on the app default, not a blank select.
-  await expect(picker).toHaveValue('claude-opus-5');
+  await expect(picker).toHaveValue('claude-opus-5-5');
 });
 
 test('picking a model saves it and sends it with the next turn', async ({ page }) => {

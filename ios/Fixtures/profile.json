@@ -8,14 +8,22 @@
   "maxHr": null,
   "thresholdHr": null,
   "coachModel": null,
-  "coachModelLabel": "Opus 5",
+  "coachModelLabel": "Opus 5.5",
   "calendarFeedUrl": "http://localhost/api/calendar-feed?token=<uuid>",
   "coachModels": [
+    {
+      "id": "claude-opus-5-5",
+      "label": "Opus 5.5",
+      "badge": "claude opus 5.5",
+      "blurb": "Newest and sharpest, and 20% cheaper than Opus 5. The default.",
+      "inputPerMTok": 4,
+      "outputPerMTok": 20
+    },
     {
       "id": "claude-opus-5",
       "label": "Opus 5",
       "badge": "claude opus 5",
-      "blurb": "Newest and sharpest. The default.",
+      "blurb": "The previous default, at the older Opus price.",
       "inputPerMTok": 5,
       "outputPerMTok": 25
     },
@@ -23,7 +31,7 @@
       "id": "claude-opus-4-8",
       "label": "Opus 4.8",
       "badge": "claude opus 4.8",
-      "blurb": "The previous Opus, same price. Strong on planning-heavy turns.",
+      "blurb": "An older Opus at the Opus 5 price. Strong on planning-heavy turns.",
       "inputPerMTok": 5,
       "outputPerMTok": 25
     },
@@ -31,15 +39,15 @@
       "id": "claude-sonnet-5",
       "label": "Sonnet 5",
       "badge": "claude sonnet 5",
-      "blurb": "About 40% cheaper. Handles most coaching turns well.",
-      "inputPerMTok": 3,
-      "outputPerMTok": 15
+      "blurb": "Half the price. Handles most coaching turns well.",
+      "inputPerMTok": 2,
+      "outputPerMTok": 10
     },
     {
       "id": "claude-haiku-4-5-20251001",
       "label": "Haiku 4.5",
       "badge": "claude haiku 4.5",
-      "blurb": "Cheapest by 5x and fastest. No extended thinking.",
+      "blurb": "A quarter of the price, and fastest. No extended thinking.",
       "inputPerMTok": 1,
       "outputPerMTok": 5
     }

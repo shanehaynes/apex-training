@@ -147,7 +147,7 @@ describe('GET /api/profile', () => {
     // is due (see loadKeyStatus in AuthContext.tsx).
     expect(body()).toEqual({
       hasAnthropicKey: false, anthropicKeyLast4: null,
-      coachModel: null, coachModelLabel: 'Opus 5',
+      coachModel: null, coachModelLabel: 'Opus 5.5',
       ...PROFILE_DEFAULTS,
       coachModels: expect.any(Array),
       termsAccepted: null, termsCurrent: false,
@@ -161,7 +161,7 @@ describe('GET /api/profile', () => {
     expect(statusCode()).toBe(200);
     expect(body()).toEqual({
       hasAnthropicKey: true, anthropicKeyLast4: 'tail',
-      coachModel: null, coachModelLabel: 'Opus 5',
+      coachModel: null, coachModelLabel: 'Opus 5.5',
       ...PROFILE_DEFAULTS,
       // The stored key ticks the checklist's key row (W13).
       onboarding: { ...PROFILE_DEFAULTS.onboarding, setup: { ...PROFILE_DEFAULTS.onboarding.setup, key: true } },
@@ -183,7 +183,7 @@ describe('GET /api/profile', () => {
     mockedAdmin.mockReturnValue(makeAdmin({ key: null, coachModel: 'claude-retired-1' }));
     const retired = makeRes();
     await handler(makeReq('GET'), retired.res);
-    expect(retired.body()).toMatchObject({ coachModel: 'claude-retired-1', coachModelLabel: 'Opus 5' });
+    expect(retired.body()).toMatchObject({ coachModel: 'claude-retired-1', coachModelLabel: 'Opus 5.5' });
   });
 
   // W11: the You tab needs the whole profiles row, and the native app reads it

@@ -44,6 +44,10 @@ describe('coach model catalog', () => {
       expect(model.params.thinking).toEqual({ type: 'adaptive' });
     }
   });
+  it('pins Opus 5.5 to high effort — its own default is medium', () => {
+    const opus55 = COACH_MODELS.find(m => m.id === 'claude-opus-5-5');
+    expect(opus55?.params.output_config).toEqual({ effort: 'high' });
+  });
 });
 
 describe('resolveCoachModel', () => {
