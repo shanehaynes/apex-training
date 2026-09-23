@@ -110,6 +110,9 @@ jobs:
           version: latest
       - name: Start a throwaway local stack
         if: steps.gate.outputs.run == 'true'
+        # Docker Hub rather than ghcr.io — see the same step in ci.yml.
+        env:
+          SUPABASE_INTERNAL_IMAGE_REGISTRY: docker.io
         run: supabase start
 
       - name: Dump and encrypt
