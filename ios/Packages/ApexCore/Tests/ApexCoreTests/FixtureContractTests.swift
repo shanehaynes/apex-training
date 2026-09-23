@@ -221,9 +221,9 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertEqual(profile.calendarFeedUrl, "http://localhost/api/calendar-feed?token=<uuid>")
 
         let models = try XCTUnwrap(profile.coachModels)
-        XCTAssertEqual(models.first?.id, "claude-opus-5")
-        XCTAssertEqual(models.first?.priceLabel, "$5/$25 per Mtok")
-        XCTAssertEqual(models.map(\.label), ["Opus 5", "Opus 4.8", "Sonnet 5", "Haiku 4.5"])
+        XCTAssertEqual(models.first?.id, "claude-opus-5-5")
+        XCTAssertEqual(models.first?.priceLabel, "$4/$20 per Mtok")
+        XCTAssertEqual(models.map(\.label), ["Opus 5.5", "Opus 5", "Opus 4.8", "Sonnet 5", "Haiku 4.5"])
     }
 
     // MARK: - W13
