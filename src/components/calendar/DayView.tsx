@@ -55,7 +55,19 @@ export default function DayView({ currentDate }: Props) {
           <span className="day-view__date-num">{format(currentDate, 'd')}</span>
           <span className="day-view__month">{format(currentDate, 'MMMM yyyy')}</span>
         </div>
-        {isToday(currentDate) && <span className="day-view__today-badge">Today</span>}
+        {/* The top nav's Today button doesn't fit on a phone, so the way
+            back lives where the badge would be. */}
+        {isToday(currentDate) ? (
+          <span className="day-view__today-badge">Today</span>
+        ) : (
+          <button
+            className="day-view__today-badge day-view__today-badge--button"
+            data-testid="day-view-go-today"
+            onClick={() => dispatch({ type: 'GO_TO_TODAY' })}
+          >
+            Today
+          </button>
+        )}
       </div>
 
       {/* Events */}
