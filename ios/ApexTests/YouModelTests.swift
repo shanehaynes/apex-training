@@ -13,7 +13,7 @@ final class YouModelTests: XCTestCase {
         XCTAssertEqual(model.displayName, "Shane")
         XCTAssertEqual(model.heartRateLabel, "165 · 188 bpm")
         XCTAssertEqual(model.keyStatusLabel, "Not set")
-        XCTAssertEqual(model.selectedModel?.label, "Opus 5", "no pick → the server's resolved default")
+        XCTAssertEqual(model.selectedModel?.label, "Opus 5.5", "no pick → the server's resolved default")
         XCTAssertTrue(model.coros.isConfigured)
         XCTAssertEqual(model.coros.statusLabel, "Connected")
     }

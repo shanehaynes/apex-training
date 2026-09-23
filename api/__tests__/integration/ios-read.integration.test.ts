@@ -1208,7 +1208,7 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     // W6: the coach model rides on the profile response so the native app's
     // badge never reads the profiles row directly. The seeded user has no
     // pick, so the label is the default's.
-    expect(prof.body).toMatchObject({ coachModel: null, coachModelLabel: 'Opus 5' });
+    expect(prof.body).toMatchObject({ coachModel: null, coachModelLabel: 'Opus 5.5' });
     // W11 widened the same response to the rest of the profiles row, so the
     // You tab reads one endpoint instead of the table.
     expect(prof.body).toMatchObject({ displayName: 'agent', avatarKey: 'goat' });

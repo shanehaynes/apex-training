@@ -35,7 +35,7 @@ final class CoachTransport: HTTPTransport, @unchecked Sendable {
         object["hasAnthropicKey"] = hasKey
         object["anthropicKeyLast4"] = hasKey ? "abcd" : NSNull()
         object["coachModel"] = model ?? NSNull()
-        object["coachModelLabel"] = model == "claude-sonnet-5" ? "Sonnet 5" : "Opus 5"
+        object["coachModelLabel"] = model == "claude-sonnet-5" ? "Sonnet 5" : "Opus 5.5"
         return try! JSONSerialization.data(withJSONObject: object)
     }
 
