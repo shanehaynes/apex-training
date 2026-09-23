@@ -101,9 +101,13 @@ jobs:
       # 429 toomanyrequests for supabase/* images (and only those) for hours,
       # failing this job at its first step on every PR. Hosted runners are not
       # rate-limited on Docker Hub, which carries the same tags.
+      #
+      # Through $GITHUB_ENV, for every later step, not as one step's `env:` —
+      # setup-cli exports SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io job-wide,
+      # and later commands pull images of their own (`gen types` pulls
+      # postgres-meta), so a start-only override still failed on ghcr.
+      - run: echo "SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io" >> "$GITHUB_ENV"
       - run: supabase start
-        env:
-          SUPABASE_INTERNAL_IMAGE_REGISTRY: docker.io
       - run: ./scripts/db-reset-local.sh
       # The committed Supabase types must match a schema built from scratch by
       # every migration in the repo — the only place that database exists.
