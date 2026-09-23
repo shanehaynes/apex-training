@@ -108,11 +108,13 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         with:
           version: latest
+      # Docker Hub rather than ghcr.io, for every later step (the dump pulls
+      # its own postgres image) — see the same step in ci.yml.
+      - name: Pull Supabase images from Docker Hub
+        if: steps.gate.outputs.run == 'true'
+        run: echo "SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io" >> "$GITHUB_ENV"
       - name: Start a throwaway local stack
         if: steps.gate.outputs.run == 'true'
-        # Docker Hub rather than ghcr.io — see the same step in ci.yml.
-        env:
-          SUPABASE_INTERNAL_IMAGE_REGISTRY: docker.io
         run: supabase start
 
       - name: Dump and encrypt
