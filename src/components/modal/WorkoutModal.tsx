@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { useModalChrome } from '../../hooks/useModalChrome';
+import { useTip } from '../../hooks/useTip';
 import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play, Pencil, Route, TrendingUp, HeartPulse, Mountain, Layers, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/calendar';
@@ -45,6 +46,15 @@ export default function WorkoutModal() {
   useEffect(() => {
     if (confirmDelete) dangerRef.current?.scrollIntoView({ block: 'end' });
   }, [confirmDelete]);
+
+  // First-open tips (docs/onboarding/workstreams/O08-workout-detail.md).
+  // Above the early return, since hooks run on every render. A repeating
+  // workout is the thing new users trip over — "I changed Tuesday and it
+  // changed every Tuesday" — so it passes `when`, which outranks the general
+  // first-open tip whenever both are unseen.
+  const isRecurring = !!event && !!(events.find(e => e.id === event.id) ?? event).isRecurring;
+  useTip('workout-first-open');
+  useTip('workout-recurring', isRecurring);
 
   if (!event) return null;
 
