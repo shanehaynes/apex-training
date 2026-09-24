@@ -31,3 +31,16 @@ key not tied to a workspace, expired key, out of credits (the coach's 402/429 st
 `src/styles/help/get-api-key.css`, `e2e/mock/tips-coach.spec.ts`, this file.
 
 ## Session log
+- **2026-09-24 · feat/help-coach.** Tips wired in `ChatSidebar.tsx`: `coach-first-message`
+  conditioned on key saved + empty thread + pane on screen (a ResizeObserver, since AppShell
+  keeps the pane mounted and CSS hides it ≤ 1024px unless the phone's Coach tab is open);
+  `coach-confirm-card` in `ConfirmCard`, conditioned on the same on-screen flag. Nothing
+  autofocuses the chat input, so the typing hold never stalls the first tip; the confirm tip
+  lands after a send too (the input is disabled while the turn runs, which drops its focus —
+  proven in `tips-coach.spec.ts`). The no-key empty state gains a **How to get a key** link to
+  `/help/get-api-key` and stacks as a column (inline style; `.chat-empty` is a row).
+  `help/get-api-key.md` written: steps 1–5 are EXTERNAL placeholders, 6–7 are mock shots
+  (both viewports) from `e2e/shots/get-api-key.shots.ts`. Troubleshooting quotes the real
+  strings: the workspace 400 and rejected-key messages from `api/_lib/anthropicKey.ts`, and
+  the coach's 402/429/generic replies from `useChat.ts` — out of credits and an expired key
+  both surface as the generic "Sorry, I ran into an error", not as a 402/429.
