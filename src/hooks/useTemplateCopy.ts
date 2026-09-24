@@ -11,12 +11,33 @@ import { useSchedule } from '../context/schedule';
  */
 const IN_FLIGHT_MS = 60_000;
 
+// "This device copied the plan", per user (like tipsStore's seen mirror), so
+// the next calendar mount can offer the template-copied tip. The profile's
+// template_copied_at cannot say it alone: it is set for every account that
+// ever copied, on any device, long ago. Cleared once the tip is seen.
+const COPIED_HERE_PREFIX = 'apex:template-copied-here:';
+
+export function templateCopiedHere(userId: string | null): boolean {
+  if (!userId) return false;
+  try { return localStorage.getItem(COPIED_HERE_PREFIX + userId) !== null; } catch { return false; }
+}
+
+function markTemplateCopiedHere(userId: string | null) {
+  if (!userId) return;
+  try { localStorage.setItem(COPIED_HERE_PREFIX + userId, new Date().toISOString()); } catch {}
+}
+
+export function clearTemplateCopiedHere(userId: string | null) {
+  if (!userId) return;
+  try { localStorage.removeItem(COPIED_HERE_PREFIX + userId); } catch {}
+}
+
 /**
  * The starter-template copy flow, shared by the onboarding welcome flow and
  * the getting-started checklist.
  */
 export function useTemplateCopy() {
-  const { refreshProfile } = useAuth();
+  const { session, refreshProfile } = useAuth();
   const { refreshEvents } = useSchedule();
   const [isCopying, setIsCopying] = useState(false);
 
@@ -26,6 +47,7 @@ export function useTemplateCopy() {
       const result = await postJson<{ events?: number; alreadyCopied?: boolean; copiedAt?: string | null }>(
         '/api/template-copy', {}, 'Copying starter workouts',
       );
+      if (!result.alreadyCopied) markTemplateCopiedHere(session?.user.id ?? null);
       // The re-check: whatever the answer, the calendar and profile are
       // refetched before anything is claimed about them.
       await Promise.all([refreshEvents(), refreshProfile()]);

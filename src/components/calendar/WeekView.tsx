@@ -6,6 +6,7 @@ import { buildWeekDays } from '../../utils/dateHelpers';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { useSchedule } from '../../context/schedule';
 import { useCalendar } from '../../context/calendar';
+import { useTip } from '../../hooks/useTip';
 import { timeToMinutes } from '../../lib/time';
 import { layoutDayEvents } from '../../lib/schedule/weekLayout';
 import type { WorkoutEvent } from '../../types/workout';
@@ -65,6 +66,12 @@ function EventBlock({ event, colIndex, colCount }: EventBlockProps) {
 export default function WeekView({ currentDate }: { currentDate: Date }) {
   const days = useMemo(() => buildWeekDays(currentDate), [currentDate]);
   const { getEventsForDate } = useSchedule();
+  // Only timed events get a block (and so a complete circle) in this grid.
+  const hasEvents = useMemo(
+    () => days.some(day => getEventsForDate(day).some(e => e.startTime)),
+    [days, getEventsForDate],
+  );
+  useTip('day-complete-circle', hasEvents);
   const [nowMinutes, setNowMinutes] = useState(() => now().getHours() * 60 + now().getMinutes());
 
   useEffect(() => {

@@ -7,6 +7,7 @@ import { buildWeekDays, toDateString } from '../../utils/dateHelpers';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { useSchedule } from '../../context/schedule';
 import { useCalendar } from '../../context/calendar';
+import { useTip } from '../../hooks/useTip';
 import type { WorkoutEvent } from '../../types/workout';
 
 interface Props {
@@ -18,6 +19,9 @@ export default function DayView({ currentDate }: Props) {
   const { dispatch } = useCalendar();
   const weekDays = useMemo(() => buildWeekDays(currentDate), [currentDate]);
   const events = useMemo(() => getEventsForDate(currentDate), [getEventsForDate, currentDate]);
+  // The phone's first look at a workout card: its complete circle only
+  // makes sense to explain once there is a card to point at.
+  useTip('day-complete-circle', events.length > 0);
 
   return (
     <div className="day-view">
