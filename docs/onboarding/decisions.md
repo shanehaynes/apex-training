@@ -74,3 +74,11 @@ Append-only. One entry per decision, with the options that were on the table. Th
   states the honest current answer (a key from console.anthropic.com is separate from a
   subscription) and that a subscription path is being looked into. Nothing ships from the
   research without a decision here.
+- **Update 2026-09-24 (O06 report, [research/anthropic-subscription-oauth.md](research/anthropic-subscription-oauth.md)).**
+  Not supported and expressly prohibited: Anthropic's legal-and-compliance page forbids
+  third-party apps from offering claude.ai login or routing requests through Pro/Max
+  credentials, and subscription tokens are rejected server-side outside Claude Code. The
+  only technically-working path (a `setup-token` stored by Apex, driven through the Agent
+  SDK) is the named prohibited conduct. **Recommendation: research only, do not build**; the
+  help page uses the report's §3 wording; re-open if Anthropic publishes a developer
+  approval / "Sign in with Claude" programme or an explicit hosted-app path. Shane to confirm.
