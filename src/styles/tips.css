@@ -1,0 +1,9 @@
+/* ============================================================================
+   TIPS — the one-time "you just reached X" cards (src/components/onboarding/
+   TipHost.tsx + TipCard.tsx). Owned by lane I2 (feat/tips-core).
+
+   Lives outside app.css on purpose: the onboarding fleet runs many lanes at
+   once and a single 7,000-line stylesheet is where their hunks would collide.
+   Feature lanes never edit this file either — a needed shared rule is reported,
+   not added. Tokens come from tokens.css as everywhere else.
+   ========================================================================== */

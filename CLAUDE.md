@@ -11,6 +11,13 @@ A native SwiftUI port is planned and documented in [docs/ios/MASTER.md](docs/ios
 Any iOS or iOS-driven backend work starts there (it has its own session protocol and a status
 board); the `ios/` directory holds the app once workstream W1 lands.
 
+## Progressive onboarding
+
+The intro, the first-encounter tips and the `/help` pages are one initiative with its own
+board: [docs/onboarding/MASTER.md](docs/onboarding/MASTER.md). Any onboarding, tips or help
+work starts there — it names which files each lane owns, and `src/styles/app.css`,
+`content.ts` and `tips/index.ts` are off-limits to feature lanes.
+
 ## Several sessions may be running right now
 
 More than one Claude session works in this repo at once, and none of them can

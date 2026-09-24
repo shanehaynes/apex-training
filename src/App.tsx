@@ -15,6 +15,11 @@ import TermsGate from './components/legal/TermsGate';
 import { LEGAL_DOCUMENTS } from './lib/legal/versions';
 import './styles/global.css';
 import './styles/app.css';
+// Onboarding tips and help pages keep their CSS out of app.css so parallel
+// lanes never share a hunk (docs/onboarding/MASTER.md, "Shared state").
+import './styles/tips.css';
+import './styles/help.css';
+import './styles/help/index.css';
 
 function AuthGate() {
   const { status, session, termsStatus } = useAuth();

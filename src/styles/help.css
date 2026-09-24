@@ -1,0 +1,8 @@
+/* ============================================================================
+   HELP PAGES — /help and /help/<slug> (src/components/help/). Owned by lane I3
+   (feat/help-pages): page chrome, figures, the markdown block styles shared by
+   every page. Per-page overrides, if a page ever needs one, go in
+   help/<slug>.css (each owned by that page's lane) — see help/index.css.
+
+   Outside app.css on purpose, so parallel lanes never share a hunk.
+   ========================================================================== */
