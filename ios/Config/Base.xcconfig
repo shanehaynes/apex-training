@@ -31,16 +31,15 @@ DEVELOPMENT_TEAM = G44GWSXFK2
 //
 // It ships inside the binary and is frozen there once the build is archived, in
 // front of every scraper that downloads the app, so it must not stay a personal
-// address (#214). Once the forwarding alias exists the swap is this one line:
-//
-//   sed -i 's|^APEX_INVITE_CONTACT = .*|APEX_INVITE_CONTACT = mailto:ALIAS?subject=Apex%20invite|' ios/Config/Base.xcconfig
+// address (#214). support@apex-training.app is a Cloudflare Email Routing alias
+// that forwards to Shane (DEPLOY_MULTI_USER.md §5).
 //
 // Only the label is drawn on screen ("Request an invite"), never the address, so
 // no screenshot has to be retaken: the App Store set in docs/ios/app-store.md
 // does not include the sign-in screen, and the committed snapshot of it
 // (ApexTests/__Snapshots__/ScheduleSnapshotTests/testSignInScreen.1.png) shows
 // the label only.
-APEX_INVITE_CONTACT = mailto:shanehaynes.sah@gmail.com?subject=Apex%20invite
+APEX_INVITE_CONTACT = mailto:support@apex-training.app?subject=Apex%20invite
 
 // Where the update screen sends a build the server has retired (G8). Empty
 // until the app has an App Store id — the screen then states the requirement
