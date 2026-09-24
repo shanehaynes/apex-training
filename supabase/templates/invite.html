@@ -1,0 +1,21 @@
+<!--
+  Invite email of record (DEPLOY_MULTI_USER.md §5). Production reads the copy pasted into
+  Supabase → Authentication → Email Templates → Invite user, not this file; the local stack
+  reads this file via supabase/config.toml. TESTFLIGHT_PUBLIC_LINK is replaced by hand when
+  pasting — the repo is public, so the real link stays out of it.
+-->
+<h2>You're invited to Apex Training</h2>
+
+<p><strong>On an iPhone?</strong> Install the app first, then come back to this email:</p>
+<ol>
+  <li>Open <a href="TESTFLIGHT_PUBLIC_LINK">TESTFLIGHT_PUBLIC_LINK</a> on your iPhone. It installs
+    Apple's TestFlight app if you don't have it, then Apex.</li>
+  <li>Tap the button below <em>on the same iPhone</em>, set a password, and choose
+    <strong>Open in the Apex app</strong>.</li>
+</ol>
+
+<p><strong>On a computer?</strong> Just tap the button and set a password; Apex runs in the browser.</p>
+
+<p><a href="{{ .ConfirmationURL }}">Accept the invite and set your password</a></p>
+
+<p>The link works once and expires in about 24 hours. If it has expired, ask Shane to send a new one.</p>

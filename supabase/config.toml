@@ -253,9 +253,11 @@ otp_expiry = 3600
 # sender_name = "Admin"
 
 # Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# The invite carries the TestFlight step (DEPLOY_MULTI_USER.md §5); production's copy is
+# pasted into the dashboard, this one serves the local stack.
+[auth.email.template.invite]
+subject = "You're invited to Apex Training"
+content_path = "./supabase/templates/invite.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

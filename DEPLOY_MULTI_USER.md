@@ -85,7 +85,23 @@ Run `scripts/auth-redirect-check.sh` first — a green check here is what makes
 the rest of this section true, and step 1.3 is easy to get wrong.
 
 Authentication → Users → **Invite user** (one at a time; built-in SMTP is
-rate-limited to a few emails per hour). Each invitee:
+rate-limited to a few emails per hour). This is the only invite: the email
+carries the iOS app's TestFlight public link, so nobody is added in App Store
+Connect. Supabase is the gate, and TestFlight's public link only hands out the
+binary, which is useless without an account.
+
+One-time setup:
+
+- App Store Connect → TestFlight → an **external** group → enable **Public
+  Link**. External builds pass Beta App Review (the first build of each
+  version; usually about a day) before the link installs them.
+- Authentication → Email Templates → **Invite user**: subject and body from
+  [supabase/templates/invite.html](supabase/templates/invite.html), with
+  `TESTFLIGHT_PUBLIC_LINK` replaced by the real link (both places). The file
+  keeps the placeholder because the repo is public. Send yourself an invite
+  to check it.
+
+Each invitee:
 
 1. Clicks the email link → lands on the set-password screen. On an iPhone
    with the Apex app installed, that screen also offers **Open in the Apex
