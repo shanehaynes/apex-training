@@ -63,6 +63,9 @@ full treatment of every item.
    exactly what you will create, wait for a yes, then create it with the
    GitHub tools available (MCP `create_repository`, or `gh repo create`) and
    push `main`.
+   Commit as the identity git is already configured with; if none is set, ask.
+   Never compose a name or email from fragments (an email's local part is not
+   a surname).
 3. Merge settings are chosen deliberately, not defaulted — see
    [references/ci-and-merge.md](references/ci-and-merge.md). Default for this
    user: **squash-merge only, branches must be up to date, auto-delete merged
@@ -140,7 +143,11 @@ Define exactly one command that proves a lane — build + typecheck + unit tests
 shared database, no global path. Name it in `package.json` (default:
 `npm run check`) or a `Makefile`. Anything that needs shared state (live e2e
 against the local DB) is a *separate* command, wrapped in the lock, and listed
-in `CLAUDE.md` as orchestrator-only. The gate is what every lane brief names,
+in `CLAUDE.md` as orchestrator-only. If part of the gate cannot run on some
+machines (no SDK, no simulator) it may skip there, but it must print that it
+skipped, fail instead when `CI` is set, and `CLAUDE.md` must tell lanes to list
+the skip under NOT VERIFIED — a skipped check reported as a pass is the
+"green union, broken platform" failure parallel-agents records. The gate is what every lane brief names,
 what `combine-check --check` runs on the fold, and what CI runs — one
 definition, three users, so a lane cannot pass locally and fail in CI.
 
@@ -187,7 +194,11 @@ The day-0 setup is itself a change, so it gets the same proof as any other:
 
 1. The gate passes in the primary checkout's first commit *and* in a fresh
    lane: `lane.sh new chore/day0-proof` then run the gate there. This proves
-   lane setup, dependency install and the port resolver actually work.
+   lane setup, dependency install and the port resolver actually work. Do this
+   after `main` is pushed; if the user has deferred creating the remote, pass
+   `--base main`, and retire the proof lane by hand (`git worktree remove`,
+   `git branch -d`, delete its claim row) because `lane.sh tidy` needs a
+   remote. Never invent a stand-in remote to satisfy a script.
 2. `check-vendored.sh` reports in sync.
 3. If a subagent tool is available, launch one throwaway writing subagent
    without a `Lane:` line and confirm agent-guard refuses it — the hook is
@@ -201,7 +212,7 @@ The day-0 setup is itself a change, so it gets the same proof as any other:
 | Trigger | Add | Where the guidance is |
 |---|---|---|
 | First migration | Lock around reset/seed; migration ordering check in CI | default-stack.md |
-| A second workstream | Grow `STATUS.md` into a master doc + one brief per workstream | status-and-decisions.md |
+| Two workstreams that run concurrently *and* have an ordering between them (one consumes the other's output) | Grow `STATUS.md` into a master doc + one brief per workstream, with the gate between them | status-and-decisions.md |
 | First fan-out of ≥3 writing lanes | parallel-agents full path; a combine check before PRs open | parallel-agents |
 | First unattended merge | A merge policy with held paths (CI, hooks, settings, deps, migrations, deploy) and a kill switch | parallel-agents guardrails reference |
 | Fleets of 10+ PRs become routine | Reconsider the up-to-date rule vs fleet mode | ci-and-merge.md |

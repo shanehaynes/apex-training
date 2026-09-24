@@ -74,7 +74,7 @@ Add these when their trigger fires, not before (from the new-dev-project skill):
 | Trigger | Add |
 |---|---|
 | First migration | lock around reset/seed; CI check that new migrations sort after main's |
-| A second workstream | STATUS.md grows into a master doc + one brief per workstream |
+| Two concurrent workstreams where one consumes the other's output | STATUS.md grows into a master doc + one brief per workstream |
 | First fan-out of ≥3 writing lanes | parallel-agents full path; combine check before PRs |
 | First unattended merge | merge policy with held paths + kill switch |
 | Fleets of 10+ PRs routine | reconsider up-to-date rule vs fleet mode (decision) |

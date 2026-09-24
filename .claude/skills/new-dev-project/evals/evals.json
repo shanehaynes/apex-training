@@ -1,0 +1,26 @@
+{
+  "skill_name": "new-dev-project",
+  "evals": [
+    {
+      "id": 1,
+      "name": "full-path-web-product",
+      "prompt": "ok new project time. I want a little web app where my climbing partners and I log our sends and see a weekly leaderboard. it's going to live a while and I'll usually have 2-3 claude sessions working on it at once. set it up in the directory sendlog/ (empty right now).",
+      "expected_output": "Step-0 stakes captured; default stack; vendored parallel-agents with VENDORED stamp; agent-guard wired; .gitignore entries; dev/port.mjs delegating to lane.sh with strictPort; single parallel-safe gate; CI running it; CLAUDE.md with shared-state inventory; STATUS.md; date-named decision records; merge-settings checklist; no GitHub repo created without confirmation.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "full-path-python-prototype",
+      "prompt": "new repo please: a python cli that pulls my strava activities and writes weekly training summaries to csv. just a prototype for now, only I'll use it, nothing deployed. put it in strava-weekly/",
+      "expected_output": "Leaves the default web stack for Python (uv/pytest/ruff) and records why; still vendors parallel-agents and wires agent-guard; gate is a uv command; no port resolver or DB lock invented; STATUS/decisions are small; deploy recorded as 'none yet' with a trigger; secrets (Strava token) via .env.example not committed values.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "light-path-subproject",
+      "prompt": "we're going to start the android app for tempo now. new gradle project under android/ in this repo. get it set up so sessions can start working on it.",
+      "expected_output": "Light path: reads existing CLAUDE.md; does not re-vendor parallel-agents or add a second CI pipeline from scratch; adds inventory rows (Gradle caches, emulators as capacity, etc.), a STATUS row, a date-named decision record, a CLAUDE.md section, and extends the gate/CI for Android rather than duplicating.",
+      "files": ["fixtures/tempo"]
+    }
+  ]
+}
