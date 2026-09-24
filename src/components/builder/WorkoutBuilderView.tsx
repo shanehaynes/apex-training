@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { format, parseISO } from 'date-fns';
 import { ArrowLeft, Sparkles, X } from 'lucide-react';
 import { useModalChrome } from '../../hooks/useModalChrome';
+import { useTip } from '../../hooks/useTip';
 import { useCalendar } from '../../context/calendar';
 import { useSchedule, type WorkoutDraftRequest } from '../../context/schedule';
 import { now } from '../../lib/clock';
@@ -43,6 +44,9 @@ export default function WorkoutBuilderView() {
   const [coachOpen, setCoachOpen] = useState(false);
 
   useModalChrome(close);
+  // First open of Add: how building, Apply and the library fit together.
+  // Edit mode has no search step, so it never offers this.
+  useTip('builder-search-first', !editing && step === 'search');
 
   const pickTemplate = (t: WorkoutTemplate) => {
     setDraft(draftFromTemplate(t, draft.date));
