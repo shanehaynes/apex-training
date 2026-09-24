@@ -20,3 +20,13 @@ Fresh profile with `tips: 'on'`: the tour dismissed, the day view shows
 neither returns after Got it. Existing calendar specs unchanged.
 
 ## Session log
+- 2026-09-24 — Copy refined in `tips/calendar.ts` (day-complete-circle "Mark a workout done",
+  23 words; template-copied "Your plan is in", 26 words, bold on-screen labels **Delete
+  workout** / **This day only** / **Whole series**). `day-complete-circle` is offered from
+  `DayView` (phone, ≥ 1 event on the shown day) and once per grid from `MonthView` / `WeekView`
+  (desktop, ≥ 1 event with a complete circle in view) rather than from every `EventChip`.
+  `template-copied`: `useTemplateCopy` leaves a per-user `apex:template-copied-here:<id>`
+  marker in localStorage on a fresh copy; `Calendar` reads it once per mount and offers the
+  tip while `template_copied_at` is set, then clears the marker once the tip is seen. The
+  calendar stays mounted under the welcome flow, so the tip lands on the next load.
+  Spec: `e2e/mock/tips-calendar.spec.ts`.

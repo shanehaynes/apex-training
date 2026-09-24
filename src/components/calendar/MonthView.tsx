@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { buildMonthGrid } from '../../utils/dateHelpers';
 import DayCell from './DayCell';
 import { useSchedule } from '../../context/schedule';
+import { useTip } from '../../hooks/useTip';
 
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -14,6 +15,13 @@ interface Props {
 export default function MonthView({ currentDate, direction }: Props) {
   const { getEventsForDate } = useSchedule();
   const weeks = useMemo(() => buildMonthGrid(currentDate), [currentDate]);
+  // Desktop's counterpart of the day view's tip: the grid's event chips carry
+  // the same complete circle. Offered once, here, rather than from each chip.
+  const hasEvents = useMemo(
+    () => weeks.some(week => week.some(date => getEventsForDate(date).length > 0)),
+    [weeks, getEventsForDate],
+  );
+  useTip('day-complete-circle', hasEvents);
 
   // DOW labels are first 7 items in the unified grid; date rows fill remaining space equally
   const gridRows = `auto repeat(${weeks.length}, 1fr)`;
