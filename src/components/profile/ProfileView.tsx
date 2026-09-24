@@ -7,6 +7,7 @@ import { AVATARS, AVATAR_KEYS } from '../../lib/profile/avatars';
 import { notify } from '../../lib/notify';
 import { publicOrigin } from '../../lib/origin';
 import { useRotatingPlaceholder } from '../../hooks/useRotatingPlaceholder';
+import { useTip } from '../../hooks/useTip';
 import GettingStarted from '../onboarding/GettingStarted';
 import CoachActivity from './CoachActivity';
 import McpTokens from './McpTokens';
@@ -58,6 +59,10 @@ export default function ProfileView() {
   const [keyMsg, setKeyMsg] = useState<string | null>(null);
   const [isSavingKey, setIsSavingKey] = useState(false);
   const [isReplacingKey, setIsReplacingKey] = useState(false);
+  // A key went from absent to saved in this visit — the moment the coach
+  // comes alive, and the moment to ask for the goal that steers it.
+  const [keyAdded, setKeyAdded] = useState(false);
+  const [feedOpen, setFeedOpen] = useState(false);
 
   const [showConnectorGuide, setShowConnectorGuide] = useState(false);
 
@@ -107,6 +112,15 @@ export default function ProfileView() {
     if (ok) notify('Context updated');
   };
 
+  // Tips (src/lib/onboarding/tips/profile.ts). TipHost holds a card while an
+  // input has focus, and this screen is mostly inputs, so both fire on a
+  // moment focus has already left one: coach-goal after a successful key
+  // save (the key field unmounts as the saved state replaces it), and
+  // calendar-feed when the fold is opened from its toggle button. Typing a
+  // goal withdraws coach-goal before it can nag about an empty field.
+  useTip('coach-goal', keyAdded && anthropicKey?.hasKey === true && !goal.trim() && !profile?.coach_goal?.trim());
+  useTip('calendar-feed', feedOpen);
+
   const goalPlaceholder = useRotatingPlaceholder(GOAL_EXAMPLES);
   const contextPlaceholder = useRotatingPlaceholder(CONTEXT_EXAMPLES, { offsetMs: 4000 });
 
@@ -130,6 +144,7 @@ export default function ProfileView() {
     e.preventDefault();
     const key = keyInput.trim();
     if (!key) return;
+    const hadKey = anthropicKey?.hasKey === true;
     setIsSavingKey(true);
     setKeyMsg(null);
     const err = await saveAnthropicKey(key);
@@ -138,6 +153,7 @@ export default function ProfileView() {
     } else {
       setKeyInput('');
       setIsReplacingKey(false);
+      if (!hadKey) setKeyAdded(true);
       notify('API key saved');
     }
     setIsSavingKey(false);
@@ -421,7 +437,7 @@ export default function ProfileView() {
 
           <CorosConnection />
 
-          <ProfileDisclosure title="Calendar feed">
+          <ProfileDisclosure title="Calendar feed" onOpenChange={setFeedOpen}>
             <p className="profile-hint">
               Subscribe from Apple/Google Calendar to see your workouts. Anyone with
               this URL can read your schedule — treat it like a password.

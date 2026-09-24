@@ -7,6 +7,7 @@ import { useCalendar } from '../../context/calendar';
 import { useAnalytics, type TileView } from '../../context/analytics';
 import { DASHBOARD_DEBOUNCE_MS, useTileResults, type TileRequest } from '../../hooks/useTileResults';
 import { useModalChrome } from '../../hooks/useModalChrome';
+import { useTip } from '../../hooks/useTip';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { mintTileId } from '../../lib/analytics/tiles';
 import TileCard from './TileCard';
@@ -67,6 +68,8 @@ export default function AnalyticsView() {
     if (mode.kind === 'edit') setMode({ kind: 'grid' });
     else close();
   });
+  // First open of the dashboard: what a tile is, and where New tile is.
+  useTip('analytics-first');
 
   // A tile whose stored spec no longer validates is not sent: it has nothing
   // to compute and renders the renderer's error tile instead.

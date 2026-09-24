@@ -5,6 +5,7 @@ import type { TrackedSectionGroup, TrackedSet, CardioActuals } from '../../lib/t
 import { describeRecord, describeWorkoutScore, formatScore } from '../../lib/tracking/records';
 import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from '../../lib/tracking/records';
 import type { CoachStatus } from '../../hooks/useWorkoutSession';
+import { useTip } from '../../hooks/useTip';
 
 interface Props {
   event: WorkoutEvent;
@@ -61,6 +62,9 @@ export default function WorkoutSummary({
   onDone,
 }: Props) {
   const duration = formatDuration(durationSeconds);
+  // First sight of the summary: what the trophies mean, and why a first try
+  // at a movement never earns one.
+  useTip('summary-first');
 
   return (
     <div className="tracker-summary-overlay" role="dialog" aria-modal="true" aria-label="Workout summary">

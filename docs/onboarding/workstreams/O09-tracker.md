@@ -27,3 +27,22 @@ swap exercise, add set, editing a finished workout.
 `src/styles/help/logging-a-workout.css`, `e2e/mock/tips-tracker.spec.ts`, this file.
 
 ## Session log
+
+### 2026-09-24 — tips wired, page + shots written
+- Sites: `tracker-first` / `tracker-shadow` in `TrackerTips` (a null-rendering child of
+  `TrackerView`), rendered only while the session is loaded, unfinished and uncovered (no
+  confirm bar, score step or summary) — so both register in one commit and the conditioned
+  shadow tip wins, and neither rides along behind the calendar, where `TrackerView` stays
+  mounted. `tracker-unlogged` via a new optional `tip` prop on `ConfirmBar` — only the
+  unlogged-sets bar passes it; the cancel confirm shares the component and stays silent.
+  `summary-first` on `WorkoutSummary` mount.
+- Focus hold: nothing in the tracker autofocuses on open (only `ExercisePicker` and
+  `ScorePrompt` do, and no tip is offered while those are up), so the 600 ms settle lands
+  before a user can be typing; tap a box inside that window and the card waits for blur.
+- Phone placement (TipCard is O03's, unchanged): the sheet sits well below **Finish**. It
+  covers the lower set rows, but only while no input has focus. Over the unlogged bar the
+  sheet overlaps the bar's message line by ~16px; **Keep going** / **Finish anyway** stay
+  visible (dimmed) below it.
+- Shots: one stubbed "Upper Body" workout (bench, pull-ups, row) with believable last-time
+  numbers replaces the seed, whose warm-ups bury the main lifts. 01–05 phone, 06 desktop.
+- `e2e/mock/tips-tracker.spec.ts`: one load per tip, profile stub marks every other tip seen.

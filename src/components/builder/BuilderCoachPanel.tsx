@@ -4,6 +4,7 @@ import { useAuth } from '../../context/auth';
 import { useCalendar } from '../../context/calendar';
 import { format } from 'date-fns';
 import { useChat } from '../../hooks/useChat';
+import { useTip } from '../../hooks/useTip';
 import CoachModelPicker from '../coach/CoachModelPicker';
 import { applyDraftUpdate, type DraftUpdateInput, type WorkoutDraft } from '../../lib/builder/draft';
 import { now } from '../../lib/clock';
@@ -33,6 +34,9 @@ export default function BuilderCoachPanel({ draft, setDraft, definitions, onClos
   const { dispatch } = useCalendar();
   const { anthropicKey } = useAuth();
   const needsKey = anthropicKey?.hasKey === false;
+  // Mounting is the ✨ press. The catalog's help link (get-api-key) is static,
+  // so the copy is written to read right with or without a key on file.
+  useTip('builder-coach');
 
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);

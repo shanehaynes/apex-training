@@ -25,3 +25,11 @@ changes where.
 `e2e/mock/tips-workout.spec.ts`, this file.
 
 ## Session log
+- 2026-09-24 · feat/help-workout · Tips wired: `WorkoutModal` registers `workout-first-open`
+  (unconditioned) and `workout-recurring` (`when` = the live event repeats) above its early
+  return; `SyncMetrics` registers `workout-sync-metrics` once a streams row arrives. Copy
+  rewritten to the rules (imperative first; the sync tip no longer claims watch numbers count
+  toward records — they feed Analytics HR zones, not PRs). Page + 5 phone shots and one desktop
+  (02, the modal over the month grid); e2e `tips-workout.spec.ts` stubs `activity_streams` for
+  the P1 tip. Found: on a phone the "Finish setting up" nudge covers the **+** menu's items
+  (the shots spec closes it first) — reported, not fixed (outside this lane).

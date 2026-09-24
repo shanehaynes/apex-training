@@ -3,6 +3,7 @@ import { ArrowLeft, Plus, Sparkles, X } from 'lucide-react';
 import { notify } from '../../lib/notify';
 import { useAnalytics, type TileView } from '../../context/analytics';
 import { BUILDER_DEBOUNCE_MS, useTileResults } from '../../hooks/useTileResults';
+import { useTip } from '../../hooks/useTip';
 import {
   MEASURES,
   WORKOUT_TYPES,
@@ -139,6 +140,10 @@ export default function TileBuilder({ tile, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [saveProblem, setSaveProblem] = useState<string | null>(null);
   const [coachOpen, setCoachOpen] = useState(false);
+  // A new tile only, not an edit. Offered on open: nothing here takes focus
+  // by itself, so the card lands before the first keystroke; a user who is
+  // already typing in a field holds it until they leave that field.
+  useTip('tile-builder-first', tile === null);
 
   // The live preview is the compute endpoint with one draft: the server runs
   // specFromDraft and answers a draft the web would refuse with the very
