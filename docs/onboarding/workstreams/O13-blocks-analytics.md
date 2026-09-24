@@ -16,3 +16,16 @@
 this file. No help page (the empty-state copy and the live preview teach these).
 
 ## Session log
+
+### 2026-09-24 — tips wired
+- Copy refined in `blocks-analytics.ts` (ids unchanged, all P1, no help link): each body
+  opens on one imperative and names the on-screen button in bold — **New cycle**,
+  **New tile**, then **Measure** / **Preview** / **Save tile** in the builder.
+- `useTip('blocks-first')` in `BlocksView`, `useTip('analytics-first')` in `AnalyticsView`,
+  both above the mode early-returns, so they ride the overlay's mount.
+  `useTip('tile-builder-first', tile === null)` in `TileBuilder`: new tiles only, conditioned.
+- Focus hold: the builder autofocuses nothing, so the card lands on open, 600 ms before a
+  first keystroke is likely. A user who clicks into a field inside that window holds it until
+  the field loses focus (TipHost's focusout recheck); the spec proves both.
+- `e2e/mock/tips-blocks-analytics.spec.ts` marks every other catalog tip seen through the
+  profile GET, so a calendar-lane tip can never win the one-per-load slot in these tests.
