@@ -15,6 +15,26 @@ import WorkoutSummary from './WorkoutSummary';
 import ConfirmBar from './ConfirmBar';
 import ScorePrompt from './ScorePrompt';
 import type { SessionScore } from '../../lib/tracking/records';
+import type { TrackedSectionGroup } from '../../lib/tracking/plan';
+import { useTip } from '../../hooks/useTip';
+
+/**
+ * The tracker's two first-open tips. A child rendered only while a session is
+ * loaded, unfinished and uncovered (no confirm bar, score step or summary), so
+ * both register in the same commit — the shadow tip, conditioned, beats the
+ * plain first-open one when last time's numbers are on screen — and neither
+ * rides along behind the calendar, where TrackerView stays mounted.
+ *
+ * Nothing in the tracker takes focus on open, so TipHost's 600 ms settle
+ * lands before the user can be mid-typing; a user who taps a box inside that
+ * window gets the card after the box loses focus.
+ */
+function TrackerTips({ groups }: { groups: TrackedSectionGroup[] }) {
+  const hasShadow = groups.some(g => g.exercises.some(t => !!t.cardio?.shadow || t.sets.some(s => !!s.shadow)));
+  useTip('tracker-first');
+  useTip('tracker-shadow', hasShadow);
+  return null;
+}
 
 export default function TrackerView() {
   const { state, dispatch } = useCalendar();
@@ -70,6 +90,9 @@ export default function TrackerView() {
 
   return createPortal(
     <div className="tracker">
+      {groups && !isFinished && !summary && confirmCount === null && !scoreOpen && !confirmCancel && (
+        <TrackerTips groups={groups} />
+      )}
       <header className="tracker-header" style={{ borderBottom: `2px solid ${color.solid}` }}>
         <button className="tracker-header__back" onClick={close} aria-label="Back to calendar">
           <ChevronLeft size={20} strokeWidth={1.5} />
@@ -149,6 +172,7 @@ export default function TrackerView() {
 
       {confirmCount !== null && !isFinishing && (
         <ConfirmBar
+          tip="tracker-unlogged"
           message={`${confirmCount} planned ${confirmCount === 1 ? 'set' : 'sets'} unlogged — recorded as 0.`}
           confirmLabel="Finish anyway"
           accentColor={color.solid}
