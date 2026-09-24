@@ -14,6 +14,15 @@
             "command": "node \"$CLAUDE_PROJECT_DIR\"/scripts/hooks/bash-guard.mjs"
           }
         ]
+      },
+      {
+        "matcher": "Agent|Task|Workflow",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/skills/parallel-agents/hooks/agent-guard.mjs"
+          }
+        ]
       }
     ]
   }
