@@ -44,12 +44,14 @@ export default function TipHost() {
   const candidates = useSyncExternalStore(subscribeTipCandidates, getTipCandidates);
   const [active, setActive] = useState<TipId | null>(null);
 
-  // e2e hook: no feature calls useTip yet in this lane, so the tips spec asks
-  // the host to offer one itself. Inert unless a test's init script sets it.
+  // e2e hook: the tips spec asks the host to offer a tip itself, the way a
+  // feature's useTip would. Registered as conditioned so it wins the tie
+  // against a real tip of the same priority that the calendar underneath is
+  // offering. Inert unless a test's init script sets it.
   useEffect(() => {
     const demo = tipsWindow().__APEX_TIPS_DEMO__;
     if (!demo) return;
-    return registerTip(isTipId(demo) ? demo : TIPS[0].id, false);
+    return registerTip(isTipId(demo) ? demo : TIPS[0].id, true);
   }, []);
 
   const winner = active === null && !shownThisLoad && tipsEligible(profile, !!tipsWindow().__APEX_TIPS_OFF__)

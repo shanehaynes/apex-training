@@ -8,9 +8,12 @@ import { TIPS, type TipDefinition } from '../../src/lib/onboarding/tips/index';
 // one card per load, never over the welcome flow, "seen" remembered on the
 // server when profiles.tips_seen exists and on the device always.
 //
-// No feature calls useTip() yet, so TipHost's e2e hook stands in for one:
-// window.__APEX_TIPS_DEMO__ = true offers the catalog's first tip, or a tip id
-// offers that one. Every other spec runs with tips 'off' (fixtures.ts).
+// TipHost's e2e hook stands in for a feature's useTip: window.__APEX_TIPS_DEMO__
+// = true offers the catalog's first tip, or a tip id offers that one. Real
+// features call useTip too (the calendar under every screen offers its own),
+// so demo() also serves a profile where every other catalog tip is already
+// seen — the demo tip is then the only candidate, whatever wave 2 adds. Every
+// other spec runs with tips 'off' (fixtures.ts).
 
 test.use({ freshProfile: true, tips: 'on' });
 
@@ -19,8 +22,19 @@ const FIRST = CATALOG[0];
 const WITH_HELP = CATALOG.find(t => t.help)!;
 const WITHOUT_HELP = CATALOG.find(t => !t.help)!;
 
-/** Offer a tip on every load of this page, as a feature's useTip would. */
+/** A tips_seen map with every catalog tip except `id` marked seen. */
+function seenExcept(id: string): Record<string, string> {
+  return Object.fromEntries(CATALOG.filter(t => t.id !== id).map(t => [t.id, '2026-09-01T00:00:00Z']));
+}
+
+/**
+ * Offer a tip on every load of this page, as a feature's useTip would, and
+ * keep every other tip out of the one slot. A test that stubs the profile
+ * itself afterwards wins: Playwright matches the newest route first.
+ */
 async function demo(page: Page, id: string | true = true) {
+  const tipId = id === true ? FIRST.id : id;
+  await stubProfile(page, { ...driverProfile({ fresh: true }), tips_seen: seenExcept(tipId) });
   await page.addInitScript(v => {
     (window as unknown as { __APEX_TIPS_DEMO__?: string | boolean }).__APEX_TIPS_DEMO__ = v;
   }, id);
