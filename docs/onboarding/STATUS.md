@@ -7,7 +7,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 
 | Lane | Title | Wave | State | Branch | Port | Notes |
 |---|---|---|---|---|---|---|
-| O01 | Scaffold: docs, catalog stubs, help stubs, CSS files | 0 | in review | `chore/onboarding-scaffold` | 5253 | orchestrator |
+| O01 | Scaffold: docs, catalog stubs, help stubs, CSS files | 0 | in review (PR #321) | `chore/onboarding-scaffold` | 5253 | orchestrator |
+| O06 | Research: subscription OAuth | 1 | in progress (read-only agent, 2026-09-24) | — | — | report lands in `research/` with the wave-1 close |
 | O02 | Migration `profiles.tips_seen` | 1 | ready | `db/tips-seen` | 5211 | HELD (migration); wakes the iOS job (generated types) |
 | O03 | Tips core: useTip, TipHost, TipCard, API, AuthContext, e2e fixture | 1 | ready | `feat/tips-core` | 5212 | tolerates a missing column |
 | O04 | Help shell: `/help` route, renderer with images, shots projects, helpShot | 1 | ready | `feat/help-pages` | 5213 | |
