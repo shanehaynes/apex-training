@@ -33,6 +33,13 @@ export interface ApexOptions {
    * it passes the seed's end. Specs still override per-test via test.use().
    */
   fakeNow: string | null;
+  /**
+   * One-time onboarding tips (src/components/onboarding/TipHost.tsx). 'off'
+   * (the default) sets the app's kill switch before load, so no spec that
+   * did not ask for a tip ever has a card land over what it is clicking.
+   * Tip specs opt in with test.use({ tips: 'on' }).
+   */
+  tips: 'off' | 'on';
 }
 
 interface ApexFixtures {
@@ -44,10 +51,11 @@ export const test = base.extend<ApexOptions & ApexFixtures>({
   freshProfile: [false, { option: true }],
   staleTerms: [false, { option: true }],
   fakeNow: [null, { option: true }],
+  tips: ['off', { option: true }],
 
   // Note: the second fixture argument is Playwright's `use` continuation —
   // named `provide` here so lint doesn't mistake it for a React hook.
-  context: async ({ context, sessionSeed, freshProfile, staleTerms, fakeNow }, provide) => {
+  context: async ({ context, sessionSeed, freshProfile, staleTerms, fakeNow, tips }, provide) => {
     // Pinned, not read from .env.local: specs that need an authenticated app
     // (the profile-driven onboarding flow) would otherwise pass for whoever
     // has a .env.local and fail in CI, which has none.
@@ -60,6 +68,11 @@ export const test = base.extend<ApexOptions & ApexFixtures>({
       await context.addInitScript(v => {
         (window as unknown as { __APEX_FAKE_NOW__?: string }).__APEX_FAKE_NOW__ = v;
       }, fakeNow);
+    }
+    if (tips === 'off') {
+      await context.addInitScript(() => {
+        (window as unknown as { __APEX_TIPS_OFF__?: boolean }).__APEX_TIPS_OFF__ = true;
+      });
     }
     await provide(context);
   },

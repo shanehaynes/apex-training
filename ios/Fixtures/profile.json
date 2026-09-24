@@ -65,6 +65,7 @@
       "template": false,
       "key": false,
       "goal": false
-    }
+    },
+    "tipsSeen": []
   }
 }

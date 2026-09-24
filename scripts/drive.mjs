@@ -103,6 +103,11 @@ const context = await browser.newContext({ viewport: { width: 1280, height: 950 
 const { ref, anonKey } = readSupabaseEnv();
 await installIntercept(context, { anonKey, profile: driverProfile() });
 if (ref) await seedFabricatedSession(context, ref);
+// Agent-driven screenshots must never carry a tip card (feature lanes call
+// useTip); APEX_DRIVE_TIPS=on leaves tips on, to look at one deliberately.
+if (process.env.APEX_DRIVE_TIPS !== 'on') {
+  await context.addInitScript(() => { window.__APEX_TIPS_OFF__ = true; });
+}
 
 // APEX_FAKE_NOW=2026-03-02T08:00:00 freezes the app's date-semantic clock
 // (see src/lib/clock.ts) so calendar output is reproducible.

@@ -8,6 +8,7 @@ import { isCurrent, latestAcceptance } from '../legal.js';
 import { COACH_MODELS, isCoachModelId, resolveCoachModel } from '../../../src/lib/coach/models.js';
 import { publicOrigin } from '../oauth/common.js';
 import { localSetupDone } from '../../../src/lib/onboarding/progress.js';
+import { isTipId } from '../../../src/lib/onboarding/tips/index.js';
 
 // Profile reads/writes, same posture as every other table: the browser
 // reads profiles via RLS (own row only) and mutates through this
@@ -26,6 +27,25 @@ const AVATAR_KEYS = [
   'wolverine', 'cougar', 'chamois', 'yak', 'hare',
   'orca', 'seal', 'otter', 'octopus',
 ];
+
+const PROFILE_COLUMNS = 'display_name, avatar_key, coach_goal, coach_context, coach_model, max_hr, threshold_hr, ics_token, is_template_source, template_copied_at, onboarding_dismissed_at';
+
+// profiles.tips_seen (id → ISO time a tip was dismissed) arrives by a HELD
+// migration applied to prod by hand, so until then every read or write of it
+// fails with "no such column": 42703 from Postgres on a select, PGRST204 from
+// PostgREST's schema cache on an update. Either one means "not yet", never a
+// server fault.
+function isTipsColumnMissing(error: { code?: string; message?: string } | null): boolean {
+  return !!error && (error.code === '42703' || error.code === 'PGRST204')
+    && /tips_seen/.test(error.message ?? '');
+}
+
+/** The stored map, or {} for anything that is not one (null, absent column). */
+function tipsSeenRecord(value: unknown): Record<string, string> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, string>
+    : {};
+}
 
 async function keyStatus(supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>, userId: string) {
   const key = await getAnthropicKey(supabase, userId);
@@ -50,12 +70,24 @@ async function keyStatus(supabase: NonNullable<ReturnType<typeof getSupabaseAdmi
 async function profileFields(
   supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>, userId: string, req: VercelRequest,
 ) {
-  const { data, error } = await supabase
+  // tips_seen is asked for separately from the typed column list: the
+  // migration that adds it is applied to prod by hand and can trail this code
+  // by weeks, and a missing column must cost the tips — not the whole GET,
+  // which is also how every client learns its key and terms status.
+  let { data, error } = await supabase
     .from('profiles')
-    .select('display_name, avatar_key, coach_goal, coach_context, coach_model, max_hr, threshold_hr, ics_token, is_template_source, template_copied_at, onboarding_dismissed_at')
+    .select(`${PROFILE_COLUMNS}, tips_seen` as typeof PROFILE_COLUMNS)
     .eq('id', userId)
     .maybeSingle();
+  if (error && isTipsColumnMissing(error)) {
+    ({ data, error } = await supabase
+      .from('profiles')
+      .select(PROFILE_COLUMNS)
+      .eq('id', userId)
+      .maybeSingle());
+  }
   if (error) throw new Error(error.message);
+  const tipsSeen = tipsSeenRecord((data as { tips_seen?: unknown } | null)?.tips_seen);
   const stored = typeof data?.coach_model === 'string' ? data.coach_model : null;
   return {
     displayName: data?.display_name ?? null,
@@ -78,18 +110,25 @@ async function profileFields(
       isTemplateSource: data?.is_template_source === true,
       templateCopiedAt: data?.template_copied_at ?? null,
       coachGoal: data?.coach_goal ?? '',
+      tipsSeen: Object.keys(tipsSeen),
     },
   };
 }
 
 function onboardingState(
-  row: { dismissedAt: string | null; isTemplateSource: boolean; templateCopiedAt: string | null; coachGoal: string },
+  row: {
+    dismissedAt: string | null; isTemplateSource: boolean; templateCopiedAt: string | null;
+    coachGoal: string; tipsSeen: string[];
+  },
   hasAnthropicKey: boolean,
 ) {
   return {
     dismissedAt: row.dismissedAt,
     applies: !row.isTemplateSource,
     setup: localSetupDone({ templateCopiedAt: row.templateCopiedAt, hasAnthropicKey, coachGoal: row.coachGoal }),
+    // Ids of the one-time tips this account has dismissed (profiles.tips_seen),
+    // for the native app. Empty until the column exists.
+    tipsSeen: row.tipsSeen,
   };
 }
 
@@ -157,9 +196,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     anthropic_api_key?: unknown;
     max_hr?: unknown;
     threshold_hr?: unknown;
+    tip_seen?: unknown;
   } | undefined;
 
-  const fields: Record<string, string | number | null> = {};
+  const fields: Record<string, string | number | null | Record<string, string>> = {};
 
   if (body?.display_name !== undefined) {
     if (typeof body.display_name !== 'string' || !body.display_name.trim() || body.display_name.length > 80) {
@@ -235,6 +275,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     fields.threshold_hr = body.threshold_hr;
   }
 
+  // One-time tip dismissed (docs/onboarding, D-O01): the id must be in the
+  // catalog, and the time is the server's, like onboarding_dismissed. The
+  // column is a map, so this reads it and writes back the merge — read here,
+  // before any other write, so a missing column 409s with nothing changed.
+  if (body?.tip_seen !== undefined) {
+    if (!isTipId(body.tip_seen)) {
+      res.status(400).send('Invalid tip_seen');
+      return;
+    }
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('tips_seen' as '*')
+      .eq('id', userId)
+      .maybeSingle();
+    if (isTipsColumnMissing(error)) {
+      res.status(409).send('column-missing');
+      return;
+    }
+    if (error) {
+      console.error('[api/profile] tips_seen read failed:', error.message);
+      res.status(500).send('Failed to update profile');
+      return;
+    }
+    const current = tipsSeenRecord((data as { tips_seen?: unknown } | null)?.tips_seen);
+    fields.tips_seen = { ...current, [body.tip_seen]: new Date().toISOString() };
+  }
+
   const hasKeyChange = body !== undefined && 'anthropic_api_key' in body;
   if (Object.keys(fields).length === 0 && !hasKeyChange) {
     res.status(400).send('No updatable fields');
@@ -295,6 +362,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .from('profiles')
       .update({ ...fields, updated_at: new Date().toISOString() })
       .eq('id', userId);
+    if (isTipsColumnMissing(error)) {
+      res.status(409).send('column-missing');
+      return;
+    }
     if (error) {
       console.error('[api/profile] update failed:', error.message);
       res.status(500).send('Failed to update profile');

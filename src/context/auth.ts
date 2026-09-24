@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
 import type { AcceptanceStatus } from '../lib/api';
 import type { AuthLinkError } from '../lib/auth/linkError';
+import type { TipId } from '../lib/onboarding/tips/index';
 
 // Context object + hook live apart from the provider so AuthContext.tsx
 // exports only a component and stays eligible for React Fast Refresh.
@@ -54,6 +55,11 @@ export interface AuthContextValue {
   }) => Promise<boolean>;
   /** Latch the welcome flow closed for good, on every device. */
   dismissOnboarding: () => Promise<void>;
+  /** Ids of the one-time tips this account has dismissed: the server's
+   *  profiles.tips_seen (when the column exists) ∪ this device's mirror. */
+  tipsSeen: ReadonlySet<string>;
+  /** Latch a tip dismissed — here at once, and on the server when it can hold it. */
+  markTipSeen: (id: TipId) => void;
   refreshProfile: () => Promise<void>;
   /** Save/replace the user's Anthropic API key. Returns an error message, or null on success. */
   saveAnthropicKey: (key: string) => Promise<string | null>;

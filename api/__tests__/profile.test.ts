@@ -46,6 +46,11 @@ interface AdminState {
   coachModel?: string | null;
   /** The rest of the profiles row GET now returns (W11); undefined = all null. */
   profile?: Record<string, unknown>;
+  /** Columns the database does not have yet (a HELD migration unapplied in
+   *  prod): selecting one 42703s, updating one PGRST204s, as the real ones do. */
+  missingColumns?: string[];
+  /** Force the profiles update to fail with this error. */
+  updateError?: { code: string; message: string };
 }
 
 /** Every profiles column GET reads, all null unless a test sets one. */
@@ -53,6 +58,7 @@ const EMPTY_PROFILE = {
   display_name: null, avatar_key: null, coach_goal: null,
   coach_context: null, max_hr: null, threshold_hr: null, ics_token: null,
   is_template_source: false, template_copied_at: null, onboarding_dismissed_at: null,
+  tips_seen: {},
 };
 
 /** GET's response minus the fields each test is actually about. */
@@ -60,7 +66,9 @@ const PROFILE_DEFAULTS = {
   displayName: null, avatarKey: null, coachGoal: null, coachContext: null,
   maxHr: null, thresholdHr: null, calendarFeedUrl: null,
   // W13: a fresh account with no key — the welcome flow is due, nothing ticked.
-  onboarding: { dismissedAt: null, applies: true, setup: { template: false, key: false, goal: false } },
+  onboarding: {
+    dismissedAt: null, applies: true, setup: { template: false, key: false, goal: false }, tipsSeen: [],
+  },
 };
 
 // Minimal chainable fake covering exactly the query shapes profile.ts uses.
@@ -71,13 +79,21 @@ function makeAdmin(state: AdminState) {
       // before .maybeSingle().
       const rowFor = (t: string) => {
         if (t === 'terms_acceptances') return state.acceptance ?? null;
-        if (t === 'profiles') return { ...EMPTY_PROFILE, ...state.profile, coach_model: state.coachModel ?? null };
+        if (t === 'profiles') {
+          const row: Record<string, unknown> = { ...EMPTY_PROFILE, ...state.profile, coach_model: state.coachModel ?? null };
+          for (const col of state.missingColumns ?? []) delete row[col];
+          return row;
+        }
         return state.key ? { anthropic_api_key: state.key } : null;
       };
+      const missingIn = (cols: string[]) => (state.missingColumns ?? []).find(c => cols.includes(c));
       return {
-        select: () => {
+        select: (columns = '*') => {
           const leaf: Record<string, unknown> = {};
-          leaf.maybeSingle = async () => ({ data: rowFor(table), error: null });
+          const missing = table === 'profiles' ? missingIn(columns.split(',').map(c => c.trim())) : undefined;
+          leaf.maybeSingle = async () => (missing
+            ? { data: null, error: { code: '42703', message: `column profiles.${missing} does not exist` } }
+            : { data: rowFor(table), error: null });
           leaf.order = () => leaf;
           leaf.limit = () => leaf;
           return { eq: () => leaf };
@@ -96,6 +112,11 @@ function makeAdmin(state: AdminState) {
         }),
         update: (row: Record<string, unknown>) => ({
           eq: async () => {
+            const missing = table === 'profiles' ? missingIn(Object.keys(row)) : undefined;
+            if (table === 'profiles' && state.updateError) return { error: state.updateError };
+            if (missing) {
+              return { error: { code: 'PGRST204', message: `Could not find the '${missing}' column of 'profiles' in the schema cache` } };
+            }
             if (table === 'profiles') state.profileUpdate = row;
             return { error: null };
           },
@@ -242,6 +263,7 @@ describe('GET /api/profile', () => {
       dismissedAt: '2026-09-02T00:00:00Z',
       applies: true,
       setup: { template: true, key: true, goal: true },
+      tipsSeen: [],
     });
   });
 
@@ -573,5 +595,103 @@ describe('PATCH /api/profile — onboarding dismissal', () => {
       expect(statusCode(), `onboarding_dismissed: ${JSON.stringify(value)}`).toBe(400);
       expect(state.profileUpdate).toBeUndefined();
     }
+  });
+});
+
+describe('tips_seen (one-time tips, docs/onboarding D-O01)', () => {
+  it('GET lists the dismissed tip ids for the native app', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({
+      key: null,
+      profile: { tips_seen: { 'coach-goal': '2026-09-20T00:00:00Z', 'calendar-feed': '2026-09-21T00:00:00Z' } },
+    }));
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(statusCode()).toBe(200);
+    expect((body() as { onboarding: { tipsSeen: string[] } }).onboarding.tipsSeen)
+      .toEqual(['coach-goal', 'calendar-feed']);
+  });
+
+  // The migration is applied to prod by hand and can lag for weeks. GET is
+  // how every client learns its key and terms status, so the missing column
+  // costs the tips list, never the response.
+  it('GET still answers when the column does not exist yet', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({
+      key: null, missingColumns: ['tips_seen'], profile: { display_name: 'Alex' },
+    }));
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(statusCode()).toBe(200);
+    expect(body()).toMatchObject({ displayName: 'Alex', onboarding: { tipsSeen: [] } });
+  });
+
+  it('PATCH merges the id into the stored map, stamped by the server clock', async () => {
+    const state: AdminState = { key: null, profile: { tips_seen: { 'coach-goal': '2026-09-20T00:00:00Z' } } };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const before = Date.now();
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { tip_seen: 'calendar-feed' }), res);
+    expect(statusCode()).toBe(200);
+
+    const written = state.profileUpdate?.tips_seen as Record<string, string>;
+    expect(Object.keys(written).sort()).toEqual(['calendar-feed', 'coach-goal']);
+    expect(written['coach-goal'], 'earlier dismissals survive the merge').toBe('2026-09-20T00:00:00Z');
+    expect(Date.parse(written['calendar-feed'])).toBeGreaterThanOrEqual(before);
+    expect(Date.parse(written['calendar-feed'])).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('PATCH starts a map from nothing when the stored value is not one', async () => {
+    const state: AdminState = { key: null, profile: { tips_seen: null } };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { tip_seen: 'coach-goal' }), res);
+    expect(statusCode()).toBe(200);
+    expect(Object.keys(state.profileUpdate?.tips_seen as object)).toEqual(['coach-goal']);
+  });
+
+  it('400s an id that is not in the tip catalog', async () => {
+    for (const value of ['not-a-tip', '', 1, null, true, ['coach-goal'], { id: 'coach-goal' }]) {
+      const state: AdminState = { key: null };
+      mockedAdmin.mockReturnValue(makeAdmin(state));
+      const { res, statusCode, body } = makeRes();
+      await handler(makeReq('PATCH', { tip_seen: value }), res);
+      expect(statusCode(), `tip_seen: ${JSON.stringify(value)}`).toBe(400);
+      expect(body()).toBe('Invalid tip_seen');
+      expect(state.profileUpdate).toBeUndefined();
+    }
+  });
+
+  // 409, not 500: the client only PATCHes when its own profiles read has the
+  // column, so this is a schema-cache race at worst — and nothing is written.
+  it('409s column-missing when the migration has not reached this database', async () => {
+    const state: AdminState = { key: null, missingColumns: ['tips_seen'] };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('PATCH', { tip_seen: 'coach-goal', display_name: 'Alex' }), res);
+    expect(statusCode()).toBe(409);
+    expect(body()).toBe('column-missing');
+    expect(state.profileUpdate).toBeUndefined();
+  });
+
+  it('409s column-missing when only the write finds the column gone', async () => {
+    // Read succeeds (the stale schema cache still lists it), update does not.
+    const state: AdminState = {
+      key: null,
+      updateError: { code: 'PGRST204', message: "Could not find the 'tips_seen' column of 'profiles' in the schema cache" },
+    };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('PATCH', { tip_seen: 'coach-goal' }), res);
+    expect(statusCode()).toBe(409);
+    expect(body()).toBe('column-missing');
+  });
+
+  it('still 500s an unrelated update failure', async () => {
+    const state: AdminState = {
+      key: null, updateError: { code: '42703', message: 'column profiles.other does not exist' },
+    };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { tip_seen: 'coach-goal' }), res);
+    expect(statusCode()).toBe(500);
   });
 });

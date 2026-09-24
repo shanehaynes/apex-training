@@ -7,3 +7,87 @@
    Feature lanes never edit this file either — a needed shared rule is reported,
    not added. Tokens come from tokens.css as everywhere else.
    ========================================================================== */
+
+/* Above every full-screen overlay (.profile-view, .tracker, … at 130–140) —
+   those are where tips fire — and below .toasts (200), so a failure toast
+   still reads over a card. */
+.modal-backdrop--tip { z-index: 150; }
+
+/* The measure of .welcome, which a user has just met: one short paragraph. */
+.modal.tip {
+  max-width: 420px;
+  padding: 24px;
+}
+
+.tip__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  color: var(--text-primary);
+}
+
+.tip__text {
+  margin: 10px 0 0;
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.tip__text strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tip__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 22px;
+}
+
+.tip__link {
+  font-size: var(--text-sm);
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+.tip__link:hover { text-decoration: underline; }
+
+/* Generous for thumbs: the people this is for tap, they do not aim. */
+.tip__ok {
+  margin-top: 0;
+  width: auto;
+  height: 44px;
+  padding: 0 22px;
+}
+
+@media (max-width: 768px) {
+  /* A bottom sheet that stops short of the tab bar (60px + the home
+     indicator; the same 76px clearance .setup-nudge uses), so the tabs a tip
+     may name stay in sight beneath it. */
+  .modal-backdrop--tip {
+    padding: 0 16px calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* app.css turns .modal into an edge-to-edge sheet here; a tip floats
+     instead, since it no longer meets the screen's bottom edge. */
+  .modal.tip {
+    max-width: 100%;
+    border-radius: var(--radius-xl);
+    padding: 22px 20px 20px;
+  }
+
+  .tip__actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .tip__ok { width: 100%; }
+
+  .tip__link {
+    align-self: center;
+    padding: 4px 0;
+  }
+}
