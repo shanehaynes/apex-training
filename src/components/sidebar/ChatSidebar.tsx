@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo, useEffect, useCallback } from 'react';
+import { useRef, useState, useMemo, useEffect, useCallback, type RefObject } from 'react';
 import { useSchedule } from '../../context/schedule';
 import { useMeals } from '../../context/meals';
 import { useCalendar } from '../../context/calendar';
@@ -8,8 +8,34 @@ import { postJson } from '../../lib/api';
 import { useChat } from '../../hooks/useChat';
 import CoachModelPicker from '../coach/CoachModelPicker';
 import { findCoachTool } from '../../lib/coach/tools';
+import { useTip } from '../../hooks/useTip';
+import { helpPath } from '../../lib/help/pages';
 import { Send, Square, NotebookPen, Check, X, KeyRound, MessageSquarePlus } from 'lucide-react';
 import { now } from '../../lib/clock';
+
+// ─── On screen? ───────────────────────────────────────────────────────────────
+
+/**
+ * Whether `ref`'s element is laid out at all. The pane is always mounted
+ * (AppShell), but CSS hides its column below 1025px unless the phone's Coach
+ * tab is open — and a tip about a pane nobody can see would teach nothing.
+ * A ResizeObserver fires on every display:none ↔ shown flip, so this follows
+ * the tab without AppShell passing it down.
+ */
+function useOnScreen(ref: RefObject<HTMLElement | null>): boolean {
+  const [onScreen, setOnScreen] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setOnScreen(el.getClientRects().length > 0);
+    check();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+  return onScreen;
+}
 
 // ─── Confirmation card ────────────────────────────────────────────────────────
 
@@ -20,9 +46,16 @@ interface ConfirmCardProps {
   onConfirm: () => void;
   onCancel: () => void;
   disabled: boolean;
+  /** The pane is visible, so a tip about this card can land on it. */
+  onScreen: boolean;
 }
 
-function ConfirmCard({ label, remaining, onConfirm, onCancel, disabled }: ConfirmCardProps) {
+function ConfirmCard({ label, remaining, onConfirm, onCancel, disabled, onScreen }: ConfirmCardProps) {
+  // First pending action ever: say that nothing happens until Confirm. The
+  // card only mounts when the coach is waiting on the user, so this is the
+  // moment by definition — conditioned, and held back only while the pane is
+  // hidden (a phone on its Calendar tab while a turn finished).
+  useTip('coach-confirm-card', onScreen);
   return (
     <div className="chat-confirm-card">
       <p className="chat-confirm-card__label">
@@ -71,6 +104,8 @@ export default function ChatSidebar() {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const onScreen = useOnScreen(rootRef);
 
   const today = useMemo(() => now(), []);
 
@@ -100,6 +135,13 @@ export default function ChatSidebar() {
   }, []);
 
   const isEmpty = messages.length === 0 && !isLoading && !pendingAction;
+
+  // The coach's first-open tip: a key is saved (the no-key state has its own
+  // setup copy) and the thread is empty, on a pane the user can see — the
+  // desktop rail on load, a phone's Coach tab when it is opened. Nothing
+  // autofocuses the input, so TipHost's typing hold does not stall it. A
+  // stored thread that hydrates inside the 600 ms settle withdraws it.
+  useTip('coach-first-message', onScreen && anthropicKey?.hasKey === true && isEmpty);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -153,7 +195,7 @@ export default function ChatSidebar() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="chat-sidebar">
+    <div className="chat-sidebar" ref={rootRef}>
       <div className="chat-sidebar__header">
         <span className="chat-sidebar__title">Coach</span>
         <CoachModelPicker />
@@ -161,7 +203,10 @@ export default function ChatSidebar() {
 
       <div className="chat-sidebar__messages">
         {isEmpty && (
-          <div className="chat-empty">
+          // A column when it holds the setup prompt: .chat-empty is a
+          // centring row, which squeezed the button beside the hint. Inline,
+          // like the actions row below, so this lane carries no app.css edit.
+          <div className="chat-empty" style={needsKey ? { flexDirection: 'column' } : undefined}>
             {needsKey ? (
               <>
                 <p className="chat-empty__hint">
@@ -175,6 +220,17 @@ export default function ChatSidebar() {
                   <KeyRound size={13} />
                   Add API key
                 </button>
+                {/* Getting a key is the one step a new user cannot work out
+                    alone; the help page walks it with pictures. */}
+                <a
+                  className="chat-empty__hint"
+                  href={helpPath('get-api-key')}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ marginTop: 10, color: 'var(--text-secondary)', textDecoration: 'underline' }}
+                >
+                  How to get a key
+                </a>
               </>
             ) : (
               <p className="chat-empty__hint">Ask anything, or get your daily briefing below.</p>
@@ -208,6 +264,7 @@ export default function ChatSidebar() {
             label={pendingLabel}
             remaining={pendingActionCount - 1}
             disabled={isLoading || actionBusy}
+            onScreen={onScreen}
             onConfirm={() => runExclusive(async () => confirmAction(buildExecutor(), await resolveContext()))}
             onCancel={() => runExclusive(async () => cancelAction(await resolveContext()))}
           />
