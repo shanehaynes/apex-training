@@ -4,18 +4,29 @@ import { devPort } from './dev/port.mjs';
 // @ts-expect-error plain-JS module shared with scripts/drive.mjs
 import { MOCK_SUPABASE } from './e2e/lib/session.mjs';
 
-// Two projects:
+// Projects:
 //   mock — vite dev + full request interception; no backend, no writes, safe
 //          against any .env.local. The default.
 //   live — vite dev:agent against the LOCAL Supabase stack, no interception.
 //          Only defined when APEX_LOCAL_SUPABASE=1; the live fixtures refuse
 //          any non-localhost backend.
+//   shots-phone / shots-desktop — the help-page screenshot generators
+//          (e2e/shots/*.shots.ts, e2e/lib/helpShots.ts). Same app and fixtures
+//          as mock, at a phone and a desktop viewport, 2x. Generators, not
+//          tests: `npm run e2e` and CI name --project=mock, so these only run
+//          when asked for by name (e2e/shots/README.md).
 const live = !!process.env.APEX_LOCAL_SUPABASE;
 
 // Per-checkout port, the same one vite.config.ts binds (dev/port.mjs). That is
 // what makes reuseExistingServer safe below: a server already listening here
 // can only be this worktree's, so the suite never tests another session's code.
 const port = devPort();
+
+// Pin the app's date-semantic clock: the bundled seed covers
+// 2026-06-22 → 2027-05-31, so an unpinned suite silently expires the day the
+// real clock leaves that range. Shared by mock and the screenshot projects, so
+// a help page's pictures show the same calendar the mock specs test.
+const FAKE_NOW = '2026-09-07T08:00:00';
 
 export default defineConfig<ApexOptions>({
   testDir: 'e2e',
@@ -39,12 +50,20 @@ export default defineConfig<ApexOptions>({
     {
       name: 'mock',
       testDir: 'e2e/mock',
-      // Pin the app's date-semantic clock: the bundled seed covers
-      // 2026-06-22 → 2027-05-31, so an unpinned suite silently expires the
-      // day the real clock leaves that range. Specs that need a different
-      // date (clock, tracker duration) still override via test.use().
-      use: { fakeNow: '2026-09-07T08:00:00' },
+      // Specs that need a different date (clock, tracker duration) still
+      // override FAKE_NOW via test.use().
+      use: { fakeNow: FAKE_NOW },
     },
+    ...(['phone', 'desktop'] as const).map(device => ({
+      name: `shots-${device}`,
+      testDir: 'e2e/shots',
+      testMatch: '**/*.shots.ts',
+      use: {
+        viewport: device === 'phone' ? { width: 375, height: 812 } : { width: 1280, height: 950 },
+        deviceScaleFactor: 2,
+        fakeNow: FAKE_NOW,
+      },
+    })),
     // Live specs read and write rows seeded relative to the REAL clock —
     // no fakeNow here, it would disagree with the seeded data.
     ...(live ? [{ name: 'live', testDir: 'e2e/live' }] : []),

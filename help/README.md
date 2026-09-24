@@ -24,6 +24,9 @@ carry the explanation — the words say what to look for in the picture.
 
 - Same markdown dialect as `legal/*.md` (headings, paragraphs, lists, bold, code,
   links) **plus images**, which the legal renderer still rejects.
+- An image sits alone on its line and needs alt text: the alt is also the caption
+  shown under the picture, so write it as what the reader should look for. Phone
+  shots display at most 375px wide; desktop shots take the full column.
 - Image paths are absolute and must match
   `/help/<slug>/<nn>-<name>.(phone|desktop).png`; the file lives at
   `public/help/<slug>/`. Phone shots are the default; add a `.desktop` variant only

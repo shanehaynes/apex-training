@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
+  helpImagePattern,
+  helpMarkdownViolations,
   legalMarkdownViolations,
   parseInline,
   parseLegalMarkdown,
@@ -110,5 +112,84 @@ describe('legalMarkdownViolations', () => {
 
   it('passes a document in the supported subset', () => {
     expect(legalMarkdownViolations('# H\n\n- a\n\n| A |\n| --- |\n| 1 |\n')).toEqual([]);
+  });
+});
+
+describe('image blocks', () => {
+  it('parses an image alone on its line', () => {
+    const doc = parseLegalMarkdown('Intro.\n![The Save button](/help/a/01-save.phone.png)\nAfter.');
+    expect(doc.blocks).toEqual([
+      { type: 'paragraph', inlines: [{ type: 'text', text: 'Intro.' }] },
+      { type: 'image', alt: 'The Save button', src: '/help/a/01-save.phone.png' },
+      { type: 'paragraph', inlines: [{ type: 'text', text: 'After.' }] },
+    ]);
+  });
+
+  it('leaves an image embedded in a sentence as paragraph text', () => {
+    const doc = parseLegalMarkdown('See ![x](/help/a/01-x.phone.png) here');
+    expect(doc.blocks[0].type).toBe('paragraph');
+  });
+
+  it('drops the EXTERNAL placeholder comment above an image', () => {
+    const doc = parseLegalMarkdown('<!-- EXTERNAL: https://example.com — the page -->\n![Alt](/help/a/01-x.desktop.png)');
+    expect(doc.blocks).toEqual([{ type: 'image', alt: 'Alt', src: '/help/a/01-x.desktop.png' }]);
+    expect(JSON.stringify(doc)).not.toContain('EXTERNAL');
+  });
+});
+
+describe('helpImagePattern', () => {
+  const re = helpImagePattern('get-api-key');
+
+  it('accepts a numbered, device-tagged PNG in the page directory', () => {
+    expect(re.test('/help/get-api-key/01-profile.phone.png')).toBe(true);
+    expect(re.test('/help/get-api-key/12-create-key-dialog.desktop.png')).toBe(true);
+  });
+
+  it('rejects another page, a missing number or device, and other formats', () => {
+    for (const src of [
+      '/help/connect-coros/01-profile.phone.png',
+      '/help/get-api-key/1-profile.phone.png',
+      '/help/get-api-key/01-profile.png',
+      '/help/get-api-key/01-profile.tablet.png',
+      '/help/get-api-key/01-Profile.phone.png',
+      '/help/get-api-key/01-profile.phone.jpg',
+      'help/get-api-key/01-profile.phone.png',
+      'https://example.com/help/get-api-key/01-profile.phone.png',
+      '/help/get-api-key/sub/01-profile.phone.png',
+    ]) expect(re.test(src), src).toBe(false);
+  });
+});
+
+describe('helpMarkdownViolations', () => {
+  const ok = '![The key](/help/get-api-key/01-key.phone.png)';
+
+  it('allows an image in the page directory', () => {
+    expect(helpMarkdownViolations(`# Title\n\n${ok}\n`, 'get-api-key')).toEqual([]);
+  });
+
+  it('rejects an image pointing at another page', () => {
+    expect(helpMarkdownViolations(ok, 'connect-coros')).toHaveLength(1);
+  });
+
+  it('rejects an image with no alt text', () => {
+    expect(helpMarkdownViolations('![](/help/get-api-key/01-key.phone.png)', 'get-api-key')).toHaveLength(1);
+  });
+
+  it('rejects an image inside a sentence', () => {
+    expect(helpMarkdownViolations(`Look: ${ok}`, 'get-api-key')).toHaveLength(1);
+  });
+
+  it('applies every legal rule too', () => {
+    for (const bad of ['> quote', '#### too deep', '* bullet', '```js', '<b>hi</b>', '- a\n  - nested']) {
+      expect(helpMarkdownViolations(bad, 'get-api-key'), bad).toHaveLength(1);
+    }
+  });
+
+  it('ignores what sits inside a comment, including an EXTERNAL placeholder', () => {
+    expect(helpMarkdownViolations(`<!-- EXTERNAL: https://x.test — note -->\n${ok}`, 'get-api-key')).toEqual([]);
+  });
+
+  it('leaves the legal check rejecting the same image', () => {
+    expect(legalMarkdownViolations(ok)).toHaveLength(1);
   });
 });

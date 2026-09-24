@@ -194,6 +194,14 @@ export default function ProfileView() {
             this screen. Self-hides for the template source. */}
         <GettingStarted />
 
+        <section className="profile-section">
+          <h3 className="profile-section__title">Help</h3>
+          <p className="profile-hint">
+            Step-by-step guides, with pictures:{' '}
+            <a href="/help" target="_blank" rel="noreferrer">Help pages</a>
+          </p>
+        </section>
+
         <div className="profile-group">
           <h2 className="profile-group__title">You</h2>
 

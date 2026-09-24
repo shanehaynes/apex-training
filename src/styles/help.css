@@ -6,3 +6,193 @@
 
    Outside app.css on purpose, so parallel lanes never share a hunk.
    ========================================================================== */
+
+/* Long-form reading for a phone first: one column held to a readable measure,
+   16px gutters, and body type that stays at 16px on a phone (unlike legal,
+   which steps down) because the reader is following steps, not skimming. */
+
+.help-screen {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  padding: 24px 20px 96px;
+}
+
+.help {
+  max-width: 65ch;
+  margin: 0 auto;
+}
+
+.help__nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 20px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.help__nav-link {
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+.help__nav-link:hover { color: var(--text-primary); }
+
+.help__body {
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  line-height: 1.65;
+  /* A pasted URL or key prefix must wrap rather than widen the page. */
+  overflow-wrap: anywhere;
+}
+
+.help__body strong { color: var(--text-primary); font-weight: 600; }
+
+.help__body a {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.help__h1 {
+  color: var(--text-primary);
+  font-family: var(--font-wordmark);
+  font-size: var(--text-3xl);
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  margin: 0 0 12px;
+}
+
+.help__h2 {
+  color: var(--text-primary);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  margin: 40px 0 12px;
+}
+
+.help__h3 {
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  margin: 28px 0 10px;
+}
+
+.help__p { margin: 0 0 16px; }
+
+/* Tailwind's preflight clears list-style globally; ask for the markers by
+   name, as .legal__list does in app.css. */
+ul.help__list { list-style: disc outside; }
+ol.help__list { list-style: decimal outside; }
+.help__list { margin: 0 0 16px; padding-left: 22px; }
+.help__list li { margin-bottom: 8px; }
+.help__list li::marker { color: var(--text-muted); }
+
+.help__code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+}
+
+.help__rule {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: 36px 0;
+}
+
+.help__table-wrap {
+  overflow-x: auto;
+  margin: 0 0 20px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.help__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.help__table th,
+.help__table td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: top;
+}
+
+.help__table th {
+  color: var(--text-primary);
+  font-weight: 600;
+  background: var(--bg-surface);
+}
+
+.help__table tr:last-child td { border-bottom: none; }
+
+/* Screenshots. The border separates a dark app screenshot from the dark page.
+   A phone shot is captured 375 CSS px wide, so it is shown no wider than that
+   — full column width on a desktop would blow it up to twice a phone's
+   height. Desktop shots take the whole column. */
+.help__figure {
+  margin: 20px 0 24px;
+}
+
+.help__figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.help__figure img[src$=".phone.png"] {
+  max-width: 375px;
+  margin: 0 auto;
+}
+
+.help__figure figcaption {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* The /help index. */
+.help-index {
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.help-index__item {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.help-index__item:last-child { border-bottom: none; }
+
+.help__body .help-index__link {
+  color: var(--text-primary);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.help__body .help-index__link:hover { text-decoration: underline; }
+
+.help-index__summary {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 600px) {
+  .help-screen { padding: 16px 16px 72px; }
+  .help__h2 { margin-top: 32px; }
+}
