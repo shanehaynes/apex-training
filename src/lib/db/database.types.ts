@@ -750,6 +750,7 @@ export type Database = {
           onboarding_dismissed_at: string | null
           template_copied_at: string | null
           threshold_hr: number | null
+          tips_seen: Json
           updated_at: string
         }
         Insert: {
@@ -766,6 +767,7 @@ export type Database = {
           onboarding_dismissed_at?: string | null
           template_copied_at?: string | null
           threshold_hr?: number | null
+          tips_seen?: Json
           updated_at?: string
         }
         Update: {
@@ -782,6 +784,7 @@ export type Database = {
           onboarding_dismissed_at?: string | null
           template_copied_at?: string | null
           threshold_hr?: number | null
+          tips_seen?: Json
           updated_at?: string
         }
         Relationships: []

@@ -1326,6 +1326,7 @@ internal enum PublicSchema {
     internal let onboardingDismissedAt: String?
     internal let templateCopiedAt: String?
     internal let thresholdHr: Int32?
+    internal let tipsSeen: AnyJSON
     internal let updatedAt: String
     internal enum CodingKeys: String, CodingKey {
       case avatarKey = "avatar_key"
@@ -1341,6 +1342,7 @@ internal enum PublicSchema {
       case onboardingDismissedAt = "onboarding_dismissed_at"
       case templateCopiedAt = "template_copied_at"
       case thresholdHr = "threshold_hr"
+      case tipsSeen = "tips_seen"
       case updatedAt = "updated_at"
     }
   }
@@ -1358,6 +1360,7 @@ internal enum PublicSchema {
     internal let onboardingDismissedAt: String?
     internal let templateCopiedAt: String?
     internal let thresholdHr: Int32?
+    internal let tipsSeen: AnyJSON?
     internal let updatedAt: String?
     internal enum CodingKeys: String, CodingKey {
       case avatarKey = "avatar_key"
@@ -1373,6 +1376,7 @@ internal enum PublicSchema {
       case onboardingDismissedAt = "onboarding_dismissed_at"
       case templateCopiedAt = "template_copied_at"
       case thresholdHr = "threshold_hr"
+      case tipsSeen = "tips_seen"
       case updatedAt = "updated_at"
     }
   }
@@ -1390,6 +1394,7 @@ internal enum PublicSchema {
     internal let onboardingDismissedAt: String?
     internal let templateCopiedAt: String?
     internal let thresholdHr: Int32?
+    internal let tipsSeen: AnyJSON?
     internal let updatedAt: String?
     internal enum CodingKeys: String, CodingKey {
       case avatarKey = "avatar_key"
@@ -1405,6 +1410,7 @@ internal enum PublicSchema {
       case onboardingDismissedAt = "onboarding_dismissed_at"
       case templateCopiedAt = "template_copied_at"
       case thresholdHr = "threshold_hr"
+      case tipsSeen = "tips_seen"
       case updatedAt = "updated_at"
     }
   }
