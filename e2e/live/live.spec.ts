@@ -28,6 +28,11 @@ async function signIn(page: Page, email: string) {
   await page.addInitScript(v => {
     (window as unknown as { __APEX_FAKE_NOW__?: string }).__APEX_FAKE_NOW__ = v;
   }, FAKE_NOW);
+  // Onboarding tips stay off in the live suite too: a tip card's backdrop
+  // would swallow the next click (the mock specs get this from fixtures.ts).
+  await page.addInitScript(() => {
+    (window as unknown as { __APEX_TIPS_OFF__?: boolean }).__APEX_TIPS_OFF__ = true;
+  });
   await page.goto('/');
   await expect(page.locator('.auth-card')).toBeVisible({ timeout: 20000 });
   await page.locator('input[name="email"]').fill(email);

@@ -32,6 +32,11 @@ async function openBlocks(context: BrowserContext): Promise<Page> {
   await page.addInitScript(v => {
     (window as unknown as { __APEX_FAKE_NOW__?: string }).__APEX_FAKE_NOW__ = v;
   }, FAKE_NOW);
+  // Onboarding tips stay off in the live suite too: a tip card's backdrop
+  // would swallow the next click (the mock specs get this from fixtures.ts).
+  await page.addInitScript(() => {
+    (window as unknown as { __APEX_TIPS_OFF__?: boolean }).__APEX_TIPS_OFF__ = true;
+  });
   await page.goto('/');
   // Two pages in one context share the stored session, so the second one
   // lands already signed in — sign in only when the gate is actually shown.
