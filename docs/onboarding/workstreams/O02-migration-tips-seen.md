@@ -24,3 +24,4 @@ Out: any client or API code (O03).
 - Shane's `shipit`; Shane applies the SQL in prod; `scripts/prod-schema-check.mjs` clean.
 
 ## Session log
+- 2026-09-24 · Linux · Opus lane. phase47 claimed via next-phase.sh; types regenerated under the stack lock; PR #322, HELD for shipit. Follow-up: the Swift `ProfilesSelect.tipsSeen` is non-optional (nothing outside Generated/ reads it today).

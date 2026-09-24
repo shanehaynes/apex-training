@@ -41,3 +41,4 @@ Out: page content (wave 2), external screenshots (O16), `vercel.json` (not neede
 - The legal pages are pixel-identical (compare a `shot` before/after).
 
 ## Session log
+- 2026-09-24 · Linux · Opus lane. Image block + helpMarkdownViolations; MarkdownBlocks extracted (legal byte-identical); /help + /help/<slug> above AuthProvider; shots-phone/shots-desktop projects; helpShot with a fixed-position ring; documents.test.ts guard; Profile Help row. Merged as #325.
