@@ -8,7 +8,7 @@ A repeating workout comes back on the days you pick, week after week. It is one 
 
 Tap **+**, then **Workout**, then **Build a new workout**. Find the **Repeat** card and tap **Off** so it says **On**.
 
-Tap each day it should land on. **Ends** starts on **Never**. Pick a date instead if the plan has an end. Then press **Apply**.
+Tap each day it should land on. **Ends** starts on **Never**. Pick a date instead if the plan has an end. Then tap **Apply**.
 
 ## 2. Open one day of it
 
@@ -22,7 +22,7 @@ On a computer, click the workout in the calendar. The buttons are the same.
 
 ## 3. Edit exercises changes every week
 
-![The note at the top of the exercise editor: changes apply to every occurrence of the series](/help/repeating-workouts/03-series-note.phone.png)
+![The note at the top of the exercise editor: this workout repeats, and changes here reach every day in the series](/help/repeating-workouts/03-series-note.phone.png)
 
 **Edit exercises** does not ask. Whatever you add, remove or change lands on every day in the series.
 
@@ -30,11 +30,11 @@ The note at the top is your reminder. Want a different exercise on one day only?
 
 ## 4. Edit workout asks first
 
-![After Save changes: the question, with This event only and Whole series](/help/repeating-workouts/04-save-scope.phone.png)
+![After Save changes: the question, with This day only and Whole series](/help/repeating-workouts/04-save-scope.phone.png)
 
-Make your change, then press **Save changes**. Apex asks where it should go.
+Make your change, then tap **Save changes**. Apex asks where it should go.
 
-- **This event only** changes this one day. That day leaves the series for good. Anything you logged on it stays.
+- **This day only** changes this one day. That day leaves the series for good. Anything you logged on it stays.
 - **Whole series** changes every day in the series.
 - **Back** returns to the form without saving.
 

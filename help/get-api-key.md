@@ -24,9 +24,9 @@ The coach cannot run on an empty account. Open **Billing** and buy credits. You 
 <!-- EXTERNAL: https://console.anthropic.com/settings/billing — Billing page, "Buy credits" visible, balance shown; 1280 wide; redact org name, email, card details and balance -->
 ![The Billing page, where you buy credits](/help/get-api-key/02-billing-credits.desktop.png)
 
-## 3. Open the API keys page
+## 3. Go to the keys page
 
-Go to **Settings**, then **API keys**. Press **Create Key**.
+Go to **Settings**, then **API keys**. Tap **Create Key**.
 
 <!-- EXTERNAL: https://console.anthropic.com/settings/keys — API keys page, empty list, "Create Key" visible; 1280 wide; redact org name and email -->
 ![The API keys page with the Create Key button](/help/get-api-key/03-api-keys-empty.desktop.png)
@@ -53,9 +53,9 @@ Keep it private, like a password. Anyone with it can spend your credit.
 
 ## 6. Paste it into Apex
 
-In Apex, press the round picture at the top left. That opens **Profile**. Find **Anthropic API key**. It opens by itself when no key is saved.
+In Apex, tap your picture at the top left. That opens **Profile**. Find **Anthropic key**. It opens by itself when no key is saved.
 
-Paste your key into the box. Press **Save key**. Apex checks the key with Anthropic before it saves it.
+Paste your key into the box. Tap **Save key**. Apex checks the key with Anthropic before it saves it.
 
 ![Profile, with the key pasted and the Save key button](/help/get-api-key/06-paste-key.desktop.png)
 
@@ -63,7 +63,7 @@ Paste your key into the box. Press **Save key**. Apex checks the key with Anthro
 
 ## 7. You are done
 
-Apex shows only the last four letters of your key. **Replace** swaps in a new key. **Remove** deletes it from Apex.
+Apex shows only the end of your key. **Replace** swaps in a new key. **Remove** deletes it from Apex.
 
 Now open the coach and ask it something.
 
@@ -73,31 +73,31 @@ Now open the coach and ask it something.
 
 ## Already pay for Claude?
 
-A Claude Pro or Max plan does not come with an API key. Anthropic does not let other apps, like Apex, sign in with your Claude account or spend your plan for you.
+A Claude Pro or Max plan does not include a key. Anthropic does not let apps like Apex use your plan.
 
 The coach needs its own key from console.anthropic.com. You can sign up there with the same email. That key is paid for separately, by how much you use. You can add as little as $5 to start.
 
-If Anthropic opens a way to use a plan with apps like this one, we will add it here.
+If Anthropic ever lets apps use a plan, we will add it here.
 
 ## What it costs
 
 You pay Anthropic for each message the coach reads and writes. A normal day of questions costs a few cents. A long chat costs more than a short one.
 
-The menu next to **Coach**, at the top of the coach, picks which Claude model answers. Each choice shows two prices: one for what the coach reads, one for what it writes. Smaller numbers cost less. **Haiku**, at the bottom, is the cheapest. Your pick also writes your workout summaries.
+Pick which Claude model answers from the menu next to **Coach**. It sits at the top of the coach. Each choice shows two prices. One is for what the coach reads, one for what it writes. Smaller numbers cost less. **Haiku 4.5**, at the bottom, is the cheapest. Your pick also writes your workout summaries.
 
 You can see what you have spent on the **Billing** page at console.anthropic.com.
 
 ## If something goes wrong
 
-**"That key is not tied to a single workspace"** shows under the box when you press **Save key**. The key was made with Workspace left on "same as personal account". Go back to step 4 and make a new key with a named workspace. Paste the new one.
+**"That key is not tied to a single workspace"** shows under the box. The key was made with Workspace left on "same as personal account". Go back to step 4 and make a new key with a named workspace. Paste the new one.
 
-**"That Anthropic API key was rejected by Anthropic"** means the key was typed wrong, or it was deleted or ran out. Copy it again, or make a new one.
+**"That Anthropic API key was rejected by Anthropic"** means the key is wrong. It may be mistyped, deleted or out of date. Copy it again, or make a new one.
 
 **The coach answers "Sorry, I ran into an error. Please try again."** every time. Two things cause this:
 
 - Your credit ran out. Open **Billing** at console.anthropic.com and buy more.
-- Your key ran out, or was deleted. Make a new key (steps 3 to 5). In Profile, press **Replace** and paste it.
+- Your key ran out, or was deleted. Make a new key (steps 3 to 5). In Profile, tap **Replace** and paste it.
 
-**The coach says "To use the coach, add your Anthropic API key"**. No key is saved. Follow step 6.
+**The coach says "To use the coach, add a key from Anthropic"**. No key is saved. Follow step 6.
 
 **The coach says it is "taking a breather"**. You sent a lot of messages in a short time. This is Apex's limit, not your credit. Wait a few minutes and try again.

@@ -30,7 +30,7 @@ export const HELP_PAGES = [
   {
     slug: 'repeating-workouts',
     title: 'Workouts that repeat',
-    summary: 'Weekly workouts, and what changes just one day versus the whole series.',
+    summary: 'Weekly workouts, and which changes reach one day or every week.',
   },
 ] as const;
 

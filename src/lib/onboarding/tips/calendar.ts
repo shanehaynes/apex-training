@@ -16,7 +16,7 @@ export const CALENDAR_TIPS = [
   {
     id: 'template-copied',
     title: 'Your plan is in',
-    body: 'Tap any workout to see or change it. Shane’s workouts now repeat every week. To remove one, tap **Delete workout**, then **This day only** or **Whole series**.',
+    body: 'Tap any workout to see or change it. The starter plan now repeats every week. To remove one, tap **Delete workout**, then **This day only** or **Whole series**.',
     help: 'repeating-workouts',
     priority: 1,
   },

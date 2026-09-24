@@ -12,7 +12,7 @@ export const WORKOUT_TIPS = [
   {
     id: 'workout-first-open',
     title: 'Log it or change it',
-    body: 'Press **Start Workout** to log each set as you go. **Mark as Complete** records it in one tap. To change the plan, use **Edit exercises** or **Edit workout**.',
+    body: 'Tap **Start Workout** to log each set as you go. **Mark as Complete** records it in one tap. To change the plan, use **Edit exercises** or **Edit workout**.',
     help: 'logging-a-workout',
     priority: 0,
   },
