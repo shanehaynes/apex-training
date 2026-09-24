@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import { test, expect, gotoCalendar } from '../lib/fixtures';
 // @ts-expect-error plain-JS module shared with scripts/drive.mjs
 import { driverProfile } from '../lib/session.mjs';
+import { TIPS } from '../../src/lib/onboarding/tips/index';
 
 // The workout modal's first-open tips (docs/onboarding/workstreams/
 // O08-workout-detail.md): a repeating workout explains what changes one day
@@ -34,9 +35,22 @@ async function recordTipPatches(page: Page): Promise<Record<string, unknown>[]> 
   return bodies;
 }
 
-/** Answer the own-profile read with these tips already seen. */
-async function seenOnServer(page: Page, ids: string[]) {
-  const row = { ...driverProfile(), tips_seen: Object.fromEntries(ids.map(id => [id, '2026-09-01T00:00:00Z'])) };
+/** This lane's tips. Every other catalog tip is served as already seen. */
+const WORKOUT_TIP_IDS = new Set(['workout-first-open', 'workout-recurring', 'workout-sync-metrics']);
+const OTHER_LANES_SEEN = TIPS.map(t => t.id).filter(id => !WORKOUT_TIP_IDS.has(id));
+
+/**
+ * Answer the own-profile read with every other lane's tip already seen, plus
+ * `ids`. On the combined tree those tips are live too — the coach's
+ * first-message card, say, lands on the calendar before the event chip is
+ * clicked and its backdrop swallows the click.
+ */
+async function seenOnServer(page: Page, ids: string[] = []) {
+  const seenAt = '2026-09-01T00:00:00Z';
+  const row = {
+    ...driverProfile(),
+    tips_seen: Object.fromEntries([...OTHER_LANES_SEEN, ...ids].map(id => [id, seenAt])),
+  };
   await page.route(/\.supabase\.co\/rest\/v1\/profiles/, route => {
     const req = route.request();
     if (req.method() !== 'GET') return route.fallback();
@@ -49,6 +63,12 @@ async function seenOnServer(page: Page, ids: string[]) {
     });
   });
 }
+
+// Every test starts from that profile; a test that also marks workout tips
+// seen calls seenOnServer again, and the later route wins.
+test.beforeEach(async ({ page }) => {
+  await seenOnServer(page);
+});
 
 async function open(page: Page, title: string) {
   await page.locator('.event-chip__main', { hasText: title }).first().click();
