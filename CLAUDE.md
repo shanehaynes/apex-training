@@ -16,6 +16,11 @@ board); the `ios/` directory holds the app once workstream W1 lands.
 More than one Claude session works in this repo at once, and none of them can
 see each other's uncommitted changes. Assume you are not alone.
 
+Before launching any subagent or workflow, follow the
+[parallel-agents skill](.claude/skills/parallel-agents/SKILL.md). In this repo,
+its portable scripts give way to the ones named below (`git-new.sh`,
+`git-tidy.sh`, `combine-check.sh`, `with-stack-lock.sh`).
+
 ### Never work in the primary checkout
 
 The primary checkout — the clone that owns `.git`, not a worktree — stays on
