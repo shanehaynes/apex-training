@@ -10,7 +10,7 @@ import {
 
 // The in-app companion to CONNECTORS.md, written for someone who has never
 // heard of MCP and does not want to. It opens from the help icon on the
-// profile's AI connector section and replaces the profile body, the same way
+// profile's Claude or ChatGPT section and replaces the profile body, the same way
 // ExerciseDetail replaces the library list.
 
 interface Props {
@@ -113,8 +113,8 @@ export default function ConnectorGuide({ onBack, onClose }: Props) {
               <strong>The assistant can only read.</strong> It can look at your
               workouts, schedule, meals and records. It cannot add, change or
               delete anything — not a workout, not a meal, not a single set. You
-              can cut off its access at any moment from the AI connector section
-              you just came from.
+              can cut off its access at any moment from the Claude or ChatGPT
+              section you just came from.
             </div>
           </div>
         </section>
@@ -292,10 +292,10 @@ export default function ConnectorGuide({ onBack, onClose }: Props) {
               machine where opening a browser is awkward.
             </p>
 
-            <Step n={1} title="Create a token in Apex">
+            <Step n={1} title="Create a code in Apex">
               <p className="cg-p">
-                Go back one screen to <strong>AI connector</strong>, type a name
-                for the token, and click <strong>Create token</strong>. Copy the
+                Go back one screen to <strong>Claude or ChatGPT</strong>, type a
+                name for the code, and click <strong>Create code</strong>. Copy the
                 result straight away — Apex keeps only a scrambled copy and can
                 never show it to you again.
               </p>
@@ -389,7 +389,7 @@ export default function ConnectorGuide({ onBack, onClose }: Props) {
         <section className="cg-section">
           <h3 className="profile-section__title">Turning it off again</h3>
           <p className="cg-p">
-            Everything is reversible from the <strong>AI connector</strong>{' '}
+            Everything is reversible from the <strong>Claude or ChatGPT</strong>{' '}
             section on the previous screen:
           </p>
           <ul className="cg-list">
@@ -444,7 +444,7 @@ export default function ConnectorGuide({ onBack, onClose }: Props) {
             <li>
               <p><strong>It worked yesterday and stopped today.</strong></p>
               <p>
-                Check the <strong>AI connector</strong> section: if the app is no
+                Check the <strong>Claude or ChatGPT</strong> section: if the app is no
                 longer in <strong>Connected apps</strong>, someone disconnected
                 it — just set it up again. If you were using a token, it may have
                 been revoked.
@@ -477,7 +477,7 @@ export default function ConnectorGuide({ onBack, onClose }: Props) {
         </section>
 
         <section className="cg-section">
-          <button className="auth-submit cg-done" onClick={onBack}>Back to AI connector</button>
+          <button className="auth-submit cg-done" onClick={onBack}>Back to Claude or ChatGPT</button>
         </section>
       </div>
     </div>

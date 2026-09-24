@@ -210,15 +210,15 @@ export default function ChatSidebar() {
             {needsKey ? (
               <>
                 <p className="chat-empty__hint">
-                  The coach runs on your own Anthropic API key. Add one to
-                  unlock chat and post-workout summaries.
+                  The coach needs a key from Anthropic (a code). Add one to
+                  turn on chat and workout summaries.
                 </p>
                 <button
                   className="chat-key-setup-btn"
                   onClick={() => dispatch({ type: 'OPEN_PROFILE' })}
                 >
                   <KeyRound size={13} />
-                  Add API key
+                  Add key
                 </button>
                 {/* Getting a key is the one step a new user cannot work out
                     alone; the help page walks it with pictures. */}
@@ -308,7 +308,7 @@ export default function ChatSidebar() {
           ref={inputRef}
           className="chat-input"
           placeholder={
-            needsKey ? 'Add your API key to chat…'
+            needsKey ? 'Add your key to chat…'
             : pendingAction ? 'Confirm or cancel above first…'
             : 'Ask your coach…'
           }

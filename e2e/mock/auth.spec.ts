@@ -49,9 +49,9 @@ test('login gate, reset mode, fabricated session, profile view', async ({ page }
   await expect(page.locator('.profile-view')).toBeVisible();
   // Set-once settings are collapsed by default; the header keeps their state
   // in view, and the controls come back on expanding.
-  const keyFold = page.locator('.profile-fold', { hasText: 'Anthropic API key' });
+  const keyFold = page.locator('.profile-fold', { hasText: 'Anthropic key' });
   await expect(keyFold.locator('.profile-fold__status')).toHaveText('Saved · …abcd');
-  await expect(page.locator('input[aria-label="Saved API key (masked)"]')).toHaveCount(0);
+  await expect(page.locator('input[aria-label="Saved key (masked)"]')).toHaveCount(0);
   await expect(page.locator('.profile-avatar')).toHaveCount(0);
   await shot(page, 'auth-profile');
 

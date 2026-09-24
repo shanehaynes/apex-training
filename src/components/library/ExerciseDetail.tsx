@@ -16,6 +16,14 @@ interface Props {
   onClose: () => void;
 }
 
+// stats.kindLabel stays "est. 1RM" for the MCP tools and the iOS fixture
+// contract; on screen a person reads plain words (docs/onboarding/MASTER.md,
+// "Copy rules").
+const statLabel = (stats: ExerciseStats) =>
+  stats.kind === 'oneRM' ? 'Best single lift (est.)' : `Best ${stats.kindLabel}`;
+const trendLabel = (stats: ExerciseStats) =>
+  stats.kind === 'oneRM' ? 'Best single lift (est.)' : stats.kindLabel;
+
 function TrendTooltip({ active, payload, stats }: { active?: boolean; payload?: Array<{ payload: { date: string; value: number } }>; stats: ExerciseStats }) {
   if (!active || !payload?.length) return null;
   const point = payload[0].payload;
@@ -24,7 +32,7 @@ function TrendTooltip({ active, payload, stats }: { active?: boolean; payload?: 
       <p className="chart-tooltip__week">{format(parseISO(point.date), 'MMM d, yyyy')}</p>
       <p className="chart-tooltip__count">
         {formatTrendValue(stats.kind, point.value, stats.kind === 'distance' ? stats.kindLabel : '')}
-        {stats.kind === 'oneRM' ? ' est. 1RM' : ''}
+        {stats.kind === 'oneRM' ? ' est. best lift' : ''}
       </p>
     </div>
   );
@@ -107,7 +115,7 @@ export default function ExerciseDetail({ definition, onBack, onClose }: Props) {
             <div className="library-stat-cards">
               {stats.pr && (
                 <div className="library-stat-card">
-                  <span className="library-stat-card__label"><Trophy size={12} strokeWidth={1.5} /> Best {stats.kindLabel}</span>
+                  <span className="library-stat-card__label"><Trophy size={12} strokeWidth={1.5} /> {statLabel(stats)}</span>
                   <span className="library-stat-card__value">{stats.pr.display}</span>
                   <span className="library-stat-card__sub">{formatStatDate(stats.pr.date)}</span>
                 </div>
@@ -123,7 +131,7 @@ export default function ExerciseDetail({ definition, onBack, onClose }: Props) {
 
             {trendData.length >= 2 && (
               <div className="library-chart">
-                <h3 className="library-section-heading">{stats.kindLabel} over time</h3>
+                <h3 className="library-section-heading">{trendLabel(stats)} over time</h3>
                 <ResponsiveContainer width="100%" height={160}>
                   <LineChart data={trendData} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
                     <XAxis

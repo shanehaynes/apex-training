@@ -25,7 +25,7 @@ export interface DisplayMessage {
 
 /** Shown when the server answers 402: the user has no Anthropic key saved. */
 const KEY_SETUP_MESSAGE =
-  'To use the coach, add your Anthropic API key under Profile → AI Coach (the circle avatar, top left).';
+  'To use the coach, add a key from Anthropic. Tap your picture at the top left, then Anthropic key.';
 
 /** Shown when the server answers 429: the per-user chat rate limit tripped. */
 const RATE_LIMIT_MESSAGE =

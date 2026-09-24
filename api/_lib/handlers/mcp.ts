@@ -38,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'WWW-Authenticate',
       `Bearer realm="apex-training", resource_metadata="${publicOrigin(req)}/.well-known/oauth-protected-resource", scope="${OAUTH_SCOPE}"`,
     );
-    res.status(401).send('Missing or invalid access token. Connect via OAuth, or mint a token in Apex Training → Profile → AI connector.');
+    res.status(401).send('Missing or invalid access token. Connect via OAuth, or mint a token in Apex Training → Profile → Claude or ChatGPT.');
     return;
   }
 

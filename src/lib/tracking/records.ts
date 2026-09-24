@@ -464,8 +464,11 @@ function quantityLabel(value: number, unit: string): string {
 }
 
 /**
- * One-line description of the record minus the exercise name, shared by the
- * summary popup and the AI recap: "est. 1RM 216 (190 × 5), up from 206 on Jun 12".
+ * One-line description of the record minus the exercise name, for machine and
+ * coach readers — the AI recap, MCP tools and the tracker API, whose output is
+ * pinned by the iOS fixture contract (ios/Fixtures/finish.json):
+ * "est. 1RM 216 (190 × 5), up from 206 on Jun 12". Screens a person reads use
+ * describeRecordForPeople instead.
  */
 export function describeRecord(pr: PersonalRecord): string {
   const prevDate = format(parseISO(pr.previousDate), 'MMM d');
@@ -481,4 +484,15 @@ export function describeRecord(pr: PersonalRecord): string {
     case 'elevation':
       return `${quantityLabel(pr.value, pr.unit)} elevation, up from ${quantityLabel(pr.previousValue, pr.unit)} on ${prevDate}`;
   }
+}
+
+/**
+ * describeRecord in the words a person reads on screen — the workout summary and
+ * block detail. "1RM" is jargon to most users (docs/onboarding/MASTER.md, "Copy
+ * rules"): "est. best single lift 216 (190 × 5), up from 206 on Jun 12".
+ */
+export function describeRecordForPeople(pr: PersonalRecord): string {
+  if (pr.kind !== 'oneRM') return describeRecord(pr);
+  const prevDate = format(parseISO(pr.previousDate), 'MMM d');
+  return `est. best single lift ${Math.round(pr.estimatedOneRM)} (${pr.weight} × ${pr.reps}), up from ${Math.round(pr.previousOneRM)} on ${prevDate}`;
 }

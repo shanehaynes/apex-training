@@ -37,9 +37,9 @@ export default function CorosConnection() {
       {status === 'connected' ? (
         <>
           <p className="profile-hint">
-            Connected · last synced {formatWhen(lastSyncedAt)}. Grab new activities with
-            the Sync button above the calendar — activities matching a planned workout
-            offer to fill it; everything else lands as its own event.
+            Connected · last brought in {formatWhen(lastSyncedAt)}. Tap Sync above the
+            calendar to bring in new activities. One that matches a planned workout
+            asks to fill it. The rest come in as their own workouts.
           </p>
           <label className="coros-auto-sync">
             <input
@@ -47,14 +47,16 @@ export default function CorosConnection() {
               checked={autoSync}
               onChange={e => setAutoSync(e.target.checked)}
             />
-            Sync automatically every night (~11:30 PM ET). Unmatched activities import
-            on their own; matches to planned workouts wait for your confirmation — the
-            Sync button shows a badge when any are waiting.
+            Bring in new activities every night (about 11:30 PM Eastern).
           </label>
           <p className="profile-hint">
-            Disconnecting deletes Apex's copy of your COROS tokens. It cannot withdraw
-            the permission you gave COROS — remove Apex from your connected apps in the
-            COROS app (Profile → Settings → 3rd Party Apps) to end that too.
+            Activities that match a planned workout wait for your yes. Sync shows a
+            number when any are waiting.
+          </p>
+          <p className="profile-hint">
+            Disconnect COROS deletes Apex's link to your COROS account. COROS still lists
+            Apex as allowed. To remove it there, open the COROS app. Go to Profile →
+            Settings → 3rd Party Apps and remove Apex.
           </p>
           <button className="auth-submit" onClick={disconnect}>
             Disconnect COROS
@@ -63,8 +65,8 @@ export default function CorosConnection() {
       ) : status === 'expired' ? (
         <>
           <p className="profile-hint">
-            The COROS connection expired — sign in again to keep syncing. Your imported
-            activities are untouched.
+            The link to COROS has run out. Sign in again so new activities keep coming
+            in. Nothing you brought in is lost.
           </p>
           <button className="auth-submit" onClick={startConnect} disabled={isConnecting}>
             {isConnecting ? 'Redirecting…' : 'Reconnect COROS'}
@@ -76,9 +78,9 @@ export default function CorosConnection() {
             <p className="profile-hint" role="status">{disconnectNotice}</p>
           )}
           <p className="profile-hint">
-            Connect your COROS account to pull activities — with heart rate, GPS, and
-            elevation — straight into the calendar. You'll sign in on COROS's site;
-            Apex never sees your COROS password.
+            Connect your COROS account to bring your activities into the calendar. They
+            come with heart rate, route and climb. You sign in on the COROS site. Apex
+            never sees your COROS password.
           </p>
           <button className="auth-submit" onClick={startConnect} disabled={isConnecting}>
             {isConnecting ? 'Redirecting…' : 'Connect COROS'}

@@ -101,12 +101,12 @@ test('03 Edit exercises says it changes every week', async ({ page }, testInfo) 
 
   await page.locator('.modal-edit-exercises').click();
   const note = page.locator('.exercise-editor__series-note');
-  await expect(note).toContainText('every occurrence');
+  await expect(note).toContainText('every day in the series');
   await note.scrollIntoViewIfNeeded();
   await helpShot(page, { slug: SLUG, n: 3, name: 'series-note', highlight: note, outDir });
 });
 
-test('04 Edit workout asks: this event only, or the whole series', async ({ page }, testInfo) => {
+test('04 Edit workout asks: this day only, or the whole series', async ({ page }, testInfo) => {
   phoneOnly(testInfo);
   await load(page, testInfo);
   await openSeries(page, testInfo);
@@ -115,7 +115,7 @@ test('04 Edit workout asks: this event only, or the whole series', async ({ page
   await page.locator('.library-field', { hasText: 'Location' }).locator('input').fill('Home gym');
   await page.locator('.exercise-editor__save', { hasText: 'Save changes' }).click();
   const scope = page.locator('.builder-scope');
-  await expect(scope.getByRole('button', { name: 'This event only' })).toBeVisible();
+  await expect(scope.getByRole('button', { name: 'This day only' })).toBeVisible();
   await expect(scope.getByRole('button', { name: 'Whole series' })).toBeVisible();
   // The Location field keeps focus otherwise, and the caret would ride along.
   await page.locator('.library-field', { hasText: 'Location' }).locator('input').blur();

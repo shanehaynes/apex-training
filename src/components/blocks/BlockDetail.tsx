@@ -6,7 +6,7 @@ import { computeBlockProgress } from '../../lib/blocks/progress';
 import type { BlockProgress } from '../../lib/blocks/progress';
 import { loadBlockLogs } from '../../lib/blocks/repo';
 import { blockPeriod } from '../../lib/blocks/period';
-import { describeRecord } from '../../lib/tracking/records';
+import { describeRecordForPeople } from '../../lib/tracking/records';
 import { now } from '../../lib/clock';
 import type { TrainingBlock } from '../../types/blocks';
 import BlockProgressBars from './BlockProgressBars';
@@ -157,7 +157,7 @@ export default function BlockDetail({
                   {progress.prs.map((pr, i) => (
                     <li key={`${pr.exerciseName}-${pr.date}-${i}`}>
                       <span className="block-prs__date">{pr.date}</span>{' '}
-                      <strong>{pr.exerciseName}</strong> — {describeRecord(pr)}
+                      <strong>{pr.exerciseName}</strong> — {describeRecordForPeople(pr)}
                     </li>
                   ))}
                 </ul>

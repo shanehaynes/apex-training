@@ -2,7 +2,7 @@ import { CheckCircle2, Trophy, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { WorkoutEvent } from '../../types/workout';
 import type { TrackedSectionGroup, TrackedSet, CardioActuals } from '../../lib/tracking/plan';
-import { describeRecord, describeWorkoutScore, formatScore } from '../../lib/tracking/records';
+import { describeRecordForPeople, describeWorkoutScore, formatScore } from '../../lib/tracking/records';
 import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from '../../lib/tracking/records';
 import type { CoachStatus } from '../../hooks/useWorkoutSession';
 import { useTip } from '../../hooks/useTip';
@@ -116,7 +116,7 @@ export default function WorkoutSummary({
               <div key={`${pr.kind}|${pr.exerciseName}`} className="tracker-summary__pr">
                 <Trophy size={14} strokeWidth={2} style={{ color: accentColor }} />
                 <span>
-                  <strong>{pr.exerciseName}</strong> — {describeRecord(pr)}
+                  <strong>{pr.exerciseName}</strong> — {describeRecordForPeople(pr)}
                 </span>
               </div>
             ))}

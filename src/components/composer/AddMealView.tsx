@@ -275,7 +275,7 @@ export default function AddMealView() {
             <input inputMode="decimal" className="library-field__input" value={alcohol} onChange={e => setAlcohol(e.target.value)} />
           </label>
           <label className="library-field">
-            <span className="library-field__label">Calories <em>auto from macros</em></span>
+            <span className="library-field__label">Calories <em>fills in by itself</em></span>
             <input
               inputMode="decimal"
               className="library-field__input"
