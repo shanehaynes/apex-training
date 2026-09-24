@@ -20,7 +20,18 @@
       "name": "light-path-subproject",
       "prompt": "we're going to start the android app for tempo now. new gradle project under android/ in this repo. get it set up so sessions can start working on it.",
       "expected_output": "Light path: reads existing CLAUDE.md; does not re-vendor parallel-agents or add a second CI pipeline from scratch; adds inventory rows (Gradle caches, emulators as capacity, etc.), a STATUS row, a date-named decision record, a CLAUDE.md section, and extends the gate/CI for Android rather than duplicating.",
-      "files": ["fixtures/tempo"]
+      "files": [
+        "fixtures/tempo"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "light-path-unready-repo",
+      "prompt": "adding a new package to ledger: packages/worker, a background job runner that syncs bank transactions every night. get it set up so a few claude sessions can start working on it this week.",
+      "expected_output": "Light path in a repo with no parallel setup: worker package on a branch based on main; follows the repo's own ADR/migration conventions while naming them as global counters; names the fixed port and global DB path as shared state; offers parallel-readiness as its own lane/PR instead of folding it in; changes nothing outside the worker, docs and CLAUDE/STATUS; never tells sessions to base work on a feature branch.",
+      "files": [
+        "fixtures/ledger"
+      ]
     }
   ]
 }

@@ -1,6 +1,20 @@
 ---
 name: new-dev-project
-description: Start a new software project so it is ready on day one for real work by several Claude sessions and subagent fleets — step-0 stakes, repo and stack, CLAUDE.md with a shared-state inventory, the parallel-agents skill vendored and its hooks wired, one parallel-safe gate command, CI, merge settings, envs and deploy, a status board and a decision log. Use this skill EVERY time a new project, repo, app, service or package begins — "start a new project", "new repo", "scaffold an app", "let's build X from scratch", "init this project", "set up a monorepo package for Y", or when the user opens an empty or near-empty directory/repo and asks to build something in it — even if they never say "project" and only describe the thing they want built. Also use it for a new app or workstream inside an existing repo (light path). Not for one-off scripts, notebooks, or a new feature/component/branch in an existing codebase.
+description: >-
+  Use this skill whenever the user wants to build something new that doesn't
+  exist yet: an app, site, bot, service, tool or package they'll keep and
+  grow. The request often doesn't sound like "setting up a project". It is
+  often just "help me build a Telegram bot that…" or "turn this into a Next.js
+  site", said in a freshly made or nearly empty folder or repo (only a README,
+  only `mkdir`). If the code the user describes would be the first real code
+  there, use this skill before writing any of it. It sets up the foundation
+  first: settles the stakes, picks the stack, and adds git and GitHub,
+  CLAUDE.md, a gate command, CI, merge settings, env and deploy, STATUS.md, a
+  decision log, and parallel-agents hooks so several Claude sessions can work
+  on it safely. Also use it for a new app, package or workstream added inside
+  an existing repo. Do not use it for throwaway scripts or notebooks, or for
+  features, pages, components, env vars, docs or fixes in a codebase that
+  already exists.
 ---
 
 # New Development Project
@@ -28,6 +42,18 @@ it; the project gets a vendored copy in step 3, after which read that copy.
   checks into the existing gate, add a `CLAUDE.md` section and a status-board
   row, and write the decision record for its stack. Do not re-vendor
   parallel-agents or add a second CI pipeline.
+  If the repo is **not** parallel-ready (no vendored parallel-agents, no
+  worktree convention, no shared-state inventory), still add the new part the
+  light way, following whatever conventions the repo does have — then say
+  plainly what is missing and offer the full path's step 3 as its *own* lane
+  and PR. Do not fold that retrofit into the new part's change: it touches
+  `.claude/settings.json`, `.gitignore` and `CLAUDE.md` for the whole repo, it
+  is held for the user, and one lane carries one concern. Work on a branch
+  in a worktree even so, at the same place `lane.sh` would put it
+  (`<repo>/.claude/worktrees/<branch-with-dashes>`), and keep it out of
+  `git status` with `.git/info/exclude` rather than an edit to `.gitignore`.
+  Tell the user the branch is based on `main` and that other sessions start
+  from `main` too — never from this branch.
 - **Not this skill** — a throwaway script, a notebook, a spike the user says
   will be deleted. Say so in one line and just build it.
 
