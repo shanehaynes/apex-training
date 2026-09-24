@@ -24,3 +24,12 @@ updates take a few hours, anyone with the link can read it.
 `e2e/mock/tips-profile.spec.ts`, this file. The **Help** row itself is O04's.
 
 ## Session log
+- 2026-09-24 — Tips wired. `ProfileDisclosure` gained `onOpenChange` (user toggles only,
+  not `defaultOpen`). `calendar-feed` (ProfileView) and `connector-first` (McpTokens) are
+  conditioned on their fold being open, so closing it withdraws the offer; focus sits on the
+  toggle button, so TipHost's typing hold never delays them. `coach-goal` is conditioned on a
+  save that took the key from absent to saved this visit (a Replace does not count), with both
+  the typed and saved Goal empty; the key field unmounts on success, so focus has left it.
+  Copy refined in `tips/profile.ts` (ids unchanged). `help/calendar-feed.md` written: shot 01
+  generated (phone only — the desktop Profile is the same column; the field is painted with the
+  production host for the picture), 02–04 EXTERNAL placeholders. Spec: `e2e/mock/tips-profile.spec.ts`.
