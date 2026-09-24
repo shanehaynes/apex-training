@@ -7,37 +7,47 @@ import { test, expect, gotoCalendar, shot } from '../lib/fixtures';
 // rather than anything onboarding stored for itself.
 //
 // The context stub in intercept.mjs answers provider-sync with
-// configured:false and mcp-tokens with an empty list, so the COROS step and
-// the connector row behave as they would on a deployment with no COROS env.
+// configured:false and mcp-tokens with an empty list, so the COROS and
+// connector rows behave as they would on a deployment with no COROS env.
 
 test.use({ freshProfile: true });
 
-// WELCOME_STEPS minus the COROS card, which requires a configured provider.
-const STEPS_WITHOUT_COROS = 7;
+// The intro is four cards whether or not COROS is configured (D-O05): the
+// watch is taught by a tip now, not a card.
+const STEPS = 4;
+const position = (n: number) => `Step ${n} of ${STEPS}`;
 
 test('welcome flow runs, latches, and hands off to the checklist', async ({ page }) => {
   await gotoCalendar(page);
 
   const welcome = page.locator('.welcome');
   await expect(welcome, 'a fresh account meets the welcome flow first').toBeVisible();
-  await expect(welcome.locator('.welcome__count')).toHaveText(`Step 1 of ${STEPS_WITHOUT_COROS}`);
-  await expect(welcome.locator('.welcome__dot')).toHaveCount(STEPS_WITHOUT_COROS);
+  // Position is the dots alone; their label carries it for a screen reader.
+  const dots = welcome.locator('.welcome__dots');
+  await expect(dots).toHaveAttribute('aria-label', position(1));
+  await expect(welcome.locator('.welcome__dot')).toHaveCount(STEPS);
+  await expect(welcome.locator('.welcome__dot').first()).toHaveClass(/welcome__dot--active/);
   await shot(page, 'onboarding-welcome');
 
   // No Back on the first card; Next advances and Back returns.
   await expect(welcome.locator('.welcome__back')).toHaveCount(0);
   await welcome.locator('.welcome__next').click();
-  await expect(welcome.locator('.welcome__count')).toHaveText(`Step 2 of ${STEPS_WITHOUT_COROS}`);
+  await expect(dots).toHaveAttribute('aria-label', position(2));
   await welcome.locator('.welcome__back').click();
-  await expect(welcome.locator('.welcome__count')).toHaveText(`Step 1 of ${STEPS_WITHOUT_COROS}`);
+  await expect(dots).toHaveAttribute('aria-label', position(1));
 
-  // Walk to the end. No card should mention the watch on this deployment.
+  // Walk to the end. No card mentions the watch, and every link stays on Apex.
   const titles: string[] = [];
-  for (let i = 0; i < STEPS_WITHOUT_COROS; i += 1) {
+  for (let i = 0; i < STEPS; i += 1) {
     titles.push((await welcome.locator('.welcome__title').textContent()) ?? '');
-    if (i < STEPS_WITHOUT_COROS - 1) await welcome.locator('.welcome__next').click();
+    if (i < STEPS - 1) await welcome.locator('.welcome__next').click();
   }
+  expect(titles).toEqual(['Welcome to Apex', 'Put something on it', 'Log a workout', 'Meet your coach']);
   expect(titles.join(' ')).not.toMatch(/COROS|watch/i);
+  const keyLink = welcome.locator('.welcome__link');
+  await expect(keyLink, 'the coach card points at the Apex help page').toHaveAttribute('href', '/help/get-api-key');
+  await expect(keyLink).toHaveAttribute('target', '_blank');
+  await expect(welcome.locator('.welcome__action')).toHaveText('Add key');
   await expect(welcome.locator('.welcome__next'), 'the last card commits').toHaveText('Start training');
   await shot(page, 'onboarding-welcome-last');
 
@@ -105,6 +115,32 @@ test('welcome flow and nudge survive a phone viewport', async ({ page }) => {
   const navBox = await nav.boundingBox();
   expect(nudgeBox && navBox && nudgeBox.y + nudgeBox.height <= navBox.y).toBe(true);
   await shot(page, 'onboarding-nudge-mobile');
+});
+
+test('every welcome card fits a 375×812 phone without scrolling', async ({ page }) => {
+  // Load at desktop size (gotoCalendar waits on a chip the phone's day view
+  // may not show), then shrink, as the 390×844 test does.
+  await gotoCalendar(page);
+  await page.setViewportSize({ width: 375, height: 812 });
+
+  const welcome = page.locator('.welcome');
+  await expect(welcome).toBeVisible();
+  for (let i = 0; i < STEPS; i += 1) {
+    await expect(welcome.locator('.welcome__dots')).toHaveAttribute('aria-label', position(i + 1));
+    await expect(welcome.locator('.welcome__dot').nth(i)).toHaveClass(/welcome__dot--active/);
+    // Neither the card nor its backdrop scrolls, and the card sits on screen.
+    const fits = await welcome.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const backdrop = el.parentElement!;
+      return el.scrollHeight <= el.clientHeight
+        && backdrop.scrollHeight <= backdrop.clientHeight
+        && box.top >= 0 && box.bottom <= window.innerHeight;
+    });
+    expect(fits, `card ${i + 1} fits without scrolling`).toBe(true);
+    // Not shot(): the dots fade between cards, and a mid-fade frame reads wrong.
+    await page.screenshot({ path: `e2e/screenshots/onboarding-welcome-phone-${i + 1}.png`, animations: 'disabled' });
+    if (i < STEPS - 1) await welcome.locator('.welcome__next').click();
+  }
 });
 
 test('the nudge stays out of the way while an overlay is open', async ({ page }) => {

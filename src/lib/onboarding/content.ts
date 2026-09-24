@@ -3,8 +3,11 @@
 // happened to the starter-plan offer this replaces: two copies of one message,
 // in a banner and in ProfileView, worded differently.
 //
-// Keep bodies under ~35 words. The brief is "many features, few words", and a
-// card nobody finishes teaches nothing.
+// Keep bodies at 35 words or fewer (content.test.ts counts them). The brief is
+// "many features, few words", and a card nobody finishes teaches nothing.
+//
+// No runtime imports, ever: ios/scripts/gen-onboarding-catalog.mjs loads this
+// file under Node's type stripping and compiles it into the Swift catalog.
 
 /** What a step or checklist row's button does. Handlers live in useOnboardingActions. */
 export type ActionKind = 'copy-template' | 'open-profile' | 'connect-coros';
@@ -32,57 +35,44 @@ export interface WelcomeStep {
   requiresCoros?: boolean;
 }
 
-/** The user guide. Absolute because the app is a SPA — a relative path 404s. */
-export const GUIDE_URL = 'https://github.com/shanehaynes/apex-training/blob/main/WELCOME.md';
+/**
+ * The help index. Relative on purpose: every link in the intro is Apex-hosted.
+ * vercel.json's SPA rewrite serves index.html for /help, and App.tsx matches
+ * /help and /help/<slug> before AuthProvider (lane O04), so it resolves
+ * signed in or out. The iOS app has to resolve these against the web origin
+ * (its WelcomeFlowView, the later parity session).
+ */
+export const GUIDE_URL = '/help';
 
+// Four cards, then silence (docs/onboarding/MASTER.md, "Intro"; D-O05). Every
+// other feature is taught by a tip the first time the user reaches it, so a
+// fifth card here is a regression, not an addition. **Bold** names a button by
+// its on-screen label; WelcomeFlow renders it.
 export const WELCOME_STEPS: WelcomeStep[] = [
   {
     id: 'welcome',
     title: 'Welcome to Apex',
-    body: 'Plan your training on a calendar, log it as you go, and let a coach that reads your actual numbers help you steer. Here is the whole app in about a minute.',
+    body: 'Your calendar is home. Every workout sits on a day. Tap a day to see what is planned, and tap a workout to open it.',
   },
   {
-    id: 'calendar',
-    title: 'Your calendar',
-    body: 'Month, week, or day. Tap any day to add a workout or a meal, and workouts can repeat on a rule. Want a head start? Copy Shane’s recurring plan.',
-    iosBody: 'Month or day. Tap any day to add a workout or a meal, and workouts can repeat on a rule. Want a head start? Copy Shane’s recurring plan.',
+    id: 'plan',
+    title: 'Put something on it',
+    body: 'Start fast with Shane’s ready-made weekly plan. Change or delete any of it later. Or add your own workout with the **+** button at the bottom.',
+    iosBody: 'Start fast with Shane’s ready-made weekly plan. Change or delete any of it later. Or add your own workout with the **+** at the top.',
     action: { label: 'Copy the starter plan', kind: 'copy-template' },
   },
   {
-    id: 'tracker',
-    title: 'Log as you lift',
-    body: 'Open a workout and press Start. Log sets against the plan, tap to reuse last session’s numbers, and finish to see any records — estimated 1RM included. Or just mark it complete.',
+    id: 'log',
+    title: 'Log a workout',
+    // No iosBody: the phone's button reads "Mark as Complete" too (EventSheet.swift).
+    body: 'Open a workout and press **Start Workout** to log each set as you go. In a hurry? **Mark as Complete** records it in one tap.',
   },
   {
     id: 'coach',
     title: 'Meet your coach',
-    body: 'Ask the chat rail anything about your training, or tap Coach’s Notes for a daily briefing. It can add and edit workouts and meals too, always behind a confirm.',
-    action: { label: 'Add your Anthropic key', kind: 'open-profile' },
-  },
-  {
-    id: 'structure',
-    title: 'Blocks, library, meals',
-    body: 'Training blocks give a stretch of weeks real weekly targets, and show what you actually hit. The exercise library keeps history per movement. Logged meals feed the coach as well.',
-  },
-  {
-    id: 'coros',
-    title: 'Your watch, automatically',
-    body: 'Connect COROS once and it syncs itself every night — heart rate, elevation, route. An activity that matches a planned workout waits for your yes before filling it in.',
-    action: { label: 'Connect COROS', kind: 'connect-coros' },
-    requiresCoros: true,
-  },
-  {
-    id: 'connectors',
-    title: 'Claude and ChatGPT',
-    body: 'Connect Apex as a tool and ask about your training from Claude or ChatGPT. Strictly read-only — an assistant can look at everything and change nothing.',
-    action: { label: 'Set up a connector', kind: 'open-profile' },
-  },
-  {
-    id: 'more',
-    title: 'A few last things',
-    body: 'Subscribe to your schedule from Apple or Google Calendar, and expect a review email when a training month closes. On a phone, Apex shows one day at a time.',
-    iosBody: 'Subscribe to your schedule from Apple or Google Calendar, and expect a review email when a training month closes. Everything here syncs with the web app.',
-    link: { label: 'Read the full guide', href: GUIDE_URL },
+    body: 'The **Coach** tab answers questions about your training and can plan workouts for you. It needs a key from Anthropic first — a few minutes, billed to you, not Apex.',
+    action: { label: 'Add key', kind: 'open-profile' },
+    link: { label: 'Get an API key', href: '/help/get-api-key' },
   },
 ];
 
@@ -107,7 +97,7 @@ export const CHECKLIST_ITEMS: ChecklistItem[] = [
   {
     id: 'key',
     label: 'Add your Anthropic API key',
-    hint: 'The coach and post-workout summaries stay switched off until you do.',
+    hint: 'The coach and post-workout summaries stay switched off until you do. See Get an API key under Help.',
     action: { label: 'Add key', kind: 'open-profile' },
   },
   {
