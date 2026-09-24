@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { test, expect, gotoCalendar, shot } from '../lib/fixtures';
 // @ts-expect-error plain-JS module shared with scripts/drive.mjs
 import { driverProfile } from '../lib/session.mjs';
-import { tipById } from '../../src/lib/onboarding/tips/index';
+import { TIPS, tipById } from '../../src/lib/onboarding/tips/index';
 
 // The coach's two tips (docs/onboarding/workstreams/O10-coach.md):
 // coach-first-message when a pane with a saved key and an empty thread is on
@@ -18,8 +18,19 @@ const CONFIRM = tipById('coach-confirm-card');
 const ndjson = (events: object[]) => events.map(e => JSON.stringify(e)).join('\n') + '\n';
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' };
 
-/** Answer the own-profile read with this row instead of the fixture's. */
-async function stubProfile(page: Page, row: Record<string, unknown>) {
+/** This lane's tips; every other lane's is marked seen so it cannot take the load's one card. */
+const COACH_IDS: readonly string[] = [FIRST.id, CONFIRM.id];
+const OTHERS_SEEN: Record<string, string> = Object.fromEntries(
+  TIPS.filter(t => !COACH_IDS.includes(t.id)).map(t => [t.id, '2026-09-01T00:00:00Z']),
+);
+
+/**
+ * Answer the own-profile read with the fixture's row, every other lane's tip
+ * seen, plus `seen`. A later call outranks an earlier one (Playwright matches
+ * routes newest first), so a test can add to the beforeEach default.
+ */
+async function stubProfile(page: Page, seen: Record<string, string> = {}) {
+  const row = { ...driverProfile(), tips_seen: { ...OTHERS_SEEN, ...seen } };
   await page.route(/\.supabase\.co\/rest\/v1\/profiles/, route => {
     const req = route.request();
     if (req.method() !== 'GET') return route.fallback();
@@ -57,6 +68,10 @@ function recordProfilePatches(page: Page): Record<string, unknown>[] {
 }
 
 const tip = (page: Page, id: string) => page.locator(`.tip[data-tip-id="${id}"]`);
+
+// The calendar under every test offers its own tips (day-complete-circle
+// ties coach-confirm-card on priority and wins on catalog order).
+test.beforeEach(async ({ page }) => { await stubProfile(page); });
 
 test('the desktop rail offers the first-message tip on load', async ({ page }) => {
   const patches = recordProfilePatches(page);
@@ -117,7 +132,7 @@ test('a thread that already has messages gets no first-message tip', async ({ pa
 
 test('the first pending action shows the confirm-card tip', async ({ page }) => {
   // First-message already seen, or it would take this load's one tip.
-  await stubProfile(page, { ...driverProfile(), tips_seen: { [FIRST.id]: '2026-09-01T00:00:00Z' } });
+  await stubProfile(page, { [FIRST.id]: '2026-09-01T00:00:00Z' });
   await page.route('**/api/chat', route => route.fulfill({
     status: 200,
     contentType: 'application/x-ndjson; charset=utf-8',
