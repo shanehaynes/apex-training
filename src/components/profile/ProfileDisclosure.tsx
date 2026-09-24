@@ -24,10 +24,16 @@ interface Props {
   action?: React.ReactNode;
   /** Small image on the header, for state a word cannot carry — the chosen avatar. */
   thumb?: React.ReactNode;
+  /**
+   * Told when the user opens or closes the fold with the header toggle — not
+   * when `defaultOpen` opens it. Lets a section offer its first-open tip only
+   * while its controls are actually on screen.
+   */
+  onOpenChange?: (open: boolean) => void;
   children: React.ReactNode;
 }
 
-export default function ProfileDisclosure({ title, status, defaultOpen = false, action, thumb, children }: Props) {
+export default function ProfileDisclosure({ title, status, defaultOpen = false, action, thumb, onOpenChange, children }: Props) {
   const [open, setOpen] = useState(defaultOpen);
   const [toggled, setToggled] = useState(false);
 
@@ -42,7 +48,12 @@ export default function ProfileDisclosure({ title, status, defaultOpen = false, 
           type="button"
           className="profile-fold__toggle"
           aria-expanded={open}
-          onClick={() => { setOpen(!open); setToggled(true); }}
+          onClick={() => {
+            const next = !open;
+            setOpen(next);
+            setToggled(true);
+            onOpenChange?.(next);
+          }}
         >
           <ChevronRight size={14} strokeWidth={2} className="profile-fold__chevron" />
           <span className="profile-section__title">{title}</span>
