@@ -84,8 +84,7 @@ calendar subscription to the tokened URL from your profile page).
 Run `scripts/auth-redirect-check.sh` first — a green check here is what makes
 the rest of this section true, and step 1.3 is easy to get wrong.
 
-Authentication → Users → **Invite user** (one at a time; built-in SMTP is
-rate-limited to a few emails per hour). This is the only invite: the email
+Authentication → Users → **Invite user**. This is the only invite: the email
 carries the iOS app's TestFlight public link, so nobody is added in App Store
 Connect. Supabase is the gate, and TestFlight's public link only hands out the
 binary, which is useless without an account.
@@ -95,11 +94,23 @@ One-time setup:
 - App Store Connect → TestFlight → an **external** group → enable **Public
   Link**. External builds pass Beta App Review (the first build of each
   version; usually about a day) before the link installs them.
-- Authentication → Email Templates → **Invite user**: subject and body from
-  [supabase/templates/invite.html](supabase/templates/invite.html), with
-  `TESTFLIGHT_PUBLIC_LINK` replaced by the real link (both places). The file
-  keeps the placeholder because the repo is public. Send yourself an invite
-  to check it.
+- Custom SMTP, which Supabase requires before it lets you edit a template.
+  Auth mail goes out through [Resend](https://resend.com) as
+  `invites@apex-training.app`: the domain is registered at Cloudflare and
+  verified in Resend (its DKIM `resend._domainkey` and SPF/MX `send` records
+  live in Cloudflare DNS). Authentication → Emails → **SMTP Settings**:
+  host `smtp.resend.com`, port `465`, username `resend`, password a Resend
+  API key with *Sending access* limited to that domain. Supabase's own
+  hourly cap then sits under Authentication → Rate Limits.
+- Replies: Cloudflare → Email Routing forwards `invites@` and `support@`
+  `apex-training.app` to Shane's Gmail. Aliases only receive; sending is
+  Resend's job.
+- Authentication → Emails → Templates → **Invite user**: subject
+  `You're invited to Apex Training`, body from
+  [supabase/templates/invite.html](supabase/templates/invite.html) with
+  `TESTFLIGHT_PUBLIC_LINK` replaced by the real link. The file keeps the
+  placeholder because the repo is public. Send yourself an invite and check
+  Gmail's "Show original" for SPF, DKIM and DMARC PASS.
 
 Each invitee:
 
