@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useModalChrome } from '../../hooks/useModalChrome';
+import { useTip } from '../../hooks/useTip';
 import { X, Search, ChevronRight, Archive } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/calendar';
@@ -58,6 +59,11 @@ export default function LibraryView() {
   }, [definitions, search, category]);
 
   const detail = detailId ? definitions.get(detailId) : undefined;
+
+  // Offered while the list is on screen — its copy is about the list — so a
+  // deep link straight into one exercise's detail waits until Back.
+  useTip('library-first', !detail);
+
   if (detail) {
     return <ExerciseDetail definition={detail} onBack={() => setDetailId(null)} onClose={close} />;
   }
@@ -106,7 +112,9 @@ export default function LibraryView() {
             placeholder="Search exercises…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            autoFocus
+            // No autoFocus: TipHost holds a tip while an input has focus, so an
+            // autofocused search kept library-first off screen, and on a phone
+            // it raised the keyboard over the list this screen exists to show.
           />
         </div>
         <div className="library-filters">
