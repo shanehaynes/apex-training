@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { test, expect, gotoCalendar } from '../lib/fixtures';
 // @ts-expect-error plain-JS module shared with scripts/drive.mjs
 import { driverProfile } from '../lib/session.mjs';
-import { tipById } from '../../src/lib/onboarding/tips/index';
+import { TIPS, tipById } from '../../src/lib/onboarding/tips/index';
 
 // The calendar's two tips (docs/onboarding/workstreams/O07-calendar.md):
 // day-complete-circle the first time a workout with a complete circle is on
@@ -16,6 +16,32 @@ const COPIED = tipById('template-copied');
 
 const tip = (page: Page) => page.locator('.tip');
 
+// Every other lane's tip is live on the calendar too (the coach's priority-0
+// coach-first-message wins a desktop load with a key), so the profile marks
+// all of them seen and only this lane's two are left to compete. Built from
+// the catalog so a tip added later stays out of the way.
+const CALENDAR_IDS: readonly string[] = [DAY.id, COPIED.id];
+const OTHER_LANES_SEEN = Object.fromEntries(
+  TIPS.filter(t => !CALENDAR_IDS.includes(t.id)).map(t => [t.id, '2026-09-01T00:00:00Z']),
+);
+
+/** Answer the own-profile read with `row()` (read per request), other lanes' tips seen. */
+async function stubProfile(page: Page, row: () => Record<string, unknown>) {
+  await page.route(/\.supabase\.co\/rest\/v1\/profiles/, route => {
+    const req = route.request();
+    if (req.method() !== 'GET') return route.fallback();
+    const base = row();
+    const body = { ...base, tips_seen: { ...(base.tips_seen as Record<string, string> | undefined), ...OTHER_LANES_SEEN } };
+    const wantsObject = (req.headers()['accept'] ?? '').includes('vnd.pgrst.object');
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' },
+      body: JSON.stringify(wantsObject ? body : [body]),
+    });
+  });
+}
+
 /** Nothing lands within a generous settle. */
 async function expectNoTip(page: Page, why: string) {
   await page.waitForTimeout(1200);
@@ -26,6 +52,7 @@ test.describe('phone', () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
   test('the day view offers the complete circle once', async ({ page }) => {
+    await stubProfile(page, () => driverProfile());
     await page.goto('/');
     await expect(page.locator('.day-view')).toBeVisible({ timeout: 20000 });
     await expect(page.locator('.day-event-card').first()).toBeVisible({ timeout: 20000 });
@@ -46,6 +73,7 @@ test.describe('phone', () => {
 });
 
 test('desktop: the month grid offers the complete circle once', async ({ page }) => {
+  await stubProfile(page, () => driverProfile());
   await gotoCalendar(page);
   const card = page.locator(`.tip[data-tip-id="${DAY.id}"]`);
   await expect(card).toBeVisible();
@@ -82,22 +110,11 @@ test.describe('fresh account', () => {
         body: JSON.stringify({ events: 7, alreadyCopied: false }),
       });
     });
-    await page.route(/\.supabase\.co\/rest\/v1\/profiles/, route => {
-      const req = route.request();
-      if (req.method() !== 'GET') return route.fallback();
-      const row = {
-        ...driverProfile({ fresh: true }),
-        template_copied_at: server.copiedAt,
-        onboarding_dismissed_at: server.dismissedAt,
-      };
-      const wantsObject = (req.headers()['accept'] ?? '').includes('vnd.pgrst.object');
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' },
-        body: JSON.stringify(wantsObject ? row : [row]),
-      });
-    });
+    await stubProfile(page, () => ({
+      ...driverProfile({ fresh: true }),
+      template_copied_at: server.copiedAt,
+      onboarding_dismissed_at: server.dismissedAt,
+    }));
 
     await gotoCalendar(page);
     const welcome = page.locator('.welcome');
