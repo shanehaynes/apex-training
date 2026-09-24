@@ -46,3 +46,4 @@ Out: any feature trigger site, any help page, `content.ts`, `tips/<feature>.ts`.
   survives reload (localStorage); no request is made.
 
 ## Session log
+- 2026-09-24 · Linux · Opus lane. Store module instead of a provider; column-presence gate + localStorage mirror; 409 on a missing column; GET retries without the column; `tips: off` fixture default; drive.mjs kill switch; quiet PATCH. Fixture fix: ios/Fixtures/profile.json gained tipsSeen. Merged as #324.
