@@ -10,7 +10,9 @@ import type { TipCandidate } from './tipHost';
 //    TipHost subscribes.
 // 2. The localStorage mirror of "seen" (D-O01): always written, so a dismissed
 //    tip stays dismissed on this device even before profiles.tips_seen exists
-//    in prod. AuthContext owns when it is read, written and cleared.
+//    in prod. AuthContext owns when it is read and written. It is never
+//    cleared on sign-out: it is keyed per user and holds only tip ids, and
+//    clearing it would bring every seen tip back until the column is in prod.
 
 // ── Candidates ────────────────────────────────────────────────────────────────
 
@@ -81,11 +83,4 @@ export function saveLocalTipSeen(userId: string | null, id: TipId, at: string) {
   try {
     localStorage.setItem(LS_PREFIX + userId, JSON.stringify({ ...loadLocalTipsSeen(userId), [id]: at }));
   } catch {}
-}
-
-// Called on sign-out: per-account state must not linger on a shared device.
-// The server copy (when the column exists) is what brings it back.
-export function clearLocalTipsSeen(userId: string | null) {
-  if (!userId) return;
-  try { localStorage.removeItem(LS_PREFIX + userId); } catch {}
 }

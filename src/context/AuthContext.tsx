@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { acceptTerms as postAcceptance, ApiError, getJson, patchJson } from '../lib/api';
 import type { AcceptanceStatus } from '../lib/api';
 import { clearCompletedIds } from '../lib/schedule/localCompletion';
-import { clearLocalTipsSeen, loadLocalTipsSeen, saveLocalTipSeen } from '../lib/onboarding/tipsStore';
+import { loadLocalTipsSeen, saveLocalTipSeen } from '../lib/onboarding/tipsStore';
 import type { TipId } from '../lib/onboarding/tips/index';
 import { publicOrigin } from '../lib/origin';
 import { parseAuthLinkError } from '../lib/auth/linkError';
@@ -159,7 +159,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     if (!supabase) return;
     clearCompletedIds(session?.user.id ?? null);
-    clearLocalTipsSeen(session?.user.id ?? null);
+    // The tips mirror is deliberately kept: it is keyed per user and holds only
+    // tip ids, and clearing it would bring every seen tip back after a sign-out
+    // until profiles.tips_seen reaches prod.
     await supabase.auth.signOut();
   }, [session]);
 
@@ -257,9 +259,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }));
     if (!supabase || !profile || !('tips_seen' in profile)) return;
     setProfile(prev => prev && { ...prev, tips_seen: { ...prev.tips_seen, [id]: at } });
-    patchJson('/api/profile', { tip_seen: id }, 'Saving').catch(() => {
-      /* patchJson already toasted; the local mirror still holds it */
-    });
+    // Quiet: a failed tip write is nothing the user can act on, and the
+    // local mirror already keeps the tip gone on this device.
+    patchJson('/api/profile', { tip_seen: id }, 'Saving', { quiet: true }).catch(() => {});
   }, [userId, profile]);
 
   const refreshProfile = useCallback(async () => {

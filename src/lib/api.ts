@@ -88,8 +88,13 @@ export function postJson<T = unknown>(
   return requestJson<T>('POST', path, body, label, opts);
 }
 
-export function patchJson<T = unknown>(path: string, body: unknown, label: string): Promise<T> {
-  return requestJson<T>('PATCH', path, body, label);
+export function patchJson<T = unknown>(
+  path: string,
+  body: unknown,
+  label: string,
+  opts?: RequestOptions,
+): Promise<T> {
+  return requestJson<T>('PATCH', path, body, label, opts);
 }
 
 export function deleteJson<T = unknown>(path: string, label: string, body?: unknown): Promise<T> {
