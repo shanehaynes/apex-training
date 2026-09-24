@@ -7,10 +7,10 @@ import SwiftUI
 /// Skip at any point, Start training at the end. Shows exactly once per
 /// account: finishing or skipping latches `profiles.onboarding_dismissed_at`.
 ///
-/// Four pages, not the web's eight (ux-review §3.9): the catalog's steps
-/// grouped by intent in `OnboardingModel.welcomePages`. One progress
-/// indicator, the dots — the "STEP 2 OF 8" eyebrow said the same thing a third
-/// time, after the dots and Back/Next.
+/// Four pages, one step each, the same four as the web (D-O05; the page table
+/// is `OnboardingModel.welcomePages`). One progress indicator, the dots — the
+/// "STEP 2 OF 8" eyebrow said the same thing a third time, after the dots and
+/// Back/Next.
 public struct WelcomeFlowView: View {
     @Bindable private var model: OnboardingModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -82,7 +82,8 @@ public struct WelcomeFlowView: View {
     private func section(_ step: OnboardingCatalog.Step, isPageTitle: Bool, ownsPageAction: Bool) -> some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             title(step, isPageTitle: isPageTitle)
-            Text(step.body)
+            // Markdown, so a button named in **bold** reads bold, as on the web.
+            Text(Self.markdown(step.body))
                 .apexBody()
                 .fixedSize(horizontal: false, vertical: true)
             if let action = step.action {
@@ -92,7 +93,7 @@ public struct WelcomeFlowView: View {
                 .accessibilityIdentifier(ownsPageAction ? "onboarding.welcome.action" : "onboarding.welcome.action.\(step.id)")
                 .padding(.top, Spacing.xs)
             }
-            if let link = step.link, let url = URL(string: link.href) {
+            if let link = step.link, let url = model.destination(for: link) {
                 Link(link.label, destination: url)
                     .font(.apex(.display, size: TypeScale.sm, weight: .semibold, relativeTo: .callout))
                     .foregroundStyle(ApexColor.textSecondary)
@@ -138,6 +139,13 @@ public struct WelcomeFlowView: View {
                 .foregroundStyle(ApexColor.textPrimary)
                 .accessibilityIdentifier("onboarding.welcome.title.\(step.id)")
         }
+    }
+
+    /// `**bold**` → bold; the plain string if the copy is not valid markdown,
+    /// so a stray asterisk shows as itself rather than blanking the step.
+    static func markdown(_ text: String) -> AttributedString {
+        let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        return (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
     }
 
     private var footer: some View {

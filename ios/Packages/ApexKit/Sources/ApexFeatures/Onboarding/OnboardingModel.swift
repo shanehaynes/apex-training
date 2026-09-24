@@ -22,16 +22,23 @@ public final class OnboardingModel {
         public let onTemplateCopied: @MainActor () async -> Void
         /// Presents the Anthropic key sheet on the You tab.
         public let openKeySheet: @MainActor () -> Void
+        /// The web app's origin (`AppConfig.publicOrigin`): the catalog's links
+        /// are Apex-hosted and relative (`/help/get-api-key`), and a phone has
+        /// no page to resolve them against. Nil hides a relative link rather
+        /// than opening a URL with no host.
+        public let publicOrigin: URL?
 
         public init(
             client: ApexClient, routes: RouteBus, corosConfigured: @escaping @MainActor () async -> Bool,
-            onTemplateCopied: @escaping @MainActor () async -> Void, openKeySheet: @escaping @MainActor () -> Void
+            onTemplateCopied: @escaping @MainActor () async -> Void, openKeySheet: @escaping @MainActor () -> Void,
+            publicOrigin: URL? = nil
         ) {
             self.client = client
             self.routes = routes
             self.corosConfigured = corosConfigured
             self.onTemplateCopied = onTemplateCopied
             self.openKeySheet = openKeySheet
+            self.publicOrigin = publicOrigin
         }
     }
 
@@ -116,18 +123,18 @@ public final class OnboardingModel {
         public let steps: [OnboardingCatalog.Step]
     }
 
-    /// Eight text-only pages were eight-tenths empty (ux-review §3.9), so the
-    /// app groups them by intent into four. **iOS only** — the web's tour is
-    /// still one step per page.
+    /// One step per page. The eight-step tour was grouped onto four pages
+    /// (ux-review §3.9); the catalog is four steps now (D-O05), so the grouping
+    /// has nothing left to merge and the app matches the web page for page.
     ///
     /// A table over step *ids*, not indices or counts: a step the catalog adds
     /// gets a page of its own rather than disappearing, and
     /// `OnboardingModelTests` fails if the table and the catalog disagree.
     static let welcomePageGroups: [[String]] = [
-        ["welcome", "calendar"],
-        ["tracker", "structure"],
+        ["welcome"],
+        ["plan"],
+        ["log"],
         ["coach"],
-        ["coros", "connectors", "more"],
     ]
 
     public var welcomePages: [WelcomePage] {
@@ -143,11 +150,19 @@ public final class OnboardingModel {
     }
 
     /// The coach page carries the goal row as well as the key: a key with no
-    /// goal is half a coach, and that page is one step where the others are
-    /// two or three. It is the checklist's row (`ChecklistID.goal`), not a
-    /// ninth step — nothing about the web's tour changes.
+    /// goal is half a coach. It is the checklist's row (`ChecklistID.goal`),
+    /// not a fifth step — nothing about the web's tour changes.
     public func extraRow(for page: WelcomePage) -> OnboardingCatalog.ChecklistItem? {
         page.steps.contains { $0.id == "coach" } ? OnboardingCatalog.checklistItem(.goal) : nil
+    }
+
+    /// Where a step's link goes. An absolute href opens as written; a relative
+    /// one (every catalog link today, D-O05) resolves against the web origin,
+    /// and without one there is nowhere to send it, so the link is hidden.
+    public func destination(for link: OnboardingCatalog.Link) -> URL? {
+        if let absolute = URL(string: link.href), absolute.scheme != nil { return absolute }
+        guard let origin = deps.publicOrigin else { return nil }
+        return URL(string: link.href, relativeTo: origin)?.absoluteURL
     }
 
     public var nudgeRows: [NudgeRow] {
@@ -182,7 +197,7 @@ public final class OnboardingModel {
             switch id {
             case "coach", OnboardingCatalog.ChecklistID.key.rawValue:
                 deps.openKeySheet()
-            case "connectors", OnboardingCatalog.ChecklistID.connector.rawValue:
+            case OnboardingCatalog.ChecklistID.connector.rawValue:
                 deps.routes.pendingYou = .connector
             case OnboardingCatalog.ChecklistID.goal.rawValue:
                 deps.routes.pendingYou = .coachProfile

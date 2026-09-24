@@ -263,7 +263,8 @@ final class AppModel {
                 return coros.isConfigured
             },
             onTemplateCopied: { [weak self] in await self?.schedule.refresh(reason: .afterEdit) },
-            openKeySheet: { [weak self] in self?.you?.showKeySheet = true }
+            openKeySheet: { [weak self] in self?.you?.showKeySheet = true },
+            publicOrigin: AppConfig.publicOrigin
         ))
         onboarding = onboardingModel
         Task { await onboardingModel.start() }

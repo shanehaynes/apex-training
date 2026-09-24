@@ -43,21 +43,18 @@ final class OnboardingModelTests: XCTestCase {
         await model.start()
         XCTAssertTrue(model.showsWelcome)
         XCTAssertFalse(model.showsNudge, "the card waits for the flow to be dismissed")
-        XCTAssertEqual(model.welcomeSteps.map(\.id), ["welcome", "calendar", "tracker", "coach", "structure", "coros", "connectors", "more"])
+        XCTAssertEqual(model.welcomeSteps.map(\.id), ["welcome", "plan", "log", "coach"])
     }
 
-    /// ux-review §3.9: the eight steps are shown on four pages. The grouping is
-    /// the app's, not the catalog's, so this is where the two are held together.
+    /// Four steps, four pages (D-O05). The page table is the app's, not the
+    /// catalog's, so this is where the two are held together.
     @MainActor
-    func testTheEightStepsAreGroupedOntoFourPages() async {
+    func testTheFourStepsAreOnePageEach() async {
         let transport = YouTransport()
         transport.set("GET /api/profile", .json(200, Self.profile(dismissed: false)))
         let (model, _, _) = make(transport)
         await model.start()
-        XCTAssertEqual(
-            model.welcomePages.map { $0.steps.map(\.id) },
-            [["welcome", "calendar"], ["tracker", "structure"], ["coach"], ["coros", "connectors", "more"]]
-        )
+        XCTAssertEqual(model.welcomePages.map { $0.steps.map(\.id) }, [["welcome"], ["plan"], ["log"], ["coach"]])
     }
 
     /// The coach page is the only one to carry a checklist row, and it is the
@@ -93,25 +90,35 @@ final class OnboardingModelTests: XCTestCase {
     }
 
     /// ux-review B4: the copy named a week view the app does not have (D-009),
-    /// and told a phone user what a phone does. The generated catalog carries
-    /// content.ts's `iosBody` for those two steps.
+    /// and told a phone user what a phone does. The plan step's `iosBody` puts
+    /// the **+** where the phone has it: at the top, not the bottom.
     func testTheIOSCopyNamesNoWeekViewAndNoPhoneCaveat() {
         let bodies = OnboardingCatalog.welcomeSteps.map(\.body)
         XCTAssertFalse(bodies.contains { $0.localizedCaseInsensitiveContains("week view") })
-        XCTAssertEqual(OnboardingCatalog.welcomeSteps.first { $0.id == "calendar" }?.body.hasPrefix("Month or day."), true)
         XCTAssertFalse(bodies.contains { $0.localizedCaseInsensitiveContains("On a phone") })
+        XCTAssertEqual(OnboardingCatalog.welcomeSteps.first { $0.id == "plan" }?.body.hasSuffix("the **+** at the top."), true)
     }
 
-    /// Filtering a step out cannot leave an empty page or renumber the rest.
+    /// The catalog's links are relative; the app resolves them against the web
+    /// origin, leaves an absolute one alone, and hides a relative one it
+    /// cannot resolve.
     @MainActor
-    func testTheCorosPageSurvivesWithoutItsFirstStep() async {
-        let transport = YouTransport()
-        transport.set("GET /api/profile", .json(200, Self.profile(dismissed: false)))
-        let (model, _, _) = make(transport, coros: false)
-        await model.start()
-        XCTAssertEqual(model.welcomePages.count, 4)
-        XCTAssertEqual(model.welcomePages.last?.steps.map(\.id), ["connectors", "more"])
-        XCTAssertEqual(model.welcomePages.map(\.id), ["welcome", "tracker", "coach", "connectors"])
+    func testStepLinksResolveAgainstTheWebOrigin() {
+        let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: YouTransport(), tokens: CoachTestTokens())
+        func model(origin: URL?) -> OnboardingModel {
+            OnboardingModel(deps: OnboardingModel.Dependencies(
+                client: client, routes: RouteBus(), corosConfigured: { true },
+                onTemplateCopied: {}, openKeySheet: {}, publicOrigin: origin
+            ))
+        }
+        let relative = OnboardingCatalog.Link(label: "Get an API key", href: "/help/get-api-key")
+        let absolute = OnboardingCatalog.Link(label: "Elsewhere", href: "https://example.com/page")
+        let withOrigin = model(origin: URL(string: "https://apextrainingcalendar.vercel.app")!)
+        XCTAssertEqual(withOrigin.destination(for: relative)?.absoluteString, "https://apextrainingcalendar.vercel.app/help/get-api-key")
+        XCTAssertEqual(withOrigin.destination(for: absolute)?.absoluteString, "https://example.com/page")
+        let noOrigin = model(origin: nil)
+        XCTAssertNil(noOrigin.destination(for: relative))
+        XCTAssertEqual(noOrigin.destination(for: absolute)?.absoluteString, "https://example.com/page")
     }
 
     @MainActor
@@ -146,14 +153,16 @@ final class OnboardingModelTests: XCTestCase {
         XCTAssertFalse(shane.showsNudge)
     }
 
+    /// No step needs a watch provider any more: the flow is the same four
+    /// pages with or without COROS.
     @MainActor
-    func testTheCorosStepDropsWhenNoProviderIsConfigured() async {
+    func testTheFlowIsTheSameWithoutAProvider() async {
         let transport = YouTransport()
         transport.set("GET /api/profile", .json(200, Self.profile(dismissed: false)))
         let (model, _, _) = make(transport, coros: false)
         await model.start()
-        XCTAssertFalse(model.welcomeSteps.contains { $0.id == "coros" })
-        XCTAssertEqual(model.welcomeSteps.count, 7)
+        XCTAssertEqual(model.welcomeSteps.map(\.id), ["welcome", "plan", "log", "coach"])
+        XCTAssertEqual(model.welcomePages.count, 4)
     }
 
     @MainActor
