@@ -1,4 +1,5 @@
 import { Repeat } from 'lucide-react';
+import { useTip } from '../../hooks/useTip';
 import {
   REPEAT_DAY_LABELS, REPEAT_DAY_ORDER, REPEAT_OFF, type DraftRepeat,
 } from '../../lib/builder/repeat';
@@ -15,6 +16,10 @@ interface Props {
 
 /** Day chips + every-N-weeks + an end date — the builder's repeat schedule. */
 export default function RepeatPicker({ repeat, onChange, lockOff, accentColor }: Props) {
+  // Where recurring workouts are born — offered only while the On/Off switch
+  // is on screen (not on an existing series, not on a custom pattern).
+  useTip('builder-repeat', !lockOff && !repeat.custom);
+
   if (repeat.custom) {
     return (
       <div className="builder-repeat composer-field--wide">

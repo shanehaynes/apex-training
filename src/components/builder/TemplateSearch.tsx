@@ -64,7 +64,11 @@ export default function TemplateSearch({ templates, date, onPick, onCreateNew, o
           placeholder="Find a saved workout…"
           value={query}
           onChange={e => setQuery(e.target.value)}
-          autoFocus
+          // Focus the box only when there is something to find. An empty
+          // library has nothing to search, a phone would raise its keyboard
+          // over "Build a new workout", and a focused input holds the
+          // first-open tip (TipHost waits while the user is typing).
+          autoFocus={templates.size > 0}
         />
       </div>
 
