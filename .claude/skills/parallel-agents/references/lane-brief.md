@@ -23,7 +23,8 @@ already rejected and why, links to the issue/spec. Paste facts, not a
 pointer to "the conversation above" — it cannot see it.>
 
 ## Your environment
-- Worktree: <ABSOLUTE PATH>. Run every shell command there:
+Lane: <ABSOLUTE PATH>
+- That worktree is yours. Run every shell command there:
   `cd <ABSOLUTE PATH> && …` or `git -C <ABSOLUTE PATH> …`. Your shell may
   start somewhere else (often the primary checkout, which must stay clean).
 - Branch: <branch>, already created and checked out. Dependencies installed.
@@ -65,6 +66,8 @@ Do not widen your scope to get green.
 ## Template — read-only lane (light path)
 
 ```markdown
+Lane: read-only
+
 ## Question
 <The specific thing to find out, and why it matters.>
 

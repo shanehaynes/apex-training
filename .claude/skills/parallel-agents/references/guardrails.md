@@ -77,10 +77,46 @@ These are nets against slip-ups, not walls against an adversary. The layers
 behind them are the permission system, branch protection, and holding every
 change to the automation for a human.
 
-## Making the skill itself hard to skip
+## Making the skill itself hard to skip: `hooks/agent-guard.mjs`
 
-Skills trigger from their description, which is probabilistic. If every
-subagent launch must follow this skill, back it with a hook on the Agent/Task
-tool (or on `SubagentStart`, where supported) that injects a one-line reminder
-or checks the brief contains a worktree path. Verify the current hook events
-and output fields in the Claude Code docs before relying on one.
+Skills trigger from their description, which is probabilistic. The bundled
+hook makes the skill's load-bearing decision — where does this worker run? —
+impossible to skip. Wire it as a `PreToolUse` hook:
+
+```json
+{ "hooks": { "PreToolUse": [ {
+  "matcher": "Agent|Task|Workflow",
+  "hooks": [ { "type": "command",
+    "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/skills/parallel-agents/hooks/agent-guard.mjs" } ]
+} ] } }
+```
+
+What it does on each subagent launch:
+
+- **Writing agent types** (anything with Bash/Edit/Write, unknown types, and
+  project agents with no `tools:` line) must declare a lane on its own line of
+  the brief — `Lane: <abs worktree path>`, `Lane: read-only`, or
+  `Lane: none — <reason>` — or launch with `isolation: "worktree"`. Otherwise
+  the launch is **denied** with a message that points at this skill and says
+  how to comply.
+- A lane path must exist, be a *linked worktree* (not the primary checkout),
+  and not live in a temp directory.
+- **Read-only types** (Explore, Plan, claude-code-guide, and project agents
+  whose `tools:` has no writing tool) pass without a declaration.
+- Every allowed launch gets a one-line `additionalContext` reminder of what
+  the skill expects next (check the SHA, carry NOT VERIFIED forward).
+- `Workflow` launches get a reminder only; the hook cannot see inside a
+  workflow script's `agent()` calls.
+- Fails open on internal errors; `PARALLEL_AGENTS_GUARD=off` disables it.
+
+Verified against Claude Code 2.1.281 (2026-09): `PreToolUse` fires for the
+`Agent` tool with `tool_input` = `{description, prompt, subagent_type,
+run_in_background, …}`; exit 2 puts stderr in front of the model verbatim;
+`hookSpecificOutput.additionalContext` on exit 0 reaches the model;
+`SubagentStart` also fires (`agent_id`, `agent_type`). Some documentation and
+issue threads say `PreToolUse` does not fire for `Agent` — that was not true
+on this version, so test on yours: log the hook's stdin and launch one agent.
+
+The declaration is honor-system for `read-only` and `none` — the hook cannot
+know what a brief intends. What it buys is that the orchestrator must decide
+in writing, where a reviewer (or the user) can see the decision.

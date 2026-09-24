@@ -122,7 +122,8 @@ matters but is missing will be guessed. Use
    judgment calls you did not foresee.
 2. **Ownership** — the files and directories it may change, and the ones it
    must not (because another lane owns them).
-3. **Environment** — the absolute worktree path, and the rule that *every*
+3. **Environment** — a `Lane: <absolute worktree path>` line (or
+   `Lane: read-only` for the light path), and the rule that *every*
    shell command runs there: `cd <worktree> && …` or `git -C <worktree> …`.
    A subagent's working directory is not guaranteed to be its worktree.
 4. **Allowed shared-state actions** — by default none. Serialized resources go
@@ -214,6 +215,12 @@ The details, the "fleet" alternative, and where each proof stops are in
 - **Workers never expand their own authority.** No agent merges changes to CI,
   merge policy, permissions, hooks, or the automation itself; those wait for a
   human.
+- **Declare every lane.** When `hooks/agent-guard.mjs` is wired (see
+  [references/guardrails.md](references/guardrails.md)), a subagent that can
+  write is refused unless its brief has a line `Lane: <abs worktree path>`,
+  `Lane: read-only`, or `Lane: none — <reason>`, or it launches with
+  `isolation: "worktree"`. Put the line in every brief even where the hook is
+  not installed; it forces the one decision that matters most.
 - **Say what was not proven.** Every report and PR names what its gate does
   not cover. The worst failures in the source project were merges that every
   check passed, because no check compiled the thing that broke.

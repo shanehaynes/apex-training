@@ -49,6 +49,7 @@ import { readFileSync } from 'node:fs';
 export const HELD = [
   { path: '.claude/settings.json', reason: 'hook wiring and permission grants' },
   { path: 'scripts/hooks/', reason: 'the guard layer' },
+  { path: '.claude/skills/parallel-agents/hooks/', reason: 'the guard layer (subagent launches)' },
   { path: 'scripts/merge-policy.mjs', reason: 'this policy' },
   { path: 'scripts/merge-policy.d.mts', reason: 'this policy' },
   { path: 'scripts/merge-babysit.sh', reason: 'the merge actor' },
