@@ -76,51 +76,30 @@ public enum OnboardingCatalog {
     }
 
     /// The user guide. Absolute because the app is a SPA — a relative path 404s.
-    public static let guideURL = "https://github.com/shanehaynes/apex-training/blob/main/WELCOME.md"
+    public static let guideURL = "/help"
 
     /// The welcome flow, in order. Filter `requiresCoros` by the deployment.
     public static let welcomeSteps: [Step] = [
         Step(
             id: "welcome", title: "Welcome to Apex",
-            body: "Plan your training on a calendar, log it as you go, and let a coach that reads your actual numbers help you steer. Here is the whole app in about a minute.",
+            body: "Your calendar is home. Every workout sits on a day. Tap a day to see what is planned, and tap a workout to open it.",
             action: nil, link: nil, requiresCoros: false
         ),
         // body: content.ts `iosBody` — the web says something else here.
         Step(
-            id: "calendar", title: "Your calendar",
-            body: "Month or day. Tap any day to add a workout or a meal, and workouts can repeat on a rule. Want a head start? Copy Shane’s recurring plan.",
+            id: "plan", title: "Put something on it",
+            body: "Start fast with Shane’s ready-made weekly plan. Change or delete any of it later. Or add your own workout with the **+** at the top.",
             action: Action(label: "Copy the starter plan", kind: .copyTemplate), link: nil, requiresCoros: false
         ),
         Step(
-            id: "tracker", title: "Log as you lift",
-            body: "Open a workout and press Start. Log sets against the plan, tap to reuse last session’s numbers, and finish to see any records — estimated 1RM included. Or just mark it complete.",
+            id: "log", title: "Log a workout",
+            body: "Open a workout and press **Start Workout** to log each set as you go. In a hurry? **Mark as Complete** records it in one tap.",
             action: nil, link: nil, requiresCoros: false
         ),
         Step(
             id: "coach", title: "Meet your coach",
-            body: "Ask the chat rail anything about your training, or tap Coach’s Notes for a daily briefing. It can add and edit workouts and meals too, always behind a confirm.",
-            action: Action(label: "Add your Anthropic key", kind: .openProfile), link: nil, requiresCoros: false
-        ),
-        Step(
-            id: "structure", title: "Blocks, library, meals",
-            body: "Training blocks give a stretch of weeks real weekly targets, and show what you actually hit. The exercise library keeps history per movement. Logged meals feed the coach as well.",
-            action: nil, link: nil, requiresCoros: false
-        ),
-        Step(
-            id: "coros", title: "Your watch, automatically",
-            body: "Connect COROS once and it syncs itself every night — heart rate, elevation, route. An activity that matches a planned workout waits for your yes before filling it in.",
-            action: Action(label: "Connect COROS", kind: .connectCoros), link: nil, requiresCoros: true
-        ),
-        Step(
-            id: "connectors", title: "Claude and ChatGPT",
-            body: "Connect Apex as a tool and ask about your training from Claude or ChatGPT. Strictly read-only — an assistant can look at everything and change nothing.",
-            action: Action(label: "Set up a connector", kind: .openProfile), link: nil, requiresCoros: false
-        ),
-        // body: content.ts `iosBody` — the web says something else here.
-        Step(
-            id: "more", title: "A few last things",
-            body: "Subscribe to your schedule from Apple or Google Calendar, and expect a review email when a training month closes. Everything here syncs with the web app.",
-            action: nil, link: Link(label: "Read the full guide", href: "https://github.com/shanehaynes/apex-training/blob/main/WELCOME.md"), requiresCoros: false
+            body: "The **Coach** tab answers questions about your training and can plan workouts for you. It needs a key from Anthropic first — a few minutes, billed to you, not Apex.",
+            action: Action(label: "Add key", kind: .openProfile), link: Link(label: "Get an API key", href: "/help/get-api-key"), requiresCoros: false
         ),
     ]
 
@@ -133,7 +112,7 @@ public enum OnboardingCatalog {
         ),
         ChecklistItem(
             id: .key, label: "Add your Anthropic API key",
-            hint: "The coach and post-workout summaries stay switched off until you do.",
+            hint: "The coach and post-workout summaries stay switched off until you do. See Get an API key under Help.",
             action: Action(label: "Add key", kind: .openProfile), requiresCoros: false
         ),
         ChecklistItem(

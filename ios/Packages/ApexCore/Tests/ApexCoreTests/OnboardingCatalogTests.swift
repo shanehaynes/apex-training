@@ -5,14 +5,24 @@ import XCTest
 /// screens switch over. The words themselves are the web's; `ci:guards`
 /// fails when this file and content.ts drift.
 final class OnboardingCatalogTests: XCTestCase {
-    func testTheWelcomeFlowIsTheWebsEightStepsInOrder() {
-        XCTAssertEqual(
-            OnboardingCatalog.welcomeSteps.map(\.id),
-            ["welcome", "calendar", "tracker", "coach", "structure", "coros", "connectors", "more"]
-        )
+    /// Four cards, then silence (D-O05): everything else is a tip.
+    func testTheWelcomeFlowIsTheWebsFourStepsInOrder() {
+        XCTAssertEqual(OnboardingCatalog.welcomeSteps.map(\.id), ["welcome", "plan", "log", "coach"])
         XCTAssertEqual(OnboardingCatalog.welcomeSteps.first?.title, "Welcome to Apex")
-        XCTAssertEqual(OnboardingCatalog.welcomeSteps.filter(\.requiresCoros).map(\.id), ["coros"])
-        XCTAssertEqual(OnboardingCatalog.welcomeSteps.last?.link?.href, OnboardingCatalog.guideURL)
+        XCTAssertTrue(OnboardingCatalog.welcomeSteps.allSatisfy { !$0.requiresCoros }, "no step waits on a watch provider")
+        let coach = OnboardingCatalog.welcomeSteps.last
+        XCTAssertEqual(coach?.action, OnboardingCatalog.Action(label: "Add key", kind: .openProfile))
+        XCTAssertEqual(coach?.link?.href, "/help/get-api-key")
+        XCTAssertEqual(OnboardingCatalog.guideURL, "/help")
+    }
+
+    /// Every link the flow carries is Apex-hosted: relative, resolved against
+    /// the web origin by the app.
+    func testEveryStepLinkIsApexHosted() {
+        for step in OnboardingCatalog.welcomeSteps {
+            guard let href = step.link?.href else { continue }
+            XCTAssertTrue(href.hasPrefix("/help"), step.id)
+        }
     }
 
     func testEveryChecklistIdHasARowAndTheNudgeIsASubset() {
@@ -26,10 +36,10 @@ final class OnboardingCatalogTests: XCTestCase {
         XCTAssertEqual(OnboardingCatalog.checklistItem(.coros)?.action.kind, .connectCoros)
     }
 
-    /// The brief: bodies under ~35 words, so a card gets finished.
+    /// The copy rules: 35 words or fewer, so a card gets finished.
     func testBodiesStayShort() {
         for step in OnboardingCatalog.welcomeSteps {
-            XCTAssertLessThanOrEqual(step.body.split(separator: " ").count, 40, step.id)
+            XCTAssertLessThanOrEqual(step.body.split(separator: " ").count, 35, step.id)
         }
         XCTAssertEqual(OnboardingCatalog.extraNotes.count, 2)
     }

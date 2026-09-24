@@ -6,10 +6,12 @@ import { useAuth } from '../../context/auth';
 import { useOnboardingActions } from '../../hooks/useOnboardingActions';
 import { WELCOME_STEPS } from '../../lib/onboarding/content';
 
-// First-run tour of the whole app, replacing the one-line template-copy
-// banner that used to be the entire onboarding. Shows once per account:
-// finishing or skipping latches profiles.onboarding_dismissed_at, so it does
-// not come back on the next device either.
+// First-run intro: four cards that get a new user to a first logged workout
+// and a working coach, nothing more — every other feature is taught by a tip
+// the first time it is reached (docs/onboarding/MASTER.md, "Intro"). Shows
+// once per account: finishing or skipping latches
+// profiles.onboarding_dismissed_at, so it does not come back on the next
+// device either.
 //
 // Same portal + backdrop + motion shape as DayModal, deliberately — a new
 // user meets this before anything else, and it should look like the app.
@@ -19,8 +21,8 @@ export default function WelcomeFlow() {
   const { run, isBusy, corosConfigured } = useOnboardingActions();
   const [index, setIndex] = useState(0);
 
-  // The watch card is a promise the deployment may not be able to keep:
-  // without COROS env vars the whole feature self-hides, so the step goes too.
+  // No card needs COROS today, but the field stays in the contract: a watch
+  // card is a promise a deployment without COROS env vars cannot keep.
   const steps = WELCOME_STEPS.filter(step => !step.requiresCoros || corosConfigured);
   const step = steps[index];
   const isLast = index === steps.length - 1;
@@ -50,9 +52,8 @@ export default function WelcomeFlow() {
         </button>
 
         <div className="welcome__body">
-          <span className="welcome__count">Step {index + 1} of {steps.length}</span>
           <h2 id="welcome-title" className="welcome__title">{step.title}</h2>
-          <p className="welcome__text">{step.body}</p>
+          <p className="welcome__text">{withBold(step.body)}</p>
 
           {step.action && (
             <button
@@ -77,7 +78,10 @@ export default function WelcomeFlow() {
         </div>
 
         <div className="welcome__footer">
-          <div className="welcome__dots" aria-hidden="true">
+          {/* Four dots read as position on a phone without a "Step N of M"
+              line (iOS dropped it too, D-042); the label keeps it for a
+              screen reader. */}
+          <div className="welcome__dots" role="img" aria-label={`Step ${index + 1} of ${steps.length}`}>
             {steps.map((s, i) => (
               <span key={s.id} className={`welcome__dot${i === index ? ' welcome__dot--active' : ''}`} />
             ))}
@@ -98,4 +102,9 @@ export default function WelcomeFlow() {
     </motion.div>,
     document.body,
   );
+}
+
+/** `**Label**` → <strong>: copy names a button by its on-screen label in bold. */
+function withBold(text: string) {
+  return text.split(/\*\*(.+?)\*\*/g).map((part, i) => (i % 2 ? <strong key={i}>{part}</strong> : part));
 }

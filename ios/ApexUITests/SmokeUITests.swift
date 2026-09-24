@@ -390,25 +390,29 @@ final class SmokeUITests: XCTestCase {
         let title = app.staticTexts["onboarding.welcome.title"]
         XCTAssertTrue(title.waitForExistence(timeout: 20))
         XCTAssertEqual(title.label, "Welcome to Apex")
-        // Four pages now, and the dots are the only progress indicator
-        // (ux-review §3.9) — they carry the count as a value, not as text.
+        // Four pages, one step each (D-O05), and the dots are the only
+        // progress indicator (ux-review §3.9) — they carry the count as a
+        // value, not as text.
         let dots = app.otherElements["onboarding.welcome.count"]
         XCTAssertEqual(dots.value as? String, "1 of 4")
         attach(app, name: "w13-01-welcome")
 
-        // The calendar shares page one, and brings its own button: the starter
-        // plan, with the web's toast.
-        XCTAssertTrue(app.staticTexts["onboarding.welcome.title.calendar"].exists)
+        // Page two brings its own button: the starter plan, with the web's toast.
         let next = app.buttons["onboarding.welcome.next"]
+        next.tap()
+        XCTAssertTrue(app.staticTexts["Put something on it"].waitForExistence(timeout: 5))
+        XCTAssertEqual(dots.value as? String, "2 of 4")
         let copy = app.buttons["onboarding.welcome.action"]
-        XCTAssertTrue(copy.exists)
+        XCTAssertTrue(copy.waitForExistence(timeout: 5))
         copy.tap()
         XCTAssertTrue(app.staticTexts["Added 3 recurring workouts"].waitForExistence(timeout: 10))
         attach(app, name: "w13-02-welcome-copied")
 
-        for _ in 0..<3 { next.tap() }
-        XCTAssertTrue(app.staticTexts["onboarding.welcome.title.more"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.staticTexts["onboarding.welcome.title.more"].label, "A few last things")
+        // The last page is the coach: its key button, the goal row, and the
+        // key help page on the web.
+        for _ in 0..<2 { next.tap() }
+        XCTAssertTrue(app.staticTexts["Meet your coach"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["onboarding.welcome.title.goal"].exists)
         XCTAssertEqual(dots.value as? String, "4 of 4")
         XCTAssertEqual(next.label, "Start training")
         attach(app, name: "w13-03-welcome-last")
