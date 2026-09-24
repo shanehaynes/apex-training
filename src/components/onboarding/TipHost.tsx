@@ -54,8 +54,15 @@ export default function TipHost() {
     return registerTip(isTipId(demo) ? demo : TIPS[0].id, true);
   }, []);
 
+  // While the e2e demo hook is set, only the demo tip is on offer: the spec is
+  // proving the mechanism, and every feature under the page offers its own
+  // real tips, which would otherwise take the one slot per load.
+  const demo = tipsWindow().__APEX_TIPS_DEMO__;
+  const demoId = demo ? (isTipId(demo) ? demo : TIPS[0].id) : null;
+  const offered = demoId ? candidates.filter(c => c.id === demoId) : candidates;
+
   const winner = active === null && !shownThisLoad && tipsEligible(profile, !!tipsWindow().__APEX_TIPS_OFF__)
-    ? pickTip(candidates, tipsSeen, TIPS)
+    ? pickTip(offered, tipsSeen, TIPS)
     : null;
 
   // Settle, then show — unless the moment is wrong, in which case wait for
