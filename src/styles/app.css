@@ -1247,16 +1247,41 @@
     height: calc(100dvh - 56px - 60px - env(safe-area-inset-bottom, 0px));
   }
 
-  /* Top nav — compact */
-  .top-nav__sub {
+  /* Top nav — compact. At full size it is ~640px wide and the right-hand
+     actions ran off a phone screen. Add and Analytics live in the bottom nav
+     and the day view has its own Today button, so those drop out here; what
+     stays (sync, blocks, library) must fit a 375px iPhone. */
+  .top-nav {
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .top-nav__logo,
+  .top-nav__sub,
+  .view-toggle,
+  .btn-today,
+  .top-nav [data-testid="nav-add-workout"],
+  .top-nav [data-testid="nav-analytics"] {
     display: none;
+  }
+  .top-nav__controls {
+    flex: 1;
+    min-width: 0;
+    gap: 4px;
+    justify-content: center;
   }
   .nav-period {
     font-size: var(--text-base);
-    min-width: 130px;
+    min-width: 0;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .view-toggle {
-    display: none;
+  .nav-arrow {
+    flex-shrink: 0;
+  }
+  .top-nav__right {
+    gap: 6px;
   }
 
   /* Show analytics sidebar when that tab is active */
@@ -1510,6 +1535,13 @@
     border-radius: 20px;
     letter-spacing: 0.04em;
     margin-bottom: 4px;
+  }
+  .day-view__today-badge--button {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-subtle);
+    font-family: var(--font-display);
+    cursor: pointer;
   }
 
   /* Events list */
@@ -2848,7 +2880,7 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 
 @media (max-width: 768px) {
   .btn-library__label { display: none; }
-  .btn-library { padding: 0 10px; }
+  .btn-library { padding: 0 8px; }
 }
 
 .exercise-card__name--link {
