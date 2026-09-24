@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useModalChrome } from '../../hooks/useModalChrome';
+import { useTip } from '../../hooks/useTip';
 import { ChevronRight, Plus, Repeat, Target, X } from 'lucide-react';
 import { useCalendar } from '../../context/calendar';
 import { useBlocks } from '../../context/blocks';
@@ -22,8 +23,9 @@ export default function BlocksView() {
   const [mode, setMode] = useState<Mode>({ kind: 'list' });
   const close = () => dispatch({ type: 'CLOSE_BLOCKS' });
 
-
   useModalChrome(close);
+  // First open of the overlay: what a block is, and where New cycle is.
+  useTip('blocks-first');
 
   // The list re-reads from context after a write, so a deleted or renamed
   // block can't leave a stale detail view mounted.

@@ -10,6 +10,7 @@ import {
 } from '../../lib/api';
 import { notify } from '../../lib/notify';
 import { publicOrigin } from '../../lib/origin';
+import { useTip } from '../../hooks/useTip';
 import ProfileDisclosure from './ProfileDisclosure';
 
 // "AI connector" profile section: mint/list/revoke the personal access
@@ -28,6 +29,11 @@ export default function McpTokens({ onShowGuide }: Props) {
   const [name, setName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [freshToken, setFreshToken] = useState<string | null>(null);
+  // Offered while the user has the section open, so the tip lands next to
+  // the Step-by-step guide link it names. Focus sits on the fold's toggle
+  // button, not an input, so TipHost's typing hold does not delay it.
+  const [isOpen, setIsOpen] = useState(false);
+  useTip('connector-first', isOpen);
 
   const endpointUrl = `${publicOrigin()}/api/mcp`;
 
@@ -92,6 +98,7 @@ export default function McpTokens({ onShowGuide }: Props) {
     <ProfileDisclosure
       title="AI connector"
       status={active.length > 0 ? `${active.length} token${active.length === 1 ? '' : 's'}` : 'Not set up'}
+      onOpenChange={setIsOpen}
       // Outside the toggle button, so the guide is one click away even while
       // the section is collapsed.
       action={(

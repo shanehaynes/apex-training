@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { HeartPulse, Flame, TrendingUp, Route, Watch } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
+import { useTip } from '../../hooks/useTip';
 import StreamCharts, { type Streams } from './StreamCharts';
 
 // Measured provider metrics for an event, read lazily from activity_streams
@@ -41,6 +42,10 @@ export default function SyncMetrics({ eventId, eventDate }: { eventId: string; e
       });
     return () => { cancelled = true; };
   }, [eventId, eventDate]);
+
+  // The first time a workout shows watch numbers, say what they are. Only
+  // once a row has arrived — most events never have one.
+  useTip('workout-sync-metrics', row !== null);
 
   if (!row) return null;
   const s = row.summary ?? {};

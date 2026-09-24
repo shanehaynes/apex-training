@@ -26,3 +26,17 @@ the nightly toggle and **Disconnect COROS**. Explain nightly sync and Reconnect.
 `e2e/mock/tips-coros.spec.ts`, this file.
 
 ## Session log
+
+### 2026-09-24 — O15 lane (feat/help-coros)
+- Tips: all three offered from `ProviderSyncControls` (it already holds the status; no second
+  `useProviderSync` mount), `coros-expired` also from `CorosConnection`. `coros-connected` needs a
+  device mark (`localStorage` `apex:coros-just-connected`) written by the `?connected=coros`
+  return and read at mount, so the return load shows only the toast and a later load offers the
+  tip. Copy names the circling-arrows icon, since the nav button is icon-only under 768px.
+- `sync-confirm-card` gets an opaque background (inline, in the component): the shared
+  `chat-confirm-card` tint is 6% over transparent, so the floating card's text collided with the
+  calendar under it. Worth moving to `app.css` `.sync-confirm` when that file is open again.
+- Help page + shots: 01, 04 (phone + desktop), 05, 06, 07 generated; 02 sign-in and 03 consent are
+  `EXTERNAL:` placeholders for O16.
+- e2e: `e2e/mock/tips-coros.spec.ts` marks every other tip seen, so each test keeps its
+  one-per-load slot once the wave-2 lanes combine.

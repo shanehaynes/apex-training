@@ -31,3 +31,4 @@ Out: tips, help pages, iOS Swift tests (the later parity session).
 - Phone viewport: each card fits without scrolling at 375×812.
 
 ## Session log
+- 2026-09-24 · Linux · Opus lane. Four cards; Step N of M dropped (dots carry aria-label); relative hrefs; coach link on its own line. iOS in the same PR: catalog/model tests pinned to four ids, one page per step, AttributedString bodies, links resolved against AppConfig.publicOrigin, smoke updated; ApexCore 431 tests green in swift:6.1. Merged as #323. Stale: OnboardingSnapshotTests (opt-in), the HELD generator comment.

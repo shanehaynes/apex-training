@@ -24,3 +24,4 @@ unsupported/against terms" from "not possible". End with the sentence the help p
 use for subscribers and a recommendation for D-O06.
 
 ## Session log
+- 2026-09-24 · Linux · read-only agent. Report committed in research/anthropic-subscription-oauth.md (#321). Prohibited by Anthropic terms; research only.
