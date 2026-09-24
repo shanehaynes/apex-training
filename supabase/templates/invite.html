@@ -1,21 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
 <!--
   Invite email of record (DEPLOY_MULTI_USER.md §5). Production reads the copy pasted into
   Supabase → Authentication → Email Templates → Invite user, not this file; the local stack
   reads this file via supabase/config.toml. TESTFLIGHT_PUBLIC_LINK is replaced by hand when
   pasting — the repo is public, so the real link stays out of it.
 -->
-<h2>You're invited to Apex Training</h2>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>You're invited to Apex Training</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f4f1ec;">
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">Install Apex on your iPhone, then set your password. The password link works once, within 24 hours.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f1ec;">
+  <tr>
+    <td align="center" style="padding:32px 16px;">
+      <table role="presentation" align="center" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px; margin:0 auto; background-color:#ffffff; border-radius:12px;">
+        <tr>
+          <td style="padding:32px 32px 8px 32px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <p style="margin:0 0 24px 0; font-size:12px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:#8f8781;">Apex Training</p>
+            <h1 style="margin:0 0 12px 0; font-size:26px; line-height:32px; font-weight:700; color:#161412;">You're invited</h1>
+            <p style="margin:0 0 28px 0; font-size:16px; line-height:24px; color:#4a4540;">Shane has set up an Apex Training account for you. Two steps and you're in.</p>
+          </td>
+        </tr>
 
-<p><strong>On an iPhone?</strong> Install the app first, then come back to this email:</p>
-<ol>
-  <li>Open <a href="TESTFLIGHT_PUBLIC_LINK">TESTFLIGHT_PUBLIC_LINK</a> on your iPhone. It installs
-    Apple's TestFlight app if you don't have it, then Apex.</li>
-  <li>Tap the invite link below <em>on the same iPhone</em>, set a password, and choose
-    <strong>Open in the Apex app</strong>.</li>
-</ol>
+        <!-- Step 1 -->
+        <tr>
+          <td style="padding:0 32px 24px 32px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <p style="margin:0 0 4px 0; font-size:13px; font-weight:600; letter-spacing:0.5px; color:#8f8781;">STEP 1 &middot; ON YOUR IPHONE</p>
+            <p style="margin:0 0 14px 0; font-size:16px; line-height:24px; color:#161412;">Install the app. This opens Apple's TestFlight, which installs Apex.</p>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="border:2px solid #161412; border-radius:8px;">
+                  <a href="TESTFLIGHT_PUBLIC_LINK" style="display:inline-block; padding:12px 22px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:16px; font-weight:600; color:#161412; text-decoration:none;">Install Apex</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-<p><strong>On a computer?</strong> Just tap the invite link and set a password; Apex runs in the browser.</p>
+        <!-- Step 2 -->
+        <tr>
+          <td style="padding:0 32px 28px 32px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <p style="margin:0 0 4px 0; font-size:13px; font-weight:600; letter-spacing:0.5px; color:#8f8781;">STEP 2 &middot; SAME IPHONE</p>
+            <p style="margin:0 0 14px 0; font-size:16px; line-height:24px; color:#161412;">Set your password, then tap <strong>Open in the Apex app</strong>.</p>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="background-color:#161412; border-radius:8px;">
+                  <a href="{{ .ConfirmationURL }}" style="display:inline-block; padding:14px 24px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:16px; font-weight:600; color:#ffffff; text-decoration:none;">Set your password</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-<p><a href="{{ .ConfirmationURL }}">Accept the invite and set your password</a></p>
+        <!-- No-iPhone path -->
+        <tr>
+          <td style="padding:0 32px 32px 32px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <p style="margin:0; padding:14px 16px; background-color:#f4f1ec; border-radius:8px; font-size:14px; line-height:21px; color:#4a4540;"><strong style="color:#161412;">No iPhone?</strong> Skip step 1. Set your password from any computer and Apex runs in the browser.</p>
+          </td>
+        </tr>
 
-<p>The link works once and expires in about 24 hours. If it has expired, ask Shane to send a new one.</p>
+        <!-- Footer -->
+        <tr>
+          <td style="padding:20px 32px 28px 32px; border-top:1px solid #ebe6df; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <p style="margin:0 0 10px 0; font-size:13px; line-height:20px; color:#8f8781;">The password link works once and expires in 24 hours. If it has expired, ask Shane for a new invite.</p>
+            <p style="margin:0; font-size:13px; line-height:20px; color:#8f8781;">Button not working? Paste this into your browser:<br><a href="{{ .ConfirmationURL }}" style="color:#4a4540; word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
