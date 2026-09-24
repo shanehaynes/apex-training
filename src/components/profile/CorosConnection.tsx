@@ -1,4 +1,5 @@
 import { useProviderSync } from '../../hooks/useProviderSync';
+import { useTip } from '../../hooks/useTip';
 import ProfileDisclosure from './ProfileDisclosure';
 
 // Profile → COROS connection management. Self-contained section block
@@ -18,6 +19,10 @@ export default function CorosConnection() {
     status, configured, lastSyncedAt, isConnecting,
     startConnect, disconnect, disconnectNotice, autoSync, setAutoSync,
   } = useProviderSync();
+
+  // Same id ProviderSyncControls offers from the nav: whichever screen the
+  // user is on when the link has run out, the tip can land there.
+  useTip('coros-expired', configured && status === 'expired');
 
   if (!configured) return null;
 
