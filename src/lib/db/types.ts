@@ -48,7 +48,15 @@ export type AvatarKey =
 // One row per auth user (phase 9). Client-writable fields go through
 // /api/profile; the rest are server-managed. coach_goal / coach_context use
 // '' for "not set"; onboarding_dismissed_at null = welcome flow never shown.
-export type ProfileRow = Row<'profiles', { avatar_key: AvatarKey }>;
+//
+// tips_seen (tip id → ISO time dismissed, docs/onboarding D-O01) is laid over
+// the generated row rather than passed through Row<>'s overrides, because it
+// arrives by a HELD migration that prod can lag by weeks: optional here is
+// the truth at runtime — select('*') simply has no such key until then — and
+// the Omit keeps this compiling whether or not database.types.ts has it yet.
+export type ProfileRow = Flatten<
+  Omit<Row<'profiles', { avatar_key: AvatarKey }>, 'tips_seen'> & { tips_seen?: Record<string, string> }
+>;
 
 export type CompletionRow = Row<'workout_completions', { user_id?: string }>;
 

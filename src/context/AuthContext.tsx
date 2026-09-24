@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabaseClient';
 import { acceptTerms as postAcceptance, ApiError, getJson, patchJson } from '../lib/api';
 import type { AcceptanceStatus } from '../lib/api';
 import { clearCompletedIds } from '../lib/schedule/localCompletion';
+import { clearLocalTipsSeen, loadLocalTipsSeen, saveLocalTipSeen } from '../lib/onboarding/tipsStore';
+import type { TipId } from '../lib/onboarding/tips/index';
 import { publicOrigin } from '../lib/origin';
 import { parseAuthLinkError } from '../lib/auth/linkError';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
@@ -37,6 +39,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [anthropicKey, setAnthropicKey] = useState<AnthropicKeyStatus | null>(null);
   const [termsStatus, setTermsStatus] = useState<TermsStatus | null>(null);
+  // This device's tips mirror as last written by markTipSeen, tagged with the
+  // user it belongs to; any other user's is read fresh from localStorage.
+  const [localTips, setLocalTips] = useState<{ userId: string | null; seen: Record<string, string> }>(
+    { userId: null, seen: {} },
+  );
 
   const applyKeyStatus = useCallback((payload: KeyStatusPayload | undefined) => {
     if (payload?.hasAnthropicKey === undefined) return;
@@ -152,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     if (!supabase) return;
     clearCompletedIds(session?.user.id ?? null);
+    clearLocalTipsSeen(session?.user.id ?? null);
     await supabase.auth.signOut();
   }, [session]);
 
@@ -220,6 +228,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Seen = server ∪ this device (D-O01). The server half is whatever
+  // select('*') brought back; before the tips_seen migration reaches prod
+  // there is no such key, and the local mirror carries it alone.
+  const userId = session?.user.id ?? null;
+  const tipsSeen = useMemo<ReadonlySet<string>>(() => {
+    const server = profile?.tips_seen;
+    const local = localTips.userId === userId ? localTips.seen : loadLocalTipsSeen(userId);
+    return new Set([
+      ...(server && typeof server === 'object' ? Object.keys(server) : []),
+      ...Object.keys(local),
+    ]);
+  }, [profile, userId, localTips]);
+
+  // Same posture as dismissOnboarding: optimistic, fire-and-forget. The PATCH
+  // is gated on the column being present in our own profiles read — the
+  // migration is applied to prod by hand and may lag this code for weeks, and
+  // until it lands the server could only answer 409. The local mirror is
+  // written either way, so a tip never comes back on this device.
+  const markTipSeen = useCallback((id: TipId) => {
+    const at = new Date().toISOString();
+    saveLocalTipSeen(userId, id, at);
+    // From memory as well as storage: a browser refusing localStorage must
+    // still keep the tip gone for the rest of this load.
+    setLocalTips(prev => ({
+      userId,
+      seen: { ...(prev.userId === userId ? prev.seen : loadLocalTipsSeen(userId)), [id]: at },
+    }));
+    if (!supabase || !profile || !('tips_seen' in profile)) return;
+    setProfile(prev => prev && { ...prev, tips_seen: { ...prev.tips_seen, [id]: at } });
+    patchJson('/api/profile', { tip_seen: id }, 'Saving').catch(() => {
+      /* patchJson already toasted; the local mirror still holds it */
+    });
+  }, [userId, profile]);
+
   const refreshProfile = useCallback(async () => {
     if (session) await loadProfile(session.user.id);
   }, [session, loadProfile]);
@@ -276,14 +318,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setNewPassword,
     updateProfile,
     dismissOnboarding,
+    tipsSeen,
+    markTipSeen,
     refreshProfile,
     saveAnthropicKey,
     removeAnthropicKey,
     acceptTerms,
   }), [
     status, session, profile, anthropicKey, termsStatus, signIn, signUp, signOut, resetPassword,
-    setNewPassword, updateProfile, dismissOnboarding, refreshProfile, saveAnthropicKey,
-    removeAnthropicKey, acceptTerms,
+    setNewPassword, updateProfile, dismissOnboarding, tipsSeen, markTipSeen, refreshProfile,
+    saveAnthropicKey, removeAnthropicKey, acceptTerms,
   ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

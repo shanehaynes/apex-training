@@ -61,6 +61,9 @@ export function driverProfile({ fresh = false } = {}) {
     is_template_source: false,
     template_copied_at: fresh ? null : '2000-01-01T00:00:00Z',
     onboarding_dismissed_at: fresh ? null : '2000-01-01T00:00:00Z',
+    // Present, so the client's column-presence gate PATCHes tip dismissals
+    // (docs/onboarding D-O01); a spec wanting the pre-migration shape drops it.
+    tips_seen: {},
     ics_token: 'driver-ics-token',
     created_at: '2000-01-01T00:00:00Z', updated_at: '2000-01-01T00:00:00Z',
   };
