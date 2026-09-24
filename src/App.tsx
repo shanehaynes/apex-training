@@ -13,6 +13,9 @@ import ConnectApproval from './components/auth/ConnectApproval';
 import LegalPage from './components/legal/LegalPage';
 import TermsGate from './components/legal/TermsGate';
 import { LEGAL_DOCUMENTS } from './lib/legal/versions';
+import HelpPage from './components/help/HelpPage';
+import HelpIndex from './components/help/HelpIndex';
+import { HELP_SLUGS, type HelpSlug } from './lib/help/pages';
 import './styles/global.css';
 import './styles/app.css';
 // Onboarding tips and help pages keep their CSS out of app.css so parallel
@@ -62,6 +65,10 @@ function AuthGate() {
   );
 }
 
+// `/help`, `/help/`, `/help/<slug>` and `/help/<slug>/`; group 1 is the slug
+// segment, absent or empty for the index.
+const HELP_PATH_RE = /^\/help(?:\/([^/]*))?\/?$/;
+
 export default function App() {
   // /terms and /privacy render ABOVE AuthProvider, unlike the /connect route
   // inside AuthGate: the acceptance checkbox on the sign-up and set-password
@@ -73,6 +80,19 @@ export default function App() {
     return (
       <ErrorBoundary>
         <LegalPage slug={legal.slug} />
+      </ErrorBoundary>
+    );
+  }
+
+  // /help pages render above AuthProvider for the same reason: tips, the
+  // intro, emails and the iOS app link here, and the reader may be signed
+  // out. A slug that names no page falls back to the index.
+  const help = HELP_PATH_RE.exec(window.location.pathname);
+  if (help) {
+    const slug = help[1] as HelpSlug | undefined;
+    return (
+      <ErrorBoundary>
+        {slug && HELP_SLUGS.includes(slug) ? <HelpPage slug={slug} /> : <HelpIndex />}
       </ErrorBoundary>
     );
   }
