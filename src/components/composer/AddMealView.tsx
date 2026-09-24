@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useModalChrome } from '../../hooks/useModalChrome';
+import { useTip } from '../../hooks/useTip';
 import { createPortal } from 'react-dom';
 import { Star, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -31,6 +32,10 @@ export default function AddMealView() {
   const { state, dispatch } = useCalendar();
   const { createMeal, updateMeal, favorites, saveFavorite, deleteFavorite } = useMeals();
   const close = () => dispatch({ type: 'CLOSE_MEAL_COMPOSER' });
+
+  // First open: explain the form and the meal library, which starts empty.
+  // No field autofocuses, so TipHost's focus hold does not delay the card.
+  useTip('meal-first');
 
   // Snapshot, not live state: the meal being edited never changes while the
   // overlay is open (opening it cleared every other surface).
