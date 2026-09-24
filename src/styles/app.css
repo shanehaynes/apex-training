@@ -5523,6 +5523,14 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
      same reason OnboardingHost hides it behind full-screen overlays. */
   .app-shell[data-mobile-tab="coach"] .setup-nudge { display: none; }
 
+  /* The + menu opens upward out of the tab bar, straight into the space the
+     nudge occupies — and .mobile-nav's own stacking context (z-index 100)
+     keeps the menu under the nudge (120) whatever z-index the menu gets.
+     The menu exists in the DOM only while open, so its presence is the
+     signal: step aside until it closes, the way the nudge already yields to
+     overlays and the coach tab. */
+  .app-shell:has(.mobile-nav__add-menu) .setup-nudge { display: none; }
+
   /* .modal turns into a bottom sheet here, so the footer buttons would
      otherwise sit under the home indicator. */
   .welcome { padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
