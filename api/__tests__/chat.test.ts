@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type Anthropic from '@anthropic-ai/sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import handler, { cachedToolSchemas, streamToWireEvents, withConversationBreakpoint } from '../chat';
+import handler, { cachedToolSchemas, injectVolatile, streamToWireEvents, withConversationBreakpoint } from '../chat';
 import type { UpstreamEvent } from '../chat';
 import { COACH_MODEL } from '../../src/lib/coach/model';
 import type { ChatWireEvent } from '../../src/lib/coach/wire';
@@ -63,6 +63,8 @@ vi.mock('../_lib/coach/context.js', () => {
       if (typeof today !== 'string' || today === 'bad') throw new ChatContextError('today must be a YYYY-MM-DD date');
       return {
         system: `SERVER PROMPT (${mode})`,
+        // Chat is the split prompt; builder and analytics stay one block.
+        volatile: mode === 'chat' ? '<live_context>LIVE STATE</live_context>' : '',
         toolContext: {
           definitions: new Map(),
           events: [{ id: 'evt-9', title: 'Leg day', date: '2026-09-04', type: 'weights', estimatedDuration: 60, isCompleted: false }],
@@ -264,6 +266,109 @@ describe('prompt-caching helpers', () => {
   it('withConversationBreakpoint leaves empty input untouched', () => {
     expect(withConversationBreakpoint([])).toEqual([]);
   });
+
+  it('withConversationBreakpoint skips a trailing system message and marks the last user message', () => {
+    // The injected system entry is regenerated every turn and never stored,
+    // so an entry ending on it has no future reader; the user message before
+    // it is exactly the prefix the next turn resends.
+    const out = withConversationBreakpoint([
+      { role: 'user', content: 'plan my week' },
+      { role: 'assistant', content: 'On it.' },
+      { role: 'user', content: [{ type: 'text', text: 'and add a rest day' }] },
+      { role: 'system', content: 'LIVE' },
+    ]);
+    expect(out[2]).toEqual({
+      role: 'user',
+      content: [{ type: 'text', text: 'and add a rest day', cache_control: { type: 'ephemeral' } }],
+    });
+    expect(out[3]).toEqual({ role: 'system', content: 'LIVE' });
+    expect(out).toHaveLength(4);
+  });
+
+  it('cachedToolSchemas takes a 1-hour TTL for the split chat prefix', () => {
+    const tools = cachedToolSchemas('chat', '1h');
+    expect(tools.at(-1)?.cache_control).toEqual({ type: 'ephemeral', ttl: '1h' });
+    expect(tools.slice(0, -1).every(t => !('cache_control' in t))).toBe(true);
+    // The default stays the bare marker the legacy path and the other modes send.
+    expect(cachedToolSchemas('chat', '5m')).toEqual(cachedToolSchemas());
+  });
+});
+
+describe('injectVolatile', () => {
+  const LIVE = '<live_context>LIVE</live_context>';
+  /** A JSON snapshot, so a mutation of the input shows up as a diff. */
+  const frozen = <T,>(value: T): { value: T; before: string } => ({ value, before: JSON.stringify(value) });
+
+  it('returns the input untouched when there is nothing to inject', () => {
+    const messages: Anthropic.MessageParam[] = [{ role: 'user', content: 'hi' }];
+    expect(injectVolatile(messages, '', false)).toBe(messages);
+    expect(injectVolatile(messages, '', true)).toBe(messages);
+  });
+
+  it('puts the block first in a string user message, keeping the user\'s words last', () => {
+    const input = frozen<Anthropic.MessageParam[]>([
+      { role: 'user', content: 'plan my week' },
+      { role: 'assistant', content: 'On it.' },
+      { role: 'user', content: 'and a rest day' },
+    ]);
+    const out = injectVolatile(input.value, LIVE, false);
+    expect(out[0]).toEqual({ role: 'user', content: 'plan my week' });
+    expect(out[1]).toEqual({ role: 'assistant', content: 'On it.' });
+    expect(out[2]).toEqual({
+      role: 'user',
+      content: [{ type: 'text', text: LIVE }, { type: 'text', text: 'and a rest day' }],
+    });
+    expect(JSON.stringify(input.value)).toBe(input.before);
+  });
+
+  it('puts the block first in a user message that opens with text blocks', () => {
+    const input = frozen<Anthropic.MessageParam[]>([
+      { role: 'user', content: [{ type: 'text', text: 'first' }, { type: 'text', text: 'second' }] },
+    ]);
+    const out = injectVolatile(input.value, LIVE, false);
+    expect(out[0].content).toEqual([
+      { type: 'text', text: LIVE }, { type: 'text', text: 'first' }, { type: 'text', text: 'second' },
+    ]);
+    expect(JSON.stringify(input.value)).toBe(input.before);
+  });
+
+  it('puts the block after the tool_result blocks, ahead of any text that follows them', () => {
+    // The API requires tool_result blocks to lead a user message; a text
+    // block may follow. The post-confirm re-stream is this shape.
+    const input = frozen<Anthropic.MessageParam[]>([
+      { role: 'user', content: 'delete leg day' },
+      { role: 'assistant', content: [{ type: 'tool_use', id: 'tu_1', name: 'delete_event', input: {} }] },
+      { role: 'user', content: [
+        { type: 'tool_result', tool_use_id: 'tu_1', content: 'Done.' },
+        { type: 'tool_result', tool_use_id: 'tu_2', content: 'Cancelled by user.' },
+        { type: 'text', text: 'thanks' },
+      ] },
+    ]);
+    const out = injectVolatile(input.value, LIVE, false);
+    expect(out[2].content).toEqual([
+      { type: 'tool_result', tool_use_id: 'tu_1', content: 'Done.' },
+      { type: 'tool_result', tool_use_id: 'tu_2', content: 'Cancelled by user.' },
+      { type: 'text', text: LIVE },
+      { type: 'text', text: 'thanks' },
+    ]);
+    // Earlier messages are the same objects — only the target is copied.
+    expect(out[0]).toBe(input.value[0]);
+    expect(out[1]).toBe(input.value[1]);
+    expect(JSON.stringify(input.value)).toBe(input.before);
+  });
+
+  it('appends a system message after the last message on a model that takes one', () => {
+    const input = frozen<Anthropic.MessageParam[]>([
+      { role: 'user', content: 'plan my week' },
+      { role: 'assistant', content: 'On it.' },
+      { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: 'Done.' }] },
+    ]);
+    const out = injectVolatile(input.value, LIVE, true);
+    expect(out).toHaveLength(4);
+    expect(out.slice(0, 3)).toEqual(input.value);
+    expect(out[3]).toEqual({ role: 'system', content: LIVE });
+    expect(JSON.stringify(input.value)).toBe(input.before);
+  });
 });
 
 describe('chat handler — upstream request shape', () => {
@@ -436,6 +541,130 @@ describe('chat handler — v2 body: server-side prompt (W5a)', () => {
     await handler(makeHandlerReq({ system: 'x', withTools: true, messages: [{ role: 'user', content: 'delete leg day' }] }), legacy.res);
     const legacyEvents = legacy.writes.join('').trim().split('\n').map(l => JSON.parse(l) as ChatWireEvent);
     expect((legacyEvents.find(e => e.type === 'tool_use') as { label?: string }).label).toBeUndefined();
+  });
+});
+
+describe('chat handler — split prompt: 1-hour prefix, live context per turn', () => {
+  const LIVE = '<live_context>LIVE STATE</live_context>';
+
+  it('chat v2: caches the stable prefix for an hour and carries the live context in the last user message', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    const { res } = makeHandlerRes();
+    const body = {
+      mode: 'chat', today: '2026-09-03', withTools: true,
+      messages: [
+        { role: 'user', content: 'plan my week' },
+        { role: 'assistant', content: 'On it.' },
+        { role: 'user', content: 'and a rest day' },
+      ],
+    };
+    const wire = JSON.stringify(body);
+    await handler(makeHandlerReq(body), res);
+
+    const params = streamMock.mock.calls.at(-1)![0] as unknown as Anthropic.MessageStreamParams;
+    // Stable text only in `system`, under the 1-hour breakpoint; the tools
+    // breakpoint ahead of it takes the same TTL (longer TTLs must come first).
+    expect(params.system).toEqual([
+      { type: 'text', text: 'SERVER PROMPT (chat)', cache_control: { type: 'ephemeral', ttl: '1h' } },
+    ]);
+    expect(params.tools?.at(-1)).toMatchObject({ cache_control: { type: 'ephemeral', ttl: '1h' } });
+    expect(params.tools).toEqual(cachedToolSchemas('chat', '1h'));
+    // The default model (Opus 5.5) has no verified mid-turn system channel, so
+    // the live context leads the last user message and the breakpoint sits on
+    // the user's own text, the final block.
+    expect(params.messages).toHaveLength(3);
+    expect(params.messages[0]).toEqual({ role: 'user', content: 'plan my week' });
+    expect(params.messages[2]).toEqual({
+      role: 'user',
+      content: [
+        { type: 'text', text: LIVE },
+        { type: 'text', text: 'and a rest day', cache_control: { type: 'ephemeral' } },
+      ],
+    });
+    // Injected into a copy: what the client sent (and stores) is untouched.
+    expect(JSON.stringify(body)).toBe(wire);
+  });
+
+  it('chat v2 on a mid-turn-system model: appends the live context as a system entry, breakpoint on the user message', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    const { res } = makeHandlerRes();
+    await handler(makeHandlerReq({
+      mode: 'chat', today: '2026-09-03', withTools: true, model: 'claude-opus-5',
+      messages: [
+        { role: 'user', content: 'plan my week' },
+        { role: 'assistant', content: 'On it.' },
+        { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: 'Done.' }] },
+      ],
+    }), res);
+
+    const params = streamMock.mock.calls.at(-1)![0] as unknown as Anthropic.MessageStreamParams;
+    expect(params.model).toBe('claude-opus-5');
+    expect(params.messages).toHaveLength(4);
+    expect(params.messages[2]).toEqual({
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: 'Done.', cache_control: { type: 'ephemeral' } }],
+    });
+    expect(params.messages[3]).toEqual({ role: 'system', content: LIVE });
+  });
+
+  it('chat v2 with tools off: still injects the live context, still no messages breakpoint', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    const { res } = makeHandlerRes();
+    await handler(makeHandlerReq({
+      mode: 'chat', today: '2026-09-03', withTools: false,
+      messages: [{ role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: 'Done.' }] }],
+    }), res);
+
+    const params = streamMock.mock.calls.at(-1)![0] as unknown as Anthropic.MessageStreamParams;
+    expect(params.tool_choice).toEqual({ type: 'none' });
+    // The post-confirm re-stream sees the state AFTER the mutation, after the tool_result.
+    expect(params.messages[0].content).toEqual([
+      { type: 'tool_result', tool_use_id: 'tu_1', content: 'Done.' },
+      { type: 'text', text: LIVE },
+    ]);
+    expect(params.system).toEqual([
+      { type: 'text', text: 'SERVER PROMPT (chat)', cache_control: { type: 'ephemeral', ttl: '1h' } },
+    ]);
+  });
+
+  it('builder v2 keeps one system block at the 5-minute default and injects nothing', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    const { res } = makeHandlerRes();
+    const messages = [{ role: 'user', content: 'add bench' }];
+    await handler(makeHandlerReq({
+      mode: 'builder', today: '2026-09-03', withTools: true, context: { draft: { title: 'Push' } }, messages,
+    }), res);
+
+    const params = streamMock.mock.calls.at(-1)![0] as unknown as Anthropic.MessageStreamParams;
+    // The draft lives in `system` and changes most turns: a 1-hour entry
+    // would be a 2x write with no reader.
+    expect(params.system).toEqual([
+      { type: 'text', text: 'SERVER PROMPT (builder)', cache_control: { type: 'ephemeral' } },
+    ]);
+    const lastTool = params.tools?.at(-1) as { cache_control?: { ttl?: string } } | undefined;
+    expect(lastTool?.cache_control).toEqual({ type: 'ephemeral' });
+    expect(params.messages).toEqual([
+      { role: 'user', content: [{ type: 'text', text: 'add bench', cache_control: { type: 'ephemeral' } }] },
+    ]);
+  });
+
+  it('legacy body.system: one system block with the 5-minute breakpoint, nothing injected', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    const { res } = makeHandlerRes();
+    const contextCalls = vi.mocked(buildChatContext).mock.calls.length;
+    await handler(makeHandlerReq({
+      system: 'CLIENT PROMPT', withTools: true,
+      messages: [{ role: 'user', content: 'hi' }],
+    }), res);
+
+    const params = streamMock.mock.calls.at(-1)![0] as unknown as Anthropic.MessageStreamParams;
+    expect(params.system).toEqual([{ type: 'text', text: 'CLIENT PROMPT', cache_control: { type: 'ephemeral' } }]);
+    expect(params.tools).toEqual(cachedToolSchemas());
+    expect(params.messages).toEqual([
+      { role: 'user', content: [{ type: 'text', text: 'hi', cache_control: { type: 'ephemeral' } }] },
+    ]);
+    // The server never builds a prompt for a legacy body: the text arrived whole.
+    expect(vi.mocked(buildChatContext).mock.calls.length).toBe(contextCalls);
   });
 });
 

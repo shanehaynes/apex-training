@@ -3,7 +3,9 @@ import { parseISO } from 'date-fns';
 import { buildChatContext, ChatContextError, isChatMode } from '../_lib/coach/context';
 import { fetchCompletionsInRange, fetchExpandedSchedule } from '../_lib/mcp/data';
 import { loadMealsForDate } from '../_lib/trackerSession';
-import { buildAnalyticsPrompt, buildBuilderPrompt, buildSystemPrompt } from '../../src/lib/coach/prompt';
+import {
+  buildAnalyticsPrompt, buildBuilderPrompt, buildStablePrompt, buildSystemPrompt, buildVolatileContext,
+} from '../../src/lib/coach/prompt';
 import { describeDraft, draftFromTemplate } from '../../src/lib/builder/draft';
 import { describeChartDraft, emptyChartDraft } from '../../src/lib/analytics/draft';
 import type { ExerciseDefinition, WorkoutEvent } from '../../src/types/workout';
@@ -75,36 +77,48 @@ describe('buildChatContext', () => {
     expect(isChatMode('tools')).toBe(false);
   });
 
-  it('chat: equals the browser-built prompt for the same window, completions, meals, profile and library', async () => {
-    const { system, toolContext } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+  it('chat: splits into the stable prompt and the live context, which together equal the one-string prompt', async () => {
+    const { system, volatile, toolContext } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
 
     // What ChatSidebar used to assemble: the expanded schedule with completion
     // flags applied, today's events, today's meals, the profile fields.
     const withCompletion = occurrences.map(e => e.id === 'evt-soccer' ? { ...e, isCompleted: true, completedAt: '2026-08-31T20:00:00Z' } : e);
     const windowed = withCompletion.filter(e => e.date >= '2026-08-03' && e.date <= '2026-09-06');
-    const expected = buildSystemPrompt(
-      withCompletion.filter(e => e.date === TODAY), windowed, parseISO(TODAY), [def],
-      { goal: 'Send 5.12', context: 'Two kids' }, null, [meal],
+    const todayEvents = withCompletion.filter(e => e.date === TODAY);
+    const athlete = { goal: 'Send 5.12', context: 'Two kids' };
+    expect(system).toBe(buildStablePrompt([def]));
+    expect(volatile).toBe(buildVolatileContext(todayEvents, windowed, parseISO(TODAY), athlete, null, [meal]));
+    // The compatibility shape the evals drive is exactly the two halves joined.
+    expect(system + '\n\n' + volatile).toBe(
+      buildSystemPrompt(todayEvents, windowed, parseISO(TODAY), [def], athlete, null, [meal]),
     );
-    expect(system).toBe(expected);
-    expect(system).toContain('[evt-today] Push Day (60 min) at 17:30');
+
+    // The stable half carries the library and nothing that changes per turn.
+    expect(system).toContain('EXERCISE LIBRARY (canonical names):\nBench Press');
+    expect(system).not.toContain('Today:');
+    expect(system).not.toContain('[evt-today]');
+    expect(system).not.toContain('Send 5.12');
+
+    expect(volatile).toContain('[evt-today] Push Day (60 min) at 17:30');
     // Aug 31 is THIS week (Mon-anchored), so it shows as done there; the
     // past-4-weeks window holds only the Aug 11 run.
-    expect(system).toContain('✓ [evt-soccer] Mon Aug 31 — Soccer night (60 min)');
-    expect(system).toContain('LAST 4 WEEKS: 0/1 completed (0%)');
-    expect(system).toContain('[meal-1] Oats');
-    expect(system).toContain('Goal: Send 5.12');
-    expect(system).not.toContain('Deload');
+    expect(volatile).toContain('✓ [evt-soccer] Mon Aug 31 — Soccer night (60 min)');
+    expect(volatile).toContain('LAST 4 WEEKS: 0/1 completed (0%)');
+    expect(volatile).toContain('[meal-1] Oats');
+    expect(volatile).toContain('Goal: Send 5.12');
+    expect(volatile).not.toContain('Deload');
     // Label context sees every occurrence (a tool may reference any id).
     expect(toolContext.events.map(e => e.id)).toContain('evt-next');
     expect(toolContext.definitions.get('def-1')).toEqual(def);
     expect(fetchCompletionsInRange).toHaveBeenCalledWith(expect.anything(), 'u1', '2026-08-03', '2026-09-06');
   });
 
-  it('chat: a missing profile degrades to the generic prompt', async () => {
+  it('chat: a missing profile degrades to the generic live context', async () => {
     state.profile = null;
-    const { system } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
-    expect(system).not.toContain('<athlete_profile>');
+    const { system, volatile } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    expect(volatile).not.toContain('<athlete_profile>');
+    // The stable half never carried it: a profile edit must not touch the cached prefix.
+    expect(system).toBe(buildStablePrompt([def]));
   });
 
   it('builder: describes the draft with the saved-workout titles and the library', async () => {
@@ -112,16 +126,19 @@ describe('buildChatContext', () => {
       id: 'wt-1', title: 'Push Day', type: 'weights', tags: [], description: '', estimatedDuration: 60,
       difficulty: 3, exercises: [], scoringType: 'strength',
     } as never, TODAY);
-    const { system, toolContext } = await buildChatContext(makeAdmin(), 'u1', 'builder', TODAY, draft);
+    const { system, volatile, toolContext } = await buildChatContext(makeAdmin(), 'u1', 'builder', TODAY, draft);
     expect(system).toBe(buildBuilderPrompt(describeDraft(draft), ['Push Day', 'Pull Day'], [def], parseISO(TODAY)));
     expect(system).toContain('SAVED WORKOUTS: Push Day · Pull Day');
+    // Single-block prompt: nothing to inject per turn.
+    expect(volatile).toBe('');
     expect(toolContext.events).toEqual([]);
   });
 
   it('analytics: describes the chart draft with the trimmed, distinct "other sport" titles', async () => {
     const draft = emptyChartDraft();
-    const { system } = await buildChatContext(makeAdmin(), 'u1', 'analytics', TODAY, draft);
+    const { system, volatile } = await buildChatContext(makeAdmin(), 'u1', 'analytics', TODAY, draft);
     expect(system).toBe(buildAnalyticsPrompt(describeChartDraft(draft), ['Soccer night'], parseISO(TODAY)));
     expect(system).toContain('WORKOUTS MARKED "OTHER SPORT": Soccer night');
+    expect(volatile).toBe('');
   });
 });
