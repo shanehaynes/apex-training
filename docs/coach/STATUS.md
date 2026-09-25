@@ -7,11 +7,11 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 
 | Lane | Title | Wave | State | Branch | Notes |
 |---|---|---|---|---|---|
-| A01 | Read tools: coach adapter over the MCP set + session summaries, reviews, history search | A | in review (#341) — `full` fix pushed `f8263c2` | `feat/coach-read-tools` | no hot files |
-| A02 | Physiology panel: zones, load ratio, tonnage, HRV as pure functions + fetch | A | in review (#342) — all green but e2e-mock pending | `feat/coach-physiology` | no hot files |
-| A03 | Doctrine: original synthesis as `.ts` topics, index, tool schema | A | in review (#343) — **content review: Shane** | `feat/coach-doctrine` | 78,890 chars; DECISIONS lines first |
-| A04 | Rich confirm cards: before/after preview per tool call | A | in review (#344) — all green but e2e-mock pending | `feat/coach-confirm-preview` | owns `ChatSidebar.tsx` this wave |
-| A05 | Cache prefix: stable/volatile prompt split, server-side injection, 1h TTL | A | in review (#345) — `full` fix pushed `c6eb313`; **coach-gate needs Shane's `eval:gate`** | `feat/coach-cache-prefix` | bumps `PROMPT_VERSION` → 2026.09.25-1; Opus 5.5 `midTurnSystem` off until verified |
+| A01 | Read tools: coach adapter over the MCP set + session summaries, reviews, history search | A | in review (#341) — **all checks green** (`f8263c2`) | `feat/coach-read-tools` | no hot files |
+| A02 | Physiology panel: zones, load ratio, tonnage, HRV as pure functions + fetch | A | in review (#342) — **all checks green** | `feat/coach-physiology` | no hot files |
+| A03 | Doctrine: original synthesis as `.ts` topics, index, tool schema | A | in review (#343) — **all checks green**; content review: Shane (nothing imports it yet, so merging first and editing on main is safe) | `feat/coach-doctrine` | 78,890 chars; DECISIONS lines first |
+| A04 | Rich confirm cards: before/after preview per tool call | A | in review (#344) — **all checks green** | `feat/coach-confirm-preview` | owns `ChatSidebar.tsx` this wave |
+| A05 | Cache prefix: stable/volatile prompt split, server-side injection, 1h TTL | A | in review (#345) — two local-stack specs fixed (`c6eb313`, `d0fb664`), CI re-running; **coach-gate needs Shane's `eval:gate`** | `feat/coach-cache-prefix` | bumps `PROMPT_VERSION` → 2026.09.25-1; Opus 5.5 `midTurnSystem` off until verified |
 | B01 | Sight loop: read tools + doctrine + physiology wired into chat; server-side read rounds; chips | B | ready (after wave A) | `feat/coach-sight-loop` | owns every hot file |
 | B02 | Board + embeddings issue | B | done (this branch, issue #340) | `chore/coach-board` | orchestrator |
 | C01 | Evals: harness realignment, `sight` and `doctrine` cases, doctrine dimension | C | ready (after B01) | `feat/coach-evals-sight` | `eval-analyst` |
@@ -24,12 +24,15 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 | E02 | Ask-coach from a session or set | E | ready (after D) | `feat/coach-ask-from-context` | |
 
 ## Next up
-1. **Shane:** run `npm run eval:gate` on `feat/coach-cache-prefix` (#345) and commit the
-   attestation; the orchestrator has no subscription token. Then `merge-babysit` lands
-   #341 → #345 serially (main's up-to-date rule).
-2. **Shane:** review #343's doctrine text for fidelity; the lane's DECISIONS list names the
+1. **Shane (or any local session with `gh`):** `scripts/merge-babysit.sh --yes` lands
+   #341 → #344 serially (main's up-to-date rule). The orchestrator's cloud session has no
+   `gh`, and the babysitter is the only sanctioned merge path, so it stops here.
+2. **Shane:** run `npm run eval:gate` on `feat/coach-cache-prefix` (#345) and commit the
+   attestation; no orchestrator session holds the subscription token. Then #345 merges last
+   (it is the only wave-A PR on the hot files).
+3. **Shane:** review #343's doctrine text for fidelity; the lane's DECISIONS list names the
    lines where it chose one school over another.
-3. Orchestrator: once wave A is on `main`, one live call to confirm whether
+4. Orchestrator: once wave A is on `main`, one live call to confirm whether
    `claude-opus-5-5` accepts a mid-conversation `system` message; flip `midTurnSystem` in
    the B01 lane if it does. Then launch B01 from fresh `main`.
 
