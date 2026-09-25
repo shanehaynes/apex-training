@@ -1,0 +1,115 @@
+/* ============================================================================
+   CONFIRM PREVIEW — the before/after block inside the coach's confirmation
+   card (src/components/sidebar/ChatSidebar.tsx, computed by
+   src/lib/coach/preview.ts). Sits between .chat-confirm-card__label and
+   .chat-confirm-card__actions, which stay in app.css.
+
+   Lives outside app.css on purpose (CLAUDE.md: feature lanes never edit it).
+   Tokens come from tokens.css as everywhere else. Phone width first: the
+   sidebar is the Coach tab on a phone, ~340px wide, so every layout here is a
+   single column that wraps rather than a grid that overflows.
+   ========================================================================== */
+
+.confirm-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+/* One fact per line ("Thu Jul 9 · 6:30 AM", "620 kcal (from macros)"). */
+.confirm-preview__line {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.confirm-preview__line strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Field → before → after. A grid, not a <table>: the columns size to their
+   content, and on a phone a long "after" wraps inside its cell instead of
+   pushing the row past the card. */
+.confirm-preview__changes {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 3px;
+  margin: 0;
+}
+
+.confirm-preview__field {
+  margin: 0;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.confirm-preview__diff {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.confirm-preview__before {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--text-muted) 60%, transparent);
+}
+
+.confirm-preview__arrow {
+  margin: 0 5px;
+  color: var(--text-muted);
+}
+
+.confirm-preview__after {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Exercise lists: a heading ("Before", "After") over a plain list. */
+.confirm-preview__heading {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.confirm-preview__list {
+  margin: 0;
+  padding: 0 0 0 14px;
+  list-style: disc;
+}
+
+.confirm-preview__list li {
+  overflow-wrap: anywhere;
+}
+
+.confirm-preview__list--before {
+  color: var(--text-muted);
+}
+
+.confirm-preview__list--after {
+  color: var(--text-primary);
+}
+
+.confirm-preview__empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Deleting a whole series is the one preview that widens the blast radius;
+   it gets the danger copy colour so the eye lands on it before Confirm. */
+.confirm-preview__scope--series {
+  color: var(--danger-text);
+  font-weight: 600;
+}
