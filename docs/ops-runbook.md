@@ -22,7 +22,7 @@ State verified against the tree and `gh secret list` on **2026-09-19**.
 | `SUPABASE_DB_URL` | **not set** — `backup.yml` skips with a notice | — | Shane: Supabase → Connect → Session pooler (port 5432, password percent-encoded) | nothing is backed up at all |
 | `SUPABASE_SERVICE_ROLE_KEY` | Vercel (server-only) | not needed | Shane: Supabase → Settings → API → rotate | rotate and redeploy; `api/*` writes fail until then |
 | `CRON_SECRET` | Vercel | not needed | any random string, set in Vercel | set a new one; the two crons 401 until it matches |
-| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | Vercel | not needed | Shane: <https://myaccount.google.com/apppasswords> (revoke + regenerate) | review emails stop; nothing else |
+| `RESEND_API_KEY` | Vercel | not needed | Shane: <https://resend.com/api-keys> (revoke + create, Sending access, apex-training.app only) | review emails stop; nothing else |
 | `COROS_CLIENT_ID` / `COROS_REDIRECT_URI` | Vercel | not needed — public PKCE client | `node scripts/coros-spike.mjs register <callback-url>` | re-register; existing connections must reconnect |
 | `SEED_SOURCE_USER_ID` | Vercel | not needed | falls back to the `profiles` row with `is_template_source = true` | new accounts seed from the fallback row |
 | `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | Vercel + `.env.local` | not needed — public by construction | Supabase → Settings → API | — |

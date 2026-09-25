@@ -41,7 +41,7 @@ import type { PeriodType, ReviewStats, YearlyStats } from '../src/lib/review/typ
 //   email_skipped_reason set      → done (no activity, or no address)
 //   ai_commentary null + user key → one-shot Anthropic call (per-user key;
 //                                    users without a key go stats-only)
-//   email_sent_at null            → render + send via Gmail SMTP, stamp sent
+//   email_sent_at null            → render + send via Resend SMTP, stamp sent
 // Any failure leaves the row mid-state and tomorrow's run resumes from it.
 
 export const maxDuration = 60;
