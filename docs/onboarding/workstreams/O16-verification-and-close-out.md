@@ -24,3 +24,4 @@
    (Shane creates a throwaway invite).
 
 ## Session log
+- 2026-09-25 · orchestrator. a: nudge fix #337. b: copy audit report + fixes #338. c: app-verifier walk on the merged tree — 7/7 PASS, no findings (phone + desktop fresh profile, 6 help pages signed out, 68 specs). d: external shots blocked on Shane. e: WELCOME.md rewritten (146 → 92 lines) + this board.

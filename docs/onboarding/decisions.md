@@ -82,3 +82,19 @@ Append-only. One entry per decision, with the options that were on the table. Th
   SDK) is the named prohibited conduct. **Recommendation: research only, do not build**; the
   help page uses the report's §3 wording; re-open if Anthropic publishes a developer
   approval / "Sign in with Claude" programme or an explicit hosted-app path. Shane to confirm.
+
+## D-O07 · A tip spec isolates itself from every other lane's tips
+**Status:** decided · orchestrator · 2026-09-25 · wave-2 fold
+- **The problem.** Each lane's spec passed alone and failed on the fold: with nine lanes'
+  `useTip` calls live, the calendar under every screen offers `day-complete-circle`
+  (priority 1, first in the catalog) and the coach rail offers `coach-first-message`
+  (priority 0) on any desktop load with a key, so another lane's tip took the one slot per
+  load — or its backdrop swallowed the next click. The tips-core spec's demo tip lost the
+  same tie.
+- **Decision.** Every tip spec serves a profile whose `tips_seen` marks every catalog id
+  outside its own lane as seen, built from `TIPS` so future tips stay excluded; `TipHost`
+  offers only the demo tip while `__APEX_TIPS_DEMO__` is set; the live e2e project sets
+  `__APEX_TIPS_OFF__` like the mock fixtures do (#327, #328, #329, #331). The rule now
+  lives in `MASTER.md`'s brief skeleton.
+- **Rejected.** Lowering the calendar tip's priority (it is the right first tip for a
+  phone user) and dropping the one-per-load rule (the point of the design).

@@ -44,3 +44,4 @@ key not tied to a workspace, expired key, out of credits (the coach's 402/429 st
   strings: the workspace 400 and rejected-key messages from `api/_lib/anthropicKey.ts`, and
   the coach's 402/429/generic replies from `useChat.ts` — out of credits and an expired key
   both surface as the generic "Sorry, I ran into an error", not as a 402/429.
+- 2026-09-25 · orchestrator. Merged as #331; get-api-key sentence-length fixes and the Profile fold rename in #338; 5 external shots pending (O16d).

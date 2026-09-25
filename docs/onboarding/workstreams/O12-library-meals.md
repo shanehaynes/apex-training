@@ -34,3 +34,4 @@ do not add a skip; stub instead).
   profile with every other tip seen, so folded-in tips from other lanes cannot win the load.
 - Found: on a 375 px phone the "Finish setting up" nudge covers the **+** menu's **Meal**
   item (the phone spec closes the nudge first). Outside this lane — follow-up.
+- 2026-09-25 · orchestrator. Merged as #333; nudge bug fixed in #337; meal calories label reworded in #338.

@@ -33,3 +33,4 @@ changes where.
   (02, the modal over the month grid); e2e `tips-workout.spec.ts` stubs `activity_streams` for
   the P1 tip. Found: on a phone the "Finish setting up" nudge covers the **+** menu's items
   (the shots spec closes it first) — reported, not fixed (outside this lane).
+- 2026-09-25 · orchestrator. Merged as #329; "This event only" → "This day only" and est. 1RM wording follow in #338.

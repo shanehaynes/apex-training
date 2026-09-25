@@ -46,3 +46,4 @@ swap exercise, add set, editing a finished workout.
 - Shots: one stubbed "Upper Body" workout (bench, pull-ups, row) with believable last-time
   numbers replaces the seed, whose warm-ups bury the main lifts. 01–05 phone, 06 desktop.
 - `e2e/mock/tips-tracker.spec.ts`: one load per tip, profile stub marks every other tip seen.
+- 2026-09-25 · orchestrator. Merged as #330; summary record line reworded in #338.
