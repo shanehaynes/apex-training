@@ -39,12 +39,9 @@ export const ENV_KEYS = [
   // takes a POST. Vercel project env; unset means log-only, which is what
   // local dev, e2e and previews want.
   'APEX_ERROR_WEBHOOK_URL',
-  // Gmail address review emails are sent from (also the From). Vercel project
-  // env; `.env.local` only to test mail delivery.
-  'GMAIL_USER',
-  // 16-char Gmail app password for that account. Vercel project env;
-  // `.env.local` only to test mail delivery.
-  'GMAIL_APP_PASSWORD',
+  // Resend API key (Sending access, apex-training.app only) review emails go
+  // out on. Vercel project env; `.env.local` only to test mail delivery.
+  'RESEND_API_KEY',
   // Public OAuth client id registered with COROS (PKCE, no secret).
   // `.env.local` / Vercel project env; both COROS_* unset = "not configured".
   'COROS_CLIENT_ID',

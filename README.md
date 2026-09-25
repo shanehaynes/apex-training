@@ -181,7 +181,7 @@ Browser (React 19 SPA)                           iOS (SwiftUI + GRDB cache)
                              ├── Hono router → 30 handlers
                              ├── Anthropic  (per-user key, NDJSON stream)
                              ├── COROS MCP  (activity sync, FIT decode)
-                             └── Gmail SMTP (period reviews)
+                             └── Resend SMTP (period reviews)
 ```
 
 ```
@@ -414,7 +414,7 @@ Plain `vite` does not run the serverless functions, so writes and AI features de
 | `API_KEY_ENCRYPTION_SECRET` | server only | encrypts stored per-user Anthropic keys at rest (AES-256-GCM). Any long random string — `openssl rand -base64 32`. Unset, keys are stored in plaintext with a loud server-log warning on every save; set it later and existing rows are re-encrypted on first read. Rotating it invalidates saved keys |
 | `CRON_SECRET` | server only | bearer token guarding the cron endpoints |
 | `APEX_ERROR_WEBHOOK_URL` | server only | optional. Every unhandled error from the consolidated `/api/*` routes is logged as a one-line `[apex/error] {...}` record tagged `APEX-API-ERROR`; set this and the same record is also POSTed there (a Sentry ingest URL, a chat webhook, a forwarder of your own). One attempt, 2s timeout, failures swallowed — a webhook that is down never affects a request. Unset = log only, which is right for dev, e2e and previews |
-| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | server only | Gmail SMTP for review emails ([app password](https://myaccount.google.com/apppasswords); 2-Step Verification must be on) |
+| `RESEND_API_KEY` | server only | Resend SMTP for review emails, from `reviews@apex-training.app` ([API keys](https://resend.com/api-keys); Sending access, that domain only) |
 | `SEED_SOURCE_USER_ID` | server only | the account whose recurring workouts seed new users; falls back to the `profiles` row with `is_template_source = true` |
 | `COROS_CLIENT_ID` / `COROS_REDIRECT_URI` | server only | watch sync; register with `node scripts/coros-spike.mjs register <callback-url>` |
 | `APEX_MIN_BUILD` / `APEX_UPDATE_MESSAGE` | server only | the iOS update gate. `APEX_MIN_BUILD` is the oldest `CFBundleVersion` this deployment serves — `GET /api/version` publishes it and the app shows a blocking "update required" screen below it. Unset or `0` gates nothing, the right value until a shipped build genuinely has to be retired (an anon-key rotation, a column an old build still sends). `APEX_UPDATE_MESSAGE` replaces the screen's default wording |
