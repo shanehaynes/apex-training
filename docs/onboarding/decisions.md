@@ -64,7 +64,7 @@ Append-only. One entry per decision, with the options that were on the table. Th
   untouched.
 
 ## D-O06 · A Claude subscription is researched, not built
-**Status:** open · Shane · 2026-09-24
+**Status:** decided · Shane · 2026-09-24
 - **The question.** Shane asked the API-key help page to cover users who already pay for
   Claude ("an OAuth key if they already have a subscription"). Today the app accepts only an
   Anthropic API key; a claude.ai subscription does not include API access, and the repo's
@@ -98,3 +98,7 @@ Append-only. One entry per decision, with the options that were on the table. Th
   lives in `MASTER.md`'s brief skeleton.
 - **Rejected.** Lowering the calendar tip's priority (it is the right first tip for a
   phone user) and dropping the one-per-load rule (the point of the design).
+- **Closed 2026-09-25 (Shane): research only.** The API-key help page carries the O06 §3
+  wording for subscribers. Re-open if Anthropic publishes a developer approval / "Sign in
+  with Claude" programme for third-party apps, or an explicit hosted-app path for the
+  Agent SDK credit programme.
