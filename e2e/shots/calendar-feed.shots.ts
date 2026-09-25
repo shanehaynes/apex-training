@@ -37,7 +37,7 @@ test('Profile → Calendar feed, with the address and its copy button', async ({
     input.value = input.value.replace(/^https?:\/\/[^/]+/, 'https://apextrainingcalendar.vercel.app');
   });
 
-  const copy = fold.getByRole('button', { name: 'Copy feed URL' });
+  const copy = fold.getByRole('button', { name: 'Copy address' });
   await expect(copy).toBeVisible();
   await helpShot(page, { slug: 'calendar-feed', n: 1, name: 'feed-address', highlight: copy });
 });

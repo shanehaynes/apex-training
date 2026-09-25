@@ -9,7 +9,7 @@ import { join } from 'node:path';
 // cheap to test. It only diverges on a real deployment.
 //
 // ConnectorGuide shipped with the raw form for that reason — the e2e spec that
-// compares its endpoint against the AI connector section's passed, because both
+// compares its endpoint against the Claude or ChatGPT section's passed, because both
 // sides agreed on the fallback. So guard the invariant at the source instead:
 // src/lib/origin.ts is the one place allowed to read window.location.origin.
 

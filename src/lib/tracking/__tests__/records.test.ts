@@ -9,6 +9,7 @@ import {
   computeSessionPRs,
   formatSeconds,
   describeRecord,
+  describeRecordForPeople,
 } from '../records';
 import { buildTrackerModel } from '../plan';
 import type { TrackedSectionGroup } from '../plan';
@@ -360,6 +361,16 @@ describe('display helpers', () => {
     expect(describeRecord({
       kind: 'elevation', exerciseName: 'Run', value: 1000, unit: 'ft', previousValue: 800, previousDate: '2026-06-01',
     })).toBe('1000 ft elevation, up from 800 ft on Jun 1');
+  });
+
+  it('describes a strength record in plain words for people, and every other kind as describeRecord does', () => {
+    expect(describeRecordForPeople({
+      kind: 'oneRM', exerciseName: 'Bench Press', estimatedOneRM: 216.6, weight: 190, reps: 5,
+      previousOneRM: 215.8, previousDate: '2026-06-01',
+    })).toBe('est. best single lift 217 (190 × 5), up from 216 on Jun 1');
+    expect(describeRecordForPeople({
+      kind: 'reps', exerciseName: 'Push-Ups', reps: 30, previousReps: 25, previousDate: '2026-06-01',
+    })).toBe('30 reps, up from 25 on Jun 1');
   });
 });
 

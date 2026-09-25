@@ -101,10 +101,10 @@ export default function AnalyticsCoachPanel({ draft, setDraft, onClose }: Props)
             {needsKey ? (
               <>
                 <p className="chat-empty__hint">
-                  The coach runs on your own Anthropic API key. Add one to unlock it.
+                  The coach needs a key from Anthropic (a code). Add one to turn it on.
                 </p>
                 <button className="chat-key-setup-btn" onClick={() => dispatch({ type: 'OPEN_PROFILE' })}>
-                  <KeyRound size={13} /> Add API key
+                  <KeyRound size={13} /> Add key
                 </button>
               </>
             ) : (
@@ -139,7 +139,7 @@ export default function AnalyticsCoachPanel({ draft, setDraft, onClose }: Props)
       <div className="chat-sidebar__input-row">
         <textarea
           className="chat-input"
-          placeholder={needsKey ? 'Add your API key to chat…' : 'e.g. “Weekly running mileage, last 3 months”'}
+          placeholder={needsKey ? 'Add your key to chat…' : 'e.g. “Weekly running mileage, last 3 months”'}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => {

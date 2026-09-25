@@ -11,19 +11,19 @@ export const BLOCKS_ANALYTICS_TIPS = [
   {
     id: 'blocks-first',
     title: 'Train in blocks',
-    body: 'Press **New cycle** to plan several weeks at once. Each block is a few weeks with a weekly goal, like 6 hours of cardio. Start with three hard weeks, then one easy.',
+    body: 'Tap **New cycle** to plan several weeks at once. A cycle is blocks in a row, like three hard weeks, then one easy. Each block has a weekly goal, like 6 hours of cardio.',
     priority: 1,
   },
   {
     id: 'analytics-first',
     title: 'Chart your training',
-    body: 'Press **New tile** to add a chart of your own training. Pick what it counts, like miles each week or time spent training. Each chart is one tile on this page.',
+    body: 'Tap **New tile** to add a chart of your own training. Pick what it counts, like miles each week or time spent training. Each chart is one tile on this page.',
     priority: 1,
   },
   {
     id: 'tile-builder-first',
     title: 'Build a chart',
-    body: 'Pick a **Measure** — the thing your chart counts. Grey choices do not fit what you picked. The **Preview** redraws as you go. Press **Save tile** when it looks right.',
+    body: 'Pick a **Measure** — the thing your chart counts. Grey choices do not fit what you picked. The **Preview** redraws as you go. Tap **Save tile** when it looks right.',
     priority: 1,
   },
 ] as const satisfies readonly TipDefinition[];

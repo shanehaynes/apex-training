@@ -21,7 +21,7 @@ export const BUILDER_TIPS = [
   {
     id: 'builder-coach',
     title: 'Let the coach fill it',
-    body: 'Describe the workout in your own words, like “20 minutes of rowing, then squats.” The coach fills the form. Only you can press **Apply**. It uses your own key from Anthropic.',
+    body: 'Describe the workout in your own words, like “20 minutes of rowing, then squats.” The coach fills the form. Only you can tap **Apply**. It uses your own key from Anthropic.',
     help: 'get-api-key',
     priority: 1,
   },

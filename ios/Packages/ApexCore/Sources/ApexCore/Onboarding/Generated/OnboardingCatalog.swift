@@ -88,17 +88,17 @@ public enum OnboardingCatalog {
         // body: content.ts `iosBody` — the web says something else here.
         Step(
             id: "plan", title: "Put something on it",
-            body: "Start fast with Shane’s ready-made weekly plan. Change or delete any of it later. Or add your own workout with the **+** at the top.",
+            body: "Start fast with Shane’s starter plan. Change or delete any of it later. Or tap **+** at the top to add your own workout.",
             action: Action(label: "Copy the starter plan", kind: .copyTemplate), link: nil, requiresCoros: false
         ),
         Step(
             id: "log", title: "Log a workout",
-            body: "Open a workout and press **Start Workout** to log each set as you go. In a hurry? **Mark as Complete** records it in one tap.",
+            body: "Open a workout and tap **Start Workout** to log each set as you go. In a hurry? **Mark as Complete** records it in one tap.",
             action: nil, link: nil, requiresCoros: false
         ),
         Step(
             id: "coach", title: "Meet your coach",
-            body: "The **Coach** tab answers questions about your training and can plan workouts for you. It needs a key from Anthropic first — a few minutes, billed to you, not Apex.",
+            body: "**Coach** answers questions about your training and can plan workouts for you. It needs a key from Anthropic (a code). Getting one takes a few minutes. Anthropic bills you, not Apex.",
             action: Action(label: "Add key", kind: .openProfile), link: Link(label: "Get an API key", href: "/help/get-api-key"), requiresCoros: false
         ),
     ]
@@ -107,12 +107,12 @@ public enum OnboardingCatalog {
     public static let checklistItems: [ChecklistItem] = [
         ChecklistItem(
             id: .template, label: "Add a starter plan",
-            hint: "Copy Shane’s recurring workouts as a base — edit or delete anything afterwards.",
+            hint: "Copy Shane’s starter plan. Change or delete any of it later.",
             action: Action(label: "Copy", kind: .copyTemplate), requiresCoros: false
         ),
         ChecklistItem(
-            id: .key, label: "Add your Anthropic API key",
-            hint: "The coach and post-workout summaries stay switched off until you do. See Get an API key under Help.",
+            id: .key, label: "Add your key from Anthropic",
+            hint: "The coach and workout summaries stay off until you add it. To learn how, open Help pages, then Get an API key.",
             action: Action(label: "Add key", kind: .openProfile), requiresCoros: false
         ),
         ChecklistItem(
@@ -122,12 +122,12 @@ public enum OnboardingCatalog {
         ),
         ChecklistItem(
             id: .coros, label: "Connect your watch",
-            hint: "COROS activities sync in every night, with heart rate, elevation, and route.",
+            hint: "Your COROS runs and rides come in every night, with heart rate, climb and route.",
             action: Action(label: "Connect", kind: .connectCoros), requiresCoros: true
         ),
         ChecklistItem(
             id: .connector, label: "Connect Claude or ChatGPT",
-            hint: "Ask about your training from an assistant. Read-only — it can never change anything.",
+            hint: "Ask Claude or ChatGPT about your training. It can look, but never change anything.",
             action: Action(label: "Connect", kind: .openProfile), requiresCoros: false
         ),
     ]
@@ -138,7 +138,7 @@ public enum OnboardingCatalog {
 
     /// Shown under the checklist: real features, but nothing to tick off.
     public static let extraNotes: [String] = [
-        "Subscribe to your schedule from Apple or Google Calendar — Profile → Calendar feed.",
+        "See your workouts in Apple or Google Calendar. Open Calendar feed, below.",
         "When a training month closes, a review of it lands in your inbox.",
     ]
 

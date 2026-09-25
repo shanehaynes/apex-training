@@ -125,7 +125,7 @@ test('editing a recurring occurrence asks for scope: series updates, this day de
   await page.locator('.modal-edit-workout').click();
   await page.locator('.library-field', { hasText: 'Location' }).locator('input').fill('Detached gym');
   await page.locator('.exercise-editor__save').click();
-  await page.locator('.exercise-editor__save', { hasText: 'This event only' }).click();
+  await page.locator('.exercise-editor__save', { hasText: 'This day only' }).click();
   await expect(page.locator('.composer-view')).toHaveCount(0);
 
   expect(wire.drafts.length, 'one POST per save, still').toBe(2);

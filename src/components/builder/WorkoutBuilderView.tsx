@@ -62,7 +62,7 @@ export default function WorkoutBuilderView() {
    * Apply (create) and Save changes (update / detach), which are the same
    * request with a different action:
    *   create  — no event is being edited.
-   *   detach  — a recurring occurrence saved with "This event only": the
+   *   detach  — a recurring occurrence saved with "This day only": the
    *             edits become a standalone event and the day leaves the
    *             series. The repeat picker doesn't apply; the server forces it
    *             off (a detached day cannot itself repeat).

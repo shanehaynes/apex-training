@@ -28,7 +28,7 @@ export default function GettingStarted() {
       </h3>
 
       {allDone && (
-        <p className="profile-hint">Everything is set up. This list is just here for reference now.</p>
+        <p className="profile-hint">Everything is set up. The list stays here for you to look back on.</p>
       )}
 
       <ul className="setup__list">

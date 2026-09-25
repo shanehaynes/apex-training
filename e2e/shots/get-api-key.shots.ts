@@ -72,7 +72,7 @@ test('Profile: paste the key, then it is saved', async ({ page }, testInfo) => {
   await stubKeyStatus(page);
   await openProfile(page, phone);
 
-  const input = page.getByLabel('Anthropic API key', { exact: true });
+  const input = page.getByLabel('Anthropic key', { exact: true });
   await expect(input).toBeVisible();
   await input.fill(FAKE_KEY);
   // Blur, so no caret or focus ring competes with the highlight.
@@ -83,17 +83,17 @@ test('Profile: paste the key, then it is saved', async ({ page }, testInfo) => {
   // Frame the whole section from its title down — the hint above the box
   // is what the page tells the reader to look for.
   const section = page.locator('.profile-fold', {
-    has: page.locator('.profile-section__title', { hasText: /^Anthropic API key$/ }),
+    has: page.locator('.profile-section__title', { hasText: /^Anthropic key$/ }),
   });
   await frameSection(section);
   await helpShot(page, { slug: 'get-api-key', n: 6, name: 'paste-key', highlight: save });
 
   await save.click();
-  const masked = page.getByLabel('Saved API key (masked)');
+  const masked = page.getByLabel('Saved key (masked)');
   await expect(masked).toHaveValue('sk-ant-…abcd');
   await expect(page.getByRole('button', { name: 'Replace' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Remove' })).toBeVisible();
-  // The "API key saved" toast is part of what the reader sees; let it land.
+  // The "Key saved" toast is part of what the reader sees; let it land.
   await frameSection(section);
   await helpShot(page, { slug: 'get-api-key', n: 7, name: 'key-saved', highlight: masked });
 });

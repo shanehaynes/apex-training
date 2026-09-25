@@ -5,7 +5,7 @@ import { driverProfile } from '../lib/session.mjs';
 import { TIPS } from '../../src/lib/onboarding/tips/index';
 
 // Profile's three tips (docs/onboarding/workstreams/O14-profile.md), each at
-// its real site: the Calendar feed and AI connector folds on first open, and
+// its real site: the Calendar feed and Claude or ChatGPT folds on first open, and
 // coach-goal once a first key save succeeds with the Goal still empty.
 //
 // TipHost shows one tip per load, and other screens offer theirs too, so
@@ -93,7 +93,7 @@ test('closing Calendar feed before the card lands withdraws it', async ({ page }
   await expect(page.locator('.tip')).toHaveCount(0);
 });
 
-test('with Calendar feed seen, opening AI connector offers connector-first', async ({ page }) => {
+test('with Calendar feed seen, opening Claude or ChatGPT offers connector-first', async ({ page }) => {
   await stubProfile(page, profileRow('connector-first'));
   await openProfile(page);
 
@@ -102,7 +102,7 @@ test('with Calendar feed seen, opening AI connector offers connector-first', asy
   await page.waitForTimeout(1200);
   await expect(page.locator('.tip')).toHaveCount(0);
 
-  await fold(page, 'AI connector').click();
+  await fold(page, 'Claude or ChatGPT').click();
   const card = tip(page, 'connector-first');
   await expect(card).toBeVisible();
   // No help page: it points at the guide already on screen.
@@ -118,7 +118,7 @@ test('a first key save with no goal offers coach-goal', async ({ page }) => {
   await openProfile(page);
 
   // No key yet: the key fold opens itself, and nothing is offered.
-  const keyInput = page.getByLabel('Anthropic API key');
+  const keyInput = page.getByLabel('Anthropic key');
   await expect(keyInput).toBeVisible();
   await page.waitForTimeout(1200);
   await expect(page.locator('.tip')).toHaveCount(0);
@@ -139,7 +139,7 @@ test('a first key save with a goal already set offers nothing', async ({ page })
   await stubNoKey(page);
   await openProfile(page);
 
-  await page.getByLabel('Anthropic API key').fill('sk-ant-test-key-1234');
+  await page.getByLabel('Anthropic key').fill('sk-ant-test-key-1234');
   await page.getByRole('button', { name: 'Save key' }).click();
   await expect(page.locator('.profile-fold__status', { hasText: 'Saved' })).toBeVisible();
   await page.waitForTimeout(1200);
@@ -150,9 +150,9 @@ test('replacing a saved key is not a first save', async ({ page }) => {
   await stubProfile(page, profileRow('coach-goal', { coach_goal: '' }));
   await openProfile(page);
 
-  await fold(page, 'Anthropic API key').click();
+  await fold(page, 'Anthropic key').click();
   await page.getByRole('button', { name: 'Replace' }).click();
-  await page.getByLabel('Anthropic API key').fill('sk-ant-test-key-5678');
+  await page.getByLabel('Anthropic key').fill('sk-ant-test-key-5678');
   await page.getByRole('button', { name: 'Save key' }).click();
   await expect(page.getByRole('button', { name: 'Replace' })).toBeVisible();
   await page.waitForTimeout(1200);

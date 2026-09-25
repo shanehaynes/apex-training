@@ -154,7 +154,7 @@ export default function ProfileView() {
       setKeyInput('');
       setIsReplacingKey(false);
       if (!hadKey) setKeyAdded(true);
-      notify('API key saved');
+      notify('Key saved');
     }
     setIsSavingKey(false);
   };
@@ -162,7 +162,7 @@ export default function ProfileView() {
   const removeKey = async () => {
     setKeyMsg(null);
     const ok = await removeAnthropicKey();
-    if (ok) notify('API key removed');
+    if (ok) notify('Key removed');
   };
 
   const feedUrl = profile
@@ -173,7 +173,7 @@ export default function ProfileView() {
     if (!feedUrl) return;
     try {
       await navigator.clipboard.writeText(feedUrl);
-      notify('Feed URL copied');
+      notify('Address copied');
     } catch {
       notify('Copy failed');
     }
@@ -367,7 +367,7 @@ export default function ProfileView() {
           {/* Set once at signup and then forgotten — but opened for you when
               there is no key, because without one the coach does nothing. */}
           <ProfileDisclosure
-            title="Anthropic API key"
+            title="Anthropic key"
             status={keyStatus}
             defaultOpen={anthropicKey?.hasKey === false}
           >
@@ -376,14 +376,14 @@ export default function ProfileView() {
             ) : anthropicKey.hasKey && !isReplacingKey ? (
               <>
                 <p className="profile-hint">
-                  The coach runs on your own Anthropic API key. Yours is saved.
+                  The coach runs on your own key from Anthropic. Yours is saved.
                 </p>
                 <div className="profile-feed">
                   <input
                     className="auth-input profile-feed__url"
                     value={`sk-ant-…${anthropicKey.last4 ?? ''}`}
                     readOnly
-                    aria-label="Saved API key (masked)"
+                    aria-label="Saved key (masked)"
                   />
                   <button className="btn-today" onClick={() => { setIsReplacingKey(true); setKeyMsg(null); }}>
                     Replace
@@ -396,12 +396,8 @@ export default function ProfileView() {
             ) : (
               <>
                 <p className="profile-hint">
-                  The coach chat and post-workout summaries run on your own
-                  Anthropic API key (create one at console.anthropic.com →
-                  Settings → API keys). Set Workspace to a specific workspace —
-                  a key left on “same as personal account” will not work here —
-                  and give it a long expiry, or the coach stops the day it
-                  lapses. It's stored server-side and never shown in full again.
+                  Paste your key from Anthropic. Help pages → Get an API key
+                  shows how.
                 </p>
                 <form className="auth-form" onSubmit={submitKey}>
                   <input
@@ -411,7 +407,7 @@ export default function ProfileView() {
                     placeholder="sk-ant-…"
                     value={keyInput}
                     onChange={e => setKeyInput(e.target.value)}
-                    aria-label="Anthropic API key"
+                    aria-label="Anthropic key"
                   />
                   {keyMsg && <p className="auth-error">{keyMsg}</p>}
                   <div className="profile-feed">
@@ -439,12 +435,12 @@ export default function ProfileView() {
 
           <ProfileDisclosure title="Calendar feed" onOpenChange={setFeedOpen}>
             <p className="profile-hint">
-              Subscribe from Apple/Google Calendar to see your workouts. Anyone with
-              this URL can read your schedule — treat it like a password.
+              Paste this address into Apple or Google Calendar. Anyone with it
+              can read your schedule. Keep it private, like a password.
             </p>
             <div className="profile-feed">
               <input className="auth-input profile-feed__url" value={feedUrl ?? ''} readOnly />
-              <button className="btn-today" onClick={copyFeedUrl} title="Copy feed URL">
+              <button className="btn-today" onClick={copyFeedUrl} title="Copy address">
                 <Copy size={14} strokeWidth={1.5} />
               </button>
             </div>

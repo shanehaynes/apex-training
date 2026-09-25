@@ -1,6 +1,6 @@
 # Logging a workout
 
-Log each set as you do it. This page explains the two buttons on a workout, the grey numbers, blank sets, and the trophies at the end.
+Log each set as you do it. This page covers the two buttons on a workout and the grey numbers. It also covers blank sets and the trophies at the end.
 
 ## 1. Start Workout or Mark as Complete
 
@@ -10,7 +10,7 @@ Tap a workout on your calendar to open it. You will see two buttons.
 
 **Start Workout** opens the tracker. Use it when you want to write down each set.
 
-**Mark as Complete** ticks the workout off without logging any sets. Use it when you only want to say "done." Tap it again to undo.
+**Mark as Complete** ticks the workout off without logging any sets. Use it when you only want to say "done." It then says **Completed**. Tap **Completed** to undo.
 
 ## 2. The grey numbers are last time
 
@@ -48,7 +48,7 @@ After **Finish**, you see **Workout Complete**. It shows a note from your coach 
 
 A trophy means a personal record: you beat your best on that exercise. The line says what you did and the best it beat.
 
-**est. 1RM** means your estimated best single lift. Apex works it out from the weight and reps of your best set.
+**est. best single lift** comes from the weight and reps of your best set.
 
 Your first time on an exercise never earns a trophy. There is nothing to beat yet.
 

@@ -13,10 +13,12 @@ import { publicOrigin } from '../../lib/origin';
 import { useTip } from '../../hooks/useTip';
 import ProfileDisclosure from './ProfileDisclosure';
 
-// "AI connector" profile section: mint/list/revoke the personal access
-// tokens that authenticate the remote MCP endpoint (/api/mcp). The plaintext
-// token is displayed exactly once, right after minting — the server stores
-// only its hash.
+// "Claude or ChatGPT" profile section (the connector): mint/list/revoke the
+// personal access tokens that authenticate the remote MCP endpoint (/api/mcp).
+// The plaintext token is displayed exactly once, right after minting — the
+// server stores only its hash. On screen a token is a "code" and the endpoint
+// an "address" (docs/onboarding/MASTER.md, "Copy rules"); the Authorization
+// header detail lives in ConnectorGuide only.
 
 interface Props {
   /** Opens the illustrated setup guide (ConnectorGuide), owned by ProfileView. */
@@ -75,7 +77,7 @@ export default function McpTokens({ onShowGuide }: Props) {
   const revoke = async (id: string) => {
     try {
       await revokeMcpToken(id);
-      notify('Token revoked');
+      notify('Code revoked');
       setTokens(prev => prev.map(t => (t.id === id ? { ...t, revoked_at: new Date().toISOString() } : t)));
     } catch {
       // toast already shown
@@ -96,8 +98,8 @@ export default function McpTokens({ onShowGuide }: Props) {
 
   return (
     <ProfileDisclosure
-      title="AI connector"
-      status={active.length > 0 ? `${active.length} token${active.length === 1 ? '' : 's'}` : 'Not set up'}
+      title="Claude or ChatGPT"
+      status={active.length > 0 ? `${active.length} code${active.length === 1 ? '' : 's'}` : 'Not set up'}
       onOpenChange={setIsOpen}
       // Outside the toggle button, so the guide is one click away even while
       // the section is collapsed.
@@ -106,7 +108,7 @@ export default function McpTokens({ onShowGuide }: Props) {
           type="button"
           className="profile-help"
           onClick={onShowGuide}
-          aria-label="How to set up an AI connector — illustrated guide"
+          aria-label="How to connect Claude or ChatGPT — illustrated guide"
           title="Setup guide"
         >
           <HelpCircle size={15} strokeWidth={1.6} />
@@ -114,33 +116,32 @@ export default function McpTokens({ onShowGuide }: Props) {
       )}
     >
       <p className="profile-hint">
-        Query your training data from Claude or ChatGPT. Add this URL as a custom
-        connector (or via <code>claude mcp add</code>) and authenticate with an
-        access token. Tokens are read-only.{' '}
+        Ask Claude or ChatGPT about your training. It can look, but never
+        change anything. Tap{' '}
         <button type="button" className="profile-link" onClick={onShowGuide}>
           Step-by-step guide
-        </button>
+        </button>{' '}
+        to set it up.
       </p>
       <div className="profile-feed">
         <input className="auth-input profile-feed__url" value={endpointUrl} readOnly aria-label="MCP endpoint URL" />
-        <button className="btn-today" onClick={() => copy(endpointUrl, 'Endpoint URL copied')} title="Copy MCP endpoint URL">
+        <button className="btn-today" onClick={() => copy(endpointUrl, 'Address copied')} title="Copy address">
           <Copy size={14} strokeWidth={1.5} />
         </button>
       </div>
 
       {freshToken && (
         <div className="profile-feed" style={{ marginTop: 8 }}>
-          <input className="auth-input profile-feed__url" value={freshToken} readOnly aria-label="New access token" />
-          <button className="btn-today" onClick={() => copy(freshToken, 'Token copied')} title="Copy token">
+          <input className="auth-input profile-feed__url" value={freshToken} readOnly aria-label="New code" />
+          <button className="btn-today" onClick={() => copy(freshToken, 'Code copied')} title="Copy code">
             <Copy size={14} strokeWidth={1.5} />
           </button>
         </div>
       )}
       {freshToken && (
         <p className="profile-hint">
-          Copy this token now — it won't be shown again. Send it as{' '}
-          <code>Authorization: Bearer &lt;token&gt;</code>. It expires a year
-          from today; mint a new one then.
+          Copy this code now. You will not see it again. It stops working in a
+          year.
         </p>
       )}
 
@@ -183,14 +184,14 @@ export default function McpTokens({ onShowGuide }: Props) {
       <form onSubmit={create} className="profile-feed">
         <input
           className="auth-input profile-feed__url"
-          placeholder="Token name (e.g. Claude Desktop)"
+          placeholder="Code name (for example, Claude Desktop)"
           value={name}
           onChange={e => setName(e.target.value)}
           maxLength={60}
-          aria-label="New token name"
+          aria-label="New code name"
         />
         <button type="submit" className="auth-submit" disabled={isCreating || !name.trim()}>
-          {isCreating ? 'Creating…' : 'Create token'}
+          {isCreating ? 'Creating…' : 'Create code'}
         </button>
       </form>
     </ProfileDisclosure>

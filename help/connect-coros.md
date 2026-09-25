@@ -4,7 +4,7 @@ Link your watch once, and your runs, rides and hikes come in on their own. You n
 
 ## 1. Open Profile and find COROS
 
-Tap your picture at the top left to open **Profile**. Under **Connections**, tap **COROS** to open it. Then press **Connect COROS**.
+Tap your picture at the top left to open **Profile**. Under **Connections**, tap **COROS** to open it. Then tap **Connect COROS**.
 
 ![The COROS section in Profile, with the Connect COROS button](/help/connect-coros/01-connect-coros.phone.png)
 
@@ -30,7 +30,7 @@ COROS then sends you back to Apex. A message says **COROS connected**.
 
 ## 4. Bring in your activities with Sync
 
-Press **Sync** at the top of the calendar. Your recent activities come in, with the date and time you did them.
+Tap **Sync** at the top of the calendar. Your recent activities come in, with the date and time you did them.
 
 ![The Sync button at the top of the calendar on a phone](/help/connect-coros/04-sync-button.phone.png)
 
@@ -38,7 +38,7 @@ On a phone, **Sync** is the circling arrows at the top. On a computer, the butto
 
 ![The Sync button at the top of the calendar on a computer](/help/connect-coros/04-sync-button.desktop.png)
 
-You can press **Sync** any time. Pressing it twice never makes copies.
+You can tap **Sync** any time. Tapping it twice never makes copies.
 
 ## 5. Fill it or Keep separate
 
@@ -61,11 +61,11 @@ Below are charts of your heart rate and elevation, and your route's shape. Apex 
 
 ## 7. Let it happen every night
 
-Back in **Profile → COROS**, the box **Sync automatically every night** is ticked. Each night around 11:30 PM Eastern, Apex brings in new activities for you.
+Back in **Profile → COROS**, the box **Bring in new activities every night** is ticked. Each night around 11:30 PM Eastern, Apex brings in new activities for you.
 
 ![COROS connected, with the nightly checkbox ticked and the Disconnect COROS button](/help/connect-coros/07-connected.phone.png)
 
-Activities that match a planned workout still wait for your yes. When some are waiting, the **Sync** button shows a number. Press it to see them.
+Activities that match a planned workout still wait for your yes. When some are waiting, the **Sync** button shows a number. Tap it to see them.
 
 Want to bring them in only by hand? Untick the box.
 
@@ -73,10 +73,10 @@ Want to bring them in only by hand? Untick the box.
 
 Now and then the link to COROS runs out. The **Sync** button changes to **Reconnect**, and Profile says **Reconnect needed**.
 
-Press **Reconnect**, then **Reconnect COROS**, and sign in to COROS again. On a phone, **Reconnect** is the circling arrows at the top. Nothing you already brought in is lost.
+Tap **Reconnect**, then **Reconnect COROS**, and sign in to COROS again. On a phone, **Reconnect** is the circling arrows at the top. Nothing you already brought in is lost.
 
 ## To unlink your watch
 
-Press **Disconnect COROS** in **Profile → COROS**. Everything already in your calendar stays.
+Tap **Disconnect COROS** in **Profile → COROS**. Everything already in your calendar stays.
 
 COROS still lists Apex as allowed until you remove it there too. In the COROS app, go to **Profile → Settings → 3rd Party Apps** and remove Apex.

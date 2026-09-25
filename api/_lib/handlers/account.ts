@@ -70,7 +70,7 @@ export const NON_CASCADING_TABLES = ['phase32_quarantine'] as const;
  * does with the download, and buys them nothing they can use.
  */
 const REDACTED_TABLES = {
-  user_api_keys: 'Your saved Anthropic API key is stored encrypted and is deliberately not exported. Remove or replace it in Profile → AI Coach.',
+  user_api_keys: 'Your saved Anthropic API key is stored encrypted and is deliberately not exported. Remove or replace it in Profile → Anthropic key.',
   mcp_tokens: 'Access tokens are stored only as hashes and cannot be recovered. Their names and usage dates are in the summary below.',
   provider_connections: 'Watch-provider OAuth tokens are stored encrypted and are deliberately not exported.',
   oauth_clients: 'OAuth client registrations belong to the connecting application, not to your account data.',

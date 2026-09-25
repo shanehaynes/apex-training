@@ -11,13 +11,13 @@ export const COACH_TIPS = [
   {
     id: 'coach-first-message',
     title: 'Ask your coach',
-    body: 'Type a question in plain words, like “what’s on this week?” Press **Coach’s Notes** for a daily briefing. It never changes your plan without asking you first.',
+    body: 'Type a question in plain words, like “what’s on this week?” Tap **Coach’s Notes** for a daily briefing. It never changes your plan without asking you first.',
     priority: 0,
   },
   {
     id: 'coach-confirm-card',
     title: 'It asks first',
-    body: 'Press **Confirm** to make this change, or **Cancel** to skip it. Nothing changes until you choose. **Coach activity** in Profile lists everything the coach has done.',
+    body: 'Tap **Confirm** to make this change, or **Cancel** to skip it. Nothing changes until you choose. **Coach activity** in Profile lists everything the coach has done.',
     priority: 1,
   },
 ] as const satisfies readonly TipDefinition[];

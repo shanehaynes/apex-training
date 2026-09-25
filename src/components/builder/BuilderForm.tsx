@@ -144,7 +144,7 @@ export default function BuilderForm({
         </label>
         <label className="library-field">
           <span className="library-field__label">
-            Date {isRecurringSeries && <em>this event only</em>}
+            Date {isRecurringSeries && <em>this day only</em>}
           </span>
           <input
             type="date"
@@ -282,7 +282,7 @@ export default function BuilderForm({
       {choosingScope ? (
         <div className="exercise-editor__bar composer-actions builder-scope">
           <span className="builder-scope__question">
-            Apply to this event only — it leaves the series for good, keeping anything logged — or to the whole series?
+            Save to this day only — it leaves the series for good, keeping anything logged — or to the whole series?
           </span>
           <button className="exercise-editor__cancel" onClick={() => setChoosingScope(false)} disabled={saving}>
             Back
@@ -293,7 +293,7 @@ export default function BuilderForm({
             onClick={() => onSubmit('occurrence')}
             disabled={saving}
           >
-            {saving ? 'Saving…' : 'This event only'}
+            {saving ? 'Saving…' : 'This day only'}
           </button>
           <button
             className="exercise-editor__save"

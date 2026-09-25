@@ -138,7 +138,7 @@ tracker-swap, coach-model, tile-excluded, today-button.
 | connect-coros | O15 coros | Mock: Profile → COROS not connected (`configured:true`), **Sync** button, Fill it / Keep separate card, workout with metrics (needs a streams stub), connected + nightly toggle. Ext: COROS login, consent |
 | calendar-feed | O14 profile | Mock: Profile → Calendar feed. Ext: iOS Calendar subscribe, Google Calendar From URL, result |
 | logging-a-workout | O09 tracker | Mock: workout modal buttons, grey numbers, one set typed, unlogged bar, summary with a trophy (needs a `prs` stub), desktop tracker |
-| repeating-workouts | O08 workout | Mock: RepeatPicker On + days + Ends Never, recurring workout open, exercise-editor series note, This event only / Whole series, delete scope |
+| repeating-workouts | O08 workout | Mock: RepeatPicker On + days + Ends Never, recurring workout open, exercise-editor series note, This day only / Whole series, delete scope |
 
 ## Copy rules
 

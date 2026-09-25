@@ -1,7 +1,7 @@
 import { test, expect, gotoCalendar, shot } from '../lib/fixtures';
 
 // The illustrated connector guide reached from the help icon on the profile's
-// AI connector section. What matters here is the navigation contract — the
+// Claude or ChatGPT section. What matters here is the navigation contract — the
 // guide takes over the profile overlay rather than stacking a second one, so
 // Escape has to step back one level instead of dumping the user on the
 // calendar — plus the fact that every client tab actually renders figures.
@@ -57,14 +57,14 @@ test('every client tab renders its own instructions', async ({ page }) => {
   await expect(page.locator('.cg-figure')).toHaveCount(0);
   await expect(page.locator('.cg-code').first()).toContainText('Authorization: Bearer apx_');
 
-  // The endpoint offered at the top is the same one the AI connector section
+  // The endpoint offered at the top is the same one the Claude or ChatGPT section
   // shows, so a user copying from either place pastes the same string.
   const guideUrl = await page.locator('.cg-body .profile-feed__url').inputValue();
   await page.locator('.library-back').click();
   // The help icon sits outside the fold's toggle, so it is reachable while the
-  // AI connector section is collapsed — expanding is only for the URL below.
+  // Claude or ChatGPT section is collapsed — expanding is only for the URL below.
   await expect(page.locator('.profile-help')).toBeVisible();
-  await page.locator('.profile-fold__toggle', { hasText: 'AI connector' }).click();
+  await page.locator('.profile-fold__toggle', { hasText: 'Claude or ChatGPT' }).click();
   const sectionUrl = await page.locator('input[aria-label="MCP endpoint URL"]').inputValue();
   expect(guideUrl).toBe(sectionUrl);
 });

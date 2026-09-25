@@ -4,11 +4,11 @@ Already live in Apple Calendar or Google Calendar? Apex can put your workouts th
 
 ## 1. Copy your calendar address
 
-In Apex, tap your picture at the top of the screen to open **Profile**. Scroll down to **Connections** and tap **Calendar feed** to open it.
+In Apex, tap your picture at the top left to open **Profile**. Scroll down to **Connections** and tap **Calendar feed** to open it.
 
 ![Calendar feed open, with the copy button next to the address](/help/calendar-feed/01-feed-address.phone.png)
 
-Tap the copy button, the one with two small squares. Apex says **Feed URL copied**. The address is now ready to paste.
+Tap the copy button, the one with two small squares. Apex says **Address copied**. The address is now ready to paste.
 
 ## 2. On an iPhone: add it to Apple Calendar
 
@@ -21,7 +21,7 @@ Touch and hold the **Subscription URL** box, then tap **Paste**. Tap **Subscribe
 
 ## 3. On Google Calendar: add it on a computer
 
-Google’s phone app cannot add a calendar from an address, so this step needs a computer. Go to calendar.google.com and sign in.
+Google’s phone app cannot add a calendar from an address. This step needs a computer. Go to calendar.google.com and sign in.
 
 On the left, find **Other calendars**. Click the **+** next to it, then **From URL**.
 

@@ -57,20 +57,20 @@ export const WELCOME_STEPS: WelcomeStep[] = [
   {
     id: 'plan',
     title: 'Put something on it',
-    body: 'Start fast with Shane’s ready-made weekly plan. Change or delete any of it later. Or add your own workout with the **+** button at the bottom.',
-    iosBody: 'Start fast with Shane’s ready-made weekly plan. Change or delete any of it later. Or add your own workout with the **+** at the top.',
+    body: 'Start fast with Shane’s starter plan. Change or delete any of it later. Or tap **+** to add your own workout.',
+    iosBody: 'Start fast with Shane’s starter plan. Change or delete any of it later. Or tap **+** at the top to add your own workout.',
     action: { label: 'Copy the starter plan', kind: 'copy-template' },
   },
   {
     id: 'log',
     title: 'Log a workout',
     // No iosBody: the phone's button reads "Mark as Complete" too (EventSheet.swift).
-    body: 'Open a workout and press **Start Workout** to log each set as you go. In a hurry? **Mark as Complete** records it in one tap.',
+    body: 'Open a workout and tap **Start Workout** to log each set as you go. In a hurry? **Mark as Complete** records it in one tap.',
   },
   {
     id: 'coach',
     title: 'Meet your coach',
-    body: 'The **Coach** tab answers questions about your training and can plan workouts for you. It needs a key from Anthropic first — a few minutes, billed to you, not Apex.',
+    body: '**Coach** answers questions about your training and can plan workouts for you. It needs a key from Anthropic (a code). Getting one takes a few minutes. Anthropic bills you, not Apex.',
     action: { label: 'Add key', kind: 'open-profile' },
     link: { label: 'Get an API key', href: '/help/get-api-key' },
   },
@@ -91,13 +91,13 @@ export const CHECKLIST_ITEMS: ChecklistItem[] = [
   {
     id: 'template',
     label: 'Add a starter plan',
-    hint: 'Copy Shane’s recurring workouts as a base — edit or delete anything afterwards.',
+    hint: 'Copy Shane’s starter plan. Change or delete any of it later.',
     action: { label: 'Copy', kind: 'copy-template' },
   },
   {
     id: 'key',
-    label: 'Add your Anthropic API key',
-    hint: 'The coach and post-workout summaries stay switched off until you do. See Get an API key under Help.',
+    label: 'Add your key from Anthropic',
+    hint: 'The coach and workout summaries stay off until you add it. To learn how, open Help pages, then Get an API key.',
     action: { label: 'Add key', kind: 'open-profile' },
   },
   {
@@ -109,20 +109,20 @@ export const CHECKLIST_ITEMS: ChecklistItem[] = [
   {
     id: 'coros',
     label: 'Connect your watch',
-    hint: 'COROS activities sync in every night, with heart rate, elevation, and route.',
+    hint: 'Your COROS runs and rides come in every night, with heart rate, climb and route.',
     action: { label: 'Connect', kind: 'connect-coros' },
     requiresCoros: true,
   },
   {
     id: 'connector',
     label: 'Connect Claude or ChatGPT',
-    hint: 'Ask about your training from an assistant. Read-only — it can never change anything.',
+    hint: 'Ask Claude or ChatGPT about your training. It can look, but never change anything.',
     action: { label: 'Connect', kind: 'open-profile' },
   },
 ];
 
 /** Shown under the checklist: real features, but nothing to tick off. */
 export const EXTRA_NOTES: string[] = [
-  'Subscribe to your schedule from Apple or Google Calendar — Profile → Calendar feed.',
+  'See your workouts in Apple or Google Calendar. Open Calendar feed, below.',
   'When a training month closes, a review of it lands in your inbox.',
 ];

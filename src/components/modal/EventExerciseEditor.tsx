@@ -313,7 +313,7 @@ export default function EventExerciseEditor({ event, accentColor, onDone }: Prop
     <div className="exercise-editor">
       {seriesWide && (
         <p className="exercise-editor__series-note">
-          This is a recurring workout — changes apply to every occurrence of the series.
+          This workout repeats. Changes here reach every day in the series.
         </p>
       )}
 
