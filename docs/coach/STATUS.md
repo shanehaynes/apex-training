@@ -7,11 +7,11 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 
 | Lane | Title | Wave | State | Branch | Notes |
 |---|---|---|---|---|---|
-| A01 | Read tools: coach adapter over the MCP set + session summaries, reviews, history search | A | in progress (cloud session) | `feat/coach-read-tools` | no hot files |
-| A02 | Physiology panel: zones, load ratio, tonnage, HRV as pure functions + fetch | A | in progress (cloud session) | `feat/coach-physiology` | no hot files |
-| A03 | Doctrine: original synthesis as `.ts` topics, index, tool schema | A | in progress (cloud session) | `feat/coach-doctrine` | Shane reviews content before merge |
-| A04 | Rich confirm cards: before/after preview per tool call | A | in progress (cloud session) | `feat/coach-confirm-preview` | owns `ChatSidebar.tsx` this wave |
-| A05 | Cache prefix: stable/volatile prompt split, server-side injection, 1h TTL | A | in progress (cloud session) | `feat/coach-cache-prefix` | owns `prompt.ts`, `models.ts`, `context.ts`, `chat.ts`; bumps `PROMPT_VERSION` |
+| A01 | Read tools: coach adapter over the MCP set + session summaries, reviews, history search | A | in progress (`session_01KPYGBeXoKV2LYCw9srHdwz`) | `feat/coach-read-tools` | no hot files |
+| A02 | Physiology panel: zones, load ratio, tonnage, HRV as pure functions + fetch | A | in progress (`session_01WeBcfmwCEhDF1XGSa2WeTE`) | `feat/coach-physiology` | no hot files |
+| A03 | Doctrine: original synthesis as `.ts` topics, index, tool schema | A | in progress (`session_015ZDGXJmPRfQJSAScimBGH6`) | `feat/coach-doctrine` | Shane reviews content before merge |
+| A04 | Rich confirm cards: before/after preview per tool call | A | in progress (`session_01GVt6agNiGU5zLTqMj26MD7`) | `feat/coach-confirm-preview` | owns `ChatSidebar.tsx` this wave |
+| A05 | Cache prefix: stable/volatile prompt split, server-side injection, 1h TTL | A | in progress (`session_01QA7M7rCidqiv9SHkjXMekJ`) | `feat/coach-cache-prefix` | owns `prompt.ts`, `models.ts`, `context.ts`, `chat.ts`; bumps `PROMPT_VERSION` |
 | B01 | Sight loop: read tools + doctrine + physiology wired into chat; server-side read rounds; chips | B | ready (after wave A) | `feat/coach-sight-loop` | owns every hot file |
 | B02 | Board + embeddings issue | B | done (this branch, issue #340) | `chore/coach-board` | orchestrator |
 | C01 | Evals: harness realignment, `sight` and `doctrine` cases, doctrine dimension | C | ready (after B01) | `feat/coach-evals-sight` | `eval-analyst` |
