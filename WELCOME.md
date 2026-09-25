@@ -1,146 +1,92 @@
 # Welcome to Apex Training
 
-Plan your training on a calendar, log it as you go, and let a coach that reads your
-actual numbers help you steer.
+Plan your training on a calendar, and log it as you go. A coach that reads your real numbers helps you steer.
 
-This is the whole app, one short section each. Nothing here is required reading — the
-**Getting started** checklist in **Profile** (the avatar, top left) tracks the handful of
-things worth setting up, and ticks them off as you do.
+## Your first minute
 
----
+The first time you sign in, four cards show you around:
+
+1. **Welcome to Apex.** Your calendar is home. Every workout sits on a day.
+2. **Put something on it.** Tap **Copy the starter plan**, or tap **+** to add your own.
+3. **Log a workout.** **Start Workout** logs each set. **Mark as Complete** takes one tap.
+4. **Meet your coach.** The coach needs a key from Anthropic (a code). Tap **Add key**.
+
+## How the app teaches you
+
+After the cards, Apex stays quiet until you reach something new. The first time you open a feature, a small card explains it. Tap **Got it** to close it. Some cards also have **Show me how**. It opens a help page with pictures. Once you close a card, it won't come back.
+
+To open **Profile**, tap your picture at the top left. At the top sits **Getting started**. It lists the few things worth setting up:
+
+- **Add a starter plan**
+- **Add your key from Anthropic**
+- **Tell the coach your goal**
+- **Connect your watch** (only if your Apex offers COROS)
+- **Connect Claude or ChatGPT**
+
+Each row ticks itself off when you do it.
+
+## Help pages
+
+These are step-by-step guides with pictures. They open in a new tab, and work signed out. In **Profile**, tap **Help pages** to see [them all](https://apextrainingcalendar.vercel.app/help).
+
+- [Get an API key](https://apextrainingcalendar.vercel.app/help/get-api-key). The coach runs on a key from Anthropic. How to get one, what it costs, and what to do if you already pay for Claude.
+- [Connect your COROS watch](https://apextrainingcalendar.vercel.app/help/connect-coros). Link your watch once and your runs, rides and hikes come in on their own.
+- [See your workouts in your phone’s calendar](https://apextrainingcalendar.vercel.app/help/calendar-feed). Subscribe from Apple or Google Calendar so your plan shows up next to everything else.
+- [Logging a workout](https://apextrainingcalendar.vercel.app/help/logging-a-workout). Start Workout or Mark as Complete, the grey numbers, blank sets, and the trophies at the end.
+- [Workouts that repeat](https://apextrainingcalendar.vercel.app/help/repeating-workouts). Weekly workouts, and which changes reach one day or every week.
+
+The sections below cover what the help pages don't.
 
 ## The calendar
 
-The home screen. Month, week, or day on a desktop; on a phone, always one day at a time.
+On a computer, pick **Month** or **Week** at the top right. The arrows at the top move you back and forward. On a phone, you see one day at a time. Tap a day in the strip at the top to move. On both, **Today** brings you back to today.
 
-Tap a day to see what's on it and to add a workout or a meal. A workout can repeat on a
-rule — every Tuesday, every other Thursday — and you can skip or edit a single occurrence
-without touching the rest of the series.
+Tap a day to see what is on it. Tap the circle next to a workout to mark it done. Tap the circle again to undo. Tap the workout’s name to open it.
 
-New accounts get offered a **starter plan**: a copy of Shane's recurring workouts, as a
-base to edit or delete. It's a one-time copy, and skipping it costs nothing.
+## Training blocks and cycles
 
-## Logging a workout
+A block is a stretch of weeks with a weekly goal. One goal might be 6 hours of cardio. With one, the coach can tell you how far along you are. Blocks start on a Monday, and two blocks can't overlap.
 
-Open a workout and press **Start Workout**.
+Tap **Blocks** at the top. On a phone, it is the target icon. **New block** adds one block. **New cycle** plans several blocks in a row, like three hard weeks, then one easy. You see every date before anything is saved.
 
-- Log each set against what was planned. Last session's numbers sit next to each set —
-  tap to reuse them.
-- Sets you never touch are recorded as zeros rather than quietly dropped, so your history
-  reflects what actually happened.
-- Finishing shows a summary, including any **personal records**: heaviest estimated 1RM
-  (Epley), longest duration, most reps, furthest distance, most elevation. Your first
-  time logging a movement is never a PR — there's nothing to beat yet.
-
-In a hurry, **Mark as Complete** records the session without opening the tracker.
-
-## Your coach
-
-The chat rail on the right (on a phone, the second tab). Ask it anything about your
-training — it can see today's workouts, this week's schedule, your recent completion
-rate, your exercise library, your active training block, and today's meals.
-
-- **Coach's Notes** gives you a daily briefing in one tap.
-- It can also **make changes** — create and edit workouts, set a session's exercises,
-  log and edit meals. Every one of those arrives as a Confirm/Cancel card first; nothing
-  changes until you say so. **Profile → Coach activity** logs everything it did.
-- Tell it your **goal** and anything it should know about you in **Profile → AI Coach**.
-  One line each, and it shapes every answer you get.
-
-**The coach needs your own Anthropic API key.** Chat and post-workout summaries stay
-switched off until you add one in **Profile → AI Coach**. Get a key at
-[console.anthropic.com](https://console.anthropic.com/) — usage bills to your account,
-not to Apex. When you create it, set **Workspace** to a specific workspace rather than
-leaving it on "same as personal account" — a key that isn't tied to one workspace will
-not work here — and choose a long expiry, or the coach stops the day the key lapses.
-
-## Training blocks
-
-A block is a dated stretch of training with weekly targets — it's what lets the coach say
-"92% of planned aerobic volume" instead of "7 hours." Blocks are Monday-aligned and can't
-overlap.
-
-The **cycle generator** lays down a whole periodized cycle in one form — 3 weeks on, 1
-week easy, by default — and shows you the dated preview before it commits. You can attach
-a named **objective** with a target date, then watch attainment bars fill in per target,
-for this week and for the block so far.
+A block can have an **Objective**, like a race, with a **Target date**. Bars then show how close you are, this week and for the whole block.
 
 ## Exercise library
 
-Every movement you've logged, searchable and filterable by category, with archived ones
-tucked out of the way. Open one for its history, a progress chart, and recent sessions.
+Tap **Library** at the top. On a phone, it is the dumbbell icon. It lists every exercise from your workouts. Type in **Search exercises…** to find one.
 
-Names are alias-aware: "cable row" and whatever else you've called it resolve to the same
-exercise, so history and PRs don't fragment.
+Tap an exercise to see your best, a progress chart, and **Recent sessions**. Different names for one exercise still count as one. So your history and records stay in one place.
 
 ## Meals
 
-Add a meal from any day. Pick a type and time, enter protein/carbs/fat, and calories
-derive themselves unless you type over them. Save one as a **favorite** to re-add it in a
-tap. Each day shows its macro totals, and the coach sees today's meals — so it can talk
-about fueling alongside training.
+Tap a day, then **Add meal**. On a phone, tap **+**, then **Meal**. Type a title, then protein, carbs and fat in grams. Calories fill in from those, unless you type your own. Tap **Save to library**, and next time one tap fills the form. Each day shows its totals, and the coach sees today’s meals.
 
-## Watch sync (COROS)
+## Analytics
 
-Connect a COROS account in **Profile → COROS**. You sign in on COROS's own site; Apex
-never sees your COROS password.
+Tap **Analytics** at the top, or at the bottom on a phone. Each chart there is one tile. Tap **New tile** to build one, like miles each week. Pick a **Measure**, watch the **Preview**, then tap **Save tile**.
 
-After that it **syncs itself every night**, around 11:30 PM Eastern:
+## Your coach
 
-- Activities that don't match anything planned import on their own, as completed events.
-- An activity that **does** match a planned workout is never filled in automatically. It
-  waits, the **Sync** button above the calendar wears a badge with the count, and you
-  decide per activity: **Fill it** completes the planned workout with your measured data,
-  or **Keep separate** imports it as its own event. Either way your planned targets stay
-  put — actuals live beside them, and count toward PRs like anything you logged by hand.
-- Distance, elevation, average and max heart rate, and calories come along. The workout
-  detail draws a heart-rate chart, an elevation profile, and a route outline — all
-  rendered locally, so your GPS coordinates never go to a map-tile service.
-- You can press **Sync** yourself any time. Duplicates are impossible; syncing twice just
-  reports that everything is up to date.
+On a computer, the coach sits on the right. On a phone, tap **Coach** at the bottom. Ask it about your training in plain words. It sees your workouts, your week, your blocks, your library and today’s meals. Tap **Coach's Notes** for a daily briefing.
 
-Prefer to sync only by hand? Turn off the nightly toggle in **Profile → COROS**.
-Disconnecting keeps everything already imported.
+The coach can add or change workouts and meals. It always asks first, with **Confirm** and **Cancel**. **Coach activity** in **Profile** lists everything it has done. Type what you train for under **Goal** in **Profile**. It shapes every answer. First, the coach needs a key: see [Get an API key](https://apextrainingcalendar.vercel.app/help/get-api-key).
 
-## Claude, ChatGPT, and other assistants
+## Claude, ChatGPT and other assistants
 
-Apex can be connected as a tool to an AI assistant, so you can ask about your training
-from wherever you already are.
+You can ask Claude or ChatGPT about your training from their own apps. They can see your plan, workouts, exercise history, records, blocks and meals. They can never change anything. Changes stay with the coach inside Apex, which asks first.
 
-**It is strictly read-only.** An assistant can look at your schedule, workouts, exercise
-history, PRs, period stats, training blocks, and meals — and change nothing. Anything
-that writes stays in the in-app coach, behind a confirmation.
-
-Set it up in **Profile → AI connector**. Claude Desktop, claude.ai, and ChatGPT connect
-over OAuth with just the endpoint URL; Claude Code and other header-based clients use a
-personal access token you mint there. Per-client walkthroughs, including ChatGPT's
-paid-plan and developer-mode requirements, are in [CONNECTORS.md](CONNECTORS.md).
-
-The same screen lists every token and connected app, and revokes any of them.
-
-## Calendar feed
-
-**Profile → Calendar feed** gives you a URL to subscribe to from Apple Calendar, Google
-Calendar, or anything else that takes an ICS feed. Treat it like a password — anyone with
-the URL can read your schedule.
+Set it up in **Profile**, under **Claude or ChatGPT**. Tap **Step-by-step guide** for pictures of each step. Some tools need a code instead, which you make on the same screen. The same place lists every connected app, and lets you remove one. [CONNECTORS.md](CONNECTORS.md) has the details for each app, like ChatGPT’s paid-plan needs.
 
 ## Review emails
 
-When a training month closes, a review of it lands in your inbox: sessions by type,
-training time, weight moved, distance, elevation, streaks, and PRs. There's a yearly one
-too. If you've saved an Anthropic key, it comes with a short note from your coach;
-otherwise you get the numbers.
+When a training month closes, a review of it lands in your inbox. It counts sessions, time, weight moved, distance, climb, streaks and personal records. A yearly review comes too. If you saved a key from Anthropic, your coach adds a short note.
 
-A "month" here is four ISO weeks, so there are 13 of them a year — which is why the
-review dates won't line up with calendar months.
+A training month here is four weeks, so a year has 13 of them. That is why review dates don't match calendar months.
 
 ## On a phone
 
-Two tabs at the bottom: **Calendar** and **Analytics** — the second one is your coach
-chat. The calendar shows a single day at a time; widen the window on a desktop and month
-or week comes back.
+The bar at the bottom has four buttons: **Calendar**, **+**, **Coach** and **Analytics**. **+** adds a **Workout** or a **Meal** to the day you are on. The top bar keeps blocks (the target) and the library (the dumbbell) as icons. With a watch linked, **Sync** is the circling arrows there too. On a computer, month and week views come back.
 
 ---
 
-Something not working, or not covered here? The full technical picture lives in
-[README.md](README.md).
+Something not working, or not covered here? The technical picture lives in [README.md](README.md).

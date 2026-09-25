@@ -31,3 +31,4 @@ shots drive the builder UI without editing it).
   can never spend the load's one tip). Found outside this lane: on a 375×812 phone the setup
   nudge covers the **+** menu's items, so **Workout** cannot be tapped until the nudge is
   closed.
+- 2026-09-25 · orchestrator. Merged as #332; the setup-nudge bug it found is fixed in #337.

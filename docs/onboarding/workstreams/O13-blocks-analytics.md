@@ -29,3 +29,4 @@ this file. No help page (the empty-state copy and the live preview teach these).
   the field loses focus (TipHost's focusout recheck); the spec proves both.
 - `e2e/mock/tips-blocks-analytics.spec.ts` marks every other catalog tip seen through the
   profile GET, so a calendar-lane tip can never win the one-per-load slot in these tests.
+- 2026-09-25 · orchestrator. Merged as #334; blocks-first now explains a cycle (#338).

@@ -116,9 +116,9 @@ paragraph.
 | id | title | body | action / link |
 |---|---|---|---|
 | welcome | Welcome to Apex | Your calendar is home. Every workout sits on a day. Tap a day to see what is planned, and tap a workout to open it. | — |
-| plan | Put something on it | Start fast with Shane's ready-made weekly plan. Change or delete any of it later. Or add your own workout with the **+** button at the bottom. (iosBody: "…the **+** at the top.") | **Copy the starter plan** (`copy-template`) |
+| plan | Put something on it | Start fast with Shane's ready-made weekly plan. Change or delete any of it later. Or tap **+** to add your own workout. | **Copy the starter plan** (`copy-template`) |
 | log | Log a workout | Open a workout and press **Start Workout** to log each set as you go. In a hurry? **Mark as Complete** records it in one tap. (iosBody: **Mark Complete**) | — |
-| coach | Meet your coach | The **Coach** tab answers questions about your training and can plan workouts for you. It needs a key from Anthropic first — a few minutes, billed to you, not Apex. | **Add key** (`open-profile`); link **Get an API key** → `/help/get-api-key` |
+| coach | Meet your coach | **Coach** answers questions about your training and can plan workouts for you. It needs a key from Anthropic (a code). Getting one takes a few minutes. Anthropic bills you, not Apex. | **Add key** (`open-profile`); link **Get an API key** → `/help/get-api-key` |
 
 No new `ActionKind` or `ChecklistId`, so `ios/scripts/` stays untouched; regenerate and commit
 `OnboardingCatalog.swift`; `STEPS_WITHOUT_COROS` → 4. `CHECKLIST_ITEMS` and `SetupNudge`
@@ -211,7 +211,8 @@ helpShot(page,{slug,n,name,highlight}): e2e/lib/helpShots.ts →
 public/help/<slug>/<nn>-<name>.<phone|desktop>.png; reference images as
 ![alt](/help/<slug>/<nn>-<name>.phone.png). Mock data is pinned at 2026-09-07; add rows with
 page.route inside your spec only. Tips are OFF in every existing spec; use
-test.use({ tips: 'on' }) in yours. Copy rules: <the block above>.
+test.use({ tips: 'on' }) in yours, and serve a profile whose tips_seen marks every catalog
+id outside your lane as seen, built from TIPS (D-O07). Copy rules: <the block above>.
 ## Your environment
 Lane: /home/shanehaynes/projects/apex-training/.claude/worktrees/<slug>
 Branch <branch>, deps installed. Every command: cd <lane> && APEX_PORT=<port> …

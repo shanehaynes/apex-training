@@ -33,3 +33,4 @@ updates take a few hours, anyone with the link can read it.
   Copy refined in `tips/profile.ts` (ids unchanged). `help/calendar-feed.md` written: shot 01
   generated (phone only — the desktop Profile is the same column; the field is painted with the
   production host for the picture), 02–04 EXTERNAL placeholders. Spec: `e2e/mock/tips-profile.spec.ts`.
+- 2026-09-25 · orchestrator. Merged as #335; feed hint/toast and the connector fold reworded in #338; 3 external shots pending (2 iPhone-only).

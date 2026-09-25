@@ -30,3 +30,4 @@ neither returns after Got it. Existing calendar specs unchanged.
   tip while `template_copied_at` is set, then clears the marker once the tip is seen. The
   calendar stays mounted under the welcome flow, so the tip lands on the next load.
   Spec: `e2e/mock/tips-calendar.spec.ts`.
+- 2026-09-25 · orchestrator. Merged as #328 (spec isolated from other lanes' tips, D-O07).

@@ -40,3 +40,4 @@ the nightly toggle and **Disconnect COROS**. Explain nightly sync and Reconnect.
   `EXTERNAL:` placeholders for O16.
 - e2e: `e2e/mock/tips-coros.spec.ts` marks every other tip seen, so each test keeps its
   one-per-load slot once the wave-2 lanes combine.
+- 2026-09-25 · orchestrator. Merged as #336; coros-expired now names Reconnect COROS, checkbox reworded (#338); 2 external shots pending.
