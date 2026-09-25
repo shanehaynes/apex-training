@@ -124,7 +124,8 @@ describe.skipIf(!RUN)('MCP endpoint against the local stack', () => {
     const list = makeRes();
     await mcpHandler(makeReq({ method: 'POST', token: patToken, body: rpc('tools/list') }), list.res);
     const tools = (list.body as { result: { tools: Array<{ name: string }> } }).result.tools;
-    expect(tools).toHaveLength(8);
+    // The eight query tools plus get_session_summaries and get_reviews; search_history stays coach-only.
+    expect(tools).toHaveLength(10);
 
     const call = makeRes();
     await mcpHandler(

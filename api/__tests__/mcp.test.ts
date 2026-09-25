@@ -158,7 +158,7 @@ describe('/api/mcp — protocol flow', () => {
     expect(result.protocolVersion).toBe(SUPPORTED_PROTOCOL_VERSIONS[0]);
   });
 
-  it('tools/list returns all 8 tools with object input schemas', async () => {
+  it('tools/list returns all 10 tools with object input schemas', async () => {
     const { res, body } = makeRes();
     await handler(makeReq('POST', rpc('tools/list')), res);
     const { tools } = (body() as { result: { tools: Array<{ name: string; inputSchema: { type: string } }> } }).result;
@@ -171,8 +171,13 @@ describe('/api/mcp — protocol flow', () => {
       'get_training_blocks',
       'search_exercises',
       'get_meals',
+      'get_session_summaries',
+      'get_reviews',
     ]);
-    expect(MCP_TOOLS).toHaveLength(8);
+    // search_history stays out: it reads the athlete's private coach
+    // conversations, which never leave the app (toolRegistry.ts).
+    expect(tools.map(t => t.name)).not.toContain('search_history');
+    expect(MCP_TOOLS).toHaveLength(10);
     for (const tool of tools) expect(tool.inputSchema.type).toBe('object');
   });
 
