@@ -132,7 +132,7 @@ plus `scripts/deploy-verify.sh`'s preview curl cover the module-load risk.
 Body `{ toolUseId, name, input, today }` → `{ resultText, ok }` or, for draft tools,
 `{ resultText, draft }`.
 - Mutation tools (`create_event`, `update_event`, `delete_event`, `set_event_exercises`,
-  `update_exercise_definition`, `log_meal`, `update_meal`, `delete_meal`): run
+  `set_event_completion`, `update_exercise_definition`, `log_meal`, `update_meal`, `delete_meal`): run
   `findCoachTool(name).execute(input, deps, ctx)` from `src/lib/coach/tools.ts` with a server
   `CoachToolDeps` (`api/_lib/coach/serverDeps.ts`). This needs the create/update/delete logic of
   `events.ts`, `eventInstances.ts`, `exerciseDefinitions.ts`, `meals.ts` extracted into callable

@@ -47,6 +47,7 @@ function makeDeps(overrides: Partial<CoachToolDeps> = {}): CoachToolDeps {
     deleteEvent: vi.fn(async () => true),
     deleteEventInstance: vi.fn(async () => true),
     rescheduleEvent: vi.fn(async () => true),
+    setEventCompletion: vi.fn(async () => ({ title: 'Legs', date: '2026-07-06', changed: true })),
     definitions: new Map([[pistol.id, pistol], [dip.id, dip]]),
     createDefinition: vi.fn(async () => ({ id: 'zercher-squat' })),
     updateDefinition: vi.fn(async () => true),
@@ -61,7 +62,7 @@ function makeDeps(overrides: Partial<CoachToolDeps> = {}): CoachToolDeps {
 describe('coach tool registry', () => {
   it('exposes each tool exactly once, findable by schema name', () => {
     const names = coachToolSchemas().map(s => s.name);
-    expect(names).toEqual(['delete_event', 'create_event', 'update_event', 'set_event_exercises', 'update_exercise_definition', 'log_meal', 'update_meal', 'delete_meal']);
+    expect(names).toEqual(['delete_event', 'create_event', 'update_event', 'set_event_exercises', 'set_event_completion', 'update_exercise_definition', 'log_meal', 'update_meal', 'delete_meal']);
     for (const name of names) expect(findCoachTool(name)?.schema.name).toBe(name);
     expect(findCoachTool('nope')).toBeUndefined();
   });
@@ -258,6 +259,68 @@ describe('coach tool registry', () => {
     expect(deps.createEvent).toHaveBeenCalledWith(expect.objectContaining({
       exercises: [expect.objectContaining({ definitionId: 'weighted-dip', weight: '25lb', reps: '8' })],
     }));
+  });
+
+  it('set_event_completion passes the occurrence target through and reports the change', async () => {
+    const deps = makeDeps();
+    const marked = await findCoachTool('set_event_completion')!.execute(
+      { event_id: 'legs__2026-07-06', event_title: 'Legs', completed: true },
+      deps,
+    );
+    expect(deps.setEventCompletion).toHaveBeenCalledWith({ id: 'legs__2026-07-06' }, true);
+    expect(marked).toContain('Marked "Legs" on 2026-07-06 as complete');
+
+    // A base id plus a date names one occurrence of a series.
+    await findCoachTool('set_event_completion')!.execute(
+      { event_id: 'legs', event_title: 'Legs', completed: false, date: '2026-07-06' },
+      deps,
+    );
+    expect(deps.setEventCompletion).toHaveBeenLastCalledWith({ id: 'legs', date: '2026-07-06' }, false);
+  });
+
+  it('set_event_completion tells the model when nothing changed, when nothing matched, and when the flag is missing', async () => {
+    const already = makeDeps({ setEventCompletion: vi.fn(async () => ({ title: 'Legs', date: '2026-07-06', changed: false })) });
+    expect(await findCoachTool('set_event_completion')!.execute(
+      { event_id: 'legs', event_title: 'Legs', completed: true }, already,
+    )).toBe('"Legs" on 2026-07-06 was already marked complete.');
+
+    const cleared = makeDeps();
+    expect(await findCoachTool('set_event_completion')!.execute(
+      { event_id: 'legs', event_title: 'Legs', completed: false }, cleared,
+    )).toContain('Cleared the completion mark on "Legs"');
+
+    const missing = makeDeps({ setEventCompletion: vi.fn(async () => null) });
+    const result = await findCoachTool('set_event_completion')!.execute(
+      { event_id: 'nope', event_title: 'Ghost', completed: true }, missing,
+    );
+    expect(result).toContain('"nope"');
+    expect(result).toContain('get_schedule');
+
+    const noFlag = makeDeps();
+    expect(await findCoachTool('set_event_completion')!.execute({ event_id: 'legs', event_title: 'Legs' }, noFlag))
+      .toContain('completed must be true or false');
+    expect(noFlag.setEventCompletion).not.toHaveBeenCalled();
+  });
+
+  it('set_event_completion labels resolve the target against live rows, like the other event tools', () => {
+    const tool = findCoachTool('set_event_completion')!;
+    const ctx = {
+      definitions: new Map(),
+      events: [
+        { id: 'a', title: 'Legs', date: '2026-07-05' },
+        { id: 'a__2026-07-06', title: 'Legs', date: '2026-07-06' },
+      ] as never[],
+      meals: [],
+    };
+    expect(tool.displayLabel({ event_id: 'a__2026-07-06', event_title: 'Wrong title', completed: true }, ctx))
+      .toBe('Mark complete: Legs · 2026-07-06');
+    expect(tool.displayLabel({ event_id: 'a', event_title: 'Legs', completed: false, date: '2026-07-06' }, ctx))
+      .toBe('Mark not complete: Legs · 2026-07-06');
+    expect(tool.displayLabel({ event_id: 'zzz', event_title: 'Ghost', completed: true }, ctx))
+      .toBe('Mark complete: (no matching entry for id "zzz")');
+    // Without context the model's own title and date are all there is.
+    expect(tool.displayLabel({ event_id: 'a', event_title: 'Legs', completed: true, date: '2026-07-05' }))
+      .toBe('Mark complete: Legs · 2026-07-05');
   });
 
   it('update_exercise_definition maps snake_case changes and matches by alias', async () => {

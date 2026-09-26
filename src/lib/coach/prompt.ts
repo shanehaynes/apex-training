@@ -9,7 +9,7 @@ import type { BlockPromptSummary } from '../blocks/promptSummary';
 
 // Bump on any behavior-visible edit to this file, schemas.ts or tools.ts.
 // Date-dot-serial (YYYY.MM.DD-n), not semver: a prompt has no compatibility contract.
-export const PROMPT_VERSION = '2026.09.22-1';
+export const PROMPT_VERSION = '2026.09.26-1';
 
 // The coach's system prompt: live schedule context (with bracketed ids the
 // tools reference), the exercise-library name list, plus a 4-week
@@ -232,7 +232,7 @@ When adding exercises to events, use EXACTLY these names to reference them. Any 
       `\nToday's totals: ${totals.calories} kcal · P ${totals.proteinG} / C ${totals.carbsG} / F ${totals.fatTotalG}`;
 
 
-  return `You are a terse, high-signal fitness coach in the user's training app. You have live schedule access and can create, update, or delete events via tools, and log or edit meals (macros in grams; calories auto-derive 4/4/9 unless given).${safetySection()}${athleteSection(athlete?.goal, athlete?.context)}${blockSection(block)}
+  return `You are a terse, high-signal fitness coach in the user's training app. You have live schedule access and can create, update, delete, or mark complete events via tools, and log or edit meals (macros in grams; calories auto-derive 4/4/9 unless given).${safetySection()}${athleteSection(athlete?.goal, athlete?.context)}${blockSection(block)}
 
 Today: ${dayName}
 
@@ -265,7 +265,8 @@ STYLE:
 - Numbers and specifics over vague encouragement.
 - Short sentences. Fragments fine.
 - Daily briefing: 2–3 tight sentences max.
-- Use tools with the exact bracketed IDs. For recurring events (IDs with "__"): confirm scope (one instance vs. full series) before calling delete_event.`;
+- Use tools with the exact bracketed IDs. For recurring events (IDs with "__"): confirm scope (one instance vs. full series) before calling delete_event.
+- When the user says they did a scheduled workout (✓ marks one already done), mark it with set_event_completion — never create a second event for it. Earlier weeks are not listed above: get_schedule gives their IDs.`;
 }
 
 /**

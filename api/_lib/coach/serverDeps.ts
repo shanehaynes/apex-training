@@ -5,7 +5,7 @@ import * as instances from '../services/eventInstances.js';
 import * as definitionsSvc from '../services/definitions.js';
 import * as mealsSvc from '../services/meals.js';
 import { recordCompletion } from '../services/completions.js';
-import { quickCompletePlan } from '../trackerSession.js';
+import { applyQuickUncomplete, quickCompletePlan } from '../trackerSession.js';
 import type { CoachToolDeps } from '../../../src/lib/coach/tools.js';
 import type { ExerciseDefinition, WorkoutEvent } from '../../../src/types/workout.js';
 import type { Meal } from '../../../src/types/nutrition.js';
@@ -126,6 +126,50 @@ export function createServerDeps(supabase: Admin, userId: string, ctx: ServerDep
         eventId: baseId, date: keyDate, eventTitle: event.title, triggeredBy: 'ai',
       }, merged);
       return result.ok;
+    },
+
+    async setEventCompletion({ id, date }, completed) {
+      // The occurrence the calendar's toggle would act on: an exact id (an
+      // occurrence id, a one-off, or a series' anchor row, whose id is the
+      // bare base id), else a base id disambiguated by the occurrence date.
+      const event = ctx.events.find(e => e.id === id && (!date || e.date === date))
+        ?? (date ? ctx.events.find(e => baseIdOf(e.id) === id && e.date === date) : undefined);
+      if (!event) return null;
+
+      // ctx.events carries no completion state (a fresh expand), so read the
+      // row: a repeat of the current state must not append a second
+      // 'complete' to the log or re-run the plan fill.
+      const { data, error } = await supabase
+        .from('workout_completions')
+        .select('is_completed')
+        .eq('user_id', userId).eq('event_id', event.id)
+        .maybeSingle();
+      if (error) {
+        console.warn('[coach-tool] completion lookup failed:', error.message);
+        return null;
+      }
+      const summary = { title: event.title, date: event.date };
+      if (!!data?.is_completed === completed) return { ...summary, changed: false };
+
+      const rows = buildCompletionRows(event, completed);
+      const result = await recordCompletion(
+        supabase, userId,
+        rows.completionRow as unknown as Record<string, unknown>,
+        rows.logRow as unknown as Record<string, unknown>,
+      );
+      if (!result.ok) return null;
+      // Best-effort, like the calendar toggle's fire-and-forget session
+      // writes: the completion mark is what the user asked for and it is
+      // recorded either way.
+      if (completed) {
+        await quickCompletePlan(supabase, userId, event)
+          .catch(err => console.warn('[coach-tool] quick-complete failed:', err));
+      } else {
+        await applyQuickUncomplete(supabase, userId, event.id, event.date)
+          .catch(err => console.warn('[coach-tool] quick-uncomplete failed:', err));
+      }
+      event.isCompleted = completed;
+      return { ...summary, changed: true };
     },
 
     async createDefinition(input) {

@@ -120,6 +120,36 @@ export const setEventExercisesSchema: Anthropic.Tool = {
   },
 };
 
+export const setEventCompletionSchema: Anthropic.Tool = {
+  name: 'set_event_completion',
+  description:
+    'Mark one workout event as completed, or clear the mark. Completing works like the calendar\'s ' +
+    '"Mark as Complete": the whole plan is logged at its recommended targets — use it when the user ' +
+    'says they did a scheduled workout, never to record actual sets, weights or times. Clearing removes ' +
+    'only those plan-filled logs; anything hand-tracked stays. One occurrence at a time: for a recurring ' +
+    'event use the occurrence ID (the one containing "__") shown in the schedule. Workouts from earlier ' +
+    'weeks are not listed in the schedule — get_schedule gives their IDs.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      event_id: {
+        type: 'string',
+        description: 'The event ID shown in [brackets] in the schedule — the occurrence ID for a recurring event.',
+      },
+      event_title: { type: 'string', description: 'Current title — shown in the confirmation card.' },
+      completed: {
+        type: 'boolean',
+        description: 'true marks the workout done; false clears an existing completion mark.',
+      },
+      date: {
+        type: 'string',
+        description: 'YYYY-MM-DD of the occurrence. Only needed when event_id is the base ID of a recurring series.',
+      },
+    },
+    required: ['event_id', 'event_title', 'completed'],
+  },
+};
+
 export const updateExerciseDefinitionSchema: Anthropic.Tool = {
   name: 'update_exercise_definition',
   description:
@@ -257,6 +287,7 @@ export function coachToolSchemas(): Anthropic.Tool[] {
     createEventSchema,
     updateEventSchema,
     setEventExercisesSchema,
+    setEventCompletionSchema,
     updateExerciseDefinitionSchema,
     logMealSchema,
     updateMealSchema,

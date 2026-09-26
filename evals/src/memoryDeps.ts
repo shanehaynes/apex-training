@@ -93,6 +93,19 @@ export function createMemoryDeps(
       return true;
     },
 
+    async setEventCompletion({ id, date }, completed) {
+      // Same resolution as the server deps: exact id, else a base id on the
+      // occurrence date. Fixtures list occurrences directly, so isCompleted
+      // on the row is the live state the server would read from
+      // workout_completions.
+      const event = state.events.find(e => e.id === id && (!date || e.date === date))
+        ?? (date ? state.events.find(e => baseIdOf(e.id) === id && e.date === date) : undefined);
+      if (!event) return null;
+      if (event.isCompleted === completed) return { title: event.title, date: event.date, changed: false };
+      event.isCompleted = completed;
+      return { title: event.title, date: event.date, changed: true };
+    },
+
     definitions: state.definitions,
 
     async createDefinition(input) {

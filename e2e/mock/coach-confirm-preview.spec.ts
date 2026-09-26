@@ -49,6 +49,27 @@ test('an update on a seeded workout shows the fields that change, before and aft
   await shot(page, 'coach-confirm-preview-update');
 });
 
+test('marking a seeded workout complete shows the completion flag before and after', async ({ page }) => {
+  await stubChat(page, [{
+    name: 'set_event_completion',
+    input: { event_id: 'w1-mon-stretch', event_title: 'Nightly Stretch — Upper', completed: true },
+  }]);
+  await gotoCalendar(page);
+
+  await page.locator('.chat-input').fill('I did tonight\'s stretch, mark it done');
+  await page.locator('.chat-input').press('Enter');
+
+  const card = page.locator('.chat-confirm-card');
+  await expect(card.locator('.chat-confirm-card__label')).toHaveText('Mark complete: Nightly Stretch — Upper · 2026-06-22');
+
+  const preview = card.getByTestId('confirm-preview');
+  await expect(preview).toHaveAttribute('data-kind', 'event-update');
+  await expect(preview.locator('.confirm-preview__field')).toHaveText(['Completed']);
+  await expect(preview.locator('.confirm-preview__before')).toHaveText(['no']);
+  await expect(preview.locator('.confirm-preview__after')).toHaveText(['yes']);
+  await expect(card.getByRole('button', { name: 'Confirm' })).toBeEnabled();
+});
+
 test('a create lists the exercises the workout will hold', async ({ page }) => {
   await stubChat(page, [{
     name: 'create_event',

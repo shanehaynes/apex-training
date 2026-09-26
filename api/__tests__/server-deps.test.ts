@@ -5,7 +5,7 @@ import * as instances from '../_lib/services/eventInstances';
 import * as definitions from '../_lib/services/definitions';
 import * as mealsSvc from '../_lib/services/meals';
 import { recordCompletion } from '../_lib/services/completions';
-import { quickCompletePlan } from '../_lib/trackerSession';
+import { applyQuickUncomplete, quickCompletePlan } from '../_lib/trackerSession';
 import type { ExerciseDefinition, WorkoutEvent } from '../../src/types/workout';
 import type { Meal } from '../../src/types/nutrition';
 
@@ -29,12 +29,26 @@ vi.mock('../_lib/services/meals.js', () => ({
   deleteMeal: vi.fn(async () => ({ ok: true, value: undefined })),
 }));
 vi.mock('../_lib/services/completions.js', () => ({ recordCompletion: vi.fn(async () => ({ ok: true, value: undefined })) }));
-vi.mock('../_lib/trackerSession.js', () => ({ quickCompletePlan: vi.fn(async () => ({ ok: true, value: undefined })) }));
+vi.mock('../_lib/trackerSession.js', () => ({
+  quickCompletePlan: vi.fn(async () => ({ ok: true, value: undefined })),
+  applyQuickUncomplete: vi.fn(async () => ({ ok: true, value: undefined })),
+}));
 
 const existingOverride = { override_date: null, override_start_time: '06:00', override_end_time: null };
+/** The one completion row the fake database holds, keyed by event id. */
+let completionRows: Record<string, { is_completed: boolean }>;
 function makeAdmin() {
   const chain = { select: () => chain, eq: () => chain, maybeSingle: async () => ({ data: existingOverride, error: null }) };
-  return { from: () => chain } as never;
+  const completions = () => {
+    let eventId = '';
+    const c = {
+      select: () => c,
+      eq: (col: string, v: string) => { if (col === 'event_id') eventId = v; return c; },
+      maybeSingle: async () => ({ data: completionRows[eventId] ?? null, error: null }),
+    };
+    return c;
+  };
+  return { from: (table: string) => (table === 'workout_completions' ? completions() : chain) } as never;
 }
 
 const series: WorkoutEvent = {
@@ -53,7 +67,7 @@ function makeDeps() {
   return { deps: createServerDeps(makeAdmin(), 'user-1', ctx), ctx };
 }
 
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => { vi.clearAllMocks(); completionRows = {}; });
 
 describe('createServerDeps — what the browser did for the coach, on the server', () => {
   it('createEvent mints an ai- id, stamps ai attribution, and retro-logs a past-dated one-off', async () => {
@@ -111,6 +125,48 @@ describe('createServerDeps — what the browser did for the coach, on the server
     const { deps } = makeDeps();
     expect(await deps.deleteEventInstance('evt-weekly', '2026-09-08')).toBe(true);
     expect(vi.mocked(instances.skipInstance).mock.calls[0][2]).toEqual({ eventId: 'evt-weekly', date: '2026-09-08', eventTitle: 'Bench', triggeredBy: 'ai' });
+  });
+
+  it('setEventCompletion completes an occurrence the way the calendar toggle does: completion rows, then the plan fill', async () => {
+    const { deps } = makeDeps();
+    const result = await deps.setEventCompletion({ id: 'evt-weekly__2026-09-08' }, true);
+    expect(result).toEqual({ title: 'Bench', date: '2026-09-08', changed: true });
+    const [, userId, completionRow, logRow] = vi.mocked(recordCompletion).mock.calls[0];
+    expect(userId).toBe('user-1');
+    expect(completionRow).toMatchObject({ event_id: 'evt-weekly__2026-09-08', event_date: '2026-09-08', event_title: 'Bench', is_completed: true });
+    expect(logRow).toMatchObject({ event_id: 'evt-weekly__2026-09-08', action: 'complete' });
+    expect(quickCompletePlan).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(quickCompletePlan).mock.calls[0][2]).toMatchObject({ id: 'evt-weekly__2026-09-08', date: '2026-09-08' });
+    expect(applyQuickUncomplete).not.toHaveBeenCalled();
+  });
+
+  it('setEventCompletion clears a mark by dropping only the plan-filled logs, and leaves a matching state alone', async () => {
+    const { deps } = makeDeps();
+    completionRows['evt-solo'] = { is_completed: true };
+    expect(await deps.setEventCompletion({ id: 'evt-solo' }, false)).toEqual({ title: 'Long run', date: '2026-09-10', changed: true });
+    expect(vi.mocked(recordCompletion).mock.calls[0][3]).toMatchObject({ action: 'uncomplete' });
+    expect(applyQuickUncomplete).toHaveBeenCalledWith(expect.anything(), 'user-1', 'evt-solo', '2026-09-10');
+    expect(quickCompletePlan).not.toHaveBeenCalled();
+
+    // Already complete: no second 'complete' log row, no plan re-fill.
+    vi.clearAllMocks();
+    expect(await deps.setEventCompletion({ id: 'evt-solo' }, true)).toEqual({ title: 'Long run', date: '2026-09-10', changed: false });
+    expect(recordCompletion).not.toHaveBeenCalled();
+    expect(quickCompletePlan).not.toHaveBeenCalled();
+  });
+
+  it('setEventCompletion resolves a base id on an occurrence date, and answers null for anything it cannot find', async () => {
+    const { deps } = makeDeps();
+    expect(await deps.setEventCompletion({ id: 'evt-weekly', date: '2026-09-08' }, true)).toMatchObject({ date: '2026-09-08', changed: true });
+    expect(vi.mocked(recordCompletion).mock.calls[0][2]).toMatchObject({ event_id: 'evt-weekly__2026-09-08' });
+    // The series' own anchor row keeps the bare base id.
+    expect(await deps.setEventCompletion({ id: 'evt-weekly', date: '2026-09-01' }, true)).toMatchObject({ date: '2026-09-01', changed: true });
+    expect(vi.mocked(recordCompletion).mock.calls[1][2]).toMatchObject({ event_id: 'evt-weekly' });
+
+    expect(await deps.setEventCompletion({ id: 'evt-weekly', date: '2026-09-15' }, true)).toBeNull();
+    expect(await deps.setEventCompletion({ id: 'evt-solo', date: '2026-09-11' }, true)).toBeNull();
+    expect(await deps.setEventCompletion({ id: 'evt-missing' }, true)).toBeNull();
+    expect(recordCompletion).toHaveBeenCalledTimes(2);
   });
 
   it('createDefinition slugs the id, defaults the arrays, and resolves synchronously for the executor', async () => {

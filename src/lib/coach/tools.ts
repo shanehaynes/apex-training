@@ -4,6 +4,7 @@ import {
   deleteEventSchema,
   deleteMealSchema,
   logMealSchema,
+  setEventCompletionSchema,
   setEventExercisesSchema,
   updateEventSchema,
   updateExerciseDefinitionSchema,
@@ -32,6 +33,18 @@ export interface CoachToolDeps {
   deleteEvent(id: string): Promise<boolean>;
   deleteEventInstance(baseId: string, date: string): Promise<boolean>;
   rescheduleEvent(id: string, fields: OccurrenceOverride): Promise<boolean>;
+  /**
+   * Mark one occurrence complete (plan logged at its recommended targets, as
+   * the calendar's toggle does) or clear the mark. `target.date` disambiguates
+   * a recurring series' base id; an occurrence id needs none. Resolves to the
+   * occurrence it changed and whether anything changed (an occurrence already
+   * in the requested state is left alone), or null when no occurrence matches
+   * or the write failed.
+   */
+  setEventCompletion(
+    target: { id: string; date?: string },
+    completed: boolean,
+  ): Promise<{ title: string; date: string; changed: boolean } | null>;
   /** The exercise library, for name → definition resolution. */
   definitions: Map<string, ExerciseDefinition>;
   createDefinition(input: CreateDefinitionInput): Promise<{ id: string } | null>;
@@ -81,6 +94,21 @@ function resolveEvent(ctx: CoachToolContext | undefined, id: unknown, date?: unk
     return (typeof date === 'string' && occurrences.find(e => e.date === date)) || occurrences[0];
   }
   return ctx.events.find(e => e.id === baseIdOf(id));
+}
+
+/**
+ * The single occurrence set_event_completion will act on — the rule the
+ * server deps apply: with a date, the row on that date whose id is `id` or
+ * whose base id is (a series' anchor keeps the bare base id); without one,
+ * the exact id only. Unlike resolveEvent, an exact id match never overrides
+ * the date, so the card names the occurrence the executor will mark.
+ */
+function resolveOccurrence(ctx: CoachToolContext | undefined, id: unknown, date: unknown): WorkoutEvent | undefined {
+  if (!ctx || typeof id !== 'string') return undefined;
+  if (typeof date === 'string' && date) {
+    return ctx.events.find(e => (e.id === id || baseIdOf(e.id) === id) && e.date === date);
+  }
+  return ctx.events.find(e => e.id === id);
 }
 
 function resolveMeal(ctx: CoachToolContext | undefined, id: unknown): Meal | undefined {
@@ -321,6 +349,32 @@ const setEventExercisesTool: CoachToolDef = {
     return ok
       ? `Replaced the ${section} list (${built.entries.length} exercises).${describeCreated(built.created)}`
       : 'Failed to update the exercises.';
+  },
+};
+
+const setEventCompletionTool: CoachToolDef = {
+  schema: setEventCompletionSchema,
+  displayLabel(input, ctx) {
+    const verb = input.completed === false ? 'Mark not complete' : 'Mark complete';
+    const event = resolveOccurrence(ctx, input.event_id, input.date);
+    if (event) return `${verb}: ${event.title} · ${event.date}`;
+    if (ctx)   return `${verb}: ${unresolvedTarget(input.event_id)}`;
+    const date = typeof input.date === 'string' && input.date ? ` · ${input.date}` : '';
+    return `${verb}: ${input.event_title}${date}`;
+  },
+  async execute(input, deps) {
+    const { event_id, completed, date } = input as { event_id: string; completed: boolean; date?: string };
+    if (typeof completed !== 'boolean') return 'completed must be true or false.';
+    const result = await deps.setEventCompletion({ id: event_id, ...(date ? { date } : {}) }, completed);
+    if (!result) {
+      return `Failed to update completion for "${event_id}" — no such occurrence, or the write failed. ` +
+        'Use the exact bracketed ID (an occurrence ID for a recurring event); get_schedule lists other weeks.';
+    }
+    const state = completed ? 'complete' : 'not complete';
+    if (!result.changed) return `"${result.title}" on ${result.date} was already marked ${state}.`;
+    return completed
+      ? `Marked "${result.title}" on ${result.date} as complete — the plan is logged at its recommended targets.`
+      : `Cleared the completion mark on "${result.title}" (${result.date}); only plan-filled logs were removed.`;
   },
 };
 
@@ -579,6 +633,7 @@ export const COACH_TOOLS: CoachToolDef[] = [
   createEventTool,
   updateEventTool,
   setEventExercisesTool,
+  setEventCompletionTool,
   updateExerciseDefinitionTool,
   logMealTool,
   updateMealTool,

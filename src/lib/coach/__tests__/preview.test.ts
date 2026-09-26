@@ -108,6 +108,29 @@ describe('create_event', () => {
   });
 });
 
+describe('set_event_completion', () => {
+  it('shows the live completion flag against the requested one, as an update row', () => {
+    expect(previewForTool('set_event_completion', { event_id: 'upper', event_title: 'Upper Body', completed: true }, ctx)).toEqual({
+      kind: 'event-update',
+      title: 'Upper Body',
+      changes: [{ field: 'Completed', before: 'no', after: 'yes' }],
+    });
+    const done = { ...ctx, events: [{ ...upper, isCompleted: true }] };
+    expect(previewForTool('set_event_completion', { event_id: 'upper', event_title: 'Upper Body', completed: false }, done)).toMatchObject({
+      changes: [{ field: 'Completed', before: 'yes', after: 'no' }],
+    });
+  });
+
+  it('resolves a base id on a date to that occurrence, and yields null for an unknown target or a missing flag', () => {
+    expect(previewForTool('set_event_completion', { event_id: 'yoga', event_title: 'Yoga', completed: true, date: '2026-07-08' }, ctx))
+      .toMatchObject({ title: 'Yoga' });
+    // A date the series has no occurrence on resolves nothing — the executor would refuse it too.
+    expect(previewForTool('set_event_completion', { event_id: 'yoga', event_title: 'Yoga', completed: true, date: '2026-07-10' }, ctx)).toBeNull();
+    expect(previewForTool('set_event_completion', { event_id: 'nope', event_title: 'Ghost', completed: true }, ctx)).toBeNull();
+    expect(previewForTool('set_event_completion', { event_id: 'upper', event_title: 'Upper Body' }, ctx)).toBeNull();
+  });
+});
+
 describe('update_event', () => {
   it('diffs only the fields present in the input against the live event', () => {
     const preview = previewForTool('update_event', {

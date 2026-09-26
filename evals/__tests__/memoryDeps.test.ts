@@ -83,6 +83,38 @@ describe('createMemoryDeps + real executors', () => {
     expect(state.events).toHaveLength(0);
   });
 
+  it('set_event_completion flips the fixture flag once and reports a repeat as unchanged', async () => {
+    const { deps, state } = createMemoryDeps(
+      [
+        makeEvent({ id: 'evt-1', date: '2026-08-03', title: 'Upper Strength' }),
+        makeEvent({ id: 'evt-yoga__2026-08-05', date: '2026-08-05', title: 'Yoga', isRecurring: true }),
+      ],
+      loadLibrary(),
+    );
+    const marked = await findCoachTool('set_event_completion')!.execute({
+      event_id: 'evt-1', event_title: 'Upper Strength', completed: true,
+    }, deps);
+    expect(marked).toContain('Marked "Upper Strength" on 2026-08-03 as complete');
+    expect(state.events[0].isCompleted).toBe(true);
+
+    const again = await findCoachTool('set_event_completion')!.execute({
+      event_id: 'evt-1', event_title: 'Upper Strength', completed: true,
+    }, deps);
+    expect(again).toContain('was already marked complete');
+
+    // A base id plus the occurrence date resolves the expanded occurrence.
+    const occurrence = await findCoachTool('set_event_completion')!.execute({
+      event_id: 'evt-yoga', event_title: 'Yoga', completed: true, date: '2026-08-05',
+    }, deps);
+    expect(occurrence).toContain('Marked "Yoga" on 2026-08-05');
+    expect(state.events[1].isCompleted).toBe(true);
+
+    const missing = await findCoachTool('set_event_completion')!.execute({
+      event_id: 'evt-nope', event_title: 'Ghost', completed: true,
+    }, deps);
+    expect(missing).toContain('Failed to update completion for "evt-nope"');
+  });
+
   it('log_meal, update_meal, and delete_meal mutate fixture state', async () => {
     const { deps, state } = createMemoryDeps([], loadLibrary());
     const logged = await findCoachTool('log_meal')!.execute({

@@ -9,7 +9,7 @@ import {
   EVENT_ID_PATTERN,
 } from '../allowlist.js';
 import { enforceRateLimit } from '../rateLimit.js';
-import { applyQuickComplete, buildBootstrap, buildFinishSummary, loadResolvedOccurrence } from '../trackerSession.js';
+import { applyQuickComplete, applyQuickUncomplete, buildBootstrap, buildFinishSummary, loadResolvedOccurrence } from '../trackerSession.js';
 import { sendFailure } from '../services/result.js';
 import { sendWriteFailure } from '../pgError.js';
 import { buildQuickCompleteLogs } from '../../../src/lib/tracking/plan.js';
@@ -486,41 +486,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ── quick-uncomplete: undo the toggle — drop only system-filled rows ──────
-  // Hand-entered logs survive. Note zero-fills from a real Finish share the
-  // is_autofilled flag and are dropped too; re-finishing recreates them.
+  // Hand-entered logs survive (applyQuickUncomplete, shared with the coach).
   if (body.action === 'quick-uncomplete') {
-    const deletes = await Promise.all([
-      supabase.from('workout_set_logs').delete()
-        .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate).eq('is_autofilled', true),
-      supabase.from('workout_cardio_logs').delete()
-        .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate).eq('is_autofilled', true),
-    ]);
-    const failedDelete = deletes.find(r => r.error);
-    if (failedDelete?.error) {
-      console.error('[api/workout-sessions] quick-uncomplete delete failed:', failedDelete.error.message);
-      res.status(500).send('Failed to remove quick-completed logs');
-      return;
-    }
-
-    // A session with no logs left was created by the toggle — drop it so the
-    // tracker starts fresh instead of resuming a phantom finished session.
-    const [setsLeft, cardioLeft] = await Promise.all([
-      supabase.from('workout_set_logs').select('id', { count: 'exact', head: true })
-        .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate),
-      supabase.from('workout_cardio_logs').select('id', { count: 'exact', head: true })
-        .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate),
-    ]);
-    if ((setsLeft.count ?? 0) === 0 && (cardioLeft.count ?? 0) === 0) {
-      const { error: sessionErr } = await supabase
-        .from('workout_sessions').delete()
-        .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate);
-      if (sessionErr) {
-        console.error('[api/workout-sessions] quick-uncomplete session delete failed:', sessionErr.message);
-        res.status(500).send('Failed to remove quick-completed session');
-        return;
-      }
-    }
-
+    const result = await applyQuickUncomplete(supabase, userId, eventId, eventDate);
+    if (!result.ok) return sendFailure(res, result);
     res.status(200).json({ ok: true });
     return;
   }

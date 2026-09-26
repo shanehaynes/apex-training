@@ -167,6 +167,26 @@ function updateEvent(input: Record<string, unknown>, ctx: CoachToolContext): Too
   return changes.length ? { kind: 'event-update', title: text(event.title), changes } : null;
 }
 
+/** Same rule as tools.ts resolveOccurrence: with a date, the row on that date by id or base id; without, the exact id. */
+function resolveOccurrence(ctx: CoachToolContext, id: unknown, date: unknown): WorkoutEvent | undefined {
+  if (typeof id !== 'string' || !id) return undefined;
+  if (typeof date === 'string' && date) {
+    return ctx.events.find(e => (e.id === id || baseIdOf(e.id) === id) && e.date === date);
+  }
+  return ctx.events.find(e => e.id === id);
+}
+
+/** One "Completed  no → yes" row: the live flag against the requested one. */
+function setEventCompletion(input: Record<string, unknown>, ctx: CoachToolContext): ToolPreview | null {
+  const event = resolveOccurrence(ctx, input.event_id, input.date);
+  if (!event || typeof input.completed !== 'boolean') return null;
+  return {
+    kind: 'event-update',
+    title: text(event.title),
+    changes: [{ field: 'Completed', before: formatBool(!!event.isCompleted), after: formatBool(input.completed) }],
+  };
+}
+
 function deleteEvent(input: Record<string, unknown>, ctx: CoachToolContext): ToolPreview | null {
   const event = resolveEvent(ctx, input.event_id, input.date);
   if (!event) return null;
@@ -312,6 +332,7 @@ const PREVIEWS: Record<string, (input: Record<string, unknown>, ctx: CoachToolCo
   update_event:               updateEvent,
   delete_event:               deleteEvent,
   set_event_exercises:        setEventExercises,
+  set_event_completion:       setEventCompletion,
   update_exercise_definition: updateDefinition,
   log_meal:                   logMeal,
   update_meal:                updateMeal,

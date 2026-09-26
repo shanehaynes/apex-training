@@ -32,6 +32,7 @@ const deps = {
   deleteEvent: vi.fn(async () => true),
   deleteEventInstance: vi.fn(async () => true),
   rescheduleEvent: vi.fn(async () => true),
+  setEventCompletion: vi.fn(async () => ({ title: 'Leg day', date: '2026-09-04', changed: true })),
   createDefinition: vi.fn(async () => ({ id: 'd' })),
   updateDefinition: vi.fn(async () => true),
   createMeal: vi.fn(async () => ({ id: 'm' })),

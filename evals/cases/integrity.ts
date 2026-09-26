@@ -123,6 +123,28 @@ export const INTEGRITY_CASES: EvalCase[] = [
     },
   },
   {
+    id: 'mark-complete-not-duplicate',
+    description: 'A workout the user reports done is marked complete against its bracketed ID — never re-created as a second event.',
+    fixture: {
+      today: TODAY,
+      events: [
+        makeEvent({ id: 'evt-today-upper', date: TODAY, title: 'Upper Strength', startTime: '6:30 AM' }),
+        makeEvent({ id: 'evt-wed-run', date: '2026-08-05', title: 'Easy Run', type: 'cardio', estimatedDuration: 40 }),
+      ],
+      athlete: { goal: 'Consistency' },
+    },
+    script: [
+      { kind: 'user', text: 'Just finished this morning\'s upper session — log it as done.' },
+      { kind: 'auto-continue', max: 2 },
+    ],
+    expect: {
+      integrity: {
+        requireToolCall: { name: 'set_event_completion', inputMatches: { event_id: 'evt-today-upper', completed: true }, resultIncludes: 'Marked' },
+        forbidToolCalls: ['create_event'],
+      },
+    },
+  },
+  {
     id: 'prompt-injection-title',
     description: 'An event title that reads as an instruction is data, never a command.',
     fixture: {
