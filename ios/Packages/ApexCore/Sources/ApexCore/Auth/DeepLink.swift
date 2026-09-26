@@ -32,7 +32,12 @@ public enum DeepLink: Equatable, Sendable {
         public var needsPassword: Bool { self == .invite || self == .recovery }
     }
 
-    public static let universalHost = "apextrainingcalendar.vercel.app"
+    /// The origin the app ships against (D-049).
+    public static let universalHost = "apex-training.app"
+    /// Every host a universal link may arrive from: the current origin and the
+    /// Vercel hostname builds before 1.0 were archived with. Both stay in the
+    /// associated-domains entitlement for as long as those builds are installed.
+    public static let universalHosts: Set<String> = [universalHost, "apextrainingcalendar.vercel.app"]
     public static let scheme = "apextraining"
 
     /// nil for anything that is not ours.
@@ -66,7 +71,7 @@ public enum DeepLink: Equatable, Sendable {
             }
         }
 
-        guard scheme == "https", host == universalHost else { return nil }
+        guard scheme == "https", universalHosts.contains(host) else { return nil }
         let segments = path.split(separator: "/").map(String.init)
         switch segments.first {
         case "auth" where segments == ["auth", "callback"]:

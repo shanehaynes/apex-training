@@ -22,7 +22,7 @@
 #
 # It is also runnable standalone, which is how the logic is proved without a Mac:
 #
-#   CONFIGURATION=Release APEX_API_BASE=https://apextrainingcalendar.vercel.app \
+#   CONFIGURATION=Release APEX_API_BASE=https://apex-training.app \
 #     SUPABASE_ANON_KEY=REPLACE_ME ios/scripts/verify-release-config.sh
 set -euo pipefail
 
@@ -37,7 +37,7 @@ fi
 # Stated here rather than derived from the xcconfig that sets it: a gate that
 # reads its expectation out of the value it is checking checks nothing. Keep in
 # step with APEX_API_BASE in ios/Config/Release.xcconfig.
-EXPECTED_API_BASE="https://apextrainingcalendar.vercel.app"
+EXPECTED_API_BASE="https://apex-training.app"
 
 # The base64 of {"iss":"supabase-demo" — the head of the Supabase CLI's demo anon
 # key, identical for every local project and committed in Local.xcconfig. A

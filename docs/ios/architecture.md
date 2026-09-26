@@ -90,7 +90,7 @@ TabView
 - The tracker is a `fullScreenCover` — like the web's fixed overlay, it is a mode, and rotating
   the device or backgrounding must never dismiss it.
 - Typed routes make every screen deep-linkable. `DeepLink` parses both `apextraining://…` and
-  universal links on `apextrainingcalendar.vercel.app`:
+  universal links on `apex-training.app`:
   - `/auth/callback?code=…` → `auth.session(from:)` — the PKCE reset the app itself requested
   - `apextraining://auth#access_token=…&refresh_token=…&type=invite|recovery` (the web
     hand-off button, D-020) → `auth.setSession(accessToken:refreshToken:)`. A PKCE-configured
@@ -114,7 +114,7 @@ TabView
   how to fetch, renew and discard a token.
 - Sign in: email + password, `textContentType` set so AutoFill + Face ID work; the associated
   domain makes saved web credentials appear.
-- Invite/recovery: `resetPasswordForEmail(redirectTo: "https://apextrainingcalendar.vercel.app/auth/callback")`
+- Invite/recovery: `resetPasswordForEmail(redirectTo: "https://apex-training.app/auth/callback")`
   (Shane adds that URL and `apextraining://auth` to Supabase Additional Redirect URLs;
   `scripts/auth-redirect-check.sh` asserts both). Invites are dashboard-generated at the Site
   URL root → the web's set-password screen shows "Open in the Apex app" when the hash carries

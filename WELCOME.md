@@ -27,13 +27,13 @@ Each row ticks itself off when you do it.
 
 ## Help pages
 
-These are step-by-step guides with pictures. They open in a new tab, and work signed out. In **Profile**, tap **Help pages** to see [them all](https://apextrainingcalendar.vercel.app/help).
+These are step-by-step guides with pictures. They open in a new tab, and work signed out. In **Profile**, tap **Help pages** to see [them all](https://apex-training.app/help).
 
-- [Get an API key](https://apextrainingcalendar.vercel.app/help/get-api-key). The coach runs on a key from Anthropic. How to get one, what it costs, and what to do if you already pay for Claude.
-- [Connect your COROS watch](https://apextrainingcalendar.vercel.app/help/connect-coros). Link your watch once and your runs, rides and hikes come in on their own.
-- [See your workouts in your phone’s calendar](https://apextrainingcalendar.vercel.app/help/calendar-feed). Subscribe from Apple or Google Calendar so your plan shows up next to everything else.
-- [Logging a workout](https://apextrainingcalendar.vercel.app/help/logging-a-workout). Start Workout or Mark as Complete, the grey numbers, blank sets, and the trophies at the end.
-- [Workouts that repeat](https://apextrainingcalendar.vercel.app/help/repeating-workouts). Weekly workouts, and which changes reach one day or every week.
+- [Get an API key](https://apex-training.app/help/get-api-key). The coach runs on a key from Anthropic. How to get one, what it costs, and what to do if you already pay for Claude.
+- [Connect your COROS watch](https://apex-training.app/help/connect-coros). Link your watch once and your runs, rides and hikes come in on their own.
+- [See your workouts in your phone’s calendar](https://apex-training.app/help/calendar-feed). Subscribe from Apple or Google Calendar so your plan shows up next to everything else.
+- [Logging a workout](https://apex-training.app/help/logging-a-workout). Start Workout or Mark as Complete, the grey numbers, blank sets, and the trophies at the end.
+- [Workouts that repeat](https://apex-training.app/help/repeating-workouts). Weekly workouts, and which changes reach one day or every week.
 
 The sections below cover what the help pages don't.
 
@@ -69,7 +69,7 @@ Tap **Analytics** at the top, or at the bottom on a phone. Each chart there is o
 
 On a computer, the coach sits on the right. On a phone, tap **Coach** at the bottom. Ask it about your training in plain words. It sees your workouts, your week, your blocks, your library and today’s meals. Tap **Coach's Notes** for a daily briefing.
 
-The coach can add or change workouts and meals. It always asks first, with **Confirm** and **Cancel**. **Coach activity** in **Profile** lists everything it has done. Type what you train for under **Goal** in **Profile**. It shapes every answer. First, the coach needs a key: see [Get an API key](https://apextrainingcalendar.vercel.app/help/get-api-key).
+The coach can add or change workouts and meals. It always asks first, with **Confirm** and **Cancel**. **Coach activity** in **Profile** lists everything it has done. Type what you train for under **Goal** in **Profile**. It shapes every answer. First, the coach needs a key: see [Get an API key](https://apex-training.app/help/get-api-key).
 
 ## Claude, ChatGPT and other assistants
 
