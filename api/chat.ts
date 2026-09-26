@@ -12,9 +12,11 @@ import { analyticsToolSchemas, builderToolSchemas, coachToolSchemas } from '../s
 import { resolveCoachModel } from '../src/lib/coach/models.js';
 import { PROMPT_VERSION } from '../src/lib/coach/prompt.js';
 import type { ChatWireEvent } from '../src/lib/coach/wire.js';
-import { streamToWireEvents as translate, type UpstreamEvent as Upstream } from './_lib/wire.js';
+import { streamToWireEvents as translate, type UpstreamEvent as Upstream, type UpstreamUsage } from './_lib/wire.js';
 import { buildChatContext, ChatContextError, isChatMode, type ChatMode } from './_lib/coach/context.js';
-import { findCoachTool, type CoachToolContext } from '../src/lib/coach/tools.js';
+import { findCoachTool, isServerSideTool, READ_DOCTRINE_TOOL, type CoachToolContext } from '../src/lib/coach/tools.js';
+import { executeReadTool, readToolLabel, readToolSchemas } from './_lib/coach/readTools.js';
+import { DOCTRINE_TOPICS, readDoctrine, readDoctrineToolSchema } from '../src/lib/coach/doctrine/index.js';
 
 // Server-side proxy for the coach chat, running on the CALLER'S OWN
 // Anthropic key (server-only user_api_keys table — no key ever reaches the
@@ -24,6 +26,19 @@ import { findCoachTool, type CoachToolContext } from '../src/lib/coach/tools.js'
 // complete tool_use event per block — simpler for the client than forwarding
 // partial JSON deltas. A response with parallel tool calls yields one
 // tool_use event per block; the client queues them all (actionQueue.ts).
+//
+// THE SIGHT LOOP (coach initiative, B01). In chat mode the tool list also
+// carries the read tools (api/_lib/coach/readTools.ts) and read_doctrine.
+// Those never reach the browser as confirm cards: when a response asks only
+// for server-side tools, this handler runs them here, appends the assistant
+// message (thinking blocks included) and one user message of tool_results,
+// and calls upstream again — up to MAX_SERVER_ROUNDS times inside the one
+// user turn — narrating each call on the wire as tool_read /
+// tool_read_result so the client can show what was checked and store an
+// API-valid transcript. A response that also asks for a write tool ends the
+// turn as before: the reads are executed and answered on the wire, the
+// writes become confirm cards, and the client's tool_result message carries
+// both sets of results.
 //
 // IMPORT SURFACE WARNING: this function once crashed at module load on
 // Vercel — an extensionless relative import, which real Node ESM rejects.
@@ -90,6 +105,13 @@ interface Body {
 //      minutes. Builder and analytics embed the live draft in `system`, so
 //      their prefix changes on most turns and a 1-hour entry would rarely be
 //      read back — they and the legacy client-built `system` keep the default.
+//   5. The server-side tool loop re-sends the SAME tools, system and
+//      breakpoints on every round of a turn, and only ever appends after the
+//      messages breakpoint (the assistant message and its tool_results), so
+//      each continuation reads the whole prefix back. The live context is
+//      injected once, on the original last user message, never again: the
+//      rounds sit after it (or ahead of the trailing system entry on a
+//      mid-turn-system model — appendServerRound).
 //
 // The cache is also keyed per MODEL: switching models in the picker
 // invalidates all three tiers, so the first turn afterwards reads nothing and
@@ -118,22 +140,143 @@ function ephemeral(ttl: CacheTtl): Anthropic.CacheControlEphemeral {
 }
 
 /**
+ * The chat coach's full tool list, in the one fixed order the prompt cache
+ * (a prefix match over the tools) needs on every turn: the eight write
+ * tools, then the read tools, then read_doctrine. Composed here rather than
+ * in schemas.ts because the read schemas come out of the MCP tool
+ * implementations, which are server code and stay out of the browser bundle.
+ */
+export function chatToolSchemas(): Anthropic.Tool[] {
+  return [...coachToolSchemas(), ...readToolSchemas(), { ...readDoctrineToolSchema }];
+}
+
+/**
  * Static tool schemas with a cache breakpoint on the last one. Three modes,
- * each with its own CONSTANT list: the sidebar's full registry, the
- * builder's single draft tool, and the analytics builder's single chart
- * tool. A mode's tools+system prefix stays identical across its own turns
- * (the caching rules above hold per mode); a scoped mode's absent
- * calendar/meal tools are what make "the coach can never apply, save, or
- * touch the schedule from here" structural.
+ * each with its own CONSTANT list: the sidebar's registry plus the read
+ * tools, the builder's single draft tool, and the analytics builder's
+ * single chart tool. A mode's tools+system prefix stays identical across
+ * its own turns (the caching rules above hold per mode); a scoped mode's
+ * absent calendar/meal tools are what make "the coach can never apply,
+ * save, or touch the schedule from here" structural.
  */
 export function cachedToolSchemas(mode: ToolMode = 'chat', ttl: CacheTtl = '5m'): Anthropic.Tool[] {
   const tools =
     mode === 'builder' ? builderToolSchemas()
     : mode === 'analytics' ? analyticsToolSchemas()
-    : coachToolSchemas();
+    : chatToolSchemas();
   return tools.map((tool, i) =>
     i === tools.length - 1 ? { ...tool, cache_control: ephemeral(ttl) } : tool,
   );
+}
+
+// ─── The server-side tool loop ───────────────────────────────────────────────
+
+/** How many times one user turn may answer a server-side tool round and call
+ *  upstream again. The sixth request for reads ends the turn with a notice. */
+export const MAX_SERVER_ROUNDS = 5;
+
+/**
+ * Past this many ms since the handler started, no further round begins:
+ * the function's maxDuration is 60 s (vercel.json), a round with thinking
+ * runs 5–15 s, and a turn cut off by the platform loses everything it read.
+ */
+export const ROUND_BUDGET_MS = 40_000;
+
+export const ROUND_LIMIT_NOTICE =
+  'The coach stopped after the lookup limit for one message. Ask again to continue from here.';
+
+/** The chip text for a server-side call: the read tool's label, or the doctrine topic. */
+export function serverSideToolLabel(name: string, input: unknown): string {
+  if (name !== READ_DOCTRINE_TOOL) return readToolLabel(name, input);
+  const topic = typeof input === 'object' && input !== null ? (input as { topic?: unknown }).topic : undefined;
+  const title = DOCTRINE_TOPICS.find(t => t.id === topic)?.title;
+  return `Doctrine: ${title ?? (typeof topic === 'string' && topic ? topic : 'unknown topic')}`;
+}
+
+export interface ServerToolOutcome {
+  /** What the model is handed — a document block for the doctrine, so the
+   *  next answer can cite its lines; the read tool's text otherwise. */
+  result: Anthropic.ToolResultBlockParam;
+  /** What the wire carries (tool_read_result): the same text, or the topic
+   *  text for the doctrine. */
+  text: string;
+  isError: boolean;
+}
+
+/**
+ * Run one server-side tool. Never throws: executeReadTool has that contract,
+ * and the doctrine reader answers a bad topic with an error result the model
+ * can correct.
+ */
+export async function runServerSideTool(
+  supabase: Parameters<typeof executeReadTool>[0],
+  userId: string,
+  block: { id: string; name: string; input: unknown },
+): Promise<ServerToolOutcome> {
+  if (block.name === READ_DOCTRINE_TOOL) {
+    const topic = typeof block.input === 'object' && block.input !== null ? (block.input as { topic?: unknown }).topic : undefined;
+    const text = typeof topic === 'string' ? readDoctrine(topic) : null;
+    if (text === null) {
+      const message = `Unknown doctrine topic: ${typeof topic === 'string' ? topic : String(topic)}`;
+      return { result: { type: 'tool_result', tool_use_id: block.id, content: message, is_error: true }, text: message, isError: true };
+    }
+    const title = DOCTRINE_TOPICS.find(t => t.id === topic)?.title ?? (topic as string);
+    return {
+      result: {
+        type: 'tool_result',
+        tool_use_id: block.id,
+        content: [{
+          type: 'document',
+          source: { type: 'text', media_type: 'text/plain', data: text },
+          title,
+          citations: { enabled: true },
+        }],
+      },
+      text,
+      isError: false,
+    };
+  }
+  const { text, isError } = await executeReadTool(supabase, userId, block.name, block.input);
+  return {
+    result: { type: 'tool_result', tool_use_id: block.id, content: text, ...(isError ? { is_error: true } : {}) },
+    text,
+    isError,
+  };
+}
+
+/**
+ * The outgoing messages after one server round: the assistant message as
+ * the API returned it (thinking blocks and all — the API rejects a
+ * continuation that drops them), then one user message holding every
+ * tool_result. The live context stays where injectVolatile put it: on the
+ * original last user message, or — on a mid-turn-system model — as the
+ * trailing `system` entry, which must remain last, so the round goes in
+ * ahead of it.
+ */
+export function appendServerRound(
+  messages: Anthropic.MessageParam[],
+  assistantContent: Anthropic.ContentBlockParam[],
+  results: Anthropic.ToolResultBlockParam[],
+): Anthropic.MessageParam[] {
+  const round: Anthropic.MessageParam[] = [
+    { role: 'assistant', content: assistantContent },
+    { role: 'user', content: results },
+  ];
+  const last = messages[messages.length - 1];
+  if (last && last.role === 'system') return [...messages.slice(0, -1), ...round, last];
+  return [...messages, ...round];
+}
+
+function addUsage(total: UpstreamUsage | null, round: UpstreamUsage | null): UpstreamUsage | null {
+  if (!round) return total;
+  if (!total) return { ...round };
+  const sum = (key: keyof UpstreamUsage) => (total[key] ?? 0) + (round[key] ?? 0);
+  return {
+    input_tokens: sum('input_tokens'),
+    output_tokens: sum('output_tokens'),
+    cache_creation_input_tokens: sum('cache_creation_input_tokens'),
+    cache_read_input_tokens: sum('cache_read_input_tokens'),
+  };
 }
 
 /**
@@ -261,9 +404,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // Sanity bounds ~10x above legitimate usage — a request outside them is a
-  // bug or abuse, not a long conversation.
-  if (body.messages.length > 80 || JSON.stringify(body.messages).length > 400_000) {
+  // Sanity bounds well above legitimate usage — a request outside them is a
+  // bug or abuse, not a long conversation. The count was 80 before the sight
+  // loop; a turn that reads twice now stores two assistant/user pairs on top
+  // of its own, so the same conversation trips a count bound about three
+  // times sooner. 160 keeps the ~10x headroom the old bound had. The byte
+  // cap is unchanged — read results are the bytes that grow, and 400 KB is
+  // still far past any real thread. The real fix is context editing /
+  // compaction of old tool results, not a higher number (FOLLOW-UPS).
+  if (body.messages.length > 160 || JSON.stringify(body.messages).length > 400_000) {
     res.status(413).send('Conversation too large');
     return;
   }
@@ -368,7 +517,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const startedAt = Date.now();
   try {
     const client = makeAnthropicClient(apiKey);
-    const stream = client.messages.stream({
+    // Everything but `messages` is identical on every round of the turn —
+    // same system, same tools, same tool_choice — so the tools+system prefix
+    // reads back from cache on each continuation.
+    const request = {
       model: coachModel.id,
       // max_tokens caps thinking + response text together on current models.
       // At 1024, planning-heavy requests spent the whole budget on thinking
@@ -377,14 +529,70 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Per-model, not a shared literal: `thinking` is absent on models that
       // predate adaptive thinking, which reject it outright (models.ts).
       ...coachModel.params,
-      system: [{ type: 'text', text: system, cache_control: ephemeral(prefixTtl) }],
+      system: [{ type: 'text' as const, text: system, cache_control: ephemeral(prefixTtl) }],
       // Constant tool list (per mode) + tool_choice to gate it — see the
       // caching note above.
       tools: cachedToolSchemas(toolMode, prefixTtl),
       ...(withTools ? {} : { tool_choice: { type: 'none' as const } }),
-      messages: withTools ? withConversationBreakpoint(outgoing) : outgoing,
-    }, { signal: upstreamAbort.signal });
-    const { usage, stopReason, toolUseCount } = await translate(stream as AsyncIterable<Upstream>, send);
+    };
+    // The messages breakpoint lands once, on the original last user message
+    // (or the last user message ahead of the injected system entry); the
+    // rounds appended below carry none, so the breakpoints never move.
+    let messagesOut = withTools ? withConversationBreakpoint(outgoing) : outgoing;
+
+    // Only chat mode offers server-side tools; the other modes stream one
+    // response as they always did.
+    const serverLoop = toolMode === 'chat';
+    let usage: UpstreamUsage | null = null;
+    let stopReason: string | null = null;
+    let toolUseCount = 0;
+    let rounds = 0;
+
+    for (;;) {
+      const stream = client.messages.stream({ ...request, messages: messagesOut }, { signal: upstreamAbort.signal });
+      const outcome = await translate(stream as AsyncIterable<Upstream>, send, { deferToolUse: serverLoop, done: false });
+      usage = addUsage(usage, outcome.usage);
+      stopReason = outcome.stopReason;
+      toolUseCount += outcome.toolUseCount;
+      if (!serverLoop) break;
+
+      const toolBlocks = outcome.content.filter((b): b is Anthropic.ToolUseBlockParam => b.type === 'tool_use');
+      const reads = toolBlocks.filter(b => isServerSideTool(b.name));
+      const writes = toolBlocks.filter(b => !isServerSideTool(b.name));
+      const emitWrites = () => {
+        for (const w of writes) send({ type: 'tool_use', id: w.id, name: w.name, input: w.input as Record<string, unknown> });
+      };
+      if (reads.length === 0) {
+        emitWrites();
+        break;
+      }
+      // Reads that would continue the loop are bounded; reads alongside a
+      // write end the turn anyway (the client finishes it), so they always
+      // run — a refused read there would leave its tool_use unanswered.
+      const continues = writes.length === 0;
+      if (continues && (rounds >= MAX_SERVER_ROUNDS || Date.now() - startedAt > ROUND_BUDGET_MS)) {
+        console.warn('[api/chat] server tool loop stopped:', requestId, { rounds, elapsedMs: Date.now() - startedAt });
+        send({ type: 'notice', message: ROUND_LIMIT_NOTICE });
+        break;
+      }
+
+      for (const r of reads) {
+        send({ type: 'tool_read', id: r.id, name: r.name, input: r.input as Record<string, unknown>, label: serverSideToolLabel(r.name, r.input) });
+      }
+      const outcomes = await Promise.all(reads.map(r => runServerSideTool(supabase, userId, r)));
+      outcomes.forEach((o, i) => send({ type: 'tool_read_result', id: reads[i].id, text: o.text, isError: o.isError }));
+
+      if (!continues) {
+        // Mixed: the confirm flow supplies the writes' results, and the
+        // client folds these read results into the same tool_result message.
+        emitWrites();
+        break;
+      }
+      rounds += 1;
+      messagesOut = appendServerRound(messagesOut, outcome.content, outcomes.map(o => o.result));
+    }
+    send({ type: 'done' });
+
     // The stored row is the queryable record; this line stays because the
     // Vercel log is the real-time view, and the one thing a row cannot be is
     // read while the request is still in flight.
@@ -395,6 +603,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         promptVersion: PROMPT_VERSION,
         client: runBase.client,
         withTools,
+        rounds,
         input:      usage.input_tokens ?? 0,
         cacheRead:  usage.cache_read_input_tokens ?? 0,
         cacheWrite: usage.cache_creation_input_tokens ?? 0,
