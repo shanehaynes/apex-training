@@ -43,7 +43,7 @@ cd "$(cd "$(dirname "$0")/.." && pwd -P)" || exit 1
 # APEX) — it 200s convincingly, which fooled the pre-SHA heuristic on its
 # first run. This repo's vercel.app aliases sit behind Vercel SSO (302), so
 # the public custom domain is the only host that can answer /api/version.
-url="${APEX_PROD_URL:-https://apextrainingcalendar.vercel.app}"
+url="${APEX_PROD_URL:-https://apex-training.app}"
 max_minutes=8
 for arg in "$@"; do
   case "$arg" in

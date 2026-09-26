@@ -2,5 +2,5 @@
 
 // A device build during development still talks to production — there is no
 // second backend, and a phone cannot reach the Mac's localhost stack.
-APEX_API_BASE = https:$(SLASH)$(SLASH)apextrainingcalendar.vercel.app
+APEX_API_BASE = https:$(SLASH)$(SLASH)apex-training.app
 SUPABASE_URL = $(APEX_PROD_SUPABASE_URL)

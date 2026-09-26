@@ -51,7 +51,7 @@ cd "$(cd "$(dirname "$0")/.." && pwd -P)" || exit 1
 
 # Same default as scripts/deploy-verify.sh, and for the same reason: the
 # vercel.app aliases are SSO-walled, so the custom domain is the only public one.
-prod="${APEX_PROD_URL:-https://apextrainingcalendar.vercel.app}"
+prod="${APEX_PROD_URL:-https://apex-training.app}"
 supabase="${APEX_SUPABASE_URL:-https://prmlzrkcfvmfapauoxqn.supabase.co}"
 
 for arg in "$@"; do

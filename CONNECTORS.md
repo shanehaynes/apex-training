@@ -18,10 +18,10 @@ annotated drawings of each Claude and ChatGPT screen, a glossary, and the
 troubleshooting list below in plainer words. This file stays the reference —
 the in-app guide is the walkthrough.
 
-For the deployment at `apextrainingcalendar.vercel.app`, the server URL is:
+For the deployment at `apex-training.app`, the server URL is:
 
 ```
-https://apextrainingcalendar.vercel.app/api/mcp
+https://apex-training.app/api/mcp
 ```
 
 ---
@@ -47,7 +47,7 @@ Mint a token in the Apex app under **Profile → AI connector** (it is shown
 exactly once — copy it immediately), then:
 
 ```bash
-claude mcp add --transport http apex https://apextrainingcalendar.vercel.app/api/mcp \
+claude mcp add --transport http apex https://apex-training.app/api/mcp \
   --header "Authorization: Bearer apx_..."
 ```
 
@@ -88,7 +88,7 @@ Any client that speaks Streamable HTTP works. Two common shapes:
   only), bridge with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote):
 
   ```bash
-  npx mcp-remote https://apextrainingcalendar.vercel.app/api/mcp \
+  npx mcp-remote https://apex-training.app/api/mcp \
     --header "Authorization: Bearer apx_..."
   ```
 
