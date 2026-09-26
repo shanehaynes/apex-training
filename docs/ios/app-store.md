@@ -75,8 +75,9 @@ it), so this is a second pair of eyes on the same gate, not a different one. Wha
 triggers, RLS policies, grants, constraints, defaults, column types, function signatures and
 realtime publication membership — a migration that only changes those can still be missing.
 
-Last hand-run: **2026-09-19, exit 0** — all 30 tables (344 columns) and 2 functions `main` expects
-are present in production.
+Last hand-run: **2026-09-26, exit 0** — all 33 tables (377 columns) and 2 functions `main` expects
+are present in production (phase46 and phase47 confirmed applied; the 2026-09-19 run saw 30 tables,
+344 columns).
 
 ## 3. App Review Information
 
