@@ -8,8 +8,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | Lane | Title | Wave | State | Branch | Port | Notes |
 |---|---|---|---|---|---|---|
 | O01 | Scaffold: docs, catalog stubs, help stubs, CSS files | 0 | done (#321) | `chore/onboarding-scaffold` | — | |
-| O02 | Migration `profiles.tips_seen` (phase47) | 1 | in review (#322) — **HELD for `shipit`** | `db/tips-seen` | 5211 | then apply in prod + `prod-schema-check` |
-| O03 | Tips core: useTip, TipHost, TipCard, API, local mirror | 1 | done (#324, #327) | `feat/tips-core` | 5212 | per-device until #322 is in prod |
+| O02 | Migration `profiles.tips_seen` (phase47) | 1 | done (#322) | `db/tips-seen` | 5211 | in prod; `prod-schema-check` exit 0 on 2026-09-26 |
+| O03 | Tips core: useTip, TipHost, TipCard, API, local mirror | 1 | done (#324, #327) | `feat/tips-core` | 5212 | server-side since 2026-09-26 (phase47 in prod) |
 | O04 | Help shell: `/help` route, images, shots pipeline | 1 | done (#325) | `feat/help-pages` | 5213 | `/help/*` live in prod |
 | O05 | Welcome trim: four cards + iOS parity for the intro | 1 | done (#323) | `feat/welcome-four-cards` | 5214 | iOS snapshot tests stale (opt-in) — parity session |
 | O06 | Research: subscription OAuth | 1 | done (report in `research/`) | — | — | recommendation: research only; **D-O06 awaits Shane** |
@@ -31,10 +31,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 Merge path while main's up-to-date rule is off: `scripts/merge-babysit.sh --fleet --yes`.
 
 ## Next up
-1. **Shane:** `shipit` on #322 and apply `phase47_tips_seen.sql` in prod; re-run
-   `scripts/prod-schema-check.mjs`. Until then tips are remembered per device only.
-2. **Shane:** decide D-O06 (recommendation: research only, close it).
-3. **Shane + orchestrator (O16d):** the external screenshots, through the Chrome extension with
+1. **Shane:** decide D-O06 (recommendation: research only, close it).
+2. **Shane + orchestrator (O16d):** the external screenshots, through the Chrome extension with
    Shane signed in, reviewed before commit; then remove each `EXTERNAL:` comment.
    - `get-api-key`: 01 console sign-up (375); 02 Billing / Buy credits (1280, redact org,
      email, card, balance); 03 API keys empty + **Create Key** (1280); 04 Create Key dialog with
@@ -58,6 +56,9 @@ Merge path while main's up-to-date rule is off: `scripts/merge-babysit.sh --flee
    bare `npx playwright test` regenerates every committed PNG.
 
 ## Recent sessions
+- 2026-09-26 · release order step 3 · Mac. #322 merged 2026-09-25 and phase47 is in production:
+  `scripts/prod-schema-check.mjs` exit 0 (33 tables, 377 columns, 2 functions). Tips are now
+  remembered server-side, not per device. Next-up item 1 closed.
 - 2026-09-25 · wave 3 · Linux. #337 (nudge hides while the + menu is open), the copy audit
   (read-only Opus lane; 17 copy rows, 13 label rows, 9 consistency rows) applied in #338
   including nine on-screen labels, the `app-verifier` fresh-profile walk on the merged tree

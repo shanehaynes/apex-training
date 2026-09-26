@@ -61,6 +61,10 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-09-26 · App Store release order, step 3 · Mac. The `ios` CI job red on `main` since #338 is
+  fixed in #347 (one over-literal assertion in `OnboardingModelTests`, a test change for Shane to
+  review). Production schema re-proved: `scripts/prod-schema-check.mjs` exit 0, 33 tables, 377
+  columns, 2 functions — phase46 and phase47 are applied, nothing to paste (app-store.md §2).
 - 2026-09-21 · UX review + implementation · Mac. One Fable 5.1 orchestrator walked the app
   (`docs/ios/ux-review.md`, #280), then ten Opus 5 workers in six waves, two at a time, each on
   its own worktree and simulator: #283 picker primitive, #284 palette, #285 schedule chrome,
