@@ -8,7 +8,8 @@ import type { CoachMode, NewCoachMessage, StoredCoachMessage } from '../lib/api'
 import { createWireCollector } from '../lib/coach/wire';
 import { toPendingActions, settleHead, appendUserText } from '../lib/coach/actionQueue';
 import type { ApiMessage, PendingAction, TextBlock, ToolResultBlock } from '../lib/coach/actionQueue';
-import type { WireToolUse } from '../lib/coach/wire';
+import type { WireRead, WireRound, WireToolUse } from '../lib/coach/wire';
+import { isServerSideTool, serverSideToolChip } from '../lib/coach/tools';
 
 export type { PendingAction } from '../lib/coach/actionQueue';
 
@@ -21,6 +22,9 @@ export interface DisplayMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  /** What the coach checked before this reply — one chip per server-side
+   *  call ("Checked: Deadlift history"), in the order it made them. */
+  reads?: string[];
 }
 
 /** Shown when the server answers 402: the user has no Anthropic key saved. */
@@ -74,10 +78,21 @@ export function hydrateFromRows(rows: StoredCoachMessage[]): {
 } {
   const messages: DisplayMessage[] = [];
   let apiMessages: ApiMessage[] = [];
+  // The chips of the turn being rebuilt: a server round is a hidden
+  // assistant row whose tool_use blocks are all server-side, and its chips
+  // belong to the next reply the thread shows. The wire's labels are gone by
+  // now; serverSideToolChip names the tool instead.
+  let pendingReads: string[] = [];
 
   for (const row of rows) {
+    if (row.role === 'assistant') pendingReads.push(...readChipsOf(row.api_content));
     if (row.display_text !== null && row.display_text !== undefined) {
-      messages.push({ id: row.id, role: row.role, content: row.display_text });
+      const message: DisplayMessage = { id: row.id, role: row.role, content: row.display_text };
+      if (row.role === 'assistant' && pendingReads.length > 0) message.reads = pendingReads;
+      messages.push(message);
+      // A shown user message closes the previous turn: chips left over from
+      // a turn that ended with reads and no reply stay with that turn.
+      pendingReads = [];
     }
     if (row.api_content === null || row.api_content === undefined) continue;
     if (row.role === 'user' && typeof row.api_content === 'string') {
@@ -88,6 +103,100 @@ export function hydrateFromRows(rows: StoredCoachMessage[]): {
   }
 
   return { messages, apiMessages };
+}
+
+/** The chips for the server-side tool_use blocks in a stored assistant row. */
+function readChipsOf(apiContent: unknown): string[] {
+  if (!Array.isArray(apiContent)) return [];
+  return (apiContent as Array<{ type?: unknown; name?: unknown; input?: unknown }>)
+    .filter(b => b?.type === 'tool_use' && typeof b.name === 'string' && isServerSideTool(b.name))
+    .map(b => serverSideToolChip(b.name as string, b.input));
+}
+
+// ─── The sight loop's history (exported for testing) ─────────────────────────
+
+function toolResultOf(read: WireRead): ToolResultBlock {
+  const block: ToolResultBlock & { is_error?: boolean } = {
+    type: 'tool_result',
+    tool_use_id: read.use.id,
+    // The structured content when the server sent one (the doctrine's
+    // citable document), so a mixed round's post-confirm reply can cite it
+    // exactly as a server-continued round could.
+    content: read.result.content ?? read.result.text,
+  };
+  if (read.result.isError) block.is_error = true;
+  return block;
+}
+
+export interface TurnHistory {
+  /** The server rounds as API messages, in order: for each, an assistant
+   *  message (the round's text, then its read tool_use blocks) and a user
+   *  message of the matching tool_results. */
+  serverMessages: ApiMessage[];
+  /** The final assistant content: the last text, then — on a mixed
+   *  response — the reads that came with the writes, then the writes.
+   *  Empty when the model said nothing after its last reads. */
+  finalContent: Array<TextBlock | WireToolUse>;
+  /** The read results a mixed response's write flush must carry; [] otherwise. */
+  heldResults: ToolResultBlock[];
+  /** One chip per server-side call across the whole turn. */
+  chips: string[];
+}
+
+/**
+ * Rebuild what the API saw during one turn from the rounds the wire
+ * described (createWireCollector), so the stored thread replays as a valid
+ * transcript: every read tool_use is answered by a tool_result in the next
+ * user message. Two shapes:
+ *
+ * - Reads that continued the turn (every round but the last) become an
+ *   assistant/user pair each. A last round whose reads were answered but
+ *   followed by no text is such a pair too, and the final content is empty;
+ *   the caller then stores nothing more, and the next user text folds into
+ *   the trailing tool_result message (appendUserText).
+ * - A last round with reads AND write tool_uses (the model read and asked to
+ *   write in one response) keeps its reads in the final assistant message;
+ *   their results are held so the confirm flow's flush carries them next to
+ *   the write results — the API wants every tool_use of that message
+ *   answered in one place.
+ */
+export function historyForTurn(rounds: WireRound[], toolUses: WireToolUse[]): TurnHistory {
+  const last = rounds[rounds.length - 1] ?? { text: '', reads: [] };
+  const mixed = toolUses.length > 0 && last.reads.length > 0;
+  const serverRounds = mixed ? rounds.slice(0, -1) : rounds.filter(r => r.reads.length > 0);
+
+  const serverMessages: ApiMessage[] = [];
+  for (const round of serverRounds) {
+    const assistant: Array<TextBlock | WireToolUse> = [];
+    if (round.text) assistant.push({ type: 'text', text: round.text });
+    assistant.push(...round.reads.map(r => r.use));
+    serverMessages.push({ role: 'assistant', content: assistant });
+    serverMessages.push({ role: 'user', content: round.reads.map(toolResultOf) });
+  }
+
+  const finalText = !mixed && last.reads.length > 0 ? '' : last.text;
+  const finalContent: Array<TextBlock | WireToolUse> = [];
+  if (finalText) finalContent.push({ type: 'text', text: finalText });
+  if (mixed) finalContent.push(...last.reads.map(r => r.use));
+  finalContent.push(...toolUses);
+
+  return {
+    serverMessages,
+    finalContent,
+    heldResults: mixed ? last.reads.map(toolResultOf) : [],
+    chips: rounds.flatMap(r => r.reads.map(read => read.label)),
+  };
+}
+
+/** The final assistant content as the thread stores it — a plain string for
+ *  a text-only reply, the block array otherwise (the shape the model saw). */
+export function assistantApiContent(finalContent: Array<TextBlock | WireToolUse>): string | Array<TextBlock | WireToolUse> {
+  return finalContent.length === 1 && finalContent[0].type === 'text' ? finalContent[0].text : finalContent;
+}
+
+/** A display-only row: something the thread shows that the model never said. */
+export function noticeRow(message: string): NewCoachMessage {
+  return { role: 'assistant', api_content: null, display_text: message, kind: 'notice' };
 }
 
 /** One stored turn. `displayText` null makes it a hidden row. */
@@ -193,6 +302,8 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
   const [heldResults,    setHeldResults]    = useState<ToolResultBlock[]>([]);
   const [isLoading,      setIsLoading]      = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
+  /** Chips for the server-side calls of the turn in flight, as they start. */
+  const [streamingReads, setStreamingReads] = useState<string[]>([]);
   const abortRef = useRef<(() => void) | null>(null);
   // Carried in every callback's dep list below, not just closed over: these
   // are memoized on other state, so a switch in the picker with no other
@@ -270,7 +381,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     msgs: ApiMessage[],
     ctx: ChatContext,
     withTools: boolean,
-  ): Promise<{ text: string; toolUses: WireToolUse[] }> {
+  ): Promise<{ text: string; toolUses: WireToolUse[]; rounds: WireRound[]; reads: WireRead[]; notices: string[] }> {
     const controller = new AbortController();
     abortRef.current = () => controller.abort();
 
@@ -294,7 +405,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
       throw new ApiError(await res.text().catch(() => `chat request failed: ${res.status}`), res.status);
     }
 
-    const collector = createWireCollector(setStreamingContent);
+    const collector = createWireCollector(setStreamingContent, setStreamingReads);
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -305,7 +416,13 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     }
     collector.end();
 
-    return { text: collector.text, toolUses: collector.toolUses };
+    return {
+      text: collector.text,
+      toolUses: collector.toolUses,
+      rounds: collector.rounds,
+      reads: collector.reads,
+      notices: collector.notices,
+    };
   }
 
   // ── sendMessage ────────────────────────────────────────────────────────────
@@ -313,6 +430,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
   const sendMessage = useCallback(async (content: string, ctx: ChatContext) => {
     setIsLoading(true);
     setStreamingContent('');
+    setStreamingReads([]);
 
     const userDisplayMsg: DisplayMessage = { id: localMessageId(), role: 'user', content };
 
@@ -324,36 +442,48 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     setApiMessages(nextApiMessages);
 
     try {
-      const { text, toolUses } = await streamResponse(nextApiMessages, ctx, true);
+      const { text, toolUses, rounds, notices } = await streamResponse(nextApiMessages, ctx, true);
 
-      // Build the assistant's API content (may include tool_use blocks)
-      const assistantContent: Array<TextBlock | WireToolUse> = [];
-      if (text) assistantContent.push({ type: 'text', text });
-      assistantContent.push(...toolUses);
+      // The server may have read before it spoke (the sight loop): every
+      // server round is an assistant/user pair the history must carry, then
+      // the final assistant message (text, and any write tool_use blocks).
+      const { serverMessages, finalContent, heldResults: readResults, chips } = historyForTurn(rounds, toolUses);
+      const rows: NewCoachMessage[] = [turnRow('user', content, content)];
+      let history: ApiMessage[] = [...nextApiMessages, ...serverMessages];
+      for (const m of serverMessages) rows.push(turnRow(m.role, m.content, null));
 
-      const assistantApiMsg: ApiMessage = {
-        role:    'assistant',
-        content: assistantContent.length === 1 && assistantContent[0].type === 'text'
-          ? text   // simple string for pure-text responses
-          : assistantContent,
-      };
+      if (finalContent.length > 0) {
+        const assistantApiMsg: ApiMessage = { role: 'assistant', content: assistantApiContent(finalContent) };
+        history = [...history, assistantApiMsg];
+        rows.push(turnRow('assistant', assistantApiMsg.content, text || null));
+      } else if (text) {
+        // Reads with no reply after them: the words shown came from an
+        // earlier round (already stored hidden), so the thread keeps them as
+        // a display-only row. The next user text folds into the trailing
+        // tool_result message (appendUserText), which keeps the history valid.
+        rows.push(turnRow('assistant', null, text));
+      }
+      setApiMessages(history);
 
-      const withAssistant = [...nextApiMessages, assistantApiMsg];
-      setApiMessages(withAssistant);
-
+      const reads = chips.length > 0 ? chips : undefined;
       if (toolUses.length > 0) {
         // Show any pre-tool text Claude spoke, then surface the pending
-        // actions — one confirmation card at a time, in emission order
-        if (text) setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: text }]);
-        setHeldResults([]);
+        // actions — one confirmation card at a time, in emission order.
+        if (text || reads) setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: text, reads }]);
+        // A mixed response's read results flush with the write results.
+        setHeldResults(readResults);
         setPendingActions(toPendingActions(toolUses));
-      } else {
-        setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: text }]);
+      } else if (text || reads) {
+        setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: text, reads }]);
+      }
+      for (const message of notices) {
+        setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: message }]);
+        rows.push(noticeRow(message));
       }
 
-      // The turn completed: store the user's words and the assistant's reply
-      // as one batch.
-      void persist(rowsForUserTurn(content, assistantApiMsg.content, text));
+      // The turn completed: store the user's words, the rounds, and the
+      // assistant's reply as one batch.
+      void persist(rows);
     } catch (err: unknown) {
       // Nothing is stored for a failed turn: the user message never reached a
       // reply, and a half-turn replayed on the next load would be a question
@@ -368,6 +498,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     } finally {
       setIsLoading(false);
       setStreamingContent('');
+      setStreamingReads([]);
       abortRef.current = null;
     }
   }, [apiMessages, coachModel, persist]);
@@ -493,6 +624,8 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     messages,
     isLoading,
     streamingContent,
+    /** "Checked: …" for the turn in flight, in the order the calls started. */
+    streamingReads,
     /** Head of the queue — the action currently awaiting confirm/cancel. */
     pendingAction: pendingActions[0] ?? null,
     /** How many actions remain (including the one showing), for "1 of N" UI. */

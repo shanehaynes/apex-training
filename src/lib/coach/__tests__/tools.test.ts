@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { COACH_TOOLS, findCoachTool } from '../tools';
+import {
+  COACH_TOOLS, findCoachTool, isServerSideTool, READ_DOCTRINE_TOOL, SERVER_SIDE_READ_TOOL_NAMES, serverSideToolChip,
+} from '../tools';
 import { coachToolSchemas } from '../schemas';
+import { COACH_READ_TOOLS } from '../../../../api/_lib/coach/readTools';
+import { readDoctrineToolSchema } from '../doctrine';
 import type { CoachToolDeps } from '../tools';
 import type { ExerciseDefinition } from '../../../types/workout';
 import type { Meal } from '../../../types/nutrition';
@@ -57,6 +61,33 @@ function makeDeps(overrides: Partial<CoachToolDeps> = {}): CoachToolDeps {
     ...overrides,
   };
 }
+
+describe('server-side tools — the hand-mirrored name list', () => {
+  it('matches COACH_READ_TOOLS and read_doctrine exactly, in order', () => {
+    // The client cannot import the read tools' module (it is the MCP tool
+    // implementations), so tools.ts mirrors the names by hand; this is the
+    // test that keeps the mirror honest. A read tool added in readTools.ts
+    // without a line here would be offered to the model and then treated
+    // as a confirm-card tool.
+    expect([...SERVER_SIDE_READ_TOOL_NAMES]).toEqual(COACH_READ_TOOLS.map(t => t.name));
+    expect(READ_DOCTRINE_TOOL).toBe(readDoctrineToolSchema.name);
+  });
+
+  it('isServerSideTool is true for every read tool and read_doctrine, false for every write tool', () => {
+    for (const name of SERVER_SIDE_READ_TOOL_NAMES) expect(isServerSideTool(name)).toBe(true);
+    expect(isServerSideTool('read_doctrine')).toBe(true);
+    for (const schema of coachToolSchemas()) expect(isServerSideTool(schema.name)).toBe(false);
+    expect(isServerSideTool('nope')).toBe(false);
+  });
+
+  it('serverSideToolChip names the tool for a reloaded thread, and never throws', () => {
+    expect(serverSideToolChip('get_exercise_history', { exercise_name: 'Deadlift' })).toBe('Checked: exercise history');
+    expect(serverSideToolChip('search_history', { query: 'knee' })).toBe('Searched: history');
+    expect(serverSideToolChip('read_doctrine', { topic: 'strength' })).toBe('Read doctrine: strength');
+    expect(serverSideToolChip('read_doctrine', null)).toBe('Read doctrine');
+    expect(serverSideToolChip('get_prs', undefined)).toBe('Checked: prs');
+  });
+});
 
 describe('coach tool registry', () => {
   it('exposes each tool exactly once, findable by schema name', () => {

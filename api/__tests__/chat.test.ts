@@ -1,8 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type Anthropic from '@anthropic-ai/sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import handler, { cachedToolSchemas, injectVolatile, streamToWireEvents, withConversationBreakpoint } from '../chat';
+import handler, {
+  appendServerRound, cachedToolSchemas, chatToolSchemas, injectVolatile, MAX_SERVER_ROUNDS, ROUND_LIMIT_NOTICE,
+  runServerSideTool, serverSideToolLabel, streamToWireEvents, withConversationBreakpoint,
+} from '../chat';
 import type { UpstreamEvent } from '../chat';
+import { DOCTRINE_TOPICS, readDoctrine, readDoctrineToolSchema } from '../../src/lib/coach/doctrine';
+import { coachToolSchemas } from '../../src/lib/coach/schemas';
 import { COACH_MODEL } from '../../src/lib/coach/model';
 import type { ChatWireEvent } from '../../src/lib/coach/wire';
 
@@ -51,6 +56,18 @@ const { reportErrorMock } = vi.hoisted(() => ({
 }));
 vi.mock('../_lib/errorReport.js', () => ({ reportError: reportErrorMock }));
 vi.mock('../_lib/anthropicKey.js', () => ({ getAnthropicKey: vi.fn(async () => null) }));
+// The read tools' executor is scripted (its own suite is readTools.test.ts);
+// the schemas, labels and name list stay real so the request shape is the
+// production one.
+const { executeReadToolMock } = vi.hoisted(() => ({
+  executeReadToolMock: vi.fn(async (_db: unknown, _user: string, name: string, input: unknown) =>
+    ({ text: `RESULT ${name} ${JSON.stringify(input)}`, isError: false })),
+}));
+vi.mock('../_lib/coach/readTools.js', async () => {
+  const actual = await vi.importActual<typeof import('../_lib/coach/readTools')>('../_lib/coach/readTools');
+  return { ...actual, executeReadTool: executeReadToolMock };
+});
+import { readToolSchemas } from '../_lib/coach/readTools';
 vi.mock('../_lib/rateLimit.js', () => ({ enforceRateLimit: vi.fn(async () => true) }));
 // The server-side prompt builder (W5a): scripted here; its own suite is
 // api/__tests__/coach-context.test.ts.
@@ -85,6 +102,11 @@ beforeEach(() => {
   clientOptions.length = 0;
   insertError.value = null;
   reportErrorMock.mockClear();
+  executeReadToolMock.mockClear();
+  // A queued once-implementation a test did not consume must not leak into
+  // the next test's first round: reset, then restore the empty default.
+  streamMock.mockReset();
+  streamMock.mockImplementation(() => (async function* (): AsyncGenerator<never> {})());
 });
 
 async function* upstream(events: UpstreamEvent[]): AsyncIterable<UpstreamEvent> {
@@ -215,10 +237,16 @@ describe('chat handler — input sanity caps', () => {
     vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
     const { res, statusCode } = makeHandlerRes();
 
-    const messages = Array.from({ length: 81 }, () => ({ role: 'user', content: 'hi' }));
+    // 160, not 80: a read turn stores its server rounds as extra messages.
+    const messages = Array.from({ length: 161 }, () => ({ role: 'user', content: 'hi' }));
     await handler(makeHandlerReq({ messages, system: 'x' }), res);
 
     expect(statusCode()).toBe(413);
+
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    const ok = makeHandlerRes();
+    await handler(makeHandlerReq({ messages: messages.slice(0, 160), system: 'x' }), ok.res);
+    expect(ok.statusCode()).toBeNull();
   });
 
   it('400s on a message with a non-chat role', async () => {
@@ -863,5 +891,393 @@ describe('chat handler — request id is absent from the plain-HTTP error paths'
     const limited = makeHandlerRes();
     await handler(makeHandlerReq({ messages: [], system: 'x' }), limited.res);
     expect(limited.headers['x-apex-request-id']).toBeUndefined();
+  });
+});
+
+// ─── The sight loop: server-side tool rounds inside one turn ─────────────────
+
+/** Queue one upstream response per round, in call order. */
+function queueRounds(...rounds: UpstreamEvent[][]) {
+  for (const events of rounds) streamMock.mockImplementationOnce(() => upstream(events) as never);
+}
+
+function toolCall(id: string, name: string, input: Record<string, unknown>): UpstreamEvent[] {
+  return [
+    { type: 'content_block_start', content_block: { type: 'tool_use', id, name } },
+    { type: 'content_block_delta', delta: { type: 'input_json_delta', partial_json: JSON.stringify(input) } },
+    { type: 'content_block_stop' },
+  ];
+}
+
+function textBlock(text: string): UpstreamEvent[] {
+  return [
+    { type: 'content_block_start', content_block: { type: 'text' } },
+    { type: 'content_block_delta', delta: { type: 'text_delta', text } },
+    { type: 'content_block_stop' },
+  ];
+}
+
+function ended(stopReason: string, usage = { input_tokens: 11, cache_read_input_tokens: 7, cache_creation_input_tokens: 3 }): UpstreamEvent[] {
+  return [
+    { type: 'message_start', message: { usage } },
+    { type: 'message_delta', delta: { type: 'message_delta', stop_reason: stopReason }, usage: { output_tokens: 5 } },
+  ];
+}
+
+const DEADLIFT = { exercise_name: 'Deadlift' };
+const LIVE_BLOCK = { type: 'text', text: '<live_context>LIVE STATE</live_context>' };
+
+function chatBody(over: Record<string, unknown> = {}) {
+  return {
+    mode: 'chat', today: '2026-09-03', withTools: true,
+    messages: [{ role: 'user', content: 'how is my deadlift going?' }],
+    ...over,
+  };
+}
+
+async function runChat(body: Record<string, unknown>) {
+  vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+  const h = makeHandlerRes();
+  await handler(makeHandlerReq(body), h.res);
+  const events = h.writes.join('').trim().split('\n').filter(Boolean).map(l => JSON.parse(l) as ChatWireEvent);
+  return { ...h, events };
+}
+
+function paramsOfCall(i: number): Anthropic.MessageStreamParams {
+  return streamMock.mock.calls[i][0] as unknown as Anthropic.MessageStreamParams;
+}
+
+describe('chat tool list — the sight loop', () => {
+  it('chat mode sends the write tools, then the read tools, then read_doctrine, in that fixed order', () => {
+    const names = cachedToolSchemas('chat').map(t => t.name);
+    expect(names).toEqual([
+      ...coachToolSchemas().map(t => t.name),
+      ...readToolSchemas().map(t => t.name),
+      readDoctrineToolSchema.name,
+    ]);
+    expect(names.at(-1)).toBe('read_doctrine');
+    expect(names).toContain('get_exercise_history');
+    // The breakpoint sits on the LAST schema only, whatever the list length.
+    const tools = cachedToolSchemas('chat', '1h');
+    expect(tools.at(-1)).toMatchObject({ name: 'read_doctrine', cache_control: { type: 'ephemeral', ttl: '1h' } });
+    expect(tools.slice(0, -1).every(t => !('cache_control' in t))).toBe(true);
+    // Builder and analytics stay single-tool.
+    expect(cachedToolSchemas('builder').map(t => t.name)).toEqual(['update_workout_draft']);
+    expect(cachedToolSchemas('analytics').map(t => t.name)).toEqual(['update_chart_draft']);
+    // Identical on every call: a prefix match over the tool list needs that.
+    expect(chatToolSchemas()).toEqual(chatToolSchemas());
+    // The module's own schema object is never handed out, so a caller's
+    // cache_control cannot bleed into the next turn.
+    expect(chatToolSchemas().at(-1)).not.toBe(readDoctrineToolSchema);
+  });
+});
+
+describe('chat handler — server-side read loop', () => {
+  it('runs a read round server-side, hands the result back, and streams the second answer', async () => {
+    queueRounds(
+      [...ended('tool_use'), ...textBlock('Checking.'), ...toolCall('tu_r1', 'get_exercise_history', DEADLIFT)],
+      [...ended('end_turn'), ...textBlock('Your deadlift is up 10 lb.')],
+    );
+    const { events } = await runChat(chatBody());
+
+    expect(streamMock).toHaveBeenCalledTimes(2);
+    expect(events.map(e => e.type)).toEqual(['text', 'tool_read', 'tool_read_result', 'text', 'done']);
+    expect(events[1]).toEqual({
+      type: 'tool_read', id: 'tu_r1', name: 'get_exercise_history', input: DEADLIFT, label: 'Checked: Deadlift history',
+    });
+    expect(events[2]).toEqual({ type: 'tool_read_result', id: 'tu_r1', text: `RESULT get_exercise_history ${JSON.stringify(DEADLIFT)}`, isError: false });
+    expect(events[3]).toEqual({ type: 'text', delta: 'Your deadlift is up 10 lb.' });
+    // Never a confirm card for a read.
+    expect(events.some(e => e.type === 'tool_use')).toBe(false);
+    expect(executeReadToolMock).toHaveBeenCalledWith(expect.anything(), 'user-123', 'get_exercise_history', DEADLIFT);
+
+    // The continuation: same system, tools and breakpoints; the live context
+    // stays on the original user message and is injected exactly once; the
+    // assistant message and one user message of tool_results follow it.
+    const first = paramsOfCall(0);
+    const second = paramsOfCall(1);
+    expect(second.system).toEqual(first.system);
+    expect(second.tools).toEqual(first.tools);
+    expect(second.tool_choice).toEqual(first.tool_choice);
+    expect(second.messages).toHaveLength(3);
+    expect(second.messages[0]).toEqual(first.messages[0]);
+    expect(second.messages[0]).toEqual({
+      role: 'user',
+      content: [LIVE_BLOCK, { type: 'text', text: 'how is my deadlift going?', cache_control: { type: 'ephemeral' } }],
+    });
+    expect(second.messages[1]).toEqual({
+      role: 'assistant',
+      content: [
+        { type: 'text', text: 'Checking.' },
+        { type: 'tool_use', id: 'tu_r1', name: 'get_exercise_history', input: DEADLIFT },
+      ],
+    });
+    expect(second.messages[2]).toEqual({
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: 'tu_r1', content: `RESULT get_exercise_history ${JSON.stringify(DEADLIFT)}` }],
+    });
+    expect(JSON.stringify(second.messages).match(/LIVE STATE/g)).toHaveLength(1);
+    // No breakpoint on the appended round: the three breakpoints never move.
+    expect(JSON.stringify(second.messages.slice(1))).not.toContain('cache_control');
+
+    // One row for the turn: usage summed over both rounds, reads counted.
+    expect(coachRuns).toHaveLength(1);
+    expect(coachRuns[0]).toMatchObject({
+      input_tokens: 22, cache_read_tokens: 14, cache_write_tokens: 6, output_tokens: 10,
+      tool_use_count: 1, stop_reason: 'end_turn',
+    });
+  });
+
+  it('answers every read of a parallel round in ONE user message, in block order', async () => {
+    queueRounds(
+      [...ended('tool_use'), ...toolCall('tu_a', 'get_prs', { scope: 'all' }), ...toolCall('tu_b', 'get_training_blocks', {})],
+      [...ended('end_turn'), ...textBlock('Here is where you stand.')],
+    );
+    const { events } = await runChat(chatBody());
+
+    expect(events.map(e => e.type)).toEqual(['tool_read', 'tool_read', 'tool_read_result', 'tool_read_result', 'text', 'done']);
+    expect((events[0] as { id: string }).id).toBe('tu_a');
+    expect((events[1] as { id: string }).id).toBe('tu_b');
+    expect((events[2] as { id: string }).id).toBe('tu_a');
+    expect((events[3] as { id: string }).id).toBe('tu_b');
+    const second = paramsOfCall(1);
+    expect(second.messages).toHaveLength(3);
+    expect((second.messages[2].content as Array<{ tool_use_id: string }>).map(b => b.tool_use_id)).toEqual(['tu_a', 'tu_b']);
+    expect(coachRuns[0]).toMatchObject({ tool_use_count: 2 });
+  });
+
+  it('marks a failed read is_error for the model and on the wire, without failing the turn', async () => {
+    executeReadToolMock.mockResolvedValueOnce({ text: 'start_date must be YYYY-MM-DD', isError: true });
+    queueRounds(
+      [...ended('tool_use'), ...toolCall('tu_bad', 'get_schedule', { start_date: 'yesterday' })],
+      [...ended('end_turn'), ...textBlock('Which week did you mean?')],
+    );
+    const { events, statusCode } = await runChat(chatBody());
+
+    expect(statusCode()).toBeNull();
+    expect(events[1]).toEqual({ type: 'tool_read_result', id: 'tu_bad', text: 'start_date must be YYYY-MM-DD', isError: true });
+    expect(paramsOfCall(1).messages[2].content).toEqual([
+      { type: 'tool_result', tool_use_id: 'tu_bad', content: 'start_date must be YYYY-MM-DD', is_error: true },
+    ]);
+    expect(events.at(-1)).toEqual({ type: 'done' });
+  });
+
+  it('mixed response: executes the reads, surfaces the write as a labelled confirm card, ends the turn', async () => {
+    queueRounds([
+      ...ended('tool_use'),
+      ...textBlock('Clearing it.'),
+      ...toolCall('tu_read', 'get_prs', { scope: 'all' }),
+      ...toolCall('tu_write', 'delete_event', { event_id: 'evt-9', scope: 'all' }),
+    ]);
+    const { events } = await runChat(chatBody());
+
+    // The reads are answered on the wire BEFORE the write is surfaced, so
+    // the client can fold their results into its tool_result message.
+    expect(events.map(e => e.type)).toEqual(['text', 'tool_read', 'tool_read_result', 'tool_use', 'done']);
+    expect(events[3]).toMatchObject({
+      type: 'tool_use', id: 'tu_write', name: 'delete_event', input: { event_id: 'evt-9', scope: 'all' },
+      label: 'Delete: Leg day · 2026-09-04 (entire series)',
+    });
+    expect(executeReadToolMock).toHaveBeenCalledTimes(1);
+    // The client finishes the turn: no continuation call.
+    expect(streamMock).toHaveBeenCalledTimes(1);
+    expect(coachRuns[0]).toMatchObject({ tool_use_count: 2, stop_reason: 'tool_use' });
+  });
+
+  it('a write-only response is exactly the pre-loop wire: text, tool_use, done', async () => {
+    queueRounds([...ended('tool_use'), ...textBlock('Deleting.'), ...toolCall('tu_w', 'delete_event', { event_id: 'evt-9', scope: 'all' })]);
+    const { events } = await runChat(chatBody());
+    expect(events.map(e => e.type)).toEqual(['text', 'tool_use', 'done']);
+    expect(streamMock).toHaveBeenCalledTimes(1);
+    expect(executeReadToolMock).not.toHaveBeenCalled();
+  });
+
+  it(`stops after ${MAX_SERVER_ROUNDS} server rounds with a notice, and never surfaces the refused reads`, async () => {
+    const readRound = (i: number) => [...ended('tool_use'), ...toolCall(`tu_${i}`, 'get_prs', { scope: 'all' })];
+    queueRounds(...Array.from({ length: MAX_SERVER_ROUNDS + 1 }, (_, i) => readRound(i)));
+    const { events } = await runChat(chatBody());
+
+    expect(streamMock).toHaveBeenCalledTimes(MAX_SERVER_ROUNDS + 1);
+    expect(executeReadToolMock).toHaveBeenCalledTimes(MAX_SERVER_ROUNDS);
+    expect(events.filter(e => e.type === 'tool_read')).toHaveLength(MAX_SERVER_ROUNDS);
+    expect(events.some(e => e.type === 'tool_use')).toBe(false);
+    expect(events.slice(-2)).toEqual([{ type: 'notice', message: ROUND_LIMIT_NOTICE }, { type: 'done' }]);
+    // Every executed round is in the last request; the refused one is not.
+    const last = paramsOfCall(MAX_SERVER_ROUNDS);
+    expect(last.messages).toHaveLength(1 + 2 * MAX_SERVER_ROUNDS);
+    expect(coachRuns[0]).toMatchObject({ tool_use_count: MAX_SERVER_ROUNDS + 1 });
+  });
+
+  it('stops looping once the time budget is spent, so a turn ends inside maxDuration', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      queueRounds([...ended('tool_use'), ...toolCall('tu_1', 'get_prs', { scope: 'all' })]);
+      // The second response arrives late in the budget.
+      streamMock.mockImplementationOnce(() => {
+        vi.setSystemTime(Date.now() + 41_000);
+        return upstream([...ended('tool_use'), ...toolCall('tu_2', 'get_prs', { scope: 'all' })]) as never;
+      });
+      const { events } = await runChat(chatBody());
+      expect(streamMock).toHaveBeenCalledTimes(2);
+      // The late round's reads still run and are answered — they are cheap,
+      // already narrated, and an unanswered tool_use would leave the stored
+      // history invalid; it is the NEXT upstream call that is refused.
+      expect(executeReadToolMock).toHaveBeenCalledTimes(2);
+      expect(events.slice(-3).map(e => e.type)).toEqual(['tool_read_result', 'notice', 'done']);
+      expect((events.at(-3) as { id: string }).id).toBe('tu_2');
+      expect(events.at(-2)).toEqual({ type: 'notice', message: ROUND_LIMIT_NOTICE });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('checks the time budget after the reads ran, so slow reads never start one more round', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      // The response is inside the budget; the reads it asks for are not.
+      queueRounds([...ended('tool_use'), ...toolCall('tu_1', 'get_prs', { scope: 'all' })]);
+      executeReadToolMock.mockImplementationOnce(async () => {
+        vi.setSystemTime(Date.now() + 41_000);
+        return { text: 'slow result', isError: false };
+      });
+      const { events } = await runChat(chatBody());
+      expect(streamMock).toHaveBeenCalledTimes(1);
+      expect(events.map(e => e.type)).toEqual(['tool_read', 'tool_read_result', 'notice', 'done']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('echoes thinking and redacted_thinking blocks back unchanged, and never puts them on the wire', async () => {
+    queueRounds(
+      [
+        ...ended('tool_use'),
+        { type: 'content_block_start', content_block: { type: 'thinking' } },
+        { type: 'content_block_delta', delta: { type: 'thinking_delta', thinking: 'Need the ' } },
+        { type: 'content_block_delta', delta: { type: 'thinking_delta', thinking: 'history first.' } },
+        { type: 'content_block_delta', delta: { type: 'signature_delta', signature: 'sig-abc' } },
+        { type: 'content_block_stop' },
+        { type: 'content_block_start', content_block: { type: 'redacted_thinking', data: 'opaque-xyz' } },
+        { type: 'content_block_stop' },
+        ...textBlock('Checking.'),
+        ...toolCall('tu_r1', 'get_exercise_history', DEADLIFT),
+      ],
+      [...ended('end_turn'), ...textBlock('Up 10 lb.')],
+    );
+    const { events, writes } = await runChat(chatBody());
+
+    expect(paramsOfCall(1).messages[1]).toEqual({
+      role: 'assistant',
+      content: [
+        { type: 'thinking', thinking: 'Need the history first.', signature: 'sig-abc' },
+        { type: 'redacted_thinking', data: 'opaque-xyz' },
+        { type: 'text', text: 'Checking.' },
+        { type: 'tool_use', id: 'tu_r1', name: 'get_exercise_history', input: DEADLIFT },
+      ],
+    });
+    expect(events.map(e => e.type)).toEqual(['text', 'tool_read', 'tool_read_result', 'text', 'done']);
+    expect(writes.join('')).not.toContain('history first');
+    expect(writes.join('')).not.toContain('opaque-xyz');
+  });
+
+  it('read_doctrine hands the topic back as a citable document block and labels the chip with the title', async () => {
+    queueRounds(
+      [...ended('tool_use'), ...toolCall('tu_d', 'read_doctrine', { topic: 'periodization' })],
+      [...ended('end_turn'), ...textBlock('Base first, then strength.')],
+    );
+    const { events } = await runChat(chatBody());
+    const text = readDoctrine('periodization')!;
+    const title = DOCTRINE_TOPICS.find(t => t.id === 'periodization')!.title;
+
+    const document = { type: 'document', source: { type: 'text', media_type: 'text/plain', data: text }, title, citations: { enabled: true } };
+    expect(events[0]).toEqual({ type: 'tool_read', id: 'tu_d', name: 'read_doctrine', input: { topic: 'periodization' }, label: `Doctrine: ${title}` });
+    // The wire carries the document as well as its text, so a client that
+    // must answer the call itself (a mixed round) hands back the same block.
+    expect(events[1]).toEqual({ type: 'tool_read_result', id: 'tu_d', text, isError: false, content: [document] });
+    expect(paramsOfCall(1).messages[2]).toEqual({
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: 'tu_d', content: [document] }],
+    });
+    // The doctrine is read here, not through the read-tool executor.
+    expect(executeReadToolMock).not.toHaveBeenCalled();
+  });
+
+  it('forwards a citation on the reply as a citation event and keeps it on the echoed text block', async () => {
+    queueRounds(
+      [...ended('tool_use'), ...toolCall('tu_d', 'read_doctrine', { topic: 'aerobic-base' })],
+      [
+        ...ended('tool_use'),
+        { type: 'content_block_start', content_block: { type: 'text' } },
+        { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Base first.' } },
+        { type: 'content_block_delta', delta: { type: 'citations_delta', citation: {
+          type: 'char_location', cited_text: 'Aerobic base comes first.', document_index: 0,
+          document_title: 'The aerobic base', start_char_index: 0, end_char_index: 25,
+        } } },
+        { type: 'content_block_stop' },
+        ...toolCall('tu_h', 'get_exercise_history', DEADLIFT),
+      ],
+      [...ended('end_turn'), ...textBlock('Done.')],
+    );
+    const { events } = await runChat(chatBody());
+
+    expect(events.map(e => e.type)).toEqual([
+      'tool_read', 'tool_read_result', 'text', 'citation', 'tool_read', 'tool_read_result', 'text', 'done',
+    ]);
+    expect(events[3]).toEqual({ type: 'citation', citedText: 'Aerobic base comes first.', documentTitle: 'The aerobic base' });
+    const echoed = paramsOfCall(2).messages[3].content as unknown as Array<Record<string, unknown>>;
+    expect(echoed[0]).toMatchObject({ type: 'text', text: 'Base first.', citations: [expect.objectContaining({ cited_text: 'Aerobic base comes first.' })] });
+  });
+
+  it('on a mid-turn-system model the rounds go in ahead of the trailing system entry', async () => {
+    queueRounds(
+      [...ended('tool_use'), ...toolCall('tu_r1', 'get_prs', { scope: 'all' })],
+      [...ended('end_turn'), ...textBlock('Here.')],
+    );
+    await runChat(chatBody({ model: 'claude-opus-5' }));
+
+    const second = paramsOfCall(1);
+    expect(second.messages.map(m => m.role)).toEqual(['user', 'assistant', 'user', 'system']);
+    expect(second.messages[3]).toEqual({ role: 'system', content: '<live_context>LIVE STATE</live_context>' });
+    expect(JSON.stringify(second.messages).match(/LIVE STATE/g)).toHaveLength(1);
+  });
+
+  it('builder mode never loops: a tool_use streams straight through as before', async () => {
+    queueRounds([...ended('tool_use'), ...textBlock('Adding it. '), ...toolCall('tu_b', 'update_workout_draft', { title: 'Push' })]);
+    const { events } = await runChat({
+      mode: 'builder', today: '2026-09-03', withTools: true, context: { draft: { title: 'Push' } },
+      messages: [{ role: 'user', content: 'add bench' }],
+    });
+    expect(events.map(e => e.type)).toEqual(['text', 'tool_use', 'done']);
+    expect(streamMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('server-side tool helpers', () => {
+  it('serverSideToolLabel names a read by its argument and a doctrine topic by its title', () => {
+    expect(serverSideToolLabel('get_exercise_history', DEADLIFT)).toBe('Checked: Deadlift history');
+    expect(serverSideToolLabel('read_doctrine', { topic: 'strength' })).toBe('Doctrine: Strength for the mountain athlete');
+    expect(serverSideToolLabel('read_doctrine', { topic: 'nope' })).toBe('Doctrine: nope');
+    expect(serverSideToolLabel('read_doctrine', {})).toBe('Doctrine: unknown topic');
+  });
+
+  it('runServerSideTool answers an unknown doctrine topic with an error the model can correct', async () => {
+    const out = await runServerSideTool({} as never, 'user-123', { id: 'tu_x', name: 'read_doctrine', input: { topic: 'nope' } });
+    expect(out).toEqual({
+      result: { type: 'tool_result', tool_use_id: 'tu_x', content: 'Unknown doctrine topic: nope', is_error: true },
+      text: 'Unknown doctrine topic: nope',
+      isError: true,
+    });
+    const missing = await runServerSideTool({} as never, 'user-123', { id: 'tu_y', name: 'read_doctrine', input: {} });
+    expect(missing.isError).toBe(true);
+  });
+
+  it('appendServerRound appends after the last message, or ahead of a trailing system entry', () => {
+    const assistant = [{ type: 'tool_use' as const, id: 'tu_1', name: 'get_prs', input: {} }];
+    const results = [{ type: 'tool_result' as const, tool_use_id: 'tu_1', content: 'ok' }];
+    const plain = appendServerRound([{ role: 'user', content: 'hi' }], assistant, results);
+    expect(plain.map(m => m.role)).toEqual(['user', 'assistant', 'user']);
+    const withSystem = appendServerRound([{ role: 'user', content: 'hi' }, { role: 'system', content: 'LIVE' }], assistant, results);
+    expect(withSystem.map(m => m.role)).toEqual(['user', 'assistant', 'user', 'system']);
+    expect(withSystem[3]).toEqual({ role: 'system', content: 'LIVE' });
   });
 });
