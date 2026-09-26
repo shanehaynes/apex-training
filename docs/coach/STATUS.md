@@ -11,8 +11,8 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 | A02 | Physiology panel: zones, load ratio, tonnage, HRV as pure functions + fetch | A | done (#342) | `feat/coach-physiology` | no hot files |
 | A03 | Doctrine: original synthesis as `.ts` topics, index, tool schema | A | done (#343) — content edits welcome on `main` before B01 wires it in | `feat/coach-doctrine` | 78,890 chars; DECISIONS lines first |
 | A04 | Rich confirm cards: before/after preview per tool call | A | done (#344) | `feat/coach-confirm-preview` | owns `ChatSidebar.tsx` this wave |
-| A05 | Cache prefix: stable/volatile prompt split, server-side injection, 1h TTL | A | in review (#345) — two local-stack specs fixed (`c6eb313`, `d0fb664`), CI re-running; **coach-gate needs Shane's `eval:gate`** | `feat/coach-cache-prefix` | bumps `PROMPT_VERSION` → 2026.09.25-1; Opus 5.5 `midTurnSystem` off until verified |
-| B01 | Sight loop: read tools + doctrine + physiology wired into chat; server-side read rounds; chips | B | ready (after wave A) | `feat/coach-sight-loop` | owns every hot file |
+| A05 | Cache prefix: stable/volatile prompt split, server-side injection, 1h TTL | A | done (#345) — merged with the attestation still stale, see Next up | `feat/coach-cache-prefix` | `PROMPT_VERSION` → 2026.09.25-1; Opus 5.5 `midTurnSystem` off until verified |
+| B01 | Sight loop: read tools + doctrine + physiology wired into chat; server-side read rounds; chips | B | in progress (`session_01B7L15TtZEXTvhXTBPYYDhD`, launched 2026-09-26 14:23 UTC from `43a6794`) | `feat/coach-sight-loop` | owns every hot file; bumps `PROMPT_VERSION` again |
 | B02 | Board + embeddings issue | B | done (this branch, issue #340) | `chore/coach-board` | orchestrator |
 | C01 | Evals: harness realignment, `sight` and `doctrine` cases, doctrine dimension | C | ready (after B01) | `feat/coach-evals-sight` | `eval-analyst` |
 | C02 | Memory: `coach_memory` migration, memory tool backend, proposal cards | C | ready (after B01) | `feat/coach-memory` | HELD (migration) |
@@ -24,15 +24,20 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 | E02 | Ask-coach from a session or set | E | ready (after D) | `feat/coach-ask-from-context` | |
 
 ## Next up
-1. #341–#344 are on `main` (17:22 UTC). #345 is the last wave-A PR; `main` merged into it (`02625bc`) so it is current.
-2. **Shane:** run `npm run eval:gate` on `feat/coach-cache-prefix` (#345) and commit the
-   attestation; no orchestrator session holds the subscription token. Then #345 merges last
-   (it is the only wave-A PR on the hot files).
-3. **Shane:** review #343's doctrine text for fidelity; the lane's DECISIONS list names the
-   lines where it chose one school over another.
-4. Orchestrator: once wave A is on `main`, one live call to confirm whether
-   `claude-opus-5-5` accepts a mid-conversation `system` message; flip `midTurnSystem` in
-   the B01 lane if it does. Then launch B01 from fresh `main`.
+1. **Wave A is on `main`** (#341–#345, main at `43a6794`). B01 is running as a cloud
+   session; the orchestrator checks in every ~45 min, opens its PR on report, drives CI.
+2. **Attestation debt (Shane):** #345 merged without `eval:gate`, so
+   `evals/gate/attestation.json` still pins `2026.09.22-1` against prompt `2026.09.25-1`
+   and `coach-gate` is red on every coach-path PR. B01 bumps the version once more, so a
+   single `npm run eval:gate` after B01 lands covers both — run it on `main` (or on the
+   B01 branch before merge) and commit the attestation. No orchestrator session holds the
+   subscription token.
+3. **Shane:** review the doctrine text on `main` (`src/lib/coach/doctrine/`); the A03
+   DECISIONS list names the lines where it chose one school over another.
+4. Optional, needs a key: one live call to confirm whether `claude-opus-5-5` accepts a
+   mid-conversation `system` message; if yes, flip `midTurnSystem` in `models.ts`.
+5. After B01 merges: launch wave C (C01 evals via `eval-analyst`, C02 memory, C03
+   annotations) from fresh `main`; claim two consecutive migration numbers at PR open.
 
 ## Recent sessions
 - 2026-09-25 · orchestrator · plan approved, issue #340 opened, board created, wave A launched
@@ -42,3 +47,6 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
   (local mock e2e blocked by a Playwright browser mismatch, CI covers it); PRs #341–#345
   opened; two `full`-job failures (integration tests no lane can run) fixed and pushed.
   Lesson for the briefs: name the integration suite under NOT VERIFIED explicitly.
+- 2026-09-26 · Shane · merged #345 (`43a6794`); wave A complete. Attestation not refreshed.
+- 2026-09-26 · orchestrator · B01 launched as cloud session `session_01B7L15TtZEXTvhXTBPYYDhD`
+  from `main` at `43a6794`; stale #345 check-in trigger deleted; B01 check-in armed.
