@@ -1,0 +1,35 @@
+/* ============================================================================
+   CHAT READS — the "Checked: …" chips above a coach reply: one per
+   server-side call the coach made before it spoke (the sight loop,
+   src/lib/coach/wire.ts tool_read events; useChat's DisplayMessage.reads).
+   Rendered inside .chat-msg--assistant, ahead of .chat-msg__text, which
+   stay in app.css.
+
+   Lives outside app.css on purpose (CLAUDE.md: feature lanes never edit it),
+   like confirm-preview.css beside it. Tokens come from tokens.css. Phone
+   width first: the chips wrap rather than overflow the ~340px Coach tab.
+   ========================================================================== */
+
+.chat-reads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 6px;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-reads__chip {
+  display: inline-block;
+  max-width: 100%;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
