@@ -12,7 +12,7 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 | A03 | Doctrine: original synthesis as `.ts` topics, index, tool schema | A | done (#343) — content edits welcome on `main` before B01 wires it in | `feat/coach-doctrine` | 78,890 chars; DECISIONS lines first |
 | A04 | Rich confirm cards: before/after preview per tool call | A | done (#344) | `feat/coach-confirm-preview` | owns `ChatSidebar.tsx` this wave |
 | A05 | Cache prefix: stable/volatile prompt split, server-side injection, 1h TTL | A | done (#345) — merged with the attestation still stale, see Next up | `feat/coach-cache-prefix` | `PROMPT_VERSION` → 2026.09.25-1; Opus 5.5 `midTurnSystem` off until verified |
-| B01 | Sight loop: read tools + doctrine + physiology wired into chat; server-side read rounds; chips | B | in review (#348, head `e69faa5`) — local gate green; **coach-gate red until Shane's `eval:gate`**; `full` job watched | `feat/coach-sight-loop` | `PROMPT_VERSION` → 2026.09.26-1; `rounds` logged, not stored |
+| B01 | Sight loop: read tools + doctrine + physiology wired into chat; server-side read rounds; chips | B | in review (#348, head `0b5045d`) — two Codex findings fixed (budget recheck, doctrine document on mixed rounds), one declined with reasons (thinking blocks: pre-existing write-path shape); **coach-gate red until Shane's `eval:gate`**; `full` job watched | `feat/coach-sight-loop` | `PROMPT_VERSION` → 2026.09.26-1; `rounds` logged, not stored |
 | B02 | Board + embeddings issue | B | done (this branch, issue #340) | `chore/coach-board` | orchestrator |
 | C01 | Evals: harness realignment, `sight` and `doctrine` cases, doctrine dimension | C | ready (after B01) | `feat/coach-evals-sight` | `eval-analyst` |
 | C02 | Memory: `coach_memory` migration, memory tool backend, proposal cards | C | ready (after B01) | `feat/coach-memory` | HELD (migration) |
@@ -54,3 +54,6 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
   from `main` at `43a6794`; stale #345 check-in trigger deleted; B01 check-in armed.
 - 2026-09-26 · orchestrator · B01 reported (four commits, +1656/−104); reviewed; local gate
   green (build, vitest 1873, oxlint, guards); #348 opened and subscribed.
+- 2026-09-26 · orchestrator · #348 review: Codex P2s fixed and pushed (`0b5045d`); P1 (thinking
+  blocks dropped on the client-side tool continuation) answered as pre-existing and out of scope,
+  left open for Shane; follow-up recorded in the PR body.
