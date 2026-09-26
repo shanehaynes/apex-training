@@ -1119,8 +1119,30 @@ describe('chat handler — server-side read loop', () => {
       });
       const { events } = await runChat(chatBody());
       expect(streamMock).toHaveBeenCalledTimes(2);
-      expect(executeReadToolMock).toHaveBeenCalledTimes(1);
-      expect(events.slice(-2)).toEqual([{ type: 'notice', message: ROUND_LIMIT_NOTICE }, { type: 'done' }]);
+      // The late round's reads still run and are answered — they are cheap,
+      // already narrated, and an unanswered tool_use would leave the stored
+      // history invalid; it is the NEXT upstream call that is refused.
+      expect(executeReadToolMock).toHaveBeenCalledTimes(2);
+      expect(events.slice(-3).map(e => e.type)).toEqual(['tool_read_result', 'notice', 'done']);
+      expect((events.at(-3) as { id: string }).id).toBe('tu_2');
+      expect(events.at(-2)).toEqual({ type: 'notice', message: ROUND_LIMIT_NOTICE });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('checks the time budget after the reads ran, so slow reads never start one more round', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      // The response is inside the budget; the reads it asks for are not.
+      queueRounds([...ended('tool_use'), ...toolCall('tu_1', 'get_prs', { scope: 'all' })]);
+      executeReadToolMock.mockImplementationOnce(async () => {
+        vi.setSystemTime(Date.now() + 41_000);
+        return { text: 'slow result', isError: false };
+      });
+      const { events } = await runChat(chatBody());
+      expect(streamMock).toHaveBeenCalledTimes(1);
+      expect(events.map(e => e.type)).toEqual(['tool_read', 'tool_read_result', 'notice', 'done']);
     } finally {
       vi.useRealTimers();
     }
@@ -1167,20 +1189,14 @@ describe('chat handler — server-side read loop', () => {
     const text = readDoctrine('periodization')!;
     const title = DOCTRINE_TOPICS.find(t => t.id === 'periodization')!.title;
 
+    const document = { type: 'document', source: { type: 'text', media_type: 'text/plain', data: text }, title, citations: { enabled: true } };
     expect(events[0]).toEqual({ type: 'tool_read', id: 'tu_d', name: 'read_doctrine', input: { topic: 'periodization' }, label: `Doctrine: ${title}` });
-    expect(events[1]).toEqual({ type: 'tool_read_result', id: 'tu_d', text, isError: false });
+    // The wire carries the document as well as its text, so a client that
+    // must answer the call itself (a mixed round) hands back the same block.
+    expect(events[1]).toEqual({ type: 'tool_read_result', id: 'tu_d', text, isError: false, content: [document] });
     expect(paramsOfCall(1).messages[2]).toEqual({
       role: 'user',
-      content: [{
-        type: 'tool_result',
-        tool_use_id: 'tu_d',
-        content: [{
-          type: 'document',
-          source: { type: 'text', media_type: 'text/plain', data: text },
-          title,
-          citations: { enabled: true },
-        }],
-      }],
+      content: [{ type: 'tool_result', tool_use_id: 'tu_d', content: [document] }],
     });
     // The doctrine is read here, not through the read-tool executor.
     expect(executeReadToolMock).not.toHaveBeenCalled();

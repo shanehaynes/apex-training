@@ -22,8 +22,11 @@ export type ChatWireEvent =
   /** A server-side call has started. `label` is the chip: "Checked: Deadlift
    *  history", or the doctrine topic's title for read_doctrine. */
   | { type: 'tool_read'; id: string; name: string; input: Record<string, unknown>; label: string }
-  /** The same call has finished; `text` is what the model was handed. */
-  | { type: 'tool_read_result'; id: string; text: string; isError: boolean }
+  /** The same call has finished; `text` is what the model was handed, or —
+   *  when `content` is present — a text rendering of the structured blocks
+   *  the model was actually handed (the doctrine's citable document). A
+   *  client that answers the call itself (a mixed round) sends `content`. */
+  | { type: 'tool_read_result'; id: string; text: string; isError: boolean; content?: ToolResultContent }
   /** A doctrine line the reply relies on (citations on the document block). */
   | { type: 'citation'; citedText: string; documentTitle: string | null }
   /** Something the user should know that is not the model's text — the
@@ -36,12 +39,18 @@ export type ChatWireEvent =
  *  messages array — /api/chat forwards these shapes verbatim. */
 export type WireToolUse = { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> };
 
+/** A tool_result's content when it is not plain text: content blocks as the
+ *  API takes them (a `document` block for the doctrine). Typed by the one
+ *  field every block has, because this module is shared with the browser
+ *  bundle and stays clear of the SDK's parameter types. */
+export type ToolResultContent = Array<{ type: string }>;
+
 /** One server-side call as the client sees it: the tool_use block the
  *  assistant turn carries, the chip, and the result the user turn answers with. */
 export interface WireRead {
   use: WireToolUse;
   label: string;
-  result: { text: string; isError: boolean };
+  result: { text: string; isError: boolean; content?: ToolResultContent };
 }
 
 export interface WireCitation {
@@ -132,7 +141,7 @@ export function createWireCollector(
       onRead?.(reads.map(r => r.label));
     } else if (event.type === 'tool_read_result') {
       const read = reads.find(r => r.use.id === event.id);
-      if (read) read.result = { text: event.text, isError: event.isError };
+      if (read) read.result = { text: event.text, isError: event.isError, ...(event.content ? { content: event.content } : {}) };
       if (current().reads.some(r => r.use.id === event.id)) answered = true;
     } else if (event.type === 'citation') {
       citations.push({ citedText: event.citedText, documentTitle: event.documentTitle });

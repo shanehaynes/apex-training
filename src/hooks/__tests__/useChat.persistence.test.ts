@@ -234,6 +234,23 @@ describe('historyForTurn — the read loop as API messages', () => {
     });
   });
 
+  it('hands back the structured content a read carried, in a server round and in a held result alike', () => {
+    const document = { type: 'document', source: { type: 'text', media_type: 'text/plain', data: 'doctrine text' }, title: 'Periodization', citations: { enabled: true } };
+    const doctrine = (id: string): WireRead => ({
+      use: { type: 'tool_use', id, name: 'read_doctrine', input: { topic: 'periodization' } },
+      label: 'Doctrine: Periodization',
+      result: { text: 'doctrine text', isError: false, content: [document] },
+    });
+    const write = { type: 'tool_use' as const, id: 'tu_w', name: 'delete_event', input: { event_id: 'a', scope: 'all', event_title: 'Leg day' } };
+    const { serverMessages, heldResults } = historyForTurn(
+      [{ text: '', reads: [doctrine('tu_1')] }, { text: 'Dropping it.', reads: [doctrine('tu_2')] }],
+      [write],
+    );
+    // The model was handed the document, not a string, in both places.
+    expect(serverMessages[1]).toEqual({ role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: [document] }] });
+    expect(heldResults).toEqual([{ type: 'tool_result', tool_use_id: 'tu_2', content: [document] }]);
+  });
+
   it('a mixed response keeps its reads in the final message and holds their results for the write flush', () => {
     const rounds: WireRound[] = [
       { text: 'Checking.', reads: [read('tu_1', 'get_prs', { scope: 'all' }, 'Checked: PRs (all time)')] },

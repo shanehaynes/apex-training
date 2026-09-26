@@ -176,9 +176,11 @@ export function cachedToolSchemas(mode: ToolMode = 'chat', ttl: CacheTtl = '5m')
 export const MAX_SERVER_ROUNDS = 5;
 
 /**
- * Past this many ms since the handler started, no further round begins:
- * the function's maxDuration is 60 s (vercel.json), a round with thinking
- * runs 5–15 s, and a turn cut off by the platform loses everything it read.
+ * Past this many ms since the handler started, no further round begins —
+ * measured after a round's reads have run and been answered, so a late
+ * response never triggers one more upstream call: the function's
+ * maxDuration is 60 s (vercel.json), a round with thinking runs 5–15 s,
+ * and a turn cut off by the platform loses everything it read.
  */
 export const ROUND_BUDGET_MS = 40_000;
 
@@ -200,6 +202,11 @@ export interface ServerToolOutcome {
   /** What the wire carries (tool_read_result): the same text, or the topic
    *  text for the doctrine. */
   text: string;
+  /** The structured content of `result` when it is not plain text (the
+   *  doctrine's document block), so a client that must answer this call
+   *  itself — a mixed round, whose results travel with the write results —
+   *  hands the model the same citable document, not a flattened string. */
+  content?: Exclude<Anthropic.ToolResultBlockParam['content'], string | undefined>;
   isError: boolean;
 }
 
@@ -221,18 +228,16 @@ export async function runServerSideTool(
       return { result: { type: 'tool_result', tool_use_id: block.id, content: message, is_error: true }, text: message, isError: true };
     }
     const title = DOCTRINE_TOPICS.find(t => t.id === topic)?.title ?? (topic as string);
+    const content: Anthropic.ToolResultBlockParam['content'] = [{
+      type: 'document',
+      source: { type: 'text', media_type: 'text/plain', data: text },
+      title,
+      citations: { enabled: true },
+    }];
     return {
-      result: {
-        type: 'tool_result',
-        tool_use_id: block.id,
-        content: [{
-          type: 'document',
-          source: { type: 'text', media_type: 'text/plain', data: text },
-          title,
-          citations: { enabled: true },
-        }],
-      },
+      result: { type: 'tool_result', tool_use_id: block.id, content },
       text,
+      content,
       isError: false,
     };
   }
@@ -566,13 +571,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         emitWrites();
         break;
       }
-      // Reads that would continue the loop are bounded; reads alongside a
-      // write end the turn anyway (the client finishes it), so they always
-      // run — a refused read there would leave its tool_use unanswered.
+      // Reads that would continue the loop are bounded by the round cap;
+      // reads alongside a write end the turn anyway (the client finishes
+      // it), so they always run — a refused read there would leave its
+      // tool_use unanswered.
       const continues = writes.length === 0;
-      if (continues && (rounds >= MAX_SERVER_ROUNDS || Date.now() - startedAt > ROUND_BUDGET_MS)) {
-        console.warn('[api/chat] server tool loop stopped:', requestId, { rounds, elapsedMs: Date.now() - startedAt });
+      const stopLoop = (why: string) => {
+        console.warn('[api/chat] server tool loop stopped:', requestId, { why, rounds, elapsedMs: Date.now() - startedAt });
         send({ type: 'notice', message: ROUND_LIMIT_NOTICE });
+      };
+      if (continues && rounds >= MAX_SERVER_ROUNDS) {
+        stopLoop('round cap');
         break;
       }
 
@@ -580,7 +589,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         send({ type: 'tool_read', id: r.id, name: r.name, input: r.input as Record<string, unknown>, label: serverSideToolLabel(r.name, r.input) });
       }
       const outcomes = await Promise.all(reads.map(r => runServerSideTool(supabase, userId, r)));
-      outcomes.forEach((o, i) => send({ type: 'tool_read_result', id: reads[i].id, text: o.text, isError: o.isError }));
+      outcomes.forEach((o, i) => send({
+        type: 'tool_read_result', id: reads[i].id, text: o.text, isError: o.isError,
+        ...(o.content ? { content: o.content } : {}),
+      }));
 
       if (!continues) {
         // Mixed: the confirm flow supplies the writes' results, and the
@@ -589,6 +601,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         break;
       }
       rounds += 1;
+      // The time budget is checked AFTER the reads ran, not before: the reads
+      // are cheap and already narrated, so answering them costs nothing and
+      // leaves the stored history valid, whereas starting one more upstream
+      // request past the budget is what runs into maxDuration.
+      if (Date.now() - startedAt > ROUND_BUDGET_MS) {
+        stopLoop('time budget');
+        break;
+      }
       messagesOut = appendServerRound(messagesOut, outcome.content, outcomes.map(o => o.result));
     }
     send({ type: 'done' });

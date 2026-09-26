@@ -82,6 +82,15 @@ describe('createWireCollector — server-side reads', () => {
   const result = (id: string, text: string, isError = false): ChatWireEvent =>
     ({ type: 'tool_read_result', id, text, isError });
 
+  it('keeps the structured content of a result when the server sends one', () => {
+    const collector = createWireCollector();
+    const document = { type: 'document', source: { type: 'text', media_type: 'text/plain', data: 'doctrine text' }, title: 'Periodization', citations: { enabled: true } };
+    collector.push(line(read('tu_d', 'read_doctrine', { topic: 'periodization' }, 'Doctrine: Periodization')));
+    collector.push(line({ type: 'tool_read_result', id: 'tu_d', text: 'doctrine text', isError: false, content: [document] }));
+    collector.end();
+    expect(collector.reads[0].result).toEqual({ text: 'doctrine text', isError: false, content: [document] });
+  });
+
   it('keeps every read with its label and result, in arrival order, and never as a tool_use', () => {
     const collector = createWireCollector();
     collector.push(line(read('tu_1', 'get_prs', { scope: 'all' }, 'Checked: PRs (all time)')));

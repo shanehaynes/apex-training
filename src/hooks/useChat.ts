@@ -119,7 +119,10 @@ function toolResultOf(read: WireRead): ToolResultBlock {
   const block: ToolResultBlock & { is_error?: boolean } = {
     type: 'tool_result',
     tool_use_id: read.use.id,
-    content: read.result.text,
+    // The structured content when the server sent one (the doctrine's
+    // citable document), so a mixed round's post-confirm reply can cite it
+    // exactly as a server-continued round could.
+    content: read.result.content ?? read.result.text,
   };
   if (read.result.isError) block.is_error = true;
   return block;

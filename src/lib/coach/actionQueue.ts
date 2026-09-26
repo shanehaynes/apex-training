@@ -19,7 +19,9 @@ export interface PendingAction {
 export interface ToolResultBlock {
   type: 'tool_result';
   tool_use_id: string;
-  content: string;
+  /** Plain text, or content blocks (the doctrine's document, as the server
+   *  handed it to the model — see ToolResultContent in wire.ts). */
+  content: string | Array<{ type: string }>;
 }
 
 export interface TextBlock {
