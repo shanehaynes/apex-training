@@ -193,6 +193,8 @@ So for **1.0**, the day-one controls are these, in the order you would reach for
    this version"** → **Save** (top right). Approval then parks the version at *Pending Developer
    Release* instead of shipping it while you are asleep. Release it with **Release This Version**
    → **Confirm** on the version page; it can take up to 24 hours to appear on the App Store.
+   The public listing is `https://apps.apple.com/app/id6808637152` (the App Store Connect app
+   id; `APEX_APP_STORE_URL` in `ios/Config/Base.xcconfig` carries it for the update screen).
 2. **Smoke the released build yourself before telling anyone.** Install from the public App
    Store listing on a device that has never had a TestFlight build, sign in, open Coach, log a
    set. The frozen config is exactly what a TestFlight build cannot prove — a Release build
@@ -213,10 +215,16 @@ Every update after 1.0 gets it, and it is free:
 > Automatic Updates** → select **"Release update over a 7-day period using phased release"** →
 > **Save**.
 
-Set it when you create the version, at *Prepare for Submission*, and treat that as the rule —
-Apple's help does list *Waiting for Review* and *In Review* among the statuses where the option
-is still available, but a submission is a bad moment to be discovering which statuses Apple
-honours. Two controls exist once it is live, on the *Ready for Distribution* version's page:
+**The rule, from 1.0.1 on: every version sets phased release the moment it is created, while
+it reads *Prepare for Submission*, before a build is attached or anything else on the page is
+filled in.** Apple's help does list *Waiting for Review* and *In Review* among the statuses
+where the option is still available, but a submission is a bad moment to be discovering which
+statuses Apple honours. The same moment is when "Manually release this version" is set (step 1
+above); the App Store Connect API reports both on the version — `releaseType` is `MANUAL`,
+not `AFTER_APPROVAL` — so a read-only `GET /v1/apps/6808637152/appStoreVersions` with the
+escrowed API key is the check that neither was forgotten.
+
+Two controls exist once it is live, on the *Ready for Distribution* version's page:
 **Pause Phased Release** (up to 30 days total, and it resumes on the day it paused) and
 **Release to All Users** (top right) when a release is proven good and you want the rest of the
 installed base on it. Note the hole in it: phased release only throttles *automatic* updates.
