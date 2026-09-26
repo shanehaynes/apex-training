@@ -96,7 +96,9 @@ final class OnboardingModelTests: XCTestCase {
         let bodies = OnboardingCatalog.welcomeSteps.map(\.body)
         XCTAssertFalse(bodies.contains { $0.localizedCaseInsensitiveContains("week view") })
         XCTAssertFalse(bodies.contains { $0.localizedCaseInsensitiveContains("On a phone") })
-        XCTAssertEqual(OnboardingCatalog.welcomeSteps.first { $0.id == "plan" }?.body.hasSuffix("the **+** at the top."), true)
+        let plan = OnboardingCatalog.welcomeSteps.first { $0.id == "plan" }?.body ?? ""
+        XCTAssertTrue(plan.contains("**+** at the top"), "the plan step must place the **+** at the top, where the phone has it: \(plan)")
+        XCTAssertFalse(plan.localizedCaseInsensitiveContains("bottom"), "the plan step names the bottom, where the phone has no **+**: \(plan)")
     }
 
     /// The catalog's links are relative; the app resolves them against the web
