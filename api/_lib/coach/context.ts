@@ -6,7 +6,7 @@ import { loadMealsForDate } from '../trackerSession.js';
 import type { ObjectiveRow, TrainingBlockRow } from '../../../src/lib/db/types.js';
 import type { WorkoutEvent } from '../../../src/types/workout.js';
 import type { Meal } from '../../../src/types/nutrition.js';
-import { buildAnalyticsPrompt, buildBuilderPrompt, buildSystemPrompt } from '../../../src/lib/coach/prompt.js';
+import { buildAnalyticsPrompt, buildBuilderPrompt, buildStablePrompt, buildVolatileContext } from '../../../src/lib/coach/prompt.js';
 import type { CoachToolContext } from '../../../src/lib/coach/tools.js';
 import { describeDraft, type WorkoutDraft } from '../../../src/lib/builder/draft.js';
 import { describeChartDraft, type ChartDraft } from '../../../src/lib/analytics/draft.js';
@@ -22,6 +22,12 @@ import { buildBlockPromptSummary, type BlockPromptSummary } from '../../../src/l
 // caller's data, so web and native get byte-identical prompts — and the
 // tool_use events can carry a confirmation label computed with real context.
 //
+// The chat prompt comes back in two halves so api/chat.ts can cache one:
+// `system` is the stable text (buildStablePrompt) and `volatile` the live
+// state for this turn (buildVolatileContext), which the handler injects into
+// the request without it ever entering the stored thread. Builder and
+// analytics keep a single-block prompt and return volatile ''.
+//
 // "Today" is the client's local calendar date: the server never reads its
 // own clock for calendar logic (Vercel runs in UTC; the athlete does not).
 
@@ -35,7 +41,10 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export class ChatContextError extends Error {}
 
 export interface ChatContext {
+  /** The `system` block: stable across a user's turns (chat) or the whole prompt (builder/analytics). */
   system: string;
+  /** chat: this turn's live context, injected per request; '' for the other modes. */
+  volatile: string;
   /** What displayLabel needs to name the things a tool call references. */
   toolContext: CoachToolContext;
 }
@@ -133,6 +142,7 @@ export async function buildChatContext(
     const titles = ((data ?? []) as Array<{ title: string }>).map(t => t.title);
     return {
       system: buildBuilderPrompt(draftText, titles, definitions.values(), today),
+      volatile: '',
       toolContext: { definitions, events: [], meals: [] },
     };
   }
@@ -151,6 +161,7 @@ export async function buildChatContext(
     )].sort();
     return {
       system: buildAnalyticsPrompt(draftText, otherTitles, today),
+      volatile: '',
       toolContext: { definitions, events: [], meals: [] },
     };
   }
@@ -176,11 +187,11 @@ export async function buildChatContext(
   const profile = profileRes.error ? null : profileRes.data;
 
   return {
-    system: buildSystemPrompt(
+    system: buildStablePrompt(definitions.values()),
+    volatile: buildVolatileContext(
       todayEvents,
       windowEvents,
       today,
-      definitions.values(),
       { goal: profile?.coach_goal ?? undefined, context: profile?.coach_context ?? undefined },
       block,
       todayMeals,

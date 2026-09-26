@@ -60,8 +60,9 @@ interface Body {
 // Caching is a prefix match over tools → system → messages, and each tier is
 // invalidated by any change at or before it. Three ephemeral breakpoints
 // (max is 4): the last tool schema, the system block, and the last message
-// block. Reads bill at ~0.1x input, writes at 1.25x — so a breakpoint whose
-// entry can never be read is a pure loss, which drives two rules here:
+// block. Reads bill at ~0.1x input, writes at 1.25x (2x for a 1-hour entry)
+// — so a breakpoint whose entry can never be read is a pure loss, which
+// drives the rules here:
 //
 //   1. Tools ship on EVERY request, including the post-confirm re-stream that
 //      forbids their use. Adding or removing a tool definition invalidates the
@@ -73,17 +74,48 @@ interface Body {
 //   2. The messages breakpoint is written only on the tools-on turn. Changing
 //      tool_choice invalidates the messages tier, so the re-stream's entry has
 //      no future reader.
+//   3. In chat mode the `system` block is the STABLE half of the prompt only
+//      (buildStablePrompt: role, safety, library, rules, style). The live
+//      half — today, schedule, meals, block, athlete — used to sit in it too,
+//      so any confirmed mutation, meal logged, or new day invalidated
+//      system+messages on the next turn and the coach rebuilt the same 2–3k
+//      tokens every call. Now that half travels AFTER the cached prefix
+//      (injectVolatile below) and only its own bytes change per turn.
+//   4. The tools and system breakpoints in chat mode carry a 1-hour TTL: a
+//      coaching conversation has gaps of 5–60 minutes between turns, which is
+//      exactly the window where the 2x write beats re-paying the whole prefix
+//      after the 5-minute default lapses. Entries with the longer TTL must
+//      come before shorter ones, so the tools breakpoint takes the same TTL
+//      as the system block it precedes; the messages breakpoint stays at 5
+//      minutes. Builder and analytics embed the live draft in `system`, so
+//      their prefix changes on most turns and a 1-hour entry would rarely be
+//      read back — they and the legacy client-built `system` keep the default.
 //
 // The cache is also keyed per MODEL: switching models in the picker
 // invalidates all three tiers, so the first turn afterwards reads nothing and
 // pays every write. Expected, and self-correcting on the next turn.
 //
-// Still uncached by construction: the system block embeds live schedule and
-// meal state, so any confirmed mutation invalidates system+messages on the
-// next turn. Fixing that means moving the volatile region out of `system` —
-// gate it on the usage numbers logged at the end of the handler.
+// Where the live half goes decides whether the CONVERSATION tier can hit. On
+// a model that accepts a mid-conversation `{ role: 'system' }` message
+// (models.ts midTurnSystem), it is appended after the last user message and
+// the breakpoint goes on that user message: the client never stores the
+// injected entry, so next turn's history is byte-identical up to there and
+// reads back. On the other models it becomes a text block inside the last
+// user message; the next request rebuilds that message without it, so the
+// history tier misses at that point every turn and only tools+system read
+// back. Still ahead of embedding the live state in `system`, where a
+// mutation cost both tiers — and the flag is a one-word upgrade per model.
+// Gate any further change on the usage numbers logged at the end of the
+// handler.
 
 export type ToolMode = ChatMode;
+
+/** Breakpoint TTL. '5m' is the API default and is sent as a bare marker. */
+export type CacheTtl = '5m' | '1h';
+
+function ephemeral(ttl: CacheTtl): Anthropic.CacheControlEphemeral {
+  return ttl === '1h' ? { type: 'ephemeral', ttl: '1h' } : { type: 'ephemeral' };
+}
 
 /**
  * Static tool schemas with a cache breakpoint on the last one. Three modes,
@@ -94,37 +126,92 @@ export type ToolMode = ChatMode;
  * calendar/meal tools are what make "the coach can never apply, save, or
  * touch the schedule from here" structural.
  */
-export function cachedToolSchemas(mode: ToolMode = 'chat'): Anthropic.Tool[] {
+export function cachedToolSchemas(mode: ToolMode = 'chat', ttl: CacheTtl = '5m'): Anthropic.Tool[] {
   const tools =
     mode === 'builder' ? builderToolSchemas()
     : mode === 'analytics' ? analyticsToolSchemas()
     : coachToolSchemas();
   return tools.map((tool, i) =>
-    i === tools.length - 1 ? { ...tool, cache_control: { type: 'ephemeral' as const } } : tool,
+    i === tools.length - 1 ? { ...tool, cache_control: ephemeral(ttl) } : tool,
   );
 }
 
 /**
- * The messages array with a cache breakpoint on the final content block
- * (string content becomes a single text block). The client always ends the
- * array with a user message — text or tool_results — but any cacheable
- * block shape works.
+ * The outgoing messages with this turn's live context added — to a COPY, so
+ * the caller's array (which mirrors what the client stores) is never
+ * touched and the injected text never round-trips into the thread.
+ *
+ * - `volatile` empty (builder, analytics, the legacy path): unchanged.
+ * - `midTurnSystem`: appended as `{ role: 'system', content }` after the last
+ *   message — the API's operator channel, which must follow a user message
+ *   and be the final entry.
+ * - otherwise: a text block inside the last user message. It goes first when
+ *   that message is a string or opens with text; when the message carries
+ *   tool_result blocks the API requires those to lead, so it goes right
+ *   after the last of them and ahead of any text that follows.
+ */
+export function injectVolatile(
+  messages: Anthropic.MessageParam[],
+  volatile: string,
+  midTurnSystem: boolean,
+): Anthropic.MessageParam[] {
+  if (!volatile) return messages;
+  if (midTurnSystem) return [...messages, { role: 'system', content: volatile }];
+
+  const at = lastIndexOfRole(messages, 'user');
+  if (at < 0) return messages;
+  const target = messages[at];
+  const block: Anthropic.TextBlockParam = { type: 'text', text: volatile };
+  let content: Anthropic.ContentBlockParam[];
+  if (typeof target.content === 'string') {
+    // An empty text block is a 400, so an empty string yields the block alone.
+    content = target.content ? [block, { type: 'text', text: target.content }] : [block];
+  } else {
+    const blocks = target.content;
+    let after = 0;
+    while (after < blocks.length && blocks[after].type === 'tool_result') after++;
+    content = [...blocks.slice(0, after), block, ...blocks.slice(after)];
+  }
+  return [...messages.slice(0, at), { ...target, content }, ...messages.slice(at + 1)];
+}
+
+function lastIndexOfRole(messages: Anthropic.MessageParam[], role: Anthropic.MessageParam['role']): number {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === role) return i;
+  }
+  return -1;
+}
+
+/**
+ * The messages array with a cache breakpoint on the final content block of
+ * the final message (string content becomes a single text block). The
+ * client always ends the array with a user message — text or tool_results —
+ * but any cacheable block shape works. When injectVolatile has appended a
+ * `system` entry, the breakpoint goes on the last USER message instead: the
+ * injected entry is regenerated every turn and never stored, so an entry
+ * ending on it would have no future reader, while one ending on the user
+ * message is exactly the prefix next turn resends.
  */
 export function withConversationBreakpoint(messages: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
-  const last = messages[messages.length - 1];
-  if (!last) return messages;
-  const cache = { cache_control: { type: 'ephemeral' as const } };
+  let at = messages.length - 1;
+  if (at < 0) return messages;
+  if (messages[at].role === 'system') {
+    at = lastIndexOfRole(messages, 'user');
+    if (at < 0) return messages;
+  }
+  const target = messages[at];
+  const cache = { cache_control: ephemeral('5m') };
   let content: Anthropic.MessageParam['content'];
-  if (typeof last.content === 'string') {
-    content = [{ type: 'text', text: last.content, ...cache }];
+  if (typeof target.content === 'string') {
+    content = [{ type: 'text', text: target.content, ...cache }];
   } else {
-    const blocks = last.content;
+    const blocks = target.content;
     if (blocks.length === 0) return messages;
     content = blocks.map((block, i) =>
       i === blocks.length - 1 ? ({ ...block, ...cache } as typeof block) : block,
     );
   }
-  return [...messages.slice(0, -1), { ...last, content } as Anthropic.MessageParam];
+  return [...messages.slice(0, at), { ...target, content } as Anthropic.MessageParam, ...messages.slice(at + 1)];
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -144,9 +231,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // The system prompt is built client-side from the caller's own
-  // RLS-filtered data, so per-user data scoping is by construction; the
-  // verified uid here selects whose Anthropic key pays for the call.
+  // The verified uid scopes everything below: the prompt is built from this
+  // user's own rows (buildChatContext), and the uid selects whose Anthropic
+  // key pays for the call.
   const userId = await requireUser(req, res);
   if (!userId) return;
 
@@ -192,7 +279,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // The system prompt: built here from the caller's own data (v2), or
   // handed over by a legacy bundle. Either way the verified uid scopes it.
+  // `volatile` is chat mode's live half, injected per request below; it
+  // stays '' for the other modes and the legacy path, which keep one block.
   let system: string;
+  let volatile = '';
   let toolContext: CoachToolContext | null = null;
   if (typeof body.system === 'string') {
     if (body.system.length > 100_000) {
@@ -205,7 +295,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? (body.context as { draft?: unknown }).draft
       : undefined;
     try {
-      ({ system, toolContext } = await buildChatContext(supabase, userId, toolMode, body.today, draft));
+      ({ system, volatile, toolContext } = await buildChatContext(supabase, userId, toolMode, body.today, draft));
     } catch (err) {
       if (err instanceof ChatContextError) {
         res.status(400).send(err.message);
@@ -267,6 +357,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     with_tools: withTools,
   } satisfies Partial<CoachRunInsert>;
 
+  // A 1-hour prefix only where the prefix is stable enough to be read back an
+  // hour later — the split chat prompt (caching rule 4 above). A non-empty
+  // `volatile` is exactly the sign that the live state has left `system`.
+  const prefixTtl: CacheTtl = volatile ? '1h' : '5m';
+  // Inject first, then place the breakpoint: the breakpoint must land on the
+  // final block the next turn will resend, which injectVolatile decides.
+  const outgoing = injectVolatile(messages, volatile, coachModel.midTurnSystem);
+
   const startedAt = Date.now();
   try {
     const client = makeAnthropicClient(apiKey);
@@ -279,12 +377,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Per-model, not a shared literal: `thinking` is absent on models that
       // predate adaptive thinking, which reject it outright (models.ts).
       ...coachModel.params,
-      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+      system: [{ type: 'text', text: system, cache_control: ephemeral(prefixTtl) }],
       // Constant tool list (per mode) + tool_choice to gate it — see the
       // caching note above.
-      tools: cachedToolSchemas(toolMode),
+      tools: cachedToolSchemas(toolMode, prefixTtl),
       ...(withTools ? {} : { tool_choice: { type: 'none' as const } }),
-      messages: withTools ? withConversationBreakpoint(messages) : messages,
+      messages: withTools ? withConversationBreakpoint(outgoing) : outgoing,
     }, { signal: upstreamAbort.signal });
     const { usage, stopReason, toolUseCount } = await translate(stream as AsyncIterable<Upstream>, send);
     // The stored row is the queryable record; this line stays because the
