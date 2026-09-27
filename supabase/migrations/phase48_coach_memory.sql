@@ -70,10 +70,13 @@ create table if not exists coach_memory (
 );
 
 -- The prompt's query and every `view`: this user's current confirmed facts,
--- by kind. Partial, so proposed, superseded and archived rows cost nothing.
+-- by kind. Partial on the same three-part predicate every live-row query
+-- sends, so proposed, superseded and archived rows cost nothing — an edit
+-- retires its old row by setting superseded_by, never archived_at, and
+-- without the third clause every edit would leave one dead row in the index.
 create index if not exists idx_coach_memory_user_kind_live
   on coach_memory (user_id, kind)
-  where confirmed_at is not null and archived_at is null;
+  where confirmed_at is not null and archived_at is null and superseded_by is null;
 
 alter table coach_memory enable row level security;
 

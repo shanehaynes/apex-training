@@ -88,6 +88,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(400).send('Invalid memory id');
       return;
     }
+    // Confirming adds one live fact, so it honours the same cap as the direct
+    // add below; without this, accepting proposals past the cap would push
+    // older facts out of listConfirmed's window and out of the prompt.
+    const live = await supabase
+      .from('coach_memory')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .not('confirmed_at', 'is', null)
+      .is('archived_at', null)
+      .is('superseded_by', null);
+    if (live.error) {
+      console.error('[api/coach-memory] count failed:', live.error.message);
+      res.status(500).send('Failed to confirm memory');
+      return;
+    }
+    if ((live.count ?? 0) >= MEMORY_CONFIRMED_CAP) {
+      res.status(409).send(`Memory is full (${MEMORY_CONFIRMED_CAP} facts) — forget one first`);
+      return;
+    }
     // Scoped by user_id, so another account's id reads as "not found" rather
     // than as a permission error that confirms it exists. Archived rows stay
     // archived: confirming a forgotten proposal is not a way back in.

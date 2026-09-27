@@ -264,11 +264,30 @@ export async function applyMemoryCommand(
   const written = await insertFacts(supabase, userId, kind, lines, live.length - 1, source);
   if ('error' in written) return written.error;
   const replacement = written.rows[0];
-  const { error } = await supabase
+  // Two statements, no transaction (PostgREST), so the retirement is
+  // CONDITIONAL — only a row that is still live can be superseded — and a
+  // retirement that does not land (a concurrent edit got there first, or the
+  // update errored) archives the rows just written, so the file never holds
+  // both the old fact and its replacement, and two racing edits leave one
+  // winner rather than two live replacements.
+  const retired = await supabase
     .from('coach_memory')
     .update({ superseded_by: replacement.id })
     .eq('user_id', userId)
-    .eq('id', target.id);
-  if (error) return `The new fact was saved [id:${replacement.id}] but the old one could not be retired: ${error.message}`;
+    .eq('id', target.id)
+    .is('superseded_by', null)
+    .is('archived_at', null)
+    .select('id');
+  const landed = !retired.error && (retired.data?.length ?? 0) > 0;
+  if (!landed) {
+    await supabase
+      .from('coach_memory')
+      .update({ archived_at: now })
+      .eq('user_id', userId)
+      .in('id', written.rows.map(r => r.id));
+    return retired.error
+      ? `Memory write failed: ${retired.error.message}. Nothing was changed.`
+      : `That fact was already changed by another edit; nothing was changed. Current contents:\n${renderMemoryFile(kind, await listConfirmed(supabase, userId).catch(() => live))}`;
+  }
   return `Updated memory in ${pathForKind(kind)}: "${target.content}" → ${written.rows.map(r => `[id:${r.id}] ${r.content}`).join('; ')}.${cappedNote(written.dropped)}`;
 }
