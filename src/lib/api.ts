@@ -1,5 +1,6 @@
 import { notify } from './notify';
 import { supabase } from './supabaseClient';
+import type { CoachMemory, MemoryKind } from './coach/memory';
 
 // Single JSON transport for the app's /api/* endpoints — one place for
 // headers, serialization, and error handling. Failures log the response
@@ -261,4 +262,34 @@ export function renameCoachConversation(id: string, title: string): Promise<{ co
 
 export function deleteCoachConversation(id: string): Promise<{ ok: boolean }> {
   return deleteJson('/api/coach-conversations', 'Deleting conversation', { id });
+}
+
+// ── Coach memory (lane C02) ───────────────────────────────────────────────────
+// What the athlete has confirmed the coach may remember: /api/coach-memory
+// lists, confirms, adds and archives rows. In chat the confirm card is the
+// write path (POST /api/coach-tool); these are the notebook's door (lane D02).
+
+export type { CoachMemory, MemoryKind } from './coach/memory';
+
+/** Every non-archived memory, newest first, proposed rows included (`confirmed` false). */
+export function listCoachMemories(): Promise<{ memories: CoachMemory[] }> {
+  return getJson('/api/coach-memory', 'Loading memory', { quiet: true });
+}
+
+/** Accept a proposed memory (a reflection's, say): it enters the prompt from the next turn. */
+export function confirmCoachMemory(id: string): Promise<{ memory: CoachMemory }> {
+  return postJson('/api/coach-memory', { id }, 'Confirming memory');
+}
+
+/** Add a fact the athlete typed themselves — confirmed on arrival, source 'user'. */
+export function addCoachMemory(
+  kind: MemoryKind,
+  content: string,
+): Promise<{ memory: CoachMemory }> {
+  return postJson('/api/coach-memory', { kind, content }, 'Saving memory');
+}
+
+/** Forget one memory: archived, never deleted, and out of the prompt from the next turn. */
+export function archiveCoachMemory(id: string): Promise<{ ok: boolean }> {
+  return deleteJson('/api/coach-memory', 'Forgetting memory', { id });
 }

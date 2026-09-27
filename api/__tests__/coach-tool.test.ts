@@ -24,6 +24,8 @@ vi.mock('../_lib/trackerSession.js', () => ({
   loadMealsForDate: vi.fn(async () => [{ id: 'meal-today', title: 'Oats', date: '2026-09-03', fatTotalG: 10 }]),
 }));
 vi.mock('../_lib/coach/serverDeps.js', () => ({ createServerDeps: vi.fn() }));
+vi.mock('../_lib/coach/memory.js', () => ({ applyMemoryCommand: vi.fn(async () => 'Remembered 1 fact in /memories/goals.md.') }));
+import { applyMemoryCommand } from '../_lib/coach/memory';
 
 const deps = {
   definitions: new Map(), meals: [],
@@ -93,6 +95,17 @@ describe('POST /api/coach-tool — validation', () => {
 });
 
 describe('POST /api/coach-tool — mutation tools', () => {
+  it('memory: a confirmed write runs applyMemoryCommand for the verified user, stamped chat', async () => {
+    const input = { command: 'create', path: '/memories/goals.md', file_text: 'Rainier June 2027' };
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq({ toolUseId: 'tu_m', name: 'memory', input, today: '2026-09-03' }), res);
+    expect(statusCode()).toBe(200);
+    expect(body()).toEqual({ ok: true, resultText: 'Remembered 1 fact in /memories/goals.md.' });
+    expect(applyMemoryCommand).toHaveBeenCalledWith(expect.anything(), 'user-123', input, { sourceKind: 'chat' });
+    // The schedule executors were not touched.
+    for (const fn of [deps.createEvent, deps.updateEvent, deps.deleteEvent, deps.createMeal]) expect(fn).not.toHaveBeenCalled();
+  });
+
   it('executes the real executor over the server deps and returns its tool_result text', async () => {
     const { res, statusCode, body } = makeRes();
     await handler(makeReq({ toolUseId: 'tu_1', name: 'delete_event', input: { event_id: 'evt-9', scope: 'all' }, today: '2026-09-03' }), res);

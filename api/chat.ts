@@ -17,6 +17,8 @@ import { buildChatContext, ChatContextError, isChatMode, type ChatMode } from '.
 import { findCoachTool, isServerSideTool, READ_DOCTRINE_TOOL, type CoachToolContext } from '../src/lib/coach/tools.js';
 import { executeReadTool, readToolLabel, readToolSchemas } from './_lib/coach/readTools.js';
 import { DOCTRINE_TOPICS, readDoctrine, readDoctrineToolSchema } from '../src/lib/coach/doctrine/index.js';
+import { MEMORY_TOOL, memoryReadChip, memoryToolSchema } from '../src/lib/coach/memory.js';
+import { viewPath } from './_lib/coach/memory.js';
 
 // Server-side proxy for the coach chat, running on the CALLER'S OWN
 // Anthropic key (server-only user_api_keys table — no key ever reaches the
@@ -132,6 +134,10 @@ interface Body {
 
 export type ToolMode = ChatMode;
 
+/** A tool the chat request may carry: a custom tool, or the typed memory tool.
+ *  Narrower than the SDK's ToolUnion so every member has a `name`. */
+export type ChatTool = Anthropic.Tool | Anthropic.MemoryTool20250818;
+
 /** Breakpoint TTL. '5m' is the API default and is sent as a bare marker. */
 export type CacheTtl = '5m' | '1h';
 
@@ -142,12 +148,14 @@ function ephemeral(ttl: CacheTtl): Anthropic.CacheControlEphemeral {
 /**
  * The chat coach's full tool list, in the one fixed order the prompt cache
  * (a prefix match over the tools) needs on every turn: the eight write
- * tools, then the read tools, then read_doctrine. Composed here rather than
- * in schemas.ts because the read schemas come out of the MCP tool
- * implementations, which are server code and stay out of the browser bundle.
+ * tools, then the read tools, then read_doctrine, then the memory tool.
+ * Composed here rather than in schemas.ts because the read schemas come out
+ * of the MCP tool implementations, which are server code and stay out of
+ * the browser bundle. The memory tool is the API's typed memory_20250818
+ * (no input_schema of ours), which is why the list is wider than Tool.
  */
-export function chatToolSchemas(): Anthropic.Tool[] {
-  return [...coachToolSchemas(), ...readToolSchemas(), { ...readDoctrineToolSchema }];
+export function chatToolSchemas(): ChatTool[] {
+  return [...coachToolSchemas(), ...readToolSchemas(), { ...readDoctrineToolSchema }, { ...memoryToolSchema }];
 }
 
 /**
@@ -159,8 +167,8 @@ export function chatToolSchemas(): Anthropic.Tool[] {
  * absent calendar/meal tools are what make "the coach can never apply,
  * save, or touch the schedule from here" structural.
  */
-export function cachedToolSchemas(mode: ToolMode = 'chat', ttl: CacheTtl = '5m'): Anthropic.Tool[] {
-  const tools =
+export function cachedToolSchemas(mode: ToolMode = 'chat', ttl: CacheTtl = '5m'): ChatTool[] {
+  const tools: ChatTool[] =
     mode === 'builder' ? builderToolSchemas()
     : mode === 'analytics' ? analyticsToolSchemas()
     : chatToolSchemas();
@@ -187,8 +195,9 @@ export const ROUND_BUDGET_MS = 40_000;
 export const ROUND_LIMIT_NOTICE =
   'The coach stopped after the lookup limit for one message. Ask again to continue from here.';
 
-/** The chip text for a server-side call: the read tool's label, or the doctrine topic. */
+/** The chip text for a server-side call: the read tool's label, the doctrine topic, or the memory file. */
 export function serverSideToolLabel(name: string, input: unknown): string {
+  if (name === MEMORY_TOOL) return memoryReadChip(input);
   if (name !== READ_DOCTRINE_TOOL) return readToolLabel(name, input);
   const topic = typeof input === 'object' && input !== null ? (input as { topic?: unknown }).topic : undefined;
   const title = DOCTRINE_TOPICS.find(t => t.id === topic)?.title;
@@ -211,15 +220,29 @@ export interface ServerToolOutcome {
 }
 
 /**
- * Run one server-side tool. Never throws: executeReadTool has that contract,
- * and the doctrine reader answers a bad topic with an error result the model
- * can correct.
+ * Run one server-side tool. Never throws: executeReadTool and viewPath have
+ * that contract, and the doctrine reader answers a bad topic with an error
+ * result the model can correct.
  */
 export async function runServerSideTool(
   supabase: Parameters<typeof executeReadTool>[0],
   userId: string,
   block: { id: string; name: string; input: unknown },
 ): Promise<ServerToolOutcome> {
+  if (block.name === MEMORY_TOOL) {
+    // Only `view` reaches here (isServerSideTool); every other command is a
+    // confirm card. A non-view that slipped through is answered, not run.
+    const command = typeof block.input === 'object' && block.input !== null ? (block.input as { command?: unknown }).command : undefined;
+    const path = typeof block.input === 'object' && block.input !== null ? (block.input as { path?: unknown }).path : undefined;
+    const { text, isError } = command === 'view'
+      ? await viewPath(supabase, userId, path)
+      : { text: `memory ${String(command)} needs the athlete's confirmation and cannot run here.`, isError: true };
+    return {
+      result: { type: 'tool_result', tool_use_id: block.id, content: text, ...(isError ? { is_error: true } : {}) },
+      text,
+      isError,
+    };
+  }
   if (block.name === READ_DOCTRINE_TOOL) {
     const topic = typeof block.input === 'object' && block.input !== null ? (block.input as { topic?: unknown }).topic : undefined;
     const text = typeof topic === 'string' ? readDoctrine(topic) : null;
@@ -562,8 +585,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!serverLoop) break;
 
       const toolBlocks = outcome.content.filter((b): b is Anthropic.ToolUseBlockParam => b.type === 'tool_use');
-      const reads = toolBlocks.filter(b => isServerSideTool(b.name));
-      const writes = toolBlocks.filter(b => !isServerSideTool(b.name));
+      // By name for the read tools and read_doctrine; by input for the memory
+      // tool, whose `view` is a read and whose other commands are writes.
+      const reads = toolBlocks.filter(b => isServerSideTool(b.name, b.input));
+      const writes = toolBlocks.filter(b => !isServerSideTool(b.name, b.input));
       const emitWrites = () => {
         for (const w of writes) send({ type: 'tool_use', id: w.id, name: w.name, input: w.input as Record<string, unknown> });
       };

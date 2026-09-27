@@ -211,6 +211,19 @@ export type BlockMutationLogRow = LogRow<'block_mutations_log', {
   resource: 'block' | 'objective';
 }>;
 
+// ─── Coach memory (lane C02) ─────────────────────────────────────────────────
+
+/** Service-role only (RLS with no policies). One confirmed fact per row;
+ *  kind is the closed set the CHECK enforces and the five /memories files
+ *  mirror (src/lib/coach/memory.ts). confirmed_at null = proposed, not in
+ *  the prompt; superseded_by / archived_at set = no longer rendered. The
+ *  block in database.types.ts is hand-written until the stack regenerates it. */
+export type CoachMemoryRow = Row<'coach_memory', {
+  user_id?: string;
+  kind: 'injury' | 'preference' | 'goal' | 'history' | 'note';
+  source_kind: 'chat' | 'reflection' | 'user' | null;
+}>;
+
 // ─── Provider sync (phase 27) ────────────────────────────────────────────────
 // COROS today; provider strings widen for Garmin/Apple later.
 
