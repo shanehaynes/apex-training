@@ -21,6 +21,7 @@ import { enforceRateLimit } from '../rateLimit.js';
  */
 export const USER_DATA_TABLES = [
   'workout_events',
+  'coach_annotations',
   'recurring_exceptions',
   'event_mutations_log',
   'workout_completions',

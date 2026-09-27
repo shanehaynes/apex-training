@@ -2,7 +2,10 @@ import { CheckCircle2, Circle } from 'lucide-react';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { useCalendar } from '../../context/calendar';
 import { useSchedule } from '../../context/schedule';
+import { useAnnotations } from '../../context/annotations';
+import { maxSeverity } from '../../lib/coach/annotations';
 import type { WorkoutEvent } from '../../types/workout';
+import './annotations.css';
 
 interface Props {
   event: WorkoutEvent;
@@ -11,7 +14,12 @@ interface Props {
 export default function EventChip({ event }: Props) {
   const { dispatch } = useCalendar();
   const { toggleCompletion } = useSchedule();
+  const { byEvent } = useAnnotations();
   const color = getWorkoutColor(event.type);
+  // One marker however many notes: the chip is 22px tall, so the notes read
+  // in the tooltip rather than in the row. Coloured by the worst of them.
+  const notes = byEvent(event.id);
+  const noteSeverity = maxSeverity(notes);
   const label = event.startTime
     ? `${event.startTime.replace(' AM', '').replace(' PM', '')} · ${event.title}`
     : event.title;
@@ -28,6 +36,16 @@ export default function EventChip({ event }: Props) {
       >
         <span className="event-chip__dot" style={{ background: color.solid }} />
         <span className="event-chip__label">{label}</span>
+        {noteSeverity && (
+          <span
+            className={`annotation-marker annotation-marker--${noteSeverity}`}
+            data-testid="event-annotation-marker"
+            data-severity={noteSeverity}
+            role="img"
+            aria-label={`${notes.length} coach note${notes.length === 1 ? '' : 's'}`}
+            title={notes.map(n => n.body).join('\n')}
+          />
+        )}
       </button>
       <button
         className="event-chip__check"

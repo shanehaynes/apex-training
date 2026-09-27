@@ -108,6 +108,8 @@ The chat path is the most failure-prone surface in the app, so its invariants ar
 - **The prompt says what it will not do.** One `safetySection()` in every builder: scope, escalation for reported pain and injury, red flags, profile restrictions as constraints, and soreness is not injury. Eight refusal cases, two of them should-comply controls, keep it from sliding into refusing everything.
 - **Threads persist** (`/api/coach-conversations`, phase46): the web thread survives a reload and becomes eval substrate; iOS still holds its own local copy until the sync lands.
 
+- **Notes land where they refer** (`/api/coach-annotations`, `coach_annotations`): a remark the coach makes about a day, an event or a training block is stored against that target and rendered there — a severity-coloured chip in the day cell, a marker on the event chip, a strip in the block detail — with a dismiss that stamps `dismissed_at` rather than deleting, so a later reflection pass can see what was said and whether it was acted on. The calendar fetches the visible month's notes through [`AnnotationsContext`](src/context/AnnotationsContext.tsx) and fails open: no server, no chips, no toast. The chat tool that writes them is the next step; today the handler's `POST` is the door it will use.
+
 ### Measuring the coach, not vibing it
 
 [`evals/`](evals/README.md) is the instrument that answers *does the coach give good advice, and how would we know if it stopped?* — **46 adversarial cases**, structured per-dimension verdicts rather than a single score, versioned as JSON and diffable across runs and models.

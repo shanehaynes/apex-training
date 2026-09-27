@@ -137,6 +137,42 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_annotations: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string
+          dismissed_at: string | null
+          id: string
+          severity: string
+          target_id: string
+          target_kind: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string
+          dismissed_at?: string | null
+          id?: string
+          severity?: string
+          target_id: string
+          target_kind: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string
+          dismissed_at?: string | null
+          id?: string
+          severity?: string
+          target_id?: string
+          target_kind?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       coach_conversations: {
         Row: {
           created_at: string

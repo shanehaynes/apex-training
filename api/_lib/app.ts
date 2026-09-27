@@ -2,6 +2,7 @@ import { Hono, type Context } from 'hono';
 import { RESPONSE_ALREADY_SENT } from '@hono/node-server/utils/response';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import events from './handlers/events.js';
+import coachAnnotations from './handlers/coachAnnotations.js';
 import workoutSessions from './handlers/workoutSessions.js';
 import profile from './handlers/profile.js';
 import exerciseDefinitions from './handlers/exerciseDefinitions.js';
@@ -76,6 +77,7 @@ const bridge =
 
 export const app = new Hono<Env>().basePath('/api');
 app.all('/events', bridge(events));
+app.all('/coach-annotations', bridge(coachAnnotations)); // coach notes on days/events/blocks (phaseXX)
 // handleTrainingBlocks dispatches on query.resource internally (its original
 // contract as an events.ts delegate); the clean paths inject it. The cycle
 // preview (W10) shares the path, so `?resource=cycle` is dispatched before
