@@ -136,7 +136,7 @@ export async function handleMcpMessage(
       return success(id, {});
 
     case 'tools/list':
-      // Single page; the cursor param is ignored on purpose (8 tools).
+      // Single page; the cursor param is ignored on purpose (10 tools).
       return success(id, {
         tools: tools.map(t => ({ name: t.name, description: t.description, inputSchema: t.inputSchema })),
       });

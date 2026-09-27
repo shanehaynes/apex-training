@@ -106,6 +106,8 @@ Any client that speaks Streamable HTTP works. Two common shapes:
 | `get_training_blocks` | "Am I on target this block?" — blocks, objectives, weekly-target attainment |
 | `search_exercises` | "What do you call the cable row?" — library search across names and aliases |
 | `get_meals` | "How was my protein this week?" — meals with per-day macro totals |
+| `get_session_summaries` | "What did the coach say after my last few sessions?" — the post-workout summaries, newest first |
+| `get_reviews` | "How did last month go?" — stored monthly/yearly reviews: period, commentary, pre-computed stats |
 
 All numbers (estimated 1RM via Epley, tonnage, streaks, attainment) are
 computed server-side by the same code the app itself uses — the assistant

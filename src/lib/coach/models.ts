@@ -37,6 +37,16 @@ export interface CoachModelOption {
   inputPerMTok: number;
   outputPerMTok: number;
   params: CoachModelParams;
+  /**
+   * Whether the model accepts a mid-conversation `{ role: 'system' }` entry
+   * appended to `messages` (an operator instruction after the last user
+   * turn). api/chat.ts uses it to carry the live context (schedule, meals,
+   * today) outside the cached prefix; a model without it gets the same text
+   * as a block inside the last user message instead. An unsupported model
+   * answers 400 "role 'system' is not supported on this model", so this is
+   * never guessed: true only where a live call has confirmed it.
+   */
+  midTurnSystem: boolean;
 }
 
 // Ordered most → least capable, so the picker reads as a cost ladder.
@@ -59,6 +69,11 @@ export const COACH_MODELS: readonly CoachModelOption[] = [
     inputPerMTok: 4,
     outputPerMTok: 20,
     params: { thinking: { type: 'adaptive' }, output_config: { effort: 'high' } },
+    // UNVERIFIED on Opus 5.5: no live call has confirmed mid-turn system
+    // messages here, and a wrong `true` is a 400 on every chat turn for the
+    // default model. Flip it after one live call succeeds (the orchestrator
+    // owns that check); until then the live context rides in the user turn.
+    midTurnSystem: false,
   },
   {
     id: 'claude-opus-5',
@@ -68,6 +83,7 @@ export const COACH_MODELS: readonly CoachModelOption[] = [
     inputPerMTok: 5,
     outputPerMTok: 25,
     params: { thinking: { type: 'adaptive' } },
+    midTurnSystem: true,
   },
   {
     id: 'claude-opus-4-8',
@@ -77,6 +93,7 @@ export const COACH_MODELS: readonly CoachModelOption[] = [
     inputPerMTok: 5,
     outputPerMTok: 25,
     params: { thinking: { type: 'adaptive' } },
+    midTurnSystem: true,
   },
   {
     id: 'claude-sonnet-5',
@@ -86,6 +103,7 @@ export const COACH_MODELS: readonly CoachModelOption[] = [
     inputPerMTok: 2,
     outputPerMTok: 10,
     params: { thinking: { type: 'adaptive' } },
+    midTurnSystem: false,
   },
   {
     // Dated id, not the bare `claude-haiku-4-5` alias: the alias is not
@@ -97,6 +115,7 @@ export const COACH_MODELS: readonly CoachModelOption[] = [
     inputPerMTok: 1,
     outputPerMTok: 5,
     params: {},
+    midTurnSystem: false,
   },
 ];
 

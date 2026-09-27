@@ -73,7 +73,7 @@ describe('the documents make the disclosures the audit requires', () => {
   });
 
   it('the privacy policy names every third party the audit found', () => {
-    for (const party of ['Anthropic', 'Vercel', 'Supabase', 'Gmail', 'COROS']) {
+    for (const party of ['Anthropic', 'Vercel', 'Supabase', 'Resend', 'Cloudflare', 'COROS']) {
       expect(privacy).toContain(party);
     }
   });

@@ -335,6 +335,6 @@ unenforceable provision is narrowed to the minimum extent necessary. Our failure
 to enforce a provision is not a waiver of it. You may not assign these Terms; we
 may assign them in connection with a transfer of the Service, on notice to you.
 
-Questions about these Terms: [CONTACT_EMAIL].
+Questions about these Terms: support@apex-training.app.
 
-<!-- LEGAL REVIEW: [CONTACT_EMAIL] is a placeholder. Note that review emails currently send from a personal Gmail account (api/_lib/mailer.ts), so a personal address is already exposed to users. Please advise whether a contact address distinct from the operator's personal Gmail is needed, and whether any jurisdiction where users are located requires publishing a physical address for a service operator. -->
+<!-- LEGAL REVIEW: The contact address is support@apex-training.app, a forwarding alias (Cloudflare Email Routing) to the operator's personal inbox; outbound mail no longer uses a personal address. Please advise whether any jurisdiction where users are located requires publishing a physical address for a service operator. -->

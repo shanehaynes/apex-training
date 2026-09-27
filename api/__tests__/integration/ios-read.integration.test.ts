@@ -909,13 +909,15 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
   it('chat v2: the server builds the prompt from the caller\'s data and labels tool calls', async () => {
     // The context builder against real rows: today = the tracked occurrence's date.
     const admin2 = getSupabaseAdmin()!;
-    const { system } = await buildChatContext(admin2, agent.userId, 'chat', '2026-09-22');
-    expect(system).toContain(`[${TRACKED_OCCURRENCE}] Fixture Push Day (60 min) at 17:30`);
+    // Two halves since the cache-prefix split: the library lives in the stable
+    // `system` text, the schedule and completion rate in the per-turn `volatile`.
+    const { system, volatile } = await buildChatContext(admin2, agent.userId, 'chat', '2026-09-22');
+    expect(volatile).toContain(`[${TRACKED_OCCURRENCE}] Fixture Push Day (60 min) at 17:30`);
     expect(system).toContain('Fixture Press');
-    expect(system).toMatch(/LAST 4 WEEKS: \d+\/\d+ completed/);
+    expect(volatile).toMatch(/LAST 4 WEEKS: \d+\/\d+ completed/);
     // Another user's prompt knows nothing of it.
     const other = await buildChatContext(admin2, agent2.userId, 'chat', '2026-09-22');
-    expect(other.system).not.toContain('Fixture Push Day');
+    expect(other.volatile).not.toContain('Fixture Push Day');
 
     // The handler end to end: v2 body → NDJSON with a labelled tool_use.
     vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-ant-integration');

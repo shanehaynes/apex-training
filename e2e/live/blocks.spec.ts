@@ -168,7 +168,9 @@ test('the coach prompt carries pre-computed block attainment', async ({ page }) 
   expect(chatBody).toMatchObject({ mode: 'chat', today: FAKE_NOW.slice(0, 10) });
   expect(chatBody!.system).toBeUndefined();
 
-  const { system: systemPrompt } = await buildChatContext(
+  // The block summary is live state, so it rides in the per-turn `volatile`
+  // half of the split prompt, not the cached `system` text.
+  const { volatile: systemPrompt } = await buildChatContext(
     admin as never, await userId('agent@apex.local'), 'chat', chatBody!.today,
   );
   expect(systemPrompt).toContain('<training_block>');

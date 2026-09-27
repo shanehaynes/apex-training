@@ -13,7 +13,7 @@ written by reading the source code, not from a template, and it is meant to be
 checkable against it. Where Apex does something you might not expect, this
 document says so rather than glossing it.
 
-[LEGAL_ENTITY] operates Apex. Contact: [CONTACT_EMAIL].
+[LEGAL_ENTITY] operates Apex. Contact: support@apex-training.app.
 
 ---
 
@@ -23,8 +23,8 @@ document says so rather than glossing it.
   you connect a watch — **your heart-rate and GPS data**.
 - Using the AI coach sends your training context to **Anthropic**, on an API key
   you supply and pay for yourself.
-- Our infrastructure providers are **Vercel** and **Supabase**. Periodic review
-  emails are sent through **Google (Gmail SMTP)**.
+- Our infrastructure providers are **Vercel** and **Supabase**. Every email Apex
+  sends is delivered by **Resend**.
 - **There are no analytics, no trackers, no advertising, and no third-party
   scripts of any kind.** We do not sell or share your data, and we do not use it
   to train models.
@@ -146,11 +146,12 @@ data is sent to them.
 | Provider | What they receive |
 | --- | --- |
 | **Vercel** | Hosting and serverless execution — all application traffic passes through them. Server logs contain request metadata and IP addresses, and application error messages. Prompt contents are not logged; token counts are. |
-| **Supabase** | Database, authentication, and file storage — everything in section 2 is stored on their infrastructure. They also send account emails such as invitations and password resets. |
-| **Google (Gmail SMTP)** | Periodic review emails are delivered through a Gmail account belonging to the operator. Google therefore processes your email address and the full contents of those emails, including your statistics and AI commentary. |
+| **Supabase** | Database, authentication, and file storage — everything in section 2 is stored on their infrastructure. They also generate account emails such as invitations and password resets, which Resend delivers. |
+| **Resend** | Delivers every email Apex sends — invitations, password resets, and periodic review emails — from the apex-training.app domain. Resend therefore processes your email address and the full contents of those emails, including the statistics and AI commentary in reviews. |
+| **Cloudflare** | Receives mail sent to our apex-training.app addresses and forwards it to the operator's Google (Gmail) inbox. If you write to us, Cloudflare and Google process your address and your message. |
 | **COROS** | Only if you connect a watch. We exchange OAuth tokens with them and they return your activity, heart-rate, and GPS data. |
 
-<!-- LEGAL REVIEW: Review emails are sent through the operator's personal consumer Gmail account using an app password (api/_lib/mailer.ts), not a Google Workspace account under a business agreement. Google's consumer terms, not a data-processing agreement, therefore govern that transfer of users' health-adjacent data. Please advise whether this is acceptable, and whether the same question applies to Vercel and Supabase — no DPA has been executed with any of the four providers named in this section. -->
+<!-- LEGAL REVIEW: Outbound email moved from the operator's personal Gmail to Resend (api/_lib/mailer.ts, Supabase custom SMTP) on 2026-09-25, and privacy-v1 was edited in place rather than bumped, on the basis that the whole v1 audience is invited testers and the pre-launch revision (entity, jurisdiction) will bump both documents anyway. Please advise whether that in-place edit is acceptable. Resend and Cloudflare operate under their standard terms; no DPA has been executed with any provider in this section. Replies and support mail are forwarded to a personal consumer Gmail inbox. -->
 
 ### 4.3 Third-party AI clients you authorise
 
@@ -249,7 +250,7 @@ From your profile you can, at any time:
 - **Disconnect your watch.**
 
 These are actual buttons in the application, not a request process. For anything
-else, contact [CONTACT_EMAIL].
+else, contact support@apex-training.app.
 
 **What we do not currently offer:** an automated way to object to or restrict
 specific processing while continuing to use the Service, a data-portability
@@ -286,7 +287,7 @@ certification, no bug bounty, and no formal incident-response plan. We are not a
 HIPAA-covered entity and Apex is not HIPAA-compliant. No system is perfectly
 secure, and we cannot guarantee yours will not be breached.
 
-If you find a vulnerability, please tell us at [CONTACT_EMAIL].
+If you find a vulnerability, please tell us at support@apex-training.app.
 
 <!-- LEGAL REVIEW: We make no breach-notification commitment here because none exists operationally — there is no incident-response plan and no defined notification path. Most US states impose statutory notification duties regardless of what a policy says. Please advise on the minimum viable commitment we can honestly make and are obliged to make. -->
 
@@ -319,4 +320,4 @@ substantive change we publish the new version, bump the identifier, and prompt
 you to accept it the next time you use Apex, recording that acceptance as
 described in section 7. Minor corrections may be made without a version bump.
 
-Questions: [CONTACT_EMAIL].
+Questions: support@apex-training.app.

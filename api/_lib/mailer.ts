@@ -2,12 +2,14 @@ import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { optionalEnv } from './env.js';
 
-// Review-email delivery over Gmail SMTP — no domain to verify, sends from the
-// owner's own Gmail. Configured with GMAIL_USER (the address) and
-// GMAIL_APP_PASSWORD (a 16-char app password from a 2FA-enabled Google
-// account; Google renders it in four space-separated groups, so we strip
-// whitespace to accept a pasted value). Gmail requires the From address to be
-// the authenticated account, so From is derived from GMAIL_USER, not free.
+// Review-email delivery over Resend's SMTP relay, from the apex-training.app
+// domain verified in Resend (DEPLOY_MULTI_USER.md §5). Configured with
+// RESEND_API_KEY, a key with Sending access only, so a leak can send mail as
+// the domain but read nothing. Nobody reads reviews@, so Reply-To points at
+// support@, which Cloudflare Email Routing forwards to Shane.
+
+const FROM = 'Apex Training <reviews@apex-training.app>';
+const REPLY_TO = 'support@apex-training.app';
 
 export interface ReviewEmail {
   to: string;
@@ -18,25 +20,24 @@ export interface ReviewEmail {
 
 let cachedTransport: Transporter | null = null;
 
-function getMailer(): { transport: Transporter; from: string } {
-  const user = optionalEnv('GMAIL_USER');
-  const pass = optionalEnv('GMAIL_APP_PASSWORD')?.replace(/\s+/g, '');
-  if (!user || !pass) {
-    throw new Error('Gmail not configured (GMAIL_USER / GMAIL_APP_PASSWORD)');
+function getMailer(): Transporter {
+  const pass = optionalEnv('RESEND_API_KEY');
+  if (!pass) {
+    throw new Error('Resend not configured (RESEND_API_KEY)');
   }
   cachedTransport ??= nodemailer.createTransport({
-    host: 'smtp.gmail.com',
+    host: 'smtp.resend.com',
     port: 465,
     secure: true,
-    auth: { user, pass },
+    auth: { user: 'resend', pass },
   });
-  return { transport: cachedTransport, from: `Apex Training <${user}>` };
+  return cachedTransport;
 }
 
 export async function sendReviewEmail(email: ReviewEmail): Promise<void> {
-  const { transport, from } = getMailer();
-  await transport.sendMail({
-    from,
+  await getMailer().sendMail({
+    from: FROM,
+    replyTo: REPLY_TO,
     to: email.to,
     subject: email.subject,
     text: email.text,

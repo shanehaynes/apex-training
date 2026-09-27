@@ -250,7 +250,15 @@ export const deleteMealSchema: Anthropic.Tool = {
   },
 };
 
-/** Schemas in registry order (must match COACH_TOOLS in tools.ts). */
+/**
+ * The eight WRITE tools in registry order (must match COACH_TOOLS in
+ * tools.ts) — the confirm-card tools, and everything this client-safe module
+ * can name. The chat request carries more: api/chat.ts appends the read
+ * tools (api/_lib/coach/readTools.ts) and read_doctrine after these, in that
+ * fixed order (chatToolSchemas there), because the read tools' schemas come
+ * from the MCP tool implementations, which do not belong in a browser
+ * bundle. Builder and analytics stay single-tool.
+ */
 export function coachToolSchemas(): Anthropic.Tool[] {
   return [
     deleteEventSchema,

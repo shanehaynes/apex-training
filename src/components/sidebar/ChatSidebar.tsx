@@ -8,10 +8,13 @@ import { postJson } from '../../lib/api';
 import { useChat } from '../../hooks/useChat';
 import CoachModelPicker from '../coach/CoachModelPicker';
 import { findCoachTool } from '../../lib/coach/tools';
+import { previewForTool, type ToolPreview } from '../../lib/coach/preview';
 import { useTip } from '../../hooks/useTip';
 import { helpPath } from '../../lib/help/pages';
 import { Send, Square, NotebookPen, Check, X, KeyRound, MessageSquarePlus } from 'lucide-react';
 import { now } from '../../lib/clock';
+import './confirm-preview.css';
+import './chat-reads.css';
 
 // ─── On screen? ───────────────────────────────────────────────────────────────
 
@@ -39,6 +42,89 @@ function useOnScreen(ref: RefObject<HTMLElement | null>): boolean {
 
 // ─── Confirmation card ────────────────────────────────────────────────────────
 
+/** Field → before → after rows (update_event, update_exercise_definition). */
+function ChangeRows({ changes }: { changes: Array<{ field: string; before: string; after: string }> }) {
+  return (
+    <dl className="confirm-preview__changes">
+      {changes.map(c => (
+        // A field appears once per input (the diff is keyed on input keys).
+        <div key={c.field} style={{ display: 'contents' }}>
+          <dt className="confirm-preview__field">{c.field}</dt>
+          <dd className="confirm-preview__diff">
+            <span className="confirm-preview__before">{c.before}</span>
+            <span className="confirm-preview__arrow" aria-hidden="true">→</span>
+            <span className="confirm-preview__after">{c.after}</span>
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function ExerciseList({ lines, tone }: { lines: string[]; tone: 'before' | 'after' }) {
+  if (lines.length === 0) return <p className="confirm-preview__line confirm-preview__empty">No exercises</p>;
+  return (
+    <ul className={`confirm-preview__list confirm-preview__list--${tone}`}>
+      {lines.map((line, i) => <li key={i}>{line}</li>)}
+    </ul>
+  );
+}
+
+/**
+ * What the pending tool call will change, under the one-line label: the
+ * structured preview from src/lib/coach/preview.ts. Renders nothing for a
+ * null preview, so the card is exactly today's when there is nothing to show.
+ */
+function ConfirmPreview({ preview }: { preview: ToolPreview }) {
+  switch (preview.kind) {
+    case 'event-create': {
+      const when = [preview.date, preview.time].filter(Boolean).join(' · ');
+      const facts = [
+        preview.durationMinutes !== undefined ? `${preview.durationMinutes} min` : null,
+        preview.type ?? null,
+      ].filter(Boolean).join(' · ');
+      return (
+        <div className="confirm-preview" data-testid="confirm-preview" data-kind={preview.kind}>
+          <p className="confirm-preview__line"><strong>{when}</strong>{facts ? ` · ${facts}` : ''}</p>
+          {preview.exercises.length > 0 && <ExerciseList lines={preview.exercises} tone="after" />}
+        </div>
+      );
+    }
+    case 'event-update':
+    case 'definition-update':
+      return (
+        <div className="confirm-preview" data-testid="confirm-preview" data-kind={preview.kind}>
+          <ChangeRows changes={preview.changes} />
+        </div>
+      );
+    case 'event-delete':
+      return (
+        <div className="confirm-preview" data-testid="confirm-preview" data-kind={preview.kind}>
+          <p className="confirm-preview__line">
+            <strong>{preview.date}</strong>
+            {preview.scope === 'series' && <span className="confirm-preview__scope--series"> · every occurrence in the series</span>}
+            {preview.scope === 'one' && ' · this workout only'}
+          </p>
+        </div>
+      );
+    case 'exercises':
+      return (
+        <div className="confirm-preview" data-testid="confirm-preview" data-kind={preview.kind}>
+          <p className="confirm-preview__heading">Before</p>
+          <ExerciseList lines={preview.before} tone="before" />
+          <p className="confirm-preview__heading">After</p>
+          <ExerciseList lines={preview.after} tone="after" />
+        </div>
+      );
+    case 'meal':
+      return (
+        <div className="confirm-preview" data-testid="confirm-preview" data-kind={`meal-${preview.action}`}>
+          {preview.lines.map((line, i) => <p key={i} className="confirm-preview__line">{line}</p>)}
+        </div>
+      );
+  }
+}
+
 interface ConfirmCardProps {
   label: string;
   /** Actions still queued behind this one (0 when it's the only one). */
@@ -48,9 +134,11 @@ interface ConfirmCardProps {
   disabled: boolean;
   /** The pane is visible, so a tip about this card can land on it. */
   onScreen: boolean;
+  /** Structured before/after under the label; null renders the label alone. */
+  preview?: ToolPreview | null;
 }
 
-function ConfirmCard({ label, remaining, onConfirm, onCancel, disabled, onScreen }: ConfirmCardProps) {
+function ConfirmCard({ label, remaining, onConfirm, onCancel, disabled, onScreen, preview = null }: ConfirmCardProps) {
   // First pending action ever: say that nothing happens until Confirm. The
   // card only mounts when the coach is waiting on the user, so this is the
   // moment by definition — conditioned, and held back only while the pane is
@@ -62,6 +150,7 @@ function ConfirmCard({ label, remaining, onConfirm, onCancel, disabled, onScreen
         {label}
         {remaining > 0 && <span className="chat-confirm-card__queue"> · {remaining} more after this</span>}
       </p>
+      {preview && <ConfirmPreview preview={preview} />}
       <div className="chat-confirm-card__actions">
         <button
           className="chat-confirm-card__btn chat-confirm-card__btn--cancel"
@@ -82,6 +171,20 @@ function ConfirmCard({ label, remaining, onConfirm, onCancel, disabled, onScreen
   );
 }
 
+// ─── Read chips ───────────────────────────────────────────────────────────────
+
+/** "Checked: …" — one chip per server-side call the coach made before (or
+ *  while) it spoke, in the order it made them. Styles in chat-reads.css. */
+function ReadChips({ labels }: { labels: string[] }) {
+  return (
+    <ul className="chat-reads" data-testid="chat-reads" aria-label="What the coach checked">
+      {labels.map((label, i) => (
+        <li key={i} className="chat-reads__chip" title={label}>{label}</li>
+      ))}
+    </ul>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ChatSidebar() {
@@ -90,7 +193,7 @@ export default function ChatSidebar() {
   } = useSchedule();
   const { meals } = useMeals();
   const {
-    messages, isLoading, streamingContent,
+    messages, isLoading, streamingContent, streamingReads,
     pendingAction, pendingActionCount, sendMessage, confirmAction, cancelAction, triggerInitial,
     newThread, abort,
   } = useChat();
@@ -171,6 +274,16 @@ export default function ChatSidebar() {
       ?? pendingAction.displayLabel
     : '';
 
+  // The before/after under the label, from the same live state. Memoized on
+  // the action and the rows it reads: the pane re-renders on every keystroke
+  // and streamed token, and the diff walks the event list.
+  const pendingPreview = useMemo(
+    () => (pendingAction
+      ? previewForTool(pendingAction.toolName, pendingAction.input, { definitions, events, meals })
+      : null),
+    [pendingAction, definitions, events, meals],
+  );
+
   // ── Input handlers ─────────────────────────────────────────────────────────
 
   const handleSend = () => {
@@ -243,18 +356,25 @@ export default function ChatSidebar() {
             reuse a hydrated node for a newly streamed message. */}
         {messages.map(msg => (
           <div key={msg.id} className={`chat-msg chat-msg--${msg.role}`}>
-            <p className="chat-msg__text">{msg.content}</p>
+            {/* What the coach checked before this reply (the sight loop):
+                one chip per server-side call, in the order it made them. */}
+            {msg.reads && msg.reads.length > 0 && <ReadChips labels={msg.reads} />}
+            {msg.content && <p className="chat-msg__text">{msg.content}</p>}
           </div>
         ))}
 
         {isStreaming && (
           <div className="chat-msg chat-msg--assistant">
+            {streamingReads.length > 0 && <ReadChips labels={streamingReads} />}
             <p className="chat-msg__text">{streamingContent}<span className="chat-cursor" /></p>
           </div>
         )}
 
         {isLoading && !streamingContent && (
           <div className="chat-msg chat-msg--assistant">
+            {/* The coach is reading before it speaks: the chips land here,
+                above the typing indicator, as each call starts. */}
+            {streamingReads.length > 0 && <ReadChips labels={streamingReads} />}
             <span className="chat-typing"><span /><span /><span /></span>
           </div>
         )}
@@ -262,6 +382,7 @@ export default function ChatSidebar() {
         {pendingAction && (
           <ConfirmCard
             label={pendingLabel}
+            preview={pendingPreview}
             remaining={pendingActionCount - 1}
             disabled={isLoading || actionBusy}
             onScreen={onScreen}

@@ -48,6 +48,20 @@ describe('coach model catalog', () => {
     const opus55 = COACH_MODELS.find(m => m.id === 'claude-opus-5-5');
     expect(opus55?.params.output_config).toEqual({ effort: 'high' });
   });
+
+  it('claims mid-turn system messages only where a live call has confirmed them', () => {
+    // A wrong `true` is a 400 on every chat turn, so the flag is opt-in per
+    // model. Opus 5.5 — the default — stays false until the orchestrator
+    // verifies it live; Sonnet 5 and Haiku 4.5 reject the role.
+    const byId = Object.fromEntries(COACH_MODELS.map(m => [m.id, m.midTurnSystem]));
+    expect(byId).toEqual({
+      'claude-opus-5-5': false,
+      'claude-opus-5': true,
+      'claude-opus-4-8': true,
+      'claude-sonnet-5': false,
+      'claude-haiku-4-5-20251001': false,
+    });
+  });
 });
 
 describe('resolveCoachModel', () => {
