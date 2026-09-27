@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { chatToolSchemas as productionChatToolSchemas, MAX_SERVER_ROUNDS as PRODUCTION_MAX_SERVER_ROUNDS } from '../../api/chat';
 import { readDoctrine, DOCTRINE_TOPICS } from '../../src/lib/coach/doctrine/index';
 import { SERVER_SIDE_READ_TOOL_NAMES } from '../../src/lib/coach/tools';
-import { chatToolSchemas, executeServerSideTool, MAX_SERVER_ROUNDS, UNSCRIPTED_READ_RESULT } from '../src/reads';
+import { chatToolSchemas, executeServerSideTool, MAX_SERVER_ROUNDS, MEMORY_TOOL_OMITTED, UNSCRIPTED_READ_RESULT } from '../src/reads';
 import { schemasFor, zodShapeFromJsonSchema } from '../src/backends/agentSdk';
 
 // reads.ts mirrors two production values instead of importing them, so the
@@ -15,9 +15,13 @@ describe('mirrors of api/chat.ts', () => {
     expect(MAX_SERVER_ROUNDS).toBe(PRODUCTION_MAX_SERVER_ROUNDS);
   });
 
-  it('offers the production chat tool list, in production order', () => {
+  it('offers the production chat tool list, in production order, minus the one tool it cannot back', () => {
     const names = chatToolSchemas().map(t => t.name);
-    expect(names).toEqual(productionChatToolSchemas().map(t => t.name));
+    const production = productionChatToolSchemas().map(t => t.name);
+    // The typed memory tool is the ONE deliberate omission (see reads.ts); a
+    // production list that differs in any other way fails here.
+    expect(production.filter(n => n !== MEMORY_TOOL_OMITTED)).toEqual(names);
+    expect(production.filter(n => !names.includes(n))).toEqual([MEMORY_TOOL_OMITTED]);
     // Writes, then every read tool in its fixed order, then read_doctrine.
     expect(names.slice(-1)).toEqual(['read_doctrine']);
     expect(names.slice(8, -1)).toEqual([...SERVER_SIDE_READ_TOOL_NAMES]);
