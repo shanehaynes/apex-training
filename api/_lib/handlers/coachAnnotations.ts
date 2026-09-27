@@ -13,7 +13,7 @@ import {
 } from '../../../src/lib/coach/annotations.js';
 
 // Coach annotations: a note pinned to a day, an event occurrence or a block,
-// over the phaseXX coach_annotations table. The calendar reads them for the
+// over the phase49 coach_annotations table. The calendar reads them for the
 // month it is showing; the coach's `leave_note` tool (wave D) writes them;
 // the athlete dismisses them in place.
 //

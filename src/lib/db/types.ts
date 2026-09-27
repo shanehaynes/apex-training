@@ -255,7 +255,7 @@ export type ActivityStreamsRow = Row<'activity_streams', {
 
 // ─── Coach annotations ───────────────────────────────────────────────────────
 // One note the coach pinned to a day, an event occurrence or a block
-// (phaseXX). Server-only: RLS with no policies, read and written through
+// (phase49). Server-only: RLS with no policies, read and written through
 // /api/coach-annotations. The literal unions mirror the table's check
 // constraints; the same values live in src/lib/coach/annotations.ts, which is
 // what the handler validates against.

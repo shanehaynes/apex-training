@@ -2,7 +2,7 @@ import type { WorkoutEvent } from '../../types/workout';
 import type { TrainingBlock } from '../../types/blocks';
 
 // Coach annotations: the pure half. A note the coach pins to a day, an event
-// occurrence or a training block (supabase/migrations/phaseXX_coach_annotations.sql),
+// occurrence or a training block (supabase/migrations/phase49_coach_annotations.sql),
 // rendered by the calendar as a chip where the target lives. This module is
 // shared by the handler (api/_lib/handlers/coachAnnotations.ts validates
 // against these sets) and the client (the context indexes with these

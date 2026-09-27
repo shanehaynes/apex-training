@@ -77,7 +77,7 @@ const bridge =
 
 export const app = new Hono<Env>().basePath('/api');
 app.all('/events', bridge(events));
-app.all('/coach-annotations', bridge(coachAnnotations)); // coach notes on days/events/blocks (phaseXX)
+app.all('/coach-annotations', bridge(coachAnnotations)); // coach notes on days/events/blocks (phase49)
 // handleTrainingBlocks dispatches on query.resource internally (its original
 // contract as an events.ts delegate); the clean paths inject it. The cycle
 // preview (W10) shares the path, so `?resource=cycle` is dispatched before
