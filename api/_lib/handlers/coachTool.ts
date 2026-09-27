@@ -5,6 +5,7 @@ import { enforceAiMutationCap, enforceRateLimit } from '../rateLimit.js';
 import { fetchExpandedSchedule } from '../mcp/data.js';
 import { loadMealsForDate } from '../trackerSession.js';
 import { createServerDeps } from '../coach/serverDeps.js';
+import { applyMemoryCommand } from '../coach/memory.js';
 import { findCoachTool } from '../../../src/lib/coach/tools.js';
 import { applyDraftUpdate, type DraftUpdateInput, type WorkoutDraft } from '../../../src/lib/builder/draft.js';
 import { applyChartDraftUpdate, type ChartDraft, type DraftUpdateInput as ChartDraftUpdateInput } from '../../../src/lib/analytics/draft.js';
@@ -118,7 +119,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { data } = await supabase.from('meals').select('*').eq('user_id', userId).eq('id', input.meal_id).maybeSingle();
       if (data) meals.push(rowToMeal(data as MealRow));
     }
-    const deps = createServerDeps(supabase, userId, { today, events: occurrences, definitions, meals });
+    // The memory backend rides alongside the schedule/meal deps: a confirmed
+    // memory write (lane C02) lands as confirmed rows — the click is the
+    // confirmation — stamped 'chat'. The service-role client and the
+    // verified uid are bound here, never taken from the tool input.
+    const deps = {
+      ...createServerDeps(supabase, userId, { today, events: occurrences, definitions, meals }),
+      applyMemoryCommand: (cmd: Record<string, unknown>) => applyMemoryCommand(supabase, userId, cmd, { sourceKind: 'chat' }),
+    };
     const resultText = await tool.execute(input, deps);
     res.status(200).json({ ok: true, resultText });
   } catch (err) {

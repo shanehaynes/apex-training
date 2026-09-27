@@ -122,6 +122,27 @@ function ConfirmPreview({ preview }: { preview: ToolPreview }) {
           {preview.lines.map((line, i) => <p key={i} className="confirm-preview__line">{line}</p>)}
         </div>
       );
+    case 'memory':
+      // The whole fact, as it will be remembered (or forgotten): the card is
+      // where the athlete reads it before anything is stored (D-C03).
+      return (
+        <div className="confirm-preview" data-testid="confirm-preview" data-kind={`memory-${preview.action}`}>
+          {preview.file && <p className="confirm-preview__line"><strong>{preview.file}</strong></p>}
+          {preview.before.length > 0 && (
+            <ul className="confirm-preview__list confirm-preview__list--before">
+              {preview.before.map((line, i) => <li key={i}>{line}</li>)}
+            </ul>
+          )}
+          {preview.after.length > 0 && (
+            <ul className="confirm-preview__list confirm-preview__list--after">
+              {preview.after.map((line, i) => <li key={i}>{line}</li>)}
+            </ul>
+          )}
+          {preview.action === 'forget' && preview.before.length === 0 && (
+            <p className="confirm-preview__line confirm-preview__empty">Every fact in this file is forgotten.</p>
+          )}
+        </div>
+      );
   }
 }
 

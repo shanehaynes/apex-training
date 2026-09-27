@@ -108,8 +108,10 @@ export function hydrateFromRows(rows: StoredCoachMessage[]): {
 /** The chips for the server-side tool_use blocks in a stored assistant row. */
 function readChipsOf(apiContent: unknown): string[] {
   if (!Array.isArray(apiContent)) return [];
+  // By name, and by input for the memory tool: a stored `memory view` was a
+  // read the server answered; a stored `memory create` was a confirm card.
   return (apiContent as Array<{ type?: unknown; name?: unknown; input?: unknown }>)
-    .filter(b => b?.type === 'tool_use' && typeof b.name === 'string' && isServerSideTool(b.name))
+    .filter(b => b?.type === 'tool_use' && typeof b.name === 'string' && isServerSideTool(b.name, b.input))
     .map(b => serverSideToolChip(b.name as string, b.input));
 }
 

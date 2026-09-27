@@ -303,3 +303,34 @@ describe('garbage in', () => {
     expect(previewForTool('delete_meal', { meal_id: 'meal-1' }, broken)).toBeNull();
   });
 });
+
+describe('memory', () => {
+  it('create shows every fact in full, and the file it lands in', () => {
+    const long = 'left shoulder: avoid overhead pressing until the physio clears it — ' + 'and keep the bands light '.repeat(4);
+    const p = previewForTool('memory', { command: 'create', path: '/memories/injuries.md', file_text: `- ${long}\n- right knee: no deep squats` }, ctx);
+    expect(p).toEqual({ kind: 'memory', action: 'remember', file: 'injuries', before: [], after: [long.replace(/\s+/g, ' ').trim(), 'right knee: no deep squats'] });
+    // The fact is bounded at its own 500-char limit, not the 60-char label bound.
+    expect((p as { after: string[] }).after[0].length).toBeGreaterThan(60);
+  });
+
+  it('str_replace shows before and after; an empty new_str is a forget', () => {
+    expect(previewForTool('memory', { command: 'str_replace', path: '/memories/goals.md', old_str: '- [id:11111111-2222-4333-8444-555555555555] Rainier June 2027', new_str: 'Rainier July 2027' }, ctx))
+      .toEqual({ kind: 'memory', action: 'update', file: 'goals', before: ['Rainier June 2027'], after: ['Rainier July 2027'] });
+    expect(previewForTool('memory', { command: 'str_replace', path: '/memories/goals.md', old_str: 'Rainier June 2027', new_str: '' }, ctx))
+      .toEqual({ kind: 'memory', action: 'forget', file: 'goals', before: ['Rainier June 2027'], after: [] });
+  });
+
+  it('delete a file is a forget with nothing to list; refused commands yield null', () => {
+    expect(previewForTool('memory', { command: 'delete', path: '/memories/notes.md' }, ctx))
+      .toEqual({ kind: 'memory', action: 'forget', file: 'notes', before: [], after: [] });
+    expect(previewForTool('memory', { command: 'rename', old_path: 'a', new_path: 'b' }, ctx)).toBeNull();
+    expect(previewForTool('memory', { command: 'create', path: '/memories/diary.md', file_text: 'x' }, ctx)).toBeNull();
+    expect(previewForTool('memory', { command: 'view', path: '/memories' }, ctx)).toBeNull();
+    expect(previewForTool('memory', {}, ctx)).toBeNull();
+  });
+
+  it('strips tag characters from a fact so the card cannot be escaped', () => {
+    const p = previewForTool('memory', { command: 'create', path: '/memories/notes.md', file_text: '<img src=x> likes <b>bold</b>' }, ctx);
+    expect((p as { after: string[] }).after).toEqual(['img src=x> likes b>bold/b>']);
+  });
+});
