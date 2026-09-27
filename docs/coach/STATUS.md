@@ -14,9 +14,9 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 | A05 | Cache prefix: stable/volatile prompt split, server-side injection, 1h TTL | A | done (#345) — merged with the attestation still stale, see Next up | `feat/coach-cache-prefix` | `PROMPT_VERSION` → 2026.09.25-1; Opus 5.5 `midTurnSystem` off until verified |
 | B01 | Sight loop: read tools + doctrine + physiology wired into chat; server-side read rounds; chips | B | done (#348, `f833db0`) | `feat/coach-sight-loop` | `PROMPT_VERSION` → 2026.09.26-1; merged past the red gate like #345 |
 | B02 | Board + embeddings issue | B | done (this branch, issue #340) | `chore/coach-board` | orchestrator |
-| C01 | Evals: harness realignment, `sight` and `doctrine` cases, doctrine dimension | C | in review (#353, head `d7652c5`) — merges first; Codex P1 (round tracking) fixed | `feat/coach-evals-sight` | reconciling commit for C02's memory tool queued |
-| C02 | Memory: `coach_memory` migration, memory tool backend, proposal cards | C | in review (#354, head `447dcd6`) — **HELD** (phase48); four Codex P2s fixed; iOS types added; merges second | `feat/coach-memory` | `PROMPT_VERSION` → 2026.09.27-1 |
-| C03 | Calendar annotations: table, handler, chips, block strip | C | in review (#355, head `dafc92c`) — **HELD** (phase49); iOS types added; follow-up session C03b (`session_016WDHPxoH9Hu8jsrgJ4619u`) rendering notes in day/week views + event dismiss; merges third | `feat/coach-annotations` | README/api.ts conflict with C02 resolved at merge time |
+| C01 | Evals: harness realignment, `sight` and `doctrine` cases, doctrine dimension | C | done (#353, `3de0233`) — merged after #354, so the reconciling commit (mirror names `memory` as its one omission) rides #355; `main`'s `check` job is red on `evals/__tests__/reads.test.ts` until #355 lands | `feat/coach-evals-sight` | |
+| C02 | Memory: `coach_memory` migration, memory tool backend, proposal cards | C | done (#354, `cd3961a`) — phase48 to apply in production | `feat/coach-memory` | `PROMPT_VERSION` → 2026.09.27-1 |
+| C03 | Calendar annotations: table, handler, chips, block strip, day/week views | C | in review (#355, head `7edfb3e`) — **HELD** (phase49); `main` merged in (README/api.ts conflict resolved); C03b's day-view chips + dismiss and week-view markers landed (`d2bb011`); carries the evals reconciling commit; last wave-C PR | `feat/coach-annotations` | |
 | D01 | Reflection + coaching contract (nightly Batch API, proposal-gated) | D | ready (after C) | `feat/coach-reflection` | HELD (migration) |
 | D02 | Notebook page: memory, proposals, contract history, doctrine index | D | ready (after C) | `feat/coach-notebook` | |
 | D03 | Weekly review document + "next week" proposal batch | D | ready (after C) | `feat/coach-weekly-review` | |
@@ -24,20 +24,16 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 | E02 | Ask-coach from a session or set | E | ready (after D) | `feat/coach-ask-from-context` | |
 
 ## Next up
-1. **Wave C in review**: #353 (C01) → #354 (C02, HELD) → #355 (C03, HELD), in that merge order.
-   The fold of all three on `main` is green (build, vitest 2019, oxlint, guards). Two
-   integration steps the orchestrator does between merges: after #353 merges, merge `main`
-   into #354 and push the reconciling commit (`evals/src/reads.ts` names `memory` as the one
-   tool the harness omits); after #354 merges, merge `main` into #355 and resolve the
-   README/api.ts append conflict.
-2. **Shane: `shipit`** on #354 and #355 (migrations phase48, phase49). Then apply both to
-   production and regenerate types if CI's `full` job flags drift.
-3. **Attestation debt (Shane):** run `npm run eval:gate` once after wave C is on `main`
-   (instructions in the 2026-09-27 chat). It now measures the coach with its read tools.
-4. Wave D launches after wave C merges: D01 reflection + contract, D02 notebook, D03 weekly
+1. **#355 (C03, HELD, phase49)** is the last wave-C PR: it carries C03b's view work and the
+   evals reconciling commit that makes `main`'s `check` job green again. **Shane: `shipit`**,
+   then apply phase48 and phase49 to production.
+2. **Attestation debt (Shane):** run `npm run eval:gate` once #355 is on `main` (instructions
+   in the 2026-09-27 chat). It now measures the coach with its read tools and memory.
+3. Wave D launches after #355 merges: D01 reflection + contract, D02 notebook, D03 weekly
    review. Add to D01's brief: `leave_note` tool over `/api/coach-annotations`; to the evals
-   follow-ups: fixture-backed memory (`fixture.memory`).
-5. **Shane:** review the doctrine text on `main`; open #348 follow-up on thinking blocks.
+   follow-ups: fixture-backed memory (`fixture.memory`). Brief line for every lane: commit as
+   Shane (`user.name`/`user.email`), so GitHub's squash adds no `Co-authored-by` trailer.
+4. **Shane:** review the doctrine text on `main`; open #348 follow-up on thinking blocks.
 
 ## Recent sessions
 - 2026-09-25 · orchestrator · plan approved, issue #340 opened, board created, wave A launched
@@ -67,3 +63,10 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
   two #355 UI findings (no annotations on day/week views, no event-note dismiss) delegated to
   follow-up session C03b. Lesson for briefs: name `src/lib/api.ts`, `README.md` and the iOS
   generated types explicitly; UI lanes must cover every calendar view, mobile forces DayView.
+- 2026-09-27 · Shane · merged #354 (`cd3961a`) then #353 (`3de0233`), the reverse of the planned
+  order, so the reconciling commit for the evals mirror was on neither and `main`'s `check`
+  job went red on `reads.test.ts`; it rides #355 instead. Both squash commits carry a
+  `Co-authored-by: Claude` trailer from the lane commits' author identity.
+- 2026-09-27 · orchestrator · C03b pushed `d2bb011` (day-view note chips with dismiss, week-view
+  markers, tests, e2e) after merging `main` into `feat/coach-annotations`; reconciling commit
+  added on top; #355 is the last wave-C PR.
