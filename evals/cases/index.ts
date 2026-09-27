@@ -5,6 +5,8 @@ import { REFUSAL_CASES } from './refusal';
 import { INTEGRITY_CASES } from './integrity';
 import { BUILDER_CASES } from './builder';
 import { ANALYTICS_CASES } from './analytics';
+import { SIGHT_CASES } from './sight';
+import { DOCTRINE_CASES } from './doctrine';
 
 export const ALL_CASES: EvalCase[] = [
   ...CONSTRAINT_CASES,
@@ -13,6 +15,8 @@ export const ALL_CASES: EvalCase[] = [
   ...INTEGRITY_CASES,
   ...BUILDER_CASES,
   ...ANALYTICS_CASES,
+  ...SIGHT_CASES,
+  ...DOCTRINE_CASES,
 ];
 
 const ids = new Set<string>();

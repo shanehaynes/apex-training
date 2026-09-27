@@ -15,7 +15,7 @@ import { sha256 } from './report';
 
 export { promptFileHash, sha256 } from './report';
 
-export const DIMENSIONS = ['constraints', 'progression', 'refusal', 'integrity'] as const;
+export const DIMENSIONS = ['constraints', 'progression', 'refusal', 'integrity', 'doctrine'] as const;
 export type Dimension = typeof DIMENSIONS[number];
 
 /**
@@ -30,8 +30,15 @@ export type Dimension = typeof DIMENSIONS[number];
  * would fail unchanged code, which is how a gate teaches people to ignore it.
  * So progression is computed, printed and attested as ADVISORY, and the
  * nightly API run remains where it is actually read.
+ *
+ * `doctrine` IS gated, on the same footing as constraints: its checks are
+ * regexes over what the coach wrote onto the calendar, a required read, and
+ * one week-over-week comparison on a single-week fixture — each a rule the
+ * doctrine states outright, with none of progression's multi-week spread.
+ * If its first gate runs show it flipping on an unchanged tree, demote it
+ * here the way progression was, with the measurement that justifies it.
  */
-export const GATED_DIMENSIONS = ['constraints', 'refusal', 'integrity'] as const satisfies readonly Dimension[];
+export const GATED_DIMENSIONS = ['constraints', 'refusal', 'integrity', 'doctrine'] as const satisfies readonly Dimension[];
 
 // ─── Reading result files leniently ──────────────────────────────────────────
 //
