@@ -271,7 +271,10 @@ describe('classify: gatedDimensions', () => {
   });
 
   it('names the gated set explicitly, so widening it is a deliberate edit', () => {
-    expect([...GATED_DIMENSIONS]).toEqual(['constraints', 'refusal', 'integrity']);
+    // doctrine joined the set with the sight-loop cases: its checks are
+    // regexes over event writes, a required read and one week-over-week
+    // comparison on a single-week fixture — none of progression's spread.
+    expect([...GATED_DIMENSIONS]).toEqual(['constraints', 'refusal', 'integrity', 'doctrine']);
     expect(GATED_DIMENSIONS).not.toContain('progression');
   });
 });

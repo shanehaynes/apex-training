@@ -1,29 +1,40 @@
+import { isServerSideTool } from '../../../src/lib/coach/tools';
+import { MAX_SERVER_ROUNDS } from '../reads';
 import type {
   ApiMessage,
   Backend,
   CallModel,
   ModelResponse,
   TextBlock,
+  ToolResultBlock,
   ToolUseBlock,
   TurnOutcome,
   TurnRequest,
   TurnToolCall,
 } from '../types';
 
-// The Messages-API backend: the conversation loop the harness has always run,
-// lifted behind RunTurn unchanged. Production-shaped, and the measurement of
-// record — every existing `npm run eval` invocation lands here and produces
-// the same transcript, the same anomalies in the same order, and the same
-// transcriptHash inputs it did before the seam existed.
+// The Messages-API backend: the conversation loop api/chat.ts + useChat.ts
+// run, lifted behind RunTurn. Production-shaped, and the measurement of
+// record.
 //
-//   user msg → stream WITH tools → confirm EVERY tool_use in emission order
-//   via the real executors → flush all results as ONE tool_result user message
-//   → re-stream with tools OFF (production's tool_choice: none re-stream)
+//   user msg → stream WITH tools
+//     → a response asking only for server-side tools (reads, read_doctrine)
+//       is answered here — assistant content echoed, ONE tool_result user
+//       message — and the model is called again WITH tools, up to
+//       MAX_SERVER_ROUNDS times (api/chat.ts, "THE SIGHT LOOP")
+//     → a response with any write tool_use ends the loop: its reads run
+//       first, then every write is confirmed in emission order via the real
+//       executors, and all results flush as ONE tool_result user message with
+//       the read results ahead of the write results (useChat's heldResults)
+//     → re-stream with tools OFF (production's tool_choice: none re-stream)
 //   → next script step.
 //
-// Thinking blocks are dropped from history (the wire protocol has no thinking
-// event). The system prompt is rebuilt from the mutated fixture before every
-// call, as ChatSidebar's resolveSystemPrompt does.
+// A turn with no reads produces byte-for-byte the transcript this backend
+// produced before the sight loop existed. Thinking blocks are dropped from
+// history (the wire protocol has no thinking event, and the stored thread
+// production replays carries none — see DECISIONS in evals/README.md,
+// "Reads and doctrine"). The system prompt is rebuilt from the mutated
+// fixture before every call, as ChatSidebar's resolveSystemPrompt does.
 
 type ResponseContent = Array<Record<string, unknown> & { type: string }>;
 
@@ -44,9 +55,21 @@ export function extractBlocks(content: ResponseContent): { text: string; toolUse
   return { text, toolUses };
 }
 
+/** The assistant message as the thread stores it: a bare string for a
+ *  text-only reply, the block array otherwise. */
+function assistantMessage(text: string, toolUses: ToolUseBlock[]): ApiMessage {
+  const content: Array<TextBlock | ToolUseBlock> = [];
+  if (text) content.push({ type: 'text', text });
+  content.push(...toolUses);
+  return {
+    role: 'assistant',
+    content: content.length === 1 && content[0].type === 'text' ? text : content,
+  };
+}
+
 export function makeApiBackend(callModel: CallModel): Backend {
   const runTurn = async (req: TurnRequest): Promise<TurnOutcome> => {
-    const { userText, transcript, buildSystem, executeTool, toolMode, turnIndex, anomaly } = req;
+    const { userText, transcript, buildSystem, executeTool, executeRead, toolMode, turnIndex, anomaly } = req;
     const usage = { inputTokens: 0, outputTokens: 0 };
 
     // Long thinking streams get killed by flaky networks / sleeping machines
@@ -77,43 +100,86 @@ export function makeApiBackend(callModel: CallModel): Backend {
       throw lastError;
     };
 
-    transcript.push({ role: 'user', content: userText });
-    const response = await call(true);
-
-    const { text, toolUses } = extractBlocks(response.content);
-    if (response.stopReason && response.stopReason !== 'end_turn' && response.stopReason !== 'tool_use') {
-      anomaly(`stop_reason:${response.stopReason} (turn ${turnIndex})`);
-    }
-
-    const assistantContent: Array<TextBlock | ToolUseBlock> = [];
-    if (text) assistantContent.push({ type: 'text', text });
-    assistantContent.push(...toolUses);
-    transcript.push({
-      role: 'assistant',
-      content: assistantContent.length === 1 && assistantContent[0].type === 'text'
-        ? text
-        : assistantContent,
-    });
-
-    let assistantText = text;
-    const toolCalls: TurnToolCall[] = [];
-    if (toolUses.length) {
-      // Every tool_use is confirmed in emission order (actionQueue.ts holds
-      // the results and flushes them as ONE user message once the last one
-      // settles — the API requires a tool_result per tool_use up front).
-      const results: Array<{ type: 'tool_result'; tool_use_id: string; content: string }> = [];
-      for (const toolUse of toolUses) {
-        let result: string;
-        try {
-          result = await executeTool(toolUse.name, toolUse.input);
-        } catch (err) {
-          result = 'The operation failed — something went wrong on the backend.';
-          anomaly(`executorThrew:${toolUse.name}: ${err instanceof Error ? err.message : String(err)}`);
-        }
-        toolCalls.push({ name: toolUse.name, input: toolUse.input, resultText: result });
-        results.push({ type: 'tool_result', tool_use_id: toolUse.id, content: result });
+    // Reads are answered from the fixture and never throw (executeServerSideTool
+    // has that contract); a write goes through the real executor, whose throw
+    // is the "backend failed" tool_result production would send.
+    const runRead = async (toolUse: ToolUseBlock): Promise<ToolResultBlock> => {
+      const outcome = await executeRead!(toolUse.name, toolUse.input);
+      toolCalls.push({ name: toolUse.name, input: toolUse.input, resultText: outcome.text, kind: 'read' });
+      const block: ToolResultBlock & { is_error?: boolean } = {
+        type: 'tool_result',
+        tool_use_id: toolUse.id,
+        content: outcome.content ?? outcome.text,
+        ...(outcome.isError ? { is_error: true } : {}),
+      };
+      return block;
+    };
+    const runWrite = async (toolUse: ToolUseBlock): Promise<ToolResultBlock> => {
+      let result: string;
+      try {
+        result = await executeTool(toolUse.name, toolUse.input);
+      } catch (err) {
+        result = 'The operation failed — something went wrong on the backend.';
+        anomaly(`executorThrew:${toolUse.name}: ${err instanceof Error ? err.message : String(err)}`);
       }
-      transcript.push({ role: 'user', content: results } as ApiMessage);
+      toolCalls.push({ name: toolUse.name, input: toolUse.input, resultText: result, kind: 'write' });
+      return { type: 'tool_result', tool_use_id: toolUse.id, content: result };
+    };
+
+    transcript.push({ role: 'user', content: userText });
+
+    const toolCalls: TurnToolCall[] = [];
+    const texts: string[] = [];
+    let assistantBlocks: Array<TextBlock | ToolUseBlock> = [];
+    let stopReason: string | null = null;
+    let rounds = 0;
+
+    for (;;) {
+      const response = await call(true);
+      const { text, toolUses } = extractBlocks(response.content);
+      stopReason = response.stopReason;
+      if (stopReason && stopReason !== 'end_turn' && stopReason !== 'tool_use') {
+        anomaly(`stop_reason:${stopReason} (turn ${turnIndex})`);
+      }
+      if (text) texts.push(text);
+
+      // Without executeRead (builder, analytics, a pre-sight-loop caller)
+      // every tool_use is a write, as it always was.
+      const reads = executeRead ? toolUses.filter(t => isServerSideTool(t.name)) : [];
+      const writes = executeRead ? toolUses.filter(t => !isServerSideTool(t.name)) : toolUses;
+
+      if (reads.length && !writes.length && rounds >= MAX_SERVER_ROUNDS) {
+        // Production stops the loop BEFORE running the reads and sends a
+        // notice; the tool_use blocks never reach the client, so the stored
+        // turn ends on the text alone. Same here, so the transcript stays
+        // API-valid (no unanswered tool_use).
+        anomaly(`serverRoundCap:${rounds} (turn ${turnIndex})`);
+        assistantBlocks = text ? [{ type: 'text', text }] : [];
+        transcript.push(assistantMessage(text, []));
+        break;
+      }
+
+      assistantBlocks = [...(text ? [{ type: 'text', text } as TextBlock] : []), ...toolUses];
+      transcript.push(assistantMessage(text, toolUses));
+      if (!toolUses.length) break;
+
+      // Read results lead the tool_result message (useChat folds a mixed
+      // round's held read results ahead of the confirm flow's write results).
+      const results: ToolResultBlock[] = [];
+      for (const toolUse of reads) results.push(await runRead(toolUse));
+
+      if (!writes.length) {
+        // A read-only round: answer it and call again with tools ON.
+        rounds += 1;
+        transcript.push({ role: 'user', content: results });
+        continue;
+      }
+
+      // Every write is confirmed in emission order (actionQueue.ts holds the
+      // results and flushes them as ONE user message once the last one
+      // settles — the API requires a tool_result per tool_use up front).
+      for (const toolUse of writes) results.push(await runWrite(toolUse));
+      transcript.push({ role: 'user', content: results });
 
       const followup = await call(false);
       const followupBlocks = extractBlocks(followup.content);
@@ -121,14 +187,15 @@ export function makeApiBackend(callModel: CallModel): Backend {
         anomaly(`toolUseWithToolsOff (turn ${turnIndex})`);
       }
       transcript.push({ role: 'assistant', content: followupBlocks.text });
-      assistantText = [text, followupBlocks.text].filter(Boolean).join('\n');
+      if (followupBlocks.text) texts.push(followupBlocks.text);
+      break;
     }
 
     return {
-      assistantBlocks: assistantContent,
-      assistantText,
+      assistantBlocks,
+      assistantText: texts.join('\n'),
       toolCalls,
-      stopReason: response.stopReason,
+      stopReason,
       usage,
     };
   };

@@ -6,7 +6,9 @@ import { runCase } from './src/harness';
 import { checkConstraints } from './src/checkers/constraints';
 import { checkProgression } from './src/checkers/progression';
 import { checkIntegrity } from './src/checkers/integrity';
+import { checkDoctrine } from './src/checkers/doctrine';
 import { judgeRefusal } from './src/judge/refusal';
+import { judgeDoctrine } from './src/judge/doctrine';
 import { makeApiBackend } from './src/backends/api';
 import { makeAgentSdkBackend } from './src/backends/agentSdk';
 import { makeAgentSdkJudge, makeApiJudge, type JudgeCall } from './src/backends/judge';
@@ -28,6 +30,7 @@ import type { Backend, BackendKind, CaseResult, EvalCase } from './src/types';
 //   npm run eval -- --case pulley-injury            # single case (substring match)
 //   npm run eval -- --case a,b,c                    # several cases (exact ids)
 //   npm run eval -- --dims constraints,refusal      # restrict checked dimensions
+//                                                   #   (constraints, progression, refusal, integrity, doctrine)
 //   npm run eval -- --backend agent-sdk             # spend a subscription, not a key
 //   npm run eval -- --out evals/results/mine.json   # name the result file
 //   npm run eval -- --concurrency 6                 # six cases at a time
@@ -129,7 +132,8 @@ async function main() {
       (wants('constraints') && c.expect.constraints) ||
       (wants('progression') && c.expect.progression) ||
       (wants('refusal') && c.expect.refusal) ||
-      (wants('integrity') && c.expect.integrity));
+      (wants('integrity') && c.expect.integrity) ||
+      (wants('doctrine') && c.expect.doctrine));
   }
   if (!cases.length) {
     console.error('No cases matched.');
@@ -198,6 +202,21 @@ async function main() {
           evalCase.expect.refusal.expected, evalCase.expect.refusal.rubric,
           evalCase.expect.refusal.acceptable);
       }
+      if (evalCase.expect.doctrine && wants('doctrine')) {
+        // The deterministic checks first; the judge only where the case asks
+        // whether an answer was grounded, and only as a second opinion that
+        // can fail a case, never rescue one the arithmetic already failed.
+        const checked = checkDoctrine(evalCase, harness);
+        if (evalCase.expect.doctrine.citesDoctrine) {
+          const judged = await judgeDoctrine(judge, harness, evalCase.expect.doctrine.citesDoctrine.rubric);
+          verdicts.doctrine = {
+            status: checked.status === 'fail' || judged.status === 'fail' ? 'fail' : 'pass',
+            detail: [...checked.detail, ...judged.detail],
+          };
+        } else {
+          verdicts.doctrine = checked;
+        }
+      }
       const transcriptPath = writeTranscript(runId, evalCase.id, {
         caseId: evalCase.id,
         apiMessages: harness.transcript,
@@ -211,6 +230,7 @@ async function main() {
         verdicts,
         turns: harness.turns.length,
         toolCallCount: harness.toolCalls.length,
+        readCallCount: harness.toolCalls.filter(c => c.kind === 'read').length,
         anomalies: harness.anomalies,
         usage: harness.usage,
         // A backend that reported no tokens gets 0 and a flag, never a

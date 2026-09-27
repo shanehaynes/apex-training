@@ -13,7 +13,8 @@ Every prompt edit, model swap, or context change can be run against an adversari
 | **Constraint / contraindication adherence** | Deterministic set intersection | The coach's structured output (tool-call exercise lists) resolves through a movement-pattern taxonomy ([taxonomy/movement-patterns.json](taxonomy/movement-patterns.json)); intersecting with the case's banned patterns is arithmetic, not judgment. |
 | **Progression coherence** | Arithmetic over the folded schedule | Weekly volume buckets → ramp caps, deload allowances, taper direction. Needs a reps-string parser ("5 each leg", "8-10") because prescriptions are free text. |
 | **Refusal / pushback correctness** | LLM judge, agreement-validated | Whether the coach *should have* refused is genuinely fuzzy. The judge emits a forced-tool structured verdict, and its reliability is measured against human labels — never assumed. |
-| **Integrity** (IDs, library discipline, error recovery, injection resistance) | Deterministic | Recorded tool calls either match the expectation or they don't. |
+| **Integrity** (IDs, library discipline, error recovery, injection resistance, reads before answers) | Deterministic | Recorded tool calls — reads included — either match the expectation or they don't. |
+| **Doctrine** (the coach's own written method) | Deterministic where the doctrine states a rule; LLM judge for "is this answer grounded in it" | No intensity in a base block, no muscular endurance before a strength base, a taper below the prior week, read before you prescribe — regexes over the events the coach wrote and arithmetic over one week. Only "did the why-answer cite the doctrine" needs a judge. |
 
 Two design facts make the deterministic tiers possible:
 
@@ -25,18 +26,21 @@ Two design facts make the deterministic tiers possible:
 ```
 cases/*.ts ──▶ run.ts ──▶ src/harness.ts ──▶ backends/api.ts ──────▶ Anthropic API (key)
                               │              backends/agentSdk.ts ─▶ Agent SDK (subscription)
-                              │  real buildSystemPrompt (src/lib/coach/prompt.ts)
+                              │  real buildSystemPrompt (src/lib/coach/prompt.ts), physiology panel included
                               │  real tool executors (src/lib/coach/tools.ts)
                               │  in-memory CoachToolDeps (src/memoryDeps.ts)
+                              │  fixture-backed reads + the real doctrine (src/reads.ts)
                               ▼
                     checkers (deterministic) + judge (LLM) ──▶ results/<run>.json
 ```
 
-The harness imports the production prompt builder, tool schemas, and executors directly — no mock prompt, no drift (the conversation message types are re-exported from `actionQueue.ts`/`wire.ts`, so they *cannot* drift). It mirrors `useChat.ts` + `actionQueue.ts` **exactly**, because the eval measures the coach as shipped:
+The harness imports the production prompt builder, tool schemas, and executors directly — no mock prompt, no drift (the conversation message types are re-exported from `actionQueue.ts`/`wire.ts`, so they *cannot* drift). It mirrors `api/chat.ts` + `useChat.ts` + `actionQueue.ts` **exactly**, because the eval measures the coach as shipped:
 
-- Every `tool_use` in a response is confirmed in emission order; the results flush as ONE `tool_result` user message, and the post-confirm re-stream runs with tools disabled.
+- The chat tool list is production's: the eight write tools, then the read tools, then `read_doctrine`, in that order (`src/reads.ts` → `chatToolSchemas`, pinned to `api/chat.ts` by a test).
+- A response asking only for server-side tools is answered in the same turn and the model is called again with tools on, up to `MAX_SERVER_ROUNDS` (5) times — the sight loop. See **Reads and doctrine** below.
+- Every write `tool_use` in a response is confirmed in emission order; the results flush as ONE `tool_result` user message (a mixed round's read results ahead of them, as `useChat` holds them), and the post-confirm re-stream runs with tools disabled.
 - Thinking blocks never enter history (the wire protocol drops them).
-- The system prompt is rebuilt from the mutated fixture before every call — all 7 production arguments, training block and today's meals included.
+- The system prompt is rebuilt from the mutated fixture before every call — all 8 production arguments, training block, today's meals and the physiology panel included.
 - `stop_reason: max_tokens` (production caps at 8192) is recorded as an anomaly.
 - Executor validation errors (e.g. the unilateral per-side-count rejection) become the `tool_result` byte-for-byte, so error-recovery behavior is measurable.
 
@@ -89,10 +93,27 @@ The nightly API run stays the production-shaped measurement. The SDK backend ans
 5. **Tool names carry the `mcp__coach__` prefix on the wire.** It is stripped before any checker, expectation or transcript sees it, but the model sees the prefixed names in its tool list.
 6. **Tool inputs round-trip through Zod.** `tool()` wants a Zod raw shape, so the production JSON Schema in `src/lib/coach/schemas.ts` is converted with `z.fromJSONSchema` — that file stays the single source of truth, and every declared field (including nested exercise entries and enums) round-trips identically. Undeclared keys are dropped before the executor sees them; production passes them through and ignores them.
 7. **The judge cannot be forced.** `refusal.ts` forces `record_verdict` with `tool_choice` on the API path; the SDK path asks for it in the prompt instead. A judge that answers in prose is a `fail`, exactly as a missing tool call has always been.
+8. **`read_doctrine` returns plain text, not a citable document.** The read tools are registered as SDK tools whose handler is the fixture executor, and the SDK runs the sight loop itself. An MCP tool result carries text, image and resource blocks only, so the doctrine topic reaches the model as text where production (and the API backend) hand it a `document` block with citations enabled. The coach can still quote it; it cannot cite it.
 
 A not-logged-in or erroring SDK answers with a synthetic assistant message (`model: "<synthetic>"`, e.g. `Not logged in · Please run /login`). That is a broken harness, not coach output: it fails the case with an `error` rather than being scored as a refusal.
 
 CI runs the suite nightly (and on `workflow_dispatch`) once the `ANTHROPIC_API_KEY` repo secret is set; until then the job reports itself skipped.
+
+### Reads and doctrine
+
+Since the sight loop shipped (#345, #348) the production coach carries eleven read tools and `read_doctrine` next to the eight write tools, runs read-only rounds server-side inside one user turn, has the doctrine index and a "read before you prescribe" rule in its stable prompt, and a physiology panel in its live half. The harness measures that coach, not the one before it:
+
+- **Reads are answered from the fixture.** `fixture.reads` maps a read-tool name to what it returns — a value, or a function of the call's input — JSON-stringified exactly as `executeReadTool` would. Production's read tools need Supabase; the harness has none, and a scripted answer is also what makes a case reproducible. A read the fixture does not script returns `{"note":"no data for this athlete"}` (`UNSCRIPTED_READ_RESULT`) and records an `unscriptedRead:<name>` anomaly, so a coach reaching for data the case author did not anticipate is visible in the run table rather than fed invented numbers.
+- **`read_doctrine` is never scripted.** It reads the real topic text from `src/lib/coach/doctrine`, and on the API backend hands it to the model as a `document` block with `citations: {enabled: true}` — the same block `api/chat.ts` sends. A bad topic is an `is_error` result the model can correct. (The SDK backend gets text; difference 8 above.)
+- **The loop is production's.** On the API backend a response whose `tool_use` blocks are all server-side is answered with one `tool_result` user message and the model is called again with tools on; the sixth such request in one turn is refused before it runs (`serverRoundCap` anomaly, the tool_use blocks dropped from the stored turn — what the client stores when production sends its notice). A mixed response runs the reads, then the confirm path for the writes, with the read results folded ahead of the write results in the one flush. Production's 40-second time budget has no harness equivalent: a fixture read is instant.
+- **Every read is on the record.** `RecordedToolCall.kind` is `'read'` or `'write'`; `requireToolCall` accepts a read name (or a list of alternatives), `forbidToolCalls` sees reads, and `fixtureUnchanged` proves a turn of reads mutated nothing. `readCallCount` per case appears in the run table's `reads` column and in `eval:diff`.
+- **Auto-continue keys on writes.** A turn that only read and then answered is a finished answer; "Yes, continue." after it would be a non sequitur.
+- **The physiology panel** renders when `fixture.physiology` supplies `PhysiologyInputs` (`makePhysiology` in `src/fixtures.ts` builds a hand-logged cardio history); its clock is the fixture's `today`.
+- **Thinking is dropped from server rounds too.** Production echoes the assistant message thinking blocks and all when it continues a round; the harness transcript is the stored-thread shape, which carries none, and the confirm path has always continued that way against the live API. If a live run ever 400s on a read continuation, this is where to look.
+
+The `doctrine` dimension is gated (`GATED_DIMENSIONS`) on the same footing as constraints — its checks are regexes over event writes, a required read, and one week-over-week comparison on a single-week fixture. If its first gate runs show it flipping on an unchanged tree, demote it the way progression was, with the measurement that justifies it.
+
+**Attestation note.** Editing `evals/src/` or `evals/cases/` invalidates the attestation by design, and this lane does exactly that: the next `eval:gate` run is Shane's, and it covers this harness realignment, #345 and #348 together — the first gate run that measures the coach with its read tools offered.
 
 ## Evolving the prompt against the suite
 
@@ -186,6 +207,8 @@ The cases in [cases/](cases/) are adversarial by construction — the quiet-fail
 - **Progression (8):** hangboard builds, return-from-detraining ramps, deload placement, beginner running, pre-trip tapers, "double my volume", programming layered onto an already-heavy week.
 - **Refusal (16):** unsafe volume insisted on twice, impossible timelines (V3→V10 in six weeks), training through an acute injury, rest-day deletion; and the safety-block set — chronic pain loaded through, numbness, exertional chest tightness, a sub-1200 kcal target with two-a-days, concussion signs, a post-op restriction the user overrides — plus four should-comply controls (an extra session, a heavy squat day, DOMS, a healed and cleared ACL).
 - **Integrity (6):** exact bracketed-ID usage, recurring-delete scope confirmation, near-duplicate library names, unilateral-error recovery, multi-turn reference to a just-created event, and a prompt-injection event title.
+- **Sight (3, integrity-scored):** a why-question about this month's Z2 volume and a deadlift-trend question that must be answered by reading the record; a review of last week that runs on reads alone and must leave the fixture byte-identical.
+- **Doctrine (5):** an aerobically deficient athlete demanding VO2 work in a base block; muscular endurance asked for before any strength base; a taper week that must hold fewer minutes than the week before; a new base block that must be read up on before the first event is written; and one judge-scored why-answer that must ground itself in the aerobic-base doctrine.
 
 Each case carries a written expectation of correct behavior. Adding a case is adding one object to a file in `cases/` — fixture state, a user-message script, and per-dimension expectations.
 
