@@ -12,11 +12,11 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 | A03 | Doctrine: original synthesis as `.ts` topics, index, tool schema | A | done (#343) — content edits welcome on `main` before B01 wires it in | `feat/coach-doctrine` | 78,890 chars; DECISIONS lines first |
 | A04 | Rich confirm cards: before/after preview per tool call | A | done (#344) | `feat/coach-confirm-preview` | owns `ChatSidebar.tsx` this wave |
 | A05 | Cache prefix: stable/volatile prompt split, server-side injection, 1h TTL | A | done (#345) — merged with the attestation still stale, see Next up | `feat/coach-cache-prefix` | `PROMPT_VERSION` → 2026.09.25-1; Opus 5.5 `midTurnSystem` off until verified |
-| B01 | Sight loop: read tools + doctrine + physiology wired into chat; server-side read rounds; chips | B | in review (#348, head `0b5045d`) — two Codex findings fixed (budget recheck, doctrine document on mixed rounds), one declined with reasons (thinking blocks: pre-existing write-path shape); **coach-gate red until Shane's `eval:gate`**; `full` job watched | `feat/coach-sight-loop` | `PROMPT_VERSION` → 2026.09.26-1; `rounds` logged, not stored |
+| B01 | Sight loop: read tools + doctrine + physiology wired into chat; server-side read rounds; chips | B | done (#348, `f833db0`) | `feat/coach-sight-loop` | `PROMPT_VERSION` → 2026.09.26-1; merged past the red gate like #345 |
 | B02 | Board + embeddings issue | B | done (this branch, issue #340) | `chore/coach-board` | orchestrator |
-| C01 | Evals: harness realignment, `sight` and `doctrine` cases, doctrine dimension | C | ready (after B01) | `feat/coach-evals-sight` | `eval-analyst` |
-| C02 | Memory: `coach_memory` migration, memory tool backend, proposal cards | C | ready (after B01) | `feat/coach-memory` | HELD (migration) |
-| C03 | Calendar annotations: table, handler, chips, block strip | C | ready (after B01) | `feat/coach-annotations` | HELD (migration) |
+| C01 | Evals: harness realignment, `sight` and `doctrine` cases, doctrine dimension | C | in progress (launched 2026-09-27 from `f833db0`; session id in Recent sessions) | `feat/coach-evals-sight` | cloud session; no suite run (no token) |
+| C02 | Memory: `coach_memory` migration, memory tool backend, proposal cards | C | in progress (launched 2026-09-27 from `f833db0`; session id in Recent sessions) | `feat/coach-memory` | HELD (migration); phase number claimed at PR open |
+| C03 | Calendar annotations: table, handler, chips, block strip | C | in progress (launched 2026-09-27 from `f833db0`; session id in Recent sessions) | `feat/coach-annotations` | HELD (migration); phase number claimed at PR open |
 | D01 | Reflection + coaching contract (nightly Batch API, proposal-gated) | D | ready (after C) | `feat/coach-reflection` | HELD (migration) |
 | D02 | Notebook page: memory, proposals, contract history, doctrine index | D | ready (after C) | `feat/coach-notebook` | |
 | D03 | Weekly review document + "next week" proposal batch | D | ready (after C) | `feat/coach-weekly-review` | |
@@ -24,22 +24,19 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 | E02 | Ask-coach from a session or set | E | ready (after D) | `feat/coach-ask-from-context` | |
 
 ## Next up
-1. **Wave A is on `main`** (#341–#345, main at `43a6794`). **B01 is #348**, reviewed by the
-   orchestrator against the brief (all 18 files inside its ownership); the orchestrator
-   drives its CI. Shane merges once `full` and `e2e-mock` are green and the attestation is
-   refreshed (or merges past `coach-gate` again and runs the gate on `main`).
-2. **Attestation debt (Shane):** #345 merged without `eval:gate`, so
-   `evals/gate/attestation.json` still pins `2026.09.22-1` against prompt `2026.09.25-1`
-   and `coach-gate` is red on every coach-path PR. B01 bumps the version once more, so a
-   single `npm run eval:gate` after B01 lands covers both — run it on `main` (or on the
-   B01 branch before merge) and commit the attestation. No orchestrator session holds the
-   subscription token.
-3. **Shane:** review the doctrine text on `main` (`src/lib/coach/doctrine/`); the A03
-   DECISIONS list names the lines where it chose one school over another.
-4. Optional, needs a key: one live call to confirm whether `claude-opus-5-5` accepts a
-   mid-conversation `system` message; if yes, flip `midTurnSystem` in `models.ts`.
-5. After B01 merges: launch wave C (C01 evals via `eval-analyst`, C02 memory, C03
-   annotations) from fresh `main`; claim two consecutive migration numbers at PR open.
+1. **Wave B is on `main`** (#348 → `f833db0`). Wave C launched as three cloud sessions from that
+   `main`; the orchestrator checks in every ~60 min, reviews each report, opens PRs, drives CI.
+2. **Attestation debt (Shane):** still `2026.09.22-1` vs prompt `2026.09.26-1`; C02 bumps to
+   `2026.09.27-1` and C01 changes the eval surface. Run `npm run eval:gate` once after wave C is
+   on `main` (with C01's harness the run measures the coach that ships); instructions in the
+   2026-09-27 chat. Until then `coach-gate` stays red on coach-path PRs and is overridden at
+   merge, as on #345 and #348.
+3. **Migrations (orchestrator at PR open):** C02 → `phase48`, C03 → `phase49` (next free is 48).
+   `database.types.ts` is hand-written by the lanes; CI's `full` job checks drift — if it flags,
+   Shane regenerates on his stack (`npm run db:reset-local && npm run db:types`).
+4. **Shane:** review the doctrine text on `main` (`src/lib/coach/doctrine/`).
+5. Open follow-up from #348 review: carry signed thinking blocks over the wire for the
+   client-side write continuation (whole write path; predates B01).
 
 ## Recent sessions
 - 2026-09-25 · orchestrator · plan approved, issue #340 opened, board created, wave A launched
@@ -57,3 +54,6 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 - 2026-09-26 · orchestrator · #348 review: Codex P2s fixed and pushed (`0b5045d`); P1 (thinking
   blocks dropped on the client-side tool continuation) answered as pre-existing and out of scope,
   left open for Shane; follow-up recorded in the PR body.
+- 2026-09-27 · Shane · merged #348 (`f833db0`); wave B complete.
+- 2026-09-27 · orchestrator · wave C launched from `f833db0` as three cloud sessions (ids below,
+  filled at launch); briefs in `workstreams/C0{1,2,3}-*.md`.
