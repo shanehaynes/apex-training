@@ -23,7 +23,7 @@ function makeRes() {
 
 function makeAdmin(state: {
   rpcCount?: number | Error;
-  logCounts?: { events: number; definitions: number; blocks?: number; meals?: number } | Error;
+  logCounts?: { events: number; definitions: number; blocks?: number; meals?: number; memory?: number } | Error;
   email?: string | null;
 }): Admin {
   return {
@@ -43,7 +43,9 @@ function makeAdmin(state: {
                   ? state.logCounts?.definitions ?? 0
                   : table === 'block_mutations_log'
                     ? state.logCounts?.blocks ?? 0
-                    : state.logCounts?.meals ?? 0;
+                    : table === 'coach_memory'
+                      ? state.logCounts?.memory ?? 0
+                      : state.logCounts?.meals ?? 0;
               return { count, error: null };
             },
           }),
@@ -93,6 +95,15 @@ describe('enforceAiMutationCap', () => {
     expect(ok).toBe(true);
     expect(statusCode()).toBeNull();
     expect(sendReviewEmail).not.toHaveBeenCalled();
+  });
+
+  it('counts confirmed coach memory writes toward the cap', async () => {
+    // Two coach_memory counts (rows created today, rows archived today), each
+    // answered with the stub's memory figure: 80 + 80 + 40 events = 200.
+    const { res, statusCode } = makeRes();
+    const ok = await enforceAiMutationCap(makeAdmin({ logCounts: { events: 40, definitions: 0, memory: 80 } }), res, 'u1', 200);
+    expect(ok).toBe(false);
+    expect(statusCode()).toBe(429);
   });
 
   it('counts meal mutations toward the cap', async () => {

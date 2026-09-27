@@ -200,6 +200,56 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_memory: {
+        Row: {
+          archived_at: string | null
+          confidence: number | null
+          confirmed_at: string | null
+          content: string
+          created_at: string
+          id: string
+          kind: string
+          source_id: string | null
+          source_kind: string | null
+          superseded_by: string | null
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          confidence?: number | null
+          confirmed_at?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          kind: string
+          source_id?: string | null
+          source_kind?: string | null
+          superseded_by?: string | null
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          confidence?: number | null
+          confirmed_at?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          source_id?: string | null
+          source_kind?: string | null
+          superseded_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_memory_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "coach_memory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coach_messages: {
         Row: {
           api_content: Json | null

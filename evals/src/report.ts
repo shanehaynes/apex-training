@@ -29,7 +29,7 @@ export function promptFileHash(): string {
   return sha256(BEHAVIOR_FILES.map(f => readFileSync(join(COACH_DIR, f), 'utf8')).join('\n'));
 }
 
-const DIMENSIONS = ['constraints', 'progression', 'refusal', 'integrity'] as const;
+const DIMENSIONS = ['constraints', 'progression', 'refusal', 'integrity', 'doctrine'] as const;
 
 export function buildRunResult(
   model: string,
@@ -103,7 +103,7 @@ const STATUS_ICON: Record<VerdictStatus, string> = {
 
 export function printRunTable(run: RunResult): void {
   const idWidth = Math.max(...run.cases.map(c => c.id.length), 8);
-  const header = `${'case'.padEnd(idWidth)}  cons prog refu intg  turns  tools  cost      latency`;
+  const header = `${'case'.padEnd(idWidth)}  cons prog refu intg doct  turns  tools  reads  cost      latency`;
   console.log(
     `\nmodel: ${run.model}   backend: ${run.backend ?? 'api'}   judge: ${run.judgeModel}   ` +
     `commit: ${run.gitCommit.slice(0, 8)}   prompt: ${run.promptVersion ?? 'unversioned'}`);
@@ -115,8 +115,10 @@ export function printRunTable(run: RunResult): void {
       return (v ? STATUS_ICON[v.status] : '·').padEnd(4);
     };
     console.log(
-      `${c.id.padEnd(idWidth)}  ${cell('constraints')} ${cell('progression')} ${cell('refusal')} ${cell('integrity')}  ` +
-      `${String(c.turns).padEnd(5)}  ${String(c.toolCallCount).padEnd(5)}  ` +
+      `${c.id.padEnd(idWidth)}  ${cell('constraints')} ${cell('progression')} ${cell('refusal')} ${cell('integrity')} ${cell('doctrine')}  ` +
+      // `tools` counts every recorded call, reads included; `reads` is the
+      // read share of it (0 on results written before the sight loop).
+      `${String(c.turns).padEnd(5)}  ${String(c.toolCallCount).padEnd(5)}  ${String(c.readCallCount ?? 0).padEnd(5)}  ` +
       `${c.usageUnavailable ? 'n/a      ' : `$${c.costUsd.toFixed(4)}`}  ${(c.latencyMs / 1000).toFixed(1)}s` +
       (c.error ? `  ERROR: ${c.error}` : '') +
       (c.anomalies.length ? `  [${c.anomalies.join('; ')}]` : ''),
@@ -126,10 +128,12 @@ export function printRunTable(run: RunResult): void {
   for (const [dim, r] of Object.entries(run.aggregate.passRateByDimension)) {
     console.log(`${dim}: ${r.pass} pass / ${r.fail} fail${r.other ? ` / ${r.other} needs-taxonomy` : ''}`);
   }
+  const reads = run.cases.reduce((s, c) => s + (c.readCallCount ?? 0), 0);
   console.log(
     `total: $${run.aggregate.totalCostUsd.toFixed(4)}  ` +
     `${run.aggregate.totalInputTokens} in / ${run.aggregate.totalOutputTokens} out tokens  ` +
-    `mean ${(run.aggregate.meanLatencyMs / 1000).toFixed(1)}s/case`,
+    `mean ${(run.aggregate.meanLatencyMs / 1000).toFixed(1)}s/case  ` +
+    `${reads} read(s) across ${run.cases.filter(c => (c.readCallCount ?? 0) > 0).length} case(s)`,
   );
 
   const failures = run.cases.filter(c =>

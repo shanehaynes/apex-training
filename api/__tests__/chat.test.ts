@@ -8,6 +8,7 @@ import handler, {
 import type { UpstreamEvent } from '../chat';
 import { DOCTRINE_TOPICS, readDoctrine, readDoctrineToolSchema } from '../../src/lib/coach/doctrine';
 import { coachToolSchemas } from '../../src/lib/coach/schemas';
+import { memoryToolSchema } from '../../src/lib/coach/memory';
 import { COACH_MODEL } from '../../src/lib/coach/model';
 import type { ChatWireEvent } from '../../src/lib/coach/wire';
 
@@ -68,6 +69,12 @@ vi.mock('../_lib/coach/readTools.js', async () => {
   return { ...actual, executeReadTool: executeReadToolMock };
 });
 import { readToolSchemas } from '../_lib/coach/readTools';
+// The memory backend (lane C02) is scripted: its own suite is
+// coach-memory-backend.test.ts. The predicate, labels and schema stay real.
+const { viewPathMock } = vi.hoisted(() => ({
+  viewPathMock: vi.fn(async (_db: unknown, _user: string, path: unknown) => ({ text: `MEMORY ${String(path)}`, isError: false })),
+}));
+vi.mock('../_lib/coach/memory.js', () => ({ viewPath: viewPathMock }));
 vi.mock('../_lib/rateLimit.js', () => ({ enforceRateLimit: vi.fn(async () => true) }));
 // The server-side prompt builder (W5a): scripted here; its own suite is
 // api/__tests__/coach-context.test.ts.
@@ -103,6 +110,7 @@ beforeEach(() => {
   insertError.value = null;
   reportErrorMock.mockClear();
   executeReadToolMock.mockClear();
+  viewPathMock.mockClear();
   // A queued once-implementation a test did not consume must not leak into
   // the next test's first round: reset, then restore the empty default.
   streamMock.mockReset();
@@ -948,27 +956,31 @@ function paramsOfCall(i: number): Anthropic.MessageStreamParams {
 }
 
 describe('chat tool list — the sight loop', () => {
-  it('chat mode sends the write tools, then the read tools, then read_doctrine, in that fixed order', () => {
+  it('chat mode sends the write tools, then the read tools, then read_doctrine, then memory, in that fixed order', () => {
     const names = cachedToolSchemas('chat').map(t => t.name);
     expect(names).toEqual([
       ...coachToolSchemas().map(t => t.name),
       ...readToolSchemas().map(t => t.name),
       readDoctrineToolSchema.name,
+      'memory',
     ]);
-    expect(names.at(-1)).toBe('read_doctrine');
     expect(names).toContain('get_exercise_history');
+    // The memory tool is the API's typed one, not a custom schema of ours.
+    expect(cachedToolSchemas('chat').at(-1)).toMatchObject({ type: 'memory_20250818', name: 'memory' });
+    expect('input_schema' in cachedToolSchemas('chat').at(-1)!).toBe(false);
     // The breakpoint sits on the LAST schema only, whatever the list length.
     const tools = cachedToolSchemas('chat', '1h');
-    expect(tools.at(-1)).toMatchObject({ name: 'read_doctrine', cache_control: { type: 'ephemeral', ttl: '1h' } });
+    expect(tools.at(-1)).toMatchObject({ name: 'memory', cache_control: { type: 'ephemeral', ttl: '1h' } });
     expect(tools.slice(0, -1).every(t => !('cache_control' in t))).toBe(true);
     // Builder and analytics stay single-tool.
     expect(cachedToolSchemas('builder').map(t => t.name)).toEqual(['update_workout_draft']);
     expect(cachedToolSchemas('analytics').map(t => t.name)).toEqual(['update_chart_draft']);
     // Identical on every call: a prefix match over the tool list needs that.
     expect(chatToolSchemas()).toEqual(chatToolSchemas());
-    // The module's own schema object is never handed out, so a caller's
+    // The module's own schema objects are never handed out, so a caller's
     // cache_control cannot bleed into the next turn.
-    expect(chatToolSchemas().at(-1)).not.toBe(readDoctrineToolSchema);
+    expect(chatToolSchemas().at(-2)).not.toBe(readDoctrineToolSchema);
+    expect(chatToolSchemas().at(-1)).not.toBe(memoryToolSchema);
   });
 });
 
@@ -1241,6 +1253,52 @@ describe('chat handler — server-side read loop', () => {
     expect(JSON.stringify(second.messages).match(/LIVE STATE/g)).toHaveLength(1);
   });
 
+  it('memory view runs server-side like a read: chip, result, continuation', async () => {
+    queueRounds(
+      [...ended('tool_use'), ...toolCall('tu_m', 'memory', { command: 'view', path: '/memories/injuries.md' })],
+      [...ended('end_turn'), ...textBlock('Shoulder still off limits.')],
+    );
+    const { events } = await runChat(chatBody());
+
+    expect(events.map(e => e.type)).toEqual(['tool_read', 'tool_read_result', 'text', 'done']);
+    expect(events[0]).toEqual({ type: 'tool_read', id: 'tu_m', name: 'memory', input: { command: 'view', path: '/memories/injuries.md' }, label: 'Checked: memory (injuries)' });
+    expect(events[1]).toEqual({ type: 'tool_read_result', id: 'tu_m', text: 'MEMORY /memories/injuries.md', isError: false });
+    expect(viewPathMock).toHaveBeenCalledWith(expect.anything(), 'user-123', '/memories/injuries.md');
+    expect(executeReadToolMock).not.toHaveBeenCalled();
+    expect(paramsOfCall(1).messages[2]).toEqual({
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: 'tu_m', content: 'MEMORY /memories/injuries.md' }],
+    });
+    expect(streamMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('memory create is a confirm card, labelled "Remember: …", and ends the turn — nothing is written here', async () => {
+    const input = { command: 'create', path: '/memories/injuries.md', file_text: '- left shoulder: avoid overhead pressing until cleared' };
+    queueRounds([...ended('tool_use'), ...textBlock('Noted — want me to remember that?'), ...toolCall('tu_w', 'memory', input)]);
+    const { events } = await runChat(chatBody());
+
+    expect(events.map(e => e.type)).toEqual(['text', 'tool_use', 'done']);
+    expect(events[1]).toEqual({
+      type: 'tool_use', id: 'tu_w', name: 'memory', input, label: 'Remember: left shoulder: avoid overhead pressing until cleared',
+    });
+    expect(viewPathMock).not.toHaveBeenCalled();
+    expect(streamMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('a memory view alongside a memory write is a mixed round: the view runs, the write is surfaced', async () => {
+    queueRounds([
+      ...ended('tool_use'),
+      ...toolCall('tu_v', 'memory', { command: 'view', path: '/memories' }),
+      ...toolCall('tu_w', 'memory', { command: 'str_replace', path: '/memories/goals.md', old_str: 'Rainier June 2027', new_str: '' }),
+    ]);
+    const { events } = await runChat(chatBody());
+
+    expect(events.map(e => e.type)).toEqual(['tool_read', 'tool_read_result', 'tool_use', 'done']);
+    expect(events[0]).toMatchObject({ id: 'tu_v', label: 'Checked: memory' });
+    expect(events[2]).toMatchObject({ id: 'tu_w', name: 'memory', label: 'Forget: Rainier June 2027' });
+    expect(streamMock).toHaveBeenCalledTimes(1);
+  });
+
   it('builder mode never loops: a tool_use streams straight through as before', async () => {
     queueRounds([...ended('tool_use'), ...textBlock('Adding it. '), ...toolCall('tu_b', 'update_workout_draft', { title: 'Push' })]);
     const { events } = await runChat({
@@ -1258,6 +1316,23 @@ describe('server-side tool helpers', () => {
     expect(serverSideToolLabel('read_doctrine', { topic: 'strength' })).toBe('Doctrine: Strength for the mountain athlete');
     expect(serverSideToolLabel('read_doctrine', { topic: 'nope' })).toBe('Doctrine: nope');
     expect(serverSideToolLabel('read_doctrine', {})).toBe('Doctrine: unknown topic');
+  });
+
+  it('serverSideToolLabel names the memory file for a view', () => {
+    expect(serverSideToolLabel('memory', { command: 'view', path: '/memories/goals.md' })).toBe('Checked: memory (goals)');
+    expect(serverSideToolLabel('memory', { command: 'view', path: '/memories' })).toBe('Checked: memory');
+  });
+
+  it('runServerSideTool routes a memory view to the backend and refuses a write that reached it', async () => {
+    const view = await runServerSideTool({} as never, 'user-123', { id: 'tu_v', name: 'memory', input: { command: 'view', path: '/memories' } });
+    expect(view).toEqual({ result: { type: 'tool_result', tool_use_id: 'tu_v', content: 'MEMORY /memories' }, text: 'MEMORY /memories', isError: false });
+    viewPathMock.mockResolvedValueOnce({ text: 'No such memory file: /x', isError: true });
+    const bad = await runServerSideTool({} as never, 'user-123', { id: 'tu_b', name: 'memory', input: { command: 'view', path: '/x' } });
+    expect(bad.result).toEqual({ type: 'tool_result', tool_use_id: 'tu_b', content: 'No such memory file: /x', is_error: true });
+    const write = await runServerSideTool({} as never, 'user-123', { id: 'tu_w', name: 'memory', input: { command: 'create', path: '/memories/notes.md', file_text: 'x' } });
+    expect(write.isError).toBe(true);
+    expect(write.text).toContain("needs the athlete's confirmation");
+    expect(viewPathMock).toHaveBeenCalledTimes(2);
   });
 
   it('runServerSideTool answers an unknown doctrine topic with an error the model can correct', async () => {

@@ -346,6 +346,84 @@ internal enum PublicSchema {
       case userId = "user_id"
     }
   }
+  internal struct CoachMemorySelect: Codable, Hashable, Sendable {
+    internal let archivedAt: String?
+    internal let confidence: Float?
+    internal let confirmedAt: String?
+    internal let content: String
+    internal let createdAt: String
+    internal let id: UUID
+    internal let kind: String
+    internal let sourceId: UUID?
+    internal let sourceKind: String?
+    internal let supersededBy: UUID?
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case archivedAt = "archived_at"
+      case confidence = "confidence"
+      case confirmedAt = "confirmed_at"
+      case content = "content"
+      case createdAt = "created_at"
+      case id = "id"
+      case kind = "kind"
+      case sourceId = "source_id"
+      case sourceKind = "source_kind"
+      case supersededBy = "superseded_by"
+      case userId = "user_id"
+    }
+  }
+  internal struct CoachMemoryInsert: Codable, Hashable, Sendable {
+    internal let archivedAt: String?
+    internal let confidence: Float?
+    internal let confirmedAt: String?
+    internal let content: String
+    internal let createdAt: String?
+    internal let id: UUID?
+    internal let kind: String
+    internal let sourceId: UUID?
+    internal let sourceKind: String?
+    internal let supersededBy: UUID?
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case archivedAt = "archived_at"
+      case confidence = "confidence"
+      case confirmedAt = "confirmed_at"
+      case content = "content"
+      case createdAt = "created_at"
+      case id = "id"
+      case kind = "kind"
+      case sourceId = "source_id"
+      case sourceKind = "source_kind"
+      case supersededBy = "superseded_by"
+      case userId = "user_id"
+    }
+  }
+  internal struct CoachMemoryUpdate: Codable, Hashable, Sendable {
+    internal let archivedAt: String?
+    internal let confidence: Float?
+    internal let confirmedAt: String?
+    internal let content: String?
+    internal let createdAt: String?
+    internal let id: UUID?
+    internal let kind: String?
+    internal let sourceId: UUID?
+    internal let sourceKind: String?
+    internal let supersededBy: UUID?
+    internal let userId: UUID?
+    internal enum CodingKeys: String, CodingKey {
+      case archivedAt = "archived_at"
+      case confidence = "confidence"
+      case confirmedAt = "confirmed_at"
+      case content = "content"
+      case createdAt = "created_at"
+      case id = "id"
+      case kind = "kind"
+      case sourceId = "source_id"
+      case sourceKind = "source_kind"
+      case supersededBy = "superseded_by"
+      case userId = "user_id"
+    }
+  }
   internal struct CoachMessagesSelect: Codable, Hashable, Sendable {
     internal let apiContent: AnyJSON?
     internal let conversationId: UUID

@@ -47,6 +47,7 @@ export const USER_DATA_TABLES = [
   'coach_runs',
   'coach_conversations',
   'coach_messages',
+  'coach_memory',
 ] as const;
 
 /**

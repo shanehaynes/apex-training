@@ -30,6 +30,7 @@ import schedule from './handlers/schedule.js';
 import query from './handlers/query.js';
 import coachTool from './handlers/coachTool.js';
 import coachConversations from './handlers/coachConversations.js';
+import coachMemory from './handlers/coachMemory.js';
 import workoutDraft from './handlers/workoutDraft.js';
 import analyticsCompute from './handlers/analyticsCompute.js';
 import blockCycle from './handlers/blockCycle.js';
@@ -109,6 +110,7 @@ app.all('/query', bridge(query));
 app.all('/coach-tool', bridge(coachTool));
 // Coach thread persistence (D-013): the web thread used to die with the tab.
 app.all('/coach-conversations', bridge(coachConversations));
+app.all('/coach-memory', bridge(coachMemory));
 // The builder's Apply for native clients: the draft JSON in, the template
 // upsert + event write done with the web's own pure functions (docs/ios/
 // backend-changes.md, W7).
