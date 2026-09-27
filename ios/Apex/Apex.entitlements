@@ -2,11 +2,16 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- applinks: universal links for /auth/* and /app/* (the AASA ships in its
-	     own PR). webcredentials: lets Password AutoFill offer the saved
-	     apextrainingcalendar.vercel.app login on the sign-in screen. -->
+	<!-- applinks: universal links for /auth/* and /app/* (the AASA is served
+	     from public/.well-known/ on every host Vercel attaches). webcredentials:
+	     lets Password AutoFill offer the saved login on the sign-in screen.
+	     apex-training.app is the origin the app ships against (D-049);
+	     apextrainingcalendar.vercel.app stays listed so TestFlight builds
+	     archived before the cut-over keep their links and saved passwords. -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
+		<string>applinks:apex-training.app</string>
+		<string>webcredentials:apex-training.app</string>
 		<string>applinks:apextrainingcalendar.vercel.app</string>
 		<string>webcredentials:apextrainingcalendar.vercel.app</string>
 	</array>

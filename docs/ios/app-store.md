@@ -27,7 +27,7 @@ uploaded build. Answer **"Yes, we collect data from this app"**, then:
 "Data used to track you": **none**. `NSPrivacyTracking` is `false` and the manifest lists no
 tracking domains.
 
-Privacy policy URL (App Information): `https://apextrainingcalendar.vercel.app/privacy` — the
+Privacy policy URL (App Information): `https://apex-training.app/privacy` — the
 same page the About screen links to. Terms: `/terms`.
 
 ## 2. App Information
@@ -42,7 +42,11 @@ same page the About screen links to. Terms: `/terms`.
   place the address lives. It is `support@apex-training.app`, a forwarding alias; it ships in
   the binary and is frozen there once archived (#214). No screenshot is affected; the address is
   never drawn on screen and the set below has no sign-in shot.
-- **Marketing URL** `https://apextrainingcalendar.vercel.app`
+- **Marketing URL** `https://apex-training.app`
+- **Hostname** frozen into the archive (D-049): `APEX_API_BASE`, both associated domains and the
+  reset redirect all say `apex-training.app`. `apextrainingcalendar.vercel.app` stays a second
+  associated domain for TestFlight builds archived before the cut-over — never redirect it, and
+  keep it in the Supabase allow-list.
 - **Sign in with Apple** not required: the app offers only its own email + password, no
   third-party or social login (guideline 4.8 applies to third-party login only).
 - **Export compliance** answered in the build: `ITSAppUsesNonExemptEncryption = false`

@@ -113,8 +113,8 @@ final class OnboardingModelTests: XCTestCase {
         }
         let relative = OnboardingCatalog.Link(label: "Get an API key", href: "/help/get-api-key")
         let absolute = OnboardingCatalog.Link(label: "Elsewhere", href: "https://example.com/page")
-        let withOrigin = model(origin: URL(string: "https://apextrainingcalendar.vercel.app")!)
-        XCTAssertEqual(withOrigin.destination(for: relative)?.absoluteString, "https://apextrainingcalendar.vercel.app/help/get-api-key")
+        let withOrigin = model(origin: URL(string: "https://apex-training.app")!)
+        XCTAssertEqual(withOrigin.destination(for: relative)?.absoluteString, "https://apex-training.app/help/get-api-key")
         XCTAssertEqual(withOrigin.destination(for: absolute)?.absoluteString, "https://example.com/page")
         let noOrigin = model(origin: nil)
         XCTAssertNil(noOrigin.destination(for: relative))

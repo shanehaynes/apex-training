@@ -9,7 +9,7 @@ effective: 2026-08-29
 **Version terms-v1 · Effective 2026-08-29**
 
 These Terms are a contract between you and [LEGAL_ENTITY] ("we", "us"), who
-operates the Apex Training web application at apextrainingcalendar.vercel.app
+operates the Apex Training web application at apex-training.app
 ("Apex", the "Service"). By checking the acceptance box, creating an account, or
 using the Service, you agree to them. If you do not agree, do not use Apex.
 

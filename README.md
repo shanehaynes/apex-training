@@ -39,7 +39,7 @@ Apex Training is a production, multi-user web app with a native iOS app shipping
 | **Tests** | **1,310 unit tests** + 42 integration tests against a real Postgres · **68 Playwright e2e cases** · **665 Swift tests** · 6 CI jobs and 3 scheduled or manual workflows |
 | **Size** | ~59,000 lines of TypeScript across app and API, ~2,600 lines of SQL |
 
-Live deployment: [apextrainingcalendar.vercel.app](https://apextrainingcalendar.vercel.app) — invite-only, a handful of real accounts, and the author's own daily training log.
+Live deployment: [apex-training.app](https://apex-training.app) — invite-only, a handful of real accounts, and the author's own daily training log.
 Using the app rather than working on it? [WELCOME.md](WELCOME.md) is the user guide.
 
 ---

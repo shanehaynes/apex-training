@@ -735,7 +735,7 @@ The brief said "port the dashboard and the tile builder"; these are the lines dr
   first App Store submission, one afternoon of DNS plus an AASA re-verify, and the Vercel host stays a
   valid second entry in `associated-domains` for as long as old builds are installed; (c) defer, which
   in practice chooses (a) by the time the choice is noticed. **Decide (a) or (b) before the first
-  App Store build, not after.** Pro is not needed for a custom domain on Hobby, so this decision is
+  App Store build, not after.** **Decided 2026-09-26: (b), recorded as D-049.** Pro is not needed for a custom domain on Hobby, so this decision is
   independent of both triggers above — but a paid Pro team does include one free first-year domain,
   which is the only way the two questions touch.
 - **Consequences.** Neither upgrade is scheduled, and no lane should treat either as available:
@@ -900,3 +900,38 @@ The brief said "port the dashboard and the tile builder"; these are the lines dr
   not injury. Eight refusal cases prove it, two of them should-comply controls so the block
   cannot pass by refusing everything; all eight pass on the first subscription record. The
   legal-review note at `terms-v1.md:48` is resolved by this and is Shane's to edit. (#301)
+
+## D-049 · The 1.0 build ships on apex-training.app; the Vercel host stays a trusted second domain
+**Status:** decided · Shane · 2026-09-26 · App Store release order, step 2 · closes the open item under D-036
+- **The question.** D-036 left it open: does a custom domain replace `apextrainingcalendar.vercel.app`
+  before the first archive freezes `APEX_API_BASE`, the `applinks:`/`webcredentials:` associated
+  domains and the reset `redirectTo` into every installed copy? Deferring picked (a) by default.
+- **Decision.** (b): the app ships against `https://apex-training.app`. The domain was already
+  registered at Cloudflare and carrying every outbound mail (`support@`, `reviews@`, invites through
+  Resend — #318, #320, #346), so the app was the last surface on the vendor hostname, and mail from
+  `@apex-training.app` linking to a `vercel.app` URL is the sender/link mismatch filters weigh and
+  humans read as phishing. Hobby attaches custom domains free, so the cost was one afternoon that
+  only grew with each installed build. Both hosts stay trusted: `associated-domains` lists both,
+  `DeepLink.universalHosts` accepts both, `webcredentials:` on both so a password saved against the
+  old host still autofills, and the Vercel host keeps serving the same deployment **un-redirected** —
+  TestFlight builds ≤ 7 POST to it with bearer tokens, and Apple's CDN fetches its AASA directly.
+  Moved in one PR: `APEX_API_BASE` (Release and Debug), `resetPasswordForEmail`'s `redirectTo`, the
+  release-lane scripts (`verify-release-config.sh` asserts the new base, `assert-ipa.sh`,
+  `secrets.sh`), the ASC privacy and marketing URLs, canonical/OG tags, README, WELCOME,
+  CONNECTORS, DEPLOY_MULTI_USER, terms §1 (wording only — `terms-v1` is not bumped), and the
+  `APEX_PROD_URL` defaults in `auth-redirect-check.sh` and `deploy-verify.sh`.
+- **Console, in this order, before the PR merges.** Vercel attaches `apex-training.app` and
+  `www.apex-training.app` (www → apex; the Vercel host is not redirected). Cloudflare gets the A
+  record Vercel shows for the apex and a CNAME for `www`, both DNS-only (grey cloud — proxying puts
+  Cloudflare in front of Vercel's certificate issuance); MX and TXT untouched. Supabase Auth adds
+  `https://apex-training.app/**` and `https://apex-training.app/auth/callback` to Redirect URLs
+  keeping every existing entry, and Site URL moves to `https://apex-training.app`;
+  `scripts/auth-redirect-check.sh` reads it back. Apple's CDN returns the AASA for the new host
+  (`https://app-site-association.cdn-apple.com/a/v1/apex-training.app`). Then merge, then archive.
+- **Deferred, deliberately.** `VITE_PUBLIC_ORIGIN` in Vercel: it mints the MCP OAuth issuer and
+  RFC 8707 resource, so changing it re-registers every connector. That is a web step for whenever
+  the connector can be reconnected; the build never reads it. The COROS redirect URI registered
+  with COROS stays on the Vercel host (both hosts serve it). `DeepLinkTests` keep the Vercel host on
+  purpose: they now prove the legacy entry still parses. A second Apple CDN check is due after the
+  1.0 archive, since the CDN caches per host.
+- **Rejected.** (a), the vendor hostname permanent in every shipped build; (c) deferring, which is (a).
