@@ -13,6 +13,7 @@ import { baseIdOf, isOccurrenceId } from '../schedule/occurrence.js';
 import { countDefinitionReferences, entryFromDefinition, hasPerSideCount, matchDefinitionByName } from '../schedule/definitions.js';
 import { normalizeSupersets } from '../schedule/supersets.js';
 import { sanitizeInlineText } from './prompt.js';
+import { isMemoryView, MEMORY_TOOL, memoryReadChip, memoryToolSchema, memoryWriteLabel } from './memory.js';
 import { validateFatSplit } from '../nutrition/mapping.js';
 import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, UpdateDefinitionInput, UpdateEventInput } from '../schedule/types.js';
 import type { CreateMealInput, Meal, MealType, UpdateMealInput } from '../../types/nutrition.js';
@@ -41,6 +42,10 @@ export interface CoachToolDeps {
   createMeal(input: CreateMealInput): Promise<{ id: string } | null>;
   updateMeal(input: UpdateMealInput): Promise<boolean>;
   deleteMeal(id: string): Promise<boolean>;
+  /** The memory backend (api/_lib/coach/memory.ts applyMemoryCommand), for a
+   *  confirmed memory write. Optional: deps built without a database — the
+   *  eval harness — answer that memory is unavailable rather than fail. */
+  applyMemoryCommand?(input: Record<string, unknown>): Promise<string>;
 }
 
 /**
@@ -113,7 +118,8 @@ function describeChanges(changes: unknown): string {
 }
 
 export interface CoachToolDef {
-  schema: Anthropic.Tool;
+  /** The request-side definition: a custom tool, or the API's typed memory tool. */
+  schema: Anthropic.Tool | Anthropic.MemoryTool20250818;
   /** One-liner for the confirmation card, e.g. "Delete: Upper Body · Mon Jun 29". */
   displayLabel(input: Record<string, unknown>, ctx?: CoachToolContext): string;
   /** Runs the confirmed action; the returned string becomes the tool_result. */
@@ -574,6 +580,28 @@ const deleteMealTool: CoachToolDef = {
   },
 };
 
+// ─── Memory ──────────────────────────────────────────────────────────────────
+
+/**
+ * The memory tool's WRITE half (lane C02). The model issues memory_20250818
+ * commands over /memories; `view` is a read that api/chat.ts answers itself
+ * (isServerSideTool below), and every other command lands here as a confirm
+ * card — "Remember: …", "Forget: …", "Update memory: …" — whose confirmed
+ * execution is applyMemoryCommand on the server. Nothing is remembered
+ * without the click (D-C03). The label and preview come from the command
+ * alone: the client holds no memory rows to resolve against.
+ */
+const memoryTool: CoachToolDef = {
+  schema: memoryToolSchema,
+  displayLabel(input) {
+    return memoryWriteLabel(input);
+  },
+  async execute(input, deps) {
+    if (!deps.applyMemoryCommand) return 'Memory is not available here; nothing was remembered.';
+    return deps.applyMemoryCommand(input);
+  },
+};
+
 export const COACH_TOOLS: CoachToolDef[] = [
   deleteEventTool,
   createEventTool,
@@ -583,9 +611,71 @@ export const COACH_TOOLS: CoachToolDef[] = [
   logMealTool,
   updateMealTool,
   deleteMealTool,
+  memoryTool,
 ];
 
 
 export function findCoachTool(name: string): CoachToolDef | undefined {
   return COACH_TOOLS.find(t => t.schema.name === name);
+}
+
+// ─── Server-side tools (the sight loop) ─────────────────────────────────────
+//
+// The read tools and read_doctrine never reach a confirmation card: api/chat.ts
+// executes them itself, several rounds deep, inside one user turn. The client
+// needs the same predicate — to keep them out of the pending-action queue and
+// to label them on a reloaded thread — but cannot import
+// api/_lib/coach/readTools.ts, whose graph is the MCP tool implementations.
+// So the names are mirrored BY HAND here, like the analytics enums in
+// schemas.ts, and src/lib/coach/__tests__/tools.test.ts pins the mirror to
+// COACH_READ_TOOLS so the two cannot drift silently. The server uses this
+// predicate too: one definition, one test.
+
+export const READ_DOCTRINE_TOOL = 'read_doctrine';
+
+/** COACH_READ_TOOLS by name, in its fixed order (api/_lib/coach/readTools.ts). */
+export const SERVER_SIDE_READ_TOOL_NAMES: readonly string[] = [
+  'get_schedule',
+  'get_workout_detail',
+  'get_exercise_history',
+  'get_prs',
+  'get_period_stats',
+  'get_training_blocks',
+  'search_exercises',
+  'get_meals',
+  'get_session_summaries',
+  'get_reviews',
+  'search_history',
+];
+
+const SERVER_SIDE = new Set([...SERVER_SIDE_READ_TOOL_NAMES, READ_DOCTRINE_TOOL]);
+
+/**
+ * True for a call api/chat.ts runs itself; false for every confirm-card
+ * call. The read tools and read_doctrine are decided by NAME. The memory
+ * tool is one name with six commands, and only `view` is a read — so it is
+ * decided by the INPUT: `memory` with `command: 'view'` is server-side,
+ * `memory` with anything else (or no input at all) is a confirm card.
+ */
+export function isServerSideTool(name: string, input?: unknown): boolean {
+  if (name === MEMORY_TOOL) return isMemoryView(input);
+  return SERVER_SIDE.has(name);
+}
+
+/**
+ * The chip for a server-side call on a RELOADED thread, where the wire's
+ * label (readToolLabel on the server, with the arguments in it) is gone and
+ * only the stored tool_use block remains. Coarser than the live chip on
+ * purpose: "Checked: exercise history" rather than "Checked: Deadlift
+ * history". Never throws.
+ */
+export function serverSideToolChip(name: string, input: unknown): string {
+  if (name === MEMORY_TOOL) return memoryReadChip(input);
+  if (name === READ_DOCTRINE_TOOL) {
+    const topic = typeof input === 'object' && input !== null ? (input as { topic?: unknown }).topic : undefined;
+    return typeof topic === 'string' && topic ? `Read doctrine: ${topic}` : 'Read doctrine';
+  }
+  const verb = name.startsWith('search_') ? 'Searched' : 'Checked';
+  const subject = name.replace(/^(get|search)_/, '').replace(/_/g, ' ');
+  return `${verb}: ${subject}`;
 }

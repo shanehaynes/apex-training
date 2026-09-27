@@ -3,6 +3,7 @@ import { baseIdOf, isOccurrenceId } from '../schedule/occurrence.js';
 import { entryFromDefinition, matchDefinitionByName } from '../schedule/definitions.js';
 import { sanitizeInlineText } from './prompt.js';
 import { derivedCalories, mealCalories } from '../nutrition/mapping.js';
+import { describeMemoryWrite, MEMORY_CONTENT_MAX, MEMORY_TOOL } from './memory.js';
 import type { CoachToolContext } from './tools.js';
 import type { Exercise, ExerciseDefinition, WorkoutEvent } from '../../types/workout.js';
 import type { Meal } from '../../types/nutrition.js';
@@ -27,7 +28,10 @@ export type ToolPreview =
   | { kind: 'event-delete'; title: string; date: string; scope: 'one' | 'series' | 'unknown' }
   | { kind: 'exercises'; title: string; before: string[]; after: string[] }
   | { kind: 'definition-update'; name: string; changes: Array<{ field: string; before: string; after: string }> }
-  | { kind: 'meal'; action: 'log' | 'update' | 'delete'; title: string; lines: string[] };
+  | { kind: 'meal'; action: 'log' | 'update' | 'delete'; title: string; lines: string[] }
+  /** A memory write: the facts to remember (`after`), the fact being replaced
+   *  or forgotten (`before`), and the file they live in ("injuries"). */
+  | { kind: 'memory'; action: 'remember' | 'update' | 'forget'; file: string; before: string[]; after: string[] };
 
 export type PreviewChange = { field: string; before: string; after: string };
 
@@ -305,9 +309,27 @@ function deleteMeal(input: Record<string, unknown>, ctx: CoachToolContext): Tool
   return { kind: 'meal', action: 'delete', title: text(meal.title), lines };
 }
 
+// ─── Memory ──────────────────────────────────────────────────────────────────
+
+/**
+ * A memory write, from the command alone (the client holds no memory rows).
+ * The lines are model-authored, so each is stripped like every other model
+ * string on the card — but bounded at the fact's own limit, not the 60-char
+ * label bound: the card is where the athlete reads the WHOLE fact before it
+ * is remembered. A refused command (rename, a bad path, an empty text) yields
+ * null — its label already says why.
+ */
+function memoryWrite(input: Record<string, unknown>): ToolPreview | null {
+  const d = describeMemoryWrite(input);
+  if (d.action === 'refused') return null;
+  const fact = (line: string) => sanitizeInlineText(line, MEMORY_CONTENT_MAX) || EMPTY;
+  return { kind: 'memory', action: d.action, file: d.file, before: d.before.map(fact), after: d.after.map(fact) };
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 const PREVIEWS: Record<string, (input: Record<string, unknown>, ctx: CoachToolContext) => ToolPreview | null> = {
+  [MEMORY_TOOL]:              memoryWrite,
   create_event:               createEvent,
   update_event:               updateEvent,
   delete_event:               deleteEvent,

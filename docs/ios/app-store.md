@@ -27,7 +27,7 @@ uploaded build. Answer **"Yes, we collect data from this app"**, then:
 "Data used to track you": **none**. `NSPrivacyTracking` is `false` and the manifest lists no
 tracking domains.
 
-Privacy policy URL (App Information): `https://apextrainingcalendar.vercel.app/privacy` — the
+Privacy policy URL (App Information): `https://apex-training.app/privacy` — the
 same page the About screen links to. Terms: `/terms`.
 
 ## 2. App Information
@@ -42,7 +42,11 @@ same page the About screen links to. Terms: `/terms`.
   place the address lives. It is `support@apex-training.app`, a forwarding alias; it ships in
   the binary and is frozen there once archived (#214). No screenshot is affected; the address is
   never drawn on screen and the set below has no sign-in shot.
-- **Marketing URL** `https://apextrainingcalendar.vercel.app`
+- **Marketing URL** `https://apex-training.app`
+- **Hostname** frozen into the archive (D-049): `APEX_API_BASE`, both associated domains and the
+  reset redirect all say `apex-training.app`. `apextrainingcalendar.vercel.app` stays a second
+  associated domain for TestFlight builds archived before the cut-over — never redirect it, and
+  keep it in the Supabase allow-list.
 - **Sign in with Apple** not required: the app offers only its own email + password, no
   third-party or social login (guideline 4.8 applies to third-party login only).
 - **Export compliance** answered in the build: `ITSAppUsesNonExemptEncryption = false`
@@ -75,8 +79,9 @@ it), so this is a second pair of eyes on the same gate, not a different one. Wha
 triggers, RLS policies, grants, constraints, defaults, column types, function signatures and
 realtime publication membership — a migration that only changes those can still be missing.
 
-Last hand-run: **2026-09-19, exit 0** — all 30 tables (344 columns) and 2 functions `main` expects
-are present in production.
+Last hand-run: **2026-09-26, exit 0** — all 33 tables (377 columns) and 2 functions `main` expects
+are present in production (phase46 and phase47 confirmed applied; the 2026-09-19 run saw 30 tables,
+344 columns).
 
 ## 3. App Review Information
 

@@ -140,7 +140,7 @@ export async function aiMutationCapReached(
     midnight.setUTCHours(0, 0, 0, 0);
     const since = midnight.toISOString();
 
-    const [events, definitions, blocks, meals] = await Promise.all([
+    const [events, definitions, blocks, meals, memoryCreated, memoryArchived] = await Promise.all([
       supabase
         .from('event_mutations_log')
         .select('*', { count: 'exact', head: true })
@@ -165,6 +165,23 @@ export async function aiMutationCapReached(
         .eq('user_id', userId)
         .eq('triggered_by', 'ai')
         .gte('logged_at', since),
+      // Coach memory has no mutations log; the rows are the record. A
+      // confirmed chat write lands a row stamped source_kind 'chat' (a
+      // replacement too), and a forget archives one — count both, so a run
+      // of remember/forget confirmations advances the same daily total as
+      // schedule changes do (phase48, lane C02).
+      supabase
+        .from('coach_memory')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('source_kind', 'chat')
+        .gte('created_at', since),
+      supabase
+        .from('coach_memory')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('source_kind', 'chat')
+        .gte('archived_at', since),
     ]);
     if (events.error) throw new Error(events.error.message);
     if (definitions.error) throw new Error(definitions.error.message);
@@ -172,8 +189,12 @@ export async function aiMutationCapReached(
     // Tolerated (fail open, like the outer catch): the phase23 table may not
     // exist yet — the other three logs still enforce the cap.
     if (meals.error) console.error('[rateLimit] meal log count failed (ignoring):', meals.error.message);
+    // Same tolerance for phase48: production runs the code before the table.
+    if (memoryCreated.error) console.error('[rateLimit] memory count failed (ignoring):', memoryCreated.error.message);
+    if (memoryArchived.error) console.error('[rateLimit] memory archive count failed (ignoring):', memoryArchived.error.message);
 
-    const total = (events.count ?? 0) + (definitions.count ?? 0) + (blocks.count ?? 0) + (meals.count ?? 0);
+    const total = (events.count ?? 0) + (definitions.count ?? 0) + (blocks.count ?? 0) + (meals.count ?? 0)
+      + (memoryCreated.count ?? 0) + (memoryArchived.count ?? 0);
     if (total >= cap) {
       // total === cap only on the first blocked request of the day — the
       // equality check is the alert dedupe (good enough per-user).

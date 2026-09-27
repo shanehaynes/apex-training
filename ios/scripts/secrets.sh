@@ -29,7 +29,7 @@ set -euo pipefail
 cd "$(cd "$(dirname "$0")/.." && pwd -P)"
 
 OUT=Config/Secrets.xcconfig
-ORIGIN="${APEX_PROD_URL:-https://apextrainingcalendar.vercel.app}"
+ORIGIN="${APEX_PROD_URL:-https://apex-training.app}"
 # The same ref as APEX_PROD_SUPABASE_URL in Config/Base.xcconfig and
 # scripts/auth-redirect-check.sh. Overridable so the assertion can be exercised.
 PROJECT_REF="${APEX_PROJECT_REF:-prmlzrkcfvmfapauoxqn}"

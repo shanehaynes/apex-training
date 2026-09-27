@@ -31,7 +31,7 @@ IPA="${1:-}"
 # What Config/Release.xcconfig bakes in. Overridable only so the assertions
 # themselves can be exercised against a deliberately wrong bundle.
 PROJECT_REF="${APEX_PROJECT_REF:-prmlzrkcfvmfapauoxqn}"
-EXPECTED_API_BASE="${APEX_EXPECTED_API_BASE:-https://apextrainingcalendar.vercel.app}"
+EXPECTED_API_BASE="${APEX_EXPECTED_API_BASE:-https://apex-training.app}"
 EXPECTED_SUPABASE_URL="${APEX_EXPECTED_SUPABASE_URL:-https://$PROJECT_REF.supabase.co}"
 EXPECTED_CONFIGURATION="${APEX_EXPECTED_CONFIGURATION:-Release}"
 

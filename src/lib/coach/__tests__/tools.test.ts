@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { COACH_TOOLS, findCoachTool } from '../tools';
+import {
+  COACH_TOOLS, findCoachTool, isServerSideTool, READ_DOCTRINE_TOOL, SERVER_SIDE_READ_TOOL_NAMES, serverSideToolChip,
+} from '../tools';
 import { coachToolSchemas } from '../schemas';
+import { COACH_READ_TOOLS } from '../../../../api/_lib/coach/readTools';
+import { readDoctrineToolSchema } from '../doctrine';
 import type { CoachToolDeps } from '../tools';
 import type { ExerciseDefinition } from '../../../types/workout';
 import type { Meal } from '../../../types/nutrition';
@@ -58,12 +62,79 @@ function makeDeps(overrides: Partial<CoachToolDeps> = {}): CoachToolDeps {
   };
 }
 
+describe('server-side tools — the hand-mirrored name list', () => {
+  it('matches COACH_READ_TOOLS and read_doctrine exactly, in order', () => {
+    // The client cannot import the read tools' module (it is the MCP tool
+    // implementations), so tools.ts mirrors the names by hand; this is the
+    // test that keeps the mirror honest. A read tool added in readTools.ts
+    // without a line here would be offered to the model and then treated
+    // as a confirm-card tool.
+    expect([...SERVER_SIDE_READ_TOOL_NAMES]).toEqual(COACH_READ_TOOLS.map(t => t.name));
+    expect(READ_DOCTRINE_TOOL).toBe(readDoctrineToolSchema.name);
+  });
+
+  it('isServerSideTool is true for every read tool and read_doctrine, false for every write tool', () => {
+    for (const name of SERVER_SIDE_READ_TOOL_NAMES) expect(isServerSideTool(name)).toBe(true);
+    expect(isServerSideTool('read_doctrine')).toBe(true);
+    for (const schema of coachToolSchemas()) expect(isServerSideTool(schema.name)).toBe(false);
+    expect(isServerSideTool('nope')).toBe(false);
+  });
+
+  it('isServerSideTool decides the memory tool by its INPUT: view is a read, everything else a confirm card', () => {
+    expect(isServerSideTool('memory', { command: 'view', path: '/memories' })).toBe(true);
+    expect(isServerSideTool('memory', { command: 'view', path: '/memories/injuries.md' })).toBe(true);
+    for (const command of ['create', 'str_replace', 'insert', 'delete', 'rename']) {
+      expect(isServerSideTool('memory', { command, path: '/memories/notes.md' }), command).toBe(false);
+    }
+    // No input, or a malformed one, is a write: nothing runs without the click.
+    expect(isServerSideTool('memory')).toBe(false);
+    expect(isServerSideTool('memory', undefined)).toBe(false);
+    expect(isServerSideTool('memory', {})).toBe(false);
+    expect(isServerSideTool('memory', 'view')).toBe(false);
+    // The input changes nothing for the name-decided tools.
+    expect(isServerSideTool('get_prs', { command: 'create' })).toBe(true);
+    expect(isServerSideTool('delete_event', { command: 'view' })).toBe(false);
+  });
+
+  it('serverSideToolChip names the memory file on a reloaded thread', () => {
+    expect(serverSideToolChip('memory', { command: 'view', path: '/memories/goals.md' })).toBe('Checked: memory (goals)');
+    expect(serverSideToolChip('memory', { command: 'view', path: '/memories' })).toBe('Checked: memory');
+    expect(serverSideToolChip('memory', undefined)).toBe('Checked: memory');
+  });
+
+  it('serverSideToolChip names the tool for a reloaded thread, and never throws', () => {
+    expect(serverSideToolChip('get_exercise_history', { exercise_name: 'Deadlift' })).toBe('Checked: exercise history');
+    expect(serverSideToolChip('search_history', { query: 'knee' })).toBe('Searched: history');
+    expect(serverSideToolChip('read_doctrine', { topic: 'strength' })).toBe('Read doctrine: strength');
+    expect(serverSideToolChip('read_doctrine', null)).toBe('Read doctrine');
+    expect(serverSideToolChip('get_prs', undefined)).toBe('Checked: prs');
+  });
+});
+
 describe('coach tool registry', () => {
   it('exposes each tool exactly once, findable by schema name', () => {
     const names = coachToolSchemas().map(s => s.name);
     expect(names).toEqual(['delete_event', 'create_event', 'update_event', 'set_event_exercises', 'update_exercise_definition', 'log_meal', 'update_meal', 'delete_meal']);
     for (const name of names) expect(findCoachTool(name)?.schema.name).toBe(name);
     expect(findCoachTool('nope')).toBeUndefined();
+    // The memory tool is in the registry (its writes are confirm cards) but
+    // not in coachToolSchemas: api/chat.ts places the typed tool last.
+    expect(findCoachTool('memory')?.schema).toEqual({ type: 'memory_20250818', name: 'memory' });
+    expect(names).not.toContain('memory');
+    expect(COACH_TOOLS).toHaveLength(names.length + 1);
+  });
+
+  it('memory: labels a write from the command and executes through deps.applyMemoryCommand', async () => {
+    const tool = findCoachTool('memory')!;
+    const input = { command: 'create', path: '/memories/goals.md', file_text: 'Rainier June 2027' };
+    expect(tool.displayLabel(input)).toBe('Remember: Rainier June 2027');
+    expect(tool.displayLabel({ command: 'delete', path: '/memories/notes.md' })).toBe('Forget: every notes memory');
+    expect(tool.displayLabel({})).toBe('Update memory: malformed command');
+    const applyMemoryCommand = vi.fn(async () => 'Remembered 1 fact.');
+    expect(await tool.execute(input, makeDeps({ applyMemoryCommand }))).toBe('Remembered 1 fact.');
+    expect(applyMemoryCommand).toHaveBeenCalledWith(input);
+    // Deps without a memory backend (the eval harness) answer, never throw.
+    expect(await tool.execute(input, makeDeps())).toMatch(/not available/);
   });
 
   it('every tool has a label and executor colocated with its schema', () => {

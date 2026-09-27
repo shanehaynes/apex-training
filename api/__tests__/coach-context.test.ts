@@ -21,6 +21,14 @@ vi.mock('../_lib/mcp/data.js', () => ({
 }));
 vi.mock('../_lib/trackerSession.js', () => ({ loadMealsForDate: vi.fn(async () => []) }));
 vi.mock('../_lib/reviewData.js', () => ({ fetchPeriodInputs: vi.fn() }));
+// The physiology inputs are scripted (their own suite is coach-physiology.test.ts);
+// compute + describe run for real, so the block in `volatile` is the production text.
+vi.mock('../_lib/coach/physiology.js', () => ({
+  fetchPhysiologyInputs: vi.fn(async (_db: unknown, _u: string, today: string) =>
+    ({ today, activities: [], cardioLogs: [], setLogs: [], thresholdHr: null, maxHr: null })),
+}));
+import { fetchPhysiologyInputs } from '../_lib/coach/physiology';
+import { computePhysiology, describePhysiology } from '../../src/lib/physiology';
 
 const TODAY = '2026-09-03'; // a Thursday
 
@@ -40,17 +48,30 @@ const occurrences: WorkoutEvent[] = [
 ];
 const meal: Meal = { id: 'meal-1', title: 'Oats', date: TODAY, time: '07:30', mealType: 'breakfast', proteinG: 20, carbsG: 60, fatTotalG: 10, notes: '' } as Meal;
 
-interface AdminState { profile: Record<string, unknown> | null; blocks: unknown[]; templates: Array<{ title: string }> }
+interface AdminState {
+  profile: Record<string, unknown> | null;
+  blocks: unknown[];
+  templates: Array<{ title: string }>;
+  /** coach_memory rows as the live-row query returns them, or an error for the whole table. */
+  memories: unknown[] | { error: string };
+}
 let state: AdminState;
 
 function makeAdmin() {
   return {
     from(table: string) {
       const chain = {
-        select: () => chain, eq: () => chain, is: () => chain, order: () => chain,
+        select: () => chain, eq: () => chain, is: () => chain, not: () => chain, order: () => chain, limit: () => chain,
         maybeSingle: async () => ({ data: state.profile, error: null }),
         then(resolve: (v: unknown) => void) {
-          const data = table === 'training_blocks' ? state.blocks : table === 'workout_templates' ? state.templates : [];
+          if (table === 'coach_memory' && 'error' in state.memories) {
+            resolve({ data: null, error: { message: state.memories.error } });
+            return;
+          }
+          const data = table === 'training_blocks' ? state.blocks
+            : table === 'workout_templates' ? state.templates
+            : table === 'coach_memory' ? state.memories
+            : [];
           resolve({ data, error: null });
         },
       };
@@ -60,7 +81,7 @@ function makeAdmin() {
 }
 
 beforeEach(() => {
-  state = { profile: { coach_goal: 'Send 5.12', coach_context: 'Two kids' }, blocks: [], templates: [{ title: 'Push Day' }, { title: 'Pull Day' }] };
+  state = { profile: { coach_goal: 'Send 5.12', coach_context: 'Two kids' }, blocks: [], templates: [{ title: 'Push Day' }, { title: 'Pull Day' }], memories: [] };
   vi.mocked(fetchExpandedSchedule).mockResolvedValue({ occurrences, definitions: new Map([[def.id, def]]), anchorDates: new Map() });
   vi.mocked(fetchCompletionsInRange).mockResolvedValue([
     { event_id: 'evt-soccer', event_date: '2026-08-31', is_completed: true, completed_at: '2026-08-31T20:00:00Z' },
@@ -111,6 +132,58 @@ describe('buildChatContext', () => {
     expect(toolContext.events.map(e => e.id)).toContain('evt-next');
     expect(toolContext.definitions.get('def-1')).toEqual(def);
     expect(fetchCompletionsInRange).toHaveBeenCalledWith(expect.anything(), 'u1', '2026-08-03', '2026-09-06');
+  });
+
+  it('chat: the physiology panel rides in the live half, computed from the fetched inputs', async () => {
+    const inputs = {
+      today: TODAY, activities: [], thresholdHr: 162, maxHr: 190,
+      cardioLogs: [{ eventId: 'evt-c', eventDate: '2026-09-01', avgHeartRate: 140, durationMinutes: 45 }],
+      setLogs: [{ eventDate: '2026-09-02', actualWeight: '225', actualReps: '5', actualDuration: null, isAutofilled: false }],
+    };
+    vi.mocked(fetchPhysiologyInputs).mockResolvedValueOnce(inputs as never);
+    const { system, volatile } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    const panel = describePhysiology(computePhysiology(inputs as never));
+    expect(panel).toContain('<physiology>');
+    expect(volatile).toContain(panel);
+    expect(fetchPhysiologyInputs).toHaveBeenCalledWith(expect.anything(), 'u1', TODAY);
+    // Never in the cached prefix.
+    expect(system).not.toContain('physiology');
+    expect(system).toBe(buildStablePrompt([def]));
+  });
+
+  it('chat: a physiology failure costs the panel and nothing else', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(fetchPhysiologyInputs).mockRejectedValueOnce(new Error('activity_streams is on fire'));
+    const { volatile } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    expect(volatile).not.toContain('<physiology>');
+    expect(volatile).toContain('[evt-today] Push Day (60 min) at 17:30');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('physiology panel unavailable'), 'activity_streams is on fire');
+    warn.mockRestore();
+  });
+
+  it('chat: confirmed memory rides in the live half, grouped by file, and never in the stable half', async () => {
+    state.memories = [
+      { id: 'm1', kind: 'goal', content: 'Rainier June 2027', created_at: '2026-09-27T10:00:00Z' },
+      { id: 'm2', kind: 'injury', content: 'left shoulder: avoid overhead pressing until cleared', created_at: '2026-09-26T10:00:00Z' },
+    ];
+    const { system, volatile } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    expect(volatile).toContain('<athlete_memory>');
+    expect(volatile).toContain('injuries:\n- left shoulder: avoid overhead pressing until cleared');
+    expect(volatile).toContain('goals:\n- Rainier June 2027');
+    expect(volatile.indexOf('</athlete_profile>')).toBeLessThan(volatile.indexOf('<athlete_memory>'));
+    expect(volatile.indexOf('</athlete_memory>')).toBeLessThan(volatile.indexOf('Today:'));
+    expect(system).toBe(buildStablePrompt([def]));
+    expect(system).not.toContain('Rainier');
+  });
+
+  it('chat: a memory failure (the table not yet migrated, say) costs the section and nothing else', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    state.memories = { error: 'relation "coach_memory" does not exist' };
+    const { volatile } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    expect(volatile).not.toContain('<athlete_memory>');
+    expect(volatile).toContain('[evt-today] Push Day (60 min) at 17:30');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('athlete memory unavailable'), expect.stringContaining('does not exist'));
+    warn.mockRestore();
   });
 
   it('chat: a missing profile degrades to the generic live context', async () => {

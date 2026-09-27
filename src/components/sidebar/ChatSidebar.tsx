@@ -14,6 +14,7 @@ import { helpPath } from '../../lib/help/pages';
 import { Send, Square, NotebookPen, Check, X, KeyRound, MessageSquarePlus } from 'lucide-react';
 import { now } from '../../lib/clock';
 import './confirm-preview.css';
+import './chat-reads.css';
 
 // ─── On screen? ───────────────────────────────────────────────────────────────
 
@@ -121,6 +122,27 @@ function ConfirmPreview({ preview }: { preview: ToolPreview }) {
           {preview.lines.map((line, i) => <p key={i} className="confirm-preview__line">{line}</p>)}
         </div>
       );
+    case 'memory':
+      // The whole fact, as it will be remembered (or forgotten): the card is
+      // where the athlete reads it before anything is stored (D-C03).
+      return (
+        <div className="confirm-preview" data-testid="confirm-preview" data-kind={`memory-${preview.action}`}>
+          {preview.file && <p className="confirm-preview__line"><strong>{preview.file}</strong></p>}
+          {preview.before.length > 0 && (
+            <ul className="confirm-preview__list confirm-preview__list--before">
+              {preview.before.map((line, i) => <li key={i}>{line}</li>)}
+            </ul>
+          )}
+          {preview.after.length > 0 && (
+            <ul className="confirm-preview__list confirm-preview__list--after">
+              {preview.after.map((line, i) => <li key={i}>{line}</li>)}
+            </ul>
+          )}
+          {preview.action === 'forget' && preview.before.length === 0 && (
+            <p className="confirm-preview__line confirm-preview__empty">Every fact in this file is forgotten.</p>
+          )}
+        </div>
+      );
   }
 }
 
@@ -170,6 +192,20 @@ function ConfirmCard({ label, remaining, onConfirm, onCancel, disabled, onScreen
   );
 }
 
+// ─── Read chips ───────────────────────────────────────────────────────────────
+
+/** "Checked: …" — one chip per server-side call the coach made before (or
+ *  while) it spoke, in the order it made them. Styles in chat-reads.css. */
+function ReadChips({ labels }: { labels: string[] }) {
+  return (
+    <ul className="chat-reads" data-testid="chat-reads" aria-label="What the coach checked">
+      {labels.map((label, i) => (
+        <li key={i} className="chat-reads__chip" title={label}>{label}</li>
+      ))}
+    </ul>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ChatSidebar() {
@@ -178,7 +214,7 @@ export default function ChatSidebar() {
   } = useSchedule();
   const { meals } = useMeals();
   const {
-    messages, isLoading, streamingContent,
+    messages, isLoading, streamingContent, streamingReads,
     pendingAction, pendingActionCount, sendMessage, confirmAction, cancelAction, triggerInitial,
     newThread, abort,
   } = useChat();
@@ -341,18 +377,25 @@ export default function ChatSidebar() {
             reuse a hydrated node for a newly streamed message. */}
         {messages.map(msg => (
           <div key={msg.id} className={`chat-msg chat-msg--${msg.role}`}>
-            <p className="chat-msg__text">{msg.content}</p>
+            {/* What the coach checked before this reply (the sight loop):
+                one chip per server-side call, in the order it made them. */}
+            {msg.reads && msg.reads.length > 0 && <ReadChips labels={msg.reads} />}
+            {msg.content && <p className="chat-msg__text">{msg.content}</p>}
           </div>
         ))}
 
         {isStreaming && (
           <div className="chat-msg chat-msg--assistant">
+            {streamingReads.length > 0 && <ReadChips labels={streamingReads} />}
             <p className="chat-msg__text">{streamingContent}<span className="chat-cursor" /></p>
           </div>
         )}
 
         {isLoading && !streamingContent && (
           <div className="chat-msg chat-msg--assistant">
+            {/* The coach is reading before it speaks: the chips land here,
+                above the typing indicator, as each call starts. */}
+            {streamingReads.length > 0 && <ReadChips labels={streamingReads} />}
             <span className="chat-typing"><span /><span /><span /></span>
           </div>
         )}
