@@ -81,7 +81,8 @@ change to the automation for a human.
 
 Skills trigger from their description, which is probabilistic. The bundled
 hook makes the skill's load-bearing decision — where does this worker run? —
-impossible to skip. Wire it as a `PreToolUse` hook:
+impossible to skip, and refuses the commonest brief mistake. Wire it as a
+`PreToolUse` hook:
 
 ```json
 { "hooks": { "PreToolUse": [ {
@@ -93,30 +94,62 @@ impossible to skip. Wire it as a `PreToolUse` hook:
 
 What it does on each subagent launch:
 
-- **Writing agent types** (anything with Bash/Edit/Write, unknown types, and
-  project agents with no `tools:` line) must declare a lane on its own line of
-  the brief — `Lane: <abs worktree path>`, `Lane: read-only`, or
-  `Lane: none — <reason>` — or launch with `isolation: "worktree"`. Otherwise
-  the launch is **denied** with a message that points at this skill and says
-  how to comply.
-- A lane path must exist, be a *linked worktree* (not the primary checkout),
-  and not live in a temp directory.
-- **Read-only types** (Explore, Plan, claude-code-guide, and project agents
-  whose `tools:` has no writing tool) pass without a declaration.
-- Every allowed launch gets a one-line `additionalContext` reminder of what
-  the skill expects next (check the SHA, carry NOT VERIFIED forward).
+- **Unfilled template slots** (`{{NAME}}`, `{{NAME: description}}`) anywhere in
+  the prompt → **denied**, listing the slot names and the `{{ NAME }}` escape
+  for quoting the syntax. The pattern is narrow (upper-case name right after
+  the braces), so JSX `style={{ color: 'red' }}`, Handlebars `{{name}}`, Go
+  `{{.Name}}` and GitHub `${{ secrets.X }}` pass. Slots inside code fences
+  still count.
+- **Writing agent types** (anything with Bash/Edit/Write, `tools: *`, unknown
+  types, and agents whose `tools:` it cannot parse — it fails closed) must
+  declare a lane on its own line: `Lane: <abs worktree path>`,
+  `Lane: read-only`, or `Lane: none — <reason>`, or launch with
+  `isolation: "worktree"`. Otherwise the launch is **denied** with a message
+  saying how to comply.
+- Lane lines inside code fences or `>` quotes are ignored (examples are not
+  declarations); several Lane lines naming different checkouts are denied.
+  Headings, list items, emphasis, a trailing `(parenthetical)` and
+  ` — commentary` are tolerated.
+- A lane path must exist, resolve (realpath) outside temp directories, and be
+  a *linked worktree* — of the primary's repository, a bare repository or a
+  separate-git-dir repository — whose gitdir exists. The primary checkout, a
+  submodule, and a stale `.git` file are denied. A declared path is checked
+  even with `isolation: "worktree"`. A worktree of a different repository is
+  allowed with a note.
+- A path lane whose brief contains no report schema (`GATE TOUCHED` or
+  `FINDINGS:`) gets a reminder to paste one from `references/briefs.md`.
 - `Workflow` launches get a reminder only; the hook cannot see inside a
   workflow script's `agent()` calls.
-- Fails open on internal errors; `PARALLEL_AGENTS_GUARD=off` disables it.
+- Fails open on internal errors; works when invoked through symlinks;
+  `PARALLEL_AGENTS_GUARD=off` disables it. Tests: `node --test
+  tests/agent-guard.test.mjs` and the guard suite in `tests/acceptance/`.
 
 Verified against Claude Code 2.1.281 (2026-09): `PreToolUse` fires for the
 `Agent` tool with `tool_input` = `{description, prompt, subagent_type,
 run_in_background, …}`; exit 2 puts stderr in front of the model verbatim;
-`hookSpecificOutput.additionalContext` on exit 0 reaches the model;
-`SubagentStart` also fires (`agent_id`, `agent_type`). Some documentation and
-issue threads say `PreToolUse` does not fire for `Agent` — that was not true
-on this version, so test on yours: log the hook's stdin and launch one agent.
+`hookSpecificOutput.additionalContext` on exit 0 reaches the model. Some
+documentation says `PreToolUse` does not fire for `Agent` — test on your
+version: log the hook's stdin and launch one agent.
 
 The declaration is honor-system for `read-only` and `none` — the hook cannot
 know what a brief intends. What it buys is that the orchestrator must decide
 in writing, where a reviewer (or the user) can see the decision.
+
+## What the lane script refuses (and why)
+
+`lane.sh` is the other mechanism: the right way made easy, the destructive
+way made hard. Its removal paths fail closed:
+
+- `retire` refuses a lane that is still `active` (release it first), dirty in
+  any way git can hide (untracked files even with `status.showUntrackedFiles=no`,
+  skip-worktree or assume-unchanged edits present on disk), unpushed, locked,
+  holding another registered worktree, or whose HEAD reflog holds commits on
+  no branch, remote branch or tag — it lists those commits, and
+  `--discard-unreachable` proceeds only after you have looked.
+- `tidy` never removes an active, locked, dirty or unreachable-commit lane,
+  never prunes a missing worktree outside `.claude/worktrees/` (it may have
+  been moved by hand) or one it cannot inspect, and continues past a failed
+  removal instead of stopping half-way.
+- Every claims write happens under a machine-wide lock, and every field is
+  sanitized, so a stray control character can never make an active lane look
+  finished.

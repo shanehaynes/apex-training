@@ -20,7 +20,7 @@ Walk the repository and answer each. Every "yes" is a row in the inventory.
 
 **Network ports** → partition
 - Any fixed port in dev server config, test config, docker-compose, scripts?
-- Does the test runner reuse an already-running server (Playwright's `reuseExistingServer`, similar)? With a fixed port, lane B's tests silently run against lane A's server and test A's code. Fix: derive the port from the worktree (`lane.sh port`), make every tool read the same resolver, turn on strict-port so a clash fails loudly instead of sliding to a port nothing else follows.
+- Does the test runner reuse an already-running server (Playwright's `reuseExistingServer`, similar)? With a fixed port, lane B's tests silently run against lane A's server and test A's code. Fix: give each worktree its own port (`lane.sh port`), make every tool read the same resolver, turn on strict-port so a clash fails loudly instead of sliding to a port nothing else follows.
 
 **Databases and services** → serialize (or partition if cheap)
 - Is there one local database/stack for the machine? Which commands reset, seed, migrate or truncate it? Those need a machine-wide lock (`with-lock.sh`), and so does anything new that resets or seeds.
@@ -35,12 +35,12 @@ Walk the repository and answer each. Every "yes" is a row in the inventory.
 **Hot files** → give to one lane, or sequence
 - Files every feature edits: route tables, DI registries, barrel `index` files, navigation maps, the root README/CHANGELOG, lockfiles.
 - Generated files (schema types, API clients, snapshots): regenerate them with the tool in the lane that changes the source, never hand-merge them, and have CI fail on drift.
-- Lockfiles: one lane changes dependencies per wave; on conflict, regenerate from the merged manifest.
+- Lockfiles: one lane at a time changes dependencies; on conflict, regenerate from the merged manifest.
 
-**Capacity** → set the wave width
+**Capacity** → set the fleet width
 - CPU/RAM for parallel builds and test runs; simulators/emulators/devices; GPU.
 - External quotas: CI minutes, deploy caps (a hobby-tier host refused most deploys mid-fleet once), API rate limits, token budget.
-- Contention shows up as flaky timeouts, not as errors that name the cause. If tests fail in parallel and pass alone, narrow the wave before debugging the code.
+- Contention shows up as flaky timeouts, not as errors that name the cause. If tests fail in parallel and pass alone, narrow the fleet before debugging the code.
 
 **Authority**
 - Paths whose change expands what agents can do unattended: CI config, merge policy, permissions/settings, hooks, deploy config, dependency manifests, release/signing surface. → held for a human, never auto-merged by an agent.
@@ -49,7 +49,7 @@ Walk the repository and answer each. Every "yes" is a row in the inventory.
 
 ### Partition
 - **Worktree per lane** under `<primary>/.claude/worktrees/<branch-with-dashes>` (`lane.sh new`). Not `/tmp`: gone after reboot, and invisible to other sessions and to the human looking for a branch.
-- **Deterministic per-lane port**: hash the worktree directory name into a range (`lane.sh port`), default port for the primary checkout so the README stays true, env override for humans.
+- **Allocated per-lane port**: `lane.sh new` records the lowest free port in `[LANE_PORT_BASE, LANE_PORT_BASE + LANE_PORT_SPAN)` (default 5200–5999) in the lane's claim — not held by a live claim, not currently listening — so no two live lanes ever share one (hashing had ~60% collision odds at 40 lanes). `lane.sh port` returns it; the primary checkout gets the project default (`LANE_PORT_DEFAULT`, 5173) so the README stays true; unclaimed worktrees fall back to a hash.
 - **Per-lane env**: anything with a global default path gets a lane-local override in the brief.
 
 ### Serialize
@@ -58,7 +58,8 @@ Walk the repository and answer each. Every "yes" is a row in the inventory.
 
 ### Orchestrator-owned
 - Workers report the need; the orchestrator acts. The brief lists these explicitly under "do not change".
-- **Claims registry**: `lane.sh` appends `branch, time, path, intent` to `<primary>/.claude/state/claims.tsv` and prints other claims when a lane starts. It is a hint, not a lock — sessions started by hand may not claim — so read it as "who might be here", not "who is here".
+- **Claims registry**: `lane.sh` records `name, time, path, intent, port, status, kind` in `<primary>/.claude/state/claims.tsv` (under a lock) and prints other claims when a lane starts. `status` is `active` while a worker is on the lane, `done` after `lane.sh release`, `retired` after `lane.sh retire`; tidy and retire never remove an active lane. It is a hint, not a lock on the repository — sessions started by hand may not claim — so read it as "who might be here", not "who is here".
+- **Fleet ledger**: `scripts/fleet.mjs` keeps the orchestrator's state (lanes, shapes, edges, facts, rulings) in `<primary>/.claude/state/fleet/` so a new session can resume. See [fleet-state.md](fleet-state.md).
 
 Ensure `.claude/state/` and `.claude/worktrees/` are git-ignored in the project.
 
@@ -70,11 +71,12 @@ Ensure `.claude/state/` and `.claude/worktrees/` are git-ignored in the project.
 |---|---|---|---|
 | Primary checkout | orchestrator-owned | stays on main, clean; hook blocks builds/commits | |
 | Working tree + deps | partition | `lane.sh new` (worktree + install) | |
-| Dev/test port | partition | `lane.sh port`, strict port | test runner reuses servers |
+| Dev/test port | partition | allocated by `lane.sh new`, read via `lane.sh port`, strict port | test runner reuses servers |
 | Local DB | serialize | `with-lock.sh db <reset cmd>` | schema can lag main |
 | Migration numbers | orchestrator-owned | claimed at PR open; uniqueness test | |
 | Generated types | partition + CI drift check | regenerate in lane | |
-| Merge | orchestrator-owned | combine-check, then serial merge | |
+| Merge | orchestrator-owned | combine-check on pinned SHAs, then serial merge | |
+| Fleet state | orchestrator-owned | `fleet.mjs` ledger | resume from it, not from memory |
 | Wave width | — | N lanes code-only; 2 with simulators | |
 | Held paths | human | CI, hooks, settings, deploy, deps | |
 ```
