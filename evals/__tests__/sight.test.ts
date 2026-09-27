@@ -79,7 +79,7 @@ describe('API backend — read rounds', () => {
     expect(result.toolCalls).toEqual([{
       name: 'get_exercise_history', input: { exercise_name: 'Deadlift' },
       result: JSON.stringify({ canonical_name: 'Deadlift', trend: [{ date: '2026-07-30', value: 356 }] }),
-      turn: 1, kind: 'read',
+      turn: 1, kind: 'read', round: 0,
     }]);
     expect(result.turns[0].assistantText).toBe('Let me check.\nUp 12% since June.');
     expect(result.anomalies).toEqual([]);
@@ -368,6 +368,20 @@ describe('checkDoctrine', () => {
     ]));
     expect(late.status).toBe('fail');
     expect(late.detail.join('\n')).toContain('PRESCRIBED BEFORE READING');
+
+    // A read and a write asked for in ONE model response are recorded
+    // read-first (the backend runs reads ahead of writes), but the model
+    // composed the write without the doctrine: same round, so it fails.
+    const bundled = checkDoctrine(first, harnessWith([
+      { ...readCall('read_doctrine', { topic: 'strength' }), round: 0 },
+      { ...writeCall('create_event', EVENT_INPUT), round: 0 },
+    ]));
+    expect(bundled.status).toBe('fail');
+    expect(bundled.detail.join('\n')).toContain('PRESCRIBED ALONGSIDE READING');
+    expect(checkDoctrine(first, harnessWith([
+      { ...readCall('read_doctrine', { topic: 'strength' }), round: 0 },
+      { ...writeCall('create_event', EVENT_INPUT), round: 1 },
+    ])).status).toBe('pass');
   });
 
   it('taperBelowPriorWeek compares planned minutes in today\'s week to the week before', () => {

@@ -105,7 +105,7 @@ export function makeApiBackend(callModel: CallModel): Backend {
     // is the "backend failed" tool_result production would send.
     const runRead = async (toolUse: ToolUseBlock): Promise<ToolResultBlock> => {
       const outcome = await executeRead!(toolUse.name, toolUse.input);
-      toolCalls.push({ name: toolUse.name, input: toolUse.input, resultText: outcome.text, kind: 'read' });
+      toolCalls.push({ name: toolUse.name, input: toolUse.input, resultText: outcome.text, kind: 'read', round: rounds });
       const block: ToolResultBlock & { is_error?: boolean } = {
         type: 'tool_result',
         tool_use_id: toolUse.id,
@@ -122,7 +122,7 @@ export function makeApiBackend(callModel: CallModel): Backend {
         result = 'The operation failed — something went wrong on the backend.';
         anomaly(`executorThrew:${toolUse.name}: ${err instanceof Error ? err.message : String(err)}`);
       }
-      toolCalls.push({ name: toolUse.name, input: toolUse.input, resultText: result, kind: 'write' });
+      toolCalls.push({ name: toolUse.name, input: toolUse.input, resultText: result, kind: 'write', round: rounds });
       return { type: 'tool_result', tool_use_id: toolUse.id, content: result };
     };
 

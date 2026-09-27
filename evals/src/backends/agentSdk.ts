@@ -177,6 +177,9 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
     // call's result to another call.
     const toolUseById = new Map<string, ToolUseBlock>();
     const settled = new Set<string>();
+    // One tool_result batch per model response: the SDK runs one round of
+    // tools, hands the results back, and the model answers again.
+    let round = 0;
     let stopReason: string | null = null;
     let usage = { inputTokens: 0, outputTokens: 0 };
     let sessionId = session?.id;
@@ -202,7 +205,7 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
         const toolUse = toolUseById.get(id);
         if (toolUse) {
           const kind = executeRead && isServerSideTool(toolUse.name) ? 'read' : 'write';
-          toolCalls.push({ name: toolUse.name, input: toolUse.input, resultText, kind });
+          toolCalls.push({ name: toolUse.name, input: toolUse.input, resultText, kind, round });
           settled.add(id);
         } else {
           anomaly(`sdkToolResultUnmatched:${id} (turn ${turnIndex})`);
@@ -210,6 +213,7 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
         return { type: 'tool_result' as const, tool_use_id: id, content: resultText };
       });
       transcript.push({ role: 'user', content: results } as ApiMessage);
+      round += 1;
     };
 
     const options: Options = {

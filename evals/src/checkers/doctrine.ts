@@ -77,11 +77,23 @@ export function checkDoctrine(evalCase: EvalCase, result: HarnessResult): Dimens
     } else {
       detail.push(`read doctrine: ${wanted.map(c => String(c.input.topic)).join(', ')}`);
       if (beforeFirstWrite) {
-        const firstRead = result.toolCalls.indexOf(wanted[0]);
-        const firstWrite = result.toolCalls.findIndex(c => c.kind !== 'read');
-        if (firstWrite !== -1 && firstWrite < firstRead) {
-          detail.push(`PRESCRIBED BEFORE READING: "${result.toolCalls[firstWrite].name}" ran before the first doctrine read`);
-          failed = true;
+        // "Before" means an EARLIER MODEL RESPONSE, not an earlier index: the
+        // backend runs a response's reads ahead of its writes, so a read and a
+        // write asked for together are recorded read-first although the model
+        // composed the prescription without the doctrine in hand. Rounds
+        // settle it when both are recorded; index order is the fallback for a
+        // record without them.
+        const firstRead = wanted[0];
+        const firstWrite = result.toolCalls.find(c => c.kind !== 'read');
+        if (firstWrite) {
+          const haveRounds = firstRead.round !== undefined && firstWrite.round !== undefined;
+          if (haveRounds && firstWrite.round === firstRead.round) {
+            detail.push(`PRESCRIBED ALONGSIDE READING: "${firstWrite.name}" was asked for in the same model response as the first doctrine read`);
+            failed = true;
+          } else if (haveRounds ? firstWrite.round! < firstRead.round! : result.toolCalls.indexOf(firstWrite) < result.toolCalls.indexOf(firstRead)) {
+            detail.push(`PRESCRIBED BEFORE READING: "${firstWrite.name}" ran before the first doctrine read`);
+            failed = true;
+          }
         }
       }
     }

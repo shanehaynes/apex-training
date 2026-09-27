@@ -146,7 +146,7 @@ export async function runCase(
       usageUnavailable = true;
     }
     for (const call of outcome.toolCalls) {
-      toolCalls.push({ name: call.name, input: call.input, result: call.resultText, turn: turns.length + 1, kind: call.kind });
+      toolCalls.push({ name: call.name, input: call.input, result: call.resultText, turn: turns.length + 1, kind: call.kind, round: call.round });
     }
 
     turns.push({

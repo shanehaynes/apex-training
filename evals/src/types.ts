@@ -75,6 +75,10 @@ export interface TurnToolCall {
   /** The tool_result string, byte-identical to what production would produce. */
   resultText: string;
   kind: ToolCallKind;
+  /** Which model response of the turn asked for this call, from 0. Two calls
+   *  with the same round were requested in one response — the model composed
+   *  them together, so neither could have informed the other. */
+  round: number;
 }
 
 /** Runs one server-side tool (isServerSideTool) against the fixture. */
@@ -237,6 +241,9 @@ export interface RecordedToolCall {
    *  confirmed coach tool. Optional so a record written before the sight
    *  loop still reads; a missing value is a write, which is all there were. */
   kind?: ToolCallKind;
+  /** The model response (0-based, within the turn) that asked for this call;
+   *  see TurnToolCall.round. Optional for the same reason as `kind`. */
+  round?: number;
 }
 
 export interface TurnRecord {
