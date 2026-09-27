@@ -55,5 +55,6 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
   blocks dropped on the client-side tool continuation) answered as pre-existing and out of scope,
   left open for Shane; follow-up recorded in the PR body.
 - 2026-09-27 · Shane · merged #348 (`f833db0`); wave B complete.
-- 2026-09-27 · orchestrator · wave C launched from `f833db0` as three cloud sessions (ids below,
-  filled at launch); briefs in `workstreams/C0{1,2,3}-*.md`.
+- 2026-09-27 · orchestrator · wave C launched from `f833db0` as three cloud sessions: C01
+  `session_01VhPvGA93vfvXgZTKPQNeBB`, C02 `session_01PbDeBCdLLRzAo1FtEyj6uu`, C03
+  `session_01FtGHeRTXwEZL3bcPf48Wcw`; briefs in `workstreams/C0{1,2,3}-*.md`.
