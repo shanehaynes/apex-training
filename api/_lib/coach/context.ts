@@ -7,6 +7,8 @@ import type { ObjectiveRow, TrainingBlockRow } from '../../../src/lib/db/types.j
 import type { WorkoutEvent } from '../../../src/types/workout.js';
 import type { Meal } from '../../../src/types/nutrition.js';
 import { buildAnalyticsPrompt, buildBuilderPrompt, buildStablePrompt, buildVolatileContext } from '../../../src/lib/coach/prompt.js';
+import { computePhysiology, describePhysiology } from '../../../src/lib/physiology/index.js';
+import { fetchPhysiologyInputs } from './physiology.js';
 import type { CoachToolContext } from '../../../src/lib/coach/tools.js';
 import { describeDraft, type WorkoutDraft } from '../../../src/lib/builder/draft.js';
 import { describeChartDraft, type ChartDraft } from '../../../src/lib/analytics/draft.js';
@@ -103,10 +105,26 @@ async function blockSummary(
 }
 
 /**
+ * The rendered <physiology> block for the live half, or '' — never a failed
+ * turn. fetchPhysiologyInputs already degrades to empty inputs with a warn;
+ * this guards the pure steps after it the same way, so a malformed row can
+ * cost the panel and nothing else.
+ */
+async function physiologyBlock(supabase: Admin, userId: string, todayIso: string): Promise<string> {
+  try {
+    return describePhysiology(computePhysiology(await fetchPhysiologyInputs(supabase, userId, todayIso)));
+  } catch (err) {
+    console.warn('[api/chat] physiology panel unavailable for the prompt:', err instanceof Error ? err.message : err);
+    return '';
+  }
+}
+
+/**
  * Build the system prompt and tool-label context for one chat turn.
  *
  * chat:      live schedule (this week + a 4-week completion rate), today's
- *            meals, the exercise library, athlete profile, active block.
+ *            meals, the exercise library, athlete profile, active block, the
+ *            physiology panel (zones, load, tonnage, HRV over five weeks).
  * builder:   the caller's workout draft, saved-workout titles, the library.
  * analytics: the caller's chart draft and the titles of "other sport" workouts.
  */
@@ -171,10 +189,11 @@ export async function buildChatContext(
   // before it); everything else keeps isCompleted=false like a fresh expand.
   const windowStart = format(startOfWeek(subWeeks(today, 4), { weekStartsOn: 1 }), 'yyyy-MM-dd');
   const windowEnd = format(endOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-  const [completions, todayMeals, profileRes] = await Promise.all([
+  const [completions, todayMeals, profileRes, physiology] = await Promise.all([
     fetchCompletionsInRange(supabase, userId, windowStart, windowEnd),
     loadMealsForDate(supabase, userId, todayIso).catch((): Meal[] => []),
     supabase.from('profiles').select('coach_goal, coach_context').eq('id', userId).maybeSingle(),
+    physiologyBlock(supabase, userId, todayIso),
   ]);
   const completionById = new Map(completions.map(c => [c.event_id, c]));
   const events = occurrences.map(e => {
@@ -195,6 +214,7 @@ export async function buildChatContext(
       { goal: profile?.coach_goal ?? undefined, context: profile?.coach_context ?? undefined },
       block,
       todayMeals,
+      physiology,
     ),
     toolContext: { definitions, events, meals: todayMeals },
   };

@@ -21,6 +21,14 @@ vi.mock('../_lib/mcp/data.js', () => ({
 }));
 vi.mock('../_lib/trackerSession.js', () => ({ loadMealsForDate: vi.fn(async () => []) }));
 vi.mock('../_lib/reviewData.js', () => ({ fetchPeriodInputs: vi.fn() }));
+// The physiology inputs are scripted (their own suite is coach-physiology.test.ts);
+// compute + describe run for real, so the block in `volatile` is the production text.
+vi.mock('../_lib/coach/physiology.js', () => ({
+  fetchPhysiologyInputs: vi.fn(async (_db: unknown, _u: string, today: string) =>
+    ({ today, activities: [], cardioLogs: [], setLogs: [], thresholdHr: null, maxHr: null })),
+}));
+import { fetchPhysiologyInputs } from '../_lib/coach/physiology';
+import { computePhysiology, describePhysiology } from '../../src/lib/physiology';
 
 const TODAY = '2026-09-03'; // a Thursday
 
@@ -111,6 +119,33 @@ describe('buildChatContext', () => {
     expect(toolContext.events.map(e => e.id)).toContain('evt-next');
     expect(toolContext.definitions.get('def-1')).toEqual(def);
     expect(fetchCompletionsInRange).toHaveBeenCalledWith(expect.anything(), 'u1', '2026-08-03', '2026-09-06');
+  });
+
+  it('chat: the physiology panel rides in the live half, computed from the fetched inputs', async () => {
+    const inputs = {
+      today: TODAY, activities: [], thresholdHr: 162, maxHr: 190,
+      cardioLogs: [{ eventId: 'evt-c', eventDate: '2026-09-01', avgHeartRate: 140, durationMinutes: 45 }],
+      setLogs: [{ eventDate: '2026-09-02', actualWeight: '225', actualReps: '5', actualDuration: null, isAutofilled: false }],
+    };
+    vi.mocked(fetchPhysiologyInputs).mockResolvedValueOnce(inputs as never);
+    const { system, volatile } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    const panel = describePhysiology(computePhysiology(inputs as never));
+    expect(panel).toContain('<physiology>');
+    expect(volatile).toContain(panel);
+    expect(fetchPhysiologyInputs).toHaveBeenCalledWith(expect.anything(), 'u1', TODAY);
+    // Never in the cached prefix.
+    expect(system).not.toContain('physiology');
+    expect(system).toBe(buildStablePrompt([def]));
+  });
+
+  it('chat: a physiology failure costs the panel and nothing else', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(fetchPhysiologyInputs).mockRejectedValueOnce(new Error('activity_streams is on fire'));
+    const { volatile } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    expect(volatile).not.toContain('<physiology>');
+    expect(volatile).toContain('[evt-today] Push Day (60 min) at 17:30');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('physiology panel unavailable'), 'activity_streams is on fire');
+    warn.mockRestore();
   });
 
   it('chat: a missing profile degrades to the generic live context', async () => {

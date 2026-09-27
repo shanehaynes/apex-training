@@ -14,6 +14,7 @@ import { helpPath } from '../../lib/help/pages';
 import { Send, Square, NotebookPen, Check, X, KeyRound, MessageSquarePlus } from 'lucide-react';
 import { now } from '../../lib/clock';
 import './confirm-preview.css';
+import './chat-reads.css';
 
 // ─── On screen? ───────────────────────────────────────────────────────────────
 
@@ -170,6 +171,20 @@ function ConfirmCard({ label, remaining, onConfirm, onCancel, disabled, onScreen
   );
 }
 
+// ─── Read chips ───────────────────────────────────────────────────────────────
+
+/** "Checked: …" — one chip per server-side call the coach made before (or
+ *  while) it spoke, in the order it made them. Styles in chat-reads.css. */
+function ReadChips({ labels }: { labels: string[] }) {
+  return (
+    <ul className="chat-reads" data-testid="chat-reads" aria-label="What the coach checked">
+      {labels.map((label, i) => (
+        <li key={i} className="chat-reads__chip" title={label}>{label}</li>
+      ))}
+    </ul>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ChatSidebar() {
@@ -178,7 +193,7 @@ export default function ChatSidebar() {
   } = useSchedule();
   const { meals } = useMeals();
   const {
-    messages, isLoading, streamingContent,
+    messages, isLoading, streamingContent, streamingReads,
     pendingAction, pendingActionCount, sendMessage, confirmAction, cancelAction, triggerInitial,
     newThread, abort,
   } = useChat();
@@ -341,18 +356,25 @@ export default function ChatSidebar() {
             reuse a hydrated node for a newly streamed message. */}
         {messages.map(msg => (
           <div key={msg.id} className={`chat-msg chat-msg--${msg.role}`}>
-            <p className="chat-msg__text">{msg.content}</p>
+            {/* What the coach checked before this reply (the sight loop):
+                one chip per server-side call, in the order it made them. */}
+            {msg.reads && msg.reads.length > 0 && <ReadChips labels={msg.reads} />}
+            {msg.content && <p className="chat-msg__text">{msg.content}</p>}
           </div>
         ))}
 
         {isStreaming && (
           <div className="chat-msg chat-msg--assistant">
+            {streamingReads.length > 0 && <ReadChips labels={streamingReads} />}
             <p className="chat-msg__text">{streamingContent}<span className="chat-cursor" /></p>
           </div>
         )}
 
         {isLoading && !streamingContent && (
           <div className="chat-msg chat-msg--assistant">
+            {/* The coach is reading before it speaks: the chips land here,
+                above the typing indicator, as each call starts. */}
+            {streamingReads.length > 0 && <ReadChips labels={streamingReads} />}
             <span className="chat-typing"><span /><span /><span /></span>
           </div>
         )}
