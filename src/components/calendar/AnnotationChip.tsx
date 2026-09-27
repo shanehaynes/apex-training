@@ -1,6 +1,32 @@
 import { X } from 'lucide-react';
-import { chipText, type CoachAnnotation } from '../../lib/coach/annotations';
+import { chipText, maxSeverity, type CoachAnnotation } from '../../lib/coach/annotations';
 import './annotations.css';
+
+interface MarkerProps {
+  notes: readonly CoachAnnotation[];
+  /** Where the marker sits, for tests: 'event' (a chip or week block) or 'day' (a week header). */
+  testId: 'event-annotation-marker' | 'day-annotation-marker';
+}
+
+// One dot however many notes, where a pill would not fit: a 22px event chip,
+// a week block, a week-view day header. Coloured by the worst note; the
+// bodies read in the tooltip. It is not a control — dismissing happens on
+// the chips in the day view — so it sits inside whatever button owns the row
+// without stealing its click.
+export function AnnotationMarker({ notes, testId }: MarkerProps) {
+  const severity = maxSeverity(notes);
+  if (!severity) return null;
+  return (
+    <span
+      className={`annotation-marker annotation-marker--${severity}`}
+      data-testid={testId}
+      data-severity={severity}
+      role="img"
+      aria-label={`${notes.length} coach note${notes.length === 1 ? '' : 's'}`}
+      title={notes.map(n => n.body).join('\n')}
+    />
+  );
+}
 
 interface Props {
   annotation: CoachAnnotation;
