@@ -14,9 +14,9 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 | A05 | Cache prefix: stable/volatile prompt split, server-side injection, 1h TTL | A | done (#345) — merged with the attestation still stale, see Next up | `feat/coach-cache-prefix` | `PROMPT_VERSION` → 2026.09.25-1; Opus 5.5 `midTurnSystem` off until verified |
 | B01 | Sight loop: read tools + doctrine + physiology wired into chat; server-side read rounds; chips | B | done (#348, `f833db0`) | `feat/coach-sight-loop` | `PROMPT_VERSION` → 2026.09.26-1; merged past the red gate like #345 |
 | B02 | Board + embeddings issue | B | done (this branch, issue #340) | `chore/coach-board` | orchestrator |
-| C01 | Evals: harness realignment, `sight` and `doctrine` cases, doctrine dimension | C | in review (#353, head `5db0517`) — merges first | `feat/coach-evals-sight` | fold green; reconciling commit for C02's memory tool queued |
-| C02 | Memory: `coach_memory` migration, memory tool backend, proposal cards | C | in review (#354, head `a79a386`) — **HELD** (phase48), merges second, then one reconciling commit (evals mirror) | `feat/coach-memory` | `PROMPT_VERSION` → 2026.09.27-1; typed memory_20250818 tool |
-| C03 | Calendar annotations: table, handler, chips, block strip | C | in review (#355, head `30d147a`) — **HELD** (phase49), merges third; README/api.ts conflict with C02 resolved at that point | `feat/coach-annotations` | AnnotationsProvider reads the visible month |
+| C01 | Evals: harness realignment, `sight` and `doctrine` cases, doctrine dimension | C | in review (#353, head `d7652c5`) — merges first; Codex P1 (round tracking) fixed | `feat/coach-evals-sight` | reconciling commit for C02's memory tool queued |
+| C02 | Memory: `coach_memory` migration, memory tool backend, proposal cards | C | in review (#354, head `447dcd6`) — **HELD** (phase48); four Codex P2s fixed; iOS types added; merges second | `feat/coach-memory` | `PROMPT_VERSION` → 2026.09.27-1 |
+| C03 | Calendar annotations: table, handler, chips, block strip | C | in review (#355, head `dafc92c`) — **HELD** (phase49); iOS types added; follow-up session C03b (`session_016WDHPxoH9Hu8jsrgJ4619u`) rendering notes in day/week views + event dismiss; merges third | `feat/coach-annotations` | README/api.ts conflict with C02 resolved at merge time |
 | D01 | Reflection + coaching contract (nightly Batch API, proposal-gated) | D | ready (after C) | `feat/coach-reflection` | HELD (migration) |
 | D02 | Notebook page: memory, proposals, contract history, doctrine index | D | ready (after C) | `feat/coach-notebook` | |
 | D03 | Weekly review document + "next week" proposal batch | D | ready (after C) | `feat/coach-weekly-review` | |
@@ -62,3 +62,8 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 - 2026-09-27 · orchestrator · wave C reported (three lanes, ~40 min each); phase48/49 claimed;
   fold green after one reconciling patch (evals mirror vs C02's memory tool); PRs #353 #354
   #355 opened and subscribed.
+- 2026-09-27 · orchestrator · review round one on wave C: Codex P1 on #353 and four P2s on #354
+  verified and fixed; iOS generated types added to #354/#355 from CI's generator output; the
+  two #355 UI findings (no annotations on day/week views, no event-note dismiss) delegated to
+  follow-up session C03b. Lesson for briefs: name `src/lib/api.ts`, `README.md` and the iOS
+  generated types explicitly; UI lanes must cover every calendar view, mobile forces DayView.
