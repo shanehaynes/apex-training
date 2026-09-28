@@ -17,9 +17,9 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 | C01 | Evals: harness realignment, `sight` and `doctrine` cases, doctrine dimension | C | done (#353, `3de0233`; reconciling commit for C02's memory tool landed with #355) | `feat/coach-evals-sight` | |
 | C02 | Memory: `coach_memory` migration, memory tool backend, proposal cards | C | done (#354, `cd3961a`) — phase48 to apply in production | `feat/coach-memory` | `PROMPT_VERSION` → 2026.09.27-1 |
 | C03 | Calendar annotations: table, handler, chips, block strip, day/week views | C | done (#355, `a172cf7`) — phase49 to apply in production | `feat/coach-annotations` | C03b follow-up session folded in |
-| D01 | Reflection + coaching contract + `leave_note` (nightly, proposal-gated) | D | in review (#358, head `8c46c55`) — **HELD** (phase50 + `vercel.json` cron); CI green but `coach-gate` (by design); four Codex findings fixed; merges first | `feat/coach-reflection` | HELD (phase50 + `vercel.json` cron); `PROMPT_VERSION` → 2026.09.28-1; merges first |
-| D02 | Notebook page: memory, proposals, contract, doctrine | D | in review (#359, head `0a99907`) — CI green but `coach-gate` (by design); two Codex findings fixed; merges second | `feat/coach-notebook` | codes against D01's interface contract; merges second |
-| D03 | Weekly review document + "next week" proposals | D | in review (#360, head `768f003`) — CI fully green; three Codex findings fixed; merges third | `feat/coach-weekly-review` | no table, no cron; merges third |
+| D01 | Reflection + coaching contract + `leave_note` (nightly, proposal-gated) | D | done (#358, `1a15ac4`) — phase50 to apply in production; the reflection cron deploys with it (05:00 UTC, opt-in) | `feat/coach-reflection` | HELD (phase50 + `vercel.json` cron); `PROMPT_VERSION` → 2026.09.28-1; merges first |
+| D02 | Notebook page: memory, proposals, contract, doctrine | D | in review (#359, head `e14ebe0`, `main` merged in) — CI green but `coach-gate` (by design); two Codex findings fixed; merges next | `feat/coach-notebook` | codes against D01's interface contract; merges second |
+| D03 | Weekly review document + "next week" proposals | D | in review (#360, head `3a58140`, `main` merged in) — CI fully green; three Codex findings fixed; merges last | `feat/coach-weekly-review` | no table, no cron; merges third |
 | E01 | Block planner mode | E | ready (after D) | `feat/coach-block-planner` | alone in its wave: owns every hot file |
 | E02 | Ask-coach from a session or set | E | ready (after D) | `feat/coach-ask-from-context` | |
 
@@ -28,11 +28,10 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
    phase49 (`coach_annotations`) to production; run `npm run eval:gate` (the attestation has
    been stale since #345 — it now measures the coach with its read tools and memory); review
    the doctrine text.
-2. **Wave D in review**: #358 (D01, HELD: phase50 + one `vercel.json` cron line) → #359 (D02)
-   → #360 (D03), in that merge order. The fold of all three on `main` is green (build, vitest
-   2185, oxlint, guards); every pair merges clean, so no integration commit is needed between
-   merges beyond the usual `git merge origin/main`. **Shane: `shipit`** on #358, then apply
-   phase50 to production (after phase48/49).
+2. **Wave D**: #358 (D01) merged as `1a15ac4`; #359 (D02) and #360 (D03) carry `main` and wait
+   only on their green CI and a merge (no `shipit` needed). **Shane: apply phase50 to production**
+   (after phase48/49). The reflection cron is live once the deploy carries `vercel.json`; it
+   does nothing until an athlete opts in from the notebook.
 3. Evals follow-up (after D01): fixture-backed memory in the harness (`fixture.memory`), and
    the two new write tools in the mirror (D01 does the mirror itself).
 4. **Shane:** #348 follow-up on thinking blocks across the write path.
@@ -89,3 +88,5 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
   have named — the generator's alphabetical table order and the iOS `profile.json` fixture —
   both fixed by the orchestrator. Fold of the three fixed heads green (vitest 2203). Threads
   resolved. Waiting on Shane's `shipit` for #358.
+- 2026-09-28 · Shane · merged #358 (`1a15ac4`). Orchestrator merged `main` into #359 (`e14ebe0`)
+  and #360 (`3a58140`), both clean.
