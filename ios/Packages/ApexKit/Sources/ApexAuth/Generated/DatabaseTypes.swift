@@ -232,6 +232,72 @@ internal enum PublicSchema {
       case userId = "user_id"
     }
   }
+  internal struct CoachAnnotationsSelect: Codable, Hashable, Sendable {
+    internal let body: String
+    internal let createdAt: String
+    internal let createdBy: String
+    internal let dismissedAt: String?
+    internal let id: UUID
+    internal let severity: String
+    internal let targetId: String
+    internal let targetKind: String
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case body = "body"
+      case createdAt = "created_at"
+      case createdBy = "created_by"
+      case dismissedAt = "dismissed_at"
+      case id = "id"
+      case severity = "severity"
+      case targetId = "target_id"
+      case targetKind = "target_kind"
+      case userId = "user_id"
+    }
+  }
+  internal struct CoachAnnotationsInsert: Codable, Hashable, Sendable {
+    internal let body: String
+    internal let createdAt: String?
+    internal let createdBy: String?
+    internal let dismissedAt: String?
+    internal let id: UUID?
+    internal let severity: String?
+    internal let targetId: String
+    internal let targetKind: String
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case body = "body"
+      case createdAt = "created_at"
+      case createdBy = "created_by"
+      case dismissedAt = "dismissed_at"
+      case id = "id"
+      case severity = "severity"
+      case targetId = "target_id"
+      case targetKind = "target_kind"
+      case userId = "user_id"
+    }
+  }
+  internal struct CoachAnnotationsUpdate: Codable, Hashable, Sendable {
+    internal let body: String?
+    internal let createdAt: String?
+    internal let createdBy: String?
+    internal let dismissedAt: String?
+    internal let id: UUID?
+    internal let severity: String?
+    internal let targetId: String?
+    internal let targetKind: String?
+    internal let userId: UUID?
+    internal enum CodingKeys: String, CodingKey {
+      case body = "body"
+      case createdAt = "created_at"
+      case createdBy = "created_by"
+      case dismissedAt = "dismissed_at"
+      case id = "id"
+      case severity = "severity"
+      case targetId = "target_id"
+      case targetKind = "target_kind"
+      case userId = "user_id"
+    }
+  }
   internal struct CoachConversationsSelect: Codable, Hashable, Sendable {
     internal let createdAt: String
     internal let id: UUID

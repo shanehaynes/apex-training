@@ -266,6 +266,18 @@ export type ActivityStreamsRow = Row<'activity_streams', {
   streams: Record<string, unknown> | null;
 }>;
 
+// ─── Coach annotations ───────────────────────────────────────────────────────
+// One note the coach pinned to a day, an event occurrence or a block
+// (phase49). Server-only: RLS with no policies, read and written through
+// /api/coach-annotations. The literal unions mirror the table's check
+// constraints; the same values live in src/lib/coach/annotations.ts, which is
+// what the handler validates against.
+export type CoachAnnotationRow = Row<'coach_annotations', {
+  target_kind: 'day' | 'event' | 'block';
+  severity: 'info' | 'caution' | 'alert';
+  created_by: 'coach' | 'reflection' | 'user';
+}>;
+
 /** Bridge for storing plain-data interfaces in jsonb columns. Interfaces have
  *  no implicit index signature, so TypeScript refuses `Exercise → Json` even
  *  though every value we store round-trips through JSON.stringify unchanged

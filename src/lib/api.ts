@@ -1,6 +1,7 @@
 import { notify } from './notify';
 import { supabase } from './supabaseClient';
 import type { CoachMemory, MemoryKind } from './coach/memory';
+import type { CoachAnnotation, NewCoachAnnotation } from './coach/annotations';
 
 // Single JSON transport for the app's /api/* endpoints — one place for
 // headers, serialization, and error handling. Failures log the response
@@ -292,4 +293,36 @@ export function addCoachMemory(
 /** Forget one memory: archived, never deleted, and out of the prompt from the next turn. */
 export function archiveCoachMemory(id: string): Promise<{ ok: boolean }> {
   return deleteJson('/api/coach-memory', 'Forgetting memory', { id });
+}
+
+// ── Coach annotations (notes on days, events and blocks) ──────────────────────
+
+export type {
+  AnnotationSeverity,
+  AnnotationTargetKind,
+  CoachAnnotation,
+  NewCoachAnnotation,
+} from './coach/annotations';
+
+/**
+ * QUIET: it runs on mount and on every month change, nobody asked for it,
+ * and a calendar that fails to fetch its notes is the calendar the app had
+ * before notes existed (AnnotationsContext logs the warn and renders none).
+ * Offline mode answers 401 on it and must not toast for that.
+ */
+export function listCoachAnnotations(from: string, to: string): Promise<{ annotations: CoachAnnotation[] }> {
+  const q = new URLSearchParams({ from, to });
+  return getJson(`/api/coach-annotations?${q}`, 'Loading coach notes', { quiet: true });
+}
+
+/** The server stamps created_by = 'coach'; this is what the coach's
+ *  `leave_note` tool calls once it exists. */
+export function createCoachAnnotation(input: NewCoachAnnotation): Promise<{ annotation: CoachAnnotation }> {
+  return postJson('/api/coach-annotations', input, 'Leaving a note');
+}
+
+/** Dismiss, not delete: the row keeps its dismissed_at. Not quiet — the user
+ *  clicked, so a failure is theirs to see. */
+export function dismissCoachAnnotation(id: string): Promise<{ ok: boolean }> {
+  return deleteJson('/api/coach-annotations', 'Dismissing note', { id });
 }

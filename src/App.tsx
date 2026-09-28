@@ -6,6 +6,8 @@ import { MealsProvider } from './context/MealsContext';
 import { ScheduleProvider } from './context/ScheduleContext';
 import { BlocksProvider } from './context/BlocksContext';
 import { AnalyticsProvider } from './context/AnalyticsContext';
+// Inside CalendarProvider: it reads the visible month from calendar state.
+import { AnnotationsProvider } from './context/AnnotationsContext';
 import AppShell from './components/layout/AppShell';
 import LoginView from './components/auth/LoginView';
 import SetPasswordView from './components/auth/SetPasswordView';
@@ -56,7 +58,9 @@ function AuthGate() {
         <AnalyticsProvider>
           <MealsProvider>
             <CalendarProvider>
-              <AppShell />
+              <AnnotationsProvider>
+                <AppShell />
+              </AnnotationsProvider>
             </CalendarProvider>
           </MealsProvider>
         </AnalyticsProvider>

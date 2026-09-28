@@ -1,0 +1,197 @@
+/* ============================================================================
+   COACH ANNOTATIONS — a note the coach pinned to a day, an event or a block,
+   shown where the thing lives: a pill in the day cell (AnnotationChip), a
+   dot on the event chip, the week view's day header and event block
+   (AnnotationMarker), a strip in the block detail and in the day view — the
+   phone's calendar, and where notes are dismissed (AnnotationChip --full).
+   Severity is the one colour axis:
+   info reads as a quiet remark, caution borrows the app's orange, alert its
+   danger red.
+
+   Lives outside app.css on purpose (CLAUDE.md: feature lanes never edit it),
+   like chat-reads.css beside the sidebar. Tokens come from tokens.css. Sized
+   to sit under the 22px event chips without stealing a row from them.
+   ========================================================================== */
+
+.annotation-chip {
+  --annotation-ink: var(--text-secondary);
+  --annotation-fill: var(--bg-elevated);
+  --annotation-edge: var(--border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  height: 18px;
+  padding: 0 6px 0 7px;
+  border-radius: 999px;
+  border: 1px solid var(--annotation-edge);
+  background: var(--annotation-fill);
+  color: var(--annotation-ink);
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  line-height: 1;
+  cursor: default;
+}
+
+.annotation-chip--caution {
+  --annotation-ink: var(--positive);
+  --annotation-fill: rgba(232, 96, 28, 0.12);
+  --annotation-edge: rgba(232, 96, 28, 0.45);
+}
+
+.annotation-chip--alert {
+  --annotation-ink: var(--danger-text);
+  --annotation-fill: rgba(217, 72, 59, 0.14);
+  --annotation-edge: rgba(217, 72, 59, 0.55);
+}
+
+.annotation-chip__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.annotation-chip__dismiss {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-right: -2px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.annotation-chip__dismiss:hover,
+.annotation-chip__dismiss:focus-visible {
+  opacity: 1;
+  background: rgba(237, 232, 223, 0.12);
+}
+
+/* The block strip: whole notes, wrapping, room to read. */
+.annotation-chip--full {
+  height: auto;
+  align-items: flex-start;
+  padding: 6px 8px 6px 10px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.annotation-chip--full .annotation-chip__text {
+  white-space: normal;
+  overflow: visible;
+}
+
+.annotation-chip--full .annotation-chip__dismiss {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+/* ---- Day cell: up to two pills, then a count ---- */
+
+.day-cell__annotations {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+.day-cell__annotations-more {
+  align-self: flex-start;
+  padding: 0 0 0 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 10.5px;
+  line-height: 14px;
+  cursor: pointer;
+}
+
+.day-cell__annotations-more:hover {
+  text-decoration: underline;
+}
+
+/* ---- Event chip: one inline dot, coloured by the worst note ---- */
+
+.annotation-marker {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  margin: 0 4px 0 2px;
+  border-radius: 999px;
+  background: var(--text-secondary);
+  box-shadow: 0 0 0 1.5px var(--bg-surface);
+}
+
+.annotation-marker--caution { background: var(--positive); }
+.annotation-marker--alert   { background: var(--danger); }
+
+/* ---- Week view: the same dot, inline in text ----
+   Beside the weekday in a day header ("MON •") and before the title in an
+   event block. Both parents are inline text, not flex rows, so the dot has to
+   be an inline-block to take its width; the app's own header and block rules
+   stay untouched. The header dot's ring is the header's background, not a
+   surface. */
+
+.week-view__dow .annotation-marker {
+  display: inline-block;
+  margin: 0 0 1px 5px;
+  vertical-align: middle;
+  box-shadow: none;
+}
+
+.week-event__title .annotation-marker {
+  display: inline-block;
+  margin: 0 4px 1px 0;
+  vertical-align: middle;
+}
+
+/* ---- Day view (the phone's calendar): whole notes, dismissable ----
+   The day strip sits above the cards, inside the animated content so it
+   slides with the date. The card strip is a wrapped row beneath the card's
+   time | body | check row: the body is a <button>, so the chips (each with a
+   dismiss button) cannot live inside it. `--noted` turns wrapping on only
+   when there is something to wrap, so an unannotated card lays out exactly
+   as before. */
+
+.day-view__annotations {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.day-event-card--noted {
+  flex-wrap: wrap;
+}
+
+.day-event-card__annotations {
+  flex: 1 0 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 12px 10px;
+}
+
+/* ---- Block detail strip ---- */
+
+.block-annotations {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

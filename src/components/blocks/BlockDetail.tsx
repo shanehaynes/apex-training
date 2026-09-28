@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { ChevronLeft, X } from 'lucide-react';
 import { useSchedule } from '../../context/schedule';
 import { useBlocks } from '../../context/blocks';
+import { useAnnotations } from '../../context/annotations';
+import AnnotationChip from '../calendar/AnnotationChip';
 import { computeBlockProgress } from '../../lib/blocks/progress';
 import type { BlockProgress } from '../../lib/blocks/progress';
 import { loadBlockLogs } from '../../lib/blocks/repo';
@@ -24,6 +26,8 @@ export default function BlockDetail({
 }) {
   const { events } = useSchedule();
   const { objectiveFor } = useBlocks();
+  const { byBlock, dismiss } = useAnnotations();
+  const notes = byBlock(block.id);
   const [progress, setProgress] = useState<BlockProgress | null>(null);
 
   useEffect(() => {
@@ -86,6 +90,22 @@ export default function BlockDetail({
               </p>
             )}
             {block.intent && <p className="block-intent">{block.intent}</p>}
+          </section>
+        )}
+
+        {notes.length > 0 && (
+          <section className="block-section" data-testid="block-annotations">
+            <h3 className="block-section__title">
+              Coach notes
+              <span className="block-section__sub">{notes.length}</span>
+            </h3>
+            <ul className="block-annotations">
+              {notes.map(note => (
+                <li key={note.id}>
+                  <AnnotationChip annotation={note} onDismiss={dismiss} full />
+                </li>
+              ))}
+            </ul>
           </section>
         )}
 
