@@ -24,10 +24,19 @@ import { resolveCoachModel } from '../../../src/lib/coach/models.js';
 // (api/_lib/reflection/reflect.ts), so a manual run and the scheduled one
 // cannot propose twice. Budgeted like review-cron: at most
 // MAX_WORK_ITEMS_PER_RUN model calls per invocation, and no new one starts
-// once WORK_BUDGET_MS has elapsed — a night with more work than that
-// carries the rest to the next night, whose "already-done" rows skip
-// instantly. Two 20 s attempts per call (anthropicClient.ts) inside the
-// catch-all function's 60 s maxDuration.
+// once WORK_BUDGET_MS has elapsed. Two 20 s attempts per call
+// (anthropicClient.ts) inside the catch-all function's 60 s maxDuration.
+//
+// Two things keep the budget from starving anyone:
+//   - The BACKLOG runs first: rows left `pending` or `failed` on earlier
+//     nights (a model outage, a run that died, a parse failure twice over)
+//     within the last BACKLOG_DAYS are retried before today's pass, through
+//     the same resume path, each costing one budget item. Without this a
+//     failed night was failed forever, since work was only ever derived
+//     from today's day.
+//   - Today's pass ROTATES its start by the day, so with more opted-in
+//     athletes than the budget the ones deferred tonight are first tomorrow
+//     rather than deferred every night by a stable sort.
 //
 // Escape hatches for manual operation: ?userId= limits to one athlete,
 // ?day=YYYY-MM-DD picks the day, ?dryRun=1 (with userId) renders the prompt
@@ -39,10 +48,21 @@ export const MAX_WORK_ITEMS_PER_RUN = 10;
 /** Past this many ms since the handler started, no further model call begins. */
 export const WORK_BUDGET_MS = 40_000;
 
+/** How far back unfinished rows are retried; older ones stay as they are. */
+export const BACKLOG_DAYS = 7;
+
 interface OptedIn {
   userId: string;
   coachModel: string | null;
 }
+
+/** One (athlete, day) to reflect on. */
+interface WorkItem {
+  user: OptedIn;
+  day: string;
+}
+
+type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 
 function queryString(req: VercelRequest, key: string): string | undefined {
   const value = req.query[key];
@@ -56,7 +76,7 @@ function isOptInColumnMissing(error: { code?: string; message?: string } | null)
 }
 
 /** Everyone who switched the reflection on, or null when the column is not there yet. */
-export async function listOptedIn(supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>): Promise<OptedIn[] | null> {
+export async function listOptedIn(supabase: Admin): Promise<OptedIn[] | null> {
   const { data, error } = await supabase
     .from('profiles')
     .select('id, coach_model')
@@ -68,6 +88,54 @@ export async function listOptedIn(supabase: NonNullable<ReturnType<typeof getSup
   return (data ?? [])
     .map(p => ({ userId: p.id, coachModel: p.coach_model ?? null }))
     .sort((a, b) => a.userId.localeCompare(b.userId));
+}
+
+/** Days since the epoch for a YYYY-MM-DD, the rotation's clock. */
+function epochDay(day: string): number {
+  return Math.floor(Date.parse(`${day}T00:00:00Z`) / 86_400_000);
+}
+
+function dayMinus(day: string, days: number): string {
+  return new Date((epochDay(day) - days) * 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
+ * The opted-in athletes in tonight's order: the stable id order, started at
+ * an index the day picks. The start advances by the BUDGET each day, not by
+ * one: tonight serves [s, s + budget) and defers the rest, so tomorrow must
+ * start at s + budget for tonight's first deferred athlete to be first —
+ * a shift of one would leave them last again. Deterministic, so a re-run
+ * of the same night walks the same order (and its already-done rows skip
+ * instantly).
+ */
+export function rotateForDay<T>(users: T[], day: string): T[] {
+  if (users.length === 0) return users;
+  const start = (epochDay(day) * MAX_WORK_ITEMS_PER_RUN) % users.length;
+  return [...users.slice(start), ...users.slice(0, start)];
+}
+
+/**
+ * Unfinished rows from earlier nights for these athletes — `pending` (a run
+ * died mid-flight) or `failed` (the model or its JSON, twice) — within the
+ * backlog window and strictly before `day`, oldest first. Today's own row,
+ * whatever its state, is the main pass's to resume.
+ */
+export async function listBacklog(supabase: Admin, users: OptedIn[], day: string): Promise<WorkItem[]> {
+  if (users.length === 0) return [];
+  const byId = new Map(users.map(u => [u.userId, u]));
+  const { data, error } = await supabase
+    .from('coach_reflections')
+    .select('user_id, day, status')
+    .in('user_id', [...byId.keys()])
+    .in('status', ['pending', 'failed'])
+    .gte('day', dayMinus(day, BACKLOG_DAYS))
+    .lt('day', day)
+    .order('day', { ascending: true })
+    .order('user_id', { ascending: true });
+  if (error) throw new Error(`coach_reflections backlog fetch failed: ${error.message}`);
+  return (data ?? [])
+    .map(r => ({ user: byId.get(r.user_id)!, day: r.day }))
+    .filter(w => w.user !== undefined);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -129,28 +197,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const processed: Array<{ userId: string; action: string; memoriesProposed?: number; contractProposed?: boolean }> = [];
-  const errors: Array<{ userId: string; error: string }> = [];
-  let workBudget = MAX_WORK_ITEMS_PER_RUN;
+  let backlog: WorkItem[];
+  try {
+    backlog = await listBacklog(supabase, users, day);
+  } catch (err) {
+    console.error('[reflection-cron] backlog listing failed:', err instanceof Error ? err.message : err);
+    res.status(500).send('Failed to list the reflection backlog');
+    return;
+  }
+  const work: WorkItem[] = [...backlog, ...rotateForDay(users, day).map(user => ({ user, day }))];
 
-  for (const user of users) {
-    const label = { userId: user.userId };
+  const processed: Array<{ userId: string; day: string; action: string; memoriesProposed?: number; contractProposed?: boolean }> = [];
+  const errors: Array<{ userId: string; day: string; error: string }> = [];
+  let workBudget = MAX_WORK_ITEMS_PER_RUN;
+  // One key read per athlete per run, whatever the number of items.
+  const keys = new Map<string, string | null>();
+
+  for (const { user, day: itemDay } of work) {
+    const label = { userId: user.userId, day: itemDay };
     try {
       if (workBudget <= 0 || Date.now() - startedAt > WORK_BUDGET_MS) {
         processed.push({ ...label, action: 'deferred' });
         continue;
       }
-      const apiKey = await getAnthropicKey(supabase, user.userId);
+      let apiKey = keys.get(user.userId);
+      if (apiKey === undefined) {
+        apiKey = await getAnthropicKey(supabase, user.userId);
+        keys.set(user.userId, apiKey);
+      }
       if (!apiKey) {
         // No key, no model call — and no row, so the night is reflected on
-        // once a key is saved and the day is still yesterday.
+        // once a key is saved and the day is still within reach.
         processed.push({ ...label, action: 'skipped-no-key' });
         continue;
       }
       workBudget -= 1;
       const outcome: ReflectOutcome = await reflectForUser(supabase, {
         userId: user.userId,
-        day,
+        day: itemDay,
         model: resolveCoachModel(user.coachModel).id,
         client: makeAnthropicClient(apiKey),
       }, now);
@@ -162,13 +246,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       if (outcome.error) errors.push({ ...label, error: outcome.error });
     } catch (err) {
-      // Per-user isolation: one athlete's failure must not stop the run.
+      // Per-athlete isolation: one failure must not stop the run.
       const detail = err instanceof Error ? err.message : String(err);
-      console.error(`[reflection-cron] ${user.userId} failed:`, detail);
+      console.error(`[reflection-cron] ${user.userId} ${itemDay} failed:`, detail);
       errors.push({ ...label, error: detail });
     }
   }
 
-  console.log(`[reflection-cron] ${day}: ${processed.length} athlete(s), ${errors.length} error(s)`);
+  console.log(`[reflection-cron] ${day}: ${processed.length} item(s) (${backlog.length} from the backlog), ${errors.length} error(s)`);
   res.status(200).json({ day, processed, errors });
 }

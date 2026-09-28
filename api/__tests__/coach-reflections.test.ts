@@ -163,6 +163,7 @@ describe('POST /api/coach-reflections { id, resolution }', () => {
       filters: { id: ID, user_id: 'user-123', 'resolved_at is': null },
       payload: { resolution: 'accepted', resolved_at: expect.any(String) },
     });
+    expect(calls).toHaveLength(2);
   });
 
   it('rejecting stamps only — the contract door is never opened', async () => {
@@ -213,13 +214,49 @@ describe('POST /api/coach-reflections { id, resolution }', () => {
     expect(mockedApply).not.toHaveBeenCalled();
 
     results.push({ data: DONE, error: null });
+    results.push({ data: { ...DONE, resolved_at: '2026-09-28T09:00:00Z', resolution: 'accepted' }, error: null });
     mockedApply.mockResolvedValueOnce({ ok: false, reason: 'The contract changed since this proposal was made.' });
     const c = makeRes();
     await handler(makeReq('POST', { id: ID, resolution: 'accepted' }), c.res);
     expect(c.statusCode()).toBe(409);
     expect(c.body()).toMatch(/changed since/);
-    // Nothing stamped: the athlete can still reject, or re-read and accept a fresh proposal.
-    expect(calls.filter(k => k.op === 'update')).toHaveLength(0);
+  });
+
+  it('claims the row before writing the contract, and un-claims it when the contract write is refused', async () => {
+    results.push({ data: DONE, error: null });
+    results.push({ data: { ...DONE, resolved_at: '2026-09-28T09:00:00Z', resolution: 'accepted' }, error: null });
+    mockedApply.mockResolvedValueOnce({ ok: false, reason: 'The contract changed since this proposal was made.' });
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('POST', { id: ID, resolution: 'accepted' }), res);
+    expect(statusCode()).toBe(409);
+    expect(body()).toMatch(/changed since/);
+    // The claim landed first (so a lost claim can never leave the contract
+    // changed), then the refused write put it back: the row is unresolved
+    // again and a retry works. The un-claim is conditional on the claim
+    // being this request's own.
+    const updates = calls.filter(k => k.op === 'update');
+    expect(updates).toHaveLength(2);
+    expect(updates[0]).toMatchObject({
+      filters: { id: ID, user_id: 'user-123', 'resolved_at is': null },
+      payload: { resolution: 'accepted', resolved_at: expect.any(String) },
+    });
+    expect(updates[1]).toMatchObject({
+      filters: { id: ID, user_id: 'user-123', resolution: 'accepted' },
+      payload: { resolved_at: null, resolution: null },
+    });
+    // The contract door was opened only after the claim.
+    const claimIndex = calls.indexOf(updates[0]);
+    expect(mockedApply).toHaveBeenCalledTimes(1);
+    expect(calls.slice(0, claimIndex).every(k => k.op === 'select')).toBe(true);
+  });
+
+  it('a claim that lands on zero rows never opens the contract door', async () => {
+    results.push({ data: DONE, error: null });
+    results.push({ data: null, error: null });
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('POST', { id: ID, resolution: 'accepted' }), res);
+    expect(statusCode()).toBe(409);
+    expect(mockedApply).not.toHaveBeenCalled();
   });
 
   it('a resolve that lands on zero rows (a racing click) is a 409, not a second resolution', async () => {

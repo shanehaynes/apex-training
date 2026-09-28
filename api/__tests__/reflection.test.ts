@@ -44,6 +44,8 @@ let seq: number;
 let failing: Record<string, string>;
 /** Columns selected from profiles that read as "no such column". */
 let missingProfileColumns: string[];
+/** Runs after every profiles read settles — a hand on the clock between a read and its write. */
+let afterProfileRead: (() => void) | null;
 
 function uuid(): string {
   seq += 1;
@@ -105,6 +107,7 @@ function makeDb() {
           for (const r of matched) Object.assign(r, payload);
           return finish(matched);
         }
+        if (table === 'profiles' && afterProfileRead) queueMicrotask(afterProfileRead);
         for (const { col, asc, nullsFirst } of [...orders].reverse()) {
           matched = [...matched].sort((a, c) => {
             const av = a[col]; const cv = c[col];
@@ -130,7 +133,10 @@ function makeDb() {
 
 function seed() {
   tables = {
-    profiles: [{ id: U, coach_contract: 'Push me on volume.', reflection_opt_in: true, coach_model: null, threshold_hr: null, max_hr: null }],
+    profiles: [
+      { id: U, coach_contract: 'Push me on volume.', reflection_opt_in: true, coach_model: null, threshold_hr: null, max_hr: null },
+      { id: OTHER, coach_contract: null, reflection_opt_in: true, coach_model: null, threshold_hr: null, max_hr: null },
+    ],
     workout_completions: [
       { user_id: U, event_id: 'evt-run', event_date: DAY, event_title: 'Long Run', event_type: 'cardio', duration_minutes: 90, is_completed: true },
       { user_id: U, event_id: 'evt-skip', event_date: DAY, event_title: 'Skipped', event_type: 'weights', duration_minutes: 60, is_completed: false },
@@ -165,6 +171,7 @@ beforeEach(() => {
   seq = 0;
   failing = {};
   missingProfileColumns = [];
+  afterProfileRead = null;
   seed();
 });
 
@@ -416,6 +423,24 @@ describe('the contract backend', () => {
     // '' as the expected before matches an absent contract.
     const fresh = await applyContractEdit(makeDb(), OTHER, '', 'Be kind.');
     expect(fresh).toEqual({ ok: true, contract: 'Be kind.' });
+  });
+
+  it('is a compare-and-set: a value that changed between the read and the write is refused, not overwritten', async () => {
+    // The stored text moves after the read has passed the normalized check
+    // — a second accept of the same proposal landing first, say. The write
+    // is conditional on the raw value the read saw, so it touches nothing.
+    afterProfileRead = () => { tables.profiles[0].coach_contract = 'Push me on volume.\n\nFrom the other tab.'; afterProfileRead = null; };
+    const lost = await applyContractEdit(makeDb(), U, 'Push me on volume.', 'Push me on volume.\n\nFrom this tab.');
+    expect(lost.ok).toBe(false);
+    expect(!lost.ok && lost.reason).toMatch(/changed since this proposal was made[\s\S]*From the other tab\./);
+    expect(tables.profiles[0].coach_contract).toBe('Push me on volume.\n\nFrom the other tab.');
+
+    // The same race from an absent contract: the write keys on null.
+    const other = tables.profiles.find(p => p.id === OTHER)!;
+    afterProfileRead = () => { other.coach_contract = 'Set elsewhere.'; afterProfileRead = null; };
+    const absent = await applyContractEdit(makeDb(), OTHER, '', 'Be kind.');
+    expect(absent.ok).toBe(false);
+    expect(other.coach_contract).toBe('Set elsewhere.');
   });
 });
 

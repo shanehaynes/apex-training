@@ -112,19 +112,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  if (resolution === 'accepted') {
-    // The write checks that the contract still reads as the proposal's
-    // "before": an edit the athlete made in the notebook since the night
-    // the proposal was written must not be overwritten by a stale accept.
-    const written = await applyContractEdit(supabase, userId, row.contract_before ?? '', row.contract_after);
-    if (!written.ok) {
-      res.status(409).send(written.reason);
-      return;
-    }
-  }
-
-  // Conditional on resolved_at still being null, so two clicks — or two tabs
-  // — leave one resolution rather than the last one to land.
+  // Claim the row FIRST, conditional on resolved_at still being null, so two
+  // clicks — or two tabs — leave one resolution rather than the last one to
+  // land, and so the contract is never written for a row this request did
+  // not win. The order matters: written the other way round, a claim that
+  // failed or was lost after the contract write would leave the contract
+  // changed and the row unresolved, with no retry able to repair it
+  // (contract_before no longer matches).
   const { data, error } = await supabase
     .from('coach_reflections')
     .update({ resolved_at: new Date().toISOString(), resolution })
@@ -142,5 +136,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(409).send('Already resolved');
     return;
   }
+
+  if (resolution === 'accepted') {
+    // The write checks that the contract still reads as the proposal's
+    // "before": an edit the athlete made in the notebook since the night
+    // the proposal was written must not be overwritten by a stale accept.
+    const written = await applyContractEdit(supabase, userId, row.contract_before ?? '', row.contract_after);
+    if (!written.ok) {
+      // A compensating un-claim rather than a transaction: PostgREST gives
+      // no transaction across two tables and this PR adds no RPC, and the
+      // only thing that can fail between the claim and here is the
+      // contract write itself — so putting the claim back is enough for a
+      // retry to work (the row is unresolved again, the contract untouched).
+      // Conditional on the claim being ours, so it cannot undo a
+      // resolution that landed from elsewhere in the meantime.
+      const { error: undo } = await supabase
+        .from('coach_reflections')
+        .update({ resolved_at: null, resolution: null })
+        .eq('id', id)
+        .eq('user_id', userId)
+        .eq('resolution', 'accepted');
+      if (undo) console.error('[api/coach-reflections] un-claim failed:', undo.message);
+      res.status(409).send(written.reason);
+      return;
+    }
+  }
+
   res.status(200).json({ reflection: data as CoachReflectionRow });
 }

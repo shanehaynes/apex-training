@@ -1,5 +1,6 @@
 import type { EvalCase } from '../src/types';
 import { makeEvent, makePhysiology } from '../src/fixtures';
+import { coachToolSchemas } from '../../src/lib/coach/schemas';
 import type { WorkoutEvent } from '../../src/types/workout';
 
 // Sight cases: the coach has read tools and a physiology panel now, and the
@@ -11,10 +12,13 @@ import type { WorkoutEvent } from '../../src/types/workout';
 
 const TODAY = '2026-08-03'; // Monday
 
-const WRITE_TOOLS = [
-  'create_event', 'update_event', 'delete_event', 'set_event_exercises',
-  'update_exercise_definition', 'log_meal', 'update_meal', 'delete_meal',
-];
+/**
+ * Every confirm-card write the production coach offers, derived from the
+ * schemas rather than spelled out, so a write added later (lane D01's
+ * propose_contract_edit and leave_note were the first) is forbidden here
+ * the day it ships. __tests__/sight.test.ts pins it to the production list.
+ */
+export const WRITE_TOOLS: string[] = coachToolSchemas().map(t => t.name);
 
 /** get_schedule's row shape (api/_lib/mcp/tools/schedule.ts), from fixture events. */
 function scheduleRows(events: WorkoutEvent[], input: Record<string, unknown>) {
