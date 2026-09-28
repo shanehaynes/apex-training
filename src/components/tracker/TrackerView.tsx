@@ -205,6 +205,14 @@ export default function TrackerView() {
           coachStatus={summary.coachStatus}
           onClose={dismissSummary}
           onDone={() => { dismissSummary(); dispatch({ type: 'STOP_TRACKING' }); }}
+          // Leaves the tracker exactly as Done does, then pins the session
+          // the athlete just logged (D-C08); the summary is finished, so
+          // there is nothing left to flush.
+          onAskCoach={() => {
+            dismissSummary();
+            dispatch({ type: 'STOP_TRACKING' });
+            dispatch({ type: 'ASK_COACH', payload: { kind: 'session', eventId: event.id, date: event.date, title: event.title, source: 'tracker' } });
+          }}
         />
       )}
 

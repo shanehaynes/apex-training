@@ -67,6 +67,18 @@ describe('hydrateFromRows — what a reload rebuilds', () => {
     expect(apiMessages[0]).toEqual({ role: 'user', content: BRIEFING_PROMPT });
   });
 
+  it('shows a pinned session by its display line and replays its hidden text (D-C08)', () => {
+    // What sendMessage(content, ctx, { display }) stores: api_content is the
+    // text the model read, display_text the short line the thread showed.
+    const hidden = 'I opened the workout "Leg day" on 2026-06-22 (occurrence id w1) from the calendar…';
+    const { messages, apiMessages } = hydrateFromRows([
+      row({ id: 'a', role: 'user', api_content: hidden, display_text: 'Asked about: Leg day, Mon Jun 22' }),
+      row({ id: 'b', role: 'assistant', api_content: 'Here is what I see.', display_text: 'Here is what I see.' }),
+    ]);
+    expect(messages[0]).toEqual({ id: 'a', role: 'user', content: 'Asked about: Leg day, Mon Jun 22' });
+    expect(apiMessages[0]).toEqual({ role: 'user', content: hidden });
+  });
+
   it('keeps a display-only notice out of the history and in the thread', () => {
     const { messages, apiMessages } = hydrateFromRows([
       row({ id: 'a', role: 'assistant', api_content: null, display_text: 'Sorry, I ran into an error.', kind: 'notice' }),
@@ -100,6 +112,17 @@ describe('what each save point stores', () => {
       { role: 'user', api_content: 'Add a run on Friday', display_text: 'Add a run on Friday', kind: 'turn' },
       { role: 'assistant', api_content: 'Added it.', display_text: 'Added it.', kind: 'turn' },
     ]);
+  });
+
+  it('a user row can show one thing and say another: the display override is a shown row, not a hidden one', () => {
+    // sendMessage's third argument: turnRow('user', content, display). Unlike
+    // the briefing (display null → hidden), the line is shown and the text
+    // is what the model reads.
+    const stored = turnRow('user', 'hidden text the model reads', 'Asked about: Leg day, Mon Jun 22');
+    expect(stored).toEqual({
+      role: 'user', api_content: 'hidden text the model reads', display_text: 'Asked about: Leg day, Mon Jun 22', kind: 'turn',
+    });
+    expect(stored.display_text).not.toBeNull();
   });
 
   it('a tool-only assistant turn stores its blocks with nothing to render', () => {

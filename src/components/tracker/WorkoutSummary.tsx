@@ -1,4 +1,4 @@
-import { CheckCircle2, Trophy, X } from 'lucide-react';
+import { CheckCircle2, MessageSquare, Trophy, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { WorkoutEvent } from '../../types/workout';
 import type { TrackedSectionGroup, TrackedSet, CardioActuals } from '../../lib/tracking/plan';
@@ -23,6 +23,8 @@ interface Props {
   onClose: () => void;
   /** Primary action — leave the tracker and return to the calendar. */
   onDone: () => void;
+  /** Leave the tracker and open the coach with this session pinned (D-C08). */
+  onAskCoach: () => void;
 }
 
 function formatDuration(seconds: number | null): string | null {
@@ -60,6 +62,7 @@ export default function WorkoutSummary({
   coachStatus,
   onClose,
   onDone,
+  onAskCoach,
 }: Props) {
   const duration = formatDuration(durationSeconds);
   // First sight of the summary: what the trophies mean, and why a first try
@@ -152,9 +155,21 @@ export default function WorkoutSummary({
           ))}
         </div>
 
-        <div className="tracker-summary__footer">
+        {/* Two buttons in a footer the stylesheet lays out for one; the
+            column is inline so this lane carries no app.css edit. The ask
+            is the secondary: outlined in the accent, under the primary. */}
+        <div className="tracker-summary__footer" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button className="tracker-summary__done" style={{ background: accentColor }} onClick={onDone}>
             Back to calendar
+          </button>
+          <button
+            className="tracker-summary__done"
+            data-testid="ask-coach-summary"
+            style={{ background: 'transparent', color: accentColor, border: `1px solid ${accentColor}` }}
+            onClick={onAskCoach}
+          >
+            <MessageSquare size={14} strokeWidth={1.5} style={{ verticalAlign: '-2px', marginRight: 6 }} />
+            Ask the coach about this session
           </button>
         </div>
       </div>

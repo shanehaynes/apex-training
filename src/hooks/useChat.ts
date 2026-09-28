@@ -434,12 +434,19 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
 
   // ── sendMessage ────────────────────────────────────────────────────────────
 
-  const sendMessage = useCallback(async (content: string, ctx: ChatContext) => {
+  /**
+   * `content` is what the model reads; `opts.display`, when given, is what
+   * the thread shows and stores as display_text in its place (a pinned
+   * session's hidden text under a short "Asked about: …" line, D-C08). The
+   * API text is unchanged either way, so the turn replays as sent.
+   */
+  const sendMessage = useCallback(async (content: string, ctx: ChatContext, opts?: { display?: string }) => {
     setIsLoading(true);
     setStreamingContent('');
     setStreamingReads([]);
 
-    const userDisplayMsg: DisplayMessage = { id: localMessageId(), role: 'user', content };
+    const display = opts?.display ?? content;
+    const userDisplayMsg: DisplayMessage = { id: localMessageId(), role: 'user', content: display };
 
     setMessages(prev => [...prev, userDisplayMsg]);
 
@@ -455,7 +462,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
       // server round is an assistant/user pair the history must carry, then
       // the final assistant message (text, and any write tool_use blocks).
       const { serverMessages, finalContent, heldResults: readResults, chips } = historyForTurn(rounds, toolUses);
-      const rows: NewCoachMessage[] = [turnRow('user', content, content)];
+      const rows: NewCoachMessage[] = [turnRow('user', content, display)];
       let history: ApiMessage[] = [...nextApiMessages, ...serverMessages];
       for (const m of serverMessages) rows.push(turnRow(m.role, m.content, null));
 
