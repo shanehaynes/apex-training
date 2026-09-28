@@ -291,6 +291,57 @@ export type Database = {
           },
         ]
       }
+      coach_reflections: {
+        Row: {
+          batch_id: string | null
+          completed_at: string | null
+          contract_after: string | null
+          contract_before: string | null
+          created_at: string
+          day: string
+          error: string | null
+          id: string
+          memory_proposal_ids: string[]
+          reason: string | null
+          resolution: string | null
+          resolved_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          batch_id?: string | null
+          completed_at?: string | null
+          contract_after?: string | null
+          contract_before?: string | null
+          created_at?: string
+          day: string
+          error?: string | null
+          id?: string
+          memory_proposal_ids?: string[]
+          reason?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          batch_id?: string | null
+          completed_at?: string | null
+          contract_after?: string | null
+          contract_before?: string | null
+          created_at?: string
+          day?: string
+          error?: string | null
+          id?: string
+          memory_proposal_ids?: string[]
+          reason?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       coach_runs: {
         Row: {
           cache_read_tokens: number
@@ -825,6 +876,7 @@ export type Database = {
         Row: {
           avatar_key: string
           coach_context: string
+          coach_contract: string | null
           coach_goal: string
           coach_model: string | null
           created_at: string
@@ -834,6 +886,7 @@ export type Database = {
           is_template_source: boolean
           max_hr: number | null
           onboarding_dismissed_at: string | null
+          reflection_opt_in: boolean
           template_copied_at: string | null
           threshold_hr: number | null
           tips_seen: Json
@@ -842,6 +895,7 @@ export type Database = {
         Insert: {
           avatar_key?: string
           coach_context?: string
+          coach_contract?: string | null
           coach_goal?: string
           coach_model?: string | null
           created_at?: string
@@ -851,6 +905,7 @@ export type Database = {
           is_template_source?: boolean
           max_hr?: number | null
           onboarding_dismissed_at?: string | null
+          reflection_opt_in?: boolean
           template_copied_at?: string | null
           threshold_hr?: number | null
           tips_seen?: Json
@@ -859,6 +914,7 @@ export type Database = {
         Update: {
           avatar_key?: string
           coach_context?: string
+          coach_contract?: string | null
           coach_goal?: string
           coach_model?: string | null
           created_at?: string
@@ -868,6 +924,7 @@ export type Database = {
           is_template_source?: boolean
           max_hr?: number | null
           onboarding_dismissed_at?: string | null
+          reflection_opt_in?: boolean
           template_copied_at?: string | null
           threshold_hr?: number | null
           tips_seen?: Json

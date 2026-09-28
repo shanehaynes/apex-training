@@ -1,9 +1,11 @@
 import { format, isValid, parseISO } from 'date-fns';
 import { baseIdOf, isOccurrenceId } from '../schedule/occurrence.js';
 import { entryFromDefinition, matchDefinitionByName } from '../schedule/definitions.js';
-import { sanitizeInlineText } from './prompt.js';
+import { sanitizeInlineText, sanitizeUserText } from './prompt.js';
 import { derivedCalories, mealCalories } from '../nutrition/mapping.js';
 import { describeMemoryWrite, MEMORY_CONTENT_MAX, MEMORY_TOOL } from './memory.js';
+import { CONTRACT_MAX, contractsEqual, normalizeContract } from './contract.js';
+import { ANNOTATION_BODY_MAX, isSeverity, isTargetKind, normalizeBody, targetProblem } from './annotations.js';
 import type { CoachToolContext } from './tools.js';
 import type { Exercise, ExerciseDefinition, WorkoutEvent } from '../../types/workout.js';
 import type { Meal } from '../../types/nutrition.js';
@@ -31,7 +33,12 @@ export type ToolPreview =
   | { kind: 'meal'; action: 'log' | 'update' | 'delete'; title: string; lines: string[] }
   /** A memory write: the facts to remember (`after`), the fact being replaced
    *  or forgotten (`before`), and the file they live in ("injuries"). */
-  | { kind: 'memory'; action: 'remember' | 'update' | 'forget'; file: string; before: string[]; after: string[] };
+  | { kind: 'memory'; action: 'remember' | 'update' | 'forget'; file: string; before: string[]; after: string[] }
+  /** A coaching-contract proposal (lane D01): the whole text on each side
+   *  ('' before when there was none) and the coach's one-line reason. */
+  | { kind: 'contract-edit'; before: string; after: string; reason: string }
+  /** A note to pin (lane D01): where it lands, what it says, how loud. */
+  | { kind: 'note'; target: string; targetKind: 'day' | 'event' | 'block'; body: string; severity: 'info' | 'caution' | 'alert' };
 
 export type PreviewChange = { field: string; before: string; after: string };
 
@@ -326,10 +333,67 @@ function memoryWrite(input: Record<string, unknown>): ToolPreview | null {
   return { kind: 'memory', action: d.action, file: d.file, before: d.before.map(fact), after: d.after.map(fact) };
 }
 
+// ─── Contract and notes (lane D01) ───────────────────────────────────────────
+
+/**
+ * A contract proposal: the whole text on both sides, because the card is
+ * where the athlete reads what they are agreeing to be coached by. The
+ * "before" is the stored contract when the context carries it (the server
+ * does), the model's copy otherwise; both are bounded at the contract's own
+ * limit and stripped like every other string on the card. A proposal that
+ * changes nothing, or proposes nothing, yields null.
+ */
+function contractEdit(input: Record<string, unknown>, ctx: CoachToolContext): ToolPreview | null {
+  const before = normalizeContract(ctx.contract ?? input.before);
+  const after = normalizeContract(input.after);
+  if (!after || contractsEqual(before, after)) return null;
+  // Multi-line on purpose: a contract is paragraphs, and the card shows them.
+  const clean = (t: string) => sanitizeUserText(t, CONTRACT_MAX);
+  return {
+    kind: 'contract-edit',
+    before: clean(before),
+    after: clean(after),
+    reason: typeof input.reason === 'string' && input.reason.trim() ? text(input.reason) : '',
+  };
+}
+
+/**
+ * A note: its target named the way the executor will store it — a day as
+ * its date, an event as the live row it resolves to, a block by the model's
+ * label — the body whole (bounded at the column's limit), and the severity.
+ * An input the executor would refuse (a bad target, an empty body) yields
+ * null.
+ */
+function leaveNote(input: Record<string, unknown>, ctx: CoachToolContext): ToolPreview | null {
+  if (!isTargetKind(input.target_kind) || targetProblem(input.target_kind, input.target_id)) return null;
+  const note = normalizeBody(input.body);
+  if ('reason' in note) return null;
+  const id = input.target_id as string;
+  let target: string;
+  if (input.target_kind === 'day') {
+    target = formatDate(id);
+  } else if (input.target_kind === 'event') {
+    const event = resolveEvent(ctx, id);
+    if (!event) return null;
+    target = `${text(event.title)} · ${formatDate(event.date)}`;
+  } else {
+    target = typeof input.target_label === 'string' && input.target_label.trim() ? text(input.target_label) : `block ${text(id)}`;
+  }
+  return {
+    kind: 'note',
+    target,
+    targetKind: input.target_kind,
+    body: sanitizeInlineText(note.body, ANNOTATION_BODY_MAX) || EMPTY,
+    severity: isSeverity(input.severity) ? input.severity : 'info',
+  };
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 const PREVIEWS: Record<string, (input: Record<string, unknown>, ctx: CoachToolContext) => ToolPreview | null> = {
   [MEMORY_TOOL]:              memoryWrite,
+  propose_contract_edit:      contractEdit,
+  leave_note:                 leaveNote,
   create_event:               createEvent,
   update_event:               updateEvent,
   delete_event:               deleteEvent,

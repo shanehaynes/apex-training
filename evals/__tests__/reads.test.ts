@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { chatToolSchemas as productionChatToolSchemas, MAX_SERVER_ROUNDS as PRODUCTION_MAX_SERVER_ROUNDS } from '../../api/chat';
 import { readDoctrine, DOCTRINE_TOPICS } from '../../src/lib/coach/doctrine/index';
 import { SERVER_SIDE_READ_TOOL_NAMES } from '../../src/lib/coach/tools';
+import { coachToolSchemas } from '../../src/lib/coach/schemas';
 import { chatToolSchemas, executeServerSideTool, MAX_SERVER_ROUNDS, MEMORY_TOOL_OMITTED, UNSCRIPTED_READ_RESULT } from '../src/reads';
 import { schemasFor, zodShapeFromJsonSchema } from '../src/backends/agentSdk';
 
@@ -22,9 +23,10 @@ describe('mirrors of api/chat.ts', () => {
     // production list that differs in any other way fails here.
     expect(production.filter(n => n !== MEMORY_TOOL_OMITTED)).toEqual(names);
     expect(production.filter(n => !names.includes(n))).toEqual([MEMORY_TOOL_OMITTED]);
-    // Writes, then every read tool in its fixed order, then read_doctrine.
+    // The ten writes, then every read tool in its fixed order, then read_doctrine.
     expect(names.slice(-1)).toEqual(['read_doctrine']);
-    expect(names.slice(8, -1)).toEqual([...SERVER_SIDE_READ_TOOL_NAMES]);
+    expect(names.slice(0, 10)).toEqual(coachToolSchemas().map(t => t.name));
+    expect(names.slice(10, -1)).toEqual([...SERVER_SIDE_READ_TOOL_NAMES]);
     // The agent-sdk backend hands the SDK the same list.
     expect(schemasFor().map(t => t.name)).toEqual(names);
   });

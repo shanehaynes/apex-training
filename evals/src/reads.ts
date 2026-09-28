@@ -22,7 +22,9 @@ export const MAX_SERVER_ROUNDS = 5;
 
 /**
  * The chat coach's tool list in production order (api/chat.ts →
- * chatToolSchemas): the eight write tools, the read tools, read_doctrine.
+ * chatToolSchemas): the ten write tools (the eight calendar/meal writes,
+ * then propose_contract_edit and leave_note from lane D01), the read tools,
+ * read_doctrine.
  *
  * Production's list ends with one more entry the harness deliberately does
  * NOT offer: the typed `memory_20250818` tool (lane C02). It has no

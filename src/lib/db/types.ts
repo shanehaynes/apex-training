@@ -278,6 +278,18 @@ export type CoachAnnotationRow = Row<'coach_annotations', {
   created_by: 'coach' | 'reflection' | 'user';
 }>;
 
+// ─── Coach reflections ───────────────────────────────────────────────────────
+// One nightly reflection over one (user, day) (lane D01): the state machine
+// the cron drives, the contract edit it proposed, and the ids of the
+// coach_memory proposals it inserted. Server-only: RLS with no policies,
+// read and resolved through /api/coach-reflections. The literal unions mirror
+// the table's check constraints; the block in database.types.ts is
+// hand-written until the stack regenerates it.
+export type CoachReflectionRow = Row<'coach_reflections', {
+  status: 'pending' | 'submitted' | 'done' | 'failed' | 'resolved';
+  resolution: 'accepted' | 'rejected' | null;
+}>;
+
 /** Bridge for storing plain-data interfaces in jsonb columns. Interfaces have
  *  no implicit index signature, so TypeScript refuses `Exercise → Json` even
  *  though every value we store round-trips through JSON.stringify unchanged

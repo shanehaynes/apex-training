@@ -6,7 +6,9 @@ import { fetchExpandedSchedule } from '../mcp/data.js';
 import { loadMealsForDate } from '../trackerSession.js';
 import { createServerDeps } from '../coach/serverDeps.js';
 import { applyMemoryCommand } from '../coach/memory.js';
+import { applyContractEdit } from '../reflection/contract.js';
 import { findCoachTool } from '../../../src/lib/coach/tools.js';
+import type { NewCoachAnnotation } from '../../../src/lib/coach/annotations.js';
 import { applyDraftUpdate, type DraftUpdateInput, type WorkoutDraft } from '../../../src/lib/builder/draft.js';
 import { applyChartDraftUpdate, type ChartDraft, type DraftUpdateInput as ChartDraftUpdateInput } from '../../../src/lib/analytics/draft.js';
 import { rowToMeal } from '../../../src/lib/nutrition/mapping.js';
@@ -123,9 +125,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // memory write (lane C02) lands as confirmed rows — the click is the
     // confirmation — stamped 'chat'. The service-role client and the
     // verified uid are bound here, never taken from the tool input.
+    // The contract and note backends (lane D01) ride the same way: a
+    // confirmed propose_contract_edit replaces profiles.coach_contract when
+    // its `before` still matches; a confirmed leave_note inserts the
+    // coach_annotations row with created_by stamped 'coach' — the same
+    // validation the HTTP handler applies, inside the executor.
     const deps = {
       ...createServerDeps(supabase, userId, { today, events: occurrences, definitions, meals }),
       applyMemoryCommand: (cmd: Record<string, unknown>) => applyMemoryCommand(supabase, userId, cmd, { sourceKind: 'chat' }),
+      applyContractEdit: (before: string, after: string) => applyContractEdit(supabase, userId, before, after),
+      createAnnotation: async (note: NewCoachAnnotation) => {
+        const { data, error } = await supabase
+          .from('coach_annotations')
+          .insert({
+            user_id: userId,
+            target_kind: note.target_kind,
+            target_id: note.target_id,
+            body: note.body,
+            severity: note.severity ?? 'info',
+            created_by: 'coach',
+          })
+          .select('id')
+          .single();
+        if (error || !data) {
+          console.error('[api/coach-tool] leave_note insert failed:', error?.message);
+          return null;
+        }
+        return { id: data.id as string };
+      },
     };
     const resultText = await tool.execute(input, deps);
     res.status(200).json({ ok: true, resultText });

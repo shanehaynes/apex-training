@@ -25,7 +25,9 @@ vi.mock('../_lib/trackerSession.js', () => ({
 }));
 vi.mock('../_lib/coach/serverDeps.js', () => ({ createServerDeps: vi.fn() }));
 vi.mock('../_lib/coach/memory.js', () => ({ applyMemoryCommand: vi.fn(async () => 'Remembered 1 fact in /memories/goals.md.') }));
+vi.mock('../_lib/reflection/contract.js', () => ({ applyContractEdit: vi.fn(async () => ({ ok: true, contract: 'new' })) }));
 import { applyMemoryCommand } from '../_lib/coach/memory';
+import { applyContractEdit } from '../_lib/reflection/contract';
 
 const deps = {
   definitions: new Map(), meals: [],
@@ -42,12 +44,22 @@ const deps = {
 } satisfies CoachToolDeps;
 
 let mealLookups: string[];
+/** Rows inserted through the admin, by table (a confirmed leave_note lands in coach_annotations). */
+let inserted: Array<{ table: string; row: Record<string, unknown> }>;
 function makeAdmin() {
   const chain = {
     select: () => chain, eq: (_c: string, v: string) => { if (typeof v === 'string' && v.startsWith('meal-')) mealLookups.push(v); return chain; },
     maybeSingle: async () => ({ data: { id: 'meal-old', title: 'Dinner', date: '2026-09-01', protein_g: 30, fat_total_g: 20, fat_saturated_g: 5, fat_trans_g: 0, notes: '' }, error: null }),
   };
-  return { from: () => chain } as unknown as NonNullable<ReturnType<typeof getSupabaseAdmin>>;
+  return {
+    from: (table: string) => ({
+      ...chain,
+      insert: (row: Record<string, unknown>) => {
+        inserted.push({ table, row });
+        return { select: () => ({ single: async () => ({ data: { id: 'note-1' }, error: null }) }) };
+      },
+    }),
+  } as unknown as NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 }
 
 function makeReq(body: unknown, method = 'POST'): VercelRequest {
@@ -67,6 +79,8 @@ function makeRes() {
 
 beforeEach(() => {
   mealLookups = [];
+  inserted = [];
+  vi.mocked(applyContractEdit).mockClear();
   vi.mocked(getSupabaseAdmin).mockReturnValue(makeAdmin());
   vi.mocked(createServerDeps).mockClear();
   vi.mocked(createServerDeps).mockReturnValue(deps);
@@ -104,6 +118,34 @@ describe('POST /api/coach-tool — mutation tools', () => {
     expect(applyMemoryCommand).toHaveBeenCalledWith(expect.anything(), 'user-123', input, { sourceKind: 'chat' });
     // The schedule executors were not touched.
     for (const fn of [deps.createEvent, deps.updateEvent, deps.deleteEvent, deps.createMeal]) expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('propose_contract_edit: a confirmed edit goes through the contract door for the verified user (lane D01)', async () => {
+    const input = { before: 'Push me on volume.', after: 'Push me on volume.\n\nBe blunt.', reason: 'asked' };
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq({ toolUseId: 'tu_c', name: 'propose_contract_edit', input, today: '2026-09-03' }), res);
+    expect(statusCode()).toBe(200);
+    expect(body()).toEqual({ ok: true, resultText: 'Coaching contract updated. It applies from the next turn.' });
+    expect(applyContractEdit).toHaveBeenCalledWith(expect.anything(), 'user-123', 'Push me on volume.', 'Push me on volume.\n\nBe blunt.');
+    expect(inserted).toEqual([]);
+  });
+
+  it('leave_note: a confirmed note is inserted for the verified user with created_by stamped coach, never taken from the input (lane D01)', async () => {
+    const input = { target_kind: 'event', target_id: 'evt-9', body: '  Go light.  ', severity: 'caution', created_by: 'user', user_id: 'someone-else' };
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq({ toolUseId: 'tu_n', name: 'leave_note', input, today: '2026-09-03' }), res);
+    expect(statusCode()).toBe(200);
+    expect(body()).toEqual({ ok: true, resultText: 'Left a caution note on event evt-9 [note-1]: "Go light."' });
+    expect(inserted).toEqual([{
+      table: 'coach_annotations',
+      row: { user_id: 'user-123', target_kind: 'event', target_id: 'evt-9', body: 'Go light.', severity: 'caution', created_by: 'coach' },
+    }]);
+    // The executor's validation runs before any insert.
+    const bad = makeRes();
+    await handler(makeReq({ name: 'leave_note', input: { target_kind: 'day', target_id: 'tuesday', body: 'x' }, today: '2026-09-03' }), bad.res);
+    expect(bad.statusCode()).toBe(200);
+    expect(bad.body().resultText).toMatch(/YYYY-MM-DD/);
+    expect(inserted).toHaveLength(1);
   });
 
   it('executes the real executor over the server deps and returns its tool_result text', async () => {
