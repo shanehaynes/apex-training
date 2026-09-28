@@ -69,6 +69,10 @@ function reducer(state: CalendarState, action: CalendarAction): CalendarState {
       return { ...state, blocksOpen: true };
     case 'CLOSE_BLOCKS':
       return { ...state, blocksOpen: false };
+    case 'OPEN_WEEKLY_REVIEW':
+      return { ...state, weeklyReviewOpen: true };
+    case 'CLOSE_WEEKLY_REVIEW':
+      return { ...state, weeklyReviewOpen: false };
     case 'OPEN_ANALYTICS':
       return { ...state, analyticsOpen: true };
     case 'CLOSE_ANALYTICS':
@@ -97,6 +101,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     editingMeal: null,
     profileOpen: false,
     blocksOpen: false,
+    weeklyReviewOpen: false,
     analyticsOpen: false,
     notebookOpen: false,
   });
@@ -118,6 +123,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
       editingMealId: state.editingMeal?.id ?? null,
       profileOpen: state.profileOpen,
       blocksOpen: state.blocksOpen,
+      weeklyReviewOpen: state.weeklyReviewOpen,
       analyticsOpen: state.analyticsOpen,
       notebookOpen: state.notebookOpen,
     }));

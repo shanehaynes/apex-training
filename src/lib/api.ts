@@ -295,6 +295,38 @@ export function archiveCoachMemory(id: string): Promise<{ ok: boolean }> {
   return deleteJson('/api/coach-memory', 'Forgetting memory', { id });
 }
 
+// ── Weekly review (lane D03) ──────────────────────────────────────────────────
+// The week as a document, generated on demand on the athlete's own key and
+// stored nowhere. Its next-week items are accepted one at a time through the
+// same confirmed executor the chat's confirm card uses.
+
+export type { WeeklyReviewDocument, WeeklyReviewResponse } from './review/weekly';
+
+/**
+ * Generate the review for the ISO week containing `week` (default: the week
+ * containing `today`). Not quiet: the athlete asked, and a 402 (no key) is
+ * already exempt from the toast in requestJson. The response type is named
+ * inline so this block stays append-only at its anchor (no import above).
+ */
+export function generateWeeklyReview(
+  today: string,
+  week?: string,
+): Promise<import('./review/weekly').WeeklyReviewResponse> {
+  return postJson('/api/weekly-review', { today, ...(week ? { week } : {}) }, 'Weekly review');
+}
+
+/**
+ * Execute one confirmed coach tool call — the executor behind the chat's
+ * Confirm button (POST /api/coach-tool), reused by the review's Accept.
+ */
+export function runCoachTool(
+  name: string,
+  input: Record<string, unknown>,
+  today: string,
+): Promise<{ ok: boolean; resultText?: string }> {
+  return postJson('/api/coach-tool', { name, input, today }, 'Applying coach action');
+}
+
 // ── Coach annotations (notes on days, events and blocks) ──────────────────────
 
 export type {

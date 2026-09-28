@@ -1,0 +1,397 @@
+/* ============================================================================
+   WEEKLY REVIEW — the calendar's toolbar entry and the review overlay
+   (src/components/review/*, lane D03). Lives outside app.css on purpose
+   (CLAUDE.md: feature lanes never edit it); the overlay shell reuses the
+   library-view classes, the tool previews reuse confirm-preview.css, and
+   every colour is a token from tokens.css.
+   ========================================================================== */
+
+/* ── The calendar's toolbar ─────────────────────────────────────────────────
+   A slim row above the views. .calendar is a flex column at 100% height and
+   every view sizes itself at height: 100%, so the views sit in a wrapper
+   that takes the remaining space and keeps their percentage heights
+   definite (a flexed main size is definite; min-height: 0 lets it shrink). */
+
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.calendar-toolbar__views {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+}
+
+.calendar-toolbar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.calendar-toolbar__btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+.calendar--toolbar-host {
+  position: relative;
+}
+
+/* Phones run the day view only (AppShell). A row here would shift every
+   card down and the bottom-most one under the fixed setup nudge, so the
+   toolbar floats in the day header's free top-right corner: below the
+   73 px week strip plus the header's 14 px top padding, well above the
+   Today badge, which sits at the header's bottom edge. */
+@media (max-width: 768px) {
+  .calendar-toolbar {
+    position: absolute;
+    top: 87px;
+    right: 16px;
+    z-index: 2;
+    padding: 0;
+    border: 0;
+  }
+  .calendar-toolbar__label { display: none; }
+  .calendar-toolbar__btn { padding: 0 7px; }
+}
+
+/* ── The overlay ─────────────────────────────────────────────────────────── */
+
+.weekly-review__week {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.weekly-review__body {
+  flex: 1 1 auto;
+  padding: 20px 24px 40px;
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.weekly-review__state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 16px;
+  text-align: center;
+}
+
+.weekly-review__document {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.weekly-review__headline {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+.weekly-review__warnings {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  list-style: none;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.weekly-review__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.weekly-review__heading {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.weekly-review__text {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.weekly-review__muted {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Plan vs done: a real table — two numbers per row, read across. */
+.weekly-review__table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 360px;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.weekly-review__table th,
+.weekly-review__table td {
+  padding: 6px 10px;
+  text-align: right;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.weekly-review__table th[scope="row"] {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.weekly-review__table thead th {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.weekly-review__table td {
+  font-family: var(--font-mono);
+}
+
+.weekly-review__misses {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weekly-review__miss {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.weekly-review__miss-when {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  min-width: 80px;
+}
+
+.weekly-review__miss-title {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--text-muted) 60%, transparent);
+  color: var(--text-secondary);
+}
+
+.weekly-review__miss-why {
+  flex-basis: 100%;
+  padding-left: 88px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Physiology flags: chips, the read-chip tone. */
+.weekly-review__flags {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.weekly-review__flag {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* Doctrine: the quoted line is the point; the verdict colours its edge. */
+.weekly-review__doctrine {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  border-left-width: 3px;
+  background: var(--bg-surface);
+}
+
+.weekly-review__doctrine--aligned { border-left-color: var(--text-muted); }
+.weekly-review__doctrine--drifting { border-left-color: var(--accent-primary); }
+.weekly-review__doctrine--contradicted { border-left-color: var(--danger); }
+
+.weekly-review__doctrine-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.weekly-review__doctrine-topic {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.weekly-review__verdict {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.weekly-review__verdict[data-verdict="contradicted"] {
+  color: var(--danger-text);
+  border-color: var(--danger);
+}
+
+.weekly-review__quote {
+  margin: 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--border-subtle);
+  font-size: var(--text-sm);
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* Proposal cards: memory and next week share one shape — body, then the
+   one button. A card greys out once its click has landed. */
+.weekly-review__cards {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.weekly-review__card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  transition: opacity var(--duration-fast) ease;
+}
+
+.weekly-review__card--done {
+  opacity: 0.55;
+}
+
+.weekly-review__card-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.weekly-review__card-title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.weekly-review__kind {
+  align-self: flex-start;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+.weekly-review__why {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.weekly-review__accept {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.weekly-review__accept:hover:not(:disabled) {
+  background: var(--bg-elevated);
+  border-color: var(--accent-primary);
+}
+
+.weekly-review__accept:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.weekly-review__accept--done {
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .weekly-review__body { padding: 16px 16px 32px; }
+  .weekly-review__card { flex-direction: column; }
+  .weekly-review__accept { align-self: flex-end; }
+  .weekly-review__miss-why { padding-left: 0; }
+  .weekly-review__week { display: none; }
+}

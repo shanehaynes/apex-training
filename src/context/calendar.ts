@@ -33,6 +33,8 @@ export interface CalendarState {
   profileOpen: boolean;
   /** Training-blocks overlay (same full-screen pattern as the library). */
   blocksOpen: boolean;
+  /** Weekly review overlay (same full-screen pattern as the library). */
+  weeklyReviewOpen: boolean;
   /** Analytics dashboard overlay (same full-screen pattern as the library). */
   analyticsOpen: boolean;
   /** Coach notebook overlay (memory, contract, doctrine — lane D02); opens from the profile. */
@@ -63,6 +65,8 @@ export type CalendarAction =
   | { type: 'CLOSE_PROFILE' }
   | { type: 'OPEN_BLOCKS' }
   | { type: 'CLOSE_BLOCKS' }
+  | { type: 'OPEN_WEEKLY_REVIEW' }
+  | { type: 'CLOSE_WEEKLY_REVIEW' }
   | { type: 'OPEN_ANALYTICS' }
   | { type: 'CLOSE_ANALYTICS' }
   | { type: 'OPEN_NOTEBOOK' }
