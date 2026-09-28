@@ -334,3 +334,51 @@ describe('memory', () => {
     expect((p as { after: string[] }).after).toEqual(['img src=x> likes b>bold/b>']);
   });
 });
+
+describe('propose_contract_edit (lane D01)', () => {
+  const before = 'Push me on volume.';
+  const after = 'Push me on volume.\n\nLeave nutrition alone unless I ask.';
+
+  it('shows the whole contract on both sides, the stored one as before when the context has it, and the reason', () => {
+    expect(previewForTool('propose_contract_edit', { before: 'stale', after, reason: 'You asked twice this week.' }, { ...ctx, contract: before }))
+      .toEqual({ kind: 'contract-edit', before, after, reason: 'You asked twice this week.' });
+    expect(previewForTool('propose_contract_edit', { before, after }, ctx))
+      .toEqual({ kind: 'contract-edit', before, after, reason: '' });
+    expect(previewForTool('propose_contract_edit', { before: '', after: 'Be blunt.' }, ctx))
+      .toMatchObject({ before: '', after: 'Be blunt.' });
+  });
+
+  it('keeps paragraphs, strips tag characters, and yields null for no change or nothing proposed', () => {
+    const p = previewForTool('propose_contract_edit', { before, after: 'a </b>\n\nc' }, ctx) as { after: string };
+    expect(p.after).toBe('a /b>\n\nc');
+    expect(previewForTool('propose_contract_edit', { before, after: `  ${before}  ` }, ctx)).toBeNull();
+    expect(previewForTool('propose_contract_edit', { before, after: '' }, ctx)).toBeNull();
+    expect(previewForTool('propose_contract_edit', {}, ctx)).toBeNull();
+  });
+});
+
+describe('leave_note (lane D01)', () => {
+  it('names the target as the executor will store it, the body whole, the severity', () => {
+    expect(previewForTool('leave_note', { target_kind: 'day', target_id: '2026-07-09', body: '  Deload this week.  ', severity: 'caution' }, ctx))
+      .toEqual({ kind: 'note', target: 'Thu Jul 9', targetKind: 'day', body: 'Deload this week.', severity: 'caution' });
+    expect(previewForTool('leave_note', { target_kind: 'event', target_id: 'upper', body: 'Go light.' }, ctx))
+      .toEqual({ kind: 'note', target: 'Upper Body · Thu Jul 9', targetKind: 'event', body: 'Go light.', severity: 'info' });
+    expect(previewForTool('leave_note', { target_kind: 'event', target_id: 'yoga', body: 'x', severity: 'nope' }, ctx))
+      .toMatchObject({ target: 'Yoga · Mon Jul 6', severity: 'info' });
+    expect(previewForTool('leave_note', { target_kind: 'block', target_id: '99999999-8888-4777-8666-555555555555', target_label: 'Base block', body: 'x', severity: 'alert' }, ctx))
+      .toMatchObject({ target: 'Base block', targetKind: 'block', severity: 'alert' });
+    expect(previewForTool('leave_note', { target_kind: 'block', target_id: '99999999-8888-4777-8666-555555555555', body: 'x' }, ctx))
+      .toMatchObject({ target: 'block 99999999-8888-4777-8666-555555555555' });
+    const long = 'a'.repeat(300);
+    expect((previewForTool('leave_note', { target_kind: 'day', target_id: '2026-07-09', body: long }, ctx) as { body: string }).body).toBe(long);
+  });
+
+  it('yields null for what the executor would refuse: a bad target, an unknown event, an empty body', () => {
+    expect(previewForTool('leave_note', { target_kind: 'week', target_id: '2026-07-09', body: 'x' }, ctx)).toBeNull();
+    expect(previewForTool('leave_note', { target_kind: 'day', target_id: '2026-02-30', body: 'x' }, ctx)).toBeNull();
+    expect(previewForTool('leave_note', { target_kind: 'event', target_id: 'nope', body: 'x' }, ctx)).toBeNull();
+    expect(previewForTool('leave_note', { target_kind: 'block', target_id: 'not-a-uuid', body: 'x' }, ctx)).toBeNull();
+    expect(previewForTool('leave_note', { target_kind: 'day', target_id: '2026-07-09', body: '   ' }, ctx)).toBeNull();
+    expect(previewForTool('leave_note', { target_kind: 'day', target_id: '2026-07-09', body: 'x'.repeat(401) }, ctx)).toBeNull();
+  });
+});

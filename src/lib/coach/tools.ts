@@ -3,7 +3,9 @@ import {
   createEventSchema,
   deleteEventSchema,
   deleteMealSchema,
+  leaveNoteSchema,
   logMealSchema,
+  proposeContractEditSchema,
   setEventExercisesSchema,
   updateEventSchema,
   updateExerciseDefinitionSchema,
@@ -14,6 +16,8 @@ import { countDefinitionReferences, entryFromDefinition, hasPerSideCount, matchD
 import { normalizeSupersets } from '../schedule/supersets.js';
 import { sanitizeInlineText } from './prompt.js';
 import { isMemoryView, MEMORY_TOOL, memoryReadChip, memoryToolSchema, memoryWriteLabel } from './memory.js';
+import { CONTRACT_MAX, contractsEqual, normalizeContract } from './contract.js';
+import { isSeverity, isTargetKind, normalizeBody, targetProblem, type NewCoachAnnotation } from './annotations.js';
 import { validateFatSplit } from '../nutrition/mapping.js';
 import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, UpdateDefinitionInput, UpdateEventInput } from '../schedule/types.js';
 import type { CreateMealInput, Meal, MealType, UpdateMealInput } from '../../types/nutrition.js';
@@ -46,6 +50,14 @@ export interface CoachToolDeps {
    *  confirmed memory write. Optional: deps built without a database — the
    *  eval harness — answer that memory is unavailable rather than fail. */
   applyMemoryCommand?(input: Record<string, unknown>): Promise<string>;
+  /** The contract backend (api/_lib/reflection/contract.ts applyContractEdit)
+   *  for a confirmed propose_contract_edit (lane D01): replaces the contract
+   *  when `before` still matches what is stored. Optional, like memory. */
+  applyContractEdit?(before: string, after: string): Promise<{ ok: true; contract: string } | { ok: false; reason: string }>;
+  /** The annotation insert for a confirmed leave_note (lane D01): the row
+   *  lands with created_by 'coach' through the service-role client. Optional,
+   *  like memory. */
+  createAnnotation?(note: NewCoachAnnotation): Promise<{ id: string } | null>;
 }
 
 /**
@@ -59,6 +71,10 @@ export interface CoachToolContext {
   definitions: Map<string, ExerciseDefinition>;
   events: WorkoutEvent[];
   meals: Meal[];
+  /** The stored coaching contract (lane D01), when the caller has it — the
+   *  server does (api/_lib/coach/context.ts); a card built without it shows
+   *  the model's copy of the "before" instead. */
+  contract?: string;
 }
 
 // ─── Confirmation-card target resolution ─────────────────────────────────────
@@ -602,6 +618,96 @@ const memoryTool: CoachToolDef = {
   },
 };
 
+// ─── Contract and notes (lane D01) ───────────────────────────────────────────
+
+/** How much of a contract or a note a card label shows before it is cut. */
+const LABEL_TEXT_MAX = 60;
+
+function cut(text: unknown, max = LABEL_TEXT_MAX): string {
+  const raw = typeof text === 'string' ? text : '';
+  const shown = sanitizeInlineText(raw, max);
+  return shown + (raw.trim().length > max ? '…' : '');
+}
+
+/**
+ * propose_contract_edit: the coach proposes the whole new coaching contract;
+ * the card shows before and after; the confirmed execution replaces the
+ * stored text only when `before` still matches it (applyContractEdit's
+ * optimistic check — a proposal made against last week's contract cannot
+ * overwrite an edit the athlete made since). The "before" on the label is
+ * the stored contract when the context carries it, the model's copy
+ * otherwise; the executor trusts neither over the database.
+ */
+const proposeContractEditTool: CoachToolDef = {
+  schema: proposeContractEditSchema,
+  displayLabel(input, ctx) {
+    const before = normalizeContract(ctx?.contract ?? input.before);
+    const after = normalizeContract(input.after);
+    if (!after) return 'Contract edit: (empty proposal)';
+    if (!before) return `Set coaching contract: ${cut(after)}`;
+    if (contractsEqual(before, after)) return 'Contract edit: no change';
+    return `Edit coaching contract: ${cut(before, 40)} → ${cut(after, 40)}`;
+  },
+  async execute(input, deps) {
+    const after = normalizeContract(input.after);
+    if (!after) return 'Nothing to propose: `after` is empty. Send the whole new contract text.';
+    if (after.length > CONTRACT_MAX) return `The contract must be ${CONTRACT_MAX} characters or fewer (this one is ${after.length}). Shorten and retry.`;
+    if (!deps.applyContractEdit) return 'The coaching contract is not available here; nothing was changed.';
+    const result = await deps.applyContractEdit(normalizeContract(input.before), after);
+    if (!result.ok) return result.reason;
+    return contractsEqual(result.contract, normalizeContract(input.before))
+      ? 'The contract already read that way; nothing was changed.'
+      : 'Coaching contract updated. It applies from the next turn.';
+  },
+};
+
+/**
+ * leave_note: a short note pinned to a day, an event occurrence or a block
+ * (coach_annotations). The label names the target from the live context when
+ * it can — a day as its date, an event as its title and date — and falls back
+ * to the model's target_label. The confirmed execution validates with the
+ * same helpers the HTTP handler uses and inserts through deps.
+ */
+const leaveNoteTool: CoachToolDef = {
+  schema: leaveNoteSchema,
+  displayLabel(input, ctx) {
+    const severity = isSeverity(input.severity) ? input.severity : 'info';
+    const kind = isTargetKind(input.target_kind) ? input.target_kind : null;
+    let target: string;
+    if (kind === 'event') {
+      const event = resolveEvent(ctx, input.target_id);
+      target = event ? `${event.title} · ${event.date}`
+        : ctx ? unresolvedTarget(input.target_id)
+        : cut(input.target_label, 40) || String(input.target_id ?? '');
+    } else if (kind === 'day') {
+      target = typeof input.target_id === 'string' ? input.target_id : cut(input.target_label, 40);
+    } else {
+      target = cut(input.target_label, 40) || `${kind ?? 'unknown target'} ${String(input.target_id ?? '')}`.trim();
+    }
+    const tag = severity === 'info' ? '' : ` (${severity})`;
+    return `Leave note${tag}: ${target} — ${cut(input.body)}`;
+  },
+  async execute(input, deps) {
+    if (!isTargetKind(input.target_kind)) return 'target_kind must be day, event or block.';
+    const problem = targetProblem(input.target_kind, input.target_id);
+    if (problem) return `Cannot leave the note: ${problem}.`;
+    const note = normalizeBody(input.body);
+    if ('reason' in note) return `Cannot leave the note: ${note.reason}.`;
+    if (input.severity !== undefined && !isSeverity(input.severity)) return 'severity must be info, caution or alert.';
+    if (!deps.createAnnotation) return 'Notes are not available here; nothing was pinned.';
+    const severity = isSeverity(input.severity) ? input.severity : 'info';
+    const result = await deps.createAnnotation({
+      target_kind: input.target_kind,
+      target_id: input.target_id as string,
+      body: note.body,
+      severity,
+    });
+    return result
+      ? `Left a ${severity} note on ${input.target_kind} ${String(input.target_id)} [${result.id}]: "${note.body}"`
+      : 'Failed to leave the note.';
+  },
+};
+
 export const COACH_TOOLS: CoachToolDef[] = [
   deleteEventTool,
   createEventTool,
@@ -611,6 +717,8 @@ export const COACH_TOOLS: CoachToolDef[] = [
   logMealTool,
   updateMealTool,
   deleteMealTool,
+  proposeContractEditTool,
+  leaveNoteTool,
   memoryTool,
 ];
 

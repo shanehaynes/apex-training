@@ -1299,6 +1299,32 @@ describe('chat handler — server-side read loop', () => {
     expect(streamMock).toHaveBeenCalledTimes(1);
   });
 
+  it('propose_contract_edit is a confirm card with a before → after label, and ends the turn — nothing is written here', async () => {
+    const input = { before: 'Push me on volume.', after: 'Push me on volume.\n\nLeave nutrition alone unless I ask.', reason: 'You asked twice.' };
+    queueRounds([...ended('tool_use'), ...textBlock('Want me to change the contract?'), ...toolCall('tu_c', 'propose_contract_edit', input)]);
+    const { events } = await runChat(chatBody());
+
+    expect(events.map(e => e.type)).toEqual(['text', 'tool_use', 'done']);
+    expect(events[1]).toEqual({
+      type: 'tool_use', id: 'tu_c', name: 'propose_contract_edit', input,
+      label: 'Edit coaching contract: Push me on volume. → Push me on volume. Leave nutrition alone…',
+    });
+    expect(streamMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('leave_note is a confirm card whose label names the live event the id resolves to, and ends the turn', async () => {
+    const input = { target_kind: 'event', target_id: 'evt-9', body: 'Go light: load ratio 1.4.', severity: 'caution', target_label: 'Made-up title' };
+    queueRounds([...ended('tool_use'), ...toolCall('tu_n', 'leave_note', input)]);
+    const { events } = await runChat(chatBody());
+
+    expect(events.map(e => e.type)).toEqual(['tool_use', 'done']);
+    expect(events[0]).toEqual({
+      type: 'tool_use', id: 'tu_n', name: 'leave_note', input,
+      label: 'Leave note (caution): Leg day · 2026-09-04 — Go light: load ratio 1.4.',
+    });
+    expect(streamMock).toHaveBeenCalledTimes(1);
+  });
+
   it('builder mode never loops: a tool_use streams straight through as before', async () => {
     queueRounds([...ended('tool_use'), ...textBlock('Adding it. '), ...toolCall('tu_b', 'update_workout_draft', { title: 'Push' })]);
     const { events } = await runChat({
