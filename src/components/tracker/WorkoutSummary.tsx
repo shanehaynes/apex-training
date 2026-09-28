@@ -6,6 +6,7 @@ import { describeRecordForPeople, describeWorkoutScore, formatScore } from '../.
 import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from '../../lib/tracking/records';
 import type { CoachStatus } from '../../hooks/useWorkoutSession';
 import { useTip } from '../../hooks/useTip';
+import { useCoachReachable } from '../../hooks/useCoachReachable';
 
 interface Props {
   event: WorkoutEvent;
@@ -23,9 +24,8 @@ interface Props {
   onClose: () => void;
   /** Primary action — leave the tracker and return to the calendar. */
   onDone: () => void;
-  /** Leave the tracker and open the coach with this session pinned (D-C08).
-   *  Absent where the coach pane cannot be shown (tablet widths). */
-  onAskCoach?: () => void;
+  /** Leave the tracker and open the coach with this session pinned (D-C08). */
+  onAskCoach: () => void;
 }
 
 function formatDuration(seconds: number | null): string | null {
@@ -69,6 +69,8 @@ export default function WorkoutSummary({
   // First sight of the summary: what the trophies mean, and why a first try
   // at a movement never earns one.
   useTip('summary-first');
+  // Tablet widths have no coach pane and no tab to open one: no ask there.
+  const coachReachable = useCoachReachable();
 
   return (
     <div className="tracker-summary-overlay" role="dialog" aria-modal="true" aria-label="Workout summary">
@@ -174,7 +176,7 @@ export default function WorkoutSummary({
               promises the coach that session's own summary, and the server
               saves it only when the stream ends — an earlier ask would read
               a session without one. */}
-          {onAskCoach && (
+          {coachReachable && (
             <button
               className="tracker-summary__done"
               data-testid="ask-coach-summary"

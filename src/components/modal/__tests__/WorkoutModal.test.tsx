@@ -22,7 +22,7 @@ const captured = vi.hoisted(() => {
 const modal = vi.hoisted(() => ({
   event: null as WorkoutEvent | null,
   dispatch: vi.fn(),
-  coachHidden: false,
+  coachReachable: true,
 }));
 
 vi.mock('react/jsx-runtime', async importOriginal => {
@@ -46,7 +46,7 @@ vi.mock('../../../context/schedule', () => ({
   }),
 }));
 vi.mock('../../../hooks/useTip', () => ({ useTip: () => {} }));
-vi.mock('../../../hooks/useMediaQuery', () => ({ useMediaQuery: () => modal.coachHidden }));
+vi.mock('../../../hooks/useCoachReachable', () => ({ useCoachReachable: () => modal.coachReachable }));
 vi.mock('../SyncMetrics', () => ({ default: () => null }));
 
 const event: WorkoutEvent = {
@@ -67,7 +67,7 @@ const event: WorkoutEvent = {
 
 beforeEach(() => {
   modal.event = event;
-  modal.coachHidden = false;
+  modal.coachReachable = true;
   modal.dispatch.mockClear();
   captured.props.clear();
   // createPortal's container argument is read at render; the stubbed portal ignores it.
@@ -98,7 +98,7 @@ describe('WorkoutModal — Ask the coach', () => {
   });
 
   it('is absent at tablet widths, where no coach pane can show', () => {
-    modal.coachHidden = true;
+    modal.coachReachable = false;
     const html = renderToStaticMarkup(<WorkoutModal />);
     expect(html).not.toContain('data-testid="ask-coach"');
     expect(html).toContain('Mark as Complete');

@@ -14,6 +14,7 @@ const pane = vi.hoisted(() => ({
   askCoach: null as AskCoachRequest | null,
   dispatch: vi.fn(),
   hasKey: true as boolean | null,
+  coachReachable: true,
   chat: {
     messages: [] as unknown[],
     isLoading: false,
@@ -46,6 +47,7 @@ vi.mock('../../../context/schedule', () => ({
 }));
 vi.mock('../../../context/meals', () => ({ useMeals: () => ({ meals: [] }) }));
 vi.mock('../../../hooks/useTip', () => ({ useTip: () => {} }));
+vi.mock('../../../hooks/useCoachReachable', () => ({ useCoachReachable: () => pane.coachReachable }));
 vi.mock('../../coach/CoachModelPicker', () => ({ default: () => null }));
 
 const request: AskCoachRequest = {
@@ -64,6 +66,7 @@ let consoleError: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   pane.askCoach = request;
   pane.hasKey = true;
+  pane.coachReachable = true;
   pane.chat.isLoading = false;
   pane.chat.pendingAction = null;
   pane.chat.pendingActionCount = 0;
@@ -125,6 +128,14 @@ describe('ChatSidebar — the ask-coach effect', () => {
     expect(pane.dispatch).toHaveBeenCalledTimes(1);
     expect(pane.dispatch).toHaveBeenCalledWith({ type: 'CLEAR_ASK_COACH' });
     expect(html).toContain('Add key');
+  });
+
+  it('with the pane unreachable (tablet widths): clears the pin without sending', async () => {
+    pane.coachReachable = false;
+    await mount();
+    expect(pane.chat.sendMessage).not.toHaveBeenCalled();
+    expect(pane.dispatch).toHaveBeenCalledTimes(1);
+    expect(pane.dispatch).toHaveBeenCalledWith({ type: 'CLEAR_ASK_COACH' });
   });
 
   it('with the key status unknown: sends, and lets the server\'s 402 be the backstop', async () => {

@@ -11,6 +11,7 @@ import { findCoachTool } from '../../lib/coach/tools';
 import { previewForTool, type ToolPreview } from '../../lib/coach/preview';
 import { askCoachDisplay, askCoachPrompt, shouldSendAskCoach, type AskCoachRequest } from '../../lib/coach/askContext';
 import { useTip } from '../../hooks/useTip';
+import { useCoachReachable } from '../../hooks/useCoachReachable';
 import { helpPath } from '../../lib/help/pages';
 import { Send, Square, NotebookPen, Check, X, KeyRound, MessageSquarePlus } from 'lucide-react';
 import { now } from '../../lib/clock';
@@ -225,6 +226,8 @@ export default function ChatSidebar() {
   // e.g. offline mode or status still loading) doesn't — the server's 402
   // mapping in useChat is the backstop.
   const needsKey = anthropicKey?.hasKey === false;
+  // Tablet widths: the pane cannot be shown, so a pin is consumed unsent.
+  const coachReachable = useCoachReachable();
 
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -284,10 +287,12 @@ export default function ChatSidebar() {
     if (actionBusy || actionLatchRef.current) return;
     if (!shouldSendAskCoach(askCoach, { isLoading, pendingAction, lastSent: askSentRef.current })) return;
     askSentRef.current = askCoach;
-    if (needsKey) {
+    if (needsKey || !coachReachable) {
       // No key saved: nothing to send, as the other entry points are
-      // disabled. The pin is still consumed — the phone's Coach tab has
+      // disabled; the pin is still consumed — the phone's Coach tab has
       // opened on it, and what the athlete sees there is the key setup.
+      // Unreachable pane (tablet): the buttons are not rendered there, so
+      // this is a resize mid-ask; a turn nobody can read is not sent.
       dispatch({ type: 'CLEAR_ASK_COACH' });
       return;
     }
@@ -298,7 +303,7 @@ export default function ChatSidebar() {
       dispatch({ type: 'CLEAR_ASK_COACH' });
       await sendMessage(askCoachPrompt(askCoach), ctx, { display: askCoachDisplay(askCoach) });
     });
-  }, [askCoach, isLoading, pendingAction, actionBusy, needsKey, runExclusive, resolveContext, sendMessage, dispatch]);
+  }, [askCoach, isLoading, pendingAction, actionBusy, needsKey, coachReachable, runExclusive, resolveContext, sendMessage, dispatch]);
 
   // ── Mutation executor (called on Confirm) — runs on the server ────────────
   // POST /api/coach-tool executes the confirmed tool with the same executors

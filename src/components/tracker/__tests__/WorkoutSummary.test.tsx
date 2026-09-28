@@ -1,8 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import WorkoutSummary from '../WorkoutSummary';
 import type { WorkoutEvent } from '../../../types/workout';
 import type { CoachStatus } from '../../../hooks/useWorkoutSession';
+
+const pane = vi.hoisted(() => ({ coachReachable: true }));
+vi.mock('../../../hooks/useCoachReachable', () => ({ useCoachReachable: () => pane.coachReachable }));
+
+beforeEach(() => { pane.coachReachable = true; });
 
 // No DOM test environment here (see notebook.test.tsx): the summary's footer
 // is proved at the markup level — both buttons, in order, the ask one
@@ -13,7 +18,7 @@ const event = {
   id: 'w1-mon-stretch__2026-06-22', date: '2026-06-22', title: 'Nightly Stretch — Upper', type: 'stretch',
 } as unknown as WorkoutEvent;
 
-function render(over: { coachStatus?: CoachStatus; coachText?: string | null; onAskCoach?: (() => void) | undefined } = {}) {
+function render(over: { coachStatus?: CoachStatus; coachText?: string | null } = {}) {
   return renderToStaticMarkup(
     <WorkoutSummary
       event={event}
@@ -27,7 +32,7 @@ function render(over: { coachStatus?: CoachStatus; coachText?: string | null; on
       coachStatus={over.coachStatus ?? 'ready'}
       onClose={() => {}}
       onDone={() => {}}
-      onAskCoach={'onAskCoach' in over ? over.onAskCoach : () => {}}
+      onAskCoach={() => {}}
     />,
   );
 }
@@ -67,8 +72,9 @@ describe('WorkoutSummary footer', () => {
     expect(html).not.toMatch(/data-testid="ask-coach-summary"[^>]*disabled/);
   });
 
-  it('has no ask where the coach pane cannot show (no onAskCoach)', () => {
-    const html = render({ onAskCoach: undefined });
+  it('has no ask where the coach pane cannot show (tablet widths)', () => {
+    pane.coachReachable = false;
+    const html = render();
     expect(html).toContain('Back to calendar');
     expect(html).not.toContain('ask-coach-summary');
   });

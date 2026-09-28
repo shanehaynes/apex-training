@@ -3,8 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { useModalChrome } from '../../hooks/useModalChrome';
 import { useTip } from '../../hooks/useTip';
-import { useMediaQuery } from '../../hooks/useMediaQuery';
-import { COACH_PANE_HIDDEN_QUERY } from '../../lib/coach/askContext';
+import { useCoachReachable } from '../../hooks/useCoachReachable';
 import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play, Pencil, Route, TrendingUp, HeartPulse, Mountain, Layers, Trash2, MessageSquare } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/calendar';
@@ -58,8 +57,8 @@ export default function WorkoutModal() {
   useTip('workout-first-open');
   useTip('workout-recurring', isRecurring);
 
-  // Tablet widths have no coach pane and no tab to open one (askContext.ts).
-  const coachHidden = useMediaQuery(COACH_PANE_HIDDEN_QUERY);
+  // Tablet widths have no coach pane and no tab to open one.
+  const coachReachable = useCoachReachable();
 
   if (!event) return null;
 
@@ -351,7 +350,7 @@ export default function WorkoutModal() {
                 reducer closes the modal, ChatSidebar sends the hidden turn.
                 The live title, so a rename made here is what the coach is
                 asked about. */}
-            {!coachHidden && (
+            {coachReachable && (
               <button
                 className="modal-completion__btn"
                 data-testid="ask-coach"

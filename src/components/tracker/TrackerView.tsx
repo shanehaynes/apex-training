@@ -17,8 +17,6 @@ import ScorePrompt from './ScorePrompt';
 import type { SessionScore } from '../../lib/tracking/records';
 import type { TrackedSectionGroup } from '../../lib/tracking/plan';
 import { useTip } from '../../hooks/useTip';
-import { useMediaQuery } from '../../hooks/useMediaQuery';
-import { COACH_PANE_HIDDEN_QUERY } from '../../lib/coach/askContext';
 
 /**
  * The tracker's two first-open tips. A child rendered only while a session is
@@ -52,8 +50,6 @@ export default function TrackerView() {
   const [confirmCount, setConfirmCount] = useState<number | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
-  // Tablet widths have no coach pane and no tab to open one (askContext.ts).
-  const coachHidden = useMediaQuery(COACH_PANE_HIDDEN_QUERY);
 
   const color = event ? getWorkoutColor(event.type) : null;
   if (!event || !color) return null;
@@ -212,7 +208,7 @@ export default function TrackerView() {
           // Leaves the tracker exactly as Done does, then pins the session
           // the athlete just logged (D-C08); the summary is finished, so
           // there is nothing left to flush.
-          onAskCoach={coachHidden ? undefined : () => {
+          onAskCoach={() => {
             dismissSummary();
             dispatch({ type: 'STOP_TRACKING' });
             dispatch({ type: 'ASK_COACH', payload: { kind: 'session', eventId: event.id, date: event.date, title: event.title, source: 'tracker' } });
