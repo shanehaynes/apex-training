@@ -172,3 +172,77 @@ describe('runCase', () => {
     expect(requests[0].system).toContain('Climb V8');
   });
 });
+
+describe('planner mode (E01)', () => {
+  const PLAN = {
+    blocks: [
+      { name: 'Base', phase: 'base', start_date: '2026-08-03', end_date: '2026-08-30', weekly_targets: { cardio_minutes: 300 } },
+      { name: 'Build', phase: 'build', start_date: '2026-08-31', end_date: '2026-09-27' },
+    ],
+  };
+  const plannerCase: EvalCase = {
+    ...BASE_CASE,
+    mode: 'planner',
+    fixture: {
+      today: '2026-08-03', events: [],
+      existingBlocks: [{ id: 'blk-0', name: 'Summer', intent: '', startDate: '2026-07-06', endDateExclusive: '2026-08-03', weeklyTargets: {} }],
+      objectives: [{ id: 'obj-1', name: 'Denali', notes: '', status: 'active' }],
+      reads: { get_training_blocks: { blocks: [{ id: 'blk-0', name: 'Summer' }] } },
+    },
+    script: [{ kind: 'user', text: 'Plan eight weeks.' }],
+  };
+
+  it('reads from the fixture, reduces update_block_draft onto the block draft, and reports the final draft', async () => {
+    const { call, requests } = scriptedModel([
+      response([text('Checking.'), toolUse('r-1', 'get_training_blocks', {}), toolUse('d-1', 'read_doctrine', { topic: 'periodization' })], 'tool_use'),
+      response([text('Here is the plan.'), toolUse('w-1', 'update_block_draft', PLAN)], 'tool_use'),
+      response([text('Review it and press Apply.')]),
+    ]);
+    const result = await runCase(plannerCase, call);
+
+    // The planner's prompt is the split prompt joined: stable half, then the
+    // live half with the draft, the existing blocks and the objectives.
+    expect(requests[0].system).toContain('helping the user plan TRAINING BLOCKS');
+    expect(requests[0].system).toContain('<block_draft>\nCURRENT DRAFT (what update_block_draft replaces):\n(no blocks yet)');
+    expect(requests[0].system).toContain('- [blk-0] Summer · 2026-07-06 → 2026-08-02 (4 weeks)');
+    expect(requests[0].system).toContain('- [obj-1] Denali · undated · active');
+    // The read round was answered in the same turn with tools on; the write
+    // was confirmed and the re-stream ran with tools off.
+    expect(requests.map(r => r.withTools)).toEqual([true, true, false]);
+    // And the live half moved with the draft.
+    expect(requests[2].system).toContain('1. Base · phase base · start_date 2026-08-03 · end_date 2026-08-30 (4 weeks)');
+    expect(requests[2].system).not.toContain('(no blocks yet)');
+
+    expect(result.toolCalls.map(c => [c.name, c.kind])).toEqual([
+      ['get_training_blocks', 'read'], ['read_doctrine', 'read'], ['update_block_draft', 'write'],
+    ]);
+    expect(result.toolCalls[2].result).toBe('Block draft updated: 2 blocks, Aug 3 – Sep 27 (base 4w · build 4w). The user reviews and presses Apply.');
+    expect(result.finalBlockDraft).toEqual({
+      editingId: null,
+      blocks: [
+        { name: 'Base', intent: '', phase: 'base', objectiveId: undefined, startDate: '2026-08-03', endDateExclusive: '2026-08-31', weeklyTargets: { cardioMinutes: 300 } },
+        { name: 'Build', intent: '', phase: 'build', objectiveId: undefined, startDate: '2026-08-31', endDateExclusive: '2026-09-28', weeklyTargets: {} },
+      ],
+    });
+    expect(result.finalDraft).toBeUndefined();
+    expect(result.anomalies).toEqual([]);
+  });
+
+  it('hands the reducer\'s one instructive error back as the tool_result, and flags a tool the mode lacks', async () => {
+    const { call } = scriptedModel([
+      // Turn 1: the write, then its tools-off settle. Turn 2: a tool the
+      // planner lacks, then its settle.
+      response([toolUse('w-1', 'update_block_draft', { blocks: [{ name: 'Base', start_date: '2026-07-27', end_date: '2026-08-30' }] })], 'tool_use'),
+      response([text('Let me fix the dates.')]),
+      response([toolUse('x-1', 'create_event', { title: 'Hike' })], 'tool_use'),
+      response([text('Done.')]),
+    ]);
+    const result = await runCase({ ...plannerCase, script: [{ kind: 'user', text: 'Plan.' }, { kind: 'user', text: 'Schedule a hike.' }] }, call);
+    expect(result.toolCalls[0].result).toContain('overlaps the existing block "Summer"');
+    expect(result.toolCalls[0].result).toContain("before this week's Monday");
+    expect(result.finalBlockDraft?.blocks).toEqual([]);
+    expect(result.toolCalls[1]).toMatchObject({ name: 'create_event', result: 'Unknown tool "create_event".' });
+    expect(result.anomalies).toEqual(['unknownTool:create_event (turn 2)']);
+    expect(result.finalEvents).toEqual([]);
+  });
+});

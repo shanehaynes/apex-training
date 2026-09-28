@@ -43,7 +43,7 @@ const MAX_BATCH_BYTES = 400_000;
 
 const ROLES = new Set(['user', 'assistant']);
 const KINDS = new Set(['turn', 'notice', 'stopped']);
-const MODES = new Set(['chat', 'builder', 'analytics']);
+const MODES = new Set(['chat', 'builder', 'analytics', 'planner']);
 const MAX_TITLE_LENGTH = 120;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -163,7 +163,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const mode = first(req.query.mode as string | string[] | undefined);
     if (!mode || !MODES.has(mode)) {
-      res.status(400).send('Query must carry ?mode=chat|builder|analytics or ?id=<uuid>');
+      res.status(400).send('Query must carry ?mode=chat|builder|analytics|planner or ?id=<uuid>');
       return;
     }
     const { data, error } = await supabase
@@ -267,7 +267,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (method === 'POST') {
     const mode = typeof body.mode === 'string' ? body.mode : '';
     if (!MODES.has(mode)) {
-      res.status(400).send('Body must carry mode: chat|builder|analytics');
+      res.status(400).send('Body must carry mode: chat|builder|analytics|planner');
       return;
     }
     const title = typeof body.title === 'string' ? body.title.trim().slice(0, MAX_TITLE_LENGTH) : null;

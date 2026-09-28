@@ -13,7 +13,7 @@ import { sanitizeInlineText } from './prompt.js';
 // is api/_lib/coach/memory.ts.
 //
 // The one rule that shapes everything here: NOTHING IS REMEMBERED WITHOUT
-// THE ATHLETE'S CLICK (decision D-C03). `view` is a read and runs inside the
+// THE ATHLETE'S CLICK (decision D-C02). `view` is a read and runs inside the
 // server-side loop like any read tool; every other command is a write and
 // becomes a confirm card, exactly like create_event. The card's label and
 // preview are computed here from the command alone, because the client has
