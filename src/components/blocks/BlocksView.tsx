@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useModalChrome } from '../../hooks/useModalChrome';
 import { useTip } from '../../hooks/useTip';
-import { ChevronRight, Plus, Repeat, Target, X } from 'lucide-react';
+import { ChevronRight, Plus, Repeat, Sparkles, Target, X } from 'lucide-react';
 import { useCalendar } from '../../context/calendar';
 import { useBlocks } from '../../context/blocks';
 import { blockPeriod, blockWeeks, currentWeekIndex } from '../../lib/blocks/period';
@@ -10,12 +10,15 @@ import type { TrainingBlock } from '../../types/blocks';
 import BlockDetail from './BlockDetail';
 import BlockEditor from './BlockEditor';
 import CycleEditor from './CycleEditor';
+import BlockPlanner from './BlockPlanner';
 
 type Mode =
   | { kind: 'list' }
   | { kind: 'detail'; block: TrainingBlock }
   | { kind: 'edit'; block: TrainingBlock | null }
-  | { kind: 'cycle' };
+  | { kind: 'cycle' }
+  /** Plan with the coach (E01): new blocks, or the one block being edited. */
+  | { kind: 'plan'; editingId: string | null };
 
 export default function BlocksView() {
   const { dispatch } = useCalendar();
@@ -33,7 +36,20 @@ export default function BlocksView() {
     if (mode.kind === 'detail' && !blocks.some(b => b.id === mode.block.id)) {
       setMode({ kind: 'list' });
     }
+    if (mode.kind === 'plan' && mode.editingId && !blocks.some(b => b.id === mode.editingId)) {
+      setMode({ kind: 'list' });
+    }
   }, [blocks, mode]);
+
+  if (mode.kind === 'plan') {
+    return (
+      <BlockPlanner
+        editingId={mode.editingId}
+        onClose={() => setMode({ kind: 'list' })}
+        onApplied={() => setMode({ kind: 'list' })}
+      />
+    );
+  }
 
   if (mode.kind === 'cycle') {
     return (
@@ -62,6 +78,7 @@ export default function BlocksView() {
         onBack={() => setMode({ kind: 'list' })}
         onClose={close}
         onEdit={() => setMode({ kind: 'edit', block: live })}
+        onPlan={() => setMode({ kind: 'plan', editingId: live.id })}
       />
     );
   }
@@ -76,6 +93,14 @@ export default function BlocksView() {
           <span className="library-header__count">{blocks.length}</span>
         </div>
         <div className="library-header__actions">
+          <button
+            className="library-edit-btn"
+            data-testid="plan-with-coach"
+            onClick={() => setMode({ kind: 'plan', editingId: null })}
+            title="The coach drafts the blocks; you press Apply"
+          >
+            <Sparkles size={14} strokeWidth={1.5} /> Plan with the coach
+          </button>
           <button
             className="library-edit-btn"
             data-testid="new-cycle"
