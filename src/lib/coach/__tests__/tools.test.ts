@@ -114,7 +114,10 @@ describe('server-side tools — the hand-mirrored name list', () => {
 describe('coach tool registry', () => {
   it('exposes each tool exactly once, findable by schema name', () => {
     const names = coachToolSchemas().map(s => s.name);
-    expect(names).toEqual(['delete_event', 'create_event', 'update_event', 'set_event_exercises', 'update_exercise_definition', 'log_meal', 'update_meal', 'delete_meal']);
+    expect(names).toEqual([
+      'delete_event', 'create_event', 'update_event', 'set_event_exercises', 'update_exercise_definition',
+      'log_meal', 'update_meal', 'delete_meal', 'propose_contract_edit', 'leave_note',
+    ]);
     for (const name of names) expect(findCoachTool(name)?.schema.name).toBe(name);
     expect(findCoachTool('nope')).toBeUndefined();
     // The memory tool is in the registry (its writes are confirm cards) but
@@ -544,5 +547,85 @@ describe('meal tools', () => {
       { meal_id: 'meal-404', meal_title: 'Chicken burrito' },
       ctx,
     )).toBe('Delete meal: (no matching entry for id "meal-404")');
+  });
+});
+
+describe('propose_contract_edit (lane D01)', () => {
+  const tool = findCoachTool('propose_contract_edit')!;
+  const before = 'Push me on volume.';
+  const after = 'Push me on volume.\n\nLeave nutrition alone unless I ask.';
+
+  it('labels from the stored contract when the context carries it, else from the model\'s copy', () => {
+    const ctx = { definitions: new Map(), events: [], meals: [], contract: before };
+    expect(tool.displayLabel({ before: 'stale copy', after }, ctx))
+      .toBe('Edit coaching contract: Push me on volume. → Push me on volume. Leave nutrition alone…');
+    expect(tool.displayLabel({ before, after })).toMatch(/^Edit coaching contract: Push me on volume\. → /);
+    expect(tool.displayLabel({ before: '', after: 'Be blunt.' })).toBe('Set coaching contract: Be blunt.');
+    expect(tool.displayLabel({ before, after: '  Push me on\nvolume.  ' })).toBe('Contract edit: no change');
+    expect(tool.displayLabel({})).toBe('Contract edit: (empty proposal)');
+    expect(tool.displayLabel({ before, after: '<b>x</b>' })).not.toContain('<');
+  });
+
+  it('executes through deps.applyContractEdit with the normalized before/after, and reports the outcome', async () => {
+    const applyContractEdit = vi.fn(async () => ({ ok: true as const, contract: after }));
+    expect(await tool.execute({ before: `${before}  `, after: `${after}\n\n\n`, reason: 'asked' }, makeDeps({ applyContractEdit })))
+      .toBe('Coaching contract updated. It applies from the next turn.');
+    expect(applyContractEdit).toHaveBeenCalledWith(before, after);
+
+    const refused = vi.fn(async () => ({ ok: false as const, reason: 'The contract changed since this proposal was made.' }));
+    expect(await tool.execute({ before, after }, makeDeps({ applyContractEdit: refused }))).toMatch(/changed since/);
+
+    const same = vi.fn(async () => ({ ok: true as const, contract: before }));
+    expect(await tool.execute({ before, after: before }, makeDeps({ applyContractEdit: same }))).toMatch(/already read that way/);
+  });
+
+  it('refuses an empty or over-long proposal before touching the backend, and answers without one', async () => {
+    const applyContractEdit = vi.fn(async () => ({ ok: true as const, contract: '' }));
+    expect(await tool.execute({ before, after: '   ' }, makeDeps({ applyContractEdit }))).toMatch(/Nothing to propose/);
+    expect(await tool.execute({ before, after: 'x'.repeat(2001) }, makeDeps({ applyContractEdit }))).toMatch(/2000 characters or fewer/);
+    expect(applyContractEdit).not.toHaveBeenCalled();
+    expect(await tool.execute({ before, after }, makeDeps())).toMatch(/not available here/);
+  });
+});
+
+describe('leave_note (lane D01)', () => {
+  const tool = findCoachTool('leave_note')!;
+  const legDay = { id: 'evt-9', title: 'Leg day', date: '2026-09-04', type: 'weights', estimatedDuration: 60, isCompleted: false, isRecurring: false, exercises: [], tags: [], description: '', difficulty: 3 } as never;
+  const ctx = { definitions: new Map(), events: [legDay], meals: [] };
+
+  it('labels the target from the live context — an event by its row, a day by its date — and the body cut', () => {
+    expect(tool.displayLabel({ target_kind: 'event', target_id: 'evt-9', body: 'Back off the squat volume here.', severity: 'caution' }, ctx))
+      .toBe('Leave note (caution): Leg day · 2026-09-04 — Back off the squat volume here.');
+    expect(tool.displayLabel({ target_kind: 'event', target_id: 'evt-404', target_label: 'Leg day', body: 'x' }, ctx))
+      .toBe('Leave note: (no matching entry for id "evt-404") — x');
+    expect(tool.displayLabel({ target_kind: 'event', target_id: 'evt-404', target_label: 'Leg day', body: 'x' }))
+      .toBe('Leave note: Leg day — x');
+    expect(tool.displayLabel({ target_kind: 'day', target_id: '2026-09-08', body: 'Deload this week — load ratio 1.4.' }, ctx))
+      .toBe('Leave note: 2026-09-08 — Deload this week — load ratio 1.4.');
+    expect(tool.displayLabel({ target_kind: 'block', target_id: '99999999-8888-4777-8666-555555555555', target_label: 'Base block', body: 'x', severity: 'alert' }, ctx))
+      .toBe('Leave note (alert): Base block — x');
+    expect(tool.displayLabel({ body: '<script>' })).toBe('Leave note: unknown target — script>');
+  });
+
+  it('validates like the HTTP handler and inserts through deps.createAnnotation with created_by left to the server', async () => {
+    const createAnnotation = vi.fn(async () => ({ id: 'note-1' }));
+    const deps = makeDeps({ createAnnotation });
+    expect(await tool.execute({ target_kind: 'event', target_id: 'evt-9', body: '  Back off.  ', severity: 'caution' }, deps))
+      .toBe('Left a caution note on event evt-9 [note-1]: "Back off."');
+    expect(createAnnotation).toHaveBeenCalledWith({ target_kind: 'event', target_id: 'evt-9', body: 'Back off.', severity: 'caution' });
+    expect(await tool.execute({ target_kind: 'day', target_id: '2026-09-08', body: 'x' }, deps)).toMatch(/Left a info note on day 2026-09-08/);
+    expect(createAnnotation).toHaveBeenLastCalledWith(expect.objectContaining({ severity: 'info' }));
+
+    expect(await tool.execute({ target_kind: 'week', target_id: 'x', body: 'x' }, deps)).toMatch(/target_kind must be/);
+    expect(await tool.execute({ target_kind: 'day', target_id: '2026-13-40', body: 'x' }, deps)).toMatch(/YYYY-MM-DD/);
+    expect(await tool.execute({ target_kind: 'block', target_id: 'not-a-uuid', body: 'x' }, deps)).toMatch(/uuid/);
+    expect(await tool.execute({ target_kind: 'day', target_id: '2026-09-08', body: '   ' }, deps)).toMatch(/must not be empty/);
+    expect(await tool.execute({ target_kind: 'day', target_id: '2026-09-08', body: 'x'.repeat(401) }, deps)).toMatch(/at most 400/);
+    expect(await tool.execute({ target_kind: 'day', target_id: '2026-09-08', body: 'x', severity: 'loud' }, deps)).toMatch(/severity must be/);
+    expect(createAnnotation).toHaveBeenCalledTimes(2);
+
+    const failing = vi.fn(async () => null);
+    expect(await tool.execute({ target_kind: 'day', target_id: '2026-09-08', body: 'x' }, makeDeps({ createAnnotation: failing }))).toBe('Failed to leave the note.');
+    expect(await tool.execute({ target_kind: 'day', target_id: '2026-09-08', body: 'x' }, makeDeps())).toMatch(/not available here/);
   });
 });

@@ -250,14 +250,67 @@ export const deleteMealSchema: Anthropic.Tool = {
   },
 };
 
+// ─── Contract and notes (lane D01) ───────────────────────────────────────────
+
+export const proposeContractEditSchema: Anthropic.Tool = {
+  name: 'propose_contract_edit',
+  description:
+    'Propose a change to the coaching_contract — the athlete\'s own text on how they want to be ' +
+    'coached. The athlete sees before and after on a card and confirms; nothing changes until ' +
+    'they do. Send the WHOLE new text in `after` (it replaces the contract), and copy the current ' +
+    'contract verbatim into `before` — the edit is refused if the contract changed since you ' +
+    'read it. Use it when the athlete asks to be coached differently, or when their pattern shows ' +
+    'the contract no longer fits; never rewrite the contract in prose.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      before: { type: 'string', description: 'The current contract, copied verbatim from coaching_contract ("" when there is none).' },
+      after: { type: 'string', description: 'The complete proposed contract, at most 2000 characters.' },
+      reason: { type: 'string', description: 'One or two sentences on why — shown on the card.' },
+    },
+    required: ['before', 'after', 'reason'],
+  },
+};
+
+export const leaveNoteSchema: Anthropic.Tool = {
+  name: 'leave_note',
+  description:
+    'Pin a short note where it refers: on a calendar day, on one workout event (its bracketed ' +
+    'id; for a recurring instance the occurrence id with "__"), or on a training block. It shows ' +
+    'as a chip there until the athlete dismisses it. Use it for a remark tied to a specific ' +
+    'day, session or block — "deload this week, load ratio 1.4", "back off the squat volume ' +
+    'here" — not for the reply itself. The athlete confirms the card before it lands.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      target_kind: { type: 'string', enum: ['day', 'event', 'block'] },
+      target_id: {
+        type: 'string',
+        description: 'YYYY-MM-DD for a day; the event id from [brackets] for an event; the block uuid for a block.',
+      },
+      body: { type: 'string', description: 'The note, at most 400 characters — a chip, not a briefing.' },
+      severity: {
+        type: 'string',
+        enum: ['info', 'caution', 'alert'],
+        description: 'info: a remark (default). caution: something to watch. alert: act on it before the session.',
+      },
+      target_label: {
+        type: 'string',
+        description: 'Human-readable target ("Thu Oct 1 — Long Run", "Base block") — shown on the confirmation card.',
+      },
+    },
+    required: ['target_kind', 'target_id', 'body'],
+  },
+};
+
 /**
- * The eight WRITE tools in registry order (must match COACH_TOOLS in
+ * The ten WRITE tools in registry order (must match COACH_TOOLS in
  * tools.ts) — the confirm-card tools, and everything this client-safe module
  * can name. The chat request carries more: api/chat.ts appends the read
- * tools (api/_lib/coach/readTools.ts) and read_doctrine after these, in that
- * fixed order (chatToolSchemas there), because the read tools' schemas come
- * from the MCP tool implementations, which do not belong in a browser
- * bundle. Builder and analytics stay single-tool.
+ * tools (api/_lib/coach/readTools.ts), read_doctrine and the memory tool
+ * after these, in that fixed order (chatToolSchemas there), because the read
+ * tools' schemas come from the MCP tool implementations, which do not belong
+ * in a browser bundle. Builder and analytics stay single-tool.
  */
 export function coachToolSchemas(): Anthropic.Tool[] {
   return [
@@ -269,6 +322,8 @@ export function coachToolSchemas(): Anthropic.Tool[] {
     logMealSchema,
     updateMealSchema,
     deleteMealSchema,
+    proposeContractEditSchema,
+    leaveNoteSchema,
   ];
 }
 

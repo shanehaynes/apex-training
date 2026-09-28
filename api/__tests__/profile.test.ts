@@ -64,6 +64,9 @@ const EMPTY_PROFILE = {
 /** GET's response minus the fields each test is actually about. */
 const PROFILE_DEFAULTS = {
   displayName: null, avatarKey: null, coachGoal: null, coachContext: null,
+  // Lane D01: no contract, reflection off — the same reading whether the
+  // columns are null or not there yet.
+  coachContract: null, reflectionOptIn: false,
   maxHr: null, thresholdHr: null, calendarFeedUrl: null,
   // W13: a fresh account with no key — the welcome flow is due, nothing ticked.
   onboarding: {
@@ -693,5 +696,88 @@ describe('tips_seen (one-time tips, docs/onboarding D-O01)', () => {
     const { res, statusCode } = makeRes();
     await handler(makeReq('PATCH', { tip_seen: 'coach-goal' }), res);
     expect(statusCode()).toBe(500);
+  });
+});
+
+describe('coaching contract and reflection opt-in (lane D01)', () => {
+  it('GET reports the stored contract and the flag', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({
+      key: null, profile: { coach_contract: 'Push me on volume.', reflection_opt_in: true },
+    }));
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(statusCode()).toBe(200);
+    expect(body()).toMatchObject({ coachContract: 'Push me on volume.', reflectionOptIn: true });
+  });
+
+  it('GET still answers, with no contract and the flag off, while the columns are not there yet', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({
+      key: null, missingColumns: ['coach_contract', 'reflection_opt_in'], profile: { display_name: 'Alex', tips_seen: { 'coach-goal': 'x' } },
+    }));
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(statusCode()).toBe(200);
+    // Only the missing columns are dropped: the tips, which this database has, survive.
+    expect(body()).toMatchObject({ displayName: 'Alex', coachContract: null, reflectionOptIn: false, onboarding: { tipsSeen: ['coach-goal'] } });
+  });
+
+  it('PATCH stores the contract normalized, and "" clears it', async () => {
+    const state: AdminState = { key: null };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { coach_contract: '  Push me on volume.  \r\n\r\n\r\n\r\nLeave nutrition alone.\n' }), res);
+    expect(statusCode()).toBe(200);
+    expect(state.profileUpdate?.coach_contract).toBe('Push me on volume.\n\nLeave nutrition alone.');
+
+    const cleared = makeRes();
+    await handler(makeReq('PATCH', { coach_contract: '' }), cleared.res);
+    expect(cleared.statusCode()).toBe(200);
+    expect(state.profileUpdate?.coach_contract).toBe('');
+  });
+
+  it('PATCH 400s a contract that is not a string or is over the bound, writing nothing', async () => {
+    for (const value of [null, 42, ['x'], 'x'.repeat(2001)]) {
+      const state: AdminState = { key: null };
+      mockedAdmin.mockReturnValue(makeAdmin(state));
+      const { res, statusCode, body } = makeRes();
+      await handler(makeReq('PATCH', { coach_contract: value }), res);
+      expect(statusCode(), JSON.stringify(value).slice(0, 20)).toBe(400);
+      expect(body()).toMatch(/^Invalid coach_contract/);
+      expect(state.profileUpdate).toBeUndefined();
+    }
+  });
+
+  it('PATCH takes reflection_opt_in as a boolean and nothing else', async () => {
+    const state: AdminState = { key: null };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const on = makeRes();
+    await handler(makeReq('PATCH', { reflection_opt_in: true }), on.res);
+    expect(on.statusCode()).toBe(200);
+    expect(state.profileUpdate?.reflection_opt_in).toBe(true);
+    const off = makeRes();
+    await handler(makeReq('PATCH', { reflection_opt_in: false }), off.res);
+    expect(state.profileUpdate?.reflection_opt_in).toBe(false);
+
+    for (const value of ['true', 1, null, 'yes']) {
+      const fresh: AdminState = { key: null };
+      mockedAdmin.mockReturnValue(makeAdmin(fresh));
+      const { res, statusCode, body } = makeRes();
+      await handler(makeReq('PATCH', { reflection_opt_in: value }), res);
+      expect(statusCode(), JSON.stringify(value)).toBe(400);
+      expect(body()).toBe('reflection_opt_in must be a boolean');
+      expect(fresh.profileUpdate).toBeUndefined();
+    }
+  });
+
+  it('PATCH 409s column-missing while the migration has not reached this database', async () => {
+    for (const body of [{ coach_contract: 'Be blunt.' }, { reflection_opt_in: true }]) {
+      const state: AdminState = { key: null, missingColumns: ['coach_contract', 'reflection_opt_in'] };
+      mockedAdmin.mockReturnValue(makeAdmin(state));
+      const { res, statusCode, body: out } = makeRes();
+      await handler(makeReq('PATCH', body), res);
+      expect(statusCode()).toBe(409);
+      expect(out()).toBe('column-missing');
+      expect(state.profileUpdate).toBeUndefined();
+    }
   });
 });

@@ -484,6 +484,102 @@ internal enum PublicSchema {
       case userId = "user_id"
     }
   }
+  internal struct CoachReflectionsSelect: Codable, Hashable, Sendable {
+    internal let batchId: String?
+    internal let completedAt: String?
+    internal let contractAfter: String?
+    internal let contractBefore: String?
+    internal let createdAt: String
+    internal let day: String
+    internal let error: String?
+    internal let id: UUID
+    internal let memoryProposalIds: [UUID]
+    internal let reason: String?
+    internal let resolution: String?
+    internal let resolvedAt: String?
+    internal let status: String
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case batchId = "batch_id"
+      case completedAt = "completed_at"
+      case contractAfter = "contract_after"
+      case contractBefore = "contract_before"
+      case createdAt = "created_at"
+      case day = "day"
+      case error = "error"
+      case id = "id"
+      case memoryProposalIds = "memory_proposal_ids"
+      case reason = "reason"
+      case resolution = "resolution"
+      case resolvedAt = "resolved_at"
+      case status = "status"
+      case userId = "user_id"
+    }
+  }
+  internal struct CoachReflectionsInsert: Codable, Hashable, Sendable {
+    internal let batchId: String?
+    internal let completedAt: String?
+    internal let contractAfter: String?
+    internal let contractBefore: String?
+    internal let createdAt: String?
+    internal let day: String
+    internal let error: String?
+    internal let id: UUID?
+    internal let memoryProposalIds: [UUID]?
+    internal let reason: String?
+    internal let resolution: String?
+    internal let resolvedAt: String?
+    internal let status: String
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case batchId = "batch_id"
+      case completedAt = "completed_at"
+      case contractAfter = "contract_after"
+      case contractBefore = "contract_before"
+      case createdAt = "created_at"
+      case day = "day"
+      case error = "error"
+      case id = "id"
+      case memoryProposalIds = "memory_proposal_ids"
+      case reason = "reason"
+      case resolution = "resolution"
+      case resolvedAt = "resolved_at"
+      case status = "status"
+      case userId = "user_id"
+    }
+  }
+  internal struct CoachReflectionsUpdate: Codable, Hashable, Sendable {
+    internal let batchId: String?
+    internal let completedAt: String?
+    internal let contractAfter: String?
+    internal let contractBefore: String?
+    internal let createdAt: String?
+    internal let day: String?
+    internal let error: String?
+    internal let id: UUID?
+    internal let memoryProposalIds: [UUID]?
+    internal let reason: String?
+    internal let resolution: String?
+    internal let resolvedAt: String?
+    internal let status: String?
+    internal let userId: UUID?
+    internal enum CodingKeys: String, CodingKey {
+      case batchId = "batch_id"
+      case completedAt = "completed_at"
+      case contractAfter = "contract_after"
+      case contractBefore = "contract_before"
+      case createdAt = "created_at"
+      case day = "day"
+      case error = "error"
+      case id = "id"
+      case memoryProposalIds = "memory_proposal_ids"
+      case reason = "reason"
+      case resolution = "resolution"
+      case resolvedAt = "resolved_at"
+      case status = "status"
+      case userId = "user_id"
+    }
+  }
   internal struct CoachRunsSelect: Codable, Hashable, Sendable {
     internal let cacheReadTokens: Int32
     internal let cacheWriteTokens: Int32
@@ -1459,6 +1555,7 @@ internal enum PublicSchema {
   internal struct ProfilesSelect: Codable, Hashable, Sendable {
     internal let avatarKey: String
     internal let coachContext: String
+    internal let coachContract: String?
     internal let coachGoal: String
     internal let coachModel: String?
     internal let createdAt: String
@@ -1468,6 +1565,7 @@ internal enum PublicSchema {
     internal let isTemplateSource: Bool
     internal let maxHr: Int32?
     internal let onboardingDismissedAt: String?
+    internal let reflectionOptIn: Bool
     internal let templateCopiedAt: String?
     internal let thresholdHr: Int32?
     internal let tipsSeen: AnyJSON
@@ -1475,6 +1573,7 @@ internal enum PublicSchema {
     internal enum CodingKeys: String, CodingKey {
       case avatarKey = "avatar_key"
       case coachContext = "coach_context"
+      case coachContract = "coach_contract"
       case coachGoal = "coach_goal"
       case coachModel = "coach_model"
       case createdAt = "created_at"
@@ -1484,6 +1583,7 @@ internal enum PublicSchema {
       case isTemplateSource = "is_template_source"
       case maxHr = "max_hr"
       case onboardingDismissedAt = "onboarding_dismissed_at"
+      case reflectionOptIn = "reflection_opt_in"
       case templateCopiedAt = "template_copied_at"
       case thresholdHr = "threshold_hr"
       case tipsSeen = "tips_seen"
@@ -1493,6 +1593,7 @@ internal enum PublicSchema {
   internal struct ProfilesInsert: Codable, Hashable, Sendable {
     internal let avatarKey: String?
     internal let coachContext: String?
+    internal let coachContract: String?
     internal let coachGoal: String?
     internal let coachModel: String?
     internal let createdAt: String?
@@ -1502,6 +1603,7 @@ internal enum PublicSchema {
     internal let isTemplateSource: Bool?
     internal let maxHr: Int32?
     internal let onboardingDismissedAt: String?
+    internal let reflectionOptIn: Bool?
     internal let templateCopiedAt: String?
     internal let thresholdHr: Int32?
     internal let tipsSeen: AnyJSON?
@@ -1509,6 +1611,7 @@ internal enum PublicSchema {
     internal enum CodingKeys: String, CodingKey {
       case avatarKey = "avatar_key"
       case coachContext = "coach_context"
+      case coachContract = "coach_contract"
       case coachGoal = "coach_goal"
       case coachModel = "coach_model"
       case createdAt = "created_at"
@@ -1518,6 +1621,7 @@ internal enum PublicSchema {
       case isTemplateSource = "is_template_source"
       case maxHr = "max_hr"
       case onboardingDismissedAt = "onboarding_dismissed_at"
+      case reflectionOptIn = "reflection_opt_in"
       case templateCopiedAt = "template_copied_at"
       case thresholdHr = "threshold_hr"
       case tipsSeen = "tips_seen"
@@ -1527,6 +1631,7 @@ internal enum PublicSchema {
   internal struct ProfilesUpdate: Codable, Hashable, Sendable {
     internal let avatarKey: String?
     internal let coachContext: String?
+    internal let coachContract: String?
     internal let coachGoal: String?
     internal let coachModel: String?
     internal let createdAt: String?
@@ -1536,6 +1641,7 @@ internal enum PublicSchema {
     internal let isTemplateSource: Bool?
     internal let maxHr: Int32?
     internal let onboardingDismissedAt: String?
+    internal let reflectionOptIn: Bool?
     internal let templateCopiedAt: String?
     internal let thresholdHr: Int32?
     internal let tipsSeen: AnyJSON?
@@ -1543,6 +1649,7 @@ internal enum PublicSchema {
     internal enum CodingKeys: String, CodingKey {
       case avatarKey = "avatar_key"
       case coachContext = "coach_context"
+      case coachContract = "coach_contract"
       case coachGoal = "coach_goal"
       case coachModel = "coach_model"
       case createdAt = "created_at"
@@ -1552,6 +1659,7 @@ internal enum PublicSchema {
       case isTemplateSource = "is_template_source"
       case maxHr = "max_hr"
       case onboardingDismissedAt = "onboarding_dismissed_at"
+      case reflectionOptIn = "reflection_opt_in"
       case templateCopiedAt = "template_copied_at"
       case thresholdHr = "threshold_hr"
       case tipsSeen = "tips_seen"
