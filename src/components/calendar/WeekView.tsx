@@ -2,14 +2,17 @@ import { useMemo, useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { CheckCircle2, Circle } from 'lucide-react';
 import { now, isToday } from '../../lib/clock';
-import { buildWeekDays } from '../../utils/dateHelpers';
+import { buildWeekDays, toDateString } from '../../utils/dateHelpers';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { useSchedule } from '../../context/schedule';
 import { useCalendar } from '../../context/calendar';
+import { useAnnotations } from '../../context/annotations';
 import { useTip } from '../../hooks/useTip';
 import { timeToMinutes } from '../../lib/time';
 import { layoutDayEvents } from '../../lib/schedule/weekLayout';
+import { AnnotationMarker } from './AnnotationChip';
 import type { WorkoutEvent } from '../../types/workout';
+import './annotations.css';
 
 const HOURS = Array.from({ length: 18 }, (_, i) => i + 5); // 5 AM – 10 PM
 
@@ -25,6 +28,10 @@ interface EventBlockProps {
 function EventBlock({ event, colIndex, colCount }: EventBlockProps) {
   const { dispatch } = useCalendar();
   const { toggleCompletion } = useSchedule();
+  const { byEvent } = useAnnotations();
+  // Notes read in the block's tooltip and are dismissed in the day view; a
+  // week block is too small for a pill, and its click already opens the workout.
+  const notes = byEvent(event.id);
   const color = getWorkoutColor(event.type);
   const top = event.startTime ? ((timeToMinutes(event.startTime) - DAY_START) / 60) * SLOT_HEIGHT : 0;
   const height = (event.estimatedDuration / 60) * SLOT_HEIGHT;
@@ -45,7 +52,10 @@ function EventBlock({ event, colIndex, colCount }: EventBlockProps) {
         onClick={() => dispatch({ type: 'SELECT_EVENT', payload: event })}
         aria-label={event.title}
       >
-        <span className="week-event__title">{event.title}{compact && event.startTime ? ` · ${event.startTime}` : ''}</span>
+        <span className="week-event__title">
+          <AnnotationMarker notes={notes} testId="event-annotation-marker" />
+          {event.title}{compact && event.startTime ? ` · ${event.startTime}` : ''}
+        </span>
         {!compact && event.startTime && <span className="week-event__time">{event.startTime}</span>}
       </button>
       <button
@@ -66,6 +76,7 @@ function EventBlock({ event, colIndex, colCount }: EventBlockProps) {
 export default function WeekView({ currentDate }: { currentDate: Date }) {
   const days = useMemo(() => buildWeekDays(currentDate), [currentDate]);
   const { getEventsForDate } = useSchedule();
+  const { byDay } = useAnnotations();
   // Only timed events get a block (and so a complete circle) in this grid.
   const hasEvents = useMemo(
     () => days.some(day => getEventsForDate(day).some(e => e.startTime)),
@@ -90,7 +101,12 @@ export default function WeekView({ currentDate }: { currentDate: Date }) {
             <div className="week-view__time-gutter" />
             {days.map(day => (
               <div key={day.toISOString()} className={`week-view__day-header ${isToday(day) ? 'week-view__day-header--today' : ''}`}>
-                <span className="week-view__dow">{format(day, 'EEE')}</span>
+                {/* A day note is a dot beside the weekday, not a pill: the
+                    header is a fixed-height row, and the day view has the pills. */}
+                <span className="week-view__dow">
+                  {format(day, 'EEE')}
+                  <AnnotationMarker notes={byDay(toDateString(day))} testId="day-annotation-marker" />
+                </span>
                 <span className={`week-view__day-num ${isToday(day) ? 'week-view__day-num--today' : ''}`}>{format(day, 'd')}</span>
               </div>
             ))}

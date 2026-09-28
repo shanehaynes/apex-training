@@ -23,7 +23,18 @@ export const MAX_SERVER_ROUNDS = 5;
 /**
  * The chat coach's tool list in production order (api/chat.ts →
  * chatToolSchemas): the eight write tools, the read tools, read_doctrine.
+ *
+ * Production's list ends with one more entry the harness deliberately does
+ * NOT offer: the typed `memory_20250818` tool (lane C02). It has no
+ * input_schema of ours to wrap for the Agent SDK backend and no fixture
+ * backend here — a `memory view` would always read as empty and a write would
+ * always be refused — so offering it would measure a coach talking to a stub.
+ * MEMORY_TOOL_OMITTED names the gap; __tests__/reads.test.ts pins that it is
+ * the ONLY difference from production, so any other new tool still fails the
+ * mirror. Fixture-backed memory is a follow-up (docs/coach/STATUS.md).
  */
+export const MEMORY_TOOL_OMITTED = 'memory';
+
 export function chatToolSchemas(): Anthropic.Tool[] {
   return [...coachToolSchemas(), ...readToolSchemas(), { ...readDoctrineToolSchema }];
 }
