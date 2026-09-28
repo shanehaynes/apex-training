@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { DraftCard, DraftEmpty, editFields } from '../BlockPlanner';
+import { DraftCard, DraftEmpty } from '../BlockPlanner';
+import { editFields } from '../../../lib/blocks/draft';
 import { blockFieldsToRow } from '../../../lib/blocks/mapping';
 import { ReadChips } from '../BlockPlannerPanel';
 import type { BlockDraftItem } from '../../../lib/blocks/draft';

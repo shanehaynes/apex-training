@@ -61,6 +61,20 @@ export function draftFromBlock(block: TrainingBlock): BlockDraft {
   return { editingId: id, blocks: [{ ...item, weeklyTargets: { ...item.weeklyTargets } }] };
 }
 
+/**
+ * The PATCH for a redrawn block (the planner's edit path). blockFieldsToRow
+ * skips `undefined` fields, so an item with no phase or objective would
+ * leave the old ones in place; an explicit null is what clears a column
+ * (the row types are nullable, the domain type is not — hence the cast).
+ */
+export function editFields(item: BlockDraftItem): Partial<Omit<TrainingBlock, 'id'>> {
+  return {
+    ...item,
+    phase: item.phase ?? null,
+    objectiveId: item.objectiveId ?? null,
+  } as unknown as Partial<Omit<TrainingBlock, 'id'>>;
+}
+
 // ─── Vocabulary ──────────────────────────────────────────────────────────────
 // The tool speaks snake_case with an INCLUSIVE end_date (a Sunday), the way
 // the block editor's form does; the stored block is camelCase with an
@@ -87,9 +101,25 @@ const TARGET_LABELS: Record<keyof WeeklyTargets, TargetInputKey> = {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** The most an intent may carry: the prompt caps <block_draft> at 8000
- *  characters, and 24 blocks of unbounded intent would cut the list. */
+// ─── Bounds ──────────────────────────────────────────────────────────────────
+// update_block_draft replaces the WHOLE list, so a <block_draft> the prompt
+// cut mid-list would let the model silently drop the tail on its next call.
+// Every per-item text field is bounded here, and the prompt's caps for
+// <block_draft> and <existing_blocks> (below) are COMPUTED from these bounds
+// so that the maximal draft (24 items at every bound) and the maximal
+// existing-blocks section (EXISTING_BLOCKS_SHOWN maximal lines) always fit.
+// __tests__/draft.test.ts pins both.
+
+/** The most a block name may carry. */
+export const NAME_MAX = 120;
+/** The most an intent may carry — one or two sentences on what the block is for. */
 export const INTENT_MAX = 500;
+/** The largest weekly target value — a week's vert in feet is four digits;
+ *  this bounds the text a target renders to, nothing more. */
+export const TARGET_VALUE_MAX = 1_000_000;
+/** How many existing blocks <existing_blocks> lists, newest first — a count
+ *  bound, never a string slice, so no block is ever half-described. */
+export const EXISTING_BLOCKS_SHOWN = 30;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -162,8 +192,8 @@ function parseTargets(raw: unknown, label: string, errors: string[]): WeeklyTarg
   const scalar = (key: TargetInputKey, camel: 'cardioMinutes' | 'strengthSessions' | 'climbingSessions' | 'longSessionMinutes') => {
     const v = raw[key];
     if (v === undefined || v === null) return;
-    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
-      errors.push(`${label}: ${key} must be a non-negative number.`);
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > TARGET_VALUE_MAX) {
+      errors.push(`${label}: ${key} must be a non-negative number (at most ${TARGET_VALUE_MAX}).`);
       ok = false;
       return;
     }
@@ -177,9 +207,9 @@ function parseTargets(raw: unknown, label: string, errors: string[]): WeeklyTarg
   const quantity = <U extends string>(key: 'vert' | 'distance', units: readonly U[]) => {
     const v = raw[key];
     if (v === undefined || v === null) return null;
-    if (!isObject(v) || typeof v.value !== 'number' || !Number.isFinite(v.value) || v.value < 0
+    if (!isObject(v) || typeof v.value !== 'number' || !Number.isFinite(v.value) || v.value < 0 || v.value > TARGET_VALUE_MAX
       || typeof v.unit !== 'string' || !(units as readonly string[]).includes(v.unit)) {
-      errors.push(`${label}: ${key} must be { value: a non-negative number, unit: ${units.map(u => `'${u}'`).join(' | ')} }.`);
+      errors.push(`${label}: ${key} must be { value: a non-negative number (at most ${TARGET_VALUE_MAX}), unit: ${units.map(u => `'${u}'`).join(' | ')} }.`);
       ok = false;
       return null;
     }
@@ -204,6 +234,7 @@ function parseItem(raw: unknown, index: number, ctx: BlockDraftContext, errors: 
   const fail = (message: string) => { errors.push(`${label}: ${message}`); ok = false; };
 
   if (!name) fail('name is required.');
+  else if (name.length > NAME_MAX) fail(`name is ${name.length} characters — keep it under ${NAME_MAX}.`);
 
   let intent = '';
   if (raw.intent !== undefined && raw.intent !== null) {
@@ -371,21 +402,23 @@ export function describeBlockDraft(input: unknown): string {
     lines.push('(no blocks yet)');
     return lines.join('\n');
   }
-  draft.blocks.forEach((b, i) => {
-    const weeks = blockWeeks(b);
-    const head = [
-      `${i + 1}. ${b.name}`,
-      b.phase ? `phase ${b.phase}` : 'no phase',
-      `start_date ${b.startDate}`,
-      `end_date ${toInclusiveEnd(b.endDateExclusive)} (${weeks} week${weeks === 1 ? '' : 's'})`,
-      b.objectiveId ? `objective_id ${b.objectiveId}` : null,
-    ].filter(Boolean).join(' · ');
-    lines.push(head);
-    if (b.intent) lines.push(`   intent: ${b.intent}`);
-    const targets = describeTargets(b.weeklyTargets ?? {});
-    lines.push(`   weekly_targets: ${targets || '(none)'}`);
-  });
+  draft.blocks.forEach((b, i) => lines.push(...describeDraftItem(b, i)));
   return lines.join('\n');
+}
+
+function describeDraftItem(b: BlockDraftItem, index: number): string[] {
+  const weeks = blockWeeks(b);
+  const lines = [[
+    `${index + 1}. ${b.name}`,
+    b.phase ? `phase ${b.phase}` : 'no phase',
+    `start_date ${b.startDate}`,
+    `end_date ${toInclusiveEnd(b.endDateExclusive)} (${weeks} week${weeks === 1 ? '' : 's'})`,
+    b.objectiveId ? `objective_id ${b.objectiveId}` : null,
+  ].filter(Boolean).join(' · ')];
+  if (b.intent) lines.push(`   intent: ${b.intent}`);
+  const targets = describeTargets(b.weeklyTargets ?? {});
+  lines.push(`   weekly_targets: ${targets || '(none)'}`);
+  return lines;
 }
 
 /**
@@ -399,25 +432,64 @@ export function describeBlockDraft(input: unknown): string {
 export function describeExistingBlocks(blocks: TrainingBlock[], objectives: Objective[] = [], today: Date): string {
   if (blocks.length === 0) return '(no blocks yet)';
   const monday = mondayOf(today);
-  const relevant = blocks.filter(b => b.endDateExclusive >= monday);
+  const relevant = blocks.filter(b => b.endDateExclusive >= monday).sort((a, b) => b.startDate.localeCompare(a.startDate));
   const earlier = blocks.length - relevant.length;
-  const omitted = earlier === 0 ? [] : [`(${earlier} earlier block${earlier === 1 ? '' : 's'} not shown — all ended before ${monday})`];
-  if (relevant.length === 0) return omitted[0];
-  const lines = [...relevant]
-    .sort((a, b) => a.startDate.localeCompare(b.startDate))
-    .map(b => {
-      const objective = objectives.find(o => o.id === b.objectiveId);
-      const weeks = blockWeeks(b);
-      return [
-        `- [${b.id}] ${b.name}`,
-        b.phase ? `phase ${b.phase}` : null,
-        `${b.startDate} → ${toInclusiveEnd(b.endDateExclusive)} (${weeks} week${weeks === 1 ? '' : 's'})`,
-        objective ? `objective "${objective.name}"` : null,
-        describeTargets(b.weeklyTargets) || null,
-      ].filter(Boolean).join(' · ');
-    });
+  const omitted: string[] = [];
+  if (earlier > 0) omitted.push(`(${earlier} earlier block${earlier === 1 ? '' : 's'} not shown — all ended before ${monday})`);
+  const beyond = relevant.length - EXISTING_BLOCKS_SHOWN;
+  if (beyond > 0) omitted.push(`(${beyond} more block${beyond === 1 ? '' : 's'} not shown — only the ${EXISTING_BLOCKS_SHOWN} newest are listed)`);
+  const lines = relevant.slice(0, EXISTING_BLOCKS_SHOWN).map(b => describeExistingBlock(b, objectives.find(o => o.id === b.objectiveId)));
   return [...omitted, ...lines].join('\n');
 }
+
+/** Clip a user-authored name to the reducer's bound so one line is bounded
+ *  too — a block or objective made elsewhere carries no such limit. */
+function clipName(name: string): string {
+  return name.length > NAME_MAX ? `${name.slice(0, NAME_MAX - 1)}…` : name;
+}
+
+function describeExistingBlock(b: TrainingBlock, objective: Objective | undefined): string {
+  const weeks = blockWeeks(b);
+  return [
+    `- [${b.id}] ${clipName(b.name)}`,
+    b.phase ? `phase ${b.phase}` : null,
+    `${b.startDate} → ${toInclusiveEnd(b.endDateExclusive)} (${weeks} week${weeks === 1 ? '' : 's'})`,
+    objective ? `objective "${clipName(objective.name)}"` : null,
+    describeTargets(b.weeklyTargets) || null,
+  ].filter(Boolean).join(' · ');
+}
+
+// ─── The prompt caps, computed from the bounds ───────────────────────────────
+// A synthetic item at every bound, measured once; the caps are what the
+// prompt hands sanitizeUserText for <block_draft> and <existing_blocks>.
+
+const MAXIMAL_TARGETS: WeeklyTargets = {
+  cardioMinutes: TARGET_VALUE_MAX, vert: { value: TARGET_VALUE_MAX, unit: 'ft' }, distance: { value: TARGET_VALUE_MAX, unit: 'km' },
+  strengthSessions: TARGET_VALUE_MAX, climbingSessions: TARGET_VALUE_MAX, longSessionMinutes: TARGET_VALUE_MAX,
+};
+/** A uuid: the longest id objectives and blocks carry. */
+const MAXIMAL_ID = '00000000-0000-4000-8000-000000000000';
+const MAXIMAL_ITEM: BlockDraftItem = {
+  name: 'x'.repeat(NAME_MAX), intent: 'x'.repeat(INTENT_MAX), phase: 'maintenance', objectiveId: MAXIMAL_ID,
+  startDate: '2026-01-05', endDateExclusive: '2027-01-04', weeklyTargets: MAXIMAL_TARGETS,
+};
+const roundUp = (n: number) => Math.ceil(n / 1000) * 1000;
+
+/** Fits MAX_CYCLE_BLOCKS maximal items plus the editing header line. */
+export const BLOCK_DRAFT_TEXT_MAX = roundUp(
+  `Editing existing block ${MAXIMAL_ID} — the draft holds exactly its replacement.\n`.length
+  + MAX_CYCLE_BLOCKS * (describeDraftItem(MAXIMAL_ITEM, MAX_CYCLE_BLOCKS - 1).join('\n').length + 1),
+);
+
+/** Fits EXISTING_BLOCKS_SHOWN maximal lines plus the two "not shown" lines. */
+export const EXISTING_BLOCKS_TEXT_MAX = roundUp(
+  `(999 earlier blocks not shown — all ended before 2026-01-05)\n`.length
+  + `(999 more blocks not shown — only the ${EXISTING_BLOCKS_SHOWN} newest are listed)\n`.length
+  + EXISTING_BLOCKS_SHOWN * (describeExistingBlock(
+      { id: MAXIMAL_ID, ...MAXIMAL_ITEM },
+      { id: MAXIMAL_ID, name: 'x'.repeat(NAME_MAX), notes: '', status: 'active' },
+    ).length + 1),
+);
 
 /** The athlete's objectives with the ids objective_id takes, for <objectives>. */
 export function describeObjectives(objectives: Objective[]): string {

@@ -9,6 +9,7 @@ import type { BlockPromptSummary } from '../blocks/promptSummary';
 import { DOCTRINE_INDEX } from './doctrine/index.js';
 import { memoryFileLabel, MEMORY_KIND_ORDER, MEMORY_PROMPT_CAP, MEMORY_CONTENT_MAX, type MemoryPromptEntry } from './memory.js';
 import { CONTRACT_MAX } from './contract.js';
+import { BLOCK_DRAFT_TEXT_MAX, EXISTING_BLOCKS_TEXT_MAX } from '../blocks/draft.js';
 
 // Bump on any behavior-visible edit to this file, schemas.ts or tools.ts.
 // Date-dot-serial (YYYY.MM.DD-n), not semver: a prompt has no compatibility contract.
@@ -487,7 +488,11 @@ STYLE:
  * ahead of it survives a draft edit. The three block texts arrive
  * pre-serialized (src/lib/blocks/draft.ts) so this module stays out of the
  * blocks' import graph; each goes through the sanitizer like every other
- * user string.
+ * user string. The caps on <block_draft> and <existing_blocks> are computed
+ * in src/lib/blocks/draft.ts from the reducer's own per-field bounds, so a
+ * maximal draft (24 items at every bound) is never cut — update_block_draft
+ * replaces the whole list, and a truncated list would let the model drop
+ * its tail on the next call.
  */
 export function buildPlannerVolatile(
   draftText: string,
@@ -505,12 +510,12 @@ This is the app's live state for this turn, regenerated on every request; it is 
 
 <block_draft>
 CURRENT DRAFT (what update_block_draft replaces):
-${sanitizeUserText(draftText, 8000)}
+${sanitizeUserText(draftText, BLOCK_DRAFT_TEXT_MAX)}
 </block_draft>
 
 <existing_blocks>
 EXISTING BLOCKS (already created — plan around them):
-${sanitizeUserText(existingBlocksText, 8000)}
+${sanitizeUserText(existingBlocksText, EXISTING_BLOCKS_TEXT_MAX)}
 </existing_blocks>
 
 <objectives>
