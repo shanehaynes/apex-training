@@ -17,9 +17,9 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 | C01 | Evals: harness realignment, `sight` and `doctrine` cases, doctrine dimension | C | done (#353, `3de0233`; reconciling commit for C02's memory tool landed with #355) | `feat/coach-evals-sight` | |
 | C02 | Memory: `coach_memory` migration, memory tool backend, proposal cards | C | done (#354, `cd3961a`) — phase48 to apply in production | `feat/coach-memory` | `PROMPT_VERSION` → 2026.09.27-1 |
 | C03 | Calendar annotations: table, handler, chips, block strip, day/week views | C | done (#355, `a172cf7`) — phase49 to apply in production | `feat/coach-annotations` | C03b follow-up session folded in |
-| D01 | Reflection + coaching contract + `leave_note` (nightly, proposal-gated) | D | in review (#358, head `caa03b9`) — **HELD** (phase50 + `vercel.json` cron); generated-types order fixed after CI's `full`; merges first | `feat/coach-reflection` | HELD (phase50 + `vercel.json` cron); `PROMPT_VERSION` → 2026.09.28-1; merges first |
-| D02 | Notebook page: memory, proposals, contract, doctrine | D | in review (#359, head `a19f069`) — merges second | `feat/coach-notebook` | codes against D01's interface contract; merges second |
-| D03 | Weekly review document + "next week" proposals | D | in review (#360, head `0f3a8c4`) — merges third | `feat/coach-weekly-review` | no table, no cron; merges third |
+| D01 | Reflection + coaching contract + `leave_note` (nightly, proposal-gated) | D | in review (#358, head `8c46c55`) — **HELD** (phase50 + `vercel.json` cron); CI green but `coach-gate` (by design); four Codex findings fixed; merges first | `feat/coach-reflection` | HELD (phase50 + `vercel.json` cron); `PROMPT_VERSION` → 2026.09.28-1; merges first |
+| D02 | Notebook page: memory, proposals, contract, doctrine | D | in review (#359, head `0a99907`) — CI green but `coach-gate` (by design); two Codex findings fixed; merges second | `feat/coach-notebook` | codes against D01's interface contract; merges second |
+| D03 | Weekly review document + "next week" proposals | D | in review (#360, head `768f003`) — CI fully green; three Codex findings fixed; merges third | `feat/coach-weekly-review` | no table, no cron; merges third |
 | E01 | Block planner mode | E | ready (after D) | `feat/coach-block-planner` | alone in its wave: owns every hot file |
 | E02 | Ask-coach from a session or set | E | ready (after D) | `feat/coach-ask-from-context` | |
 
@@ -82,3 +82,10 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
   Shane); phase50 claimed; fold green with no reconciling patch; PRs #358 #359 #360 opened
   and subscribed. D01 chose `messages.create` per athlete over the Batch API (recorded in
   the PR); D03 stores nothing server-side in v1.
+- 2026-09-28 · orchestrator · review round one on wave D: nine Codex findings (two P1 on the
+  cron's backlog and on past-dated review proposals, one P1 on occurrence updates, six P2s)
+  verified and delegated back to the lane sessions, which fixed them within the hour
+  (`8c46c55`, `0a99907`, `768f003`); CI's `full` on #358 caught two things the brief should
+  have named — the generator's alphabetical table order and the iOS `profile.json` fixture —
+  both fixed by the orchestrator. Fold of the three fixed heads green (vitest 2203). Threads
+  resolved. Waiting on Shane's `shipit` for #358.
