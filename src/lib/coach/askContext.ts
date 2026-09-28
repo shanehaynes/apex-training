@@ -26,6 +26,15 @@ export interface AskCoachRequest {
   source: 'modal' | 'tracker';
 }
 
+/**
+ * The widths at which the coach pane cannot be shown at all: app.css hides
+ * `.app-sidebar` up to 1024px, and the Coach tab that brings it back exists
+ * only on the phone layout (768px and below). The two buttons stay hidden
+ * here — an ask would leave the modal or tracker and bill a turn nobody
+ * can read. Closing that gap is a layout change, not this feature's.
+ */
+export const COACH_PANE_HIDDEN_QUERY = '(min-width: 769px) and (max-width: 1024px)';
+
 /** Longest title the hidden text carries; the prompt's own inline cap. */
 const TITLE_MAX = 120;
 

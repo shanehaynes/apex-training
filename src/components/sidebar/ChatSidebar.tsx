@@ -284,6 +284,13 @@ export default function ChatSidebar() {
     if (actionBusy || actionLatchRef.current) return;
     if (!shouldSendAskCoach(askCoach, { isLoading, pendingAction, lastSent: askSentRef.current })) return;
     askSentRef.current = askCoach;
+    if (needsKey) {
+      // No key saved: nothing to send, as the other entry points are
+      // disabled. The pin is still consumed — the phone's Coach tab has
+      // opened on it, and what the athlete sees there is the key setup.
+      dispatch({ type: 'CLEAR_ASK_COACH' });
+      return;
+    }
     runExclusive(async () => {
       const ctx = await resolveContext();
       // Cleared once the send is committed, so a second Ask that lands
@@ -291,7 +298,7 @@ export default function ChatSidebar() {
       dispatch({ type: 'CLEAR_ASK_COACH' });
       await sendMessage(askCoachPrompt(askCoach), ctx, { display: askCoachDisplay(askCoach) });
     });
-  }, [askCoach, isLoading, pendingAction, actionBusy, runExclusive, resolveContext, sendMessage, dispatch]);
+  }, [askCoach, isLoading, pendingAction, actionBusy, needsKey, runExclusive, resolveContext, sendMessage, dispatch]);
 
   // ── Mutation executor (called on Confirm) — runs on the server ────────────
   // POST /api/coach-tool executes the confirmed tool with the same executors

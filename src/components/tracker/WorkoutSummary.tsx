@@ -23,8 +23,9 @@ interface Props {
   onClose: () => void;
   /** Primary action — leave the tracker and return to the calendar. */
   onDone: () => void;
-  /** Leave the tracker and open the coach with this session pinned (D-C08). */
-  onAskCoach: () => void;
+  /** Leave the tracker and open the coach with this session pinned (D-C08).
+   *  Absent where the coach pane cannot be shown (tablet widths). */
+  onAskCoach?: () => void;
 }
 
 function formatDuration(seconds: number | null): string | null {
@@ -90,10 +91,17 @@ export default function WorkoutSummary({
 
         <div className="tracker-summary__coach">
           <span className="tracker-summary__label">Coach's Summary</span>
+          {/* 'loading' lasts until the stream ends — which is when the
+              server has saved the summary — so the words stream in under
+              that status, and the placeholder shows only before the first. */}
           {coachStatus === 'loading' && (
-            <p className="tracker-summary__coach-text tracker-summary__coach-text--loading">
-              Your coach is writing…
-            </p>
+            coachText
+              ? <p className="tracker-summary__coach-text">{coachText}</p>
+              : (
+                <p className="tracker-summary__coach-text tracker-summary__coach-text--loading">
+                  Your coach is writing…
+                </p>
+              )
           )}
           {coachStatus === 'ready' && coachText && (
             <p className="tracker-summary__coach-text">{coachText}</p>
@@ -162,15 +170,26 @@ export default function WorkoutSummary({
           <button className="tracker-summary__done" style={{ background: accentColor }} onClick={onDone}>
             Back to calendar
           </button>
-          <button
-            className="tracker-summary__done"
-            data-testid="ask-coach-summary"
-            style={{ background: 'transparent', color: accentColor, border: `1px solid ${accentColor}` }}
-            onClick={onAskCoach}
-          >
-            <MessageSquare size={14} strokeWidth={1.5} style={{ verticalAlign: '-2px', marginRight: 6 }} />
-            Ask the coach about this session
-          </button>
+          {/* Held while the coach's summary is still streaming: the ask
+              promises the coach that session's own summary, and the server
+              saves it only when the stream ends — an earlier ask would read
+              a session without one. */}
+          {onAskCoach && (
+            <button
+              className="tracker-summary__done"
+              data-testid="ask-coach-summary"
+              style={{
+                background: 'transparent', color: accentColor, border: `1px solid ${accentColor}`,
+                ...(coachStatus === 'loading' ? { opacity: 0.5, cursor: 'default' } : {}),
+              }}
+              disabled={coachStatus === 'loading'}
+              title={coachStatus === 'loading' ? "Available once the coach's summary is saved" : undefined}
+              onClick={onAskCoach}
+            >
+              <MessageSquare size={14} strokeWidth={1.5} style={{ verticalAlign: '-2px', marginRight: 6 }} />
+              Ask the coach about this session
+            </button>
+          )}
         </div>
       </div>
     </div>
