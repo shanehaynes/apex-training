@@ -462,3 +462,70 @@ export const updateChartDraftSchema: Anthropic.Tool = {
 export function analyticsToolSchemas(): Anthropic.Tool[] {
   return [updateChartDraftSchema];
 }
+
+// ─── Planner mode (toolMode: 'planner') ──────────────────────────────────────
+// The Training blocks overlay's "Plan with the coach" thread (decision D-C07):
+// ONE write tool, a whole-list replacement over the block draft the user
+// owns, reduced by src/lib/blocks/draft.ts. api/chat.ts appends the read
+// tools and read_doctrine after it, as it does for chat — the planner reads
+// the athlete's history and the doctrine before it drafts — but no calendar
+// or meal write and no memory tool exist in this mode, which makes "the
+// planner can never touch the schedule or memory" structural. Nothing
+// persists until the user presses Apply.
+
+// Mirrored BY HAND from src/types/blocks.ts BLOCK_PHASES and
+// src/lib/blocks/targets.ts, for the same dependency-free reason as the
+// chart enums above; src/lib/coach/__tests__/plannerSchema.test.ts pins them.
+const BLOCK_PHASE_VALUES = ['base', 'build', 'peak', 'taper', 'recovery', 'maintenance'];
+
+export const updateBlockDraftSchema: Anthropic.Tool = {
+  name: 'update_block_draft',
+  description:
+    'Replace the block draft the user is planning. `blocks` is the WHOLE list in date order — pass every ' +
+    'block the draft should hold, not just the ones that change. Each block: a name; start_date, a Monday ' +
+    '(YYYY-MM-DD); end_date, the Sunday that closes its last week (inclusive); optional phase, intent, ' +
+    'objective_id (an id from <objectives>) and weekly_targets. Rules the reducer enforces, all reported at ' +
+    'once: 1–24 blocks; blocks are contiguous (each starts the day after the previous ends) and in order; ' +
+    'none overlaps an existing block; none starts before this week\'s Monday (an edited block excepted); ' +
+    'at most 52 weeks each. When the draft edits an existing block, pass exactly one item. This edits the ' +
+    'draft only — nothing is created until the user presses Apply, which only they can do.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      blocks: {
+        type: 'array',
+        description: 'The complete list of blocks, in date order. Replaces the draft.',
+        items: {
+          type: 'object',
+          properties: {
+            name:         { type: 'string', description: 'At most 120 characters.' },
+            intent:       { type: 'string', description: 'What this block is FOR — one or two sentences, at most 500 characters.' },
+            phase:        { type: 'string', enum: BLOCK_PHASE_VALUES },
+            objective_id: { type: 'string', description: 'The id in [brackets] of one of the athlete\'s objectives; omit for none.' },
+            start_date:   { type: 'string', description: 'YYYY-MM-DD, a Monday.' },
+            end_date:     { type: 'string', description: 'YYYY-MM-DD, the last day of the block (a Sunday), inclusive.' },
+            weekly_targets: {
+              type: 'object',
+              description: 'Per-week targets; omit a key for no target. Quantities carry their unit — the app never converts across units.',
+              properties: {
+                cardio_minutes:       { type: 'number', description: 'Minutes of cardio-type sessions per week.' },
+                vert:                 { type: 'object', description: 'Vertical gain per week.', properties: { value: { type: 'number' }, unit: { type: 'string', enum: ['ft', 'm'] } }, required: ['value', 'unit'] },
+                distance:             { type: 'object', description: 'Distance per week.', properties: { value: { type: 'number' }, unit: { type: 'string', enum: ['mi', 'km'] } }, required: ['value', 'unit'] },
+                strength_sessions:    { type: 'number', description: 'Completed strength sessions per week.' },
+                climbing_sessions:    { type: 'number', description: 'Completed climbing sessions (indoor or outdoor) per week.' },
+                long_session_minutes: { type: 'number', description: 'A threshold, not a volume: sessions at or above this many minutes count as the long day.' },
+              },
+            },
+          },
+          required: ['name', 'start_date', 'end_date'],
+        },
+      },
+    },
+    required: ['blocks'],
+  },
+};
+
+/** The planner thread's write half — api/chat.ts appends the reads and read_doctrine. */
+export function plannerToolSchemas(): Anthropic.Tool[] {
+  return [updateBlockDraftSchema];
+}

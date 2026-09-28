@@ -82,13 +82,13 @@ vi.mock('../_lib/coach/context.js', () => {
   class ChatContextError extends Error {}
   return {
     ChatContextError,
-    isChatMode: (v: unknown) => v === 'chat' || v === 'builder' || v === 'analytics',
+    isChatMode: (v: unknown) => v === 'chat' || v === 'builder' || v === 'analytics' || v === 'planner',
     buildChatContext: vi.fn(async (_db: unknown, _u: string, mode: string, today: unknown) => {
       if (typeof today !== 'string' || today === 'bad') throw new ChatContextError('today must be a YYYY-MM-DD date');
       return {
         system: `SERVER PROMPT (${mode})`,
-        // Chat is the split prompt; builder and analytics stay one block.
-        volatile: mode === 'chat' ? '<live_context>LIVE STATE</live_context>' : '',
+        // Chat and the planner are the split prompt; builder and analytics stay one block.
+        volatile: mode === 'chat' || mode === 'planner' ? '<live_context>LIVE STATE</live_context>' : '',
         toolContext: {
           definitions: new Map(),
           events: [{ id: 'evt-9', title: 'Leg day', date: '2026-09-04', type: 'weights', estimatedDuration: 60, isCompleted: false }],
@@ -684,6 +684,32 @@ describe('chat handler — split prompt: 1-hour prefix, live context per turn', 
     ]);
   });
 
+  it('planner v2 (E01): the split prompt — a 1-hour prefix with the live context injected, like chat', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
+    const { res } = makeHandlerRes();
+    const draft = { editingId: null, blocks: [] };
+    await handler(makeHandlerReq({
+      mode: 'planner', today: '2026-09-03', withTools: true, context: { draft },
+      messages: [{ role: 'user', content: 'plan me 12 weeks to Denali' }],
+    }), res);
+
+    expect(vi.mocked(buildChatContext).mock.calls.at(-1)!.slice(2)).toEqual(['planner', '2026-09-03', draft]);
+    const params = streamMock.mock.calls.at(-1)![0] as unknown as Anthropic.MessageStreamParams;
+    expect(params.system).toEqual([
+      { type: 'text', text: 'SERVER PROMPT (planner)', cache_control: { type: 'ephemeral', ttl: '1h' } },
+    ]);
+    expect(params.tools).toEqual(cachedToolSchemas('planner', '1h'));
+    expect(params.tools?.at(-1)).toMatchObject({ name: 'read_doctrine', cache_control: { type: 'ephemeral', ttl: '1h' } });
+    expect(params.messages).toEqual([{
+      role: 'user',
+      content: [
+        { type: 'text', text: LIVE },
+        { type: 'text', text: 'plan me 12 weeks to Denali', cache_control: { type: 'ephemeral' } },
+      ],
+    }]);
+    expect(coachRuns[0]).toMatchObject({ mode: 'planner' });
+  });
+
   it('legacy body.system: one system block with the 5-minute breakpoint, nothing injected', async () => {
     vi.mocked(getAnthropicKey).mockResolvedValueOnce('sk-test');
     const { res } = makeHandlerRes();
@@ -975,6 +1001,16 @@ describe('chat tool list — the sight loop', () => {
     // Builder and analytics stay single-tool.
     expect(cachedToolSchemas('builder').map(t => t.name)).toEqual(['update_workout_draft']);
     expect(cachedToolSchemas('analytics').map(t => t.name)).toEqual(['update_chart_draft']);
+    // The planner (E01): its one write, the reads, read_doctrine — no memory,
+    // no calendar or meal write, so it cannot touch the schedule or memory.
+    const planner = cachedToolSchemas('planner').map(t => t.name);
+    expect(planner).toEqual(['update_block_draft', ...readToolSchemas().map(t => t.name), readDoctrineToolSchema.name]);
+    expect(planner).not.toContain('memory');
+    for (const write of coachToolSchemas().map(t => t.name)) expect(planner).not.toContain(write);
+    expect(cachedToolSchemas('planner', '1h').at(-1)).toMatchObject({ name: 'read_doctrine', cache_control: { type: 'ephemeral', ttl: '1h' } });
+    expect(cachedToolSchemas('planner').slice(0, -1).every(t => !('cache_control' in t))).toBe(true);
+    expect(cachedToolSchemas('planner')).toEqual(cachedToolSchemas('planner'));
+    expect(cachedToolSchemas('planner').at(-1)).not.toBe(readDoctrineToolSchema);
     // Identical on every call: a prefix match over the tool list needs that.
     expect(chatToolSchemas()).toEqual(chatToolSchemas());
     // The module's own schema objects are never handed out, so a caller's
@@ -1038,6 +1074,42 @@ describe('chat handler — server-side read loop', () => {
       input_tokens: 22, cache_read_tokens: 14, cache_write_tokens: 6, output_tokens: 10,
       tool_use_count: 1, stop_reason: 'end_turn',
     });
+  });
+
+  it('planner mode (E01) runs the same loop: a read round, then the draft write streams to the client and ends the turn', async () => {
+    const PLAN = { blocks: [{ name: 'Base', phase: 'base', start_date: '2026-09-07', end_date: '2026-10-04' }] };
+    queueRounds(
+      [...ended('tool_use'), ...textBlock('Reading.'), ...toolCall('tu_r1', 'get_training_blocks', {}), ...toolCall('tu_d1', 'read_doctrine', { topic: 'periodization' })],
+      [...ended('tool_use'), ...textBlock('Here is the plan.'), ...toolCall('tu_w1', 'update_block_draft', PLAN)],
+    );
+    const { events } = await runChat(chatBody({ mode: 'planner', context: { draft: { editingId: null, blocks: [] } } }));
+
+    expect(streamMock).toHaveBeenCalledTimes(2);
+    expect(events.map(e => e.type)).toEqual(['text', 'tool_read', 'tool_read', 'tool_read_result', 'tool_read_result', 'text', 'tool_use', 'done']);
+    expect(events[1]).toMatchObject({ type: 'tool_read', id: 'tu_r1', name: 'get_training_blocks' });
+    expect(events[2]).toMatchObject({ type: 'tool_read', id: 'tu_d1', name: 'read_doctrine', label: `Doctrine: ${DOCTRINE_TOPICS.find(t => t.id === 'periodization')!.title}` });
+    // The write is the builder's shape — a plain tool_use the client settles
+    // itself; update_block_draft is no registry tool, so it carries no label.
+    expect(events[6]).toEqual({ type: 'tool_use', id: 'tu_w1', name: 'update_block_draft', input: PLAN });
+    expect(executeReadToolMock).toHaveBeenCalledWith(expect.anything(), 'user-123', 'get_training_blocks', {});
+    // Both rounds went out with the planner's list and prefix; the second carries the answered reads.
+    const first = paramsOfCall(0);
+    const second = paramsOfCall(1);
+    expect(first.tools).toEqual(cachedToolSchemas('planner', '1h'));
+    expect(second.tools).toEqual(first.tools);
+    expect(second.system).toEqual(first.system);
+    expect(second.messages).toHaveLength(3);
+    expect((second.messages[2].content as Array<{ tool_use_id: string }>).map(r => r.tool_use_id)).toEqual(['tu_r1', 'tu_d1']);
+    expect(JSON.stringify(second.messages).match(/LIVE STATE/g)).toHaveLength(1);
+    expect(coachRuns[0]).toMatchObject({ mode: 'planner', tool_use_count: 3, stop_reason: 'tool_use' });
+  });
+
+  it('builder mode never loops: a read tool_use it cannot have streams to the client as before', async () => {
+    queueRounds([...ended('tool_use'), ...toolCall('tu_x', 'get_training_blocks', {})]);
+    const { events } = await runChat(chatBody({ mode: 'builder', context: { draft: { title: 'x' } } }));
+    expect(streamMock).toHaveBeenCalledTimes(1);
+    expect(events.map(e => e.type)).toEqual(['tool_use', 'done']);
+    expect(executeReadToolMock).not.toHaveBeenCalled();
   });
 
   it('answers every read of a parallel round in ONE user message, in block order', async () => {

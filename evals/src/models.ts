@@ -5,7 +5,7 @@ import type { ApiMessage, CallModel, ModelResponse } from './types';
 import { analyticsToolSchemas, builderToolSchemas } from '../../src/lib/coach/schemas';
 import { COACH_MODEL } from '../../src/lib/coach/model';
 import { COACH_MODELS } from '../../src/lib/coach/models';
-import { chatToolSchemas } from './reads';
+import { chatToolSchemas, plannerChatToolSchemas } from './reads';
 
 // Per-model request params + pricing. The coach-under-test request shape is
 // replicated from api/chat.ts: max_tokens 8192, per-model thinking params,
@@ -71,7 +71,7 @@ export function makeAnthropicCaller(client: Anthropic, model: string): CallModel
       system,
       messages: messages as Anthropic.MessageParam[],
       ...(withTools
-        ? { tools: toolMode === 'builder' ? builderToolSchemas() : toolMode === 'analytics' ? analyticsToolSchemas() : chatToolSchemas() }
+        ? { tools: toolMode === 'builder' ? builderToolSchemas() : toolMode === 'analytics' ? analyticsToolSchemas() : toolMode === 'planner' ? plannerChatToolSchemas() : chatToolSchemas() }
         : {}),
     });
     const final = await stream.finalMessage();

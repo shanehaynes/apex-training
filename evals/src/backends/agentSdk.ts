@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { analyticsToolSchemas, builderToolSchemas } from '../../../src/lib/coach/schemas';
 import { COACH_MODELS } from '../../../src/lib/coach/models';
 import { isServerSideTool } from '../../../src/lib/coach/tools';
-import { chatToolSchemas } from '../reads';
+import { chatToolSchemas, plannerChatToolSchemas } from '../reads';
 import type {
   ApiMessage,
   Backend,
@@ -58,10 +58,12 @@ export function zodShapeFromJsonSchema(inputSchema: unknown): z.ZodRawShape {
 }
 
 /** The production list per mode: chat carries the read tools and
- *  read_doctrine after the write tools (api/chat.ts → chatToolSchemas). */
-export function schemasFor(toolMode?: 'builder' | 'analytics') {
+ *  read_doctrine after the write tools (api/chat.ts → chatToolSchemas); the
+ *  planner its one write, then the same reads (plannerChatToolSchemas). */
+export function schemasFor(toolMode?: 'builder' | 'analytics' | 'planner') {
   if (toolMode === 'builder') return builderToolSchemas();
   if (toolMode === 'analytics') return analyticsToolSchemas();
+  if (toolMode === 'planner') return plannerChatToolSchemas();
   return chatToolSchemas();
 }
 

@@ -4,9 +4,10 @@ import { fetchCompletionsInRange, fetchExpandedSchedule } from '../mcp/data.js';
 import { fetchPeriodInputs } from '../reviewData.js';
 import { loadMealsForDate } from '../trackerSession.js';
 import type { ObjectiveRow, TrainingBlockRow } from '../../../src/lib/db/types.js';
+import type { Objective, TrainingBlock } from '../../../src/types/blocks.js';
 import type { WorkoutEvent } from '../../../src/types/workout.js';
 import type { Meal } from '../../../src/types/nutrition.js';
-import { buildAnalyticsPrompt, buildBuilderPrompt, buildStablePrompt, buildVolatileContext } from '../../../src/lib/coach/prompt.js';
+import { buildAnalyticsPrompt, buildBuilderPrompt, buildPlannerPrompt, buildPlannerVolatile, buildStablePrompt, buildVolatileContext } from '../../../src/lib/coach/prompt.js';
 import { computePhysiology, describePhysiology } from '../../../src/lib/physiology/index.js';
 import { fetchPhysiologyInputs } from './physiology.js';
 import { listConfirmed, toPromptEntries } from './memory.js';
@@ -15,6 +16,7 @@ import type { MemoryPromptEntry } from '../../../src/lib/coach/memory.js';
 import type { CoachToolContext } from '../../../src/lib/coach/tools.js';
 import { describeDraft, type WorkoutDraft } from '../../../src/lib/builder/draft.js';
 import { describeChartDraft, type ChartDraft } from '../../../src/lib/analytics/draft.js';
+import { describeBlockDraft, describeExistingBlocks, describeObjectives } from '../../../src/lib/blocks/draft.js';
 import { rowToBlock, rowToObjective } from '../../../src/lib/blocks/mapping.js';
 import { blockCovering, blockPeriod } from '../../../src/lib/blocks/period.js';
 import { computeBlockProgress } from '../../../src/lib/blocks/progress.js';
@@ -31,14 +33,16 @@ import { buildBlockPromptSummary, type BlockPromptSummary } from '../../../src/l
 // `system` is the stable text (buildStablePrompt) and `volatile` the live
 // state for this turn (buildVolatileContext), which the handler injects into
 // the request without it ever entering the stored thread. Builder and
-// analytics keep a single-block prompt and return volatile ''.
+// analytics keep a single-block prompt and return volatile ''. The planner
+// (E01) is split like chat: its draft, blocks and objectives ride in
+// `volatile`, so the stable prefix survives every draft edit.
 //
 // "Today" is the client's local calendar date: the server never reads its
 // own clock for calendar logic (Vercel runs in UTC; the athlete does not).
 
 type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 
-export type ChatMode = 'chat' | 'builder' | 'analytics';
+export type ChatMode = 'chat' | 'builder' | 'analytics' | 'planner';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -46,16 +50,16 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export class ChatContextError extends Error {}
 
 export interface ChatContext {
-  /** The `system` block: stable across a user's turns (chat) or the whole prompt (builder/analytics). */
+  /** The `system` block: stable across a user's turns (chat, planner) or the whole prompt (builder/analytics). */
   system: string;
-  /** chat: this turn's live context, injected per request; '' for the other modes. */
+  /** chat, planner: this turn's live context, injected per request; '' for the other modes. */
   volatile: string;
   /** What displayLabel needs to name the things a tool call references. */
   toolContext: CoachToolContext;
 }
 
 export function isChatMode(value: unknown): value is ChatMode {
-  return value === 'chat' || value === 'builder' || value === 'analytics';
+  return value === 'chat' || value === 'builder' || value === 'analytics' || value === 'planner';
 }
 
 function parseToday(today: unknown): { iso: string; date: Date } {
@@ -104,6 +108,35 @@ async function blockSummary(
   } catch (err) {
     console.warn('[api/chat] block summary unavailable for the prompt:', err instanceof Error ? err.message : err);
     return null;
+  }
+}
+
+/**
+ * The athlete's blocks and objectives as domain objects — the planner's
+ * <existing_blocks> and <objectives>, and the overlap / objective_id context
+ * its reducer needs. Same two queries blockSummary runs. An enhancement,
+ * never a precondition: a failure degrades to a prompt that says there are
+ * none, and the reducer on Apply is not this read — the DB exclusion
+ * constraint is the real overlap guard.
+ */
+export async function fetchBlocksAndObjectives(
+  supabase: Admin,
+  userId: string,
+): Promise<{ blocks: TrainingBlock[]; objectives: Objective[] }> {
+  try {
+    const [blocksRes, objectivesRes] = await Promise.all([
+      supabase.from('training_blocks').select('*').eq('user_id', userId).order('start_date', { ascending: true }),
+      supabase.from('objectives').select('*').eq('user_id', userId).order('created_at', { ascending: true }),
+    ]);
+    if (blocksRes.error) throw new Error(blocksRes.error.message);
+    if (objectivesRes.error) throw new Error(objectivesRes.error.message);
+    return {
+      blocks: ((blocksRes.data ?? []) as TrainingBlockRow[]).map(rowToBlock),
+      objectives: ((objectivesRes.data ?? []) as ObjectiveRow[]).map(rowToObjective),
+    };
+  } catch (err) {
+    console.warn('[api/chat] blocks and objectives unavailable for the prompt:', err instanceof Error ? err.message : err);
+    return { blocks: [], objectives: [] };
   }
 }
 
@@ -160,6 +193,9 @@ async function coachContract(supabase: Admin, userId: string): Promise<string> {
  *            (zones, load, tonnage, HRV over five weeks).
  * builder:   the caller's workout draft, saved-workout titles, the library.
  * analytics: the caller's chart draft and the titles of "other sport" workouts.
+ * planner:   the caller's block draft, the athlete's blocks and objectives,
+ *            profile, contract, memory and the physiology panel — split
+ *            like chat, with all of it in the live half.
  */
 export async function buildChatContext(
   supabase: Admin,
@@ -213,6 +249,40 @@ export async function buildChatContext(
     return {
       system: buildAnalyticsPrompt(draftText, otherTitles, today),
       volatile: '',
+      toolContext: { definitions, events: [], meals: [] },
+    };
+  }
+
+  if (mode === 'planner') {
+    const draftObj = requireDraftObject(draft);
+    let draftText: string;
+    try {
+      draftText = describeBlockDraft(draftObj);
+    } catch {
+      throw new ChatContextError('context.draft is not a block draft');
+    }
+    // Blocks and objectives, the profile, physiology, memory and the
+    // contract in parallel — each an enhancement, none a precondition.
+    const [{ blocks, objectives }, profileRes, physiology, memories, contract] = await Promise.all([
+      fetchBlocksAndObjectives(supabase, userId),
+      supabase.from('profiles').select('coach_goal, coach_context').eq('id', userId).maybeSingle(),
+      physiologyBlock(supabase, userId, todayIso),
+      memoryEntries(supabase, userId),
+      coachContract(supabase, userId),
+    ]);
+    const profile = profileRes.error ? null : profileRes.data;
+    return {
+      system: buildPlannerPrompt(),
+      volatile: buildPlannerVolatile(
+        draftText,
+        describeExistingBlocks(blocks, objectives, today),
+        describeObjectives(objectives),
+        today,
+        { goal: profile?.coach_goal ?? undefined, context: profile?.coach_context ?? undefined },
+        contract,
+        memories,
+        physiology,
+      ),
       toolContext: { definitions, events: [], meals: [] },
     };
   }

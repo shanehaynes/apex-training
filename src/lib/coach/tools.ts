@@ -604,7 +604,7 @@ const deleteMealTool: CoachToolDef = {
  * (isServerSideTool below), and every other command lands here as a confirm
  * card — "Remember: …", "Forget: …", "Update memory: …" — whose confirmed
  * execution is applyMemoryCommand on the server. Nothing is remembered
- * without the click (D-C03). The label and preview come from the command
+ * without the click (D-C02). The label and preview come from the command
  * alone: the client holds no memory rows to resolve against.
  */
 const memoryTool: CoachToolDef = {
