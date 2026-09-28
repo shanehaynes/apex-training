@@ -11,6 +11,7 @@ import LibraryView from '../library/LibraryView';
 import BlocksView from '../blocks/BlocksView';
 import AnalyticsView from '../analytics/AnalyticsView';
 import ProfileView from '../profile/ProfileView';
+import NotebookView from '../notebook/NotebookView';
 import OnboardingHost from '../onboarding/OnboardingHost';
 import MobileBottomNav from './MobileBottomNav';
 import Toasts from './Toasts';
@@ -58,6 +59,7 @@ export default function AppShell() {
       {state.blocksOpen && <BlocksView />}
       {state.analyticsOpen && <AnalyticsView />}
       {state.profileOpen && <ProfileView />}
+      {state.notebookOpen && <NotebookView />}
       <OnboardingHost />
       <Toasts />
     </div>
