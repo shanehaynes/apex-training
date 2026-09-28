@@ -35,6 +35,8 @@ export interface CalendarState {
   blocksOpen: boolean;
   /** Analytics dashboard overlay (same full-screen pattern as the library). */
   analyticsOpen: boolean;
+  /** Coach notebook overlay (memory, contract, doctrine — lane D02); opens from the profile. */
+  notebookOpen: boolean;
 }
 
 export type CalendarAction =
@@ -62,7 +64,9 @@ export type CalendarAction =
   | { type: 'OPEN_BLOCKS' }
   | { type: 'CLOSE_BLOCKS' }
   | { type: 'OPEN_ANALYTICS' }
-  | { type: 'CLOSE_ANALYTICS' };
+  | { type: 'CLOSE_ANALYTICS' }
+  | { type: 'OPEN_NOTEBOOK' }
+  | { type: 'CLOSE_NOTEBOOK' };
 
 export interface CalendarContextValue {
   state: CalendarState;

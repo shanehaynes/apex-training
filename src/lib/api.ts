@@ -326,3 +326,46 @@ export function createCoachAnnotation(input: NewCoachAnnotation): Promise<{ anno
 export function dismissCoachAnnotation(id: string): Promise<{ ok: boolean }> {
   return deleteJson('/api/coach-annotations', 'Dismissing note', { id });
 }
+
+// ── Coach notebook (lane D02): the contract and its reflections ───────────────
+// The coaching contract lives on the profile (profiles.coach_contract, lane
+// D01) and the overnight reflections that propose edits to it on
+// /api/coach-reflections. Both are coded against D01's interface contract:
+// until it merges the handler answers 404 and the column 409 column-missing,
+// which src/lib/coach/notebook.ts reads as "not available yet" — so every
+// call here is QUIET, and the tab decides what the athlete sees.
+
+export type { CoachReflection, NotebookProfile, ReflectionResolution } from './coach/notebook';
+
+/** GET /api/profile, for its `coachContract` / `reflectionOptIn` fields (absent before D01). */
+export function loadNotebookProfile(): Promise<Record<string, unknown>> {
+  return getJson('/api/profile', 'Loading contract', { quiet: true });
+}
+
+/** Save the contract text (≤ 2000 chars; '' clears it). 409 column-missing = not available yet. */
+export function saveCoachContract(text: string): Promise<{ ok: boolean }> {
+  return patchJson('/api/profile', { coach_contract: text }, 'Saving contract', { quiet: true });
+}
+
+/** Whether the coach may reflect overnight and propose changes here. */
+export function setReflectionOptIn(on: boolean): Promise<{ ok: boolean }> {
+  return patchJson('/api/profile', { reflection_opt_in: on }, 'Saving', { quiet: true });
+}
+
+/** Every reflection, pending and resolved. 404 until D01 merges. */
+export function listCoachReflections(): Promise<Record<string, unknown>> {
+  return getJson('/api/coach-reflections', 'Loading reflections', { quiet: true });
+}
+
+/** The athlete's verdict on one reflection: accepted applies its contract_after server-side. */
+export function resolveCoachReflection(
+  id: string,
+  resolution: 'accepted' | 'rejected',
+): Promise<{ ok: boolean }> {
+  return postJson(
+    '/api/coach-reflections',
+    { id, resolution },
+    resolution === 'accepted' ? 'Accepting the change' : 'Rejecting the change',
+    { quiet: true },
+  );
+}

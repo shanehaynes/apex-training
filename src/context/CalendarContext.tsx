@@ -73,6 +73,10 @@ function reducer(state: CalendarState, action: CalendarAction): CalendarState {
       return { ...state, analyticsOpen: true };
     case 'CLOSE_ANALYTICS':
       return { ...state, analyticsOpen: false };
+    case 'OPEN_NOTEBOOK':
+      return { ...state, notebookOpen: true };
+    case 'CLOSE_NOTEBOOK':
+      return { ...state, notebookOpen: false };
     default:
       return state;
   }
@@ -94,6 +98,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     profileOpen: false,
     blocksOpen: false,
     analyticsOpen: false,
+    notebookOpen: false,
   });
 
   // Dev-only agent bridge: compiled out of production builds.
@@ -114,6 +119,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
       profileOpen: state.profileOpen,
       blocksOpen: state.blocksOpen,
       analyticsOpen: state.analyticsOpen,
+      notebookOpen: state.notebookOpen,
     }));
   }, [state]);
 
