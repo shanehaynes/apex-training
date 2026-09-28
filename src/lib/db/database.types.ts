@@ -250,6 +250,47 @@ export type Database = {
           },
         ]
       }
+      coach_messages: {
+        Row: {
+          api_content: Json | null
+          conversation_id: string
+          created_at: string
+          display_text: string | null
+          id: string
+          kind: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          api_content?: Json | null
+          conversation_id: string
+          created_at?: string
+          display_text?: string | null
+          id?: string
+          kind?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          api_content?: Json | null
+          conversation_id?: string
+          created_at?: string
+          display_text?: string | null
+          id?: string
+          kind?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "coach_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coach_reflections: {
         Row: {
           batch_id: string | null
@@ -300,47 +341,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      coach_messages: {
-        Row: {
-          api_content: Json | null
-          conversation_id: string
-          created_at: string
-          display_text: string | null
-          id: string
-          kind: string
-          role: string
-          user_id: string
-        }
-        Insert: {
-          api_content?: Json | null
-          conversation_id: string
-          created_at?: string
-          display_text?: string | null
-          id?: string
-          kind?: string
-          role: string
-          user_id: string
-        }
-        Update: {
-          api_content?: Json | null
-          conversation_id?: string
-          created_at?: string
-          display_text?: string | null
-          id?: string
-          kind?: string
-          role?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "coach_messages_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "coach_conversations"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       coach_runs: {
         Row: {

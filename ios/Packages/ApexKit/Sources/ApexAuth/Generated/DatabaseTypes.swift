@@ -424,6 +424,66 @@ internal enum PublicSchema {
       case userId = "user_id"
     }
   }
+  internal struct CoachMessagesSelect: Codable, Hashable, Sendable {
+    internal let apiContent: AnyJSON?
+    internal let conversationId: UUID
+    internal let createdAt: String
+    internal let displayText: String?
+    internal let id: UUID
+    internal let kind: String
+    internal let role: String
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case apiContent = "api_content"
+      case conversationId = "conversation_id"
+      case createdAt = "created_at"
+      case displayText = "display_text"
+      case id = "id"
+      case kind = "kind"
+      case role = "role"
+      case userId = "user_id"
+    }
+  }
+  internal struct CoachMessagesInsert: Codable, Hashable, Sendable {
+    internal let apiContent: AnyJSON?
+    internal let conversationId: UUID
+    internal let createdAt: String?
+    internal let displayText: String?
+    internal let id: UUID?
+    internal let kind: String?
+    internal let role: String
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case apiContent = "api_content"
+      case conversationId = "conversation_id"
+      case createdAt = "created_at"
+      case displayText = "display_text"
+      case id = "id"
+      case kind = "kind"
+      case role = "role"
+      case userId = "user_id"
+    }
+  }
+  internal struct CoachMessagesUpdate: Codable, Hashable, Sendable {
+    internal let apiContent: AnyJSON?
+    internal let conversationId: UUID?
+    internal let createdAt: String?
+    internal let displayText: String?
+    internal let id: UUID?
+    internal let kind: String?
+    internal let role: String?
+    internal let userId: UUID?
+    internal enum CodingKeys: String, CodingKey {
+      case apiContent = "api_content"
+      case conversationId = "conversation_id"
+      case createdAt = "created_at"
+      case displayText = "display_text"
+      case id = "id"
+      case kind = "kind"
+      case role = "role"
+      case userId = "user_id"
+    }
+  }
   internal struct CoachReflectionsSelect: Codable, Hashable, Sendable {
     internal let batchId: String?
     internal let completedAt: String?
@@ -517,66 +577,6 @@ internal enum PublicSchema {
       case resolution = "resolution"
       case resolvedAt = "resolved_at"
       case status = "status"
-      case userId = "user_id"
-    }
-  }
-  internal struct CoachMessagesSelect: Codable, Hashable, Sendable {
-    internal let apiContent: AnyJSON?
-    internal let conversationId: UUID
-    internal let createdAt: String
-    internal let displayText: String?
-    internal let id: UUID
-    internal let kind: String
-    internal let role: String
-    internal let userId: UUID
-    internal enum CodingKeys: String, CodingKey {
-      case apiContent = "api_content"
-      case conversationId = "conversation_id"
-      case createdAt = "created_at"
-      case displayText = "display_text"
-      case id = "id"
-      case kind = "kind"
-      case role = "role"
-      case userId = "user_id"
-    }
-  }
-  internal struct CoachMessagesInsert: Codable, Hashable, Sendable {
-    internal let apiContent: AnyJSON?
-    internal let conversationId: UUID
-    internal let createdAt: String?
-    internal let displayText: String?
-    internal let id: UUID?
-    internal let kind: String?
-    internal let role: String
-    internal let userId: UUID
-    internal enum CodingKeys: String, CodingKey {
-      case apiContent = "api_content"
-      case conversationId = "conversation_id"
-      case createdAt = "created_at"
-      case displayText = "display_text"
-      case id = "id"
-      case kind = "kind"
-      case role = "role"
-      case userId = "user_id"
-    }
-  }
-  internal struct CoachMessagesUpdate: Codable, Hashable, Sendable {
-    internal let apiContent: AnyJSON?
-    internal let conversationId: UUID?
-    internal let createdAt: String?
-    internal let displayText: String?
-    internal let id: UUID?
-    internal let kind: String?
-    internal let role: String?
-    internal let userId: UUID?
-    internal enum CodingKeys: String, CodingKey {
-      case apiContent = "api_content"
-      case conversationId = "conversation_id"
-      case createdAt = "created_at"
-      case displayText = "display_text"
-      case id = "id"
-      case kind = "kind"
-      case role = "role"
       case userId = "user_id"
     }
   }
