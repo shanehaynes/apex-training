@@ -20,21 +20,21 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 | D01 | Reflection + coaching contract + `leave_note` (nightly, proposal-gated) | D | done (#358, `1a15ac4`) — phase50 to apply in production; the reflection cron deploys with it (05:00 UTC, opt-in) | `feat/coach-reflection` | HELD (phase50 + `vercel.json` cron); `PROMPT_VERSION` → 2026.09.28-1; merges first |
 | D02 | Notebook page: memory, proposals, contract, doctrine | D | in review (#359, head `e14ebe0`, `main` merged in) — CI green but `coach-gate` (by design); two Codex findings fixed; merges next | `feat/coach-notebook` | codes against D01's interface contract; merges second |
 | D03 | Weekly review document + "next week" proposals | D | in review (#360, head `3a58140`, `main` merged in) — CI fully green; three Codex findings fixed; merges last | `feat/coach-weekly-review` | no table, no cron; merges third |
-| E01 | Block planner mode | E | ready (after D) | `feat/coach-block-planner` | alone in its wave: owns every hot file |
-| E02 | Ask-coach from a session or set | E | ready (after D) | `feat/coach-ask-from-context` | |
+| E01 | Block planner mode: fourth `ChatMode`, `update_block_draft`, reads + doctrine, Apply creates | E | briefed (`workstreams/E01-block-planner.md`) — launches when #359/#360 merge | `feat/coach-block-planner` | HELD (phase51 widens two CHECKs); `PROMPT_VERSION` → 2026.09.29-1; owns the server hot files; merges first |
+| E02 | Ask the coach about this session: modal + tracker buttons, hidden pinned turn | E | briefed (`workstreams/E02-ask-from-context.md`) — runs in parallel with E01 | `feat/coach-ask-from-context` | owns `useChat.ts`, `ChatSidebar.tsx`, the calendar reducer, modal, tracker; no prompt change |
 
 ## Next up
-1. **Wave C is on `main`** (#353, #354, #355). **Shane:** apply phase48 (`coach_memory`) and
-   phase49 (`coach_annotations`) to production; run `npm run eval:gate` (the attestation has
-   been stale since #345 — it now measures the coach with its read tools and memory); review
-   the doctrine text.
-2. **Wave D**: #358 (D01) merged as `1a15ac4`; #359 (D02) and #360 (D03) carry `main` and wait
-   only on their green CI and a merge (no `shipit` needed). **Shane: apply phase50 to production**
-   (after phase48/49). The reflection cron is live once the deploy carries `vercel.json`; it
-   does nothing until an athlete opts in from the notebook.
-3. Evals follow-up (after D01): fixture-backed memory in the harness (`fixture.memory`), and
-   the two new write tools in the mirror (D01 does the mirror itself).
-4. **Shane:** #348 follow-up on thinking blocks across the write path.
+1. **Eval gate is running** in cloud session `session_01J9RBmksgHXBySnEoTzMVf8` on `main`
+   `1a15ac4` (Shane added `CLAUDE_CODE_OAUTH_TOKEN` to the cloud environment). A pass lands as a
+   PR from `chore/eval-gate-attestation` (not HELD) and turns `coach-gate` green on #359; E01's
+   `PROMPT_VERSION` bump needs one more run after it merges.
+2. **Wave D**: #359 (D02) and #360 (D03) carry `main` and wait only on green CI and a merge
+   (no `shipit`). Shane has applied phase48/49/50 to production.
+3. **Wave E** launches from `main` once #359/#360 merge: E01 and E02 in parallel (their
+   ownership is disjoint — see the briefs and D-C07/D-C08); merge order E01 → E02; E01 HELD.
+4. Evals follow-up: fixture-backed memory in the harness (`fixture.memory`); an ask-from-context
+   case after E02.
+5. **Shane:** #348 follow-up on thinking blocks across the write path; review the doctrine text.
 
 ## Recent sessions
 - 2026-09-25 · orchestrator · plan approved, issue #340 opened, board created, wave A launched
@@ -90,3 +90,6 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
   resolved. Waiting on Shane's `shipit` for #358.
 - 2026-09-28 · Shane · merged #358 (`1a15ac4`). Orchestrator merged `main` into #359 (`e14ebe0`)
   and #360 (`3a58140`), both clean.
+- 2026-09-28 · orchestrator · wave E designed from a read-only survey: E01 and E02 share no
+  hot file, so they run in parallel (the plan had E01 alone). Briefs written, D-C07/D-C08
+  recorded. Gate session launched with the environment's new token.

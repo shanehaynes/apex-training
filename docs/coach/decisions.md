@@ -59,3 +59,24 @@ keep this log apart from the iOS (`D-`) and onboarding (`D-O`) logs.
 - **Decision.** (b). The fallback path alone realizes the cache win; the mid-turn system
   message is a nicety gated per model (`midTurnSystem` in `models.ts`, false for
   `claude-opus-5-5` until verified live).
+
+## D-C07 · The block planner is draft-only: the coach edits, the athlete applies
+**Status:** decided · orchestrator · 2026-09-28
+- **Options.** (a) A `create_block` write tool behind a confirm card, like the calendar writes.
+  (b) A fourth chat mode whose one write tool reduces onto a block draft the athlete owns, with
+  the read tools and `read_doctrine` alongside; `createBlocks` (atomic, ≤ 24, `triggered_by:
+  'user'`) runs only when the athlete presses Apply.
+- **Decision.** (b). A plan is several blocks that must be contiguous and non-overlapping; a
+  per-block confirm card cannot express that, a draft can. The builder proved the shape, and the
+  planner adds sight to it. The mode needs a migration to widen two CHECK constraints (phase51)
+  and an iOS enum case; the AI-mutation cap stays untouched because the planner never writes.
+
+## D-C08 · Ask-from-context pins a session with a hidden user turn, not a prompt change
+**Status:** decided · orchestrator · 2026-09-28
+- **Options.** (a) A request field (`context.session`) the server renders into the prompt.
+  (b) A user turn the model sees whose stored `display_text` is a short line ("Asked about:
+  …"), the precedent of the briefing prompt; the coach then reads the session with the tools it
+  already has.
+- **Decision.** (b). No `PROMPT_VERSION` bump, no API change (iOS rejects unknown fields
+  anyway), the stored thread replays exactly what the model saw, and the eval surface is
+  unchanged. Memory proposals from "this felt heavy" ride the existing confirm card (D-C02).
