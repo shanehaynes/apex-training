@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { chatToolSchemas as productionChatToolSchemas, MAX_SERVER_ROUNDS as PRODUCTION_MAX_SERVER_ROUNDS } from '../../api/chat';
+import { cachedToolSchemas, chatToolSchemas as productionChatToolSchemas, plannerChatToolSchemas as productionPlannerToolSchemas, MAX_SERVER_ROUNDS as PRODUCTION_MAX_SERVER_ROUNDS } from '../../api/chat';
 import { readDoctrine, DOCTRINE_TOPICS } from '../../src/lib/coach/doctrine/index';
 import { SERVER_SIDE_READ_TOOL_NAMES } from '../../src/lib/coach/tools';
-import { coachToolSchemas } from '../../src/lib/coach/schemas';
-import { chatToolSchemas, executeServerSideTool, MAX_SERVER_ROUNDS, MEMORY_TOOL_OMITTED, UNSCRIPTED_READ_RESULT } from '../src/reads';
+import { coachToolSchemas, plannerToolSchemas } from '../../src/lib/coach/schemas';
+import { chatToolSchemas, executeServerSideTool, MAX_SERVER_ROUNDS, MEMORY_TOOL_OMITTED, plannerChatToolSchemas, UNSCRIPTED_READ_RESULT } from '../src/reads';
 import { schemasFor, zodShapeFromJsonSchema } from '../src/backends/agentSdk';
 
 // reads.ts mirrors two production values instead of importing them, so the
@@ -29,6 +29,27 @@ describe('mirrors of api/chat.ts', () => {
     expect(names.slice(10, -1)).toEqual([...SERVER_SIDE_READ_TOOL_NAMES]);
     // The agent-sdk backend hands the SDK the same list.
     expect(schemasFor().map(t => t.name)).toEqual(names);
+  });
+
+  it('offers the production planner tool list (E01), in production order, in full — no memory tool to omit', () => {
+    const names = plannerChatToolSchemas().map(t => t.name);
+    expect(names).toEqual(productionPlannerToolSchemas().map(t => t.name));
+    expect(names).toEqual(cachedToolSchemas('planner').map(t => t.name));
+    // Its one write, then every read tool in its fixed order, then read_doctrine.
+    expect(names.slice(0, 1)).toEqual(plannerToolSchemas().map(t => t.name));
+    expect(names.slice(1, -1)).toEqual([...SERVER_SIDE_READ_TOOL_NAMES]);
+    expect(names.slice(-1)).toEqual(['read_doctrine']);
+    expect(names).not.toContain(MEMORY_TOOL_OMITTED);
+    // The agent-sdk backend hands the SDK the same list.
+    expect(schemasFor('planner').map(t => t.name)).toEqual(names);
+    // Fresh objects each call, like the chat mirror.
+    expect(plannerChatToolSchemas()).not.toBe(plannerChatToolSchemas());
+    expect(plannerChatToolSchemas()).toEqual(plannerChatToolSchemas());
+    for (const schema of plannerChatToolSchemas()) {
+      const shape = zodShapeFromJsonSchema(schema.input_schema);
+      const declared = Object.keys((schema.input_schema as { properties: Record<string, unknown> }).properties);
+      expect(Object.keys(shape).sort(), schema.name).toEqual(declared.sort());
+    }
   });
 
   it('returns fresh schema objects each call, so a caller cannot mutate the list', () => {

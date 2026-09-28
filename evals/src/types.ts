@@ -1,7 +1,9 @@
 import type { ExerciseDefinition, WorkoutEvent } from '../../src/types/workout';
 import type { Meal } from '../../src/types/nutrition';
 import type { WorkoutDraft } from '../../src/lib/builder/draft';
+import type { BlockDraft } from '../../src/lib/blocks/draft';
 import type { BlockPromptSummary } from '../../src/lib/blocks/promptSummary';
+import type { Objective, TrainingBlock } from '../../src/types/blocks';
 import type { ApiMessage, TextBlock, ToolResultBlock } from '../../src/lib/coach/actionQueue';
 import type { WireToolUse } from '../../src/lib/coach/wire';
 import type { PhysiologyInputs } from '../../src/lib/physiology/index';
@@ -30,8 +32,8 @@ export type CallModel = (req: {
   system: string;
   messages: ApiMessage[];
   withTools: boolean;
-  /** Scoped single-tool lists (api/chat.ts toolMode). */
-  toolMode?: 'chat' | 'builder' | 'analytics';
+  /** Scoped tool lists (api/chat.ts toolMode). */
+  toolMode?: 'chat' | 'builder' | 'analytics' | 'planner';
 }) => Promise<ModelResponse>;
 
 export interface ModelResponse {
@@ -95,13 +97,13 @@ export interface TurnRequest {
   buildSystem: () => string;
   /** Runs one coach tool against the in-memory deps; returns the tool_result. */
   executeTool: (name: string, input: Record<string, unknown>) => Promise<string>;
-  /** Runs one server-side tool against the fixture. Present in chat mode
-   *  only: the builder and analytics lists carry no read tools, and without
-   *  it a backend treats every tool_use as a write, exactly as before the
-   *  sight loop existed. */
+  /** Runs one server-side tool against the fixture. Present in chat and
+   *  planner mode only: the builder and analytics lists carry no read
+   *  tools, and without it a backend treats every tool_use as a write,
+   *  exactly as before the sight loop existed. */
   executeRead?: ExecuteRead;
-  /** Scoped single-tool lists (api/chat.ts toolMode); absent for the sidebar. */
-  toolMode?: 'builder' | 'analytics';
+  /** Scoped tool lists (api/chat.ts toolMode); absent for the sidebar. */
+  toolMode?: 'builder' | 'analytics' | 'planner';
   /** 1-indexed, for anomaly labelling. */
   turnIndex: number;
   session?: SessionHandle;
@@ -144,11 +146,19 @@ export interface EvalCase {
   id: string;
   description: string;
   /** 'builder' runs the builder-coach loop (draft reducer, single tool)
-   *  instead of the sidebar loop. Defaults to the sidebar. */
-  mode?: 'builder' | 'analytics';
+   *  instead of the sidebar loop; 'analytics' the chart reducer; 'planner'
+   *  (E01) the block-draft reducer plus the read tools. Defaults to the sidebar. */
+  mode?: 'builder' | 'analytics' | 'planner';
   fixture: {
     /** builder mode: the starting draft (defaults to an empty draft on `today`). */
     draft?: { title?: string };
+    /** planner mode: the starting block draft (defaults to an empty one). */
+    blockDraft?: BlockDraft;
+    /** planner mode: the athlete's existing blocks — the reducer's overlap
+     *  rule and the prompt's <existing_blocks>. Defaults to none. */
+    existingBlocks?: TrainingBlock[];
+    /** planner mode: the athlete's objectives — objective_id must name one. Defaults to none. */
+    objectives?: Objective[];
     /** ISO date — pins the clock so runs are comparable. */
     today: string;
     events: WorkoutEvent[];
@@ -265,6 +275,8 @@ export interface HarnessResult {
   finalDraft?: WorkoutDraft;
   /** analytics mode: the chart draft after the run. */
   finalChartDraft?: import('../../src/lib/analytics/draft').ChartDraft;
+  /** planner mode: the block draft after every applied update. */
+  finalBlockDraft?: BlockDraft;
   anomalies: string[];
   usage: { inputTokens: number; outputTokens: number };
   /** True when a turn ran on a backend that reported no tokens — the usage

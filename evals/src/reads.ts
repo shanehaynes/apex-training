@@ -1,6 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { readToolSchemas } from '../../api/_lib/coach/readTools';
-import { coachToolSchemas } from '../../src/lib/coach/schemas';
+import { coachToolSchemas, plannerToolSchemas } from '../../src/lib/coach/schemas';
 import { isServerSideTool, READ_DOCTRINE_TOOL } from '../../src/lib/coach/tools';
 import { DOCTRINE_TOPICS, readDoctrine, readDoctrineToolSchema } from '../../src/lib/coach/doctrine/index';
 
@@ -39,6 +39,17 @@ export const MEMORY_TOOL_OMITTED = 'memory';
 
 export function chatToolSchemas(): Anthropic.Tool[] {
   return [...coachToolSchemas(), ...readToolSchemas(), { ...readDoctrineToolSchema }];
+}
+
+/**
+ * The block planner's tool list in production order (api/chat.ts →
+ * plannerChatToolSchemas, lane E01): its one write, update_block_draft, then
+ * the read tools, then read_doctrine. Production offers no memory tool in
+ * this mode, so — unlike the chat mirror above — this one IS the production
+ * list; __tests__/reads.test.ts pins it.
+ */
+export function plannerChatToolSchemas(): Anthropic.Tool[] {
+  return [...plannerToolSchemas(), ...readToolSchemas(), { ...readDoctrineToolSchema }];
 }
 
 /** A read tool's scripted answer computed from the call's input. */

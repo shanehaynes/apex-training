@@ -3,7 +3,11 @@ import { buildBuilderPrompt, buildSystemPrompt } from '../../src/lib/coach/promp
 import { findCoachTool } from '../../src/lib/coach/tools';
 import { applyDraftUpdate, describeDraft, emptyDraft, type DraftUpdateInput } from '../../src/lib/builder/draft';
 import { applyChartDraftUpdate, describeChartDraft, emptyChartDraft, type DraftUpdateInput as ChartDraftUpdateInput } from '../../src/lib/analytics/draft';
-import { buildAnalyticsPrompt } from '../../src/lib/coach/prompt';
+import {
+  applyBlockDraftUpdate, describeBlockDraft, describeExistingBlocks, describeObjectives, emptyBlockDraft,
+  type BlockDraftUpdateInput,
+} from '../../src/lib/blocks/draft';
+import { buildAnalyticsPrompt, buildPlannerPrompt, buildPlannerVolatile } from '../../src/lib/coach/prompt';
 import { computePhysiology, describePhysiology } from '../../src/lib/physiology/index';
 import { createMemoryDeps } from './memoryDeps';
 import { loadLibrary } from './library';
@@ -61,6 +65,13 @@ export async function runCase(
   const mode = evalCase.mode ?? 'chat';
   let draft = emptyDraft(todayStr, evalCase.fixture.draft?.title ?? '');
   let chartDraft = emptyChartDraft();
+  // planner mode (E01): the block draft the update_block_draft reducer edits,
+  // against the fixture's blocks and objectives, exactly as
+  // BlockPlannerPanel auto-applies it. Nothing else mutates.
+  let blockDraft = evalCase.fixture.blockDraft ?? emptyBlockDraft(today);
+  const existingBlocks = evalCase.fixture.existingBlocks ?? [];
+  const objectives = evalCase.fixture.objectives ?? [];
+  const blockCtx = { existing: existingBlocks, objectives, today };
 
   // The physiology panel is a pure function of the fixture's measured data
   // and the case's clock, so it is rendered once: '' (the panel renders
@@ -75,6 +86,18 @@ export async function runCase(
     ? buildBuilderPrompt(describeDraft(draft), [], state.definitions.values(), today)
     : mode === 'analytics'
     ? buildAnalyticsPrompt(describeChartDraft(chartDraft), [], today)
+    : mode === 'planner'
+    // The planner's two halves as one string, as buildSystemPrompt joins chat's.
+    ? buildPlannerPrompt() + '\n\n' + buildPlannerVolatile(
+        describeBlockDraft(blockDraft),
+        describeExistingBlocks(existingBlocks, objectives),
+        describeObjectives(objectives),
+        today,
+        evalCase.fixture.athlete,
+        '',
+        [],
+        physiology,
+      )
     : buildSystemPrompt(
         state.events.filter(e => e.date === todayStr),
         state.events,
@@ -86,9 +109,9 @@ export async function runCase(
         physiology,
       );
 
-  // The sight loop's server side (reads.ts): chat mode only, because the
-  // builder and analytics lists carry no read tools.
-  const executeRead: ExecuteRead | undefined = mode === 'chat'
+  // The sight loop's server side (reads.ts): chat and planner mode, because
+  // the builder and analytics lists carry no read tools.
+  const executeRead: ExecuteRead | undefined = mode === 'chat' || mode === 'planner'
     ? async (name, input) => executeServerSideTool(name, input, evalCase.fixture.reads, text => anomalies.push(text))
     : undefined;
 
@@ -113,6 +136,16 @@ export async function runCase(
       chartDraft = applied.draft;
       return applied.summary;
     }
+    if (mode === 'planner') {
+      if (name !== 'update_block_draft') {
+        anomalies.push(`unknownTool:${name} (turn ${turns.length + 1})`);
+        return `Unknown tool "${name}".`;
+      }
+      const applied = applyBlockDraftUpdate(blockDraft, input as BlockDraftUpdateInput, blockCtx);
+      if ('error' in applied) return applied.error;
+      blockDraft = applied.draft;
+      return applied.summary;
+    }
     const tool = findCoachTool(name);
     if (!tool) {
       anomalies.push(`unknownTool:${name} (turn ${turns.length + 1})`);
@@ -132,7 +165,7 @@ export async function runCase(
       buildSystem,
       executeTool,
       ...(executeRead ? { executeRead } : {}),
-      ...(mode === 'builder' || mode === 'analytics' ? { toolMode: mode } : {}),
+      ...(mode === 'builder' || mode === 'analytics' || mode === 'planner' ? { toolMode: mode } : {}),
       turnIndex: turns.length + 1,
       session,
       anomaly: text => anomalies.push(text),
@@ -183,6 +216,7 @@ export async function runCase(
     createdDefinitionNames: state.createdDefinitionNames,
     ...(mode === 'builder' ? { finalDraft: draft } : {}),
     ...(mode === 'analytics' ? { finalChartDraft: chartDraft } : {}),
+    ...(mode === 'planner' ? { finalBlockDraft: blockDraft } : {}),
     anomalies,
     usage,
     ...(usageUnavailable ? { usageUnavailable: true } : {}),
