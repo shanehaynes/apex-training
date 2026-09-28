@@ -298,6 +298,87 @@ test('with a D01-shaped profile the contract tab edits and saves, shows a reflec
   expect(profileRequests.filter(r => r.method() === 'PATCH')[1].postDataJSON()).toEqual({ reflection_opt_in: true });
 });
 
+/** A reflection that proposes memories only: the contract is untouched, and the server sends no contract_after. */
+const MEMORY_ONLY_REFLECTION = {
+  ...REFLECTION,
+  id: '66666666-2222-4333-8444-555555555555',
+  day: '2026-09-05',
+  contract_before: null,
+  contract_after: null,
+  reason: 'Two things worth remembering came up.',
+  memory_proposal_ids: [PROPOSAL.id, GOAL.id],
+};
+
+test('a refused accept rolls the card back and leaves the editor untouched; a memory-only accept never empties it', async ({ page, consoleErrors }) => {
+  const { route } = seedMemory(page, [PROPOSAL]);
+  await route;
+  const profileRequests: Request[] = [];
+  await stubContractProfile(page, profileRequests);
+  const reflectionRequests: Request[] = [];
+  let refuse = true;
+  await page.route('**/api/coach-reflections**', route => {
+    const req = route.request();
+    reflectionRequests.push(req);
+    if (req.method() === 'GET') {
+      return route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ reflections: [REFLECTION, MEMORY_ONLY_REFLECTION] }),
+      });
+    }
+    if (refuse) return route.fulfill({ status: 500, contentType: 'text/plain', body: 'Failed to resolve reflection' });
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+  });
+
+  await openNotebook(page);
+  await page.getByTestId('notebook-tab-contract').click();
+  const editor = page.getByLabel('Coaching contract');
+  await expect(editor).toHaveValue(CONTRACT);
+  const cards = page.getByTestId('reflection-card');
+  await expect(cards).toHaveCount(2);
+
+  // The contract-changing card: the server refuses, so the card comes back,
+  // the editor still holds the old contract, Save still sleeps, and the
+  // athlete is told.
+  const changing = page.locator('[data-reflection-id="55555555-2222-4333-8444-555555555555"]');
+  await changing.getByTestId('reflection-accept').click();
+  await expect.poll(() => posts(reflectionRequests).length).toBe(1);
+  await expect(page.locator('.toast')).toContainText('Accepting the change failed');
+  await expect(cards).toHaveCount(2);
+  await expect(changing).toBeVisible();
+  await expect(editor).toHaveValue(CONTRACT);
+  await expect(page.getByTestId('contract-save')).toBeDisabled();
+  await expect(page.getByTestId('contract-history')).toHaveCount(0);
+  // The browser logs every 5xx as a console error; this one is the test's
+  // own doing, so it is claimed here — exactly one — and the fixture's
+  // no-console-errors assertion still guards everything else.
+  await expect.poll(() => consoleErrors.filter(e => e.includes('status of 500')).length).toBe(1);
+  consoleErrors.splice(consoleErrors.findIndex(e => e.includes('status of 500')), 1);
+
+  // The memory-only card, accepted for real: it resolves, and the editor is
+  // exactly as it was — a null contract_after is not an empty contract.
+  refuse = false;
+  const memoryOnly = page.locator('[data-reflection-id="66666666-2222-4333-8444-555555555555"]');
+  await expect(memoryOnly.getByTestId('reflection-diff')).toHaveCount(0);
+  await expect(memoryOnly).toContainText('Also proposes 2 memories');
+  await memoryOnly.getByTestId('reflection-accept').click();
+  await expect(cards).toHaveCount(1);
+  await expect.poll(() => posts(reflectionRequests).length).toBe(2);
+  expect(posts(reflectionRequests)[1].postDataJSON()).toEqual({ id: MEMORY_ONLY_REFLECTION.id, resolution: 'accepted' });
+  await expect(editor).toHaveValue(CONTRACT);
+  await expect(page.getByTestId('contract-save')).toBeDisabled();
+  await expect(page.getByTestId('contract-history')).toContainText('Past reflections (1)');
+
+  // A draft typed while the last accept was in flight is kept: accept the
+  // contract-changing card with text in the editor and only the baseline
+  // moves, so Save stays awake for the draft.
+  await editor.fill('My own words.');
+  await changing.getByTestId('reflection-accept').click();
+  await expect(cards).toHaveCount(0);
+  await expect(editor).toHaveValue('My own words.');
+  await expect(page.getByTestId('contract-save')).toBeEnabled();
+  expect(profileRequests.filter(r => r.method() === 'PATCH')).toHaveLength(0);
+});
+
 test('the doctrine tab lists every topic and expands one into headed prose', async ({ page }) => {
   const { route } = seedMemory(page, []);
   await route;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { format, isValid, parseISO } from 'date-fns';
 import { Check, X } from 'lucide-react';
 import {
@@ -38,6 +38,14 @@ export default function ContractTab() {
   const [savedFlash, setSavedFlash] = useState(false);
   const [optIn, setOptIn] = useState(false);
   const [reflections, setReflections] = useState<CoachReflection[]>([]);
+  // The editor as it is when an accept comes back, not as it was when the
+  // button was pressed: the request is in flight while the athlete can type.
+  const textRef = useRef(text);
+  const savedRef = useRef(saved);
+  useEffect(() => {
+    textRef.current = text;
+    savedRef.current = saved;
+  }, [text, saved]);
 
   const load = useCallback(async () => {
     setPhase({ kind: 'loading' });
@@ -98,21 +106,25 @@ export default function ContractTab() {
   const resolve = async (reflection: CoachReflection, resolution: ReflectionResolution) => {
     const before = reflections;
     setReflections(list => resolveInList(list, reflection.id, resolution, new Date().toISOString()));
-    if (resolution === 'accepted') {
-      // Accepting applies contract_after server-side; the editor follows,
-      // unless the athlete is mid-edit — then the baseline moves and their
-      // draft stays, so Save still means what it says.
-      const after = reflection.contract_after ?? '';
-      setSaved(after);
-      if (!dirty) setText(after);
-    }
     try {
       await resolveCoachReflection(reflection.id, resolution);
     } catch (err) {
       setReflections(before);
       if (isNotAvailable(err)) setPhase({ kind: 'unavailable' });
       else notify(resolution === 'accepted' ? 'Accepting the change failed' : 'Rejecting the change failed');
+      return;
     }
+    // Only now, with the server holding contract_after, does the editor
+    // follow — never optimistically, or a refused accept would leave the
+    // proposal showing as saved with Save asleep while the server still
+    // holds the old contract. The list above is the one optimistic piece,
+    // and it is rolled back whole. The athlete may have typed during the
+    // request, so the editor's current text decides, not the click's.
+    if (resolution !== 'accepted') return;
+    const next = editorAfterAccept(reflection, { text: textRef.current, saved: savedRef.current });
+    if (!next) return;
+    setSaved(next.saved);
+    setText(next.text);
   };
 
   if (phase.kind === 'loading') {
@@ -220,6 +232,25 @@ export default function ContractTab() {
       )}
     </div>
   );
+}
+
+/**
+ * What the editor becomes once the server has applied an accepted reflection:
+ * the baseline moves to contract_after; the text follows only when the
+ * athlete was not mid-edit (text still equal to the old baseline), so a draft
+ * survives and Save still means what it says. Null — leave the editor alone
+ * — for a reflection that does not change the contract (a memory-only one,
+ * whose contract_after may be null): its accept must not empty the editor.
+ * Pure and exported so the failure and memory-only paths are pinned by a
+ * unit test, this repo having no DOM test environment.
+ */
+export function editorAfterAccept(
+  reflection: CoachReflection,
+  editor: { text: string; saved: string },
+): { text: string; saved: string } | null {
+  if (!reflectionChangesContract(reflection)) return null;
+  const after = reflection.contract_after ?? '';
+  return { saved: after, text: editor.text === editor.saved ? after : editor.text };
 }
 
 /** "Monday 7 September" for a YYYY-MM-DD day; the raw string if it is not one. */

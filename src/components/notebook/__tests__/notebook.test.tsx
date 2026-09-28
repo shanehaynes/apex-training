@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { NotebookTabs } from '../NotebookView';
 import { AddMemoryForm, MemoryEmpty, MemoryGroups, ProposalCard } from '../MemoryTab';
-import { ReflectionCard } from '../ContractTab';
+import { ReflectionCard, editorAfterAccept } from '../ContractTab';
 import DoctrineTab, { DoctrineText, DoctrineTopicSection } from '../DoctrineTab';
 import { DOCTRINE_TOPICS } from '../../../lib/coach/doctrine/index';
 import { doctrineBlocks, splitMemories, type CoachReflection } from '../../../lib/coach/notebook';
@@ -138,6 +138,36 @@ describe('ReflectionCard', () => {
     const html = renderToStaticMarkup(<ReflectionCard reflection={r} onResolve={() => {}} />);
     expect(html).not.toContain('reflection-diff');
     expect(html).toContain('Also proposes 2 memories');
+  });
+});
+
+describe('editorAfterAccept', () => {
+  // The tab calls this only once the accept POST has succeeded (a refused
+  // accept rolls the list back and never reaches it), so "nothing changes on
+  // failure" is the call site's ordering; what is pinned here is what a
+  // successful accept does to the editor in each state, proved in the mock
+  // e2e end to end (a 500 on the POST, and a memory-only reflection).
+  const after = REFLECTION.contract_after!;
+
+  it('moves both the baseline and a clean editor to contract_after', () => {
+    expect(editorAfterAccept(REFLECTION, { text: REFLECTION.contract_before!, saved: REFLECTION.contract_before! }))
+      .toEqual({ text: after, saved: after });
+  });
+
+  it('moves the baseline but keeps a draft the athlete is mid-way through', () => {
+    expect(editorAfterAccept(REFLECTION, { text: 'my draft', saved: REFLECTION.contract_before! }))
+      .toEqual({ text: 'my draft', saved: after });
+  });
+
+  it('leaves the editor alone for a memory-only reflection, contract_after null included', () => {
+    expect(editorAfterAccept({ ...REFLECTION, contract_after: REFLECTION.contract_before }, { text: 'x', saved: 'x' })).toBeNull();
+    expect(editorAfterAccept({ ...REFLECTION, contract_before: null, contract_after: null }, { text: 'kept', saved: 'kept' })).toBeNull();
+    expect(editorAfterAccept({ ...REFLECTION, contract_before: '', contract_after: null }, { text: 'kept', saved: 'kept' })).toBeNull();
+  });
+
+  it('clears the editor only when the reflection really clears the contract', () => {
+    expect(editorAfterAccept({ ...REFLECTION, contract_before: 'old', contract_after: '' }, { text: 'old', saved: 'old' }))
+      .toEqual({ text: '', saved: '' });
   });
 });
 
