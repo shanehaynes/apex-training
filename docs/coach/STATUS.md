@@ -20,8 +20,8 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 | D01 | Reflection + coaching contract + `leave_note` (nightly, proposal-gated) | D | done (#358, `1a15ac4`) — phase50 to apply in production; the reflection cron deploys with it (05:00 UTC, opt-in) | `feat/coach-reflection` | HELD (phase50 + `vercel.json` cron); `PROMPT_VERSION` → 2026.09.28-1; merges first |
 | D02 | Notebook page: memory, proposals, contract, doctrine | D | done (#359, `45706cb`) | `feat/coach-notebook` | codes against D01's interface contract; merges second |
 | D03 | Weekly review document + "next week" proposals | D | done (#360, `b263b1c`) | `feat/coach-weekly-review` | no table, no cron; merges third |
-| E01 | Block planner mode: fourth `ChatMode`, `update_block_draft`, reads + doctrine, Apply creates | E | in progress (`session_013tZ4t8LoZqkYrdZKLKwXui`, from `main` `b263b1c`) | `feat/coach-block-planner` | HELD (phase51 widens two CHECKs); `PROMPT_VERSION` → 2026.09.29-1; owns the server hot files; merges first |
-| E02 | Ask the coach about this session: modal + tracker buttons, hidden pinned turn | E | in progress (`session_01VsEchvGAGyS2668jMmTtMZ`, in parallel with E01) | `feat/coach-ask-from-context` | owns `useChat.ts`, `ChatSidebar.tsx`, the calendar reducer, modal, tracker; no prompt change |
+| E01 | Block planner mode: fourth `ChatMode`, `update_block_draft`, reads + doctrine, Apply creates | E | in review (#361, head `7cf8b90`) — HELD phase51; `coach-gate` red by design; two review fixes delegated to the lane | `feat/coach-block-planner` | HELD (phase51 widens two CHECKs); `PROMPT_VERSION` → 2026.09.29-1; owns the server hot files; merges first |
+| E02 | Ask the coach about this session: modal + tracker buttons, hidden pinned turn | E | in review (#362, head `9214858`) — a key-check fix and two tests delegated to the lane | `feat/coach-ask-from-context` | owns `useChat.ts`, `ChatSidebar.tsx`, the calendar reducer, modal, tracker; no prompt change |
 
 ## Next up
 1. **Eval gate is running** in cloud session `session_01J9RBmksgHXBySnEoTzMVf8` on `main`
@@ -29,10 +29,11 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
    PR from `chore/eval-gate-attestation` (not HELD) and turns `coach-gate` green on #359; E01's
    `PROMPT_VERSION` bump needs one more run after it merges.
 2. **Wave D is on `main`** (#358, #359, #360). Shane has applied phase48/49/50 to production.
-3. **Wave E running**: E01 `session_013tZ4t8LoZqkYrdZKLKwXui`, E02 `session_01VsEchvGAGyS2668jMmTtMZ`,
-   both from `main` after #360; merge order E01 → E02; E01 HELD (phase51). Housekeeping owed:
-   `git-tidy.sh --yes` for the wave C/D worktrees; the remote branch `feat/coach-weekly-review`
-   was recreated at its merged SHA by an orchestrator push and can be deleted.
+3. **Wave E in review**: #361 (E01, HELD — **Shane: apply phase51 in production with the merge**)
+   then #362 (E02). Fold green (vitest 2269). The gate retry session is still running; its
+   attestation PR (on `1a15ac4`) goes stale on #361's `PROMPT_VERSION` bump, so one more run after
+   #361 merges. Housekeeping owed: `git-tidy.sh --yes` for the wave C/D worktrees; the recreated
+   remote `feat/coach-weekly-review` can be deleted.
 4. Evals follow-up: fixture-backed memory in the harness (`fixture.memory`); an ask-from-context
    case after E02.
 5. **Shane:** #348 follow-up on thinking blocks across the write path; review the doctrine text.
@@ -96,3 +97,6 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
   recorded. Gate session launched with the environment's new token.
 - 2026-09-28 · Shane · merged #359 and #360; wave D complete. Orchestrator launched wave E as two
   cloud sessions (E01, E02) from the new `main`.
+- 2026-09-28 · orchestrator · wave E reported (E01 three commits, E02 one; ~40 min each, as Shane);
+  read-only review against the briefs found six small deviations, none blocking; phase51 claimed;
+  fold green; PRs #361 #362 opened and subscribed; fixes delegated to the lane sessions.
