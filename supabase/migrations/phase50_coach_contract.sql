@@ -1,4 +1,4 @@
--- Phase XX: the coaching contract and nightly reflection.
+-- Phase 50: the coaching contract and nightly reflection.
 --
 -- WHY THIS EXISTS
 -- The chat coach reads and remembers, but only what the athlete says in chat,
