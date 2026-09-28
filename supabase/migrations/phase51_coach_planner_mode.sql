@@ -1,4 +1,4 @@
--- Phase XX: the coach's planner mode joins the closed `mode` sets.
+-- Phase 51: the coach's planner mode joins the closed `mode` sets.
 --
 -- WHY THIS EXISTS
 -- api/_lib/coach/context.ts gains a fourth ChatMode, 'planner' (decision
