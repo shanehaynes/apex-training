@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type Anthropic from '@anthropic-ai/sdk';
 import {
-  buildWeeklyRecap, buildWeeklySystemPrompt, citableDoctrine, computePlanVsDone, doctrineLineOccurs,
+  buildWeeklyRecap, buildWeeklySystemPrompt, citableDoctrine, computePlanVsDone, doctrineLineOccurs, fetchWeeklyInputs,
   generateWeeklyDocument, parseWeeklyJson, resolveWeek, validateNextWeekItem, validateWeeklyDocument,
   weeklyOutputSchema, WEEKLY_MAX_TOKENS, type ValidationContext, type WeeklyInputs,
 } from '../_lib/review/weekly';
@@ -11,6 +11,18 @@ import { computeReviewStats } from '../../src/lib/review/stats';
 import { resolveCoachModel } from '../../src/lib/coach/models';
 import type { CompletionRow, WorkoutSessionRow } from '../../src/lib/db/types';
 import type { WorkoutEvent } from '../../src/types/workout';
+import { fetchExpandedSchedule } from '../_lib/mcp/data';
+import { fetchPeriodInputs } from '../_lib/reviewData';
+
+// The data layer under fetchWeeklyInputs is scripted; the panel and the
+// memory answer empty, so the assertions are about what the gatherer keeps.
+vi.mock('../_lib/mcp/data.js', () => ({ fetchExpandedSchedule: vi.fn() }));
+vi.mock('../_lib/reviewData.js', () => ({ fetchPeriodInputs: vi.fn() }));
+vi.mock('../_lib/coach/physiology.js', () => ({
+  fetchPhysiologyInputs: vi.fn(async (_db: unknown, _u: string, today: string) =>
+    ({ today, activities: [], cardioLogs: [], setLogs: [], thresholdHr: null, maxHr: null })),
+}));
+vi.mock('../_lib/coach/memory.js', () => ({ listConfirmed: vi.fn(async () => []), toPromptEntries: (rows: unknown[]) => rows }));
 
 // The pure half of the weekly review: the week's numbers, the recap the
 // model reads, and the validation that stands between the model's JSON and
@@ -46,7 +58,8 @@ function inputs(overrides: Partial<WeeklyInputs> = {}): WeeklyInputs {
     nextWeek: NEXT,
     events: EVENTS,
     nextWeekEvents: [{ ...base, id: 'next-push__2026-09-29', date: '2026-09-29', isRecurring: true }],
-    knownEventIds: new Set(['mon-push', 'wed-run', 'sat-long__2026-09-26', 'sat-long', 'next-push__2026-09-29', 'next-push']),
+    // Next week's ids only (occurrence and base): the reviewed week's are not editable from here.
+    knownEventIds: new Set(['next-push__2026-09-29', 'next-push']),
     completions: COMPLETIONS,
     sessions: SESSIONS,
     stats: computeReviewStats({ period, completions: COMPLETIONS, sessions: SESSIONS, setLogs: [], cardioLogs: [] }),
@@ -62,6 +75,7 @@ function inputs(overrides: Partial<WeeklyInputs> = {}): WeeklyInputs {
 const ctx = (over: Partial<ValidationContext> = {}): ValidationContext => ({
   window: WINDOW,
   nextWeek: NEXT,
+  today: TODAY,
   planVsDone: computePlanVsDone(inputs()),
   knownEventIds: inputs().knownEventIds,
   hasPhysiology: true,
@@ -79,10 +93,40 @@ const GOOD_DOC = {
   memoryProposals: [{ kind: 'preference', content: 'Prefers evening sessions', why: 'Every completed session started after 5 PM.' }],
   nextWeek: [
     { tool: 'create_event', input: { type: 'cardio', title: 'Easy run', date: '2026-09-30', estimated_duration: 40, exercises: [{ name: 'Run', notes: 'Z2' }] }, why: 'Replace the missed run.' },
-    { tool: 'update_event', input: { event_id: 'next-push__2026-09-29', event_title: 'Push Day', changes: { estimated_duration: 45 } }, why: 'Shorter after the long day.' },
+    { tool: 'update_event', input: { event_id: 'next-push__2026-09-29', event_title: 'Push Day', changes: { start_time: '6:00 PM' } }, why: 'Later start after the long day.' },
   ],
   headline: 'You did the big day and skipped the small one.',
 };
+
+describe('fetchWeeklyInputs', () => {
+  const admin = {
+    from: () => {
+      const chain = { select: () => chain, eq: () => chain, order: () => chain, then: (resolve: (v: unknown) => void) => resolve({ data: [], error: null }) };
+      return chain;
+    },
+  } as never;
+  const schedule: WorkoutEvent[] = [
+    { ...base, id: 'old-run', date: '2026-09-14' },
+    ...EVENTS,
+    { ...base, id: 'next-push__2026-09-29', date: '2026-09-29', isRecurring: true },
+    { ...base, id: 'later', date: '2026-10-07' },
+  ];
+  beforeEach(() => {
+    vi.mocked(fetchExpandedSchedule).mockResolvedValue({ occurrences: schedule.map(e => ({ ...e, isCompleted: false })), definitions: new Map(), anchorDates: new Map() });
+    vi.mocked(fetchPeriodInputs).mockResolvedValue({ period: { periodType: 'block', startDate: WINDOW.start, endDateExclusive: '2026-09-28', label: 'w', weeksInPeriod: 1 }, completions: COMPLETIONS, sessions: SESSIONS, setLogs: [], cardioLogs: [] });
+  });
+
+  it('keeps this week with completion applied, next week apart, and an allowlist of next week\'s ids only', async () => {
+    const result = await fetchWeeklyInputs(admin, 'u1', TODAY, WINDOW);
+    expect(result.events.map(e => [e.id, e.isCompleted])).toEqual([['mon-push', true], ['wed-run', false], ['sat-long__2026-09-26', true]]);
+    expect(result.nextWeekEvents.map(e => e.id)).toEqual(['next-push__2026-09-29']);
+    expect([...result.knownEventIds].sort()).toEqual(['next-push', 'next-push__2026-09-29']);
+    expect(result.nextWeek).toEqual(NEXT);
+    expect(result.physiology).toBe('');
+    expect(result.block).toBeNull();
+    expect(fetchPeriodInputs).toHaveBeenCalledWith(admin, 'u1', expect.objectContaining({ startDate: WINDOW.start, endDateExclusive: '2026-09-28' }));
+  });
+});
 
 describe('resolveWeek', () => {
   it('defaults to the ISO week containing today, takes any date inside the named week, rejects garbage', () => {
@@ -220,11 +264,39 @@ describe('validateNextWeekItem', () => {
     expect(validateNextWeekItem({ tool: 'create_event', input: { ...good, exercises: [{ sets: 3 }] }, why: '' }, c)).toMatchObject({ why: expect.stringContaining('name') });
   });
 
-  it('keeps an update_event that names a known id (by occurrence or base id) with a known change', () => {
+  it('keeps an update_event that names a next-week id (by occurrence or base id) with a known change', () => {
     expect(validateNextWeekItem(GOOD_DOC.nextWeek[1], c)).toEqual({
-      item: { tool: 'update_event', input: { event_id: 'next-push__2026-09-29', event_title: 'Push Day', changes: { estimated_duration: 45 } }, why: 'Shorter after the long day.' },
+      item: { tool: 'update_event', input: { event_id: 'next-push__2026-09-29', event_title: 'Push Day', changes: { start_time: '6:00 PM' } }, why: 'Later start after the long day.' },
     });
     expect(validateNextWeekItem({ tool: 'update_event', input: { event_id: 'next-push', event_title: 'Push Day', changes: { date: '2026-09-30' } }, why: '' }, c)).toHaveProperty('item');
+    // The base id may change what one occurrence may not.
+    expect(validateNextWeekItem({ tool: 'update_event', input: { event_id: 'next-push', event_title: 'Push Day', changes: { estimated_duration: 45 } }, why: '' }, c)).toHaveProperty('item');
+  });
+
+  it('drops an occurrence update that changes what the executor refuses per occurrence, naming the field and the base id', () => {
+    for (const key of ['estimated_duration', 'title', 'description', 'difficulty', 'location']) {
+      const result = validateNextWeekItem({ tool: 'update_event', input: { event_id: 'next-push__2026-09-29', event_title: 'Push Day', changes: { start_time: '6:00 PM', [key]: key === 'title' || key === 'description' || key === 'location' ? 'x' : 4 } }, why: '' }, c);
+      expect(result, key).toEqual({ why: expect.stringContaining(`cannot change ${key} on one occurrence`) });
+      expect(result, key).toEqual({ why: expect.stringContaining('"next-push"') });
+    }
+    // Date, start and end are the occurrence's own, so all three together pass.
+    expect(validateNextWeekItem({ tool: 'update_event', input: { event_id: 'next-push__2026-09-29', event_title: 'Push Day', changes: { date: '2026-09-30', start_time: '6:00 PM', end_time: '7:00 PM' } }, why: '' }, c)).toHaveProperty('item');
+  });
+
+  it('drops an update naming a reviewed-week or unrelated event: only next week is editable from here', () => {
+    for (const id of ['mon-push', 'wed-run', 'sat-long__2026-09-26', 'sat-long']) {
+      expect(validateNextWeekItem({ tool: 'update_event', input: { event_id: id, event_title: 'x', changes: { start_time: '6:00 PM' } }, why: '' }, c), id)
+        .toEqual({ why: `update_event names unknown event ${JSON.stringify(id)}` });
+    }
+  });
+
+  it('drops a create dated before today even inside next week: it would retro-log as done', () => {
+    // Reviewing the current week mid-week: next week is still ahead, but a
+    // "next week" that started before today has past days in it.
+    const midWeek = { ...c, today: '2026-09-30' };
+    const good = GOOD_DOC.nextWeek[0].input;
+    expect(validateNextWeekItem({ tool: 'create_event', input: { ...good, date: '2026-09-29' }, why: '' }, midWeek)).toEqual({ why: expect.stringContaining('already past') });
+    expect(validateNextWeekItem({ tool: 'create_event', input: { ...good, date: '2026-09-30' }, why: '' }, midWeek)).toHaveProperty('item');
   });
 
   it('drops an update_event without an id, with an unknown id, or with no known change', () => {
@@ -296,6 +368,21 @@ describe('validateWeeklyDocument', () => {
       'A next-week proposal was dropped: update_event without an event_id.',
       `Next-week proposals are capped at ${NEXT_WEEK_MAX}; one was dropped.`,
     ]));
+  });
+
+  it('drops every next-week proposal of a historical review with one warning, and keeps the rest of the document', () => {
+    // The athlete stepped back two weeks: "next week" ended before today.
+    const historical = ctx({ window: { start: '2026-09-07', end: '2026-09-13' }, nextWeek: { start: '2026-09-14', end: '2026-09-20' } });
+    const past = { ...GOOD_DOC, nextWeek: [{ ...GOOD_DOC.nextWeek[0], input: { ...GOOD_DOC.nextWeek[0].input, date: '2026-09-16' } }, GOOD_DOC.nextWeek[1]] };
+    const result = validateWeeklyDocument(past, historical);
+    expect(result).toMatchObject({
+      document: { nextWeek: [], headline: GOOD_DOC.headline, memoryProposals: GOOD_DOC.memoryProposals },
+      warnings: ['Next-week proposals are offered for the current week only; this week\'s were dropped.'],
+    });
+    // An empty list earns no warning: there was nothing to drop.
+    expect(validateWeeklyDocument({ ...GOOD_DOC, nextWeek: [] }, historical)).toMatchObject({ warnings: [] });
+    // The current week's review keeps its proposals.
+    expect(validateWeeklyDocument(GOOD_DOC, ctx())).toMatchObject({ document: { nextWeek: [expect.anything(), expect.anything()] } });
   });
 
   it('bounds and strips model prose so a string can never open a tag', () => {
