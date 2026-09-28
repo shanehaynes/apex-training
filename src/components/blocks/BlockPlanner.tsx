@@ -7,7 +7,7 @@ import { TARGET_META, WEEKLY_TARGET_KEYS, targetUnit, targetValue } from '../../
 import { isValidationError } from '../../lib/blocks/validate';
 import { draftFromBlock, emptyBlockDraft, type BlockDraft, type BlockDraftItem } from '../../lib/blocks/draft';
 import { now } from '../../lib/clock';
-import type { Objective } from '../../types/blocks';
+import type { Objective, TrainingBlock } from '../../types/blocks';
 import BlockPlannerPanel from './BlockPlannerPanel';
 import './block-planner.css';
 
@@ -45,7 +45,7 @@ export default function BlockPlanner({
     if (draft.blocks.length === 0) return;
     setApplying(true);
     try {
-      if (draft.editingId) await updateBlock(draft.editingId, draft.blocks[0]);
+      if (draft.editingId) await updateBlock(draft.editingId, editFields(draft.blocks[0]));
       else await createBlocks(draft.blocks);
       await refresh();
       onApplied();
@@ -115,6 +115,20 @@ export default function BlockPlanner({
       </div>
     </div>
   );
+}
+
+/**
+ * The PATCH for a redrawn block. blockFieldsToRow skips `undefined` fields,
+ * so an item with no phase or objective would leave the old ones in place;
+ * an explicit null is what clears a column (the row types are nullable, the
+ * domain type is not — hence the cast).
+ */
+export function editFields(item: BlockDraftItem): Partial<Omit<TrainingBlock, 'id'>> {
+  return {
+    ...item,
+    phase: item.phase ?? null,
+    objectiveId: item.objectiveId ?? null,
+  } as unknown as Partial<Omit<TrainingBlock, 'id'>>;
 }
 
 // ─── Presentational pieces (tested at the markup level) ──────────────────────

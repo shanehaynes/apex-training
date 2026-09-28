@@ -499,7 +499,7 @@ export const updateBlockDraftSchema: Anthropic.Tool = {
           type: 'object',
           properties: {
             name:         { type: 'string' },
-            intent:       { type: 'string', description: 'What this block is FOR — one or two sentences.' },
+            intent:       { type: 'string', description: 'What this block is FOR — one or two sentences, at most 500 characters.' },
             phase:        { type: 'string', enum: BLOCK_PHASE_VALUES },
             objective_id: { type: 'string', description: 'The id in [brackets] of one of the athlete\'s objectives; omit for none.' },
             start_date:   { type: 'string', description: 'YYYY-MM-DD, a Monday.' },

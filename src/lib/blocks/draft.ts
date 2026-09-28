@@ -87,6 +87,10 @@ const TARGET_LABELS: Record<keyof WeeklyTargets, TargetInputKey> = {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** The most an intent may carry: the prompt caps <block_draft> at 8000
+ *  characters, and 24 blocks of unbounded intent would cut the list. */
+export const INTENT_MAX = 500;
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -203,8 +207,10 @@ function parseItem(raw: unknown, index: number, ctx: BlockDraftContext, errors: 
 
   let intent = '';
   if (raw.intent !== undefined && raw.intent !== null) {
-    if (typeof raw.intent === 'string') intent = raw.intent.trim();
-    else fail('intent must be a string.');
+    if (typeof raw.intent !== 'string') fail('intent must be a string.');
+    else if (raw.intent.trim().length > INTENT_MAX) {
+      fail(`intent is ${raw.intent.trim().length} characters — keep it under ${INTENT_MAX} (one or two sentences on what the block is for).`);
+    } else intent = raw.intent.trim();
   }
 
   let phase: BlockPhase | undefined;
@@ -382,10 +388,22 @@ export function describeBlockDraft(input: unknown): string {
   return lines.join('\n');
 }
 
-/** The athlete's existing blocks, one line each, for <existing_blocks>. */
-export function describeExistingBlocks(blocks: TrainingBlock[], objectives: Objective[] = []): string {
+/**
+ * The athlete's existing blocks for <existing_blocks>, one line each in date
+ * order — only those still relevant to a plan, i.e. ending on or after this
+ * week's Monday (a new block cannot start earlier, so nothing older can
+ * overlap one). The prompt caps the section at 8000 characters; listing a
+ * long history oldest-first would cut exactly the blocks the overlap rule
+ * needs the model to see. The omitted count is stated, never silent.
+ */
+export function describeExistingBlocks(blocks: TrainingBlock[], objectives: Objective[] = [], today: Date): string {
   if (blocks.length === 0) return '(no blocks yet)';
-  return [...blocks]
+  const monday = mondayOf(today);
+  const relevant = blocks.filter(b => b.endDateExclusive >= monday);
+  const earlier = blocks.length - relevant.length;
+  const omitted = earlier === 0 ? [] : [`(${earlier} earlier block${earlier === 1 ? '' : 's'} not shown — all ended before ${monday})`];
+  if (relevant.length === 0) return omitted[0];
+  const lines = [...relevant]
     .sort((a, b) => a.startDate.localeCompare(b.startDate))
     .map(b => {
       const objective = objectives.find(o => o.id === b.objectiveId);
@@ -397,8 +415,8 @@ export function describeExistingBlocks(blocks: TrainingBlock[], objectives: Obje
         objective ? `objective "${objective.name}"` : null,
         describeTargets(b.weeklyTargets) || null,
       ].filter(Boolean).join(' · ');
-    })
-    .join('\n');
+    });
+  return [...omitted, ...lines].join('\n');
 }
 
 /** The athlete's objectives with the ids objective_id takes, for <objectives>. */

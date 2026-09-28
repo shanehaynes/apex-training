@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseISO } from 'date-fns';
 import {
+  INTENT_MAX,
   applyBlockDraftUpdate,
   describeBlockDraft,
   describeExistingBlocks,
@@ -182,6 +183,14 @@ describe('applyBlockDraftUpdate — the rules, each a sentence in ONE error', ()
     expect(mondayOf(TODAY)).toBe('2026-09-28');
   });
 
+  it(`caps intent at ${INTENT_MAX} characters so a full draft cannot outgrow the prompt`, () => {
+    const long = 'x'.repeat(INTENT_MAX + 1);
+    const error = bad(applyBlockDraftUpdate(empty(), { blocks: [{ ...PLAN[0], intent: long }] }, ctx()));
+    expect(error).toBe(`block 1 "Base": intent is ${INTENT_MAX + 1} characters — keep it under ${INTENT_MAX} (one or two sentences on what the block is for).`);
+    const { draft } = ok(applyBlockDraftUpdate(empty(), { blocks: [{ ...PLAN[0], intent: ` ${'y'.repeat(INTENT_MAX)} ` }] }, ctx()));
+    expect(draft.blocks[0].intent).toHaveLength(INTENT_MAX);
+  });
+
   it('accepts null for the optional fields', () => {
     const { draft } = ok(applyBlockDraftUpdate(empty(), {
       blocks: [{ name: 'B', start_date: '2026-10-05', end_date: '2026-10-11', phase: null, intent: null, objective_id: null, weekly_targets: null }],
@@ -223,11 +232,30 @@ describe('describeBlockDraft', () => {
 describe('describeExistingBlocks / describeObjectives', () => {
   it('lists blocks in date order with id, phase, range, objective and targets', () => {
     const later: TrainingBlock = { ...existing, id: 'blk-later', name: 'Winter', phase: undefined, objectiveId: 'obj-denali', startDate: '2026-12-07', endDateExclusive: '2026-12-14', weeklyTargets: {} };
-    expect(describeExistingBlocks([later, existing], [denali])).toBe([
+    expect(describeExistingBlocks([later, existing], [denali], TODAY)).toBe([
       '- [blk-fall] Fall Base · phase base · 2026-09-07 → 2026-10-04 (4 weeks) · cardio_minutes 240',
       '- [blk-later] Winter · 2026-12-07 → 2026-12-13 (1 week) · objective "Denali"',
     ].join('\n'));
-    expect(describeExistingBlocks([])).toBe('(no blocks yet)');
+    expect(describeExistingBlocks([], [], TODAY)).toBe('(no blocks yet)');
+  });
+
+  it('shows only blocks ending on or after this week\'s Monday and counts the earlier ones, so a long history cannot cut the relevant ones', () => {
+    // 30 old four-week blocks, then one ending exactly on this Monday (still relevant: it butts up against the week), then the current one.
+    const old: TrainingBlock[] = Array.from({ length: 30 }, (_, i) => ({
+      ...existing, id: `blk-old-${i}`, name: `Old ${i}`, intent: 'x'.repeat(200),
+      startDate: '2024-01-01', endDateExclusive: '2024-01-29',
+    }));
+    const endsMonday: TrainingBlock = { ...existing, id: 'blk-edge', name: 'Edge', startDate: '2026-08-31', endDateExclusive: '2026-09-28', weeklyTargets: {} };
+    const endsSunday: TrainingBlock = { ...existing, id: 'blk-gone', name: 'Gone', startDate: '2026-08-24', endDateExclusive: '2026-09-27', weeklyTargets: {} };
+    const text = describeExistingBlocks([existing, ...old, endsMonday, endsSunday], [denali], TODAY);
+    expect(text.split('\n')).toEqual([
+      '(31 earlier blocks not shown — all ended before 2026-09-28)',
+      '- [blk-edge] Edge · phase base · 2026-08-31 → 2026-09-27 (4 weeks)',
+      '- [blk-fall] Fall Base · phase base · 2026-09-07 → 2026-10-04 (4 weeks) · cardio_minutes 240',
+    ]);
+    expect(text.length).toBeLessThan(8000);
+    // Only history: the count alone.
+    expect(describeExistingBlocks([endsSunday], [], TODAY)).toBe('(1 earlier block not shown — all ended before 2026-09-28)');
   });
 
   it('lists objectives with the ids objective_id takes', () => {

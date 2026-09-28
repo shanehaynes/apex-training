@@ -275,7 +275,7 @@ export async function buildChatContext(
       system: buildPlannerPrompt(),
       volatile: buildPlannerVolatile(
         draftText,
-        describeExistingBlocks(blocks, objectives),
+        describeExistingBlocks(blocks, objectives, today),
         describeObjectives(objectives),
         today,
         { goal: profile?.coach_goal ?? undefined, context: profile?.coach_context ?? undefined },

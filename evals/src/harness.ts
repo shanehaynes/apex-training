@@ -90,7 +90,7 @@ export async function runCase(
     // The planner's two halves as one string, as buildSystemPrompt joins chat's.
     ? buildPlannerPrompt() + '\n\n' + buildPlannerVolatile(
         describeBlockDraft(blockDraft),
-        describeExistingBlocks(existingBlocks, objectives),
+        describeExistingBlocks(existingBlocks, objectives, today),
         describeObjectives(objectives),
         today,
         evalCase.fixture.athlete,

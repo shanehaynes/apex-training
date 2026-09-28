@@ -294,7 +294,7 @@ describe('buildChatContext', () => {
     const physiology = describePhysiology(computePhysiology(await fetchPhysiologyInputs(makeAdmin(), 'u1', TODAY)));
     expect(volatile).toBe(buildPlannerVolatile(
       describeBlockDraft(planDraft),
-      describeExistingBlocks([rowToBlock(blockRow)], [rowToObjective(objectiveRow)]),
+      describeExistingBlocks([rowToBlock(blockRow)], [rowToObjective(objectiveRow)], parseISO(TODAY)),
       describeObjectives([rowToObjective(objectiveRow)]),
       parseISO(TODAY),
       { goal: 'Send 5.12', context: 'Two kids' },

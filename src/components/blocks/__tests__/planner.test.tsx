@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { DraftCard, DraftEmpty } from '../BlockPlanner';
+import { DraftCard, DraftEmpty, editFields } from '../BlockPlanner';
+import { blockFieldsToRow } from '../../../lib/blocks/mapping';
 import { ReadChips } from '../BlockPlannerPanel';
 import type { BlockDraftItem } from '../../../lib/blocks/draft';
 
@@ -64,5 +65,19 @@ describe('ReadChips', () => {
     expect(html.match(/class="chat-reads__chip"/g)).toHaveLength(2);
     expect(html.indexOf('Checked: training blocks')).toBeLessThan(html.indexOf('Doctrine: Periodization'));
     expect(renderToStaticMarkup(<ReadChips labels={['x']} streaming />)).toContain('class="chat-reads chat-reads--streaming"');
+  });
+});
+
+describe('editFields — the PATCH a redraw sends', () => {
+  it('clears a phase and an objective the redrawn block no longer has, instead of leaving the old ones', () => {
+    const cleared = editFields({ ...base, phase: undefined, objectiveId: undefined });
+    expect(blockFieldsToRow(cleared)).toMatchObject({ phase: null, objective_id: null, name: 'Base', start_date: '2026-10-05' });
+    // blockFieldsToRow would have dropped them as undefined — the gap this closes.
+    expect(blockFieldsToRow({ ...base, phase: undefined, objectiveId: undefined })).not.toHaveProperty('phase');
+    expect(blockFieldsToRow({ ...base, phase: undefined, objectiveId: undefined })).not.toHaveProperty('objective_id');
+  });
+
+  it('keeps a phase and objective the block has', () => {
+    expect(blockFieldsToRow(editFields(base))).toMatchObject({ phase: 'base', objective_id: 'obj-denali', weekly_targets: base.weeklyTargets });
   });
 });
