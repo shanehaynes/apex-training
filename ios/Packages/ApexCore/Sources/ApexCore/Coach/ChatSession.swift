@@ -304,6 +304,7 @@ public actor ChatSession {
         case .chat: nil
         case .builder: "update_workout_draft"
         case .analytics: "update_chart_draft"
+        case .planner: "update_block_draft"
         }
     }
 

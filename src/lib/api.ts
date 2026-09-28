@@ -191,7 +191,7 @@ export function revokeMcpToken(id: string): Promise<{ ok: boolean }> {
 
 // ── Coach conversations (thread persistence, D-013) ───────────────────────────
 
-export type CoachMode = 'chat' | 'builder' | 'analytics';
+export type CoachMode = 'chat' | 'builder' | 'analytics' | 'planner';
 
 /** A stored thread, as /api/coach-conversations reports it. */
 export interface CoachConversation {

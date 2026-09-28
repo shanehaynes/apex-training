@@ -8,7 +8,7 @@ import { enforceRateLimit } from './_lib/rateLimit.js';
 import { clientTag } from './_lib/clientVersion.js';
 import { recordCoachRun, type CoachRunInsert } from './_lib/coachRuns.js';
 import { reportError } from './_lib/errorReport.js';
-import { analyticsToolSchemas, builderToolSchemas, coachToolSchemas } from '../src/lib/coach/schemas.js';
+import { analyticsToolSchemas, builderToolSchemas, coachToolSchemas, plannerToolSchemas } from '../src/lib/coach/schemas.js';
 import { resolveCoachModel } from '../src/lib/coach/models.js';
 import { PROMPT_VERSION } from '../src/lib/coach/prompt.js';
 import type { ChatWireEvent } from '../src/lib/coach/wire.js';
@@ -29,8 +29,9 @@ import { viewPath } from './_lib/coach/memory.js';
 // partial JSON deltas. A response with parallel tool calls yields one
 // tool_use event per block; the client queues them all (actionQueue.ts).
 //
-// THE SIGHT LOOP (coach initiative, B01). In chat mode the tool list also
-// carries the read tools (api/_lib/coach/readTools.ts) and read_doctrine.
+// THE SIGHT LOOP (coach initiative, B01). In chat mode — and in planner mode
+// (E01), which reads before it drafts — the tool list also carries the read
+// tools (api/_lib/coach/readTools.ts) and read_doctrine.
 // Those never reach the browser as confirm cards: when a response asks only
 // for server-side tools, this handler runs them here, appends the assistant
 // message (thinking blocks included) and one user message of tool_results,
@@ -61,13 +62,13 @@ interface Body {
    *  (W5a) — accepted until every bundle has switched. */
   system?: unknown;
   withTools?: unknown;
-  /** 'chat' | 'builder' | 'analytics' — which prompt and which tool list. */
+  /** 'chat' | 'builder' | 'analytics' | 'planner' — which prompt and which tool list. */
   mode?: unknown;
   /** @deprecated alias of `mode` from the legacy body. */
   toolMode?: unknown;
   /** The caller's local calendar date, YYYY-MM-DD (v2 bodies). */
   today?: unknown;
-  /** builder/analytics: the current draft the server describes in the prompt. */
+  /** builder/analytics/planner: the current draft the server describes in the prompt. */
   context?: { draft?: unknown } | unknown;
   /** Chosen model id; anything unrecognised resolves to the default. */
   model?: unknown;
@@ -107,6 +108,9 @@ interface Body {
 //      minutes. Builder and analytics embed the live draft in `system`, so
 //      their prefix changes on most turns and a 1-hour entry would rarely be
 //      read back — they and the legacy client-built `system` keep the default.
+//      The planner (E01) is split like chat — its draft, blocks and
+//      objectives ride in `volatile` — so it takes the same 1-hour prefix,
+//      decided by the non-empty `volatile` rather than by mode.
 //   5. The server-side tool loop re-sends the SAME tools, system and
 //      breakpoints on every round of a turn, and only ever appends after the
 //      messages breakpoint (the assistant message and its tool_results), so
@@ -161,18 +165,31 @@ export function chatToolSchemas(): ChatTool[] {
 }
 
 /**
- * Static tool schemas with a cache breakpoint on the last one. Three modes,
+ * The block planner's tool list (E01): its one write, update_block_draft,
+ * then the read tools, then read_doctrine — no memory tool, no calendar or
+ * meal write, so the planner cannot touch the schedule or memory. The
+ * write half comes from schemas.ts (plannerToolSchemas); the reads are
+ * appended here for the same reason chatToolSchemas appends them.
+ */
+export function plannerChatToolSchemas(): ChatTool[] {
+  return [...plannerToolSchemas(), ...readToolSchemas(), { ...readDoctrineToolSchema }];
+}
+
+/**
+ * Static tool schemas with a cache breakpoint on the last one. Four modes,
  * each with its own CONSTANT list: the sidebar's registry plus the read
- * tools, the builder's single draft tool, and the analytics builder's
- * single chart tool. A mode's tools+system prefix stays identical across
- * its own turns (the caching rules above hold per mode); a scoped mode's
- * absent calendar/meal tools are what make "the coach can never apply,
- * save, or touch the schedule from here" structural.
+ * tools, the builder's single draft tool, the analytics builder's single
+ * chart tool, and the planner's draft tool plus the read tools. A mode's
+ * tools+system prefix stays identical across its own turns (the caching
+ * rules above hold per mode); a scoped mode's absent calendar/meal tools
+ * are what make "the coach can never apply, save, or touch the schedule
+ * from here" structural.
  */
 export function cachedToolSchemas(mode: ToolMode = 'chat', ttl: CacheTtl = '5m'): ChatTool[] {
   const tools: ChatTool[] =
     mode === 'builder' ? builderToolSchemas()
     : mode === 'analytics' ? analyticsToolSchemas()
+    : mode === 'planner' ? plannerChatToolSchemas()
     : chatToolSchemas();
   return tools.map((tool, i) =>
     i === tools.length - 1 ? { ...tool, cache_control: ephemeral(ttl) } : tool,
@@ -458,8 +475,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // The system prompt: built here from the caller's own data (v2), or
   // handed over by a legacy bundle. Either way the verified uid scopes it.
-  // `volatile` is chat mode's live half, injected per request below; it
-  // stays '' for the other modes and the legacy path, which keep one block.
+  // `volatile` is the live half of chat and planner mode, injected per
+  // request below; it stays '' for the other modes and the legacy path,
+  // which keep one block.
   let system: string;
   let volatile = '';
   let toolContext: CoachToolContext | null = null;
@@ -570,9 +588,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // rounds appended below carry none, so the breakpoints never move.
     let messagesOut = withTools ? withConversationBreakpoint(outgoing) : outgoing;
 
-    // Only chat mode offers server-side tools; the other modes stream one
-    // response as they always did.
-    const serverLoop = toolMode === 'chat';
+    // Chat and planner mode offer server-side tools; the draft-only modes
+    // stream one response as they always did. Everything below is
+    // mode-agnostic: in planner mode the one write, update_block_draft,
+    // streams to the client like a builder update.
+    const serverLoop = toolMode === 'chat' || toolMode === 'planner';
     let usage: UpstreamUsage | null = null;
     let stopReason: string | null = null;
     let toolUseCount = 0;

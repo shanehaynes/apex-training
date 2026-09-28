@@ -11,6 +11,9 @@ import { findCoachTool } from '../../../src/lib/coach/tools.js';
 import type { NewCoachAnnotation } from '../../../src/lib/coach/annotations.js';
 import { applyDraftUpdate, type DraftUpdateInput, type WorkoutDraft } from '../../../src/lib/builder/draft.js';
 import { applyChartDraftUpdate, type ChartDraft, type DraftUpdateInput as ChartDraftUpdateInput } from '../../../src/lib/analytics/draft.js';
+import { applyBlockDraftUpdate, type BlockDraft, type BlockDraftUpdateInput } from '../../../src/lib/blocks/draft.js';
+import { fetchBlocksAndObjectives } from '../coach/context.js';
+import { parseISO } from 'date-fns';
 import { rowToMeal } from '../../../src/lib/nutrition/mapping.js';
 import type { MealRow } from '../../../src/lib/db/types.js';
 
@@ -23,13 +26,16 @@ import type { MealRow } from '../../../src/lib/db/types.js';
 // rather than declared by the caller.
 //
 //   { toolUseId?, name, input, today }            mutation tools → { ok, resultText }
-//   { name, input, today, draft }  update_workout_draft / update_chart_draft
-//                                                 → { ok, resultText, draft }
+//   { name, input, today, draft }  update_workout_draft / update_chart_draft /
+//                                  update_block_draft → { ok, resultText, draft }
 // Draft tools are a stateless reduce: the caller's draft in, the next draft
-// out, with the reducer's own validation text as the tool_result.
+// out, with the reducer's own validation text as the tool_result. The block
+// reducer (E01) also reads the athlete's blocks and objectives for its
+// overlap and objective_id rules — a read, never a write: nothing lands
+// until the client's Apply.
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const DRAFT_TOOLS = new Set(['update_workout_draft', 'update_chart_draft']);
+const DRAFT_TOOLS = new Set(['update_workout_draft', 'update_chart_draft', 'update_block_draft']);
 
 interface Body {
   toolUseId?: unknown;
@@ -87,6 +93,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (name === 'update_workout_draft') {
         const { definitions } = await fetchExpandedSchedule(supabase, userId, today);
         const result = applyDraftUpdate(body.draft as unknown as WorkoutDraft, input as unknown as DraftUpdateInput, definitions);
+        res.status(200).json('error' in result
+          ? { ok: false, resultText: result.error, draft: body.draft }
+          : { ok: true, resultText: result.summary, draft: result.draft });
+      } else if (name === 'update_block_draft') {
+        const { blocks, objectives } = await fetchBlocksAndObjectives(supabase, userId);
+        const result = applyBlockDraftUpdate(
+          body.draft as unknown as BlockDraft,
+          input as BlockDraftUpdateInput,
+          { existing: blocks, objectives, today: parseISO(today) },
+        );
         res.status(200).json('error' in result
           ? { ok: false, resultText: result.error, draft: body.draft }
           : { ok: true, resultText: result.summary, draft: result.draft });

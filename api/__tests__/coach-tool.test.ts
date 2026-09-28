@@ -6,6 +6,7 @@ import { enforceAiMutationCap } from '../_lib/rateLimit';
 import { createServerDeps } from '../_lib/coach/serverDeps';
 import { emptyDraft } from '../../src/lib/builder/draft';
 import { emptyChartDraft } from '../../src/lib/analytics/draft';
+import { emptyBlockDraft, type BlockDraft } from '../../src/lib/blocks/draft';
 import type { CoachToolDeps } from '../../src/lib/coach/tools';
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
@@ -46,19 +47,25 @@ const deps = {
 let mealLookups: string[];
 /** Rows inserted through the admin, by table (a confirmed leave_note lands in coach_annotations). */
 let inserted: Array<{ table: string; row: Record<string, unknown> }>;
+/** training_blocks / objectives rows the block reducer (E01) reads for its overlap and objective_id rules. */
+let blockRows: Record<string, unknown>[];
+let objectiveRows: Record<string, unknown>[];
 function makeAdmin() {
-  const chain = {
-    select: () => chain, eq: (_c: string, v: string) => { if (typeof v === 'string' && v.startsWith('meal-')) mealLookups.push(v); return chain; },
-    maybeSingle: async () => ({ data: { id: 'meal-old', title: 'Dinner', date: '2026-09-01', protein_g: 30, fat_total_g: 20, fat_saturated_g: 5, fat_trans_g: 0, notes: '' }, error: null }),
-  };
   return {
-    from: (table: string) => ({
-      ...chain,
-      insert: (row: Record<string, unknown>) => {
-        inserted.push({ table, row });
-        return { select: () => ({ single: async () => ({ data: { id: 'note-1' }, error: null }) }) };
-      },
-    }),
+    from: (table: string) => {
+      const chain = {
+        select: () => chain,
+        eq: (_c: string, v: string) => { if (typeof v === 'string' && v.startsWith('meal-')) mealLookups.push(v); return chain; },
+        maybeSingle: async () => ({ data: { id: 'meal-old', title: 'Dinner', date: '2026-09-01', protein_g: 30, fat_total_g: 20, fat_saturated_g: 5, fat_trans_g: 0, notes: '' }, error: null }),
+        // The ordered list read (training_blocks, objectives) resolves at .order().
+        order: async () => ({ data: table === 'training_blocks' ? blockRows : table === 'objectives' ? objectiveRows : [], error: null }),
+        insert: (row: Record<string, unknown>) => {
+          inserted.push({ table, row });
+          return { select: () => ({ single: async () => ({ data: { id: 'note-1' }, error: null }) }) };
+        },
+      };
+      return chain;
+    },
   } as unknown as NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 }
 
@@ -80,6 +87,8 @@ function makeRes() {
 beforeEach(() => {
   mealLookups = [];
   inserted = [];
+  blockRows = [];
+  objectiveRows = [];
   vi.mocked(applyContractEdit).mockClear();
   vi.mocked(getSupabaseAdmin).mockReturnValue(makeAdmin());
   vi.mocked(createServerDeps).mockClear();
@@ -204,5 +213,39 @@ describe('POST /api/coach-tool — draft tools (stateless reduce)', () => {
     const missing = makeRes();
     await handler(makeReq({ name: 'update_chart_draft', input: { title: 'x' }, today: '2026-09-03' }), missing.res);
     expect(missing.statusCode()).toBe(400);
+  });
+
+  it('update_block_draft (E01): reduces the block draft against the athlete\'s real blocks and objectives, and writes nothing', async () => {
+    objectiveRows = [{ id: 'obj-denali', user_id: 'user-123', name: 'Denali', target_date: '2027-06-01', discipline: 'alpine', notes: '', required_capabilities: [], status: 'active' }];
+    blockRows = [{ id: 'blk-fall', user_id: 'user-123', objective_id: null, name: 'Fall Base', intent: '', phase: 'base', start_date: '2026-08-31', end_date_exclusive: '2026-09-28', weekly_targets: {} }];
+    const draft = emptyBlockDraft(new Date('2026-09-03T12:00:00'));
+    const input = { blocks: [{ name: 'Build', phase: 'build', start_date: '2026-09-28', end_date: '2026-10-25', objective_id: 'obj-denali', weekly_targets: { cardio_minutes: 300 } }] };
+
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq({ name: 'update_block_draft', input, today: '2026-09-03', draft }), res);
+    expect(statusCode()).toBe(200);
+    expect(body().ok).toBe(true);
+    expect(body().resultText).toBe('Block draft updated: 1 block, Sep 28 – Oct 25 (build 4w). The user reviews and presses Apply.');
+    expect((body().draft as BlockDraft).blocks[0]).toMatchObject({ name: 'Build', objectiveId: 'obj-denali', startDate: '2026-09-28', endDateExclusive: '2026-10-26', weeklyTargets: { cardioMinutes: 300 } });
+    expect(inserted).toEqual([]);
+    expect(enforceAiMutationCap).not.toHaveBeenCalled();
+    expect(createServerDeps).not.toHaveBeenCalled();
+
+    // The rules read the real rows: an overlap with Fall Base and an unknown objective come back as the tool_result, draft unchanged.
+    const bad = makeRes();
+    await handler(makeReq({
+      name: 'update_block_draft', today: '2026-09-03', draft,
+      input: { blocks: [{ name: 'Build', start_date: '2026-09-21', end_date: '2026-10-25', objective_id: 'obj-nope' }] },
+    }), bad.res);
+    expect(bad.statusCode()).toBe(200);
+    expect(bad.body().ok).toBe(false);
+    expect(bad.body().resultText).toContain('overlaps the existing block "Fall Base"');
+    expect(bad.body().resultText).toContain('the athlete\'s objectives are obj-denali (Denali)');
+    expect(bad.body().draft).toEqual(draft);
+
+    // Not a block draft at all: the caller's error.
+    const wrong = makeRes();
+    await handler(makeReq({ name: 'update_block_draft', input, today: '2026-09-03', draft: emptyChartDraft() }), wrong.res);
+    expect(wrong.statusCode()).toBe(400);
   });
 });
