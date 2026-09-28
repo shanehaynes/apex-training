@@ -20,8 +20,8 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 | D01 | Reflection + coaching contract + `leave_note` (nightly, proposal-gated) | D | done (#358, `1a15ac4`) — phase50 to apply in production; the reflection cron deploys with it (05:00 UTC, opt-in) | `feat/coach-reflection` | HELD (phase50 + `vercel.json` cron); `PROMPT_VERSION` → 2026.09.28-1; merges first |
 | D02 | Notebook page: memory, proposals, contract, doctrine | D | done (#359, `45706cb`) | `feat/coach-notebook` | codes against D01's interface contract; merges second |
 | D03 | Weekly review document + "next week" proposals | D | done (#360, `b263b1c`) | `feat/coach-weekly-review` | no table, no cron; merges third |
-| E01 | Block planner mode: fourth `ChatMode`, `update_block_draft`, reads + doctrine, Apply creates | E | in review (#361, head `2b55d4c`) — HELD phase51; CI green but `coach-gate` (by design); Codex round one fixed and resolved; waits on Shane's `shipit` | `feat/coach-block-planner` | HELD (phase51 widens two CHECKs); `PROMPT_VERSION` → 2026.09.29-1; owns the server hot files; merges first |
-| E02 | Ask the coach about this session: modal + tracker buttons, hidden pinned turn | E | in review (#362, head `235c187`) — CI green but `coach-gate` (stale attestation on `main`); Codex P1/P2 fixed and resolved; merges after #361 | `feat/coach-ask-from-context` | owns `useChat.ts`, `ChatSidebar.tsx`, the calendar reducer, modal, tracker; no prompt change |
+| E01 | Block planner mode: fourth `ChatMode`, `update_block_draft`, reads + doctrine, Apply creates | E | done (#361, `4273af6`) — **phase51 to apply in production** | `feat/coach-block-planner` | HELD (phase51 widens two CHECKs); `PROMPT_VERSION` → 2026.09.29-1; owns the server hot files; merges first |
+| E02 | Ask the coach about this session: modal + tracker buttons, hidden pinned turn | E | in review (#362, `main` merged in) — CI green but `coach-gate` (stale attestation); Codex P1/P2 fixed and resolved; last wave-E PR | `feat/coach-ask-from-context` | owns `useChat.ts`, `ChatSidebar.tsx`, the calendar reducer, modal, tracker; no prompt change |
 
 ## Next up
 1. **Eval gate is running** in cloud session `session_01J9RBmksgHXBySnEoTzMVf8` on `main`
@@ -105,3 +105,4 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
   verified, delegated, fixed by the lanes within the hour (`d87b0ef` `2b55d4c`; `ffda55a`
   `235c187`), replied and resolved. The gate retry session got stuck on a permission prompt
   for an MCP tool; re-instructed to run the gate without MCP tools.
+- 2026-09-28 · Shane · merged #361 (`4273af6`); orchestrator merged `main` into #362.
