@@ -9,7 +9,9 @@ import { useChat } from '../../hooks/useChat';
 import CoachModelPicker from '../coach/CoachModelPicker';
 import { findCoachTool } from '../../lib/coach/tools';
 import { previewForTool, type ToolPreview } from '../../lib/coach/preview';
+import { askCoachDisplay, askCoachPrompt, shouldSendAskCoach, type AskCoachRequest } from '../../lib/coach/askContext';
 import { useTip } from '../../hooks/useTip';
+import { useCoachReachable } from '../../hooks/useCoachReachable';
 import { helpPath } from '../../lib/help/pages';
 import { Send, Square, NotebookPen, Check, X, KeyRound, MessageSquarePlus } from 'lucide-react';
 import { now } from '../../lib/clock';
@@ -124,7 +126,7 @@ function ConfirmPreview({ preview }: { preview: ToolPreview }) {
       );
     case 'memory':
       // The whole fact, as it will be remembered (or forgotten): the card is
-      // where the athlete reads it before anything is stored (D-C03).
+      // where the athlete reads it before anything is stored (D-C02).
       return (
         <div className="confirm-preview" data-testid="confirm-preview" data-kind={`memory-${preview.action}`}>
           {preview.file && <p className="confirm-preview__line"><strong>{preview.file}</strong></p>}
@@ -218,12 +220,14 @@ export default function ChatSidebar() {
     pendingAction, pendingActionCount, sendMessage, confirmAction, cancelAction, triggerInitial,
     newThread, abort,
   } = useChat();
-  const { dispatch } = useCalendar();
+  const { state: { askCoach }, dispatch } = useCalendar();
   const { anthropicKey } = useAuth();
   // Known-missing key blocks the coach with a setup prompt; unknown (null,
   // e.g. offline mode or status still loading) doesn't — the server's 402
   // mapping in useChat is the backstop.
   const needsKey = anthropicKey?.hasKey === false;
+  // Tablet widths: the pane cannot be shown, so a pin is consumed unsent.
+  const coachReachable = useCoachReachable();
 
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -270,6 +274,36 @@ export default function ChatSidebar() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent, pendingAction]);
+
+  // "Ask the coach about this session" (D-C08): the modal or the tracker set
+  // state.askCoach; this pane sends it as a hidden user turn — the model
+  // reads the pin, the thread shows "Asked about: …" — as soon as it is free.
+  // While a turn is in flight, a confirm card waits, or another action holds
+  // the latch, the effect simply re-runs when those clear (they are deps).
+  // The ref remembers the request object already sent: StrictMode runs the
+  // effect twice, and the deps change again before CLEAR_ASK_COACH lands.
+  const askSentRef = useRef<AskCoachRequest | null>(null);
+  useEffect(() => {
+    if (actionBusy || actionLatchRef.current) return;
+    if (!shouldSendAskCoach(askCoach, { isLoading, pendingAction, lastSent: askSentRef.current })) return;
+    askSentRef.current = askCoach;
+    if (needsKey || !coachReachable) {
+      // No key saved: nothing to send, as the other entry points are
+      // disabled; the pin is still consumed — the phone's Coach tab has
+      // opened on it, and what the athlete sees there is the key setup.
+      // Unreachable pane (tablet): the buttons are not rendered there, so
+      // this is a resize mid-ask; a turn nobody can read is not sent.
+      dispatch({ type: 'CLEAR_ASK_COACH' });
+      return;
+    }
+    runExclusive(async () => {
+      const ctx = await resolveContext();
+      // Cleared once the send is committed, so a second Ask that lands
+      // mid-answer is a new request and queues behind this one.
+      dispatch({ type: 'CLEAR_ASK_COACH' });
+      await sendMessage(askCoachPrompt(askCoach), ctx, { display: askCoachDisplay(askCoach) });
+    });
+  }, [askCoach, isLoading, pendingAction, actionBusy, needsKey, coachReachable, runExclusive, resolveContext, sendMessage, dispatch]);
 
   // ── Mutation executor (called on Confirm) — runs on the server ────────────
   // POST /api/coach-tool executes the confirmed tool with the same executors

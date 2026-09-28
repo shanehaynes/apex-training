@@ -37,6 +37,14 @@ export default function AppShell() {
     }
   }, [isMobile, state.selectedView, dispatch]);
 
+  // "Ask the coach" from the workout modal or the tracker: on a phone the
+  // coach pane is the second tab, so a pinned session switches to it — the
+  // athlete would otherwise be looking at the calendar while the coach
+  // answers off screen. Desktop shows the rail already.
+  useEffect(() => {
+    if (isMobile && state.askCoach) setMobileTab('coach');
+  }, [isMobile, state.askCoach]);
+
   return (
     <div className="app-shell" data-mobile-tab={isMobile ? mobileTab : undefined}>
       <TopNav />
