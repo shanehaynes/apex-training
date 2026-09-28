@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ClipboardList } from 'lucide-react';
 import { useCalendar } from '../../context/calendar';
 import { useAuth } from '../../context/auth';
 import { useTip } from '../../hooks/useTip';
@@ -6,9 +7,10 @@ import { clearTemplateCopiedHere, templateCopiedHere } from '../../hooks/useTemp
 import MonthView from './MonthView';
 import WeekView from './WeekView';
 import DayView from './DayView';
+import '../review/weekly-review.css';
 
 export default function Calendar() {
-  const { state } = useCalendar();
+  const { state, dispatch } = useCalendar();
   // Derived state, not a render-phase ref write: under StrictMode's double
   // render a ref would already hold the new date on the second pass and the
   // slide direction would come out wrong.
@@ -33,14 +35,34 @@ export default function Calendar() {
   }, [copiedHere, tipSeen, userId]);
 
   return (
-    <div className="calendar">
-      {state.selectedView === 'month' ? (
-        <MonthView currentDate={state.currentDate} direction={direction} />
-      ) : state.selectedView === 'week' ? (
-        <WeekView currentDate={state.currentDate} />
-      ) : (
-        <DayView currentDate={state.currentDate} />
-      )}
+    <div className="calendar calendar--toolbar-host">
+      {/* The calendar's own toolbar (lane D03): one entry, the weekly review.
+          A slim row above the views on desktop; the views keep their
+          full-height layout inside the wrapper below, which takes the rest of
+          the column. On a phone the row would push the day view down under
+          the fixed setup nudge, so there it overlays the day header's free
+          top-right corner instead (weekly-review.css). */}
+      <div className="calendar-toolbar">
+        <button
+          className="calendar-toolbar__btn"
+          data-testid="nav-weekly-review"
+          onClick={() => dispatch({ type: 'OPEN_WEEKLY_REVIEW' })}
+          title="This week's review from the coach"
+          aria-label="Weekly review"
+        >
+          <ClipboardList size={14} strokeWidth={1.5} />
+          <span className="calendar-toolbar__label">Weekly review</span>
+        </button>
+      </div>
+      <div className="calendar-toolbar__views">
+        {state.selectedView === 'month' ? (
+          <MonthView currentDate={state.currentDate} direction={direction} />
+        ) : state.selectedView === 'week' ? (
+          <WeekView currentDate={state.currentDate} />
+        ) : (
+          <DayView currentDate={state.currentDate} />
+        )}
+      </div>
     </div>
   );
 }
