@@ -12,7 +12,8 @@ import { buildRunResult } from '../src/report';
 import { readDoctrine } from '../../src/lib/coach/doctrine/index';
 import { ALL_CASES } from '../cases/index';
 import { DOCTRINE_CASES } from '../cases/doctrine';
-import { SIGHT_CASES } from '../cases/sight';
+import { SIGHT_CASES, WRITE_TOOLS } from '../cases/sight';
+import { coachToolSchemas } from '../../src/lib/coach/schemas';
 import type { CallModel, CaseResult, EvalCase, HarnessResult, ModelResponse, RecordedToolCall } from '../src/types';
 
 // The sight loop in the harness: a scripted CallModel asks for reads, the
@@ -491,3 +492,17 @@ function executeServerSideToolName(name: string): boolean {
     'get_training_blocks', 'search_exercises', 'get_meals', 'get_session_summaries', 'get_reviews', 'search_history']
     .includes(name);
 }
+
+describe('sight cases forbid every production write', () => {
+  it('pins WRITE_TOOLS to the schemas the chat coach offers, and every read-only case forbids all of them', () => {
+    const production = coachToolSchemas().map(t => t.name);
+    expect(WRITE_TOOLS).toEqual(production);
+    expect(WRITE_TOOLS).toContain('propose_contract_edit');
+    expect(WRITE_TOOLS).toContain('leave_note');
+    // The cases that forbid ALL writes share the derived list (the Z2 case
+    // forbids the event writes alone, by its own hand-picked list).
+    const readOnly = SIGHT_CASES.filter(c => c.expect.integrity?.forbidToolCalls === WRITE_TOOLS);
+    expect(readOnly.map(c => c.id)).toEqual(['sight-deadlift-trend', 'sight-reads-never-mutate']);
+    for (const c of readOnly) expect(c.expect.integrity!.forbidToolCalls, c.id).toEqual(production);
+  });
+});

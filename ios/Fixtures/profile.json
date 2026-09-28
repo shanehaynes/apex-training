@@ -5,6 +5,8 @@
   "avatarKey": "goat",
   "coachGoal": "",
   "coachContext": "",
+  "coachContract": null,
+  "reflectionOptIn": false,
   "maxHr": null,
   "thresholdHr": null,
   "coachModel": null,

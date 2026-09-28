@@ -10,6 +10,7 @@ import { buildAnalyticsPrompt, buildBuilderPrompt, buildStablePrompt, buildVolat
 import { computePhysiology, describePhysiology } from '../../../src/lib/physiology/index.js';
 import { fetchPhysiologyInputs } from './physiology.js';
 import { listConfirmed, toPromptEntries } from './memory.js';
+import { readCoachContract } from '../reflection/contract.js';
 import type { MemoryPromptEntry } from '../../../src/lib/coach/memory.js';
 import type { CoachToolContext } from '../../../src/lib/coach/tools.js';
 import { describeDraft, type WorkoutDraft } from '../../../src/lib/builder/draft.js';
@@ -136,12 +137,27 @@ async function memoryEntries(supabase: Admin, userId: string): Promise<MemoryPro
 }
 
 /**
+ * The coaching contract for the live half (lane D01), or '' — never a
+ * failed turn. A missing column (the migration not yet applied) already
+ * reads as '' inside readCoachContract; this guards every other failure the
+ * same way, so the contract can cost its section and nothing else.
+ */
+async function coachContract(supabase: Admin, userId: string): Promise<string> {
+  try {
+    return await readCoachContract(supabase, userId);
+  } catch (err) {
+    console.warn('[api/chat] coaching contract unavailable for the prompt:', err instanceof Error ? err.message : err);
+    return '';
+  }
+}
+
+/**
  * Build the system prompt and tool-label context for one chat turn.
  *
  * chat:      live schedule (this week + a 4-week completion rate), today's
- *            meals, the exercise library, athlete profile, confirmed memory,
- *            active block, the physiology panel (zones, load, tonnage, HRV
- *            over five weeks).
+ *            meals, the exercise library, athlete profile, the coaching
+ *            contract, confirmed memory, active block, the physiology panel
+ *            (zones, load, tonnage, HRV over five weeks).
  * builder:   the caller's workout draft, saved-workout titles, the library.
  * analytics: the caller's chart draft and the titles of "other sport" workouts.
  */
@@ -206,12 +222,16 @@ export async function buildChatContext(
   // before it); everything else keeps isCompleted=false like a fresh expand.
   const windowStart = format(startOfWeek(subWeeks(today, 4), { weekStartsOn: 1 }), 'yyyy-MM-dd');
   const windowEnd = format(endOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-  const [completions, todayMeals, profileRes, physiology, memories] = await Promise.all([
+  // The contract is read on its own rather than in the profile select: its
+  // column trails in prod (readCoachContract tolerates that), and folding it
+  // into the typed select would cost the goal and context too when absent.
+  const [completions, todayMeals, profileRes, physiology, memories, contract] = await Promise.all([
     fetchCompletionsInRange(supabase, userId, windowStart, windowEnd),
     loadMealsForDate(supabase, userId, todayIso).catch((): Meal[] => []),
     supabase.from('profiles').select('coach_goal, coach_context').eq('id', userId).maybeSingle(),
     physiologyBlock(supabase, userId, todayIso),
     memoryEntries(supabase, userId),
+    coachContract(supabase, userId),
   ]);
   const completionById = new Map(completions.map(c => [c.event_id, c]));
   const events = occurrences.map(e => {
@@ -234,7 +254,10 @@ export async function buildChatContext(
       todayMeals,
       physiology,
       memories,
+      contract,
     ),
-    toolContext: { definitions, events, meals: todayMeals },
+    // The contract rides in the label context so a propose_contract_edit
+    // card can show the real "before" rather than the model's copy of it.
+    toolContext: { definitions, events, meals: todayMeals, contract },
   };
 }

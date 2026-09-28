@@ -41,9 +41,10 @@ DEVELOPMENT_TEAM = G44GWSXFK2
 // the label only.
 APEX_INVITE_CONTACT = mailto:support@apex-training.app?subject=Apex%20invite
 
-// Where the update screen sends a build the server has retired (G8). Empty
-// until the app has an App Store id — the screen then states the requirement
-// without offering a dead link. Fill in as:
-//   APEX_APP_STORE_URL = https:$(SLASH)$(SLASH)apps.apple.com$(SLASH)app$(SLASH)id<id>
-APEX_APP_STORE_URL =
+// Where the update screen sends a build the server has retired (G8). The id
+// is the App Store Connect app record's (6808637152, "Apex - Reach New
+// Heights", com.shanehaynes.apextraining) — it exists from the day the record
+// was created, and the public listing answers at it once 1.0 is released. An
+// empty value makes the screen state the requirement without a link.
+APEX_APP_STORE_URL = https:$(SLASH)$(SLASH)apps.apple.com$(SLASH)app$(SLASH)id6808637152
 

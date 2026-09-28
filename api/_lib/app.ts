@@ -24,6 +24,7 @@ import oauthToken from './handlers/oauthToken.js';
 import providerSync from './handlers/providerSync.js';
 import providerCallback from './handlers/providerCallback.js';
 import providerCron from './handlers/providerCron.js';
+import reflectionCron from './handlers/reflectionCron.js';
 import version from './handlers/version.js';
 import termsAcceptance from './handlers/termsAcceptance.js';
 import account from './handlers/account.js';
@@ -32,6 +33,7 @@ import query from './handlers/query.js';
 import coachTool from './handlers/coachTool.js';
 import coachConversations from './handlers/coachConversations.js';
 import coachMemory from './handlers/coachMemory.js';
+import coachReflections from './handlers/coachReflections.js';
 import workoutDraft from './handlers/workoutDraft.js';
 import analyticsCompute from './handlers/analyticsCompute.js';
 import blockCycle from './handlers/blockCycle.js';
@@ -115,6 +117,8 @@ app.all('/coach-tool', bridge(coachTool));
 // Coach thread persistence (D-013): the web thread used to die with the tab.
 app.all('/coach-conversations', bridge(coachConversations));
 app.all('/coach-memory', bridge(coachMemory));
+// The nightly reflection's proposals (lane D01): list, accept or reject.
+app.all('/coach-reflections', bridge(coachReflections));
 // The builder's Apply for native clients: the draft JSON in, the template
 // upsert + event write done with the web's own pure functions (docs/ios/
 // backend-changes.md, W7).
@@ -140,6 +144,8 @@ app.all('/provider-sync', bridge(providerSync));
 app.all('/provider-callback', bridge(providerCallback));
 // Nightly auto-sync cron target (CRON_SECRET bearer, vercel.json schedule).
 app.all('/provider-cron', bridge(providerCron));
+// Nightly coach reflection cron target (CRON_SECRET bearer, vercel.json schedule).
+app.all('/reflection-cron', bridge(reflectionCron));
 // Deployed-build identity for scripts/deploy-verify.sh: the commit SHA
 // Vercel stamped on this build. Unauthenticated — the repo is public.
 app.all('/version', bridge(version));

@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useContext } from 'react';
 import { useAuth } from '../context/auth';
+import { AnnotationsContext } from '../context/annotations';
 import {
   ApiError, authHeaders,
   appendCoachMessages, createCoachConversation, listCoachConversations, loadCoachConversation,
@@ -293,6 +294,10 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
   // model pick for free, and none of them has to thread it through.
   // undefined/null just means "server picks the default" — see models.ts.
   const { profile } = useAuth();
+  // Nullable on purpose: the builder and analytics panels render outside the
+  // calendar's AnnotationsProvider, and a confirmed leave_note only exists in
+  // chat mode. The one use is a refresh after that write lands (below).
+  const annotations = useContext(AnnotationsContext);
   const mode: CoachMode = toolMode ?? 'chat';
   const [messages,       setMessages]       = useState<DisplayMessage[]>([]);
   const [apiMessages,    setApiMessages]    = useState<ApiMessage[]>([]);
@@ -556,6 +561,12 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     let resultText = 'Done.';
     try {
       resultText = await executor();
+      // A confirmed leave_note (lane D01) wrote a coach_annotations row the
+      // calendar is not watching; re-fetch the visible range so the chip
+      // appears without a month step. Best-effort, and only in chat mode.
+      if (pendingActions[0]?.toolName === 'leave_note' && annotations) {
+        void annotations.refresh().catch(() => {});
+      }
     } catch {
       resultText = 'The operation failed — something went wrong on the backend.';
     } finally {
@@ -563,7 +574,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     }
 
     await settleAction(resultText, ctx, 'Done — but I had trouble confirming. The change was applied.');
-  }, [pendingActions, settleAction]);
+  }, [pendingActions, settleAction, annotations]);
 
   // ── cancelAction ───────────────────────────────────────────────────────────
 

@@ -54,15 +54,21 @@ interface AdminState {
   templates: Array<{ title: string }>;
   /** coach_memory rows as the live-row query returns them, or an error for the whole table. */
   memories: unknown[] | { error: string };
+  /** Make the contract's own profiles read fail with this message (lane D01). */
+  contractError?: string;
 }
 let state: AdminState;
 
 function makeAdmin() {
   return {
     from(table: string) {
+      let columns = '*';
       const chain = {
-        select: () => chain, eq: () => chain, is: () => chain, not: () => chain, order: () => chain, limit: () => chain,
-        maybeSingle: async () => ({ data: state.profile, error: null }),
+        select: (cols?: string) => { if (cols) columns = cols; return chain; },
+        eq: () => chain, is: () => chain, not: () => chain, order: () => chain, limit: () => chain,
+        maybeSingle: async () => (table === 'profiles' && columns === 'coach_contract' && state.contractError
+          ? { data: null, error: { message: state.contractError } }
+          : { data: state.profile, error: null }),
         then(resolve: (v: unknown) => void) {
           if (table === 'coach_memory' && 'error' in state.memories) {
             resolve({ data: null, error: { message: state.memories.error } });
@@ -184,6 +190,41 @@ describe('buildChatContext', () => {
     expect(volatile).toContain('[evt-today] Push Day (60 min) at 17:30');
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('athlete memory unavailable'), expect.stringContaining('does not exist'));
     warn.mockRestore();
+  });
+
+  it('chat: the coaching contract rides in the live half after the profile, in the label context, and never in the stable half (lane D01)', async () => {
+    state.profile = { coach_goal: 'Send 5.12', coach_context: 'Two kids', coach_contract: '  Push me on volume.\r\n\r\n\r\nLeave nutrition alone.  ' };
+    const { system, volatile, toolContext } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    expect(volatile).toContain('<coaching_contract>');
+    expect(volatile).toContain('HOW THE ATHLETE WANTS TO BE COACHED:\nPush me on volume.\n\nLeave nutrition alone.');
+    expect(volatile.indexOf('</athlete_profile>')).toBeLessThan(volatile.indexOf('<coaching_contract>'));
+    expect(volatile.indexOf('</coaching_contract>')).toBeLessThan(volatile.indexOf('Today:'));
+    expect(toolContext.contract).toBe('Push me on volume.\n\nLeave nutrition alone.');
+    expect(system).toBe(buildStablePrompt([def]));
+    expect(system).not.toContain('Push me on volume');
+    // The one-string prompt the evals drive is the two halves joined, contract included.
+    const withCompletion = occurrences.map(e => e.id === 'evt-soccer' ? { ...e, isCompleted: true, completedAt: '2026-08-31T20:00:00Z' } : e);
+    const windowed = withCompletion.filter(e => e.date >= '2026-08-03' && e.date <= '2026-09-06');
+    expect(system + '\n\n' + volatile).toBe(buildSystemPrompt(
+      withCompletion.filter(e => e.date === TODAY), windowed, parseISO(TODAY), [def],
+      { goal: 'Send 5.12', context: 'Two kids' }, null, [meal], '', [], 'Push me on volume.\n\nLeave nutrition alone.',
+    ));
+  });
+
+  it('chat: a contract read failure costs the section and nothing else, and no contract renders nothing (lane D01)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    state.contractError = 'connection reset';
+    const failed = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    expect(failed.volatile).not.toContain('<coaching_contract>');
+    expect(failed.volatile).toContain('Goal: Send 5.12');
+    expect(failed.toolContext.contract).toBe('');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('coaching contract unavailable'), expect.stringContaining('connection reset'));
+    warn.mockRestore();
+
+    state.contractError = undefined;
+    const { volatile, toolContext } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    expect(volatile).not.toContain('coaching_contract');
+    expect(toolContext.contract).toBe('');
   });
 
   it('chat: a missing profile degrades to the generic live context', async () => {
