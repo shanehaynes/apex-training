@@ -121,6 +121,19 @@ export interface AgentSdkBackendOptions {
 
 const DEFAULT_MAX_TURNS = 12;
 
+/** Claude Code adds its host's real date to every query as context ("Today's
+ *  date is …"), with no option to leave it out — CLAUDE_CODE_OVERRIDE_DATE is
+ *  not honored by the public build (probed 2026-09-29). Production sends one
+ *  date, the app's; here the model sees the fixture's and the machine's, and
+ *  on 2026-09-29 should-comply-extra-session trusted the machine's, found an
+ *  empty week and declined to schedule. This names the fixture's date as the
+ *  athlete's. Difference 9 in evals/README.md. */
+export function fixtureDateNote(today: string): string {
+  return `\n\n[Evaluation harness] The athlete's date is ${today}. Any other "today's date" in your ` +
+    'context is the harness host\'s clock, not the athlete\'s; plan, read and schedule against ' +
+    `${today}.`;
+}
+
 export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
   const thinking = COACH_MODELS.find(m => m.id === opts.model)?.params?.thinking;
   const runQuery = opts.runQuery
@@ -135,7 +148,7 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
   if (opts.oauthToken) childEnv.CLAUDE_CODE_OAUTH_TOKEN = opts.oauthToken;
 
   const runTurn = async (req: TurnRequest): Promise<TurnOutcome> => {
-    const { userText, transcript, buildSystem, executeTool, executeRead, toolMode, turnIndex, session, anomaly } = req;
+    const { userText, transcript, buildSystem, executeTool, executeRead, toolMode, today, turnIndex, session, anomaly } = req;
 
     // The SDK runs the sight loop itself: a read tool is an MCP tool like any
     // other, whose handler is the fixture executor. Its result is TEXT only —
@@ -220,7 +233,7 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
 
     const options: Options = {
       model: opts.model,
-      systemPrompt: buildSystem(),
+      systemPrompt: buildSystem() + fixtureDateNote(today),
       // `tools: []` is the lever that actually removes the built-ins;
       // `allowedTools: []` leaves every one of them in the prompt.
       tools: [],

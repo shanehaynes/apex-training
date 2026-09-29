@@ -183,6 +183,8 @@ describe('makeAgentSdkBackend', () => {
     expect(options.settingSources).toEqual([]); // no personal config
     expect(options.model).toBe('claude-sonnet-5');
     expect(options.systemPrompt).toContain('EXERCISE LIBRARY');
+    // Claude Code injects the host's date; the fixture's is named as the athlete's.
+    expect(options.systemPrompt).toContain(`The athlete's date is ${BASE_CASE.fixture.today}.`);
   });
 
   // Regression: the first live run attached call 2's result to call 5 and gave
