@@ -6,6 +6,7 @@ import { derivedCalories, mealCalories } from '../nutrition/mapping.js';
 import { describeMemoryWrite, MEMORY_CONTENT_MAX, MEMORY_TOOL } from './memory.js';
 import { CONTRACT_MAX, contractsEqual, normalizeContract } from './contract.js';
 import { ANNOTATION_BODY_MAX, isSeverity, isTargetKind, normalizeBody, targetProblem } from './annotations.js';
+import { parseNewDefinition } from './newDefinition.js';
 import type { CoachToolContext } from './tools.js';
 import type { Exercise, ExerciseDefinition, WorkoutEvent } from '../../types/workout.js';
 import type { Meal } from '../../types/nutrition.js';
@@ -30,6 +31,7 @@ export type ToolPreview =
   | { kind: 'event-delete'; title: string; date: string; scope: 'one' | 'series' | 'unknown' }
   | { kind: 'exercises'; title: string; before: string[]; after: string[] }
   | { kind: 'definition-update'; name: string; changes: Array<{ field: string; before: string; after: string }> }
+  | { kind: 'definition-create'; name: string; fields: Array<{ field: string; value: string }> }
   | { kind: 'meal'; action: 'log' | 'update' | 'delete'; title: string; lines: string[] }
   /** A memory write: the facts to remember (`after`), the fact being replaced
    *  or forgotten (`before`), and the file they live in ("injuries"). */
@@ -230,6 +232,32 @@ function updateDefinition(input: Record<string, unknown>, ctx: CoachToolContext)
   return changes.length ? { kind: 'definition-update', name: text(def.canonicalName), changes } : null;
 }
 
+// create_exercise_definition: the entry as it will land, after the same
+// parse the executor runs — a call it would refuse gets no preview (the
+// label carries the collision).
+function createDefinition(input: Record<string, unknown>, ctx: CoachToolContext): ToolPreview | null {
+  const parsed = parseNewDefinition(input, ctx.definitions);
+  if (!parsed.ok) return null;
+  const f = parsed.fields;
+  const rows: Array<[string, unknown]> = [
+    ['Category', f.category],
+    ['Also called', f.aliases.length ? f.aliases : undefined],
+    ['Muscle groups', f.muscleGroups?.length ? f.muscleGroups : undefined],
+    ['Equipment', f.equipment?.length ? f.equipment : undefined],
+    ['Unilateral', f.isUnilateral ? true : undefined],
+    ['Default sets', f.defaultSets],
+    ['Default reps', f.defaultReps],
+    ['Default duration', f.defaultDuration],
+    ['Default weight', f.defaultWeight],
+    ['Default rest', f.defaultRest],
+    ['Technique notes', f.techniqueNotes],
+  ];
+  const fields = rows
+    .filter(([, v]) => v !== undefined)
+    .map(([field, v]) => ({ field, value: Array.isArray(v) ? formatList(v) : typeof v === 'boolean' ? formatBool(v) : text(v) }));
+  return { kind: 'definition-create', name: text(f.canonicalName), fields };
+}
+
 // ─── Meals ───────────────────────────────────────────────────────────────────
 
 // log_meal / update_meal keys → the Meal field and its display, in the order
@@ -398,6 +426,7 @@ const PREVIEWS: Record<string, (input: Record<string, unknown>, ctx: CoachToolCo
   update_event:               updateEvent,
   delete_event:               deleteEvent,
   set_event_exercises:        setEventExercises,
+  create_exercise_definition: createDefinition,
   update_exercise_definition: updateDefinition,
   log_meal:                   logMeal,
   update_meal:                updateMeal,

@@ -23,10 +23,10 @@ describe('mirrors of api/chat.ts', () => {
     // production list that differs in any other way fails here.
     expect(production.filter(n => n !== MEMORY_TOOL_OMITTED)).toEqual(names);
     expect(production.filter(n => !names.includes(n))).toEqual([MEMORY_TOOL_OMITTED]);
-    // The ten writes, then every read tool in its fixed order, then read_doctrine.
+    // The eleven writes, then every read tool in its fixed order, then read_doctrine.
     expect(names.slice(-1)).toEqual(['read_doctrine']);
-    expect(names.slice(0, 10)).toEqual(coachToolSchemas().map(t => t.name));
-    expect(names.slice(10, -1)).toEqual([...SERVER_SIDE_READ_TOOL_NAMES]);
+    expect(names.slice(0, 11)).toEqual(coachToolSchemas().map(t => t.name));
+    expect(names.slice(11, -1)).toEqual([...SERVER_SIDE_READ_TOOL_NAMES]);
     // The agent-sdk backend hands the SDK the same list.
     expect(schemasFor().map(t => t.name)).toEqual(names);
   });

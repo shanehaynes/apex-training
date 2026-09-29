@@ -34,7 +34,7 @@ Apex Training is a production, multi-user web app with a native iOS app shipping
 | **Frontend** | React 19, TypeScript (strict), Vite 8, Tailwind 4, Recharts, Framer Motion, react-grid-layout |
 | **Backend** | Vercel serverless functions on Node 24 — **36 routes behind 4 deployed functions**: 33 through one Hono catch-all, 3 standalone |
 | **Data** | Supabase Postgres: **29 tables**, per-user RLS on every one, **40 ordered migrations**, generated types checked in CI |
-| **AI** | Claude via each user's own key and their choice of model from a nightly-checked catalog, NDJSON streaming, 10 write tools behind confirmation cards, 8 read-only MCP tools |
+| **AI** | Claude via each user's own key and their choice of model from a nightly-checked catalog, NDJSON streaming, 11 write tools behind confirmation cards, 8 read-only MCP tools |
 | **Native** | SwiftUI iOS app — **~31,000 lines of Swift** (plus ~12,000 of tests), GRDB offline cache + write queue, all fourteen workstreams landed, 0.9.0 on TestFlight |
 | **Tests** | **1,310 unit tests** + 42 integration tests against a real Postgres · **68 Playwright e2e cases** · **665 Swift tests** · 6 CI jobs and 3 scheduled or manual workflows |
 | **Size** | ~59,000 lines of TypeScript across app and API, ~2,600 lines of SQL |

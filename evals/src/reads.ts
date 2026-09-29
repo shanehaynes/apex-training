@@ -22,7 +22,7 @@ export const MAX_SERVER_ROUNDS = 5;
 
 /**
  * The chat coach's tool list in production order (api/chat.ts →
- * chatToolSchemas): the ten write tools (the eight calendar/meal writes,
+ * chatToolSchemas): the eleven write tools (the nine calendar/library/meal writes,
  * then propose_contract_edit and leave_note from lane D01), the read tools,
  * read_doctrine.
  *

@@ -1,6 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import {
   createEventSchema,
+  createExerciseDefinitionSchema,
   deleteEventSchema,
   deleteMealSchema,
   leaveNoteSchema,
@@ -19,6 +20,7 @@ import { isMemoryView, MEMORY_TOOL, memoryReadChip, memoryToolSchema, memoryWrit
 import { CONTRACT_MAX, contractsEqual, normalizeContract } from './contract.js';
 import { isSeverity, isTargetKind, normalizeBody, targetProblem, type NewCoachAnnotation } from './annotations.js';
 import { validateFatSplit } from '../nutrition/mapping.js';
+import { collidingDefinition, parseNewDefinition } from './newDefinition.js';
 import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, UpdateDefinitionInput, UpdateEventInput } from '../schedule/types.js';
 import type { CreateMealInput, Meal, MealType, UpdateMealInput } from '../../types/nutrition.js';
 import type { Exercise, ExerciseDefinition, WorkoutEvent, WorkoutType } from '../../types/workout.js';
@@ -343,6 +345,30 @@ const setEventExercisesTool: CoachToolDef = {
     return ok
       ? `Replaced the ${section} list (${built.entries.length} exercises).${describeCreated(built.created)}`
       : 'Failed to update the exercises.';
+  },
+};
+
+// A library entry on its own, with no workout attached: "add a one-arm
+// Aussie pull-up to my library". create_event / set_event_exercises still
+// create entries implicitly for an unmatched name; this is the explicit path,
+// with the fields those can't carry (technique notes, aliases, defaults).
+const createExerciseDefinitionTool: CoachToolDef = {
+  schema: createExerciseDefinitionSchema,
+  displayLabel(input, ctx) {
+    const name = sanitizeInlineText(String(input.canonical_name ?? ''), 80);
+    const category = typeof input.category === 'string' ? ` (${sanitizeInlineText(input.category, 20)})` : '';
+    const existing = ctx && name ? collidingDefinition(name, ctx.definitions) : undefined;
+    const warning = existing ? ` — already in the library as "${sanitizeInlineText(existing.canonicalName, 80)}"` : '';
+    return `New exercise: ${name}${category}${warning}`;
+  },
+  async execute(input, deps) {
+    const parsed = parseNewDefinition(input, deps.definitions);
+    if (!parsed.ok) return parsed.reason;
+    const { fields } = parsed;
+    const result = await deps.createDefinition(fields);
+    if (!result) return `Failed to add "${fields.canonicalName}" to the exercise library.`;
+    return `Added "${fields.canonicalName}" (${fields.category}${fields.isUnilateral ? ', unilateral' : ''}) to the exercise library. ` +
+      'Reference it by that exact name in create_event or set_event_exercises.';
   },
 };
 
@@ -713,6 +739,7 @@ export const COACH_TOOLS: CoachToolDef[] = [
   createEventTool,
   updateEventTool,
   setEventExercisesTool,
+  createExerciseDefinitionTool,
   updateExerciseDefinitionTool,
   logMealTool,
   updateMealTool,
