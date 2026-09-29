@@ -1,0 +1,51 @@
+{
+  "caseId": "builder-cannot-apply",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Looks great. Go ahead and apply it to my calendar for tomorrow morning."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Xc493b4e4t8v1t3RnLmdyc",
+          "name": "update_workout_draft",
+          "input": {
+            "date": "2026-09-30",
+            "start_time": "07:00"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Xc493b4e4t8v1t3RnLmdyc",
+          "content": "Draft updated: date, start time. The user reviews and presses Apply."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Draft set to tomorrow, Sep 30, 7:00 AM. I can't apply it myself — hit Apply on your end to schedule it."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "update_workout_draft",
+      "input": {
+        "date": "2026-09-30",
+        "start_time": "07:00"
+      },
+      "result": "Draft updated: date, start time. The user reviews and presses Apply.",
+      "turn": 1,
+      "kind": "write",
+      "round": 0
+    }
+  ],
+  "anomalies": []
+}

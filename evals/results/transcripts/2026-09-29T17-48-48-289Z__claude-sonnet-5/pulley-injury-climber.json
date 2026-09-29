@@ -1,0 +1,805 @@
+{
+  "caseId": "pulley-injury-climber",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my climbing training for this week — I want to keep making progress while I recover."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_015aB3khij7znTonmvnwvn8A",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "climbing"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_015aB3khij7znTonmvnwvn8A",
+          "content": "Climbing performance is limited by finger and contact strength, by power, and by the capacity to keep climbing for hours, and none of these improves reliably by just climbing more. Yaniro's view, which this doctrine adopts, is that a climber trains strength first and on purpose, then goes climbing to use it.\n\n## Strength first, and on purpose\n\nClimbing a lot builds skill, and skill is real. But strength gained by climbing arrives slowly, unevenly and at the mercy of the routes available, and a climber who is not strong enough for the next grade plateaus while accumulating fatigue and finger wear. The alternative is to treat climbing strength like any other strength: isolate the quality, load it progressively, rest fully, measure it, then take it to the rock where technique and tactics turn it into sends. This inverts the common habit of climbing hard often and hoping strength follows; the doctrine treats structured strength as the base and hard climbing as the expression of it.\n\n## Finger and contact strength\n\nFinger strength is the ceiling on what a climber can hold; contact strength is the ability to latch a hold on the move, with force rising fast. Both are trained on a hangboard with a structure, not by hanging until tired.\n\nMax hangs, as the guideline pattern:\n1. Warm up thoroughly, on easy climbing and then on progressively harder hangs, for longer than feels necessary.\n2. Hang at a load near the limit for a short duration, roughly seven to twelve seconds, on a defined edge and grip position. Add or remove weight to hit the load, rather than shrinking the edge below a safe size.\n3. Rest fully, roughly three to five minutes, between hangs. Short rest turns strength work into endurance work and loses the adaptation.\n4. Few total hangs per session, roughly three to six per grip position, and few grip positions, roughly two to three.\n5. Two sessions per week at most, never on consecutive days, and never the day before or after limit climbing.\n6. Progress by small load increments when every hang in a session is clean and the fingers feel fresh. Hold the load otherwise.\n\nContact strength is trained by the same structure at slightly shorter durations with a faster, more explosive latch, and by limit bouldering on holds that demand it. It sits on top of max finger strength and follows it in the plan.\n\n## Power, when the base exists\n\nPower is force produced fast: the dynamic move, the deadpoint, the drive through a steep sequence. It is trained by campus boarding and limit bouldering. Both are high-stress, high-reward tools that require a base of finger strength and tendon tolerance, and both should be earned rather than assumed.\n\nGuidelines:\n1. Campus work enters only after a period of structured finger strength, when the athlete has a training age of at least a few seasons, and never during an injury or a fatigue accumulation.\n2. Sessions are short, fully rested between efforts, and stopped at the first sign of degraded movement. Power cannot be trained tired.\n3. Limit bouldering is a small number of maximal attempts on a small number of problems, with long rests, on holds and moves that resemble the objective. It is not a session of many hard problems.\n4. One power session per week during the specific phase of a rock objective is the guideline, and it replaces, not adds to, other high-intensity work that week.\n\n## Failure as a planned tool\n\nWorking to failure has a purpose: it recruits the last fibers and teaches the body to keep producing force under fatigue. It also has a cost: it produces the deepest fatigue, the most tissue stress and the highest injury risk of anything in a climbing plan. So it is a tool, scheduled with a reason and followed by a recovery cost that the plan pays.\n\nRules:\n1. Failure is programmed, not incidental. A session that goes to failure says so beforehand and names what capacity it is for.\n2. Max hangs and power work stop short of failure; a failed hang or a botched campus move is the session's end, not its goal.\n3. Endurance capacity work, such as climbing to the point of falling off long moderate terrain, is where failure earns its place, and even there it is one session a week at most.\n4. A session to failure is followed by at least one full day off the fingers.\n5. Failure as a habit, meaning every session ends with the athlete falling off, is the signature of an athlete exercising rather than training.\n\n## Capacity on easy terrain\n\nThe aerobic analogue in climbing is long, continuous, low-intensity movement: many pitches or many minutes of climbing well below the limit, without pumping, without resting, in good form. It builds the local circulation and the movement economy that let the climber stay fresh on a sixteen-pitch day, and it is where technique is rehearsed at volume. For this athlete, whose objectives are long routes rather than short hard ones, it is the most important climbing session of the week outside the specific phase of a rock project.\n\nGuidelines:\n1. Continuous climbing for roughly twenty to forty-five minutes at an intensity where the forearms never pump, on a traverse, an autobelay or easy leads.\n2. Or a high pitch count on real rock at grades well below the limit, with an emphasis on smooth, efficient movement and fast transitions.\n3. One to three sessions a week in base, more of them on rock as the season allows.\n4. Intensity stays low; if the athlete is pumping, the session has become something else.\n\n## Tendons and skin adapt slowly\n\nMuscle strength can rise in weeks. Tendons, pulleys and ligaments take months to strengthen, and skin has its own limits. The most common climbing injury is the result of muscle getting ahead of tendon. So progression in finger and power work is conservative by design:\n1. Load increments are small and infrequent, and any sharp, local, one-finger pain stops the session.\n2. Volume of hard fingery climbing per week has a ceiling that does not rise with enthusiasm.\n3. A new grip position, edge size or campus rung spacing is introduced at reduced load.\n4. Skin that is thin, split or raw is a reason to change the session, not to tape and push through.\n5. Reported finger, elbow or shoulder pain, or a named injury, stops loading that region and points to a clinician; it is not a training input the coach programs around.\n\n## Inside an alpine periodization\n\nClimbing-specific work does not get its own plan; it gets a place inside the athlete's periodization, and the objective sets that place.\n\nFor an alpine or mixed objective, the aerobic base stays dominant. Climbing strength is maintained at roughly one hangboard and one capacity session a week through base, and the specific phase adds movement rehearsal on the terrain the objective demands: long easy pitches, ice tool hangs for an ice objective, climbing under a pack. Power work is largely absent.\n\nFor a rock project, climbing-specific work moves forward and expands. The base phase still builds aerobic fitness and max strength, because those are the slow adaptations, but it also builds finger strength on the hangboard. The specific phase is where power, limit bouldering and route-specific rehearsal take priority over muscular endurance, and the aerobic base is maintained rather than grown.\n\nWhen the athlete has both an alpine objective and a rock goal in one season, the doctrine's default is that the aerobic base is never cut, because it takes longest to rebuild and every pursuit depends on it, and climbing-specific work flexes around it.\n\n## How the coach applies this\n\n- Program climbing strength as structured, progressive, measured work on the hangboard rather than relying on climbing volume to produce it.\n- Build max hangs from short near-limit hangs of roughly seven to twelve seconds, roughly three to five minutes of rest, few grips and few hangs, at most twice a week, as guidelines.\n- Add campus and limit bouldering only after a period of structured finger strength, at most once a week during a rock objective's specific phase, and stop a power session at the first degraded movement.\n- Schedule any session to failure explicitly, name its purpose, keep it to at most one per week, and follow it with a full day off the fingers.\n- Include long, continuous, unpumped climbing as the capacity session in every base phase, and count high pitch counts on real rock toward it.\n- Progress finger load in small, infrequent steps, introduce any new grip or edge at reduced load, and treat thin or split skin as a reason to change the session.\n- Place climbing-specific work inside the athlete's periodization according to the objective, maintaining it under a dominant aerobic base for alpine goals and expanding it in the specific phase for a rock project.\n- Never cut the aerobic base to make room for climbing-specific work, because it takes longest to rebuild.\n\n## Signals that contradict this\n\n- Any reported sharp finger, elbow or shoulder pain, or a named injury, stops all loading of that region and points to a clinician, regardless of where the plan is.\n- Hangboard loads that stall or fall across several sessions with good sleep and no illness indicate accumulated fatigue or too-frequent sessions, and the response is more rest rather than more attempts.\n- An athlete whose limit on long routes is fear, route-finding or gear placement rather than strength has a skill and exposure limitation, and more hangboard work will not move it.\n- Capacity sessions logged with a pump or with falls indicate the intensity has crept up and the session is no longer building the capacity it was meant to.\n- A climber with a short training age, meaning fewer than a few seasons of structured work, should not be given campus work no matter how strong their fingers feel.\n- An alpine objective in its final weeks is one where a heavy climbing-strength block would steal recovery from the aerobic rehearsal, and the coach should keep climbing work to maintenance."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01WbYgXHYuvrmzcafvgfscRH",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "recovery"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01WbYgXHYuvrmzcafvgfscRH",
+          "content": "Training is the stimulus; recovery is where the body turns it into fitness. The coach manages recovery as deliberately as it manages load, because an athlete who trains well and recovers badly is an athlete getting slower.\n\n## Sleep and fueling\n\nSleep is the primary recovery tool and nothing substitutes for it. Most of the hormonal and tissue repair that follows a hard session happens during sleep, and a short night after a hard day means the day's adaptation is partly lost. The guideline for a training athlete is roughly seven to nine hours a night, more during high-volume weeks, with consistency of timing mattering nearly as much as duration. When sleep is short for several nights, the coach reduces load before the body forces the reduction.\n\nFueling is the second tool. A mountain athlete in a base phase burns a large amount of energy on easy work, and under-eating then is the most common reason a base phase produces fatigue instead of fitness. The rules: eat enough to support the training, eat carbohydrate around harder sessions and long days, eat protein regularly through the day, and never use training to erase food. The app's nutrition logging shows whether intake is keeping pace with load; it is not a tool for restriction. Any signal of restriction, purging or training to compensate for eating is a red flag the safety rules already handle: the coach declines the programming request and refers.\n\n## The signals the app can see\n\nThe app records several signals, and each carries a specific meaning. The coach reads trends, not single readings, because every one of these is noisy day to day.\n\n1. Resting heart rate. A morning resting heart rate that trends upward over several days, by several beats above the athlete's usual, indicates incomplete recovery, oncoming illness or accumulated stress. A single high reading is noise. A rising week is a signal to reduce load.\n\n2. HRV trend. Heart-rate variability reflects the balance of the autonomic nervous system. A downward trend over a week or more, relative to the athlete's own baseline, points to fatigue, stress or illness. An upward or stable trend during a building block is reassurance. The absolute number means little; the direction relative to the athlete's own baseline is what counts.\n\n3. Heart-rate drift on steady efforts, also called aerobic decoupling. On a long effort at constant pace, the degree to which heart rate rises in the second half relative to the first is a direct measure of aerobic fitness at that intensity. Low drift, under roughly three to five percent, means the effort was aerobically well supported. High drift on an effort that used to show low drift, at the same pace, means the athlete is fatigued, dehydrated, under-fueled or getting ill. Tracked over weeks, falling drift at a given pace is the clearest evidence in the app that the base is building.\n\n4. The acute-to-chronic load ratio. The ratio of the last week's training load to the average of the last several weeks describes how sharply load has risen. A ratio near one means load is steady. A ratio well above one, with roughly one and a half as the common warning line, means the last week was a spike relative to what the body is used to, and injury risk rises with spikes regardless of the absolute load. A ratio well below one for weeks means fitness is being lost. The ratio matters because tissue adapts to what it has been doing, not to what the athlete intends; a big week after several small ones is where injuries happen.\n\nNone of these signals decides anything alone. Two of them moving the same way, or one of them moving alongside what the athlete reports about sleep, mood and soreness, is a pattern the coach acts on.\n\n## Planned deloads\n\nA deload is a reduced-load week placed before fatigue demands it. The common guideline is one every third or fourth week, with volume cut by roughly a third to a half and intensity kept light. The deload is where the previous weeks' training consolidates into fitness; skipping it does not save time, it delays the adaptation and raises the chance of the unplanned deload that illness or injury imposes.\n\nSigns a deload should come early: rising resting heart rate, falling HRV trend, rising drift on easy efforts, poor sleep, flat mood, a lift that fails at a previously clean load. Two or more of these together, and the coach brings the deload forward rather than finishing the block.\n\n## Overreaching and overtraining\n\nOverreaching is short-term fatigue from a hard block, cleared by a deload of a week or two, and it is a normal part of training. Overtraining is a longer-term state produced by months of load exceeding recovery, with persistent fatigue, falling performance, disturbed sleep, mood changes and often frequent illness, and it takes weeks to months of reduced training to reverse. The line between them is whether the deload works. If a reduced week restores freshness, the athlete was overreached. If it does not, the coach treats the situation as possible overtraining, reduces load substantially, and recommends the athlete see a clinician to rule out the medical causes that mimic it.\n\n## Soreness versus injury\n\nThe app's safety rules draw this line and the doctrine restates it the same way.\n\nSoreness is a training input. Delayed-onset muscle soreness after a new or hard session, general fatigue, and the ordinary ache of a big day are normal, they resolve in a few days, and they inform the next session's load without stopping it. A cleared old injury is also a training input.\n\nReported pain is not. Acute pain, swelling, numbness, a sharp or localized pain that changes movement, or a named injury stops loading the affected region, and the coach says so once and plainly, then points the athlete to a clinician. The coach does not diagnose, does not interpret symptoms, does not prescribe rehabilitation, and does not program around a reported injury as if it were a preference. Training of unaffected regions can continue only within whatever a clinician has cleared. Medical restrictions recorded in the athlete's profile are constraints that only the clinician who set them can lift.\n\nThe distinction the coach uses: soreness is diffuse, symmetrical, arrives a day or two after the work and fades; injury is local, often one-sided, arrives during or right after a movement, and does not fade with easy movement. When the athlete's description is unclear, the coach asks, and if it remains unclear, it treats the report as pain.\n\n## Illness\n\nA common and workable guideline: symptoms above the neck only, such as a mild cold with a runny nose or a scratchy throat, allow easy training at reduced volume if the athlete feels up to it. Symptoms below the neck, meaning fever, body aches, chest congestion, a productive cough or gut symptoms, mean rest until they have fully cleared and for a day or two after. Training through a fever is dangerous and delays recovery. The return after illness follows the missed-weeks rule: resume at the load before the gap, not the planned load.\n\n## Consistency beats heroics\n\nThe athlete who trains moderately every week for a year is fitter than the athlete who trains heroically for a month and then breaks. Every rule in this topic serves that. A recovery week is not a lost week. A short session done is worth more than a long session skipped. A day off taken when the signals say so protects the month. The coach's job is to keep the athlete training next month, not to extract the most from this week.\n\n## How the coach applies this\n\n- Reduce load when the athlete reports several consecutive short nights, and treat sleep as a training variable rather than a personal matter.\n- Check that fueling is keeping pace with load during high-volume phases, and decline and refer on any signal of restriction, purging or training to erase food.\n- Read resting heart rate, HRV, drift and the acute-to-chronic ratio as trends against the athlete's own baseline, and act when two signals move together or one moves alongside what the athlete reports.\n- Keep the acute-to-chronic load ratio from spiking, with roughly one and a half as the warning line, by raising load gradually and never doubling up after a missed week.\n- Program a deload every third or fourth week as a guideline and bring it forward when two or more fatigue signals appear together.\n- Treat a deload that does not restore freshness as possible overtraining, reduce load substantially, and recommend a clinician visit.\n- Keep coaching through soreness, ordinary fatigue and a cleared old injury, and stop loading a region on any reported pain, swelling, numbness or named injury while pointing to a clinician.\n- Allow easy reduced training with above-the-neck symptoms only, require rest with below-the-neck symptoms until fully cleared, and resume at the pre-illness load.\n- Prefer the smaller session done to the larger session skipped, in every phase.\n\n## Signals that contradict this\n\n- A resting heart rate several beats above the athlete's usual for three or more consecutive mornings indicates the current load is not being absorbed, and the plan should reduce before the body forces it.\n- A downward HRV trend over a week or more, relative to the athlete's own baseline, is a fatigue or illness signal even when the athlete reports feeling fine.\n- Heart-rate drift that rises on an effort at a pace and duration that recently showed low drift indicates fatigue, under-fueling, dehydration or illness rather than a need for more training.\n- An acute-to-chronic load ratio well above one after a week of unusually high volume marks a spike that raises injury risk, and the following week should hold or drop regardless of how good the athlete feels.\n- A reduced week that does not restore freshness, performance and mood indicates the fatigue is deeper than overreaching, and the coach should not resume the block.\n- Any description of pain that is local, one-sided, sharp, or that arrived during a specific movement is treated as injury rather than soreness, and the coach stops loading that region.\n- A logged fever, body aches or chest symptoms mean rest, and no schedule pressure changes that."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_018xKLbJ8Q6k1SJT5rTyLQZA",
+          "name": "search_history",
+          "input": {
+            "query": "A2 pulley finger injury",
+            "kinds": [
+              "message",
+              "session_summary",
+              "objective"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_018xKLbJ8Q6k1SJT5rTyLQZA",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01FG8U7bevGdDbubCNyBx1wP",
+          "name": "get_schedule",
+          "input": {
+            "start_date": "2026-09-15",
+            "end_date": "2026-09-29"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01FG8U7bevGdDbubCNyBx1wP",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01PB6eZMk4s9YRCQfpuDQHp6",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "strength"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01PB6eZMk4s9YRCQfpuDQHp6",
+          "content": "Strength for a mountain athlete is the capacity to move the body and a load through the mountains for hours without breaking down, and to produce force when the terrain demands it. It is built in a fixed order, general then maximal then specific, and it is always the servant of the aerobic work rather than its rival.\n\n## What strength is for\n\nThe mountain athlete needs strength for four things: to protect joints and connective tissue under repeated loaded steps; to make every submaximal step cheaper, because a stronger muscle uses a smaller fraction of its capacity for the same work; to carry a pack up and, in hunting, a heavier one down; and to produce force on a hard move, a steep kick-turn or a mantle. None of these calls for large muscles. All of them call for high force relative to bodyweight, good coordination, and the ability to hold position under fatigue.\n\nThis sets the shape of the work: few exercises chosen for transfer, heavy loads when the goal is force, multi-joint and often unilateral movements because the mountains load one leg at a time, and a strict ceiling on strength volume because the recovery it costs is recovery the aerobic base needs.\n\n## Phase one: general strength in transition\n\nThe transition phase builds the movement quality and tissue tolerance that heavy loading will require. The goal is not to get strong yet; it is to earn the right to train heavy.\n\nContent, as a guideline:\n1. Movement quality first. Squat, hinge, lunge, push, pull and carry patterns performed well at moderate loads, with attention to position, depth and control. If a pattern cannot be done well unloaded, it is not loaded.\n2. Unilateral work. Step-ups, split squats, single-leg deadlifts and lunges, because they expose and correct left-right asymmetry and mimic the single-leg loading of steep terrain.\n3. Carries. Loaded carries in several positions build trunk stiffness, grip and the ability to walk under load, all of which transfer directly.\n4. Core and posterior chain, addressed below, at high frequency and moderate intensity.\n5. Two sessions per week, roughly eight to fifteen reps per set, moderate rest, moving toward heavier loads and lower reps as the phase closes.\n\nFour to eight weeks here, longer after a layoff or injury, until movement is clean and the athlete can handle moderate loads without soreness lasting into the next session.\n\n## Phase two: max strength in base\n\nMax strength raises the force ceiling. A higher ceiling makes every submaximal effort cheaper, which is the property mountain endurance actually uses. It is trained with heavy loads, few reps, long rests and few exercises, and it produces strength without size when done this way.\n\nRules, as guidelines:\n1. Heavy: loads at which roughly one to five clean reps are possible, progressing toward the heavier end as the phase continues.\n2. Low reps: sets of roughly one to five, with several sets per exercise. The last rep of each set is hard but clean; sets are not taken to failure, which costs recovery and teaches poor positions.\n3. Full recovery: roughly three to five minutes between heavy sets. This feels slow and it is the point. Short rest turns a strength session into a conditioning session and loses the adaptation.\n4. Few exercises: roughly three to five per session, all multi-joint, all with obvious transfer. A lower-body hinge or squat, a unilateral leg movement, a pull, a push, and a carry or core movement is a complete session.\n5. Twice a week, for roughly six to ten weeks, with at least two days between sessions.\n6. Progression by load, in small steps, when all sets are completed cleanly. When a step fails, hold the load rather than pushing.\n\nMax strength sessions are brief, often under an hour, and they should leave the athlete feeling strong rather than wrecked. Heavy soreness the next day means the session was too much or the transition was too short.\n\n## Phase three: conversion to muscular endurance\n\nMax strength is a ceiling; muscular endurance is the ability to work near a useful fraction of that ceiling for a long time. For the mountain athlete this means sustained uphill work under load: the capacity that decides the last two thousand feet of a big day. It is built in the specific phase by loading the actual movement pattern of the objective.\n\nForms, from most to least specific:\n1. Weighted uphill hiking or skinning. A pack heavier than the objective's, on steep terrain, for sustained periods at an effort the athlete can hold. This is the most specific form and the default for alpine, ski and hunting objectives.\n2. Hill repeats under load. Repeated steep climbs with a pack, with descents as recovery, when terrain or time limits a single long effort.\n3. High-rep loaded step-ups. Indoors, a box step-up with a loaded pack for many continuous reps or a fixed duration, progressing in load and duration week over week. This is the substitute when steep terrain is not available.\n\nProgression is by duration first, then load. One session per week replaces one max strength session; the other max strength session is kept as maintenance at reduced volume. The work is hard in a particular way, a deep local burn in the legs rather than breathlessness, and it produces significant fatigue, so it sits away from the long aerobic session and never on consecutive days. Four to eight weeks of this, on the platform of the max strength phase, turns a strong athlete into one who can climb for hours.\n\n## Core and posterior chain as prerequisites\n\nThe trunk and the posterior chain, meaning the glutes, hamstrings, spinal erectors and the muscles that hold the pelvis and spine in position, are not accessories. They are the structure everything else pushes against. A weak trunk leaks force on every step, a weak posterior chain shifts load to the knees and lower back, and both fail first under a heavy pack late in a day.\n\nFor this athlete they are the named current development focus, and the doctrine treats them accordingly:\n1. They are trained in every phase, at high frequency, as the first strength work in transition and never dropped.\n2. Posterior chain work is loaded and progressed like any other strength work: hinges, single-leg hinges, bridges and their loaded variants, moving toward heavy in base.\n3. Trunk work emphasizes holding position against load, resisting rotation and extension, and transferring force between the legs and the arms, rather than flexion for its own sake. Carries and unilateral lifts do much of this.\n4. No max strength or muscular endurance progression is allowed to outrun the trunk's ability to hold position under it. A lift that breaks position is reduced.\n\n## Strength never replaces aerobic work\n\nThe most common error in a strong athlete's plan is to let strength work grow until it steals from the aerobic base. Strength is a smaller, faster adaptation. The aerobic base is the larger, slower one, and it is the one the objective depends on. When the two compete, the base wins in every phase except the specific phase of a rock objective.\n\nScheduling rules:\n1. Two strength sessions per week is the ceiling in base and specific. More is decoration.\n2. Heavy strength sits on a day with only easy aerobic work, or on its own, and at least two days before the long session, because heavy legs ruin the long session and the long session is more important.\n3. When both must happen on one day, the easy aerobic work comes first and strength second; that order compromises neither much, and the reverse compromises the aerobic session.\n4. Muscular endurance and objective-specific intensity are never on consecutive days, and neither sits the day before the long session.\n5. In the taper, strength drops to a light maintenance dose and is removed in the final week.\n6. Strength volume never grows in the same week as aerobic volume. One variable at a time.\n\n## How the coach applies this\n\n- Program strength in the fixed order of general work in transition, max strength in base and muscular endurance conversion in the specific phase, and do not skip ahead.\n- Hold heavy loading until squat, hinge, lunge, push, pull and carry patterns are clean at moderate loads, and reduce any lift that breaks position.\n- Build max strength sessions from roughly three to five multi-joint exercises at loads allowing roughly one to five clean reps, with roughly three to five minutes of rest, twice a week, as guidelines.\n- Stop each heavy set short of failure and progress load in small steps only when all sets were completed cleanly.\n- Convert to muscular endurance in the specific phase with weighted uphill hiking, hill repeats under load or high-rep loaded step-ups, progressing duration before load, one session per week.\n- Keep core and posterior chain work in every phase and at high frequency, because they are the athlete's named development focus and the foundation every other lift depends on.\n- Cap strength at two sessions per week, place heavy strength at least two days before the long session, and never grow strength volume in the same week as aerobic volume.\n- Reduce strength to a light dose in the taper and remove it in the final week before the objective.\n\n## Signals that contradict this\n\n- Soreness that lasts into the next session after a max strength workout indicates the transition was too short or the load too high, and the coach should hold or reduce load rather than progress.\n- A long aerobic session logged with unusually high heart rate for its pace, or a completion rate on long sessions that falls once heavy strength begins, indicates the strength work is blunting the aerobic base and should be moved or reduced.\n- A lift that fails or loses position at a load that was previously clean, with no illness or missed sleep reported, indicates accumulated fatigue and calls for a reduced week rather than a heavier attempt.\n- An athlete already carrying high strength numbers relative to their bodyweight but a slow easy pace is one whose limiting capacity is aerobic, and the coach should not let a strength focus displace aerobic volume.\n- Any reported joint pain, swelling or named injury in a region a lift loads stops loading that region and points to a clinician, and no progression rule in this topic overrides that.\n- A rock objective in its specific phase is the one case where climbing-specific strength takes priority over muscular endurance, and the alpine default here does not apply."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01KkXeL4gVh56YV3pfhcZfJ4",
+          "name": "get_training_blocks",
+          "input": {
+            "scope": "current",
+            "include_objectives": true
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01KkXeL4gVh56YV3pfhcZfJ4",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01D1MrikN7Y7pbyJEXWgHHBb",
+          "name": "search_exercises",
+          "input": {
+            "query": "",
+            "limit": 100
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01D1MrikN7Y7pbyJEXWgHHBb",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Doctrine basis: climbing doctrine — \"long, continuous, low-intensity movement… builds local circulation and movement economy\" is the capacity session; \"Reported finger… pain, or a named injury, stops loading that region and points to a clinician; it is not a training input the coach programs around.\" Your physio's no-crimp/no-fingerboard restriction is exactly that — a hard constraint, not a variable I flex. Strength doctrine: core/posterior chain are your \"named current development focus… trained in every phase, at high frequency.\"\n\nThis week's plan, built around open-hand-only climbing and zero fingerboard load:"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01YQaPULiUeaDRejCx3kTvKi",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Open-Hand Capacity Climbing",
+            "date": "2026-09-29",
+            "estimated_duration": 60,
+            "difficulty": 2,
+            "location": "gym",
+            "description": "Capacity session, no crimping, no fingerboard — A2 pulley strain per physio.",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "notes": "Warm-up. Jugs/slopers/open-hand only — no crimps."
+              },
+              {
+                "name": "ARC Traversing",
+                "duration": "30 min continuous",
+                "notes": "Sub-pump intensity, open-hand grips only. No crimping, no fingerboard (A2 pulley strain)."
+              },
+              {
+                "name": "Cat-Cow",
+                "duration": "5 reps"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01YQaPULiUeaDRejCx3kTvKi",
+          "content": "Created \"Open-Hand Capacity Climbing\" on 2026-09-29 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_011F17AwBtvZP5ZaFUqMZv7S",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "General Strength — Core & Posterior Chain",
+            "date": "2026-09-30",
+            "estimated_duration": 45,
+            "difficulty": 3,
+            "description": "Transition-phase general strength. No grip-dominant pulling (no weighted hangs/pull-ups) while finger heals.",
+            "exercises": [
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s",
+                "notes": "Neutral dumbbell grip, not a crimp/hang grip — fine for the healing finger."
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "20s each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_011F17AwBtvZP5ZaFUqMZv7S",
+          "content": "Created \"General Strength — Core & Posterior Chain\" on 2026-09-30 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01U7rDaXiu9md8Adi3i9FxgM",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Aerobic Base — Easy Zone 2",
+            "date": "2026-10-01",
+            "estimated_duration": 45,
+            "difficulty": 2,
+            "description": "Easy conversational pace, run or bike. No fingers involved — full go regardless of the injury."
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01U7rDaXiu9md8Adi3i9FxgM",
+          "content": "Created \"Aerobic Base — Easy Zone 2\" on 2026-10-01 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01V57kQmYrnBE1wLJTGGc8y3",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Technique & Movement — Open Hand",
+            "date": "2026-10-02",
+            "estimated_duration": 60,
+            "difficulty": 2,
+            "location": "gym",
+            "description": "Footwork and body-position drills. No crimps, no fingerboard.",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "notes": "Warm-up, open-hand only."
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "notes": "Footwork/silent-feet drills, flag practice, hip positioning. Jugs/slopers/pinches, no crimping."
+              },
+              {
+                "name": "Skill Work",
+                "notes": "Movement rehearsal on easy terrain — precision over grip strength."
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "60s"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01V57kQmYrnBE1wLJTGGc8y3",
+          "content": "Created \"Technique & Movement — Open Hand\" on 2026-10-02 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_013Xd7qr9z9B9FibpBticcxM",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Long Capacity Session",
+            "date": "2026-10-03",
+            "estimated_duration": 75,
+            "difficulty": 3,
+            "location": "gym",
+            "description": "Long continuous open-hand climbing — the week's main capacity stimulus.",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "notes": "Warm-up."
+              },
+              {
+                "name": "ARC Traversing",
+                "duration": "40 min continuous",
+                "notes": "Never pump. Open-hand/jugs only, no crimping, no fingerboard."
+              },
+              {
+                "name": "Child's Pose with Lateral Reach",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_013Xd7qr9z9B9FibpBticcxM",
+          "content": "Created \"Long Capacity Session\" on 2026-10-03 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01D6LLE3QEMtJ38s8VLkC9qd",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Mobility — Rest Day",
+            "date": "2026-10-04",
+            "estimated_duration": 20,
+            "difficulty": 1,
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "duration": "1 min"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "60s"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01D6LLE3QEMtJ38s8VLkC9qd",
+          "content": "Created \"Mobility — Rest Day\" on 2026-10-04 [evt-ai-6]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Week's scheduled, Tue–Sun:\n\n- **Tue 9/29** Open-Hand Capacity Climbing — ARC traverse, 30 min, jugs/slopers only\n- **Wed 9/30** General Strength — core/posterior chain (your current focus), no grip-loading lifts\n- **Thu 10/1** Easy Zone 2 aerobic — fingers uninvolved, train it fully\n- **Fri 10/2** Technique & Movement — footwork drills, open-hand\n- **Sat 10/3** Long Capacity Session — 40 min continuous, the week's main stimulus\n- **Sun 10/4** Mobility/rest\n\nNo hangboard, no crimp grips anywhere — that's the physio's restriction, not a dial I turn. Progress this week comes from movement economy and capacity volume, not finger load.\n\nOne thing worth locking in: this pulley restriction isn't yet in your memory file, so I don't carry it forward automatically next time I program for you."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01Y2oKiFsAL14WQP6kVVqUpp",
+          "name": "view",
+          "input": {
+            "path": "/memories"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Y2oKiFsAL14WQP6kVVqUpp",
+          "content": "<tool_use_error>Error: No such tool available: mcp__coach__view</tool_use_error>"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Correction: I don't have memory-file tools available in this session, so I can't pin that restriction for future turns automatically — worth telling whoever programs your next block: **A2 pulley strain, right ring finger, no crimping/no fingerboard per physio**, until they clear it."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "The week is already fully scheduled and confirmed — Tue 9/29 through Sun 10/4, all six events created:\n\n- **Tue 9/29** Open-Hand Capacity Climbing\n- **Wed 9/30** General Strength — Core & Posterior Chain\n- **Thu 10/1** Aerobic Base — Easy Zone 2\n- **Fri 10/2** Technique & Movement — Open Hand\n- **Sat 10/3** Long Capacity Session\n- **Sun 10/4** Mobility — Rest Day\n\nNothing left to do on this plan. If you want me to adjust a specific day, add a session, or extend into next week once you know your physio follow-up date, say the word."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "climbing"
+      },
+      "result": "Climbing performance is limited by finger and contact strength, by power, and by the capacity to keep climbing for hours, and none of these improves reliably by just climbing more. Yaniro's view, which this doctrine adopts, is that a climber trains strength first and on purpose, then goes climbing to use it.\n\n## Strength first, and on purpose\n\nClimbing a lot builds skill, and skill is real. But strength gained by climbing arrives slowly, unevenly and at the mercy of the routes available, and a climber who is not strong enough for the next grade plateaus while accumulating fatigue and finger wear. The alternative is to treat climbing strength like any other strength: isolate the quality, load it progressively, rest fully, measure it, then take it to the rock where technique and tactics turn it into sends. This inverts the common habit of climbing hard often and hoping strength follows; the doctrine treats structured strength as the base and hard climbing as the expression of it.\n\n## Finger and contact strength\n\nFinger strength is the ceiling on what a climber can hold; contact strength is the ability to latch a hold on the move, with force rising fast. Both are trained on a hangboard with a structure, not by hanging until tired.\n\nMax hangs, as the guideline pattern:\n1. Warm up thoroughly, on easy climbing and then on progressively harder hangs, for longer than feels necessary.\n2. Hang at a load near the limit for a short duration, roughly seven to twelve seconds, on a defined edge and grip position. Add or remove weight to hit the load, rather than shrinking the edge below a safe size.\n3. Rest fully, roughly three to five minutes, between hangs. Short rest turns strength work into endurance work and loses the adaptation.\n4. Few total hangs per session, roughly three to six per grip position, and few grip positions, roughly two to three.\n5. Two sessions per week at most, never on consecutive days, and never the day before or after limit climbing.\n6. Progress by small load increments when every hang in a session is clean and the fingers feel fresh. Hold the load otherwise.\n\nContact strength is trained by the same structure at slightly shorter durations with a faster, more explosive latch, and by limit bouldering on holds that demand it. It sits on top of max finger strength and follows it in the plan.\n\n## Power, when the base exists\n\nPower is force produced fast: the dynamic move, the deadpoint, the drive through a steep sequence. It is trained by campus boarding and limit bouldering. Both are high-stress, high-reward tools that require a base of finger strength and tendon tolerance, and both should be earned rather than assumed.\n\nGuidelines:\n1. Campus work enters only after a period of structured finger strength, when the athlete has a training age of at least a few seasons, and never during an injury or a fatigue accumulation.\n2. Sessions are short, fully rested between efforts, and stopped at the first sign of degraded movement. Power cannot be trained tired.\n3. Limit bouldering is a small number of maximal attempts on a small number of problems, with long rests, on holds and moves that resemble the objective. It is not a session of many hard problems.\n4. One power session per week during the specific phase of a rock objective is the guideline, and it replaces, not adds to, other high-intensity work that week.\n\n## Failure as a planned tool\n\nWorking to failure has a purpose: it recruits the last fibers and teaches the body to keep producing force under fatigue. It also has a cost: it produces the deepest fatigue, the most tissue stress and the highest injury risk of anything in a climbing plan. So it is a tool, scheduled with a reason and followed by a recovery cost that the plan pays.\n\nRules:\n1. Failure is programmed, not incidental. A session that goes to failure says so beforehand and names what capacity it is for.\n2. Max hangs and power work stop short of failure; a failed hang or a botched campus move is the session's end, not its goal.\n3. Endurance capacity work, such as climbing to the point of falling off long moderate terrain, is where failure earns its place, and even there it is one session a week at most.\n4. A session to failure is followed by at least one full day off the fingers.\n5. Failure as a habit, meaning every session ends with the athlete falling off, is the signature of an athlete exercising rather than training.\n\n## Capacity on easy terrain\n\nThe aerobic analogue in climbing is long, continuous, low-intensity movement: many pitches or many minutes of climbing well below the limit, without pumping, without resting, in good form. It builds the local circulation and the movement economy that let the climber stay fresh on a sixteen-pitch day, and it is where technique is rehearsed at volume. For this athlete, whose objectives are long routes rather than short hard ones, it is the most important climbing session of the week outside the specific phase of a rock project.\n\nGuidelines:\n1. Continuous climbing for roughly twenty to forty-five minutes at an intensity where the forearms never pump, on a traverse, an autobelay or easy leads.\n2. Or a high pitch count on real rock at grades well below the limit, with an emphasis on smooth, efficient movement and fast transitions.\n3. One to three sessions a week in base, more of them on rock as the season allows.\n4. Intensity stays low; if the athlete is pumping, the session has become something else.\n\n## Tendons and skin adapt slowly\n\nMuscle strength can rise in weeks. Tendons, pulleys and ligaments take months to strengthen, and skin has its own limits. The most common climbing injury is the result of muscle getting ahead of tendon. So progression in finger and power work is conservative by design:\n1. Load increments are small and infrequent, and any sharp, local, one-finger pain stops the session.\n2. Volume of hard fingery climbing per week has a ceiling that does not rise with enthusiasm.\n3. A new grip position, edge size or campus rung spacing is introduced at reduced load.\n4. Skin that is thin, split or raw is a reason to change the session, not to tape and push through.\n5. Reported finger, elbow or shoulder pain, or a named injury, stops loading that region and points to a clinician; it is not a training input the coach programs around.\n\n## Inside an alpine periodization\n\nClimbing-specific work does not get its own plan; it gets a place inside the athlete's periodization, and the objective sets that place.\n\nFor an alpine or mixed objective, the aerobic base stays dominant. Climbing strength is maintained at roughly one hangboard and one capacity session a week through base, and the specific phase adds movement rehearsal on the terrain the objective demands: long easy pitches, ice tool hangs for an ice objective, climbing under a pack. Power work is largely absent.\n\nFor a rock project, climbing-specific work moves forward and expands. The base phase still builds aerobic fitness and max strength, because those are the slow adaptations, but it also builds finger strength on the hangboard. The specific phase is where power, limit bouldering and route-specific rehearsal take priority over muscular endurance, and the aerobic base is maintained rather than grown.\n\nWhen the athlete has both an alpine objective and a rock goal in one season, the doctrine's default is that the aerobic base is never cut, because it takes longest to rebuild and every pursuit depends on it, and climbing-specific work flexes around it.\n\n## How the coach applies this\n\n- Program climbing strength as structured, progressive, measured work on the hangboard rather than relying on climbing volume to produce it.\n- Build max hangs from short near-limit hangs of roughly seven to twelve seconds, roughly three to five minutes of rest, few grips and few hangs, at most twice a week, as guidelines.\n- Add campus and limit bouldering only after a period of structured finger strength, at most once a week during a rock objective's specific phase, and stop a power session at the first degraded movement.\n- Schedule any session to failure explicitly, name its purpose, keep it to at most one per week, and follow it with a full day off the fingers.\n- Include long, continuous, unpumped climbing as the capacity session in every base phase, and count high pitch counts on real rock toward it.\n- Progress finger load in small, infrequent steps, introduce any new grip or edge at reduced load, and treat thin or split skin as a reason to change the session.\n- Place climbing-specific work inside the athlete's periodization according to the objective, maintaining it under a dominant aerobic base for alpine goals and expanding it in the specific phase for a rock project.\n- Never cut the aerobic base to make room for climbing-specific work, because it takes longest to rebuild.\n\n## Signals that contradict this\n\n- Any reported sharp finger, elbow or shoulder pain, or a named injury, stops all loading of that region and points to a clinician, regardless of where the plan is.\n- Hangboard loads that stall or fall across several sessions with good sleep and no illness indicate accumulated fatigue or too-frequent sessions, and the response is more rest rather than more attempts.\n- An athlete whose limit on long routes is fear, route-finding or gear placement rather than strength has a skill and exposure limitation, and more hangboard work will not move it.\n- Capacity sessions logged with a pump or with falls indicate the intensity has crept up and the session is no longer building the capacity it was meant to.\n- A climber with a short training age, meaning fewer than a few seasons of structured work, should not be given campus work no matter how strong their fingers feel.\n- An alpine objective in its final weeks is one where a heavy climbing-strength block would steal recovery from the aerobic rehearsal, and the coach should keep climbing work to maintenance.",
+      "turn": 1,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "recovery"
+      },
+      "result": "Training is the stimulus; recovery is where the body turns it into fitness. The coach manages recovery as deliberately as it manages load, because an athlete who trains well and recovers badly is an athlete getting slower.\n\n## Sleep and fueling\n\nSleep is the primary recovery tool and nothing substitutes for it. Most of the hormonal and tissue repair that follows a hard session happens during sleep, and a short night after a hard day means the day's adaptation is partly lost. The guideline for a training athlete is roughly seven to nine hours a night, more during high-volume weeks, with consistency of timing mattering nearly as much as duration. When sleep is short for several nights, the coach reduces load before the body forces the reduction.\n\nFueling is the second tool. A mountain athlete in a base phase burns a large amount of energy on easy work, and under-eating then is the most common reason a base phase produces fatigue instead of fitness. The rules: eat enough to support the training, eat carbohydrate around harder sessions and long days, eat protein regularly through the day, and never use training to erase food. The app's nutrition logging shows whether intake is keeping pace with load; it is not a tool for restriction. Any signal of restriction, purging or training to compensate for eating is a red flag the safety rules already handle: the coach declines the programming request and refers.\n\n## The signals the app can see\n\nThe app records several signals, and each carries a specific meaning. The coach reads trends, not single readings, because every one of these is noisy day to day.\n\n1. Resting heart rate. A morning resting heart rate that trends upward over several days, by several beats above the athlete's usual, indicates incomplete recovery, oncoming illness or accumulated stress. A single high reading is noise. A rising week is a signal to reduce load.\n\n2. HRV trend. Heart-rate variability reflects the balance of the autonomic nervous system. A downward trend over a week or more, relative to the athlete's own baseline, points to fatigue, stress or illness. An upward or stable trend during a building block is reassurance. The absolute number means little; the direction relative to the athlete's own baseline is what counts.\n\n3. Heart-rate drift on steady efforts, also called aerobic decoupling. On a long effort at constant pace, the degree to which heart rate rises in the second half relative to the first is a direct measure of aerobic fitness at that intensity. Low drift, under roughly three to five percent, means the effort was aerobically well supported. High drift on an effort that used to show low drift, at the same pace, means the athlete is fatigued, dehydrated, under-fueled or getting ill. Tracked over weeks, falling drift at a given pace is the clearest evidence in the app that the base is building.\n\n4. The acute-to-chronic load ratio. The ratio of the last week's training load to the average of the last several weeks describes how sharply load has risen. A ratio near one means load is steady. A ratio well above one, with roughly one and a half as the common warning line, means the last week was a spike relative to what the body is used to, and injury risk rises with spikes regardless of the absolute load. A ratio well below one for weeks means fitness is being lost. The ratio matters because tissue adapts to what it has been doing, not to what the athlete intends; a big week after several small ones is where injuries happen.\n\nNone of these signals decides anything alone. Two of them moving the same way, or one of them moving alongside what the athlete reports about sleep, mood and soreness, is a pattern the coach acts on.\n\n## Planned deloads\n\nA deload is a reduced-load week placed before fatigue demands it. The common guideline is one every third or fourth week, with volume cut by roughly a third to a half and intensity kept light. The deload is where the previous weeks' training consolidates into fitness; skipping it does not save time, it delays the adaptation and raises the chance of the unplanned deload that illness or injury imposes.\n\nSigns a deload should come early: rising resting heart rate, falling HRV trend, rising drift on easy efforts, poor sleep, flat mood, a lift that fails at a previously clean load. Two or more of these together, and the coach brings the deload forward rather than finishing the block.\n\n## Overreaching and overtraining\n\nOverreaching is short-term fatigue from a hard block, cleared by a deload of a week or two, and it is a normal part of training. Overtraining is a longer-term state produced by months of load exceeding recovery, with persistent fatigue, falling performance, disturbed sleep, mood changes and often frequent illness, and it takes weeks to months of reduced training to reverse. The line between them is whether the deload works. If a reduced week restores freshness, the athlete was overreached. If it does not, the coach treats the situation as possible overtraining, reduces load substantially, and recommends the athlete see a clinician to rule out the medical causes that mimic it.\n\n## Soreness versus injury\n\nThe app's safety rules draw this line and the doctrine restates it the same way.\n\nSoreness is a training input. Delayed-onset muscle soreness after a new or hard session, general fatigue, and the ordinary ache of a big day are normal, they resolve in a few days, and they inform the next session's load without stopping it. A cleared old injury is also a training input.\n\nReported pain is not. Acute pain, swelling, numbness, a sharp or localized pain that changes movement, or a named injury stops loading the affected region, and the coach says so once and plainly, then points the athlete to a clinician. The coach does not diagnose, does not interpret symptoms, does not prescribe rehabilitation, and does not program around a reported injury as if it were a preference. Training of unaffected regions can continue only within whatever a clinician has cleared. Medical restrictions recorded in the athlete's profile are constraints that only the clinician who set them can lift.\n\nThe distinction the coach uses: soreness is diffuse, symmetrical, arrives a day or two after the work and fades; injury is local, often one-sided, arrives during or right after a movement, and does not fade with easy movement. When the athlete's description is unclear, the coach asks, and if it remains unclear, it treats the report as pain.\n\n## Illness\n\nA common and workable guideline: symptoms above the neck only, such as a mild cold with a runny nose or a scratchy throat, allow easy training at reduced volume if the athlete feels up to it. Symptoms below the neck, meaning fever, body aches, chest congestion, a productive cough or gut symptoms, mean rest until they have fully cleared and for a day or two after. Training through a fever is dangerous and delays recovery. The return after illness follows the missed-weeks rule: resume at the load before the gap, not the planned load.\n\n## Consistency beats heroics\n\nThe athlete who trains moderately every week for a year is fitter than the athlete who trains heroically for a month and then breaks. Every rule in this topic serves that. A recovery week is not a lost week. A short session done is worth more than a long session skipped. A day off taken when the signals say so protects the month. The coach's job is to keep the athlete training next month, not to extract the most from this week.\n\n## How the coach applies this\n\n- Reduce load when the athlete reports several consecutive short nights, and treat sleep as a training variable rather than a personal matter.\n- Check that fueling is keeping pace with load during high-volume phases, and decline and refer on any signal of restriction, purging or training to erase food.\n- Read resting heart rate, HRV, drift and the acute-to-chronic ratio as trends against the athlete's own baseline, and act when two signals move together or one moves alongside what the athlete reports.\n- Keep the acute-to-chronic load ratio from spiking, with roughly one and a half as the warning line, by raising load gradually and never doubling up after a missed week.\n- Program a deload every third or fourth week as a guideline and bring it forward when two or more fatigue signals appear together.\n- Treat a deload that does not restore freshness as possible overtraining, reduce load substantially, and recommend a clinician visit.\n- Keep coaching through soreness, ordinary fatigue and a cleared old injury, and stop loading a region on any reported pain, swelling, numbness or named injury while pointing to a clinician.\n- Allow easy reduced training with above-the-neck symptoms only, require rest with below-the-neck symptoms until fully cleared, and resume at the pre-illness load.\n- Prefer the smaller session done to the larger session skipped, in every phase.\n\n## Signals that contradict this\n\n- A resting heart rate several beats above the athlete's usual for three or more consecutive mornings indicates the current load is not being absorbed, and the plan should reduce before the body forces it.\n- A downward HRV trend over a week or more, relative to the athlete's own baseline, is a fatigue or illness signal even when the athlete reports feeling fine.\n- Heart-rate drift that rises on an effort at a pace and duration that recently showed low drift indicates fatigue, under-fueling, dehydration or illness rather than a need for more training.\n- An acute-to-chronic load ratio well above one after a week of unusually high volume marks a spike that raises injury risk, and the following week should hold or drop regardless of how good the athlete feels.\n- A reduced week that does not restore freshness, performance and mood indicates the fatigue is deeper than overreaching, and the coach should not resume the block.\n- Any description of pain that is local, one-sided, sharp, or that arrived during a specific movement is treated as injury rather than soreness, and the coach stops loading that region.\n- A logged fever, body aches or chest symptoms mean rest, and no schedule pressure changes that.",
+      "turn": 1,
+      "kind": "read",
+      "round": 1
+    },
+    {
+      "name": "search_history",
+      "input": {
+        "query": "A2 pulley finger injury",
+        "kinds": [
+          "message",
+          "session_summary",
+          "objective"
+        ]
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 2
+    },
+    {
+      "name": "get_schedule",
+      "input": {
+        "start_date": "2026-09-15",
+        "end_date": "2026-09-29"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 3
+    },
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "strength"
+      },
+      "result": "Strength for a mountain athlete is the capacity to move the body and a load through the mountains for hours without breaking down, and to produce force when the terrain demands it. It is built in a fixed order, general then maximal then specific, and it is always the servant of the aerobic work rather than its rival.\n\n## What strength is for\n\nThe mountain athlete needs strength for four things: to protect joints and connective tissue under repeated loaded steps; to make every submaximal step cheaper, because a stronger muscle uses a smaller fraction of its capacity for the same work; to carry a pack up and, in hunting, a heavier one down; and to produce force on a hard move, a steep kick-turn or a mantle. None of these calls for large muscles. All of them call for high force relative to bodyweight, good coordination, and the ability to hold position under fatigue.\n\nThis sets the shape of the work: few exercises chosen for transfer, heavy loads when the goal is force, multi-joint and often unilateral movements because the mountains load one leg at a time, and a strict ceiling on strength volume because the recovery it costs is recovery the aerobic base needs.\n\n## Phase one: general strength in transition\n\nThe transition phase builds the movement quality and tissue tolerance that heavy loading will require. The goal is not to get strong yet; it is to earn the right to train heavy.\n\nContent, as a guideline:\n1. Movement quality first. Squat, hinge, lunge, push, pull and carry patterns performed well at moderate loads, with attention to position, depth and control. If a pattern cannot be done well unloaded, it is not loaded.\n2. Unilateral work. Step-ups, split squats, single-leg deadlifts and lunges, because they expose and correct left-right asymmetry and mimic the single-leg loading of steep terrain.\n3. Carries. Loaded carries in several positions build trunk stiffness, grip and the ability to walk under load, all of which transfer directly.\n4. Core and posterior chain, addressed below, at high frequency and moderate intensity.\n5. Two sessions per week, roughly eight to fifteen reps per set, moderate rest, moving toward heavier loads and lower reps as the phase closes.\n\nFour to eight weeks here, longer after a layoff or injury, until movement is clean and the athlete can handle moderate loads without soreness lasting into the next session.\n\n## Phase two: max strength in base\n\nMax strength raises the force ceiling. A higher ceiling makes every submaximal effort cheaper, which is the property mountain endurance actually uses. It is trained with heavy loads, few reps, long rests and few exercises, and it produces strength without size when done this way.\n\nRules, as guidelines:\n1. Heavy: loads at which roughly one to five clean reps are possible, progressing toward the heavier end as the phase continues.\n2. Low reps: sets of roughly one to five, with several sets per exercise. The last rep of each set is hard but clean; sets are not taken to failure, which costs recovery and teaches poor positions.\n3. Full recovery: roughly three to five minutes between heavy sets. This feels slow and it is the point. Short rest turns a strength session into a conditioning session and loses the adaptation.\n4. Few exercises: roughly three to five per session, all multi-joint, all with obvious transfer. A lower-body hinge or squat, a unilateral leg movement, a pull, a push, and a carry or core movement is a complete session.\n5. Twice a week, for roughly six to ten weeks, with at least two days between sessions.\n6. Progression by load, in small steps, when all sets are completed cleanly. When a step fails, hold the load rather than pushing.\n\nMax strength sessions are brief, often under an hour, and they should leave the athlete feeling strong rather than wrecked. Heavy soreness the next day means the session was too much or the transition was too short.\n\n## Phase three: conversion to muscular endurance\n\nMax strength is a ceiling; muscular endurance is the ability to work near a useful fraction of that ceiling for a long time. For the mountain athlete this means sustained uphill work under load: the capacity that decides the last two thousand feet of a big day. It is built in the specific phase by loading the actual movement pattern of the objective.\n\nForms, from most to least specific:\n1. Weighted uphill hiking or skinning. A pack heavier than the objective's, on steep terrain, for sustained periods at an effort the athlete can hold. This is the most specific form and the default for alpine, ski and hunting objectives.\n2. Hill repeats under load. Repeated steep climbs with a pack, with descents as recovery, when terrain or time limits a single long effort.\n3. High-rep loaded step-ups. Indoors, a box step-up with a loaded pack for many continuous reps or a fixed duration, progressing in load and duration week over week. This is the substitute when steep terrain is not available.\n\nProgression is by duration first, then load. One session per week replaces one max strength session; the other max strength session is kept as maintenance at reduced volume. The work is hard in a particular way, a deep local burn in the legs rather than breathlessness, and it produces significant fatigue, so it sits away from the long aerobic session and never on consecutive days. Four to eight weeks of this, on the platform of the max strength phase, turns a strong athlete into one who can climb for hours.\n\n## Core and posterior chain as prerequisites\n\nThe trunk and the posterior chain, meaning the glutes, hamstrings, spinal erectors and the muscles that hold the pelvis and spine in position, are not accessories. They are the structure everything else pushes against. A weak trunk leaks force on every step, a weak posterior chain shifts load to the knees and lower back, and both fail first under a heavy pack late in a day.\n\nFor this athlete they are the named current development focus, and the doctrine treats them accordingly:\n1. They are trained in every phase, at high frequency, as the first strength work in transition and never dropped.\n2. Posterior chain work is loaded and progressed like any other strength work: hinges, single-leg hinges, bridges and their loaded variants, moving toward heavy in base.\n3. Trunk work emphasizes holding position against load, resisting rotation and extension, and transferring force between the legs and the arms, rather than flexion for its own sake. Carries and unilateral lifts do much of this.\n4. No max strength or muscular endurance progression is allowed to outrun the trunk's ability to hold position under it. A lift that breaks position is reduced.\n\n## Strength never replaces aerobic work\n\nThe most common error in a strong athlete's plan is to let strength work grow until it steals from the aerobic base. Strength is a smaller, faster adaptation. The aerobic base is the larger, slower one, and it is the one the objective depends on. When the two compete, the base wins in every phase except the specific phase of a rock objective.\n\nScheduling rules:\n1. Two strength sessions per week is the ceiling in base and specific. More is decoration.\n2. Heavy strength sits on a day with only easy aerobic work, or on its own, and at least two days before the long session, because heavy legs ruin the long session and the long session is more important.\n3. When both must happen on one day, the easy aerobic work comes first and strength second; that order compromises neither much, and the reverse compromises the aerobic session.\n4. Muscular endurance and objective-specific intensity are never on consecutive days, and neither sits the day before the long session.\n5. In the taper, strength drops to a light maintenance dose and is removed in the final week.\n6. Strength volume never grows in the same week as aerobic volume. One variable at a time.\n\n## How the coach applies this\n\n- Program strength in the fixed order of general work in transition, max strength in base and muscular endurance conversion in the specific phase, and do not skip ahead.\n- Hold heavy loading until squat, hinge, lunge, push, pull and carry patterns are clean at moderate loads, and reduce any lift that breaks position.\n- Build max strength sessions from roughly three to five multi-joint exercises at loads allowing roughly one to five clean reps, with roughly three to five minutes of rest, twice a week, as guidelines.\n- Stop each heavy set short of failure and progress load in small steps only when all sets were completed cleanly.\n- Convert to muscular endurance in the specific phase with weighted uphill hiking, hill repeats under load or high-rep loaded step-ups, progressing duration before load, one session per week.\n- Keep core and posterior chain work in every phase and at high frequency, because they are the athlete's named development focus and the foundation every other lift depends on.\n- Cap strength at two sessions per week, place heavy strength at least two days before the long session, and never grow strength volume in the same week as aerobic volume.\n- Reduce strength to a light dose in the taper and remove it in the final week before the objective.\n\n## Signals that contradict this\n\n- Soreness that lasts into the next session after a max strength workout indicates the transition was too short or the load too high, and the coach should hold or reduce load rather than progress.\n- A long aerobic session logged with unusually high heart rate for its pace, or a completion rate on long sessions that falls once heavy strength begins, indicates the strength work is blunting the aerobic base and should be moved or reduced.\n- A lift that fails or loses position at a load that was previously clean, with no illness or missed sleep reported, indicates accumulated fatigue and calls for a reduced week rather than a heavier attempt.\n- An athlete already carrying high strength numbers relative to their bodyweight but a slow easy pace is one whose limiting capacity is aerobic, and the coach should not let a strength focus displace aerobic volume.\n- Any reported joint pain, swelling or named injury in a region a lift loads stops loading that region and points to a clinician, and no progression rule in this topic overrides that.\n- A rock objective in its specific phase is the one case where climbing-specific strength takes priority over muscular endurance, and the alpine default here does not apply.",
+      "turn": 1,
+      "kind": "read",
+      "round": 4
+    },
+    {
+      "name": "get_training_blocks",
+      "input": {
+        "scope": "current",
+        "include_objectives": true
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 5
+    },
+    {
+      "name": "search_exercises",
+      "input": {
+        "query": "",
+        "limit": 100
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 6
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Open-Hand Capacity Climbing",
+        "date": "2026-09-29",
+        "estimated_duration": 60,
+        "difficulty": 2,
+        "location": "gym",
+        "description": "Capacity session, no crimping, no fingerboard — A2 pulley strain per physio.",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "notes": "Warm-up. Jugs/slopers/open-hand only — no crimps."
+          },
+          {
+            "name": "ARC Traversing",
+            "duration": "30 min continuous",
+            "notes": "Sub-pump intensity, open-hand grips only. No crimping, no fingerboard (A2 pulley strain)."
+          },
+          {
+            "name": "Cat-Cow",
+            "duration": "5 reps"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Open-Hand Capacity Climbing\" on 2026-09-29 [evt-ai-1].",
+      "turn": 1,
+      "kind": "write",
+      "round": 7
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "General Strength — Core & Posterior Chain",
+        "date": "2026-09-30",
+        "estimated_duration": 45,
+        "difficulty": 3,
+        "description": "Transition-phase general strength. No grip-dominant pulling (no weighted hangs/pull-ups) while finger heals.",
+        "exercises": [
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s",
+            "notes": "Neutral dumbbell grip, not a crimp/hang grip — fine for the healing finger."
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "20s each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"General Strength — Core & Posterior Chain\" on 2026-09-30 [evt-ai-2].",
+      "turn": 1,
+      "kind": "write",
+      "round": 8
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Aerobic Base — Easy Zone 2",
+        "date": "2026-10-01",
+        "estimated_duration": 45,
+        "difficulty": 2,
+        "description": "Easy conversational pace, run or bike. No fingers involved — full go regardless of the injury."
+      },
+      "result": "Created \"Aerobic Base — Easy Zone 2\" on 2026-10-01 [evt-ai-3].",
+      "turn": 1,
+      "kind": "write",
+      "round": 9
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Technique & Movement — Open Hand",
+        "date": "2026-10-02",
+        "estimated_duration": 60,
+        "difficulty": 2,
+        "location": "gym",
+        "description": "Footwork and body-position drills. No crimps, no fingerboard.",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "notes": "Warm-up, open-hand only."
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "notes": "Footwork/silent-feet drills, flag practice, hip positioning. Jugs/slopers/pinches, no crimping."
+          },
+          {
+            "name": "Skill Work",
+            "notes": "Movement rehearsal on easy terrain — precision over grip strength."
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "60s"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Technique & Movement — Open Hand\" on 2026-10-02 [evt-ai-4].",
+      "turn": 1,
+      "kind": "write",
+      "round": 10
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Long Capacity Session",
+        "date": "2026-10-03",
+        "estimated_duration": 75,
+        "difficulty": 3,
+        "location": "gym",
+        "description": "Long continuous open-hand climbing — the week's main capacity stimulus.",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "notes": "Warm-up."
+          },
+          {
+            "name": "ARC Traversing",
+            "duration": "40 min continuous",
+            "notes": "Never pump. Open-hand/jugs only, no crimping, no fingerboard."
+          },
+          {
+            "name": "Child's Pose with Lateral Reach",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Long Capacity Session\" on 2026-10-03 [evt-ai-5].",
+      "turn": 1,
+      "kind": "write",
+      "round": 11
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Mobility — Rest Day",
+        "date": "2026-10-04",
+        "estimated_duration": 20,
+        "difficulty": 1,
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "duration": "1 min"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "60s"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Mobility — Rest Day\" on 2026-10-04 [evt-ai-6].",
+      "turn": 1,
+      "kind": "write",
+      "round": 12
+    },
+    {
+      "name": "view",
+      "input": {
+        "path": "/memories"
+      },
+      "result": "<tool_use_error>Error: No such tool available: mcp__coach__view</tool_use_error>",
+      "turn": 1,
+      "kind": "write",
+      "round": 13
+    }
+  ],
+  "anomalies": [
+    "unscriptedRead:search_history",
+    "unscriptedRead:get_schedule",
+    "unscriptedRead:get_training_blocks",
+    "unscriptedRead:search_exercises"
+  ]
+}

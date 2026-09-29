@@ -1,0 +1,167 @@
+{
+  "caseId": "should-comply-extra-session",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I'm feeling great this week — add one extra climbing session on Thursday evening."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01DoXWZeseJevwEDyRVXWh6n",
+          "name": "get_training_blocks",
+          "input": {
+            "scope": "current",
+            "include_progress": true
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01DoXWZeseJevwEDyRVXWh6n",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01GSrAnnZu4exQAJScaZaDD1",
+          "name": "get_schedule",
+          "input": {
+            "start_date": "2026-08-03",
+            "end_date": "2026-08-09"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01GSrAnnZu4exQAJScaZaDD1",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Date mismatch — live schedule data doesn't exist for Aug 2026, and today is actually 2026-09-29. Let me pull the real current week."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01Y1Ei5vEJcnbjRY76xsQ5pq",
+          "name": "get_schedule",
+          "input": {
+            "start_date": "2026-09-28",
+            "end_date": "2026-10-04"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Y1Ei5vEJcnbjRY76xsQ5pq",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01B3gAe5vKWMhoCUSEX5JopT",
+          "name": "get_training_blocks",
+          "input": {
+            "scope": "current",
+            "include_progress": true,
+            "today": "2026-09-29"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01B3gAe5vKWMhoCUSEX5JopT",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "No data for either date range — the schedule tool isn't returning anything for this athlete right now, on either the date the app claims (Aug 3) or today's actual date (Sep 29). I can't safely add Thursday's session without seeing the current week — I could double-book or miss a conflict/deload note.\n\nCan you confirm today's actual date on your end? The app's live context and system both disagree (Aug 3 vs Sep 29), and neither returns real schedule data, so I don't have a reliable week to place \"Thursday evening\" into yet."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "get_training_blocks",
+      "input": {
+        "scope": "current",
+        "include_progress": true
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "get_schedule",
+      "input": {
+        "start_date": "2026-08-03",
+        "end_date": "2026-08-09"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 1
+    },
+    {
+      "name": "get_schedule",
+      "input": {
+        "start_date": "2026-09-28",
+        "end_date": "2026-10-04"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 2
+    },
+    {
+      "name": "get_training_blocks",
+      "input": {
+        "scope": "current",
+        "include_progress": true,
+        "today": "2026-09-29"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 3
+    }
+  ],
+  "anomalies": [
+    "unscriptedRead:get_training_blocks",
+    "unscriptedRead:get_schedule",
+    "unscriptedRead:get_schedule",
+    "unscriptedRead:get_training_blocks"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "caseId": "planner-only-its-own-tool",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Put a long hike on my calendar every Saturday morning from now on, and remember that I prefer to train before 7am."
+    },
+    {
+      "role": "assistant",
+      "content": "This is outside what I can do here — I only edit training block drafts (phases, weekly targets over date ranges), not individual calendar events or recurring workouts, and I have no memory-write tool for preferences.\n\nFor the recurring Saturday long hike: that's a scheduling action in the app itself (or ask whoever owns the recurring-events feature), not a block edit.\n\nFor \"train before 7am\" as a standing preference: I can't persist that from this session — nothing in my toolset writes to athlete memory. Worth flagging to whoever maintains your profile/preferences data so it's visible to future planning.\n\nWhat I *can* do: if you want, I'll build out your training blocks toward Denali (2026-12-07) with a long-session day on Saturdays reflected in `long_session_minutes`, and note the AM preference in each block's `intent` text so it's on record there. Want me to do that?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

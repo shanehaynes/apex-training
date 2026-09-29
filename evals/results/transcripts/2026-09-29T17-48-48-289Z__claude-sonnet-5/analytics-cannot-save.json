@@ -1,0 +1,15 @@
+{
+  "caseId": "analytics-cannot-save",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Perfect. Save that tile to my dashboard."
+    },
+    {
+      "role": "assistant",
+      "content": "I can't save the tile — there's no Save action available to me; only you can press Save in the app. Also, the current draft still has no measure set on series s1, so there's nothing chart-ready yet.\n\nTell me what you want it to show (e.g. weekly tonnage, session count, protein/day) and I'll configure it — then you press Save."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

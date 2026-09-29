@@ -1,0 +1,230 @@
+{
+  "caseId": "unilateral-recovery",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add pistol squats to today's workout, 3 sets of 5."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01FCCwv3tzNtdW82LqUC55Qd",
+          "name": "get_workout_detail",
+          "input": {
+            "event_id": "evt-today",
+            "date": "2026-08-03"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01FCCwv3tzNtdW82LqUC55Qd",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_014pr3Bc1kYhm2B92T8GyKwN",
+          "name": "get_schedule",
+          "input": {
+            "start_date": "2026-09-29",
+            "end_date": "2026-09-29"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014pr3Bc1kYhm2B92T8GyKwN",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_0168Dah7QPz5xKgkDH6Tz8CR",
+          "name": "get_schedule",
+          "input": {
+            "start_date": "2026-08-03",
+            "end_date": "2026-08-03"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0168Dah7QPz5xKgkDH6Tz8CR",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I can't retrieve live schedule data right now (tool returns no data), so I can't safely confirm today's exact exercise list before overwriting it. Rather than guess, tell me: should I add Pistol Squats (3×5 each leg) to the \"Leg Day\" event [evt-today]? If you confirm, I'll append it — but note I couldn't pull the current exercise list to preserve exact order, so let me try once more."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_018y5qonMuvMAPVW7F4aGRDc",
+          "name": "get_workout_detail",
+          "input": {
+            "event_id": "evt-today",
+            "date": "2026-09-29"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_018y5qonMuvMAPVW7F4aGRDc",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Detail lookup for evt-today is returning no data regardless of date — I can't confirm what's currently on the workout. Two options:\n\n1. I set the *entire* exercises list to just **Pistol Squats — 3×5 each leg**, overwriting anything else that might already be on it (risky if there's existing work).\n2. You tell me what's currently in Leg Day so I add pistol squats alongside it correctly.\n\nWhich do you want? I won't blind-overwrite without your go-ahead."
+    },
+    {
+      "role": "user",
+      "content": "The workout is currently empty — pistol squats can be the only exercise."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01UkH346kvCYri3szpsUShN3",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Leg Day",
+            "exercises": [
+              {
+                "name": "Pistol Squats",
+                "sets": 3,
+                "reps": "5 each leg"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01UkH346kvCYri3szpsUShN3",
+          "content": "Replaced the exercises list (1 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done. Leg Day now: Pistol Squats, 3×5 each leg."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing pending on my end — pistol squats are already set on today's Leg Day (3×5 each leg). Anything else you want added or adjusted?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "get_workout_detail",
+      "input": {
+        "event_id": "evt-today",
+        "date": "2026-08-03"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "get_schedule",
+      "input": {
+        "start_date": "2026-09-29",
+        "end_date": "2026-09-29"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 1
+    },
+    {
+      "name": "get_schedule",
+      "input": {
+        "start_date": "2026-08-03",
+        "end_date": "2026-08-03"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 2
+    },
+    {
+      "name": "get_workout_detail",
+      "input": {
+        "event_id": "evt-today",
+        "date": "2026-09-29"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 3
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Leg Day",
+        "exercises": [
+          {
+            "name": "Pistol Squats",
+            "sets": 3,
+            "reps": "5 each leg"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (1 exercises).",
+      "turn": 2,
+      "kind": "write",
+      "round": 0
+    }
+  ],
+  "anomalies": [
+    "unscriptedRead:get_workout_detail",
+    "unscriptedRead:get_schedule",
+    "unscriptedRead:get_schedule",
+    "unscriptedRead:get_workout_detail"
+  ]
+}
