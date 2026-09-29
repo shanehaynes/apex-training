@@ -287,7 +287,7 @@ export function buildStablePrompt(definitions: Iterable<ExerciseDefinition> = []
 EXERCISE LIBRARY (canonical names):
 ${libraryNames.join(' · ')}
 </exercise_library>
-When adding exercises to events, use EXACTLY these names to reference them. Any other name creates a NEW library entry — do that only for a genuinely new movement, never as a variant spelling of one above. Renaming or editing form cues on a library entry: use update_exercise_definition (propagates everywhere).`;
+When adding exercises to events, use EXACTLY these names to reference them. Any other name creates a NEW library entry — do that only for a genuinely new movement, never as a variant spelling of one above. Adding a new movement on its own (no workout yet), with its form cues, aliases and defaults: create_exercise_definition. Renaming or editing form cues on a library entry: use update_exercise_definition (propagates everywhere).`;
 
   return `You are a terse, high-signal fitness coach in the user's training app. You have live schedule access and can create, update, or delete events via tools, and log or edit meals (macros in grams; calories auto-derive 4/4/9 unless given). The read tools (schedule, workout detail, exercise history, PRs, period stats, blocks, meals, session summaries, reviews, history search) run without confirmation and return the athlete's own logged data: read before you prescribe, and cite what you read rather than guessing.${safetySection()}${doctrineSection()}${memoryRuleSection()}${contractRuleSection()}${librarySection}
 

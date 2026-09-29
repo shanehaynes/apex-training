@@ -99,6 +99,19 @@ function ConfirmPreview({ preview }: { preview: ToolPreview }) {
           <ChangeRows changes={preview.changes} />
         </div>
       );
+    case 'definition-create':
+      return (
+        <div className="confirm-preview" data-testid="confirm-preview" data-kind={preview.kind}>
+          <dl className="confirm-preview__changes">
+            {preview.fields.map(f => (
+              <div key={f.field} style={{ display: 'contents' }}>
+                <dt className="confirm-preview__field">{f.field}</dt>
+                <dd className="confirm-preview__diff"><span className="confirm-preview__after">{f.value}</span></dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      );
     case 'event-delete':
       return (
         <div className="confirm-preview" data-testid="confirm-preview" data-kind={preview.kind}>

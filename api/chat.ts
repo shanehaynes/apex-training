@@ -151,8 +151,8 @@ function ephemeral(ttl: CacheTtl): Anthropic.CacheControlEphemeral {
 
 /**
  * The chat coach's full tool list, in the one fixed order the prompt cache
- * (a prefix match over the tools) needs on every turn: the ten write tools
- * (the eight calendar/meal writes, then propose_contract_edit and leave_note
+ * (a prefix match over the tools) needs on every turn: the eleven write tools
+ * (the nine calendar/library/meal writes, then propose_contract_edit and leave_note
  * from lane D01), then the read tools, then read_doctrine, then the memory
  * tool.
  * Composed here rather than in schemas.ts because the read schemas come out

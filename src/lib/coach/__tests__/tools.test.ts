@@ -115,7 +115,8 @@ describe('coach tool registry', () => {
   it('exposes each tool exactly once, findable by schema name', () => {
     const names = coachToolSchemas().map(s => s.name);
     expect(names).toEqual([
-      'delete_event', 'create_event', 'update_event', 'set_event_exercises', 'update_exercise_definition',
+      'delete_event', 'create_event', 'update_event', 'set_event_exercises',
+      'create_exercise_definition', 'update_exercise_definition',
       'log_meal', 'update_meal', 'delete_meal', 'propose_contract_edit', 'leave_note',
     ]);
     for (const name of names) expect(findCoachTool(name)?.schema.name).toBe(name);
@@ -361,6 +362,73 @@ describe('coach tool registry', () => {
     );
     expect(deps.updateDefinition).not.toHaveBeenCalled();
     expect(badField).toContain('set_event_exercises');
+  });
+
+  it('create_exercise_definition adds a standalone library entry with its cues and defaults', async () => {
+    const deps = makeDeps({ createDefinition: vi.fn(async () => ({ id: 'one-arm-aussie-pull-up' })) });
+    const result = await findCoachTool('create_exercise_definition')!.execute({
+      canonical_name: '  One-Arm   Aussie Pull-Up ',
+      category: 'strength',
+      aliases: ['One-Arm Inverted Row', 'one-arm aussie pull-up'],
+      muscle_groups: ['lats', 'biceps'],
+      equipment: ['rings'],
+      technique_notes: 'Feet wide, body rigid; free hand on hip.',
+      default_sets: 3,
+      default_reps: '5 each arm',
+    }, deps);
+    expect(deps.createDefinition).toHaveBeenCalledWith({
+      canonicalName: 'One-Arm Aussie Pull-Up',
+      category: 'strength',
+      // The alias that only restates the name is dropped.
+      aliases: ['One-Arm Inverted Row'],
+      muscleGroups: ['lats', 'biceps'],
+      equipment: ['rings'],
+      techniqueNotes: 'Feet wide, body rigid; free hand on hip.',
+      // Inferred from the per-side count when the model does not say.
+      isUnilateral: true,
+      defaultSets: 3,
+      defaultReps: '5 each arm',
+      defaultDuration: undefined,
+      defaultWeight: undefined,
+      defaultRest: undefined,
+    });
+    expect(result).toContain('Added "One-Arm Aussie Pull-Up" (strength, unilateral)');
+  });
+
+  it('create_exercise_definition refuses duplicates, variant spellings and colliding aliases', async () => {
+    const deps = makeDeps();
+    const tool = findCoachTool('create_exercise_definition')!;
+    // By alias, and by a spelling that only differs in punctuation.
+    expect(await tool.execute({ canonical_name: 'pistol squats', category: 'skill' }, deps))
+      .toContain('already in the exercise library as "Pistol Squat"');
+    expect(await tool.execute({ canonical_name: 'Weighted-Dip', category: 'strength' }, deps))
+      .toContain('as "Weighted Dip"');
+    expect(await tool.execute({ canonical_name: 'Ring Dip', category: 'strength', aliases: ['Weighted Dip'] }, deps))
+      .toContain('already names "Weighted Dip"');
+    expect(deps.createDefinition).not.toHaveBeenCalled();
+  });
+
+  it('create_exercise_definition refuses an archived match, bad input and unilateral counts without a side', async () => {
+    const archived = makeDefinition({ id: 'l-sit', canonicalName: 'L-Sit', archivedAt: '2026-01-01T00:00:00Z' });
+    const deps = makeDeps({ definitions: new Map([[archived.id, archived]]) });
+    const tool = findCoachTool('create_exercise_definition')!;
+    expect(await tool.execute({ canonical_name: 'L Sit', category: 'skill' }, deps)).toContain('archived');
+    expect(await tool.execute({ canonical_name: ' ', category: 'skill' }, deps)).toContain('canonical_name is required');
+    expect(await tool.execute({ canonical_name: 'x'.repeat(81), category: 'skill' }, deps)).toContain('keep it to 80');
+    expect(await tool.execute({ canonical_name: 'Front Lever', category: 'gymnastics' }, deps)).toContain('category must be one of');
+    expect(await tool.execute(
+      { canonical_name: 'Archer Push-Up', category: 'strength', is_unilateral: true, default_reps: '6' }, deps,
+    )).toContain('per-side counts');
+    expect(deps.createDefinition).not.toHaveBeenCalled();
+  });
+
+  it('create_exercise_definition labels the new entry and flags a collision', () => {
+    const ctx = { definitions: makeDeps().definitions, events: [], meals: [] };
+    const tool = findCoachTool('create_exercise_definition')!;
+    expect(tool.displayLabel({ canonical_name: 'One-Arm Aussie Pull-Up', category: 'strength' }, ctx))
+      .toBe('New exercise: One-Arm Aussie Pull-Up (strength)');
+    expect(tool.displayLabel({ canonical_name: 'Pistol squats', category: 'skill' }, ctx))
+      .toBe('New exercise: Pistol squats (skill) — already in the library as "Pistol Squat"');
   });
 
   it('labels flag new library entries and blast radius when given context', () => {

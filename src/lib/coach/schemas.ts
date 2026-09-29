@@ -154,6 +154,35 @@ export const updateExerciseDefinitionSchema: Anthropic.Tool = {
   },
 };
 
+export const createExerciseDefinitionSchema: Anthropic.Tool = {
+  name: 'create_exercise_definition',
+  description:
+    'Add a genuinely new movement to the exercise library (e.g. a progression the athlete has ' +
+    'not done before, like a one-arm Aussie pull-up), without scheduling it. Check the EXERCISE ' +
+    'LIBRARY first — a variant spelling of an existing entry is refused; edit that entry with ' +
+    'update_exercise_definition instead. Unilateral movements state default reps/duration per ' +
+    'side ("6 each arm"). Once created, reference it by its exact name in create_event or ' +
+    'set_event_exercises.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      canonical_name:   { type: 'string', description: 'The name as it should appear everywhere, e.g. "One-Arm Aussie Pull-Up". At most 80 characters.' },
+      category:         { type: 'string', enum: ['strength', 'stretch', 'cardio', 'skill', 'mobility', 'climbing'] },
+      aliases:          { type: 'array', items: { type: 'string' }, description: 'Other names the athlete uses for it ("One-Arm Inverted Row"). Must not name an existing entry.' },
+      muscle_groups:    { type: 'array', items: { type: 'string' } },
+      equipment:        { type: 'array', items: { type: 'string' } },
+      technique_notes:  { type: 'string', description: 'Setup, form cues, regressions/progressions.' },
+      is_unilateral:    { type: 'boolean' },
+      default_sets:     { type: 'number' },
+      default_reps:     { type: 'string' },
+      default_duration: { type: 'string' },
+      default_weight:   { type: 'string' },
+      default_rest:     { type: 'string' },
+    },
+    required: ['canonical_name', 'category'],
+  },
+};
+
 export const updateEventSchema: Anthropic.Tool = {
   name: 'update_event',
   description:
@@ -304,7 +333,7 @@ export const leaveNoteSchema: Anthropic.Tool = {
 };
 
 /**
- * The ten WRITE tools in registry order (must match COACH_TOOLS in
+ * The eleven WRITE tools in registry order (must match COACH_TOOLS in
  * tools.ts) — the confirm-card tools, and everything this client-safe module
  * can name. The chat request carries more: api/chat.ts appends the read
  * tools (api/_lib/coach/readTools.ts), read_doctrine and the memory tool
@@ -318,6 +347,7 @@ export function coachToolSchemas(): Anthropic.Tool[] {
     createEventSchema,
     updateEventSchema,
     setEventExercisesSchema,
+    createExerciseDefinitionSchema,
     updateExerciseDefinitionSchema,
     logMealSchema,
     updateMealSchema,

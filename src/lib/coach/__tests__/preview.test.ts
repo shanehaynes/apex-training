@@ -247,6 +247,36 @@ describe('update_exercise_definition', () => {
   });
 });
 
+describe('create_exercise_definition', () => {
+  it('lists the entry as it will land, skipping unset fields', () => {
+    const preview = previewForTool('create_exercise_definition', {
+      canonical_name: 'One-Arm Aussie Pull-Up',
+      category: 'strength',
+      aliases: ['One-Arm Inverted Row'],
+      equipment: ['rings'],
+      default_reps: '5 each arm',
+      technique_notes: 'Body rigid.',
+    }, ctx);
+    expect(preview).toEqual({
+      kind: 'definition-create',
+      name: 'One-Arm Aussie Pull-Up',
+      fields: [
+        { field: 'Category', value: 'strength' },
+        { field: 'Also called', value: 'One-Arm Inverted Row' },
+        { field: 'Equipment', value: 'rings' },
+        { field: 'Unilateral', value: 'yes' },
+        { field: 'Default reps', value: '5 each arm' },
+        { field: 'Technique notes', value: 'Body rigid.' },
+      ],
+    });
+  });
+
+  it('returns null for a call the executor would refuse', () => {
+    expect(previewForTool('create_exercise_definition', { canonical_name: 'Pistol Squats', category: 'skill' }, ctx)).toBeNull();
+    expect(previewForTool('create_exercise_definition', { canonical_name: 'Front Lever' }, ctx)).toBeNull();
+  });
+});
+
 describe('meals', () => {
   it('log_meal lists when, the calories it will show, and the macros', () => {
     const preview = previewForTool('log_meal', {
