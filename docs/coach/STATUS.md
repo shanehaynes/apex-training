@@ -21,22 +21,19 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 | D02 | Notebook page: memory, proposals, contract, doctrine | D | done (#359, `45706cb`) | `feat/coach-notebook` | codes against D01's interface contract; merges second |
 | D03 | Weekly review document + "next week" proposals | D | done (#360, `b263b1c`) | `feat/coach-weekly-review` | no table, no cron; merges third |
 | E01 | Block planner mode: fourth `ChatMode`, `update_block_draft`, reads + doctrine, Apply creates | E | done (#361, `4273af6`) — **phase51 to apply in production** | `feat/coach-block-planner` | HELD (phase51 widens two CHECKs); `PROMPT_VERSION` → 2026.09.29-1; owns the server hot files; merges first |
-| E02 | Ask the coach about this session: modal + tracker buttons, hidden pinned turn | E | in review (#362, `main` merged in) — CI green but `coach-gate` (stale attestation); Codex P1/P2 fixed and resolved; last wave-E PR | `feat/coach-ask-from-context` | owns `useChat.ts`, `ChatSidebar.tsx`, the calendar reducer, modal, tracker; no prompt change |
+| E02 | Ask the coach about this session: modal + tracker buttons, hidden pinned turn | E | done (#362, `f40c7c5`) | `feat/coach-ask-from-context` | owns `useChat.ts`, `ChatSidebar.tsx`, the calendar reducer, modal, tracker; no prompt change |
 
 ## Next up
-1. **Eval gate is running** in cloud session `session_01J9RBmksgHXBySnEoTzMVf8` on `main`
-   `1a15ac4` (Shane added `CLAUDE_CODE_OAUTH_TOKEN` to the cloud environment). A pass lands as a
-   PR from `chore/eval-gate-attestation` (not HELD) and turns `coach-gate` green on #359; E01's
-   `PROMPT_VERSION` bump needs one more run after it merges.
-2. **Wave D is on `main`** (#358, #359, #360). Shane has applied phase48/49/50 to production.
-3. **Wave E in review**: #361 (E01, HELD — **Shane: apply phase51 in production with the merge**)
-   then #362 (E02). Fold green (vitest 2269). The gate retry session is still running; its
-   attestation PR (on `1a15ac4`) goes stale on #361's `PROMPT_VERSION` bump, so one more run after
-   #361 merges. Housekeeping owed: `git-tidy.sh --yes` for the wave C/D worktrees; the recreated
-   remote `feat/coach-weekly-review` can be deleted.
-4. Evals follow-up: fixture-backed memory in the harness (`fixture.memory`); an ask-from-context
-   case after E02.
-5. **Shane:** #348 follow-up on thinking blocks across the write path; review the doctrine text.
+1. **All five waves are on `main`** (`f40c7c5`). **Shane:** apply phase51 (planner mode CHECKs) in
+   production if not yet done; review the doctrine text; #348 follow-up on thinking blocks.
+2. **Eval gate** — the attestation is stale since #345 and must be refreshed on the current `main`
+   (`PROMPT_VERSION` 2026.09.29-1). Sessions the orchestrator spawns do not receive the
+   environment's `CLAUDE_CODE_OAUTH_TOKEN`; a session Shane starts from the web UI (or a local run)
+   runs `npm run eval:gate` and pushes `chore/eval-gate-attestation`; the orchestrator opens the PR.
+3. Follow-ups on record: fixture-backed memory in the evals harness; an ask-from-context eval
+   case; the coach pane is unreachable on tablet widths (769–1024px, pre-existing layout gap);
+   `coachTool.ts` imports a blocks helper from `context.ts` (cosmetic); thinking blocks across the
+   write path (#348).
 
 ## Recent sessions
 - 2026-09-25 · orchestrator · plan approved, issue #340 opened, board created, wave A launched
@@ -106,3 +103,5 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
   `235c187`), replied and resolved. The gate retry session got stuck on a permission prompt
   for an MCP tool; re-instructed to run the gate without MCP tools.
 - 2026-09-28 · Shane · merged #361 (`4273af6`); orchestrator merged `main` into #362.
+- 2026-09-28 · Shane · merged #361 (`4273af6`) and #362 (`f40c7c5`); wave E complete — the
+  initiative's five waves are on `main`. Gate attestation still owed (token blocker, see Next up).
