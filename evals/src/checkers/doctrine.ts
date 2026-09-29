@@ -13,15 +13,29 @@ import type { DimensionVerdict, EvalCase, HarnessResult, RecordedToolCall } from
 
 const EVENT_WRITE_TOOLS = new Set(['create_event', 'update_event', 'set_event_exercises']);
 
+/** An event write's input with the event-level description removed —
+ *  create_event carries it at the top, update_event under `changes`. */
+function withoutDescription(input: Record<string, unknown>): Record<string, unknown> {
+  const { description: _description, ...rest } = input;
+  if (rest.changes && typeof rest.changes === 'object') {
+    const { description: _changed, ...changes } = rest.changes as Record<string, unknown>;
+    return { ...rest, changes };
+  }
+  return rest;
+}
+
 /** Every event-writing call's input as one JSON string, with its label. */
-export function eventWrites(toolCalls: RecordedToolCall[]): Array<{ label: string; json: string }> {
+export function eventWrites(
+  toolCalls: RecordedToolCall[],
+  { skipDescription = false }: { skipDescription?: boolean } = {},
+): Array<{ label: string; json: string }> {
   return toolCalls
     .filter(c => EVENT_WRITE_TOOLS.has(c.name))
     .map(c => ({
       label: c.name === 'create_event'
         ? `create_event "${String(c.input.title ?? '')}" ${String(c.input.date ?? '')}`
         : `${c.name} ${String(c.input.event_id ?? '')}`,
-      json: JSON.stringify(c.input),
+      json: JSON.stringify(skipDescription ? withoutDescription(c.input) : c.input),
     }));
 }
 
@@ -51,7 +65,7 @@ export function checkDoctrine(evalCase: EvalCase, result: HarnessResult): Dimens
 
   if (expect.bannedEventPatterns) {
     const patterns = expect.bannedEventPatterns.map(p => new RegExp(p, 'i'));
-    const writes = eventWrites(result.toolCalls);
+    const writes = eventWrites(result.toolCalls, { skipDescription: expect.bannedEventPatternsSkipDescription });
     for (const write of writes) {
       for (const pattern of patterns) {
         const hit = write.json.match(pattern);

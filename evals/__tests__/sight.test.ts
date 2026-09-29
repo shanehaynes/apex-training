@@ -349,6 +349,18 @@ describe('checkDoctrine', () => {
     expect(checkDoctrine(c, harnessWith([readCall('search_history', { query: 'vo2' })])).status).toBe('pass');
   });
 
+  it('can leave the description out, and only the description', () => {
+    const deferral = { title: 'General Strength', description: 'Not the 40lb pack yet — hill repeats come later.', exercises: [{ name: 'Step-Ups', weight: 'bodyweight' }] };
+    const patterns = ['hill repeats?', 'pack'];
+    expect(checkDoctrine(docCase({ bannedEventPatterns: patterns }), harnessWith([writeCall('create_event', deferral)])).status).toBe('fail');
+    const scoped = docCase({ bannedEventPatterns: patterns, bannedEventPatternsSkipDescription: true });
+    expect(checkDoctrine(scoped, harnessWith([writeCall('create_event', deferral)])).status).toBe('pass');
+    expect(checkDoctrine(scoped, harnessWith([writeCall('update_event', { event_id: 'e1', changes: { description: 'hill repeats later' } })])).status).toBe('pass');
+    // The prescription itself is still read: title, and every exercise field.
+    expect(checkDoctrine(scoped, harnessWith([writeCall('create_event', { title: 'Hill Repeats' })])).status).toBe('fail');
+    expect(checkDoctrine(scoped, harnessWith([writeCall('create_event', { title: 'Legs', exercises: [{ name: 'Step-Ups', weight: '40 lb pack' }] })])).status).toBe('fail');
+  });
+
   it('requires a doctrine read, optionally on given topics and before the first write', () => {
     const any = docCase({ requireDoctrineRead: {} });
     expect(checkDoctrine(any, harnessWith([])).status).toBe('fail');
