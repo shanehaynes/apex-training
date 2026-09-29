@@ -20,12 +20,12 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 | D01 | Reflection + coaching contract + `leave_note` (nightly, proposal-gated) | D | done (#358, `1a15ac4`) — phase50 to apply in production; the reflection cron deploys with it (05:00 UTC, opt-in) | `feat/coach-reflection` | HELD (phase50 + `vercel.json` cron); `PROMPT_VERSION` → 2026.09.28-1; merges first |
 | D02 | Notebook page: memory, proposals, contract, doctrine | D | done (#359, `45706cb`) | `feat/coach-notebook` | codes against D01's interface contract; merges second |
 | D03 | Weekly review document + "next week" proposals | D | done (#360, `b263b1c`) | `feat/coach-weekly-review` | no table, no cron; merges third |
-| E01 | Block planner mode: fourth `ChatMode`, `update_block_draft`, reads + doctrine, Apply creates | E | done (#361, `4273af6`) — **phase51 to apply in production** | `feat/coach-block-planner` | HELD (phase51 widens two CHECKs); `PROMPT_VERSION` → 2026.09.29-1; owns the server hot files; merges first |
+| E01 | Block planner mode: fourth `ChatMode`, `update_block_draft`, reads + doctrine, Apply creates | E | done (#361, `4273af6`); phase51 applied in production | `feat/coach-block-planner` | HELD (phase51 widens two CHECKs); `PROMPT_VERSION` → 2026.09.29-1; owns the server hot files; merges first |
 | E02 | Ask the coach about this session: modal + tracker buttons, hidden pinned turn | E | done (#362, `f40c7c5`) | `feat/coach-ask-from-context` | owns `useChat.ts`, `ChatSidebar.tsx`, the calendar reducer, modal, tracker; no prompt change |
 
 ## Next up
-1. **All five waves are on `main`** (`f40c7c5`). **Shane:** apply phase51 (planner mode CHECKs) in
-   production if not yet done; review the doctrine text; #348 follow-up on thinking blocks.
+1. **All five waves are on `main`** (`f40c7c5`) and every migration through phase51 is applied in
+   production. **Shane:** review the doctrine text; #348 follow-up on thinking blocks.
 2. **Eval gate** — the attestation is stale since #345 and must be refreshed on the current `main`
    (`PROMPT_VERSION` 2026.09.29-1). Sessions the orchestrator spawns do not receive the
    environment's `CLAUDE_CODE_OAUTH_TOKEN`; a session Shane starts from the web UI (or a local run)
@@ -105,3 +105,4 @@ States: `ready` · `in progress (session)` · `pushed (sha)` · `in review (PR #
 - 2026-09-28 · Shane · merged #361 (`4273af6`); orchestrator merged `main` into #362.
 - 2026-09-28 · Shane · merged #361 (`4273af6`) and #362 (`f40c7c5`); wave E complete — the
   initiative's five waves are on `main`. Gate attestation still owed (token blocker, see Next up).
+- 2026-09-29 · Shane · phase51 applied in production; planner mode is live end to end.
