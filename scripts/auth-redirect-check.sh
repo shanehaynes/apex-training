@@ -46,8 +46,10 @@
 # "I could not look" is not "sign-up is open".
 set -uo pipefail
 
-# Runnable from anywhere.
-cd "$(cd "$(dirname "$0")/.." && pwd -P)" || exit 1
+# Runnable from anywhere. APEX_REPO_ROOT names the checkout to run against
+# when this file is not inside one: scripts/supervisor-report.sh runs
+# origin/main's copy from a temp file, and .env.local is looked up from here.
+cd "${APEX_REPO_ROOT:-$(cd "$(dirname "$0")/.." && pwd -P)}" || exit 1
 
 # Same default as scripts/deploy-verify.sh, and for the same reason: the
 # vercel.app aliases are SSO-walled, so the custom domain is the only public one.

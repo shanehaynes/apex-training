@@ -1,6 +1,9 @@
 import { spawn } from 'node:child_process';
+import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -82,12 +85,15 @@ async function stubProject(opts: { settings?: unknown; signup?: SignupReply } = 
 
 // spawn, not spawnSync: the stubs live in this process, and a synchronous
 // child would block the event loop that has to answer their requests.
-function run(env: Record<string, string>): Promise<{ status: number | null; stdout: string; stderr: string }> {
+function run(
+  env: Record<string, string>,
+  path = script,
+): Promise<{ status: number | null; stdout: string; stderr: string }> {
   // VITE_* is stripped so the runner's own environment cannot hand the script
   // a key for a project it is not probing.
   const base = { ...process.env };
   for (const k of Object.keys(base)) if (k.startsWith('VITE_') || k.startsWith('APEX_')) delete base[k];
-  const child = spawn('bash', [script], { env: { ...base, ...env } });
+  const child = spawn('bash', [path], { env: { ...base, ...env } });
   let stdout = '';
   let stderr = '';
   child.stdout.setEncoding('utf8').on('data', (d: string) => (stdout += d));
@@ -210,5 +216,27 @@ describe('auth-redirect-check.sh — sign-up is disabled (#210)', () => {
 
     expect(res.stdout).toContain('not readable with the anon key');
     expect(res.stdout).toMatch(/password minimum length[\s\S]*leaked-password protection, MFA/);
+  });
+});
+
+describe('auth-redirect-check.sh — APEX_REPO_ROOT', () => {
+  // scripts/supervisor-report.sh runs origin/main's copy from a temp file, so
+  // the checkout it reads .env.local from cannot be derived from $0.
+  it('reads .env.local from APEX_REPO_ROOT when run from outside any checkout', async () => {
+    const { prod, supabase } = await stubProject();
+    const loose = mkdtempSync(join(tmpdir(), 'apex-auth-loose-'));
+    const root = mkdtempSync(join(tmpdir(), 'apex-auth-root-'));
+    try {
+      const copy = join(loose, 'auth-redirect-check.sh');
+      copyFileSync(script, copy);
+      writeFileSync(join(root, '.env.local'), `VITE_SUPABASE_URL=${supabase}\nVITE_SUPABASE_ANON_KEY=anon-test-key\n`);
+
+      const res = await run({ APEX_PROD_URL: prod, APEX_SUPABASE_URL: supabase, APEX_REPO_ROOT: root }, copy);
+      expect(res.status).toBe(0);
+      expect(res.stdout).toContain('sign-up is closed');
+    } finally {
+      rmSync(loose, { recursive: true, force: true });
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

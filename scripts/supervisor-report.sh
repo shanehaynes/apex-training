@@ -104,14 +104,26 @@ echo "── production auth redirects"
 # did: Site URL pointed at an SSO-walled Vercel alias and every invited user was
 # asked to create a Vercel account. Exit 2 is "could not reach the project",
 # which is an outage, not a drift — status line, never an ACTION.
-# This sweep runs from the primary checkout, which sits on main; a branch that
-# has not landed yet simply has no script to run.
-if [ ! -x scripts/auth-redirect-check.sh ]; then
-  echo "   auth-redirect-check.sh not in this checkout — skipped"
-  auth_out="" auth_code=2
-else
+# It runs origin/main's copy of the check, not the primary's: the primary is
+# routinely behind main (see "primary checkout") and sometimes on another
+# branch, and its copy then asserts whatever main used to. On 2026-10-01 a
+# pre-D-049 copy expected the Vercel host and raised a false ACTION against a
+# correctly configured project. The working copy is the fallback only when
+# there is no origin/main ref; "main" is as of the last fetch.
+auth_tmp=""
+if git cat-file -e origin/main:scripts/auth-redirect-check.sh 2>/dev/null \
+  && auth_tmp=$(mktemp "${TMPDIR:-/tmp}/apex-auth-redirect-check.XXXXXX") \
+  && git show origin/main:scripts/auth-redirect-check.sh > "$auth_tmp"; then
+  git diff --quiet HEAD origin/main -- scripts/auth-redirect-check.sh 2>/dev/null \
+    || echo "   (this checkout's auth-redirect-check.sh differs from origin/main's — running main's)"
+  auth_out=$(APEX_REPO_ROOT="$PWD" bash "$auth_tmp" 2>&1); auth_code=$?
+elif [ -x scripts/auth-redirect-check.sh ]; then
   auth_out=$(scripts/auth-redirect-check.sh 2>&1); auth_code=$?
+else
+  echo "   auth-redirect-check.sh not on origin/main or in this checkout — skipped"
+  auth_out="" auth_code=2
 fi
+[ -n "$auth_tmp" ] && rm -f "$auth_tmp"
 case $auth_code in
   0) echo "   $(printf '%s\n' "$auth_out" | tail -1 | sed 's/^─* *//')" ;;
   2) [ -n "$auth_out" ] && echo "   Supabase unreachable — auth check skipped" ;;
