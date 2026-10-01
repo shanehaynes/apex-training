@@ -30,8 +30,10 @@ The test runner reused any server already on the dev port. With one fixed
 port, lane B's end-to-end suite could land on lane A's server and pass or fail
 on A's code, with no error.
 
-→ Ports are per-worktree, deterministic (hashed from the directory name), read
-by every tool from one resolver, with strict-port on so clashes are loud.
+→ Ports are per-worktree, read by every tool from one resolver, with
+strict-port on so clashes are loud. (First hashed from the directory name;
+v2 allocates the lowest free port and records it in the claim, since hashing
+had ~60% collision odds at 40 lanes.)
 → Never kill servers by name; kill the PID on your own port.
 
 ## One database, many resetters
@@ -67,7 +69,7 @@ because the base was deleted in the wrong order. Its dependents reached
 production; it did not.
 
 → Every PR is based on the default branch. The merge automation refuses a PR
-based on anything else. Dependencies become waves, not stacks.
+based on anything else. Dependencies become edges scheduled after the dependency merges, not stacks.
 
 ## Green union, broken platform
 
@@ -170,3 +172,69 @@ human merged the rest by hand.
   starts") kept waves honest.
 - **Structured worker output** (a JSON schema per agent in workflow scripts)
   so the orchestrator composes results mechanically.
+
+## The skill's own scripts, under independent review (v2 build)
+
+v2 of this skill's scripts was built the way the skill says: four
+implementation lanes against a written contract, an independent verifier lane
+writing acceptance tests from the contract alone, then adversarial reviewers
+on the pinned result — twice. Each author's own tests passed every time. The
+independent checks found, among others:
+
+- **An unquoted cleanup loop deleted a user's directory.** With the primary
+  checkout at `…/my repo/p`, `for w in $made_wts` split the path and the
+  fallback `rm -rf` removed the sibling directory `…/my`. The author's tests
+  never used a path with a space.
+- **`retire` deleted untracked notes** when the user's git config set
+  `status.showUntrackedFiles=no`: the "dirty" check trusted a display setting.
+- **The ledger lost a recorded merge** after a crash left a partial last line;
+  the next append glued onto it, and `ready` offered the merged lane again.
+- **The guard silently disabled itself** when invoked through any symlink:
+  `import.meta.url` is the realpath, `process.argv[1]` is not.
+- **`--baseline` blamed main for the lanes' fault**: the check ran test files
+  the lanes added; on base they didn't exist (exit 127), which read as "base
+  fails too". Found by running the tool on its own integration.
+- **A byte 0x1F in a lane's intent** shifted the claims row so an active lane
+  read as finished, and tidy removed it under a live worker.
+
+→ A green self-authored suite is not evidence. Independent acceptance tests,
+reviewers who never see the author's reasoning, and reproducing every
+critical finding before acting on it are what caught these. Review severity
+converged across rounds (data loss → edge cases); that, not a quiet round, is
+the signal to stop. Also: the verifier can be stricter than the spec, and an
+author may be right that a rule is too blunt (ignoring global excludes would
+have made every macOS lane with a `.DS_Store` unretirable) — rule on it,
+don't just enforce it.
+
+## Design note: why the hub stays the gate
+
+Message Passing Language Models (Liu, Arora, Swamy, Zanette, CMU, arXiv
+2607.01077) let parallel reasoning threads message only the peers they depend
+on, instead of funnelling everything through a coordinator. On Sudoku and
+3-SAT they beat a fork-join hub trained the same way (9×9 Sudoku: 100% in 15 s
+against 93% in 60 s; only message passing scaled to 16×16 and 25×25), on a
+fine-tuned 0.6B model.
+
+What that does and doesn't transfer:
+
+- Those tasks have a dependency graph fixed in advance, and every message is
+  the output of a procedure the model was trained to run (constraint
+  propagation, DPLL). The Sudoku set was filtered so no step needs a guess.
+  The paper does not study a wrong message spreading. A lane's report is a
+  claim; passed peer-to-peer it becomes a premise before anyone checks it.
+- Peer messaging destroys independence: lanes that share findings make
+  correlated mistakes and can no longer serve as each other's check or as
+  redundant attempts.
+- The gains that don't need peer topology are adopted here:
+  - *wait only on the peers you need* → dependency edges, not waves; contracts
+    delete edges;
+  - *persistent workers and targeted queries* (the paper's only prompting-only
+    experiment, long-context QA, kept the parent as hub: 37.8% vs 29.7% at
+    1.7× faster on one model, parity at 2.2× faster on another) → short report
+    first, then follow-up questions to the specific worker;
+  - *preemption* (best case 3.45× on unbalanced 3-SAT trees) →
+    FIRST-SUFFICIENT races stopped once a win checks out;
+  - *respawn with a compressed state* → continuation briefs;
+  - *send only to dependents* → targeted relays of checked facts.
+- Logging a message is not checking it; the hub is valuable as a gate, not as
+  an audit log.
