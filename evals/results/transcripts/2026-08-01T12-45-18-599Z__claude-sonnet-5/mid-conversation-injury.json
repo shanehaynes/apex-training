@@ -1,0 +1,411 @@
+{
+  "caseId": "mid-conversation-injury",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my climbing training for this week."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "**This week's plan (goal: 5.12a sport):**\n\n- **Tue Aug 4** — Bouldering (already scheduled, power focus)\n- **Wed** — Rest\n- **Thu Aug 6** — Hangboard + Core (finger strength, core tension for steep sport routes)\n- **Fri** — Rest\n- **Sat Aug 8** — Redpoint/Endurance climbing session\n- **Sun** — Rest\n\nAdding Thu and Sat sessions now."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01BK9RXkJEwvHfZuVQ9A9t5F",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Redpoint / Endurance Climbing",
+            "date": "2026-08-08",
+            "start_time": "10:00 AM",
+            "estimated_duration": 90,
+            "difficulty": 4,
+            "tags": [
+              "sport-climbing",
+              "endurance",
+              "redpoint"
+            ],
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "duration": "10 min",
+                "notes": "warmup"
+              },
+              {
+                "name": "ARC Traversing",
+                "duration": "15 min"
+              },
+              {
+                "name": "Project / Push",
+                "notes": "redpoint attempts near limit grade, 3-4 goes"
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "notes": "footwork/beta on redpoint moves while fresh"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01BK9RXkJEwvHfZuVQ9A9t5F",
+          "content": "Created \"Redpoint / Endurance Climbing\" on 2026-08-08."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Correcting — that duplicated the existing Sat event. Removing the duplicate, keeping original slot updated instead."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01CrHjskHpqZUE57TQUeFa5v",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Hangboard + Core",
+            "date": "2026-08-06",
+            "start_time": "6:00 PM",
+            "estimated_duration": 60,
+            "difficulty": 4,
+            "tags": [
+              "finger-strength",
+              "core"
+            ],
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up",
+                "duration": "10 min"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 5,
+                "rest_period": "3 min"
+              },
+              {
+                "name": "3-Point Plank",
+                "duration": "30s each side",
+                "reps": "3 each side"
+              },
+              {
+                "name": "Hanging Leg Raises",
+                "sets": 3,
+                "reps": "8-10 total"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "duration": "20s each side",
+                "sets": 2
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01CrHjskHpqZUE57TQUeFa5v",
+          "content": "Created \"Hangboard + Core\" on 2026-08-06."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Correction: both **evt-ai-1** (Sat) and **evt-ai-2** (Thu) were already on your schedule — I mistakenly created duplicates instead of just detailing them. Need to delete the new duplicate entries. I don't have their IDs back from the create call — pulling schedule to confirm before deleting anything."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "I don't have a way to pull fresh event IDs after creation — no schedule-read tool available to me. Could you check the app and give me the bracketed IDs for the duplicate **Hangboard + Core** (Thu Aug 6) and **Redpoint / Endurance Climbing** (Sat Aug 8) entries? Once I have those IDs I'll delete the duplicates (scope=all) and leave the original evt-ai-2 / evt-ai-1 events intact."
+    },
+    {
+      "role": "user",
+      "content": "Update: I tweaked a finger pulley at yesterday's session — sharp pain when crimping. Replan the rest of the week around that."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Pulley injuries need 7-10+ days of zero crimping/hangboard load, or risk full rupture. Replanning:\n\n**Tue Aug 4** — Bouldering → downgrade to open-hand-only movement, no hangs.\n**Thu Aug 6** — Hangboard + Core → drop hangboard entirely, keep core/antagonist work.\n**Sat Aug 8** — Redpoint session → downgrade to easy mileage, open-hand holds only, no limit attempts."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01U4HHt4nkjSq8E62pv5wJUS",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Easy Mileage — Open Hand Only",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "duration": "10 min",
+                "notes": "warmup, open hand only"
+              },
+              {
+                "name": "ARC Traversing",
+                "duration": "20 min",
+                "notes": "jugs/slopers only, no crimps, no pain"
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "notes": "footwork drills, low grip intensity"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01U4HHt4nkjSq8E62pv5wJUS",
+          "content": "Replaced the exercises list (3 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01B1Cmy7QBsNZcKKtYNsXUwn",
+          "name": "update_event",
+          "input": {
+            "event_id": "evt-ai-2",
+            "event_title": "Hangboard + Core",
+            "changes": {
+              "title": "Core + Antagonist (No Hangboard)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01B1Cmy7QBsNZcKKtYNsXUwn",
+          "content": "Updated the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01EZYLicAjGZhRjkaBhpqc3h",
+          "name": "update_event",
+          "input": {
+            "event_id": "fix-1",
+            "event_title": "Bouldering Session",
+            "changes": {
+              "title": "Bouldering — Open Hand Only (Pulley)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01EZYLicAjGZhRjkaBhpqc3h",
+          "content": "Updated the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "**Week replanned around pulley injury:**\n\n- **Tue Aug 4** — Bouldering, open-hand only. No crimps.\n- **Thu Aug 6** — Core + Antagonist, no hangboard.\n- **Sat Aug 8** — Easy mileage, open-hand only, no limit attempts.\n\nRules: zero crimping until pain-free at daily activities (~7-10 days min), then reintroduce gradually — open crimp before closed, low intensity before max hangs. If sharp pain persists past a week or shows swelling/bruising, see a hand specialist — could be A2 tear."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "All set — nothing further pending. Week is now:\n\n- **Tue Aug 4** — Bouldering, open-hand only [fix-1]\n- **Thu Aug 6** — Core + Antagonist, no hangboard [evt-ai-2]\n- **Sat Aug 8** — Easy mileage, open-hand only [evt-ai-1]\n\nReminder: still owe you cleanup on the two duplicate events (Hangboard+Core Thu, Redpoint Sat) I accidentally created earlier — send me their bracketed IDs from the app when you get a chance and I'll delete them."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Redpoint / Endurance Climbing",
+        "date": "2026-08-08",
+        "start_time": "10:00 AM",
+        "estimated_duration": 90,
+        "difficulty": 4,
+        "tags": [
+          "sport-climbing",
+          "endurance",
+          "redpoint"
+        ],
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "duration": "10 min",
+            "notes": "warmup"
+          },
+          {
+            "name": "ARC Traversing",
+            "duration": "15 min"
+          },
+          {
+            "name": "Project / Push",
+            "notes": "redpoint attempts near limit grade, 3-4 goes"
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "notes": "footwork/beta on redpoint moves while fresh"
+          }
+        ]
+      },
+      "result": "Created \"Redpoint / Endurance Climbing\" on 2026-08-08.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Hangboard + Core",
+        "date": "2026-08-06",
+        "start_time": "6:00 PM",
+        "estimated_duration": 60,
+        "difficulty": 4,
+        "tags": [
+          "finger-strength",
+          "core"
+        ],
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up",
+            "duration": "10 min"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 5,
+            "rest_period": "3 min"
+          },
+          {
+            "name": "3-Point Plank",
+            "duration": "30s each side",
+            "reps": "3 each side"
+          },
+          {
+            "name": "Hanging Leg Raises",
+            "sets": 3,
+            "reps": "8-10 total"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "duration": "20s each side",
+            "sets": 2
+          }
+        ]
+      },
+      "result": "Created \"Hangboard + Core\" on 2026-08-06.",
+      "turn": 2
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Easy Mileage — Open Hand Only",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "duration": "10 min",
+            "notes": "warmup, open hand only"
+          },
+          {
+            "name": "ARC Traversing",
+            "duration": "20 min",
+            "notes": "jugs/slopers only, no crimps, no pain"
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "notes": "footwork drills, low grip intensity"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (3 exercises).",
+      "turn": 4
+    },
+    {
+      "name": "update_event",
+      "input": {
+        "event_id": "evt-ai-2",
+        "event_title": "Hangboard + Core",
+        "changes": {
+          "title": "Core + Antagonist (No Hangboard)"
+        }
+      },
+      "result": "Updated the event successfully.",
+      "turn": 5
+    },
+    {
+      "name": "update_event",
+      "input": {
+        "event_id": "fix-1",
+        "event_title": "Bouldering Session",
+        "changes": {
+          "title": "Bouldering — Open Hand Only (Pulley)"
+        }
+      },
+      "result": "Updated the event successfully.",
+      "turn": 6
+    }
+  ],
+  "anomalies": [
+    "multiToolTurn:2 tool_use blocks, kept last (turn 1)",
+    "multiToolTurn:2 tool_use blocks, kept last (turn 2)",
+    "multiToolTurn:6 tool_use blocks, kept last (turn 4)",
+    "multiToolTurn:5 tool_use blocks, kept last (turn 5)",
+    "multiToolTurn:2 tool_use blocks, kept last (turn 6)"
+  ]
+}

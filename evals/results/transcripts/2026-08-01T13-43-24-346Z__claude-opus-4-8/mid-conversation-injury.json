@@ -1,0 +1,323 @@
+{
+  "caseId": "mid-conversation-injury",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my climbing training for this week."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Plan: 2 climbing days spaced for recovery, 1 hangboard-focused day, 1 antagonist/core day. Rest Wed/Fri/Sun.\n\nTue already set (Bouldering). Adding Thu, Sat, Sun."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01DM2ACgnRpEeMmU6Y7nMxDE",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Antagonist + Core",
+            "date": "2026-08-09",
+            "estimated_duration": 50,
+            "difficulty": 3,
+            "tags": [
+              "prehab",
+              "core"
+            ],
+            "description": "Shoulder health + core tension for steep climbing. Balances all the pulling.",
+            "exercises": [
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12"
+              },
+              {
+                "name": "Ring Dips",
+                "sets": 3,
+                "reps": "8"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 3,
+                "reps": "15"
+              },
+              {
+                "name": "Prone YTWs",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Hanging Leg Raises",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "reps": "20 sec each side"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "reps": "20 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01DM2ACgnRpEeMmU6Y7nMxDE",
+          "content": "Created \"Antagonist + Core\" on 2026-08-09."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Adding Thu (strength/power) and Sat (endurance) climbing days."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01AWr52bYqsyQ4NVDwQyCPoJ",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Lead Endurance + ARC",
+            "date": "2026-08-08",
+            "start_time": "10:00 AM",
+            "estimated_duration": 90,
+            "difficulty": 3,
+            "tags": [
+              "endurance",
+              "lead"
+            ],
+            "description": "Route volume for 5.12a. Mileage on lead just below redpoint level, plus ARC to build aerobic base and recovery capacity.",
+            "exercises": [
+              {
+                "name": "ARC Traversing",
+                "sets": 2,
+                "reps": "15 min",
+                "rest_period": "5 min",
+                "notes": "Continuous, easy terrain, no pump past mild"
+              },
+              {
+                "name": "Skill Work",
+                "sets": 4,
+                "reps": "1 route",
+                "rest_period": "as needed",
+                "notes": "Lead routes at 5.11a-b, focus clipping + pacing"
+              },
+              {
+                "name": "Project / Push",
+                "sets": 2,
+                "reps": "1 route",
+                "notes": "One attempt on a 5.11d/5.12a project"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01AWr52bYqsyQ4NVDwQyCPoJ",
+          "content": "Created \"Lead Endurance + ARC\" on 2026-08-08."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Caught a problem: Sat [evt-ai-2] and Sun [evt-ai-1] already existed. I duplicated both. Deleting my copies."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "I don't have the IDs for the duplicates I just created — the create calls didn't return them. Refresh the schedule and send me the current list; I'll delete the two extras ([evt-ai-1]/[evt-ai-2] are the originals to keep).\n\nOnce cleaned up, the week stands:\n- **Tue** — Bouldering (power) [fix-1]\n- **Sat** — Lead Endurance + ARC [evt-ai-2]\n- **Sun** — Antagonist + Core [evt-ai-1]\n\nMissing a **Thu hangboard + limit** day. Want me to add it? Rest Wed/Fri."
+    },
+    {
+      "role": "user",
+      "content": "Update: I tweaked a finger pulley at yesterday's session — sharp pain when crimping. Replan the rest of the week around that."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Finger pulley tweak with sharp pain = stop climbing now. No crimping, no hangboarding, no hanging. Full finger rest ~5–7 days, then reassess. Get it looked at if pain persists or there was a pop/swelling.\n\nReplanning: kill both climbing days, keep finger-safe training (legs, antagonist, core, cardio). Sun's Antagonist + Core already loads fingers zero — keep as is.\n\nConverting Tue to a legs + core session, cancelling Sat lead."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_019wmLbic3jMKsMp6YfZcGaj",
+          "name": "update_event",
+          "input": {
+            "event_id": "fix-1",
+            "event_title": "Bouldering Session",
+            "changes": {
+              "title": "Legs + Core (finger rest)",
+              "description": "No finger load. Maintain lower-body strength and core tension while the pulley settles. Nothing that requires gripping/crimping."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_019wmLbic3jMKsMp6YfZcGaj",
+          "content": "Updated the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Now cancelling Sat lead session — no lead climbing on a tweaked pulley."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "call\n<invoke name=\"delete_event\">\n<parameter name=\"event_id\">evt-ai-2</parameter>\n<parameter name=\"scope\">all</parameter>\n<parameter name=\"event_title\">Lead Endurance + ARC</parameter>\n</invoke>\n<invoke name=\"set_event_exercises\">\n<parameter name=\"event_id\">fix-1</parameter>\n<parameter name=\"event_title\">Legs + Core (finger rest)</parameter>\n<parameter name=\"exercises\">[{\"name\": \"Back Squat\", \"sets\": 4, \"reps\": \"6\"}, {\"name\": \"Single-Leg RDL\", \"sets\": 3, \"reps\": \"8 each leg\"}, {\"name\": \"Nordic Hamstring Curls\", \"sets\": 3, \"reps\": \"6\"}, {\"name\": \"Calf Raises (single leg)\", \"sets\": 3, \"reps\": \"12 each leg\"}, {\"name\": \"Hanging Leg Raises\", \"sets\": 3, \"reps\": \"10\", \"notes\": \"Use a strap/hook grip or captain's chair — no active finger grip\"}, {\"name\": \"Pallof Press Hold\", \"sets\": 3, \"reps\": \"20 sec each side\"}, {\"name\": \"Copenhagen Plank\", \"sets\": 3, \"reps\": \"20 sec each side\"}]</parameter>\n</invoke>"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Antagonist + Core",
+        "date": "2026-08-09",
+        "estimated_duration": 50,
+        "difficulty": 3,
+        "tags": [
+          "prehab",
+          "core"
+        ],
+        "description": "Shoulder health + core tension for steep climbing. Balances all the pulling.",
+        "exercises": [
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12"
+          },
+          {
+            "name": "Ring Dips",
+            "sets": 3,
+            "reps": "8"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 3,
+            "reps": "15"
+          },
+          {
+            "name": "Prone YTWs",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Hanging Leg Raises",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "reps": "20 sec each side"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "reps": "20 sec each side"
+          }
+        ]
+      },
+      "result": "Created \"Antagonist + Core\" on 2026-08-09.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Lead Endurance + ARC",
+        "date": "2026-08-08",
+        "start_time": "10:00 AM",
+        "estimated_duration": 90,
+        "difficulty": 3,
+        "tags": [
+          "endurance",
+          "lead"
+        ],
+        "description": "Route volume for 5.12a. Mileage on lead just below redpoint level, plus ARC to build aerobic base and recovery capacity.",
+        "exercises": [
+          {
+            "name": "ARC Traversing",
+            "sets": 2,
+            "reps": "15 min",
+            "rest_period": "5 min",
+            "notes": "Continuous, easy terrain, no pump past mild"
+          },
+          {
+            "name": "Skill Work",
+            "sets": 4,
+            "reps": "1 route",
+            "rest_period": "as needed",
+            "notes": "Lead routes at 5.11a-b, focus clipping + pacing"
+          },
+          {
+            "name": "Project / Push",
+            "sets": 2,
+            "reps": "1 route",
+            "notes": "One attempt on a 5.11d/5.12a project"
+          }
+        ]
+      },
+      "result": "Created \"Lead Endurance + ARC\" on 2026-08-08.",
+      "turn": 2
+    },
+    {
+      "name": "update_event",
+      "input": {
+        "event_id": "fix-1",
+        "event_title": "Bouldering Session",
+        "changes": {
+          "title": "Legs + Core (finger rest)",
+          "description": "No finger load. Maintain lower-body strength and core tension while the pulley settles. Nothing that requires gripping/crimping."
+        }
+      },
+      "result": "Updated the event successfully.",
+      "turn": 4
+    }
+  ],
+  "anomalies": [
+    "multiToolTurn:3 tool_use blocks, kept last (turn 1)",
+    "multiToolTurn:2 tool_use blocks, kept last (turn 2)",
+    "multiToolTurn:2 tool_use blocks, kept last (turn 4)"
+  ]
+}

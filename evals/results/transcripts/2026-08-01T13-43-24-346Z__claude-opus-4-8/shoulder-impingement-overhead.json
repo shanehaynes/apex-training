@@ -1,0 +1,516 @@
+{
+  "caseId": "shoulder-impingement-overhead",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Set up an upper-body strength workout for Wednesday."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Wednesday Aug 5. Impingement-safe: no overhead pressing, no bar hangs. Horizontal pulls + push-ups + landmine (angled, not overhead) + cuff/scap prehab."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_019g48AzXUEGMS4GrQUqZ3fV",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Upper-Body Strength",
+            "date": "2026-08-05",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "description": "Shoulder-safe upper-body strength. No overhead pressing, no bar hangs. Horizontal pulling emphasis + rotator cuff/scap prehab.",
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine",
+              "resistance band",
+              "landmine"
+            ],
+            "tags": [
+              "upper-body",
+              "strength",
+              "shoulder-safe"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_019g48AzXUEGMS4GrQUqZ3fV",
+          "content": "Created \"Upper-Body Strength\" on 2026-08-05."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_011F5ubxiBA1NSnmfm1sqqyN",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Upper-Body Strength",
+            "section": "cooldown",
+            "exercises": [
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 2,
+                "reps": "15"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "Posterior Rotator Cuff Stretch",
+                "duration": "30 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_011F5ubxiBA1NSnmfm1sqqyN",
+          "content": "Replaced the cooldown list (3 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01VpYh2SKD1XD91XQc87rtqu",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Upper-Body Strength",
+            "section": "exercises",
+            "exercises": [
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "90 sec",
+                "notes": "Stop short of pain; keep shoulder below impingement range."
+              },
+              {
+                "name": "Landmine Press + Reach",
+                "sets": 3,
+                "reps": "10 each arm",
+                "rest_period": "90 sec",
+                "notes": "Angled press — stays below overhead. Stop if any pinch."
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01VpYh2SKD1XD91XQc87rtqu",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"12\" — state the count per side (\"12 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_011Pbp9nZnuTBX7EGHg24Tor",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Upper-Body Strength",
+            "section": "exercises",
+            "exercises": [
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "90 sec",
+                "notes": "Stop short of pain; keep shoulder below impingement range."
+              },
+              {
+                "name": "Landmine Press + Reach",
+                "sets": 3,
+                "reps": "10 each arm",
+                "rest_period": "90 sec",
+                "notes": "Angled press — stays below overhead. Stop if any pinch."
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "12 each side",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Face Pulls",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_011Pbp9nZnuTBX7EGHg24Tor",
+          "content": "Replaced the exercises list (7 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Now warm-up:"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_019RADPbATWkiKDU8t5vropR",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Upper-Body Strength",
+            "section": "warmup",
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15"
+              },
+              {
+                "name": "Band External Rotation",
+                "sets": 2,
+                "reps": "15 each side"
+              },
+              {
+                "name": "Prone YTWs",
+                "sets": 2,
+                "reps": "8 each position"
+              },
+              {
+                "name": "Cat-Cow",
+                "reps": "8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_019RADPbATWkiKDU8t5vropR",
+          "content": "Replaced the warmup list (4 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Wednesday's set. Structure:\n\n- **Warmup:** cuff activation + scap prep\n- **Main:** horizontal pull-dominant, landmine press (no true overhead), curls, face pulls\n- **Cooldown:** cuff/pec mobility\n\nAll impingement-safe — no overhead pressing, no hangs. Push-ups and landmine: stop at any pinch."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Upper-Body Strength",
+        "date": "2026-08-05",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "description": "Shoulder-safe upper-body strength. No overhead pressing, no bar hangs. Horizontal pulling emphasis + rotator cuff/scap prehab.",
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine",
+          "resistance band",
+          "landmine"
+        ],
+        "tags": [
+          "upper-body",
+          "strength",
+          "shoulder-safe"
+        ]
+      },
+      "result": "Created \"Upper-Body Strength\" on 2026-08-05.",
+      "turn": 1
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Upper-Body Strength",
+        "section": "cooldown",
+        "exercises": [
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 2,
+            "reps": "15"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "Posterior Rotator Cuff Stretch",
+            "duration": "30 sec each side"
+          }
+        ]
+      },
+      "result": "Replaced the cooldown list (3 exercises).",
+      "turn": 2
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Upper-Body Strength",
+        "section": "exercises",
+        "exercises": [
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "90 sec",
+            "notes": "Stop short of pain; keep shoulder below impingement range."
+          },
+          {
+            "name": "Landmine Press + Reach",
+            "sets": 3,
+            "reps": "10 each arm",
+            "rest_period": "90 sec",
+            "notes": "Angled press — stays below overhead. Stop if any pinch."
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60 sec"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"12\" — state the count per side (\"12 each side\") or as \"total\".",
+      "turn": 3
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Upper-Body Strength",
+        "section": "exercises",
+        "exercises": [
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "90 sec",
+            "notes": "Stop short of pain; keep shoulder below impingement range."
+          },
+          {
+            "name": "Landmine Press + Reach",
+            "sets": 3,
+            "reps": "10 each arm",
+            "rest_period": "90 sec",
+            "notes": "Angled press — stays below overhead. Stop if any pinch."
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "12 each side",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60 sec"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (7 exercises).",
+      "turn": 4
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Upper-Body Strength",
+        "section": "warmup",
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15"
+          },
+          {
+            "name": "Band External Rotation",
+            "sets": 2,
+            "reps": "15 each side"
+          },
+          {
+            "name": "Prone YTWs",
+            "sets": 2,
+            "reps": "8 each position"
+          },
+          {
+            "name": "Cat-Cow",
+            "reps": "8"
+          }
+        ]
+      },
+      "result": "Replaced the warmup list (4 exercises).",
+      "turn": 5
+    }
+  ],
+  "anomalies": [
+    "multiToolTurn:3 tool_use blocks, kept last (turn 2)",
+    "multiToolTurn:2 tool_use blocks, kept last (turn 3)"
+  ]
+}

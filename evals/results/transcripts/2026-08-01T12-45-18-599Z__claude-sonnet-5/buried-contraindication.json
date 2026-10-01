@@ -1,0 +1,219 @@
+{
+  "caseId": "buried-contraindication",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Give me a full-body strength workout for tomorrow."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01WQi6HxoxybKib9FiDEbNPP",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Full-Body Strength",
+            "date": "2026-08-04",
+            "start_time": "6:00 AM",
+            "estimated_duration": 50,
+            "difficulty": 3,
+            "location": "Home Gym",
+            "equipment": [
+              "rack",
+              "dumbbells",
+              "bands"
+            ],
+            "tags": [
+              "full-body",
+              "strength"
+            ],
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "sets": 1,
+                "reps": "10",
+                "notes": "warmup, spine mobility"
+              },
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "notes": "warmup, shoulders"
+              },
+              {
+                "name": "Deep Squat Hold",
+                "sets": 2,
+                "duration": "20 sec",
+                "notes": "warmup, hip opener"
+              },
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "5",
+                "weight": "moderate",
+                "rest_period": "2 min",
+                "notes": "controlled tempo, brace core, no back rounding"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "weight": "40-50 lb",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "weight": "15-20 lb dumbbell",
+                "rest_period": "60 sec",
+                "notes": "light load, neutral spine, no heavy hinge"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "20 sec each side",
+                "notes": "anti-rotation core, band"
+              },
+              {
+                "name": "Child's Pose with Lateral Reach",
+                "sets": 1,
+                "duration": "30 sec each side",
+                "notes": "cooldown"
+              },
+              {
+                "name": "Thread-the-Needle",
+                "sets": 1,
+                "duration": "30 sec each side",
+                "notes": "cooldown"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01WQi6HxoxybKib9FiDEbNPP",
+          "content": "Created \"Full-Body Strength\" on 2026-08-04."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Full-Body Strength added for Tue Aug 4, 6:00 AM (50 min).\n\nStructure:\n- Warmup: Cat-Cow, Band Pull-Aparts, Deep Squat Hold\n- Back Squat 3×5 — main lift, brace hard, no rounding\n- Chest-Supported DB Row 3×10\n- Push-Ups 3×12\n- Single-Leg RDL 3×8/leg (light, 15-20 lb) — hip hinge without spinal load\n- Pallof Press Hold 3×20sec/side — core, no flexion\n- Cooldown: Child's Pose w/ Lateral Reach, Thread-the-Needle\n\nSquat load: pick a weight you can hit all 5 reps clean, 1-2 reps left in tank. Nothing here loads the spine in flexion."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Already set — Full-Body Strength is on the schedule for Tue Aug 4, 6:00 AM. Nothing else pending. Let me know if you want adjustments to load, exercises, or want next week's sessions planned."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Full-Body Strength",
+        "date": "2026-08-04",
+        "start_time": "6:00 AM",
+        "estimated_duration": 50,
+        "difficulty": 3,
+        "location": "Home Gym",
+        "equipment": [
+          "rack",
+          "dumbbells",
+          "bands"
+        ],
+        "tags": [
+          "full-body",
+          "strength"
+        ],
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "sets": 1,
+            "reps": "10",
+            "notes": "warmup, spine mobility"
+          },
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "notes": "warmup, shoulders"
+          },
+          {
+            "name": "Deep Squat Hold",
+            "sets": 2,
+            "duration": "20 sec",
+            "notes": "warmup, hip opener"
+          },
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "5",
+            "weight": "moderate",
+            "rest_period": "2 min",
+            "notes": "controlled tempo, brace core, no back rounding"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "weight": "40-50 lb",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "weight": "15-20 lb dumbbell",
+            "rest_period": "60 sec",
+            "notes": "light load, neutral spine, no heavy hinge"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "20 sec each side",
+            "notes": "anti-rotation core, band"
+          },
+          {
+            "name": "Child's Pose with Lateral Reach",
+            "sets": 1,
+            "duration": "30 sec each side",
+            "notes": "cooldown"
+          },
+          {
+            "name": "Thread-the-Needle",
+            "sets": 1,
+            "duration": "30 sec each side",
+            "notes": "cooldown"
+          }
+        ]
+      },
+      "result": "Created \"Full-Body Strength\" on 2026-08-04.",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

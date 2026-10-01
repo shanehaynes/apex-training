@@ -1,0 +1,273 @@
+{
+  "caseId": "pulley-injury-climber",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my climbing training for this week — I want to keep making progress while I recover."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Here's the week, built around the A2 pulley restriction — zero fingerboard, zero crimping, volume redirected into footwork/movement and general strength so you keep building toward V8 without loading the finger.\n\n**Plan:**\n- **Mon (today):** Mobility/rehab — wrist & shoulder work\n- **Tue:** Indoor climbing — open-hand only, footwork/movement focus\n- **Wed:** Pull strength + core (no grip-intensive work)\n- **Thu:** Rest\n- **Fri:** Indoor climbing — movement drills, jugs/big holds only\n- **Sat:** Lower body + antagonist strength\n- **Sun:** Rest\n\nCreating these now."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01QzQ6tQ6C4K3PRMJnhgDSga",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Body & Antagonist Strength",
+            "date": "2026-08-08",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "6"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "6"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side"
+              },
+              {
+                "name": "Band External Rotation",
+                "sets": 3,
+                "reps": "15 each arm"
+              },
+              {
+                "name": "Prone YTWs",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Hanging Leg Raises",
+                "sets": 3,
+                "reps": "10",
+                "notes": "Open hand on bar, no crimping the lip"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01QzQ6tQ6C4K3PRMJnhgDSga",
+          "content": "Created \"Lower Body & Antagonist Strength\" on 2026-08-08."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_012eGcRojzFjhUTR5c9C9cWm",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Indoor Climbing — Movement Drills (Jugs Only)",
+            "date": "2026-08-07",
+            "estimated_duration": 90,
+            "difficulty": 2,
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "duration": "10 min",
+                "notes": "Warmup"
+              },
+              {
+                "name": "Skill Work",
+                "duration": "30 min",
+                "notes": "Big holds/jugs only — dynamic movement, flagging, drop-knees"
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "duration": "30 min",
+                "notes": "Slab/vertical movement work, no crimps"
+              },
+              {
+                "name": "ARC Traversing",
+                "duration": "15 min",
+                "notes": "Cooldown volume, open-hand grip"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_012eGcRojzFjhUTR5c9C9cWm",
+          "content": "Created \"Indoor Climbing — Movement Drills (Jugs Only)\" on 2026-08-07."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Correcting — those two already existed on your schedule (evt-ai-1, evt-ai-2). I just created duplicates by mistake. Removing my duplicates now, then adding only the new Tue/Wed sessions."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Mn5XxK9tBvB54Eqotctw7j",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-4",
+            "scope": "all",
+            "event_title": "Indoor Climbing — Movement Drills (Jugs Only)",
+            "event_date_display": "Friday August 7"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Mn5XxK9tBvB54Eqotctw7j",
+          "content": "Failed to delete the event."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Can't confirm the duplicate's ID — my guess (evt-ai-4) didn't hit. Rather than keep guessing and risk deleting the wrong event, can you refresh/check your schedule view and give me the ID shown on the newer \"Indoor Climbing — Movement Drills (Jugs Only)\" entry (Fri Aug 7)? Same for the duplicate \"Lower Body & Antagonist Strength\" (Sat Aug 8) if you see two of those too."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "I need the actual event IDs to safely delete the duplicates — guessing risks deleting the wrong workout. Can you open the schedule and paste the bracketed IDs for:\n\n- The second \"Indoor Climbing — Movement Drills (Jugs Only)\" on Fri Aug 7\n- The second \"Lower Body & Antagonist Strength\" on Sat Aug 8\n\nOnce I have those, I'll delete the duplicates and add Tuesday's open-hand climbing session and Wednesday's pull/core day to round out the week."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Body & Antagonist Strength",
+        "date": "2026-08-08",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "6"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "6"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side"
+          },
+          {
+            "name": "Band External Rotation",
+            "sets": 3,
+            "reps": "15 each arm"
+          },
+          {
+            "name": "Prone YTWs",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Hanging Leg Raises",
+            "sets": 3,
+            "reps": "10",
+            "notes": "Open hand on bar, no crimping the lip"
+          }
+        ]
+      },
+      "result": "Created \"Lower Body & Antagonist Strength\" on 2026-08-08.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Indoor Climbing — Movement Drills (Jugs Only)",
+        "date": "2026-08-07",
+        "estimated_duration": 90,
+        "difficulty": 2,
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "duration": "10 min",
+            "notes": "Warmup"
+          },
+          {
+            "name": "Skill Work",
+            "duration": "30 min",
+            "notes": "Big holds/jugs only — dynamic movement, flagging, drop-knees"
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "duration": "30 min",
+            "notes": "Slab/vertical movement work, no crimps"
+          },
+          {
+            "name": "ARC Traversing",
+            "duration": "15 min",
+            "notes": "Cooldown volume, open-hand grip"
+          }
+        ]
+      },
+      "result": "Created \"Indoor Climbing — Movement Drills (Jugs Only)\" on 2026-08-07.",
+      "turn": 2
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-4",
+        "scope": "all",
+        "event_title": "Indoor Climbing — Movement Drills (Jugs Only)",
+        "event_date_display": "Friday August 7"
+      },
+      "result": "Failed to delete the event.",
+      "turn": 3
+    }
+  ],
+  "anomalies": [
+    "multiToolTurn:5 tool_use blocks, kept last (turn 1)",
+    "multiToolTurn:4 tool_use blocks, kept last (turn 2)",
+    "multiToolTurn:2 tool_use blocks, kept last (turn 3)"
+  ]
+}

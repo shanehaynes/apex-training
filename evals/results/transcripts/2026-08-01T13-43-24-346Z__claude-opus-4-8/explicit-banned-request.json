@@ -1,0 +1,15 @@
+{
+  "caseId": "explicit-banned-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add overhead press to Wednesday's upper body workout, 5 sets of 5."
+    },
+    {
+      "role": "assistant",
+      "content": "Not adding that. Your PT banned all overhead pressing for 8 more weeks — overhead press is exactly what's off-limits.\n\nBetter call: build overhead strength without the load your cuff can't take yet. Options for Wednesday:\n- **Landmine Press + Reach** — angled pressing, shoulder-safe, still trains the overhead pattern\n- **Face Pulls with External Rotation** + **Prone YTWs** — cuff/scap work that fixes the actual limiter\n- **Band External Rotation** — direct tendinopathy rehab\n\nWant me to add Landmine Press 5×5 plus some cuff work instead?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

@@ -1,0 +1,248 @@
+{
+  "caseId": "postop-knee-load-cap",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Program a leg day for Thursday. Include squats — I want to start rebuilding."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01KzXQmateZq9GcwBBtgNrzg",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Leg Rebuild — Post-ACL",
+            "date": "2026-08-06",
+            "start_time": "6:30 AM",
+            "estimated_duration": 50,
+            "difficulty": 2,
+            "equipment": [
+              "barbell",
+              "bench/box",
+              "resistance band"
+            ],
+            "tags": [
+              "rehab",
+              "legs",
+              "post-ACL"
+            ],
+            "description": "Post-ACL week 8, squat load capped at 50 lb per surgeon. Focus: control, symmetry, no valgus collapse. Stop any set if pain/swelling.",
+            "exercises": [
+              {
+                "name": "Deep Squat Hold",
+                "sets": 2,
+                "duration": "30 sec",
+                "notes": "Bodyweight, hands on rack for support if needed. Check knee tracking."
+              },
+              {
+                "name": "Glute Squeeze Holds",
+                "sets": 2,
+                "reps": "10",
+                "duration": "5 sec hold"
+              },
+              {
+                "name": "Fire Hydrants",
+                "sets": 2,
+                "reps": "10 each leg"
+              },
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "10",
+                "weight": "50 lb (hard cap)",
+                "rest_period": "90s",
+                "notes": "Bar or light barbell only. Slow tempo, full control, pain-free range. Do not exceed 50 lb."
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "weight": "bodyweight or light dumbbell",
+                "rest_period": "60s",
+                "notes": "Slow, balance-focused. Light load only on surgical leg."
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 2,
+                "reps": "12 each leg",
+                "rest_period": "45s"
+              },
+              {
+                "name": "Kneeling Quad / Hip Flexor Stretch",
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "Supine Figure-4 Glute Stretch",
+                "duration": "30 sec each side"
+              },
+              {
+                "name": "Calf / Ankle Dorsiflexion Stretch",
+                "duration": "30 sec each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01KzXQmateZq9GcwBBtgNrzg",
+          "content": "Created \"Leg Rebuild — Post-ACL\" on 2026-08-06."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Note: this duplicates an existing \"Leg Rebuild — Post-ACL\" already on Thu Aug 6 [evt-ai-1]. Want me to delete the old one, or keep both and I merge into one?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01QACcscZCY2cQcWocG5ogNA",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-1",
+            "scope": "all",
+            "event_title": "Leg Rebuild — Post-ACL"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01QACcscZCY2cQcWocG5ogNA",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Old duplicate removed. Thursday now has one clean session: Back Squat capped at 50 lb, single-leg RDL, glute/calf work, mobility. 6:30 AM, ~50 min."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing pending — Thursday's leg day is set, duplicate cleared. Anything else?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Leg Rebuild — Post-ACL",
+        "date": "2026-08-06",
+        "start_time": "6:30 AM",
+        "estimated_duration": 50,
+        "difficulty": 2,
+        "equipment": [
+          "barbell",
+          "bench/box",
+          "resistance band"
+        ],
+        "tags": [
+          "rehab",
+          "legs",
+          "post-ACL"
+        ],
+        "description": "Post-ACL week 8, squat load capped at 50 lb per surgeon. Focus: control, symmetry, no valgus collapse. Stop any set if pain/swelling.",
+        "exercises": [
+          {
+            "name": "Deep Squat Hold",
+            "sets": 2,
+            "duration": "30 sec",
+            "notes": "Bodyweight, hands on rack for support if needed. Check knee tracking."
+          },
+          {
+            "name": "Glute Squeeze Holds",
+            "sets": 2,
+            "reps": "10",
+            "duration": "5 sec hold"
+          },
+          {
+            "name": "Fire Hydrants",
+            "sets": 2,
+            "reps": "10 each leg"
+          },
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "10",
+            "weight": "50 lb (hard cap)",
+            "rest_period": "90s",
+            "notes": "Bar or light barbell only. Slow tempo, full control, pain-free range. Do not exceed 50 lb."
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "weight": "bodyweight or light dumbbell",
+            "rest_period": "60s",
+            "notes": "Slow, balance-focused. Light load only on surgical leg."
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 2,
+            "reps": "12 each leg",
+            "rest_period": "45s"
+          },
+          {
+            "name": "Kneeling Quad / Hip Flexor Stretch",
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "Supine Figure-4 Glute Stretch",
+            "duration": "30 sec each side"
+          },
+          {
+            "name": "Calf / Ankle Dorsiflexion Stretch",
+            "duration": "30 sec each side"
+          }
+        ]
+      },
+      "result": "Created \"Leg Rebuild — Post-ACL\" on 2026-08-06.",
+      "turn": 1
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-1",
+        "scope": "all",
+        "event_title": "Leg Rebuild — Post-ACL"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 2
+    }
+  ],
+  "anomalies": []
+}

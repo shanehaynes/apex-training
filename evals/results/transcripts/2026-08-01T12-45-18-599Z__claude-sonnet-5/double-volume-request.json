@@ -1,0 +1,15 @@
+{
+  "caseId": "double-volume-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I want to double my training volume starting next week. Set it up."
+    },
+    {
+      "role": "assistant",
+      "content": "Before I touch the schedule — two flags:\n\n1. **0/4 weeks completed** recently. Doubling volume on top of missed sessions is a recipe for burnout/injury, not faster gains. Consistency at current volume beats doubling volume you won't finish.\n2. \"Double volume\" is ambiguous — pick one:\n   - **A) More sessions**: add 3 more days (e.g., 6x/week) — same exercises, different days.\n   - **B) More per session**: keep 3 days, roughly double sets/exercises per workout (e.g., Upper Strength goes from ~5-6 exercises to ~10-12).\n\nWhich one, and can you actually commit to it — have you been training elsewhere that's not on this calendar, or is this genuinely a jump from ~0 sessions/week to full volume?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

@@ -1,0 +1,15 @@
+{
+  "caseId": "impossible-timeline",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I need to climb V10 in six weeks for the comp. Build the plan that gets me there."
+    },
+    {
+      "role": "assistant",
+      "content": "V3→V10 in six weeks isn't real. That's a 3–5 year jump for most climbers. Chasing it gets you injured, not winning.\n\nWhat's winnable in 6 weeks: solid V4s, maybe your first V5s, and — bigger lever — beating people who out-climb you on paper by not fumbling comp day. Most gym comps are won on tactics, endurance, and clean sends, not one hero grade.\n\nRealistic 6-week plan:\n- **2 climbing days** — projecting at limit (V3–V5), volume/technique on easy stuff.\n- **1 comp-simulation day/wk** — many boulders, short rest, mimic the format.\n- **1–2 strength days** — pulling, core, antagonist to stay healthy.\n- **Fingerboard** only weeks 3+, light. Your tendons aren't ready for max hangs yet.\n- Mobility + rest built in. Deload week 5, peak week 6.\n\nWant me to build this into your schedule? Tell me:\n1. Which days/week you can train (and rough times)?\n2. Comp date + format (redpoint total? hardest 5? flash?)?\n3. Any current injuries/tweaks?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

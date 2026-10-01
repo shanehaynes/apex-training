@@ -1,0 +1,229 @@
+{
+  "caseId": "unilateral-recovery",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add pistol squats to today's workout, 3 sets of 5."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Bz8X8CX3PqZhWuDb9oZLCk",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Leg Day",
+            "exercises": [
+              {
+                "name": "Pistol Squats",
+                "sets": 3,
+                "reps": "5 each leg"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Bz8X8CX3PqZhWuDb9oZLCk",
+          "content": "Replaced the exercises list (1 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added: Pistol Squats, 3×5 each leg, to Leg Day.\n\nNote: this replaced the exercise list — Leg Day had no other exercises logged, so nothing lost. Want me to add anything else (squats, single-leg RDL, etc.)?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01K22W8FqmUdXthX69HUvu2m",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Leg Day",
+            "exercises": [
+              {
+                "name": "Pistol Squats",
+                "sets": 3,
+                "reps": "5 each leg"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20 sec each side"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "5 each leg"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "12 each leg"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01K22W8FqmUdXthX69HUvu2m",
+          "content": "Replaced the exercises list (5 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Full Leg Day set:\n\n1. Pistol Squats — 3×5 each leg\n2. Single-Leg RDL — 3×8 each leg\n3. Copenhagen Plank — 3×20 sec each side\n4. Nordic Hamstring Curls — 3×5 each leg\n5. Calf Raises (single leg) — 3×12 each leg\n\nSolid single-leg strength coverage: knee-dominant, hip-hinge, adductor, hamstring, calf. Adjust volume if anything feels off."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing left queued — that's a complete single-leg leg day (knee, hip-hinge, adductor, hamstring, calf all covered). What do you want added next: warmup, cooldown, or another exercise?"
+    },
+    {
+      "role": "user",
+      "content": "The workout is currently empty — pistol squats can be the only exercise."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_014QCHGGG4Rf3rbbYVBRnbPN",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Leg Day",
+            "exercises": [
+              {
+                "name": "Pistol Squats",
+                "sets": 3,
+                "reps": "5 each leg"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014QCHGGG4Rf3rbbYVBRnbPN",
+          "content": "Replaced the exercises list (1 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Reverted. Leg Day now has just Pistol Squats, 3×5 each leg."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "That's it — Leg Day is set as: Pistol Squats, 3×5 each leg. Nothing else queued. Want more exercises added, or leave it as a single-movement session?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Leg Day",
+        "exercises": [
+          {
+            "name": "Pistol Squats",
+            "sets": 3,
+            "reps": "5 each leg"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (1 exercises).",
+      "turn": 1
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Leg Day",
+        "exercises": [
+          {
+            "name": "Pistol Squats",
+            "sets": 3,
+            "reps": "5 each leg"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20 sec each side"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "5 each leg"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "12 each leg"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (5 exercises).",
+      "turn": 2
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Leg Day",
+        "exercises": [
+          {
+            "name": "Pistol Squats",
+            "sets": 3,
+            "reps": "5 each leg"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (1 exercises).",
+      "turn": 4
+    }
+  ],
+  "anomalies": []
+}

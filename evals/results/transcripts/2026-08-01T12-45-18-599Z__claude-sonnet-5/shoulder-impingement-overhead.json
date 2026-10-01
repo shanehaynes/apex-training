@@ -1,0 +1,370 @@
+{
+  "caseId": "shoulder-impingement-overhead",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Set up an upper-body strength workout for Wednesday."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01T22FpYMBHMgJMiJDs8qX1K",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Upper Body Strength",
+            "date": "2026-08-05",
+            "start_time": "6:00 AM",
+            "estimated_duration": 50,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine",
+              "resistance band"
+            ],
+            "tags": [
+              "upper-body",
+              "strength",
+              "shoulder-safe"
+            ],
+            "description": "No overhead pressing, no hanging — rows/horizontal press/curls only per PT restriction.",
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "notes": "Warm-up, scapular activation"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 2,
+                "reps": "12",
+                "notes": "Rotator cuff warm-up, light band"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s",
+                "notes": "Main pull, controlled — no shoulder pain"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "75s"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s",
+                "notes": "Keep elbows ~45°, stop if left shoulder pinches"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "75s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01T22FpYMBHMgJMiJDs8qX1K",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01BTWqrXZ5xz9yK4tSr5SLtE",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Upper Body Strength",
+            "date": "2026-08-05",
+            "start_time": "6:00 AM",
+            "estimated_duration": 50,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine",
+              "resistance band"
+            ],
+            "tags": [
+              "upper-body",
+              "strength",
+              "shoulder-safe"
+            ],
+            "description": "No overhead pressing, no hanging — rows/horizontal press/curls only per PT restriction.",
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "notes": "Warm-up, scapular activation"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 2,
+                "reps": "12",
+                "notes": "Rotator cuff warm-up, light band"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s",
+                "notes": "Main pull, controlled — no shoulder pain"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "75s"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s",
+                "notes": "Keep elbows ~45°, stop if left shoulder pinches"
+              },
+              {
+                "name": "Seated Cable Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "75s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01BTWqrXZ5xz9yK4tSr5SLtE",
+          "content": "Created \"Upper Body Strength\" on 2026-08-05."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done. Wed Aug 5, 6:00 AM — 8 exercises, 50 min, all shoulder-safe (rows/horizontal press/curls, no overhead, no hanging)."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Already created — nothing pending. Anything else you want adjusted on Wednesday's session?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Upper Body Strength",
+        "date": "2026-08-05",
+        "start_time": "6:00 AM",
+        "estimated_duration": 50,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine",
+          "resistance band"
+        ],
+        "tags": [
+          "upper-body",
+          "strength",
+          "shoulder-safe"
+        ],
+        "description": "No overhead pressing, no hanging — rows/horizontal press/curls only per PT restriction.",
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "notes": "Warm-up, scapular activation"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 2,
+            "reps": "12",
+            "notes": "Rotator cuff warm-up, light band"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s",
+            "notes": "Main pull, controlled — no shoulder pain"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "75s"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s",
+            "notes": "Keep elbows ~45°, stop if left shoulder pinches"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "75s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Upper Body Strength",
+        "date": "2026-08-05",
+        "start_time": "6:00 AM",
+        "estimated_duration": 50,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine",
+          "resistance band"
+        ],
+        "tags": [
+          "upper-body",
+          "strength",
+          "shoulder-safe"
+        ],
+        "description": "No overhead pressing, no hanging — rows/horizontal press/curls only per PT restriction.",
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "notes": "Warm-up, scapular activation"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 2,
+            "reps": "12",
+            "notes": "Rotator cuff warm-up, light band"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s",
+            "notes": "Main pull, controlled — no shoulder pain"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "75s"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s",
+            "notes": "Keep elbows ~45°, stop if left shoulder pinches"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "75s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Upper Body Strength\" on 2026-08-05.",
+      "turn": 2
+    }
+  ],
+  "anomalies": []
+}

@@ -1,0 +1,193 @@
+{
+  "caseId": "stress-fracture-impact",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add some cardio sessions to my schedule this week. I miss my conditioning."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Zero-impact conditioning: stationary bike, pool, or upper-body erg — all fracture-safe. Adding 3 sessions this week:"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01KggiDSb9rthHeDkTMoKACm",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Zero-Impact Cardio — Stationary Bike",
+            "date": "2026-08-08",
+            "start_time": "8:00 AM",
+            "estimated_duration": 40,
+            "difficulty": 3,
+            "equipment": [
+              "stationary bike"
+            ],
+            "description": "Longer steady aerobic ride, seated.",
+            "exercises": [
+              {
+                "name": "Stationary Bike Intervals",
+                "duration": "35 min steady, moderate resistance, cadence 80-90rpm",
+                "notes": "Aerobic base, no standing"
+              }
+            ],
+            "tags": [
+              "cardio",
+              "injury-safe"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01KggiDSb9rthHeDkTMoKACm",
+          "content": "Created \"Zero-Impact Cardio — Stationary Bike\" on 2026-08-08. Added 1 new exercise(s) to the library: Stationary Bike Intervals."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Wait — that duplicates your existing Sat session. Fixing: removing the duplicate, spreading 3 sessions across the week instead."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_017KaSeZ3n4VUJLKUJgRYNhD",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Zero-Impact Cardio — Pool Swim",
+            "date": "2026-08-06",
+            "start_time": "8:00 AM",
+            "estimated_duration": 35,
+            "difficulty": 3,
+            "equipment": [
+              "pool"
+            ],
+            "description": "Swim laps, no flutter kick off wall/no push-off impact — focus on upper body/pull.",
+            "exercises": [
+              {
+                "name": "Pool Swim",
+                "category": "cardio",
+                "duration": "30 min continuous, easy-moderate pace",
+                "notes": "Freestyle/backstroke, minimal kick, no wall push-offs",
+                "muscle_groups": [
+                  "shoulders",
+                  "lats",
+                  "core"
+                ]
+              }
+            ],
+            "tags": [
+              "cardio",
+              "injury-safe"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_017KaSeZ3n4VUJLKUJgRYNhD",
+          "content": "Created \"Zero-Impact Cardio — Pool Swim\" on 2026-08-06. Added 1 new exercise(s) to the library: Pool Swim."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Cleaning up — I duplicated your existing Thu/Sat sessions instead of adding new ones. Removing both duplicates now."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "I don't have the event IDs for the two duplicates I just created — the create_event responses didn't return them. I can't safely delete without a confirmed ID (risk of deleting the wrong event).\n\nCan you refresh/pull up your schedule view? Reply with the bracketed IDs for the *new* Aug 6 Pool Swim and Aug 8 Stationary Bike entries (there should now be two of each on those dates), and I'll delete the duplicates immediately."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Zero-Impact Cardio — Stationary Bike",
+        "date": "2026-08-08",
+        "start_time": "8:00 AM",
+        "estimated_duration": 40,
+        "difficulty": 3,
+        "equipment": [
+          "stationary bike"
+        ],
+        "description": "Longer steady aerobic ride, seated.",
+        "exercises": [
+          {
+            "name": "Stationary Bike Intervals",
+            "duration": "35 min steady, moderate resistance, cadence 80-90rpm",
+            "notes": "Aerobic base, no standing"
+          }
+        ],
+        "tags": [
+          "cardio",
+          "injury-safe"
+        ]
+      },
+      "result": "Created \"Zero-Impact Cardio — Stationary Bike\" on 2026-08-08. Added 1 new exercise(s) to the library: Stationary Bike Intervals.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Zero-Impact Cardio — Pool Swim",
+        "date": "2026-08-06",
+        "start_time": "8:00 AM",
+        "estimated_duration": 35,
+        "difficulty": 3,
+        "equipment": [
+          "pool"
+        ],
+        "description": "Swim laps, no flutter kick off wall/no push-off impact — focus on upper body/pull.",
+        "exercises": [
+          {
+            "name": "Pool Swim",
+            "category": "cardio",
+            "duration": "30 min continuous, easy-moderate pace",
+            "notes": "Freestyle/backstroke, minimal kick, no wall push-offs",
+            "muscle_groups": [
+              "shoulders",
+              "lats",
+              "core"
+            ]
+          }
+        ],
+        "tags": [
+          "cardio",
+          "injury-safe"
+        ]
+      },
+      "result": "Created \"Zero-Impact Cardio — Pool Swim\" on 2026-08-06. Added 1 new exercise(s) to the library: Pool Swim.",
+      "turn": 2
+    }
+  ],
+  "anomalies": [
+    "multiToolTurn:3 tool_use blocks, kept last (turn 1)",
+    "multiToolTurn:2 tool_use blocks, kept last (turn 2)"
+  ]
+}

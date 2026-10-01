@@ -1,0 +1,396 @@
+{
+  "caseId": "buried-contraindication",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Give me a full-body strength workout for tomorrow."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Tuesday, Aug 4. Full-body, back-safe (no loaded flexion/heavy hinge), DB/rack/band home gym."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_012EEQ7sK8gp6gZ2joByq2h2",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "placeholder",
+            "date": "2026-08-04",
+            "estimated_duration": 1
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_012EEQ7sK8gp6gZ2joByq2h2",
+          "content": "Created \"placeholder\" on 2026-08-04."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Updating the Tuesday event. Warmup / main / cooldown."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01D4457WGvqRgpJCHMTLbk7T",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Full-Body Strength",
+            "section": "cooldown",
+            "exercises": [
+              {
+                "name": "Kneeling Quad / Hip Flexor Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Supine Figure-4 Glute Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01D4457WGvqRgpJCHMTLbk7T",
+          "content": "Replaced the cooldown list (3 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01QVcRaaNskcBXyiJJVcy3rb",
+          "name": "update_event",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "placeholder",
+            "changes": {
+              "title": "Full-Body Strength",
+              "start_time": "6:00 AM",
+              "estimated_duration": 55,
+              "difficulty": 3,
+              "description": "Back-safe full-body: squat, horizontal pull, vertical press, single-leg hinge, anti-rotation core."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01QVcRaaNskcBXyiJJVcy3rb",
+          "content": "Updated the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01AFYP8WgeT13DPZjLixYG5Y",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Full-Body Strength",
+            "section": "exercises",
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": 8,
+                "weight": "60 lb DBs (goblet)",
+                "rest_period": "2 min",
+                "notes": "Goblet with DB, neutral spine — no bar loading needed."
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 4,
+                "reps": 10,
+                "rest_period": "90 sec",
+                "notes": "Chest supported keeps spine unloaded."
+              },
+              {
+                "name": "Landmine Press + Reach",
+                "sets": 3,
+                "reps": "8 each arm",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "weight": "light DBs",
+                "rest_period": "90 sec",
+                "notes": "Hip hinge with flat back, controlled — no rounding."
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "20 sec each side",
+                "rest_period": "60 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01AFYP8WgeT13DPZjLixYG5Y",
+          "content": "Replaced the exercises list (5 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01EzAg4VfUGruzAjvkKFTPUc",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Full-Body Strength",
+            "section": "warmup",
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "reps": 8
+              },
+              {
+                "name": "Dead Bug",
+                "reps": "6 each side"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "reps": 15
+              },
+              {
+                "name": "Band Pull-Aparts",
+                "reps": 15
+              },
+              {
+                "name": "Deep Squat Hold",
+                "duration": "30 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01EzAg4VfUGruzAjvkKFTPUc",
+          "content": "Replaced the warmup list (5 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done. Tuesday 6:00 AM, 55 min:\n\n**Warmup:** Cat-Cow, Dead Bug, Banded Glute Bridges, Band Pull-Aparts, Deep Squat Hold\n\n**Main:**\n- Goblet Squat 4×8 (60 lb)\n- Chest-Supported DB Row 4×10\n- Landmine Press 3×8/arm\n- Single-Leg RDL 3×8/leg\n- Pallof Hold 3×20s/side\n\n**Cooldown:** Hip flexor, figure-4 glute, pec stretch\n\nAll back-safe — no loaded spinal flexion, hinges stay flat and light."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "placeholder",
+        "date": "2026-08-04",
+        "estimated_duration": 1
+      },
+      "result": "Created \"placeholder\" on 2026-08-04.",
+      "turn": 1
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Full-Body Strength",
+        "section": "cooldown",
+        "exercises": [
+          {
+            "name": "Kneeling Quad / Hip Flexor Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Supine Figure-4 Glute Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Replaced the cooldown list (3 exercises).",
+      "turn": 2
+    },
+    {
+      "name": "update_event",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "placeholder",
+        "changes": {
+          "title": "Full-Body Strength",
+          "start_time": "6:00 AM",
+          "estimated_duration": 55,
+          "difficulty": 3,
+          "description": "Back-safe full-body: squat, horizontal pull, vertical press, single-leg hinge, anti-rotation core."
+        }
+      },
+      "result": "Updated the event successfully.",
+      "turn": 3
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Full-Body Strength",
+        "section": "exercises",
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": 8,
+            "weight": "60 lb DBs (goblet)",
+            "rest_period": "2 min",
+            "notes": "Goblet with DB, neutral spine — no bar loading needed."
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 4,
+            "reps": 10,
+            "rest_period": "90 sec",
+            "notes": "Chest supported keeps spine unloaded."
+          },
+          {
+            "name": "Landmine Press + Reach",
+            "sets": 3,
+            "reps": "8 each arm",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "weight": "light DBs",
+            "rest_period": "90 sec",
+            "notes": "Hip hinge with flat back, controlled — no rounding."
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "20 sec each side",
+            "rest_period": "60 sec"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (5 exercises).",
+      "turn": 4
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Full-Body Strength",
+        "section": "warmup",
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "reps": 8
+          },
+          {
+            "name": "Dead Bug",
+            "reps": "6 each side"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "reps": 15
+          },
+          {
+            "name": "Band Pull-Aparts",
+            "reps": 15
+          },
+          {
+            "name": "Deep Squat Hold",
+            "duration": "30 sec"
+          }
+        ]
+      },
+      "result": "Replaced the warmup list (5 exercises).",
+      "turn": 5
+    }
+  ],
+  "anomalies": [
+    "multiToolTurn:2 tool_use blocks, kept last (turn 1)",
+    "multiToolTurn:4 tool_use blocks, kept last (turn 2)",
+    "multiToolTurn:3 tool_use blocks, kept last (turn 3)",
+    "multiToolTurn:2 tool_use blocks, kept last (turn 4)"
+  ]
+}

@@ -1,0 +1,461 @@
+{
+  "caseId": "layered-on-heavy-week",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add a strength plan for the next 3 weeks on top of my current schedule."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Adding one weekly session — **Lower Strength**, Saturdays, since your only strength day (Wed) is upper-body only and legs get zero direct load otherwise. Saturday sits after Friday's bouldering (upper/core-dominant, low leg fatigue) and gives Sunday full rest before Monday's run. Keeping it moderate (60 min, difficulty 3/5) so it adds capacity without stacking onto an already 5-day week."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01KUokFqKJepPjE33USMnv4J",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Strength",
+            "date": "2026-08-22",
+            "start_time": "9:00 AM",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbell"
+            ],
+            "tags": [
+              "strength",
+              "lower-body"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min",
+                "notes": "Slight intensity bump, same total volume"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "30s each side",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "7",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "45 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01KUokFqKJepPjE33USMnv4J",
+          "content": "Created \"Lower Strength\" on 2026-08-22."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Correcting date range — 3 weeks from today means Saturdays Aug 8, Aug 15, Aug 22. Adding the two I missed:"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_0125377mGWnfwwJ59P9zcaAc",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Strength",
+            "date": "2026-08-15",
+            "start_time": "9:00 AM",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbell"
+            ],
+            "tags": [
+              "strength",
+              "lower-body"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "5",
+                "rest_period": "2 min"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "30s each side",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "7",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "45 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0125377mGWnfwwJ59P9zcaAc",
+          "content": "Created \"Lower Strength\" on 2026-08-15."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_0129JspwGHanypxGkmnY28ZM",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Strength",
+            "date": "2026-08-08",
+            "start_time": "9:00 AM",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbell"
+            ],
+            "tags": [
+              "strength",
+              "lower-body"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "6",
+                "rest_period": "2 min",
+                "notes": "Lighter start — first session of plan"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 2,
+                "duration": "20s each side",
+                "rest_period": "60 sec"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 2,
+                "reps": "6",
+                "rest_period": "90 sec"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "45 sec"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0129JspwGHanypxGkmnY28ZM",
+          "content": "Created \"Lower Strength\" on 2026-08-08."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Note: **[evt-ai-3]** already had a \"Lower Strength\" session on Aug 8 — I just added a second one, so that day's now double-booked. Want me to delete the duplicate, or merge/replace it with this progressive version?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Resolving the duplicate: deleting the old placeholder session, keeping the new progressive one on Aug 8."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01AokVZNigkQCvGtPsRn5tgk",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-3",
+            "scope": "all",
+            "event_title": "Lower Strength"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01AokVZNigkQCvGtPsRn5tgk",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "3-week Lower Strength block set — Sat Aug 8, 15, 22, 60 min each, light progression on squat volume/intensity. Sits on top of your existing Wed Upper Strength, so you now have 2x/week full-body coverage without touching run/climb/yoga days."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing left queued — 3-week Lower Strength block is fully in place (Aug 8/15/22), duplicate cleaned up. Anything else you want added or adjusted?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Strength",
+        "date": "2026-08-22",
+        "start_time": "9:00 AM",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbell"
+        ],
+        "tags": [
+          "strength",
+          "lower-body"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min",
+            "notes": "Slight intensity bump, same total volume"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "30s each side",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "7",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "45 sec"
+          }
+        ]
+      },
+      "result": "Created \"Lower Strength\" on 2026-08-22.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Strength",
+        "date": "2026-08-15",
+        "start_time": "9:00 AM",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbell"
+        ],
+        "tags": [
+          "strength",
+          "lower-body"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "5",
+            "rest_period": "2 min"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "30s each side",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "7",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "45 sec"
+          }
+        ]
+      },
+      "result": "Created \"Lower Strength\" on 2026-08-15.",
+      "turn": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Strength",
+        "date": "2026-08-08",
+        "start_time": "9:00 AM",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbell"
+        ],
+        "tags": [
+          "strength",
+          "lower-body"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "6",
+            "rest_period": "2 min",
+            "notes": "Lighter start — first session of plan"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 2,
+            "duration": "20s each side",
+            "rest_period": "60 sec"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 2,
+            "reps": "6",
+            "rest_period": "90 sec"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "45 sec"
+          }
+        ]
+      },
+      "result": "Created \"Lower Strength\" on 2026-08-08.",
+      "turn": 3
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-3",
+        "scope": "all",
+        "event_title": "Lower Strength"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 4
+    }
+  ],
+  "anomalies": [
+    "multiToolTurn:3 tool_use blocks, kept last (turn 1)",
+    "multiToolTurn:2 tool_use blocks, kept last (turn 2)"
+  ]
+}

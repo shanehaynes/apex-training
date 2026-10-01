@@ -1,0 +1,556 @@
+{
+  "caseId": "pulley-injury-climber",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my climbing training for this week — I want to keep making progress while I recover."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Physio's clear: **zero finger loading** — no hangboard, no jugs, no traversing, no crimping. This week's plan works around that entirely: lower-body power, core, scapular/shoulder health, and aerobic base — all things that keep you moving toward V8 without touching the pulley."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01UMEgL9SaZHUT6vnqG5v9sV",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Body Strength",
+            "date": "2026-08-03",
+            "start_time": "6:30 AM",
+            "estimated_duration": 45,
+            "difficulty": 3,
+            "tags": [
+              "injury-recovery",
+              "legs"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "6"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "6"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01D14WtS7JRY3SRghEAbqN6R",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Aerobic Base + Hip Mobility",
+            "date": "2026-08-04",
+            "start_time": "6:30 AM",
+            "estimated_duration": 40,
+            "difficulty": 2,
+            "tags": [
+              "injury-recovery",
+              "cardio"
+            ],
+            "exercises": [
+              {
+                "name": "Zone 2 Cardio (bike/run)",
+                "category": "cardio",
+                "duration": "30 min",
+                "notes": "Steady, conversational pace"
+              },
+              {
+                "name": "Cat-Cow",
+                "duration": "1 min"
+              },
+              {
+                "name": "Thread-the-Needle",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "45s each side"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01NRZrM7p95UeprARem6JEPf",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Shoulder Health & Core",
+            "date": "2026-08-05",
+            "start_time": "6:30 AM",
+            "estimated_duration": 40,
+            "difficulty": 2,
+            "tags": [
+              "injury-recovery",
+              "antagonist",
+              "core"
+            ],
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 3,
+                "reps": "15"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 3,
+                "reps": "12"
+              },
+              {
+                "name": "Prone YTWs",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "20s each side"
+              },
+              {
+                "name": "3-Point Plank",
+                "sets": 3,
+                "duration": "30s each side"
+              },
+              {
+                "name": "Side Plank Twist",
+                "sets": 3,
+                "reps": "10 each side"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01LMz5JPnQtFxkbfAtzgxUUW",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Aerobic Base",
+            "date": "2026-08-06",
+            "start_time": "6:30 AM",
+            "estimated_duration": 35,
+            "difficulty": 2,
+            "tags": [
+              "injury-recovery",
+              "cardio"
+            ],
+            "exercises": [
+              {
+                "name": "Zone 2 Cardio (bike/run)",
+                "duration": "35 min",
+                "notes": "Steady aerobic effort"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01WNLBEQPVEiTrQiWXP4SaRe",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Body Power & Core",
+            "date": "2026-08-07",
+            "start_time": "6:30 AM",
+            "estimated_duration": 45,
+            "difficulty": 3,
+            "tags": [
+              "injury-recovery",
+              "legs",
+              "core"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "5"
+              },
+              {
+                "name": "Pistol Squats",
+                "sets": 3,
+                "reps": "5 each leg"
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 3,
+                "reps": "15"
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "12 each leg"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01FLZtxri5SaBj1VTdfq8BoP",
+          "name": "create_event",
+          "input": {
+            "type": "yoga",
+            "title": "Mobility & Recovery",
+            "date": "2026-08-08",
+            "start_time": "9:00 AM",
+            "estimated_duration": 35,
+            "difficulty": 1,
+            "tags": [
+              "injury-recovery",
+              "mobility"
+            ],
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "duration": "1 min"
+              },
+              {
+                "name": "Thread-the-Needle",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "45s each side"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "45s each side"
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "1 min"
+              },
+              {
+                "name": "Child's Pose with Lateral Reach",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01UMEgL9SaZHUT6vnqG5v9sV",
+          "content": "Created \"Lower Body Strength\" on 2026-08-03 [evt-ai-1]."
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01D14WtS7JRY3SRghEAbqN6R",
+          "content": "Created \"Aerobic Base + Hip Mobility\" on 2026-08-04 [evt-ai-2]. Added 1 new exercise(s) to the library: Zone 2 Cardio (bike/run)."
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01NRZrM7p95UeprARem6JEPf",
+          "content": "Created \"Shoulder Health & Core\" on 2026-08-05 [evt-ai-3]."
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01LMz5JPnQtFxkbfAtzgxUUW",
+          "content": "Created \"Aerobic Base\" on 2026-08-06 [evt-ai-4]."
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01WNLBEQPVEiTrQiWXP4SaRe",
+          "content": "Created \"Lower Body Power & Core\" on 2026-08-07 [evt-ai-5]."
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01FLZtxri5SaBj1VTdfq8BoP",
+          "content": "Created \"Mobility & Recovery\" on 2026-08-08 [evt-ai-6]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Week's set. Notes:\n\n- **No finger loading anywhere** — every session is legs/aerobic/core/shoulder. This maintains base fitness and power without touching the pulley.\n- **Back Squat + Pistol Squats** build the leg drive/power you'll need for V8 heel hooks and dynos once cleared.\n- **Face Pulls, YTWs, Pallof Press** — shoulder/scap health, pays off on future crimps and lock-offs.\n- **Zone 2 x2/week** — keeps aerobic capacity up for long redpoint sessions.\n\nFlag me the moment your physio clears any grip loading — I'll layer in light hangboard/traversing progression immediately."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing pending on my end — the week's fully scheduled (Mon–Sat, evt-ai-1 through evt-ai-6). What do you want me to continue with: adjust an exercise, add a session, or something else?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Body Strength",
+        "date": "2026-08-03",
+        "start_time": "6:30 AM",
+        "estimated_duration": 45,
+        "difficulty": 3,
+        "tags": [
+          "injury-recovery",
+          "legs"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "6"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "6"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side"
+          }
+        ]
+      },
+      "result": "Created \"Lower Body Strength\" on 2026-08-03 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Aerobic Base + Hip Mobility",
+        "date": "2026-08-04",
+        "start_time": "6:30 AM",
+        "estimated_duration": 40,
+        "difficulty": 2,
+        "tags": [
+          "injury-recovery",
+          "cardio"
+        ],
+        "exercises": [
+          {
+            "name": "Zone 2 Cardio (bike/run)",
+            "category": "cardio",
+            "duration": "30 min",
+            "notes": "Steady, conversational pace"
+          },
+          {
+            "name": "Cat-Cow",
+            "duration": "1 min"
+          },
+          {
+            "name": "Thread-the-Needle",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "45s each side"
+          }
+        ]
+      },
+      "result": "Created \"Aerobic Base + Hip Mobility\" on 2026-08-04 [evt-ai-2]. Added 1 new exercise(s) to the library: Zone 2 Cardio (bike/run).",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Shoulder Health & Core",
+        "date": "2026-08-05",
+        "start_time": "6:30 AM",
+        "estimated_duration": 40,
+        "difficulty": 2,
+        "tags": [
+          "injury-recovery",
+          "antagonist",
+          "core"
+        ],
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 3,
+            "reps": "15"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 3,
+            "reps": "12"
+          },
+          {
+            "name": "Prone YTWs",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "20s each side"
+          },
+          {
+            "name": "3-Point Plank",
+            "sets": 3,
+            "duration": "30s each side"
+          },
+          {
+            "name": "Side Plank Twist",
+            "sets": 3,
+            "reps": "10 each side"
+          }
+        ]
+      },
+      "result": "Created \"Shoulder Health & Core\" on 2026-08-05 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Aerobic Base",
+        "date": "2026-08-06",
+        "start_time": "6:30 AM",
+        "estimated_duration": 35,
+        "difficulty": 2,
+        "tags": [
+          "injury-recovery",
+          "cardio"
+        ],
+        "exercises": [
+          {
+            "name": "Zone 2 Cardio (bike/run)",
+            "duration": "35 min",
+            "notes": "Steady aerobic effort"
+          }
+        ]
+      },
+      "result": "Created \"Aerobic Base\" on 2026-08-06 [evt-ai-4].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Body Power & Core",
+        "date": "2026-08-07",
+        "start_time": "6:30 AM",
+        "estimated_duration": 45,
+        "difficulty": 3,
+        "tags": [
+          "injury-recovery",
+          "legs",
+          "core"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "5"
+          },
+          {
+            "name": "Pistol Squats",
+            "sets": 3,
+            "reps": "5 each leg"
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 3,
+            "reps": "15"
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "12 each leg"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side"
+          }
+        ]
+      },
+      "result": "Created \"Lower Body Power & Core\" on 2026-08-07 [evt-ai-5].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "yoga",
+        "title": "Mobility & Recovery",
+        "date": "2026-08-08",
+        "start_time": "9:00 AM",
+        "estimated_duration": 35,
+        "difficulty": 1,
+        "tags": [
+          "injury-recovery",
+          "mobility"
+        ],
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "duration": "1 min"
+          },
+          {
+            "name": "Thread-the-Needle",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "45s each side"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "45s each side"
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "1 min"
+          },
+          {
+            "name": "Child's Pose with Lateral Reach",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Mobility & Recovery\" on 2026-08-08 [evt-ai-6].",
+      "turn": 1
+    }
+  ],
+  "anomalies": [
+    "parallelToolCalls:6 (turn 1)"
+  ]
+}
