@@ -3,7 +3,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { SKILL_ROOT, addWorktree, baseEnv, commitFile, eq, git, makeRepo, match, noMatch, ok, runNode, suite, tmp } from './harness.mjs';
+import { SKILL_ROOT, baseEnv, commitFile, eq, git, makeRepo, match, noMatch, ok, runNode, suite, tmp } from './harness.mjs';
 
 const s = suite('package');
 const test = s.test.bind(s);

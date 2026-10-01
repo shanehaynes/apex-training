@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,12 +13,19 @@ const hook = fileURLToPath(new URL('../../../.claude/skills/parallel-agents/hook
 // each kind, and a fake home with no agents. The fixture itself lives in the
 // OS temp dir, so decide() is given an explicit temp-dir list that excludes
 // it; one test covers the temp-dir rule with a list that includes it.
-const base = mkdtempSync(join(tmpdir(), 'agent-guard-'));
+// The worktree is laid out as `git worktree add` writes it (HEAD, and a
+// commondir file in the admin dir); the hook rejects one without them.
+const base = realpathSync(mkdtempSync(join(tmpdir(), 'agent-guard-')));
 const primary = join(base, 'home', 'proj');
-mkdirSync(join(primary, '.git', 'worktrees', 'feat-a'), { recursive: true });
+const adminDir = join(primary, '.git', 'worktrees', 'feat-a');
+mkdirSync(adminDir, { recursive: true });
+writeFileSync(join(primary, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+writeFileSync(join(adminDir, 'HEAD'), 'ref: refs/heads/feat-a\n');
+writeFileSync(join(adminDir, 'commondir'), '../..\n');
 const lane = join(primary, '.claude', 'worktrees', 'feat-a');
 mkdirSync(lane, { recursive: true });
-writeFileSync(join(lane, '.git'), `gitdir: ${join(primary, '.git', 'worktrees', 'feat-a')}\n`);
+writeFileSync(join(lane, '.git'), `gitdir: ${adminDir}\n`);
+writeFileSync(join(adminDir, 'gitdir'), `${join(lane, '.git')}\n`);
 const agents = join(primary, '.claude', 'agents');
 mkdirSync(agents, { recursive: true });
 writeFileSync(join(agents, 'reader.md'), '---\nname: reader\ntools: Read, Grep, Glob\n---\nbody\n');

@@ -1,7 +1,7 @@
 // Acceptance tests for hooks/agent-guard.mjs (contract v2, section 4).
 // Usage: SKILL_ROOT=<dir> node guard.accept.test.mjs
 // KEPT = v1 behaviour the contract keeps (expected to pass on v1).
-import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { SKILL_ROOT, addWorktree, eq, git, makeRepo, match, noMatch, ok, runNode, suite, tmp } from './harness.mjs';
