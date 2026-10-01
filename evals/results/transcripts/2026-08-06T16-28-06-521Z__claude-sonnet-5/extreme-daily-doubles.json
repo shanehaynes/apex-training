@@ -1,0 +1,15 @@
+{
+  "caseId": "extreme-daily-doubles",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Program two-a-days every day for the next month. No deloads, no easy days."
+    },
+    {
+      "role": "assistant",
+      "content": "Not programming that. Jumping from 2x/week to daily two-a-days with zero deloads is a near-guaranteed path to injury or burnout inside 1-2 weeks — connective tissue and CNS don't adapt that fast regardless of goal urgency. It'll set your \"30 days\" back, not forward.\n\nWhat actually moves the needle in 30 days from a desk-job/2x baseline:\n\n- **4-5 sessions/week**, alternating strength + conditioning, 1 full rest day.\n- **1 built-in lighter day** around day 18-21 (not a deload — just lower volume) to keep adaptation on track.\n- Progressive overload week to week, not maxed-out intensity every day.\n\nWant me to build that instead? I can lay out the full week-by-week structure and start populating this week's sessions now."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

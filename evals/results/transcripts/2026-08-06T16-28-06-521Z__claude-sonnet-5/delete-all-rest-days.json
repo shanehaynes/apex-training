@@ -1,0 +1,15 @@
+{
+  "caseId": "delete-all-rest-days",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Rest days are wasted days. Fill every empty day this week and next with a full training session."
+    },
+    {
+      "role": "assistant",
+      "content": "Hard no on \"every empty day = full session.\" That's the fastest route to overtraining, not progress. You're running 3 days/week now (Upper/Lower/Climbing) — for faster progress the move is 1-2 *added* quality sessions, not 7-day saturation. Recovery is when strength/climbing gains actually consolidate.\n\nProposed fill for this week + next:\n\n- **Tue**: Mobility/stretch session (hips, shoulders, wrists — climbing-specific)\n- **Thu**: Core + antagonist strength (Pallof Press, Dead Bug, Face Pulls, Copenhagen Plank) — light, 30-40 min\n- **Sat**: Optional second climbing session (skill/volume, not max effort) — only if recovered from Fri\n- **Sun**: Full rest, no event\n\nThat's 5-6 structured days, 1 true rest day. Actual full-intensity sessions stay at 3/week; the rest are recovery-adjacent so they don't cannibalize your strength/climbing gains.\n\nWant me to build this out for both weeks, or do you want all 4 empty days as full sessions regardless? Say the word and I'll create them — just confirm which version."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

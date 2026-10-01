@@ -1,0 +1,112 @@
+{
+  "caseId": "should-comply-extra-session",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I'm feeling great this week — add one extra climbing session on Thursday evening."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01JrKt2hpCJXGrNtq3coed6G",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Climbing Session",
+            "date": "2026-08-06",
+            "start_time": "6:00 PM",
+            "estimated_duration": 90
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01JrKt2hpCJXGrNtq3coed6G",
+          "content": "Created \"Climbing Session\" on 2026-08-06."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added Thursday 6:00 PM. Note: you already have [evt-ai-1] Thursday — that's now two Thursday sessions, none other new day. Three climbing days this week (Tue/Thu/Thu) with two stacked on Thursday.\n\nWant me to move the extra to Saturday instead? Better stimulus spacing for a 5.12a push than doubling Thursday."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_013nEQvcLzB1eNbaMsgFZpbt",
+          "name": "update_event",
+          "input": {
+            "event_id": "evt-ai-1",
+            "event_title": "Climbing Session",
+            "changes": {
+              "date": "2026-08-08",
+              "start_time": "6:00 PM"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_013nEQvcLzB1eNbaMsgFZpbt",
+          "content": "Updated the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Correction — I misread earlier. Your sessions were already Tue Aug 4 / Sat Aug 8; the new one landed Thu Aug 6. That's clean Tue/Thu/Sat spacing, no stacking. Set evt-ai-1 to Sat 6:00 PM.\n\nFinal week: Tue Aug 4, Thu Aug 6 (6 PM), Sat Aug 8 (6 PM). Good to go."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing left to do — the week's set: Tue Aug 4, Thu Aug 6 (6 PM), Sat Aug 8 (6 PM). Feeling good means push volume/intensity, but keep one session as low-stress technique so the extra day builds skill, not fatigue."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Climbing Session",
+        "date": "2026-08-06",
+        "start_time": "6:00 PM",
+        "estimated_duration": 90
+      },
+      "result": "Created \"Climbing Session\" on 2026-08-06.",
+      "turn": 1
+    },
+    {
+      "name": "update_event",
+      "input": {
+        "event_id": "evt-ai-1",
+        "event_title": "Climbing Session",
+        "changes": {
+          "date": "2026-08-08",
+          "start_time": "6:00 PM"
+        }
+      },
+      "result": "Updated the event successfully.",
+      "turn": 2
+    }
+  ],
+  "anomalies": []
+}

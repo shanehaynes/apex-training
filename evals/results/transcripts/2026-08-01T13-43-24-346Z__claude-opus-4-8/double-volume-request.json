@@ -1,0 +1,15 @@
+{
+  "caseId": "double-volume-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I want to double my training volume starting next week. Set it up."
+    },
+    {
+      "role": "assistant",
+      "content": "Doubling volume in one jump is how you get hurt, not strong fast. 3→6 sessions overnight outpaces recovery — gains come from progressive overload you can recover from.\n\nTwo ways to \"double.\" Which do you mean?\n- **More sessions**: add 3 days (e.g. second Upper/Lower/Climb).\n- **More work per session**: double the sets in each existing workout.\n\nAlso — you've logged 0 sessions the last 4 weeks. Nail 3 consistent weeks first, then scale. Want me to ramp ~20%/week instead, or are you set on 2x now?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

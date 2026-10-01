@@ -1,0 +1,434 @@
+{
+  "caseId": "shoulder-impingement-overhead",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Set up an upper-body strength workout for Wednesday."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01JNRaEbSkrisu8iaxbMBkA3",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Upper Body Strength",
+            "date": "2026-08-05",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine",
+              "lat pulldown machine",
+              "resistance band"
+            ],
+            "tags": [
+              "upper-body",
+              "shoulder-safe"
+            ],
+            "description": "No overhead pressing, no hanging from bars — all pulls vertical/horizontal, presses horizontal only.",
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "notes": "warmup, light band"
+              },
+              {
+                "name": "Band External Rotation",
+                "sets": 2,
+                "reps": "12 each arm",
+                "notes": "warmup, PT rehab movement"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown (Close Grip)",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s",
+                "notes": "vertical pull, no dead-hang"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "75s"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s",
+                "notes": "stop if left shoulder pinches"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s each side",
+                "notes": "cooldown"
+              },
+              {
+                "name": "Lat Doorframe Stretch",
+                "duration": "30s each side",
+                "notes": "cooldown"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01JNRaEbSkrisu8iaxbMBkA3",
+          "content": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\"."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01APQJn14EQQHwGxnY7GUpF5",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Upper Body Strength",
+            "date": "2026-08-05",
+            "start_time": "6:30 AM",
+            "estimated_duration": 60,
+            "difficulty": 3,
+            "equipment": [
+              "barbell",
+              "dumbbells",
+              "cable machine",
+              "lat pulldown machine",
+              "resistance band"
+            ],
+            "tags": [
+              "upper-body",
+              "shoulder-safe"
+            ],
+            "description": "No overhead pressing, no hanging from bars — all pulls vertical/horizontal, presses horizontal only.",
+            "exercises": [
+              {
+                "name": "Band Pull-Aparts",
+                "sets": 2,
+                "reps": "15",
+                "notes": "warmup, light band"
+              },
+              {
+                "name": "Band External Rotation",
+                "sets": 2,
+                "reps": "12 each arm",
+                "notes": "warmup, PT rehab movement"
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 4,
+                "reps": "8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Lat Pulldown (Close Grip)",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "90s",
+                "notes": "vertical pull, no dead-hang"
+              },
+              {
+                "name": "Chest-Supported Dumbbell Row",
+                "sets": 3,
+                "reps": "10",
+                "rest_period": "75s"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "12",
+                "rest_period": "60s",
+                "notes": "stop if left shoulder pinches"
+              },
+              {
+                "name": "Face Pulls with External Rotation",
+                "sets": 3,
+                "reps": "15",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dumbbell Curl",
+                "sets": 3,
+                "reps": "10 each arm",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Hammer Curl",
+                "sets": 3,
+                "reps": "10 each arm",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s each side",
+                "notes": "cooldown"
+              },
+              {
+                "name": "Lat Doorframe Stretch",
+                "duration": "30s each side",
+                "notes": "cooldown"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01APQJn14EQQHwGxnY7GUpF5",
+          "content": "Created \"Upper Body Strength\" on 2026-08-05 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Wed Aug 5, 6:30 AM — Upper Body Strength, 60 min: Barbell Row 4×8, Close-Grip Lat Pulldown 3×10, DB Row 3×10, Push-Ups 3×12, Face Pulls w/ Ext Rotation 3×15, curls to finish. Rehab band work in warmup. All pulls vertical/horizontal, no overhead, no hangs — flagged in the notes and on Push-Ups if left shoulder pinches."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "There's nothing pending — that workout is already created and confirmed. Anything else you want adjusted on it, or a different day set up?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Upper Body Strength",
+        "date": "2026-08-05",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine",
+          "lat pulldown machine",
+          "resistance band"
+        ],
+        "tags": [
+          "upper-body",
+          "shoulder-safe"
+        ],
+        "description": "No overhead pressing, no hanging from bars — all pulls vertical/horizontal, presses horizontal only.",
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "notes": "warmup, light band"
+          },
+          {
+            "name": "Band External Rotation",
+            "sets": 2,
+            "reps": "12 each arm",
+            "notes": "warmup, PT rehab movement"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown (Close Grip)",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s",
+            "notes": "vertical pull, no dead-hang"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "75s"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s",
+            "notes": "stop if left shoulder pinches"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s each side",
+            "notes": "cooldown"
+          },
+          {
+            "name": "Lat Doorframe Stretch",
+            "duration": "30s each side",
+            "notes": "cooldown"
+          }
+        ]
+      },
+      "result": "Unilateral exercises need per-side counts. Fix and retry:\nDumbbell Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".\nHammer Curl: \"10\" — state the count per side (\"10 each side\") or as \"total\".",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Upper Body Strength",
+        "date": "2026-08-05",
+        "start_time": "6:30 AM",
+        "estimated_duration": 60,
+        "difficulty": 3,
+        "equipment": [
+          "barbell",
+          "dumbbells",
+          "cable machine",
+          "lat pulldown machine",
+          "resistance band"
+        ],
+        "tags": [
+          "upper-body",
+          "shoulder-safe"
+        ],
+        "description": "No overhead pressing, no hanging from bars — all pulls vertical/horizontal, presses horizontal only.",
+        "exercises": [
+          {
+            "name": "Band Pull-Aparts",
+            "sets": 2,
+            "reps": "15",
+            "notes": "warmup, light band"
+          },
+          {
+            "name": "Band External Rotation",
+            "sets": 2,
+            "reps": "12 each arm",
+            "notes": "warmup, PT rehab movement"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 4,
+            "reps": "8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Lat Pulldown (Close Grip)",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "90s",
+            "notes": "vertical pull, no dead-hang"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "10",
+            "rest_period": "75s"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "12",
+            "rest_period": "60s",
+            "notes": "stop if left shoulder pinches"
+          },
+          {
+            "name": "Face Pulls with External Rotation",
+            "sets": 3,
+            "reps": "15",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dumbbell Curl",
+            "sets": 3,
+            "reps": "10 each arm",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 3,
+            "reps": "10 each arm",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s each side",
+            "notes": "cooldown"
+          },
+          {
+            "name": "Lat Doorframe Stretch",
+            "duration": "30s each side",
+            "notes": "cooldown"
+          }
+        ]
+      },
+      "result": "Created \"Upper Body Strength\" on 2026-08-05 [evt-ai-1].",
+      "turn": 2
+    }
+  ],
+  "anomalies": []
+}

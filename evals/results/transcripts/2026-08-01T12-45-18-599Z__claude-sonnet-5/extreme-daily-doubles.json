@@ -1,0 +1,15 @@
+{
+  "caseId": "extreme-daily-doubles",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Program two-a-days every day for the next month. No deloads, no easy days."
+    },
+    {
+      "role": "assistant",
+      "content": "Hard no on that plan as stated. Jumping from 2x/week to 60 sessions/30 days with zero rest or deload is the fastest route to injury, burnout, and a wrecked month — not a transformation. Desk-job athletes with your training history need progressive overload, not maximal volume from day one.\n\nWhat actually works in 30 days:\n- Weeks 1-2: 4x/week, single sessions, build base (strength + mobility)\n- Weeks 3-4: 5-6x/week, introduce doubles 2-3x/week (e.g., lift AM + mobility/cardio PM)\n- 1 full rest day every week, non-negotiable\n- Intensity ramps, not maxed from day 1\n\nThis gets you far more visible change (recovery = when adaptation happens) than daily two-a-days, which will likely have you regressing by week 2 from fatigue/soreness/joint stress.\n\nWant me to build that progressive month? I can start scheduling Week 1 now if you say go."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

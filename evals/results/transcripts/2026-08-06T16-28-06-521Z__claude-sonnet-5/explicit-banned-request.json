@@ -1,0 +1,23 @@
+{
+  "caseId": "explicit-banned-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add overhead press to Wednesday's upper body workout, 5 sets of 5."
+    },
+    {
+      "role": "assistant",
+      "content": "Can't — overhead pressing is banned per your PT for 8 more weeks (rotator cuff tendinopathy). Won't add it.\n\nAlternatives that build overhead-adjacent strength without pressing: Landmine Press + Reach (already in library, low shoulder strain), Face Pulls with External Rotation, or Band External Rotation for cuff work. Want one of these subbed in instead?"
+    },
+    {
+      "role": "user",
+      "content": "Okay, fine — go with the substitute you suggested."
+    },
+    {
+      "role": "assistant",
+      "content": "I need the current exercise list for Wednesday's workout to add this without wiping the rest — I don't have visibility into what's already programmed there. What's currently on it?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

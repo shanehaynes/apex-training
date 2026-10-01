@@ -1,0 +1,330 @@
+{
+  "caseId": "pre-trip-taper",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my training between now and the trip. Schedule the sessions."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "**Taper plan: 2 weeks out, arrive fresh Aug 17.**\n\nWeek 1 (this week) = last real loading. Week 2 = sharp taper — short, low-volume touches only, full rest days dominate, nothing after Sat Aug 15.\n\n- Tue Aug 4 — Limit Bouldering (keep, last hard limit session)\n- Thu Aug 6 — Hangboard + Core (keep, last hard finger load)\n- **Sat Aug 8 — Volume Climbing/Mileage (new)** — moderate grades, no limit attempts\n- Sun Aug 9 — rest\n- Mon–Mon Aug 10 — rest\n- **Tue Aug 11 — Power Sharpening (new)** — short, low-volume hangboard + skill moves\n- Wed Aug 12 — rest\n- **Thu Aug 13 — Skin & Movement (new)** — easy, technique + forearm/finger care\n- Fri Aug 14 — rest\n- **Sat Aug 15 — Easy Activation (new)** — 30min, very light, opens skin without fatigue\n- Sun Aug 16 — rest / travel\n- Mon Aug 17 — trip start, fresh\n\nCreating the four new sessions now."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_012doNHir2AVcipfXFGoUTfm",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Volume Climbing — Mileage",
+            "date": "2026-08-08",
+            "start_time": "10:00 AM",
+            "estimated_duration": 90,
+            "difficulty": 3,
+            "location": "Gym",
+            "tags": [
+              "taper",
+              "endurance"
+            ],
+            "description": "Last big-volume day before taper. Endurance/mileage focus, no limit attempts — keep it well below max effort.",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "notes": "warmup, 10 min"
+              },
+              {
+                "name": "ARC Traversing",
+                "duration": "20 min",
+                "notes": "low-intensity continuous movement"
+              },
+              {
+                "name": "Project / Push",
+                "sets": 4,
+                "notes": "moderate grades only, mileage not limit — stop well short of failure"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch"
+              },
+              {
+                "name": "Lat Doorframe Stretch"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_014utBJ95rvgz1hJTUjznvGe",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Power Sharpening",
+            "date": "2026-08-11",
+            "start_time": "5:30 PM",
+            "estimated_duration": 45,
+            "difficulty": 3,
+            "location": "Gym",
+            "tags": [
+              "taper",
+              "power"
+            ],
+            "description": "Short, high-quality touch. ~50% normal hangboard volume — maintain sharpness, add zero fatigue.",
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Hangboard Main Block",
+                "sets": 3,
+                "notes": "~50% normal volume, quality over quantity, stop immediately if any tweak"
+              },
+              {
+                "name": "Skill Work",
+                "notes": "few crux-style moves at low volume"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_014YUeMBFaBXUGDCHhrpQuXP",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Skin & Movement",
+            "date": "2026-08-13",
+            "start_time": "5:30 PM",
+            "estimated_duration": 40,
+            "difficulty": 2,
+            "location": "Gym",
+            "tags": [
+              "taper",
+              "recovery"
+            ],
+            "description": "Light technique day + finger/forearm care. Easy effort only.",
+            "exercises": [
+              {
+                "name": "Easy Traversing"
+              },
+              {
+                "name": "Technique Practice (fresh)"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch"
+              },
+              {
+                "name": "Wrist Flexor Stretch — Palms-Down Gorilla"
+              },
+              {
+                "name": "Wrist Extensor Stretch — Palm-Up Prayer"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01JSdfn7eNNkFjU3FUyAgJsT",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Easy Activation",
+            "date": "2026-08-15",
+            "start_time": "10:00 AM",
+            "estimated_duration": 30,
+            "difficulty": 1,
+            "location": "Gym",
+            "tags": [
+              "taper",
+              "activation"
+            ],
+            "description": "Last session before trip. Just enough to open skin/tendons — nothing that costs recovery.",
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "notes": "light, short, stop early — no fatigue"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_012doNHir2AVcipfXFGoUTfm",
+          "content": "Created \"Volume Climbing — Mileage\" on 2026-08-08 [evt-ai-1]."
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014utBJ95rvgz1hJTUjznvGe",
+          "content": "Created \"Power Sharpening\" on 2026-08-11 [evt-ai-2]."
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014YUeMBFaBXUGDCHhrpQuXP",
+          "content": "Created \"Skin & Movement\" on 2026-08-13 [evt-ai-3]."
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01JSdfn7eNNkFjU3FUyAgJsT",
+          "content": "Created \"Easy Activation\" on 2026-08-15 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done. Structure:\n\n**Wk1 (load):** Tue limit bouldering, Thu hangboard+core, Sat mileage — last real stimulus.\n**Wk2 (taper):** Tue sharpening (short/light), Thu skin+movement (easy), Sat activation (30min trivial) — then rest Sun/Mon, fly in fresh.\n\nVolume drops ~70% by trip week. If anything feels heavy/tweaky during wk2, cut it — better to under-load than arrive fatigued."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Plan's live on the schedule — nothing further to schedule. Full lineup through trip:\n\n- Tue Aug 4 — Limit Bouldering\n- Thu Aug 6 — Hangboard + Core\n- Sat Aug 8 — Volume Climbing/Mileage\n- Tue Aug 11 — Power Sharpening\n- Thu Aug 13 — Skin & Movement\n- Sat Aug 15 — Easy Activation\n- Aug 17 — trip start\n\nRest days fill everything else. Say the word if you want any session's difficulty or timing adjusted as the week plays out."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Volume Climbing — Mileage",
+        "date": "2026-08-08",
+        "start_time": "10:00 AM",
+        "estimated_duration": 90,
+        "difficulty": 3,
+        "location": "Gym",
+        "tags": [
+          "taper",
+          "endurance"
+        ],
+        "description": "Last big-volume day before taper. Endurance/mileage focus, no limit attempts — keep it well below max effort.",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "notes": "warmup, 10 min"
+          },
+          {
+            "name": "ARC Traversing",
+            "duration": "20 min",
+            "notes": "low-intensity continuous movement"
+          },
+          {
+            "name": "Project / Push",
+            "sets": 4,
+            "notes": "moderate grades only, mileage not limit — stop well short of failure"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch"
+          },
+          {
+            "name": "Lat Doorframe Stretch"
+          }
+        ]
+      },
+      "result": "Created \"Volume Climbing — Mileage\" on 2026-08-08 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Power Sharpening",
+        "date": "2026-08-11",
+        "start_time": "5:30 PM",
+        "estimated_duration": 45,
+        "difficulty": 3,
+        "location": "Gym",
+        "tags": [
+          "taper",
+          "power"
+        ],
+        "description": "Short, high-quality touch. ~50% normal hangboard volume — maintain sharpness, add zero fatigue.",
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Hangboard Main Block",
+            "sets": 3,
+            "notes": "~50% normal volume, quality over quantity, stop immediately if any tweak"
+          },
+          {
+            "name": "Skill Work",
+            "notes": "few crux-style moves at low volume"
+          }
+        ]
+      },
+      "result": "Created \"Power Sharpening\" on 2026-08-11 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Skin & Movement",
+        "date": "2026-08-13",
+        "start_time": "5:30 PM",
+        "estimated_duration": 40,
+        "difficulty": 2,
+        "location": "Gym",
+        "tags": [
+          "taper",
+          "recovery"
+        ],
+        "description": "Light technique day + finger/forearm care. Easy effort only.",
+        "exercises": [
+          {
+            "name": "Easy Traversing"
+          },
+          {
+            "name": "Technique Practice (fresh)"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch"
+          },
+          {
+            "name": "Wrist Flexor Stretch — Palms-Down Gorilla"
+          },
+          {
+            "name": "Wrist Extensor Stretch — Palm-Up Prayer"
+          }
+        ]
+      },
+      "result": "Created \"Skin & Movement\" on 2026-08-13 [evt-ai-3].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Easy Activation",
+        "date": "2026-08-15",
+        "start_time": "10:00 AM",
+        "estimated_duration": 30,
+        "difficulty": 1,
+        "location": "Gym",
+        "tags": [
+          "taper",
+          "activation"
+        ],
+        "description": "Last session before trip. Just enough to open skin/tendons — nothing that costs recovery.",
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "notes": "light, short, stop early — no fatigue"
+          }
+        ]
+      },
+      "result": "Created \"Easy Activation\" on 2026-08-15 [evt-ai-4].",
+      "turn": 1
+    }
+  ],
+  "anomalies": [
+    "parallelToolCalls:4 (turn 1)"
+  ]
+}

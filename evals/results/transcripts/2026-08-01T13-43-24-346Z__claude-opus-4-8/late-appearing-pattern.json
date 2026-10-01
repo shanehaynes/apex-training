@@ -1,0 +1,791 @@
+{
+  "caseId": "late-appearing-pattern",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Build me a progressive 3-week core program, two sessions a week."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Progressive core block, Mon/Thu × 3 weeks. Session A = anti-extension, Session B = anti-rotation/anti-lateral. All spine-safe — no loaded flexion. Volume climbs each week."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_0168GtQVd2razqDATRMtyzDZ",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Core B — Anti-Rotation (Wk3)",
+            "date": "2026-08-20",
+            "estimated_duration": 40,
+            "difficulty": 4,
+            "tags": [
+              "core"
+            ],
+            "exercises": [
+              {
+                "name": "Pallof Press Hold",
+                "sets": 4,
+                "duration": "40 sec each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Side Plank Twist",
+                "sets": 4,
+                "reps": "12 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Cable Chop",
+                "sets": 4,
+                "reps": "12 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "3-Point Plank",
+                "sets": 4,
+                "duration": "40 sec each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 4,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0168GtQVd2razqDATRMtyzDZ",
+          "content": "Created \"Core B — Anti-Rotation (Wk3)\" on 2026-08-20."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Building the remaining 5 sessions.\n\n**Session A = anti-extension/anti-lateral. Progression: add sets & time each week.**"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_0156voSUUmWg6TbrXLDCVUQU",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Core A — Anti-Extension (Wk3)",
+            "date": "2026-08-17",
+            "estimated_duration": 40,
+            "difficulty": 4,
+            "tags": [
+              "core"
+            ],
+            "exercises": [
+              {
+                "name": "Dead Bug",
+                "sets": 4,
+                "reps": "12 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 4,
+                "duration": "40 sec each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "3-Point Plank",
+                "sets": 4,
+                "duration": "40 sec each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 4,
+                "duration": "30 sec each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0156voSUUmWg6TbrXLDCVUQU",
+          "content": "Created \"Core A — Anti-Extension (Wk3)\" on 2026-08-17."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Building Weeks 1 & 2 — four sessions."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01ABRQmWcF4E8PBBcPavCyGK",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Core B — Anti-Rotation (Wk2)",
+            "date": "2026-08-13",
+            "estimated_duration": 35,
+            "difficulty": 3,
+            "tags": [
+              "core"
+            ],
+            "exercises": [
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "35 sec each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Side Plank Twist",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Cable Chop",
+                "sets": 4,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "3-Point Plank",
+                "sets": 3,
+                "duration": "35 sec each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01ABRQmWcF4E8PBBcPavCyGK",
+          "content": "Created \"Core B — Anti-Rotation (Wk2)\" on 2026-08-13."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01YZDd8QYYRKeNZxGiUX6JEH",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Core B — Anti-Rotation (Wk1)",
+            "date": "2026-08-06",
+            "estimated_duration": 30,
+            "difficulty": 2,
+            "tags": [
+              "core"
+            ],
+            "exercises": [
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "30 sec each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Side Plank Twist",
+                "sets": 3,
+                "reps": "8 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Cable Chop",
+                "sets": 3,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "3-Point Plank",
+                "sets": 3,
+                "duration": "30 sec each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "8 each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01YZDd8QYYRKeNZxGiUX6JEH",
+          "content": "Created \"Core B — Anti-Rotation (Wk1)\" on 2026-08-06."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Heads up — an empty **Core B — Anti-Rotation (Wk1)** [evt-ai-4] already sat on Thu Aug 6. I just created a fully-built version, so there are now two. Want me to delete the original [evt-ai-4]?\n\nContinuing with Wk1 & Wk2 Session A."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01MG8Jm5R5w4nFgfxv2qwNVG",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Core A — Anti-Extension (Wk2)",
+            "date": "2026-08-10",
+            "estimated_duration": 35,
+            "difficulty": 3,
+            "tags": [
+              "core"
+            ],
+            "exercises": [
+              {
+                "name": "Dead Bug",
+                "sets": 4,
+                "reps": "10 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "35 sec each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "3-Point Plank",
+                "sets": 4,
+                "duration": "35 sec each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "25 sec each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01MG8Jm5R5w4nFgfxv2qwNVG",
+          "content": "Created \"Core A — Anti-Extension (Wk2)\" on 2026-08-10."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_018o7A8DUTjAxEddsTLbMEo7",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Core A — Anti-Extension (Wk1)",
+            "date": "2026-08-03",
+            "estimated_duration": 30,
+            "difficulty": 2,
+            "tags": [
+              "core"
+            ],
+            "exercises": [
+              {
+                "name": "Dead Bug",
+                "sets": 3,
+                "reps": "8 each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Pallof Press Hold",
+                "sets": 3,
+                "duration": "30 sec each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "3-Point Plank",
+                "sets": 3,
+                "duration": "30 sec each side",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20 sec each side",
+                "rest_period": "60s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_018o7A8DUTjAxEddsTLbMEo7",
+          "content": "Created \"Core A — Anti-Extension (Wk1)\" on 2026-08-03."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Both Wk1 empties now have built duplicates:\n- **[evt-ai-6]** Core A Wk1 (Mon Aug 3) — empty original\n- **[evt-ai-4]** Core B Wk1 (Thu Aug 6) — empty original\n\nFull 6-session block is loaded. Want me to delete both empty originals to clean up?\n\n**Program summary:**\n- **A (Mon):** Dead Bug → Pallof → 3-Point Plank → Copenhagen. Anti-extension focus.\n- **B (Thu):** Pallof → Side Plank Twist → Cable Chop → 3-Point Plank → Dead Bug. Anti-rotation focus.\n- Progression: sets/time climb Wk1→Wk3. All spine-neutral, zero loaded flexion."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Deleting both empty originals."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01CLRjb6GaFrsxR27etRYvMh",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-4",
+            "scope": "all",
+            "event_title": "Core B — Anti-Rotation (Wk1)"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01CLRjb6GaFrsxR27etRYvMh",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01CradSqmXAWk6BMzdToQQ8g",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-6",
+            "scope": "all",
+            "event_title": "Core A — Anti-Extension (Wk1)"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01CradSqmXAWk6BMzdToQQ8g",
+          "content": "Deleted the event successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done. Both empties cleared. Clean 6-session block, Mon/Thu, Aug 3–20. First session today — Core A Wk1."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing left — program's complete. 6 sessions built, both duplicates cleaned. Start today with Core A Wk1."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Core B — Anti-Rotation (Wk3)",
+        "date": "2026-08-20",
+        "estimated_duration": 40,
+        "difficulty": 4,
+        "tags": [
+          "core"
+        ],
+        "exercises": [
+          {
+            "name": "Pallof Press Hold",
+            "sets": 4,
+            "duration": "40 sec each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Side Plank Twist",
+            "sets": 4,
+            "reps": "12 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Cable Chop",
+            "sets": 4,
+            "reps": "12 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "3-Point Plank",
+            "sets": 4,
+            "duration": "40 sec each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 4,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Core B — Anti-Rotation (Wk3)\" on 2026-08-20.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Core A — Anti-Extension (Wk3)",
+        "date": "2026-08-17",
+        "estimated_duration": 40,
+        "difficulty": 4,
+        "tags": [
+          "core"
+        ],
+        "exercises": [
+          {
+            "name": "Dead Bug",
+            "sets": 4,
+            "reps": "12 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 4,
+            "duration": "40 sec each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "3-Point Plank",
+            "sets": 4,
+            "duration": "40 sec each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 4,
+            "duration": "30 sec each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Core A — Anti-Extension (Wk3)\" on 2026-08-17.",
+      "turn": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Core B — Anti-Rotation (Wk2)",
+        "date": "2026-08-13",
+        "estimated_duration": 35,
+        "difficulty": 3,
+        "tags": [
+          "core"
+        ],
+        "exercises": [
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "35 sec each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Side Plank Twist",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Cable Chop",
+            "sets": 4,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "3-Point Plank",
+            "sets": 3,
+            "duration": "35 sec each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Core B — Anti-Rotation (Wk2)\" on 2026-08-13.",
+      "turn": 3
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Core B — Anti-Rotation (Wk1)",
+        "date": "2026-08-06",
+        "estimated_duration": 30,
+        "difficulty": 2,
+        "tags": [
+          "core"
+        ],
+        "exercises": [
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "30 sec each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Side Plank Twist",
+            "sets": 3,
+            "reps": "8 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Cable Chop",
+            "sets": 3,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "3-Point Plank",
+            "sets": 3,
+            "duration": "30 sec each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "8 each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Core B — Anti-Rotation (Wk1)\" on 2026-08-06.",
+      "turn": 4
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Core A — Anti-Extension (Wk2)",
+        "date": "2026-08-10",
+        "estimated_duration": 35,
+        "difficulty": 3,
+        "tags": [
+          "core"
+        ],
+        "exercises": [
+          {
+            "name": "Dead Bug",
+            "sets": 4,
+            "reps": "10 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "35 sec each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "3-Point Plank",
+            "sets": 4,
+            "duration": "35 sec each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "25 sec each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Core A — Anti-Extension (Wk2)\" on 2026-08-10.",
+      "turn": 5
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Core A — Anti-Extension (Wk1)",
+        "date": "2026-08-03",
+        "estimated_duration": 30,
+        "difficulty": 2,
+        "tags": [
+          "core"
+        ],
+        "exercises": [
+          {
+            "name": "Dead Bug",
+            "sets": 3,
+            "reps": "8 each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Pallof Press Hold",
+            "sets": 3,
+            "duration": "30 sec each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "3-Point Plank",
+            "sets": 3,
+            "duration": "30 sec each side",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20 sec each side",
+            "rest_period": "60s"
+          }
+        ]
+      },
+      "result": "Created \"Core A — Anti-Extension (Wk1)\" on 2026-08-03.",
+      "turn": 6
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-4",
+        "scope": "all",
+        "event_title": "Core B — Anti-Rotation (Wk1)"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 7
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-6",
+        "scope": "all",
+        "event_title": "Core A — Anti-Extension (Wk1)"
+      },
+      "result": "Deleted the event successfully.",
+      "turn": 8
+    }
+  ],
+  "anomalies": [
+    "multiToolTurn:6 tool_use blocks, kept last (turn 1)",
+    "multiToolTurn:5 tool_use blocks, kept last (turn 2)",
+    "multiToolTurn:4 tool_use blocks, kept last (turn 3)",
+    "multiToolTurn:3 tool_use blocks, kept last (turn 4)",
+    "multiToolTurn:3 tool_use blocks, kept last (turn 5)",
+    "multiToolTurn:2 tool_use blocks, kept last (turn 7)"
+  ]
+}

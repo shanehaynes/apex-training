@@ -1,0 +1,266 @@
+{
+  "caseId": "pre-trip-taper",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my training between now and the trip. Schedule the sessions."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Two weeks out. Goal now: peak this week, taper next week, arrive fresh Aug 17. No new fitness to build — sharpen and back off.\n\n**Week 1 (peak) — keep your existing two, add one:**\n- Tue Aug 4 — Limit Bouldering ✓ (power)\n- Thu Aug 6 — Hangboard + Core ✓ (strength maintenance)\n- Sat Aug 8 — Power Endurance (4x4s) — RRG is pumpy; this is the specific engine\n\n**Week 2 (taper) — cut volume, keep intensity crisp:**\n- Tue Aug 11 — Route mileage + technique (submax, feel good)\n- Thu Aug 13 — Short primer (light hangs + a few boulders, leave fresh)\n- Fri–Sun Aug 14–16 — rest / travel. No climbing.\n\nScheduling the three new sessions:"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01EvZhydFD5tFEuE56FKGoWd",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Pre-Trip Primer",
+            "date": "2026-08-13",
+            "estimated_duration": 45,
+            "difficulty": 2,
+            "description": "Last session before trip. Prime the system, don't tax it. A few light hangs, a handful of moderate boulders. Stop while fresh.",
+            "tags": [
+              "taper",
+              "primer"
+            ],
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up",
+                "notes": "Light, no max hangs."
+              },
+              {
+                "name": "Project / Push",
+                "sets": 4,
+                "notes": "4 moderate boulders, well under limit. Quality over quantity. Done when they feel easy."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01EvZhydFD5tFEuE56FKGoWd",
+          "content": "Created \"Pre-Trip Primer\" on 2026-08-13."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01AiKzh8kcXJniZykjsjn6gX",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Route Mileage + Technique",
+            "date": "2026-08-11",
+            "estimated_duration": 60,
+            "difficulty": 2,
+            "description": "Taper week. Submax volume on routes. Focus on smooth movement, footwork, and clipping/resting positions. Nothing to failure.",
+            "tags": [
+              "taper",
+              "technique"
+            ],
+            "exercises": [
+              {
+                "name": "Easy Traversing",
+                "duration": "10 min"
+              },
+              {
+                "name": "Technique Practice (fresh)",
+                "sets": 5,
+                "notes": "5 moderate routes. Perfect feet, quiet movement, find rests. Stop with gas in the tank."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01AiKzh8kcXJniZykjsjn6gX",
+          "content": "Created \"Route Mileage + Technique\" on 2026-08-11."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01AogrgknuUnq1CuL7A3Ukz8",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Power Endurance — 4x4s",
+            "date": "2026-08-08",
+            "estimated_duration": 75,
+            "difficulty": 4,
+            "description": "Peak-week pump training. RRG routes are long and continuous — build the engine now. 4 boulder problems, 4 rounds, minimal rest within a round.",
+            "tags": [
+              "peak",
+              "power-endurance"
+            ],
+            "exercises": [
+              {
+                "name": "ARC Traversing",
+                "duration": "10 min",
+                "notes": "Warm up the forearms gradually."
+              },
+              {
+                "name": "Project / Push",
+                "sets": 4,
+                "reps": "4 problems back-to-back",
+                "rest_period": "rest = climb time, then repeat. 4 rounds total.",
+                "notes": "Pick 4 sub-limit problems. Climb all 4 with no rest between, rest equal to climb time, repeat 4x. Target a deep pump, not failure."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01AogrgknuUnq1CuL7A3Ukz8",
+          "content": "Created \"Power Endurance — 4x4s\" on 2026-08-08."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Wait — [evt-ai-3] Power Endurance 4x4s already existed Aug 8. I just created a duplicate. Deleting mine."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "I don't have the duplicate's ID from the create response — it'll show in your refreshed schedule as a second Aug 8 \"Power Endurance — 4x4s.\" Delete that one, keep [evt-ai-3].\n\nPlan is set otherwise:\n- **Peak:** Tue 8/4 Limit Boulder · Thu 8/6 Hangboard+Core · Sat 8/8 4x4s\n- **Taper:** Tue 8/11 Route Mileage · Thu 8/13 Primer\n- **Rest:** 8/14–16, travel → send fresh 8/17\n\nSend me the duplicate's ID and I'll kill it."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Pre-Trip Primer",
+        "date": "2026-08-13",
+        "estimated_duration": 45,
+        "difficulty": 2,
+        "description": "Last session before trip. Prime the system, don't tax it. A few light hangs, a handful of moderate boulders. Stop while fresh.",
+        "tags": [
+          "taper",
+          "primer"
+        ],
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up",
+            "notes": "Light, no max hangs."
+          },
+          {
+            "name": "Project / Push",
+            "sets": 4,
+            "notes": "4 moderate boulders, well under limit. Quality over quantity. Done when they feel easy."
+          }
+        ]
+      },
+      "result": "Created \"Pre-Trip Primer\" on 2026-08-13.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Route Mileage + Technique",
+        "date": "2026-08-11",
+        "estimated_duration": 60,
+        "difficulty": 2,
+        "description": "Taper week. Submax volume on routes. Focus on smooth movement, footwork, and clipping/resting positions. Nothing to failure.",
+        "tags": [
+          "taper",
+          "technique"
+        ],
+        "exercises": [
+          {
+            "name": "Easy Traversing",
+            "duration": "10 min"
+          },
+          {
+            "name": "Technique Practice (fresh)",
+            "sets": 5,
+            "notes": "5 moderate routes. Perfect feet, quiet movement, find rests. Stop with gas in the tank."
+          }
+        ]
+      },
+      "result": "Created \"Route Mileage + Technique\" on 2026-08-11.",
+      "turn": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Power Endurance — 4x4s",
+        "date": "2026-08-08",
+        "estimated_duration": 75,
+        "difficulty": 4,
+        "description": "Peak-week pump training. RRG routes are long and continuous — build the engine now. 4 boulder problems, 4 rounds, minimal rest within a round.",
+        "tags": [
+          "peak",
+          "power-endurance"
+        ],
+        "exercises": [
+          {
+            "name": "ARC Traversing",
+            "duration": "10 min",
+            "notes": "Warm up the forearms gradually."
+          },
+          {
+            "name": "Project / Push",
+            "sets": 4,
+            "reps": "4 problems back-to-back",
+            "rest_period": "rest = climb time, then repeat. 4 rounds total.",
+            "notes": "Pick 4 sub-limit problems. Climb all 4 with no rest between, rest equal to climb time, repeat 4x. Target a deep pump, not failure."
+          }
+        ]
+      },
+      "result": "Created \"Power Endurance — 4x4s\" on 2026-08-08.",
+      "turn": 3
+    }
+  ],
+  "anomalies": [
+    "multiToolTurn:3 tool_use blocks, kept last (turn 1)",
+    "multiToolTurn:2 tool_use blocks, kept last (turn 2)"
+  ]
+}

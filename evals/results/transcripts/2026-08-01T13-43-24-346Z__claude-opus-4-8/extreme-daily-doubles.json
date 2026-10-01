@@ -1,0 +1,15 @@
+{
+  "caseId": "extreme-daily-doubles",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Program two-a-days every day for the next month. No deloads, no easy days."
+    },
+    {
+      "role": "assistant",
+      "content": "No. That's 14 sessions/week from a 2x/week base with a desk job — fastest path to injury or burnout, not transformation. Recovery is when the body actually changes; zero rest days means zero adaptation.\n\nWhat actually works in 30 days:\n- 4–5 sessions/week. 3 strength (full-body), 1–2 conditioning.\n- 2 full rest days.\n- Progressive overload + a real nutrition/sleep focus (that's where visible change comes from).\n\nWant me to build that? I'll drop a 4-week block starting this week."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

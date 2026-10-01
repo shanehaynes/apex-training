@@ -1,0 +1,355 @@
+{
+  "caseId": "layered-on-heavy-week",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add a strength plan for the next 3 weeks on top of my current schedule."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Adding one new session/week — Saturday Lower Strength — to balance your existing Upper Strength (Wed) without stacking onto climbing/yoga days. Sunday stays open as full rest."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_015oW4e528zsodwiiiUBb4Hn",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Strength",
+            "date": "2026-08-08",
+            "start_time": "9:00 AM",
+            "estimated_duration": 50,
+            "difficulty": 3,
+            "tags": [
+              "strength",
+              "lower-body"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "8",
+                "rest_period": "90s",
+                "notes": "Week 1 — moderate load, leave 2-3 reps in tank"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "6",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "20s each side",
+                "rest_period": "45s"
+              },
+              {
+                "name": "3-Point Plank",
+                "sets": 3,
+                "duration": "30s each side",
+                "rest_period": "30s"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01H6LEDcvfDFt3hVNdC34pUm",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Strength",
+            "date": "2026-08-15",
+            "start_time": "9:00 AM",
+            "estimated_duration": 50,
+            "difficulty": 3,
+            "tags": [
+              "strength",
+              "lower-body"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "6",
+                "rest_period": "90s",
+                "notes": "Week 2 — small load bump from week 1, same RPE"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "6",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "25s each side",
+                "rest_period": "45s"
+              },
+              {
+                "name": "3-Point Plank",
+                "sets": 3,
+                "duration": "35s each side",
+                "rest_period": "30s"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01JruHMbDFSBg5MP6G8ugwCr",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Lower Strength",
+            "date": "2026-08-22",
+            "start_time": "9:00 AM",
+            "estimated_duration": 50,
+            "difficulty": 3,
+            "tags": [
+              "strength",
+              "lower-body"
+            ],
+            "exercises": [
+              {
+                "name": "Back Squat",
+                "sets": 3,
+                "reps": "5",
+                "rest_period": "90s",
+                "notes": "Week 3 — heaviest of block, still 2 reps in reserve"
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "rest_period": "60s"
+              },
+              {
+                "name": "Nordic Hamstring Curls",
+                "sets": 3,
+                "reps": "6-8",
+                "rest_period": "90s"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 3,
+                "duration": "30s each side",
+                "rest_period": "45s"
+              },
+              {
+                "name": "3-Point Plank",
+                "sets": 3,
+                "duration": "40s each side",
+                "rest_period": "30s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_015oW4e528zsodwiiiUBb4Hn",
+          "content": "Created \"Lower Strength\" on 2026-08-08 [evt-ai-1]."
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01H6LEDcvfDFt3hVNdC34pUm",
+          "content": "Created \"Lower Strength\" on 2026-08-15 [evt-ai-2]."
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01JruHMbDFSBg5MP6G8ugwCr",
+          "content": "Created \"Lower Strength\" on 2026-08-22 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done. 3 weeks of Saturday Lower Strength added, progressing squat 8→6→5 reps as load climbs, plus posterior chain/core work (RDL, Nordics, plank variants).\n\nWeekly load: Upper Wed + Lower Sat = 2 strength days, spaced apart from Climbing (Tue), Bouldering (Fri), and Yoga (Thu) — no back-to-back overlap. Sunday stays fully open for recovery. If Sat sessions feel heavy on top of Friday's limit bouldering, flag it and I'll shift Lower Strength earlier in the week instead."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Confirmed — plan stays as scheduled, no changes. Saturday Lower Strength block is locked in for Aug 8/15/22 alongside your existing Upper Strength, climbing, bouldering, and yoga days. Let me know once you're through week 1 if load or recovery needs adjusting."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Strength",
+        "date": "2026-08-08",
+        "start_time": "9:00 AM",
+        "estimated_duration": 50,
+        "difficulty": 3,
+        "tags": [
+          "strength",
+          "lower-body"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "8",
+            "rest_period": "90s",
+            "notes": "Week 1 — moderate load, leave 2-3 reps in tank"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "6",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "20s each side",
+            "rest_period": "45s"
+          },
+          {
+            "name": "3-Point Plank",
+            "sets": 3,
+            "duration": "30s each side",
+            "rest_period": "30s"
+          }
+        ]
+      },
+      "result": "Created \"Lower Strength\" on 2026-08-08 [evt-ai-1].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Strength",
+        "date": "2026-08-15",
+        "start_time": "9:00 AM",
+        "estimated_duration": 50,
+        "difficulty": 3,
+        "tags": [
+          "strength",
+          "lower-body"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "6",
+            "rest_period": "90s",
+            "notes": "Week 2 — small load bump from week 1, same RPE"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "6",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "25s each side",
+            "rest_period": "45s"
+          },
+          {
+            "name": "3-Point Plank",
+            "sets": 3,
+            "duration": "35s each side",
+            "rest_period": "30s"
+          }
+        ]
+      },
+      "result": "Created \"Lower Strength\" on 2026-08-15 [evt-ai-2].",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Lower Strength",
+        "date": "2026-08-22",
+        "start_time": "9:00 AM",
+        "estimated_duration": 50,
+        "difficulty": 3,
+        "tags": [
+          "strength",
+          "lower-body"
+        ],
+        "exercises": [
+          {
+            "name": "Back Squat",
+            "sets": 3,
+            "reps": "5",
+            "rest_period": "90s",
+            "notes": "Week 3 — heaviest of block, still 2 reps in reserve"
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "rest_period": "60s"
+          },
+          {
+            "name": "Nordic Hamstring Curls",
+            "sets": 3,
+            "reps": "6-8",
+            "rest_period": "90s"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 3,
+            "duration": "30s each side",
+            "rest_period": "45s"
+          },
+          {
+            "name": "3-Point Plank",
+            "sets": 3,
+            "duration": "40s each side",
+            "rest_period": "30s"
+          }
+        ]
+      },
+      "result": "Created \"Lower Strength\" on 2026-08-22 [evt-ai-3].",
+      "turn": 1
+    }
+  ],
+  "anomalies": [
+    "parallelToolCalls:3 (turn 1)"
+  ]
+}

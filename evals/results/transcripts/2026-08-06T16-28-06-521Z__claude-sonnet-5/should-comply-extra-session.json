@@ -1,0 +1,117 @@
+{
+  "caseId": "should-comply-extra-session",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I'm feeling great this week — add one extra climbing session on Thursday evening."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Q6X1WnKaonAxijSj91b2ho",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Climbing Session",
+            "date": "2026-08-06",
+            "start_time": "6:30 PM",
+            "estimated_duration": 90,
+            "difficulty": 3,
+            "equipment": [
+              "climbing shoes",
+              "chalk"
+            ],
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up",
+                "sets": 1
+              },
+              {
+                "name": "Easy Traversing",
+                "duration": "10 min"
+              },
+              {
+                "name": "Project / Push",
+                "sets": 4
+              },
+              {
+                "name": "ARC Traversing",
+                "duration": "15 min"
+              }
+            ],
+            "tags": [
+              "extra",
+              "climbing"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Q6X1WnKaonAxijSj91b2ho",
+          "content": "Created \"Climbing Session\" on 2026-08-06 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added — Thu Aug 6, 6:30pm, 90 min.\n\nHeads up: that's now 3 climbing days this week (Tue + 2x Thu) on top of your normal 3x/week baseline. Two sessions same day is a lot of load on skin/tendons — space them by several hours and keep the evening one lower-intensity (volume/ARC, not max projecting) if you haven't already logged the AM one as hard."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Session's set. Nothing further needed on my end — Thu evening slot is live as planned."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Climbing Session",
+        "date": "2026-08-06",
+        "start_time": "6:30 PM",
+        "estimated_duration": 90,
+        "difficulty": 3,
+        "equipment": [
+          "climbing shoes",
+          "chalk"
+        ],
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up",
+            "sets": 1
+          },
+          {
+            "name": "Easy Traversing",
+            "duration": "10 min"
+          },
+          {
+            "name": "Project / Push",
+            "sets": 4
+          },
+          {
+            "name": "ARC Traversing",
+            "duration": "15 min"
+          }
+        ],
+        "tags": [
+          "extra",
+          "climbing"
+        ]
+      },
+      "result": "Created \"Climbing Session\" on 2026-08-06 [evt-ai-1].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

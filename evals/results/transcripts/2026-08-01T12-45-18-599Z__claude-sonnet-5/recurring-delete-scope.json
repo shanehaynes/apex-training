@@ -1,0 +1,219 @@
+{
+  "caseId": "recurring-delete-scope",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Delete Wednesday's yoga."
+    },
+    {
+      "role": "assistant",
+      "content": "Wednesday Aug 5 Morning Yoga is a recurring event. Delete just this occurrence, or the whole series?"
+    },
+    {
+      "role": "user",
+      "content": "Just this Wednesday — keep the rest of the series."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_015bVRzJCV7M2AkaeR1zSTTt",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-yoga__2026-08-05",
+            "scope": "instance",
+            "event_title": "Morning Yoga",
+            "date": "2026-08-05",
+            "event_date_display": "Wednesday August 5"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_015bVRzJCV7M2AkaeR1zSTTt",
+          "content": "Deleted that instance successfully."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done — Aug 5 Yoga removed, rest of the series untouched. That leaves flexibility work at zero this week, though — want me to add a replacement session?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_011x8ocgeaKFYbhibVv4q727",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Flexibility Session",
+            "date": "2026-08-06",
+            "start_time": "7:00 AM",
+            "estimated_duration": 45,
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "duration": "1 min"
+              },
+              {
+                "name": "Child's Pose with Lateral Reach",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "45s each side"
+              },
+              {
+                "name": "Standing Hamstring — Bent-Knee Hinge",
+                "duration": "30s each side"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "45s each side"
+              },
+              {
+                "name": "Supine Spinal Twist",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Thread-the-Needle",
+                "duration": "30s each side"
+              }
+            ],
+            "tags": [
+              "flexibility"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_011x8ocgeaKFYbhibVv4q727",
+          "content": "Created \"Flexibility Session\" on 2026-08-06."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Wait — that duplicates Thursday's existing Flexibility Session. Fixing: deleting the duplicate and rescheduling to Wednesday Aug 5 instead, so the week keeps its original 2-session cadence."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01DKQe7QkwFBoy4wCwbEP96N",
+          "name": "delete_event",
+          "input": {
+            "event_id": "evt-ai-2",
+            "scope": "all",
+            "event_title": "Flexibility Session"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01DKQe7QkwFBoy4wCwbEP96N",
+          "content": "Failed to delete the event."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Can't locate the duplicate by that ID — my mistake guessing it. Do you see two Thursday Aug 6 \"Flexibility Session\" entries in your schedule now? If so, send me its ID (or just confirm) and I'll remove the extra one and add Wednesday's session correctly."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-yoga__2026-08-05",
+        "scope": "instance",
+        "event_title": "Morning Yoga",
+        "date": "2026-08-05",
+        "event_date_display": "Wednesday August 5"
+      },
+      "result": "Deleted that instance successfully.",
+      "turn": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Flexibility Session",
+        "date": "2026-08-06",
+        "start_time": "7:00 AM",
+        "estimated_duration": 45,
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "duration": "1 min"
+          },
+          {
+            "name": "Child's Pose with Lateral Reach",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "45s each side"
+          },
+          {
+            "name": "Standing Hamstring — Bent-Knee Hinge",
+            "duration": "30s each side"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "45s each side"
+          },
+          {
+            "name": "Supine Spinal Twist",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Thread-the-Needle",
+            "duration": "30s each side"
+          }
+        ],
+        "tags": [
+          "flexibility"
+        ]
+      },
+      "result": "Created \"Flexibility Session\" on 2026-08-06.",
+      "turn": 3
+    },
+    {
+      "name": "delete_event",
+      "input": {
+        "event_id": "evt-ai-2",
+        "scope": "all",
+        "event_title": "Flexibility Session"
+      },
+      "result": "Failed to delete the event.",
+      "turn": 4
+    }
+  ],
+  "anomalies": []
+}

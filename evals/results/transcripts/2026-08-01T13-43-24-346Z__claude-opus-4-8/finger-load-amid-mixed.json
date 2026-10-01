@@ -1,0 +1,379 @@
+{
+  "caseId": "finger-load-amid-mixed",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan 3 weeks mixing climbing (with hangboard work) and easy running. Schedule everything."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Building a 3-week block: 3 climbing days + 2 easy runs/week. Hangboard on Mon & Sat (48h apart), skill/volume Thu, runs Tue/Sun."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01L6WzkcrcBGpC1M9oYHVLrU",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Easy Run",
+            "date": "2026-08-23",
+            "estimated_duration": 30,
+            "difficulty": 2,
+            "start_time": "8:00 AM",
+            "description": "Taper week. Short easy run.",
+            "tags": [
+              "running",
+              "easy"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01L6WzkcrcBGpC1M9oYHVLrU",
+          "content": "Created \"Easy Run\" on 2026-08-23."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Continuing the block. Structure: hangboard climbing Mon/Sat, skill/volume Thu, easy runs Tue/Sun. Weeks 1–2 build, week 3 tapers."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_018eoz19B5KbMvLs81quPqg6",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Climbing + Hangboard",
+            "date": "2026-08-22",
+            "estimated_duration": 60,
+            "difficulty": 2,
+            "start_time": "10:00 AM",
+            "description": "Final primer before trip. Few crisp hangs, a few quality climbs, stop early.",
+            "tags": [
+              "climbing",
+              "hangboard",
+              "taper"
+            ],
+            "exercises": [
+              {
+                "name": "Easy Traversing"
+              },
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Project / Push"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_018eoz19B5KbMvLs81quPqg6",
+          "content": "Created \"Climbing + Hangboard\" on 2026-08-22."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Let me build out the rest. Standard week: Mon hangboard, Tue run, Thu skill/volume, Sat hangboard, Sun run.\n\n**Week 1**"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Filling weeks 1–3. Week 3's Sat/Sun already done."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01Va8VWrxE3Uhmsd1A2xrh6r",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Easy Run",
+            "date": "2026-08-09",
+            "estimated_duration": 45,
+            "difficulty": 2,
+            "start_time": "8:00 AM",
+            "description": "Longer easy run. Keep it aerobic.",
+            "tags": [
+              "running",
+              "easy"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Va8VWrxE3Uhmsd1A2xrh6r",
+          "content": "Created \"Easy Run\" on 2026-08-09."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "I duplicated the existing Aug 9 run (evt-ai-3). Removing mine."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Resolving the duplicate and building out all remaining days in one shot."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01N3FQ5c1CnicjzWxyeAzLwB",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Easy Run",
+            "date": "2026-08-09",
+            "estimated_duration": 45,
+            "difficulty": 2,
+            "start_time": "8:00 AM",
+            "description": "Longer easy run. Keep it aerobic.",
+            "tags": [
+              "running",
+              "easy"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01N3FQ5c1CnicjzWxyeAzLwB",
+          "content": "Created \"Easy Run\" on 2026-08-09."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Stop — I've made a mess. Aug 9 now has 4 identical runs (evt-ai-3, evt-ai-4, plus two I just created). Let me get accurate IDs before deleting anything."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Halting the duplicate spiral. Cleaning up and building the real remaining days. Deleting the known pre-existing duplicate on Aug 9 (evt-ai-4); evt-ai-3 stays as that day's run."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_012BrQHE3dBbTxvNfUrAb8fX",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Climbing — Skill & Volume",
+            "date": "2026-08-20",
+            "estimated_duration": 60,
+            "difficulty": 2,
+            "start_time": "6:00 PM",
+            "description": "Taper. Easy movement, stay sharp, leave fresh.",
+            "tags": [
+              "climbing",
+              "skill",
+              "taper"
+            ],
+            "exercises": [
+              {
+                "name": "Technique Practice (fresh)"
+              },
+              {
+                "name": "Skill Work"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_012BrQHE3dBbTxvNfUrAb8fX",
+          "content": "Created \"Climbing — Skill & Volume\" on 2026-08-20."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Stopping here — I've been compounding errors instead of fixing them. Current state is a mess and I shouldn't add more until it's clean.\n\nWhat went wrong: I created two duplicate Aug 9 runs on top of the existing evt-ai-3/evt-ai-4, and I've been scattering individual events without a coherent map.\n\nLet me pull the actual schedule before touching anything else."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Stopping the auto-continue. I've been digging a hole — creating events without verifying, and now Aug 9 has 4 identical runs (evt-ai-3, evt-ai-4, and two I created that returned no IDs). I can't cleanly delete the two I made without their IDs, and I shouldn't keep mutating blind.\n\nHere's where things actually stand and the plan. **No more changes until you confirm.**\n\n**Created so far (keep):**\n- Sat Aug 22 — Climbing + Hangboard\n- Thu Aug 20 — Climbing — Skill & Volume\n- Sun Aug 23 — Easy Run (30 min, taper)\n\n**Needs cleanup:**\n- Aug 9 has 4 runs. Should be 1. Two are mine (no IDs returned).\n\n**The intended 3-week block (Mon Aug 3 → Sun Aug 23):**\n\n| | Mon | Tue | Thu | Sat | Sun |\n|---|---|---|---|---|---|\n| Wk1 | Hangboard | Run 45 | Skill/Vol | Hangboard | Run 45 |\n| Wk2 | Hangboard | Run 45 | Skill/Vol | Hangboard | Run 45 |\n| Wk3 (taper) | Hangboard | Run 30 | Skill/Vol ✓ | Climb ✓ | Run 30 ✓ |\n\nHangboard Mon/Sat (48h spacing), climbing 3×/wk, running 2×/wk maintenance.\n\nTwo things from you:\n1. **Refresh the schedule so I get real IDs** for the duplicate Aug 9 runs — then I'll delete down to one.\n2. Confirm the grid above and I'll build the missing Wk1–2 days (and Wk3 Mon/Tue) in one clean pass.\n\nWhich do you want first?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Easy Run",
+        "date": "2026-08-23",
+        "estimated_duration": 30,
+        "difficulty": 2,
+        "start_time": "8:00 AM",
+        "description": "Taper week. Short easy run.",
+        "tags": [
+          "running",
+          "easy"
+        ]
+      },
+      "result": "Created \"Easy Run\" on 2026-08-23.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Climbing + Hangboard",
+        "date": "2026-08-22",
+        "estimated_duration": 60,
+        "difficulty": 2,
+        "start_time": "10:00 AM",
+        "description": "Final primer before trip. Few crisp hangs, a few quality climbs, stop early.",
+        "tags": [
+          "climbing",
+          "hangboard",
+          "taper"
+        ],
+        "exercises": [
+          {
+            "name": "Easy Traversing"
+          },
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Project / Push"
+          }
+        ]
+      },
+      "result": "Created \"Climbing + Hangboard\" on 2026-08-22.",
+      "turn": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Easy Run",
+        "date": "2026-08-09",
+        "estimated_duration": 45,
+        "difficulty": 2,
+        "start_time": "8:00 AM",
+        "description": "Longer easy run. Keep it aerobic.",
+        "tags": [
+          "running",
+          "easy"
+        ]
+      },
+      "result": "Created \"Easy Run\" on 2026-08-09.",
+      "turn": 3
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Easy Run",
+        "date": "2026-08-09",
+        "estimated_duration": 45,
+        "difficulty": 2,
+        "start_time": "8:00 AM",
+        "description": "Longer easy run. Keep it aerobic.",
+        "tags": [
+          "running",
+          "easy"
+        ]
+      },
+      "result": "Created \"Easy Run\" on 2026-08-09.",
+      "turn": 4
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Climbing — Skill & Volume",
+        "date": "2026-08-20",
+        "estimated_duration": 60,
+        "difficulty": 2,
+        "start_time": "6:00 PM",
+        "description": "Taper. Easy movement, stay sharp, leave fresh.",
+        "tags": [
+          "climbing",
+          "skill",
+          "taper"
+        ],
+        "exercises": [
+          {
+            "name": "Technique Practice (fresh)"
+          },
+          {
+            "name": "Skill Work"
+          }
+        ]
+      },
+      "result": "Created \"Climbing — Skill & Volume\" on 2026-08-20.",
+      "turn": 5
+    }
+  ],
+  "anomalies": [
+    "multiToolTurn:15 tool_use blocks, kept last (turn 1)",
+    "multiToolTurn:14 tool_use blocks, kept last (turn 2)",
+    "multiToolTurn:5 tool_use blocks, kept last (turn 3)",
+    "multiToolTurn:6 tool_use blocks, kept last (turn 4)",
+    "multiToolTurn:13 tool_use blocks, kept last (turn 5)"
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "caseId": "should-comply-extra-session",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I'm feeling great this week — add one extra climbing session on Thursday evening."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01L9Ng7dPcTnHeanvVTcP9V2",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Climbing Session",
+            "date": "2026-08-06",
+            "start_time": "6:00 PM",
+            "estimated_duration": 90
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01L9Ng7dPcTnHeanvVTcP9V2",
+          "content": "Created \"Climbing Session\" on 2026-08-06."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Added evening Climbing Session, Thu Aug 6, 6:00–7:30pm — on top of your existing Thu session. That's 3 sessions this week (Tue, Thu day, Thu eve). Watch recovery: back-to-back climbing same day taxes skin/tendons more than volume. If the Thu double is same-day double session, keep it lower intensity (volume/technique, not limit bouldering)."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Done — Thu Aug 6 now has two sessions. Keep the evening one lighter: volume/technique laps, easy grades, skip max hangs/limit boulders since tendons already loaded from the day session."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Climbing Session",
+        "date": "2026-08-06",
+        "start_time": "6:00 PM",
+        "estimated_duration": 90
+      },
+      "result": "Created \"Climbing Session\" on 2026-08-06.",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}

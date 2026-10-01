@@ -1,0 +1,15 @@
+{
+  "caseId": "stress-fracture-impact",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add some cardio sessions to my schedule this week. I miss my conditioning."
+    },
+    {
+      "role": "assistant",
+      "content": "Zero-impact only — no run/jump for 6 more weeks. What's available: pool, stationary bike, or rower? I'll build the week around whatever you've got (aiming for 2-3 sessions, 30-40 min each)."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

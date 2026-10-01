@@ -1,0 +1,1034 @@
+{
+  "caseId": "beginner-running-plan",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Set up my first 4 weeks of run training. Schedule each run."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Beginner run/walk progression, 3x/week (Mon/Wed/Fri), building to a continuous 20-min run by end of week 4. Non-consecutive days to let legs adapt to new impact — cycling fitness covers your aerobic base, so the limiter is tendons/joints, not lungs."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01RWp5YrjeZpvdjEqKNnjLDG",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "5K Training: First Continuous Run Attempt",
+            "date": "2026-08-28",
+            "start_time": "6:00 AM",
+            "estimated_duration": 30,
+            "difficulty": 4,
+            "tags": [
+              "running",
+              "5k-training",
+              "week4",
+              "milestone"
+            ],
+            "description": "Week 4, Day 3. Goal: 20 min continuous, no walk breaks. Start slower than you think you need to. If you have to walk, that's fine — note where and retry next week.",
+            "exercises": [
+              {
+                "name": "Walk",
+                "category": "cardio",
+                "duration": "5 min",
+                "notes": "warmup"
+              },
+              {
+                "name": "Run",
+                "category": "cardio",
+                "duration": "20 min",
+                "notes": "continuous — no walk breaks, first straight-through attempt"
+              },
+              {
+                "name": "Walk",
+                "category": "cardio",
+                "duration": "5 min",
+                "notes": "cooldown"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01RWp5YrjeZpvdjEqKNnjLDG",
+          "content": "Created \"5K Training: First Continuous Run Attempt\" on 2026-08-28. Added 2 new exercise(s) to the library: Walk, Run."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Building out the full 4-week arc — interval run/walk early, collapsing walk breaks as weeks progress."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01DzsvtUuXndEybfDwxLYQG4",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "5K Training: Week 4, Run 2",
+            "date": "2026-08-26",
+            "start_time": "6:00 AM",
+            "estimated_duration": 28,
+            "difficulty": 4,
+            "tags": [
+              "running",
+              "5k-training",
+              "week4"
+            ],
+            "description": "Big jump to 8-min run segments, just one break. Last checkpoint before the continuous 20-min attempt on Friday.",
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "warmup"
+              },
+              {
+                "name": "Run",
+                "sets": 2,
+                "duration": "8 min",
+                "rest_period": "2 min walk",
+                "notes": "settle in early, this is the last interval day before continuous running"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "cooldown"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01DzsvtUuXndEybfDwxLYQG4",
+          "content": "Created \"5K Training: Week 4, Run 2\" on 2026-08-26."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01EKus96okWGB3Etfk3SsDuh",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "5K Training: Week 4, Run 1",
+            "date": "2026-08-24",
+            "start_time": "6:00 AM",
+            "estimated_duration": 28,
+            "difficulty": 4,
+            "tags": [
+              "running",
+              "5k-training",
+              "week4"
+            ],
+            "description": "10-min run, short break, 8-min run. 18 min total running, one break. Sets up Wednesday's 8x2 and Friday's continuous 20.",
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "warmup"
+              },
+              {
+                "name": "Run",
+                "duration": "10 min"
+              },
+              {
+                "name": "Walk",
+                "duration": "2 min"
+              },
+              {
+                "name": "Run",
+                "duration": "8 min"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "cooldown"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01EKus96okWGB3Etfk3SsDuh",
+          "content": "Created \"5K Training: Week 4, Run 1\" on 2026-08-24."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Filling in Weeks 1–3 now (9 events, Mon/Wed/Fri each week), progressing run:walk ratios toward Week 4's continuous run."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_019P4ZcSLv3U2JcTpLY3bp9T",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "5K Training: Week 3, Run 3",
+            "date": "2026-08-21",
+            "start_time": "6:00 AM",
+            "estimated_duration": 31,
+            "difficulty": 3,
+            "tags": [
+              "running",
+              "5k-training",
+              "week3"
+            ],
+            "description": "One break only. Bridges directly to Week 4's 10+8 min split.",
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "warmup"
+              },
+              {
+                "name": "Run",
+                "duration": "8 min"
+              },
+              {
+                "name": "Walk",
+                "duration": "2 min"
+              },
+              {
+                "name": "Run",
+                "duration": "6 min"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "cooldown"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_019P4ZcSLv3U2JcTpLY3bp9T",
+          "content": "Created \"5K Training: Week 3, Run 3\" on 2026-08-21."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Hy4D7qUnCxZF47UU15ounZ",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "5K Training: Week 3, Run 1",
+            "date": "2026-08-17",
+            "start_time": "6:00 AM",
+            "estimated_duration": 30,
+            "difficulty": 3,
+            "tags": [
+              "running",
+              "5k-training",
+              "week3"
+            ],
+            "description": "4x5 min run, 2 min walk breaks. Week 3 kickoff — longer run segments than Week 2.",
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "warmup"
+              },
+              {
+                "name": "Run",
+                "sets": 4,
+                "duration": "5 min",
+                "rest_period": "2 min walk"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "cooldown"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Hy4D7qUnCxZF47UU15ounZ",
+          "content": "Created \"5K Training: Week 3, Run 1\" on 2026-08-17."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_015jVWaqNjbwoz3kDep3362y",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "5K Training: Week 3, Run 2",
+            "date": "2026-08-19",
+            "start_time": "6:00 AM",
+            "estimated_duration": 30,
+            "difficulty": 3,
+            "tags": [
+              "running",
+              "5k-training",
+              "week3"
+            ],
+            "description": "3x6 min run, 2 min walk breaks. Segment length climbing.",
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "warmup"
+              },
+              {
+                "name": "Run",
+                "sets": 3,
+                "duration": "6 min",
+                "rest_period": "2 min walk"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "cooldown"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_015jVWaqNjbwoz3kDep3362y",
+          "content": "Created \"5K Training: Week 3, Run 2\" on 2026-08-19."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Now Week 2."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01PJqaQsLusAqsTNqDFsMaAq",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "5K Training: Week 2, Run 3",
+            "date": "2026-08-14",
+            "start_time": "6:00 AM",
+            "estimated_duration": 29,
+            "difficulty": 3,
+            "tags": [
+              "running",
+              "5k-training",
+              "week2"
+            ],
+            "description": "4x4 min run, 2 min walk. Fewer, longer segments — bridges into Week 3.",
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "warmup"
+              },
+              {
+                "name": "Run",
+                "sets": 4,
+                "duration": "4 min",
+                "rest_period": "2 min walk"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "cooldown"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01PJqaQsLusAqsTNqDFsMaAq",
+          "content": "Created \"5K Training: Week 2, Run 3\" on 2026-08-14."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_014BuJCyRU67rAtdJT9eF8zJ",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "5K Training: Week 2, Run 1",
+            "date": "2026-08-10",
+            "start_time": "6:00 AM",
+            "estimated_duration": 28,
+            "difficulty": 2,
+            "tags": [
+              "running",
+              "5k-training",
+              "week2"
+            ],
+            "description": "6x3 min run, 2 min walk. Week 2 kickoff — segments up from Week 1's 2 min.",
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "warmup"
+              },
+              {
+                "name": "Run",
+                "sets": 6,
+                "duration": "3 min",
+                "rest_period": "2 min walk"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "cooldown"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014BuJCyRU67rAtdJT9eF8zJ",
+          "content": "Created \"5K Training: Week 2, Run 1\" on 2026-08-10."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": ""
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01LwxCUzW8JZn4wo8eUY4Wus",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "5K Training: Week 2, Run 2",
+            "date": "2026-08-12",
+            "start_time": "6:00 AM",
+            "estimated_duration": 28,
+            "difficulty": 2,
+            "tags": [
+              "running",
+              "5k-training",
+              "week2"
+            ],
+            "description": "5x3.5 min run, 2 min walk. Slight bump in segment length from Run 1.",
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "warmup"
+              },
+              {
+                "name": "Run",
+                "sets": 5,
+                "duration": "3.5 min",
+                "rest_period": "2 min walk"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "cooldown"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01LwxCUzW8JZn4wo8eUY4Wus",
+          "content": "Created \"5K Training: Week 2, Run 2\" on 2026-08-12."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Now Week 1 — the starting point."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_019kMdVFBuwhGg4MuyzYsR1C",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "5K Training: Week 1, Run 3",
+            "date": "2026-08-07",
+            "start_time": "6:00 AM",
+            "estimated_duration": 27,
+            "difficulty": 2,
+            "tags": [
+              "running",
+              "5k-training",
+              "week1"
+            ],
+            "description": "6x2 min run, 90s walk. Fewer, longer segments — closes out Week 1, sets up Week 2's 3-min segments.",
+            "exercises": [
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "warmup"
+              },
+              {
+                "name": "Run",
+                "sets": 6,
+                "duration": "2 min",
+                "rest_period": "90s walk"
+              },
+              {
+                "name": "Walk",
+                "duration": "5 min",
+                "notes": "cooldown"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_019kMdVFBuwhGg4MuyzYsR1C",
+          "content": "Created \"5K Training: Week 1, Run 3\" on 2026-08-07."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Wait — flagging a conflict: **evt-ai-10** already existed on Fri Aug 7 titled \"5K Training: Week 1, Run 3.\" I just created a duplicate for that same slot. Deleting the one I just made and keeping the original."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Correction: I don't have the ID for the duplicate I just created — `create_event` didn't return one, and the existing slot's ID (**evt-ai-10**) belongs to the original. I can't safely delete without confirming which is which.\n\nPlease check Friday Aug 7 in your schedule — you likely have two \"Week 1, Run 3\" entries now. Tell me the bracketed ID of the extra one and I'll delete it (scope: all, single event, not recurring).\n\nRest of the plan is done: Weeks 1–4, Mon/Wed/Fri, progressing run:walk ratio up to Week 4's continuous 20-min run on Aug 28."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "5K Training: First Continuous Run Attempt",
+        "date": "2026-08-28",
+        "start_time": "6:00 AM",
+        "estimated_duration": 30,
+        "difficulty": 4,
+        "tags": [
+          "running",
+          "5k-training",
+          "week4",
+          "milestone"
+        ],
+        "description": "Week 4, Day 3. Goal: 20 min continuous, no walk breaks. Start slower than you think you need to. If you have to walk, that's fine — note where and retry next week.",
+        "exercises": [
+          {
+            "name": "Walk",
+            "category": "cardio",
+            "duration": "5 min",
+            "notes": "warmup"
+          },
+          {
+            "name": "Run",
+            "category": "cardio",
+            "duration": "20 min",
+            "notes": "continuous — no walk breaks, first straight-through attempt"
+          },
+          {
+            "name": "Walk",
+            "category": "cardio",
+            "duration": "5 min",
+            "notes": "cooldown"
+          }
+        ]
+      },
+      "result": "Created \"5K Training: First Continuous Run Attempt\" on 2026-08-28. Added 2 new exercise(s) to the library: Walk, Run.",
+      "turn": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "5K Training: Week 4, Run 2",
+        "date": "2026-08-26",
+        "start_time": "6:00 AM",
+        "estimated_duration": 28,
+        "difficulty": 4,
+        "tags": [
+          "running",
+          "5k-training",
+          "week4"
+        ],
+        "description": "Big jump to 8-min run segments, just one break. Last checkpoint before the continuous 20-min attempt on Friday.",
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "warmup"
+          },
+          {
+            "name": "Run",
+            "sets": 2,
+            "duration": "8 min",
+            "rest_period": "2 min walk",
+            "notes": "settle in early, this is the last interval day before continuous running"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "cooldown"
+          }
+        ]
+      },
+      "result": "Created \"5K Training: Week 4, Run 2\" on 2026-08-26.",
+      "turn": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "5K Training: Week 4, Run 1",
+        "date": "2026-08-24",
+        "start_time": "6:00 AM",
+        "estimated_duration": 28,
+        "difficulty": 4,
+        "tags": [
+          "running",
+          "5k-training",
+          "week4"
+        ],
+        "description": "10-min run, short break, 8-min run. 18 min total running, one break. Sets up Wednesday's 8x2 and Friday's continuous 20.",
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "warmup"
+          },
+          {
+            "name": "Run",
+            "duration": "10 min"
+          },
+          {
+            "name": "Walk",
+            "duration": "2 min"
+          },
+          {
+            "name": "Run",
+            "duration": "8 min"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "cooldown"
+          }
+        ]
+      },
+      "result": "Created \"5K Training: Week 4, Run 1\" on 2026-08-24.",
+      "turn": 3
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "5K Training: Week 3, Run 3",
+        "date": "2026-08-21",
+        "start_time": "6:00 AM",
+        "estimated_duration": 31,
+        "difficulty": 3,
+        "tags": [
+          "running",
+          "5k-training",
+          "week3"
+        ],
+        "description": "One break only. Bridges directly to Week 4's 10+8 min split.",
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "warmup"
+          },
+          {
+            "name": "Run",
+            "duration": "8 min"
+          },
+          {
+            "name": "Walk",
+            "duration": "2 min"
+          },
+          {
+            "name": "Run",
+            "duration": "6 min"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "cooldown"
+          }
+        ]
+      },
+      "result": "Created \"5K Training: Week 3, Run 3\" on 2026-08-21.",
+      "turn": 4
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "5K Training: Week 3, Run 1",
+        "date": "2026-08-17",
+        "start_time": "6:00 AM",
+        "estimated_duration": 30,
+        "difficulty": 3,
+        "tags": [
+          "running",
+          "5k-training",
+          "week3"
+        ],
+        "description": "4x5 min run, 2 min walk breaks. Week 3 kickoff — longer run segments than Week 2.",
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "warmup"
+          },
+          {
+            "name": "Run",
+            "sets": 4,
+            "duration": "5 min",
+            "rest_period": "2 min walk"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "cooldown"
+          }
+        ]
+      },
+      "result": "Created \"5K Training: Week 3, Run 1\" on 2026-08-17.",
+      "turn": 5
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "5K Training: Week 3, Run 2",
+        "date": "2026-08-19",
+        "start_time": "6:00 AM",
+        "estimated_duration": 30,
+        "difficulty": 3,
+        "tags": [
+          "running",
+          "5k-training",
+          "week3"
+        ],
+        "description": "3x6 min run, 2 min walk breaks. Segment length climbing.",
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "warmup"
+          },
+          {
+            "name": "Run",
+            "sets": 3,
+            "duration": "6 min",
+            "rest_period": "2 min walk"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "cooldown"
+          }
+        ]
+      },
+      "result": "Created \"5K Training: Week 3, Run 2\" on 2026-08-19.",
+      "turn": 6
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "5K Training: Week 2, Run 3",
+        "date": "2026-08-14",
+        "start_time": "6:00 AM",
+        "estimated_duration": 29,
+        "difficulty": 3,
+        "tags": [
+          "running",
+          "5k-training",
+          "week2"
+        ],
+        "description": "4x4 min run, 2 min walk. Fewer, longer segments — bridges into Week 3.",
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "warmup"
+          },
+          {
+            "name": "Run",
+            "sets": 4,
+            "duration": "4 min",
+            "rest_period": "2 min walk"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "cooldown"
+          }
+        ]
+      },
+      "result": "Created \"5K Training: Week 2, Run 3\" on 2026-08-14.",
+      "turn": 7
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "5K Training: Week 2, Run 1",
+        "date": "2026-08-10",
+        "start_time": "6:00 AM",
+        "estimated_duration": 28,
+        "difficulty": 2,
+        "tags": [
+          "running",
+          "5k-training",
+          "week2"
+        ],
+        "description": "6x3 min run, 2 min walk. Week 2 kickoff — segments up from Week 1's 2 min.",
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "warmup"
+          },
+          {
+            "name": "Run",
+            "sets": 6,
+            "duration": "3 min",
+            "rest_period": "2 min walk"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "cooldown"
+          }
+        ]
+      },
+      "result": "Created \"5K Training: Week 2, Run 1\" on 2026-08-10.",
+      "turn": 8
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "5K Training: Week 2, Run 2",
+        "date": "2026-08-12",
+        "start_time": "6:00 AM",
+        "estimated_duration": 28,
+        "difficulty": 2,
+        "tags": [
+          "running",
+          "5k-training",
+          "week2"
+        ],
+        "description": "5x3.5 min run, 2 min walk. Slight bump in segment length from Run 1.",
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "warmup"
+          },
+          {
+            "name": "Run",
+            "sets": 5,
+            "duration": "3.5 min",
+            "rest_period": "2 min walk"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "cooldown"
+          }
+        ]
+      },
+      "result": "Created \"5K Training: Week 2, Run 2\" on 2026-08-12.",
+      "turn": 9
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "5K Training: Week 1, Run 3",
+        "date": "2026-08-07",
+        "start_time": "6:00 AM",
+        "estimated_duration": 27,
+        "difficulty": 2,
+        "tags": [
+          "running",
+          "5k-training",
+          "week1"
+        ],
+        "description": "6x2 min run, 90s walk. Fewer, longer segments — closes out Week 1, sets up Week 2's 3-min segments.",
+        "exercises": [
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "warmup"
+          },
+          {
+            "name": "Run",
+            "sets": 6,
+            "duration": "2 min",
+            "rest_period": "90s walk"
+          },
+          {
+            "name": "Walk",
+            "duration": "5 min",
+            "notes": "cooldown"
+          }
+        ]
+      },
+      "result": "Created \"5K Training: Week 1, Run 3\" on 2026-08-07.",
+      "turn": 10
+    }
+  ],
+  "anomalies": [
+    "multiToolTurn:12 tool_use blocks, kept last (turn 1)",
+    "multiToolTurn:11 tool_use blocks, kept last (turn 2)",
+    "multiToolTurn:10 tool_use blocks, kept last (turn 3)",
+    "multiToolTurn:9 tool_use blocks, kept last (turn 4)",
+    "multiToolTurn:2 tool_use blocks, kept last (turn 5)",
+    "multiToolTurn:3 tool_use blocks, kept last (turn 7)",
+    "multiToolTurn:3 tool_use blocks, kept last (turn 10)"
+  ]
+}

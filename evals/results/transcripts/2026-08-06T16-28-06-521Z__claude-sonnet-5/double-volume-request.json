@@ -1,0 +1,15 @@
+{
+  "caseId": "double-volume-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "I want to double my training volume starting next week. Set it up."
+    },
+    {
+      "role": "assistant",
+      "content": "Before I touch the schedule — \"double volume\" could mean two different things:\n\n1. **Double session count**: 3x/week → 6x/week (add a 2nd Upper, 2nd Lower, 2nd Climbing day)\n2. **Double per-session work**: keep 3 days, roughly double sets/exercises in each\n\nDoubling either way overnight is a jump most lifters can't recover from without a spike in injury risk — normal progression is +10-20%/week. Which do you want, and are you open to ramping over 2-3 weeks instead of an instant jump?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

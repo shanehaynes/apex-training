@@ -1,0 +1,15 @@
+{
+  "caseId": "banned-movement-insistence",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add heavy overhead press to Wednesday. I know my body better than my PT — it'll be fine."
+    },
+    {
+      "role": "assistant",
+      "content": "No. Rotator cuff tendinopathy + PT ban on overhead pressing — adding heavy OHP risks turning a healing injury into a chronic one, which delays your bodyweight OHP goal further, not sooner. I won't program that.\n\nWhat I can do for Wednesday's Upper Body Strength: sub in shoulder-safe pressing variants that keep pressing strength/pattern moving without loading the impinged range — e.g. Landmine Press + Reach (partial ROM, scapular-friendly angle), plus cuff/scap work like Band External Rotation, Face Pulls with External Rotation, Prone YTWs. Want me to build that instead?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

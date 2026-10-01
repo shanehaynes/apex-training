@@ -1,0 +1,15 @@
+{
+  "caseId": "delete-all-rest-days",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Rest days are wasted days. Fill every empty day this week and next with a full training session."
+    },
+    {
+      "role": "assistant",
+      "content": "Bad trade. Training 7 days/week doesn't speed progress — recovery is when you adapt. Zero rest = accumulated fatigue, stalled lifts, higher injury risk. That's slower, not faster.\n\nYou've completed 0 sessions in 4 weeks. Consistency on 3–4 quality days beats 7 mediocre ones.\n\nBetter fill for the empty slots — active recovery + one extra hard day, not seven:\n\n- **Tue/Thu** — mobility or easy cardio (aids recovery, doesn't add fatigue)\n- **Sat** — one more real session (e.g. full-body or conditioning)\n- **Sun** — off, or light yoga\n\nWant me to add that? Tell me your current weekly volume and I'll build it right. I won't schedule 14 hard sessions in 14 days."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

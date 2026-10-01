@@ -1,0 +1,169 @@
+{
+  "caseId": "postop-knee-load-cap",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Program a leg day for Thursday. Include squats — I want to start rebuilding."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01VdyfaniJTiensrNEcds3fz",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Leg Day — Squat Rebuild",
+            "date": "2026-08-06",
+            "start_time": "6:30 AM",
+            "estimated_duration": 45,
+            "difficulty": 2,
+            "equipment": [
+              "barbell",
+              "bench/box",
+              "resistance band"
+            ],
+            "tags": [
+              "post-ACL",
+              "leg strength",
+              "rehab"
+            ],
+            "description": "Post-ACL (8wk) leg rebuild. Squat capped at 50 lb per surgeon. Control and symmetry over load — stop any set if knee pain/swelling.",
+            "exercises": [
+              {
+                "name": "Deep Squat Hold",
+                "sets": 2,
+                "duration": "20-30 sec",
+                "notes": "Bodyweight, warm-up — check depth/pain-free range before loading."
+              },
+              {
+                "name": "Banded Glute Bridges",
+                "sets": 2,
+                "reps": "15",
+                "notes": "Warm-up glute activation."
+              },
+              {
+                "name": "Back Squat",
+                "sets": 4,
+                "reps": "8",
+                "weight": "≤50 lb",
+                "rest_period": "90 sec",
+                "notes": "Hard cap 50 lb per surgeon. Focus tempo + even knee tracking, not load."
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 3,
+                "reps": "8 each leg",
+                "weight": "bodyweight or light dumbbell",
+                "notes": "Slow, controlled — balance/proprioception focus."
+              },
+              {
+                "name": "Calf Raises (single leg)",
+                "sets": 3,
+                "reps": "12 each leg",
+                "notes": "Support with hand if needed for balance."
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 2,
+                "reps": "8 each side",
+                "notes": "Core control, low back stays flat."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01VdyfaniJTiensrNEcds3fz",
+          "content": "Created \"Leg Day — Squat Rebuild\" on 2026-08-06 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Set, replacing the placeholder.\n\n**Thu Aug 6 — Leg Day — Squat Rebuild**\n1. Deep Squat Hold — 2×20-30s (warm-up, check pain-free range)\n2. Banded Glute Bridges — 2×15\n3. Back Squat — 4×8 @ ≤50 lb (hard cap, focus tracking/tempo not load)\n4. Single-Leg RDL — 3×8/leg\n5. Calf Raises (single leg) — 3×12/leg\n6. Dead Bug — 2×8/side\n\nStop any set if knee pain or swelling shows up. Progress by reps/tempo before touching the 50 lb ceiling."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Already created and confirmed above — nothing pending. Let me know if you want adjustments or another day programmed."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Leg Day — Squat Rebuild",
+        "date": "2026-08-06",
+        "start_time": "6:30 AM",
+        "estimated_duration": 45,
+        "difficulty": 2,
+        "equipment": [
+          "barbell",
+          "bench/box",
+          "resistance band"
+        ],
+        "tags": [
+          "post-ACL",
+          "leg strength",
+          "rehab"
+        ],
+        "description": "Post-ACL (8wk) leg rebuild. Squat capped at 50 lb per surgeon. Control and symmetry over load — stop any set if knee pain/swelling.",
+        "exercises": [
+          {
+            "name": "Deep Squat Hold",
+            "sets": 2,
+            "duration": "20-30 sec",
+            "notes": "Bodyweight, warm-up — check depth/pain-free range before loading."
+          },
+          {
+            "name": "Banded Glute Bridges",
+            "sets": 2,
+            "reps": "15",
+            "notes": "Warm-up glute activation."
+          },
+          {
+            "name": "Back Squat",
+            "sets": 4,
+            "reps": "8",
+            "weight": "≤50 lb",
+            "rest_period": "90 sec",
+            "notes": "Hard cap 50 lb per surgeon. Focus tempo + even knee tracking, not load."
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 3,
+            "reps": "8 each leg",
+            "weight": "bodyweight or light dumbbell",
+            "notes": "Slow, controlled — balance/proprioception focus."
+          },
+          {
+            "name": "Calf Raises (single leg)",
+            "sets": 3,
+            "reps": "12 each leg",
+            "notes": "Support with hand if needed for balance."
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 2,
+            "reps": "8 each side",
+            "notes": "Core control, low back stays flat."
+          }
+        ]
+      },
+      "result": "Created \"Leg Day — Squat Rebuild\" on 2026-08-06 [evt-ai-1].",
+      "turn": 1
+    }
+  ],
+  "anomalies": []
+}
