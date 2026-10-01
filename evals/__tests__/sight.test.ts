@@ -319,6 +319,18 @@ describe('checkIntegrity — reads', () => {
     expect(miss.detail[0]).toContain('"get_period_stats" or "get_exercise_history"');
   });
 
+  it('resultMatches checks the shape of a result, not an exact substring', () => {
+    const real = ALL_CASES.find(x => x.id === 'planner-twelve-week-plan')!;
+    const plan: EvalCase = { ...BASE_CASE, expect: { integrity: { requireToolCall: real.expect.integrity!.requireToolCall } } };
+    const draft = (result: string): RecordedToolCall => ({ name: 'update_block_draft', input: {}, result, turn: 1, kind: 'write' });
+    const tail = '. The user reviews and presses Apply.';
+    const integrity = (r: string) => checkIntegrity(plan, harnessWith([draft(r)]));
+    expect(integrity(`Block draft updated: 4 blocks, Sep 7 – Nov 29 (base 6w · build 4w · peak 1w · taper 1w)${tail}`).status).toBe('pass');
+    expect(integrity(`Block draft updated: 5 blocks, Sep 7 – Nov 29 (base 4w · base 3w · build 3w · peak 1w · taper 1w)${tail}`).status).toBe('pass');
+    expect(integrity(`Block draft updated: 3 blocks, Sep 7 – Nov 29 (build 4w · peak 4w · taper 4w)${tail}`).status).toBe('fail');
+    expect(integrity(`Block draft updated: 4 blocks, Sep 7 – Nov 29 (base 6w · peak 1w · build 4w · taper 1w)${tail}`).status).toBe('fail');
+  });
+
   it('fixtureUnchanged fails on any mutation and passes on none', () => {
     const c: EvalCase = { ...BASE_CASE, expect: { integrity: { fixtureUnchanged: true } } };
     expect(checkIntegrity(c, harnessWith([readCall('get_schedule')])).status).toBe('pass');

@@ -213,6 +213,9 @@ export interface EvalCase {
         name: string | string[];
         inputMatches?: Record<string, unknown>;
         resultIncludes?: string;
+        /** Regex source the result must match — for a shape (an order of
+         *  phases) where an exact substring would pin a count. */
+        resultMatches?: string;
       };
       /** Fail if any of these tools were called at all. */
       forbidToolCalls?: string[];

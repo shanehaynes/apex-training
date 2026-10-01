@@ -29,13 +29,14 @@ export function checkIntegrity(evalCase: EvalCase, result: HarnessResult): Dimen
   }
 
   if (expect.requireToolCall) {
-    const { name, inputMatches, resultIncludes } = expect.requireToolCall;
+    const { name, inputMatches, resultIncludes, resultMatches } = expect.requireToolCall;
     const names = Array.isArray(name) ? name : [name];
     const label = names.map(n => `"${n}"`).join(' or ');
     const candidates = result.toolCalls.filter(c => names.includes(c.name));
     const matching = candidates.filter(c => {
       if (inputMatches && !Object.entries(inputMatches).every(([k, v]) => c.input[k] === v)) return false;
       if (resultIncludes && !c.result.includes(resultIncludes)) return false;
+      if (resultMatches && !new RegExp(resultMatches).test(c.result)) return false;
       return true;
     });
     if (!matching.length) {
@@ -43,6 +44,7 @@ export function checkIntegrity(evalCase: EvalCase, result: HarnessResult): Dimen
         label,
         inputMatches ? `with input ${JSON.stringify(inputMatches)}` : '',
         resultIncludes ? `with result containing "${resultIncludes}"` : '',
+        resultMatches ? `with result matching /${resultMatches}/` : '',
       ].filter(Boolean).join(' ');
       detail.push(`MISSING TOOL CALL: expected a ${spec}` +
         (candidates.length ? ` — ${candidates.length} call(s) of that name ran but none matched` : ''));
