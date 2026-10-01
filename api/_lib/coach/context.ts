@@ -4,12 +4,19 @@ import { fetchCompletionsInRange, fetchExpandedSchedule } from '../mcp/data.js';
 import { fetchPeriodInputs } from '../reviewData.js';
 import { loadMealsForDate } from '../trackerSession.js';
 import type { ObjectiveRow, TrainingBlockRow } from '../../../src/lib/db/types.js';
+import type { Objective, TrainingBlock } from '../../../src/types/blocks.js';
 import type { WorkoutEvent } from '../../../src/types/workout.js';
 import type { Meal } from '../../../src/types/nutrition.js';
-import { buildAnalyticsPrompt, buildBuilderPrompt, buildStablePrompt, buildVolatileContext } from '../../../src/lib/coach/prompt.js';
+import { buildAnalyticsPrompt, buildBuilderPrompt, buildPlannerPrompt, buildPlannerVolatile, buildStablePrompt, buildVolatileContext } from '../../../src/lib/coach/prompt.js';
+import { computePhysiology, describePhysiology } from '../../../src/lib/physiology/index.js';
+import { fetchPhysiologyInputs } from './physiology.js';
+import { listConfirmed, toPromptEntries } from './memory.js';
+import { readCoachContract } from '../reflection/contract.js';
+import type { MemoryPromptEntry } from '../../../src/lib/coach/memory.js';
 import type { CoachToolContext } from '../../../src/lib/coach/tools.js';
 import { describeDraft, type WorkoutDraft } from '../../../src/lib/builder/draft.js';
 import { describeChartDraft, type ChartDraft } from '../../../src/lib/analytics/draft.js';
+import { describeBlockDraft, describeExistingBlocks, describeObjectives } from '../../../src/lib/blocks/draft.js';
 import { rowToBlock, rowToObjective } from '../../../src/lib/blocks/mapping.js';
 import { blockCovering, blockPeriod } from '../../../src/lib/blocks/period.js';
 import { computeBlockProgress } from '../../../src/lib/blocks/progress.js';
@@ -26,14 +33,16 @@ import { buildBlockPromptSummary, type BlockPromptSummary } from '../../../src/l
 // `system` is the stable text (buildStablePrompt) and `volatile` the live
 // state for this turn (buildVolatileContext), which the handler injects into
 // the request without it ever entering the stored thread. Builder and
-// analytics keep a single-block prompt and return volatile ''.
+// analytics keep a single-block prompt and return volatile ''. The planner
+// (E01) is split like chat: its draft, blocks and objectives ride in
+// `volatile`, so the stable prefix survives every draft edit.
 //
 // "Today" is the client's local calendar date: the server never reads its
 // own clock for calendar logic (Vercel runs in UTC; the athlete does not).
 
 type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 
-export type ChatMode = 'chat' | 'builder' | 'analytics';
+export type ChatMode = 'chat' | 'builder' | 'analytics' | 'planner';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -41,16 +50,16 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export class ChatContextError extends Error {}
 
 export interface ChatContext {
-  /** The `system` block: stable across a user's turns (chat) or the whole prompt (builder/analytics). */
+  /** The `system` block: stable across a user's turns (chat, planner) or the whole prompt (builder/analytics). */
   system: string;
-  /** chat: this turn's live context, injected per request; '' for the other modes. */
+  /** chat, planner: this turn's live context, injected per request; '' for the other modes. */
   volatile: string;
   /** What displayLabel needs to name the things a tool call references. */
   toolContext: CoachToolContext;
 }
 
 export function isChatMode(value: unknown): value is ChatMode {
-  return value === 'chat' || value === 'builder' || value === 'analytics';
+  return value === 'chat' || value === 'builder' || value === 'analytics' || value === 'planner';
 }
 
 function parseToday(today: unknown): { iso: string; date: Date } {
@@ -103,12 +112,90 @@ async function blockSummary(
 }
 
 /**
+ * The athlete's blocks and objectives as domain objects — the planner's
+ * <existing_blocks> and <objectives>, and the overlap / objective_id context
+ * its reducer needs. Same two queries blockSummary runs. An enhancement,
+ * never a precondition: a failure degrades to a prompt that says there are
+ * none, and the reducer on Apply is not this read — the DB exclusion
+ * constraint is the real overlap guard.
+ */
+export async function fetchBlocksAndObjectives(
+  supabase: Admin,
+  userId: string,
+): Promise<{ blocks: TrainingBlock[]; objectives: Objective[] }> {
+  try {
+    const [blocksRes, objectivesRes] = await Promise.all([
+      supabase.from('training_blocks').select('*').eq('user_id', userId).order('start_date', { ascending: true }),
+      supabase.from('objectives').select('*').eq('user_id', userId).order('created_at', { ascending: true }),
+    ]);
+    if (blocksRes.error) throw new Error(blocksRes.error.message);
+    if (objectivesRes.error) throw new Error(objectivesRes.error.message);
+    return {
+      blocks: ((blocksRes.data ?? []) as TrainingBlockRow[]).map(rowToBlock),
+      objectives: ((objectivesRes.data ?? []) as ObjectiveRow[]).map(rowToObjective),
+    };
+  } catch (err) {
+    console.warn('[api/chat] blocks and objectives unavailable for the prompt:', err instanceof Error ? err.message : err);
+    return { blocks: [], objectives: [] };
+  }
+}
+
+/**
+ * The rendered <physiology> block for the live half, or '' — never a failed
+ * turn. fetchPhysiologyInputs already degrades to empty inputs with a warn;
+ * this guards the pure steps after it the same way, so a malformed row can
+ * cost the panel and nothing else.
+ */
+async function physiologyBlock(supabase: Admin, userId: string, todayIso: string): Promise<string> {
+  try {
+    return describePhysiology(computePhysiology(await fetchPhysiologyInputs(supabase, userId, todayIso)));
+  } catch (err) {
+    console.warn('[api/chat] physiology panel unavailable for the prompt:', err instanceof Error ? err.message : err);
+    return '';
+  }
+}
+
+/**
+ * The athlete's confirmed memory for the live half (lane C02), or none —
+ * never a failed turn. A missing table (the migration not yet applied) is
+ * the expected shape of that failure and costs the section and nothing else.
+ */
+async function memoryEntries(supabase: Admin, userId: string): Promise<MemoryPromptEntry[]> {
+  try {
+    return toPromptEntries(await listConfirmed(supabase, userId));
+  } catch (err) {
+    console.warn('[api/chat] athlete memory unavailable for the prompt:', err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
+/**
+ * The coaching contract for the live half (lane D01), or '' — never a
+ * failed turn. A missing column (the migration not yet applied) already
+ * reads as '' inside readCoachContract; this guards every other failure the
+ * same way, so the contract can cost its section and nothing else.
+ */
+async function coachContract(supabase: Admin, userId: string): Promise<string> {
+  try {
+    return await readCoachContract(supabase, userId);
+  } catch (err) {
+    console.warn('[api/chat] coaching contract unavailable for the prompt:', err instanceof Error ? err.message : err);
+    return '';
+  }
+}
+
+/**
  * Build the system prompt and tool-label context for one chat turn.
  *
  * chat:      live schedule (this week + a 4-week completion rate), today's
- *            meals, the exercise library, athlete profile, active block.
+ *            meals, the exercise library, athlete profile, the coaching
+ *            contract, confirmed memory, active block, the physiology panel
+ *            (zones, load, tonnage, HRV over five weeks).
  * builder:   the caller's workout draft, saved-workout titles, the library.
  * analytics: the caller's chart draft and the titles of "other sport" workouts.
+ * planner:   the caller's block draft, the athlete's blocks and objectives,
+ *            profile, contract, memory and the physiology panel — split
+ *            like chat, with all of it in the live half.
  */
 export async function buildChatContext(
   supabase: Admin,
@@ -166,15 +253,55 @@ export async function buildChatContext(
     };
   }
 
+  if (mode === 'planner') {
+    const draftObj = requireDraftObject(draft);
+    let draftText: string;
+    try {
+      draftText = describeBlockDraft(draftObj);
+    } catch {
+      throw new ChatContextError('context.draft is not a block draft');
+    }
+    // Blocks and objectives, the profile, physiology, memory and the
+    // contract in parallel — each an enhancement, none a precondition.
+    const [{ blocks, objectives }, profileRes, physiology, memories, contract] = await Promise.all([
+      fetchBlocksAndObjectives(supabase, userId),
+      supabase.from('profiles').select('coach_goal, coach_context').eq('id', userId).maybeSingle(),
+      physiologyBlock(supabase, userId, todayIso),
+      memoryEntries(supabase, userId),
+      coachContract(supabase, userId),
+    ]);
+    const profile = profileRes.error ? null : profileRes.data;
+    return {
+      system: buildPlannerPrompt(),
+      volatile: buildPlannerVolatile(
+        draftText,
+        describeExistingBlocks(blocks, objectives, today),
+        describeObjectives(objectives),
+        today,
+        { goal: profile?.coach_goal ?? undefined, context: profile?.coach_context ?? undefined },
+        contract,
+        memories,
+        physiology,
+      ),
+      toolContext: { definitions, events: [], meals: [] },
+    };
+  }
+
   // ── chat ──────────────────────────────────────────────────────────────────
   // Completion state for the window the prompt reads (this week + the four
   // before it); everything else keeps isCompleted=false like a fresh expand.
   const windowStart = format(startOfWeek(subWeeks(today, 4), { weekStartsOn: 1 }), 'yyyy-MM-dd');
   const windowEnd = format(endOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-  const [completions, todayMeals, profileRes] = await Promise.all([
+  // The contract is read on its own rather than in the profile select: its
+  // column trails in prod (readCoachContract tolerates that), and folding it
+  // into the typed select would cost the goal and context too when absent.
+  const [completions, todayMeals, profileRes, physiology, memories, contract] = await Promise.all([
     fetchCompletionsInRange(supabase, userId, windowStart, windowEnd),
     loadMealsForDate(supabase, userId, todayIso).catch((): Meal[] => []),
     supabase.from('profiles').select('coach_goal, coach_context').eq('id', userId).maybeSingle(),
+    physiologyBlock(supabase, userId, todayIso),
+    memoryEntries(supabase, userId),
+    coachContract(supabase, userId),
   ]);
   const completionById = new Map(completions.map(c => [c.event_id, c]));
   const events = occurrences.map(e => {
@@ -195,7 +322,12 @@ export async function buildChatContext(
       { goal: profile?.coach_goal ?? undefined, context: profile?.coach_context ?? undefined },
       block,
       todayMeals,
+      physiology,
+      memories,
+      contract,
     ),
-    toolContext: { definitions, events, meals: todayMeals },
+    // The contract rides in the label context so a propose_contract_edit
+    // card can show the real "before" rather than the model's copy of it.
+    toolContext: { definitions, events, meals: todayMeals, contract },
   };
 }

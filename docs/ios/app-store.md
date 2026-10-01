@@ -27,7 +27,7 @@ uploaded build. Answer **"Yes, we collect data from this app"**, then:
 "Data used to track you": **none**. `NSPrivacyTracking` is `false` and the manifest lists no
 tracking domains.
 
-Privacy policy URL (App Information): `https://apextrainingcalendar.vercel.app/privacy` — the
+Privacy policy URL (App Information): `https://apex-training.app/privacy` — the
 same page the About screen links to. Terms: `/terms`.
 
 ## 2. App Information
@@ -42,7 +42,11 @@ same page the About screen links to. Terms: `/terms`.
   place the address lives. It is `support@apex-training.app`, a forwarding alias; it ships in
   the binary and is frozen there once archived (#214). No screenshot is affected; the address is
   never drawn on screen and the set below has no sign-in shot.
-- **Marketing URL** `https://apextrainingcalendar.vercel.app`
+- **Marketing URL** `https://apex-training.app`
+- **Hostname** frozen into the archive (D-049): `APEX_API_BASE`, both associated domains and the
+  reset redirect all say `apex-training.app`. `apextrainingcalendar.vercel.app` stays a second
+  associated domain for TestFlight builds archived before the cut-over — never redirect it, and
+  keep it in the Supabase allow-list.
 - **Sign in with Apple** not required: the app offers only its own email + password, no
   third-party or social login (guideline 4.8 applies to third-party login only).
 - **Export compliance** answered in the build: `ITSAppUsesNonExemptEncryption = false`
@@ -75,8 +79,9 @@ it), so this is a second pair of eyes on the same gate, not a different one. Wha
 triggers, RLS policies, grants, constraints, defaults, column types, function signatures and
 realtime publication membership — a migration that only changes those can still be missing.
 
-Last hand-run: **2026-09-19, exit 0** — all 30 tables (344 columns) and 2 functions `main` expects
-are present in production.
+Last hand-run: **2026-09-26, exit 0** — all 33 tables (377 columns) and 2 functions `main` expects
+are present in production (phase46 and phase47 confirmed applied; the 2026-09-19 run saw 30 tables,
+344 columns).
 
 ## 3. App Review Information
 
@@ -193,6 +198,8 @@ So for **1.0**, the day-one controls are these, in the order you would reach for
    this version"** → **Save** (top right). Approval then parks the version at *Pending Developer
    Release* instead of shipping it while you are asleep. Release it with **Release This Version**
    → **Confirm** on the version page; it can take up to 24 hours to appear on the App Store.
+   The public listing is `https://apps.apple.com/app/id6808637152` (the App Store Connect app
+   id; `APEX_APP_STORE_URL` in `ios/Config/Base.xcconfig` carries it for the update screen).
 2. **Smoke the released build yourself before telling anyone.** Install from the public App
    Store listing on a device that has never had a TestFlight build, sign in, open Coach, log a
    set. The frozen config is exactly what a TestFlight build cannot prove — a Release build
@@ -213,10 +220,16 @@ Every update after 1.0 gets it, and it is free:
 > Automatic Updates** → select **"Release update over a 7-day period using phased release"** →
 > **Save**.
 
-Set it when you create the version, at *Prepare for Submission*, and treat that as the rule —
-Apple's help does list *Waiting for Review* and *In Review* among the statuses where the option
-is still available, but a submission is a bad moment to be discovering which statuses Apple
-honours. Two controls exist once it is live, on the *Ready for Distribution* version's page:
+**The rule, from 1.0.1 on: every version sets phased release the moment it is created, while
+it reads *Prepare for Submission*, before a build is attached or anything else on the page is
+filled in.** Apple's help does list *Waiting for Review* and *In Review* among the statuses
+where the option is still available, but a submission is a bad moment to be discovering which
+statuses Apple honours. The same moment is when "Manually release this version" is set (step 1
+above); the App Store Connect API reports both on the version — `releaseType` is `MANUAL`,
+not `AFTER_APPROVAL` — so a read-only `GET /v1/apps/6808637152/appStoreVersions` with the
+escrowed API key is the check that neither was forgotten.
+
+Two controls exist once it is live, on the *Ready for Distribution* version's page:
 **Pause Phased Release** (up to 30 days total, and it resumes on the day it paused) and
 **Release to All Users** (top right) when a release is proven good and you want the rest of the
 installed base on it. Note the hole in it: phased release only throttles *automatic* updates.

@@ -1,6 +1,6 @@
 #include "Base.xcconfig"
 
-APEX_API_BASE = https:$(SLASH)$(SLASH)apextrainingcalendar.vercel.app
+APEX_API_BASE = https:$(SLASH)$(SLASH)apex-training.app
 SUPABASE_URL = $(APEX_PROD_SUPABASE_URL)
 
 // The fixture folder exists for the -apexMockClient seam (DEBUG only); a

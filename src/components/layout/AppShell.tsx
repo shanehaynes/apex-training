@@ -9,8 +9,10 @@ import AddMealView from '../composer/AddMealView';
 import TrackerView from '../tracker/TrackerView';
 import LibraryView from '../library/LibraryView';
 import BlocksView from '../blocks/BlocksView';
+import WeeklyReviewView from '../review/WeeklyReviewView';
 import AnalyticsView from '../analytics/AnalyticsView';
 import ProfileView from '../profile/ProfileView';
+import NotebookView from '../notebook/NotebookView';
 import OnboardingHost from '../onboarding/OnboardingHost';
 import MobileBottomNav from './MobileBottomNav';
 import Toasts from './Toasts';
@@ -35,6 +37,14 @@ export default function AppShell() {
     }
   }, [isMobile, state.selectedView, dispatch]);
 
+  // "Ask the coach" from the workout modal or the tracker: on a phone the
+  // coach pane is the second tab, so a pinned session switches to it — the
+  // athlete would otherwise be looking at the calendar while the coach
+  // answers off screen. Desktop shows the rail already.
+  useEffect(() => {
+    if (isMobile && state.askCoach) setMobileTab('coach');
+  }, [isMobile, state.askCoach]);
+
   return (
     <div className="app-shell" data-mobile-tab={isMobile ? mobileTab : undefined}>
       <TopNav />
@@ -56,8 +66,10 @@ export default function AppShell() {
       {state.trackingSession && <TrackerView />}
       {state.libraryOpen && <LibraryView />}
       {state.blocksOpen && <BlocksView />}
+      {state.weeklyReviewOpen && <WeeklyReviewView />}
       {state.analyticsOpen && <AnalyticsView />}
       {state.profileOpen && <ProfileView />}
+      {state.notebookOpen && <NotebookView />}
       <OnboardingHost />
       <Toasts />
     </div>

@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { useModalChrome } from '../../hooks/useModalChrome';
 import { useTip } from '../../hooks/useTip';
-import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play, Pencil, Route, TrendingUp, HeartPulse, Mountain, Layers, Trash2 } from 'lucide-react';
+import { useCoachReachable } from '../../hooks/useCoachReachable';
+import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play, Pencil, Route, TrendingUp, HeartPulse, Mountain, Layers, Trash2, MessageSquare } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/calendar';
 import { useSchedule } from '../../context/schedule';
@@ -55,6 +56,9 @@ export default function WorkoutModal() {
   const isRecurring = !!event && !!(events.find(e => e.id === event.id) ?? event).isRecurring;
   useTip('workout-first-open');
   useTip('workout-recurring', isRecurring);
+
+  // Tablet widths have no coach pane and no tab to open one.
+  const coachReachable = useCoachReachable();
 
   if (!event) return null;
 
@@ -342,6 +346,22 @@ export default function WorkoutModal() {
                 : <><Circle size={15} strokeWidth={1.5} /> Mark as Complete</>
               }
             </button>
+            {/* Opens the coach with this occurrence pinned (D-C08): the
+                reducer closes the modal, ChatSidebar sends the hidden turn.
+                The live title, so a rename made here is what the coach is
+                asked about. */}
+            {coachReachable && (
+              <button
+                className="modal-completion__btn"
+                data-testid="ask-coach"
+                onClick={() => dispatch({
+                  type: 'ASK_COACH',
+                  payload: { kind: 'session', eventId: event.id, date: live.date, title: live.title, source: 'modal' },
+                })}
+              >
+                <MessageSquare size={15} strokeWidth={1.5} /> Ask the coach
+              </button>
+            )}
           </div>
 
           <div className="modal-body">

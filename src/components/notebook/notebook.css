@@ -1,0 +1,509 @@
+/* ============================================================================
+   COACH NOTEBOOK — the full-screen page (lane D02) where the athlete sees and
+   controls what the coach carries between conversations: Memory (confirmed
+   facts, proposals with Accept / Forget, an add-a-fact form), Contract (the
+   coaching contract, reflections as before/after cards), Doctrine (the
+   method, read-only). It wears the library-view shell (.library-view,
+   .library-header, .library-close from app.css) and reuses the profile's
+   section titles, hints, inputs and .btn-today; everything of its own is
+   here.
+
+   Lives outside app.css on purpose (CLAUDE.md: feature lanes never edit it),
+   like annotations.css beside the calendar. Tokens come from tokens.css.
+   Phone first: one column, full-width controls, the tabs a thumb-height
+   strip; wider screens get a reading column and a two-column diff.
+   ========================================================================== */
+
+.notebook {
+  /* Over .profile-view (130), which it opens from and returns to. */
+  z-index: 131;
+  /* The shell scrolls the whole overlay; here the body alone scrolls, so the
+     header and the tab strip stay put on a phone. */
+  overflow: hidden;
+}
+
+.notebook-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+}
+
+.notebook-tab {
+  flex: 1 1 0;
+  height: 44px;
+  padding: 0 8px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+
+.notebook-tab:hover,
+.notebook-tab:focus-visible {
+  color: var(--text-primary);
+}
+
+.notebook-tab[aria-selected="true"] {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-primary);
+}
+
+.notebook-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 20px 16px 40px;
+}
+
+.notebook-body > * {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.notebook-memory-tab,
+.notebook-contract-tab,
+.notebook-doctrine-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.notebook-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notebook-status,
+.notebook-empty {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.notebook-empty {
+  padding: 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+/* "Not available yet" and "couldn't load": one calm box, never a red one. */
+.notebook-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.notebook-banner p {
+  margin: 0;
+}
+
+.notebook-notice {
+  text-align: left;
+}
+
+.notebook-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---- Cards: a proposal (memory or contract edit) ---- */
+
+.notebook-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+/* A proposal borrows the app's orange: something is waiting on you. */
+.notebook-card--proposal {
+  border-color: rgba(232, 96, 28, 0.45);
+}
+
+.notebook-card__text {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.notebook-card__meta {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.notebook-chip {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.notebook-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.notebook-actions .btn-today {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-today.notebook-btn--primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: var(--bg-primary);
+  font-weight: 600;
+}
+
+.btn-today.notebook-btn--primary:hover:not(:disabled) {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  opacity: 0.9;
+}
+
+.btn-today.notebook-btn--primary:disabled {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+/* ---- Confirmed facts, grouped by kind ---- */
+
+.notebook-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.notebook-group__title {
+  margin: 0 0 4px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: capitalize;
+}
+
+.notebook-group .notebook-list {
+  gap: 0;
+}
+
+.notebook-memory {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.notebook-memory:last-child {
+  border-bottom: none;
+}
+
+.notebook-memory__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.notebook-memory__forget {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: -4px -6px -4px 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.notebook-memory__forget:hover,
+.notebook-memory__forget:focus-visible {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+/* ---- Forms: add a fact, the contract editor ---- */
+
+.notebook-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notebook-form__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notebook-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 auto;
+}
+
+.notebook-select {
+  width: 100%;
+  appearance: auto;
+}
+
+.notebook-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.notebook-saved {
+  font-size: var(--text-xs);
+  color: var(--positive);
+}
+
+.notebook-contract {
+  min-height: 160px;
+  font-size: var(--text-sm);
+}
+
+.notebook-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.notebook-toggle input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--positive);
+}
+
+/* ---- The before / after diff on a reflection card ---- */
+
+.notebook-diff {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.notebook-diff__block {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+}
+
+.notebook-diff__label {
+  margin-bottom: 4px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.notebook-diff__line {
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.notebook-diff__line--empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.notebook-diff__block--before .notebook-diff__line--changed {
+  background: rgba(217, 72, 59, 0.16);
+  color: var(--danger-text);
+  text-decoration: line-through;
+  text-decoration-color: rgba(233, 138, 127, 0.6);
+}
+
+.notebook-diff__block--after .notebook-diff__line--changed {
+  background: rgba(124, 154, 109, 0.2);
+  color: var(--text-primary);
+}
+
+.notebook-history {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.notebook-history > summary {
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.notebook-history__list {
+  margin-top: 8px;
+  gap: 6px;
+}
+
+.notebook-history__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* ---- Doctrine: one <details> per topic ---- */
+
+.notebook-topics {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notebook-topic {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.notebook-topic__summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.notebook-topic__summary::-webkit-details-marker {
+  display: none;
+}
+
+.notebook-topic__head {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.notebook-topic__title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.notebook-topic__blurb {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.notebook-topic[open] .notebook-topic__blurb {
+  display: none;
+}
+
+.notebook-topic__chevron {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  transition: transform var(--duration-fast) ease;
+}
+
+.notebook-topic[open] .notebook-topic__chevron {
+  transform: rotate(180deg);
+}
+
+.notebook-topic__body {
+  padding: 0 14px 14px;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.notebook-topic__heading {
+  margin: 16px 0 6px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.notebook-topic__para {
+  margin: 0 0 10px;
+}
+
+.notebook-topic__list {
+  margin: 0 0 10px;
+  padding-left: 20px;
+}
+
+.notebook-topic__list li {
+  margin-bottom: 6px;
+}
+
+/* ---- Wider than a phone: a reading column, the diff side by side ---- */
+
+@media (min-width: 640px) {
+  .notebook-body {
+    padding: 28px 24px 48px;
+  }
+
+  .notebook-diff {
+    grid-template-columns: 1fr 1fr;
+  }
+}

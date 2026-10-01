@@ -7,18 +7,27 @@ import { buildWeekDays, toDateString } from '../../utils/dateHelpers';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { useSchedule } from '../../context/schedule';
 import { useCalendar } from '../../context/calendar';
+import { useAnnotations } from '../../context/annotations';
 import { useTip } from '../../hooks/useTip';
+import AnnotationChip from './AnnotationChip';
 import type { WorkoutEvent } from '../../types/workout';
+import './annotations.css';
 
 interface Props {
   currentDate: Date;
 }
 
+// On a phone this is the whole calendar (AppShell forces the day view at
+// ≤768px), so it is where the athlete reads and dismisses coach notes: the
+// month grid's chips never render there, and the event chip's marker has no
+// dismiss of its own. Notes render whole, not cut to a pill — there is room.
 export default function DayView({ currentDate }: Props) {
   const { getEventsForDate, toggleCompletion } = useSchedule();
   const { dispatch } = useCalendar();
+  const { byDay, dismiss } = useAnnotations();
   const weekDays = useMemo(() => buildWeekDays(currentDate), [currentDate]);
   const events = useMemo(() => getEventsForDate(currentDate), [getEventsForDate, currentDate]);
+  const dayNotes = byDay(toDateString(currentDate));
   // The phone's first look at a workout card: its complete circle only
   // makes sense to explain once there is a card to point at.
   useTip('day-complete-circle', events.length > 0);
@@ -84,6 +93,15 @@ export default function DayView({ currentDate }: Props) {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
         >
+          {/* Day notes come before the cards and independently of them: a
+              rest day with a coach note shows the note above the rest-up line. */}
+          {dayNotes.length > 0 && (
+            <div className="day-view__annotations" data-testid="day-annotations">
+              {dayNotes.map(note => (
+                <AnnotationChip key={note.id} annotation={note} onDismiss={dismiss} full />
+              ))}
+            </div>
+          )}
           {events.length === 0 ? (
             <div className="day-view__empty">No workouts scheduled — rest up.</div>
           ) : (
@@ -112,10 +130,12 @@ interface CardProps {
 
 function DayEventCard({ event, onToggle, onOpen }: CardProps) {
   const color = getWorkoutColor(event.type);
+  const { byEvent, dismiss } = useAnnotations();
+  const notes = byEvent(event.id);
 
   return (
     <div
-      className={`day-event-card${event.isCompleted ? ' day-event-card--done' : ''}`}
+      className={`day-event-card${event.isCompleted ? ' day-event-card--done' : ''}${notes.length > 0 ? ' day-event-card--noted' : ''}`}
       style={{ borderLeft: `4px solid ${color.solid}` }}
     >
       {event.startTime && (
@@ -146,6 +166,17 @@ function DayEventCard({ event, onToggle, onOpen }: CardProps) {
           : <Circle size={22} strokeWidth={1.5} />
         }
       </button>
+      {/* The body above is a <button>, so the notes — each with a dismiss
+          button of its own — wrap onto a row of their own beneath it rather
+          than nesting a control inside a control. This is the one place an
+          event note can be dismissed (EventChip's marker only points here). */}
+      {notes.length > 0 && (
+        <div className="day-event-card__annotations" data-testid="event-annotations">
+          {notes.map(note => (
+            <AnnotationChip key={note.id} annotation={note} onDismiss={dismiss} full />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

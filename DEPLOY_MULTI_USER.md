@@ -22,13 +22,13 @@ throughout.
 3. Authentication → URL Configuration. **Read this twice — it is the one step
    that has actually gone wrong.** "Your production Vercel URL" is ambiguous,
    and the wrong reading breaks every invite you will ever send:
-   - **Site URL:** `https://apextrainingcalendar.vercel.app` — the public
+   - **Site URL:** `https://apex-training.app` — the public
      custom domain. **Not** `apex-training-<something>.vercel.app`. Those are
      Vercel's generated project aliases, they sit behind Deployment Protection,
      and every mailed link is built from Site URL — so an invitee clicking one
      gets Vercel's login page demanding they create a *Vercel* account, and
      never reaches Apex at all.
-   - **Redirect URLs:** `https://apextrainingcalendar.vercel.app/**`,
+   - **Redirect URLs:** `https://apex-training.app/**`,
      `http://localhost:5173/**`, and `http://localhost:*/**` (worktree dev
      ports from `dev/port.mjs`). The production domain must be here as well as
      in Site URL: anything the app passes as `redirect_to` and that is not on
@@ -36,7 +36,7 @@ throughout.
      which is how "Forgot password?" can break in production while invites
      look fine. Do not add preview domains; previews are SSO-walled by design.
    - **For the iOS app** (docs/ios/architecture.md §4), two more entries:
-     `https://apextrainingcalendar.vercel.app/auth/callback` (the app's
+     `https://apex-training.app/auth/callback` (the app's
      password-reset `redirectTo`; the `/**` glob covers it, listed so it is
      not removed by accident) and `apextraining://auth` (the app's own scheme,
      used by the invite hand-off below). A scheme is dropped as silently as a
@@ -159,6 +159,6 @@ Anthropic key instead of the shared server key.
   they were mailed. Fixing step 1.3 does not repair an email already in
   someone's inbox — delete the invited user and invite again. (The token
   itself is unspent, so appending
-  `&redirect_to=https://apextrainingcalendar.vercel.app` to the
+  `&redirect_to=https://apex-training.app` to the
   `…/auth/v1/verify?token=…` URL also works, once the allow-list is right.)
 - Delete this file once the rollout is done.

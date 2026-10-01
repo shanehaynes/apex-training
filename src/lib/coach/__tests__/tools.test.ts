@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { COACH_TOOLS, findCoachTool } from '../tools';
+import {
+  COACH_TOOLS, findCoachTool, isServerSideTool, READ_DOCTRINE_TOOL, SERVER_SIDE_READ_TOOL_NAMES, serverSideToolChip,
+} from '../tools';
 import { coachToolSchemas } from '../schemas';
+import { COACH_READ_TOOLS } from '../../../../api/_lib/coach/readTools';
+import { readDoctrineToolSchema } from '../doctrine';
 import type { CoachToolDeps } from '../tools';
 import type { ExerciseDefinition } from '../../../types/workout';
 import type { Meal } from '../../../types/nutrition';
@@ -58,12 +62,83 @@ function makeDeps(overrides: Partial<CoachToolDeps> = {}): CoachToolDeps {
   };
 }
 
+describe('server-side tools — the hand-mirrored name list', () => {
+  it('matches COACH_READ_TOOLS and read_doctrine exactly, in order', () => {
+    // The client cannot import the read tools' module (it is the MCP tool
+    // implementations), so tools.ts mirrors the names by hand; this is the
+    // test that keeps the mirror honest. A read tool added in readTools.ts
+    // without a line here would be offered to the model and then treated
+    // as a confirm-card tool.
+    expect([...SERVER_SIDE_READ_TOOL_NAMES]).toEqual(COACH_READ_TOOLS.map(t => t.name));
+    expect(READ_DOCTRINE_TOOL).toBe(readDoctrineToolSchema.name);
+  });
+
+  it('isServerSideTool is true for every read tool and read_doctrine, false for every write tool', () => {
+    for (const name of SERVER_SIDE_READ_TOOL_NAMES) expect(isServerSideTool(name)).toBe(true);
+    expect(isServerSideTool('read_doctrine')).toBe(true);
+    for (const schema of coachToolSchemas()) expect(isServerSideTool(schema.name)).toBe(false);
+    expect(isServerSideTool('nope')).toBe(false);
+  });
+
+  it('isServerSideTool decides the memory tool by its INPUT: view is a read, everything else a confirm card', () => {
+    expect(isServerSideTool('memory', { command: 'view', path: '/memories' })).toBe(true);
+    expect(isServerSideTool('memory', { command: 'view', path: '/memories/injuries.md' })).toBe(true);
+    for (const command of ['create', 'str_replace', 'insert', 'delete', 'rename']) {
+      expect(isServerSideTool('memory', { command, path: '/memories/notes.md' }), command).toBe(false);
+    }
+    // No input, or a malformed one, is a write: nothing runs without the click.
+    expect(isServerSideTool('memory')).toBe(false);
+    expect(isServerSideTool('memory', undefined)).toBe(false);
+    expect(isServerSideTool('memory', {})).toBe(false);
+    expect(isServerSideTool('memory', 'view')).toBe(false);
+    // The input changes nothing for the name-decided tools.
+    expect(isServerSideTool('get_prs', { command: 'create' })).toBe(true);
+    expect(isServerSideTool('delete_event', { command: 'view' })).toBe(false);
+  });
+
+  it('serverSideToolChip names the memory file on a reloaded thread', () => {
+    expect(serverSideToolChip('memory', { command: 'view', path: '/memories/goals.md' })).toBe('Checked: memory (goals)');
+    expect(serverSideToolChip('memory', { command: 'view', path: '/memories' })).toBe('Checked: memory');
+    expect(serverSideToolChip('memory', undefined)).toBe('Checked: memory');
+  });
+
+  it('serverSideToolChip names the tool for a reloaded thread, and never throws', () => {
+    expect(serverSideToolChip('get_exercise_history', { exercise_name: 'Deadlift' })).toBe('Checked: exercise history');
+    expect(serverSideToolChip('search_history', { query: 'knee' })).toBe('Searched: history');
+    expect(serverSideToolChip('read_doctrine', { topic: 'strength' })).toBe('Read doctrine: strength');
+    expect(serverSideToolChip('read_doctrine', null)).toBe('Read doctrine');
+    expect(serverSideToolChip('get_prs', undefined)).toBe('Checked: prs');
+  });
+});
+
 describe('coach tool registry', () => {
   it('exposes each tool exactly once, findable by schema name', () => {
     const names = coachToolSchemas().map(s => s.name);
-    expect(names).toEqual(['delete_event', 'create_event', 'update_event', 'set_event_exercises', 'update_exercise_definition', 'log_meal', 'update_meal', 'delete_meal']);
+    expect(names).toEqual([
+      'delete_event', 'create_event', 'update_event', 'set_event_exercises',
+      'create_exercise_definition', 'update_exercise_definition',
+      'log_meal', 'update_meal', 'delete_meal', 'propose_contract_edit', 'leave_note',
+    ]);
     for (const name of names) expect(findCoachTool(name)?.schema.name).toBe(name);
     expect(findCoachTool('nope')).toBeUndefined();
+    // The memory tool is in the registry (its writes are confirm cards) but
+    // not in coachToolSchemas: api/chat.ts places the typed tool last.
+    expect(findCoachTool('memory')?.schema).toEqual({ type: 'memory_20250818', name: 'memory' });
+    expect(names).not.toContain('memory');
+    expect(COACH_TOOLS).toHaveLength(names.length + 1);
+  });
+
+  it('memory: labels a write from the command and executes through deps.applyMemoryCommand', async () => {
+    const tool = findCoachTool('memory')!;
+    const input = { command: 'create', path: '/memories/goals.md', file_text: 'Rainier June 2027' };
+    expect(tool.displayLabel(input)).toBe('Remember: Rainier June 2027');
+    expect(tool.displayLabel({ command: 'delete', path: '/memories/notes.md' })).toBe('Forget: every notes memory');
+    expect(tool.displayLabel({})).toBe('Update memory: malformed command');
+    const applyMemoryCommand = vi.fn(async () => 'Remembered 1 fact.');
+    expect(await tool.execute(input, makeDeps({ applyMemoryCommand }))).toBe('Remembered 1 fact.');
+    expect(applyMemoryCommand).toHaveBeenCalledWith(input);
+    // Deps without a memory backend (the eval harness) answer, never throw.
+    expect(await tool.execute(input, makeDeps())).toMatch(/not available/);
   });
 
   it('every tool has a label and executor colocated with its schema', () => {
@@ -289,6 +364,73 @@ describe('coach tool registry', () => {
     expect(badField).toContain('set_event_exercises');
   });
 
+  it('create_exercise_definition adds a standalone library entry with its cues and defaults', async () => {
+    const deps = makeDeps({ createDefinition: vi.fn(async () => ({ id: 'one-arm-aussie-pull-up' })) });
+    const result = await findCoachTool('create_exercise_definition')!.execute({
+      canonical_name: '  One-Arm   Aussie Pull-Up ',
+      category: 'strength',
+      aliases: ['One-Arm Inverted Row', 'one-arm aussie pull-up'],
+      muscle_groups: ['lats', 'biceps'],
+      equipment: ['rings'],
+      technique_notes: 'Feet wide, body rigid; free hand on hip.',
+      default_sets: 3,
+      default_reps: '5 each arm',
+    }, deps);
+    expect(deps.createDefinition).toHaveBeenCalledWith({
+      canonicalName: 'One-Arm Aussie Pull-Up',
+      category: 'strength',
+      // The alias that only restates the name is dropped.
+      aliases: ['One-Arm Inverted Row'],
+      muscleGroups: ['lats', 'biceps'],
+      equipment: ['rings'],
+      techniqueNotes: 'Feet wide, body rigid; free hand on hip.',
+      // Inferred from the per-side count when the model does not say.
+      isUnilateral: true,
+      defaultSets: 3,
+      defaultReps: '5 each arm',
+      defaultDuration: undefined,
+      defaultWeight: undefined,
+      defaultRest: undefined,
+    });
+    expect(result).toContain('Added "One-Arm Aussie Pull-Up" (strength, unilateral)');
+  });
+
+  it('create_exercise_definition refuses duplicates, variant spellings and colliding aliases', async () => {
+    const deps = makeDeps();
+    const tool = findCoachTool('create_exercise_definition')!;
+    // By alias, and by a spelling that only differs in punctuation.
+    expect(await tool.execute({ canonical_name: 'pistol squats', category: 'skill' }, deps))
+      .toContain('already in the exercise library as "Pistol Squat"');
+    expect(await tool.execute({ canonical_name: 'Weighted-Dip', category: 'strength' }, deps))
+      .toContain('as "Weighted Dip"');
+    expect(await tool.execute({ canonical_name: 'Ring Dip', category: 'strength', aliases: ['Weighted Dip'] }, deps))
+      .toContain('already names "Weighted Dip"');
+    expect(deps.createDefinition).not.toHaveBeenCalled();
+  });
+
+  it('create_exercise_definition refuses an archived match, bad input and unilateral counts without a side', async () => {
+    const archived = makeDefinition({ id: 'l-sit', canonicalName: 'L-Sit', archivedAt: '2026-01-01T00:00:00Z' });
+    const deps = makeDeps({ definitions: new Map([[archived.id, archived]]) });
+    const tool = findCoachTool('create_exercise_definition')!;
+    expect(await tool.execute({ canonical_name: 'L Sit', category: 'skill' }, deps)).toContain('archived');
+    expect(await tool.execute({ canonical_name: ' ', category: 'skill' }, deps)).toContain('canonical_name is required');
+    expect(await tool.execute({ canonical_name: 'x'.repeat(81), category: 'skill' }, deps)).toContain('keep it to 80');
+    expect(await tool.execute({ canonical_name: 'Front Lever', category: 'gymnastics' }, deps)).toContain('category must be one of');
+    expect(await tool.execute(
+      { canonical_name: 'Archer Push-Up', category: 'strength', is_unilateral: true, default_reps: '6' }, deps,
+    )).toContain('per-side counts');
+    expect(deps.createDefinition).not.toHaveBeenCalled();
+  });
+
+  it('create_exercise_definition labels the new entry and flags a collision', () => {
+    const ctx = { definitions: makeDeps().definitions, events: [], meals: [] };
+    const tool = findCoachTool('create_exercise_definition')!;
+    expect(tool.displayLabel({ canonical_name: 'One-Arm Aussie Pull-Up', category: 'strength' }, ctx))
+      .toBe('New exercise: One-Arm Aussie Pull-Up (strength)');
+    expect(tool.displayLabel({ canonical_name: 'Pistol squats', category: 'skill' }, ctx))
+      .toBe('New exercise: Pistol squats (skill) — already in the library as "Pistol Squat"');
+  });
+
   it('labels flag new library entries and blast radius when given context', () => {
     const ctx = {
       definitions: makeDeps().definitions,
@@ -473,5 +615,85 @@ describe('meal tools', () => {
       { meal_id: 'meal-404', meal_title: 'Chicken burrito' },
       ctx,
     )).toBe('Delete meal: (no matching entry for id "meal-404")');
+  });
+});
+
+describe('propose_contract_edit (lane D01)', () => {
+  const tool = findCoachTool('propose_contract_edit')!;
+  const before = 'Push me on volume.';
+  const after = 'Push me on volume.\n\nLeave nutrition alone unless I ask.';
+
+  it('labels from the stored contract when the context carries it, else from the model\'s copy', () => {
+    const ctx = { definitions: new Map(), events: [], meals: [], contract: before };
+    expect(tool.displayLabel({ before: 'stale copy', after }, ctx))
+      .toBe('Edit coaching contract: Push me on volume. → Push me on volume. Leave nutrition alone…');
+    expect(tool.displayLabel({ before, after })).toMatch(/^Edit coaching contract: Push me on volume\. → /);
+    expect(tool.displayLabel({ before: '', after: 'Be blunt.' })).toBe('Set coaching contract: Be blunt.');
+    expect(tool.displayLabel({ before, after: '  Push me on\nvolume.  ' })).toBe('Contract edit: no change');
+    expect(tool.displayLabel({})).toBe('Contract edit: (empty proposal)');
+    expect(tool.displayLabel({ before, after: '<b>x</b>' })).not.toContain('<');
+  });
+
+  it('executes through deps.applyContractEdit with the normalized before/after, and reports the outcome', async () => {
+    const applyContractEdit = vi.fn(async () => ({ ok: true as const, contract: after }));
+    expect(await tool.execute({ before: `${before}  `, after: `${after}\n\n\n`, reason: 'asked' }, makeDeps({ applyContractEdit })))
+      .toBe('Coaching contract updated. It applies from the next turn.');
+    expect(applyContractEdit).toHaveBeenCalledWith(before, after);
+
+    const refused = vi.fn(async () => ({ ok: false as const, reason: 'The contract changed since this proposal was made.' }));
+    expect(await tool.execute({ before, after }, makeDeps({ applyContractEdit: refused }))).toMatch(/changed since/);
+
+    const same = vi.fn(async () => ({ ok: true as const, contract: before }));
+    expect(await tool.execute({ before, after: before }, makeDeps({ applyContractEdit: same }))).toMatch(/already read that way/);
+  });
+
+  it('refuses an empty or over-long proposal before touching the backend, and answers without one', async () => {
+    const applyContractEdit = vi.fn(async () => ({ ok: true as const, contract: '' }));
+    expect(await tool.execute({ before, after: '   ' }, makeDeps({ applyContractEdit }))).toMatch(/Nothing to propose/);
+    expect(await tool.execute({ before, after: 'x'.repeat(2001) }, makeDeps({ applyContractEdit }))).toMatch(/2000 characters or fewer/);
+    expect(applyContractEdit).not.toHaveBeenCalled();
+    expect(await tool.execute({ before, after }, makeDeps())).toMatch(/not available here/);
+  });
+});
+
+describe('leave_note (lane D01)', () => {
+  const tool = findCoachTool('leave_note')!;
+  const legDay = { id: 'evt-9', title: 'Leg day', date: '2026-09-04', type: 'weights', estimatedDuration: 60, isCompleted: false, isRecurring: false, exercises: [], tags: [], description: '', difficulty: 3 } as never;
+  const ctx = { definitions: new Map(), events: [legDay], meals: [] };
+
+  it('labels the target from the live context — an event by its row, a day by its date — and the body cut', () => {
+    expect(tool.displayLabel({ target_kind: 'event', target_id: 'evt-9', body: 'Back off the squat volume here.', severity: 'caution' }, ctx))
+      .toBe('Leave note (caution): Leg day · 2026-09-04 — Back off the squat volume here.');
+    expect(tool.displayLabel({ target_kind: 'event', target_id: 'evt-404', target_label: 'Leg day', body: 'x' }, ctx))
+      .toBe('Leave note: (no matching entry for id "evt-404") — x');
+    expect(tool.displayLabel({ target_kind: 'event', target_id: 'evt-404', target_label: 'Leg day', body: 'x' }))
+      .toBe('Leave note: Leg day — x');
+    expect(tool.displayLabel({ target_kind: 'day', target_id: '2026-09-08', body: 'Deload this week — load ratio 1.4.' }, ctx))
+      .toBe('Leave note: 2026-09-08 — Deload this week — load ratio 1.4.');
+    expect(tool.displayLabel({ target_kind: 'block', target_id: '99999999-8888-4777-8666-555555555555', target_label: 'Base block', body: 'x', severity: 'alert' }, ctx))
+      .toBe('Leave note (alert): Base block — x');
+    expect(tool.displayLabel({ body: '<script>' })).toBe('Leave note: unknown target — script>');
+  });
+
+  it('validates like the HTTP handler and inserts through deps.createAnnotation with created_by left to the server', async () => {
+    const createAnnotation = vi.fn(async () => ({ id: 'note-1' }));
+    const deps = makeDeps({ createAnnotation });
+    expect(await tool.execute({ target_kind: 'event', target_id: 'evt-9', body: '  Back off.  ', severity: 'caution' }, deps))
+      .toBe('Left a caution note on event evt-9 [note-1]: "Back off."');
+    expect(createAnnotation).toHaveBeenCalledWith({ target_kind: 'event', target_id: 'evt-9', body: 'Back off.', severity: 'caution' });
+    expect(await tool.execute({ target_kind: 'day', target_id: '2026-09-08', body: 'x' }, deps)).toMatch(/Left a info note on day 2026-09-08/);
+    expect(createAnnotation).toHaveBeenLastCalledWith(expect.objectContaining({ severity: 'info' }));
+
+    expect(await tool.execute({ target_kind: 'week', target_id: 'x', body: 'x' }, deps)).toMatch(/target_kind must be/);
+    expect(await tool.execute({ target_kind: 'day', target_id: '2026-13-40', body: 'x' }, deps)).toMatch(/YYYY-MM-DD/);
+    expect(await tool.execute({ target_kind: 'block', target_id: 'not-a-uuid', body: 'x' }, deps)).toMatch(/uuid/);
+    expect(await tool.execute({ target_kind: 'day', target_id: '2026-09-08', body: '   ' }, deps)).toMatch(/must not be empty/);
+    expect(await tool.execute({ target_kind: 'day', target_id: '2026-09-08', body: 'x'.repeat(401) }, deps)).toMatch(/at most 400/);
+    expect(await tool.execute({ target_kind: 'day', target_id: '2026-09-08', body: 'x', severity: 'loud' }, deps)).toMatch(/severity must be/);
+    expect(createAnnotation).toHaveBeenCalledTimes(2);
+
+    const failing = vi.fn(async () => null);
+    expect(await tool.execute({ target_kind: 'day', target_id: '2026-09-08', body: 'x' }, makeDeps({ createAnnotation: failing }))).toBe('Failed to leave the note.');
+    expect(await tool.execute({ target_kind: 'day', target_id: '2026-09-08', body: 'x' }, makeDeps())).toMatch(/not available here/);
   });
 });

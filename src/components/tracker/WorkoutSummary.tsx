@@ -1,4 +1,4 @@
-import { CheckCircle2, Trophy, X } from 'lucide-react';
+import { CheckCircle2, MessageSquare, Trophy, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { WorkoutEvent } from '../../types/workout';
 import type { TrackedSectionGroup, TrackedSet, CardioActuals } from '../../lib/tracking/plan';
@@ -6,6 +6,7 @@ import { describeRecordForPeople, describeWorkoutScore, formatScore } from '../.
 import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from '../../lib/tracking/records';
 import type { CoachStatus } from '../../hooks/useWorkoutSession';
 import { useTip } from '../../hooks/useTip';
+import { useCoachReachable } from '../../hooks/useCoachReachable';
 
 interface Props {
   event: WorkoutEvent;
@@ -23,6 +24,8 @@ interface Props {
   onClose: () => void;
   /** Primary action — leave the tracker and return to the calendar. */
   onDone: () => void;
+  /** Leave the tracker and open the coach with this session pinned (D-C08). */
+  onAskCoach: () => void;
 }
 
 function formatDuration(seconds: number | null): string | null {
@@ -60,11 +63,14 @@ export default function WorkoutSummary({
   coachStatus,
   onClose,
   onDone,
+  onAskCoach,
 }: Props) {
   const duration = formatDuration(durationSeconds);
   // First sight of the summary: what the trophies mean, and why a first try
   // at a movement never earns one.
   useTip('summary-first');
+  // Tablet widths have no coach pane and no tab to open one: no ask there.
+  const coachReachable = useCoachReachable();
 
   return (
     <div className="tracker-summary-overlay" role="dialog" aria-modal="true" aria-label="Workout summary">
@@ -87,10 +93,17 @@ export default function WorkoutSummary({
 
         <div className="tracker-summary__coach">
           <span className="tracker-summary__label">Coach's Summary</span>
+          {/* 'loading' lasts until the stream ends — which is when the
+              server has saved the summary — so the words stream in under
+              that status, and the placeholder shows only before the first. */}
           {coachStatus === 'loading' && (
-            <p className="tracker-summary__coach-text tracker-summary__coach-text--loading">
-              Your coach is writing…
-            </p>
+            coachText
+              ? <p className="tracker-summary__coach-text">{coachText}</p>
+              : (
+                <p className="tracker-summary__coach-text tracker-summary__coach-text--loading">
+                  Your coach is writing…
+                </p>
+              )
           )}
           {coachStatus === 'ready' && coachText && (
             <p className="tracker-summary__coach-text">{coachText}</p>
@@ -152,10 +165,33 @@ export default function WorkoutSummary({
           ))}
         </div>
 
-        <div className="tracker-summary__footer">
+        {/* Two buttons in a footer the stylesheet lays out for one; the
+            column is inline so this lane carries no app.css edit. The ask
+            is the secondary: outlined in the accent, under the primary. */}
+        <div className="tracker-summary__footer" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button className="tracker-summary__done" style={{ background: accentColor }} onClick={onDone}>
             Back to calendar
           </button>
+          {/* Held while the coach's summary is still streaming: the ask
+              promises the coach that session's own summary, and the server
+              saves it only when the stream ends — an earlier ask would read
+              a session without one. */}
+          {coachReachable && (
+            <button
+              className="tracker-summary__done"
+              data-testid="ask-coach-summary"
+              style={{
+                background: 'transparent', color: accentColor, border: `1px solid ${accentColor}`,
+                ...(coachStatus === 'loading' ? { opacity: 0.5, cursor: 'default' } : {}),
+              }}
+              disabled={coachStatus === 'loading'}
+              title={coachStatus === 'loading' ? "Available once the coach's summary is saved" : undefined}
+              onClick={onAskCoach}
+            >
+              <MessageSquare size={14} strokeWidth={1.5} style={{ verticalAlign: '-2px', marginRight: 6 }} />
+              Ask the coach about this session
+            </button>
+          )}
         </div>
       </div>
     </div>

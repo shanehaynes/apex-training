@@ -211,6 +211,19 @@ export type BlockMutationLogRow = LogRow<'block_mutations_log', {
   resource: 'block' | 'objective';
 }>;
 
+// ─── Coach memory (lane C02) ─────────────────────────────────────────────────
+
+/** Service-role only (RLS with no policies). One confirmed fact per row;
+ *  kind is the closed set the CHECK enforces and the five /memories files
+ *  mirror (src/lib/coach/memory.ts). confirmed_at null = proposed, not in
+ *  the prompt; superseded_by / archived_at set = no longer rendered. The
+ *  block in database.types.ts is hand-written until the stack regenerates it. */
+export type CoachMemoryRow = Row<'coach_memory', {
+  user_id?: string;
+  kind: 'injury' | 'preference' | 'goal' | 'history' | 'note';
+  source_kind: 'chat' | 'reflection' | 'user' | null;
+}>;
+
 // ─── Provider sync (phase 27) ────────────────────────────────────────────────
 // COROS today; provider strings widen for Garmin/Apple later.
 
@@ -251,6 +264,30 @@ export type ActivityStreamsRow = Row<'activity_streams', {
   summary: Record<string, unknown>;
   /** Series, downsampled to ≤ ~2000 points each: { hr: [[sec,bpm]…], gps: [[sec,lat,lon,ele]…] }. */
   streams: Record<string, unknown> | null;
+}>;
+
+// ─── Coach annotations ───────────────────────────────────────────────────────
+// One note the coach pinned to a day, an event occurrence or a block
+// (phase49). Server-only: RLS with no policies, read and written through
+// /api/coach-annotations. The literal unions mirror the table's check
+// constraints; the same values live in src/lib/coach/annotations.ts, which is
+// what the handler validates against.
+export type CoachAnnotationRow = Row<'coach_annotations', {
+  target_kind: 'day' | 'event' | 'block';
+  severity: 'info' | 'caution' | 'alert';
+  created_by: 'coach' | 'reflection' | 'user';
+}>;
+
+// ─── Coach reflections ───────────────────────────────────────────────────────
+// One nightly reflection over one (user, day) (lane D01): the state machine
+// the cron drives, the contract edit it proposed, and the ids of the
+// coach_memory proposals it inserted. Server-only: RLS with no policies,
+// read and resolved through /api/coach-reflections. The literal unions mirror
+// the table's check constraints; the block in database.types.ts is
+// hand-written until the stack regenerates it.
+export type CoachReflectionRow = Row<'coach_reflections', {
+  status: 'pending' | 'submitted' | 'done' | 'failed' | 'resolved';
+  resolution: 'accepted' | 'rejected' | null;
 }>;
 
 /** Bridge for storing plain-data interfaces in jsonb columns. Interfaces have

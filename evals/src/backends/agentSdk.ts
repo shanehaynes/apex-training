@@ -1,8 +1,10 @@
 import { createSdkMcpServer, query, tool } from '@anthropic-ai/claude-agent-sdk';
 import type { Options, SDKMessage, SdkMcpToolDefinition } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
-import { analyticsToolSchemas, builderToolSchemas, coachToolSchemas } from '../../../src/lib/coach/schemas';
+import { analyticsToolSchemas, builderToolSchemas } from '../../../src/lib/coach/schemas';
 import { COACH_MODELS } from '../../../src/lib/coach/models';
+import { isServerSideTool } from '../../../src/lib/coach/tools';
+import { chatToolSchemas, plannerChatToolSchemas } from '../reads';
 import type {
   ApiMessage,
   Backend,
@@ -55,10 +57,14 @@ export function zodShapeFromJsonSchema(inputSchema: unknown): z.ZodRawShape {
   return converted.shape;
 }
 
-function schemasFor(toolMode?: 'builder' | 'analytics') {
+/** The production list per mode: chat carries the read tools and
+ *  read_doctrine after the write tools (api/chat.ts → chatToolSchemas); the
+ *  planner its one write, then the same reads (plannerChatToolSchemas). */
+export function schemasFor(toolMode?: 'builder' | 'analytics' | 'planner') {
   if (toolMode === 'builder') return builderToolSchemas();
   if (toolMode === 'analytics') return analyticsToolSchemas();
-  return coachToolSchemas();
+  if (toolMode === 'planner') return plannerChatToolSchemas();
+  return chatToolSchemas();
 }
 
 type SdkUsage = {
@@ -129,8 +135,14 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
   if (opts.oauthToken) childEnv.CLAUDE_CODE_OAUTH_TOKEN = opts.oauthToken;
 
   const runTurn = async (req: TurnRequest): Promise<TurnOutcome> => {
-    const { userText, transcript, buildSystem, executeTool, toolMode, turnIndex, session, anomaly } = req;
+    const { userText, transcript, buildSystem, executeTool, executeRead, toolMode, turnIndex, session, anomaly } = req;
 
+    // The SDK runs the sight loop itself: a read tool is an MCP tool like any
+    // other, whose handler is the fixture executor. Its result is TEXT only —
+    // an MCP CallToolResult carries text, image and resource blocks, not the
+    // Anthropic `document` block production hands the model for a doctrine
+    // topic — so read_doctrine here returns the topic text uncited. That is
+    // difference 8 in evals/README.md ("Backends").
     const sdkTools = schemasFor(toolMode).map(schema =>
       tool(
         schema.name,
@@ -138,6 +150,10 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
         zodShapeFromJsonSchema(schema.input_schema),
         async (args: unknown) => {
           const input = (args ?? {}) as Record<string, unknown>;
+          if (executeRead && isServerSideTool(schema.name)) {
+            const outcome = await executeRead(schema.name, input);
+            return { content: [{ type: 'text' as const, text: outcome.text }], ...(outcome.isError ? { isError: true } : {}) };
+          }
           let resultText: string;
           try {
             resultText = await executeTool(schema.name, input);
@@ -163,6 +179,9 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
     // call's result to another call.
     const toolUseById = new Map<string, ToolUseBlock>();
     const settled = new Set<string>();
+    // One tool_result batch per model response: the SDK runs one round of
+    // tools, hands the results back, and the model answers again.
+    let round = 0;
     let stopReason: string | null = null;
     let usage = { inputTokens: 0, outputTokens: 0 };
     let sessionId = session?.id;
@@ -187,7 +206,8 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
         const resultText = textOfToolResult(block.content);
         const toolUse = toolUseById.get(id);
         if (toolUse) {
-          toolCalls.push({ name: toolUse.name, input: toolUse.input, resultText });
+          const kind = executeRead && isServerSideTool(toolUse.name) ? 'read' : 'write';
+          toolCalls.push({ name: toolUse.name, input: toolUse.input, resultText, kind, round });
           settled.add(id);
         } else {
           anomaly(`sdkToolResultUnmatched:${id} (turn ${turnIndex})`);
@@ -195,6 +215,7 @@ export function makeAgentSdkBackend(opts: AgentSdkBackendOptions): Backend {
         return { type: 'tool_result' as const, tool_use_id: id, content: resultText };
       });
       transcript.push({ role: 'user', content: results } as ApiMessage);
+      round += 1;
     };
 
     const options: Options = {

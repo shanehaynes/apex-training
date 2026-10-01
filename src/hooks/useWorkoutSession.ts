@@ -333,8 +333,11 @@ export function useWorkoutSession(
   // reopening the finished session shows the same summary for free.
   const generateSummary = () => {
     if (!event) return;
+    // Partials keep 'loading': the status turns 'ready' only when the stream
+    // ends, which is when the server has saved coach_summary — the summary's
+    // "Ask the coach" waits on that, since the ask reads the saved row.
     generateCoachSummary(event.id, event.date, partial => {
-      setSummary(prev => prev && { ...prev, coachText: partial, coachStatus: 'ready' });
+      setSummary(prev => prev && { ...prev, coachText: partial });
     })
       .then(text => {
         setSummary(prev => prev && { ...prev, coachText: text, coachStatus: 'ready' });

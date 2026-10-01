@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useModalChrome } from '../../hooks/useModalChrome';
-import { X, Check, Copy, LogOut } from 'lucide-react';
+import { X, Check, Copy, LogOut, NotebookPen } from 'lucide-react';
 import { useCalendar } from '../../context/calendar';
 import { useAuth } from '../../context/auth';
 import { AVATARS, AVATAR_KEYS } from '../../lib/profile/avatars';
@@ -362,6 +362,20 @@ export default function ProfileView() {
                 placeholder={contextPlaceholder}
               />
             </label>
+            {/* The notebook (lane D02): what the coach remembers, the contract
+                it works to and the method it prescribes from — every
+                proposal it makes is approved there. */}
+            <div className="profile-feed">
+              <button
+                type="button"
+                className="btn-today"
+                data-testid="open-notebook"
+                onClick={() => dispatch({ type: 'OPEN_NOTEBOOK' })}
+              >
+                <NotebookPen size={14} strokeWidth={1.5} /> Open the notebook
+              </button>
+              <span className="profile-hint">What the coach remembers, and what it proposes.</span>
+            </div>
           </section>
 
           {/* Set once at signup and then forgotten — but opened for you when

@@ -154,6 +154,35 @@ export const updateExerciseDefinitionSchema: Anthropic.Tool = {
   },
 };
 
+export const createExerciseDefinitionSchema: Anthropic.Tool = {
+  name: 'create_exercise_definition',
+  description:
+    'Add a genuinely new movement to the exercise library (e.g. a progression the athlete has ' +
+    'not done before, like a one-arm Aussie pull-up), without scheduling it. Check the EXERCISE ' +
+    'LIBRARY first — a variant spelling of an existing entry is refused; edit that entry with ' +
+    'update_exercise_definition instead. Unilateral movements state default reps/duration per ' +
+    'side ("6 each arm"). Once created, reference it by its exact name in create_event or ' +
+    'set_event_exercises.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      canonical_name:   { type: 'string', description: 'The name as it should appear everywhere, e.g. "One-Arm Aussie Pull-Up". At most 80 characters.' },
+      category:         { type: 'string', enum: ['strength', 'stretch', 'cardio', 'skill', 'mobility', 'climbing'] },
+      aliases:          { type: 'array', items: { type: 'string' }, description: 'Other names the athlete uses for it ("One-Arm Inverted Row"). Must not name an existing entry.' },
+      muscle_groups:    { type: 'array', items: { type: 'string' } },
+      equipment:        { type: 'array', items: { type: 'string' } },
+      technique_notes:  { type: 'string', description: 'Setup, form cues, regressions/progressions.' },
+      is_unilateral:    { type: 'boolean' },
+      default_sets:     { type: 'number' },
+      default_reps:     { type: 'string' },
+      default_duration: { type: 'string' },
+      default_weight:   { type: 'string' },
+      default_rest:     { type: 'string' },
+    },
+    required: ['canonical_name', 'category'],
+  },
+};
+
 export const updateEventSchema: Anthropic.Tool = {
   name: 'update_event',
   description:
@@ -250,17 +279,81 @@ export const deleteMealSchema: Anthropic.Tool = {
   },
 };
 
-/** Schemas in registry order (must match COACH_TOOLS in tools.ts). */
+// ─── Contract and notes (lane D01) ───────────────────────────────────────────
+
+export const proposeContractEditSchema: Anthropic.Tool = {
+  name: 'propose_contract_edit',
+  description:
+    'Propose a change to the coaching_contract — the athlete\'s own text on how they want to be ' +
+    'coached. The athlete sees before and after on a card and confirms; nothing changes until ' +
+    'they do. Send the WHOLE new text in `after` (it replaces the contract), and copy the current ' +
+    'contract verbatim into `before` — the edit is refused if the contract changed since you ' +
+    'read it. Use it when the athlete asks to be coached differently, or when their pattern shows ' +
+    'the contract no longer fits; never rewrite the contract in prose.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      before: { type: 'string', description: 'The current contract, copied verbatim from coaching_contract ("" when there is none).' },
+      after: { type: 'string', description: 'The complete proposed contract, at most 2000 characters.' },
+      reason: { type: 'string', description: 'One or two sentences on why — shown on the card.' },
+    },
+    required: ['before', 'after', 'reason'],
+  },
+};
+
+export const leaveNoteSchema: Anthropic.Tool = {
+  name: 'leave_note',
+  description:
+    'Pin a short note where it refers: on a calendar day, on one workout event (its bracketed ' +
+    'id; for a recurring instance the occurrence id with "__"), or on a training block. It shows ' +
+    'as a chip there until the athlete dismisses it. Use it for a remark tied to a specific ' +
+    'day, session or block — "deload this week, load ratio 1.4", "back off the squat volume ' +
+    'here" — not for the reply itself. The athlete confirms the card before it lands.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      target_kind: { type: 'string', enum: ['day', 'event', 'block'] },
+      target_id: {
+        type: 'string',
+        description: 'YYYY-MM-DD for a day; the event id from [brackets] for an event; the block uuid for a block.',
+      },
+      body: { type: 'string', description: 'The note, at most 400 characters — a chip, not a briefing.' },
+      severity: {
+        type: 'string',
+        enum: ['info', 'caution', 'alert'],
+        description: 'info: a remark (default). caution: something to watch. alert: act on it before the session.',
+      },
+      target_label: {
+        type: 'string',
+        description: 'Human-readable target ("Thu Oct 1 — Long Run", "Base block") — shown on the confirmation card.',
+      },
+    },
+    required: ['target_kind', 'target_id', 'body'],
+  },
+};
+
+/**
+ * The eleven WRITE tools in registry order (must match COACH_TOOLS in
+ * tools.ts) — the confirm-card tools, and everything this client-safe module
+ * can name. The chat request carries more: api/chat.ts appends the read
+ * tools (api/_lib/coach/readTools.ts), read_doctrine and the memory tool
+ * after these, in that fixed order (chatToolSchemas there), because the read
+ * tools' schemas come from the MCP tool implementations, which do not belong
+ * in a browser bundle. Builder and analytics stay single-tool.
+ */
 export function coachToolSchemas(): Anthropic.Tool[] {
   return [
     deleteEventSchema,
     createEventSchema,
     updateEventSchema,
     setEventExercisesSchema,
+    createExerciseDefinitionSchema,
     updateExerciseDefinitionSchema,
     logMealSchema,
     updateMealSchema,
     deleteMealSchema,
+    proposeContractEditSchema,
+    leaveNoteSchema,
   ];
 }
 
@@ -398,4 +491,71 @@ export const updateChartDraftSchema: Anthropic.Tool = {
 /** The analytics thread's constant tool list — per-mode caching invariant. */
 export function analyticsToolSchemas(): Anthropic.Tool[] {
   return [updateChartDraftSchema];
+}
+
+// ─── Planner mode (toolMode: 'planner') ──────────────────────────────────────
+// The Training blocks overlay's "Plan with the coach" thread (decision D-C07):
+// ONE write tool, a whole-list replacement over the block draft the user
+// owns, reduced by src/lib/blocks/draft.ts. api/chat.ts appends the read
+// tools and read_doctrine after it, as it does for chat — the planner reads
+// the athlete's history and the doctrine before it drafts — but no calendar
+// or meal write and no memory tool exist in this mode, which makes "the
+// planner can never touch the schedule or memory" structural. Nothing
+// persists until the user presses Apply.
+
+// Mirrored BY HAND from src/types/blocks.ts BLOCK_PHASES and
+// src/lib/blocks/targets.ts, for the same dependency-free reason as the
+// chart enums above; src/lib/coach/__tests__/plannerSchema.test.ts pins them.
+const BLOCK_PHASE_VALUES = ['base', 'build', 'peak', 'taper', 'recovery', 'maintenance'];
+
+export const updateBlockDraftSchema: Anthropic.Tool = {
+  name: 'update_block_draft',
+  description:
+    'Replace the block draft the user is planning. `blocks` is the WHOLE list in date order — pass every ' +
+    'block the draft should hold, not just the ones that change. Each block: a name; start_date, a Monday ' +
+    '(YYYY-MM-DD); end_date, the Sunday that closes its last week (inclusive); optional phase, intent, ' +
+    'objective_id (an id from <objectives>) and weekly_targets. Rules the reducer enforces, all reported at ' +
+    'once: 1–24 blocks; blocks are contiguous (each starts the day after the previous ends) and in order; ' +
+    'none overlaps an existing block; none starts before this week\'s Monday (an edited block excepted); ' +
+    'at most 52 weeks each. When the draft edits an existing block, pass exactly one item. This edits the ' +
+    'draft only — nothing is created until the user presses Apply, which only they can do.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      blocks: {
+        type: 'array',
+        description: 'The complete list of blocks, in date order. Replaces the draft.',
+        items: {
+          type: 'object',
+          properties: {
+            name:         { type: 'string', description: 'At most 120 characters.' },
+            intent:       { type: 'string', description: 'What this block is FOR — one or two sentences, at most 500 characters.' },
+            phase:        { type: 'string', enum: BLOCK_PHASE_VALUES },
+            objective_id: { type: 'string', description: 'The id in [brackets] of one of the athlete\'s objectives; omit for none.' },
+            start_date:   { type: 'string', description: 'YYYY-MM-DD, a Monday.' },
+            end_date:     { type: 'string', description: 'YYYY-MM-DD, the last day of the block (a Sunday), inclusive.' },
+            weekly_targets: {
+              type: 'object',
+              description: 'Per-week targets; omit a key for no target. Quantities carry their unit — the app never converts across units.',
+              properties: {
+                cardio_minutes:       { type: 'number', description: 'Minutes of cardio-type sessions per week.' },
+                vert:                 { type: 'object', description: 'Vertical gain per week.', properties: { value: { type: 'number' }, unit: { type: 'string', enum: ['ft', 'm'] } }, required: ['value', 'unit'] },
+                distance:             { type: 'object', description: 'Distance per week.', properties: { value: { type: 'number' }, unit: { type: 'string', enum: ['mi', 'km'] } }, required: ['value', 'unit'] },
+                strength_sessions:    { type: 'number', description: 'Completed strength sessions per week.' },
+                climbing_sessions:    { type: 'number', description: 'Completed climbing sessions (indoor or outdoor) per week.' },
+                long_session_minutes: { type: 'number', description: 'A threshold, not a volume: sessions at or above this many minutes count as the long day.' },
+              },
+            },
+          },
+          required: ['name', 'start_date', 'end_date'],
+        },
+      },
+    },
+    required: ['blocks'],
+  },
+};
+
+/** The planner thread's write half — api/chat.ts appends the reads and read_doctrine. */
+export function plannerToolSchemas(): Anthropic.Tool[] {
+  return [updateBlockDraftSchema];
 }

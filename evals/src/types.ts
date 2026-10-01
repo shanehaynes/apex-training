@@ -1,14 +1,22 @@
 import type { ExerciseDefinition, WorkoutEvent } from '../../src/types/workout';
 import type { Meal } from '../../src/types/nutrition';
 import type { WorkoutDraft } from '../../src/lib/builder/draft';
+import type { BlockDraft } from '../../src/lib/blocks/draft';
 import type { BlockPromptSummary } from '../../src/lib/blocks/promptSummary';
+import type { Objective, TrainingBlock } from '../../src/types/blocks';
 import type { ApiMessage, TextBlock, ToolResultBlock } from '../../src/lib/coach/actionQueue';
 import type { WireToolUse } from '../../src/lib/coach/wire';
+import type { PhysiologyInputs } from '../../src/lib/physiology/index';
+import type { ReadFixture, ServerToolResult } from './reads';
 
-// Core types for the coach eval harness. The harness mirrors useChat.ts +
-// actionQueue.ts: every tool_use in a response is confirmed in order, the
-// results flush as ONE tool_result user message, tools are disabled on the
-// post-confirm re-stream, and thinking blocks are dropped from history.
+// Core types for the coach eval harness. The harness mirrors api/chat.ts +
+// useChat.ts + actionQueue.ts: a response asking only for server-side tools
+// (the read tools, read_doctrine) is answered in the same turn and the model
+// is called again with tools on, up to MAX_SERVER_ROUNDS times; every write
+// tool_use is confirmed in order, the results flush as ONE tool_result user
+// message (a mixed round's read results folded in ahead of them), tools are
+// disabled on the post-confirm re-stream, and thinking blocks are dropped
+// from history.
 
 // ─── Conversation wire shapes ────────────────────────────────────────────────
 // Re-exported from the production modules so the harness cannot drift from
@@ -24,8 +32,8 @@ export type CallModel = (req: {
   system: string;
   messages: ApiMessage[];
   withTools: boolean;
-  /** Scoped single-tool lists (api/chat.ts toolMode). */
-  toolMode?: 'chat' | 'builder' | 'analytics';
+  /** Scoped tool lists (api/chat.ts toolMode). */
+  toolMode?: 'chat' | 'builder' | 'analytics' | 'planner';
 }) => Promise<ModelResponse>;
 
 export interface ModelResponse {
@@ -57,13 +65,26 @@ export interface SessionHandle {
   id: string;
 }
 
+/** How a recorded call reached the fixture: a confirmed write through the
+ *  coach tool executors, or a server-side read answered from the fixture
+ *  (or, for read_doctrine, from the real doctrine text). */
+export type ToolCallKind = 'write' | 'read';
+
 /** One tool the turn actually executed, against the harness's in-memory deps. */
 export interface TurnToolCall {
   name: string;
   input: Record<string, unknown>;
   /** The tool_result string, byte-identical to what production would produce. */
   resultText: string;
+  kind: ToolCallKind;
+  /** Which model response of the turn asked for this call, from 0. Two calls
+   *  with the same round were requested in one response — the model composed
+   *  them together, so neither could have informed the other. */
+  round: number;
 }
+
+/** Runs one server-side tool (isServerSideTool) against the fixture. */
+export type ExecuteRead = (name: string, input: Record<string, unknown>) => Promise<ServerToolResult>;
 
 export interface TurnRequest {
   /** The scripted user message opening this turn. */
@@ -76,8 +97,13 @@ export interface TurnRequest {
   buildSystem: () => string;
   /** Runs one coach tool against the in-memory deps; returns the tool_result. */
   executeTool: (name: string, input: Record<string, unknown>) => Promise<string>;
-  /** Scoped single-tool lists (api/chat.ts toolMode); absent for the sidebar. */
-  toolMode?: 'builder' | 'analytics';
+  /** Runs one server-side tool against the fixture. Present in chat and
+   *  planner mode only: the builder and analytics lists carry no read
+   *  tools, and without it a backend treats every tool_use as a write,
+   *  exactly as before the sight loop existed. */
+  executeRead?: ExecuteRead;
+  /** Scoped tool lists (api/chat.ts toolMode); absent for the sidebar. */
+  toolMode?: 'builder' | 'analytics' | 'planner';
   /** 1-indexed, for anomaly labelling. */
   turnIndex: number;
   session?: SessionHandle;
@@ -120,11 +146,19 @@ export interface EvalCase {
   id: string;
   description: string;
   /** 'builder' runs the builder-coach loop (draft reducer, single tool)
-   *  instead of the sidebar loop. Defaults to the sidebar. */
-  mode?: 'builder' | 'analytics';
+   *  instead of the sidebar loop; 'analytics' the chart reducer; 'planner'
+   *  (E01) the block-draft reducer plus the read tools. Defaults to the sidebar. */
+  mode?: 'builder' | 'analytics' | 'planner';
   fixture: {
     /** builder mode: the starting draft (defaults to an empty draft on `today`). */
     draft?: { title?: string };
+    /** planner mode: the starting block draft (defaults to an empty one). */
+    blockDraft?: BlockDraft;
+    /** planner mode: the athlete's existing blocks — the reducer's overlap
+     *  rule and the prompt's <existing_blocks>. Defaults to none. */
+    existingBlocks?: TrainingBlock[];
+    /** planner mode: the athlete's objectives — objective_id must name one. Defaults to none. */
+    objectives?: Objective[];
     /** ISO date — pins the clock so runs are comparable. */
     today: string;
     events: WorkoutEvent[];
@@ -135,6 +169,17 @@ export interface EvalCase {
     block?: BlockPromptSummary | null;
     /** Logged meals — today's render into the prompt's <meals> section. */
     meals?: Meal[];
+    /** What each read tool returns, keyed by tool name: a value, or a function
+     *  of the call's input; JSON-stringified as executeReadTool would. A read
+     *  the fixture does not script returns UNSCRIPTED_READ_RESULT and records
+     *  an `unscriptedRead:<name>` anomaly. read_doctrine is never scripted —
+     *  it reads the real doctrine text. */
+    reads?: ReadFixture;
+    /** Measured data for the prompt's <physiology> panel (src/lib/physiology).
+     *  `today` inside it is overridden by the fixture's own — one clock per
+     *  case. Absent: the panel renders nothing, as it does for an athlete with
+     *  no synced or logged data. */
+    physiology?: PhysiologyInputs;
   };
   script: ScriptStep[];
   expect: {
@@ -161,14 +206,35 @@ export interface EvalCase {
     integrity?: {
       /** Fail if the model created a library entry with any of these names. */
       noNewDefinitionsMatching?: string[];
-      /** Fail unless a confirmed call of this name ran (optionally matching input keys / result text). */
+      /** Fail unless a call of this name — any of these names, given a list —
+       *  ran (optionally matching input keys / result text). Reads count:
+       *  a case can require the coach to have looked before it answered. */
       requireToolCall?: {
-        name: string;
+        name: string | string[];
         inputMatches?: Record<string, unknown>;
         resultIncludes?: string;
       };
       /** Fail if any of these tools were called at all. */
       forbidToolCalls?: string[];
+      /** Fail if the fixture's events differ after the run from what the case
+       *  started with — the proof that a turn of reads mutated nothing. */
+      fixtureUnchanged?: true;
+    };
+    doctrine?: {
+      /** Regex sources; fail if any matches the JSON of a create_event,
+       *  update_event or set_event_exercises input (titles, descriptions,
+       *  tags, exercise names and notes — anything the coach wrote onto the
+       *  calendar). Case-insensitive. */
+      bannedEventPatterns?: string[];
+      /** Fail unless read_doctrine ran — with one of `topics` when given, and
+       *  before the first write tool call when `beforeFirstWrite` is set. */
+      requireDoctrineRead?: { topics?: string[]; beforeFirstWrite?: boolean };
+      /** Fail unless the minutes planned in today's week (fixture events plus
+       *  everything the coach created) are below the prior week's, and
+       *  something was planned at all. */
+      taperBelowPriorWeek?: true;
+      /** Judge-scored: does the answer ground itself in the doctrine it read? */
+      citesDoctrine?: { rubric: string };
     };
   };
 }
@@ -181,6 +247,13 @@ export interface RecordedToolCall {
   /** The tool_result string, byte-identical to what production would produce. */
   result: string;
   turn: number;
+  /** 'read' for a server-side tool answered from the fixture, 'write' for a
+   *  confirmed coach tool. Optional so a record written before the sight
+   *  loop still reads; a missing value is a write, which is all there were. */
+  kind?: ToolCallKind;
+  /** The model response (0-based, within the turn) that asked for this call;
+   *  see TurnToolCall.round. Optional for the same reason as `kind`. */
+  round?: number;
 }
 
 export interface TurnRecord {
@@ -202,6 +275,8 @@ export interface HarnessResult {
   finalDraft?: WorkoutDraft;
   /** analytics mode: the chart draft after the run. */
   finalChartDraft?: import('../../src/lib/analytics/draft').ChartDraft;
+  /** planner mode: the block draft after every applied update. */
+  finalBlockDraft?: BlockDraft;
   anomalies: string[];
   usage: { inputTokens: number; outputTokens: number };
   /** True when a turn ran on a backend that reported no tokens — the usage
@@ -238,9 +313,14 @@ export interface CaseResult {
     progression?: DimensionVerdict;
     refusal?: RefusalVerdict;
     integrity?: DimensionVerdict;
+    doctrine?: DimensionVerdict;
   };
   turns: number;
+  /** Every recorded call, reads included. */
   toolCallCount: number;
+  /** The reads among them. Absent on results written before the sight loop,
+   *  which had none; readers fall back to 0. */
+  readCallCount?: number;
   anomalies: string[];
   usage: { inputTokens: number; outputTokens: number };
   costUsd: number;

@@ -3,15 +3,22 @@ import { buildBuilderPrompt, buildSystemPrompt } from '../../src/lib/coach/promp
 import { findCoachTool } from '../../src/lib/coach/tools';
 import { applyDraftUpdate, describeDraft, emptyDraft, type DraftUpdateInput } from '../../src/lib/builder/draft';
 import { applyChartDraftUpdate, describeChartDraft, emptyChartDraft, type DraftUpdateInput as ChartDraftUpdateInput } from '../../src/lib/analytics/draft';
-import { buildAnalyticsPrompt } from '../../src/lib/coach/prompt';
+import {
+  applyBlockDraftUpdate, describeBlockDraft, describeExistingBlocks, describeObjectives, emptyBlockDraft,
+  type BlockDraftUpdateInput,
+} from '../../src/lib/blocks/draft';
+import { buildAnalyticsPrompt, buildPlannerPrompt, buildPlannerVolatile } from '../../src/lib/coach/prompt';
+import { computePhysiology, describePhysiology } from '../../src/lib/physiology/index';
 import { createMemoryDeps } from './memoryDeps';
 import { loadLibrary } from './library';
 import { makeApiBackend } from './backends/api';
+import { executeServerSideTool } from './reads';
 import type {
   ApiMessage,
   Backend,
   CallModel,
   EvalCase,
+  ExecuteRead,
   HarnessResult,
   RecordedToolCall,
   SessionHandle,
@@ -58,13 +65,39 @@ export async function runCase(
   const mode = evalCase.mode ?? 'chat';
   let draft = emptyDraft(todayStr, evalCase.fixture.draft?.title ?? '');
   let chartDraft = emptyChartDraft();
+  // planner mode (E01): the block draft the update_block_draft reducer edits,
+  // against the fixture's blocks and objectives, exactly as
+  // BlockPlannerPanel auto-applies it. Nothing else mutates.
+  let blockDraft = evalCase.fixture.blockDraft ?? emptyBlockDraft(today);
+  const existingBlocks = evalCase.fixture.existingBlocks ?? [];
+  const objectives = evalCase.fixture.objectives ?? [];
+  const blockCtx = { existing: existingBlocks, objectives, today };
 
-  // All 7 production arguments — block and today's meals included, so the
-  // blockSection and <meals> prompt regions are exercised, not skipped.
+  // The physiology panel is a pure function of the fixture's measured data
+  // and the case's clock, so it is rendered once: '' (the panel renders
+  // nothing) unless the fixture supplies inputs.
+  const physiology = evalCase.fixture.physiology
+    ? describePhysiology(computePhysiology({ ...evalCase.fixture.physiology, today: todayStr }))
+    : '';
+
+  // All 8 production arguments — block, today's meals and the physiology
+  // panel included, so every prompt region is exercised, not skipped.
   const buildSystem = (): string => mode === 'builder'
     ? buildBuilderPrompt(describeDraft(draft), [], state.definitions.values(), today)
     : mode === 'analytics'
     ? buildAnalyticsPrompt(describeChartDraft(chartDraft), [], today)
+    : mode === 'planner'
+    // The planner's two halves as one string, as buildSystemPrompt joins chat's.
+    ? buildPlannerPrompt() + '\n\n' + buildPlannerVolatile(
+        describeBlockDraft(blockDraft),
+        describeExistingBlocks(existingBlocks, objectives, today),
+        describeObjectives(objectives),
+        today,
+        evalCase.fixture.athlete,
+        '',
+        [],
+        physiology,
+      )
     : buildSystemPrompt(
         state.events.filter(e => e.date === todayStr),
         state.events,
@@ -73,7 +106,14 @@ export async function runCase(
         evalCase.fixture.athlete,
         evalCase.fixture.block ?? null,
         state.meals.filter(m => m.date === todayStr),
+        physiology,
       );
+
+  // The sight loop's server side (reads.ts): chat and planner mode, because
+  // the builder and analytics lists carry no read tools.
+  const executeRead: ExecuteRead | undefined = mode === 'chat' || mode === 'planner'
+    ? async (name, input) => executeServerSideTool(name, input, evalCase.fixture.reads, text => anomalies.push(text))
+    : undefined;
 
   const executeTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
     if (mode === 'builder') {
@@ -96,6 +136,16 @@ export async function runCase(
       chartDraft = applied.draft;
       return applied.summary;
     }
+    if (mode === 'planner') {
+      if (name !== 'update_block_draft') {
+        anomalies.push(`unknownTool:${name} (turn ${turns.length + 1})`);
+        return `Unknown tool "${name}".`;
+      }
+      const applied = applyBlockDraftUpdate(blockDraft, input as BlockDraftUpdateInput, blockCtx);
+      if ('error' in applied) return applied.error;
+      blockDraft = applied.draft;
+      return applied.summary;
+    }
     const tool = findCoachTool(name);
     if (!tool) {
       anomalies.push(`unknownTool:${name} (turn ${turns.length + 1})`);
@@ -104,8 +154,9 @@ export async function runCase(
     return tool.execute(input, deps);
   };
 
-  // One scripted turn. Returns whether any tool call was confirmed, which is
-  // what auto-continue keys on.
+  // One scripted turn. Returns whether any WRITE was confirmed, which is what
+  // auto-continue keys on: a turn that only read and then answered is a
+  // finished answer, and "Yes, continue." after it would be a non sequitur.
   const runTurn = async (userText: string): Promise<boolean> => {
     const turnStart = Date.now();
     const outcome = await backend.runTurn({
@@ -113,7 +164,8 @@ export async function runCase(
       transcript,
       buildSystem,
       executeTool,
-      ...(mode === 'builder' || mode === 'analytics' ? { toolMode: mode } : {}),
+      ...(executeRead ? { executeRead } : {}),
+      ...(mode === 'builder' || mode === 'analytics' || mode === 'planner' ? { toolMode: mode } : {}),
       turnIndex: turns.length + 1,
       session,
       anomaly: text => anomalies.push(text),
@@ -127,7 +179,7 @@ export async function runCase(
       usageUnavailable = true;
     }
     for (const call of outcome.toolCalls) {
-      toolCalls.push({ name: call.name, input: call.input, result: call.resultText, turn: turns.length + 1 });
+      toolCalls.push({ name: call.name, input: call.input, result: call.resultText, turn: turns.length + 1, kind: call.kind, round: call.round });
     }
 
     turns.push({
@@ -136,7 +188,7 @@ export async function runCase(
       stopReason: outcome.stopReason,
       latencyMs: Date.now() - turnStart,
     });
-    return outcome.toolCalls.length > 0;
+    return outcome.toolCalls.some(call => call.kind !== 'read');
   };
 
   try {
@@ -164,6 +216,7 @@ export async function runCase(
     createdDefinitionNames: state.createdDefinitionNames,
     ...(mode === 'builder' ? { finalDraft: draft } : {}),
     ...(mode === 'analytics' ? { finalChartDraft: chartDraft } : {}),
+    ...(mode === 'planner' ? { finalBlockDraft: blockDraft } : {}),
     anomalies,
     usage,
     ...(usageUnavailable ? { usageUnavailable: true } : {}),

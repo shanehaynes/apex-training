@@ -9,6 +9,7 @@ import { COACH_MODELS, isCoachModelId, resolveCoachModel } from '../../../src/li
 import { publicOrigin } from '../oauth/common.js';
 import { localSetupDone } from '../../../src/lib/onboarding/progress.js';
 import { isTipId } from '../../../src/lib/onboarding/tips/index.js';
+import { contractProblem, normalizeContract } from '../../../src/lib/coach/contract.js';
 
 // Profile reads/writes, same posture as every other table: the browser
 // reads profiles via RLS (own row only) and mutates through this
@@ -30,14 +31,18 @@ const AVATAR_KEYS = [
 
 const PROFILE_COLUMNS = 'display_name, avatar_key, coach_goal, coach_context, coach_model, max_hr, threshold_hr, ics_token, is_template_source, template_copied_at, onboarding_dismissed_at';
 
-// profiles.tips_seen (id → ISO time a tip was dismissed) arrives by a HELD
-// migration applied to prod by hand, so until then every read or write of it
-// fails with "no such column": 42703 from Postgres on a select, PGRST204 from
-// PostgREST's schema cache on an update. Either one means "not yet", never a
-// server fault.
-function isTipsColumnMissing(error: { code?: string; message?: string } | null): boolean {
+// Columns that arrive by a HELD migration applied to prod by hand, so until
+// then every read or write of one fails with "no such column": 42703 from
+// Postgres on a select, PGRST204 from PostgREST's schema cache on an update.
+// Either one means "not yet", never a server fault. tips_seen (id → ISO time
+// a tip was dismissed) came first; coach_contract and reflection_opt_in
+// (lane D01) ride the same pattern.
+const TRAILING_COLUMNS = ['tips_seen', 'coach_contract', 'reflection_opt_in'] as const;
+const TRAILING_COLUMN_RE = new RegExp(TRAILING_COLUMNS.join('|'));
+
+function isTrailingColumnMissing(error: { code?: string; message?: string } | null): boolean {
   return !!error && (error.code === '42703' || error.code === 'PGRST204')
-    && /tips_seen/.test(error.message ?? '');
+    && TRAILING_COLUMN_RE.test(error.message ?? '');
 }
 
 /** The stored map, or {} for anything that is not one (null, absent column). */
@@ -70,30 +75,43 @@ async function keyStatus(supabase: NonNullable<ReturnType<typeof getSupabaseAdmi
 async function profileFields(
   supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>, userId: string, req: VercelRequest,
 ) {
-  // tips_seen is asked for separately from the typed column list: the
-  // migration that adds it is applied to prod by hand and can trail this code
-  // by weeks, and a missing column must cost the tips — not the whole GET,
-  // which is also how every client learns its key and terms status.
-  let { data, error } = await supabase
+  // The trailing columns are asked for separately from the typed column list:
+  // the migrations that add them are applied to prod by hand and can trail
+  // this code by weeks, and a missing column must cost that field — not the
+  // whole GET, which is also how every client learns its key and terms
+  // status. Each miss names its column, so the select is retried without
+  // exactly that one: the tips survive a database that has tips_seen but not
+  // yet the contract.
+  const fetchOnce = (columns: string) => supabase
     .from('profiles')
-    .select(`${PROFILE_COLUMNS}, tips_seen` as typeof PROFILE_COLUMNS)
+    .select(columns as typeof PROFILE_COLUMNS)
     .eq('id', userId)
     .maybeSingle();
-  if (error && isTipsColumnMissing(error)) {
-    ({ data, error } = await supabase
-      .from('profiles')
-      .select(PROFILE_COLUMNS)
-      .eq('id', userId)
-      .maybeSingle());
+  let wanted: string[] = [...TRAILING_COLUMNS];
+  let data: Awaited<ReturnType<typeof fetchOnce>>['data'] = null;
+  for (;;) {
+    const res = await fetchOnce(wanted.length ? `${PROFILE_COLUMNS}, ${wanted.join(', ')}` : PROFILE_COLUMNS);
+    if (!res.error) {
+      data = res.data;
+      break;
+    }
+    const missing = isTrailingColumnMissing(res.error) ? wanted.find(c => (res.error.message ?? '').includes(c)) : undefined;
+    if (!missing) throw new Error(res.error.message);
+    wanted = wanted.filter(c => c !== missing);
   }
-  if (error) throw new Error(error.message);
-  const tipsSeen = tipsSeenRecord((data as { tips_seen?: unknown } | null)?.tips_seen);
+  const trailing = (data ?? {}) as { tips_seen?: unknown; coach_contract?: unknown; reflection_opt_in?: unknown };
+  const tipsSeen = tipsSeenRecord(trailing.tips_seen);
   const stored = typeof data?.coach_model === 'string' ? data.coach_model : null;
   return {
     displayName: data?.display_name ?? null,
     avatarKey: data?.avatar_key ?? null,
     coachGoal: data?.coach_goal ?? null,
     coachContext: data?.coach_context ?? null,
+    // The coaching contract and the reflection opt-in (lane D01): the stored
+    // text as is (null = none, same as an absent column) and the flag, false
+    // until the column exists.
+    coachContract: typeof trailing.coach_contract === 'string' ? trailing.coach_contract : null,
+    reflectionOptIn: trailing.reflection_opt_in === true,
     maxHr: data?.max_hr ?? null,
     thresholdHr: data?.threshold_hr ?? null,
     coachModel: stored,
@@ -197,9 +215,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     max_hr?: unknown;
     threshold_hr?: unknown;
     tip_seen?: unknown;
+    coach_contract?: unknown;
+    reflection_opt_in?: unknown;
   } | undefined;
 
-  const fields: Record<string, string | number | null | Record<string, string>> = {};
+  const fields: Record<string, string | number | boolean | null | Record<string, string>> = {};
 
   if (body?.display_name !== undefined) {
     if (typeof body.display_name !== 'string' || !body.display_name.trim() || body.display_name.length > 80) {
@@ -289,7 +309,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .select('tips_seen' as '*')
       .eq('id', userId)
       .maybeSingle();
-    if (isTipsColumnMissing(error)) {
+    if (isTrailingColumnMissing(error)) {
       res.status(409).send('column-missing');
       return;
     }
@@ -300,6 +320,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const current = tipsSeenRecord((data as { tips_seen?: unknown } | null)?.tips_seen);
     fields.tips_seen = { ...current, [body.tip_seen]: new Date().toISOString() };
+  }
+
+  // The coaching contract (lane D01): athlete-owned text, '' clears it. The
+  // bound mirrors the column's CHECK so a long one 400s here instead of
+  // 500ing on the constraint; the text is normalized the way every other
+  // writer (a proposal accepted in chat or in the notebook) normalizes it.
+  if (body?.coach_contract !== undefined) {
+    const problem = contractProblem(body.coach_contract);
+    if (problem) {
+      res.status(400).send(`Invalid coach_contract: ${problem}`);
+      return;
+    }
+    fields.coach_contract = normalizeContract(body.coach_contract);
+  }
+
+  // Whether the nightly reflection reads this athlete's day. A boolean and
+  // nothing else — not "true"/"1" — because a mistaken truthy value would
+  // start a model call on the athlete's key every night.
+  if (body?.reflection_opt_in !== undefined) {
+    if (typeof body.reflection_opt_in !== 'boolean') {
+      res.status(400).send('reflection_opt_in must be a boolean');
+      return;
+    }
+    fields.reflection_opt_in = body.reflection_opt_in;
   }
 
   const hasKeyChange = body !== undefined && 'anthropic_api_key' in body;
@@ -362,7 +406,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .from('profiles')
       .update({ ...fields, updated_at: new Date().toISOString() })
       .eq('id', userId);
-    if (isTipsColumnMissing(error)) {
+    if (isTrailingColumnMissing(error)) {
       res.status(409).send('column-missing');
       return;
     }

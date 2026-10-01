@@ -21,6 +21,8 @@ import { enforceRateLimit } from '../rateLimit.js';
  */
 export const USER_DATA_TABLES = [
   'workout_events',
+  'coach_annotations',
+  'coach_reflections',
   'recurring_exceptions',
   'event_mutations_log',
   'workout_completions',
@@ -46,6 +48,7 @@ export const USER_DATA_TABLES = [
   'coach_runs',
   'coach_conversations',
   'coach_messages',
+  'coach_memory',
 ] as const;
 
 /**

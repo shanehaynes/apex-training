@@ -96,7 +96,9 @@ final class OnboardingModelTests: XCTestCase {
         let bodies = OnboardingCatalog.welcomeSteps.map(\.body)
         XCTAssertFalse(bodies.contains { $0.localizedCaseInsensitiveContains("week view") })
         XCTAssertFalse(bodies.contains { $0.localizedCaseInsensitiveContains("On a phone") })
-        XCTAssertEqual(OnboardingCatalog.welcomeSteps.first { $0.id == "plan" }?.body.hasSuffix("the **+** at the top."), true)
+        let plan = OnboardingCatalog.welcomeSteps.first { $0.id == "plan" }?.body ?? ""
+        XCTAssertTrue(plan.contains("**+** at the top"), "the plan step must place the **+** at the top, where the phone has it: \(plan)")
+        XCTAssertFalse(plan.localizedCaseInsensitiveContains("bottom"), "the plan step names the bottom, where the phone has no **+**: \(plan)")
     }
 
     /// The catalog's links are relative; the app resolves them against the web
@@ -113,8 +115,8 @@ final class OnboardingModelTests: XCTestCase {
         }
         let relative = OnboardingCatalog.Link(label: "Get an API key", href: "/help/get-api-key")
         let absolute = OnboardingCatalog.Link(label: "Elsewhere", href: "https://example.com/page")
-        let withOrigin = model(origin: URL(string: "https://apextrainingcalendar.vercel.app")!)
-        XCTAssertEqual(withOrigin.destination(for: relative)?.absoluteString, "https://apextrainingcalendar.vercel.app/help/get-api-key")
+        let withOrigin = model(origin: URL(string: "https://apex-training.app")!)
+        XCTAssertEqual(withOrigin.destination(for: relative)?.absoluteString, "https://apex-training.app/help/get-api-key")
         XCTAssertEqual(withOrigin.destination(for: absolute)?.absoluteString, "https://example.com/page")
         let noOrigin = model(origin: nil)
         XCTAssertNil(noOrigin.destination(for: relative))

@@ -1,5 +1,7 @@
 import { notify } from './notify';
 import { supabase } from './supabaseClient';
+import type { CoachMemory, MemoryKind } from './coach/memory';
+import type { CoachAnnotation, NewCoachAnnotation } from './coach/annotations';
 
 // Single JSON transport for the app's /api/* endpoints — one place for
 // headers, serialization, and error handling. Failures log the response
@@ -189,7 +191,7 @@ export function revokeMcpToken(id: string): Promise<{ ok: boolean }> {
 
 // ── Coach conversations (thread persistence, D-013) ───────────────────────────
 
-export type CoachMode = 'chat' | 'builder' | 'analytics';
+export type CoachMode = 'chat' | 'builder' | 'analytics' | 'planner';
 
 /** A stored thread, as /api/coach-conversations reports it. */
 export interface CoachConversation {
@@ -261,4 +263,141 @@ export function renameCoachConversation(id: string, title: string): Promise<{ co
 
 export function deleteCoachConversation(id: string): Promise<{ ok: boolean }> {
   return deleteJson('/api/coach-conversations', 'Deleting conversation', { id });
+}
+
+// ── Coach memory (lane C02) ───────────────────────────────────────────────────
+// What the athlete has confirmed the coach may remember: /api/coach-memory
+// lists, confirms, adds and archives rows. In chat the confirm card is the
+// write path (POST /api/coach-tool); these are the notebook's door (lane D02).
+
+export type { CoachMemory, MemoryKind } from './coach/memory';
+
+/** Every non-archived memory, newest first, proposed rows included (`confirmed` false). */
+export function listCoachMemories(): Promise<{ memories: CoachMemory[] }> {
+  return getJson('/api/coach-memory', 'Loading memory', { quiet: true });
+}
+
+/** Accept a proposed memory (a reflection's, say): it enters the prompt from the next turn. */
+export function confirmCoachMemory(id: string): Promise<{ memory: CoachMemory }> {
+  return postJson('/api/coach-memory', { id }, 'Confirming memory');
+}
+
+/** Add a fact the athlete typed themselves — confirmed on arrival, source 'user'. */
+export function addCoachMemory(
+  kind: MemoryKind,
+  content: string,
+): Promise<{ memory: CoachMemory }> {
+  return postJson('/api/coach-memory', { kind, content }, 'Saving memory');
+}
+
+/** Forget one memory: archived, never deleted, and out of the prompt from the next turn. */
+export function archiveCoachMemory(id: string): Promise<{ ok: boolean }> {
+  return deleteJson('/api/coach-memory', 'Forgetting memory', { id });
+}
+
+// ── Weekly review (lane D03) ──────────────────────────────────────────────────
+// The week as a document, generated on demand on the athlete's own key and
+// stored nowhere. Its next-week items are accepted one at a time through the
+// same confirmed executor the chat's confirm card uses.
+
+export type { WeeklyReviewDocument, WeeklyReviewResponse } from './review/weekly';
+
+/**
+ * Generate the review for the ISO week containing `week` (default: the week
+ * containing `today`). Not quiet: the athlete asked, and a 402 (no key) is
+ * already exempt from the toast in requestJson. The response type is named
+ * inline so this block stays append-only at its anchor (no import above).
+ */
+export function generateWeeklyReview(
+  today: string,
+  week?: string,
+): Promise<import('./review/weekly').WeeklyReviewResponse> {
+  return postJson('/api/weekly-review', { today, ...(week ? { week } : {}) }, 'Weekly review');
+}
+
+/**
+ * Execute one confirmed coach tool call — the executor behind the chat's
+ * Confirm button (POST /api/coach-tool), reused by the review's Accept.
+ */
+export function runCoachTool(
+  name: string,
+  input: Record<string, unknown>,
+  today: string,
+): Promise<{ ok: boolean; resultText?: string }> {
+  return postJson('/api/coach-tool', { name, input, today }, 'Applying coach action');
+}
+
+// ── Coach annotations (notes on days, events and blocks) ──────────────────────
+
+export type {
+  AnnotationSeverity,
+  AnnotationTargetKind,
+  CoachAnnotation,
+  NewCoachAnnotation,
+} from './coach/annotations';
+
+/**
+ * QUIET: it runs on mount and on every month change, nobody asked for it,
+ * and a calendar that fails to fetch its notes is the calendar the app had
+ * before notes existed (AnnotationsContext logs the warn and renders none).
+ * Offline mode answers 401 on it and must not toast for that.
+ */
+export function listCoachAnnotations(from: string, to: string): Promise<{ annotations: CoachAnnotation[] }> {
+  const q = new URLSearchParams({ from, to });
+  return getJson(`/api/coach-annotations?${q}`, 'Loading coach notes', { quiet: true });
+}
+
+/** The server stamps created_by = 'coach'; this is what the coach's
+ *  `leave_note` tool calls once it exists. */
+export function createCoachAnnotation(input: NewCoachAnnotation): Promise<{ annotation: CoachAnnotation }> {
+  return postJson('/api/coach-annotations', input, 'Leaving a note');
+}
+
+/** Dismiss, not delete: the row keeps its dismissed_at. Not quiet — the user
+ *  clicked, so a failure is theirs to see. */
+export function dismissCoachAnnotation(id: string): Promise<{ ok: boolean }> {
+  return deleteJson('/api/coach-annotations', 'Dismissing note', { id });
+}
+
+// ── Coach notebook (lane D02): the contract and its reflections ───────────────
+// The coaching contract lives on the profile (profiles.coach_contract, lane
+// D01) and the overnight reflections that propose edits to it on
+// /api/coach-reflections. Both are coded against D01's interface contract:
+// until it merges the handler answers 404 and the column 409 column-missing,
+// which src/lib/coach/notebook.ts reads as "not available yet" — so every
+// call here is QUIET, and the tab decides what the athlete sees.
+
+export type { CoachReflection, NotebookProfile, ReflectionResolution } from './coach/notebook';
+
+/** GET /api/profile, for its `coachContract` / `reflectionOptIn` fields (absent before D01). */
+export function loadNotebookProfile(): Promise<Record<string, unknown>> {
+  return getJson('/api/profile', 'Loading contract', { quiet: true });
+}
+
+/** Save the contract text (≤ 2000 chars; '' clears it). 409 column-missing = not available yet. */
+export function saveCoachContract(text: string): Promise<{ ok: boolean }> {
+  return patchJson('/api/profile', { coach_contract: text }, 'Saving contract', { quiet: true });
+}
+
+/** Whether the coach may reflect overnight and propose changes here. */
+export function setReflectionOptIn(on: boolean): Promise<{ ok: boolean }> {
+  return patchJson('/api/profile', { reflection_opt_in: on }, 'Saving', { quiet: true });
+}
+
+/** Every reflection, pending and resolved. 404 until D01 merges. */
+export function listCoachReflections(): Promise<Record<string, unknown>> {
+  return getJson('/api/coach-reflections', 'Loading reflections', { quiet: true });
+}
+
+/** The athlete's verdict on one reflection: accepted applies its contract_after server-side. */
+export function resolveCoachReflection(
+  id: string,
+  resolution: 'accepted' | 'rejected',
+): Promise<{ ok: boolean }> {
+  return postJson(
+    '/api/coach-reflections',
+    { id, resolution },
+    resolution === 'accepted' ? 'Accepting the change' : 'Rejecting the change',
+    { quiet: true },
+  );
 }

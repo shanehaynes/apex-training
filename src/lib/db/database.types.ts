@@ -137,6 +137,42 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_annotations: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string
+          dismissed_at: string | null
+          id: string
+          severity: string
+          target_id: string
+          target_kind: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string
+          dismissed_at?: string | null
+          id?: string
+          severity?: string
+          target_id: string
+          target_kind: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string
+          dismissed_at?: string | null
+          id?: string
+          severity?: string
+          target_id?: string
+          target_kind?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       coach_conversations: {
         Row: {
           created_at: string
@@ -163,6 +199,56 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      coach_memory: {
+        Row: {
+          archived_at: string | null
+          confidence: number | null
+          confirmed_at: string | null
+          content: string
+          created_at: string
+          id: string
+          kind: string
+          source_id: string | null
+          source_kind: string | null
+          superseded_by: string | null
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          confidence?: number | null
+          confirmed_at?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          kind: string
+          source_id?: string | null
+          source_kind?: string | null
+          superseded_by?: string | null
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          confidence?: number | null
+          confirmed_at?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          source_id?: string | null
+          source_kind?: string | null
+          superseded_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_memory_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "coach_memory"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       coach_messages: {
         Row: {
@@ -204,6 +290,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      coach_reflections: {
+        Row: {
+          batch_id: string | null
+          completed_at: string | null
+          contract_after: string | null
+          contract_before: string | null
+          created_at: string
+          day: string
+          error: string | null
+          id: string
+          memory_proposal_ids: string[]
+          reason: string | null
+          resolution: string | null
+          resolved_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          batch_id?: string | null
+          completed_at?: string | null
+          contract_after?: string | null
+          contract_before?: string | null
+          created_at?: string
+          day: string
+          error?: string | null
+          id?: string
+          memory_proposal_ids?: string[]
+          reason?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          batch_id?: string | null
+          completed_at?: string | null
+          contract_after?: string | null
+          contract_before?: string | null
+          created_at?: string
+          day?: string
+          error?: string | null
+          id?: string
+          memory_proposal_ids?: string[]
+          reason?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       coach_runs: {
         Row: {
@@ -739,6 +876,7 @@ export type Database = {
         Row: {
           avatar_key: string
           coach_context: string
+          coach_contract: string | null
           coach_goal: string
           coach_model: string | null
           created_at: string
@@ -748,6 +886,7 @@ export type Database = {
           is_template_source: boolean
           max_hr: number | null
           onboarding_dismissed_at: string | null
+          reflection_opt_in: boolean
           template_copied_at: string | null
           threshold_hr: number | null
           tips_seen: Json
@@ -756,6 +895,7 @@ export type Database = {
         Insert: {
           avatar_key?: string
           coach_context?: string
+          coach_contract?: string | null
           coach_goal?: string
           coach_model?: string | null
           created_at?: string
@@ -765,6 +905,7 @@ export type Database = {
           is_template_source?: boolean
           max_hr?: number | null
           onboarding_dismissed_at?: string | null
+          reflection_opt_in?: boolean
           template_copied_at?: string | null
           threshold_hr?: number | null
           tips_seen?: Json
@@ -773,6 +914,7 @@ export type Database = {
         Update: {
           avatar_key?: string
           coach_context?: string
+          coach_contract?: string | null
           coach_goal?: string
           coach_model?: string | null
           created_at?: string
@@ -782,6 +924,7 @@ export type Database = {
           is_template_source?: boolean
           max_hr?: number | null
           onboarding_dismissed_at?: string | null
+          reflection_opt_in?: boolean
           template_copied_at?: string | null
           threshold_hr?: number | null
           tips_seen?: Json

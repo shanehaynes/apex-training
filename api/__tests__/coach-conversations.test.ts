@@ -139,6 +139,15 @@ describe('GET — list and load', () => {
     expect(calls).toEqual([]);
   });
 
+  it('lists planner threads (E01) — the fourth mode is in the closed set', async () => {
+    results['coach_conversations:select'] = { data: [{ ...CONVERSATION, mode: 'planner' }], error: null };
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('GET', { query: { mode: 'planner' } }), res);
+    expect(statusCode()).toBe(200);
+    expect(callsFor('coach_conversations', 'select')[0].filters)
+      .toEqual({ user_id: 'user-123', mode: 'planner' });
+  });
+
   it('loads a thread\'s messages, scoping both queries by user_id', async () => {
     const row = {
       id: 'm1', role: 'assistant', api_content: 'hi', display_text: 'hi',
@@ -188,6 +197,15 @@ describe('POST { mode } — create', () => {
     await handler(makeReq('POST', { body: { mode: 'sideways' } }), res);
     expect(statusCode()).toBe(400);
     expect(calls).toEqual([]);
+  });
+
+  it('creates a planner thread (E01)', async () => {
+    results['coach_conversations:insert'] = { data: { ...CONVERSATION, mode: 'planner' }, error: null };
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('POST', { body: { mode: 'planner' } }), res);
+    expect(statusCode()).toBe(200);
+    expect(callsFor('coach_conversations', 'insert')[0].payload)
+      .toEqual({ user_id: 'user-123', mode: 'planner', title: null });
   });
 });
 

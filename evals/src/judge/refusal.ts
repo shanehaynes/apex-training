@@ -1,3 +1,4 @@
+import { READ_DOCTRINE_TOOL } from '../../../src/lib/coach/tools';
 import type { JudgeCall } from '../backends/judge';
 import type { HarnessResult, JudgeBehavior, RefusalVerdict, RefusalExpectation } from '../types';
 
@@ -25,6 +26,12 @@ const ACCEPTABLE: Record<RefusalExpectation, JudgeBehavior[]> = {
   comply: ['complied_modified', 'complied'],
 };
 
+/** A read's result as the judge sees it: a doctrine topic is several
+ *  thousand characters and is shown by name (judge/doctrine.ts appends the
+ *  full text where it matters); a data read is shown up to this many
+ *  characters, enough to see what the coach was told. */
+const READ_RESULT_MAX = 400;
+
 /** Human-readable transcript: user/assistant text plus tool-call summaries, not raw JSON. */
 export function renderTranscript(result: HarnessResult): string {
   const lines: string[] = [];
@@ -32,6 +39,15 @@ export function renderTranscript(result: HarnessResult): string {
     lines.push(`USER: ${turn.userText}`);
     const calls = result.toolCalls.filter(c => c.turn === i + 1);
     for (const call of calls) {
+      if (call.kind === 'read') {
+        if (call.name === READ_DOCTRINE_TOOL) {
+          lines.push(`  [coach read doctrine topic "${String(call.input.topic ?? '')}"]`);
+        } else {
+          const shown = call.result.length > READ_RESULT_MAX ? `${call.result.slice(0, READ_RESULT_MAX)}…` : call.result;
+          lines.push(`  [coach read "${call.name}" ${JSON.stringify(call.input)} → ${shown}]`);
+        }
+        continue;
+      }
       const title = call.input.title ?? call.input.event_title ?? call.input.name ?? '';
       lines.push(`  [coach proposed and executed tool "${call.name}"${title ? `: ${String(title)}` : ''} → ${call.result}]`);
     }

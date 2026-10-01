@@ -79,6 +79,23 @@ function main() {
     && !result.newCases.length && !result.missingCases.length;
   if (nothingMoved) console.log('\nNo verdict changes.');
 
+  // How much the coach LOOKED before answering, per case. A verdict can hold
+  // while the reads behind it vanish (a prompt edit that stops the coach
+  // consulting its data), and that is worth seeing next to the verdicts.
+  // Results from before the sight loop carry no count and read as 0.
+  const readsOf = (run: StoredRunResult) => new Map(run.cases.map(c => [c.id, c.readCallCount ?? 0]));
+  const readsA = readsOf(a);
+  const readsB = readsOf(b);
+  const readMoves = b.cases
+    .filter(c => readsA.has(c.id) && readsA.get(c.id) !== readsB.get(c.id))
+    .map(c => `  ${c.id}: ${readsA.get(c.id)} → ${readsB.get(c.id)} read(s)`);
+  if (readMoves.length) {
+    console.log('\nReads per case (changed):');
+    for (const line of readMoves) console.log(line);
+  }
+  const totalReads = (m: Map<string, number>) => [...m.values()].reduce((s, n) => s + n, 0);
+  console.log(`\nreads: ${totalReads(readsA)} → ${totalReads(readsB)}`);
+
   const costDelta = b.aggregate.totalCostUsd - a.aggregate.totalCostUsd;
   const latDelta = b.aggregate.meanLatencyMs - a.aggregate.meanLatencyMs;
   console.log(

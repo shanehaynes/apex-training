@@ -5,9 +5,15 @@ import { enforceAiMutationCap, enforceRateLimit } from '../rateLimit.js';
 import { fetchExpandedSchedule } from '../mcp/data.js';
 import { loadMealsForDate } from '../trackerSession.js';
 import { createServerDeps } from '../coach/serverDeps.js';
+import { applyMemoryCommand } from '../coach/memory.js';
+import { applyContractEdit } from '../reflection/contract.js';
 import { findCoachTool } from '../../../src/lib/coach/tools.js';
+import type { NewCoachAnnotation } from '../../../src/lib/coach/annotations.js';
 import { applyDraftUpdate, type DraftUpdateInput, type WorkoutDraft } from '../../../src/lib/builder/draft.js';
 import { applyChartDraftUpdate, type ChartDraft, type DraftUpdateInput as ChartDraftUpdateInput } from '../../../src/lib/analytics/draft.js';
+import { applyBlockDraftUpdate, type BlockDraft, type BlockDraftUpdateInput } from '../../../src/lib/blocks/draft.js';
+import { fetchBlocksAndObjectives } from '../coach/context.js';
+import { parseISO } from 'date-fns';
 import { rowToMeal } from '../../../src/lib/nutrition/mapping.js';
 import type { MealRow } from '../../../src/lib/db/types.js';
 
@@ -20,13 +26,16 @@ import type { MealRow } from '../../../src/lib/db/types.js';
 // rather than declared by the caller.
 //
 //   { toolUseId?, name, input, today }            mutation tools → { ok, resultText }
-//   { name, input, today, draft }  update_workout_draft / update_chart_draft
-//                                                 → { ok, resultText, draft }
+//   { name, input, today, draft }  update_workout_draft / update_chart_draft /
+//                                  update_block_draft → { ok, resultText, draft }
 // Draft tools are a stateless reduce: the caller's draft in, the next draft
-// out, with the reducer's own validation text as the tool_result.
+// out, with the reducer's own validation text as the tool_result. The block
+// reducer (E01) also reads the athlete's blocks and objectives for its
+// overlap and objective_id rules — a read, never a write: nothing lands
+// until the client's Apply.
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const DRAFT_TOOLS = new Set(['update_workout_draft', 'update_chart_draft']);
+const DRAFT_TOOLS = new Set(['update_workout_draft', 'update_chart_draft', 'update_block_draft']);
 
 interface Body {
   toolUseId?: unknown;
@@ -87,6 +96,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.status(200).json('error' in result
           ? { ok: false, resultText: result.error, draft: body.draft }
           : { ok: true, resultText: result.summary, draft: result.draft });
+      } else if (name === 'update_block_draft') {
+        const { blocks, objectives } = await fetchBlocksAndObjectives(supabase, userId);
+        const result = applyBlockDraftUpdate(
+          body.draft as unknown as BlockDraft,
+          input as BlockDraftUpdateInput,
+          { existing: blocks, objectives, today: parseISO(today) },
+        );
+        res.status(200).json('error' in result
+          ? { ok: false, resultText: result.error, draft: body.draft }
+          : { ok: true, resultText: result.summary, draft: result.draft });
       } else {
         const result = applyChartDraftUpdate(body.draft as unknown as ChartDraft, input as unknown as ChartDraftUpdateInput);
         res.status(200).json('error' in result
@@ -118,7 +137,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { data } = await supabase.from('meals').select('*').eq('user_id', userId).eq('id', input.meal_id).maybeSingle();
       if (data) meals.push(rowToMeal(data as MealRow));
     }
-    const deps = createServerDeps(supabase, userId, { today, events: occurrences, definitions, meals });
+    // The memory backend rides alongside the schedule/meal deps: a confirmed
+    // memory write (lane C02) lands as confirmed rows — the click is the
+    // confirmation — stamped 'chat'. The service-role client and the
+    // verified uid are bound here, never taken from the tool input.
+    // The contract and note backends (lane D01) ride the same way: a
+    // confirmed propose_contract_edit replaces profiles.coach_contract when
+    // its `before` still matches; a confirmed leave_note inserts the
+    // coach_annotations row with created_by stamped 'coach' — the same
+    // validation the HTTP handler applies, inside the executor.
+    const deps = {
+      ...createServerDeps(supabase, userId, { today, events: occurrences, definitions, meals }),
+      applyMemoryCommand: (cmd: Record<string, unknown>) => applyMemoryCommand(supabase, userId, cmd, { sourceKind: 'chat' }),
+      applyContractEdit: (before: string, after: string) => applyContractEdit(supabase, userId, before, after),
+      createAnnotation: async (note: NewCoachAnnotation) => {
+        const { data, error } = await supabase
+          .from('coach_annotations')
+          .insert({
+            user_id: userId,
+            target_kind: note.target_kind,
+            target_id: note.target_id,
+            body: note.body,
+            severity: note.severity ?? 'info',
+            created_by: 'coach',
+          })
+          .select('id')
+          .single();
+        if (error || !data) {
+          console.error('[api/coach-tool] leave_note insert failed:', error?.message);
+          return null;
+        }
+        return { id: data.id as string };
+      },
+    };
     const resultText = await tool.execute(input, deps);
     res.status(200).json({ ok: true, resultText });
   } catch (err) {

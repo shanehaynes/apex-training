@@ -4,10 +4,13 @@ import { buildChatContext, ChatContextError, isChatMode } from '../_lib/coach/co
 import { fetchCompletionsInRange, fetchExpandedSchedule } from '../_lib/mcp/data';
 import { loadMealsForDate } from '../_lib/trackerSession';
 import {
-  buildAnalyticsPrompt, buildBuilderPrompt, buildStablePrompt, buildSystemPrompt, buildVolatileContext,
+  buildAnalyticsPrompt, buildBuilderPrompt, buildPlannerPrompt, buildPlannerVolatile, buildStablePrompt, buildSystemPrompt, buildVolatileContext,
 } from '../../src/lib/coach/prompt';
 import { describeDraft, draftFromTemplate } from '../../src/lib/builder/draft';
 import { describeChartDraft, emptyChartDraft } from '../../src/lib/analytics/draft';
+import { describeBlockDraft, describeExistingBlocks, describeObjectives, emptyBlockDraft, type BlockDraft } from '../../src/lib/blocks/draft';
+import { rowToBlock, rowToObjective } from '../../src/lib/blocks/mapping';
+import type { ObjectiveRow, TrainingBlockRow } from '../../src/lib/db/types';
 import type { ExerciseDefinition, WorkoutEvent } from '../../src/types/workout';
 import type { Meal } from '../../src/types/nutrition';
 
@@ -21,6 +24,14 @@ vi.mock('../_lib/mcp/data.js', () => ({
 }));
 vi.mock('../_lib/trackerSession.js', () => ({ loadMealsForDate: vi.fn(async () => []) }));
 vi.mock('../_lib/reviewData.js', () => ({ fetchPeriodInputs: vi.fn() }));
+// The physiology inputs are scripted (their own suite is coach-physiology.test.ts);
+// compute + describe run for real, so the block in `volatile` is the production text.
+vi.mock('../_lib/coach/physiology.js', () => ({
+  fetchPhysiologyInputs: vi.fn(async (_db: unknown, _u: string, today: string) =>
+    ({ today, activities: [], cardioLogs: [], setLogs: [], thresholdHr: null, maxHr: null })),
+}));
+import { fetchPhysiologyInputs } from '../_lib/coach/physiology';
+import { computePhysiology, describePhysiology } from '../../src/lib/physiology';
 
 const TODAY = '2026-09-03'; // a Thursday
 
@@ -40,17 +51,43 @@ const occurrences: WorkoutEvent[] = [
 ];
 const meal: Meal = { id: 'meal-1', title: 'Oats', date: TODAY, time: '07:30', mealType: 'breakfast', proteinG: 20, carbsG: 60, fatTotalG: 10, notes: '' } as Meal;
 
-interface AdminState { profile: Record<string, unknown> | null; blocks: unknown[]; templates: Array<{ title: string }> }
+interface AdminState {
+  profile: Record<string, unknown> | null;
+  blocks: unknown[];
+  /** objectives rows, or an error for the whole table (the planner's read degrades). */
+  objectives: unknown[] | { error: string };
+  templates: Array<{ title: string }>;
+  /** coach_memory rows as the live-row query returns them, or an error for the whole table. */
+  memories: unknown[] | { error: string };
+  /** Make the contract's own profiles read fail with this message (lane D01). */
+  contractError?: string;
+}
 let state: AdminState;
 
 function makeAdmin() {
   return {
     from(table: string) {
+      let columns = '*';
       const chain = {
-        select: () => chain, eq: () => chain, is: () => chain, order: () => chain,
-        maybeSingle: async () => ({ data: state.profile, error: null }),
+        select: (cols?: string) => { if (cols) columns = cols; return chain; },
+        eq: () => chain, is: () => chain, not: () => chain, order: () => chain, limit: () => chain,
+        maybeSingle: async () => (table === 'profiles' && columns === 'coach_contract' && state.contractError
+          ? { data: null, error: { message: state.contractError } }
+          : { data: state.profile, error: null }),
         then(resolve: (v: unknown) => void) {
-          const data = table === 'training_blocks' ? state.blocks : table === 'workout_templates' ? state.templates : [];
+          if (table === 'coach_memory' && 'error' in state.memories) {
+            resolve({ data: null, error: { message: state.memories.error } });
+            return;
+          }
+          if (table === 'objectives' && 'error' in state.objectives) {
+            resolve({ data: null, error: { message: state.objectives.error } });
+            return;
+          }
+          const data = table === 'training_blocks' ? state.blocks
+            : table === 'objectives' ? state.objectives
+            : table === 'workout_templates' ? state.templates
+            : table === 'coach_memory' ? state.memories
+            : [];
           resolve({ data, error: null });
         },
       };
@@ -60,7 +97,7 @@ function makeAdmin() {
 }
 
 beforeEach(() => {
-  state = { profile: { coach_goal: 'Send 5.12', coach_context: 'Two kids' }, blocks: [], templates: [{ title: 'Push Day' }, { title: 'Pull Day' }] };
+  state = { profile: { coach_goal: 'Send 5.12', coach_context: 'Two kids' }, blocks: [], objectives: [], templates: [{ title: 'Push Day' }, { title: 'Pull Day' }], memories: [] };
   vi.mocked(fetchExpandedSchedule).mockResolvedValue({ occurrences, definitions: new Map([[def.id, def]]), anchorDates: new Map() });
   vi.mocked(fetchCompletionsInRange).mockResolvedValue([
     { event_id: 'evt-soccer', event_date: '2026-08-31', is_completed: true, completed_at: '2026-08-31T20:00:00Z' },
@@ -69,6 +106,11 @@ beforeEach(() => {
 });
 
 describe('buildChatContext', () => {
+  it('knows the four modes and nothing else', () => {
+    for (const mode of ['chat', 'builder', 'analytics', 'planner']) expect(isChatMode(mode), mode).toBe(true);
+    for (const other of ['plan', 'Planner', '', null, undefined, 3]) expect(isChatMode(other)).toBe(false);
+  });
+
   it('rejects a malformed today and non-object drafts with a caller-fixable error', async () => {
     await expect(buildChatContext(makeAdmin(), 'u1', 'chat', '09/03/2026')).rejects.toBeInstanceOf(ChatContextError);
     await expect(buildChatContext(makeAdmin(), 'u1', 'builder', TODAY, 'not a draft')).rejects.toBeInstanceOf(ChatContextError);
@@ -113,6 +155,93 @@ describe('buildChatContext', () => {
     expect(fetchCompletionsInRange).toHaveBeenCalledWith(expect.anything(), 'u1', '2026-08-03', '2026-09-06');
   });
 
+  it('chat: the physiology panel rides in the live half, computed from the fetched inputs', async () => {
+    const inputs = {
+      today: TODAY, activities: [], thresholdHr: 162, maxHr: 190,
+      cardioLogs: [{ eventId: 'evt-c', eventDate: '2026-09-01', avgHeartRate: 140, durationMinutes: 45 }],
+      setLogs: [{ eventDate: '2026-09-02', actualWeight: '225', actualReps: '5', actualDuration: null, isAutofilled: false }],
+    };
+    vi.mocked(fetchPhysiologyInputs).mockResolvedValueOnce(inputs as never);
+    const { system, volatile } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    const panel = describePhysiology(computePhysiology(inputs as never));
+    expect(panel).toContain('<physiology>');
+    expect(volatile).toContain(panel);
+    expect(fetchPhysiologyInputs).toHaveBeenCalledWith(expect.anything(), 'u1', TODAY);
+    // Never in the cached prefix.
+    expect(system).not.toContain('physiology');
+    expect(system).toBe(buildStablePrompt([def]));
+  });
+
+  it('chat: a physiology failure costs the panel and nothing else', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(fetchPhysiologyInputs).mockRejectedValueOnce(new Error('activity_streams is on fire'));
+    const { volatile } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    expect(volatile).not.toContain('<physiology>');
+    expect(volatile).toContain('[evt-today] Push Day (60 min) at 17:30');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('physiology panel unavailable'), 'activity_streams is on fire');
+    warn.mockRestore();
+  });
+
+  it('chat: confirmed memory rides in the live half, grouped by file, and never in the stable half', async () => {
+    state.memories = [
+      { id: 'm1', kind: 'goal', content: 'Rainier June 2027', created_at: '2026-09-27T10:00:00Z' },
+      { id: 'm2', kind: 'injury', content: 'left shoulder: avoid overhead pressing until cleared', created_at: '2026-09-26T10:00:00Z' },
+    ];
+    const { system, volatile } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    expect(volatile).toContain('<athlete_memory>');
+    expect(volatile).toContain('injuries:\n- left shoulder: avoid overhead pressing until cleared');
+    expect(volatile).toContain('goals:\n- Rainier June 2027');
+    expect(volatile.indexOf('</athlete_profile>')).toBeLessThan(volatile.indexOf('<athlete_memory>'));
+    expect(volatile.indexOf('</athlete_memory>')).toBeLessThan(volatile.indexOf('Today:'));
+    expect(system).toBe(buildStablePrompt([def]));
+    expect(system).not.toContain('Rainier');
+  });
+
+  it('chat: a memory failure (the table not yet migrated, say) costs the section and nothing else', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    state.memories = { error: 'relation "coach_memory" does not exist' };
+    const { volatile } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    expect(volatile).not.toContain('<athlete_memory>');
+    expect(volatile).toContain('[evt-today] Push Day (60 min) at 17:30');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('athlete memory unavailable'), expect.stringContaining('does not exist'));
+    warn.mockRestore();
+  });
+
+  it('chat: the coaching contract rides in the live half after the profile, in the label context, and never in the stable half (lane D01)', async () => {
+    state.profile = { coach_goal: 'Send 5.12', coach_context: 'Two kids', coach_contract: '  Push me on volume.\r\n\r\n\r\nLeave nutrition alone.  ' };
+    const { system, volatile, toolContext } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    expect(volatile).toContain('<coaching_contract>');
+    expect(volatile).toContain('HOW THE ATHLETE WANTS TO BE COACHED:\nPush me on volume.\n\nLeave nutrition alone.');
+    expect(volatile.indexOf('</athlete_profile>')).toBeLessThan(volatile.indexOf('<coaching_contract>'));
+    expect(volatile.indexOf('</coaching_contract>')).toBeLessThan(volatile.indexOf('Today:'));
+    expect(toolContext.contract).toBe('Push me on volume.\n\nLeave nutrition alone.');
+    expect(system).toBe(buildStablePrompt([def]));
+    expect(system).not.toContain('Push me on volume');
+    // The one-string prompt the evals drive is the two halves joined, contract included.
+    const withCompletion = occurrences.map(e => e.id === 'evt-soccer' ? { ...e, isCompleted: true, completedAt: '2026-08-31T20:00:00Z' } : e);
+    const windowed = withCompletion.filter(e => e.date >= '2026-08-03' && e.date <= '2026-09-06');
+    expect(system + '\n\n' + volatile).toBe(buildSystemPrompt(
+      withCompletion.filter(e => e.date === TODAY), windowed, parseISO(TODAY), [def],
+      { goal: 'Send 5.12', context: 'Two kids' }, null, [meal], '', [], 'Push me on volume.\n\nLeave nutrition alone.',
+    ));
+  });
+
+  it('chat: a contract read failure costs the section and nothing else, and no contract renders nothing (lane D01)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    state.contractError = 'connection reset';
+    const failed = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    expect(failed.volatile).not.toContain('<coaching_contract>');
+    expect(failed.volatile).toContain('Goal: Send 5.12');
+    expect(failed.toolContext.contract).toBe('');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('coaching contract unavailable'), expect.stringContaining('connection reset'));
+    warn.mockRestore();
+
+    state.contractError = undefined;
+    const { volatile, toolContext } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
+    expect(volatile).not.toContain('coaching_contract');
+    expect(toolContext.contract).toBe('');
+  });
+
   it('chat: a missing profile degrades to the generic live context', async () => {
     state.profile = null;
     const { system, volatile } = await buildChatContext(makeAdmin(), 'u1', 'chat', TODAY);
@@ -140,5 +269,78 @@ describe('buildChatContext', () => {
     expect(system).toBe(buildAnalyticsPrompt(describeChartDraft(draft), ['Soccer night'], parseISO(TODAY)));
     expect(system).toContain('WORKOUTS MARKED "OTHER SPORT": Soccer night');
     expect(volatile).toBe('');
+  });
+
+  // ── planner (E01) ──────────────────────────────────────────────────────────
+  const blockRow: TrainingBlockRow = {
+    id: 'blk-fall', user_id: 'u1', objective_id: 'obj-denali', name: 'Fall Base', intent: 'aerobic', phase: 'base',
+    start_date: '2026-09-07', end_date_exclusive: '2026-10-05', weekly_targets: { cardioMinutes: 240 },
+    created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z',
+  } as TrainingBlockRow;
+  const objectiveRow: ObjectiveRow = {
+    id: 'obj-denali', user_id: 'u1', name: 'Denali', target_date: '2027-06-01', discipline: 'alpine', notes: '',
+    required_capabilities: [], status: 'active', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z',
+  } as ObjectiveRow;
+  const planDraft: BlockDraft = {
+    editingId: null,
+    blocks: [{ name: 'Base', intent: '', phase: 'base', startDate: '2026-10-05', endDateExclusive: '2026-11-02', weeklyTargets: { cardioMinutes: 300 } }],
+  };
+
+  it('planner: the stable prompt is buildPlannerPrompt and everything live — draft, blocks, objectives, athlete — rides in volatile', async () => {
+    state.blocks = [blockRow];
+    state.objectives = [objectiveRow];
+    const { system, volatile, toolContext } = await buildChatContext(makeAdmin(), 'u1', 'planner', TODAY, planDraft);
+    expect(system).toBe(buildPlannerPrompt());
+    const physiology = describePhysiology(computePhysiology(await fetchPhysiologyInputs(makeAdmin(), 'u1', TODAY)));
+    expect(volatile).toBe(buildPlannerVolatile(
+      describeBlockDraft(planDraft),
+      describeExistingBlocks([rowToBlock(blockRow)], [rowToObjective(objectiveRow)], parseISO(TODAY)),
+      describeObjectives([rowToObjective(objectiveRow)]),
+      parseISO(TODAY),
+      { goal: 'Send 5.12', context: 'Two kids' },
+      '',
+      [],
+      physiology,
+    ));
+    expect(volatile).toContain('1. Base · phase base · start_date 2026-10-05 · end_date 2026-11-01 (4 weeks)');
+    expect(volatile).toContain('- [blk-fall] Fall Base · phase base · 2026-09-07 → 2026-10-04 (4 weeks) · objective "Denali" · cardio_minutes 240');
+    expect(volatile).toContain('- [obj-denali] Denali · alpine · target 2027-06-01 · active');
+    expect(volatile).toContain('Goal: Send 5.12');
+    expect(volatile).toContain('Today: Thursday, September 3, 2026');
+    // Nothing live in the stable half; no schedule in the planner's live half.
+    expect(system).not.toContain('Fall Base');
+    expect(volatile).not.toContain('<schedule>');
+    // The planner never reaches the calendar: no events for a label to name.
+    expect(toolContext.events).toEqual([]);
+    expect(toolContext.meals).toEqual([]);
+  });
+
+  it('planner: the stable half is byte-identical across turns while the draft moves', async () => {
+    const a = await buildChatContext(makeAdmin(), 'u1', 'planner', TODAY, emptyBlockDraft(parseISO(TODAY)));
+    const b = await buildChatContext(makeAdmin(), 'u1', 'planner', '2026-09-04', planDraft);
+    expect(a.system).toBe(b.system);
+    expect(a.volatile).not.toBe(b.volatile);
+    expect(a.volatile).toContain('(no blocks yet)');
+  });
+
+  it('planner: a draft that is not a block draft is the caller\'s error', async () => {
+    await expect(buildChatContext(makeAdmin(), 'u1', 'planner', TODAY, emptyChartDraft()))
+      .rejects.toThrow(new ChatContextError('context.draft is not a block draft'));
+    await expect(buildChatContext(makeAdmin(), 'u1', 'planner', TODAY, undefined))
+      .rejects.toThrow(ChatContextError);
+  });
+
+  it('planner: blocks/objectives, memory and the contract each degrade to their empty section, never a failed turn', async () => {
+    state.objectives = { error: 'relation "objectives" does not exist' };
+    state.memories = { error: 'relation "coach_memory" does not exist' };
+    state.contractError = 'column profiles.coach_contract does not exist';
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { volatile } = await buildChatContext(makeAdmin(), 'u1', 'planner', TODAY, planDraft);
+    warn.mockRestore();
+    expect(volatile).toContain('(no blocks yet)');
+    expect(volatile).toContain('(no objectives yet)');
+    expect(volatile).not.toContain('<athlete_memory>');
+    expect(volatile).not.toContain('<coaching_contract>');
+    expect(volatile).toContain('start_date 2026-10-05');
   });
 });

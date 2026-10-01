@@ -2,13 +2,15 @@ import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import type { ApiMessage, CallModel, ModelResponse } from './types';
-import { analyticsToolSchemas, builderToolSchemas, coachToolSchemas } from '../../src/lib/coach/schemas';
+import { analyticsToolSchemas, builderToolSchemas } from '../../src/lib/coach/schemas';
 import { COACH_MODEL } from '../../src/lib/coach/model';
 import { COACH_MODELS } from '../../src/lib/coach/models';
+import { chatToolSchemas, plannerChatToolSchemas } from './reads';
 
 // Per-model request params + pricing. The coach-under-test request shape is
 // replicated from api/chat.ts: max_tokens 8192, per-model thinking params,
-// tools only when enabled.
+// tools only when enabled — chat mode's list being the write tools, the
+// read tools and read_doctrine in production order (reads.ts).
 //
 // Pricing is standard (non-introductory) $/MTok so cross-model comparisons
 // stay stable after promotional windows lapse.
@@ -69,7 +71,7 @@ export function makeAnthropicCaller(client: Anthropic, model: string): CallModel
       system,
       messages: messages as Anthropic.MessageParam[],
       ...(withTools
-        ? { tools: toolMode === 'builder' ? builderToolSchemas() : toolMode === 'analytics' ? analyticsToolSchemas() : coachToolSchemas() }
+        ? { tools: toolMode === 'builder' ? builderToolSchemas() : toolMode === 'analytics' ? analyticsToolSchemas() : toolMode === 'planner' ? plannerChatToolSchemas() : chatToolSchemas() }
         : {}),
     });
     const final = await stream.finalMessage();

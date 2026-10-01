@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, X } from 'lucide-react';
+import { ChevronLeft, Sparkles, X } from 'lucide-react';
 import { useSchedule } from '../../context/schedule';
 import { useBlocks } from '../../context/blocks';
+import { useAnnotations } from '../../context/annotations';
+import AnnotationChip from '../calendar/AnnotationChip';
 import { computeBlockProgress } from '../../lib/blocks/progress';
 import type { BlockProgress } from '../../lib/blocks/progress';
 import { loadBlockLogs } from '../../lib/blocks/repo';
@@ -16,14 +18,19 @@ export default function BlockDetail({
   onBack,
   onClose,
   onEdit,
+  onPlan,
 }: {
   block: TrainingBlock;
   onBack: () => void;
   onClose: () => void;
   onEdit: () => void;
+  /** Open the planner on this block (E01): the coach redraws it, the user applies. */
+  onPlan?: () => void;
 }) {
   const { events } = useSchedule();
   const { objectiveFor } = useBlocks();
+  const { byBlock, dismiss } = useAnnotations();
+  const notes = byBlock(block.id);
   const [progress, setProgress] = useState<BlockProgress | null>(null);
 
   useEffect(() => {
@@ -68,6 +75,11 @@ export default function BlockDetail({
           </span>
         </div>
         <div className="library-header__actions">
+          {onPlan && (
+            <button className="library-edit-btn" data-testid="plan-block-with-coach" onClick={onPlan} title="Ask the coach to redraw this block">
+              <Sparkles size={14} strokeWidth={1.5} /> Plan with the coach
+            </button>
+          )}
           <button className="library-edit-btn" onClick={onEdit}>Edit</button>
           <button className="library-close" onClick={onClose} aria-label="Close">
             <X size={16} strokeWidth={1.5} />
@@ -86,6 +98,22 @@ export default function BlockDetail({
               </p>
             )}
             {block.intent && <p className="block-intent">{block.intent}</p>}
+          </section>
+        )}
+
+        {notes.length > 0 && (
+          <section className="block-section" data-testid="block-annotations">
+            <h3 className="block-section__title">
+              Coach notes
+              <span className="block-section__sub">{notes.length}</span>
+            </h3>
+            <ul className="block-annotations">
+              {notes.map(note => (
+                <li key={note.id}>
+                  <AnnotationChip annotation={note} onDismiss={dismiss} full />
+                </li>
+              ))}
+            </ul>
           </section>
         )}
 

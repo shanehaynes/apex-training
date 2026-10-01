@@ -98,7 +98,7 @@ public final class AuthService {
     public func sendPasswordReset(email: String) async throws {
         try await client.auth.resetPasswordForEmail(
             email,
-            redirectTo: URL(string: "https://apextrainingcalendar.vercel.app/auth/callback")
+            redirectTo: URL(string: "https://apex-training.app/auth/callback")
         )
         UserDefaults.standard.set(true, forKey: Self.pendingRecoveryKey)
     }
