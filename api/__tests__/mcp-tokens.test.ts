@@ -100,6 +100,28 @@ describe('POST /api/mcp-tokens — mint', () => {
     expect(Object.values(state.inserted!)).not.toContain(token);
   });
 
+  it('stores an explicit scope: read-only unless the caller asks for full access', async () => {
+    // A client that does not say (the iOS app today, anything built before
+    // the field existed) gets a read-only code — write access is asked for.
+    const a = makeRes();
+    await handler(makeReq('POST', { name: 'Unasked' }), a.res);
+    expect(state.inserted).toMatchObject({ scope: 'mcp:read' });
+
+    const b = makeRes();
+    await handler(makeReq('POST', { name: 'Full', access: 'full' }), b.res);
+    expect(state.inserted).toMatchObject({ scope: 'mcp:read mcp:write' });
+
+    const c = makeRes();
+    await handler(makeReq('POST', { name: 'Read', access: 'read' }), c.res);
+    expect(state.inserted).toMatchObject({ scope: 'mcp:read' });
+
+    state.inserted = undefined;
+    const d = makeRes();
+    await handler(makeReq('POST', { name: 'Bogus', access: 'admin' }), d.res);
+    expect(d.statusCode()).toBe(400);
+    expect(state.inserted).toBeUndefined();
+  });
+
   it('rejects a blank name', async () => {
     const { res, statusCode } = makeRes();
     await handler(makeReq('POST', { name: '   ' }), res);

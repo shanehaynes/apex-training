@@ -6,7 +6,35 @@ import { optionalEnv } from '../env.js';
 // endpoint: origin/URL derivation, PKCE S256, redirect-URI matching, and
 // form-body tolerance. Pure except for crypto randomness.
 
-export const OAUTH_SCOPE = 'mcp:read';
+/**
+ * The two scopes this server issues. `mcp:read` covers every query tool;
+ * `mcp:write` unlocks the mutation tools (api/_lib/mcp/writeTools.ts). A
+ * token's stored scope decides what /api/mcp lists and runs for it — see
+ * resolveMcpAccess in api/_lib/mcp/tokens.ts, which also explains why a
+ * token with no stored scope (minted before writes existed) stays read-only.
+ */
+export const OAUTH_READ_SCOPE = 'mcp:read';
+export const OAUTH_WRITE_SCOPE = 'mcp:write';
+export const OAUTH_SCOPES: readonly string[] = [OAUTH_READ_SCOPE, OAUTH_WRITE_SCOPE];
+/** The grant when a client asks for no scope at all: full access. */
+export const OAUTH_SCOPE = `${OAUTH_READ_SCOPE} ${OAUTH_WRITE_SCOPE}`;
+
+/** The supported scopes named in a space-separated scope string, in canonical order, deduped. */
+export function parseScopes(scope: string | null | undefined): string[] {
+  if (!scope) return [];
+  const asked = new Set(scope.split(/\s+/).filter(Boolean));
+  return OAUTH_SCOPES.filter(s => asked.has(s));
+}
+
+/** A requested scope string reduced to what this server supports; null when nothing in it is. */
+export function normalizeScope(scope: string | null | undefined): string | null {
+  const parsed = parseScopes(scope);
+  return parsed.length ? parsed.join(' ') : null;
+}
+
+export function scopeGrantsWrite(scope: string | null | undefined): boolean {
+  return parseScopes(scope).includes(OAUTH_WRITE_SCOPE);
+}
 
 /** Access tokens live 1 hour; refresh tokens until revoked. */
 export const ACCESS_TOKEN_TTL_SECONDS = 3600;

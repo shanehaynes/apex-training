@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
-import { canonicalResource, publicOrigin, redirectUriMatches } from '../oauth/common.js';
+import { canonicalResource, normalizeScope, OAUTH_SCOPES, publicOrigin, redirectUriMatches } from '../oauth/common.js';
 
 // OAuth 2.1 authorization endpoint. Validates the request, then hands off to
 // the SPA consent page (/connect) with the parameters echoed in the query —
@@ -83,7 +83,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     redirect_uri: redirectUri,
     code_challenge: codeChallenge,
   });
-  const scope = q(req, 'scope');
+  // A client that names scopes gets exactly the supported ones it named
+  // (mcp:read alone is a read-only connection); one that names none gets the
+  // default grant at approval. Only unknown scopes are an error.
+  const requestedScope = q(req, 'scope');
+  const scope = requestedScope ? normalizeScope(requestedScope) : undefined;
+  if (requestedScope && !scope) {
+    return fail('invalid_scope', `Unknown scope; this server supports: ${OAUTH_SCOPES.join(' ')}`);
+  }
   if (scope) consent.set('scope', scope);
   if (resource) consent.set('resource', resource);
   if (state) consent.set('state', state);

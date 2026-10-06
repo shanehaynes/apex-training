@@ -4,6 +4,7 @@ import {
   createMcpToken,
   disconnectMcpClient,
   listMcpTokens,
+  mcpAccessOf,
   revokeMcpToken,
   type McpConnectionInfo,
   type McpTokenInfo,
@@ -29,6 +30,10 @@ export default function McpTokens({ onShowGuide }: Props) {
   const [tokens, setTokens] = useState<McpTokenInfo[]>([]);
   const [connections, setConnections] = useState<McpConnectionInfo[]>([]);
   const [name, setName] = useState('');
+  // Whether the new code may change things. On by default: a code exists so
+  // the assistant can act for the user. Fixed at mint — an existing code
+  // never gains write access (api/_lib/mcp/tokens.ts).
+  const [allowChanges, setAllowChanges] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [freshToken, setFreshToken] = useState<string | null>(null);
   // Offered while the user has the section open, so the tip lands next to
@@ -63,7 +68,7 @@ export default function McpTokens({ onShowGuide }: Props) {
     if (!trimmed) return;
     setIsCreating(true);
     try {
-      const { token } = await createMcpToken(trimmed);
+      const { token } = await createMcpToken(trimmed, allowChanges ? 'full' : 'read');
       setFreshToken(token);
       setName('');
       const { tokens } = await listMcpTokens();
@@ -116,8 +121,9 @@ export default function McpTokens({ onShowGuide }: Props) {
       )}
     >
       <p className="profile-hint">
-        Ask Claude or ChatGPT about your training. It can look, but never
-        change anything. Tap{' '}
+        Ask Claude or ChatGPT about your training, or have it log a workout,
+        plan your week and track meals for you. Every change it makes is
+        listed under Coach activity. Tap{' '}
         <button type="button" className="profile-link" onClick={onShowGuide}>
           Step-by-step guide
         </button>{' '}
@@ -151,6 +157,7 @@ export default function McpTokens({ onShowGuide }: Props) {
             <li key={c.client_id} className="profile-feed" style={{ marginBottom: 4 }}>
               <span className="profile-hint" style={{ flex: 1, margin: 0 }}>
                 {c.name || 'Connected app'} · signed in {c.created_at.slice(0, 10)}
+                {mcpAccessOf(c.scope) === 'read' ? ' · read-only' : ''}
               </span>
               <button
                 className="btn-today"
@@ -171,6 +178,7 @@ export default function McpTokens({ onShowGuide }: Props) {
             <li key={t.id} className="profile-feed" style={{ marginBottom: 4 }}>
               <span className="profile-hint" style={{ flex: 1, margin: 0 }}>
                 {t.name} · …{t.token_last4}
+                {mcpAccessOf(t.scope) === 'read' ? ' · read-only' : ''}
                 {t.last_used_at ? ` · last used ${t.last_used_at.slice(0, 10)}` : ' · never used'}
               </span>
               <button className="btn-today" onClick={() => revoke(t.id)} title={`Revoke ${t.name}`} aria-label={`Revoke ${t.name}`}>
@@ -194,6 +202,16 @@ export default function McpTokens({ onShowGuide }: Props) {
           {isCreating ? 'Creating…' : 'Create code'}
         </button>
       </form>
+      <label className="profile-hint" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+        <input
+          type="checkbox"
+          checked={allowChanges}
+          onChange={e => setAllowChanges(e.target.checked)}
+          aria-label="Allow this code to make changes"
+        />
+        Can make changes (log workouts, edit the calendar, track meals). Untick
+        for a look-only code.
+      </label>
     </ProfileDisclosure>
   );
 }

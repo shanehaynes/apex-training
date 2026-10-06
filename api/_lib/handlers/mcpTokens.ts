@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
 import { enforceRateLimit } from '../rateLimit.js';
 import { generateMcpToken, sha256hex } from '../mcp/tokens.js';
+import { OAUTH_READ_SCOPE, OAUTH_SCOPE } from '../oauth/common.js';
 
 // Mint / list / revoke personal access tokens for the MCP endpoint. Called
 // only by the SPA (Supabase JWT auth). The plaintext token leaves the server
@@ -36,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const [patRes, grantRes] = await Promise.all([
       supabase
         .from('mcp_tokens')
-        .select('id, name, token_last4, created_at, last_used_at, revoked_at')
+        .select('id, name, token_last4, scope, created_at, last_used_at, revoked_at')
         .eq('user_id', userId)
         .eq('kind', 'pat')
         .order('created_at', { ascending: false }),
@@ -44,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // half of a connection (access tokens expire hourly).
       supabase
         .from('mcp_tokens')
-        .select('name, client_id, created_at, last_used_at')
+        .select('name, client_id, scope, created_at, last_used_at')
         .eq('user_id', userId)
         .eq('kind', 'refresh')
         .is('revoked_at', null)
@@ -55,10 +56,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(500).send('Failed to list tokens');
       return;
     }
-    const connections = new Map<string, { client_id: string; name: string; created_at: string }>();
+    // The newest live grant per client wins: a reconnect that widened the
+    // scope is listed with that scope, not the first connection's.
+    const connections = new Map<string, { client_id: string; name: string; scope: string | null; created_at: string }>();
     for (const g of grantRes.data ?? []) {
       if (g.client_id && !connections.has(g.client_id)) {
-        connections.set(g.client_id, { client_id: g.client_id, name: g.name, created_at: g.created_at });
+        connections.set(g.client_id, { client_id: g.client_id, name: g.name, scope: g.scope ?? null, created_at: g.created_at });
       }
     }
     res.status(200).json({ tokens: patRes.data ?? [], connections: [...connections.values()] });
@@ -68,10 +71,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'POST') {
     if (!(await enforceRateLimit(supabase, res, userId, 'writes'))) return;
 
-    const body = req.body as { name?: unknown } | undefined;
+    const body = req.body as { name?: unknown; access?: unknown } | undefined;
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
     if (!name || name.length > MAX_NAME_LENGTH) {
       res.status(400).send(`Token name must be 1–${MAX_NAME_LENGTH} characters`);
+      return;
+    }
+    // What the code may do, fixed at mint: 'full' or 'read'. A caller that
+    // does not say — the iOS app today, any client built before the field
+    // existed — gets 'read': write access is asked for explicitly, never
+    // handed to a client that could not have shown the user the choice.
+    // (The web's tick box defaults to on and always sends its answer.)
+    // Stored as an explicit scope so resolveMcpAccess never has to guess; a
+    // code minted before this field existed has no scope and stays read-only.
+    const access = body?.access ?? 'read';
+    if (access !== 'full' && access !== 'read') {
+      res.status(400).send("access must be 'full' or 'read'");
       return;
     }
 
@@ -99,6 +114,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         token_hash: sha256hex(token),
         token_last4: token.slice(-4),
         name,
+        scope: access === 'read' ? OAUTH_READ_SCOPE : OAUTH_SCOPE,
         expires_at: new Date(Date.now() + TOKEN_TTL_DAYS * 86_400_000).toISOString(),
       })
       .select('id')

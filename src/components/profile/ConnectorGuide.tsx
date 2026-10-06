@@ -100,7 +100,9 @@ export default function ConnectorGuide({ onBack, onClose }: Props) {
             ask about your own training in plain English — <em>“How did my squat
             progress this block?”</em>, <em>“What&apos;s on my calendar this
             week?”</em>, <em>“Any PRs last month?”</em> — and get answers from
-            your real numbers instead of guesses.
+            your real numbers instead of guesses. It can also act for you:
+            <em>“Log today&apos;s bench: 5×5 at 185”</em>, <em>“Move Thursday&apos;s
+            run to Friday”</em>, <em>“Add a 40-minute easy ride on Sunday”</em>.
           </p>
           <p>
             Setting it up means giving the assistant one web address and signing
@@ -110,11 +112,14 @@ export default function ConnectorGuide({ onBack, onClose }: Props) {
           <div className="cg-callout cg-callout--safe">
             <ShieldCheck size={16} strokeWidth={1.6} />
             <div>
-              <strong>The assistant can only read.</strong> It can look at your
-              workouts, schedule, meals and records. It cannot add, change or
-              delete anything — not a workout, not a meal, not a single set. You
-              can cut off its access at any moment from the Claude or ChatGPT
-              section you just came from.
+              <strong>You choose how much it can do.</strong> A full connection
+              can read your workouts, schedule, meals and records and change
+              them — log a set, add or move a workout, track a meal. A
+              read-only one can only look. Either way, every change an
+              assistant makes is listed under Coach activity in your profile,
+              it is limited to 200 changes a day, and you can cut off its
+              access at any moment from the Claude or ChatGPT section you just
+              came from.
             </div>
           </div>
         </section>
@@ -471,8 +476,8 @@ export default function ConnectorGuide({ onBack, onClose }: Props) {
             <dd>The sign-in dance that lets you approve an app without ever giving it your password. It is what the Allow screen is doing.</dd>
             <dt>Access token</dt>
             <dd>A long password-like string that stands in for signing in, for tools that cannot open a browser. Anyone holding it can read your training data, so treat it like a password.</dd>
-            <dt>Read-only</dt>
-            <dd>The connection can look but not touch. Everything Apex offers through it is read-only.</dd>
+            <dt>Access level</dt>
+            <dd>Whether a connection can only look, or also make changes — log workouts, edit your calendar, track meals, edit blocks and your profile. The Allow screen says which you are granting; a code you create in Apex has a tick box for it, and it cannot be changed afterwards. Every change an assistant makes is listed under Coach activity in your profile, and no more than 200 a day go through.</dd>
           </dl>
         </section>
 

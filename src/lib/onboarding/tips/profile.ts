@@ -23,7 +23,7 @@ export const PROFILE_TIPS = [
     // McpTokens: the Claude or ChatGPT fold, opened from its header.
     id: 'connector-first',
     title: 'Ask Claude or ChatGPT',
-    body: 'Connect Claude or ChatGPT so it can answer questions about your training. It can look but never change anything. Tap **Step-by-step guide** for pictures of each step.',
+    body: 'Connect Claude or ChatGPT to answer questions about your training, or to log workouts and plan your week. You choose how much it can do. Tap **Step-by-step guide** for pictures of each step.',
     priority: 2,
   },
 ] as const satisfies readonly TipDefinition[];
