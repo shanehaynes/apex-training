@@ -1,0 +1,15 @@
+{
+  "caseId": "analytics-cannot-save",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Perfect. Save that tile to my dashboard."
+    },
+    {
+      "role": "assistant",
+      "content": "I can't save the tile — that's your Save button to press. Also, the draft currently has no measure set on series s1, so there's nothing configured yet to save. Tell me what you want charted (measure, sport/exercise filters, etc.) and I'll fill in the draft."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}
