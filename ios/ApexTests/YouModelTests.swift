@@ -246,9 +246,43 @@ final class YouModelTests: XCTestCase {
         XCTAssertTrue(connector.canMint)
         await connector.mint()
         XCTAssertEqual(connector.minted?.token, "apx_test_token")
+        XCTAssertTrue(connector.mintedCanWrite)
         XCTAssertEqual(connector.name, "")
-        XCTAssertEqual(transport.requests("/api/mcp-tokens").filter { $0.method == "POST" }.first?.body?["name"] as? String, "Claude Code")
+        let mint = transport.requests("/api/mcp-tokens").filter { $0.method == "POST" }.first
+        XCTAssertEqual(mint?.body?["name"] as? String, "Claude Code")
+        // W15: the switch is on by default and its answer always travels — the
+        // server mints read-only when `access` is absent.
+        XCTAssertEqual(mint?.body?["access"] as? String, "full")
         XCTAssertEqual(transport.requests("/api/mcp-tokens").filter { $0.method == "GET" }.count, 2)
+    }
+
+    @MainActor
+    func testMintWithChangesOffAsksForAReadOnlyToken() async {
+        let transport = YouTransport.healthy()
+        let connector = makeYouModel(transport).connector
+        await connector.load()
+        connector.name = "Look only"
+        connector.allowChanges = false
+        await connector.mint()
+        XCTAssertFalse(connector.mintedCanWrite)
+        let mint = transport.requests("/api/mcp-tokens").filter { $0.method == "POST" }.first
+        XCTAssertEqual(mint?.body?["access"] as? String, "read")
+    }
+
+    /// The tag is for the exception: a full token reads as before, a look-only
+    /// one says so, and a token from before write access existed (no scope)
+    /// is look-only too — the server's rule, rendered.
+    @MainActor
+    func testTokenAndConnectionLinesTagReadOnlyAccess() {
+        let full = McpToken(id: "a", name: "Full", tokenLast4: "k9x2", scope: "mcp:read mcp:write", createdAt: "2026-09-01T00:00:00Z", lastUsedAt: nil, revokedAt: nil)
+        let read = McpToken(id: "b", name: "Read", tokenLast4: "p4q1", scope: "mcp:read", createdAt: "2026-09-01T00:00:00Z", lastUsedAt: "2026-09-08T10:00:00Z", revokedAt: nil)
+        let legacy = McpToken(id: "c", name: "Old", tokenLast4: "z0z0", scope: nil, createdAt: "2026-08-01T00:00:00Z", lastUsedAt: nil, revokedAt: nil)
+        let connector = makeYouModel(YouTransport.healthy()).connector
+        XCTAssertEqual(connector.tokenLine(full), "…k9x2 · never used")
+        XCTAssertEqual(connector.tokenLine(read), "…p4q1 · read-only · last used Sep 8, 2026")
+        XCTAssertEqual(connector.tokenLine(legacy), "…z0z0 · read-only · never used")
+        XCTAssertEqual(connector.connectionLine(McpConnection(clientId: "x", name: "Claude", scope: "mcp:read mcp:write", createdAt: "2026-09-08T00:00:00Z")), "signed in Sep 8, 2026")
+        XCTAssertEqual(connector.connectionLine(McpConnection(clientId: "y", name: "Claude", scope: nil, createdAt: "2026-09-08T00:00:00Z")), "signed in Sep 8, 2026 · read-only")
     }
 
     @MainActor

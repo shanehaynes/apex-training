@@ -60,6 +60,29 @@ public struct ActivityLogResponse: Codable, Sendable, Equatable {
 
 // MARK: - AI connector
 
+/// What a token may do, as `POST /api/mcp-tokens { access }` takes it (W15).
+/// `full` is read and write; `read` is look-only. The server treats a mint
+/// that names neither as `read`, so the app always says which.
+public enum McpAccess: String, Codable, Sendable, Equatable {
+    case full
+    case read
+}
+
+/// The server's OAuth scope strings, as `GET /api/mcp-tokens` carries them on
+/// every token and connection. `mcp:read` is every token; `mcp:write` is the
+/// one that lets a client change data. A token minted before write access
+/// existed has no scope at all and is read-only for life — the server's rule,
+/// mirrored here only to render the tag (api/_lib/mcp/tokens.ts).
+public enum McpScope {
+    public static let read = "mcp:read"
+    public static let write = "mcp:write"
+
+    public static func grantsWrite(_ scope: String?) -> Bool {
+        guard let scope else { return false }
+        return scope.split(separator: " ").contains(Substring(write))
+    }
+}
+
 /// One personal access token as `GET /api/mcp-tokens` lists it. Revoked tokens
 /// are listed too — `revokedAt != nil` is how the UI filters them out, matching
 /// the web, which never deletes a token row.
@@ -69,21 +92,24 @@ public struct McpToken: Codable, Sendable, Equatable, Identifiable {
     /// The displayed tail. The plaintext token exists in exactly one response,
     /// the mint below, and is never stored server-side.
     public let tokenLast4: String
+    /// The stored scope; nil on a token from before write access existed.
+    public let scope: String?
     public let createdAt: String
     public let lastUsedAt: String?
     public let revokedAt: String?
 
-    public init(id: String, name: String, tokenLast4: String, createdAt: String, lastUsedAt: String?, revokedAt: String?) {
+    public init(id: String, name: String, tokenLast4: String, scope: String? = nil, createdAt: String, lastUsedAt: String?, revokedAt: String?) {
         self.id = id
         self.name = name
         self.tokenLast4 = tokenLast4
+        self.scope = scope
         self.createdAt = createdAt
         self.lastUsedAt = lastUsedAt
         self.revokedAt = revokedAt
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, name
+        case id, name, scope
         case tokenLast4 = "token_last4"
         case createdAt = "created_at"
         case lastUsedAt = "last_used_at"
@@ -91,6 +117,8 @@ public struct McpToken: Codable, Sendable, Equatable, Identifiable {
     }
 
     public var isActive: Bool { revokedAt == nil }
+    /// Whether a client holding it may change data.
+    public var canWrite: Bool { McpScope.grantsWrite(scope) }
 }
 
 /// An OAuth client the user has granted access — one row per `client_id`,
@@ -98,19 +126,23 @@ public struct McpToken: Codable, Sendable, Equatable, Identifiable {
 public struct McpConnection: Codable, Sendable, Equatable, Identifiable {
     public let clientId: String
     public let name: String
+    /// The newest live grant's scope; nil on a connection from before write access existed.
+    public let scope: String?
     public let createdAt: String
 
-    public init(clientId: String, name: String, createdAt: String) {
+    public init(clientId: String, name: String, scope: String? = nil, createdAt: String) {
         self.clientId = clientId
         self.name = name
+        self.scope = scope
         self.createdAt = createdAt
     }
 
     public var id: String { clientId }
+    public var canWrite: Bool { McpScope.grantsWrite(scope) }
 
     enum CodingKeys: String, CodingKey {
         case clientId = "client_id"
-        case name
+        case name, scope
         case createdAt = "created_at"
     }
 }

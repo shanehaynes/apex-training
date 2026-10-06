@@ -54,9 +54,9 @@ public struct ConnectorGuideView: View {
 
     private var intro: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            paragraph("This connects your Apex training log to an AI assistant, so you can ask about your own training in plain English — “How did my squat progress this block?”, “What's on my calendar this week?”, “Any PRs last month?” — and get answers from your real numbers instead of guesses.")
+            paragraph("This connects your Apex training log to an AI assistant, so you can ask about your own training in plain English — “How did my squat progress this block?”, “What's on my calendar this week?”, “Any PRs last month?” — and get answers from your real numbers instead of guesses. It can also act for you: “Log today's bench: 5×5 at 185”, “Move Thursday's run to Friday”, “Add a 40-minute easy ride on Sunday”.")
             paragraph("Setting it up means giving the assistant one web address and signing in once to prove the account is yours. It takes about two minutes. There is nothing to install and no code to write.")
-            callout(symbol: ApexIcon.shield.systemName, "The assistant can only read. It can look at your workouts, schedule, meals and records. It cannot add, change or delete anything — not a workout, not a meal, not a single set. You can cut off its access at any moment from the AI connector screen you just came from.")
+            callout(symbol: ApexIcon.shield.systemName, "You choose how much it can do. A full connection can read your workouts, schedule, meals and records and change them — log a set, add or move a workout, track a meal. A read-only one can only look. Either way, every change an assistant makes is listed under Activity log, it is limited to 200 changes a day, and you can cut off its access at any moment from the AI connector screen you just came from.")
         }
     }
 
@@ -173,7 +173,7 @@ public struct ConnectorGuideView: View {
             term("MCP server", "The technical name for the thing at the end of your Apex address. When an app asks for an “MCP server URL”, it wants that address.")
             term("OAuth", "The sign-in dance that lets you approve an app without ever giving it your password. It is what the Allow screen is doing.")
             term("Access token", "A long password-like string that stands in for signing in, for tools that cannot open a browser. Anyone holding it can read your training data, so treat it like a password.")
-            term("Read-only", "The connection can look but not touch. Everything Apex offers through it is read-only.")
+            term("Access level", "Whether a connection can only look, or also make changes — log workouts, edit your calendar, track meals, edit blocks and your profile. The Allow screen says which you are granting; a token you create here has a switch for it, and it cannot be changed afterwards. Every change an assistant makes is listed under Activity log, and no more than 200 a day go through.")
         }
     }
 

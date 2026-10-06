@@ -935,3 +935,26 @@ The brief said "port the dashboard and the tile builder"; these are the lines dr
   purpose: they now prove the legacy entry still parses. A second Apple CDN check is due after the
   1.0 archive, since the CDN caches per host.
 - **Rejected.** (a), the vendor hostname permanent in every shipped build; (c) deferring, which is (a).
+
+## D-050 · The phone's token mint always names its access level, and the switch defaults to full
+
+**Context.** #371 gave `/api/mcp` write access behind an `mcp:write` scope. The server's
+`POST /api/mcp-tokens` reads an absent `access` as `read` on purpose: a client built before the
+field existed cannot have shown the user the choice, so it must not widen a token by omission.
+The iOS app was exactly such a client — it sent only `name` — and its connector screen still
+described a read-only endpoint.
+
+**Options.**
+1. Leave the phone minting read-only tokens and update its copy. Honest, but the onboarding
+   checklist (compiled from the shared catalog) now says "you choose how much it can do", and
+   the phone would promise a choice it does not offer.
+2. Default the phone to full access silently (send `access: 'full'` with no control). Matches the
+   web's outcome, hides the decision the web makes visible.
+3. **A switch on the mint form, on by default, whose answer always travels** — the web's tick box,
+   one screen later. Chosen.
+
+**Consequences.** `mintMcpToken(name:access:)` takes `access` as a required argument, so a future
+call site cannot fall back to the server's read-only default by accident. The level is fixed at
+mint, as the server fixes it; the row shows `read-only` only where it applies, so a full token
+reads as it always did. The web's consent page remains the only place an OAuth connection's level
+is chosen — the phone shows the result, never picks it.

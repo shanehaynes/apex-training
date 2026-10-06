@@ -223,8 +223,11 @@ actor FixtureTransport: HTTPTransport {
                 minted += 1
                 let id = "mock-token-\(minted)"
                 let token = "apx_mock_\(String(repeating: "0", count: 28))\(String(format: "%04d", minted))"
+                // The server's rule (api/_lib/handlers/mcpTokens.ts): an absent
+                // `access` mints read-only; only an explicit "full" writes.
+                let scope = (body?["access"] as? String) == "full" ? "mcp:read mcp:write" : "mcp:read"
                 mintedTokens.append([
-                    "id": id, "name": body?["name"] as? String ?? "Token", "token_last4": String(token.suffix(4)),
+                    "id": id, "name": body?["name"] as? String ?? "Token", "token_last4": String(token.suffix(4)), "scope": scope,
                     "created_at": CompletionRows.isoTimestamp(clock.now), "last_used_at": NSNull(), "revoked_at": NSNull(),
                 ])
                 return ok(try JSONSerialization.data(withJSONObject: ["id": id, "token": token]))
