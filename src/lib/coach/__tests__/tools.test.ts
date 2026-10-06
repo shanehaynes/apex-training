@@ -183,6 +183,50 @@ describe('coach tool registry', () => {
     expect(result).toContain('[new-1]');
   });
 
+  it('create_event with repeat creates ONE series: the anchor snapped to the first listed day, the rule stored', async () => {
+    const deps = makeDeps();
+    const result = await findCoachTool('create_event')!.execute(
+      // 2026-10-11 is a Sunday; the first Monday or Thursday after it is Mon Oct 12.
+      { type: 'weights', title: 'Strength A', date: '2026-10-11', estimated_duration: 60, repeat: { days: ['TH', 'MO'], until: '2026-11-05' } },
+      deps,
+    );
+    expect(deps.createEvent).toHaveBeenCalledTimes(1);
+    expect(deps.createEvent).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Strength A', date: '2026-10-12', recurrenceRule: 'FREQ=WEEKLY;BYDAY=MO,TH;UNTIL=20261105',
+    }));
+    expect(result).toBe('Created "Strength A" repeating every Mon, Thu until 2026-11-05 from 2026-10-12 [new-1].');
+  });
+
+  it('create_event refuses an impossible repeat before touching anything', async () => {
+    const deps = makeDeps();
+    const ended = await findCoachTool('create_event')!.execute(
+      { type: 'weights', title: 'Strength A', date: '2026-10-12', estimated_duration: 60, repeat: { days: ['MO'], until: '2026-10-01' } },
+      deps,
+    );
+    expect(ended).toBe('The repeat end date is before the first occurrence.');
+    const noDays = await findCoachTool('create_event')!.execute(
+      { type: 'weights', title: 'Strength A', date: '2026-10-12', estimated_duration: 60, repeat: { days: [] } },
+      deps,
+    );
+    expect(noDays).toContain('repeat.days must list at least one weekday');
+    const badDay = await findCoachTool('create_event')!.execute(
+      { type: 'weights', title: 'Strength A', date: '2026-10-12', estimated_duration: 60, repeat: { days: ['Monday'] } },
+      deps,
+    );
+    expect(badDay).toContain('repeat.days must list at least one weekday');
+    expect(deps.createEvent).not.toHaveBeenCalled();
+    expect(deps.createDefinition).not.toHaveBeenCalled();
+  });
+
+  it('create_event without repeat is unchanged: no recurrenceRule on the input', async () => {
+    const deps = makeDeps();
+    await findCoachTool('create_event')!.execute(
+      { type: 'yoga', title: 'Flow', date: '2026-07-08', estimated_duration: 30 },
+      deps,
+    );
+    expect((deps.createEvent as ReturnType<typeof vi.fn>).mock.calls[0][0]).not.toHaveProperty('recurrenceRule');
+  });
+
   it('update_event forwards only the changed fields, camelCased', async () => {
     const deps = makeDeps();
     await findCoachTool('update_event')!.execute(
@@ -467,6 +511,13 @@ describe('coach tool registry', () => {
     expect(findCoachTool('create_event')!.displayLabel({
       title: 'Flow', type: 'yoga', date: '2026-07-08',
     })).toBe('Create: Flow · yoga · 2026-07-08');
+    // A series names its cadence, its snapped first date and how many workouts it holds.
+    expect(findCoachTool('create_event')!.displayLabel({
+      title: 'Strength A', type: 'weights', date: '2026-10-11', repeat: { days: ['MO', 'TH'], until: '2026-11-05' },
+    })).toBe('Create: Strength A · weights · every Mon, Thu until 2026-11-05 from 2026-10-12 (8 workouts)');
+    expect(findCoachTool('create_event')!.displayLabel({
+      title: 'Zone 2', type: 'cardio', date: '2026-10-12', repeat: { days: ['WE'], interval_weeks: 2 },
+    })).toBe('Create: Zone 2 · cardio · every 2 weeks on Wed from 2026-10-14');
     // The changes' actual new values appear, not just the key names.
     expect(findCoachTool('update_event')!.displayLabel({
       event_title: 'Yoga', changes: { start_time: '6:00 AM' },

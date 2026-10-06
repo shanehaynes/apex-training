@@ -97,6 +97,26 @@ describe('create_event', () => {
     });
   });
 
+  it('shows a series as its snapped first date plus a Repeats line', () => {
+    const preview = previewForTool('create_event', {
+      type: 'weights', title: 'Strength A', date: '2026-10-11', estimated_duration: 60,
+      repeat: { days: ['MO', 'TH'], until: '2026-11-05' },
+    }, ctx);
+    expect(preview).toEqual({
+      kind: 'event-create', title: 'Strength A', date: 'Mon Oct 12', time: undefined,
+      durationMinutes: 60, type: 'weights', exercises: [],
+      repeat: 'Repeats every Mon, Thu until Thu Nov 5 · 8 workouts',
+    });
+    // A repeat the executor will refuse falls back to the one-off shape: the
+    // label-only card, not a diff dressed up for a call that will not land.
+    expect(previewForTool('create_event', {
+      type: 'weights', title: 'Strength A', date: '2026-10-12', repeat: { days: ['MO'], until: '2026-10-01' },
+    }, ctx)).toEqual({
+      kind: 'event-create', title: 'Strength A', date: 'Mon Oct 12', time: undefined,
+      durationMinutes: undefined, type: 'weights', exercises: [],
+    });
+  });
+
   it('tolerates a create without optional fields and skips malformed exercise entries', () => {
     const preview = previewForTool('create_event', {
       type: 'cardio', title: 'Easy Run', date: '2026-07-08', exercises: [null, 'x', { sets: 3 }],

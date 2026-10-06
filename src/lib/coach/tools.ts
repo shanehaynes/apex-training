@@ -21,6 +21,7 @@ import { CONTRACT_MAX, contractsEqual, normalizeContract } from './contract.js';
 import { isSeverity, isTargetKind, normalizeBody, targetProblem, type NewCoachAnnotation } from './annotations.js';
 import { validateFatSplit } from '../nutrition/mapping.js';
 import { collidingDefinition, parseNewDefinition } from './newDefinition.js';
+import { parseRepeatInput } from './eventRepeat.js';
 import type { CreateDefinitionInput, CreateEventInput, OccurrenceOverride, UpdateDefinitionInput, UpdateEventInput } from '../schedule/types.js';
 import type { CreateMealInput, Meal, MealType, UpdateMealInput } from '../../types/nutrition.js';
 import type { Exercise, ExerciseDefinition, WorkoutEvent, WorkoutType } from '../../types/workout.js';
@@ -268,20 +269,31 @@ const deleteEventTool: CoachToolDef = {
 const createEventTool: CoachToolDef = {
   schema: createEventSchema,
   displayLabel(input, ctx) {
-    const label = `Create: ${input.title} · ${input.type} · ${input.date}`;
+    // A series states its cadence and its (snapped) first date rather than
+    // the raw input date: the card must name what the row will hold.
+    const series = typeof input.date === 'string' ? parseRepeatInput(input.repeat, input.date) : null;
+    const when = series && !('error' in series)
+      ? `${series.description} from ${series.date}${series.occurrences ? ` (${series.occurrences} workouts)` : ''}`
+      : String(input.date);
+    const label = `Create: ${input.title} · ${input.type} · ${when}`;
     const exercises = (input.exercises as ExerciseInput[] | undefined) ?? [];
     if (!exercises.length) return label;
     const created = ctx ? unmatchedNames(exercises, ctx.definitions) : [];
     return `${label} · ${exercises.length} exercises${created.length ? ` · adds ${created.length} new: ${created.join(', ')}` : ''}`;
   },
   async execute(input, deps) {
-    const { type, title, date, estimated_duration, start_time, difficulty, description, location, tags, equipment, exercises } =
+    const { type, title, date, estimated_duration, start_time, difficulty, description, location, tags, equipment, exercises, repeat } =
       input as {
         type: WorkoutType; title: string; date: string; estimated_duration: number;
         start_time?: string; difficulty?: number; description?: string;
         location?: string; tags?: string[]; equipment?: string[];
-        exercises?: ExerciseInput[];
+        exercises?: ExerciseInput[]; repeat?: unknown;
       };
+
+    // Validated before any library write: a bad repeat must not leave new
+    // definitions behind for an event that was never created.
+    const series = parseRepeatInput(repeat, date);
+    if (series && 'error' in series) return series.error;
 
     let entries: Exercise[] = [];
     let created: string[] = [];
@@ -292,21 +304,25 @@ const createEventTool: CoachToolDef = {
     }
 
     const createInput: CreateEventInput = {
-      type, title, date,
+      type, title,
+      date: series ? series.date : date,
       estimatedDuration: estimated_duration,
       startTime:   start_time,
       difficulty:  difficulty as 1 | 2 | 3 | 4 | 5 | undefined,
       description, location, tags, equipment,
       exercises: entries,
+      ...(series ? { recurrenceRule: series.rule } : {}),
     };
     const result = await deps.createEvent(createInput);
     // The id is load-bearing: without it the model cannot reference the event
     // it just created (its refreshed schedule shows a same-titled entry it may
     // mistake for a pre-existing duplicate). Bracketed to match the schedule
-    // rendering in prompt.ts.
-    return result
-      ? `Created "${title}" on ${date} [${result.id}].${describeCreated(created)}`
-      : 'Failed to create the event.';
+    // rendering in prompt.ts. A series names its cadence so the model (and
+    // the evals) can tell one series from one dated workout.
+    if (!result) return 'Failed to create the event.';
+    return series
+      ? `Created "${title}" repeating ${series.description} from ${series.date} [${result.id}].${describeCreated(created)}`
+      : `Created "${title}" on ${date} [${result.id}].${describeCreated(created)}`;
   },
 };
 

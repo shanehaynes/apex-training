@@ -7,6 +7,7 @@ import { describeMemoryWrite, MEMORY_CONTENT_MAX, MEMORY_TOOL } from './memory.j
 import { CONTRACT_MAX, contractsEqual, normalizeContract } from './contract.js';
 import { ANNOTATION_BODY_MAX, isSeverity, isTargetKind, normalizeBody, targetProblem } from './annotations.js';
 import { parseNewDefinition } from './newDefinition.js';
+import { parseRepeatInput } from './eventRepeat.js';
 import type { CoachToolContext } from './tools.js';
 import type { Exercise, ExerciseDefinition, WorkoutEvent } from '../../types/workout.js';
 import type { Meal } from '../../types/nutrition.js';
@@ -26,7 +27,9 @@ import type { Meal } from '../../types/nutrition.js';
 // dress up a call the executor is going to refuse.
 
 export type ToolPreview =
-  | { kind: 'event-create'; title: string; date: string; time?: string; durationMinutes?: number; type?: string; exercises: string[] }
+  /** `repeat`: a series' cadence ("Repeats every Mon, Thu until Nov 5 · 8 workouts");
+   *  `date` is then the first occurrence after the anchor snap. */
+  | { kind: 'event-create'; title: string; date: string; time?: string; durationMinutes?: number; type?: string; exercises: string[]; repeat?: string }
   | { kind: 'event-update'; title: string; changes: Array<{ field: string; before: string; after: string }> }
   | { kind: 'event-delete'; title: string; date: string; scope: 'one' | 'series' | 'unknown' }
   | { kind: 'exercises'; title: string; before: string[]; after: string[] }
@@ -145,15 +148,24 @@ function inputExerciseLines(value: unknown, definitions: Map<string, ExerciseDef
 
 function createEvent(input: Record<string, unknown>, ctx: CoachToolContext): ToolPreview | null {
   if (typeof input.title !== 'string' || typeof input.date !== 'string') return null;
+  const series = parseRepeatInput(input.repeat, input.date);
+  const repeats = series && !('error' in series) ? series : null;
   return {
     kind: 'event-create',
     title: text(input.title),
-    date: formatDate(input.date),
+    date: formatDate(repeats ? repeats.date : input.date),
     time: typeof input.start_time === 'string' && input.start_time ? text(input.start_time) : undefined,
     durationMinutes: typeof input.estimated_duration === 'number' ? input.estimated_duration : undefined,
     type: typeof input.type === 'string' ? input.type : undefined,
     exercises: inputExerciseLines(input.exercises, ctx.definitions),
+    ...(repeats ? { repeat: describeSeries(repeats.description, repeats.occurrences) } : {}),
   };
+}
+
+/** "Repeats every Mon, Thu until Nov 5 · 8 workouts" — the until date in the card's date style. */
+function describeSeries(description: string, occurrences: number | null): string {
+  const shown = description.replace(/until (\d{4}-\d{2}-\d{2})$/, (_, iso: string) => `until ${formatDate(iso)}`);
+  return `Repeats ${shown}${occurrences ? ` · ${occurrences} workouts` : ''}`;
 }
 
 // update_event's change keys → the live field and how both sides display.

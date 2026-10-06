@@ -93,6 +93,18 @@ export const createEventSchema: Anthropic.Tool = {
       tags: { type: 'array', items: { type: 'string' } },
       equipment: { type: 'array', items: { type: 'string' } },
       exercises: EXERCISE_INPUT_SCHEMA,
+      repeat: {
+        type: 'object',
+        description:
+          'Weekly repeat. ONE create_event with repeat is the whole series — never create dated copies. ' +
+          '`date` is the first occurrence (moved forward to the first listed day if it falls on another).',
+        properties: {
+          days:           { type: 'array', items: { type: 'string', enum: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] } },
+          interval_weeks: { type: 'number', description: '1 = every week, 2 = every other week…' },
+          until:          { type: 'string', description: 'YYYY-MM-DD, inclusive; omit for no end.' },
+        },
+        required: ['days'],
+      },
     },
     required: ['type', 'title', 'date', 'estimated_duration'],
   },

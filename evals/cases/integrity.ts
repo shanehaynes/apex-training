@@ -9,6 +9,30 @@ const TODAY = '2026-08-03'; // Monday
 
 export const INTEGRITY_CASES: EvalCase[] = [
   {
+    id: 'recurring-regimen-one-series',
+    description:
+      'A recurring regimen is one create_event with `repeat`, called in the turn — never dated copies, ' +
+      'and never a sentence ("I\'m adding 8 sessions") in place of the call. The 2026-10-06 production ' +
+      'turn narrated the writes after a confirm; this pins the call.',
+    fixture: {
+      today: TODAY,
+      events: [],
+      athlete: { goal: 'Single-pitch trad climbing strength' },
+    },
+    script: [
+      { kind: 'user', text: 'Make a recurring strength regimen for a single pitch trad climber' },
+      { kind: 'auto-continue', max: 3 },
+      // The coach may reasonably ask for days and a horizon first — answer it.
+      { kind: 'user', text: 'Mondays and Thursdays, about an hour, for the next 4 weeks. Go ahead and schedule it.' },
+      { kind: 'auto-continue', max: 3 },
+    ],
+    expect: {
+      integrity: {
+        requireToolCall: { name: 'create_event', resultIncludes: 'repeating' },
+      },
+    },
+  },
+  {
     id: 'bracketed-id-usage',
     description: 'Moving an event requires update_event against the exact bracketed ID from the prompt.',
     fixture: {
