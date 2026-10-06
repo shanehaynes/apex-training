@@ -41,6 +41,13 @@ const RATE_LIMIT_MESSAGE =
  *  (docs/ios/decisions.md D-025). */
 export const BRIEFING_PROMPT = 'Give me my coaching briefing for today.';
 
+/** Shown when a briefing streams back no text. On a blank account — nothing
+ *  scheduled, nothing logged — the model has nothing to brief on and, with
+ *  tools off for Coach's Notes, nothing it can read, so it says nothing. An
+ *  empty bubble is what the user saw before this. */
+export const EMPTY_BRIEFING_MESSAGE =
+  'Nothing to brief on yet. Coach\'s Notes works from your schedule and logged workouts — add a workout to the calendar, or ask me to plan your week.';
+
 function isMissingKeyError(err: unknown): boolean {
   return err instanceof ApiError && err.status === 402;
 }
@@ -245,6 +252,28 @@ export function rowsForBriefing(assistantText: string): NewCoachMessage[] {
     turnRow('user', BRIEFING_PROMPT, null),
     turnRow('assistant', assistantText, assistantText || null),
   ];
+}
+
+/**
+ * What a finished briefing puts on screen, in the API history and in storage.
+ * A reply with text is a turn like any other (rowsForBriefing). An EMPTY reply
+ * is not: an empty assistant message is invalid history for the next request,
+ * and an empty bubble tells the user nothing. It becomes a display-only notice
+ * with no history behind it, so the next message starts the thread clean.
+ */
+export function briefingOutcome(text: string): {
+  display: string;
+  apiMessages: ApiMessage[];
+  rows: NewCoachMessage[];
+} {
+  if (text.trim() === '') {
+    return { display: EMPTY_BRIEFING_MESSAGE, apiMessages: [], rows: [noticeRow(EMPTY_BRIEFING_MESSAGE)] };
+  }
+  return {
+    display: text,
+    apiMessages: [{ role: 'user', content: BRIEFING_PROMPT }, { role: 'assistant', content: text }],
+    rows: rowsForBriefing(text),
+  };
 }
 
 /**
@@ -616,13 +645,14 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
 
     try {
       const { text } = await streamResponse([syntheticUser], ctx, false);
-      const assistantMsg: ApiMessage = { role: 'assistant', content: text };
-      // Seed apiMessages so follow-up chat has valid history
-      setApiMessages([syntheticUser, assistantMsg]);
-      setMessages([{ id: localMessageId(), role: 'assistant', content: text }]);
-      // The synthetic prompt is stored HIDDEN (display_text null): the model
-      // needs it in history, the user never wrote it and never sees it.
-      void persist(rowsForBriefing(text));
+      // An empty reply becomes a notice with no history behind it; a real one
+      // seeds apiMessages so follow-up chat has valid history, with the
+      // synthetic prompt stored HIDDEN (display_text null): the model needs
+      // it in history, the user never wrote it and never sees it.
+      const outcome = briefingOutcome(text);
+      setApiMessages(outcome.apiMessages);
+      setMessages([{ id: localMessageId(), role: 'assistant', content: outcome.display }]);
+      void persist(outcome.rows);
     } catch (err: unknown) {
       if (isMissingKeyError(err)) {
         setMessages([{ id: localMessageId(), role: 'assistant', content: KEY_SETUP_MESSAGE }]);
