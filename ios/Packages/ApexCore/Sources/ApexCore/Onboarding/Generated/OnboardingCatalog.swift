@@ -127,7 +127,7 @@ public enum OnboardingCatalog {
         ),
         ChecklistItem(
             id: .connector, label: "Connect Claude or ChatGPT",
-            hint: "Ask Claude or ChatGPT about your training. It can look, but never change anything.",
+            hint: "Ask Claude or ChatGPT about your training, or let it log workouts and plan your week. You choose how much it can do.",
             action: Action(label: "Connect", kind: .openProfile), requiresCoros: false
         ),
     ]

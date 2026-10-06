@@ -6,7 +6,7 @@
 
 React 19 · TypeScript (strict) · Vercel serverless · Supabase Postgres under row-level security · Claude · a native SwiftUI client
 
-Apex Training is a production, multi-user web app with a native iOS app shipping through TestFlight. It plans recurring training on a calendar, tracks sessions set by set, computes personal records and period statistics deterministically, and puts a Claude-powered coach next to that data — one that can propose changes to your week but can never make one without your confirmation. It syncs a COROS watch, publishes an ICS feed, emails a review when a training month closes, and exposes a read-only [MCP](https://modelcontextprotocol.io) server behind a full OAuth 2.1 authorization server so Claude or ChatGPT can answer questions about your training from wherever you already are.
+Apex Training is a production, multi-user web app with a native iOS app shipping through TestFlight. It plans recurring training on a calendar, tracks sessions set by set, computes personal records and period statistics deterministically, and puts a Claude-powered coach next to that data — one that can propose changes to your week but can never make one without your confirmation. It syncs a COROS watch, publishes an ICS feed, emails a review when a training month closes, and exposes an [MCP](https://modelcontextprotocol.io) server behind a full OAuth 2.1 authorization server so Claude or ChatGPT can answer questions about your training — and, on a connection you grant write access, log workouts, plan your week and track meals — from wherever you already are.
 
 ![Calendar month view with coach sidebar](docs/screenshots/calendar.png)
 
@@ -34,7 +34,7 @@ Apex Training is a production, multi-user web app with a native iOS app shipping
 | **Frontend** | React 19, TypeScript (strict), Vite 8, Tailwind 4, Recharts, Framer Motion, react-grid-layout |
 | **Backend** | Vercel serverless functions on Node 24 — **36 routes behind 4 deployed functions**: 33 through one Hono catch-all, 3 standalone |
 | **Data** | Supabase Postgres: **29 tables**, per-user RLS on every one, **40 ordered migrations**, generated types checked in CI |
-| **AI** | Claude via each user's own key and their choice of model from a nightly-checked catalog, NDJSON streaming, 11 write tools behind confirmation cards, 8 read-only MCP tools |
+| **AI** | Claude via each user's own key and their choice of model from a nightly-checked catalog, NDJSON streaming, 11 write tools behind confirmation cards, an MCP server with 14 read and 24 write tools gated by OAuth scope |
 | **Native** | SwiftUI iOS app — **~31,000 lines of Swift** (plus ~12,000 of tests), GRDB offline cache + write queue, all fourteen workstreams landed, 0.9.0 on TestFlight |
 | **Tests** | **1,310 unit tests** + 42 integration tests against a real Postgres · **68 Playwright e2e cases** · **665 Swift tests** · 6 CI jobs and 3 scheduled or manual workflows |
 | **Size** | ~59,000 lines of TypeScript across app and API, ~2,600 lines of SQL |
@@ -80,7 +80,7 @@ It exists because the logic previously existed *twice*, independently, and had d
 
 ### An OAuth 2.1 authorization server, so assistants can connect
 
-Apex is a remote MCP server ([`api/_lib/handlers/mcp.ts`](api/_lib/handlers/mcp.ts)) — stateless Streamable HTTP, one POST per JSON-RPC message — exposing **eight read-only tools** over the user's training data: schedule, workout detail, exercise history and search, PRs, period stats, training blocks, meals.
+Apex is a remote MCP server ([`api/_lib/handlers/mcp.ts`](api/_lib/handlers/mcp.ts)) — stateless Streamable HTTP, one POST per JSON-RPC message — exposing **fourteen read tools** over the user's training data (schedule, workout detail, exercise history and search, PRs, period stats, training blocks, meals, reviews, profile, library, notes, coach memory) and **twenty-four write tools** behind a separate `mcp:write` scope.
 
 Connecting it to claude.ai or ChatGPT meant implementing the authorization side of the MCP spec properly, not stapling on an API key:
 
@@ -92,7 +92,7 @@ Connecting it to claude.ai or ChatGPT meant implementing the authorization side 
 | Grants | `authorization_code` + `refresh_token`, PKCE `S256` required, public clients (`token_endpoint_auth_methods: ["none"]`) |
 | Header-based clients | Personal access tokens minted in-app, listed and revocable per client |
 
-**The entire connector surface is read-only by construction.** Anything that writes stays in the in-app coach behind a confirmation card. An assistant cannot change your training; it can only read it. Per-client setup lives in [CONNECTORS.md](CONNECTORS.md).
+**Write access is a scope, not a default of the code.** A token carries `mcp:read` and, only if granted at consent or mint, `mcp:write`; the dispatcher refuses a write tool for any other token, and a token minted before the scope existed stays read-only for life. The write tools are the in-app coach's own executors — the ones the evals test — reached through the same server deps as the confirmation-card door, so a change made from Claude Desktop is stamped, logged under Coach activity and capped (200 AI-made changes a day) exactly as one made in the app. Per-client setup lives in [CONNECTORS.md](CONNECTORS.md).
 
 ### The coach loop
 

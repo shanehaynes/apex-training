@@ -151,10 +151,18 @@ export function deleteAccount(): Promise<{ ok: boolean }> {
 
 // ── MCP connector tokens ──────────────────────────────────────────────────────
 
+/** What a code or connection may do. A null scope is a code from before write access existed: read-only for life. */
+export type McpAccess = 'full' | 'read';
+
+export function mcpAccessOf(scope: string | null | undefined): McpAccess {
+  return scope?.split(/\s+/).includes('mcp:write') ? 'full' : 'read';
+}
+
 export interface McpTokenInfo {
   id: string;
   name: string;
   token_last4: string;
+  scope: string | null;
   created_at: string;
   last_used_at: string | null;
   revoked_at: string | null;
@@ -163,6 +171,7 @@ export interface McpTokenInfo {
 export interface McpConnectionInfo {
   client_id: string;
   name: string;
+  scope: string | null;
   created_at: string;
 }
 
@@ -181,8 +190,8 @@ export function approveOauth(fields: Record<string, string>): Promise<{ redirect
 }
 
 /** The returned plaintext token is shown once and never retrievable again. */
-export function createMcpToken(name: string): Promise<{ id: string; token: string }> {
-  return postJson('/api/mcp-tokens', { name }, 'Token creation');
+export function createMcpToken(name: string, access: McpAccess = 'full'): Promise<{ id: string; token: string }> {
+  return postJson('/api/mcp-tokens', { name, access }, 'Token creation');
 }
 
 export function revokeMcpToken(id: string): Promise<{ ok: boolean }> {

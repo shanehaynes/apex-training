@@ -1,16 +1,21 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from './supabaseAdmin.js';
 import { requireUser } from './auth.js';
-import {
-  pickAllowed,
-  BLOCK_INSERT_COLUMNS,
-  BLOCK_PATCH_COLUMNS,
-  OBJECTIVE_INSERT_COLUMNS,
-  OBJECTIVE_PATCH_COLUMNS,
-} from './allowlist.js';
+import { pickAllowed } from './allowlist.js';
 import { enforceRateLimit } from './rateLimit.js';
-import { parseWeeklyTargets } from '../../src/lib/blocks/targets.js';
-import type { Json, TablesInsert, TablesUpdate } from '../../src/lib/db/types.js';
+import {
+  createBlockResource,
+  deleteBlockResource,
+  INSERT_COLUMNS,
+  insertRows,
+  logBlockMutation,
+  messageForPgError,
+  updateBlockResource,
+  validateJsonb,
+  type BlockMutationLogEntry,
+  type BlockResource,
+} from './services/blocks.js';
+import { sendFailure } from './services/result.js';
 
 // Writes for objectives and training blocks (phase 19), served as
 // /api/blocks and /api/objectives by the consolidated router (_lib/app.ts),
@@ -18,87 +23,19 @@ import type { Json, TablesInsert, TablesUpdate } from '../../src/lib/db/types.js
 // ?resource= delegate, kept as a delegate rather than its own api/*.ts file
 // because of the Vercel Hobby 12-function deploy cap.)
 //
-// enforceAiMutationCap is deliberately NOT called: nothing AI-driven writes
-// blocks yet. When a coach tool is added, gate the non-'user' path the way
-// api/events.ts does AND add block_mutations_log to the counts in
-// enforceAiMutationCap — otherwise the cap silently misses these writes.
+// enforceAiMutationCap is deliberately NOT called here: the web and iOS
+// clients only ever send 'user'. The AI-driven block writes come through the
+// MCP connector's tools (api/_lib/mcp/writeTools.ts), which reach
+// services/blocks.ts directly and are gated by the cap in handlers/mcp.ts;
+// block_mutations_log is among the tables enforceAiMutationCap counts.
 
 type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
-type Resource = 'block' | 'objective';
+type Resource = BlockResource;
+type MutationLogEntry = BlockMutationLogEntry;
 
-// Both tables carry the id / user_id / updated_at columns these writes
-// touch, but postgrest-js types a union table name as the intersection of
-// the two schemas, so each write dispatches on the resource and names one
-// table per branch. The payloads are allowlist-filtered request bodies
-// (INSERT_COLUMNS / PATCH_COLUMNS) validated at runtime; the cast names the
-// table they are bound for so the column names are checked against it.
-type Patch = Record<string, unknown>;
-
-function insertRows(supabase: Admin, resource: Resource, rows: Patch[]) {
-  return resource === 'block'
-    ? supabase.from('training_blocks').insert(rows as TablesInsert<'training_blocks'>[]).select('id')
-    : supabase.from('objectives').insert(rows as TablesInsert<'objectives'>[]).select('id');
-}
-
-function insertRow(supabase: Admin, resource: Resource, row: Patch) {
-  return resource === 'block'
-    ? supabase.from('training_blocks').insert(row as TablesInsert<'training_blocks'>).select('id').single()
-    : supabase.from('objectives').insert(row as TablesInsert<'objectives'>).select('id').single();
-}
-
-// .eq('user_id') is the tenancy guard: the service-role client bypasses
-// RLS, so a forged id can only ever reach the caller's own partition.
-function updateRow(supabase: Admin, resource: Resource, id: string, userId: string, patch: Patch) {
-  return resource === 'block'
-    ? supabase.from('training_blocks').update(patch as TablesUpdate<'training_blocks'>).eq('id', id).eq('user_id', userId)
-    : supabase.from('objectives').update(patch as TablesUpdate<'objectives'>).eq('id', id).eq('user_id', userId);
-}
-
-function deleteRow(supabase: Admin, resource: Resource, id: string, userId: string) {
-  return resource === 'block'
-    ? supabase.from('training_blocks').delete().eq('id', id).eq('user_id', userId)
-    : supabase.from('objectives').delete().eq('id', id).eq('user_id', userId);
-}
-
-const INSERT_COLUMNS: Record<Resource, ReadonlySet<string>> = {
-  block: BLOCK_INSERT_COLUMNS,
-  objective: OBJECTIVE_INSERT_COLUMNS,
-};
-
-const PATCH_COLUMNS: Record<Resource, ReadonlySet<string>> = {
-  block: BLOCK_PATCH_COLUMNS,
-  objective: OBJECTIVE_PATCH_COLUMNS,
-};
-
-interface MutationLogEntry {
-  resource_name: string;
-  diff?: Json;
-  /** Omitted → the DB default ('ai'); UI-driven edits send 'user'. */
-  triggered_by?: 'ai' | 'user';
-}
-
-async function logMutation(
-  supabase: Admin,
-  userId: string,
-  operation: 'create' | 'update' | 'delete',
-  resource: Resource,
-  resourceId: string,
-  log: MutationLogEntry,
-) {
-  const { error } = await supabase.from('block_mutations_log').insert({
-    user_id: userId,
-    operation,
-    resource,
-    resource_id: resourceId,
-    resource_name: log.resource_name,
-    diff: log.diff,
-    // Runtime guard, not just the type: the entry arrives in request bodies.
-    ...(log.triggered_by === 'ai' || log.triggered_by === 'user'
-      ? { triggered_by: log.triggered_by }
-      : {}),
-  });
-  if (error) console.error('[api/training-blocks] mutation log insert failed:', error.message);
-}
+// The single-row writes live in services/blocks.ts (shared with the MCP
+// connector's block tools); the batch insert below is the cycle commit's
+// alone and keeps its own shape here.
 
 /**
  * Postgres error codes worth translating. 23P01 is the non-overlap exclusion
@@ -110,25 +47,6 @@ function statusForPgError(code: string | undefined): number | null {
   if (code === '23514') return 400;
   if (code === '23503') return 400;   // objective_id pointing at nothing
   return null;
-}
-
-function messageForPgError(code: string | undefined, resource: Resource): string {
-  if (code === '23P01') return 'That date range overlaps an existing block';
-  if (code === '23514') return `The ${resource} failed a database constraint (check the dates)`;
-  if (code === '23503') return 'That objective does not exist';
-  return `Failed to write the ${resource}`;
-}
-
-/** Shape-check the JSONB bags the column allowlist cannot see inside. */
-function validateJsonb(resource: Resource, row: Record<string, unknown>): void {
-  if (resource === 'block' && row.weekly_targets !== undefined) {
-    parseWeeklyTargets(row.weekly_targets);
-  }
-  if (resource === 'objective' && row.required_capabilities !== undefined) {
-    if (!Array.isArray(row.required_capabilities)) {
-      throw new Error('required_capabilities must be an array');
-    }
-  }
 }
 
 /**
@@ -207,7 +125,7 @@ async function handleBatchInsert(
   // One log row per created resource: CoachActivity reads this as the record
   // of what changed, and a single collapsed entry would under-report.
   const ids = (data ?? []).map(r => r.id);
-  await Promise.all(ids.map((id, i) => logMutation(supabase, userId, 'create', resource, id, {
+  await Promise.all(ids.map((id, i) => logBlockMutation(supabase, userId, 'create', resource, id, {
     resource_name: String(prepared[i]?.name ?? id),
     triggered_by: body.log?.triggered_by,
   })));
@@ -242,44 +160,10 @@ export async function handleTrainingBlocks(req: VercelRequest, res: VercelRespon
       triggered_by?: unknown;
       log?: MutationLogEntry;
     };
-    if (typeof row.name !== 'string' || !row.name.trim()) {
-      res.status(400).send(`A ${resource} needs a name`);
-      return;
-    }
     const triggeredBy = triggered_by === 'user' || triggered_by === 'ai' ? triggered_by : undefined;
-
-    const { picked, rejected } = pickAllowed(row, INSERT_COLUMNS[resource]);
-    if (rejected.length > 0) {
-      console.error('[api/training-blocks] insert rejected unknown fields:', rejected.join(', '));
-      res.status(400).send(`Unknown ${resource} fields: ${rejected.join(', ')}`);
-      return;
-    }
-
-    try {
-      validateJsonb(resource, picked);
-    } catch (err) {
-      res.status(400).send(err instanceof Error ? err.message : 'Invalid payload');
-      return;
-    }
-
-    const { data, error } = await insertRow(supabase, resource, { ...picked, user_id: userId });
-
-    if (error) {
-      const status = statusForPgError(error.code);
-      if (status) {
-        res.status(status).send(messageForPgError(error.code, resource));
-        return;
-      }
-      console.error('[api/training-blocks] insert failed:', error.message);
-      res.status(500).send(`Failed to create the ${resource}`);
-      return;
-    }
-
-    await logMutation(supabase, userId, 'create', resource, data.id, {
-      resource_name: row.name,
-      triggered_by: log?.triggered_by ?? triggeredBy,
-    });
-    res.status(200).json({ id: data.id });
+    const result = await createBlockResource(supabase, userId, resource, row, log?.triggered_by ?? triggeredBy);
+    if (!result.ok) return sendFailure(res, result);
+    res.status(200).json({ id: result.value.id });
     return;
   }
 
@@ -296,37 +180,8 @@ export async function handleTrainingBlocks(req: VercelRequest, res: VercelRespon
       return;
     }
 
-    const { picked, rejected } = pickAllowed(body.fields, PATCH_COLUMNS[resource]);
-    if (rejected.length > 0) {
-      console.error('[api/training-blocks] update rejected unknown fields:', rejected.join(', '));
-      res.status(400).send(`Unknown ${resource} fields: ${rejected.join(', ')}`);
-      return;
-    }
-
-    try {
-      validateJsonb(resource, picked);
-    } catch (err) {
-      res.status(400).send(err instanceof Error ? err.message : 'Invalid payload');
-      return;
-    }
-
-    const { error } = await updateRow(supabase, resource, id, userId, {
-      ...picked,
-      updated_at: new Date().toISOString(),
-    });
-
-    if (error) {
-      const status = statusForPgError(error.code);
-      if (status) {
-        res.status(status).send(messageForPgError(error.code, resource));
-        return;
-      }
-      console.error('[api/training-blocks] update failed:', error.message);
-      res.status(500).send(`Failed to update the ${resource}`);
-      return;
-    }
-
-    await logMutation(supabase, userId, 'update', resource, id, body.log);
+    const result = await updateBlockResource(supabase, userId, resource, id, body.fields, body.log);
+    if (!result.ok) return sendFailure(res, result);
     res.status(200).json({ ok: true });
     return;
   }
@@ -334,14 +189,8 @@ export async function handleTrainingBlocks(req: VercelRequest, res: VercelRespon
   if (req.method === 'DELETE') {
     const body = req.body as { log?: MutationLogEntry } | undefined;
 
-    const { error } = await deleteRow(supabase, resource, id, userId);
-    if (error) {
-      console.error('[api/training-blocks] delete failed:', error.message);
-      res.status(500).send(`Failed to delete the ${resource}`);
-      return;
-    }
-
-    await logMutation(supabase, userId, 'delete', resource, id, body?.log ?? { resource_name: id });
+    const result = await deleteBlockResource(supabase, userId, resource, id, body?.log);
+    if (!result.ok) return sendFailure(res, result);
     res.status(200).json({ ok: true });
     return;
   }

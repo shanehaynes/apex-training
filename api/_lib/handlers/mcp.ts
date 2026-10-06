@@ -1,17 +1,24 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
-import { enforceRateLimit } from '../rateLimit.js';
-import { resolveMcpToken } from '../mcp/tokens.js';
+import { AI_DAILY_MUTATION_CAP, aiMutationCapReached, enforceRateLimit } from '../rateLimit.js';
+import { resolveMcpAccess } from '../mcp/tokens.js';
 import { handleMcpMessage, isJsonRpcRequest, RPC_INVALID_REQUEST, RPC_PARSE_ERROR } from '../mcp/protocol.js';
-import { MCP_TOOLS } from '../mcp/toolRegistry.js';
+import { MCP_CONNECTOR_TOOLS } from '../mcp/connectorRegistry.js';
 import { OAUTH_SCOPE, publicOrigin } from '../oauth/common.js';
 import { termsGateVerdict, TERMS_REQUIRED_BODY, TERMS_UNAVAILABLE_BODY } from '../legal.js';
 
 // Remote MCP server endpoint (Streamable HTTP, stateless). One POST per
 // JSON-RPC message, application/json back — the 2025-06-18 spec allows a
 // stateless server to skip SSE, session ids, and the GET stream entirely.
-// Auth is a personal access token minted in Profile (see handlers/mcpTokens.ts);
-// Stage 2 (OAuth) will add resource_metadata to the 401 challenge.
+// Auth is a bearer token: a personal access token minted in Profile
+// (handlers/mcpTokens.ts) or an OAuth access token (handlers/oauthToken.ts).
+// The token's scope decides which tools the connection sees and may call —
+// the ten-plus query tools for every token, the write tools only for one
+// carrying mcp:write (mcp/connectorRegistry.ts, mcp/tokens.ts).
+
+export const AI_CAP_MESSAGE =
+  `Daily change cap reached: ${AI_DAILY_MUTATION_CAP} AI-made changes since midnight UTC. Nothing was changed. ` +
+  'The user can make the change in the Apex app, or try again tomorrow.';
 
 function rpcError(res: VercelResponse, code: number, message: string): void {
   res.status(200).json({ jsonrpc: '2.0', id: null, error: { code, message } });
@@ -30,8 +37,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const userId = await resolveMcpToken(supabase, req);
-  if (!userId) {
+  const access = await resolveMcpAccess(supabase, req);
+  if (!access) {
     // resource_metadata points OAuth-capable clients (claude.ai, ChatGPT) at
     // the RFC 9728 discovery document, which starts the sign-in flow.
     res.setHeader(
@@ -41,6 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(401).send('Missing or invalid access token. Connect via OAuth, or mint a token in Apex Training → Profile → Claude or ChatGPT.');
     return;
   }
+  const { userId, canWrite } = access;
 
   // The token's owner is gated too. A user who has not accepted the current
   // terms should not have third-party clients reading their training data on
@@ -83,7 +91,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const outcome = await handleMcpMessage(body, MCP_TOOLS, { supabase, userId });
+  const outcome = await handleMcpMessage(body, MCP_CONNECTOR_TOOLS, {
+    supabase,
+    userId,
+    canWrite,
+    // Every write here is AI-attributed (serverDeps / the services stamp
+    // 'ai'), so the same daily cap that bounds the in-app coach bounds the
+    // connector — checked per call, answered as a tool error the model can
+    // relay rather than a 429 the client would retry.
+    beforeWrite: async () => (await aiMutationCapReached(supabase, userId) ? AI_CAP_MESSAGE : null),
+  });
   if (outcome.kind === 'accepted') {
     res.status(202).end();
     return;

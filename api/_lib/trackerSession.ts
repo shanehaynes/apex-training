@@ -336,3 +336,47 @@ export async function quickCompletePlan(supabase: Admin, userId: string, event: 
     event.estimatedDuration > 0 ? event.estimatedDuration * 60 : undefined,
   );
 }
+
+/**
+ * Undo "Mark as Complete": drop only the system-filled rows (is_autofilled),
+ * so hand-entered logs survive. Zero-fills from a real Finish share the flag
+ * and are dropped too; re-finishing recreates them. A session with no logs
+ * left was created by the toggle — it goes too, so the tracker starts fresh
+ * instead of resuming a phantom finished session. Shared by the
+ * workout-sessions handler and the connector's uncomplete_workout tool.
+ */
+export async function applyQuickUncomplete(
+  supabase: Admin,
+  userId: string,
+  eventId: string,
+  eventDate: string,
+): Promise<ServiceResult> {
+  const deletes = await Promise.all([
+    supabase.from('workout_set_logs').delete()
+      .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate).eq('is_autofilled', true),
+    supabase.from('workout_cardio_logs').delete()
+      .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate).eq('is_autofilled', true),
+  ]);
+  const failedDelete = deletes.find(r => r.error);
+  if (failedDelete?.error) {
+    console.error('[api/workout-sessions] quick-uncomplete delete failed:', failedDelete.error.message);
+    return fail(500, 'Failed to remove quick-completed logs');
+  }
+
+  const [setsLeft, cardioLeft] = await Promise.all([
+    supabase.from('workout_set_logs').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate),
+    supabase.from('workout_cardio_logs').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate),
+  ]);
+  if ((setsLeft.count ?? 0) === 0 && (cardioLeft.count ?? 0) === 0) {
+    const { error: sessionErr } = await supabase
+      .from('workout_sessions').delete()
+      .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate);
+    if (sessionErr) {
+      console.error('[api/workout-sessions] quick-uncomplete session delete failed:', sessionErr.message);
+      return fail(500, 'Failed to remove quick-completed session');
+    }
+  }
+  return succeed(undefined);
+}

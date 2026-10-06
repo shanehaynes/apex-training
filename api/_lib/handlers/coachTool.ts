@@ -3,19 +3,13 @@ import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
 import { enforceAiMutationCap, enforceRateLimit } from '../rateLimit.js';
 import { fetchExpandedSchedule } from '../mcp/data.js';
-import { loadMealsForDate } from '../trackerSession.js';
-import { createServerDeps } from '../coach/serverDeps.js';
-import { applyMemoryCommand } from '../coach/memory.js';
-import { applyContractEdit } from '../reflection/contract.js';
+import { buildCoachToolDeps } from '../coach/toolDeps.js';
 import { findCoachTool } from '../../../src/lib/coach/tools.js';
-import type { NewCoachAnnotation } from '../../../src/lib/coach/annotations.js';
 import { applyDraftUpdate, type DraftUpdateInput, type WorkoutDraft } from '../../../src/lib/builder/draft.js';
 import { applyChartDraftUpdate, type ChartDraft, type DraftUpdateInput as ChartDraftUpdateInput } from '../../../src/lib/analytics/draft.js';
 import { applyBlockDraftUpdate, type BlockDraft, type BlockDraftUpdateInput } from '../../../src/lib/blocks/draft.js';
 import { fetchBlocksAndObjectives } from '../coach/context.js';
 import { parseISO } from 'date-fns';
-import { rowToMeal } from '../../../src/lib/nutrition/mapping.js';
-import type { MealRow } from '../../../src/lib/db/types.js';
 
 // POST /api/coach-tool — execute one CONFIRMED coach tool call on the server
 // (docs/ios/backend-changes.md, W5b). The chat stream hands the client a
@@ -126,50 +120,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!(await enforceAiMutationCap(supabase, res, userId))) return;
 
   try {
-    const [{ occurrences, definitions }, todayMeals] = await Promise.all([
-      fetchExpandedSchedule(supabase, userId, today),
-      loadMealsForDate(supabase, userId, today).catch(() => []),
-    ]);
-    // update_meal validates the fat split against the current row, which
-    // need not be today's — fetch the one the call names.
-    const meals = [...todayMeals];
-    if (typeof input.meal_id === 'string' && !meals.some(m => m.id === input.meal_id)) {
-      const { data } = await supabase.from('meals').select('*').eq('user_id', userId).eq('id', input.meal_id).maybeSingle();
-      if (data) meals.push(rowToMeal(data as MealRow));
-    }
-    // The memory backend rides alongside the schedule/meal deps: a confirmed
-    // memory write (lane C02) lands as confirmed rows — the click is the
-    // confirmation — stamped 'chat'. The service-role client and the
-    // verified uid are bound here, never taken from the tool input.
-    // The contract and note backends (lane D01) ride the same way: a
-    // confirmed propose_contract_edit replaces profiles.coach_contract when
-    // its `before` still matches; a confirmed leave_note inserts the
-    // coach_annotations row with created_by stamped 'coach' — the same
-    // validation the HTTP handler applies, inside the executor.
-    const deps = {
-      ...createServerDeps(supabase, userId, { today, events: occurrences, definitions, meals }),
-      applyMemoryCommand: (cmd: Record<string, unknown>) => applyMemoryCommand(supabase, userId, cmd, { sourceKind: 'chat' }),
-      applyContractEdit: (before: string, after: string) => applyContractEdit(supabase, userId, before, after),
-      createAnnotation: async (note: NewCoachAnnotation) => {
-        const { data, error } = await supabase
-          .from('coach_annotations')
-          .insert({
-            user_id: userId,
-            target_kind: note.target_kind,
-            target_id: note.target_id,
-            body: note.body,
-            severity: note.severity ?? 'info',
-            created_by: 'coach',
-          })
-          .select('id')
-          .single();
-        if (error || !data) {
-          console.error('[api/coach-tool] leave_note insert failed:', error?.message);
-          return null;
-        }
-        return { id: data.id as string };
-      },
-    };
+    // The deps — schedule and meal context, memory, contract and note
+    // backends — are built in api/_lib/coach/toolDeps.ts, shared with the
+    // MCP connector's write tools so both doors run the same executors.
+    const deps = await buildCoachToolDeps(supabase, userId, today, input);
     const resultText = await tool.execute(input, deps);
     res.status(200).json({ ok: true, resultText });
   } catch (err) {
