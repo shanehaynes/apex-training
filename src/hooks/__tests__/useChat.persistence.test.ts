@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  assistantApiContent, BRIEFING_PROMPT, historyForTurn, hydrateFromRows, noticeRow, rowsForBriefing, rowsForToolFlush,
-  rowsForUserTurn, saveRows, turnRow,
+  assistantApiContent, BRIEFING_PROMPT, briefingOutcome, EMPTY_BRIEFING_MESSAGE, historyForTurn, hydrateFromRows,
+  noticeRow, rowsForBriefing, rowsForToolFlush, rowsForUserTurn, saveRows, turnRow,
 } from '../useChat';
 import { appendCoachMessages } from '../../lib/api';
 import type { NewCoachMessage, StoredCoachMessage } from '../../lib/api';
@@ -145,6 +145,32 @@ describe('what each save point stores', () => {
       role: 'user', api_content: BRIEFING_PROMPT, display_text: null, kind: 'turn',
     });
     expect(rows[1].display_text).toBe('Here is today.');
+  });
+
+  it('a briefing with text is a turn: shown, replayed, stored', () => {
+    const out = briefingOutcome('Rest day. Walk.');
+    expect(out.display).toBe('Rest day. Walk.');
+    expect(out.apiMessages).toEqual([
+      { role: 'user', content: BRIEFING_PROMPT },
+      { role: 'assistant', content: 'Rest day. Walk.' },
+    ]);
+    expect(out.rows).toEqual(rowsForBriefing('Rest day. Walk.'));
+  });
+
+  it('an empty briefing (a blank account) is a notice, not an empty bubble', () => {
+    for (const text of ['', '  \n']) {
+      const out = briefingOutcome(text);
+      expect(out.display).toBe(EMPTY_BRIEFING_MESSAGE);
+      // No history: an empty assistant turn would make the next request invalid.
+      expect(out.apiMessages).toEqual([]);
+      expect(out.rows).toEqual([noticeRow(EMPTY_BRIEFING_MESSAGE)]);
+    }
+    // And a reload shows the same notice, with nothing replayed.
+    const { messages, apiMessages } = hydrateFromRows([
+      row({ id: 'n', role: 'assistant', api_content: null, display_text: EMPTY_BRIEFING_MESSAGE, kind: 'notice' }),
+    ]);
+    expect(messages).toEqual([{ id: 'n', role: 'assistant', content: EMPTY_BRIEFING_MESSAGE }]);
+    expect(apiMessages).toEqual([]);
   });
 });
 
