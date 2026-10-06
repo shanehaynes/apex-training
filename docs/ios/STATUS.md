@@ -24,11 +24,11 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
 | W13 | Release + polish | done (#190, #191, #193, #194) · **App Store: not submitted** | Mac | ASC read 2026-09-26: version 1.0 at *Prepare for Submission*, release type still *automatic* (AFTER_APPROVAL — §6 step 1 not done); newest build 424 (0.9.0, expires 2026-12-21); no 1.0.0 build exists; `main` is 1.0.0 once this PR merges — build 9 is `gh workflow run testflight.yml` |
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
-| W15 | Connector access level (look-only / full tokens) | in progress (`feat/w15-ios-connector-access`) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
+| W15 | Connector access level (look-only / full tokens) | in review (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
 
 ## Next up
-0. **W15 (connector access level)** — the phone's token mint sends `access` and shows the
-   read-only tag; snapshots re-recorded on the iPhone 17. Lands as one PR; rides the next
+0. **W15 (connector access level)** — PR #379: the phone's token mint sends `access` and shows
+   the read-only tag; snapshots re-recorded on the iPhone 17. Lands as one PR; rides the next
    TestFlight build after 1.0.0 (build 491). No backend work: #371 shipped the contract.
 0. **The App Store release did not happen — 2026-09-26 step 7 audit.** App Store Connect (read-only
    API, app id 6808637152) shows version 1.0 at *Prepare for Submission* with **automatic**
