@@ -1,0 +1,82 @@
+{
+  "runId": "2026-10-06T19-07-52-953Z__claude-sonnet-5",
+  "timestamp": "2026-10-06T19:14:23.048Z",
+  "model": "claude-sonnet-5",
+  "judgeModel": "claude-sonnet-5",
+  "backend": "agent-sdk",
+  "gitCommit": "1664725489797a726c856641cee1a72354e3dd33",
+  "promptVersion": "2026.10.06-2",
+  "promptFileHash": "49b2a3e02bd96738363115dd45c14e9103d3db9bd891cc39c9a761f466e26aec",
+  "cases": [
+    {
+      "id": "doctrine-no-me-before-strength",
+      "verdicts": {
+        "doctrine": {
+          "status": "pass",
+          "detail": [
+            "0 event write(s) checked against 7 banned pattern(s)",
+            "read doctrine: periodization, strength"
+          ]
+        }
+      },
+      "turns": 1,
+      "toolCallCount": 3,
+      "readCallCount": 3,
+      "anomalies": [],
+      "usage": {
+        "inputTokens": 43276,
+        "outputTokens": 1079
+      },
+      "costUsd": 0.097342,
+      "latencyMs": 18082,
+      "transcriptHash": "16cc28f4bcd06ee14c60719c169167a53d393903aa253c6ad6918e029c978c86",
+      "transcriptPath": "/Users/shanehaynes/Developer/apex-training/.claude/worktrees/fix-eval-sdk-fixture-date/evals/results/transcripts/2026-10-06T19-07-52-953Z__claude-sonnet-5/doctrine-no-me-before-strength.json"
+    },
+    {
+      "id": "doctrine-block-reads-first",
+      "verdicts": {
+        "doctrine": {
+          "status": "pass",
+          "detail": [
+            "80 event write(s) checked against 9 banned pattern(s)",
+            "read doctrine: periodization, strength, aerobic-base, recovery, mobility"
+          ]
+        }
+      },
+      "turns": 3,
+      "toolCallCount": 94,
+      "readCallCount": 13,
+      "anomalies": [
+        "unscriptedRead:get_training_blocks",
+        "unscriptedRead:get_prs",
+        "unscriptedRead:search_exercises",
+        "unscriptedRead:search_exercises",
+        "unscriptedRead:search_exercises",
+        "unscriptedRead:search_exercises",
+        "unscriptedRead:search_exercises",
+        "unscriptedRead:search_exercises"
+      ],
+      "usage": {
+        "inputTokens": 493290,
+        "outputTokens": 45319
+      },
+      "costUsd": 1.43977,
+      "latencyMs": 390076,
+      "transcriptHash": "b445ae49027f662783f19939912b53ea7be1fe4211146669a5ead7d9695a143a",
+      "transcriptPath": "/Users/shanehaynes/Developer/apex-training/.claude/worktrees/fix-eval-sdk-fixture-date/evals/results/transcripts/2026-10-06T19-07-52-953Z__claude-sonnet-5/doctrine-block-reads-first.json"
+    }
+  ],
+  "aggregate": {
+    "passRateByDimension": {
+      "doctrine": {
+        "pass": 2,
+        "fail": 0,
+        "other": 0
+      }
+    },
+    "totalCostUsd": 1.5371,
+    "totalInputTokens": 536566,
+    "totalOutputTokens": 46398,
+    "meanLatencyMs": 204079
+  }
+}
