@@ -1,0 +1,720 @@
+{
+  "caseId": "beginner-running-plan",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Set up my first 4 weeks of run training. Schedule each run."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Bc1dz9W2fGRJYdYV4bVrXz",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "aerobic-base"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Bc1dz9W2fGRJYdYV4bVrXz",
+          "content": "Every mountain pursuit this athlete has is a long day at moderate output, and the capacity that decides how that day goes is aerobic. The base is built with large volumes of easy work, it takes months, and it is the part of training most athletes skip because it does not feel like effort.\n\n## Why aerobic capacity is the foundation\n\nA 6,000-foot alpine day, a two-day route, a ski traverse or a backcountry hunt is many hours of continuous work at an intensity the athlete must be able to sustain while thinking clearly, eating, and keeping something in reserve for the hard section or the retreat. That intensity is aerobic. What decides the day is how fast the athlete can move while staying aerobic, how much of the work is fueled by fat rather than limited glycogen, and how quickly the body clears fatigue between efforts.\n\nAerobic training builds these through adaptations that take months: more and larger mitochondria in the working muscles, more capillaries feeding them, a heart that pumps more blood per beat, and a shift toward fat as the fuel at a given pace. These adaptations respond best to long, easy, frequent work. They respond poorly to short hard work, which mainly trains the systems that deliver speed for minutes, not hours.\n\nThe base also sets the ceiling for everything built on it: muscular endurance is only as good as the aerobic system supplying it, and strength that cannot be sustained is not useful in the mountains. This is why the doctrine builds the base first and longest.\n\n## The two thresholds\n\nTwo intensities organize aerobic training.\n\nThe aerobic threshold (AeT) is the highest intensity at which the body is still working almost entirely aerobically, fueled largely by fat, with lactate barely above resting. Below it, the athlete can go for hours and recover quickly. Above it, the effort starts drawing on carbohydrate and accumulating fatigue that takes longer to clear. For a mountain athlete, this is the single most important number: the objective is spent below or near it, and most training belongs below it.\n\nThe anaerobic threshold (AnT) is the highest intensity the body can sustain for roughly an hour before lactate accumulates faster than it clears. Above it, the effort is measured in minutes. It marks the top of useful endurance intensity and the bottom of intensity that mainly serves speed.\n\nIn a well-trained endurance athlete these two thresholds sit close together, with AeT within roughly ten percent of AnT by heart rate. In an athlete whose aerobic system is undertrained relative to their high-intensity fitness, the gap is wide. That gap is the diagnosis that decides the prescription.\n\n## Estimating the thresholds in the field\n\nA lab test with gas exchange or blood lactate is the most accurate way to find both thresholds, and the coach should recommend one when the athlete has access. In its absence, three field methods estimate AeT, and the coach should cross-check at least two:\n\n1. Talk test. At or below AeT the athlete can speak in full sentences without gasping. The point at which sentences break into short phrases is the upper edge of AeT. This is the simplest and surprisingly reliable.\n2. Nasal breathing. Sustained nose-only breathing during a steady effort keeps most athletes at or below AeT. The point at which the athlete must open their mouth to keep pace is a usable AeT estimate.\n3. Heart-rate drift. On a long, steady effort at constant pace (roughly an hour after a warmup, on flat or consistently graded terrain), compare heart rate in the second half to the first. If pace is constant and heart rate rises by more than roughly five percent, the effort was above AeT. If the rise is under roughly three to five percent, the effort was at or below it. Repeat at a slightly higher heart rate until the drift crosses the line; the last heart rate that held is AeT. The app can compute this from any steady logged effort.\n\nIn all three, AeT feels easy, sustainable indefinitely and slightly boring; if the effort feels like work, it is above AeT.\n\nAnT is estimated from a sustained hard effort: the average heart rate over roughly thirty to sixty minutes of the hardest steady pace the athlete can hold, after a thorough warmup. This test is demanding and should be done rested, at most a few times a season.\n\nAll these estimates are guidelines with error of several beats. The coach treats them as working numbers, re-checks them every four to eight weeks in base, and expects AeT to rise as the base builds.\n\n## Aerobic deficiency\n\nWhen AeT sits well below AnT, with a gap of roughly ten percent or more of the AnT heart rate as the common working definition, the athlete is aerobically deficient. This is the usual profile of a strong, motivated athlete who trains hard often and easy rarely: they can go hard, but they cannot go long, and their easy pace is slow.\n\nThe prescription for aerobic deficiency is unambiguous:\n1. Nearly all aerobic volume goes below AeT until the gap closes. Below, not at.\n2. The moderate zone between AeT and AnT, the grey zone, is avoided. It is too hard to build the base and too easy to build anything else, and it produces fatigue that steals from the volume that would actually work.\n3. High-intensity work is removed or kept to a small maintenance dose.\n4. Volume is raised gradually. Because the work is easy, volume can grow more than the athlete expects, but the gradualness rule still holds.\n5. Strength training continues in parallel. It does not compete with easy aerobic volume for recovery the way intensity does.\n\nThis is the Uphill Athlete approach to the base, and this doctrine adopts it. The period feels too easy and the athlete will want to push; the coach holds the line. The base builds slowly, then fast, and the athlete who trusts the process for eight to twelve weeks typically sees their easy pace rise substantially at the same heart rate. Once AeT sits within roughly ten percent of AnT, the deficiency is closed and intensity can be added.\n\n## Zone distribution across a base phase\n\nAcross a base phase the guideline is that the large majority of aerobic time, roughly eighty percent or more, sits below AeT, and the small remainder sits near or above AnT. Time in the grey zone is minimized. This holds especially for a mountain athlete with limited hours: the fewer the hours, the more of them must be easy, because intensity is what the schedule cannot recover from.\n\nWithin the easy majority, variety comes from duration and terrain, not intensity: a long weekend outing on real terrain, several shorter weekday sessions, and steep hiking or ski touring under a light pack as the base builds. The long session is the most important session of the week and it grows first.\n\n## Volume progression and recovery weeks\n\n1. Establish a baseline from the athlete's actual recent history, not from what they aspire to.\n2. Raise weekly aerobic volume by roughly five to ten percent per week as a guideline, holding intensity constant.\n3. Every third or fourth week, reduce volume by roughly a third to a half. The recovery week is where the adaptation consolidates.\n4. Grow the long session first and most, then add frequency, then add duration to the weekday sessions.\n5. When the athlete cannot add hours, add vertical: steep terrain at the same heart rate is more specific and more productive for mountain work than flat distance.\n6. Track the easy pace at AeT heart rate. If it rises, the base is building. If it stalls for many weeks with good recovery, the stimulus needs to change, usually through more volume or more vertical.\n\n## When intensity earns its place\n\nHigher-intensity aerobic work is a tool for the later part of the plan, not the start of it. It earns its place when:\n1. The AeT to AnT gap has closed to roughly ten percent or less.\n2. The athlete has accumulated many consecutive weeks of consistent easy volume.\n3. The objective demands sustained efforts near AnT, such as a fast alpine push or a competitive run.\n\nIt enters as one session per week at first, in the form the objective demands: long uphill intervals near AnT for alpine objectives, tempo efforts for running. The easy volume is kept, not replaced; intensity on top of a reduced base is the fastest way back to deficiency.\n\n## How the coach applies this\n\n- Establish AeT and AnT estimates from at least two field methods before programming a base phase, and re-estimate every four to eight weeks.\n- When the AeT to AnT gap is roughly ten percent of AnT heart rate or more, prescribe nearly all aerobic volume below AeT, remove the grey zone, and hold high intensity to a small maintenance dose until the gap closes.\n- Keep roughly eighty percent or more of aerobic time below AeT across any base phase, as a guideline, and treat time between AeT and AnT as the first thing to cut.\n- Grow the weekly long session first and most, and prefer vertical over flat distance when the athlete cannot add hours.\n- Raise aerobic volume by roughly five to ten percent per week at most, and program a reduced week every third or fourth week.\n- Use heart-rate drift on logged steady efforts as the app's own evidence of where AeT sits and whether it is rising.\n- Add higher-intensity aerobic work only after the gap has closed and many consistent weeks are banked, as one session per week at first, without cutting easy volume.\n- Explain to the athlete in plain terms that the easy work feels too easy by design and that the payoff is a faster pace at the same heart rate.\n\n## Signals that contradict this\n\n- Heart-rate drift under roughly three to five percent on long efforts at a pace that also keeps rising over weeks indicates the base is building and the current prescription is working.\n- A gap between AeT and AnT that stays wide after twelve or more weeks of high easy volume with good recovery indicates the AeT estimate may be wrong or the volume is not truly easy, and both should be re-checked before adding more.\n- Easy sessions logged with average heart rate above the estimated AeT indicate the athlete is drifting into the grey zone, and the coach should slow the prescription rather than assume the base is being built.\n- A resting heart rate that rises or an HRV trend that falls during a base phase of only easy work indicates the volume increase has outrun recovery, or that life stress or illness is present, and volume should hold or drop.\n- An objective that is short and intense, such as a single-pitch performance goal or a race under an hour, is one where the base-heavy distribution should shift earlier toward intensity than the default alpine prescription.\n- An athlete reporting that easy sessions feel hard, or that their easy pace has slowed, is showing fatigue or illness rather than a need for more volume."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01CqxtqkCcRs7eEJ5KLjDhnG",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "periodization"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01CqxtqkCcRs7eEJ5KLjDhnG",
+          "content": "A training plan is a sequence of phases, each building the capacity the next one needs, ending at a date on which the athlete must be at their best. The sequence is fixed; the lengths, the weekly shape and the specific work are set by the objective.\n\n## The arc\n\nEvery cycle moves through the same five phases in the same order. The order comes from the capacity hierarchy: general before specific, base before intensity, load before rest.\n\n1. Transition. Purpose: re-establish the habit of training, restore movement quality, and prepare tissue for the loads to come. Content: low aerobic volume, all easy; general strength with an emphasis on movement quality, unilateral work, carries, core and posterior chain; daily mobility. This phase is short and unglamorous and skipping it is the most common source of early injury.\n\n2. Base. Purpose: build the aerobic foundation and raise max strength. Content: aerobic volume grows week over week, nearly all below the aerobic threshold; the long session grows first; max strength is trained heavy, low-rep, twice a week; mobility is maintained. This is the longest phase and the one that most determines the outcome.\n\n3. Specific. Purpose: convert the general capacities into the objective's actual demand. Content: aerobic volume holds or drops slightly while the long session becomes a rehearsal of the objective, on similar terrain with similar load and duration; max strength converts to muscular endurance through weighted uphill work; intensity that mimics the objective enters, one session per week at first; for a rock objective, climbing-specific strength and power take priority. The specific phase is where the plan starts to look like the objective.\n\n4. Taper and peak. Purpose: shed fatigue while keeping fitness, so the athlete arrives fresh and sharp. Content: volume drops by roughly a third to a half as a guideline, while a small amount of intensity and specificity is kept so the body stays primed. Nothing new is introduced. The athlete will feel restless and under-trained; this is the taper working.\n\n5. Recovery. Purpose: let the body and mind reset before the next cycle. Content: one to several weeks of unstructured, easy, enjoyable movement with no plan. Then the next transition begins.\n\n## How objective type shapes the phases\n\nThe arc is the same, but the weight of each phase changes with what the objective demands.\n\nAlpine climb or long mountain day. The aerobic base dominates and base is the longest phase. The specific phase rehearses long uphill efforts under a pack with the objective's vertical; muscular endurance is the key conversion; climbing-specific work is maintained, not built, unless the technical crux is near the athlete's limit.\n\nSki traverse or multi-day ski objective. As above, with the specific phase built on skinning under load and long consecutive days. Skiing itself is the best specific work once snow allows.\n\nRock project or technical climbing goal. The aerobic base is maintained rather than grown; climbing-specific strength and power take the place of muscular endurance in the specific phase; the base phase still builds max strength and finger strength because those are the slow adaptations. The result is a climbing plan with an aerobic floor under it, not an aerobic plan with climbing on top.\n\nHunting season. A long specific phase of loaded uphill hiking and carrying, with muscular endurance as the priority and general strength kept for the pack-out. The objective is repeated big days over weeks, so durability and recovery capacity outrank speed.\n\nWith several objectives in a year, the coach chooses one as the primary peak and treats the others as training events or as secondary peaks with a short taper. Two full peaks close together are not possible; the athlete picks.\n\n## Block lengths and the loading pattern\n\nLengths are guidelines and depend on the athlete's training history and the time available. The proportions matter more than the numbers.\n\n- Transition: roughly four to eight weeks. Shorter for an athlete coming off a consistent season, longer after a layoff or injury.\n- Base: roughly eight to sixteen weeks or more. The longer the objective and the wider the aerobic deficiency, the longer the base. An athlete with an aerobic deficiency stays in base until the gap closes.\n- Specific: roughly four to eight weeks. Long enough to convert strength to muscular endurance and rehearse the objective several times; short enough that specific fatigue does not accumulate into the taper.\n- Taper: roughly one to three weeks, longer for a longer objective and a larger preceding volume.\n- Recovery: one to several weeks.\n\nWithin a block, the loading pattern is a rise followed by a drop. The common patterns are three building weeks then one reduced week, or two then one for an athlete who recovers slowly or has high life stress. The building weeks raise volume gradually; the reduced week cuts volume by roughly a third to a half and keeps intensity light. The reduced week is not optional and not a reward; it is where the previous three weeks are consolidated into fitness.\n\nA block ends with a check: has the capacity it was meant to build actually moved? Aerobic threshold pace, a strength benchmark, a rehearsal effort on terrain. If it has, the next block begins. If it has not, the coach looks for the reason before moving on.\n\n## What a week looks like in each phase\n\nThe templates below are shapes, not schedules. The athlete's life, the pursuits and the weather set the days.\n\nTransition week:\n- Two general strength sessions, movement quality first, moderate load.\n- Three to four easy aerobic sessions, short, one of them slightly longer.\n- Daily mobility minimum.\n- One full rest day, and any pursuit outing counts as the long aerobic session.\n\nBase week:\n- Two max strength sessions, heavy and brief, on days that do not precede the long session.\n- One long easy aerobic session, growing week over week, on terrain and ideally under a light pack.\n- Two to four shorter easy aerobic sessions.\n- Mobility maintained daily.\n- One full rest day.\n\nSpecific week:\n- One muscular endurance session (weighted uphill work, loaded step-ups or hill repeats), which replaces one max strength session.\n- One max strength maintenance session, or a climbing-specific strength session for a rock objective.\n- One long session rehearsing the objective's demand.\n- One session of objective-specific intensity, once the base has earned it.\n- One to two short easy aerobic sessions for recovery and volume.\n- One full rest day, sometimes two.\n\nTaper week:\n- Volume cut substantially, sessions shorter, the long session shortened most.\n- One short session with a little intensity to stay sharp.\n- Strength reduced to a light maintenance dose or dropped in the final week.\n- Extra sleep, extra rest days.\n\n## When weeks are missed\n\nLife, illness and weather will remove weeks from any plan. The rule is: do not cram, extend.\n\n1. One missed session is absorbed. The plan continues as written.\n2. Up to a week missed for illness or life: resume at the load of the week before the gap, not the week that was planned, then progress from there. The objective date does not move, but the block may end a week later and the next block starts a week shorter.\n3. Two or more weeks missed: treat the return as a short transition. Resume at reduced volume, rebuild over one to two weeks, then continue the block. If the objective date is fixed, shorten the specific phase rather than the base; if the gap fell in base, the coach and athlete discuss whether the objective is still realistic.\n4. Never compress the missed volume into the following weeks. Doubling up violates gradualness and usually produces the injury that removes the next four weeks too.\n5. A missed reduced week is missed recovery, not missed volume, and it must be taken before the next building block starts.\n\nThe athlete's calendar in the app is the record. When the coach sees a gap, it asks what happened before changing anything, because illness, injury and a busy week each call for a different return.\n\n## How the coach applies this\n\n- Anchor every plan on a named objective with a date, and work backward through taper, specific, base and transition to set the block lengths.\n- Set the weight of each phase by the objective type, with the aerobic base dominant for alpine, ski and hunting objectives and climbing-specific work taking the specific phase for a rock objective.\n- Keep an athlete with an aerobic deficiency in base until the threshold gap closes, and shorten the specific phase rather than the base if the date is fixed.\n- Program each block as building weeks followed by one reduced week, using three-then-one as the default and two-then-one when recovery signals or life stress warrant it.\n- End each block with a concrete check of the capacity it was meant to build, and do not begin the next block until the check has been read.\n- Build a weekly template that names the long session, the strength sessions and the rest day first, then fills the remaining days with easy volume.\n- Introduce nothing new in the taper, and cut volume by roughly a third to a half while keeping a small dose of intensity.\n- When weeks are missed, resume at the load before the gap and extend the block, and never compress the missed volume into the following weeks.\n- Ask what caused a gap in the calendar before changing the plan, because illness, injury and a busy week call for different returns.\n\n## Signals that contradict this\n\n- A benchmark that has not moved at the end of a block, with good recovery signals and high completion, indicates the block's stimulus was too small and the next block should raise load rather than simply continue.\n- A benchmark that has not moved with poor recovery signals indicates the block was not absorbed, and the next block should begin with an extended reduced period rather than more load.\n- An athlete who arrives at the specific phase with a wide threshold gap has left base too early, and the coach should extend base and shorten the specific phase even if the plan said otherwise.\n- Rising fatigue, worsening sleep or falling motivation during a taper indicates the taper has cut too little or too late, and the remaining volume should drop further.\n- A pursuit calendar that already contains long outings most weekends means the plan's long session is being provided by the pursuits, and the coach should count those outings rather than add a second long session.\n- Two objectives placed within a few weeks of each other cannot both receive a full peak, and the coach should ask the athlete which one is primary before building either plan."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Programming this as a transition/early-base block per doctrine: all easy, talk-test pace (full sentences, walk if breathless), run/walk ratio increasing gradually, long session grows first, week 4 is a reduced/consolidation week (aerobic-base doctrine: \"grow the weekly long session first,\" raise volume ~5–10%/week, reduce every 3rd–4th week by a third to a half).\n\nSchedule: Tue/Thu short sessions + Sat long session, 4 weeks."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01CKj6b4nZg2DYiqC7ShZZiV",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals",
+            "date": "2026-08-04",
+            "estimated_duration": 32,
+            "description": "Easy aerobic, talk-test pace: hold full sentences, drop to walk if breathless. 5 min warmup walk. 8× (1 min run / 2 min walk) = 24 min. 3 min cooldown walk.",
+            "tags": [
+              "running",
+              "base-building",
+              "week-1"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01CKj6b4nZg2DYiqC7ShZZiV",
+          "content": "Created \"Run/Walk Intervals\" on 2026-08-04 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_015YRX7ZYP9q1aLrj6Cx8dia",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals",
+            "date": "2026-08-06",
+            "estimated_duration": 32,
+            "description": "Easy aerobic, talk-test pace: hold full sentences, drop to walk if breathless. 5 min warmup walk. 8× (1 min run / 2 min walk) = 24 min. 3 min cooldown walk.",
+            "tags": [
+              "running",
+              "base-building",
+              "week-1"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_015YRX7ZYP9q1aLrj6Cx8dia",
+          "content": "Created \"Run/Walk Intervals\" on 2026-08-06 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_018ckLd2D7t5hiZSyQvcQmRC",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Long Run/Walk",
+            "date": "2026-08-08",
+            "estimated_duration": 40,
+            "description": "Long session — this grows first in base-building. Easy pace, talk-test. 5 min warmup walk. 10× (1 min run / 2 min walk) = 30 min. 5 min cooldown walk.",
+            "tags": [
+              "running",
+              "base-building",
+              "week-1",
+              "long"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_018ckLd2D7t5hiZSyQvcQmRC",
+          "content": "Created \"Long Run/Walk\" on 2026-08-08 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_0131ZZnUQ1bXBrLyHGmqirWa",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals",
+            "date": "2026-08-11",
+            "estimated_duration": 32,
+            "description": "Held flat this week — the long session carries the growth. Easy pace, talk-test. 5 min warmup walk. 8× (1 min run / 2 min walk) = 24 min. 3 min cooldown walk.",
+            "tags": [
+              "running",
+              "base-building",
+              "week-2"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0131ZZnUQ1bXBrLyHGmqirWa",
+          "content": "Created \"Run/Walk Intervals\" on 2026-08-11 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_017DWX2tzapGySXJDQoBZTHU",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals",
+            "date": "2026-08-13",
+            "estimated_duration": 32,
+            "description": "Held flat this week — the long session carries the growth. Easy pace, talk-test. 5 min warmup walk. 8× (1 min run / 2 min walk) = 24 min. 3 min cooldown walk.",
+            "tags": [
+              "running",
+              "base-building",
+              "week-2"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_017DWX2tzapGySXJDQoBZTHU",
+          "content": "Created \"Run/Walk Intervals\" on 2026-08-13 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01HR3QEuTcy8RXYqt2E2xySw",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Long Run/Walk",
+            "date": "2026-08-15",
+            "estimated_duration": 43,
+            "description": "+~8% volume on last week's long session, run intervals a bit longer. Easy pace, talk-test. 5 min warmup walk. 11× (90 sec run / 90 sec walk) = 33 min. 5 min cooldown walk.",
+            "tags": [
+              "running",
+              "base-building",
+              "week-2",
+              "long"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01HR3QEuTcy8RXYqt2E2xySw",
+          "content": "Created \"Long Run/Walk\" on 2026-08-15 [evt-ai-6]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01NANJPUf3gxHNugYqG6L5Pg",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals",
+            "date": "2026-08-18",
+            "estimated_duration": 32,
+            "description": "Duration flat, running proportion increases. Easy pace, talk-test. 5 min warmup walk. 8× (90 sec run / 90 sec walk) = 24 min. 3 min cooldown walk.",
+            "tags": [
+              "running",
+              "base-building",
+              "week-3"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01NANJPUf3gxHNugYqG6L5Pg",
+          "content": "Created \"Run/Walk Intervals\" on 2026-08-18 [evt-ai-7]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01FGRTKPLHtpLd3bT4g8QarJ",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals",
+            "date": "2026-08-20",
+            "estimated_duration": 32,
+            "description": "Duration flat, running proportion increases. Easy pace, talk-test. 5 min warmup walk. 8× (90 sec run / 90 sec walk) = 24 min. 3 min cooldown walk.",
+            "tags": [
+              "running",
+              "base-building",
+              "week-3"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01FGRTKPLHtpLd3bT4g8QarJ",
+          "content": "Created \"Run/Walk Intervals\" on 2026-08-20 [evt-ai-8]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Fva3vQr3JMdSj3BtisDrk2",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Long Run/Walk",
+            "date": "2026-08-22",
+            "estimated_duration": 45,
+            "description": "Peak long session of this block. Easy pace, talk-test. 5 min warmup walk. 10× (2 min run / 90 sec walk) = 35 min. 5 min cooldown walk.",
+            "tags": [
+              "running",
+              "base-building",
+              "week-3",
+              "long"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Fva3vQr3JMdSj3BtisDrk2",
+          "content": "Created \"Long Run/Walk\" on 2026-08-22 [evt-ai-9]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01VNpohLjexhqivGo6UfUM12",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals (reduced)",
+            "date": "2026-08-25",
+            "estimated_duration": 23,
+            "description": "Reduced week — consolidate, don't push. Easy pace, talk-test. 5 min warmup walk. 5× (90 sec run / 90 sec walk) = 15 min. 3 min cooldown walk.",
+            "tags": [
+              "running",
+              "base-building",
+              "week-4",
+              "reduced"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01VNpohLjexhqivGo6UfUM12",
+          "content": "Created \"Run/Walk Intervals (reduced)\" on 2026-08-25 [evt-ai-10]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Nr45Ss6zsWhwyBaq1t3i2Q",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals (reduced)",
+            "date": "2026-08-27",
+            "estimated_duration": 23,
+            "description": "Reduced week — consolidate, don't push. Easy pace, talk-test. 5 min warmup walk. 5× (90 sec run / 90 sec walk) = 15 min. 3 min cooldown walk.",
+            "tags": [
+              "running",
+              "base-building",
+              "week-4",
+              "reduced"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Nr45Ss6zsWhwyBaq1t3i2Q",
+          "content": "Created \"Run/Walk Intervals (reduced)\" on 2026-08-27 [evt-ai-11]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_013zjTS36DgFHTnLHNxvpzxR",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Long Run/Walk (reduced)",
+            "date": "2026-08-29",
+            "estimated_duration": 31,
+            "description": "Reduced long session, ~30% below week 3 peak — recovery week consolidates the gains. Easy pace, talk-test. 5 min warmup walk. 6× (2 min run / 90 sec walk) = 21 min. 5 min cooldown walk.",
+            "tags": [
+              "running",
+              "base-building",
+              "week-4",
+              "reduced",
+              "long"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_013zjTS36DgFHTnLHNxvpzxR",
+          "content": "Created \"Long Run/Walk (reduced)\" on 2026-08-29 [evt-ai-12]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "12 sessions scheduled, Tue/Thu/Sat, Aug 4–29:\n\n- **Wk1-2 (Tue/Thu):** 1min run/2min walk ×8 = 24min, flat duration — frequency habit first\n- **Wk1 long (Sat):** 1min/2min ×10 = 30min\n- **Wk2 long (Sat):** 90s/90s ×11 = 33min (+8%)\n- **Wk3 (Tue/Thu):** 90s/90s ×8 = 24min — same duration, more running\n- **Wk3 long (Sat):** 2min run/90s walk ×10 = 35min (block peak)\n- **Wk4:** reduced ~30% across the board — consolidation before next block\n\nAll easy, talk-test pace (full sentences; walk if gasping) — doctrine: base work stays below AeT, long session grows first, reduced week every 3rd-4th. No grey-zone or hard efforts yet; that's premature for someone with zero run history.\n\nAfter week 4: check completion and how the long session felt before deciding whether to extend base or start adding duration faster. If you want, I can log your AeT estimate once you've run a few of these — talk test is the simplest field check."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Plan's live — 12 sessions through Aug 29, nothing more to schedule until week 4 wraps.\n\nNothing to act on yet: AeT estimate needs actual logged sessions (talk-test note after each run, or heart-rate drift on a steady effort) — can't fabricate it. Log how each run feels (full sentences vs. gasping) and I'll read it off your session history once a few are in.\n\nAt week 4, I'll check completion rate and how the long session felt before deciding: extend base at this volume, or — if it's gone well — nudge the run:walk ratio further toward continuous running. Doctrine holds: no speed work, no added load, until the base is actually there."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "aerobic-base"
+      },
+      "result": "Every mountain pursuit this athlete has is a long day at moderate output, and the capacity that decides how that day goes is aerobic. The base is built with large volumes of easy work, it takes months, and it is the part of training most athletes skip because it does not feel like effort.\n\n## Why aerobic capacity is the foundation\n\nA 6,000-foot alpine day, a two-day route, a ski traverse or a backcountry hunt is many hours of continuous work at an intensity the athlete must be able to sustain while thinking clearly, eating, and keeping something in reserve for the hard section or the retreat. That intensity is aerobic. What decides the day is how fast the athlete can move while staying aerobic, how much of the work is fueled by fat rather than limited glycogen, and how quickly the body clears fatigue between efforts.\n\nAerobic training builds these through adaptations that take months: more and larger mitochondria in the working muscles, more capillaries feeding them, a heart that pumps more blood per beat, and a shift toward fat as the fuel at a given pace. These adaptations respond best to long, easy, frequent work. They respond poorly to short hard work, which mainly trains the systems that deliver speed for minutes, not hours.\n\nThe base also sets the ceiling for everything built on it: muscular endurance is only as good as the aerobic system supplying it, and strength that cannot be sustained is not useful in the mountains. This is why the doctrine builds the base first and longest.\n\n## The two thresholds\n\nTwo intensities organize aerobic training.\n\nThe aerobic threshold (AeT) is the highest intensity at which the body is still working almost entirely aerobically, fueled largely by fat, with lactate barely above resting. Below it, the athlete can go for hours and recover quickly. Above it, the effort starts drawing on carbohydrate and accumulating fatigue that takes longer to clear. For a mountain athlete, this is the single most important number: the objective is spent below or near it, and most training belongs below it.\n\nThe anaerobic threshold (AnT) is the highest intensity the body can sustain for roughly an hour before lactate accumulates faster than it clears. Above it, the effort is measured in minutes. It marks the top of useful endurance intensity and the bottom of intensity that mainly serves speed.\n\nIn a well-trained endurance athlete these two thresholds sit close together, with AeT within roughly ten percent of AnT by heart rate. In an athlete whose aerobic system is undertrained relative to their high-intensity fitness, the gap is wide. That gap is the diagnosis that decides the prescription.\n\n## Estimating the thresholds in the field\n\nA lab test with gas exchange or blood lactate is the most accurate way to find both thresholds, and the coach should recommend one when the athlete has access. In its absence, three field methods estimate AeT, and the coach should cross-check at least two:\n\n1. Talk test. At or below AeT the athlete can speak in full sentences without gasping. The point at which sentences break into short phrases is the upper edge of AeT. This is the simplest and surprisingly reliable.\n2. Nasal breathing. Sustained nose-only breathing during a steady effort keeps most athletes at or below AeT. The point at which the athlete must open their mouth to keep pace is a usable AeT estimate.\n3. Heart-rate drift. On a long, steady effort at constant pace (roughly an hour after a warmup, on flat or consistently graded terrain), compare heart rate in the second half to the first. If pace is constant and heart rate rises by more than roughly five percent, the effort was above AeT. If the rise is under roughly three to five percent, the effort was at or below it. Repeat at a slightly higher heart rate until the drift crosses the line; the last heart rate that held is AeT. The app can compute this from any steady logged effort.\n\nIn all three, AeT feels easy, sustainable indefinitely and slightly boring; if the effort feels like work, it is above AeT.\n\nAnT is estimated from a sustained hard effort: the average heart rate over roughly thirty to sixty minutes of the hardest steady pace the athlete can hold, after a thorough warmup. This test is demanding and should be done rested, at most a few times a season.\n\nAll these estimates are guidelines with error of several beats. The coach treats them as working numbers, re-checks them every four to eight weeks in base, and expects AeT to rise as the base builds.\n\n## Aerobic deficiency\n\nWhen AeT sits well below AnT, with a gap of roughly ten percent or more of the AnT heart rate as the common working definition, the athlete is aerobically deficient. This is the usual profile of a strong, motivated athlete who trains hard often and easy rarely: they can go hard, but they cannot go long, and their easy pace is slow.\n\nThe prescription for aerobic deficiency is unambiguous:\n1. Nearly all aerobic volume goes below AeT until the gap closes. Below, not at.\n2. The moderate zone between AeT and AnT, the grey zone, is avoided. It is too hard to build the base and too easy to build anything else, and it produces fatigue that steals from the volume that would actually work.\n3. High-intensity work is removed or kept to a small maintenance dose.\n4. Volume is raised gradually. Because the work is easy, volume can grow more than the athlete expects, but the gradualness rule still holds.\n5. Strength training continues in parallel. It does not compete with easy aerobic volume for recovery the way intensity does.\n\nThis is the Uphill Athlete approach to the base, and this doctrine adopts it. The period feels too easy and the athlete will want to push; the coach holds the line. The base builds slowly, then fast, and the athlete who trusts the process for eight to twelve weeks typically sees their easy pace rise substantially at the same heart rate. Once AeT sits within roughly ten percent of AnT, the deficiency is closed and intensity can be added.\n\n## Zone distribution across a base phase\n\nAcross a base phase the guideline is that the large majority of aerobic time, roughly eighty percent or more, sits below AeT, and the small remainder sits near or above AnT. Time in the grey zone is minimized. This holds especially for a mountain athlete with limited hours: the fewer the hours, the more of them must be easy, because intensity is what the schedule cannot recover from.\n\nWithin the easy majority, variety comes from duration and terrain, not intensity: a long weekend outing on real terrain, several shorter weekday sessions, and steep hiking or ski touring under a light pack as the base builds. The long session is the most important session of the week and it grows first.\n\n## Volume progression and recovery weeks\n\n1. Establish a baseline from the athlete's actual recent history, not from what they aspire to.\n2. Raise weekly aerobic volume by roughly five to ten percent per week as a guideline, holding intensity constant.\n3. Every third or fourth week, reduce volume by roughly a third to a half. The recovery week is where the adaptation consolidates.\n4. Grow the long session first and most, then add frequency, then add duration to the weekday sessions.\n5. When the athlete cannot add hours, add vertical: steep terrain at the same heart rate is more specific and more productive for mountain work than flat distance.\n6. Track the easy pace at AeT heart rate. If it rises, the base is building. If it stalls for many weeks with good recovery, the stimulus needs to change, usually through more volume or more vertical.\n\n## When intensity earns its place\n\nHigher-intensity aerobic work is a tool for the later part of the plan, not the start of it. It earns its place when:\n1. The AeT to AnT gap has closed to roughly ten percent or less.\n2. The athlete has accumulated many consecutive weeks of consistent easy volume.\n3. The objective demands sustained efforts near AnT, such as a fast alpine push or a competitive run.\n\nIt enters as one session per week at first, in the form the objective demands: long uphill intervals near AnT for alpine objectives, tempo efforts for running. The easy volume is kept, not replaced; intensity on top of a reduced base is the fastest way back to deficiency.\n\n## How the coach applies this\n\n- Establish AeT and AnT estimates from at least two field methods before programming a base phase, and re-estimate every four to eight weeks.\n- When the AeT to AnT gap is roughly ten percent of AnT heart rate or more, prescribe nearly all aerobic volume below AeT, remove the grey zone, and hold high intensity to a small maintenance dose until the gap closes.\n- Keep roughly eighty percent or more of aerobic time below AeT across any base phase, as a guideline, and treat time between AeT and AnT as the first thing to cut.\n- Grow the weekly long session first and most, and prefer vertical over flat distance when the athlete cannot add hours.\n- Raise aerobic volume by roughly five to ten percent per week at most, and program a reduced week every third or fourth week.\n- Use heart-rate drift on logged steady efforts as the app's own evidence of where AeT sits and whether it is rising.\n- Add higher-intensity aerobic work only after the gap has closed and many consistent weeks are banked, as one session per week at first, without cutting easy volume.\n- Explain to the athlete in plain terms that the easy work feels too easy by design and that the payoff is a faster pace at the same heart rate.\n\n## Signals that contradict this\n\n- Heart-rate drift under roughly three to five percent on long efforts at a pace that also keeps rising over weeks indicates the base is building and the current prescription is working.\n- A gap between AeT and AnT that stays wide after twelve or more weeks of high easy volume with good recovery indicates the AeT estimate may be wrong or the volume is not truly easy, and both should be re-checked before adding more.\n- Easy sessions logged with average heart rate above the estimated AeT indicate the athlete is drifting into the grey zone, and the coach should slow the prescription rather than assume the base is being built.\n- A resting heart rate that rises or an HRV trend that falls during a base phase of only easy work indicates the volume increase has outrun recovery, or that life stress or illness is present, and volume should hold or drop.\n- An objective that is short and intense, such as a single-pitch performance goal or a race under an hour, is one where the base-heavy distribution should shift earlier toward intensity than the default alpine prescription.\n- An athlete reporting that easy sessions feel hard, or that their easy pace has slowed, is showing fatigue or illness rather than a need for more volume.",
+      "turn": 1,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "periodization"
+      },
+      "result": "A training plan is a sequence of phases, each building the capacity the next one needs, ending at a date on which the athlete must be at their best. The sequence is fixed; the lengths, the weekly shape and the specific work are set by the objective.\n\n## The arc\n\nEvery cycle moves through the same five phases in the same order. The order comes from the capacity hierarchy: general before specific, base before intensity, load before rest.\n\n1. Transition. Purpose: re-establish the habit of training, restore movement quality, and prepare tissue for the loads to come. Content: low aerobic volume, all easy; general strength with an emphasis on movement quality, unilateral work, carries, core and posterior chain; daily mobility. This phase is short and unglamorous and skipping it is the most common source of early injury.\n\n2. Base. Purpose: build the aerobic foundation and raise max strength. Content: aerobic volume grows week over week, nearly all below the aerobic threshold; the long session grows first; max strength is trained heavy, low-rep, twice a week; mobility is maintained. This is the longest phase and the one that most determines the outcome.\n\n3. Specific. Purpose: convert the general capacities into the objective's actual demand. Content: aerobic volume holds or drops slightly while the long session becomes a rehearsal of the objective, on similar terrain with similar load and duration; max strength converts to muscular endurance through weighted uphill work; intensity that mimics the objective enters, one session per week at first; for a rock objective, climbing-specific strength and power take priority. The specific phase is where the plan starts to look like the objective.\n\n4. Taper and peak. Purpose: shed fatigue while keeping fitness, so the athlete arrives fresh and sharp. Content: volume drops by roughly a third to a half as a guideline, while a small amount of intensity and specificity is kept so the body stays primed. Nothing new is introduced. The athlete will feel restless and under-trained; this is the taper working.\n\n5. Recovery. Purpose: let the body and mind reset before the next cycle. Content: one to several weeks of unstructured, easy, enjoyable movement with no plan. Then the next transition begins.\n\n## How objective type shapes the phases\n\nThe arc is the same, but the weight of each phase changes with what the objective demands.\n\nAlpine climb or long mountain day. The aerobic base dominates and base is the longest phase. The specific phase rehearses long uphill efforts under a pack with the objective's vertical; muscular endurance is the key conversion; climbing-specific work is maintained, not built, unless the technical crux is near the athlete's limit.\n\nSki traverse or multi-day ski objective. As above, with the specific phase built on skinning under load and long consecutive days. Skiing itself is the best specific work once snow allows.\n\nRock project or technical climbing goal. The aerobic base is maintained rather than grown; climbing-specific strength and power take the place of muscular endurance in the specific phase; the base phase still builds max strength and finger strength because those are the slow adaptations. The result is a climbing plan with an aerobic floor under it, not an aerobic plan with climbing on top.\n\nHunting season. A long specific phase of loaded uphill hiking and carrying, with muscular endurance as the priority and general strength kept for the pack-out. The objective is repeated big days over weeks, so durability and recovery capacity outrank speed.\n\nWith several objectives in a year, the coach chooses one as the primary peak and treats the others as training events or as secondary peaks with a short taper. Two full peaks close together are not possible; the athlete picks.\n\n## Block lengths and the loading pattern\n\nLengths are guidelines and depend on the athlete's training history and the time available. The proportions matter more than the numbers.\n\n- Transition: roughly four to eight weeks. Shorter for an athlete coming off a consistent season, longer after a layoff or injury.\n- Base: roughly eight to sixteen weeks or more. The longer the objective and the wider the aerobic deficiency, the longer the base. An athlete with an aerobic deficiency stays in base until the gap closes.\n- Specific: roughly four to eight weeks. Long enough to convert strength to muscular endurance and rehearse the objective several times; short enough that specific fatigue does not accumulate into the taper.\n- Taper: roughly one to three weeks, longer for a longer objective and a larger preceding volume.\n- Recovery: one to several weeks.\n\nWithin a block, the loading pattern is a rise followed by a drop. The common patterns are three building weeks then one reduced week, or two then one for an athlete who recovers slowly or has high life stress. The building weeks raise volume gradually; the reduced week cuts volume by roughly a third to a half and keeps intensity light. The reduced week is not optional and not a reward; it is where the previous three weeks are consolidated into fitness.\n\nA block ends with a check: has the capacity it was meant to build actually moved? Aerobic threshold pace, a strength benchmark, a rehearsal effort on terrain. If it has, the next block begins. If it has not, the coach looks for the reason before moving on.\n\n## What a week looks like in each phase\n\nThe templates below are shapes, not schedules. The athlete's life, the pursuits and the weather set the days.\n\nTransition week:\n- Two general strength sessions, movement quality first, moderate load.\n- Three to four easy aerobic sessions, short, one of them slightly longer.\n- Daily mobility minimum.\n- One full rest day, and any pursuit outing counts as the long aerobic session.\n\nBase week:\n- Two max strength sessions, heavy and brief, on days that do not precede the long session.\n- One long easy aerobic session, growing week over week, on terrain and ideally under a light pack.\n- Two to four shorter easy aerobic sessions.\n- Mobility maintained daily.\n- One full rest day.\n\nSpecific week:\n- One muscular endurance session (weighted uphill work, loaded step-ups or hill repeats), which replaces one max strength session.\n- One max strength maintenance session, or a climbing-specific strength session for a rock objective.\n- One long session rehearsing the objective's demand.\n- One session of objective-specific intensity, once the base has earned it.\n- One to two short easy aerobic sessions for recovery and volume.\n- One full rest day, sometimes two.\n\nTaper week:\n- Volume cut substantially, sessions shorter, the long session shortened most.\n- One short session with a little intensity to stay sharp.\n- Strength reduced to a light maintenance dose or dropped in the final week.\n- Extra sleep, extra rest days.\n\n## When weeks are missed\n\nLife, illness and weather will remove weeks from any plan. The rule is: do not cram, extend.\n\n1. One missed session is absorbed. The plan continues as written.\n2. Up to a week missed for illness or life: resume at the load of the week before the gap, not the week that was planned, then progress from there. The objective date does not move, but the block may end a week later and the next block starts a week shorter.\n3. Two or more weeks missed: treat the return as a short transition. Resume at reduced volume, rebuild over one to two weeks, then continue the block. If the objective date is fixed, shorten the specific phase rather than the base; if the gap fell in base, the coach and athlete discuss whether the objective is still realistic.\n4. Never compress the missed volume into the following weeks. Doubling up violates gradualness and usually produces the injury that removes the next four weeks too.\n5. A missed reduced week is missed recovery, not missed volume, and it must be taken before the next building block starts.\n\nThe athlete's calendar in the app is the record. When the coach sees a gap, it asks what happened before changing anything, because illness, injury and a busy week each call for a different return.\n\n## How the coach applies this\n\n- Anchor every plan on a named objective with a date, and work backward through taper, specific, base and transition to set the block lengths.\n- Set the weight of each phase by the objective type, with the aerobic base dominant for alpine, ski and hunting objectives and climbing-specific work taking the specific phase for a rock objective.\n- Keep an athlete with an aerobic deficiency in base until the threshold gap closes, and shorten the specific phase rather than the base if the date is fixed.\n- Program each block as building weeks followed by one reduced week, using three-then-one as the default and two-then-one when recovery signals or life stress warrant it.\n- End each block with a concrete check of the capacity it was meant to build, and do not begin the next block until the check has been read.\n- Build a weekly template that names the long session, the strength sessions and the rest day first, then fills the remaining days with easy volume.\n- Introduce nothing new in the taper, and cut volume by roughly a third to a half while keeping a small dose of intensity.\n- When weeks are missed, resume at the load before the gap and extend the block, and never compress the missed volume into the following weeks.\n- Ask what caused a gap in the calendar before changing the plan, because illness, injury and a busy week call for different returns.\n\n## Signals that contradict this\n\n- A benchmark that has not moved at the end of a block, with good recovery signals and high completion, indicates the block's stimulus was too small and the next block should raise load rather than simply continue.\n- A benchmark that has not moved with poor recovery signals indicates the block was not absorbed, and the next block should begin with an extended reduced period rather than more load.\n- An athlete who arrives at the specific phase with a wide threshold gap has left base too early, and the coach should extend base and shorten the specific phase even if the plan said otherwise.\n- Rising fatigue, worsening sleep or falling motivation during a taper indicates the taper has cut too little or too late, and the remaining volume should drop further.\n- A pursuit calendar that already contains long outings most weekends means the plan's long session is being provided by the pursuits, and the coach should count those outings rather than add a second long session.\n- Two objectives placed within a few weeks of each other cannot both receive a full peak, and the coach should ask the athlete which one is primary before building either plan.",
+      "turn": 1,
+      "kind": "read",
+      "round": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals",
+        "date": "2026-08-04",
+        "estimated_duration": 32,
+        "description": "Easy aerobic, talk-test pace: hold full sentences, drop to walk if breathless. 5 min warmup walk. 8× (1 min run / 2 min walk) = 24 min. 3 min cooldown walk.",
+        "tags": [
+          "running",
+          "base-building",
+          "week-1"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals\" on 2026-08-04 [evt-ai-1].",
+      "turn": 1,
+      "kind": "write",
+      "round": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals",
+        "date": "2026-08-06",
+        "estimated_duration": 32,
+        "description": "Easy aerobic, talk-test pace: hold full sentences, drop to walk if breathless. 5 min warmup walk. 8× (1 min run / 2 min walk) = 24 min. 3 min cooldown walk.",
+        "tags": [
+          "running",
+          "base-building",
+          "week-1"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals\" on 2026-08-06 [evt-ai-2].",
+      "turn": 1,
+      "kind": "write",
+      "round": 3
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Long Run/Walk",
+        "date": "2026-08-08",
+        "estimated_duration": 40,
+        "description": "Long session — this grows first in base-building. Easy pace, talk-test. 5 min warmup walk. 10× (1 min run / 2 min walk) = 30 min. 5 min cooldown walk.",
+        "tags": [
+          "running",
+          "base-building",
+          "week-1",
+          "long"
+        ]
+      },
+      "result": "Created \"Long Run/Walk\" on 2026-08-08 [evt-ai-3].",
+      "turn": 1,
+      "kind": "write",
+      "round": 4
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals",
+        "date": "2026-08-11",
+        "estimated_duration": 32,
+        "description": "Held flat this week — the long session carries the growth. Easy pace, talk-test. 5 min warmup walk. 8× (1 min run / 2 min walk) = 24 min. 3 min cooldown walk.",
+        "tags": [
+          "running",
+          "base-building",
+          "week-2"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals\" on 2026-08-11 [evt-ai-4].",
+      "turn": 1,
+      "kind": "write",
+      "round": 5
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals",
+        "date": "2026-08-13",
+        "estimated_duration": 32,
+        "description": "Held flat this week — the long session carries the growth. Easy pace, talk-test. 5 min warmup walk. 8× (1 min run / 2 min walk) = 24 min. 3 min cooldown walk.",
+        "tags": [
+          "running",
+          "base-building",
+          "week-2"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals\" on 2026-08-13 [evt-ai-5].",
+      "turn": 1,
+      "kind": "write",
+      "round": 6
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Long Run/Walk",
+        "date": "2026-08-15",
+        "estimated_duration": 43,
+        "description": "+~8% volume on last week's long session, run intervals a bit longer. Easy pace, talk-test. 5 min warmup walk. 11× (90 sec run / 90 sec walk) = 33 min. 5 min cooldown walk.",
+        "tags": [
+          "running",
+          "base-building",
+          "week-2",
+          "long"
+        ]
+      },
+      "result": "Created \"Long Run/Walk\" on 2026-08-15 [evt-ai-6].",
+      "turn": 1,
+      "kind": "write",
+      "round": 7
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals",
+        "date": "2026-08-18",
+        "estimated_duration": 32,
+        "description": "Duration flat, running proportion increases. Easy pace, talk-test. 5 min warmup walk. 8× (90 sec run / 90 sec walk) = 24 min. 3 min cooldown walk.",
+        "tags": [
+          "running",
+          "base-building",
+          "week-3"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals\" on 2026-08-18 [evt-ai-7].",
+      "turn": 1,
+      "kind": "write",
+      "round": 8
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals",
+        "date": "2026-08-20",
+        "estimated_duration": 32,
+        "description": "Duration flat, running proportion increases. Easy pace, talk-test. 5 min warmup walk. 8× (90 sec run / 90 sec walk) = 24 min. 3 min cooldown walk.",
+        "tags": [
+          "running",
+          "base-building",
+          "week-3"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals\" on 2026-08-20 [evt-ai-8].",
+      "turn": 1,
+      "kind": "write",
+      "round": 9
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Long Run/Walk",
+        "date": "2026-08-22",
+        "estimated_duration": 45,
+        "description": "Peak long session of this block. Easy pace, talk-test. 5 min warmup walk. 10× (2 min run / 90 sec walk) = 35 min. 5 min cooldown walk.",
+        "tags": [
+          "running",
+          "base-building",
+          "week-3",
+          "long"
+        ]
+      },
+      "result": "Created \"Long Run/Walk\" on 2026-08-22 [evt-ai-9].",
+      "turn": 1,
+      "kind": "write",
+      "round": 10
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals (reduced)",
+        "date": "2026-08-25",
+        "estimated_duration": 23,
+        "description": "Reduced week — consolidate, don't push. Easy pace, talk-test. 5 min warmup walk. 5× (90 sec run / 90 sec walk) = 15 min. 3 min cooldown walk.",
+        "tags": [
+          "running",
+          "base-building",
+          "week-4",
+          "reduced"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals (reduced)\" on 2026-08-25 [evt-ai-10].",
+      "turn": 1,
+      "kind": "write",
+      "round": 11
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals (reduced)",
+        "date": "2026-08-27",
+        "estimated_duration": 23,
+        "description": "Reduced week — consolidate, don't push. Easy pace, talk-test. 5 min warmup walk. 5× (90 sec run / 90 sec walk) = 15 min. 3 min cooldown walk.",
+        "tags": [
+          "running",
+          "base-building",
+          "week-4",
+          "reduced"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals (reduced)\" on 2026-08-27 [evt-ai-11].",
+      "turn": 1,
+      "kind": "write",
+      "round": 12
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Long Run/Walk (reduced)",
+        "date": "2026-08-29",
+        "estimated_duration": 31,
+        "description": "Reduced long session, ~30% below week 3 peak — recovery week consolidates the gains. Easy pace, talk-test. 5 min warmup walk. 6× (2 min run / 90 sec walk) = 21 min. 5 min cooldown walk.",
+        "tags": [
+          "running",
+          "base-building",
+          "week-4",
+          "reduced",
+          "long"
+        ]
+      },
+      "result": "Created \"Long Run/Walk (reduced)\" on 2026-08-29 [evt-ai-12].",
+      "turn": 1,
+      "kind": "write",
+      "round": 13
+    }
+  ],
+  "anomalies": []
+}

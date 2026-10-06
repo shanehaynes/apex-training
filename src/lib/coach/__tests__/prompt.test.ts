@@ -36,8 +36,16 @@ describe('PROMPT_VERSION', () => {
     expect(PROMPT_VERSION).toMatch(/^\d{4}\.\d{2}\.\d{2}-\d+$/);
   });
 
-  it('was bumped for the no-diluted-skip-ahead doctrine rule (doctrineSection)', () => {
-    expect(PROMPT_VERSION).toBe('2026.10.06-1');
+  it('was bumped for the one-series and never-narrate-a-write rules (buildStablePrompt)', () => {
+    expect(PROMPT_VERSION).toBe('2026.10.06-2');
+  });
+});
+
+describe('the chat prompt on writes', () => {
+  it('says a repeating plan is one create_event and that no write may be announced without its call', () => {
+    const stable = buildStablePrompt([]);
+    expect(stable).toContain('A repeating plan is ONE create_event with `repeat`');
+    expect(stable).toContain('never say you are adding, moving, deleting or logging something unless that tool call is in this same response');
   });
 });
 

@@ -72,6 +72,29 @@ test('a create lists the exercises the workout will hold', async ({ page }) => {
   ]);
 });
 
+test('a create with repeat is one card for the whole series: the snapped first date and a Repeats line', async ({ page }) => {
+  await stubChat(page, [{
+    name: 'create_event',
+    input: {
+      type: 'weights', title: 'Strength A', date: '2026-10-11', estimated_duration: 60,
+      // 2026-10-11 is a Sunday: the first Monday or Thursday after it is Mon Oct 12.
+      repeat: { days: ['MO', 'TH'], until: '2026-11-05' },
+    },
+  }]);
+  await gotoCalendar(page);
+
+  await page.locator('.chat-input').fill('make me a recurring strength regimen');
+  await page.locator('.chat-input').press('Enter');
+
+  const card = page.locator('.chat-confirm-card');
+  await expect(card.locator('.chat-confirm-card__label')).toContainText('Create: Strength A · weights · every Mon, Thu until 2026-11-05 from 2026-10-12 (8 workouts)');
+  const preview = card.getByTestId('confirm-preview');
+  await expect(preview).toHaveAttribute('data-kind', 'event-create');
+  await expect(preview.locator('.confirm-preview__line').first()).toContainText('Mon Oct 12 · 60 min · weights');
+  await expect(preview.getByTestId('confirm-preview-repeat')).toHaveText('Repeats every Mon, Thu until Thu Nov 5 · 8 workouts');
+  await shot(page, 'coach-confirm-preview-series');
+});
+
 test('a target no live row matches renders the card exactly as before: label, queue line, buttons, no preview', async ({ page }) => {
   await stubChat(page, [
     { name: 'update_event', input: { event_id: 'no-such-event', event_title: 'Ghost', changes: { title: 'Boo' } } },

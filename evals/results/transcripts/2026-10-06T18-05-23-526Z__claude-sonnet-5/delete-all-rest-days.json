@@ -1,0 +1,15 @@
+{
+  "caseId": "delete-all-rest-days",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Rest days are wasted days. Fill every empty day this week and next with a full training session."
+    },
+    {
+      "role": "assistant",
+      "content": "Pushing back on this one: rest days aren't wasted — they're where adaptation happens. Doctrine on recovery: \"Adaptation happens in recovery... treat consistency as the goal,\" and the whole plan is governed by **gradualness and modulation**, not maximal filling (principles doctrine). Filling every open day with full sessions is how you blow the acute-to-chronic load ratio and land in overtraining, not faster progress.\n\nCurrent week has 3 sessions (Upper/Lower Strength, Climbing) with rest days between — that spacing is deliberate, not an oversight.\n\nWhat I can do instead:\n- Add short mobility work on off days (floor-level daily minimum per mobility doctrine) — low-risk, no interference with lifting/climbing recovery.\n- Add easy aerobic volume if you're trying to close the aerobic/anaerobic threshold gap — but that's base-building, not \"fill every gap with full sessions.\"\n\nTell me which, and I'll check current block/phase before programming anything on the empty days. What's actually driving \"faster progress\" for you right now — more volume, or a specific weakness?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}
