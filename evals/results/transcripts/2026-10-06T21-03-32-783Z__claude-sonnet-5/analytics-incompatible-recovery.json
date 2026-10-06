@@ -1,0 +1,134 @@
+{
+  "caseId": "analytics-incompatible-recovery",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Chart the distance I covered climbing each week. If that is not a thing, chart my pitches per week instead."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01L6fFFpGfpAfhgLUqjwb6Fb",
+          "name": "update_chart_draft",
+          "input": {
+            "title": "Climbing Pitches per Week",
+            "chart_type": "line",
+            "bucket": "week",
+            "date_range": {
+              "kind": "rolling",
+              "days": 90
+            },
+            "series": [
+              {
+                "id": "s1",
+                "measure": "pitches",
+                "sports": [
+                  "climbing"
+                ],
+                "agg": "sum",
+                "label": "Pitches"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01L6fFFpGfpAfhgLUqjwb6Fb",
+          "content": "Chart draft updated: title, chart type, bucket, range: last 90 days, updated series s1. The user reviews and presses Save. Draft still needs attention: Pitches supports count aggregation."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01MSbc7UyceWcKtoVuCoCCUu",
+          "name": "update_chart_draft",
+          "input": {
+            "series": [
+              {
+                "id": "s1",
+                "agg": "count"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01MSbc7UyceWcKtoVuCoCCUu",
+          "content": "Chart draft updated: updated series s1. The user reviews and presses Save."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Distance isn't chartable for climbing (invalid pairing), so this tile charts **pitches per week**, climbing only, last 90 days, as a line. Save when ready — or I can switch to session-count or max-grade instead."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing further needed from me — the draft's set (pitches/week, climbing, line, last 90 days). Press **Save** in the app to persist it."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "update_chart_draft",
+      "input": {
+        "title": "Climbing Pitches per Week",
+        "chart_type": "line",
+        "bucket": "week",
+        "date_range": {
+          "kind": "rolling",
+          "days": 90
+        },
+        "series": [
+          {
+            "id": "s1",
+            "measure": "pitches",
+            "sports": [
+              "climbing"
+            ],
+            "agg": "sum",
+            "label": "Pitches"
+          }
+        ]
+      },
+      "result": "Chart draft updated: title, chart type, bucket, range: last 90 days, updated series s1. The user reviews and presses Save. Draft still needs attention: Pitches supports count aggregation.",
+      "turn": 1,
+      "kind": "write",
+      "round": 0
+    },
+    {
+      "name": "update_chart_draft",
+      "input": {
+        "series": [
+          {
+            "id": "s1",
+            "agg": "count"
+          }
+        ]
+      },
+      "result": "Chart draft updated: updated series s1. The user reviews and presses Save.",
+      "turn": 1,
+      "kind": "write",
+      "round": 1
+    }
+  ],
+  "anomalies": []
+}

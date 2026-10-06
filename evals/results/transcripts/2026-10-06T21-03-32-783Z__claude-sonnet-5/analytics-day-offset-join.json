@@ -1,0 +1,89 @@
+{
+  "caseId": "analytics-day-offset-join",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Show me my average protein on the day after strength workouts, per week."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01SyjcaXgEbJyV6ft9tWDg6y",
+          "name": "update_chart_draft",
+          "input": {
+            "title": "Avg Protein, Day After Strength",
+            "chart_type": "line",
+            "bucket": "week",
+            "series": [
+              {
+                "id": "s1",
+                "measure": "protein",
+                "agg": "avg",
+                "day_filter": {
+                  "event_types": [
+                    "weights"
+                  ],
+                  "offset_days": 1,
+                  "mode": "include"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01SyjcaXgEbJyV6ft9tWDg6y",
+          "content": "Chart draft updated: title, chart type, bucket, updated series s1. The user reviews and presses Save."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Line chart, weekly buckets, last 90 days: avg protein (g) per logged day, filtered to days immediately following strength sessions. Refine range or swap to iso-month buckets if you want longer history."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Draft's ready: line chart, weekly avg protein on days after strength workouts, last 90 days. Press Save to persist — I can't do that for you. Anything else to adjust first?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "update_chart_draft",
+      "input": {
+        "title": "Avg Protein, Day After Strength",
+        "chart_type": "line",
+        "bucket": "week",
+        "series": [
+          {
+            "id": "s1",
+            "measure": "protein",
+            "agg": "avg",
+            "day_filter": {
+              "event_types": [
+                "weights"
+              ],
+              "offset_days": 1,
+              "mode": "include"
+            }
+          }
+        ]
+      },
+      "result": "Chart draft updated: title, chart type, bucket, updated series s1. The user reviews and presses Save.",
+      "turn": 1,
+      "kind": "write",
+      "round": 0
+    }
+  ],
+  "anomalies": []
+}
