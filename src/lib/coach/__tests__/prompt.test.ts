@@ -36,8 +36,8 @@ describe('PROMPT_VERSION', () => {
     expect(PROMPT_VERSION).toMatch(/^\d{4}\.\d{2}\.\d{2}-\d+$/);
   });
 
-  it('was bumped for the block planner (buildPlannerPrompt, buildPlannerVolatile, update_block_draft)', () => {
-    expect(PROMPT_VERSION).toBe('2026.09.29-1');
+  it('was bumped for the no-diluted-skip-ahead doctrine rule (doctrineSection)', () => {
+    expect(PROMPT_VERSION).toBe('2026.10.06-1');
   });
 });
 
