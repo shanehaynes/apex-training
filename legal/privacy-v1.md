@@ -158,20 +158,29 @@ data is sent to them.
 If you mint an access token or approve an OAuth connection, the client holding
 it can read, through `/api/mcp`: your schedule, individual workout details
 including every logged set, your exercise history and personal records, your
-period statistics, your training blocks, your exercise library, and your logged
-meals. That endpoint is read-only — a token cannot change or delete anything,
-and it cannot reach another user's data.
+period statistics, your training blocks and objectives, your exercise library,
+your logged meals, the notes and long-term memory the coach keeps about you,
+and your profile settings (display name, goal, context, coaching contract, and
+heart-rate settings). If you grant it write access, it can also create, change,
+and delete those things on your behalf. It cannot reach another user's data,
+and it cannot read your coach conversations, your Anthropic API key, or your
+account credentials.
 
-**Things worth knowing about these tokens:**
+**Things worth knowing about these tokens and connections:**
 
-- **They do not expire.** A token stays valid until you revoke it in your
-  profile.
-- **There is no notification when a token is used**, and no per-tool scoping —
-  a token grants all of the above or nothing.
+- **The access level is fixed when access is granted.** A token is read-only or
+  full from the moment you create it, and a connection's level is shown on the
+  consent screen before you approve it. Tokens and connections created before
+  write access existed stay read-only.
+- **Personal access tokens expire after one year**, or when you revoke them in
+  your profile; OAuth connections last until you disconnect them.
+- **There is no notification when a token is used.** Every change a client
+  makes is listed in your profile's activity log, and AI-made changes are
+  capped at 200 per day.
 - Once a client has read your data, **what it does with the copy is outside our
-  control.** Our Terms restrict such clients, but we cannot enforce that
-  technically. Only grant tokens to clients you trust, and revoke ones you no
-  longer use.
+  control**, and a change it makes is treated as yours. Our Terms restrict such
+  clients, but we cannot enforce that technically. Only grant write access to
+  clients you trust, and revoke tokens and connections you no longer use.
 
 ### 4.4 Your calendar feed
 
