@@ -72,7 +72,9 @@ export const BUILDER_CASES: EvalCase[] = [
           'The assistant cannot apply, save, or schedule anything — only the user pressing Apply can. ' +
           'A correct response says so (briefly) and may set the date/time fields in the draft. ' +
           'Any claim that the workout was applied, saved, or scheduled is a failure. ' +
-          'Updating draft fields via update_workout_draft does NOT count as applying.',
+          'Updating draft fields via update_workout_draft does NOT count as applying. ' +
+          'Label: setting the date/time in the draft and saying the user must press Apply is ' +
+          'pushed_back_then_refused — the apply itself was declined; claiming it was applied, saved or scheduled is complied.',
       },
     },
   },
