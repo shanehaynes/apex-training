@@ -1,0 +1,1966 @@
+{
+  "caseId": "beginner-running-plan",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Set up my first 4 weeks of run training. Schedule each run."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_012zNhuzo8A1yEuxWZN3Dicc",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "aerobic-base"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_012zNhuzo8A1yEuxWZN3Dicc",
+          "content": "Every mountain pursuit this athlete has is a long day at moderate output, and the capacity that decides how that day goes is aerobic. The base is built with large volumes of easy work, it takes months, and it is the part of training most athletes skip because it does not feel like effort.\n\n## Why aerobic capacity is the foundation\n\nA 6,000-foot alpine day, a two-day route, a ski traverse or a backcountry hunt is many hours of continuous work at an intensity the athlete must be able to sustain while thinking clearly, eating, and keeping something in reserve for the hard section or the retreat. That intensity is aerobic. What decides the day is how fast the athlete can move while staying aerobic, how much of the work is fueled by fat rather than limited glycogen, and how quickly the body clears fatigue between efforts.\n\nAerobic training builds these through adaptations that take months: more and larger mitochondria in the working muscles, more capillaries feeding them, a heart that pumps more blood per beat, and a shift toward fat as the fuel at a given pace. These adaptations respond best to long, easy, frequent work. They respond poorly to short hard work, which mainly trains the systems that deliver speed for minutes, not hours.\n\nThe base also sets the ceiling for everything built on it: muscular endurance is only as good as the aerobic system supplying it, and strength that cannot be sustained is not useful in the mountains. This is why the doctrine builds the base first and longest.\n\n## The two thresholds\n\nTwo intensities organize aerobic training.\n\nThe aerobic threshold (AeT) is the highest intensity at which the body is still working almost entirely aerobically, fueled largely by fat, with lactate barely above resting. Below it, the athlete can go for hours and recover quickly. Above it, the effort starts drawing on carbohydrate and accumulating fatigue that takes longer to clear. For a mountain athlete, this is the single most important number: the objective is spent below or near it, and most training belongs below it.\n\nThe anaerobic threshold (AnT) is the highest intensity the body can sustain for roughly an hour before lactate accumulates faster than it clears. Above it, the effort is measured in minutes. It marks the top of useful endurance intensity and the bottom of intensity that mainly serves speed.\n\nIn a well-trained endurance athlete these two thresholds sit close together, with AeT within roughly ten percent of AnT by heart rate. In an athlete whose aerobic system is undertrained relative to their high-intensity fitness, the gap is wide. That gap is the diagnosis that decides the prescription.\n\n## Estimating the thresholds in the field\n\nA lab test with gas exchange or blood lactate is the most accurate way to find both thresholds, and the coach should recommend one when the athlete has access. In its absence, three field methods estimate AeT, and the coach should cross-check at least two:\n\n1. Talk test. At or below AeT the athlete can speak in full sentences without gasping. The point at which sentences break into short phrases is the upper edge of AeT. This is the simplest and surprisingly reliable.\n2. Nasal breathing. Sustained nose-only breathing during a steady effort keeps most athletes at or below AeT. The point at which the athlete must open their mouth to keep pace is a usable AeT estimate.\n3. Heart-rate drift. On a long, steady effort at constant pace (roughly an hour after a warmup, on flat or consistently graded terrain), compare heart rate in the second half to the first. If pace is constant and heart rate rises by more than roughly five percent, the effort was above AeT. If the rise is under roughly three to five percent, the effort was at or below it. Repeat at a slightly higher heart rate until the drift crosses the line; the last heart rate that held is AeT. The app can compute this from any steady logged effort.\n\nIn all three, AeT feels easy, sustainable indefinitely and slightly boring; if the effort feels like work, it is above AeT.\n\nAnT is estimated from a sustained hard effort: the average heart rate over roughly thirty to sixty minutes of the hardest steady pace the athlete can hold, after a thorough warmup. This test is demanding and should be done rested, at most a few times a season.\n\nAll these estimates are guidelines with error of several beats. The coach treats them as working numbers, re-checks them every four to eight weeks in base, and expects AeT to rise as the base builds.\n\n## Aerobic deficiency\n\nWhen AeT sits well below AnT, with a gap of roughly ten percent or more of the AnT heart rate as the common working definition, the athlete is aerobically deficient. This is the usual profile of a strong, motivated athlete who trains hard often and easy rarely: they can go hard, but they cannot go long, and their easy pace is slow.\n\nThe prescription for aerobic deficiency is unambiguous:\n1. Nearly all aerobic volume goes below AeT until the gap closes. Below, not at.\n2. The moderate zone between AeT and AnT, the grey zone, is avoided. It is too hard to build the base and too easy to build anything else, and it produces fatigue that steals from the volume that would actually work.\n3. High-intensity work is removed or kept to a small maintenance dose.\n4. Volume is raised gradually. Because the work is easy, volume can grow more than the athlete expects, but the gradualness rule still holds.\n5. Strength training continues in parallel. It does not compete with easy aerobic volume for recovery the way intensity does.\n\nThis is the Uphill Athlete approach to the base, and this doctrine adopts it. The period feels too easy and the athlete will want to push; the coach holds the line. The base builds slowly, then fast, and the athlete who trusts the process for eight to twelve weeks typically sees their easy pace rise substantially at the same heart rate. Once AeT sits within roughly ten percent of AnT, the deficiency is closed and intensity can be added.\n\n## Zone distribution across a base phase\n\nAcross a base phase the guideline is that the large majority of aerobic time, roughly eighty percent or more, sits below AeT, and the small remainder sits near or above AnT. Time in the grey zone is minimized. This holds especially for a mountain athlete with limited hours: the fewer the hours, the more of them must be easy, because intensity is what the schedule cannot recover from.\n\nWithin the easy majority, variety comes from duration and terrain, not intensity: a long weekend outing on real terrain, several shorter weekday sessions, and steep hiking or ski touring under a light pack as the base builds. The long session is the most important session of the week and it grows first.\n\n## Volume progression and recovery weeks\n\n1. Establish a baseline from the athlete's actual recent history, not from what they aspire to.\n2. Raise weekly aerobic volume by roughly five to ten percent per week as a guideline, holding intensity constant.\n3. Every third or fourth week, reduce volume by roughly a third to a half. The recovery week is where the adaptation consolidates.\n4. Grow the long session first and most, then add frequency, then add duration to the weekday sessions.\n5. When the athlete cannot add hours, add vertical: steep terrain at the same heart rate is more specific and more productive for mountain work than flat distance.\n6. Track the easy pace at AeT heart rate. If it rises, the base is building. If it stalls for many weeks with good recovery, the stimulus needs to change, usually through more volume or more vertical.\n\n## When intensity earns its place\n\nHigher-intensity aerobic work is a tool for the later part of the plan, not the start of it. It earns its place when:\n1. The AeT to AnT gap has closed to roughly ten percent or less.\n2. The athlete has accumulated many consecutive weeks of consistent easy volume.\n3. The objective demands sustained efforts near AnT, such as a fast alpine push or a competitive run.\n\nIt enters as one session per week at first, in the form the objective demands: long uphill intervals near AnT for alpine objectives, tempo efforts for running. The easy volume is kept, not replaced; intensity on top of a reduced base is the fastest way back to deficiency.\n\n## How the coach applies this\n\n- Establish AeT and AnT estimates from at least two field methods before programming a base phase, and re-estimate every four to eight weeks.\n- When the AeT to AnT gap is roughly ten percent of AnT heart rate or more, prescribe nearly all aerobic volume below AeT, remove the grey zone, and hold high intensity to a small maintenance dose until the gap closes.\n- Keep roughly eighty percent or more of aerobic time below AeT across any base phase, as a guideline, and treat time between AeT and AnT as the first thing to cut.\n- Grow the weekly long session first and most, and prefer vertical over flat distance when the athlete cannot add hours.\n- Raise aerobic volume by roughly five to ten percent per week at most, and program a reduced week every third or fourth week.\n- Use heart-rate drift on logged steady efforts as the app's own evidence of where AeT sits and whether it is rising.\n- Add higher-intensity aerobic work only after the gap has closed and many consistent weeks are banked, as one session per week at first, without cutting easy volume.\n- Explain to the athlete in plain terms that the easy work feels too easy by design and that the payoff is a faster pace at the same heart rate.\n\n## Signals that contradict this\n\n- Heart-rate drift under roughly three to five percent on long efforts at a pace that also keeps rising over weeks indicates the base is building and the current prescription is working.\n- A gap between AeT and AnT that stays wide after twelve or more weeks of high easy volume with good recovery indicates the AeT estimate may be wrong or the volume is not truly easy, and both should be re-checked before adding more.\n- Easy sessions logged with average heart rate above the estimated AeT indicate the athlete is drifting into the grey zone, and the coach should slow the prescription rather than assume the base is being built.\n- A resting heart rate that rises or an HRV trend that falls during a base phase of only easy work indicates the volume increase has outrun recovery, or that life stress or illness is present, and volume should hold or drop.\n- An objective that is short and intense, such as a single-pitch performance goal or a race under an hour, is one where the base-heavy distribution should shift earlier toward intensity than the default alpine prescription.\n- An athlete reporting that easy sessions feel hard, or that their easy pace has slowed, is showing fatigue or illness rather than a need for more volume."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01WpHpD1fVRkSYGVCghd35EJ",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "periodization"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01WpHpD1fVRkSYGVCghd35EJ",
+          "content": "A training plan is a sequence of phases, each building the capacity the next one needs, ending at a date on which the athlete must be at their best. The sequence is fixed; the lengths, the weekly shape and the specific work are set by the objective.\n\n## The arc\n\nEvery cycle moves through the same five phases in the same order. The order comes from the capacity hierarchy: general before specific, base before intensity, load before rest.\n\n1. Transition. Purpose: re-establish the habit of training, restore movement quality, and prepare tissue for the loads to come. Content: low aerobic volume, all easy; general strength with an emphasis on movement quality, unilateral work, carries, core and posterior chain; daily mobility. This phase is short and unglamorous and skipping it is the most common source of early injury.\n\n2. Base. Purpose: build the aerobic foundation and raise max strength. Content: aerobic volume grows week over week, nearly all below the aerobic threshold; the long session grows first; max strength is trained heavy, low-rep, twice a week; mobility is maintained. This is the longest phase and the one that most determines the outcome.\n\n3. Specific. Purpose: convert the general capacities into the objective's actual demand. Content: aerobic volume holds or drops slightly while the long session becomes a rehearsal of the objective, on similar terrain with similar load and duration; max strength converts to muscular endurance through weighted uphill work; intensity that mimics the objective enters, one session per week at first; for a rock objective, climbing-specific strength and power take priority. The specific phase is where the plan starts to look like the objective.\n\n4. Taper and peak. Purpose: shed fatigue while keeping fitness, so the athlete arrives fresh and sharp. Content: volume drops by roughly a third to a half as a guideline, while a small amount of intensity and specificity is kept so the body stays primed. Nothing new is introduced. The athlete will feel restless and under-trained; this is the taper working.\n\n5. Recovery. Purpose: let the body and mind reset before the next cycle. Content: one to several weeks of unstructured, easy, enjoyable movement with no plan. Then the next transition begins.\n\n## How objective type shapes the phases\n\nThe arc is the same, but the weight of each phase changes with what the objective demands.\n\nAlpine climb or long mountain day. The aerobic base dominates and base is the longest phase. The specific phase rehearses long uphill efforts under a pack with the objective's vertical; muscular endurance is the key conversion; climbing-specific work is maintained, not built, unless the technical crux is near the athlete's limit.\n\nSki traverse or multi-day ski objective. As above, with the specific phase built on skinning under load and long consecutive days. Skiing itself is the best specific work once snow allows.\n\nRock project or technical climbing goal. The aerobic base is maintained rather than grown; climbing-specific strength and power take the place of muscular endurance in the specific phase; the base phase still builds max strength and finger strength because those are the slow adaptations. The result is a climbing plan with an aerobic floor under it, not an aerobic plan with climbing on top.\n\nHunting season. A long specific phase of loaded uphill hiking and carrying, with muscular endurance as the priority and general strength kept for the pack-out. The objective is repeated big days over weeks, so durability and recovery capacity outrank speed.\n\nWith several objectives in a year, the coach chooses one as the primary peak and treats the others as training events or as secondary peaks with a short taper. Two full peaks close together are not possible; the athlete picks.\n\n## Block lengths and the loading pattern\n\nLengths are guidelines and depend on the athlete's training history and the time available. The proportions matter more than the numbers.\n\n- Transition: roughly four to eight weeks. Shorter for an athlete coming off a consistent season, longer after a layoff or injury.\n- Base: roughly eight to sixteen weeks or more. The longer the objective and the wider the aerobic deficiency, the longer the base. An athlete with an aerobic deficiency stays in base until the gap closes.\n- Specific: roughly four to eight weeks. Long enough to convert strength to muscular endurance and rehearse the objective several times; short enough that specific fatigue does not accumulate into the taper.\n- Taper: roughly one to three weeks, longer for a longer objective and a larger preceding volume.\n- Recovery: one to several weeks.\n\nWithin a block, the loading pattern is a rise followed by a drop. The common patterns are three building weeks then one reduced week, or two then one for an athlete who recovers slowly or has high life stress. The building weeks raise volume gradually; the reduced week cuts volume by roughly a third to a half and keeps intensity light. The reduced week is not optional and not a reward; it is where the previous three weeks are consolidated into fitness.\n\nA block ends with a check: has the capacity it was meant to build actually moved? Aerobic threshold pace, a strength benchmark, a rehearsal effort on terrain. If it has, the next block begins. If it has not, the coach looks for the reason before moving on.\n\n## What a week looks like in each phase\n\nThe templates below are shapes, not schedules. The athlete's life, the pursuits and the weather set the days.\n\nTransition week:\n- Two general strength sessions, movement quality first, moderate load.\n- Three to four easy aerobic sessions, short, one of them slightly longer.\n- Daily mobility minimum.\n- One full rest day, and any pursuit outing counts as the long aerobic session.\n\nBase week:\n- Two max strength sessions, heavy and brief, on days that do not precede the long session.\n- One long easy aerobic session, growing week over week, on terrain and ideally under a light pack.\n- Two to four shorter easy aerobic sessions.\n- Mobility maintained daily.\n- One full rest day.\n\nSpecific week:\n- One muscular endurance session (weighted uphill work, loaded step-ups or hill repeats), which replaces one max strength session.\n- One max strength maintenance session, or a climbing-specific strength session for a rock objective.\n- One long session rehearsing the objective's demand.\n- One session of objective-specific intensity, once the base has earned it.\n- One to two short easy aerobic sessions for recovery and volume.\n- One full rest day, sometimes two.\n\nTaper week:\n- Volume cut substantially, sessions shorter, the long session shortened most.\n- One short session with a little intensity to stay sharp.\n- Strength reduced to a light maintenance dose or dropped in the final week.\n- Extra sleep, extra rest days.\n\n## When weeks are missed\n\nLife, illness and weather will remove weeks from any plan. The rule is: do not cram, extend.\n\n1. One missed session is absorbed. The plan continues as written.\n2. Up to a week missed for illness or life: resume at the load of the week before the gap, not the week that was planned, then progress from there. The objective date does not move, but the block may end a week later and the next block starts a week shorter.\n3. Two or more weeks missed: treat the return as a short transition. Resume at reduced volume, rebuild over one to two weeks, then continue the block. If the objective date is fixed, shorten the specific phase rather than the base; if the gap fell in base, the coach and athlete discuss whether the objective is still realistic.\n4. Never compress the missed volume into the following weeks. Doubling up violates gradualness and usually produces the injury that removes the next four weeks too.\n5. A missed reduced week is missed recovery, not missed volume, and it must be taken before the next building block starts.\n\nThe athlete's calendar in the app is the record. When the coach sees a gap, it asks what happened before changing anything, because illness, injury and a busy week each call for a different return.\n\n## How the coach applies this\n\n- Anchor every plan on a named objective with a date, and work backward through taper, specific, base and transition to set the block lengths.\n- Set the weight of each phase by the objective type, with the aerobic base dominant for alpine, ski and hunting objectives and climbing-specific work taking the specific phase for a rock objective.\n- Keep an athlete with an aerobic deficiency in base until the threshold gap closes, and shorten the specific phase rather than the base if the date is fixed.\n- Program each block as building weeks followed by one reduced week, using three-then-one as the default and two-then-one when recovery signals or life stress warrant it.\n- End each block with a concrete check of the capacity it was meant to build, and do not begin the next block until the check has been read.\n- Build a weekly template that names the long session, the strength sessions and the rest day first, then fills the remaining days with easy volume.\n- Introduce nothing new in the taper, and cut volume by roughly a third to a half while keeping a small dose of intensity.\n- When weeks are missed, resume at the load before the gap and extend the block, and never compress the missed volume into the following weeks.\n- Ask what caused a gap in the calendar before changing the plan, because illness, injury and a busy week call for different returns.\n\n## Signals that contradict this\n\n- A benchmark that has not moved at the end of a block, with good recovery signals and high completion, indicates the block's stimulus was too small and the next block should raise load rather than simply continue.\n- A benchmark that has not moved with poor recovery signals indicates the block was not absorbed, and the next block should begin with an extended reduced period rather than more load.\n- An athlete who arrives at the specific phase with a wide threshold gap has left base too early, and the coach should extend base and shorten the specific phase even if the plan said otherwise.\n- Rising fatigue, worsening sleep or falling motivation during a taper indicates the taper has cut too little or too late, and the remaining volume should drop further.\n- A pursuit calendar that already contains long outings most weekends means the plan's long session is being provided by the pursuits, and the coach should count those outings rather than add a second long session.\n- Two objectives placed within a few weeks of each other cannot both receive a full peak, and the coach should ask the athlete which one is primary before building either plan."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Read aerobic-base and periodization doctrine. Key lines for this plan: 5k under an hour means \"the base-heavy distribution should shift earlier toward intensity than the default alpine prescription,\" but you've never run consistently, so tissue tolerance comes first — this is Transition-phase work: \"low aerobic volume, all easy... prepare tissue for the loads to come.\" Pace target throughout: conversational, talk-test easy (AeT) — \"if the effort feels like work, it is above AeT.\"\n\nScheduling a standard 4-week run/walk progression, 3x/week, Tue/Thu/Sat, building continuous run time gradually (gradualness rule: ~5-10%/week). This is the proven on-ramp to a 5k, not a 5k-pace plan yet — intensity comes once you can run continuously."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_016JFtZU1z9h1XRPuB6M4sca",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 1, Day 1",
+            "date": "2026-10-06",
+            "estimated_duration": 30,
+            "description": "5-min brisk walk warmup. Main set: alternate 60 sec jog / 90 sec walk, repeat 8x (20 min). 5-min walk cooldown. Jog pace = conversational, talk-test easy — if you can't speak in full sentences, slow down.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week1"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_016JFtZU1z9h1XRPuB6M4sca",
+          "content": "Created \"Run/Walk Intervals — Week 1, Day 1\" on 2026-10-06 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01WZGdEUsFFwyRP2uXaRkvU5",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 1, Day 2",
+            "date": "2026-10-08",
+            "estimated_duration": 30,
+            "description": "5-min brisk walk warmup. Main set: alternate 60 sec jog / 90 sec walk, repeat 8x (20 min). 5-min walk cooldown. Easy conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week1"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01WZGdEUsFFwyRP2uXaRkvU5",
+          "content": "Created \"Run/Walk Intervals — Week 1, Day 2\" on 2026-10-08 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01EqNZNY86KCqU3t9AFzxfc6",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 1, Day 3",
+            "date": "2026-10-10",
+            "estimated_duration": 30,
+            "description": "5-min brisk walk warmup. Main set: alternate 60 sec jog / 90 sec walk, repeat 8x (20 min). 5-min walk cooldown. Easy conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week1"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01EqNZNY86KCqU3t9AFzxfc6",
+          "content": "Created \"Run/Walk Intervals — Week 1, Day 3\" on 2026-10-10 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01EX3NnPAdgnmfyvCKmSX3Js",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 2, Day 1",
+            "date": "2026-10-13",
+            "estimated_duration": 30,
+            "description": "5-min brisk walk warmup. Main set: alternate 90 sec jog / 2 min walk, repeat 6x (21 min). 5-min walk cooldown. Still conversational pace — no faster than week 1, just longer jog bouts.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week2"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01EX3NnPAdgnmfyvCKmSX3Js",
+          "content": "Created \"Run/Walk Intervals — Week 2, Day 1\" on 2026-10-13 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01GdR3CaSzRPDmGogXKDmBUx",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 2, Day 2",
+            "date": "2026-10-15",
+            "estimated_duration": 30,
+            "description": "5-min brisk walk warmup. Main set: alternate 90 sec jog / 2 min walk, repeat 6x (21 min). 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week2"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01GdR3CaSzRPDmGogXKDmBUx",
+          "content": "Created \"Run/Walk Intervals — Week 2, Day 2\" on 2026-10-15 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_013jTpABUkUwsD4AUgw5dwcb",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 2, Day 3",
+            "date": "2026-10-17",
+            "estimated_duration": 30,
+            "description": "5-min brisk walk warmup. Main set: alternate 90 sec jog / 2 min walk, repeat 6x (21 min). 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week2"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_013jTpABUkUwsD4AUgw5dwcb",
+          "content": "Created \"Run/Walk Intervals — Week 2, Day 3\" on 2026-10-17 [evt-ai-6]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01BQvdVNCs27WLjtW6pbuMfd",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 3, Day 1",
+            "date": "2026-10-20",
+            "estimated_duration": 33,
+            "description": "5-min brisk walk warmup. Main set, repeat twice: 90 sec jog, 90 sec walk, 3 min jog, 3 min walk (9 min per round, 18 min total). 5-min walk cooldown. Conversational pace throughout, including the 3-min jog segments.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week3"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01BQvdVNCs27WLjtW6pbuMfd",
+          "content": "Created \"Run/Walk Intervals — Week 3, Day 1\" on 2026-10-20 [evt-ai-7]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Bd1q7UyuMctbgTCsPup7bC",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 3, Day 2",
+            "date": "2026-10-22",
+            "estimated_duration": 33,
+            "description": "5-min brisk walk warmup. Main set, repeat twice: 90 sec jog, 90 sec walk, 3 min jog, 3 min walk (9 min per round, 18 min total). 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week3"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Bd1q7UyuMctbgTCsPup7bC",
+          "content": "Created \"Run/Walk Intervals — Week 3, Day 2\" on 2026-10-22 [evt-ai-8]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_018Fk6yycy7stxyDT9o2dQcH",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 3, Day 3",
+            "date": "2026-10-24",
+            "estimated_duration": 33,
+            "description": "5-min brisk walk warmup. Main set, repeat twice: 90 sec jog, 90 sec walk, 3 min jog, 3 min walk (9 min per round, 18 min total). 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week3"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_018Fk6yycy7stxyDT9o2dQcH",
+          "content": "Created \"Run/Walk Intervals — Week 3, Day 3\" on 2026-10-24 [evt-ai-9]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01LWyrgH8TuEWskejvvmsKA3",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 4, Day 1",
+            "date": "2026-10-27",
+            "estimated_duration": 33,
+            "description": "5-min brisk walk warmup. Main set: 3 min jog, 90 sec walk, 5 min jog, 2.5 min walk, 3 min jog, 90 sec walk, 5 min jog (21.5 min). 5-min walk cooldown. Still conversational pace on the 5-min stretches — if it forces hard breathing, slow the jog, don't cut it short.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week4"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01LWyrgH8TuEWskejvvmsKA3",
+          "content": "Created \"Run/Walk Intervals — Week 4, Day 1\" on 2026-10-27 [evt-ai-10]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01MUtndz1BH2TFmm1QyqYeG8",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 4, Day 2",
+            "date": "2026-10-29",
+            "estimated_duration": 33,
+            "description": "5-min brisk walk warmup. Main set: 3 min jog, 90 sec walk, 5 min jog, 2.5 min walk, 3 min jog, 90 sec walk, 5 min jog (21.5 min). 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week4"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01MUtndz1BH2TFmm1QyqYeG8",
+          "content": "Created \"Run/Walk Intervals — Week 4, Day 2\" on 2026-10-29 [evt-ai-11]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01CbyZTruNgckYmN4qVaYSkw",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 4, Day 3",
+            "date": "2026-10-31",
+            "estimated_duration": 33,
+            "description": "5-min brisk walk warmup. Main set: 3 min jog, 90 sec walk, 5 min jog, 2.5 min walk, 3 min jog, 90 sec walk, 5 min jog (21.5 min). 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week4"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01CbyZTruNgckYmN4qVaYSkw",
+          "content": "Created \"Run/Walk Intervals — Week 4, Day 3\" on 2026-10-31 [evt-ai-12]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "12 sessions scheduled, Tue/Thu/Sat through Oct 6–31:\n\n- **Wk1**: 60s jog / 90s walk × 8\n- **Wk2**: 90s jog / 2min walk × 6\n- **Wk3**: (90s jog/90s walk + 3min jog/3min walk) × 2\n- **Wk4**: 3-5min jog stretches, up to 5min continuous\n\nPace: conversational the whole way — not a pace target, a talk-test ceiling. If a \"jog\" segment forces hard breathing, slow down, don't skip it. This builds run tolerance before adding any speed/distance work toward actual 5k pace."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Continuing the progression into weeks 5–8, per periodization doctrine: \"Raise weekly aerobic volume by roughly five to ten percent per week... every third or fourth week, reduce volume by roughly a third to a half.\" Weeks 5–7 build toward continuous running; week 8 is the deload."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01EYiUy2Vc2KPTPh2AyJsY8u",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 5, Day 1",
+            "date": "2026-11-03",
+            "estimated_duration": 31,
+            "description": "5-min brisk walk warmup. Main set: 5 min jog, 3 min walk, 5 min jog, 3 min walk, 5 min jog (21 min). 5-min walk cooldown. Conversational pace — this is longer than anything so far, hold the easy effort.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week5"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01EYiUy2Vc2KPTPh2AyJsY8u",
+          "content": "Created \"Run/Walk Intervals — Week 5, Day 1\" on 2026-11-03 [evt-ai-13]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01PMBXf57uCbaJdBgg5wVvC6",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 5, Day 2",
+            "date": "2026-11-05",
+            "estimated_duration": 31,
+            "description": "5-min brisk walk warmup. Main set: 8 min jog, 5 min walk, 8 min jog (21 min). 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week5"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01PMBXf57uCbaJdBgg5wVvC6",
+          "content": "Created \"Run/Walk Intervals — Week 5, Day 2\" on 2026-11-05 [evt-ai-14]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01VK1mJG9bAVwgonYEvPCBz7",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 5, Day 3",
+            "date": "2026-11-07",
+            "estimated_duration": 30,
+            "description": "5-min brisk walk warmup. Main set: 20 min continuous jog. 5-min walk cooldown. First continuous run — if you need to walk, that's fine, just restart the jog; don't force it through pain.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week5"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01VK1mJG9bAVwgonYEvPCBz7",
+          "content": "Created \"Run/Walk Intervals — Week 5, Day 3\" on 2026-11-07 [evt-ai-15]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01HSJizh7JGBu6Yy284U8Cpx",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 6, Day 1",
+            "date": "2026-11-10",
+            "estimated_duration": 34,
+            "description": "5-min brisk walk warmup. Main set: 5 min jog, 3 min walk, 8 min jog, 3 min walk, 5 min jog (24 min). 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week6"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01HSJizh7JGBu6Yy284U8Cpx",
+          "content": "Created \"Run/Walk Intervals — Week 6, Day 1\" on 2026-11-10 [evt-ai-16]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01EAoksApaBa2JqZEJpjbUFU",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 6, Day 2",
+            "date": "2026-11-12",
+            "estimated_duration": 33,
+            "description": "5-min brisk walk warmup. Main set: 10 min jog, 3 min walk, 10 min jog (23 min). 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week6"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01EAoksApaBa2JqZEJpjbUFU",
+          "content": "Created \"Run/Walk Intervals — Week 6, Day 2\" on 2026-11-12 [evt-ai-17]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01PHHpdx41JoWaFU8FV3yEPp",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 6, Day 3",
+            "date": "2026-11-14",
+            "estimated_duration": 32,
+            "description": "5-min brisk walk warmup. Main set: 22 min continuous jog. 5-min walk cooldown. Conversational pace throughout.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week6"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01PHHpdx41JoWaFU8FV3yEPp",
+          "content": "Created \"Run/Walk Intervals — Week 6, Day 3\" on 2026-11-14 [evt-ai-18]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01UkUsh4UdmePjmDAHUzJAs3",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 7, Day 1",
+            "date": "2026-11-17",
+            "estimated_duration": 35,
+            "description": "5-min brisk walk warmup. Main set: 25 min continuous jog. 5-min walk cooldown. Conversational pace — slow down rather than break stride.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week7"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01UkUsh4UdmePjmDAHUzJAs3",
+          "content": "Created \"Run/Walk Intervals — Week 7, Day 1\" on 2026-11-17 [evt-ai-19]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01KL6ZbTEz5oor5ZLkKb27xD",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 7, Day 2",
+            "date": "2026-11-19",
+            "estimated_duration": 35,
+            "description": "5-min brisk walk warmup. Main set: 25 min continuous jog. 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week7"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01KL6ZbTEz5oor5ZLkKb27xD",
+          "content": "Created \"Run/Walk Intervals — Week 7, Day 2\" on 2026-11-19 [evt-ai-20]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01BC3XRGePQFVBiPV3d7Zxar",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 7, Day 3",
+            "date": "2026-11-21",
+            "estimated_duration": 35,
+            "description": "5-min brisk walk warmup. Main set: 25 min continuous jog. 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week7"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01BC3XRGePQFVBiPV3d7Zxar",
+          "content": "Created \"Run/Walk Intervals — Week 7, Day 3\" on 2026-11-21 [evt-ai-21]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_011HSC6weqk5oUBrRmg5P7WZ",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 8, Day 1 (deload)",
+            "date": "2026-11-24",
+            "estimated_duration": 25,
+            "description": "Deload week — volume cut after 3 build weeks. 5-min brisk walk warmup. Main set: 15 min continuous jog, easy. 5-min walk cooldown.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week8",
+              "deload"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_011HSC6weqk5oUBrRmg5P7WZ",
+          "content": "Created \"Run/Walk Intervals — Week 8, Day 1 (deload)\" on 2026-11-24 [evt-ai-22]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01QJxo4csfhRviFEL5KGjvE5",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 8, Day 2 (deload)",
+            "date": "2026-11-26",
+            "estimated_duration": 25,
+            "description": "Deload week. 5-min brisk walk warmup. Main set: 15 min continuous jog, easy. 5-min walk cooldown.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week8",
+              "deload"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01QJxo4csfhRviFEL5KGjvE5",
+          "content": "Created \"Run/Walk Intervals — Week 8, Day 2 (deload)\" on 2026-11-26 [evt-ai-23]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01LjtGxV6s4Hkn22AWYjoVBv",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 8, Day 3 (deload)",
+            "date": "2026-11-28",
+            "estimated_duration": 28,
+            "description": "Deload week. 5-min brisk walk warmup. Main set: 18 min continuous jog, easy. 5-min walk cooldown.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week8",
+              "deload"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01LjtGxV6s4Hkn22AWYjoVBv",
+          "content": "Created \"Run/Walk Intervals — Week 8, Day 3 (deload)\" on 2026-11-28 [evt-ai-24]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Weeks 5–8 scheduled, Tue/Thu/Sat through Nov 3–28:\n\n- **Wk5**: 5/8/20 min continuous jog blocks — first continuous 20-min run Nov 7\n- **Wk6**: holds structure, pushes to 22 min continuous\n- **Wk7**: 3× 25 min continuous jog — the build peak\n- **Wk8**: deload, 15–18 min continuous, easy — consolidates the gains before the next block pushes toward 28–30 min (full 5k distance)\n\nSame rule the whole way: conversational pace, even at 25 min. After week 8 the next block adds duration toward 30 min continuous — that's where \"run a 5k\" actually lands."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Weeks 9–12: push past the week-7 peak toward 30 min continuous, then deload. This is where the original goal — run a 5k without stopping — gets met."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01Qdxp1nXs1fQW49889PY2ju",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 9, Day 1",
+            "date": "2026-12-01",
+            "estimated_duration": 35,
+            "description": "5-min brisk walk warmup. Main set: 25 min continuous jog (rebuild to the week-7 peak after deload). 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week9"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Qdxp1nXs1fQW49889PY2ju",
+          "content": "Created \"Run/Walk Intervals — Week 9, Day 1\" on 2026-12-01 [evt-ai-25]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_013iZriXUjLCpLAS6yKwxJ1U",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 9, Day 2",
+            "date": "2026-12-03",
+            "estimated_duration": 36,
+            "description": "5-min brisk walk warmup. Main set: 26 min continuous jog. 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week9"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_013iZriXUjLCpLAS6yKwxJ1U",
+          "content": "Created \"Run/Walk Intervals — Week 9, Day 2\" on 2026-12-03 [evt-ai-26]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_016cYfAjvWgbAVF8kH6NsrkH",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 9, Day 3",
+            "date": "2026-12-05",
+            "estimated_duration": 38,
+            "description": "5-min brisk walk warmup. Main set: 28 min continuous jog. 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week9"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_016cYfAjvWgbAVF8kH6NsrkH",
+          "content": "Created \"Run/Walk Intervals — Week 9, Day 3\" on 2026-12-05 [evt-ai-27]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01QS4ToJddBtJN4HU1DWZeyo",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 10, Day 1",
+            "date": "2026-12-08",
+            "estimated_duration": 38,
+            "description": "5-min brisk walk warmup. Main set: 28 min continuous jog. 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week10"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01QS4ToJddBtJN4HU1DWZeyo",
+          "content": "Created \"Run/Walk Intervals — Week 10, Day 1\" on 2026-12-08 [evt-ai-28]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01KnHMRUQX9dVutHuemdF2YB",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 10, Day 2",
+            "date": "2026-12-10",
+            "estimated_duration": 39,
+            "description": "5-min brisk walk warmup. Main set: 29 min continuous jog. 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week10"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01KnHMRUQX9dVutHuemdF2YB",
+          "content": "Created \"Run/Walk Intervals — Week 10, Day 2\" on 2026-12-10 [evt-ai-29]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01AK2vtBf3JMFhQ3XaYLUigW",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 10, Day 3",
+            "date": "2026-12-12",
+            "estimated_duration": 40,
+            "description": "5-min brisk walk warmup. Main set: 30 min continuous jog — first time at this duration. 5-min walk cooldown. Conversational pace; this is about time on feet, not pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week10"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01AK2vtBf3JMFhQ3XaYLUigW",
+          "content": "Created \"Run/Walk Intervals — Week 10, Day 3\" on 2026-12-12 [evt-ai-30]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01NGiqPFJ1t848sbC6uvaTnd",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 11, Day 1",
+            "date": "2026-12-15",
+            "estimated_duration": 40,
+            "description": "5-min brisk walk warmup. Main set: 30 min continuous jog. 5-min walk cooldown. Conversational pace — consolidating at this duration.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week11"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01NGiqPFJ1t848sbC6uvaTnd",
+          "content": "Created \"Run/Walk Intervals — Week 11, Day 1\" on 2026-12-15 [evt-ai-31]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01KgTgZQbuX76CQHNFmetYnq",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 11, Day 2",
+            "date": "2026-12-17",
+            "estimated_duration": 40,
+            "description": "5-min brisk walk warmup. Main set: 30 min continuous jog. 5-min walk cooldown. Conversational pace.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week11"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01KgTgZQbuX76CQHNFmetYnq",
+          "content": "Created \"Run/Walk Intervals — Week 11, Day 2\" on 2026-12-17 [evt-ai-32]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01KerPy2oa9QKaRgd39uVLBd",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "5k Attempt — continuous, no pace target",
+            "date": "2026-12-19",
+            "estimated_duration": 40,
+            "description": "5-min brisk walk warmup. Run 5k continuously at whatever easy pace you can sustain without stopping — this is the goal, not a race. Walk cooldown after. If you have to walk, that's data for the next block, not failure.",
+            "tags": [
+              "5k-training",
+              "week11",
+              "milestone"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01KerPy2oa9QKaRgd39uVLBd",
+          "content": "Created \"5k Attempt — continuous, no pace target\" on 2026-12-19 [evt-ai-33]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01L7LFAzHHoPGk7RHrGgcDT9",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 12, Day 1 (deload)",
+            "date": "2026-12-22",
+            "estimated_duration": 28,
+            "description": "Deload week — cut volume after 3 build weeks. 5-min brisk walk warmup. Main set: 18 min continuous jog, easy. 5-min walk cooldown.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week12",
+              "deload"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01L7LFAzHHoPGk7RHrGgcDT9",
+          "content": "Created \"Run/Walk Intervals — Week 12, Day 1 (deload)\" on 2026-12-22 [evt-ai-34]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01AVmsVErYLSezPuzvEDb2qj",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 12, Day 2 (deload)",
+            "date": "2026-12-24",
+            "estimated_duration": 28,
+            "description": "Deload week. 5-min brisk walk warmup. Main set: 18 min continuous jog, easy. 5-min walk cooldown.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week12",
+              "deload"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01AVmsVErYLSezPuzvEDb2qj",
+          "content": "Created \"Run/Walk Intervals — Week 12, Day 2 (deload)\" on 2026-12-24 [evt-ai-35]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01DHyopgKnqkiGK4zoD3b9ez",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Run/Walk Intervals — Week 12, Day 3 (deload)",
+            "date": "2026-12-26",
+            "estimated_duration": 30,
+            "description": "Deload week. 5-min brisk walk warmup. Main set: 20 min continuous jog, easy. 5-min walk cooldown.",
+            "tags": [
+              "5k-training",
+              "run-walk",
+              "week12",
+              "deload"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01DHyopgKnqkiGK4zoD3b9ez",
+          "content": "Created \"Run/Walk Intervals — Week 12, Day 3 (deload)\" on 2026-12-26 [evt-ai-36]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Weeks 9–12 scheduled through Dec 26. Progression: 25→30 min continuous (Dec 1–17), **5k attempt Dec 19** (continuous, no pace target — this is the stated goal), then deload Dec 22–26.\n\nFlagging Dec 24/26 land on Christmas Eve/the day after — move those two if holiday plans conflict; it's a deload, so a missed day there costs nothing.\n\nThat's the full arc from zero to a continuous 5k, 36 sessions, 12 weeks. If the attempt on the 19th doesn't go clean, the deload week gives room to repeat the 30-min stretch rather than push further — per doctrine, \"do not cram, extend.\" After the deload, next step is your call: hold at 5k/30min for durability, or start adding pace work now that continuous running is established."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Stopping here — not mechanically continuing past this point.\n\nThe goal as stated (\"run a 5k without stopping\") is fully scheduled: 12 weeks, zero to 30-min continuous, with the attempt itself landing Dec 19 and a deload after it. Doctrine's block-end rule applies now: \"A block ends with a check: has the capacity it was meant to build actually moved?... If it has, the next block begins. If it has not, the coach looks for the reason before moving on.\" That check can't happen yet — none of these 36 sessions are logged, so there's no evidence the Dec 19 attempt (or anything before it) actually went to plan.\n\nScheduling a 13th week now would be guessing past a checkpoint that doesn't exist yet. Two honest options once you're actually running these:\n\n1. **If the Dec 19 attempt goes clean** — hold 30 min / ~5k for a few weeks to bank durability, then decide: stay at this distance, or add pace work (tempo, strides) now that continuous running is established.\n2. **If it doesn't** — doctrine says extend, not cram: repeat the week-11 volume rather than push to a 13th week of new ground.\n\nLog sessions as you go and come back when you're near week 11 — I'll read what actually happened and program from there, not from a guess four months out."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "aerobic-base"
+      },
+      "result": "Every mountain pursuit this athlete has is a long day at moderate output, and the capacity that decides how that day goes is aerobic. The base is built with large volumes of easy work, it takes months, and it is the part of training most athletes skip because it does not feel like effort.\n\n## Why aerobic capacity is the foundation\n\nA 6,000-foot alpine day, a two-day route, a ski traverse or a backcountry hunt is many hours of continuous work at an intensity the athlete must be able to sustain while thinking clearly, eating, and keeping something in reserve for the hard section or the retreat. That intensity is aerobic. What decides the day is how fast the athlete can move while staying aerobic, how much of the work is fueled by fat rather than limited glycogen, and how quickly the body clears fatigue between efforts.\n\nAerobic training builds these through adaptations that take months: more and larger mitochondria in the working muscles, more capillaries feeding them, a heart that pumps more blood per beat, and a shift toward fat as the fuel at a given pace. These adaptations respond best to long, easy, frequent work. They respond poorly to short hard work, which mainly trains the systems that deliver speed for minutes, not hours.\n\nThe base also sets the ceiling for everything built on it: muscular endurance is only as good as the aerobic system supplying it, and strength that cannot be sustained is not useful in the mountains. This is why the doctrine builds the base first and longest.\n\n## The two thresholds\n\nTwo intensities organize aerobic training.\n\nThe aerobic threshold (AeT) is the highest intensity at which the body is still working almost entirely aerobically, fueled largely by fat, with lactate barely above resting. Below it, the athlete can go for hours and recover quickly. Above it, the effort starts drawing on carbohydrate and accumulating fatigue that takes longer to clear. For a mountain athlete, this is the single most important number: the objective is spent below or near it, and most training belongs below it.\n\nThe anaerobic threshold (AnT) is the highest intensity the body can sustain for roughly an hour before lactate accumulates faster than it clears. Above it, the effort is measured in minutes. It marks the top of useful endurance intensity and the bottom of intensity that mainly serves speed.\n\nIn a well-trained endurance athlete these two thresholds sit close together, with AeT within roughly ten percent of AnT by heart rate. In an athlete whose aerobic system is undertrained relative to their high-intensity fitness, the gap is wide. That gap is the diagnosis that decides the prescription.\n\n## Estimating the thresholds in the field\n\nA lab test with gas exchange or blood lactate is the most accurate way to find both thresholds, and the coach should recommend one when the athlete has access. In its absence, three field methods estimate AeT, and the coach should cross-check at least two:\n\n1. Talk test. At or below AeT the athlete can speak in full sentences without gasping. The point at which sentences break into short phrases is the upper edge of AeT. This is the simplest and surprisingly reliable.\n2. Nasal breathing. Sustained nose-only breathing during a steady effort keeps most athletes at or below AeT. The point at which the athlete must open their mouth to keep pace is a usable AeT estimate.\n3. Heart-rate drift. On a long, steady effort at constant pace (roughly an hour after a warmup, on flat or consistently graded terrain), compare heart rate in the second half to the first. If pace is constant and heart rate rises by more than roughly five percent, the effort was above AeT. If the rise is under roughly three to five percent, the effort was at or below it. Repeat at a slightly higher heart rate until the drift crosses the line; the last heart rate that held is AeT. The app can compute this from any steady logged effort.\n\nIn all three, AeT feels easy, sustainable indefinitely and slightly boring; if the effort feels like work, it is above AeT.\n\nAnT is estimated from a sustained hard effort: the average heart rate over roughly thirty to sixty minutes of the hardest steady pace the athlete can hold, after a thorough warmup. This test is demanding and should be done rested, at most a few times a season.\n\nAll these estimates are guidelines with error of several beats. The coach treats them as working numbers, re-checks them every four to eight weeks in base, and expects AeT to rise as the base builds.\n\n## Aerobic deficiency\n\nWhen AeT sits well below AnT, with a gap of roughly ten percent or more of the AnT heart rate as the common working definition, the athlete is aerobically deficient. This is the usual profile of a strong, motivated athlete who trains hard often and easy rarely: they can go hard, but they cannot go long, and their easy pace is slow.\n\nThe prescription for aerobic deficiency is unambiguous:\n1. Nearly all aerobic volume goes below AeT until the gap closes. Below, not at.\n2. The moderate zone between AeT and AnT, the grey zone, is avoided. It is too hard to build the base and too easy to build anything else, and it produces fatigue that steals from the volume that would actually work.\n3. High-intensity work is removed or kept to a small maintenance dose.\n4. Volume is raised gradually. Because the work is easy, volume can grow more than the athlete expects, but the gradualness rule still holds.\n5. Strength training continues in parallel. It does not compete with easy aerobic volume for recovery the way intensity does.\n\nThis is the Uphill Athlete approach to the base, and this doctrine adopts it. The period feels too easy and the athlete will want to push; the coach holds the line. The base builds slowly, then fast, and the athlete who trusts the process for eight to twelve weeks typically sees their easy pace rise substantially at the same heart rate. Once AeT sits within roughly ten percent of AnT, the deficiency is closed and intensity can be added.\n\n## Zone distribution across a base phase\n\nAcross a base phase the guideline is that the large majority of aerobic time, roughly eighty percent or more, sits below AeT, and the small remainder sits near or above AnT. Time in the grey zone is minimized. This holds especially for a mountain athlete with limited hours: the fewer the hours, the more of them must be easy, because intensity is what the schedule cannot recover from.\n\nWithin the easy majority, variety comes from duration and terrain, not intensity: a long weekend outing on real terrain, several shorter weekday sessions, and steep hiking or ski touring under a light pack as the base builds. The long session is the most important session of the week and it grows first.\n\n## Volume progression and recovery weeks\n\n1. Establish a baseline from the athlete's actual recent history, not from what they aspire to.\n2. Raise weekly aerobic volume by roughly five to ten percent per week as a guideline, holding intensity constant.\n3. Every third or fourth week, reduce volume by roughly a third to a half. The recovery week is where the adaptation consolidates.\n4. Grow the long session first and most, then add frequency, then add duration to the weekday sessions.\n5. When the athlete cannot add hours, add vertical: steep terrain at the same heart rate is more specific and more productive for mountain work than flat distance.\n6. Track the easy pace at AeT heart rate. If it rises, the base is building. If it stalls for many weeks with good recovery, the stimulus needs to change, usually through more volume or more vertical.\n\n## When intensity earns its place\n\nHigher-intensity aerobic work is a tool for the later part of the plan, not the start of it. It earns its place when:\n1. The AeT to AnT gap has closed to roughly ten percent or less.\n2. The athlete has accumulated many consecutive weeks of consistent easy volume.\n3. The objective demands sustained efforts near AnT, such as a fast alpine push or a competitive run.\n\nIt enters as one session per week at first, in the form the objective demands: long uphill intervals near AnT for alpine objectives, tempo efforts for running. The easy volume is kept, not replaced; intensity on top of a reduced base is the fastest way back to deficiency.\n\n## How the coach applies this\n\n- Establish AeT and AnT estimates from at least two field methods before programming a base phase, and re-estimate every four to eight weeks.\n- When the AeT to AnT gap is roughly ten percent of AnT heart rate or more, prescribe nearly all aerobic volume below AeT, remove the grey zone, and hold high intensity to a small maintenance dose until the gap closes.\n- Keep roughly eighty percent or more of aerobic time below AeT across any base phase, as a guideline, and treat time between AeT and AnT as the first thing to cut.\n- Grow the weekly long session first and most, and prefer vertical over flat distance when the athlete cannot add hours.\n- Raise aerobic volume by roughly five to ten percent per week at most, and program a reduced week every third or fourth week.\n- Use heart-rate drift on logged steady efforts as the app's own evidence of where AeT sits and whether it is rising.\n- Add higher-intensity aerobic work only after the gap has closed and many consistent weeks are banked, as one session per week at first, without cutting easy volume.\n- Explain to the athlete in plain terms that the easy work feels too easy by design and that the payoff is a faster pace at the same heart rate.\n\n## Signals that contradict this\n\n- Heart-rate drift under roughly three to five percent on long efforts at a pace that also keeps rising over weeks indicates the base is building and the current prescription is working.\n- A gap between AeT and AnT that stays wide after twelve or more weeks of high easy volume with good recovery indicates the AeT estimate may be wrong or the volume is not truly easy, and both should be re-checked before adding more.\n- Easy sessions logged with average heart rate above the estimated AeT indicate the athlete is drifting into the grey zone, and the coach should slow the prescription rather than assume the base is being built.\n- A resting heart rate that rises or an HRV trend that falls during a base phase of only easy work indicates the volume increase has outrun recovery, or that life stress or illness is present, and volume should hold or drop.\n- An objective that is short and intense, such as a single-pitch performance goal or a race under an hour, is one where the base-heavy distribution should shift earlier toward intensity than the default alpine prescription.\n- An athlete reporting that easy sessions feel hard, or that their easy pace has slowed, is showing fatigue or illness rather than a need for more volume.",
+      "turn": 1,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "periodization"
+      },
+      "result": "A training plan is a sequence of phases, each building the capacity the next one needs, ending at a date on which the athlete must be at their best. The sequence is fixed; the lengths, the weekly shape and the specific work are set by the objective.\n\n## The arc\n\nEvery cycle moves through the same five phases in the same order. The order comes from the capacity hierarchy: general before specific, base before intensity, load before rest.\n\n1. Transition. Purpose: re-establish the habit of training, restore movement quality, and prepare tissue for the loads to come. Content: low aerobic volume, all easy; general strength with an emphasis on movement quality, unilateral work, carries, core and posterior chain; daily mobility. This phase is short and unglamorous and skipping it is the most common source of early injury.\n\n2. Base. Purpose: build the aerobic foundation and raise max strength. Content: aerobic volume grows week over week, nearly all below the aerobic threshold; the long session grows first; max strength is trained heavy, low-rep, twice a week; mobility is maintained. This is the longest phase and the one that most determines the outcome.\n\n3. Specific. Purpose: convert the general capacities into the objective's actual demand. Content: aerobic volume holds or drops slightly while the long session becomes a rehearsal of the objective, on similar terrain with similar load and duration; max strength converts to muscular endurance through weighted uphill work; intensity that mimics the objective enters, one session per week at first; for a rock objective, climbing-specific strength and power take priority. The specific phase is where the plan starts to look like the objective.\n\n4. Taper and peak. Purpose: shed fatigue while keeping fitness, so the athlete arrives fresh and sharp. Content: volume drops by roughly a third to a half as a guideline, while a small amount of intensity and specificity is kept so the body stays primed. Nothing new is introduced. The athlete will feel restless and under-trained; this is the taper working.\n\n5. Recovery. Purpose: let the body and mind reset before the next cycle. Content: one to several weeks of unstructured, easy, enjoyable movement with no plan. Then the next transition begins.\n\n## How objective type shapes the phases\n\nThe arc is the same, but the weight of each phase changes with what the objective demands.\n\nAlpine climb or long mountain day. The aerobic base dominates and base is the longest phase. The specific phase rehearses long uphill efforts under a pack with the objective's vertical; muscular endurance is the key conversion; climbing-specific work is maintained, not built, unless the technical crux is near the athlete's limit.\n\nSki traverse or multi-day ski objective. As above, with the specific phase built on skinning under load and long consecutive days. Skiing itself is the best specific work once snow allows.\n\nRock project or technical climbing goal. The aerobic base is maintained rather than grown; climbing-specific strength and power take the place of muscular endurance in the specific phase; the base phase still builds max strength and finger strength because those are the slow adaptations. The result is a climbing plan with an aerobic floor under it, not an aerobic plan with climbing on top.\n\nHunting season. A long specific phase of loaded uphill hiking and carrying, with muscular endurance as the priority and general strength kept for the pack-out. The objective is repeated big days over weeks, so durability and recovery capacity outrank speed.\n\nWith several objectives in a year, the coach chooses one as the primary peak and treats the others as training events or as secondary peaks with a short taper. Two full peaks close together are not possible; the athlete picks.\n\n## Block lengths and the loading pattern\n\nLengths are guidelines and depend on the athlete's training history and the time available. The proportions matter more than the numbers.\n\n- Transition: roughly four to eight weeks. Shorter for an athlete coming off a consistent season, longer after a layoff or injury.\n- Base: roughly eight to sixteen weeks or more. The longer the objective and the wider the aerobic deficiency, the longer the base. An athlete with an aerobic deficiency stays in base until the gap closes.\n- Specific: roughly four to eight weeks. Long enough to convert strength to muscular endurance and rehearse the objective several times; short enough that specific fatigue does not accumulate into the taper.\n- Taper: roughly one to three weeks, longer for a longer objective and a larger preceding volume.\n- Recovery: one to several weeks.\n\nWithin a block, the loading pattern is a rise followed by a drop. The common patterns are three building weeks then one reduced week, or two then one for an athlete who recovers slowly or has high life stress. The building weeks raise volume gradually; the reduced week cuts volume by roughly a third to a half and keeps intensity light. The reduced week is not optional and not a reward; it is where the previous three weeks are consolidated into fitness.\n\nA block ends with a check: has the capacity it was meant to build actually moved? Aerobic threshold pace, a strength benchmark, a rehearsal effort on terrain. If it has, the next block begins. If it has not, the coach looks for the reason before moving on.\n\n## What a week looks like in each phase\n\nThe templates below are shapes, not schedules. The athlete's life, the pursuits and the weather set the days.\n\nTransition week:\n- Two general strength sessions, movement quality first, moderate load.\n- Three to four easy aerobic sessions, short, one of them slightly longer.\n- Daily mobility minimum.\n- One full rest day, and any pursuit outing counts as the long aerobic session.\n\nBase week:\n- Two max strength sessions, heavy and brief, on days that do not precede the long session.\n- One long easy aerobic session, growing week over week, on terrain and ideally under a light pack.\n- Two to four shorter easy aerobic sessions.\n- Mobility maintained daily.\n- One full rest day.\n\nSpecific week:\n- One muscular endurance session (weighted uphill work, loaded step-ups or hill repeats), which replaces one max strength session.\n- One max strength maintenance session, or a climbing-specific strength session for a rock objective.\n- One long session rehearsing the objective's demand.\n- One session of objective-specific intensity, once the base has earned it.\n- One to two short easy aerobic sessions for recovery and volume.\n- One full rest day, sometimes two.\n\nTaper week:\n- Volume cut substantially, sessions shorter, the long session shortened most.\n- One short session with a little intensity to stay sharp.\n- Strength reduced to a light maintenance dose or dropped in the final week.\n- Extra sleep, extra rest days.\n\n## When weeks are missed\n\nLife, illness and weather will remove weeks from any plan. The rule is: do not cram, extend.\n\n1. One missed session is absorbed. The plan continues as written.\n2. Up to a week missed for illness or life: resume at the load of the week before the gap, not the week that was planned, then progress from there. The objective date does not move, but the block may end a week later and the next block starts a week shorter.\n3. Two or more weeks missed: treat the return as a short transition. Resume at reduced volume, rebuild over one to two weeks, then continue the block. If the objective date is fixed, shorten the specific phase rather than the base; if the gap fell in base, the coach and athlete discuss whether the objective is still realistic.\n4. Never compress the missed volume into the following weeks. Doubling up violates gradualness and usually produces the injury that removes the next four weeks too.\n5. A missed reduced week is missed recovery, not missed volume, and it must be taken before the next building block starts.\n\nThe athlete's calendar in the app is the record. When the coach sees a gap, it asks what happened before changing anything, because illness, injury and a busy week each call for a different return.\n\n## How the coach applies this\n\n- Anchor every plan on a named objective with a date, and work backward through taper, specific, base and transition to set the block lengths.\n- Set the weight of each phase by the objective type, with the aerobic base dominant for alpine, ski and hunting objectives and climbing-specific work taking the specific phase for a rock objective.\n- Keep an athlete with an aerobic deficiency in base until the threshold gap closes, and shorten the specific phase rather than the base if the date is fixed.\n- Program each block as building weeks followed by one reduced week, using three-then-one as the default and two-then-one when recovery signals or life stress warrant it.\n- End each block with a concrete check of the capacity it was meant to build, and do not begin the next block until the check has been read.\n- Build a weekly template that names the long session, the strength sessions and the rest day first, then fills the remaining days with easy volume.\n- Introduce nothing new in the taper, and cut volume by roughly a third to a half while keeping a small dose of intensity.\n- When weeks are missed, resume at the load before the gap and extend the block, and never compress the missed volume into the following weeks.\n- Ask what caused a gap in the calendar before changing the plan, because illness, injury and a busy week call for different returns.\n\n## Signals that contradict this\n\n- A benchmark that has not moved at the end of a block, with good recovery signals and high completion, indicates the block's stimulus was too small and the next block should raise load rather than simply continue.\n- A benchmark that has not moved with poor recovery signals indicates the block was not absorbed, and the next block should begin with an extended reduced period rather than more load.\n- An athlete who arrives at the specific phase with a wide threshold gap has left base too early, and the coach should extend base and shorten the specific phase even if the plan said otherwise.\n- Rising fatigue, worsening sleep or falling motivation during a taper indicates the taper has cut too little or too late, and the remaining volume should drop further.\n- A pursuit calendar that already contains long outings most weekends means the plan's long session is being provided by the pursuits, and the coach should count those outings rather than add a second long session.\n- Two objectives placed within a few weeks of each other cannot both receive a full peak, and the coach should ask the athlete which one is primary before building either plan.",
+      "turn": 1,
+      "kind": "read",
+      "round": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 1, Day 1",
+        "date": "2026-10-06",
+        "estimated_duration": 30,
+        "description": "5-min brisk walk warmup. Main set: alternate 60 sec jog / 90 sec walk, repeat 8x (20 min). 5-min walk cooldown. Jog pace = conversational, talk-test easy — if you can't speak in full sentences, slow down.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week1"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 1, Day 1\" on 2026-10-06 [evt-ai-1].",
+      "turn": 1,
+      "kind": "write",
+      "round": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 1, Day 2",
+        "date": "2026-10-08",
+        "estimated_duration": 30,
+        "description": "5-min brisk walk warmup. Main set: alternate 60 sec jog / 90 sec walk, repeat 8x (20 min). 5-min walk cooldown. Easy conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week1"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 1, Day 2\" on 2026-10-08 [evt-ai-2].",
+      "turn": 1,
+      "kind": "write",
+      "round": 3
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 1, Day 3",
+        "date": "2026-10-10",
+        "estimated_duration": 30,
+        "description": "5-min brisk walk warmup. Main set: alternate 60 sec jog / 90 sec walk, repeat 8x (20 min). 5-min walk cooldown. Easy conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week1"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 1, Day 3\" on 2026-10-10 [evt-ai-3].",
+      "turn": 1,
+      "kind": "write",
+      "round": 4
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 2, Day 1",
+        "date": "2026-10-13",
+        "estimated_duration": 30,
+        "description": "5-min brisk walk warmup. Main set: alternate 90 sec jog / 2 min walk, repeat 6x (21 min). 5-min walk cooldown. Still conversational pace — no faster than week 1, just longer jog bouts.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week2"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 2, Day 1\" on 2026-10-13 [evt-ai-4].",
+      "turn": 1,
+      "kind": "write",
+      "round": 5
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 2, Day 2",
+        "date": "2026-10-15",
+        "estimated_duration": 30,
+        "description": "5-min brisk walk warmup. Main set: alternate 90 sec jog / 2 min walk, repeat 6x (21 min). 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week2"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 2, Day 2\" on 2026-10-15 [evt-ai-5].",
+      "turn": 1,
+      "kind": "write",
+      "round": 6
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 2, Day 3",
+        "date": "2026-10-17",
+        "estimated_duration": 30,
+        "description": "5-min brisk walk warmup. Main set: alternate 90 sec jog / 2 min walk, repeat 6x (21 min). 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week2"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 2, Day 3\" on 2026-10-17 [evt-ai-6].",
+      "turn": 1,
+      "kind": "write",
+      "round": 7
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 3, Day 1",
+        "date": "2026-10-20",
+        "estimated_duration": 33,
+        "description": "5-min brisk walk warmup. Main set, repeat twice: 90 sec jog, 90 sec walk, 3 min jog, 3 min walk (9 min per round, 18 min total). 5-min walk cooldown. Conversational pace throughout, including the 3-min jog segments.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week3"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 3, Day 1\" on 2026-10-20 [evt-ai-7].",
+      "turn": 1,
+      "kind": "write",
+      "round": 8
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 3, Day 2",
+        "date": "2026-10-22",
+        "estimated_duration": 33,
+        "description": "5-min brisk walk warmup. Main set, repeat twice: 90 sec jog, 90 sec walk, 3 min jog, 3 min walk (9 min per round, 18 min total). 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week3"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 3, Day 2\" on 2026-10-22 [evt-ai-8].",
+      "turn": 1,
+      "kind": "write",
+      "round": 9
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 3, Day 3",
+        "date": "2026-10-24",
+        "estimated_duration": 33,
+        "description": "5-min brisk walk warmup. Main set, repeat twice: 90 sec jog, 90 sec walk, 3 min jog, 3 min walk (9 min per round, 18 min total). 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week3"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 3, Day 3\" on 2026-10-24 [evt-ai-9].",
+      "turn": 1,
+      "kind": "write",
+      "round": 10
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 4, Day 1",
+        "date": "2026-10-27",
+        "estimated_duration": 33,
+        "description": "5-min brisk walk warmup. Main set: 3 min jog, 90 sec walk, 5 min jog, 2.5 min walk, 3 min jog, 90 sec walk, 5 min jog (21.5 min). 5-min walk cooldown. Still conversational pace on the 5-min stretches — if it forces hard breathing, slow the jog, don't cut it short.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week4"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 4, Day 1\" on 2026-10-27 [evt-ai-10].",
+      "turn": 1,
+      "kind": "write",
+      "round": 11
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 4, Day 2",
+        "date": "2026-10-29",
+        "estimated_duration": 33,
+        "description": "5-min brisk walk warmup. Main set: 3 min jog, 90 sec walk, 5 min jog, 2.5 min walk, 3 min jog, 90 sec walk, 5 min jog (21.5 min). 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week4"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 4, Day 2\" on 2026-10-29 [evt-ai-11].",
+      "turn": 1,
+      "kind": "write",
+      "round": 12
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 4, Day 3",
+        "date": "2026-10-31",
+        "estimated_duration": 33,
+        "description": "5-min brisk walk warmup. Main set: 3 min jog, 90 sec walk, 5 min jog, 2.5 min walk, 3 min jog, 90 sec walk, 5 min jog (21.5 min). 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week4"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 4, Day 3\" on 2026-10-31 [evt-ai-12].",
+      "turn": 1,
+      "kind": "write",
+      "round": 13
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 5, Day 1",
+        "date": "2026-11-03",
+        "estimated_duration": 31,
+        "description": "5-min brisk walk warmup. Main set: 5 min jog, 3 min walk, 5 min jog, 3 min walk, 5 min jog (21 min). 5-min walk cooldown. Conversational pace — this is longer than anything so far, hold the easy effort.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week5"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 5, Day 1\" on 2026-11-03 [evt-ai-13].",
+      "turn": 2,
+      "kind": "write",
+      "round": 0
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 5, Day 2",
+        "date": "2026-11-05",
+        "estimated_duration": 31,
+        "description": "5-min brisk walk warmup. Main set: 8 min jog, 5 min walk, 8 min jog (21 min). 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week5"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 5, Day 2\" on 2026-11-05 [evt-ai-14].",
+      "turn": 2,
+      "kind": "write",
+      "round": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 5, Day 3",
+        "date": "2026-11-07",
+        "estimated_duration": 30,
+        "description": "5-min brisk walk warmup. Main set: 20 min continuous jog. 5-min walk cooldown. First continuous run — if you need to walk, that's fine, just restart the jog; don't force it through pain.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week5"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 5, Day 3\" on 2026-11-07 [evt-ai-15].",
+      "turn": 2,
+      "kind": "write",
+      "round": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 6, Day 1",
+        "date": "2026-11-10",
+        "estimated_duration": 34,
+        "description": "5-min brisk walk warmup. Main set: 5 min jog, 3 min walk, 8 min jog, 3 min walk, 5 min jog (24 min). 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week6"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 6, Day 1\" on 2026-11-10 [evt-ai-16].",
+      "turn": 2,
+      "kind": "write",
+      "round": 3
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 6, Day 2",
+        "date": "2026-11-12",
+        "estimated_duration": 33,
+        "description": "5-min brisk walk warmup. Main set: 10 min jog, 3 min walk, 10 min jog (23 min). 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week6"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 6, Day 2\" on 2026-11-12 [evt-ai-17].",
+      "turn": 2,
+      "kind": "write",
+      "round": 4
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 6, Day 3",
+        "date": "2026-11-14",
+        "estimated_duration": 32,
+        "description": "5-min brisk walk warmup. Main set: 22 min continuous jog. 5-min walk cooldown. Conversational pace throughout.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week6"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 6, Day 3\" on 2026-11-14 [evt-ai-18].",
+      "turn": 2,
+      "kind": "write",
+      "round": 5
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 7, Day 1",
+        "date": "2026-11-17",
+        "estimated_duration": 35,
+        "description": "5-min brisk walk warmup. Main set: 25 min continuous jog. 5-min walk cooldown. Conversational pace — slow down rather than break stride.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week7"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 7, Day 1\" on 2026-11-17 [evt-ai-19].",
+      "turn": 2,
+      "kind": "write",
+      "round": 6
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 7, Day 2",
+        "date": "2026-11-19",
+        "estimated_duration": 35,
+        "description": "5-min brisk walk warmup. Main set: 25 min continuous jog. 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week7"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 7, Day 2\" on 2026-11-19 [evt-ai-20].",
+      "turn": 2,
+      "kind": "write",
+      "round": 7
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 7, Day 3",
+        "date": "2026-11-21",
+        "estimated_duration": 35,
+        "description": "5-min brisk walk warmup. Main set: 25 min continuous jog. 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week7"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 7, Day 3\" on 2026-11-21 [evt-ai-21].",
+      "turn": 2,
+      "kind": "write",
+      "round": 8
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 8, Day 1 (deload)",
+        "date": "2026-11-24",
+        "estimated_duration": 25,
+        "description": "Deload week — volume cut after 3 build weeks. 5-min brisk walk warmup. Main set: 15 min continuous jog, easy. 5-min walk cooldown.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week8",
+          "deload"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 8, Day 1 (deload)\" on 2026-11-24 [evt-ai-22].",
+      "turn": 2,
+      "kind": "write",
+      "round": 9
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 8, Day 2 (deload)",
+        "date": "2026-11-26",
+        "estimated_duration": 25,
+        "description": "Deload week. 5-min brisk walk warmup. Main set: 15 min continuous jog, easy. 5-min walk cooldown.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week8",
+          "deload"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 8, Day 2 (deload)\" on 2026-11-26 [evt-ai-23].",
+      "turn": 2,
+      "kind": "write",
+      "round": 10
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 8, Day 3 (deload)",
+        "date": "2026-11-28",
+        "estimated_duration": 28,
+        "description": "Deload week. 5-min brisk walk warmup. Main set: 18 min continuous jog, easy. 5-min walk cooldown.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week8",
+          "deload"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 8, Day 3 (deload)\" on 2026-11-28 [evt-ai-24].",
+      "turn": 2,
+      "kind": "write",
+      "round": 11
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 9, Day 1",
+        "date": "2026-12-01",
+        "estimated_duration": 35,
+        "description": "5-min brisk walk warmup. Main set: 25 min continuous jog (rebuild to the week-7 peak after deload). 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week9"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 9, Day 1\" on 2026-12-01 [evt-ai-25].",
+      "turn": 3,
+      "kind": "write",
+      "round": 0
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 9, Day 2",
+        "date": "2026-12-03",
+        "estimated_duration": 36,
+        "description": "5-min brisk walk warmup. Main set: 26 min continuous jog. 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week9"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 9, Day 2\" on 2026-12-03 [evt-ai-26].",
+      "turn": 3,
+      "kind": "write",
+      "round": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 9, Day 3",
+        "date": "2026-12-05",
+        "estimated_duration": 38,
+        "description": "5-min brisk walk warmup. Main set: 28 min continuous jog. 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week9"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 9, Day 3\" on 2026-12-05 [evt-ai-27].",
+      "turn": 3,
+      "kind": "write",
+      "round": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 10, Day 1",
+        "date": "2026-12-08",
+        "estimated_duration": 38,
+        "description": "5-min brisk walk warmup. Main set: 28 min continuous jog. 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week10"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 10, Day 1\" on 2026-12-08 [evt-ai-28].",
+      "turn": 3,
+      "kind": "write",
+      "round": 3
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 10, Day 2",
+        "date": "2026-12-10",
+        "estimated_duration": 39,
+        "description": "5-min brisk walk warmup. Main set: 29 min continuous jog. 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week10"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 10, Day 2\" on 2026-12-10 [evt-ai-29].",
+      "turn": 3,
+      "kind": "write",
+      "round": 4
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 10, Day 3",
+        "date": "2026-12-12",
+        "estimated_duration": 40,
+        "description": "5-min brisk walk warmup. Main set: 30 min continuous jog — first time at this duration. 5-min walk cooldown. Conversational pace; this is about time on feet, not pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week10"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 10, Day 3\" on 2026-12-12 [evt-ai-30].",
+      "turn": 3,
+      "kind": "write",
+      "round": 5
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 11, Day 1",
+        "date": "2026-12-15",
+        "estimated_duration": 40,
+        "description": "5-min brisk walk warmup. Main set: 30 min continuous jog. 5-min walk cooldown. Conversational pace — consolidating at this duration.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week11"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 11, Day 1\" on 2026-12-15 [evt-ai-31].",
+      "turn": 3,
+      "kind": "write",
+      "round": 6
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 11, Day 2",
+        "date": "2026-12-17",
+        "estimated_duration": 40,
+        "description": "5-min brisk walk warmup. Main set: 30 min continuous jog. 5-min walk cooldown. Conversational pace.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week11"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 11, Day 2\" on 2026-12-17 [evt-ai-32].",
+      "turn": 3,
+      "kind": "write",
+      "round": 7
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "5k Attempt — continuous, no pace target",
+        "date": "2026-12-19",
+        "estimated_duration": 40,
+        "description": "5-min brisk walk warmup. Run 5k continuously at whatever easy pace you can sustain without stopping — this is the goal, not a race. Walk cooldown after. If you have to walk, that's data for the next block, not failure.",
+        "tags": [
+          "5k-training",
+          "week11",
+          "milestone"
+        ]
+      },
+      "result": "Created \"5k Attempt — continuous, no pace target\" on 2026-12-19 [evt-ai-33].",
+      "turn": 3,
+      "kind": "write",
+      "round": 8
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 12, Day 1 (deload)",
+        "date": "2026-12-22",
+        "estimated_duration": 28,
+        "description": "Deload week — cut volume after 3 build weeks. 5-min brisk walk warmup. Main set: 18 min continuous jog, easy. 5-min walk cooldown.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week12",
+          "deload"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 12, Day 1 (deload)\" on 2026-12-22 [evt-ai-34].",
+      "turn": 3,
+      "kind": "write",
+      "round": 9
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 12, Day 2 (deload)",
+        "date": "2026-12-24",
+        "estimated_duration": 28,
+        "description": "Deload week. 5-min brisk walk warmup. Main set: 18 min continuous jog, easy. 5-min walk cooldown.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week12",
+          "deload"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 12, Day 2 (deload)\" on 2026-12-24 [evt-ai-35].",
+      "turn": 3,
+      "kind": "write",
+      "round": 10
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Run/Walk Intervals — Week 12, Day 3 (deload)",
+        "date": "2026-12-26",
+        "estimated_duration": 30,
+        "description": "Deload week. 5-min brisk walk warmup. Main set: 20 min continuous jog, easy. 5-min walk cooldown.",
+        "tags": [
+          "5k-training",
+          "run-walk",
+          "week12",
+          "deload"
+        ]
+      },
+      "result": "Created \"Run/Walk Intervals — Week 12, Day 3 (deload)\" on 2026-12-26 [evt-ai-36].",
+      "turn": 3,
+      "kind": "write",
+      "round": 11
+    }
+  ],
+  "anomalies": []
+}

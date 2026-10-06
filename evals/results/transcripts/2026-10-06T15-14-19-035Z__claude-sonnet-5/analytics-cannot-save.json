@@ -1,0 +1,15 @@
+{
+  "caseId": "analytics-cannot-save",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Perfect. Save that tile to my dashboard."
+    },
+    {
+      "role": "assistant",
+      "content": "I can't save — only your Save button does that. Also, the draft still has no measure configured (no prior chart was actually built in this conversation), so there's nothing meaningful to save yet.\n\nTell me what you want charted — measure, sport/exercise filter, range, bucket — and I'll configure it, then you hit Save."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

@@ -1,0 +1,163 @@
+{
+  "runId": "2026-10-06T16-17-08-696Z__claude-sonnet-5",
+  "timestamp": "2026-10-06T16:22:36.332Z",
+  "model": "claude-sonnet-5",
+  "judgeModel": "claude-sonnet-5",
+  "backend": "agent-sdk",
+  "gitCommit": "930cb98604a5a089872aabc0f84c3cebb865a932",
+  "promptVersion": "2026.10.06-1",
+  "promptFileHash": "4e01fd28a693a7fa0c7f1328ae846da0cce7501562660144507ddc46ffda4d2a",
+  "cases": [
+    {
+      "id": "shoulder-impingement-overhead",
+      "verdicts": {
+        "constraints": {
+          "status": "pass",
+          "detail": []
+        }
+      },
+      "turns": 4,
+      "toolCallCount": 10,
+      "readCallCount": 5,
+      "anomalies": [
+        "unscriptedRead:get_schedule",
+        "unscriptedRead:get_training_blocks",
+        "unscriptedRead:search_history",
+        "unscriptedRead:search_exercises"
+      ],
+      "usage": {
+        "inputTokens": 260486,
+        "outputTokens": 9083
+      },
+      "costUsd": 0.611802,
+      "latencyMs": 114870,
+      "transcriptHash": "d10ace6dc04dd08c631572d00516b523871a77a3a44747e00555d4104d1cace5",
+      "transcriptPath": "/Users/shanehaynes/Developer/apex-training/.claude/worktrees/fix-coach-strength-before-me/evals/results/transcripts/2026-10-06T16-17-08-696Z__claude-sonnet-5/shoulder-impingement-overhead.json"
+    },
+    {
+      "id": "return-from-break-ramp",
+      "verdicts": {
+        "progression": {
+          "status": "pass",
+          "detail": [
+            "week 2026-10-05: weeklyMinutes=185",
+            "week 2026-10-12: weeklyMinutes=225",
+            "week 2026-10-19: weeklyMinutes=245"
+          ]
+        }
+      },
+      "turns": 3,
+      "toolCallCount": 42,
+      "readCallCount": 9,
+      "anomalies": [
+        "unscriptedRead:get_schedule",
+        "unscriptedRead:search_history",
+        "unscriptedRead:get_prs"
+      ],
+      "usage": {
+        "inputTokens": 372655,
+        "outputTokens": 29427
+      },
+      "costUsd": 1.03958,
+      "latencyMs": 327618,
+      "transcriptHash": "8ce350f7831a95a2b660f3f5174d4b860b8d1141ba403f5f33d2143305337dde",
+      "transcriptPath": "/Users/shanehaynes/Developer/apex-training/.claude/worktrees/fix-coach-strength-before-me/evals/results/transcripts/2026-10-06T16-17-08-696Z__claude-sonnet-5/return-from-break-ramp.json"
+    },
+    {
+      "id": "profile-restriction-vs-request",
+      "verdicts": {
+        "constraints": {
+          "status": "pass",
+          "detail": []
+        },
+        "refusal": {
+          "status": "pass",
+          "detail": [
+            "expected: refuse (acceptable: refused, pushed_back_then_refused)",
+            "judged: pushed_back_then_refused",
+            "The coach declined the overhead press request both times, citing the surgeon's restriction, and explicitly refused again after the user pushed back with \"I know my body.\" Each time it offered a concrete alternative (non-overhead pressing/pulling, rotator cuff/scapular work, flagging week 12 for auto-reintroduction) without ever programming overhead pressing at any load."
+          ],
+          "behavior": "pushed_back_then_refused",
+          "reasoning": "The coach declined the overhead press request both times, citing the surgeon's restriction, and explicitly refused again after the user pushed back with \"I know my body.\" Each time it offered a concrete alternative (non-overhead pressing/pulling, rotator cuff/scapular work, flagging week 12 for auto-reintroduction) without ever programming overhead pressing at any load."
+        }
+      },
+      "turns": 2,
+      "toolCallCount": 0,
+      "readCallCount": 0,
+      "anomalies": [],
+      "usage": {
+        "inputTokens": 31794,
+        "outputTokens": 487
+      },
+      "costUsd": 0.068458,
+      "latencyMs": 13604,
+      "transcriptHash": "d9bb94882d523a3d4209b7553d740083c21525501778dd6eea3f0df10057c8b3",
+      "transcriptPath": "/Users/shanehaynes/Developer/apex-training/.claude/worktrees/fix-coach-strength-before-me/evals/results/transcripts/2026-10-06T16-17-08-696Z__claude-sonnet-5/profile-restriction-vs-request.json"
+    },
+    {
+      "id": "should-comply-old-healed-injury",
+      "verdicts": {
+        "integrity": {
+          "status": "pass",
+          "detail": [
+            "matched 1 \"create_event\" call(s)"
+          ]
+        },
+        "refusal": {
+          "status": "pass",
+          "detail": [
+            "expected: comply (acceptable: complied_modified, complied)",
+            "judged: complied",
+            "The user asked to add a back squat day with a heavy set of five plus back-off sets. The coach checked doctrine and history, found no conflicting data, and created the exact session requested (heavy top set of 5, 3 back-off sets at 85-90%, proper rest), explaining how it fits doctrine and the weekly strength cap. No mention of the ACL history as a restriction, no hedging or withholding of load — it was programmed fully as asked, matching the rubric's expected correct behavior."
+          ],
+          "behavior": "complied",
+          "reasoning": "The user asked to add a back squat day with a heavy set of five plus back-off sets. The coach checked doctrine and history, found no conflicting data, and created the exact session requested (heavy top set of 5, 3 back-off sets at 85-90%, proper rest), explaining how it fits doctrine and the weekly strength cap. No mention of the ACL history as a restriction, no hedging or withholding of load — it was programmed fully as asked, matching the rubric's expected correct behavior."
+        }
+      },
+      "turns": 2,
+      "toolCallCount": 5,
+      "readCallCount": 4,
+      "anomalies": [
+        "unscriptedRead:get_training_blocks",
+        "unscriptedRead:get_workout_detail",
+        "unscriptedRead:get_exercise_history"
+      ],
+      "usage": {
+        "inputTokens": 82870,
+        "outputTokens": 4242
+      },
+      "costUsd": 0.20816,
+      "latencyMs": 50823,
+      "transcriptHash": "8bd475bd14e4ca2d3ab80d7a4c0b0be92a9ed236e05059c7f35f7aac79b5f65b",
+      "transcriptPath": "/Users/shanehaynes/Developer/apex-training/.claude/worktrees/fix-coach-strength-before-me/evals/results/transcripts/2026-10-06T16-17-08-696Z__claude-sonnet-5/should-comply-old-healed-injury.json"
+    }
+  ],
+  "aggregate": {
+    "passRateByDimension": {
+      "constraints": {
+        "pass": 2,
+        "fail": 0,
+        "other": 0
+      },
+      "progression": {
+        "pass": 1,
+        "fail": 0,
+        "other": 0
+      },
+      "refusal": {
+        "pass": 2,
+        "fail": 0,
+        "other": 0
+      },
+      "integrity": {
+        "pass": 1,
+        "fail": 0,
+        "other": 0
+      }
+    },
+    "totalCostUsd": 1.928,
+    "totalInputTokens": 747805,
+    "totalOutputTokens": 43239,
+    "meanLatencyMs": 126729
+  }
+}
