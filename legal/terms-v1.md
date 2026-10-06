@@ -159,33 +159,57 @@ in your profile. When you use them:
 
 ## 6. API and MCP access
 
-Apex exposes a read-only endpoint at `/api/mcp` implementing the Model Context
-Protocol, so that third-party AI clients can read your training data. Access is
-by a bearer token you mint yourself, or by an OAuth connection you approve.
+Apex exposes an endpoint at `/api/mcp` implementing the Model Context Protocol,
+so that third-party AI clients (such as Claude or ChatGPT) can read your
+training data and, if you allow it, change it. Access is by a personal access
+token you mint yourself, or by an OAuth connection you approve.
 
-**Understand what a token grants before you create one.** A single token gives
-its holder read access to **your entire schedule, every logged set with its
-weights and reps, your personal records, your training blocks, your exercise
-library, and your logged meals**.
+**Understand what you are granting before you create a token or approve a
+connection.** Every token or connection gives its holder read access to **your
+entire schedule, every logged set with its weights and reps, your personal
+records, your training blocks and objectives, your exercise library, your
+logged meals, the notes and memory the coach keeps about you, and your profile
+settings**. A token or connection with **write access** additionally lets its
+holder **create, change, and delete** those things on your behalf: log workouts
+and meals, add, move, and delete scheduled events, edit your exercise library,
+training blocks, and objectives, change your profile settings and the coach's
+memory, and pin or dismiss notes. Write access exists only where you granted
+it: a token you created with "Can make changes" ticked, or a connection whose
+consent screen said it was a full one. Everything else is read-only.
 
 Terms specific to this access:
 
-- **Tokens do not expire.** A personal access token stays valid until you
-  revoke it in your profile. Revocation is the only control; there is no
-  scoping, no per-tool permission, and no notification when a token is first
-  used.
-- **Rate limit: 300 requests per hour** per user. We may change this, and may
-  block traffic that threatens the Service's stability.
-- **You are responsible for every token you issue** and for what its holder
-  does with the data. Treat a token like a password.
+- **Changes made through a client are yours.** A change an AI client makes
+  through a token or connection you granted is treated exactly as if you had
+  made it in the app. We record every such change in your profile's activity
+  log, limit AI-made changes to 200 per day, and let you revoke a token or
+  disconnect a client at any time — but we cannot undo a change a client has
+  made, and we are not responsible for what a client you authorised does with
+  its access, including a change it makes because of instructions in content
+  it read somewhere else.
+- **Token lifetime and access level.** A personal access token stays valid for
+  one year, or until you revoke it in your profile, whichever comes first; an
+  OAuth connection stays valid until you disconnect it. A token's access level
+  (read-only or full) is fixed when it is created and cannot be changed
+  afterwards. There is no notification when a token is first used.
+- **Rate limits: 300 requests per hour** per user, and **200 AI-made changes
+  per day**. We may change these, and may block traffic that threatens the
+  Service's stability.
+- **You are responsible for every token you issue and every connection you
+  approve**, and for what its holder does with the data and the access. Treat
+  a token like a password.
 - Third-party clients may use the data **only to provide their service to you**.
   They may not retain it beyond what that requires, redistribute or sell it,
-  use it to train models, attempt to write through the endpoint, attempt to
-  reach another user's data, or work around the rate limit.
+  use it to train models, make changes through the endpoint that you did not
+  ask for, attempt to reach another user's data, or work around the rate
+  limits.
 - Automated access must identify itself honestly and must not scrape,
   mirror, or bulk-export the Service for a competing product.
 
-We may revoke any token, or disable the endpoint, at any time.
+We may revoke any token, disconnect any client, or disable the endpoint, at
+any time.
+
+<!-- LEGAL REVIEW: Write access through /api/mcp was added on 2026-10-06 (PR #371) and this section was edited in place rather than bumped, on the same basis as the privacy policy's Resend edit: the v1 audience is invited testers, and the pre-launch revision will bump both documents. Two points to advise on: (a) whether an in-place edit that widens what an authorised client can do is acceptable without re-acceptance, given that a token minted before the change stays read-only and write access is only ever granted by a fresh, explicit act; and (b) whether "changes made through a client are yours" holds where the client acted on a prompt injection the user never saw — the client's own confirmation step is the user's only sight of the change before it lands. -->
 
 <!-- LEGAL REVIEW: The restrictions in this section purport to bind the operator of a third-party MCP client — an entity that has never seen these Terms and has no contractual relationship with us. The user consented, but the client did not. Please advise whether these obligations are enforceable against a non-signatory at all, and whether they are better framed as conditions on the USER's grant of access than as direct obligations on the client. -->
 
@@ -257,7 +281,8 @@ HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.**
 TRAINING; FOR AI-GENERATED OUTPUT THAT IS WRONG, UNSAFE, OR INAPPROPRIATE FOR
 YOUR CONDITION; FOR LOST, CORRUPTED, OR DELETED TRAINING DATA; FOR CHARGES
 INCURRED ON YOUR ANTHROPIC ACCOUNT; AND FOR THE ACTS OR OMISSIONS OF ANY
-THIRD-PARTY CLIENT TO WHICH YOU GRANTED AN ACCESS TOKEN.**
+THIRD-PARTY CLIENT TO WHICH YOU GRANTED AN ACCESS TOKEN OR CONNECTION,
+INCLUDING ANY CHANGE SUCH A CLIENT MADE TO YOUR DATA.**
 
 **OUR TOTAL AGGREGATE LIABILITY FOR ALL CLAIMS RELATING TO THE SERVICE WILL NOT
 EXCEED THE GREATER OF (A) THE TOTAL AMOUNT YOU PAID US FOR THE SERVICE IN THE
@@ -278,7 +303,8 @@ TO YOU. NOTHING HERE LIMITS LIABILITY THAT CANNOT LAWFULLY BE LIMITED.**
 You will indemnify and hold harmless [LEGAL_ENTITY] from any claim, loss, or
 expense (including reasonable legal fees) arising from your misuse of the
 Service, your breach of these Terms, your violation of law or of anyone's
-rights, or the acts of any third party to whom you granted an access token.
+rights, or the acts of any third party to whom you granted an access token or
+connection.
 
 <!-- LEGAL REVIEW: Consumer indemnity clauses are viewed unfavourably in several jurisdictions and are sometimes struck as unconscionable in a free consumer service. Please advise whether to keep, narrow to third-party claims only, or drop this section. -->
 

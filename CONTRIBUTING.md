@@ -511,11 +511,19 @@ into the Supabase SQL Editor by hand, and a skipped one surfaces only as 500s
 from whatever reads the missing object. `node scripts/prod-schema-check.mjs`
 compares production against `main`'s committed types — every table, column
 and function, through read-only `limit=0` PostgREST probes with the
-service-role key in `.env.local` — and names the migration behind anything
-missing; `supervisor-report.sh` runs it on every sweep. Run it after pasting a
+service-role key from `~/.config/apex-training/prod.env` — and names the
+migration behind anything missing; `supervisor-report.sh` runs it on every sweep. Run it after pasting a
 migration. It cannot see triggers, policies, grants or the realtime
 publication, so a migration that only changes those still needs checking by
 hand.
+
+Production keys live in `~/.config/apex-training/prod.env` (`chmod 600`,
+`VITE_SUPABASE_URL=` and `SUPABASE_SERVICE_ROLE_KEY=` lines), never in a
+`.env.local`. Vite loads `.env.local`, so a production URL there points the
+dev server at real data; and a worktree's `.env.local` is deleted with the
+worktree, which is how the only working pair was lost on 2026-10-06. The
+environment still wins over the file, and a `.env.local` pair still works as a
+last resort.
 
 ## Repo settings this assumes
 

@@ -1,7 +1,9 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { checkSchema, migrationIndex, parseDatabaseTypes, sourceOf } from '../prod-schema-check.mjs';
+import { checkSchema, credentials, migrationIndex, parseDatabaseTypes, sourceOf } from '../prod-schema-check.mjs';
 
 const repo = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -330,5 +332,27 @@ describe('checkSchema', () => {
     expect(result.skipped).toMatch(/rejected the service-role key \(401\)/);
     // sb_ keys are not JWTs: they go in apikey alone, with no Authorization header.
     expect(sent).toEqual([{ apikey: 'sb_secret_abc' }]);
+  });
+});
+
+describe('credentials', () => {
+  const prodEnv = (body: string) => {
+    const file = join(mkdtempSync(join(tmpdir(), 'apex-prod-env-')), 'prod.env');
+    writeFileSync(file, body);
+    return file;
+  };
+
+  it('reads the prod.env outside the repo, quotes and trailing slash stripped', () => {
+    const file = prodEnv('VITE_SUPABASE_URL="https://prod.supabase.co/"\nSUPABASE_SERVICE_ROLE_KEY=sb_secret_x\n');
+    expect(credentials({ env: {}, prodEnvFile: file })).toEqual({ url: 'https://prod.supabase.co', key: 'sb_secret_x' });
+  });
+
+  it('lets the environment win, and needs both halves from one source', () => {
+    const file = prodEnv('VITE_SUPABASE_URL=https://prod.supabase.co\nSUPABASE_SERVICE_ROLE_KEY=from_file\n');
+    const env = { VITE_SUPABASE_URL: 'https://other.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'from_env' };
+    expect(credentials({ env, prodEnvFile: file })).toEqual({ url: 'https://other.supabase.co', key: 'from_env' });
+    // A URL alone in the environment does not pair with the file's key.
+    expect(credentials({ env: { VITE_SUPABASE_URL: 'https://other.supabase.co' }, prodEnvFile: file }))
+      .toEqual({ url: 'https://prod.supabase.co', key: 'from_file' });
   });
 });

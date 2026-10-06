@@ -24,8 +24,11 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
 | W13 | Release + polish | done (#190, #191, #193, #194) · **App Store: not submitted** | Mac | ASC read 2026-09-26: version 1.0 at *Prepare for Submission*, release type still *automatic* (AFTER_APPROVAL — §6 step 1 not done); newest build 424 (0.9.0, expires 2026-12-21); no 1.0.0 build exists; `main` is 1.0.0 once this PR merges — build 9 is `gh workflow run testflight.yml` |
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
+| W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
 
 ## Next up
+0. **W15 landed (#379, 2026-10-06)** — on main, in no TestFlight build yet (newest is 1.0.0/491);
+   the next `testflight.yml` run carries it, on Shane's go.
 0. **The App Store release did not happen — 2026-09-26 step 7 audit.** App Store Connect (read-only
    API, app id 6808637152) shows version 1.0 at *Prepare for Submission* with **automatic**
    release, newest build 424 (0.9.0, uploaded 2026-09-22, expires 2026-12-21), no submission, no
@@ -333,6 +336,10 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   from the W12 worktree, detached at main (2158e2b, which includes the #129 web dependency bump).
 - 2026-09-09 · Shane added `apextraining://auth` to the Supabase Redirect URLs;
   `scripts/auth-redirect-check.sh` passes all five checks.
+- 2026-10-06 · W15 · Opened after the web's MCP write access (#371, legal #376). `ApexCore`
+  scope/access models + required `access` on the mint, the **Can make changes** switch (default
+  on, D-050), read-only tags, guide copy to the web's wording, mock honours `access`. `swift test`
+  432 green; ApexTests + snapshots on the Mac in the same session.
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)

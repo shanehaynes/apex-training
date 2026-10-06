@@ -52,7 +52,7 @@ public enum ConnectorFigures {
             "In the message box, click the + button (in some versions it is labelled \"Tools\" or shown as a slider icon).",
             "Switch Apex Training on. This is per-conversation, so if a new chat says it cannot see your training data, this switch is almost always the reason.",
         ],
-        note: "Claude asks permission the first time it uses each tool in a conversation. Answering \"Allow for this chat\" is enough — everything Apex exposes is read-only."
+        note: "Claude asks permission the first time it uses each tool in a conversation. Answering \"Allow for this chat\" is enough for the tools that only look things up. Tools that change something — logging a workout, adding or deleting an event — are marked as such, so you can keep approving those one at a time."
     )
 
     public static let gptDeveloperMode = Figure(

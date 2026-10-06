@@ -27,9 +27,10 @@
 //
 // Credentials: VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY — from the
 // environment when both are set (that is how the nightly CI job passes the
-// repository secrets; a runner has no .env.local), else from .env.local, this
-// checkout's and then the primary checkout's. The key goes in request headers
-// only and is never printed.
+// repository secrets; a runner has no .env.local), else from
+// ~/.config/apex-training/prod.env, else from .env.local, this checkout's and
+// then the primary checkout's. The key goes in request headers only and is
+// never printed.
 //
 // Exit codes: 0 in sync; 1 drift; 2 could not check (no credentials, project
 // unreachable or paused, key rejected) — an outage is not drift, so
@@ -44,6 +45,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -448,20 +450,28 @@ function migrationsAt(ref) {
 // gitignored, so a fresh worktree has none of its own and falls through via
 // its .git file. Both halves are required together: a URL from one source and
 // a key from the other would probe one project with another's credentials.
-function credentials() {
-  const envUrl = process.env.VITE_SUPABASE_URL?.trim();
-  const envKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+//
+// ~/.config/apex-training/prod.env comes before either .env.local. Production
+// keys do not belong in a .env.local: Vite loads that file, so a production
+// VITE_SUPABASE_URL there points every dev server at real data, and a copy
+// in a worktree's .env.local dies with the worktree (on 2026-10-06 the only
+// working pair did). Outside the repo, no git command or tidy can remove it.
+export const PROD_ENV_FILE = join(homedir(), '.config', 'apex-training', 'prod.env');
+
+export function credentials({ env = process.env, prodEnvFile = PROD_ENV_FILE } = {}) {
+  const envUrl = env.VITE_SUPABASE_URL?.trim();
+  const envKey = env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (envUrl && envKey) return { url: envUrl.replace(/\/+$/, ''), key: envKey };
 
-  const dirs = [root];
+  const files = [prodEnvFile, join(root, '.env.local')];
   try {
     const gitdir = readFileSync(join(root, '.git'), 'utf8').match(/^gitdir:\s*(.+?)\s*$/m);
-    if (gitdir) dirs.push(resolve(root, gitdir[1], '..', '..', '..'));
+    if (gitdir) files.push(join(resolve(root, gitdir[1], '..', '..', '..'), '.env.local'));
   } catch { /* .git is a directory (primary checkout) or absent */ }
-  for (const dir of dirs) {
+  for (const file of files) {
     let raw;
     try {
-      raw = readFileSync(join(dir, '.env.local'), 'utf8');
+      raw = readFileSync(file, 'utf8');
     } catch {
       continue;
     }
@@ -491,7 +501,7 @@ async function main(argv) {
 
   const creds = credentials();
   if (!creds) {
-    console.log('no VITE_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in the environment or .env.local — production schema check skipped');
+    console.log(`no VITE_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in the environment, ${PROD_ENV_FILE} or .env.local — production schema check skipped`);
     return 2;
   }
   if (fetchRef) {

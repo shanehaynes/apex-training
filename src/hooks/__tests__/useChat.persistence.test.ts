@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  assistantApiContent, BRIEFING_PROMPT, historyForTurn, hydrateFromRows, noticeRow, rowsForBriefing, rowsForToolFlush,
-  rowsForUserTurn, saveRows, turnRow,
+  assistantApiContent, BRIEFING_PROMPT, briefingOutcome, EMPTY_BRIEFING_MESSAGE, followUpWithTools, historyForTurn,
+  hydrateFromRows, MAX_CONFIRM_ROUNDS, noticeRow, rowsForBriefing, rowsForUserTurn, saveRows, turnOutcome, turnRow,
 } from '../useChat';
 import { appendCoachMessages } from '../../lib/api';
 import type { NewCoachMessage, StoredCoachMessage } from '../../lib/api';
@@ -132,11 +132,20 @@ describe('what each save point stores', () => {
     expect(assistant.display_text).toBeNull();
   });
 
-  it('a tool_result flush stores model history with nothing to render', () => {
+  it('a tool_result flush stores model history with nothing to render, then the reply', () => {
     const flushed = [{ type: 'tool_result' as const, tool_use_id: 'tu_1', content: 'Done.' }];
-    const rows = rowsForToolFlush(flushed, 'All set.');
-    expect(rows[0]).toEqual({ role: 'user', api_content: flushed, display_text: null, kind: 'turn' });
-    expect(rows[1].display_text).toBe('All set.');
+    const base: ApiMessage[] = [
+      { role: 'user', content: 'Drop Friday' },
+      { role: 'assistant', content: [{ type: 'tool_use', id: 'tu_1', name: 'delete_event', input: {} }] },
+      { role: 'user', content: flushed },
+    ];
+    const { rows, history, reply } = turnOutcome(base, [turnRow('user', flushed, null)], { text: 'All set.', toolUses: [], rounds: [{ text: 'All set.', reads: [] }], notices: [] });
+    expect(rows).toEqual([
+      { role: 'user', api_content: flushed, display_text: null, kind: 'turn' },
+      { role: 'assistant', api_content: 'All set.', display_text: 'All set.', kind: 'turn' },
+    ]);
+    expect(history).toEqual([...base, { role: 'assistant', content: 'All set.' }]);
+    expect(reply).toEqual({ content: 'All set.' });
   });
 
   it('Coach\'s Notes stores the synthetic prompt as a hidden row', () => {
@@ -145,6 +154,32 @@ describe('what each save point stores', () => {
       role: 'user', api_content: BRIEFING_PROMPT, display_text: null, kind: 'turn',
     });
     expect(rows[1].display_text).toBe('Here is today.');
+  });
+
+  it('a briefing with text is a turn: shown, replayed, stored', () => {
+    const out = briefingOutcome('Rest day. Walk.');
+    expect(out.display).toBe('Rest day. Walk.');
+    expect(out.apiMessages).toEqual([
+      { role: 'user', content: BRIEFING_PROMPT },
+      { role: 'assistant', content: 'Rest day. Walk.' },
+    ]);
+    expect(out.rows).toEqual(rowsForBriefing('Rest day. Walk.'));
+  });
+
+  it('an empty briefing (a blank account) is a notice, not an empty bubble', () => {
+    for (const text of ['', '  \n']) {
+      const out = briefingOutcome(text);
+      expect(out.display).toBe(EMPTY_BRIEFING_MESSAGE);
+      // No history: an empty assistant turn would make the next request invalid.
+      expect(out.apiMessages).toEqual([]);
+      expect(out.rows).toEqual([noticeRow(EMPTY_BRIEFING_MESSAGE)]);
+    }
+    // And a reload shows the same notice, with nothing replayed.
+    const { messages, apiMessages } = hydrateFromRows([
+      row({ id: 'n', role: 'assistant', api_content: null, display_text: EMPTY_BRIEFING_MESSAGE, kind: 'notice' }),
+    ]);
+    expect(messages).toEqual([{ id: 'n', role: 'assistant', content: EMPTY_BRIEFING_MESSAGE }]);
+    expect(apiMessages).toEqual([]);
   });
 });
 
@@ -374,5 +409,121 @@ describe('a read turn, stored and reloaded', () => {
     const { messages, apiMessages } = hydrateFromRows([{ ...notice, id: 'n', created_at: '2026-09-26T12:00:00Z' }]);
     expect(messages).toHaveLength(1);
     expect(apiMessages).toEqual([]);
+  });
+});
+
+// ─── turnOutcome: one response, both arrival points ──────────────────────────
+
+const stored = (rows: NewCoachMessage[]): StoredCoachMessage[] =>
+  rows.map((r, i) => ({ ...r, id: `r${i}`, created_at: '2026-10-06T16:28:00Z' }));
+
+describe('turnOutcome — what a response changes', () => {
+  const user: ApiMessage[] = [{ role: 'user', content: 'Make a strength regimen' }];
+  const write = { type: 'tool_use' as const, id: 'tu_w1', name: 'create_exercise_definition', input: { name: 'Farmer Carry' } };
+
+  it('a text-only reply: a string assistant message, two rows, a bubble, an empty queue', () => {
+    const out = turnOutcome(user, [turnRow('user', 'hi', 'hi')], { text: 'Hello.', toolUses: [], rounds: [{ text: 'Hello.', reads: [] }], notices: [] });
+    expect(out.history).toEqual([...user, { role: 'assistant', content: 'Hello.' }]);
+    expect(out.rows).toEqual([turnRow('user', 'hi', 'hi'), turnRow('assistant', 'Hello.', 'Hello.')]);
+    expect(out.reply).toEqual({ content: 'Hello.' });
+    expect(out.pendingActions).toEqual([]);
+    expect(out.heldResults).toEqual([]);
+  });
+
+  it('a write reply opens the confirm queue and stores the blocks', () => {
+    const out = turnOutcome(user, [turnRow('user', 'x', 'x')], { text: 'Adding it.', toolUses: [write], rounds: [{ text: 'Adding it.', reads: [] }], notices: [] });
+    expect(out.pendingActions).toEqual(toPendingActions([write]));
+    expect(out.rows[1].api_content).toEqual([{ type: 'text', text: 'Adding it.' }, write]);
+    expect(out.rows[1].display_text).toBe('Adding it.');
+    const { flushed } = settleHead(out.pendingActions, out.heldResults, 'Added.');
+    expectApiValid([...out.history, { role: 'user', content: flushed! }]);
+  });
+
+  it('a confirmed flush, tools on: reads, then a second write opens a new queue (the 2026-10-06 case)', () => {
+    // The production turn: the coach added an exercise to the library and
+    // meant to schedule the workout that uses it next. With tools on for the
+    // follow-up, step two is a card, not a sentence.
+    const flushed = [{ type: 'tool_result' as const, tool_use_id: 'tu_w1', content: 'Added "Farmer Carry".' }];
+    const base: ApiMessage[] = [
+      ...user,
+      { role: 'assistant', content: [{ type: 'text', text: 'First the exercise.' }, write] },
+      { role: 'user', content: flushed },
+    ];
+    const createEvent = { type: 'tool_use' as const, id: 'tu_w2', name: 'create_event', input: { title: 'Strength A', date: '2026-10-12' } };
+    const stream = {
+      text: 'Now the sessions.',
+      toolUses: [createEvent],
+      rounds: [
+        { text: '', reads: [read('tu_r1', 'get_schedule', { start_date: '2026-10-12', end_date: '2026-11-05' }, 'Checked: schedule')] },
+        { text: 'Now the sessions.', reads: [] },
+      ],
+      notices: [],
+    };
+    const flushRow = turnRow('user', flushed, null);
+    const out = turnOutcome(base, [flushRow], stream);
+
+    expect(out.rows).toEqual([
+      flushRow,
+      turnRow('assistant', [{ type: 'tool_use', id: 'tu_r1', name: 'get_schedule', input: { start_date: '2026-10-12', end_date: '2026-11-05' } }], null),
+      turnRow('user', [{ type: 'tool_result', tool_use_id: 'tu_r1', content: 'result tu_r1' }], null),
+      turnRow('assistant', [{ type: 'text', text: 'Now the sessions.' }, createEvent], 'Now the sessions.'),
+    ]);
+    expect(out.reply).toEqual({ content: 'Now the sessions.', reads: ['Checked: schedule'] });
+    expect(out.pendingActions).toHaveLength(1);
+    expect(out.pendingActions[0].toolName).toBe('create_event');
+    // The history ends on the open write; the second flush answers it and
+    // the turn stays valid.
+    const { flushed: second } = settleHead(out.pendingActions, out.heldResults, 'Created.');
+    expectApiValid([...out.history, { role: 'user', content: second! }]);
+
+    // A reload rebuilds the same history and pins the chip to the reply.
+    const all = stored([turnRow('user', 'Make a strength regimen', 'Make a strength regimen'), turnRow('assistant', base[1].content, 'First the exercise.'), ...out.rows]);
+    const { messages, apiMessages } = hydrateFromRows(all);
+    expect(apiMessages).toEqual(out.history);
+    expect(messages.at(-1)).toMatchObject({ id: 'r5', role: 'assistant', content: 'Now the sessions.' });
+    // The wire's label is gone; the stored tool_use names the chip.
+    expect(messages.at(-1)?.reads).toHaveLength(1);
+  });
+
+  it('a follow-up with no text and no tool: only the flush row, and the next text folds into it', () => {
+    const flushed = [{ type: 'tool_result' as const, tool_use_id: 'tu_w1', content: 'Cancelled by user.' }];
+    const base: ApiMessage[] = [...user, { role: 'assistant', content: [write] }, { role: 'user', content: flushed }];
+    const flushRow = turnRow('user', flushed, null);
+    const out = turnOutcome(base, [flushRow], { text: '', toolUses: [], rounds: [{ text: '', reads: [] }], notices: [] });
+    expect(out.rows).toEqual([flushRow]);
+    expect(out.history).toEqual(base);
+    expect(out.reply).toBeNull();
+    expectApiValid(appendUserText(out.history, 'ok, something else'));
+    expect(hydrateFromRows(stored([turnRow('user', 'Make a strength regimen', 'Make a strength regimen'), turnRow('assistant', [write], null), ...out.rows])).apiMessages).toEqual(base);
+  });
+
+  it('reads answered by silence after a flush: a display-only row, the next text folds', () => {
+    const flushed = [{ type: 'tool_result' as const, tool_use_id: 'tu_w1', content: 'Done.' }];
+    const base: ApiMessage[] = [...user, { role: 'assistant', content: [write] }, { role: 'user', content: flushed }];
+    const out = turnOutcome(base, [turnRow('user', flushed, null)], {
+      text: 'Checking.', toolUses: [], rounds: [{ text: 'Checking.', reads: [read('tu_r1', 'get_prs', {}, 'Checked: PRs (all time)')] }], notices: [],
+    });
+    expect(out.rows.at(-1)).toEqual(turnRow('assistant', null, 'Checking.'));
+    expect(out.history.at(-1)?.role).toBe('user');
+    expectApiValid(appendUserText(out.history, 'and?'));
+  });
+
+  it('notices trail the reply as notice rows', () => {
+    const out = turnOutcome(user, [turnRow('user', 'x', 'x')], { text: 'Partial.', toolUses: [], rounds: [{ text: 'Partial.', reads: [] }], notices: ['The coach stopped after the lookup limit for one message.'] });
+    expect(out.notices).toHaveLength(1);
+    expect(out.rows.at(-1)).toEqual(noticeRow('The coach stopped after the lookup limit for one message.'));
+  });
+});
+
+describe('followUpWithTools — the chain and its cap', () => {
+  it('chat chains under the cap only', () => {
+    expect(MAX_CONFIRM_ROUNDS).toBe(3);
+    expect(followUpWithTools('chat', 0)).toBe(true);
+    expect(followUpWithTools('chat', 2)).toBe(true);
+    expect(followUpWithTools('chat', 3)).toBe(false);
+  });
+
+  it('the auto-apply panels never chain', () => {
+    for (const mode of ['builder', 'planner', 'analytics'] as const) expect(followUpWithTools(mode, 0)).toBe(false);
   });
 });

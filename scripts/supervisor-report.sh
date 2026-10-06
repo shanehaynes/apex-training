@@ -156,15 +156,18 @@ echo "── production database schema"
 # skipped one shows up only as 500s: on 2026-09-15 prod lacked phase38, phase41
 # and phase32_quarantine while /api/version reported current code. The check
 # reads PostgREST's schema only (limit=0 probes and the OpenAPI document) with
-# the production service-role key from the environment, else .env.local. Exit 1
+# the production service-role key from the environment, else
+# ~/.config/apex-training/prod.env, else .env.local. Exit 1
 # is drift; 2 is "could not check" (unreachable, key rejected) — status, never
 # an ACTION, as with the redirect check above.
 if [ ! -f scripts/prod-schema-check.mjs ]; then
   echo "   prod-schema-check.mjs not in this checkout — skipped"
 elif { [ -z "${VITE_SUPABASE_URL:-}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; } \
+  && { ! grep -qE '^VITE_SUPABASE_URL=.' "$HOME/.config/apex-training/prod.env" 2>/dev/null \
+    || ! grep -qE '^SUPABASE_SERVICE_ROLE_KEY=.' "$HOME/.config/apex-training/prod.env" 2>/dev/null; } \
   && { ! grep -qE '^VITE_SUPABASE_URL=.' .env.local 2>/dev/null \
     || ! grep -qE '^SUPABASE_SERVICE_ROLE_KEY=.' .env.local 2>/dev/null; }; then
-  echo "   no VITE_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in the environment or .env.local — skipped"
+  echo "   no VITE_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in the environment, ~/.config/apex-training/prod.env or .env.local — skipped"
 else
   schema_out=$(node scripts/prod-schema-check.mjs 2>&1); schema_code=$?
   printf '%s\n' "$schema_out" | sed 's/^/   /'

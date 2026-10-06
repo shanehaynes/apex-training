@@ -454,6 +454,22 @@ Rename (title trimmed to 120 characters; empty stores null) and delete — `coac
 cascades. Both answer `404 Conversation not found` for an id this user does not own, rather
 than a 403 that would confirm it exists.
 
+## W15 — connector access level (landed in the web's #371, 2026-10-06)
+
+No new endpoint; two additive fields on `/api/mcp-tokens`, consumed by W15.
+
+### `POST /api/mcp-tokens { name, access?: 'full' | 'read' }`
+`access` decides the token's scope for life: `full` stores `mcp:read mcp:write`, `read` stores
+`mcp:read`, and **absent stores `mcp:read`** — a client that does not send the field keeps
+minting read-only tokens, which is what every app build before W15 did. The response is
+unchanged (`{ id, token }`, the plaintext once).
+
+### `GET /api/mcp-tokens` → `tokens[].scope`, `connections[].scope` (`string | null`)
+`mcp:write` in the string means the holder may change data through `/api/mcp`; `null` is a token
+or OAuth grant from before write access existed, read-only for life. The connection's scope is
+its newest live refresh grant's. Fixture `mcp-tokens.json` regenerated (token `mcp:read`,
+connection `null`).
+
 ## Not in this roadmap (Backlog)
 `device_tokens` migration + `/api/devices` + APNs sender (push).
 

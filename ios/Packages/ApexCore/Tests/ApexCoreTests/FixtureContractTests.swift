@@ -261,10 +261,16 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertNil(token.lastUsedAt)
         XCTAssertTrue(token.isActive)
         XCTAssertEqual(listed.activeTokens.count, 1)
+        // The emitter mints without `access`, which the server reads as a
+        // read-only token (W15); the connection row is seeded with no scope.
+        XCTAssertEqual(token.scope, "mcp:read")
+        XCTAssertFalse(token.canWrite)
 
         let app = try XCTUnwrap(listed.connections.first)
         XCTAssertEqual(app.clientId, "ios-fixture-client-1")
         XCTAssertEqual(app.id, app.clientId)
+        XCTAssertNil(app.scope)
+        XCTAssertFalse(app.canWrite)
 
         // The one-time reveal. Both values are scrubbed by the emitter.
         let minted = try decode(MintedMcpToken.self, from: "mcp-token-mint.json")
@@ -672,5 +678,17 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertFalse(problem.ok)
         XCTAssertEqual(problem.problem, "A cycle needs a name")
         XCTAssertNil(problem.blocks)
+    }
+
+    /// The scope rule mirrors the server's (api/_lib/mcp/tokens.ts): write
+    /// access only when `mcp:write` is named; a missing scope — a token from
+    /// before write access existed — is read-only for life.
+    func testScopeGrantsWriteOnlyWhenNamed() {
+        XCTAssertTrue(McpScope.grantsWrite("mcp:read mcp:write"))
+        XCTAssertTrue(McpScope.grantsWrite("mcp:write"))
+        XCTAssertFalse(McpScope.grantsWrite("mcp:read"))
+        XCTAssertFalse(McpScope.grantsWrite(""))
+        XCTAssertFalse(McpScope.grantsWrite(nil))
+        XCTAssertFalse(McpScope.grantsWrite("mcp:writes"))
     }
 }
