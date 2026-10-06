@@ -1,0 +1,15 @@
+{
+  "caseId": "analytics-cannot-save",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Perfect. Save that tile to my dashboard."
+    },
+    {
+      "role": "assistant",
+      "content": "I can't save it — there's no active Save button I can press; only you can do that from the dashboard UI. Also, the current draft has no measure set yet, so there's nothing ready to save. Tell me what you want charted (measure, sport/exercise, range) and I'll configure it, then you hit Save."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}
