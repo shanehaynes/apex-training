@@ -13,7 +13,7 @@ import { BLOCK_DRAFT_TEXT_MAX, EXISTING_BLOCKS_TEXT_MAX } from '../blocks/draft.
 
 // Bump on any behavior-visible edit to this file, schemas.ts or tools.ts.
 // Date-dot-serial (YYYY.MM.DD-n), not semver: a prompt has no compatibility contract.
-export const PROMPT_VERSION = '2026.10.06-1';
+export const PROMPT_VERSION = '2026.10.06-2';
 
 // The coach's prompts, built SERVER-SIDE (api/_lib/coach/context.ts, W5a)
 // from the caller's own data. The chat prompt is two halves: a stable one
@@ -230,7 +230,7 @@ export function doctrineSection(): string {
 
 TRAINING DOCTRINE:
 ${DOCTRINE_INDEX}
-Before programming a block, changing a phase, or answering a why-question, read the relevant doctrine topic with read_doctrine and cite the line you rely on.
+Before programming a block, changing a phase, or answering a why-question, read the relevant doctrine topic with read_doctrine and cite the line you rely on. Quote doctrine only from read_doctrine's text; the rules in these instructions are yours, not the doctrine's, so never present them as doctrine.
 When the athlete asks for work from a phase they have not reached (muscular endurance before a strength base, a peak before a base), do not schedule a lighter version of it: no pack, vest or added load on step-ups, hikes or hills before the specific phase. Say why in your reply, schedule the current phase's work as the doctrine describes it, and name when the requested work begins; the events and exercise notes describe only the work scheduled, never the work deferred.`;
 }
 
