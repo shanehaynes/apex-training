@@ -33,9 +33,8 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    build 9 (`MARKETING_VERSION` bumped to 1.0.0 in this PR; the `ios` CI job was red on `main` since #338 on
    `testTheIOSCopyNamesNoWeekViewAndNoPhoneCaveat` — `fix/ios-onboarding-plan-assertion` is on
    it — and `prod-schema-check` last exited 0 on 2026-09-19, phase46/47 since); (5) Shane's device
-   run incl. delete account; (6) the console: **set "Manually release this version" first**
-   (§6 step 1 — it reads AFTER_APPROVAL today), App Privacy, demo account + key, notes,
-   screenshots, submit. Done ahead of it: `APEX_APP_STORE_URL` filled with the listing URL
+   run incl. delete account; (6) the console — done 2026-10-06 except the demo account + review phone (see Recent sessions);
+   then submit. Done ahead of it: `APEX_APP_STORE_URL` filled with the listing URL
    (HELD PR #349 — merge it *before* the 1.0.0 archive so the shipped binary carries the link) and
    the 1.0.1+ phased-release rule in app-store.md §6. Step 7 (release, fresh-install smoke, key
    rotation, crash-watch reminders) re-runs once App Review returns *Pending Developer Release*.
@@ -74,6 +73,21 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-06 · App Store console, release steps 3–6 · Mac. Email: Cloudflare Email Routing live on
+  apex-training.app (`support@`, `reviews@` → Gmail; MX verified). #370 bumped 1.0.0; **build 9 =
+  1.0.0 (491)** uploaded by `testflight.yml` run 37476280446, *Ready to Submit*. Assets from this
+  worktree: `screenshots.sh 'iPhone 17 Pro Max'` passed every leg; ASC's primary slot is now the
+  6.1"/6.3" *medium display* (1206×2622 — the 6.9" set is rejected there and larger sizes derive from
+  it), so the eight §4 shots were `sips`-resized and uploaded; an App Preview (886×1920, 30 s, silent
+  AAC — audio is required) recorded on the iPhone 17 Pro under `-apexUITest -apexMockClient
+  -apexMockHasKey` (`recordVideo` freezes once a Live Activity starts) is uploaded and processing.
+  Console done via Chrome: App Information (subtitle, Health & Fitness, age rating **9+** — the new
+  questionnaire's Health or Wellness Topics = Yes, not the 4+ §2 assumed — regulated-medical-device
+  = No), App Privacy published (§1 table, five types, App Functionality, linked, no tracking),
+  Pricing free in 175 countries, availability all, version 1.0: description/keywords/promo/URLs/
+  copyright, build 491 attached, review notes, **Manually release = set**. Still Shane's: review
+  contact phone, demo account user/password (Sign-in required is checked), device run on 491, then
+  *Add for Review*.
 - 2026-09-26 · release step 7 audit · Mac. Gate failed: nothing submitted (ASC API: 1.0 at
   Prepare for Submission, AFTER_APPROVAL; builds end at 424). Shipped what needs no release:
   `APEX_APP_STORE_URL = https://apps.apple.com/app/id6808637152` (HELD PR #349, `ios/Config/`), the
