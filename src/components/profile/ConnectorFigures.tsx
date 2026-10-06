@@ -238,8 +238,8 @@ function ApexConsentSvg() {
       <T x={320} y={212} size={11} fill={C.dim} anchor="middle">Signed in as you@example.com</T>
 
       <T x={182} y={244} size={11} fill={C.text}>✓  Read your workouts, schedule and PRs</T>
-      <T x={182} y={266} size={11} fill={C.text}>✓  Read your meals and training blocks</T>
-      <T x={182} y={288} size={11} fill={C.dim}>✕  Cannot change or delete anything</T>
+      <T x={182} y={266} size={11} fill={C.text}>✓  Log workouts, edit your calendar and meals</T>
+      <T x={182} y={288} size={11} fill={C.dim}>Every change is listed under Coach activity</T>
 
       <Button x={182} y={314} w={130} label="Allow" />
       <rect x={328} y={314} width={130} height={30} rx={8} fill={C.surface} stroke={C.line} />
@@ -304,7 +304,7 @@ function ClaudeChatSvg() {
 export const CLAUDE_CHAT: FigureSpec = {
   id: 'claude-chat',
   title: 'Turning the connector on inside a conversation',
-  note: 'Claude asks permission the first time it uses each tool in a conversation. Answering "Allow for this chat" is enough — everything Apex exposes is read-only.',
+  note: 'Claude asks permission the first time it uses each tool in a conversation. Answering "Allow for this chat" is enough for the tools that only look things up. Tools that change something — logging a workout, adding or deleting an event — are marked as such, so you can keep approving those one at a time.',
   pins: [
     'In the message box, click the + button (in some versions it is labelled "Tools" or shown as a slider icon).',
     'Switch Apex Training on. This is per-conversation, so if a new chat says it cannot see your training data, this switch is almost always the reason.',

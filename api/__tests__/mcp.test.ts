@@ -2,17 +2,24 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import handler from '../_lib/handlers/mcp';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
-import { resolveMcpToken } from '../_lib/mcp/tokens';
-import { SUPPORTED_PROTOCOL_VERSIONS } from '../_lib/mcp/protocol';
+import { resolveMcpAccess } from '../_lib/mcp/tokens';
+import { aiMutationCapReached } from '../_lib/rateLimit';
+import { READ_ONLY_CONNECTION_MESSAGE, SUPPORTED_PROTOCOL_VERSIONS } from '../_lib/mcp/protocol';
 import { MCP_TOOLS } from '../_lib/mcp/toolRegistry';
+import { MCP_CONNECTOR_READ_TOOLS, MCP_CONNECTOR_TOOLS, MCP_WRITE_TOOLS } from '../_lib/mcp/connectorRegistry';
 import { PRIVACY_VERSION, TERMS_VERSION } from '../../src/lib/legal/versions';
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
-vi.mock('../_lib/rateLimit.js', () => ({ enforceRateLimit: vi.fn(async () => true) }));
-vi.mock('../_lib/mcp/tokens.js', () => ({ resolveMcpToken: vi.fn(async () => 'user-123') }));
+vi.mock('../_lib/rateLimit.js', () => ({
+  enforceRateLimit: vi.fn(async () => true),
+  aiMutationCapReached: vi.fn(async () => false),
+  AI_DAILY_MUTATION_CAP: 200,
+}));
+vi.mock('../_lib/mcp/tokens.js', () => ({ resolveMcpAccess: vi.fn(async () => ({ userId: 'user-123', canWrite: true })) }));
 
 const mockedAdmin = vi.mocked(getSupabaseAdmin);
-const mockedResolve = vi.mocked(resolveMcpToken);
+const mockedResolve = vi.mocked(resolveMcpAccess);
+const mockedCap = vi.mocked(aiMutationCapReached);
 
 // ── Chainable query mock ──────────────────────────────────────────────────────
 // Thenable builder: filter methods record their calls, awaiting resolves with
@@ -93,7 +100,8 @@ let calls: TableCall[];
 
 beforeEach(() => {
   calls = [];
-  mockedResolve.mockResolvedValue('user-123');
+  mockedResolve.mockResolvedValue({ userId: 'user-123', canWrite: true });
+  mockedCap.mockResolvedValue(false);
   mockedAdmin.mockReturnValue(makeAdmin({}, calls));
 });
 
@@ -158,11 +166,13 @@ describe('/api/mcp — protocol flow', () => {
     expect(result.protocolVersion).toBe(SUPPORTED_PROTOCOL_VERSIONS[0]);
   });
 
-  it('tools/list returns all 10 tools with object input schemas', async () => {
+  it('tools/list for a write-capable token returns every connector tool, the ten query tools first', async () => {
     const { res, body } = makeRes();
     await handler(makeReq('POST', rpc('tools/list')), res);
-    const { tools } = (body() as { result: { tools: Array<{ name: string; inputSchema: { type: string } }> } }).result;
-    expect(tools.map(t => t.name)).toEqual([
+    const { tools } = (body() as {
+      result: { tools: Array<{ name: string; inputSchema: { type: string }; annotations: { readOnlyHint: boolean } }> };
+    }).result;
+    expect(tools.map(t => t.name).slice(0, 10)).toEqual([
       'get_schedule',
       'get_workout_detail',
       'get_exercise_history',
@@ -174,11 +184,25 @@ describe('/api/mcp — protocol flow', () => {
       'get_session_summaries',
       'get_reviews',
     ]);
+    expect(tools.map(t => t.name)).toEqual(MCP_CONNECTOR_TOOLS.map(t => t.name));
     // search_history stays out: it reads the athlete's private coach
     // conversations, which never leave the app (toolRegistry.ts).
     expect(tools.map(t => t.name)).not.toContain('search_history');
     expect(MCP_TOOLS).toHaveLength(10);
     for (const tool of tools) expect(tool.inputSchema.type).toBe('object');
+    // Annotations tell the client which tools change data (ChatGPT asks
+    // before any tool without readOnlyHint; Claude shows it).
+    const writeNames = new Set(MCP_WRITE_TOOLS.map(t => t.name));
+    for (const tool of tools) expect(tool.annotations.readOnlyHint).toBe(!writeNames.has(tool.name));
+  });
+
+  it('tools/list for a read-only token hides every write tool', async () => {
+    mockedResolve.mockResolvedValue({ userId: 'user-123', canWrite: false });
+    const { res, body } = makeRes();
+    await handler(makeReq('POST', rpc('tools/list')), res);
+    const { tools } = (body() as { result: { tools: Array<{ name: string }> } }).result;
+    expect(tools.map(t => t.name)).toEqual(MCP_CONNECTOR_READ_TOOLS.map(t => t.name));
+    for (const write of MCP_WRITE_TOOLS) expect(tools.map(t => t.name)).not.toContain(write.name);
   });
 
   it('unknown method → -32601, unknown tool → -32602', async () => {
@@ -283,5 +307,48 @@ describe('/api/mcp — tools/call get_schedule', () => {
     );
     const result = (body() as { result: { isError?: boolean } }).result;
     expect(result.isError).toBe(true);
+  });
+});
+
+describe('/api/mcp — write guard', () => {
+  /** Tables a refused write may still touch: the terms gate reads the ledger before dispatch. */
+  const writes = () => calls.filter(c => c.table !== 'terms_acceptances');
+
+  it('refuses a write tool for a read-only token as an isError result, touching no table', async () => {
+    mockedResolve.mockResolvedValue({ userId: 'user-123', canWrite: false });
+    const { res, body } = makeRes();
+    await handler(
+      makeReq('POST', rpc('tools/call', { name: 'delete_event', arguments: { event_id: 'evt-1', scope: 'all' } })),
+      res,
+    );
+    const result = (body() as { result: { isError?: boolean; content: Array<{ text: string }> } }).result;
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toBe(READ_ONLY_CONNECTION_MESSAGE);
+    expect(writes()).toHaveLength(0);
+  });
+
+  it('refuses a write once the daily AI change cap is reached, touching no table', async () => {
+    mockedCap.mockResolvedValue(true);
+    const { res, body } = makeRes();
+    await handler(
+      makeReq('POST', rpc('tools/call', { name: 'log_meal', arguments: { title: 'Oats', date: '2026-08-05' } })),
+      res,
+    );
+    const result = (body() as { result: { isError?: boolean; content: Array<{ text: string }> } }).result;
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Daily change cap reached');
+    expect(writes()).toHaveLength(0);
+  });
+
+  it('never consults the cap for a read tool', async () => {
+    mockedCap.mockResolvedValue(true);
+    const { res, body } = makeRes();
+    await handler(
+      makeReq('POST', rpc('tools/call', { name: 'get_schedule', arguments: { start_date: '2026-08-01', end_date: '2026-08-07' } })),
+      res,
+    );
+    const result = (body() as { result: { isError?: boolean } }).result;
+    expect(result.isError).toBeUndefined();
+    expect(mockedCap).not.toHaveBeenCalled();
   });
 });

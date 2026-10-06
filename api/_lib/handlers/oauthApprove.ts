@@ -6,6 +6,7 @@ import { sha256hex } from '../mcp/tokens.js';
 import {
   CODE_TTL_SECONDS,
   generateAuthorizationCode,
+  normalizeScope,
   OAUTH_SCOPE,
   redirectUriMatches,
 } from '../oauth/common.js';
@@ -74,7 +75,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     client_id: clientId,
     redirect_uri: redirectUri,
     code_challenge: codeChallenge,
-    scope: str('scope') ?? OAUTH_SCOPE,
+    // The scope the consent page showed, reduced to what the server supports
+    // — the query string that reached the SPA is attacker-influenceable, so
+    // an unknown scope cannot ride into the code row. None named → full.
+    scope: normalizeScope(str('scope')) ?? OAUTH_SCOPE,
     resource: str('resource') ?? null,
     expires_at: new Date(Date.now() + CODE_TTL_SECONDS * 1000).toISOString(),
   });

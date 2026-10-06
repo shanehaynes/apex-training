@@ -15,6 +15,12 @@ export default function ConnectApproval() {
 
   const clientName = params.get('client_name') || 'An MCP client';
   const missing = !params.get('client_id') || !params.get('redirect_uri') || !params.get('code_challenge');
+  // The scope the authorize endpoint validated and echoed. None named means
+  // the server's default grant — full access (api/_lib/oauth/common.ts) —
+  // so the page must say so; only an explicit mcp:read-only request is a
+  // read-only connection.
+  const scope = params.get('scope');
+  const canWrite = !scope || scope.split(/\s+/).includes('mcp:write');
 
   const decide = async (decision: 'approve' | 'deny') => {
     setBusy(true);
@@ -51,11 +57,30 @@ export default function ConnectApproval() {
     <div className="auth-screen">
       <div className="auth-card">
         <h1 className="auth-title">Allow access?</h1>
-        <p className="profile-hint">
-          <strong>{clientName}</strong> wants <strong>read-only</strong> access to
-          your Apex Training data: workouts, logs, personal records, training
-          blocks, exercise library, and meals. It can never modify anything.
-        </p>
+        {canWrite ? (
+          <>
+            <p className="profile-hint">
+              <strong>{clientName}</strong> wants <strong>full</strong> access to
+              your Apex Training account: it can read your workouts, logs,
+              personal records, training blocks, exercise library, meals, notes
+              and coach memory, and it can <strong>change them</strong> — log
+              workouts, add or delete events, track meals, edit blocks and
+              your profile.
+            </p>
+            <p className="profile-hint">
+              Every change it makes is listed under Coach activity in your
+              profile, and no more than 200 changes a day are allowed. You can
+              disconnect it there at any time.
+            </p>
+          </>
+        ) : (
+          <p className="profile-hint">
+            <strong>{clientName}</strong> wants <strong>read-only</strong> access to
+            your Apex Training data: workouts, logs, personal records, training
+            blocks, exercise library, meals, notes and coach memory. It can
+            never modify anything.
+          </p>
+        )}
         {error && <p className="auth-error">{error}</p>}
         <div className="profile-feed">
           <button className="auth-submit" onClick={() => decide('approve')} disabled={busy}>
