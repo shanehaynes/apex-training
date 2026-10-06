@@ -60,10 +60,13 @@ final class W11EndpointTests: XCTestCase {
                        "http://127.0.0.1:5314/api/mcp-tokens")
     }
 
-    func testMintingATokenPostsItsName() {
-        let mint = Endpoint.mintMcpToken(name: "Laptop")
-        XCTAssertEqual(mint.method, .post)
-        XCTAssertEqual(body(mint), #"{"name":"Laptop"}"#)
+    /// The access level always travels (W15): the server mints read-only when
+    /// it is absent, so a body without it would silently narrow the token.
+    func testMintingATokenPostsItsNameAndAccess() {
+        let full = Endpoint.mintMcpToken(name: "Laptop", access: .full)
+        XCTAssertEqual(full.method, .post)
+        XCTAssertEqual(body(full), #"{"access":"full","name":"Laptop"}"#)
+        XCTAssertEqual(body(Endpoint.mintMcpToken(name: "Laptop", access: .read)), #"{"access":"read","name":"Laptop"}"#)
     }
 
     /// Revoke keys on `id`, disconnect on `client_id`, and the two must not be

@@ -19,7 +19,7 @@ public struct ConnectorView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 VStack(alignment: .leading, spacing: Spacing.md) {
-                    Hint("Query your training data from Claude or ChatGPT. Add this URL as a custom connector and sign in, or authenticate with an access token. Everything it can reach is read-only.")
+                    Hint("Ask Claude or ChatGPT about your training, or have it log a workout, plan your week and track meals for you. Add this URL as a custom connector and sign in, or authenticate with an access token. Every change it makes is listed under Activity log.")
                     NavigationLink(value: YouRoute.connectorGuide) {
                         HStack(spacing: Spacing.xs) {
                             ApexIcon.help.image
@@ -69,7 +69,7 @@ public struct ConnectorView: View {
         .youScreen("AI connector")
         .task { await model.load() }
         .sheet(item: $model.minted) { minted in
-            TokenRevealSheet(token: minted.token) { model.minted = nil }
+            TokenRevealSheet(token: minted.token, canWrite: model.mintedCanWrite) { model.minted = nil }
                 .onAppear { isNaming = false }
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
@@ -104,6 +104,13 @@ public struct ConnectorView: View {
                     .submitLabel(.done)
                     .onSubmit { Task { await model.mint() } }
                     .focused($nameFocused)
+                // The access level, fixed at mint (W15): on by default, like
+                // the web's tick box. Off makes a look-only token.
+                SettingsSection(footer: model.allowChanges
+                    ? "It can log workouts, edit the calendar and track meals. Every change is listed under Activity log, and no more than 200 a day go through."
+                    : "A look-only token: it can read everything and change nothing. This cannot be changed after the token is created.") {
+                    SettingsToggle("Can make changes", isOn: $model.allowChanges, identifier: "connector.allowChanges")
+                }
                 HStack(spacing: Spacing.md) {
                     ApexButton("Cancel", kind: .secondary) {
                         model.name = ""
@@ -159,10 +166,12 @@ public struct ConnectorView: View {
 /// The plaintext token, shown exactly once. Closing it is the last time it exists on this side.
 public struct TokenRevealSheet: View {
     private let token: String
+    private let canWrite: Bool
     private let onDone: () -> Void
 
-    public init(token: String, onDone: @escaping () -> Void) {
+    public init(token: String, canWrite: Bool = true, onDone: @escaping () -> Void) {
         self.token = token
+        self.canWrite = canWrite
         self.onDone = onDone
     }
 
@@ -170,7 +179,7 @@ public struct TokenRevealSheet: View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             SheetHeader(title: "Your new token", onClose: onDone)
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                Text("Copy this token now — it won't be shown again. Send it as `Authorization: Bearer <token>`. It expires a year from today; mint a new one then.")
+                Text("Copy this token now — it won't be shown again. Send it as `Authorization: Bearer <token>`. It expires a year from today; mint a new one then. \(canWrite ? "It can make changes to your training." : "It is read-only.")")
                     .apexBody()
                     .fixedSize(horizontal: false, vertical: true)
                 CopyField(value: token, toast: "Token copied", identifier: "token.reveal")

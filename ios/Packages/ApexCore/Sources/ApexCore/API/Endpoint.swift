@@ -463,10 +463,11 @@ public struct Endpoint: Sendable, Equatable {
     public static let mcpTokens = Endpoint(path: "api/mcp-tokens")
 
     /// Mint a token. The response carries the plaintext exactly once — show it,
-    /// then it is unrecoverable.
-    public static func mintMcpToken(name: String) -> Endpoint {
-        struct Body: Encodable { let name: String }
-        return Endpoint(method: .post, path: "api/mcp-tokens", body: json(Body(name: name)))
+    /// then it is unrecoverable. `access` is always sent: the server reads an
+    /// absent one as `read`, and a token's level is fixed at mint (W15).
+    public static func mintMcpToken(name: String, access: McpAccess) -> Endpoint {
+        struct Body: Encodable { let name: String; let access: McpAccess }
+        return Endpoint(method: .post, path: "api/mcp-tokens", body: json(Body(name: name, access: access)))
     }
 
     /// Revoke one token. It stays in the list as revoked; nothing is deleted.

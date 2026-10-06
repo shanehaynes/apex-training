@@ -17,8 +17,16 @@ public final class ConnectorModel {
     public private(set) var isLoaded = false
     public private(set) var isMinting = false
     public var name = ""
+    /// Whether the token being named may change data — the web's "Can make
+    /// changes" tick box, on by default for the same reason: a token exists so
+    /// an assistant can act for the user. Sent explicitly on every mint; the
+    /// level cannot be changed afterwards (W15).
+    public var allowChanges = true
     /// Drives the one-time reveal sheet; cleared when it closes.
     public var minted: MintedMcpToken?
+    /// What the token on the reveal sheet may do — the sheet says so, since the
+    /// mint response itself carries no scope.
+    public private(set) var mintedCanWrite = true
 
     public init(services: YouServices) {
         self.services = services
@@ -61,8 +69,10 @@ public final class ConnectorModel {
         isMinting = true
         defer { isMinting = false }
         do {
-            let fresh = try await services.client.send(.mintMcpToken(name: String(trimmed.prefix(60))), as: MintedMcpToken.self)
+            let access: McpAccess = allowChanges ? .full : .read
+            let fresh = try await services.client.send(.mintMcpToken(name: String(trimmed.prefix(60)), access: access), as: MintedMcpToken.self)
             name = ""
+            mintedCanWrite = access == .full
             minted = fresh
             await load()
         } catch {
@@ -76,8 +86,8 @@ public final class ConnectorModel {
             _ = try await services.client.send(.revokeMcpToken(id: token.id), as: McpRevokeResponse.self)
             tokens = tokens.map {
                 $0.id == token.id
-                    ? McpToken(id: $0.id, name: $0.name, tokenLast4: $0.tokenLast4, createdAt: $0.createdAt, lastUsedAt: $0.lastUsedAt,
-                               revokedAt: CompletionRows.isoTimestamp(services.clock.now))
+                    ? McpToken(id: $0.id, name: $0.name, tokenLast4: $0.tokenLast4, scope: $0.scope, createdAt: $0.createdAt,
+                               lastUsedAt: $0.lastUsedAt, revokedAt: CompletionRows.isoTimestamp(services.clock.now))
                     : $0
             }
             ToastBus.shared.post("Token revoked")
@@ -96,14 +106,20 @@ public final class ConnectorModel {
         }
     }
 
-    /// "…k9x2 · last used Sep 1, 2026" — the token row's line.
+    /// "…k9x2 · read-only · last used Sep 1, 2026" — the token row's line.
+    /// The tag appears only on a look-only token: full access is the default
+    /// and the tag is for the exception, as on the web.
     public func tokenLine(_ token: McpToken) -> String {
         let used = token.lastUsedAt.map { "last used \(IsoDate.shortDay($0))" } ?? "never used"
-        return "…\(token.tokenLast4) · \(used)"
+        return "…\(token.tokenLast4)\(Self.accessTag(canWrite: token.canWrite)) · \(used)"
     }
 
     public func connectionLine(_ connection: McpConnection) -> String {
-        "signed in \(IsoDate.shortDay(connection.createdAt))"
+        "signed in \(IsoDate.shortDay(connection.createdAt))\(Self.accessTag(canWrite: connection.canWrite))"
+    }
+
+    static func accessTag(canWrite: Bool) -> String {
+        canWrite ? "" : " · read-only"
     }
 }
 
