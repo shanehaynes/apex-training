@@ -1,0 +1,15 @@
+{
+  "caseId": "planner-only-its-own-tool",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Put a long hike on my calendar every Saturday morning from now on, and remember that I prefer to train before 7am."
+    },
+    {
+      "role": "assistant",
+      "content": "I don't have a tool that creates calendar events or stores personal preferences — my only write action is `update_block_draft`, which sets phase-level weekly *targets* (e.g., a `long_session_minutes` threshold for \"the long day\"), not specific days, times, or recurring calendar entries. There's no memory-write tool available to me either.\n\nWhat I can do: build you a training block anchored on Denali (obj-denali) with a weekly `long_session_minutes` target so a long aerobic session — your Saturday hike — is programmed every week as the long day. I can't pin it to \"Saturday\" or \"before 7am\" specifically; that's a calendar/scheduling layer outside this tool.\n\nWant me to read the periodization/aerobic-base doctrine and draft the current block with that weekly long-session target, counting back from your Dec 2026 Denali date? If so, tell me current weekly hike duration/vert so I set a real number instead of guessing."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

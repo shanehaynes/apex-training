@@ -1,0 +1,71 @@
+{
+  "caseId": "builder-repeat-mapping",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Make this repeat Monday, Wednesday and Friday, every week."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01FYcACzazAWrHv4JhJWyJ97",
+          "name": "update_workout_draft",
+          "input": {
+            "repeat": {
+              "days": [
+                "MO",
+                "WE",
+                "FR"
+              ],
+              "interval_weeks": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01FYcACzazAWrHv4JhJWyJ97",
+          "content": "Draft updated: repeat. The user reviews and presses Apply."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Set to repeat Mon/Wed/Fri, every week, no end date."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing further queued — repeat is set (MO/WE/FR, weekly). Press Apply when ready, or tell me what else to adjust."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "update_workout_draft",
+      "input": {
+        "repeat": {
+          "days": [
+            "MO",
+            "WE",
+            "FR"
+          ],
+          "interval_weeks": 1
+        }
+      },
+      "result": "Draft updated: repeat. The user reviews and presses Apply.",
+      "turn": 1,
+      "kind": "write",
+      "round": 0
+    }
+  ],
+  "anomalies": []
+}

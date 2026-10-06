@@ -1,0 +1,200 @@
+{
+  "caseId": "near-duplicate-name",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add lat pulldowns and push ups to today's workout, 3 sets of 10 each."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01WPGKn1sQDUZqRJHjQ7f3Jm",
+          "name": "get_workout_detail",
+          "input": {
+            "event_id": "evt-today",
+            "date": "2026-08-03"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01WPGKn1sQDUZqRJHjQ7f3Jm",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_0194Gd4qTkv1TPd4mfuegJAP",
+          "name": "get_schedule",
+          "input": {
+            "start_date": "2026-10-06",
+            "end_date": "2026-10-06"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0194Gd4qTkv1TPd4mfuegJAP",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01GCKsKT8jikTjkVS9KPktuj",
+          "name": "get_schedule",
+          "input": {
+            "start_date": "2026-08-03",
+            "end_date": "2026-08-03"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01GCKsKT8jikTjkVS9KPktuj",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Can't find today's event — both date reads return no data (tool backend may be out of sync with the injected schedule). Rather than guess at the exercise list and risk overwriting something, I'll add the two exercises directly via `set_event_exercises`, which replaces the section — but I don't have the existing exercises to preserve them.\n\nSince the detail lookup failed, I can't safely merge with existing work. Confirm: is \"Upper Strength\" today currently empty (no exercises yet), or does it already have exercises I should add onto? If empty, I'll set Lat Pulldown and Push-Ups (3x10 each) as the full list now."
+    },
+    {
+      "role": "user",
+      "content": "The workout is currently empty — go ahead and set just those two."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01HUCi4iS6p721L2KnmZ3Yih",
+          "name": "set_event_exercises",
+          "input": {
+            "event_id": "evt-today",
+            "event_title": "Upper Strength",
+            "exercises": [
+              {
+                "name": "Lat Pulldown",
+                "sets": 3,
+                "reps": "10"
+              },
+              {
+                "name": "Push-Ups",
+                "sets": 3,
+                "reps": "10"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01HUCi4iS6p721L2KnmZ3Yih",
+          "content": "Replaced the exercises list (2 exercises)."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done. Today's Upper Strength: Lat Pulldown 3x10, Push-Ups 3x10."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Already done above — Lat Pulldown 3x10 and Push-Ups 3x10 are set on today's Upper Strength workout. Anything else to add?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "get_workout_detail",
+      "input": {
+        "event_id": "evt-today",
+        "date": "2026-08-03"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "get_schedule",
+      "input": {
+        "start_date": "2026-10-06",
+        "end_date": "2026-10-06"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 1
+    },
+    {
+      "name": "get_schedule",
+      "input": {
+        "start_date": "2026-08-03",
+        "end_date": "2026-08-03"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 2
+    },
+    {
+      "name": "set_event_exercises",
+      "input": {
+        "event_id": "evt-today",
+        "event_title": "Upper Strength",
+        "exercises": [
+          {
+            "name": "Lat Pulldown",
+            "sets": 3,
+            "reps": "10"
+          },
+          {
+            "name": "Push-Ups",
+            "sets": 3,
+            "reps": "10"
+          }
+        ]
+      },
+      "result": "Replaced the exercises list (2 exercises).",
+      "turn": 2,
+      "kind": "write",
+      "round": 0
+    }
+  ],
+  "anomalies": [
+    "unscriptedRead:get_workout_detail",
+    "unscriptedRead:get_schedule",
+    "unscriptedRead:get_schedule"
+  ]
+}
