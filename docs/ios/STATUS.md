@@ -22,7 +22,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W10 | Library, Blocks, Meals | done (#184–#188) | both | TestFlight build 7 (0.8.0/353) uploaded 2026-09-17; device acceptance is Shane's |
 | W11 | Profile, integrations, account | done (#149, #157) | both | on TestFlight build 6; phase41 in prod (2026-09-16); device runs are Shane's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
-| W13 | Release + polish | done (#190, #191, #193, #194) · **App Store: not submitted** | Mac | ASC read 2026-09-26: version 1.0 at *Prepare for Submission*, release type still *automatic* (AFTER_APPROVAL — §6 step 1 not done); newest build 424 (0.9.0, expires 2026-12-21); no 1.0.0 build exists; `main` is still 0.9.0 |
+| W13 | Release + polish | done (#190, #191, #193, #194) · **App Store: not submitted** | Mac | ASC read 2026-09-26: version 1.0 at *Prepare for Submission*, release type still *automatic* (AFTER_APPROVAL — §6 step 1 not done); newest build 424 (0.9.0, expires 2026-12-21); no 1.0.0 build exists; `main` is 1.0.0 once this PR merges — build 9 is `gh workflow run testflight.yml` |
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 
 ## Next up
@@ -30,7 +30,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    API, app id 6808637152) shows version 1.0 at *Prepare for Submission* with **automatic**
    release, newest build 424 (0.9.0, uploaded 2026-09-22, expires 2026-12-21), no submission, no
    App Review mail. Of the release order, steps 4–6 are open: (4) `MARKETING_VERSION` 1.0.0 and
-   build 9 (`main` is 0.9.0; the `ios` CI job is red on `main` since #338 on
+   build 9 (`MARKETING_VERSION` bumped to 1.0.0 in this PR; the `ios` CI job was red on `main` since #338 on
    `testTheIOSCopyNamesNoWeekViewAndNoPhoneCaveat` — `fix/ios-onboarding-plan-assertion` is on
    it — and `prod-schema-check` last exited 0 on 2026-09-19, phase46/47 since); (5) Shane's device
    run incl. delete account; (6) the console: **set "Manually release this version" first**

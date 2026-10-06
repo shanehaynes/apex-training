@@ -132,6 +132,7 @@ export const DOCTRINE_CASES: EvalCase[] = [
     expect: {
       doctrine: {
         bannedEventPatterns: MUSCULAR_ENDURANCE_PATTERNS,
+        bannedEventPatternsSkipDescription: true,
         requireDoctrineRead: { topics: ['strength', 'periodization', 'principles'] },
       },
     },

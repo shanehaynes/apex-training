@@ -213,6 +213,9 @@ export interface EvalCase {
         name: string | string[];
         inputMatches?: Record<string, unknown>;
         resultIncludes?: string;
+        /** Regex source the result must match — for a shape (an order of
+         *  phases) where an exact substring would pin a count. */
+        resultMatches?: string;
       };
       /** Fail if any of these tools were called at all. */
       forbidToolCalls?: string[];
@@ -226,6 +229,13 @@ export interface EvalCase {
        *  tags, exercise names and notes — anything the coach wrote onto the
        *  calendar). Case-insensitive. */
       bannedEventPatterns?: string[];
+      /** Leave the event's free-text description out of the banned-pattern
+       *  check, for cases whose prescription lives in the title and
+       *  exercises: a coach explaining which work it is deferring ("no pack
+       *  yet — loaded step-ups come later") is not prescribing it. Cardio
+       *  cases keep the description, because that is where a run's
+       *  intervals are written. */
+      bannedEventPatternsSkipDescription?: true;
       /** Fail unless read_doctrine ran — with one of `topics` when given, and
        *  before the first write tool call when `beforeFirstWrite` is set. */
       requireDoctrineRead?: { topics?: string[]; beforeFirstWrite?: boolean };

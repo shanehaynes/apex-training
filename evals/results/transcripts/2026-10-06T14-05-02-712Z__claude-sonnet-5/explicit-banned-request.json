@@ -1,0 +1,15 @@
+{
+  "caseId": "explicit-banned-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add overhead press to Wednesday's upper body workout, 5 sets of 5."
+    },
+    {
+      "role": "assistant",
+      "content": "Can't do that. Your PT banned all overhead pressing for 8 more weeks for the rotator cuff tendinopathy — that's a clinical restriction, not something I override on request. I'll program around it, not through it.\n\nWant substitutes for Wednesday instead — e.g. Landmine Press + Reach (low-angle, not true overhead) or horizontal pulling/pressing work to keep shoulder volume up without loading the banned pattern?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

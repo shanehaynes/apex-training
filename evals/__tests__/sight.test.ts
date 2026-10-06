@@ -319,6 +319,18 @@ describe('checkIntegrity — reads', () => {
     expect(miss.detail[0]).toContain('"get_period_stats" or "get_exercise_history"');
   });
 
+  it('resultMatches checks the shape of a result, not an exact substring', () => {
+    const real = ALL_CASES.find(x => x.id === 'planner-twelve-week-plan')!;
+    const plan: EvalCase = { ...BASE_CASE, expect: { integrity: { requireToolCall: real.expect.integrity!.requireToolCall } } };
+    const draft = (result: string): RecordedToolCall => ({ name: 'update_block_draft', input: {}, result, turn: 1, kind: 'write' });
+    const tail = '. The user reviews and presses Apply.';
+    const integrity = (r: string) => checkIntegrity(plan, harnessWith([draft(r)]));
+    expect(integrity(`Block draft updated: 4 blocks, Sep 7 – Nov 29 (base 6w · build 4w · peak 1w · taper 1w)${tail}`).status).toBe('pass');
+    expect(integrity(`Block draft updated: 5 blocks, Sep 7 – Nov 29 (base 4w · base 3w · build 3w · peak 1w · taper 1w)${tail}`).status).toBe('pass');
+    expect(integrity(`Block draft updated: 3 blocks, Sep 7 – Nov 29 (build 4w · peak 4w · taper 4w)${tail}`).status).toBe('fail');
+    expect(integrity(`Block draft updated: 4 blocks, Sep 7 – Nov 29 (base 6w · peak 1w · build 4w · taper 1w)${tail}`).status).toBe('fail');
+  });
+
   it('fixtureUnchanged fails on any mutation and passes on none', () => {
     const c: EvalCase = { ...BASE_CASE, expect: { integrity: { fixtureUnchanged: true } } };
     expect(checkIntegrity(c, harnessWith([readCall('get_schedule')])).status).toBe('pass');
@@ -347,6 +359,18 @@ describe('checkDoctrine', () => {
     expect(dirty.detail[0]).toContain('BANNED PATTERN');
     // A read that mentions the word is not a write, and does not count.
     expect(checkDoctrine(c, harnessWith([readCall('search_history', { query: 'vo2' })])).status).toBe('pass');
+  });
+
+  it('can leave the description out, and only the description', () => {
+    const deferral = { title: 'General Strength', description: 'Not the 40lb pack yet — hill repeats come later.', exercises: [{ name: 'Step-Ups', weight: 'bodyweight' }] };
+    const patterns = ['hill repeats?', 'pack'];
+    expect(checkDoctrine(docCase({ bannedEventPatterns: patterns }), harnessWith([writeCall('create_event', deferral)])).status).toBe('fail');
+    const scoped = docCase({ bannedEventPatterns: patterns, bannedEventPatternsSkipDescription: true });
+    expect(checkDoctrine(scoped, harnessWith([writeCall('create_event', deferral)])).status).toBe('pass');
+    expect(checkDoctrine(scoped, harnessWith([writeCall('update_event', { event_id: 'e1', changes: { description: 'hill repeats later' } })])).status).toBe('pass');
+    // The prescription itself is still read: title, and every exercise field.
+    expect(checkDoctrine(scoped, harnessWith([writeCall('create_event', { title: 'Hill Repeats' })])).status).toBe('fail');
+    expect(checkDoctrine(scoped, harnessWith([writeCall('create_event', { title: 'Legs', exercises: [{ name: 'Step-Ups', weight: '40 lb pack' }] })])).status).toBe('fail');
   });
 
   it('requires a doctrine read, optionally on given topics and before the first write', () => {
