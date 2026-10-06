@@ -69,8 +69,13 @@ export const PLANNER_CASES: EvalCase[] = [
     expect: {
       integrity: {
         // The reducer refuses a non-Monday, a gap, an overlap or a past start,
-        // so a summary of four blocks in the record proves all of it at once.
-        requireToolCall: { name: 'update_block_draft', resultIncludes: 'Block draft updated: 4 blocks' },
+        // so an accepted summary proves all of it at once. The ask is four
+        // phases, not four blocks: base may run as two blocks with a cut week
+        // between, so the check is the phase order, not the count.
+        requireToolCall: {
+          name: 'update_block_draft',
+          resultMatches: String.raw`^Block draft updated: \d+ blocks, .*\((?:base \d+w · )+(?:build \d+w · )+(?:peak \d+w · )+taper \d+w\)`,
+        },
         fixtureUnchanged: true,
       },
       doctrine: {

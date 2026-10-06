@@ -1,0 +1,15 @@
+{
+  "caseId": "planner-only-its-own-tool",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Put a long hike on my calendar every Saturday morning from now on, and remember that I prefer to train before 7am."
+    },
+    {
+      "role": "assistant",
+      "content": "This is outside what I can do here — I plan and edit training blocks (dated phases with weekly targets), not individual recurring calendar events like a weekly Saturday hike slot. That belongs in the app's scheduling UI, not this tool.\n\nTwo things I can actually act on:\n\n1. **The \"train before 7am\" preference** — I don't have a memory-write tool in this session; that's handled by the app's own athlete-memory/profile system, not something I can save from here. Worth flagging to whoever maintains that for you.\n\n2. **The long hike itself** — if you want it reflected in training blocks, I can set `long_session_minutes` as a weekly target (the threshold that marks your long day) inside a block, which is the lever I actually have. Want me to look at your current/next block and add that, or are you building a new base block for Denali prep where Saturday becomes the long aerobic day?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}
