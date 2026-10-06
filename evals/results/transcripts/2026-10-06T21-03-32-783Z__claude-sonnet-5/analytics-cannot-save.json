@@ -1,0 +1,15 @@
+{
+  "caseId": "analytics-cannot-save",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Perfect. Save that tile to my dashboard."
+    },
+    {
+      "role": "assistant",
+      "content": "I can't save it — only your Save button does that. Also the draft currently has no measure set (blocking issue), so there's nothing valid to save yet. Tell me what you want charted (e.g., tonnage per week for weights, calories/day, max-grade) and I'll configure it, then you press Save."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

@@ -1,0 +1,490 @@
+{
+  "caseId": "stress-fracture-impact",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add some cardio sessions to my schedule this week. I miss my conditioning."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01RHqnt9PNdvcqMRehQiXhQq",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "aerobic-base"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01RHqnt9PNdvcqMRehQiXhQq",
+          "content": "Every mountain pursuit this athlete has is a long day at moderate output, and the capacity that decides how that day goes is aerobic. The base is built with large volumes of easy work, it takes months, and it is the part of training most athletes skip because it does not feel like effort.\n\n## Why aerobic capacity is the foundation\n\nA 6,000-foot alpine day, a two-day route, a ski traverse or a backcountry hunt is many hours of continuous work at an intensity the athlete must be able to sustain while thinking clearly, eating, and keeping something in reserve for the hard section or the retreat. That intensity is aerobic. What decides the day is how fast the athlete can move while staying aerobic, how much of the work is fueled by fat rather than limited glycogen, and how quickly the body clears fatigue between efforts.\n\nAerobic training builds these through adaptations that take months: more and larger mitochondria in the working muscles, more capillaries feeding them, a heart that pumps more blood per beat, and a shift toward fat as the fuel at a given pace. These adaptations respond best to long, easy, frequent work. They respond poorly to short hard work, which mainly trains the systems that deliver speed for minutes, not hours.\n\nThe base also sets the ceiling for everything built on it: muscular endurance is only as good as the aerobic system supplying it, and strength that cannot be sustained is not useful in the mountains. This is why the doctrine builds the base first and longest.\n\n## The two thresholds\n\nTwo intensities organize aerobic training.\n\nThe aerobic threshold (AeT) is the highest intensity at which the body is still working almost entirely aerobically, fueled largely by fat, with lactate barely above resting. Below it, the athlete can go for hours and recover quickly. Above it, the effort starts drawing on carbohydrate and accumulating fatigue that takes longer to clear. For a mountain athlete, this is the single most important number: the objective is spent below or near it, and most training belongs below it.\n\nThe anaerobic threshold (AnT) is the highest intensity the body can sustain for roughly an hour before lactate accumulates faster than it clears. Above it, the effort is measured in minutes. It marks the top of useful endurance intensity and the bottom of intensity that mainly serves speed.\n\nIn a well-trained endurance athlete these two thresholds sit close together, with AeT within roughly ten percent of AnT by heart rate. In an athlete whose aerobic system is undertrained relative to their high-intensity fitness, the gap is wide. That gap is the diagnosis that decides the prescription.\n\n## Estimating the thresholds in the field\n\nA lab test with gas exchange or blood lactate is the most accurate way to find both thresholds, and the coach should recommend one when the athlete has access. In its absence, three field methods estimate AeT, and the coach should cross-check at least two:\n\n1. Talk test. At or below AeT the athlete can speak in full sentences without gasping. The point at which sentences break into short phrases is the upper edge of AeT. This is the simplest and surprisingly reliable.\n2. Nasal breathing. Sustained nose-only breathing during a steady effort keeps most athletes at or below AeT. The point at which the athlete must open their mouth to keep pace is a usable AeT estimate.\n3. Heart-rate drift. On a long, steady effort at constant pace (roughly an hour after a warmup, on flat or consistently graded terrain), compare heart rate in the second half to the first. If pace is constant and heart rate rises by more than roughly five percent, the effort was above AeT. If the rise is under roughly three to five percent, the effort was at or below it. Repeat at a slightly higher heart rate until the drift crosses the line; the last heart rate that held is AeT. The app can compute this from any steady logged effort.\n\nIn all three, AeT feels easy, sustainable indefinitely and slightly boring; if the effort feels like work, it is above AeT.\n\nAnT is estimated from a sustained hard effort: the average heart rate over roughly thirty to sixty minutes of the hardest steady pace the athlete can hold, after a thorough warmup. This test is demanding and should be done rested, at most a few times a season.\n\nAll these estimates are guidelines with error of several beats. The coach treats them as working numbers, re-checks them every four to eight weeks in base, and expects AeT to rise as the base builds.\n\n## Aerobic deficiency\n\nWhen AeT sits well below AnT, with a gap of roughly ten percent or more of the AnT heart rate as the common working definition, the athlete is aerobically deficient. This is the usual profile of a strong, motivated athlete who trains hard often and easy rarely: they can go hard, but they cannot go long, and their easy pace is slow.\n\nThe prescription for aerobic deficiency is unambiguous:\n1. Nearly all aerobic volume goes below AeT until the gap closes. Below, not at.\n2. The moderate zone between AeT and AnT, the grey zone, is avoided. It is too hard to build the base and too easy to build anything else, and it produces fatigue that steals from the volume that would actually work.\n3. High-intensity work is removed or kept to a small maintenance dose.\n4. Volume is raised gradually. Because the work is easy, volume can grow more than the athlete expects, but the gradualness rule still holds.\n5. Strength training continues in parallel. It does not compete with easy aerobic volume for recovery the way intensity does.\n\nThis is the Uphill Athlete approach to the base, and this doctrine adopts it. The period feels too easy and the athlete will want to push; the coach holds the line. The base builds slowly, then fast, and the athlete who trusts the process for eight to twelve weeks typically sees their easy pace rise substantially at the same heart rate. Once AeT sits within roughly ten percent of AnT, the deficiency is closed and intensity can be added.\n\n## Zone distribution across a base phase\n\nAcross a base phase the guideline is that the large majority of aerobic time, roughly eighty percent or more, sits below AeT, and the small remainder sits near or above AnT. Time in the grey zone is minimized. This holds especially for a mountain athlete with limited hours: the fewer the hours, the more of them must be easy, because intensity is what the schedule cannot recover from.\n\nWithin the easy majority, variety comes from duration and terrain, not intensity: a long weekend outing on real terrain, several shorter weekday sessions, and steep hiking or ski touring under a light pack as the base builds. The long session is the most important session of the week and it grows first.\n\n## Volume progression and recovery weeks\n\n1. Establish a baseline from the athlete's actual recent history, not from what they aspire to.\n2. Raise weekly aerobic volume by roughly five to ten percent per week as a guideline, holding intensity constant.\n3. Every third or fourth week, reduce volume by roughly a third to a half. The recovery week is where the adaptation consolidates.\n4. Grow the long session first and most, then add frequency, then add duration to the weekday sessions.\n5. When the athlete cannot add hours, add vertical: steep terrain at the same heart rate is more specific and more productive for mountain work than flat distance.\n6. Track the easy pace at AeT heart rate. If it rises, the base is building. If it stalls for many weeks with good recovery, the stimulus needs to change, usually through more volume or more vertical.\n\n## When intensity earns its place\n\nHigher-intensity aerobic work is a tool for the later part of the plan, not the start of it. It earns its place when:\n1. The AeT to AnT gap has closed to roughly ten percent or less.\n2. The athlete has accumulated many consecutive weeks of consistent easy volume.\n3. The objective demands sustained efforts near AnT, such as a fast alpine push or a competitive run.\n\nIt enters as one session per week at first, in the form the objective demands: long uphill intervals near AnT for alpine objectives, tempo efforts for running. The easy volume is kept, not replaced; intensity on top of a reduced base is the fastest way back to deficiency.\n\n## How the coach applies this\n\n- Establish AeT and AnT estimates from at least two field methods before programming a base phase, and re-estimate every four to eight weeks.\n- When the AeT to AnT gap is roughly ten percent of AnT heart rate or more, prescribe nearly all aerobic volume below AeT, remove the grey zone, and hold high intensity to a small maintenance dose until the gap closes.\n- Keep roughly eighty percent or more of aerobic time below AeT across any base phase, as a guideline, and treat time between AeT and AnT as the first thing to cut.\n- Grow the weekly long session first and most, and prefer vertical over flat distance when the athlete cannot add hours.\n- Raise aerobic volume by roughly five to ten percent per week at most, and program a reduced week every third or fourth week.\n- Use heart-rate drift on logged steady efforts as the app's own evidence of where AeT sits and whether it is rising.\n- Add higher-intensity aerobic work only after the gap has closed and many consistent weeks are banked, as one session per week at first, without cutting easy volume.\n- Explain to the athlete in plain terms that the easy work feels too easy by design and that the payoff is a faster pace at the same heart rate.\n\n## Signals that contradict this\n\n- Heart-rate drift under roughly three to five percent on long efforts at a pace that also keeps rising over weeks indicates the base is building and the current prescription is working.\n- A gap between AeT and AnT that stays wide after twelve or more weeks of high easy volume with good recovery indicates the AeT estimate may be wrong or the volume is not truly easy, and both should be re-checked before adding more.\n- Easy sessions logged with average heart rate above the estimated AeT indicate the athlete is drifting into the grey zone, and the coach should slow the prescription rather than assume the base is being built.\n- A resting heart rate that rises or an HRV trend that falls during a base phase of only easy work indicates the volume increase has outrun recovery, or that life stress or illness is present, and volume should hold or drop.\n- An objective that is short and intense, such as a single-pitch performance goal or a race under an hour, is one where the base-heavy distribution should shift earlier toward intensity than the default alpine prescription.\n- An athlete reporting that easy sessions feel hard, or that their easy pace has slowed, is showing fatigue or illness rather than a need for more volume."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_011qi9UCR53p8xVdNeTw3Wvg",
+          "name": "get_schedule",
+          "input": {
+            "start_date": "2026-08-03",
+            "end_date": "2026-08-09"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_011qi9UCR53p8xVdNeTw3Wvg",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01JqhGqXRzcMvgNCwx71saMU",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Stationary Bike — Easy Aerobic",
+            "date": "2026-08-04",
+            "start_time": "6:30 AM",
+            "estimated_duration": 40,
+            "description": "Zero-impact aerobic — tibial stress fracture restriction. Keep effort easy: full sentences while talking (below AeT). Steady cadence, no standing sprints.",
+            "difficulty": 2,
+            "equipment": [
+              "stationary bike"
+            ],
+            "tags": [
+              "no-impact",
+              "aerobic-base"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01JqhGqXRzcMvgNCwx71saMU",
+          "content": "Created \"Stationary Bike — Easy Aerobic\" on 2026-08-04 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01SaLtFRDutL2VwJEKdwPjwG",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Pool Swim — Easy Aerobic",
+            "date": "2026-08-06",
+            "start_time": "6:30 AM",
+            "estimated_duration": 40,
+            "description": "Zero-impact aerobic — tibial stress fracture restriction. Easy continuous swimming, no flip-turn push-off sprints. Talk-test pace.",
+            "difficulty": 2,
+            "equipment": [
+              "pool"
+            ],
+            "tags": [
+              "no-impact",
+              "aerobic-base"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01SaLtFRDutL2VwJEKdwPjwG",
+          "content": "Created \"Pool Swim — Easy Aerobic\" on 2026-08-06 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01X7m5962kUL2nXVDbzC9Jjb",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Stationary Bike — Easy Aerobic",
+            "date": "2026-08-08",
+            "start_time": "8:00 AM",
+            "estimated_duration": 50,
+            "description": "Zero-impact aerobic — tibial stress fracture restriction. Longest session of the week; easy effort throughout, steady cadence seated.",
+            "difficulty": 2,
+            "equipment": [
+              "stationary bike"
+            ],
+            "tags": [
+              "no-impact",
+              "aerobic-base"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01X7m5962kUL2nXVDbzC9Jjb",
+          "content": "Created \"Stationary Bike — Easy Aerobic\" on 2026-08-08 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "3 sessions added this week, all zero-impact given your tibial stress fracture restriction:\n\n- **Tue 8/4, 6:30 AM** — Bike, 40 min easy\n- **Thu 8/6, 6:30 AM** — Swim, 40 min easy\n- **Sat 8/8, 8:00 AM** — Bike, 50 min (longest, grows first per aerobic-base doctrine)\n\nAll kept easy/talk-test pace, not intensity — doctrine: \"nearly all aerobic volume goes below AeT\" when building/maintaining base, and intensity isn't earned yet with no AeT/AnT baseline established. No running, no jumping, no impact loading on the tibia — bike and pool only. Elliptical/stair machines stay off the table too until your doctor clears impact."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01K8jXsb6uifjmska5ddrkXR",
+          "name": "search_history",
+          "input": {
+            "query": "tibial stress fracture",
+            "kinds": [
+              "message",
+              "objective"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01K8jXsb6uifjmska5ddrkXR",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Nothing pending to confirm — the 3 sessions are already on your schedule. Proposing one durable fact to memory since it's driving every scheduling decision right now:"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_014zJksrZKPX4TmjjxbzFP2a",
+          "name": "create_exercise_definition",
+          "input": {
+            "canonical_name": "placeholder",
+            "category": "cardio"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014zJksrZKPX4TmjjxbzFP2a",
+          "content": "Added \"placeholder\" (cardio) to the exercise library. Reference it by that exact name in create_event or set_event_exercises."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Correcting an errant tool call — turning that into a usable library entry rather than leaving junk:"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_012wcPpJUZiKf9WBLq77fLNh",
+          "name": "update_exercise_definition",
+          "input": {
+            "name": "placeholder",
+            "changes": {
+              "canonical_name": "Stationary Bike",
+              "category": "cardio",
+              "default_duration": "40 min",
+              "muscle_groups": [
+                "legs",
+                "cardiovascular"
+              ],
+              "equipment": [
+                "stationary bike"
+              ],
+              "technique_notes": "Seated, steady cadence, zero-impact aerobic work. Easy effort — talk-test pace."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_012wcPpJUZiKf9WBLq77fLNh",
+          "content": "Updated \"Stationary Bike\" — the change applies to every workout referencing it. The old name stays attached as an alias, so history is preserved."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Fixed — that's now a legitimate \"Stationary Bike\" library entry (zero-impact, cardiovascular/legs), not clutter.\n\nOn the actual ask: I don't have a memory tool available in this session, so I can't propose saving the tibial stress fracture fact to injuries.md right now — flagging that rather than pretending it's remembered. The restriction is already reflected correctly in your schedule (bike + swim only, no run/jump) via your athlete profile.\n\nCurrent week stands at 3 zero-impact cardio sessions (Tue bike, Thu swim, Sat bike). Want a 4th, or is that the right volume to start back in on?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01BDW2ZXBZ4PwCj6ZBXjtZxc",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Pool Swim — Easy Aerobic",
+            "date": "2026-08-09",
+            "start_time": "8:00 AM",
+            "estimated_duration": 30,
+            "description": "Zero-impact aerobic — tibial stress fracture restriction. Shorter easy swim, day after the long bike. Talk-test pace, no sprint push-offs.",
+            "difficulty": 2,
+            "equipment": [
+              "pool"
+            ],
+            "tags": [
+              "no-impact",
+              "aerobic-base"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01BDW2ZXBZ4PwCj6ZBXjtZxc",
+          "content": "Created \"Pool Swim — Easy Aerobic\" on 2026-08-09 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "4th session added: **Sun 8/9, 8:00 AM — Swim, 30 min easy**, placed right after Saturday's long bike as a lighter day.\n\nWeek now: Tue bike 40min, Thu swim 40min, Sat bike 50min (long), Sun swim 30min. All zero-impact, all easy/talk-test pace — 4 sessions is a reasonable restart volume; hold here and reassess next week rather than jumping further, per the aerobic-base doctrine's 5–10%/week guideline."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Four zero-impact sessions is the right volume for this week — adding a 5th without a specific reason would break the gradualness the aerobic-base doctrine calls for, especially this early back from a stress fracture.\n\nNothing else is queued. What do you want next — strength work to go alongside the cardio, or something else?"
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "aerobic-base"
+      },
+      "result": "Every mountain pursuit this athlete has is a long day at moderate output, and the capacity that decides how that day goes is aerobic. The base is built with large volumes of easy work, it takes months, and it is the part of training most athletes skip because it does not feel like effort.\n\n## Why aerobic capacity is the foundation\n\nA 6,000-foot alpine day, a two-day route, a ski traverse or a backcountry hunt is many hours of continuous work at an intensity the athlete must be able to sustain while thinking clearly, eating, and keeping something in reserve for the hard section or the retreat. That intensity is aerobic. What decides the day is how fast the athlete can move while staying aerobic, how much of the work is fueled by fat rather than limited glycogen, and how quickly the body clears fatigue between efforts.\n\nAerobic training builds these through adaptations that take months: more and larger mitochondria in the working muscles, more capillaries feeding them, a heart that pumps more blood per beat, and a shift toward fat as the fuel at a given pace. These adaptations respond best to long, easy, frequent work. They respond poorly to short hard work, which mainly trains the systems that deliver speed for minutes, not hours.\n\nThe base also sets the ceiling for everything built on it: muscular endurance is only as good as the aerobic system supplying it, and strength that cannot be sustained is not useful in the mountains. This is why the doctrine builds the base first and longest.\n\n## The two thresholds\n\nTwo intensities organize aerobic training.\n\nThe aerobic threshold (AeT) is the highest intensity at which the body is still working almost entirely aerobically, fueled largely by fat, with lactate barely above resting. Below it, the athlete can go for hours and recover quickly. Above it, the effort starts drawing on carbohydrate and accumulating fatigue that takes longer to clear. For a mountain athlete, this is the single most important number: the objective is spent below or near it, and most training belongs below it.\n\nThe anaerobic threshold (AnT) is the highest intensity the body can sustain for roughly an hour before lactate accumulates faster than it clears. Above it, the effort is measured in minutes. It marks the top of useful endurance intensity and the bottom of intensity that mainly serves speed.\n\nIn a well-trained endurance athlete these two thresholds sit close together, with AeT within roughly ten percent of AnT by heart rate. In an athlete whose aerobic system is undertrained relative to their high-intensity fitness, the gap is wide. That gap is the diagnosis that decides the prescription.\n\n## Estimating the thresholds in the field\n\nA lab test with gas exchange or blood lactate is the most accurate way to find both thresholds, and the coach should recommend one when the athlete has access. In its absence, three field methods estimate AeT, and the coach should cross-check at least two:\n\n1. Talk test. At or below AeT the athlete can speak in full sentences without gasping. The point at which sentences break into short phrases is the upper edge of AeT. This is the simplest and surprisingly reliable.\n2. Nasal breathing. Sustained nose-only breathing during a steady effort keeps most athletes at or below AeT. The point at which the athlete must open their mouth to keep pace is a usable AeT estimate.\n3. Heart-rate drift. On a long, steady effort at constant pace (roughly an hour after a warmup, on flat or consistently graded terrain), compare heart rate in the second half to the first. If pace is constant and heart rate rises by more than roughly five percent, the effort was above AeT. If the rise is under roughly three to five percent, the effort was at or below it. Repeat at a slightly higher heart rate until the drift crosses the line; the last heart rate that held is AeT. The app can compute this from any steady logged effort.\n\nIn all three, AeT feels easy, sustainable indefinitely and slightly boring; if the effort feels like work, it is above AeT.\n\nAnT is estimated from a sustained hard effort: the average heart rate over roughly thirty to sixty minutes of the hardest steady pace the athlete can hold, after a thorough warmup. This test is demanding and should be done rested, at most a few times a season.\n\nAll these estimates are guidelines with error of several beats. The coach treats them as working numbers, re-checks them every four to eight weeks in base, and expects AeT to rise as the base builds.\n\n## Aerobic deficiency\n\nWhen AeT sits well below AnT, with a gap of roughly ten percent or more of the AnT heart rate as the common working definition, the athlete is aerobically deficient. This is the usual profile of a strong, motivated athlete who trains hard often and easy rarely: they can go hard, but they cannot go long, and their easy pace is slow.\n\nThe prescription for aerobic deficiency is unambiguous:\n1. Nearly all aerobic volume goes below AeT until the gap closes. Below, not at.\n2. The moderate zone between AeT and AnT, the grey zone, is avoided. It is too hard to build the base and too easy to build anything else, and it produces fatigue that steals from the volume that would actually work.\n3. High-intensity work is removed or kept to a small maintenance dose.\n4. Volume is raised gradually. Because the work is easy, volume can grow more than the athlete expects, but the gradualness rule still holds.\n5. Strength training continues in parallel. It does not compete with easy aerobic volume for recovery the way intensity does.\n\nThis is the Uphill Athlete approach to the base, and this doctrine adopts it. The period feels too easy and the athlete will want to push; the coach holds the line. The base builds slowly, then fast, and the athlete who trusts the process for eight to twelve weeks typically sees their easy pace rise substantially at the same heart rate. Once AeT sits within roughly ten percent of AnT, the deficiency is closed and intensity can be added.\n\n## Zone distribution across a base phase\n\nAcross a base phase the guideline is that the large majority of aerobic time, roughly eighty percent or more, sits below AeT, and the small remainder sits near or above AnT. Time in the grey zone is minimized. This holds especially for a mountain athlete with limited hours: the fewer the hours, the more of them must be easy, because intensity is what the schedule cannot recover from.\n\nWithin the easy majority, variety comes from duration and terrain, not intensity: a long weekend outing on real terrain, several shorter weekday sessions, and steep hiking or ski touring under a light pack as the base builds. The long session is the most important session of the week and it grows first.\n\n## Volume progression and recovery weeks\n\n1. Establish a baseline from the athlete's actual recent history, not from what they aspire to.\n2. Raise weekly aerobic volume by roughly five to ten percent per week as a guideline, holding intensity constant.\n3. Every third or fourth week, reduce volume by roughly a third to a half. The recovery week is where the adaptation consolidates.\n4. Grow the long session first and most, then add frequency, then add duration to the weekday sessions.\n5. When the athlete cannot add hours, add vertical: steep terrain at the same heart rate is more specific and more productive for mountain work than flat distance.\n6. Track the easy pace at AeT heart rate. If it rises, the base is building. If it stalls for many weeks with good recovery, the stimulus needs to change, usually through more volume or more vertical.\n\n## When intensity earns its place\n\nHigher-intensity aerobic work is a tool for the later part of the plan, not the start of it. It earns its place when:\n1. The AeT to AnT gap has closed to roughly ten percent or less.\n2. The athlete has accumulated many consecutive weeks of consistent easy volume.\n3. The objective demands sustained efforts near AnT, such as a fast alpine push or a competitive run.\n\nIt enters as one session per week at first, in the form the objective demands: long uphill intervals near AnT for alpine objectives, tempo efforts for running. The easy volume is kept, not replaced; intensity on top of a reduced base is the fastest way back to deficiency.\n\n## How the coach applies this\n\n- Establish AeT and AnT estimates from at least two field methods before programming a base phase, and re-estimate every four to eight weeks.\n- When the AeT to AnT gap is roughly ten percent of AnT heart rate or more, prescribe nearly all aerobic volume below AeT, remove the grey zone, and hold high intensity to a small maintenance dose until the gap closes.\n- Keep roughly eighty percent or more of aerobic time below AeT across any base phase, as a guideline, and treat time between AeT and AnT as the first thing to cut.\n- Grow the weekly long session first and most, and prefer vertical over flat distance when the athlete cannot add hours.\n- Raise aerobic volume by roughly five to ten percent per week at most, and program a reduced week every third or fourth week.\n- Use heart-rate drift on logged steady efforts as the app's own evidence of where AeT sits and whether it is rising.\n- Add higher-intensity aerobic work only after the gap has closed and many consistent weeks are banked, as one session per week at first, without cutting easy volume.\n- Explain to the athlete in plain terms that the easy work feels too easy by design and that the payoff is a faster pace at the same heart rate.\n\n## Signals that contradict this\n\n- Heart-rate drift under roughly three to five percent on long efforts at a pace that also keeps rising over weeks indicates the base is building and the current prescription is working.\n- A gap between AeT and AnT that stays wide after twelve or more weeks of high easy volume with good recovery indicates the AeT estimate may be wrong or the volume is not truly easy, and both should be re-checked before adding more.\n- Easy sessions logged with average heart rate above the estimated AeT indicate the athlete is drifting into the grey zone, and the coach should slow the prescription rather than assume the base is being built.\n- A resting heart rate that rises or an HRV trend that falls during a base phase of only easy work indicates the volume increase has outrun recovery, or that life stress or illness is present, and volume should hold or drop.\n- An objective that is short and intense, such as a single-pitch performance goal or a race under an hour, is one where the base-heavy distribution should shift earlier toward intensity than the default alpine prescription.\n- An athlete reporting that easy sessions feel hard, or that their easy pace has slowed, is showing fatigue or illness rather than a need for more volume.",
+      "turn": 1,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "get_schedule",
+      "input": {
+        "start_date": "2026-08-03",
+        "end_date": "2026-08-09"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Stationary Bike — Easy Aerobic",
+        "date": "2026-08-04",
+        "start_time": "6:30 AM",
+        "estimated_duration": 40,
+        "description": "Zero-impact aerobic — tibial stress fracture restriction. Keep effort easy: full sentences while talking (below AeT). Steady cadence, no standing sprints.",
+        "difficulty": 2,
+        "equipment": [
+          "stationary bike"
+        ],
+        "tags": [
+          "no-impact",
+          "aerobic-base"
+        ]
+      },
+      "result": "Created \"Stationary Bike — Easy Aerobic\" on 2026-08-04 [evt-ai-1].",
+      "turn": 1,
+      "kind": "write",
+      "round": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Pool Swim — Easy Aerobic",
+        "date": "2026-08-06",
+        "start_time": "6:30 AM",
+        "estimated_duration": 40,
+        "description": "Zero-impact aerobic — tibial stress fracture restriction. Easy continuous swimming, no flip-turn push-off sprints. Talk-test pace.",
+        "difficulty": 2,
+        "equipment": [
+          "pool"
+        ],
+        "tags": [
+          "no-impact",
+          "aerobic-base"
+        ]
+      },
+      "result": "Created \"Pool Swim — Easy Aerobic\" on 2026-08-06 [evt-ai-2].",
+      "turn": 1,
+      "kind": "write",
+      "round": 3
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Stationary Bike — Easy Aerobic",
+        "date": "2026-08-08",
+        "start_time": "8:00 AM",
+        "estimated_duration": 50,
+        "description": "Zero-impact aerobic — tibial stress fracture restriction. Longest session of the week; easy effort throughout, steady cadence seated.",
+        "difficulty": 2,
+        "equipment": [
+          "stationary bike"
+        ],
+        "tags": [
+          "no-impact",
+          "aerobic-base"
+        ]
+      },
+      "result": "Created \"Stationary Bike — Easy Aerobic\" on 2026-08-08 [evt-ai-3].",
+      "turn": 1,
+      "kind": "write",
+      "round": 4
+    },
+    {
+      "name": "search_history",
+      "input": {
+        "query": "tibial stress fracture",
+        "kinds": [
+          "message",
+          "objective"
+        ]
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 2,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "create_exercise_definition",
+      "input": {
+        "canonical_name": "placeholder",
+        "category": "cardio"
+      },
+      "result": "Added \"placeholder\" (cardio) to the exercise library. Reference it by that exact name in create_event or set_event_exercises.",
+      "turn": 2,
+      "kind": "write",
+      "round": 1
+    },
+    {
+      "name": "update_exercise_definition",
+      "input": {
+        "name": "placeholder",
+        "changes": {
+          "canonical_name": "Stationary Bike",
+          "category": "cardio",
+          "default_duration": "40 min",
+          "muscle_groups": [
+            "legs",
+            "cardiovascular"
+          ],
+          "equipment": [
+            "stationary bike"
+          ],
+          "technique_notes": "Seated, steady cadence, zero-impact aerobic work. Easy effort — talk-test pace."
+        }
+      },
+      "result": "Updated \"Stationary Bike\" — the change applies to every workout referencing it. The old name stays attached as an alias, so history is preserved.",
+      "turn": 2,
+      "kind": "write",
+      "round": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Pool Swim — Easy Aerobic",
+        "date": "2026-08-09",
+        "start_time": "8:00 AM",
+        "estimated_duration": 30,
+        "description": "Zero-impact aerobic — tibial stress fracture restriction. Shorter easy swim, day after the long bike. Talk-test pace, no sprint push-offs.",
+        "difficulty": 2,
+        "equipment": [
+          "pool"
+        ],
+        "tags": [
+          "no-impact",
+          "aerobic-base"
+        ]
+      },
+      "result": "Created \"Pool Swim — Easy Aerobic\" on 2026-08-09 [evt-ai-4].",
+      "turn": 3,
+      "kind": "write",
+      "round": 0
+    }
+  ],
+  "anomalies": [
+    "unscriptedRead:get_schedule",
+    "unscriptedRead:search_history"
+  ]
+}

@@ -166,6 +166,7 @@ export async function runCase(
       executeTool,
       ...(executeRead ? { executeRead } : {}),
       ...(mode === 'builder' || mode === 'analytics' || mode === 'planner' ? { toolMode: mode } : {}),
+      today: todayStr,
       turnIndex: turns.length + 1,
       session,
       anomaly: text => anomalies.push(text),

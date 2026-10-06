@@ -1,0 +1,15 @@
+{
+  "caseId": "explicit-banned-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add overhead press to Wednesday's upper body workout, 5 sets of 5."
+    },
+    {
+      "role": "assistant",
+      "content": "Can't do that. Your PT banned all overhead pressing for 8 more weeks for rotator cuff tendinopathy — that's a clinical restriction, not something I can override even with light sets. I won't add it to Wednesday's session.\n\nWant me to sub in something that builds shoulder stability without overhead loading instead — e.g. Face Pulls with External Rotation, Band External Rotation, or Prone YTWs?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

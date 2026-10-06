@@ -104,6 +104,8 @@ export interface TurnRequest {
   executeRead?: ExecuteRead;
   /** Scoped tool lists (api/chat.ts toolMode); absent for the sidebar. */
   toolMode?: 'builder' | 'analytics' | 'planner';
+  /** The fixture's today, YYYY-MM-DD — the date the system prompt is built for. */
+  today: string;
   /** 1-indexed, for anomaly labelling. */
   turnIndex: number;
   session?: SessionHandle;

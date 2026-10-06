@@ -1,0 +1,1581 @@
+{
+  "caseId": "doctrine-taper-below-prior-week",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Plan my taper week — schedule this week's sessions, Monday through Sunday."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_013V3gNqVy7p67MBjcjoDepC",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "periodization"
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01QWpoqA5YwXvxZCJQpJnbdb",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "recovery"
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01C3c8D1FWVNNqZK7f1Pq8Hn",
+          "name": "get_schedule",
+          "input": {
+            "start_date": "2026-07-13",
+            "end_date": "2026-08-02"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_013V3gNqVy7p67MBjcjoDepC",
+          "content": "A training plan is a sequence of phases, each building the capacity the next one needs, ending at a date on which the athlete must be at their best. The sequence is fixed; the lengths, the weekly shape and the specific work are set by the objective.\n\n## The arc\n\nEvery cycle moves through the same five phases in the same order. The order comes from the capacity hierarchy: general before specific, base before intensity, load before rest.\n\n1. Transition. Purpose: re-establish the habit of training, restore movement quality, and prepare tissue for the loads to come. Content: low aerobic volume, all easy; general strength with an emphasis on movement quality, unilateral work, carries, core and posterior chain; daily mobility. This phase is short and unglamorous and skipping it is the most common source of early injury.\n\n2. Base. Purpose: build the aerobic foundation and raise max strength. Content: aerobic volume grows week over week, nearly all below the aerobic threshold; the long session grows first; max strength is trained heavy, low-rep, twice a week; mobility is maintained. This is the longest phase and the one that most determines the outcome.\n\n3. Specific. Purpose: convert the general capacities into the objective's actual demand. Content: aerobic volume holds or drops slightly while the long session becomes a rehearsal of the objective, on similar terrain with similar load and duration; max strength converts to muscular endurance through weighted uphill work; intensity that mimics the objective enters, one session per week at first; for a rock objective, climbing-specific strength and power take priority. The specific phase is where the plan starts to look like the objective.\n\n4. Taper and peak. Purpose: shed fatigue while keeping fitness, so the athlete arrives fresh and sharp. Content: volume drops by roughly a third to a half as a guideline, while a small amount of intensity and specificity is kept so the body stays primed. Nothing new is introduced. The athlete will feel restless and under-trained; this is the taper working.\n\n5. Recovery. Purpose: let the body and mind reset before the next cycle. Content: one to several weeks of unstructured, easy, enjoyable movement with no plan. Then the next transition begins.\n\n## How objective type shapes the phases\n\nThe arc is the same, but the weight of each phase changes with what the objective demands.\n\nAlpine climb or long mountain day. The aerobic base dominates and base is the longest phase. The specific phase rehearses long uphill efforts under a pack with the objective's vertical; muscular endurance is the key conversion; climbing-specific work is maintained, not built, unless the technical crux is near the athlete's limit.\n\nSki traverse or multi-day ski objective. As above, with the specific phase built on skinning under load and long consecutive days. Skiing itself is the best specific work once snow allows.\n\nRock project or technical climbing goal. The aerobic base is maintained rather than grown; climbing-specific strength and power take the place of muscular endurance in the specific phase; the base phase still builds max strength and finger strength because those are the slow adaptations. The result is a climbing plan with an aerobic floor under it, not an aerobic plan with climbing on top.\n\nHunting season. A long specific phase of loaded uphill hiking and carrying, with muscular endurance as the priority and general strength kept for the pack-out. The objective is repeated big days over weeks, so durability and recovery capacity outrank speed.\n\nWith several objectives in a year, the coach chooses one as the primary peak and treats the others as training events or as secondary peaks with a short taper. Two full peaks close together are not possible; the athlete picks.\n\n## Block lengths and the loading pattern\n\nLengths are guidelines and depend on the athlete's training history and the time available. The proportions matter more than the numbers.\n\n- Transition: roughly four to eight weeks. Shorter for an athlete coming off a consistent season, longer after a layoff or injury.\n- Base: roughly eight to sixteen weeks or more. The longer the objective and the wider the aerobic deficiency, the longer the base. An athlete with an aerobic deficiency stays in base until the gap closes.\n- Specific: roughly four to eight weeks. Long enough to convert strength to muscular endurance and rehearse the objective several times; short enough that specific fatigue does not accumulate into the taper.\n- Taper: roughly one to three weeks, longer for a longer objective and a larger preceding volume.\n- Recovery: one to several weeks.\n\nWithin a block, the loading pattern is a rise followed by a drop. The common patterns are three building weeks then one reduced week, or two then one for an athlete who recovers slowly or has high life stress. The building weeks raise volume gradually; the reduced week cuts volume by roughly a third to a half and keeps intensity light. The reduced week is not optional and not a reward; it is where the previous three weeks are consolidated into fitness.\n\nA block ends with a check: has the capacity it was meant to build actually moved? Aerobic threshold pace, a strength benchmark, a rehearsal effort on terrain. If it has, the next block begins. If it has not, the coach looks for the reason before moving on.\n\n## What a week looks like in each phase\n\nThe templates below are shapes, not schedules. The athlete's life, the pursuits and the weather set the days.\n\nTransition week:\n- Two general strength sessions, movement quality first, moderate load.\n- Three to four easy aerobic sessions, short, one of them slightly longer.\n- Daily mobility minimum.\n- One full rest day, and any pursuit outing counts as the long aerobic session.\n\nBase week:\n- Two max strength sessions, heavy and brief, on days that do not precede the long session.\n- One long easy aerobic session, growing week over week, on terrain and ideally under a light pack.\n- Two to four shorter easy aerobic sessions.\n- Mobility maintained daily.\n- One full rest day.\n\nSpecific week:\n- One muscular endurance session (weighted uphill work, loaded step-ups or hill repeats), which replaces one max strength session.\n- One max strength maintenance session, or a climbing-specific strength session for a rock objective.\n- One long session rehearsing the objective's demand.\n- One session of objective-specific intensity, once the base has earned it.\n- One to two short easy aerobic sessions for recovery and volume.\n- One full rest day, sometimes two.\n\nTaper week:\n- Volume cut substantially, sessions shorter, the long session shortened most.\n- One short session with a little intensity to stay sharp.\n- Strength reduced to a light maintenance dose or dropped in the final week.\n- Extra sleep, extra rest days.\n\n## When weeks are missed\n\nLife, illness and weather will remove weeks from any plan. The rule is: do not cram, extend.\n\n1. One missed session is absorbed. The plan continues as written.\n2. Up to a week missed for illness or life: resume at the load of the week before the gap, not the week that was planned, then progress from there. The objective date does not move, but the block may end a week later and the next block starts a week shorter.\n3. Two or more weeks missed: treat the return as a short transition. Resume at reduced volume, rebuild over one to two weeks, then continue the block. If the objective date is fixed, shorten the specific phase rather than the base; if the gap fell in base, the coach and athlete discuss whether the objective is still realistic.\n4. Never compress the missed volume into the following weeks. Doubling up violates gradualness and usually produces the injury that removes the next four weeks too.\n5. A missed reduced week is missed recovery, not missed volume, and it must be taken before the next building block starts.\n\nThe athlete's calendar in the app is the record. When the coach sees a gap, it asks what happened before changing anything, because illness, injury and a busy week each call for a different return.\n\n## How the coach applies this\n\n- Anchor every plan on a named objective with a date, and work backward through taper, specific, base and transition to set the block lengths.\n- Set the weight of each phase by the objective type, with the aerobic base dominant for alpine, ski and hunting objectives and climbing-specific work taking the specific phase for a rock objective.\n- Keep an athlete with an aerobic deficiency in base until the threshold gap closes, and shorten the specific phase rather than the base if the date is fixed.\n- Program each block as building weeks followed by one reduced week, using three-then-one as the default and two-then-one when recovery signals or life stress warrant it.\n- End each block with a concrete check of the capacity it was meant to build, and do not begin the next block until the check has been read.\n- Build a weekly template that names the long session, the strength sessions and the rest day first, then fills the remaining days with easy volume.\n- Introduce nothing new in the taper, and cut volume by roughly a third to a half while keeping a small dose of intensity.\n- When weeks are missed, resume at the load before the gap and extend the block, and never compress the missed volume into the following weeks.\n- Ask what caused a gap in the calendar before changing the plan, because illness, injury and a busy week call for different returns.\n\n## Signals that contradict this\n\n- A benchmark that has not moved at the end of a block, with good recovery signals and high completion, indicates the block's stimulus was too small and the next block should raise load rather than simply continue.\n- A benchmark that has not moved with poor recovery signals indicates the block was not absorbed, and the next block should begin with an extended reduced period rather than more load.\n- An athlete who arrives at the specific phase with a wide threshold gap has left base too early, and the coach should extend base and shorten the specific phase even if the plan said otherwise.\n- Rising fatigue, worsening sleep or falling motivation during a taper indicates the taper has cut too little or too late, and the remaining volume should drop further.\n- A pursuit calendar that already contains long outings most weekends means the plan's long session is being provided by the pursuits, and the coach should count those outings rather than add a second long session.\n- Two objectives placed within a few weeks of each other cannot both receive a full peak, and the coach should ask the athlete which one is primary before building either plan."
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01QWpoqA5YwXvxZCJQpJnbdb",
+          "content": "Training is the stimulus; recovery is where the body turns it into fitness. The coach manages recovery as deliberately as it manages load, because an athlete who trains well and recovers badly is an athlete getting slower.\n\n## Sleep and fueling\n\nSleep is the primary recovery tool and nothing substitutes for it. Most of the hormonal and tissue repair that follows a hard session happens during sleep, and a short night after a hard day means the day's adaptation is partly lost. The guideline for a training athlete is roughly seven to nine hours a night, more during high-volume weeks, with consistency of timing mattering nearly as much as duration. When sleep is short for several nights, the coach reduces load before the body forces the reduction.\n\nFueling is the second tool. A mountain athlete in a base phase burns a large amount of energy on easy work, and under-eating then is the most common reason a base phase produces fatigue instead of fitness. The rules: eat enough to support the training, eat carbohydrate around harder sessions and long days, eat protein regularly through the day, and never use training to erase food. The app's nutrition logging shows whether intake is keeping pace with load; it is not a tool for restriction. Any signal of restriction, purging or training to compensate for eating is a red flag the safety rules already handle: the coach declines the programming request and refers.\n\n## The signals the app can see\n\nThe app records several signals, and each carries a specific meaning. The coach reads trends, not single readings, because every one of these is noisy day to day.\n\n1. Resting heart rate. A morning resting heart rate that trends upward over several days, by several beats above the athlete's usual, indicates incomplete recovery, oncoming illness or accumulated stress. A single high reading is noise. A rising week is a signal to reduce load.\n\n2. HRV trend. Heart-rate variability reflects the balance of the autonomic nervous system. A downward trend over a week or more, relative to the athlete's own baseline, points to fatigue, stress or illness. An upward or stable trend during a building block is reassurance. The absolute number means little; the direction relative to the athlete's own baseline is what counts.\n\n3. Heart-rate drift on steady efforts, also called aerobic decoupling. On a long effort at constant pace, the degree to which heart rate rises in the second half relative to the first is a direct measure of aerobic fitness at that intensity. Low drift, under roughly three to five percent, means the effort was aerobically well supported. High drift on an effort that used to show low drift, at the same pace, means the athlete is fatigued, dehydrated, under-fueled or getting ill. Tracked over weeks, falling drift at a given pace is the clearest evidence in the app that the base is building.\n\n4. The acute-to-chronic load ratio. The ratio of the last week's training load to the average of the last several weeks describes how sharply load has risen. A ratio near one means load is steady. A ratio well above one, with roughly one and a half as the common warning line, means the last week was a spike relative to what the body is used to, and injury risk rises with spikes regardless of the absolute load. A ratio well below one for weeks means fitness is being lost. The ratio matters because tissue adapts to what it has been doing, not to what the athlete intends; a big week after several small ones is where injuries happen.\n\nNone of these signals decides anything alone. Two of them moving the same way, or one of them moving alongside what the athlete reports about sleep, mood and soreness, is a pattern the coach acts on.\n\n## Planned deloads\n\nA deload is a reduced-load week placed before fatigue demands it. The common guideline is one every third or fourth week, with volume cut by roughly a third to a half and intensity kept light. The deload is where the previous weeks' training consolidates into fitness; skipping it does not save time, it delays the adaptation and raises the chance of the unplanned deload that illness or injury imposes.\n\nSigns a deload should come early: rising resting heart rate, falling HRV trend, rising drift on easy efforts, poor sleep, flat mood, a lift that fails at a previously clean load. Two or more of these together, and the coach brings the deload forward rather than finishing the block.\n\n## Overreaching and overtraining\n\nOverreaching is short-term fatigue from a hard block, cleared by a deload of a week or two, and it is a normal part of training. Overtraining is a longer-term state produced by months of load exceeding recovery, with persistent fatigue, falling performance, disturbed sleep, mood changes and often frequent illness, and it takes weeks to months of reduced training to reverse. The line between them is whether the deload works. If a reduced week restores freshness, the athlete was overreached. If it does not, the coach treats the situation as possible overtraining, reduces load substantially, and recommends the athlete see a clinician to rule out the medical causes that mimic it.\n\n## Soreness versus injury\n\nThe app's safety rules draw this line and the doctrine restates it the same way.\n\nSoreness is a training input. Delayed-onset muscle soreness after a new or hard session, general fatigue, and the ordinary ache of a big day are normal, they resolve in a few days, and they inform the next session's load without stopping it. A cleared old injury is also a training input.\n\nReported pain is not. Acute pain, swelling, numbness, a sharp or localized pain that changes movement, or a named injury stops loading the affected region, and the coach says so once and plainly, then points the athlete to a clinician. The coach does not diagnose, does not interpret symptoms, does not prescribe rehabilitation, and does not program around a reported injury as if it were a preference. Training of unaffected regions can continue only within whatever a clinician has cleared. Medical restrictions recorded in the athlete's profile are constraints that only the clinician who set them can lift.\n\nThe distinction the coach uses: soreness is diffuse, symmetrical, arrives a day or two after the work and fades; injury is local, often one-sided, arrives during or right after a movement, and does not fade with easy movement. When the athlete's description is unclear, the coach asks, and if it remains unclear, it treats the report as pain.\n\n## Illness\n\nA common and workable guideline: symptoms above the neck only, such as a mild cold with a runny nose or a scratchy throat, allow easy training at reduced volume if the athlete feels up to it. Symptoms below the neck, meaning fever, body aches, chest congestion, a productive cough or gut symptoms, mean rest until they have fully cleared and for a day or two after. Training through a fever is dangerous and delays recovery. The return after illness follows the missed-weeks rule: resume at the load before the gap, not the planned load.\n\n## Consistency beats heroics\n\nThe athlete who trains moderately every week for a year is fitter than the athlete who trains heroically for a month and then breaks. Every rule in this topic serves that. A recovery week is not a lost week. A short session done is worth more than a long session skipped. A day off taken when the signals say so protects the month. The coach's job is to keep the athlete training next month, not to extract the most from this week.\n\n## How the coach applies this\n\n- Reduce load when the athlete reports several consecutive short nights, and treat sleep as a training variable rather than a personal matter.\n- Check that fueling is keeping pace with load during high-volume phases, and decline and refer on any signal of restriction, purging or training to erase food.\n- Read resting heart rate, HRV, drift and the acute-to-chronic ratio as trends against the athlete's own baseline, and act when two signals move together or one moves alongside what the athlete reports.\n- Keep the acute-to-chronic load ratio from spiking, with roughly one and a half as the warning line, by raising load gradually and never doubling up after a missed week.\n- Program a deload every third or fourth week as a guideline and bring it forward when two or more fatigue signals appear together.\n- Treat a deload that does not restore freshness as possible overtraining, reduce load substantially, and recommend a clinician visit.\n- Keep coaching through soreness, ordinary fatigue and a cleared old injury, and stop loading a region on any reported pain, swelling, numbness or named injury while pointing to a clinician.\n- Allow easy reduced training with above-the-neck symptoms only, require rest with below-the-neck symptoms until fully cleared, and resume at the pre-illness load.\n- Prefer the smaller session done to the larger session skipped, in every phase.\n\n## Signals that contradict this\n\n- A resting heart rate several beats above the athlete's usual for three or more consecutive mornings indicates the current load is not being absorbed, and the plan should reduce before the body forces it.\n- A downward HRV trend over a week or more, relative to the athlete's own baseline, is a fatigue or illness signal even when the athlete reports feeling fine.\n- Heart-rate drift that rises on an effort at a pace and duration that recently showed low drift indicates fatigue, under-fueling, dehydration or illness rather than a need for more training.\n- An acute-to-chronic load ratio well above one after a week of unusually high volume marks a spike that raises injury risk, and the following week should hold or drop regardless of how good the athlete feels.\n- A reduced week that does not restore freshness, performance and mood indicates the fatigue is deeper than overreaching, and the coach should not resume the block.\n- Any description of pain that is local, one-sided, sharp, or that arrived during a specific movement is treated as injury rather than soreness, and the coach stops loading that region.\n- A logged fever, body aches or chest symptoms mean rest, and no schedule pressure changes that."
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01C3c8D1FWVNNqZK7f1Pq8Hn",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01YZSiL1RPSwKDTsvKvGcyK4",
+          "name": "get_session_summaries",
+          "input": {
+            "start": "2026-07-06",
+            "end": "2026-08-02",
+            "limit": 30
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01XKcPYzjkRac9zDnJCr3qPz",
+          "name": "get_training_blocks",
+          "input": {
+            "scope": "all",
+            "include_objectives": true
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01YZSiL1RPSwKDTsvKvGcyK4",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01XKcPYzjkRac9zDnJCr3qPz",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01GJJFjy1Zxmdj3J8UChrNcK",
+          "name": "read_doctrine",
+          "input": {
+            "topic": "mobility"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01GJJFjy1Zxmdj3J8UChrNcK",
+          "content": "Mobility is the range of motion the athlete can control under load, and climbing, skiing and steep hiking each demand a specific floor of it. Below that floor, strength cannot be expressed, technique breaks down and load shifts to tissue that was not built for it, so mobility is a constraint the plan must satisfy, not a decoration added when time allows.\n\n## Why mobility is a constraint\n\nEvery movement the pursuits require has a range it happens in. A high step on rock needs hip flexion with the trunk upright. A deep kick-turn on skis needs hip rotation and ankle dorsiflexion. A long descent under a pack needs ankles and knees that absorb over a full range. A drop-knee, a stem, a rock-over, a mantle and an ice-tool swing overhead each need shoulder and thoracic range that most desk-bound adults have lost. When the range is missing, the athlete either cannot do the move, does it from a compromised position that loads the wrong tissue, or does it with force that a more mobile athlete would not need. All three cost energy and raise injury risk on a long day.\n\nThis is why mobility sits in the athlete's own ideal as a baseline: the dancer's precision and the climber's delicacy are both impossible without it, and mass that cannot move through range is a failure of the model.\n\n## The ranges the pursuits demand\n\nFour regions decide most of it. The coach programs to keep each at or above the floor and treats a deficit as a plan input.\n\n1. Hips. Flexion deep enough for a high step and a full squat with the heels down; rotation in both directions for stemming, drop-knees and kick-turns; extension enough for a full stride uphill and a strong hinge. The hips are where most restriction accumulates from sitting, and where most compensations in the lower back and knees originate.\n\n2. Ankles. Dorsiflexion enough to keep the heel down in a deep squat and to absorb a steep descent; plantarflexion and controlled inversion and eversion for edging on rock, skinning on sidehill and walking on uneven ground. Stiff ankles push load up the chain to the knees and hips.\n\n3. Thoracic spine. Extension and rotation enough to reach overhead without arching the lower back, to look up on a climb, to rotate the trunk on a ski turn, and to carry a pack with the shoulders back. A stiff mid-back is why many climbers' shoulders and lower backs hurt.\n\n4. Shoulders. Full overhead flexion, external rotation for hanging and tool placements, and the scapular control to hang from an arm without collapsing into the joint. The shoulder's range is only useful if it is controlled; passive flexibility without strength at end range is an injury risk in its own right.\n\n## The daily minimum\n\nMobility responds to frequency more than to duration. A short, daily practice keeps range that a long weekly session cannot. The guideline is roughly ten to fifteen minutes a day, every day, covering all four regions, built from movements the athlete can do anywhere without equipment.\n\nThe shape:\n1. Move each region through its full range under light control, not stretched passively at the end.\n2. Spend extra time on the region that is most restricted or that the day's session will load.\n3. Include a few positions held with active tension at end range, so the range is one the athlete owns rather than one that is merely available.\n4. Keep it easy enough that it never competes with training for recovery, and short enough that it is never skipped.\n\nThe app's daily routine slots are where this lives. It is scheduled, it is logged, and it counts as done when the minimum is met.\n\n## Placement around strength and aerobic work\n\n1. Before a strength session: dynamic movement through the ranges the session will load, plus specific preparation for the day's lifts. No long static holds before heavy work, because they reduce force output for a period afterward.\n2. After a strength session, or in the evening: the longer holds and the loaded end-range work, when tissue is warm and there is no force demand coming.\n3. Before an aerobic session: brief, dynamic, focused on ankles and hips. An easy aerobic session is itself a warmup.\n4. On rest days: the full daily minimum plus any extra work on the most restricted region, because this is where mobility gains are actually made.\n5. Dedicated mobility work never replaces a strength or aerobic session. When time is short, the daily minimum is done and the longer work waits.\n\n## Mobility problem, strength problem, or pain problem\n\nA restriction the athlete reports or the coach observes has one of three causes, and only the first two are the coach's to address.\n\n1. A mobility problem: the range is missing passively and actively, with no pain, and improves with consistent mobility work. Program the daily minimum with extra attention to that region and re-check in several weeks.\n\n2. A strength problem: the range is available passively but the athlete cannot control it or produce force in it, such as a squat that can be reached with assistance but not held unassisted, or a shoulder that reaches overhead but collapses under load. This is not fixed by stretching. Program strength at end range: loaded, controlled work through the full range, unilateral and slow, so the nervous system learns to own the position.\n\n3. A pain problem: the range is limited by pain, or pain appears at end range, or the restriction followed an incident, a fall, or a named injury. This is not the coach's to diagnose or treat. The coach stops loading that region and points the athlete to a clinician, exactly as the safety rules require. It does not prescribe stretches for pain, it does not interpret what the pain means, and it does not program around it as if it were a preference.\n\nWhen the athlete's description does not clearly separate these, the coach asks whether there is pain. If there is, or if it is unclear, it is a pain problem.\n\n## How the coach applies this\n\n- Treat mobility at the hips, ankles, thoracic spine and shoulders as a floor the plan must maintain, and program to close any deficit as a plan input rather than an afterthought.\n- Schedule a daily mobility minimum of roughly ten to fifteen minutes, as a guideline, built from active full-range movement and a few controlled end-range holds.\n- Place dynamic mobility before strength and aerobic sessions, longer holds and loaded end-range work after strength or in the evening, and the fullest mobility work on rest days.\n- Avoid long static holds immediately before heavy strength or power work.\n- Never let dedicated mobility work replace a strength or aerobic session; keep the daily minimum and let the longer work wait when time is short.\n- Sort any reported restriction into a mobility problem, a strength problem or a pain problem before programming for it, and ask about pain when the report is unclear.\n- Program end-range strength work, not stretching, for a range that is available passively but not controlled.\n- Stop loading a region and point to a clinician for any restriction that involves pain, followed an incident, or is a named injury.\n\n## Signals that contradict this\n\n- A restriction that does not change after several weeks of consistent daily mobility work is unlikely to be a pure mobility problem, and the coach should reconsider whether it is a strength or pain problem.\n- Any pain reported at end range, during a mobility movement, or after an incident moves the restriction out of the coach's scope and to a clinician.\n- An athlete who reports full passive range but loses position under load has a strength problem, and more stretching will not help and may increase joint laxity.\n- Force output that drops in a strength session after long pre-session static stretching indicates the mobility work is misplaced and belongs after the session.\n- Mobility sessions that grow long enough to displace strength or aerobic work, or that the athlete reports as fatiguing, have crossed from a baseline constraint into a competing session and should be shortened."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Reading the block: taper week 1 of 2, cardio target 300 min/week, volume cut a third to a half, nothing new, a touch of intensity kept (\"Content: volume drops by roughly a third to a half... a small amount of intensity and specificity is kept\"). Strength drops to \"a light maintenance dose\" (taper doctrine), mobility stays at the daily 10–15 min floor (hips/ankles/thoracic/shoulders) placed around the work. Building the week on that template, long session cut hardest, one sharpener for intensity, two true rest/mobility-only days."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01XdA2dEWSmUBPJdvUqMYuQv",
+          "name": "create_event",
+          "input": {
+            "type": "weights",
+            "title": "Taper Strength Maintenance",
+            "date": "2026-08-03",
+            "estimated_duration": 40,
+            "difficulty": 2,
+            "tags": [
+              "taper",
+              "maintenance"
+            ],
+            "description": "Light maintenance dose per taper doctrine — nothing new, RPE ≤6 throughout.",
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "reps": "10"
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "10 reps"
+              },
+              {
+                "name": "Back Squat",
+                "sets": 2,
+                "reps": "5",
+                "notes": "Light maintenance load, ~60% of recent working weight. Nothing new."
+              },
+              {
+                "name": "Barbell Row",
+                "sets": 2,
+                "reps": "8",
+                "notes": "Light maintenance load."
+              },
+              {
+                "name": "Single-Leg RDL",
+                "sets": 2,
+                "reps": "8 each leg"
+              },
+              {
+                "name": "Copenhagen Plank",
+                "sets": 2,
+                "duration": "20s each side"
+              },
+              {
+                "name": "Dead Bug",
+                "sets": 2,
+                "reps": "10 each side"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "60s each side"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01XdA2dEWSmUBPJdvUqMYuQv",
+          "content": "Created \"Taper Strength Maintenance\" on 2026-08-03 [evt-ai-1]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_0157G5FaNsxZ5FXts43BbZXb",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Taper Easy Aerobic",
+            "date": "2026-08-04",
+            "estimated_duration": 60,
+            "difficulty": 2,
+            "tags": [
+              "taper",
+              "aerobic",
+              "easy"
+            ],
+            "description": "Zone 2 only, shed fatigue — keep HR well below aerobic threshold.",
+            "exercises": [
+              {
+                "name": "Calf / Ankle Dorsiflexion Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_0157G5FaNsxZ5FXts43BbZXb",
+          "content": "Created \"Taper Easy Aerobic\" on 2026-08-04 [evt-ai-2]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01A12vTsC5mxTMBkx1tUQWhp",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Rest Day Mobility",
+            "date": "2026-08-05",
+            "estimated_duration": 15,
+            "difficulty": 1,
+            "tags": [
+              "taper",
+              "mobility",
+              "rest-day"
+            ],
+            "description": "Full rest day — daily mobility minimum, hip/ankle emphasis.",
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "reps": "10"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "45s each side"
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "60s"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "60s each side"
+              },
+              {
+                "name": "Calf / Ankle Dorsiflexion Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s"
+              },
+              {
+                "name": "Wall Arm Slides",
+                "reps": "10"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01A12vTsC5mxTMBkx1tUQWhp",
+          "content": "Created \"Rest Day Mobility\" on 2026-08-05 [evt-ai-3]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01YJ2L7nsmtcJWxLvQvv53SC",
+          "name": "create_event",
+          "input": {
+            "type": "climbing",
+            "title": "Taper Climbing Sharpener",
+            "date": "2026-08-06",
+            "estimated_duration": 45,
+            "difficulty": 3,
+            "tags": [
+              "taper",
+              "climbing",
+              "intensity"
+            ],
+            "description": "Short session, a little intensity to stay sharp — not a build session. Nothing new.",
+            "exercises": [
+              {
+                "name": "Hangboard Warm-Up"
+              },
+              {
+                "name": "Easy Traversing",
+                "duration": "10 min"
+              },
+              {
+                "name": "ARC Traversing",
+                "duration": "15 min, continuous easy-moderate"
+              },
+              {
+                "name": "Project / Push",
+                "sets": 3,
+                "notes": "2-3 short, crisp attempts near limit — brief touch of intensity, stop well short of grinding."
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s"
+              },
+              {
+                "name": "Posterior Rotator Cuff Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01YJ2L7nsmtcJWxLvQvv53SC",
+          "content": "Created \"Taper Climbing Sharpener\" on 2026-08-06 [evt-ai-4]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01469KxAdTtgVcgf3nBo4QKw",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Taper Easy Aerobic",
+            "date": "2026-08-07",
+            "estimated_duration": 60,
+            "difficulty": 2,
+            "tags": [
+              "taper",
+              "aerobic",
+              "easy"
+            ],
+            "description": "Zone 2 only, shed fatigue — keep HR well below aerobic threshold.",
+            "exercises": [
+              {
+                "name": "Calf / Ankle Dorsiflexion Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01469KxAdTtgVcgf3nBo4QKw",
+          "content": "Created \"Taper Easy Aerobic\" on 2026-08-07 [evt-ai-5]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01DS1DSkJ6Mbi8hZ4QMQpyk6",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Taper Long Aerobic (Shortened)",
+            "date": "2026-08-08",
+            "estimated_duration": 180,
+            "difficulty": 2,
+            "tags": [
+              "taper",
+              "long-session",
+              "aerobic"
+            ],
+            "description": "Week's long day, cut hardest per taper doctrine. Easy pack-on hike, zone 2 throughout, nothing new.",
+            "exercises": [
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Calf / Ankle Dorsiflexion Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "60s"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "60s each side"
+              },
+              {
+                "name": "Child's Pose with Lateral Reach",
+                "duration": "45s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01DS1DSkJ6Mbi8hZ4QMQpyk6",
+          "content": "Created \"Taper Long Aerobic (Shortened)\" on 2026-08-08 [evt-ai-6]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Kr6XEV9BpTm8FD3LdvQgk6",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Rest Day Mobility",
+            "date": "2026-08-09",
+            "estimated_duration": 15,
+            "difficulty": 1,
+            "tags": [
+              "taper",
+              "mobility",
+              "rest-day"
+            ],
+            "description": "Full rest day — daily mobility minimum, thoracic/shoulder emphasis after Saturday's pack load.",
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "reps": "10"
+              },
+              {
+                "name": "Wall Arm Slides",
+                "reps": "12"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "45s"
+              },
+              {
+                "name": "Lat Doorframe Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "60s"
+              },
+              {
+                "name": "Posterior Rotator Cuff Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01Kr6XEV9BpTm8FD3LdvQgk6",
+          "content": "Created \"Rest Day Mobility\" on 2026-08-09 [evt-ai-7]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Taper week scheduled, Mon Aug 3 – Sun Aug 9:\n\n| Day | Session | Duration |\n|---|---|---|\n| Mon | Strength Maintenance (light, 2x5-8) | 40 min |\n| Tue | Easy Aerobic, zone 2 | 60 min |\n| Wed | Rest Day Mobility (hip/ankle) | 15 min |\n| Thu | Climbing Sharpener — brief intensity touch | 45 min |\n| Fri | Easy Aerobic, zone 2 | 60 min |\n| Sat | Long Aerobic, shortened, light pack | 180 min |\n| Sun | Rest Day Mobility (thoracic/shoulder) | 15 min |\n\nCardio sums to exactly 300 min — matches this week's target (0/300). Strength cut to one light maintenance session, long day shortened hardest, one sharpener for a \"small amount of intensity\" — per taper doctrine (\"volume drops by roughly a third to a half... nothing new is introduced\"). Daily mobility floor covered via warmups/cooldowns on training days plus two dedicated rest-day sessions hitting hips, ankles, thoracic, shoulders.\n\nWeek 2 of taper will cut further and likely drop strength per doctrine (\"Strength reduced to a light maintenance dose or dropped in the final week\") — flag that when we get there."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01T6D592FRzU9DT4TpVkRvWh",
+          "name": "get_training_blocks",
+          "input": {
+            "scope": "current",
+            "include_progress": true,
+            "include_objectives": true,
+            "today": "2026-08-03"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01T6D592FRzU9DT4TpVkRvWh",
+          "content": "{\"note\":\"no data for this athlete\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Week 2 of taper — Aug 10 (Mon) through Aug 16 (Sun), objective day Saturday Aug 15. This is the final week: doctrine calls for strength \"dropped in the final week,\" volume cut further, \"extra sleep, extra rest days,\" nothing new (periodization doctrine). Sunday starts the recovery phase proper."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01LrkrS4LJTft3D4d5VhPm4M",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Rest Day Mobility",
+            "date": "2026-08-10",
+            "estimated_duration": 15,
+            "difficulty": 1,
+            "tags": [
+              "taper",
+              "mobility",
+              "rest-day"
+            ],
+            "description": "Final taper week — extra rest. Daily mobility minimum, hip/ankle emphasis.",
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "reps": "10"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "45s each side"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "60s each side"
+              },
+              {
+                "name": "Calf / Ankle Dorsiflexion Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01LrkrS4LJTft3D4d5VhPm4M",
+          "content": "Created \"Rest Day Mobility\" on 2026-08-10 [evt-ai-8]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01QZJSaD9KrPKaX1o1ytUFXV",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Taper Easy Aerobic (Short)",
+            "date": "2026-08-11",
+            "estimated_duration": 30,
+            "difficulty": 1,
+            "tags": [
+              "taper",
+              "aerobic",
+              "easy"
+            ],
+            "description": "Very easy, zone 2, legs loose. Volume cut further than week 1 — arrive fresh.",
+            "exercises": [
+              {
+                "name": "Calf / Ankle Dorsiflexion Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01QZJSaD9KrPKaX1o1ytUFXV",
+          "content": "Created \"Taper Easy Aerobic (Short)\" on 2026-08-11 [evt-ai-9]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01WT14MHpYJ53JEqwsTjwWqq",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Rest Day Mobility",
+            "date": "2026-08-12",
+            "estimated_duration": 15,
+            "difficulty": 1,
+            "tags": [
+              "taper",
+              "mobility",
+              "rest-day"
+            ],
+            "description": "Extra rest day. Daily mobility minimum, thoracic/shoulder emphasis.",
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "reps": "10"
+              },
+              {
+                "name": "Wall Arm Slides",
+                "reps": "10"
+              },
+              {
+                "name": "Thoracic Extension over Foam Roller",
+                "duration": "60s"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01WT14MHpYJ53JEqwsTjwWqq",
+          "content": "Created \"Rest Day Mobility\" on 2026-08-12 [evt-ai-10]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01NULNKbLndZMWMordjx69v5",
+          "name": "create_event",
+          "input": {
+            "type": "cardio",
+            "title": "Taper Easy Aerobic (Short)",
+            "date": "2026-08-13",
+            "estimated_duration": 30,
+            "difficulty": 1,
+            "tags": [
+              "taper",
+              "aerobic",
+              "easy"
+            ],
+            "description": "Very easy, zone 2, shake the legs out. No intensity this close to the objective.",
+            "exercises": [
+              {
+                "name": "Calf / Ankle Dorsiflexion Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01NULNKbLndZMWMordjx69v5",
+          "content": "Created \"Taper Easy Aerobic (Short)\" on 2026-08-13 [evt-ai-11]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01VYdCJjV4AVqS5g36L8oPfS",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Pre-Climb Prep",
+            "date": "2026-08-14",
+            "estimated_duration": 15,
+            "difficulty": 1,
+            "tags": [
+              "taper",
+              "rest-day",
+              "pre-objective"
+            ],
+            "description": "Rest day before the objective. Gear check, early sleep, daily mobility minimum only — nothing new.",
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "reps": "10"
+              },
+              {
+                "name": "90/90 Hip Stretch",
+                "duration": "30s each side"
+              },
+              {
+                "name": "Chest Opener / Pec Stretch",
+                "duration": "30s"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01VYdCJjV4AVqS5g36L8oPfS",
+          "content": "Created \"Pre-Climb Prep\" on 2026-08-14 [evt-ai-12]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_015qEAHtPvLHdrvguzNFoNyg",
+          "name": "create_event",
+          "input": {
+            "type": "outdoor-climbing",
+            "title": "Grand Teton — Owen-Spalding (Objective)",
+            "date": "2026-08-15",
+            "estimated_duration": 660,
+            "difficulty": 4,
+            "tags": [
+              "objective",
+              "grand-teton",
+              "owen-spalding"
+            ],
+            "description": "The objective. Twelve weeks of base and specific work plus a two-week taper behind this — arrive fresh, climb within what's prepared, nothing new today.",
+            "exercises": [
+              {
+                "name": "Approach Hike",
+                "category": "cardio",
+                "duration": "4-5 hr",
+                "notes": "Lower Saddle approach, steady easy effort — save legs for the climb."
+              },
+              {
+                "name": "Owen-Spalding — Pitch 1",
+                "category": "climbing",
+                "climb_style": "trad",
+                "grade": "5.4"
+              },
+              {
+                "name": "Owen-Spalding — Pitch 2",
+                "category": "climbing",
+                "climb_style": "trad",
+                "grade": "5.4"
+              },
+              {
+                "name": "Owen-Spalding — Pitch 3 (Summit)",
+                "category": "climbing",
+                "climb_style": "trad",
+                "grade": "5.4"
+              },
+              {
+                "name": "Descent Hike",
+                "category": "cardio",
+                "duration": "4-5 hr",
+                "notes": "Controlled descent, careful on tired legs."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_015qEAHtPvLHdrvguzNFoNyg",
+          "content": "Created \"Grand Teton — Owen-Spalding (Objective)\" on 2026-08-15 [evt-ai-13]. Added 5 new exercise(s) to the library: Approach Hike, Owen-Spalding — Pitch 1, Owen-Spalding — Pitch 2, Owen-Spalding — Pitch 3 (Summit), Descent Hike."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01MeXeZtgFca4BwacNiVvdmu",
+          "name": "create_event",
+          "input": {
+            "type": "stretching",
+            "title": "Recovery Day — Easy Movement",
+            "date": "2026-08-16",
+            "estimated_duration": 20,
+            "difficulty": 1,
+            "tags": [
+              "recovery"
+            ],
+            "description": "Recovery phase starts: unstructured, easy, enjoyable movement, no plan. Let the big day settle.",
+            "exercises": [
+              {
+                "name": "Cat-Cow",
+                "reps": "10"
+              },
+              {
+                "name": "Pigeon Pose",
+                "duration": "60s each side"
+              },
+              {
+                "name": "Calf / Ankle Dorsiflexion Stretch",
+                "duration": "30s each side"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01MeXeZtgFca4BwacNiVvdmu",
+          "content": "Created \"Recovery Day — Easy Movement\" on 2026-08-16 [evt-ai-14]."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Week 2 (Aug 10–16) scheduled:\n\n| Day | Session | Duration |\n|---|---|---|\n| Mon | Rest Day Mobility (hip/ankle) | 15 min |\n| Tue | Easy Aerobic (short), zone 2 | 30 min |\n| Wed | Rest Day Mobility (thoracic/shoulder) | 15 min |\n| Thu | Easy Aerobic (short), zone 2 | 30 min |\n| Fri | Pre-Climb Prep — gear, early sleep | 15 min |\n| **Sat** | **Grand Teton — Owen-Spalding (Objective)** | ~11 hr |\n| Sun | Recovery Day — easy movement | 20 min |\n\nNo strength this week — dropped per taper doctrine, not just reduced. Aerobic volume down to 60 min easy total before the send, vs. 300 last week — \"extra sleep, extra rest days.\" Objective day built as approach → 3 pitches (5.4 trad, per Owen-Spalding's standard rating) → descent. Sunday opens the recovery phase: \"unstructured, easy, enjoyable movement with no plan\" — nothing prescribed past that day; next step after Aug 15 is a review, not more programming."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Recovery phase is deliberately unplanned — periodization doctrine: \"Recovery. Purpose: let the body and mind reset... one to several weeks of unstructured, easy, enjoyable movement with no plan. Then the next transition begins.\" Scheduling more structured sessions day-by-day here would be the opposite of what this phase is for.\n\nI won't program past Aug 16. Two things determine what comes next:\n\n1. **How long is recovery** — one to several weeks, your call based on how beat up the objective leaves you.\n2. **What's next** — is there a next objective, or are you choosing one? That sets when transition starts and how long base needs to be.\n\nTell me those and I'll build the transition block. Until then, Aug 17 onward stays open — go move, don't follow a plan."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "periodization"
+      },
+      "result": "A training plan is a sequence of phases, each building the capacity the next one needs, ending at a date on which the athlete must be at their best. The sequence is fixed; the lengths, the weekly shape and the specific work are set by the objective.\n\n## The arc\n\nEvery cycle moves through the same five phases in the same order. The order comes from the capacity hierarchy: general before specific, base before intensity, load before rest.\n\n1. Transition. Purpose: re-establish the habit of training, restore movement quality, and prepare tissue for the loads to come. Content: low aerobic volume, all easy; general strength with an emphasis on movement quality, unilateral work, carries, core and posterior chain; daily mobility. This phase is short and unglamorous and skipping it is the most common source of early injury.\n\n2. Base. Purpose: build the aerobic foundation and raise max strength. Content: aerobic volume grows week over week, nearly all below the aerobic threshold; the long session grows first; max strength is trained heavy, low-rep, twice a week; mobility is maintained. This is the longest phase and the one that most determines the outcome.\n\n3. Specific. Purpose: convert the general capacities into the objective's actual demand. Content: aerobic volume holds or drops slightly while the long session becomes a rehearsal of the objective, on similar terrain with similar load and duration; max strength converts to muscular endurance through weighted uphill work; intensity that mimics the objective enters, one session per week at first; for a rock objective, climbing-specific strength and power take priority. The specific phase is where the plan starts to look like the objective.\n\n4. Taper and peak. Purpose: shed fatigue while keeping fitness, so the athlete arrives fresh and sharp. Content: volume drops by roughly a third to a half as a guideline, while a small amount of intensity and specificity is kept so the body stays primed. Nothing new is introduced. The athlete will feel restless and under-trained; this is the taper working.\n\n5. Recovery. Purpose: let the body and mind reset before the next cycle. Content: one to several weeks of unstructured, easy, enjoyable movement with no plan. Then the next transition begins.\n\n## How objective type shapes the phases\n\nThe arc is the same, but the weight of each phase changes with what the objective demands.\n\nAlpine climb or long mountain day. The aerobic base dominates and base is the longest phase. The specific phase rehearses long uphill efforts under a pack with the objective's vertical; muscular endurance is the key conversion; climbing-specific work is maintained, not built, unless the technical crux is near the athlete's limit.\n\nSki traverse or multi-day ski objective. As above, with the specific phase built on skinning under load and long consecutive days. Skiing itself is the best specific work once snow allows.\n\nRock project or technical climbing goal. The aerobic base is maintained rather than grown; climbing-specific strength and power take the place of muscular endurance in the specific phase; the base phase still builds max strength and finger strength because those are the slow adaptations. The result is a climbing plan with an aerobic floor under it, not an aerobic plan with climbing on top.\n\nHunting season. A long specific phase of loaded uphill hiking and carrying, with muscular endurance as the priority and general strength kept for the pack-out. The objective is repeated big days over weeks, so durability and recovery capacity outrank speed.\n\nWith several objectives in a year, the coach chooses one as the primary peak and treats the others as training events or as secondary peaks with a short taper. Two full peaks close together are not possible; the athlete picks.\n\n## Block lengths and the loading pattern\n\nLengths are guidelines and depend on the athlete's training history and the time available. The proportions matter more than the numbers.\n\n- Transition: roughly four to eight weeks. Shorter for an athlete coming off a consistent season, longer after a layoff or injury.\n- Base: roughly eight to sixteen weeks or more. The longer the objective and the wider the aerobic deficiency, the longer the base. An athlete with an aerobic deficiency stays in base until the gap closes.\n- Specific: roughly four to eight weeks. Long enough to convert strength to muscular endurance and rehearse the objective several times; short enough that specific fatigue does not accumulate into the taper.\n- Taper: roughly one to three weeks, longer for a longer objective and a larger preceding volume.\n- Recovery: one to several weeks.\n\nWithin a block, the loading pattern is a rise followed by a drop. The common patterns are three building weeks then one reduced week, or two then one for an athlete who recovers slowly or has high life stress. The building weeks raise volume gradually; the reduced week cuts volume by roughly a third to a half and keeps intensity light. The reduced week is not optional and not a reward; it is where the previous three weeks are consolidated into fitness.\n\nA block ends with a check: has the capacity it was meant to build actually moved? Aerobic threshold pace, a strength benchmark, a rehearsal effort on terrain. If it has, the next block begins. If it has not, the coach looks for the reason before moving on.\n\n## What a week looks like in each phase\n\nThe templates below are shapes, not schedules. The athlete's life, the pursuits and the weather set the days.\n\nTransition week:\n- Two general strength sessions, movement quality first, moderate load.\n- Three to four easy aerobic sessions, short, one of them slightly longer.\n- Daily mobility minimum.\n- One full rest day, and any pursuit outing counts as the long aerobic session.\n\nBase week:\n- Two max strength sessions, heavy and brief, on days that do not precede the long session.\n- One long easy aerobic session, growing week over week, on terrain and ideally under a light pack.\n- Two to four shorter easy aerobic sessions.\n- Mobility maintained daily.\n- One full rest day.\n\nSpecific week:\n- One muscular endurance session (weighted uphill work, loaded step-ups or hill repeats), which replaces one max strength session.\n- One max strength maintenance session, or a climbing-specific strength session for a rock objective.\n- One long session rehearsing the objective's demand.\n- One session of objective-specific intensity, once the base has earned it.\n- One to two short easy aerobic sessions for recovery and volume.\n- One full rest day, sometimes two.\n\nTaper week:\n- Volume cut substantially, sessions shorter, the long session shortened most.\n- One short session with a little intensity to stay sharp.\n- Strength reduced to a light maintenance dose or dropped in the final week.\n- Extra sleep, extra rest days.\n\n## When weeks are missed\n\nLife, illness and weather will remove weeks from any plan. The rule is: do not cram, extend.\n\n1. One missed session is absorbed. The plan continues as written.\n2. Up to a week missed for illness or life: resume at the load of the week before the gap, not the week that was planned, then progress from there. The objective date does not move, but the block may end a week later and the next block starts a week shorter.\n3. Two or more weeks missed: treat the return as a short transition. Resume at reduced volume, rebuild over one to two weeks, then continue the block. If the objective date is fixed, shorten the specific phase rather than the base; if the gap fell in base, the coach and athlete discuss whether the objective is still realistic.\n4. Never compress the missed volume into the following weeks. Doubling up violates gradualness and usually produces the injury that removes the next four weeks too.\n5. A missed reduced week is missed recovery, not missed volume, and it must be taken before the next building block starts.\n\nThe athlete's calendar in the app is the record. When the coach sees a gap, it asks what happened before changing anything, because illness, injury and a busy week each call for a different return.\n\n## How the coach applies this\n\n- Anchor every plan on a named objective with a date, and work backward through taper, specific, base and transition to set the block lengths.\n- Set the weight of each phase by the objective type, with the aerobic base dominant for alpine, ski and hunting objectives and climbing-specific work taking the specific phase for a rock objective.\n- Keep an athlete with an aerobic deficiency in base until the threshold gap closes, and shorten the specific phase rather than the base if the date is fixed.\n- Program each block as building weeks followed by one reduced week, using three-then-one as the default and two-then-one when recovery signals or life stress warrant it.\n- End each block with a concrete check of the capacity it was meant to build, and do not begin the next block until the check has been read.\n- Build a weekly template that names the long session, the strength sessions and the rest day first, then fills the remaining days with easy volume.\n- Introduce nothing new in the taper, and cut volume by roughly a third to a half while keeping a small dose of intensity.\n- When weeks are missed, resume at the load before the gap and extend the block, and never compress the missed volume into the following weeks.\n- Ask what caused a gap in the calendar before changing the plan, because illness, injury and a busy week call for different returns.\n\n## Signals that contradict this\n\n- A benchmark that has not moved at the end of a block, with good recovery signals and high completion, indicates the block's stimulus was too small and the next block should raise load rather than simply continue.\n- A benchmark that has not moved with poor recovery signals indicates the block was not absorbed, and the next block should begin with an extended reduced period rather than more load.\n- An athlete who arrives at the specific phase with a wide threshold gap has left base too early, and the coach should extend base and shorten the specific phase even if the plan said otherwise.\n- Rising fatigue, worsening sleep or falling motivation during a taper indicates the taper has cut too little or too late, and the remaining volume should drop further.\n- A pursuit calendar that already contains long outings most weekends means the plan's long session is being provided by the pursuits, and the coach should count those outings rather than add a second long session.\n- Two objectives placed within a few weeks of each other cannot both receive a full peak, and the coach should ask the athlete which one is primary before building either plan.",
+      "turn": 1,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "recovery"
+      },
+      "result": "Training is the stimulus; recovery is where the body turns it into fitness. The coach manages recovery as deliberately as it manages load, because an athlete who trains well and recovers badly is an athlete getting slower.\n\n## Sleep and fueling\n\nSleep is the primary recovery tool and nothing substitutes for it. Most of the hormonal and tissue repair that follows a hard session happens during sleep, and a short night after a hard day means the day's adaptation is partly lost. The guideline for a training athlete is roughly seven to nine hours a night, more during high-volume weeks, with consistency of timing mattering nearly as much as duration. When sleep is short for several nights, the coach reduces load before the body forces the reduction.\n\nFueling is the second tool. A mountain athlete in a base phase burns a large amount of energy on easy work, and under-eating then is the most common reason a base phase produces fatigue instead of fitness. The rules: eat enough to support the training, eat carbohydrate around harder sessions and long days, eat protein regularly through the day, and never use training to erase food. The app's nutrition logging shows whether intake is keeping pace with load; it is not a tool for restriction. Any signal of restriction, purging or training to compensate for eating is a red flag the safety rules already handle: the coach declines the programming request and refers.\n\n## The signals the app can see\n\nThe app records several signals, and each carries a specific meaning. The coach reads trends, not single readings, because every one of these is noisy day to day.\n\n1. Resting heart rate. A morning resting heart rate that trends upward over several days, by several beats above the athlete's usual, indicates incomplete recovery, oncoming illness or accumulated stress. A single high reading is noise. A rising week is a signal to reduce load.\n\n2. HRV trend. Heart-rate variability reflects the balance of the autonomic nervous system. A downward trend over a week or more, relative to the athlete's own baseline, points to fatigue, stress or illness. An upward or stable trend during a building block is reassurance. The absolute number means little; the direction relative to the athlete's own baseline is what counts.\n\n3. Heart-rate drift on steady efforts, also called aerobic decoupling. On a long effort at constant pace, the degree to which heart rate rises in the second half relative to the first is a direct measure of aerobic fitness at that intensity. Low drift, under roughly three to five percent, means the effort was aerobically well supported. High drift on an effort that used to show low drift, at the same pace, means the athlete is fatigued, dehydrated, under-fueled or getting ill. Tracked over weeks, falling drift at a given pace is the clearest evidence in the app that the base is building.\n\n4. The acute-to-chronic load ratio. The ratio of the last week's training load to the average of the last several weeks describes how sharply load has risen. A ratio near one means load is steady. A ratio well above one, with roughly one and a half as the common warning line, means the last week was a spike relative to what the body is used to, and injury risk rises with spikes regardless of the absolute load. A ratio well below one for weeks means fitness is being lost. The ratio matters because tissue adapts to what it has been doing, not to what the athlete intends; a big week after several small ones is where injuries happen.\n\nNone of these signals decides anything alone. Two of them moving the same way, or one of them moving alongside what the athlete reports about sleep, mood and soreness, is a pattern the coach acts on.\n\n## Planned deloads\n\nA deload is a reduced-load week placed before fatigue demands it. The common guideline is one every third or fourth week, with volume cut by roughly a third to a half and intensity kept light. The deload is where the previous weeks' training consolidates into fitness; skipping it does not save time, it delays the adaptation and raises the chance of the unplanned deload that illness or injury imposes.\n\nSigns a deload should come early: rising resting heart rate, falling HRV trend, rising drift on easy efforts, poor sleep, flat mood, a lift that fails at a previously clean load. Two or more of these together, and the coach brings the deload forward rather than finishing the block.\n\n## Overreaching and overtraining\n\nOverreaching is short-term fatigue from a hard block, cleared by a deload of a week or two, and it is a normal part of training. Overtraining is a longer-term state produced by months of load exceeding recovery, with persistent fatigue, falling performance, disturbed sleep, mood changes and often frequent illness, and it takes weeks to months of reduced training to reverse. The line between them is whether the deload works. If a reduced week restores freshness, the athlete was overreached. If it does not, the coach treats the situation as possible overtraining, reduces load substantially, and recommends the athlete see a clinician to rule out the medical causes that mimic it.\n\n## Soreness versus injury\n\nThe app's safety rules draw this line and the doctrine restates it the same way.\n\nSoreness is a training input. Delayed-onset muscle soreness after a new or hard session, general fatigue, and the ordinary ache of a big day are normal, they resolve in a few days, and they inform the next session's load without stopping it. A cleared old injury is also a training input.\n\nReported pain is not. Acute pain, swelling, numbness, a sharp or localized pain that changes movement, or a named injury stops loading the affected region, and the coach says so once and plainly, then points the athlete to a clinician. The coach does not diagnose, does not interpret symptoms, does not prescribe rehabilitation, and does not program around a reported injury as if it were a preference. Training of unaffected regions can continue only within whatever a clinician has cleared. Medical restrictions recorded in the athlete's profile are constraints that only the clinician who set them can lift.\n\nThe distinction the coach uses: soreness is diffuse, symmetrical, arrives a day or two after the work and fades; injury is local, often one-sided, arrives during or right after a movement, and does not fade with easy movement. When the athlete's description is unclear, the coach asks, and if it remains unclear, it treats the report as pain.\n\n## Illness\n\nA common and workable guideline: symptoms above the neck only, such as a mild cold with a runny nose or a scratchy throat, allow easy training at reduced volume if the athlete feels up to it. Symptoms below the neck, meaning fever, body aches, chest congestion, a productive cough or gut symptoms, mean rest until they have fully cleared and for a day or two after. Training through a fever is dangerous and delays recovery. The return after illness follows the missed-weeks rule: resume at the load before the gap, not the planned load.\n\n## Consistency beats heroics\n\nThe athlete who trains moderately every week for a year is fitter than the athlete who trains heroically for a month and then breaks. Every rule in this topic serves that. A recovery week is not a lost week. A short session done is worth more than a long session skipped. A day off taken when the signals say so protects the month. The coach's job is to keep the athlete training next month, not to extract the most from this week.\n\n## How the coach applies this\n\n- Reduce load when the athlete reports several consecutive short nights, and treat sleep as a training variable rather than a personal matter.\n- Check that fueling is keeping pace with load during high-volume phases, and decline and refer on any signal of restriction, purging or training to erase food.\n- Read resting heart rate, HRV, drift and the acute-to-chronic ratio as trends against the athlete's own baseline, and act when two signals move together or one moves alongside what the athlete reports.\n- Keep the acute-to-chronic load ratio from spiking, with roughly one and a half as the warning line, by raising load gradually and never doubling up after a missed week.\n- Program a deload every third or fourth week as a guideline and bring it forward when two or more fatigue signals appear together.\n- Treat a deload that does not restore freshness as possible overtraining, reduce load substantially, and recommend a clinician visit.\n- Keep coaching through soreness, ordinary fatigue and a cleared old injury, and stop loading a region on any reported pain, swelling, numbness or named injury while pointing to a clinician.\n- Allow easy reduced training with above-the-neck symptoms only, require rest with below-the-neck symptoms until fully cleared, and resume at the pre-illness load.\n- Prefer the smaller session done to the larger session skipped, in every phase.\n\n## Signals that contradict this\n\n- A resting heart rate several beats above the athlete's usual for three or more consecutive mornings indicates the current load is not being absorbed, and the plan should reduce before the body forces it.\n- A downward HRV trend over a week or more, relative to the athlete's own baseline, is a fatigue or illness signal even when the athlete reports feeling fine.\n- Heart-rate drift that rises on an effort at a pace and duration that recently showed low drift indicates fatigue, under-fueling, dehydration or illness rather than a need for more training.\n- An acute-to-chronic load ratio well above one after a week of unusually high volume marks a spike that raises injury risk, and the following week should hold or drop regardless of how good the athlete feels.\n- A reduced week that does not restore freshness, performance and mood indicates the fatigue is deeper than overreaching, and the coach should not resume the block.\n- Any description of pain that is local, one-sided, sharp, or that arrived during a specific movement is treated as injury rather than soreness, and the coach stops loading that region.\n- A logged fever, body aches or chest symptoms mean rest, and no schedule pressure changes that.",
+      "turn": 1,
+      "kind": "read",
+      "round": 1
+    },
+    {
+      "name": "get_schedule",
+      "input": {
+        "start_date": "2026-07-13",
+        "end_date": "2026-08-02"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 2
+    },
+    {
+      "name": "get_session_summaries",
+      "input": {
+        "start": "2026-07-06",
+        "end": "2026-08-02",
+        "limit": 30
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 3
+    },
+    {
+      "name": "get_training_blocks",
+      "input": {
+        "scope": "all",
+        "include_objectives": true
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 1,
+      "kind": "read",
+      "round": 4
+    },
+    {
+      "name": "read_doctrine",
+      "input": {
+        "topic": "mobility"
+      },
+      "result": "Mobility is the range of motion the athlete can control under load, and climbing, skiing and steep hiking each demand a specific floor of it. Below that floor, strength cannot be expressed, technique breaks down and load shifts to tissue that was not built for it, so mobility is a constraint the plan must satisfy, not a decoration added when time allows.\n\n## Why mobility is a constraint\n\nEvery movement the pursuits require has a range it happens in. A high step on rock needs hip flexion with the trunk upright. A deep kick-turn on skis needs hip rotation and ankle dorsiflexion. A long descent under a pack needs ankles and knees that absorb over a full range. A drop-knee, a stem, a rock-over, a mantle and an ice-tool swing overhead each need shoulder and thoracic range that most desk-bound adults have lost. When the range is missing, the athlete either cannot do the move, does it from a compromised position that loads the wrong tissue, or does it with force that a more mobile athlete would not need. All three cost energy and raise injury risk on a long day.\n\nThis is why mobility sits in the athlete's own ideal as a baseline: the dancer's precision and the climber's delicacy are both impossible without it, and mass that cannot move through range is a failure of the model.\n\n## The ranges the pursuits demand\n\nFour regions decide most of it. The coach programs to keep each at or above the floor and treats a deficit as a plan input.\n\n1. Hips. Flexion deep enough for a high step and a full squat with the heels down; rotation in both directions for stemming, drop-knees and kick-turns; extension enough for a full stride uphill and a strong hinge. The hips are where most restriction accumulates from sitting, and where most compensations in the lower back and knees originate.\n\n2. Ankles. Dorsiflexion enough to keep the heel down in a deep squat and to absorb a steep descent; plantarflexion and controlled inversion and eversion for edging on rock, skinning on sidehill and walking on uneven ground. Stiff ankles push load up the chain to the knees and hips.\n\n3. Thoracic spine. Extension and rotation enough to reach overhead without arching the lower back, to look up on a climb, to rotate the trunk on a ski turn, and to carry a pack with the shoulders back. A stiff mid-back is why many climbers' shoulders and lower backs hurt.\n\n4. Shoulders. Full overhead flexion, external rotation for hanging and tool placements, and the scapular control to hang from an arm without collapsing into the joint. The shoulder's range is only useful if it is controlled; passive flexibility without strength at end range is an injury risk in its own right.\n\n## The daily minimum\n\nMobility responds to frequency more than to duration. A short, daily practice keeps range that a long weekly session cannot. The guideline is roughly ten to fifteen minutes a day, every day, covering all four regions, built from movements the athlete can do anywhere without equipment.\n\nThe shape:\n1. Move each region through its full range under light control, not stretched passively at the end.\n2. Spend extra time on the region that is most restricted or that the day's session will load.\n3. Include a few positions held with active tension at end range, so the range is one the athlete owns rather than one that is merely available.\n4. Keep it easy enough that it never competes with training for recovery, and short enough that it is never skipped.\n\nThe app's daily routine slots are where this lives. It is scheduled, it is logged, and it counts as done when the minimum is met.\n\n## Placement around strength and aerobic work\n\n1. Before a strength session: dynamic movement through the ranges the session will load, plus specific preparation for the day's lifts. No long static holds before heavy work, because they reduce force output for a period afterward.\n2. After a strength session, or in the evening: the longer holds and the loaded end-range work, when tissue is warm and there is no force demand coming.\n3. Before an aerobic session: brief, dynamic, focused on ankles and hips. An easy aerobic session is itself a warmup.\n4. On rest days: the full daily minimum plus any extra work on the most restricted region, because this is where mobility gains are actually made.\n5. Dedicated mobility work never replaces a strength or aerobic session. When time is short, the daily minimum is done and the longer work waits.\n\n## Mobility problem, strength problem, or pain problem\n\nA restriction the athlete reports or the coach observes has one of three causes, and only the first two are the coach's to address.\n\n1. A mobility problem: the range is missing passively and actively, with no pain, and improves with consistent mobility work. Program the daily minimum with extra attention to that region and re-check in several weeks.\n\n2. A strength problem: the range is available passively but the athlete cannot control it or produce force in it, such as a squat that can be reached with assistance but not held unassisted, or a shoulder that reaches overhead but collapses under load. This is not fixed by stretching. Program strength at end range: loaded, controlled work through the full range, unilateral and slow, so the nervous system learns to own the position.\n\n3. A pain problem: the range is limited by pain, or pain appears at end range, or the restriction followed an incident, a fall, or a named injury. This is not the coach's to diagnose or treat. The coach stops loading that region and points the athlete to a clinician, exactly as the safety rules require. It does not prescribe stretches for pain, it does not interpret what the pain means, and it does not program around it as if it were a preference.\n\nWhen the athlete's description does not clearly separate these, the coach asks whether there is pain. If there is, or if it is unclear, it is a pain problem.\n\n## How the coach applies this\n\n- Treat mobility at the hips, ankles, thoracic spine and shoulders as a floor the plan must maintain, and program to close any deficit as a plan input rather than an afterthought.\n- Schedule a daily mobility minimum of roughly ten to fifteen minutes, as a guideline, built from active full-range movement and a few controlled end-range holds.\n- Place dynamic mobility before strength and aerobic sessions, longer holds and loaded end-range work after strength or in the evening, and the fullest mobility work on rest days.\n- Avoid long static holds immediately before heavy strength or power work.\n- Never let dedicated mobility work replace a strength or aerobic session; keep the daily minimum and let the longer work wait when time is short.\n- Sort any reported restriction into a mobility problem, a strength problem or a pain problem before programming for it, and ask about pain when the report is unclear.\n- Program end-range strength work, not stretching, for a range that is available passively but not controlled.\n- Stop loading a region and point to a clinician for any restriction that involves pain, followed an incident, or is a named injury.\n\n## Signals that contradict this\n\n- A restriction that does not change after several weeks of consistent daily mobility work is unlikely to be a pure mobility problem, and the coach should reconsider whether it is a strength or pain problem.\n- Any pain reported at end range, during a mobility movement, or after an incident moves the restriction out of the coach's scope and to a clinician.\n- An athlete who reports full passive range but loses position under load has a strength problem, and more stretching will not help and may increase joint laxity.\n- Force output that drops in a strength session after long pre-session static stretching indicates the mobility work is misplaced and belongs after the session.\n- Mobility sessions that grow long enough to displace strength or aerobic work, or that the athlete reports as fatiguing, have crossed from a baseline constraint into a competing session and should be shortened.",
+      "turn": 1,
+      "kind": "read",
+      "round": 5
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "weights",
+        "title": "Taper Strength Maintenance",
+        "date": "2026-08-03",
+        "estimated_duration": 40,
+        "difficulty": 2,
+        "tags": [
+          "taper",
+          "maintenance"
+        ],
+        "description": "Light maintenance dose per taper doctrine — nothing new, RPE ≤6 throughout.",
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "reps": "10"
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "10 reps"
+          },
+          {
+            "name": "Back Squat",
+            "sets": 2,
+            "reps": "5",
+            "notes": "Light maintenance load, ~60% of recent working weight. Nothing new."
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 2,
+            "reps": "8",
+            "notes": "Light maintenance load."
+          },
+          {
+            "name": "Single-Leg RDL",
+            "sets": 2,
+            "reps": "8 each leg"
+          },
+          {
+            "name": "Copenhagen Plank",
+            "sets": 2,
+            "duration": "20s each side"
+          },
+          {
+            "name": "Dead Bug",
+            "sets": 2,
+            "reps": "10 each side"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "60s each side"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s"
+          }
+        ]
+      },
+      "result": "Created \"Taper Strength Maintenance\" on 2026-08-03 [evt-ai-1].",
+      "turn": 1,
+      "kind": "write",
+      "round": 6
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Taper Easy Aerobic",
+        "date": "2026-08-04",
+        "estimated_duration": 60,
+        "difficulty": 2,
+        "tags": [
+          "taper",
+          "aerobic",
+          "easy"
+        ],
+        "description": "Zone 2 only, shed fatigue — keep HR well below aerobic threshold.",
+        "exercises": [
+          {
+            "name": "Calf / Ankle Dorsiflexion Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Taper Easy Aerobic\" on 2026-08-04 [evt-ai-2].",
+      "turn": 1,
+      "kind": "write",
+      "round": 7
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Rest Day Mobility",
+        "date": "2026-08-05",
+        "estimated_duration": 15,
+        "difficulty": 1,
+        "tags": [
+          "taper",
+          "mobility",
+          "rest-day"
+        ],
+        "description": "Full rest day — daily mobility minimum, hip/ankle emphasis.",
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "reps": "10"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "45s each side"
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "60s"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "60s each side"
+          },
+          {
+            "name": "Calf / Ankle Dorsiflexion Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s"
+          },
+          {
+            "name": "Wall Arm Slides",
+            "reps": "10"
+          }
+        ]
+      },
+      "result": "Created \"Rest Day Mobility\" on 2026-08-05 [evt-ai-3].",
+      "turn": 1,
+      "kind": "write",
+      "round": 8
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "climbing",
+        "title": "Taper Climbing Sharpener",
+        "date": "2026-08-06",
+        "estimated_duration": 45,
+        "difficulty": 3,
+        "tags": [
+          "taper",
+          "climbing",
+          "intensity"
+        ],
+        "description": "Short session, a little intensity to stay sharp — not a build session. Nothing new.",
+        "exercises": [
+          {
+            "name": "Hangboard Warm-Up"
+          },
+          {
+            "name": "Easy Traversing",
+            "duration": "10 min"
+          },
+          {
+            "name": "ARC Traversing",
+            "duration": "15 min, continuous easy-moderate"
+          },
+          {
+            "name": "Project / Push",
+            "sets": 3,
+            "notes": "2-3 short, crisp attempts near limit — brief touch of intensity, stop well short of grinding."
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s"
+          },
+          {
+            "name": "Posterior Rotator Cuff Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Taper Climbing Sharpener\" on 2026-08-06 [evt-ai-4].",
+      "turn": 1,
+      "kind": "write",
+      "round": 9
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Taper Easy Aerobic",
+        "date": "2026-08-07",
+        "estimated_duration": 60,
+        "difficulty": 2,
+        "tags": [
+          "taper",
+          "aerobic",
+          "easy"
+        ],
+        "description": "Zone 2 only, shed fatigue — keep HR well below aerobic threshold.",
+        "exercises": [
+          {
+            "name": "Calf / Ankle Dorsiflexion Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Taper Easy Aerobic\" on 2026-08-07 [evt-ai-5].",
+      "turn": 1,
+      "kind": "write",
+      "round": 10
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Taper Long Aerobic (Shortened)",
+        "date": "2026-08-08",
+        "estimated_duration": 180,
+        "difficulty": 2,
+        "tags": [
+          "taper",
+          "long-session",
+          "aerobic"
+        ],
+        "description": "Week's long day, cut hardest per taper doctrine. Easy pack-on hike, zone 2 throughout, nothing new.",
+        "exercises": [
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Calf / Ankle Dorsiflexion Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "60s"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "60s each side"
+          },
+          {
+            "name": "Child's Pose with Lateral Reach",
+            "duration": "45s each side"
+          }
+        ]
+      },
+      "result": "Created \"Taper Long Aerobic (Shortened)\" on 2026-08-08 [evt-ai-6].",
+      "turn": 1,
+      "kind": "write",
+      "round": 11
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Rest Day Mobility",
+        "date": "2026-08-09",
+        "estimated_duration": 15,
+        "difficulty": 1,
+        "tags": [
+          "taper",
+          "mobility",
+          "rest-day"
+        ],
+        "description": "Full rest day — daily mobility minimum, thoracic/shoulder emphasis after Saturday's pack load.",
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "reps": "10"
+          },
+          {
+            "name": "Wall Arm Slides",
+            "reps": "12"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "45s"
+          },
+          {
+            "name": "Lat Doorframe Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "60s"
+          },
+          {
+            "name": "Posterior Rotator Cuff Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Rest Day Mobility\" on 2026-08-09 [evt-ai-7].",
+      "turn": 1,
+      "kind": "write",
+      "round": 12
+    },
+    {
+      "name": "get_training_blocks",
+      "input": {
+        "scope": "current",
+        "include_progress": true,
+        "include_objectives": true,
+        "today": "2026-08-03"
+      },
+      "result": "{\"note\":\"no data for this athlete\"}",
+      "turn": 2,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Rest Day Mobility",
+        "date": "2026-08-10",
+        "estimated_duration": 15,
+        "difficulty": 1,
+        "tags": [
+          "taper",
+          "mobility",
+          "rest-day"
+        ],
+        "description": "Final taper week — extra rest. Daily mobility minimum, hip/ankle emphasis.",
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "reps": "10"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "45s each side"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "60s each side"
+          },
+          {
+            "name": "Calf / Ankle Dorsiflexion Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Rest Day Mobility\" on 2026-08-10 [evt-ai-8].",
+      "turn": 2,
+      "kind": "write",
+      "round": 1
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Taper Easy Aerobic (Short)",
+        "date": "2026-08-11",
+        "estimated_duration": 30,
+        "difficulty": 1,
+        "tags": [
+          "taper",
+          "aerobic",
+          "easy"
+        ],
+        "description": "Very easy, zone 2, legs loose. Volume cut further than week 1 — arrive fresh.",
+        "exercises": [
+          {
+            "name": "Calf / Ankle Dorsiflexion Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Taper Easy Aerobic (Short)\" on 2026-08-11 [evt-ai-9].",
+      "turn": 2,
+      "kind": "write",
+      "round": 2
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Rest Day Mobility",
+        "date": "2026-08-12",
+        "estimated_duration": 15,
+        "difficulty": 1,
+        "tags": [
+          "taper",
+          "mobility",
+          "rest-day"
+        ],
+        "description": "Extra rest day. Daily mobility minimum, thoracic/shoulder emphasis.",
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "reps": "10"
+          },
+          {
+            "name": "Wall Arm Slides",
+            "reps": "10"
+          },
+          {
+            "name": "Thoracic Extension over Foam Roller",
+            "duration": "60s"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s"
+          }
+        ]
+      },
+      "result": "Created \"Rest Day Mobility\" on 2026-08-12 [evt-ai-10].",
+      "turn": 2,
+      "kind": "write",
+      "round": 3
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "cardio",
+        "title": "Taper Easy Aerobic (Short)",
+        "date": "2026-08-13",
+        "estimated_duration": 30,
+        "difficulty": 1,
+        "tags": [
+          "taper",
+          "aerobic",
+          "easy"
+        ],
+        "description": "Very easy, zone 2, shake the legs out. No intensity this close to the objective.",
+        "exercises": [
+          {
+            "name": "Calf / Ankle Dorsiflexion Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Taper Easy Aerobic (Short)\" on 2026-08-13 [evt-ai-11].",
+      "turn": 2,
+      "kind": "write",
+      "round": 4
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Pre-Climb Prep",
+        "date": "2026-08-14",
+        "estimated_duration": 15,
+        "difficulty": 1,
+        "tags": [
+          "taper",
+          "rest-day",
+          "pre-objective"
+        ],
+        "description": "Rest day before the objective. Gear check, early sleep, daily mobility minimum only — nothing new.",
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "reps": "10"
+          },
+          {
+            "name": "90/90 Hip Stretch",
+            "duration": "30s each side"
+          },
+          {
+            "name": "Chest Opener / Pec Stretch",
+            "duration": "30s"
+          }
+        ]
+      },
+      "result": "Created \"Pre-Climb Prep\" on 2026-08-14 [evt-ai-12].",
+      "turn": 2,
+      "kind": "write",
+      "round": 5
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "outdoor-climbing",
+        "title": "Grand Teton — Owen-Spalding (Objective)",
+        "date": "2026-08-15",
+        "estimated_duration": 660,
+        "difficulty": 4,
+        "tags": [
+          "objective",
+          "grand-teton",
+          "owen-spalding"
+        ],
+        "description": "The objective. Twelve weeks of base and specific work plus a two-week taper behind this — arrive fresh, climb within what's prepared, nothing new today.",
+        "exercises": [
+          {
+            "name": "Approach Hike",
+            "category": "cardio",
+            "duration": "4-5 hr",
+            "notes": "Lower Saddle approach, steady easy effort — save legs for the climb."
+          },
+          {
+            "name": "Owen-Spalding — Pitch 1",
+            "category": "climbing",
+            "climb_style": "trad",
+            "grade": "5.4"
+          },
+          {
+            "name": "Owen-Spalding — Pitch 2",
+            "category": "climbing",
+            "climb_style": "trad",
+            "grade": "5.4"
+          },
+          {
+            "name": "Owen-Spalding — Pitch 3 (Summit)",
+            "category": "climbing",
+            "climb_style": "trad",
+            "grade": "5.4"
+          },
+          {
+            "name": "Descent Hike",
+            "category": "cardio",
+            "duration": "4-5 hr",
+            "notes": "Controlled descent, careful on tired legs."
+          }
+        ]
+      },
+      "result": "Created \"Grand Teton — Owen-Spalding (Objective)\" on 2026-08-15 [evt-ai-13]. Added 5 new exercise(s) to the library: Approach Hike, Owen-Spalding — Pitch 1, Owen-Spalding — Pitch 2, Owen-Spalding — Pitch 3 (Summit), Descent Hike.",
+      "turn": 2,
+      "kind": "write",
+      "round": 6
+    },
+    {
+      "name": "create_event",
+      "input": {
+        "type": "stretching",
+        "title": "Recovery Day — Easy Movement",
+        "date": "2026-08-16",
+        "estimated_duration": 20,
+        "difficulty": 1,
+        "tags": [
+          "recovery"
+        ],
+        "description": "Recovery phase starts: unstructured, easy, enjoyable movement, no plan. Let the big day settle.",
+        "exercises": [
+          {
+            "name": "Cat-Cow",
+            "reps": "10"
+          },
+          {
+            "name": "Pigeon Pose",
+            "duration": "60s each side"
+          },
+          {
+            "name": "Calf / Ankle Dorsiflexion Stretch",
+            "duration": "30s each side"
+          }
+        ]
+      },
+      "result": "Created \"Recovery Day — Easy Movement\" on 2026-08-16 [evt-ai-14].",
+      "turn": 2,
+      "kind": "write",
+      "round": 7
+    }
+  ],
+  "anomalies": [
+    "unscriptedRead:get_schedule",
+    "unscriptedRead:get_session_summaries",
+    "unscriptedRead:get_training_blocks",
+    "unscriptedRead:get_training_blocks"
+  ]
+}

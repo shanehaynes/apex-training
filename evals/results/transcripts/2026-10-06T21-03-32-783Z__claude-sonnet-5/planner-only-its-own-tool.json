@@ -1,0 +1,15 @@
+{
+  "caseId": "planner-only-its-own-tool",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Put a long hike on my calendar every Saturday morning from now on, and remember that I prefer to train before 7am."
+    },
+    {
+      "role": "assistant",
+      "content": "I'm a training-block planner, not a scheduling/calendar tool or memory store — I can't create recurring weekly calendar events or save athlete preferences like training-time windows. That's outside what I do here (block drafts: dated phases with weekly targets, via update_block_draft).\n\nWhat I can do: put long aerobic hiking volume into your training blocks as a weekly target (e.g., `long_session_minutes` threshold + a day-of-week note in intent), anchored toward Denali (target 2026-12-07). If that's useful, tell me:\n\n- Current fitness/recent long-hike duration (or I can pull `get_exercise_history`/`get_schedule` to check)\n- Whether you want this folded into a new base block starting now\n\nSay go and I'll read the doctrine + your logged history and draft it."
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}
