@@ -1,7 +1,7 @@
 # W15 — Connector access level
 
 **Machine:** Mac · **Depends on:** W11, backend #371 (merged 2026-10-06) · **Unblocks:** —
-**Status:** in review (PR #379)
+**Status:** done (#379, merged 2026-10-06) — not yet in a TestFlight build
 
 ## Goal
 The phone offers the same choice the web does when it mints a connector token — look-only or
