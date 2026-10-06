@@ -82,16 +82,17 @@ interface Body {
 // — so a breakpoint whose entry can never be read is a pure loss, which
 // drives the rules here:
 //
-//   1. Tools ship on EVERY request, including the post-confirm re-stream that
-//      forbids their use. Adding or removing a tool definition invalidates the
+//   1. Tools ship on EVERY request, including a post-confirm re-stream that
+//      forbids their use (a cancel, the auto-apply panels, or a chat chain
+//      past MAX_CONFIRM_ROUNDS — useChat.ts). Adding or removing a tool definition invalidates the
 //      tools, system AND messages tiers, so toggling them would split the
 //      conversation into two lineages that can never read each other's
 //      entries — every re-stream a guaranteed miss that still pays the write.
 //      Holding the tool list constant and switching tool_choice instead keeps
 //      the tools+system prefix identical across both calls.
-//   2. The messages breakpoint is written only on the tools-on turn. Changing
-//      tool_choice invalidates the messages tier, so the re-stream's entry has
-//      no future reader.
+//   2. The messages breakpoint is written only on tools-on requests. Changing
+//      tool_choice invalidates the messages tier, so a tools-off re-stream's
+//      entry has no future reader.
 //   3. In chat mode the `system` block is the STABLE half of the prompt only
 //      (buildStablePrompt: role, safety, library, rules, style). The live
 //      half — today, schedule, meals, block, athlete — used to sit in it too,

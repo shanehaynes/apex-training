@@ -63,8 +63,8 @@ pasted into the SQL editor by hand, where a skipped one is invisible from the ap
 `GET /api/profile` and `DELETE /api/account` 500'd while `/api/version` reported current code.
 A 500 on account deletion is the 5.1.1(v) rejection above, arriving by a different door.
 
-So before every archive, from the primary checkout (it reads `VITE_SUPABASE_URL` and
-`SUPABASE_SERVICE_ROLE_KEY` out of `.env.local`; the key goes into request headers only and
+So before every archive (it reads `VITE_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` out of
+`~/.config/apex-training/prod.env`; the key goes into request headers only and
 `limit=0` means no row is ever read):
 
 ```bash

@@ -235,15 +235,83 @@ export function rowsForUserTurn(
   ];
 }
 
-/** What a settled tool_result flush stores: model history with nothing to render. */
-export function rowsForToolFlush(
-  flushed: ToolResultBlock[],
-  assistantText: string,
-): NewCoachMessage[] {
-  return [
-    turnRow('user', flushed, null),
-    turnRow('assistant', assistantText, assistantText || null),
-  ];
+/** The parts of a streamed response the thread acts on (streamResponse's
+ *  result without the raw reads). */
+export interface StreamResult {
+  text: string;
+  toolUses: WireToolUse[];
+  rounds: WireRound[];
+  notices: string[];
+}
+
+export interface TurnOutcome {
+  /** The history after the response: `base`, the server rounds, then the
+   *  final assistant message when the model said or asked for anything. */
+  history: ApiMessage[];
+  /** What the response stores, in order: `leadRows`, the hidden round rows,
+   *  the reply row, then one notice row per notice. */
+  rows: NewCoachMessage[];
+  /** The bubble to show — the reply text with its chips — or null when the
+   *  model neither spoke nor checked anything (a bare tool_use, say). */
+  reply: { content: string; reads?: string[] } | null;
+  /** The write tool_use blocks as confirm cards, in emission order. */
+  pendingActions: PendingAction[];
+  /** A mixed response's read results, held for the flush that answers the writes. */
+  heldResults: ToolResultBlock[];
+  notices: string[];
+}
+
+/**
+ * Everything one streamed response changes, computed once for both places a
+ * response arrives: a user message (sendMessage) and a tool_result flush
+ * (settleAction). `base` is the history the request was sent with and
+ * `leadRows` what opened the turn in storage — the user's text, or the
+ * flushed tool_results as a hidden row. The server rounds become hidden
+ * assistant/user pairs; the final message is stored as the model saw it;
+ * a response with nothing to say and nothing to ask stores no assistant
+ * row at all (the next user text then folds into the trailing
+ * tool_results, appendUserText) — an empty assistant message would make the
+ * next request invalid.
+ */
+export function turnOutcome(base: ApiMessage[], leadRows: NewCoachMessage[], stream: StreamResult): TurnOutcome {
+  const { text, toolUses, rounds, notices } = stream;
+  const { serverMessages, finalContent, heldResults, chips } = historyForTurn(rounds, toolUses);
+  const rows: NewCoachMessage[] = [...leadRows];
+  let history: ApiMessage[] = [...base, ...serverMessages];
+  for (const m of serverMessages) rows.push(turnRow(m.role, m.content, null));
+
+  if (finalContent.length > 0) {
+    const assistantApiMsg: ApiMessage = { role: 'assistant', content: assistantApiContent(finalContent) };
+    history = [...history, assistantApiMsg];
+    rows.push(turnRow('assistant', assistantApiMsg.content, text || null));
+  } else if (text) {
+    // Reads with no reply after them: the words shown came from an earlier
+    // round (already stored hidden), so the thread keeps them as a
+    // display-only row.
+    rows.push(turnRow('assistant', null, text));
+  }
+
+  const reads = chips.length > 0 ? chips : undefined;
+  const reply = text || reads ? { content: text, ...(reads ? { reads } : {}) } : null;
+  for (const message of notices) rows.push(noticeRow(message));
+
+  return { history, rows, reply, pendingActions: toPendingActions(toolUses), heldResults, notices };
+}
+
+/**
+ * How many times one user message may chain: after the last confirm card
+ * settles, the coach's follow-up streams with tools ON (chat mode only), so
+ * a plan that needs two writes in sequence — add an exercise to the library,
+ * then schedule the workout that uses it — can finish instead of narrating
+ * the second step with no tool to call. Each tools-on follow-up may open
+ * another queue; past this many the follow-up streams tools-off and the turn
+ * ends in text. The builder, planner and analytics panels confirm
+ * automatically, with no person between rounds, so they never chain.
+ */
+export const MAX_CONFIRM_ROUNDS = 3;
+
+export function followUpWithTools(mode: CoachMode, roundsSoFar: number): boolean {
+  return mode === 'chat' && roundsSoFar < MAX_CONFIRM_ROUNDS;
 }
 
 /** What Coach's Notes stores: the synthetic prompt HIDDEN, the briefing shown. */
@@ -341,6 +409,9 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
   /** Chips for the server-side calls of the turn in flight, as they start. */
   const [streamingReads, setStreamingReads] = useState<string[]>([]);
   const abortRef = useRef<(() => void) | null>(null);
+  /** Tools-on follow-ups streamed for the current user message (MAX_CONFIRM_ROUNDS).
+   *  A ref: settleAction reads it synchronously from a closure over older state. */
+  const confirmRoundsRef = useRef(0);
   // Carried in every callback's dep list below, not just closed over: these
   // are memoized on other state, so a switch in the picker with no other
   // change would otherwise keep sending the previous model.
@@ -400,6 +471,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     setPendingActions([]);
     setHeldResults([]);
     setStreamingContent('');
+    confirmRoundsRef.current = 0;
     // Created eagerly so the empty thread is a real one the next reload finds
     // — but a failure is not fatal: persist() creates one on the first save.
     setConversation(null);
@@ -461,6 +533,23 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     };
   }
 
+  /** Put a computed outcome on screen and in the history: the reply bubble
+   *  (with chips), then the confirm queue — one card at a time, in emission
+   *  order — then any notices. */
+  function applyOutcome(outcome: TurnOutcome) {
+    setApiMessages(outcome.history);
+    if (outcome.reply) {
+      const { content, reads } = outcome.reply;
+      setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content, reads }]);
+    }
+    // A mixed response's read results flush with the write results.
+    setHeldResults(outcome.heldResults);
+    setPendingActions(outcome.pendingActions);
+    for (const message of outcome.notices) {
+      setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: message }]);
+    }
+  }
+
   // ── sendMessage ────────────────────────────────────────────────────────────
 
   /**
@@ -473,6 +562,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     setIsLoading(true);
     setStreamingContent('');
     setStreamingReads([]);
+    confirmRoundsRef.current = 0;
 
     const display = opts?.display ?? content;
     const userDisplayMsg: DisplayMessage = { id: localMessageId(), role: 'user', content: display };
@@ -480,53 +570,21 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     setMessages(prev => [...prev, userDisplayMsg]);
 
     // appendUserText folds the text into a trailing unanswered tool_result
-    // message if the last flush stream failed — see actionQueue.ts.
+    // message if the last flush stream failed or its follow-up said nothing
+    // — see actionQueue.ts.
     const nextApiMessages = appendUserText(apiMessages, content);
     setApiMessages(nextApiMessages);
 
     try {
-      const { text, toolUses, rounds, notices } = await streamResponse(nextApiMessages, ctx, true);
-
+      const stream = await streamResponse(nextApiMessages, ctx, true);
       // The server may have read before it spoke (the sight loop): every
       // server round is an assistant/user pair the history must carry, then
       // the final assistant message (text, and any write tool_use blocks).
-      const { serverMessages, finalContent, heldResults: readResults, chips } = historyForTurn(rounds, toolUses);
-      const rows: NewCoachMessage[] = [turnRow('user', content, display)];
-      let history: ApiMessage[] = [...nextApiMessages, ...serverMessages];
-      for (const m of serverMessages) rows.push(turnRow(m.role, m.content, null));
-
-      if (finalContent.length > 0) {
-        const assistantApiMsg: ApiMessage = { role: 'assistant', content: assistantApiContent(finalContent) };
-        history = [...history, assistantApiMsg];
-        rows.push(turnRow('assistant', assistantApiMsg.content, text || null));
-      } else if (text) {
-        // Reads with no reply after them: the words shown came from an
-        // earlier round (already stored hidden), so the thread keeps them as
-        // a display-only row. The next user text folds into the trailing
-        // tool_result message (appendUserText), which keeps the history valid.
-        rows.push(turnRow('assistant', null, text));
-      }
-      setApiMessages(history);
-
-      const reads = chips.length > 0 ? chips : undefined;
-      if (toolUses.length > 0) {
-        // Show any pre-tool text Claude spoke, then surface the pending
-        // actions — one confirmation card at a time, in emission order.
-        if (text || reads) setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: text, reads }]);
-        // A mixed response's read results flush with the write results.
-        setHeldResults(readResults);
-        setPendingActions(toPendingActions(toolUses));
-      } else if (text || reads) {
-        setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: text, reads }]);
-      }
-      for (const message of notices) {
-        setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: message }]);
-        rows.push(noticeRow(message));
-      }
-
+      const outcome = turnOutcome(nextApiMessages, [turnRow('user', content, display)], stream);
+      applyOutcome(outcome);
       // The turn completed: store the user's words, the rounds, and the
       // assistant's reply as one batch.
-      void persist(rows);
+      void persist(outcome.rows);
     } catch (err: unknown) {
       // Nothing is stored for a failed turn: the user message never reached a
       // reply, and a half-turn replayed on the next load would be a question
@@ -551,11 +609,16 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
   // Settles the head action with its tool_result text. While actions remain,
   // just advance the queue (the next confirmation card appears). Once the
   // last settles, send every held result as ONE user message and stream the
-  // coach's tools-off follow-up.
+  // coach's follow-up. `chain` (a confirm, not a cancel) lets that follow-up
+  // keep its tools in chat mode, up to MAX_CONFIRM_ROUNDS per user message:
+  // its write tool_use blocks open a fresh queue exactly as a first reply's
+  // do. A cancel ends the chain, so the coach cannot re-propose what the
+  // user just declined.
   const settleAction = useCallback(async (
     resultText: string,
     ctx: ChatContext,
     failureMessage: string,
+    chain: boolean,
   ) => {
     const { queue, results, flushed } = settleHead(pendingActions, heldResults, resultText);
     setPendingActions(queue);
@@ -564,26 +627,36 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
 
     setIsLoading(true);
     setStreamingContent('');
+    setStreamingReads([]);
 
     const toolResultMsg: ApiMessage = { role: 'user', content: flushed };
     const withResult = [...apiMessages, toolResultMsg];
     setApiMessages(withResult);
+    const flushRow = turnRow('user', flushed, null);
+
+    const withTools = chain && followUpWithTools(mode, confirmRoundsRef.current);
+    if (withTools) confirmRoundsRef.current += 1;
 
     try {
-      const { text } = await streamResponse(withResult, ctx, false);
-      setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: text }]);
-      setApiMessages(prev => [...prev, { role: 'assistant', content: text }]);
-      void persist(rowsForToolFlush(flushed, text));
+      const stream = await streamResponse(withResult, ctx, withTools);
+      const outcome = turnOutcome(withResult, [flushRow], stream);
+      applyOutcome(outcome);
+      void persist(outcome.rows);
     } catch (err: unknown) {
+      // The flush is already in the history on screen; storage must match,
+      // or a reload replays a tool_use nothing answers. The next user text
+      // folds into it either way (appendUserText).
+      void persist([flushRow]);
       if (err instanceof Error && err.name !== 'AbortError' && failureMessage) {
         setMessages(prev => [...prev, { id: localMessageId(), role: 'assistant', content: failureMessage }]);
       }
     } finally {
       setIsLoading(false);
       setStreamingContent('');
+      setStreamingReads([]);
       abortRef.current = null;
     }
-  }, [pendingActions, heldResults, apiMessages, coachModel, persist]);
+  }, [pendingActions, heldResults, apiMessages, coachModel, persist, mode]);
 
   // ── confirmAction ──────────────────────────────────────────────────────────
 
@@ -609,14 +682,14 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
       setIsLoading(false);
     }
 
-    await settleAction(resultText, ctx, 'Done — but I had trouble confirming. The change was applied.');
+    await settleAction(resultText, ctx, 'Done — but I had trouble confirming. The change was applied.', true);
   }, [pendingActions, settleAction, annotations]);
 
   // ── cancelAction ───────────────────────────────────────────────────────────
 
   const cancelAction = useCallback(async (ctx: ChatContext) => {
     if (pendingActions.length === 0) return;
-    await settleAction('Cancelled by user.', ctx, '');
+    await settleAction('Cancelled by user.', ctx, '', false);
   }, [pendingActions, settleAction]);
 
   // ── triggerInitial (Coach's Notes — no tools) ──────────────────────────────
@@ -626,6 +699,7 @@ export function useChat({ toolMode }: UseChatOptions = {}) {
     setStreamingContent('');
     setPendingActions([]);
     setHeldResults([]);
+    confirmRoundsRef.current = 0;
 
     const syntheticUser: ApiMessage = { role: 'user', content: BRIEFING_PROMPT };
 
