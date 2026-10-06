@@ -11,6 +11,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import mcpHandler from '../../_lib/handlers/mcp';
+import { MCP_CONNECTOR_READ_TOOLS, MCP_WRITE_TOOLS } from '../../_lib/mcp/connectorRegistry';
 import mcpTokensHandler from '../../_lib/handlers/mcpTokens';
 // @ts-expect-error plain-JS helper shared with the seed scripts
 import { localSupabaseEnv } from '../../../scripts/lib/localEnv.mjs';
@@ -124,8 +125,12 @@ describe.skipIf(!RUN)('MCP endpoint against the local stack', () => {
     const list = makeRes();
     await mcpHandler(makeReq({ method: 'POST', token: patToken, body: rpc('tools/list') }), list.res);
     const tools = (list.body as { result: { tools: Array<{ name: string }> } }).result.tools;
-    // The eight query tools plus get_session_summaries and get_reviews; search_history stays coach-only.
-    expect(tools).toHaveLength(10);
+    // A PAT minted without `access` is read-only: the ten query tools plus the
+    // connector-only reads, and none of the write tools; search_history stays
+    // coach-only.
+    expect(tools.map(t => t.name)).toEqual(MCP_CONNECTOR_READ_TOOLS.map(t => t.name));
+    expect(tools.map(t => t.name)).not.toContain('search_history');
+    for (const write of MCP_WRITE_TOOLS) expect(tools.map(t => t.name)).not.toContain(write.name);
 
     const call = makeRes();
     await mcpHandler(
