@@ -149,6 +149,7 @@ function ProposalPreview({ preview }: { preview: ToolPreview | null }) {
     return (
       <div className="confirm-preview" data-testid="confirm-preview" data-kind={preview.kind}>
         <p className="confirm-preview__line"><strong>{when}</strong>{facts ? ` · ${facts}` : ''}</p>
+        {preview.repeat && <p className="confirm-preview__line">{preview.repeat}</p>}
         {preview.exercises.length > 0 && (
           <ul className="confirm-preview__list confirm-preview__list--after">
             {preview.exercises.map((line, i) => <li key={i}>{line}</li>)}

@@ -1,0 +1,52 @@
+{
+  "runId": "2026-10-06T18-44-56-944Z__claude-sonnet-5",
+  "timestamp": "2026-10-06T19:08:24.521Z",
+  "model": "claude-sonnet-5",
+  "judgeModel": "claude-sonnet-5",
+  "backend": "agent-sdk",
+  "gitCommit": "a2064b957ce010b75e82fd1d5af12070493c32ed",
+  "promptVersion": "2026.10.06-2",
+  "promptFileHash": "6412922c41196b54c80375ad99bfc75e6bf1749d8c79cab9dc1f63f6cb28dbf4",
+  "cases": [
+    {
+      "id": "doctrine-block-reads-first",
+      "verdicts": {
+        "doctrine": {
+          "status": "pass",
+          "detail": [
+            "22 event write(s) checked against 9 banned pattern(s)",
+            "read doctrine: periodization, strength, aerobic-base"
+          ]
+        }
+      },
+      "turns": 2,
+      "toolCallCount": 27,
+      "readCallCount": 5,
+      "anomalies": [
+        "unscriptedRead:get_training_blocks",
+        "unscriptedRead:get_schedule"
+      ],
+      "usage": {
+        "inputTokens": 226704,
+        "outputTokens": 23474
+      },
+      "costUsd": 0.688148,
+      "latencyMs": 1407569,
+      "transcriptHash": "702dd6224fc975b57d840dc409916532e99faae189a139b557e2809f44108951",
+      "transcriptPath": "/Users/shanehaynes/Developer/apex-training/.claude/worktrees/feat-coach-create-event-repeat/evals/results/transcripts/2026-10-06T18-44-56-944Z__claude-sonnet-5/doctrine-block-reads-first.json"
+    }
+  ],
+  "aggregate": {
+    "passRateByDimension": {
+      "doctrine": {
+        "pass": 1,
+        "fail": 0,
+        "other": 0
+      }
+    },
+    "totalCostUsd": 0.6881,
+    "totalInputTokens": 226704,
+    "totalOutputTokens": 23474,
+    "meanLatencyMs": 1407569
+  }
+}

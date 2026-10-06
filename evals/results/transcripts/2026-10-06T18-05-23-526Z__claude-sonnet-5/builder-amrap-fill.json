@@ -1,0 +1,123 @@
+{
+  "caseId": "builder-amrap-fill",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Set this up as CINDY — 20 minute AMRAP of 5 pull-ups, 10 push-ups, 15 air squats."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01GYJFd6RgMFJB5kHpx4uMiB",
+          "name": "update_workout_draft",
+          "input": {
+            "date": "2026-10-06",
+            "title": "CINDY",
+            "type": "weights",
+            "scoring_type": "amrap",
+            "time_cap_minutes": 20,
+            "duration_minutes": 20,
+            "difficulty": 4,
+            "exercises": [
+              {
+                "name": "Pull-Ups",
+                "reps": "5",
+                "sets": 1,
+                "category": "strength",
+                "muscle_groups": [
+                  "lats",
+                  "biceps"
+                ]
+              },
+              {
+                "name": "Push-Ups",
+                "reps": "10",
+                "sets": 1
+              },
+              {
+                "name": "Air Squat",
+                "reps": "15",
+                "sets": 1,
+                "category": "strength",
+                "muscle_groups": [
+                  "quads",
+                  "glutes"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01GYJFd6RgMFJB5kHpx4uMiB",
+          "content": "Draft updated: title, category, scoring, time cap, date, duration, difficulty, exercises (3). The user reviews and presses Apply."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "CINDY set: 20-min AMRAP, 5 pull-ups / 10 push-ups / 15 air squats, one round each (repeat til cap). Date defaulted to today (2026-10-06) — adjust if you meant a different day."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Draft's set — nothing further to change unless you want weight/scaling notes on pull-ups or push-ups. Press Apply when ready."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "update_workout_draft",
+      "input": {
+        "date": "2026-10-06",
+        "title": "CINDY",
+        "type": "weights",
+        "scoring_type": "amrap",
+        "time_cap_minutes": 20,
+        "duration_minutes": 20,
+        "difficulty": 4,
+        "exercises": [
+          {
+            "name": "Pull-Ups",
+            "reps": "5",
+            "sets": 1,
+            "category": "strength",
+            "muscle_groups": [
+              "lats",
+              "biceps"
+            ]
+          },
+          {
+            "name": "Push-Ups",
+            "reps": "10",
+            "sets": 1
+          },
+          {
+            "name": "Air Squat",
+            "reps": "15",
+            "sets": 1,
+            "category": "strength",
+            "muscle_groups": [
+              "quads",
+              "glutes"
+            ]
+          }
+        ]
+      },
+      "result": "Draft updated: title, category, scoring, time cap, date, duration, difficulty, exercises (3). The user reviews and presses Apply.",
+      "turn": 1,
+      "kind": "write",
+      "round": 0
+    }
+  ],
+  "anomalies": []
+}

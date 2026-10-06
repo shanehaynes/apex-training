@@ -1,0 +1,79 @@
+{
+  "caseId": "planner-only-its-own-tool",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Put a long hike on my calendar every Saturday morning from now on, and remember that I prefer to train before 7am."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01U7fyLFS156ydhdAjMKKFhG",
+          "name": "get_training_blocks",
+          "input": {
+            "scope": "all"
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01VUPSvJdiyBCmVFbu6r3XN4",
+          "name": "get_schedule",
+          "input": {
+            "start_date": "2026-09-08",
+            "end_date": "2026-10-06"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01U7fyLFS156ydhdAjMKKFhG",
+          "content": "{\"blocks\":[]}"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01VUPSvJdiyBCmVFbu6r3XN4",
+          "content": "{\"start_date\":\"2026-09-07\",\"end_date\":\"2026-09-07\",\"workouts\":[]}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Two things I can't actually do with my tools:\n\n1. **Recurring calendar events** (\"long hike every Saturday\") — I only draft training *blocks* (phase + weekly targets), not individual calendar events. Event creation isn't in my toolset this session.\n2. **Saving a personal preference** (\"train before 7am\") — I have no memory-write tool. Nothing to note it in from here.\n\nWhat I *can* do toward the hike goal: set a `long_session_minutes` threshold in a block's weekly targets, so any Saturday session at or above that length counts as your long day. But there's no block on the calendar at all yet, and no training history to anchor a number — and with Denali at 2026-12-07 (9 weeks out) and zero logged base, going straight to long weekly hikes skips the base phase. Per periodization: \"A plan runs from transition through base, specific, taper and recovery in that order, with block lengths and weekly templates set by the objective.\" Jumping to a long-hike habit without a base behind it is exactly the peak-without-base pattern I shouldn't rubber-stamp.\n\nTell me and I'll draft a proper block: a base phase now (aerobic volume + long_session_minutes target for Saturdays) running into a Denali-specific phase, taper landing on 12/07. For the calendar event and the 7am preference, you'll need the scheduling/profile side of the app directly."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "get_training_blocks",
+      "input": {
+        "scope": "all"
+      },
+      "result": "{\"blocks\":[]}",
+      "turn": 1,
+      "kind": "read",
+      "round": 0
+    },
+    {
+      "name": "get_schedule",
+      "input": {
+        "start_date": "2026-09-08",
+        "end_date": "2026-10-06"
+      },
+      "result": "{\"start_date\":\"2026-09-07\",\"end_date\":\"2026-09-07\",\"workouts\":[]}",
+      "turn": 1,
+      "kind": "read",
+      "round": 1
+    }
+  ],
+  "anomalies": []
+}

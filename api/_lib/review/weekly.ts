@@ -376,10 +376,13 @@ type ToolInputSchema = { properties?: Record<string, unknown>; required?: string
 function nextWeekInputSchema(): Record<string, unknown> {
   const create = createEventSchema.input_schema as unknown as ToolInputSchema;
   const update = updateEventSchema.input_schema as unknown as ToolInputSchema;
+  // A review proposes next week only, so create_event's `repeat` (a series)
+  // stays out of the document's schema; validateNextWeekItem would drop it anyway.
+  const createProps = Object.fromEntries(Object.entries(create.properties ?? {}).filter(([key]) => key !== 'repeat'));
   return {
     type: 'object',
     description: 'For create_event: the create_event input (type, title, date, estimated_duration required). For update_event: event_id, event_title and changes.',
-    properties: { ...(create.properties ?? {}), ...(update.properties ?? {}) },
+    properties: { ...createProps, ...(update.properties ?? {}) },
     additionalProperties: false,
   };
 }

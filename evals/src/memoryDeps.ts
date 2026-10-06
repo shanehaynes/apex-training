@@ -62,7 +62,8 @@ export function createMemoryDeps(
         cardioTargets: input.cardioTargets,
         climbingTargets: input.climbingTargets,
         isCompleted: false,
-        isRecurring: false,
+        isRecurring: !!input.recurrenceRule,
+        recurrenceRule: input.recurrenceRule,
       });
       return { id };
     },

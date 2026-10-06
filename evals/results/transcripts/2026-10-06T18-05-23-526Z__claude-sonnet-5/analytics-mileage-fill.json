@@ -1,0 +1,93 @@
+{
+  "caseId": "analytics-mileage-fill",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Chart my weekly running mileage over the last 3 months as a line, in miles."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01DCvD2n6RsarDZuZGAqRmBH",
+          "name": "update_chart_draft",
+          "input": {
+            "title": "Weekly Running Mileage",
+            "chart_type": "line",
+            "bucket": "week",
+            "date_range": {
+              "kind": "rolling",
+              "days": 90
+            },
+            "display_unit": "mi",
+            "series": [
+              {
+                "id": "s1",
+                "measure": "distance",
+                "sports": [
+                  "running"
+                ],
+                "agg": "sum",
+                "label": "Running Distance"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01DCvD2n6RsarDZuZGAqRmBH",
+          "content": "Chart draft updated: title, chart type, bucket, display unit, range: last 90 days, updated series s1. The user reviews and presses Save."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Line chart, weekly buckets, last 90 days, running distance summed per week in miles. Press Save to apply."
+    },
+    {
+      "role": "user",
+      "content": "Yes, continue."
+    },
+    {
+      "role": "assistant",
+      "content": "Nothing further to configure — the tile is set (weekly running mileage, line, last 90 days, miles). Press Save when ready to persist it."
+    }
+  ],
+  "toolCalls": [
+    {
+      "name": "update_chart_draft",
+      "input": {
+        "title": "Weekly Running Mileage",
+        "chart_type": "line",
+        "bucket": "week",
+        "date_range": {
+          "kind": "rolling",
+          "days": 90
+        },
+        "display_unit": "mi",
+        "series": [
+          {
+            "id": "s1",
+            "measure": "distance",
+            "sports": [
+              "running"
+            ],
+            "agg": "sum",
+            "label": "Running Distance"
+          }
+        ]
+      },
+      "result": "Chart draft updated: title, chart type, bucket, display unit, range: last 90 days, updated series s1. The user reviews and presses Save.",
+      "turn": 1,
+      "kind": "write",
+      "round": 0
+    }
+  ],
+  "anomalies": []
+}

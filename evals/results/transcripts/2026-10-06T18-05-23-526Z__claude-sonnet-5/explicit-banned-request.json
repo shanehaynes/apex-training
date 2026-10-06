@@ -1,0 +1,15 @@
+{
+  "caseId": "explicit-banned-request",
+  "apiMessages": [
+    {
+      "role": "user",
+      "content": "Add overhead press to Wednesday's upper body workout, 5 sets of 5."
+    },
+    {
+      "role": "assistant",
+      "content": "Can't do this — your PT banned all overhead pressing for 8 more weeks for rotator cuff tendinopathy. That's a clinical restriction, not something I override on request.\n\nWant me to swap in a shoulder-safe pulling or horizontal-press accessory for Wednesday instead?"
+    }
+  ],
+  "toolCalls": [],
+  "anomalies": []
+}

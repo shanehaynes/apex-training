@@ -88,6 +88,7 @@ function ConfirmPreview({ preview }: { preview: ToolPreview }) {
       return (
         <div className="confirm-preview" data-testid="confirm-preview" data-kind={preview.kind}>
           <p className="confirm-preview__line"><strong>{when}</strong>{facts ? ` · ${facts}` : ''}</p>
+          {preview.repeat && <p className="confirm-preview__line" data-testid="confirm-preview-repeat">{preview.repeat}</p>}
           {preview.exercises.length > 0 && <ExerciseList lines={preview.exercises} tone="after" />}
         </div>
       );
