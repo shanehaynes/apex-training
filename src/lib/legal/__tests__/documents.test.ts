@@ -88,8 +88,19 @@ describe('the documents make the disclosures the audit requires', () => {
     expect(privacy).toContain('cannot currently be rotated');
   });
 
-  it('the privacy policy discloses that MCP tokens never expire', () => {
-    expect(privacy).toContain('do not expire');
+  it('the documents disclose what MCP access grants: expiry, write access, and the activity log', () => {
+    // Personal access tokens expire after a year (api/_lib/handlers/mcpTokens.ts)
+    // and a token or connection can carry write access (PR #371); both
+    // documents say so, and neither still promises a read-only endpoint.
+    // The markdown is hard-wrapped, so a phrase may break across a line.
+    for (const doc of [terms, privacy]) {
+      expect(doc).toMatch(/write\s+access/);
+      expect(doc).toMatch(/activity\s+log/);
+      expect(doc).toContain('200');
+      expect(doc).not.toMatch(/read-only\s+endpoint|endpoint\s+is\s+read-only|do\s+not\s+expire/);
+    }
+    expect(privacy).toMatch(/expire\s+after\s+one\s+year/);
+    expect(terms).toMatch(/one\s+year/);
   });
 });
 
