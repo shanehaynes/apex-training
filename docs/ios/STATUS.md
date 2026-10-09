@@ -22,11 +22,17 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W10 | Library, Blocks, Meals | done (#184–#188) | both | TestFlight build 7 (0.8.0/353) uploaded 2026-09-17; device acceptance is Shane's |
 | W11 | Profile, integrations, account | done (#149, #157) | both | on TestFlight build 6; phase41 in prod (2026-09-16); device runs are Shane's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
-| W13 | Release + polish | done (#190, #191, #193, #194) · **App Store: not submitted** | Mac | ASC read 2026-09-26: version 1.0 at *Prepare for Submission*, release type still *automatic* (AFTER_APPROVAL — §6 step 1 not done); newest build 424 (0.9.0, expires 2026-12-21); no 1.0.0 build exists; `main` is 1.0.0 once this PR merges — build 9 is `gh workflow run testflight.yml` |
+| W13 | Release + polish | done (#190, #191, #193, #194) · **App Store: build 509 attached, awaiting Shane's device run, then Add for Review** | Mac | 2026-10-09: build 10 = 1.0.0 (509) from `testflight.yml` run 37964880205 carries W15, #383–#388; phase52 in prod; Push Notifications enabled on the App ID; version 1.0 at *Prepare for Submission*, manual release set |
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
 
 ## Next up
+0. **Submit 1.0 on build 509 (2026-10-09).** The console is complete (demo account verified, review
+   contact and notes filled, manual release set). Left: (a) Shane's device run on 1.0.0 (509) from
+   TestFlight, including You → Data → Delete account on a throwaway account; (b) **Add for Review**
+   on the version page; (c) the APNs key — Shane mints it at developer.apple.com → Keys, sets
+   `APNS_KEY_ID`/`APNS_TEAM_ID`/`APNS_PRIVATE_KEY` in Vercel and escrows the `.p8` (D-051; the app
+   falls back without it). Then app-store.md §6 step 7 once App Review returns *Pending Developer Release*.
 0. **W15 landed (#379, 2026-10-06)** — on main, in no TestFlight build yet (newest is 1.0.0/491);
    the next `testflight.yml` run carries it, on Shane's go.
 0. **The App Store release did not happen — 2026-09-26 step 7 audit.** App Store Connect (read-only
@@ -76,6 +82,13 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-09 · App Store build 10 · Mac. Pre-flight for the submission build: `prod-schema-check` was
+  exit 1 on `live_activity_tokens` (phase52, #386) — Shane pasted it, now exit 0; Push Notifications
+  was unchecked on the `com.shanehaynes.apextraining` App ID (needed by #386's `aps-environment`) —
+  enabled via Chrome, profiles regenerate on the next archive; #388 merged first. `gh workflow run
+  testflight.yml` (run 37964880205) archived, asserted a production Release export and uploaded
+  **1.0.0 (509)**; attached to version 1.0 in place of 491. Found in passing: with phase52 missing,
+  the web's account export (`GET /api/account`) threw on the missing table; iOS only calls DELETE.
 - 2026-10-06 · App Store console, release steps 3–6 · Mac. Email: Cloudflare Email Routing live on
   apex-training.app (`support@`, `reviews@` → Gmail; MX verified). #370 bumped 1.0.0; **build 9 =
   1.0.0 (491)** uploaded by `testflight.yml` run 37476280446, *Ready to Submit*. Assets from this
