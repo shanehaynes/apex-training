@@ -36,15 +36,20 @@ public struct TrackerDependencies: Sendable {
     public var services: TrackerServices
     public var definitions: @Sendable () async -> [ExerciseDefinition]
     public var onCompletionChanged: @MainActor @Sendable (_ event: ScheduleEvent, _ isCompleted: Bool, _ completedAt: String?) -> Void
+    /// The swap picker's inline create — the library's write, so the new row
+    /// lands in the cache every other picker reads.
+    public var createDefinition: @MainActor @Sendable (_ name: String, _ category: String, _ isUnilateral: Bool) async -> ExerciseDefinition?
 
     public init(
         services: TrackerServices,
         definitions: @escaping @Sendable () async -> [ExerciseDefinition],
-        onCompletionChanged: @escaping @MainActor @Sendable (ScheduleEvent, Bool, String?) -> Void
+        onCompletionChanged: @escaping @MainActor @Sendable (ScheduleEvent, Bool, String?) -> Void,
+        createDefinition: @escaping @MainActor @Sendable (String, String, Bool) async -> ExerciseDefinition? = { _, _, _ in nil }
     ) {
         self.services = services
         self.definitions = definitions
         self.onCompletionChanged = onCompletionChanged
+        self.createDefinition = createDefinition
     }
 }
 

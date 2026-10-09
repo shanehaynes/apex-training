@@ -88,7 +88,8 @@ final class TrackerModelTests: XCTestCase {
         _ transport: ScriptedTransport, cache: MemoryCacheStore = MemoryCacheStore(),
         store: MemoryWriteQueueStore = MemoryWriteQueueStore(), clock: TestClock = TestClock(now: now),
         calendar: Calendar = Calendar(), event: ScheduleEvent = TrackerModelTests.event,
-        activity: any TrackerActivityPublishing = NoActivityPublisher()
+        activity: any TrackerActivityPublishing = NoActivityPublisher(),
+        createDefinition: @escaping @MainActor @Sendable (String, String, Bool) async -> ExerciseDefinition? = { _, _, _ in nil }
     ) -> (TrackerModel, WriteQueue) {
         let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: Tokens())
         let queue = WriteQueue(store: store, client: client, clock: clock)
@@ -98,7 +99,8 @@ final class TrackerModelTests: XCTestCase {
             definitions: { [ExerciseDefinition(id: "d-row", canonicalName: "Rowing Machine", category: "cardio"),
                             ExerciseDefinition(id: "d-db", canonicalName: "Single-Arm Dumbbell Press", category: "strength", isUnilateral: true),
                             ExerciseDefinition(id: "d-old", canonicalName: "Retired Lift", category: "strength", archivedAt: "2026-01-01T00:00:00.000Z")] },
-            onCompletionChanged: { event, isCompleted, _ in calendar.flips.append((event.id, isCompleted)) }
+            onCompletionChanged: { event, isCompleted, _ in calendar.flips.append((event.id, isCompleted)) },
+            createDefinition: createDefinition
         )
         return (TrackerModel(event: event, deps: deps), queue)
     }
@@ -495,6 +497,34 @@ final class TrackerModelTests: XCTestCase {
         XCTAssertEqual(TrackerModel.swapCandidates(model.definitions, for: row, query: "").map(\.id), ["d-row"])
         XCTAssertEqual(TrackerModel.swapCandidates(model.definitions, for: press, query: "nothing").count, 0)
         XCTAssertEqual(TrackerModel.swapCandidates(model.definitions, for: press, query: "dumbbell").map(\.id), ["d-db"])
+    }
+
+    @MainActor
+    func testCreatingFromTheSwapPickerAddsTheMovementAndSwapsOntoIt() async throws {
+        let transport = healthy()
+        let (model, _) = make(transport, createDefinition: { name, category, isUnilateral in
+            ExerciseDefinition(id: "pancake-fold", canonicalName: name, category: category, isUnilateral: isUnilateral)
+        })
+        await model.open()
+        let maybeCreated = await model.createDefinition(name: "Pancake Fold", category: "stretch", isUnilateral: false)
+        let created = try XCTUnwrap(maybeCreated)
+        let press = model.editor.exercise(section: "exercise", id: "fx-press")!
+        XCTAssertEqual(TrackerModel.swapCandidates(model.definitions, for: press, query: "pancake").map(\.id), ["pancake-fold"],
+                       "the new movement is offered without a reload")
+
+        await model.swap(section: "exercise", exerciseId: "fx-press", to: created)
+        XCTAssertEqual(model.editor.exercise(section: "exercise", id: "fx-press")?.exercise.name, "Pancake Fold")
+        XCTAssertTrue(transport.requests.contains { $0.body?.contains("\"definitionId\":\"pancake-fold\"") == true })
+    }
+
+    @MainActor
+    func testAFailedCreateLeavesTheLibraryAlone() async {
+        let (model, _) = make(healthy())
+        await model.open()
+        let before = model.definitions.map(\.id)
+        let created = await model.createDefinition(name: "Pancake Fold", category: "stretch", isUnilateral: false)
+        XCTAssertNil(created)
+        XCTAssertEqual(model.definitions.map(\.id), before)
     }
 
     // MARK: - Reopen

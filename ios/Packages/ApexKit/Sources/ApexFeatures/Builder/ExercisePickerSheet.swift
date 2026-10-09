@@ -8,9 +8,18 @@ import SwiftUI
 /// writes the definition immediately, as the web does.
 struct ExercisePickerSheet: View {
     let definitions: [ExerciseDefinition]
+    var title = "Add exercise"
+    /// A line under the title (the swap's "logged instead of …").
+    var note: String? = nil
     /// Hard-limits the categories offered (the approach / descent of an
-    /// outdoor day take cardio only).
+    /// outdoor day take cardio only; a swap takes what logs the same shape).
     var restrictTo: [String]? = nil
+    /// Left out of the results (the movement a swap is replacing).
+    var excluding: String? = nil
+    /// The create form's starting category when no chip is pre-selected (a
+    /// swap starts from the replaced movement's, without narrowing the search).
+    var createCategory: String? = nil
+    var confirmLabel = "Create & add"
     /// The chip pre-selected for the workout type (`TYPE_CATEGORY`).
     var preferredCategory: String? = nil
     /// Previews and snapshots open the sheet mid-flow.
@@ -38,7 +47,7 @@ struct ExercisePickerSheet: View {
         let needle = trimmed.lowercased()
         let allowed = Set(categories.map(\.value))
         return definitions
-            .filter { $0.archivedAt == nil && allowed.contains($0.category ?? "") }
+            .filter { $0.archivedAt == nil && allowed.contains($0.category ?? "") && $0.id != excluding }
             .filter { category == nil || $0.category == category }
             .filter { definition in
                 guard !needle.isEmpty else { return true }
@@ -54,8 +63,11 @@ struct ExercisePickerSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SheetHeader(title: "Add exercise", onClose: onClose)
+            SheetHeader(title: title, onClose: onClose)
             VStack(alignment: .leading, spacing: Spacing.sm) {
+                if let note {
+                    Text(note).apexBody()
+                }
                 HStack(spacing: Spacing.sm) {
                     ApexIcon.search.image.font(.system(size: 14)).foregroundStyle(ApexColor.textMuted)
                     TextField("", text: $query, prompt: Text("Search the library").foregroundStyle(ApexColor.textMuted))
@@ -113,7 +125,8 @@ struct ExercisePickerSheet: View {
         .onAppear {
             searching = true
             if let preferredCategory, categories.contains(where: { $0.value == preferredCategory }) { category = preferredCategory }
-            newCategory = preferredCategory ?? categories.first?.value ?? "strength"
+            newCategory = [preferredCategory, createCategory].compactMap { $0 }.first { value in categories.contains { $0.value == value } }
+                ?? categories.first?.value ?? "strength"
             if query.isEmpty { query = initialQuery }
             if initialCreating { creating = true }
         }
@@ -136,7 +149,7 @@ struct ExercisePickerSheet: View {
                     .accessibilityIdentifier("picker.create.unilateral")
                 HStack(spacing: Spacing.sm) {
                     ApexButton("Back", kind: .secondary) { creating = false }
-                    ApexButton("Create & add", isLoading: busy) {
+                    ApexButton(confirmLabel, isLoading: busy) {
                         busy = true
                         Task {
                             if let created = await onCreate(trimmed, newCategory, newUnilateral || Entries.hasPerSideCount(trimmed)) {

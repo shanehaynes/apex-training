@@ -606,11 +606,17 @@ public final class TrackerModel {
 
     // MARK: - Swap
 
+    /// What a swap may log as (`CARDIO_CATEGORIES` / `SET_TRACKED_CATEGORIES`):
+    /// the replacement has to log the same shape — one cardio row or per-set rows.
+    public static func swapCategories(for tracked: TrackedExercise) -> [String] {
+        tracked.isCardio ? ["cardio"] : ["strength", "stretch", "mobility", "skill"]
+    }
+
     /// The movements a logged exercise may be swapped onto: same logged shape
     /// (cardio ↔ cardio; everything else ↔ set-tracked), never archived, never
     /// a pitch. Matched on name, aliases and muscle groups.
     public static func swapCandidates(_ definitions: [ExerciseDefinition], for tracked: TrackedExercise, query: String) -> [ExerciseDefinition] {
-        let allowed: Set<String> = tracked.isCardio ? ["cardio"] : ["strength", "stretch", "mobility", "skill"]
+        let allowed = Set(swapCategories(for: tracked))
         let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
         return definitions
             .filter { $0.archivedAt == nil && allowed.contains($0.category ?? "") }
@@ -621,6 +627,14 @@ public final class TrackerModel {
                 return (definition.muscleGroups ?? []).contains { $0.lowercased().contains(needle) }
             }
             .sorted { $0.canonicalName.localizedCaseInsensitiveCompare($1.canonicalName) == .orderedAscending }
+    }
+
+    /// The picker's create-and-swap: write the definition, then add it here so
+    /// the sheet (and a second swap in this session) sees it without a reload.
+    public func createDefinition(name: String, category: String, isUnilateral: Bool) async -> ExerciseDefinition? {
+        guard let created = await deps.createDefinition(name, category, isUnilateral) else { return nil }
+        definitions = definitions.filter { $0.id != created.id } + [created]
+        return created
     }
 
     public func canSwap(_ tracked: TrackedExercise) -> Bool {
