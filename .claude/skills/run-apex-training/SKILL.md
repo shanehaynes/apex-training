@@ -128,6 +128,11 @@ Docker runs via Colima on this machine (`colima start`, 4 GB). Then:
   the shanehaynes.sah@gmail.com auth user), applies any timestamped
   migrations, backfills profiles, seeds fixtures (recurring events + Jul–Sep
   2026 one-offs + the exercise library, all onto agent@apex.local).
+- `node scripts/seed-showcase.mjs` — for screenshots and screen recordings:
+  layers an alpinist persona onto agent@apex.local (~21 weeks of logged and
+  planned training dated around today, objectives, blocks, an analytics
+  dashboard, every tip marked seen). Opt-in, never part of the reset — the
+  live and integration suites count agent's rows. `--remove` takes it out.
 - `.env.agent` (committed) holds the CLI's public local-dev default keys —
   not secrets. Prod credentials never go there; every harness script
   (`scripts/lib/localEnv.mjs`) refuses non-localhost URLs.
