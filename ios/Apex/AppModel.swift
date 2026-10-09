@@ -214,6 +214,8 @@ final class AppModel {
         trackerServices = TrackerServices(client: client, cache: cache, queue: queue, clock: clock, activity: publisher)
         queueDriver?.stop()
         queueDriver = WriteQueueDriver(queue: queue)
+        // The Library's and the Builder's offline creates wait in its library lane.
+        schedule.attach(writeQueue: queue)
         Task { await queue.flush() }
 
         coach?.shutdown()
@@ -535,6 +537,7 @@ final class AppModel {
         queueDriver?.stop()
         queueDriver = nil
         trackerServices = nil
+        schedule.attach(writeQueue: nil)
         // Nothing in the island belongs to the next account.
         if let activity { await activity.endAll() }
         coach?.shutdown()
@@ -552,6 +555,7 @@ final class AppModel {
         }
         guard let client else { return }
         schedule = Self.makeSchedule(client: client, cache: cache, clock: clock, streams: streams, realtime: hub)
+        schedule.attach(writeQueue: trackerServices?.queue)
         analytics = Self.makeAnalytics(client: client, cache: cache, clock: clock, realtime: hub)
     }
 

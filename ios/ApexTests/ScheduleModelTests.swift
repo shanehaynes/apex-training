@@ -481,4 +481,100 @@ final class ScheduleModelTests: XCTestCase {
         XCTAssertTrue(definitions.contains { $0.id == "nordic-curl" })
         XCTAssertTrue(definitions.contains { $0.id == "ios-fixture-def" })
     }
+
+    // MARK: - Offline create (the Library's and the Builder's)
+
+    /// A backoff that never ends on its own: under `TestClock` the library
+    /// lane, which never gives up on the network, would retry in a hot loop
+    /// for as long as the test keeps it offline.
+    private struct StalledClock: ApexClock {
+        let now: Date
+        func sleep(seconds: Double) async throws { try await Task.sleep(for: .seconds(3600)) }
+    }
+
+    @MainActor
+    func testACreateWithNoSignalWaitsInTheLibraryLaneAndStaysOfferedUntilItLands() async throws {
+        let transport = healthy()  // no /api/exercise-definitions route: every create is "No connection"
+        let model = makeModel(transport)
+        let store = MemoryWriteQueueStore()
+        let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: Tokens())
+        let queue = WriteQueue(store: store, client: client, clock: StalledClock(now: Self.fixtureNow))
+        model.attach(writeQueue: queue)
+        await model.start()
+
+        let created = await model.createDefinition(name: "Copenhagen Plank", category: "strength", isUnilateral: true)
+        XCTAssertEqual(created?.id, "copenhagen-plank", "no signal is not a refusal")
+        let queued = await store.all.map(\.session)
+        XCTAssertEqual(queued, [.library])
+
+        // A refresh replaces the cached library with the server's, which has
+        // never heard of it — the pending create is still offered.
+        await model.refresh(reason: .foreground)
+        let offered = await model.definitions()
+        XCTAssertTrue(offered.contains { $0.id == "copenhagen-plank" && $0.isUnilateral == true })
+        XCTAssertTrue(offered.contains { $0.id == "ios-fixture-def" })
+
+        // The connection is back: it lands, and the queue holds nothing.
+        transport.set("POST", "/api/exercise-definitions")
+        await queue.resume()
+        await queue.awaitRetries()
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+        let sends = transport.count("POST", "/api/exercise-definitions")
+        XCTAssertGreaterThanOrEqual(sends, 2, "the try that found no signal, the lane's own attempt, then the send that landed")
+        XCTAssertLessThanOrEqual(sends, 3)
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
+    func testAQueuedCreateTheServerRefusesLeavesTheLibrary() async throws {
+        let transport = healthy()
+        let model = makeModel(transport)
+        let store = MemoryWriteQueueStore()
+        let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: Tokens())
+        let queue = WriteQueue(store: store, client: client, clock: StalledClock(now: Self.fixtureNow))
+        model.attach(writeQueue: queue)
+        await model.start()
+        _ = await model.createDefinition(name: "Copenhagen Plank", category: "strength", isUnilateral: false)
+
+        // Back online, and the server says no: the op goes, and so does the
+        // local copy (the re-read schedule is the server's list).
+        transport.set("POST", "/api/exercise-definitions", status: 400, body: Data("Unknown definition fields: x".utf8))
+        await queue.resume()
+        let deadline = Date().addingTimeInterval(2)
+        var offered = await model.definitions()
+        while offered.contains(where: { $0.id == "copenhagen-plank" }), Date() < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+            offered = await model.definitions()
+        }
+        XCTAssertFalse(offered.contains { $0.id == "copenhagen-plank" })
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
+    func testARefusedCreateIsNotQueued() async throws {
+        let transport = healthy()
+        transport.set("POST", "/api/exercise-definitions", status: 400, body: Data("Unknown definition fields: x".utf8))
+        let model = makeModel(transport)
+        let store = MemoryWriteQueueStore()
+        let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: Tokens())
+        model.attach(writeQueue: WriteQueue(store: store, client: client, clock: TestClock(now: Self.fixtureNow)))
+        await model.start()
+
+        let created = await model.createDefinition(name: "Copenhagen Plank", category: "strength", isUnilateral: false)
+        XCTAssertNil(created)
+        let queued = await store.all.count
+        XCTAssertEqual(queued, 0, "only a missing connection waits; a refusal is final")
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
+    func testWithNoQueueAttachedACreateWithNoSignalStillFails() async throws {
+        let model = makeModel(healthy())
+        await model.start()
+        let created = await model.createDefinition(name: "Copenhagen Plank", category: "strength", isUnilateral: false)
+        XCTAssertNil(created)
+    }
 }

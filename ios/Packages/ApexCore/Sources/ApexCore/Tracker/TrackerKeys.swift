@@ -10,6 +10,10 @@ public struct SessionKey: Hashable, Codable, Sendable {
         self.eventId = eventId
         self.eventDate = eventDate
     }
+    /// Not a workout: the queue's lane for library writes made with no signal
+    /// (an exercise created in the Library or the Builder offline). Its ops
+    /// flush with every other session's and are never shown on a tracker.
+    public static let library = SessionKey(eventId: "library", eventDate: "")
 }
 
 /// Identifies one set the way the web's dirty-key string does

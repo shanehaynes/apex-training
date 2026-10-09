@@ -65,6 +65,11 @@ public actor WriteQueue {
     private var rerun: Set<SessionKey> = []
     private var cancelledMidFlight: Set<SessionKey> = []
     private var notBefore: [SessionKey: Date] = [:]
+    /// Bumped by every `resume()`. A library send that fails on the network
+    /// while a resume landed mid-flight retries at once: the backoff it would
+    /// set was decided before the network came back, and `resume()` already
+    /// cleared the gate it would re-close.
+    private var resumes = 0
     /// The retry waiting out each session's backoff: the one a cancel, a purge
     /// or a newer retry calls off. A retry leaves it when it fires.
     private var waitingRetry: [SessionKey: UUID] = [:]
@@ -158,6 +163,7 @@ public actor WriteQueue {
             guard let op = try? await store.nextPending(for: session) else { return }
 
             inFlight[op.id] = session
+            let resumesBefore = resumes
             let outcome: Result<Data, APIError>
             do {
                 outcome = .success(try await client.data(for: Endpoint.tracker(op.payload, session: session)))
@@ -194,12 +200,16 @@ public actor WriteQueue {
                     try? await store.update(next)
                     continue
                 }
-                switch policy.classify(error, attempts: op.attempts) {
+                switch verdict(for: error, op: op, in: session) {
                 case .retry(let delay):
                     var next = op
                     next.attempts += 1
                     next.lastError = error.description
                     try? await store.update(next)
+                    if session == .library, resumes != resumesBefore {
+                        // The network came back while this was in the air.
+                        continue
+                    }
                     scheduleRetry(session, after: delay)
                     return
                 case .pause:
@@ -273,12 +283,30 @@ public actor WriteQueue {
     }
 
     /// Network back, scene active, signed in again: lift the pause and flush.
+    /// The library lane also drops its backoff wait: its ops only ever wait on
+    /// the network (see `verdict`), so this trigger is exactly what they wait for.
     public func resume() async {
         if isPaused {
             isPaused = false
             emit(.resumed)
         }
+        resumes += 1
+        callOffRetry(for: .library)
+        notBefore[.library] = nil
         await flush()
+    }
+
+    /// The policy's verdict, except that a library write never gives up on
+    /// the network. A tracker op stops at the ceiling so the session drains
+    /// past it and the Retry bar shows it; the library lane has no bar, its
+    /// creates are idempotent (the server answers a repeat as done), and
+    /// nothing queues behind them but other creates — so it waits out an
+    /// outage of any length. A 5xx or a refusal still fails as usual.
+    private func verdict(for error: APIError, op: TrackerOp, in session: SessionKey) -> RetryPolicy.Verdict {
+        if session == .library, case .network = error {
+            return .retry(after: policy.backoff(attempts: op.attempts))
+        }
+        return policy.classify(error, attempts: op.attempts)
     }
 
     // MARK: - Failed ops
@@ -302,6 +330,20 @@ public actor WriteQueue {
     }
 
     // MARK: - Reads
+
+    /// Every exercise created with no signal and not yet on the server, from
+    /// any session (the Library's lane and a tracker's swap). The cached
+    /// library is replaced wholesale by each schedule refresh, so its readers
+    /// overlay these to keep a pending create on screen until it lands.
+    public func pendingDefinitionCreates() async -> [DefinitionCreatePayload] {
+        var creates: [DefinitionCreatePayload] = []
+        for session in (try? await store.sessionsWithPending()) ?? [] {
+            for op in await pendingOps(for: session) {
+                if case .createDefinition(let payload) = op.payload { creates.append(payload) }
+            }
+        }
+        return creates
+    }
 
     public func status(for session: SessionKey) async -> SessionSyncStatus {
         var status = SessionSyncStatus()
