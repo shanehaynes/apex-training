@@ -563,13 +563,19 @@ for (const e of events) {
 
 // ── Objectives & blocks ──────────────────────────────────────────────────────
 
+// Every objective date moves with the window, so a re-run months from now
+// still has the achieved trip behind and the active objectives ahead: the ice
+// route closes out the winter block, Denali sits ~8 months out.
 const tetonDate = dayOf(W_TETON, 4);
+const pinnacleDate = dayOf(W_WINTER + 7, 5);
+const denaliDate = dayOf(WEEKS_BACK + 35, 5);
+const monthYear = d => new Date(`${d}T00:00:00Z`).toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const objectives = [
   { id: OBJ.teton, name: 'Grand Teton — Upper Exum Ridge', discipline: 'alpine', status: 'achieved', target_date: tetonDate,
     notes: 'Classic 5.5 alpine ridge, car-to-car in two days. Summited — fast and clean on the simul-climbing.' },
-  { id: OBJ.pinnacle, name: 'Pinnacle Gully, Mt. Washington', discipline: 'ice', status: 'active', target_date: '2027-02-13',
+  { id: OBJ.pinnacle, name: 'Pinnacle Gully, Mt. Washington', discipline: 'ice', status: 'active', target_date: pinnacleDate,
     notes: 'WI3 classic in Huntington Ravine. Lead every pitch; be comfortable on 60° ice with a winter pack.' },
-  { id: OBJ.denali, name: 'Denali — Cassin Ridge', discipline: 'alpine', status: 'active', target_date: '2027-06-10',
+  { id: OBJ.denali, name: 'Denali — Cassin Ridge', discipline: 'alpine', status: 'active', target_date: denaliDate,
     notes: '9,000 ft of Alaska Grade 5 on the south face. Needs a huge aerobic engine, multi-day heavy-pack resilience, and WI4/M4 competence at altitude.' },
 ].map(o => ({ ...o, user_id: uid, required_capabilities: [] }));
 
@@ -632,8 +638,8 @@ const nowIso = now.toISOString();
 const profile = {
   display_name: 'Alex Moreau',
   avatar_key: 'ibex',
-  coach_goal: 'Climb the Cassin Ridge on Denali in June 2027. Lead Pinnacle Gully this February on the way.',
-  coach_context: 'Alpinist based in New Haven, CT. Summited the Grand Teton via the Upper Exum this summer. Trains 6 days a week around a desk job: early mornings on weekdays, long mountain days on Saturdays. Leads 5.11 sport, 5.9 trad, WI3. Left knee gets cranky on long descents — poles and step-down work help.',
+  coach_goal: `Climb the Cassin Ridge on Denali in ${monthYear(denaliDate)}. Lead Pinnacle Gully in ${monthYear(pinnacleDate)} on the way.`,
+  coach_context: `Alpinist based in New Haven, CT. Summited the Grand Teton via the Upper Exum in ${monthYear(tetonDate)}. Trains 6 days a week around a desk job: early mornings on weekdays, long mountain days on Saturdays. Leads 5.11 sport, 5.9 trad, WI3. Left knee gets cranky on long descents — poles and step-down work help.`,
   max_hr: 192,
   threshold_hr: 171,
   template_copied_at: nowIso,
