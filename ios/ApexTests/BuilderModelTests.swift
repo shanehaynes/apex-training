@@ -23,6 +23,11 @@ final class BuilderModelTests: XCTestCase {
             lock.lock(); routes["\(method) \(path)"] = [(status, body)]; lock.unlock()
         }
 
+        /// Unanswered from now on — the route "has no connection".
+        func remove(_ method: String, _ path: String) {
+            lock.lock(); routes["\(method) \(path)"] = nil; lock.unlock()
+        }
+
         func set(_ method: String, _ path: String, bodies: [Data]) {
             lock.lock(); routes["\(method) \(path)"] = bodies.map { (200, $0) }; lock.unlock()
         }
@@ -270,5 +275,84 @@ final class BuilderModelTests: XCTestCase {
         let sessionDraft = await coach.session.config.draft
         XCTAssertEqual(try WorkoutDraft(jsonValue: try XCTUnwrap(sessionDraft)).title, "Renamed by hand")
         builder.shutdown()
+    }
+
+    // MARK: - Offline save (D-027 reversed at the user's call)
+
+    /// A backoff that never ends on its own, so an offline queue sits still.
+    private struct StalledClock: ApexClock {
+        let now: Date
+        func sleep(seconds: Double) async throws { try await Task.sleep(for: .seconds(3600)) }
+    }
+
+    @MainActor
+    private func scheduleWithQueue(_ transport: Transport) async -> (ScheduleModel, WriteQueue) {
+        let (model, client) = await schedule(transport)
+        let queue = WriteQueue(store: MemoryWriteQueueStore(), client: client, clock: StalledClock(now: Self.fixtureNow))
+        model.attach(writeQueue: queue)
+        return (model, queue)
+    }
+
+    @MainActor
+    func testSaveWithNoSignalQueuesTheWorkoutAndClosesTheSheet() async throws {
+        let t = transport()
+        t.remove("POST", "/api/workout-draft")
+        let (model, _) = await scheduleWithQueue(t)
+        let builder = BuilderModel(model: model, route: .create(date: DayKey("2026-09-10")!))
+        await builder.start()
+        builder.query = "Leg day"
+        builder.startBlank()
+
+        let closed = await builder.apply()
+        XCTAssertTrue(closed, "queued, not held open until there is signal")
+        XCTAssertNil(builder.problem)
+        XCTAssertFalse(builder.isDirty)
+        XCTAssertEqual(model.pendingSaves["2026-09-10"], 1)
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
+    func testWithNoQueueSaveWithNoSignalStillSaysSo() async throws {
+        let t = transport()
+        t.remove("POST", "/api/workout-draft")
+        let (model, _) = await schedule(t)
+        let builder = BuilderModel(model: model, route: .create(date: DayKey("2026-09-10")!))
+        await builder.start()
+        builder.query = "Leg day"
+        builder.startBlank()
+        let closed = await builder.apply()
+        XCTAssertFalse(closed)
+        XCTAssertEqual(builder.problem, "No connection — couldn't save. Try again when you're back online.")
+    }
+
+    @MainActor
+    func testFixReopensARefusedSaveWithItsReasonAndASaveRetiresIt() async throws {
+        let t = transport()
+        t.remove("POST", "/api/workout-draft")
+        let (model, queue) = await scheduleWithQueue(t)
+        _ = await model.queueDraft(.empty(date: "2026-09-10", title: "Leg day"), action: .create)
+
+        // Back online; the server refuses it.
+        t.set("POST", "/api/workout-draft", body: Data(#"{"ok":false,"problem":"Add at least one exercise"}"#.utf8))
+        await queue.resume()
+        let deadline = Date().addingTimeInterval(2)
+        while model.refusedSaves.isEmpty, Date() < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        let refused = try XCTUnwrap(model.refusedSaves.first)
+
+        let builder = BuilderModel(model: model, route: .fix(saveId: refused.id))
+        await builder.start()
+        XCTAssertEqual(builder.step, .form)
+        XCTAssertEqual(builder.title, "Fix Workout")
+        XCTAssertEqual(builder.draft.title, "Leg day")
+        XCTAssertEqual(builder.problem, "Add at least one exercise", "the reason is on screen")
+        XCTAssertFalse(builder.asksScope)
+
+        // Fixed and saved with signal: it lands, and the refused save goes.
+        t.set("POST", "/api/workout-draft", body: Self.fixture("workout-draft-create.json"))
+        let closed = await builder.apply()
+        XCTAssertTrue(closed)
+        XCTAssertTrue(model.refusedSaves.isEmpty)
+        XCTAssertTrue((t.body("POST", "/api/workout-draft") ?? "").contains(#""kind":"create""#))
+        model.attach(writeQueue: nil)
     }
 }

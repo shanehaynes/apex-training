@@ -32,6 +32,10 @@ public final class BuilderModel {
     public var confirmDiscard = false
 
     public let editing: ScheduleEvent?
+    /// Set when the sheet reopened a save the server refused after it was
+    /// queued offline: Apply re-sends that save's own action, and a save
+    /// that lands (or queues again) retires the refused one.
+    public let resumed: ScheduleModel.RefusedSave?
     public let route: BuilderRoute
     let scheduleModel: ScheduleModel
     private var model: ScheduleModel { scheduleModel }
@@ -46,16 +50,27 @@ public final class BuilderModel {
         switch route {
         case .create(let date):
             editing = nil
+            resumed = nil
             initial = .empty(date: date.string)
             step = .search
         case .edit(let eventId):
             let event = model.event(id: eventId)
             editing = event
+            resumed = nil
             initial = event.map(WorkoutDraft.init(event:)) ?? .empty(date: model.selectedDay.string)
+            step = .form
+        case .fix(let saveId):
+            // The refused save's own draft and action; no scope question —
+            // the action already says create, update or detach.
+            let refused = model.refusedSaves.first { $0.id == saveId }
+            editing = nil
+            resumed = refused
+            initial = refused?.payload.draft ?? .empty(date: model.selectedDay.string)
             step = .form
         }
         draft = initial
         original = initial
+        problem = resumed?.reason
     }
 
     // Under MainActor default isolation the deinit would be synthesized as
@@ -94,6 +109,7 @@ public final class BuilderModel {
     public var canCoach: Bool { coach != nil && step == .form }
 
     public var title: String {
+        if resumed != nil { return "Fix Workout" }
         if isEditing { return "Edit Workout" }
         if step == .search { return "Add Workout" }
         return draft.templateId != nil ? draft.title : "New Workout"
@@ -197,7 +213,10 @@ public final class BuilderModel {
 
         var sent = draft
         let action: WorkoutDraftAction
-        if let editing {
+        if let resumed {
+            action = resumed.payload.action
+            if case .detach = action { sent.repeatRule = .off }
+        } else if let editing {
             if editing.isRecurring, scope == .occurrence {
                 // Detach: the repeat picker doesn't apply — a detached day cannot itself repeat.
                 sent.repeatRule = .off
@@ -215,6 +234,13 @@ public final class BuilderModel {
         do {
             response = try await model.applyDraft(sent, action: action)
         } catch {
+            // No signal: queue it (it shows on its day as waiting to sync)
+            // rather than hold the sheet open until there is one.
+            if ScheduleModel.isNetwork(error), await model.queueDraft(sent, action: action) {
+                if let resumed { await model.dismissRefusedSave(resumed.id) }
+                original = draft
+                return true
+            }
             problem = ScheduleModel.isNetwork(error) ? "No connection — couldn't save. Try again when you're back online." : "Failed to save — try again"
             return false
         }
@@ -229,6 +255,7 @@ public final class BuilderModel {
         case .detach: "Saved — this day now stands alone"
         }
         ToastBus.shared.post(copy, level: .success)
+        if let resumed { await model.dismissRefusedSave(resumed.id) }
         original = draft
         return true
     }

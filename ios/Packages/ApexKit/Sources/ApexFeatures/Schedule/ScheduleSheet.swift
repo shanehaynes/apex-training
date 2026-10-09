@@ -29,11 +29,15 @@ enum ScheduleSheet: Identifiable, Hashable {
 public enum BuilderRoute: Hashable, Sendable, Identifiable {
     case create(date: DayKey)
     case edit(eventId: String)
+    /// A save refused after it was queued offline, reopened to fix (the
+    /// outbox op's id, `ScheduleModel.RefusedSave.id`).
+    case fix(saveId: Int64)
 
     public var id: String {
         switch self {
         case .create(let date): "create:\(date.string)"
         case .edit(let id): "edit:\(id)"
+        case .fix(let saveId): "fix:\(saveId)"
         }
     }
 }

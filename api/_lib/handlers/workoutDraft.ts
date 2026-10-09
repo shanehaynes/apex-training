@@ -9,15 +9,20 @@ import type { WorkoutDraft } from '../../../src/lib/builder/draft.js';
 // POST /api/workout-draft — the builder's Apply, for every client
 // (docs/ios/backend-changes.md, W7; the web joined in #136). Body:
 //
-//   { draft, today, action: { kind: 'create' }
+//   { draft, today, action: { kind: 'create', clientId? }
 //                         | { kind: 'update', eventId }
-//                         | { kind: 'detach', eventId, occurrenceDate } }
+//                         | { kind: 'detach', eventId, occurrenceDate, clientId? } }
+//
+// `clientId` (ai-<uuid>) makes a create or detach safe to send twice: see
+// WorkoutDraftAction in the service.
 //
 // `draft` is the WorkoutDraft JSON the client already hands /api/coach-tool.
 // Every write is user-triggered — the AI mutation cap is not charged. The
 // orchestration lives in api/_lib/services/workoutDraft.ts; this is the door.
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+/** A client-minted event id: the server's own shape, `ai-<uuid>`. */
+const CLIENT_ID_RE = /^ai-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -27,14 +32,20 @@ function isObject(value: unknown): value is Record<string, unknown> {
 function parseAction(value: unknown): WorkoutDraftAction | string {
   if (!isObject(value)) return 'Unknown action';
   const kind = value.kind;
-  if (kind === 'create') return { kind };
+  const clientId = value.clientId;
+  if (clientId !== undefined && (typeof clientId !== 'string' || !CLIENT_ID_RE.test(clientId))) {
+    return 'clientId must be ai-<uuid>';
+  }
+  if (kind === 'create') return clientId ? { kind, clientId } : { kind };
   if (kind !== 'update' && kind !== 'detach') return 'Unknown action';
   if (typeof value.eventId !== 'string' || !value.eventId) return 'Missing eventId';
   if (kind === 'update') return { kind, eventId: value.eventId };
   if (typeof value.occurrenceDate !== 'string' || !DATE_RE.test(value.occurrenceDate)) {
     return 'occurrenceDate must be a YYYY-MM-DD date';
   }
-  return { kind, eventId: value.eventId, occurrenceDate: value.occurrenceDate };
+  return clientId
+    ? { kind, eventId: value.eventId, occurrenceDate: value.occurrenceDate, clientId }
+    : { kind, eventId: value.eventId, occurrenceDate: value.occurrenceDate };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

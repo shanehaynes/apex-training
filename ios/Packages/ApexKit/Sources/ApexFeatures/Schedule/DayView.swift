@@ -22,6 +22,8 @@ struct DayView: View {
     /// Where a running card's tap goes — back into the tracker, not the event
     /// sheet. nil leaves it opening the sheet like any other card.
     var onResume: ((ScheduleEvent) -> Void)? = nil
+    /// A refused offline save's Fix: reopens its draft in the builder.
+    var onFixSave: ((Int64) -> Void)? = nil
 
     var body: some View {
         ScrollView {
@@ -36,6 +38,7 @@ struct DayView: View {
                         insertion: .move(edge: model.lastStepDirection > 0 ? .trailing : .leading).combined(with: .opacity),
                         removal: .opacity
                     ))
+                outbox
                 if let onAddMeal {
                     Button { onAddMeal(model.selectedDay) } label: { MealsRow(day: model.meals(on: model.selectedDay)) }
                         .buttonStyle(.plain)
@@ -69,6 +72,50 @@ struct DayView: View {
         }
         .padding(.top, Spacing.xs)
         .simultaneousGesture(swipe(days: 7))
+    }
+
+    /// Builder saves made offline for this day: a line while they wait, and a
+    /// row per save the server refused, with its reason and Fix. The workout
+    /// itself appears once the server has it (nothing is built locally, D-008).
+    @ViewBuilder
+    private var outbox: some View {
+        let day = model.selectedDay.string
+        let waiting = model.pendingSaves[day] ?? 0
+        let refused = model.refusedSaves.filter { $0.payload.draft.date == day }
+        if waiting > 0 {
+            Label(waiting == 1 ? "1 workout waiting to sync" : "\(waiting) workouts waiting to sync", systemImage: "icloud.and.arrow.up")
+                .font(.apex(.mono, size: TypeScale.micro, weight: .medium, relativeTo: .caption2))
+                .foregroundStyle(ApexColor.textMuted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("schedule.day.pendingSaves")
+        }
+        ForEach(refused) { save in
+            HStack(alignment: .top, spacing: Spacing.sm) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(save.payload.draft.title.isEmpty ? "A workout wasn't saved" : "“\(save.payload.draft.title)” wasn't saved")
+                        .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
+                        .foregroundStyle(ApexColor.textPrimary)
+                    Text(save.reason).apexBody()
+                }
+                Spacer(minLength: 0)
+                if let onFixSave {
+                    Button { onFixSave(save.id) } label: {
+                        Text("Fix")
+                            .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
+                            .foregroundStyle(ApexColor.accent)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("schedule.day.fixSave.\(save.id)")
+                }
+            }
+            .padding(Spacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(ApexColor.bgSurface, in: .rect(cornerRadius: Radius.lg))
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("schedule.day.refusedSave")
+        }
     }
 
     @ViewBuilder

@@ -1003,3 +1003,28 @@ activity itself. Token auth: an APNs `.p8` key (`APNS_KEY_ID`, `APNS_TEAM_ID`,
 - D-017 stands: this is not user-facing notification push, and asks no permission.
 - `aps-environment` joins the app's entitlements, and the App ID needs the Push Notifications
   capability; the ops runbook lists the new key.
+
+## D-052 · Builder saves and exercise creates queue offline (amends D-027)
+**Status:** decided · Shane's call · 2026-10-09
+D-027 kept event CRUD direct and online-only: "a half-built workout is not" workout data the
+queue exists to protect. Shane reversed that for the Builder's Save and for creating an
+exercise (Library, Builder): both now queue when there is no signal. The lines drawn:
+- **One extra lane, not a second queue.** `SessionKey.outbox` (stored as `"library"`, the name
+  it shipped under for exercise creates) holds every write made outside the tracker. It flushes
+  with the tracker's sessions; a network error there never exhausts the retry ceiling (no
+  Retry bar exists for it, and everything in it is safe to replay); `resume()` sends it at
+  once. A 5xx or a refusal still fails.
+- **Replays are safe on the server, not guessed at on the client.** A queued create or detach
+  carries `clientId` (`ai-<uuid>`) and `/api/workout-draft` answers a repeat with the event it
+  already wrote (`replayed: true`); `/api/exercise-definitions` answers a duplicate slug as done.
+- **Nothing is built locally (D-008 stands).** A queued save shows on its day as "waiting to
+  sync"; the workout itself appears when the server has it and the schedule re-reads. No
+  event construction, no recurrence expansion in Swift. A pending exercise create is overlaid
+  on the cached library, because it is a single row the client already knows.
+- **A refusal is kept, not dropped.** `ok:false` on 200 from a queued save is a failure in the
+  queue. The day shows the save with the server's reason and **Fix**, which reopens the draft
+  in the builder (`BuilderRoute.fix`); saving it again, online or queued, retires the refused
+  one. A refused exercise create is toasted and dropped, and the schedule re-read removes its
+  local copy.
+- **Still online-only:** the event sheet's inline edits, delete and reschedule, and the web,
+  which has no offline writes at all.

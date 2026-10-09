@@ -505,7 +505,7 @@ final class ScheduleModelTests: XCTestCase {
         let created = await model.createDefinition(name: "Copenhagen Plank", category: "strength", isUnilateral: true)
         XCTAssertEqual(created?.id, "copenhagen-plank", "no signal is not a refusal")
         let queued = await store.all.map(\.session)
-        XCTAssertEqual(queued, [.library])
+        XCTAssertEqual(queued, [.outbox])
 
         // A refresh replaces the cached library with the server's, which has
         // never heard of it — the pending create is still offered.
@@ -576,5 +576,68 @@ final class ScheduleModelTests: XCTestCase {
         await model.start()
         let created = await model.createDefinition(name: "Copenhagen Plank", category: "strength", isUnilateral: false)
         XCTAssertNil(created)
+    }
+
+    // MARK: - Offline Builder save
+
+    @MainActor
+    private func outboxModel(_ transport: ScriptedTransport) async -> (ScheduleModel, WriteQueue, MemoryWriteQueueStore) {
+        let model = makeModel(transport)
+        let store = MemoryWriteQueueStore()
+        let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: Tokens())
+        let queue = WriteQueue(store: store, client: client, clock: StalledClock(now: Self.fixtureNow))
+        model.attach(writeQueue: queue)
+        await model.start()
+        return (model, queue, store)
+    }
+
+    @MainActor
+    private func waitUntil(_ condition: @MainActor () -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(2)
+        while !condition(), Date() < deadline { try await Task.sleep(for: .milliseconds(10)) }
+    }
+
+    @MainActor
+    func testAnOfflineSaveWaitsOnItsDayAndLandsWhenTheConnectionReturns() async throws {
+        let transport = healthy()  // no /api/workout-draft route: "No connection"
+        let (model, queue, store) = await outboxModel(transport)
+        let draft = WorkoutDraft.empty(date: "2026-09-10", title: "Leg day")
+
+        let queued = await model.queueDraft(draft, action: .create)
+        XCTAssertTrue(queued)
+        XCTAssertEqual(model.pendingSaves["2026-09-10"], 1, "the day says a workout is waiting")
+        let held = await store.all
+        guard case .workoutDraft(let payload) = held.first?.payload else { return XCTFail("not queued") }
+        XCTAssertEqual(held.first?.session, .outbox)
+        XCTAssertTrue(payload.clientId?.hasPrefix("ai-") == true, "a new event carries the id it will take")
+
+        let refetches = transport.count("GET", "/api/schedule")
+        transport.set("POST", "/api/workout-draft", body: Data(#"{"ok":true,"action":"create","id":"x","date":"2026-09-10"}"#.utf8))
+        await queue.resume()
+        try await waitUntil { model.pendingSaves.isEmpty }
+        XCTAssertTrue(model.pendingSaves.isEmpty)
+        try await waitUntil { transport.count("GET", "/api/schedule") > refetches }
+        XCTAssertGreaterThan(transport.count("GET", "/api/schedule"), refetches, "a save that lands re-reads the schedule so it shows")
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
+    func testASaveRefusedAfterQueueingIsKeptForFixUntilDismissed() async throws {
+        let transport = healthy()
+        let (model, queue, store) = await outboxModel(transport)
+        _ = await model.queueDraft(.empty(date: "2026-09-10", title: "Leg day"), action: .create)
+
+        transport.set("POST", "/api/workout-draft", body: Data(#"{"ok":false,"problem":"Add at least one exercise"}"#.utf8))
+        await queue.resume()
+        try await waitUntil { !model.refusedSaves.isEmpty }
+        XCTAssertEqual(model.refusedSaves.map(\.reason), ["Add at least one exercise"])
+        XCTAssertEqual(model.refusedSaves.first?.payload.draft.title, "Leg day")
+        XCTAssertTrue(model.pendingSaves.isEmpty)
+
+        await model.dismissRefusedSave(try XCTUnwrap(model.refusedSaves.first).id)
+        XCTAssertTrue(model.refusedSaves.isEmpty)
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+        model.attach(writeQueue: nil)
     }
 }

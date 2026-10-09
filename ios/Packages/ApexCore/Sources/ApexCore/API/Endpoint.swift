@@ -188,6 +188,9 @@ public struct Endpoint: Sendable, Equatable {
                 exerciseId: swap.exerciseId, exerciseName: swap.exerciseName, definitionId: swap.definitionId
             ))
 
+        case .workoutDraft(let save):
+            return Endpoint.workoutDraft(draft: save.draft, today: save.today, action: save.action, clientId: save.clientId)
+
         case .createDefinition(let definition):
             return Endpoint.createDefinition(
                 id: definition.id, canonicalName: definition.canonicalName,
@@ -293,11 +296,14 @@ public struct Endpoint: Sendable, Equatable {
 
     /// The builder's Apply (`POST /api/workout-draft`): the draft JSON in,
     /// the server upserts the template and writes the event.
-    public static func workoutDraft(draft: WorkoutDraft, today: String, action: WorkoutDraftAction) -> Endpoint {
+    /// `clientId` (create and detach, `ai-<uuid>`): the new event's id, so a
+    /// queued save sent twice lands once (the server answers the repeat).
+    public static func workoutDraft(draft: WorkoutDraft, today: String, action: WorkoutDraftAction, clientId: String? = nil) -> Endpoint {
         struct Action: Encodable {
             let kind: String
             let eventId: String?
             let occurrenceDate: String?
+            let clientId: String?
         }
         struct Body: Encodable {
             let draft: WorkoutDraft
@@ -305,9 +311,9 @@ public struct Endpoint: Sendable, Equatable {
             let action: Action
         }
         let wire: Action = switch action {
-        case .create: Action(kind: "create", eventId: nil, occurrenceDate: nil)
-        case .update(let eventId): Action(kind: "update", eventId: eventId, occurrenceDate: nil)
-        case .detach(let eventId, let occurrenceDate): Action(kind: "detach", eventId: eventId, occurrenceDate: occurrenceDate)
+        case .create: Action(kind: "create", eventId: nil, occurrenceDate: nil, clientId: clientId)
+        case .update(let eventId): Action(kind: "update", eventId: eventId, occurrenceDate: nil, clientId: nil)
+        case .detach(let eventId, let occurrenceDate): Action(kind: "detach", eventId: eventId, occurrenceDate: occurrenceDate, clientId: clientId)
         }
         return Endpoint(method: .post, path: "api/workout-draft", body: json(Body(draft: draft, today: today, action: wire)))
     }
