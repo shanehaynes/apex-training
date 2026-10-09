@@ -67,6 +67,12 @@ public final class ScheduleModel {
     public var mode: Mode = .day
     public var selectedDay: DayKey
 
+    /// Handed every index a refresh brings back from the server. The app
+    /// ends a Live Activity whose workout was finished elsewhere through it;
+    /// a property rather than a dependency because the activity controller is
+    /// built per signed-in user, after this model.
+    public var onIndexRefreshed: (@MainActor (ScheduleIndex) async -> Void)?
+
     let deps: ScheduleDependencies
     private var started = false
     private var pendingRefresh: RefreshReason?
@@ -176,6 +182,7 @@ public final class ScheduleModel {
                 try? await deps.cache.write(CacheEntry(kind: .templates, key: ScheduleCacheKey.templates, json: json, fetchedAt: now))
             }
             if deps.prefetchesTracker { Task { await self.prefetchTrackerBootstraps() } }
+            await onIndexRefreshed?(built)
         } catch {
             lastRefreshFailed = true
             let message = Self.readable(error)

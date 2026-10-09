@@ -101,6 +101,20 @@ public nonisolated struct LiveActivityController: TrackerActivityPublishing {
         }
     }
 
+    /// A workout finished anywhere but this tracker — on the web, from the
+    /// Schedule's check, by the coach — never reaches `end`, so the activity
+    /// would keep counting until it went stale. The app calls this after every
+    /// schedule refresh (launch, foreground, realtime, a completion toggle) and
+    /// ends, at once, any running activity whose session is now finished.
+    public func endFinished(where isFinished: @Sendable (SessionKey) -> Bool) async {
+        for activity in Self.all where activity.activityState.isLive {
+            let session = activity.attributes.session
+            guard isFinished(session) else { continue }
+            log.info("ending an activity finished elsewhere for \(session.eventId, privacy: .public)")
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
+    }
+
     /// Sign-out: nothing in the island belongs to the next account.
     public func endAll() async {
         await endAll(except: nil)

@@ -340,6 +340,10 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   scope/access models + required `access` on the mint, the **Can make changes** switch (default
   on, D-050), read-only tags, guide copy to the web's wording, mock honours `access`. `swift test`
   432 green; ApexTests + snapshots on the Mac in the same session.
+- 2026-10-09 · W12 follow-up · Linux. The Live Activity leaves the Lock Screen when the workout
+  ends: finish dismisses at once (no 5-minute Done linger), and a finish anywhere else (web,
+  Schedule check, coach, provider sync) ends it on the next schedule refresh. Mac/device run
+  needed; clearing it while the app is suspended would need ActivityKit push (not built).
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)
