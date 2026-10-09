@@ -166,6 +166,8 @@ final class TrackerEndpointTests: XCTestCase {
                                   score: ScoreSubmission(templateId: "t", score: .forTime(timeSeconds: 1)))),
             .swapExercise(SwapPayload(section: "exercise", exerciseId: "x", exerciseName: "Y", definitionId: nil)),
             .createDefinition(DefinitionCreatePayload(id: "pancake-fold", canonicalName: "Pancake Fold", category: "stretch", isUnilateral: false)),
+            .workoutDraft(WorkoutDraftOpPayload(draft: .empty(date: "2026-09-10", title: "Leg day"), today: "2026-09-08",
+                                                action: .detach(eventId: "a__2026-09-15", occurrenceDate: "2026-09-15"), clientId: "ai-x")),
         ]
         for payload in payloads {
             let data = try JSONEncoder().encode(payload)

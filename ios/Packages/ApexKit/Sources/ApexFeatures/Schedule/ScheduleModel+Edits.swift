@@ -27,8 +27,11 @@ extension ScheduleModel {
 
     /// The builder's Apply. nil = the request never landed (toasted here);
     /// `ok: false` = the server's validation, for the sheet to show inline.
-    public func applyDraft(_ draft: WorkoutDraft, action: WorkoutDraftAction) async throws -> WorkoutDraftResponse {
-        let data = try await deps.client.data(for: .workoutDraft(draft: draft, today: today.string, action: action))
+    /// `clientId`: the id a new event (create, detach) takes — the same one on
+    /// every attempt, so a save that landed unanswered and is then queued is
+    /// answered as already done, not written twice.
+    public func applyDraft(_ draft: WorkoutDraft, action: WorkoutDraftAction, clientId: String? = nil) async throws -> WorkoutDraftResponse {
+        let data = try await deps.client.data(for: .workoutDraft(draft: draft, today: today.string, action: action, clientId: clientId))
         let response = try JSONDecoder().decode(WorkoutDraftResponse.self, from: data)
         guard response.ok else { return response }
         if let current = index, let event = response.event, let id = response.id, let date = response.date {
@@ -53,6 +56,34 @@ extension ScheduleModel {
         }
         await refresh(reason: .afterEdit)
         return response
+    }
+
+    /// The Builder's Save with no signal (the user's call against D-027's
+    /// online-only line): queued in the outbox, said, and shown on its day as
+    /// waiting to sync until the server has it. A new event carries the id it
+    /// will take, so a replay of a save whose answer was lost lands once.
+    /// false = no queue (signed out) or the queue would not take it.
+    /// `clientId` is the one the failed direct attempt already sent.
+    public func queueDraft(_ draft: WorkoutDraft, action: WorkoutDraftAction, clientId: String) async -> Bool {
+        guard let queue = writeQueue else { return false }
+        let payload = WorkoutDraftOpPayload(draft: draft, today: today.string, action: action, clientId: clientId)
+        do {
+            try await queue.enqueue(.workoutDraft(payload), for: .outbox)
+        } catch {
+            return false
+        }
+        ToastBus.shared.post("No connection — saved here. It appears on the calendar once you're back online.", level: .info)
+        await reloadOutbox()
+        // As with an offline create: the failed try may have been a timeout
+        // with the path still up, and then no "network back" will come.
+        Task { await queue.flush(.outbox) }
+        return true
+    }
+
+    /// Drops a refused save — fixed and saved again, or let go.
+    public func dismissRefusedSave(_ id: Int64) async {
+        await writeQueue?.discard(id, in: .outbox)
+        await reloadOutbox()
     }
 
     /// Archive (or restore) a library template; the cached list follows.
@@ -83,7 +114,7 @@ extension ScheduleModel {
     /// The picker's inline create (`ExercisePicker` on the web) — the Library's
     /// and the Builder's: the id is the slug, the row lands immediately so the
     /// entry can reference it. With no signal the write waits in the queue's
-    /// library lane instead of failing, and the row is offered here meanwhile
+    /// outbox lane instead of failing, and the row is offered here meanwhile
     /// (`definitions()` overlays it); a refusal is a toast.
     public func createDefinition(name: String, category: String, isUnilateral: Bool) async -> ExerciseDefinition? {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
@@ -101,7 +132,7 @@ extension ScheduleModel {
             }
             let payload = DefinitionCreatePayload(id: id, canonicalName: trimmed, category: category, isUnilateral: isUnilateral)
             do {
-                try await queue.enqueue(.createDefinition(payload), for: .library)
+                try await queue.enqueue(.createDefinition(payload), for: .outbox)
             } catch {
                 ToastBus.shared.post("Couldn't add the exercise — try again", level: .failure)
                 return nil
@@ -109,7 +140,7 @@ extension ScheduleModel {
             ToastBus.shared.post("No connection — “\(trimmed)” is added here and syncs when you're back online", level: .info)
             // Start the lane now: the try above may have timed out with the
             // path still up, and then no "network back" trigger will come.
-            Task { await queue.flush(.library) }
+            Task { await queue.flush(.outbox) }
         }
         await rememberDefinition(definition)
         return definition

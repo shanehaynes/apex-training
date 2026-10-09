@@ -59,6 +59,7 @@ timer in the Dynamic Island, and a coach you can read. Same backend, same data, 
 | Live Activity | Yes — timer + title | D-016 |
 | App icon | New icon on the house palette | D-019 |
 | Invite hand-off | Web button + redirectTo | D-020 |
+| Offline outside the tracker | Builder save + exercise create queue; shown as waiting, never built locally | D-052 |
 
 ## Architecture in one paragraph
 

@@ -7,6 +7,47 @@ public enum TrackerAction: String, Codable, Sendable {
     case start, save, finish, cancel, completion
     case swapExercise = "swap-exercise"
     case createDefinition = "create-definition"
+    case workoutDraft = "workout-draft"
+}
+
+/// A Builder save made with no signal (`POST /api/workout-draft`), queued in
+/// the outbox lane. A create or detach carries the id the new event takes, so
+/// a replay of a save whose answer was lost is the same event, not a second.
+public struct WorkoutDraftOpPayload: Codable, Sendable, Equatable {
+    public enum Kind: String, Codable, Sendable { case create, update, detach }
+
+    public var draft: WorkoutDraft
+    public var today: String
+    public var kind: Kind
+    public var eventId: String?
+    public var occurrenceDate: String?
+    public var clientId: String?
+
+    public init(draft: WorkoutDraft, today: String, action: WorkoutDraftAction, clientId: String?) {
+        self.draft = draft
+        self.today = today
+        switch action {
+        case .create:
+            kind = .create
+        case .update(let eventId):
+            kind = .update
+            self.eventId = eventId
+        case .detach(let eventId, let occurrenceDate):
+            kind = .detach
+            self.eventId = eventId
+            self.occurrenceDate = occurrenceDate
+        }
+        // An update rewrites a row that exists; only a new row needs an id to dedupe on.
+        self.clientId = kind == .update ? nil : clientId
+    }
+
+    public var action: WorkoutDraftAction {
+        switch kind {
+        case .create: .create
+        case .update: .update(eventId: eventId ?? "")
+        case .detach: .detach(eventId: eventId ?? "", occurrenceDate: occurrenceDate ?? "")
+        }
+    }
 }
 
 /// A movement created from the swap picker mid-workout. Queued ahead of the
@@ -38,6 +79,7 @@ public enum TrackerOpPayload: Codable, Sendable, Equatable {
     case cancel
     case swapExercise(SwapPayload)
     case createDefinition(DefinitionCreatePayload)
+    case workoutDraft(WorkoutDraftOpPayload)
     /// `POST /api/completions` — finishing flips the occurrence's completion the
     /// way the web does after `finish`; cancelling a finished session flips it back.
     case completion(completionRow: CompletionRow, logRow: CompletionLogRow)
@@ -50,6 +92,7 @@ public enum TrackerOpPayload: Codable, Sendable, Equatable {
         case .cancel: .cancel
         case .swapExercise: .swapExercise
         case .createDefinition: .createDefinition
+        case .workoutDraft: .workoutDraft
         case .completion: .completion
         }
     }

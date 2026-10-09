@@ -41,10 +41,14 @@ import type { WorkoutEvent } from '../../../src/types/workout.js';
 
 type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 
+// `clientId` (create and detach): the id the new event takes, minted by a
+// client that may send the same write twice — the iOS offline queue replays
+// a save whose answer it never heard. A second request with an id that
+// already exists is answered with that event (`replayed: true`), unwritten.
 export type WorkoutDraftAction =
-  | { kind: 'create' }
+  | { kind: 'create'; clientId?: string }
   | { kind: 'update'; eventId: string }
-  | { kind: 'detach'; eventId: string; occurrenceDate: string };
+  | { kind: 'detach'; eventId: string; occurrenceDate: string; clientId?: string };
 
 export interface WorkoutDraftBody {
   draft: WorkoutDraft;
@@ -68,6 +72,8 @@ export type WorkoutDraftOutcome =
       occurrenceDate?: string;
       /** The event as `/api/schedule` would serve its base — the client can place it without a refetch. */
       event: WorkoutEvent;
+      /** A repeat of a write that already landed (same clientId): nothing was written this time. */
+      replayed?: true;
     };
 
 export const UNILATERAL_PROBLEM = 'Per-side counts needed for unilateral exercises';
@@ -82,6 +88,21 @@ async function loadTemplates(supabase: Admin, userId: string) {
     supabase.from('workout_templates').select('*').eq('user_id', userId).order('title', { ascending: true }).range(from, to),
   );
   return rows.map(rowToTemplate);
+}
+
+/** The caller's event with this id, or null — the replay check. */
+async function findEvent(supabase: Admin, userId: string, id: string): Promise<ServiceResult<WorkoutEventRow | null>> {
+  const { data, error } = await supabase
+    .from('workout_events')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) {
+    console.error('[api/workout-draft] replay lookup failed:', error.message);
+    return fail(500, 'Failed to load event');
+  }
+  return succeed((data as WorkoutEventRow | null) ?? null);
 }
 
 async function loadBaseRow(supabase: Admin, userId: string, baseId: string): Promise<ServiceResult<WorkoutEventRow>> {
@@ -105,6 +126,19 @@ export async function applyWorkoutDraft(
   body: WorkoutDraftBody,
 ): Promise<ServiceResult<WorkoutDraftOutcome>> {
   const { draft, today, action } = body;
+
+  if (action.kind !== 'update' && action.clientId) {
+    const existing = await findEvent(supabase, userId, action.clientId);
+    if (!existing.ok) return existing;
+    if (existing.value) {
+      const event = rowToEvent(existing.value);
+      return succeed({
+        ok: true, action: action.kind, id: event.id, templateId: event.templateId, date: event.date,
+        completedOnCreate: false, isRecurring: !!event.isRecurring, event, replayed: true,
+        ...(action.kind === 'detach' ? { detachedFrom: baseIdOf(action.eventId), occurrenceDate: occurrenceDateOf(action.eventId) ?? action.occurrenceDate } : {}),
+      });
+    }
+  }
 
   const baseId = action.kind === 'create' ? null : baseIdOf(action.eventId);
   const [definitions, templates, base] = await Promise.all([
@@ -145,7 +179,7 @@ export async function applyWorkoutDraft(
     if (!saved.ok) return saved;
 
     const input = createInputFromDraft(draft, templateId);
-    const id = `ai-${randomUUID()}`;
+    const id = action.clientId ?? `ai-${randomUUID()}`;
     // An event added to a day that has already passed is a retro-log: it was
     // done, not planned, so it completes on creation. A recurring series is a
     // plan whatever its anchor date — never that.
@@ -200,7 +234,7 @@ export async function applyWorkoutDraft(
   const standalone: WorkoutEvent = {
     ...current,
     ...(fields as Partial<WorkoutEvent>),
-    id: `ai-${randomUUID()}`,
+    id: action.clientId ?? `ai-${randomUUID()}`,
     date: fields.date ?? current.date,
     isRecurring: false,
     recurrenceRule: undefined,

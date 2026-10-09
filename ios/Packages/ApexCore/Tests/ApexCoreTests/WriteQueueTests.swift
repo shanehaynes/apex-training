@@ -547,7 +547,7 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(v45, ["save", "save"])
     }
 
-    // MARK: - The library lane (an exercise created offline outside a workout)
+    // MARK: - The outbox lane (an exercise created offline outside a workout)
 
     private let pancake = DefinitionCreatePayload(id: "pancake-fold", canonicalName: "Pancake Fold", category: "stretch", isUnilateral: false)
 
@@ -557,9 +557,9 @@ final class WriteQueueTests: XCTestCase {
         let transport = ScriptedTransport([.throwNetwork, .throwNetwork, .throwNetwork, .throwNetwork, .throwNetwork, .ok()])
         let store = MemoryWriteQueueStore()
         let queue = makeQueue(transport, store: store, policy: RetryPolicy(maxAttempts: 2))
-        try await queue.enqueue(.createDefinition(pancake), for: .library)
+        try await queue.enqueue(.createDefinition(pancake), for: .outbox)
 
-        await queue.flush(.library)
+        await queue.flush(.outbox)
         await queue.awaitRetries()
 
         let sent = await transport.requests.map(\.path)
@@ -572,9 +572,9 @@ final class WriteQueueTests: XCTestCase {
         let transport = ScriptedTransport([.status(500, body: "boom"), .status(500, body: "boom"), .status(500, body: "boom")])
         let store = MemoryWriteQueueStore()
         let queue = makeQueue(transport, store: store, policy: RetryPolicy(maxAttempts: 2))
-        try await queue.enqueue(.createDefinition(pancake), for: .library)
+        try await queue.enqueue(.createDefinition(pancake), for: .outbox)
 
-        await queue.flush(.library)
+        await queue.flush(.outbox)
         await queue.awaitRetries()
 
         let remaining = await store.all.map(\.state)
@@ -586,9 +586,9 @@ final class WriteQueueTests: XCTestCase {
         let store = MemoryWriteQueueStore()
         let clock = HeldClock()
         let queue = makeQueue(transport, store: store, clock: clock)
-        try await queue.enqueue(.createDefinition(pancake), for: .library)
+        try await queue.enqueue(.createDefinition(pancake), for: .outbox)
 
-        await queue.flush(.library)
+        await queue.flush(.outbox)
         let first = await transport.requests.count
         XCTAssertEqual(first, 1, "offline: one try, then a backoff the held clock never ends")
 
@@ -608,7 +608,7 @@ final class WriteQueueTests: XCTestCase {
         let transport = ScriptedTransport([.throwNetwork])
         let queue = makeQueue(transport, clock: HeldClock())
         let couch = DefinitionCreatePayload(id: "couch-stretch", canonicalName: "Couch Stretch", category: "stretch", isUnilateral: false)
-        try await queue.enqueue(.createDefinition(pancake), for: .library)
+        try await queue.enqueue(.createDefinition(pancake), for: .outbox)
         try await queue.enqueue(.createDefinition(couch), for: session)
         try await queue.enqueue(save([setRow(1)]), for: session)
 
@@ -616,7 +616,51 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(pending, ["couch-stretch", "pancake-fold"])
     }
 
-    func testAResumeDuringAFailingLibrarySendStillSendsAtOnce() async throws {
+    // MARK: - A Builder save in the outbox
+
+    private func draftSave(_ title: String) -> TrackerOpPayload {
+        .workoutDraft(WorkoutDraftOpPayload(
+            draft: .empty(date: "2026-09-10", title: title), today: "2026-09-08", action: .create,
+            clientId: "ai-0b9f3c52-6a1e-4c47-9d3a-5f2e8b7c1a90"
+        ))
+    }
+
+    func testASaveTheServerAcceptsLeavesTheOutbox() async throws {
+        let transport = ScriptedTransport([.ok(#"{"ok":true,"action":"create","id":"ai-0b9f3c52-6a1e-4c47-9d3a-5f2e8b7c1a90"}"#)])
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store)
+        try await queue.enqueue(draftSave("Leg day"), for: .outbox)
+        await queue.flush(.outbox)
+        let sent = await transport.requests.map(\.path)
+        XCTAssertEqual(sent, ["/api/workout-draft"])
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+    }
+
+    func testASaveTheServerRefusesOnValidationIsKeptAsFailedWithItsReason() async throws {
+        // 200 with ok:false is a refusal, not a success: nothing was written.
+        let transport = ScriptedTransport([.ok(#"{"ok":false,"problem":"Per-side counts needed for unilateral exercises"}"#)])
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store)
+        let recorder = EventRecorder()
+        await recorder.start(await queue.subscribe())
+        try await queue.enqueue(draftSave("Leg day"), for: .outbox)
+        await queue.flush(.outbox)
+
+        let kept = await queue.ops(for: .outbox)
+        XCTAssertEqual(kept.map(\.state), [.failed])
+        XCTAssertEqual(kept.first?.lastError, "Per-side counts needed for unilateral exercises")
+        let failure = QueueEvent.failed(.outbox, .workoutDraft, "Per-side counts needed for unilateral exercises")
+        let events = await recorder.waitFor { $0.contains(failure) }
+        XCTAssertTrue(events.contains(failure))
+        await recorder.stop()
+
+        await queue.discard(kept[0].id, in: .outbox)
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+    }
+
+    func testAResumeDuringAFailingOutboxSendStillSendsAtOnce() async throws {
         // The send is in the air with no signal when the network comes back:
         // its failure must not re-close the gate resume() just opened.
         let transport = ScriptedTransport([.throwNetwork, .ok()])
@@ -625,9 +669,9 @@ final class WriteQueueTests: XCTestCase {
         let store = MemoryWriteQueueStore()
         let clock = HeldClock()
         let queue = makeQueue(transport, store: store, clock: clock)
-        try await queue.enqueue(.createDefinition(pancake), for: .library)
+        try await queue.enqueue(.createDefinition(pancake), for: .outbox)
 
-        let first = Task { await queue.flush(.library) }
+        let first = Task { await queue.flush(.outbox) }
         while await transport.requests.isEmpty { await Task.yield() }
         await queue.resume()          // finds the flush running: it only asks for a re-run
         await gate.open()             // the in-flight send now fails on the network

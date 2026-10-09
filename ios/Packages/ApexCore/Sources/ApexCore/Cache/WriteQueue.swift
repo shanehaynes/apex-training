@@ -65,7 +65,7 @@ public actor WriteQueue {
     private var rerun: Set<SessionKey> = []
     private var cancelledMidFlight: Set<SessionKey> = []
     private var notBefore: [SessionKey: Date] = [:]
-    /// Bumped by every `resume()`. A library send that fails on the network
+    /// Bumped by every `resume()`. An outbox send that fails on the network
     /// while a resume landed mid-flight retries at once: the backoff it would
     /// set was decided before the network came back, and `resume()` already
     /// cleared the gate it would re-close.
@@ -183,6 +183,21 @@ public actor WriteQueue {
 
             switch outcome {
             case .success(let data):
+                // A Builder save the server refused on validation answers
+                // `ok: false` on 200 — nothing was written, and the user has
+                // to see why: it fails like any refusal, kept for "Fix".
+                if case .workoutDraft = op.payload,
+                   let answer = try? JSONDecoder().decode(DraftVerdict.self, from: data), !answer.ok {
+                    let message = answer.problem ?? "The server did not accept this workout."
+                    var next = op
+                    next.attempts += 1
+                    next.lastError = message
+                    next.state = .failed
+                    try? await store.update(next)
+                    emit(.failed(session, op.payload.action, message))
+                    emit(.changed(session))
+                    continue
+                }
                 try? await store.delete(id: op.id)
                 if case .finish = op.payload {
                     emit(.finished(session, try? JSONDecoder().decode(FinishResponse.self, from: data)))
@@ -206,7 +221,7 @@ public actor WriteQueue {
                     next.attempts += 1
                     next.lastError = error.description
                     try? await store.update(next)
-                    if session == .library, resumes != resumesBefore {
+                    if session == .outbox, resumes != resumesBefore {
                         // The network came back while this was in the air.
                         continue
                     }
@@ -283,7 +298,7 @@ public actor WriteQueue {
     }
 
     /// Network back, scene active, signed in again: lift the pause and flush.
-    /// The library lane also drops its backoff wait: its ops only ever wait on
+    /// The outbox lane also drops its backoff wait: its ops only ever wait on
     /// the network (see `verdict`), so this trigger is exactly what they wait for.
     public func resume() async {
         if isPaused {
@@ -291,19 +306,19 @@ public actor WriteQueue {
             emit(.resumed)
         }
         resumes += 1
-        callOffRetry(for: .library)
-        notBefore[.library] = nil
+        callOffRetry(for: .outbox)
+        notBefore[.outbox] = nil
         await flush()
     }
 
     /// The policy's verdict, except that a library write never gives up on
     /// the network. A tracker op stops at the ceiling so the session drains
-    /// past it and the Retry bar shows it; the library lane has no bar, its
+    /// past it and the Retry bar shows it; the outbox lane has no bar, its
     /// creates are idempotent (the server answers a repeat as done), and
     /// nothing queues behind them but other creates — so it waits out an
     /// outage of any length. A 5xx or a refusal still fails as usual.
     private func verdict(for error: APIError, op: TrackerOp, in session: SessionKey) -> RetryPolicy.Verdict {
-        if session == .library, case .network = error {
+        if session == .outbox, case .network = error {
             return .retry(after: policy.backoff(attempts: op.attempts))
         }
         return policy.classify(error, attempts: op.attempts)
@@ -329,7 +344,26 @@ public actor WriteQueue {
         emit(.changed(session))
     }
 
+    /// The two fields of a `/api/workout-draft` answer the queue reads; the
+    /// event it carries is the schedule's business, not the queue's.
+    private struct DraftVerdict: Decodable {
+        let ok: Bool
+        let problem: String?
+    }
+
     // MARK: - Reads
+
+    /// Every op in a lane, any state, oldest first — the outbox's pending and
+    /// refused Builder saves are read from here.
+    public func ops(for session: SessionKey) async -> [TrackerOp] {
+        (try? await store.ops(for: session)) ?? []
+    }
+
+    /// Drops one op (a refused save the user fixed or dismissed).
+    public func discard(_ id: Int64, in session: SessionKey) async {
+        try? await store.delete(id: id)
+        emit(.changed(session))
+    }
 
     /// Every exercise created with no signal and not yet on the server, from
     /// any session (the Library's lane and a tracker's swap). The cached

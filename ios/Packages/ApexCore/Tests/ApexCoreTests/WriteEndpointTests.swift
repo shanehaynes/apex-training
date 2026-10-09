@@ -21,6 +21,22 @@ final class WriteEndpointTests: XCTestCase {
             .hasPrefix(#"{"action":{"eventId":"a__2026-09-15","kind":"detach","occurrenceDate":"2026-09-15"}"#))
     }
 
+    func testAQueuedSaveCarriesItsClientIdOnANewEventOnly() {
+        let draft = WorkoutDraft.empty(date: "2026-09-10", title: "Leg day")
+        let id = "ai-0b9f3c52-6a1e-4c47-9d3a-5f2e8b7c1a90"
+        let create = WorkoutDraftOpPayload(draft: draft, today: "d", action: .create, clientId: id)
+        XCTAssertTrue(body(Endpoint.tracker(.workoutDraft(create), session: .outbox)).hasPrefix(#"{"action":{"clientId":"\#(id)","kind":"create"}"#))
+        let detach = WorkoutDraftOpPayload(draft: draft, today: "d", action: .detach(eventId: "a__2026-09-15", occurrenceDate: "2026-09-15"), clientId: id)
+        XCTAssertTrue(body(Endpoint.tracker(.workoutDraft(detach), session: .outbox))
+            .hasPrefix(#"{"action":{"clientId":"\#(id)","eventId":"a__2026-09-15","kind":"detach","occurrenceDate":"2026-09-15"}"#))
+        // An update rewrites a row that exists: no id to dedupe on, none sent.
+        let update = WorkoutDraftOpPayload(draft: draft, today: "d", action: .update(eventId: "a"), clientId: id)
+        XCTAssertNil(update.clientId)
+        XCTAssertTrue(body(Endpoint.tracker(.workoutDraft(update), session: .outbox)).hasPrefix(#"{"action":{"eventId":"a","kind":"update"}"#))
+        XCTAssertEqual(update.action, .update(eventId: "a"))
+        XCTAssertEqual(TrackerOpPayload.workoutDraft(update).action.rawValue, "workout-draft")
+    }
+
     func testCoachToolCarriesTheDraftOnlyWhenGiven() {
         let with = Endpoint.coachTool(toolUseId: "t", name: "update_workout_draft", input: ["title": "L"], today: "d", draft: ["title": "Leg day"])
         XCTAssertEqual(body(with), #"{"draft":{"title":"Leg day"},"input":{"title":"L"},"name":"update_workout_draft","today":"d","toolUseId":"t"}"#)

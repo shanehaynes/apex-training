@@ -328,7 +328,8 @@ public struct ScheduleTab: View {
                 DayView(
                     model: model, onOpen: { sheet = .event(id: $0.id) }, onAdd: { sheet = .builder(.create(date: $0)) },
                     onAddMeal: meals == nil ? nil : { sheet = .mealComposer(.create($0)) }, onboarding: onboarding,
-                    live: live, onResume: tracker == nil ? nil : { openTracker(TrackerRoute(event: $0)) }
+                    live: live, onResume: tracker == nil ? nil : { openTracker(TrackerRoute(event: $0)) },
+                    onFixSave: { sheet = .builder(.fix(saveId: $0)) }
                 )
             case .month:
                 MonthView(

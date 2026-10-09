@@ -42,12 +42,15 @@ const mockedAdmin = vi.mocked(getSupabaseAdmin);
 
 /** The one base row the ownership lookup can find (null → 404). */
 let baseRow: Partial<WorkoutEventRow> | null;
+/** Per-id answers that win over `baseRow` — the clientId replay lookup. */
+let rowsById: Record<string, Partial<WorkoutEventRow> | null>;
 
 function makeAdmin() {
+  let id: string | undefined;
   const chain = {
     select: () => chain,
-    eq: () => chain,
-    maybeSingle: async () => ({ data: baseRow, error: null }),
+    eq: (column: string, value: string) => { if (column === 'id') id = value; return chain; },
+    maybeSingle: async () => ({ data: id !== undefined && id in rowsById ? rowsById[id] : baseRow, error: null }),
   };
   return { from: () => chain } as unknown as NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 }
@@ -92,6 +95,7 @@ async function post(body: unknown) {
 beforeEach(() => {
   vi.clearAllMocks();
   baseRow = null;
+  rowsById = {};
   mockedAdmin.mockReturnValue(makeAdmin());
 });
 
@@ -337,5 +341,52 @@ describe('POST /api/workout-draft — detach', () => {
     baseRow = seriesRow;
     await post({ draft: draft(), today: TODAY, action: { kind: 'detach', eventId: 'evt-weekly', occurrenceDate: '2026-08-25' } });
     expect(vi.mocked(detachInstance).mock.calls[0][2]).toMatchObject({ eventId: 'evt-weekly', date: '2026-08-25' });
+  });
+});
+
+describe('POST /api/workout-draft — clientId (a write sent twice)', () => {
+  const CLIENT_ID = 'ai-0b9f3c52-6a1e-4c47-9d3a-5f2e8b7c1a90';
+
+  it('creates the event under the client\'s id', async () => {
+    rowsById[CLIENT_ID] = null;
+    const out = await post({ draft: draft(), today: TODAY, action: { kind: 'create', clientId: CLIENT_ID } });
+    expect(out.status).toBe(200);
+    expect(vi.mocked(events.createEvent).mock.calls[0][2]).toMatchObject({ id: CLIENT_ID });
+    expect(out.body).toMatchObject({ ok: true, action: 'create', id: CLIENT_ID });
+    expect(out.body.replayed).toBeUndefined();
+  });
+
+  it('answers a create whose event already exists with that event, writing nothing', async () => {
+    rowsById[CLIENT_ID] = { ...oneOffRow, id: CLIENT_ID, title: 'Leg day' };
+    const out = await post({ draft: draft(), today: TODAY, action: { kind: 'create', clientId: CLIENT_ID } });
+    expect(out.status).toBe(200);
+    expect(out.body).toMatchObject({ ok: true, action: 'create', id: CLIENT_ID, replayed: true });
+    expect(out.body.event).toMatchObject({ id: CLIENT_ID, title: 'Leg day' });
+    expect(vi.mocked(upsertTemplate)).not.toHaveBeenCalled();
+    expect(vi.mocked(events.createEvent)).not.toHaveBeenCalled();
+  });
+
+  it('detaches under the client\'s id, and answers a replay without a second detach', async () => {
+    baseRow = seriesRow;
+    rowsById[CLIENT_ID] = null;
+    const first = await post({
+      draft: draft(), today: TODAY, action: { kind: 'detach', eventId: 'evt-weekly__2026-09-08', occurrenceDate: '2026-09-08', clientId: CLIENT_ID },
+    });
+    expect(first.body).toMatchObject({ ok: true, action: 'detach', id: CLIENT_ID });
+    expect(vi.mocked(detachInstance)).toHaveBeenCalledTimes(1);
+
+    rowsById[CLIENT_ID] = { ...oneOffRow, id: CLIENT_ID };
+    const again = await post({
+      draft: draft(), today: TODAY, action: { kind: 'detach', eventId: 'evt-weekly__2026-09-08', occurrenceDate: '2026-09-08', clientId: CLIENT_ID },
+    });
+    expect(again.body).toMatchObject({ ok: true, action: 'detach', id: CLIENT_ID, replayed: true, detachedFrom: 'evt-weekly', occurrenceDate: '2026-09-08' });
+    expect(vi.mocked(detachInstance)).toHaveBeenCalledTimes(1);
+  });
+
+  it('400s on a clientId that is not ai-<uuid>', async () => {
+    const out = await post({ draft: draft(), today: TODAY, action: { kind: 'create', clientId: 'evt-weekly' } });
+    expect(out.status).toBe(400);
+    expect(out.body).toBe('clientId must be ai-<uuid>');
+    expect(vi.mocked(events.createEvent)).not.toHaveBeenCalled();
   });
 });

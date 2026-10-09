@@ -252,32 +252,84 @@ public final class ScheduleModel {
         return cached
     }
 
-    // MARK: - Offline library writes
+    // MARK: - Offline writes (the outbox)
+
+    /// A Builder save the server refused after it was queued offline: kept so
+    /// the draft can be reopened, fixed and saved again (or dismissed).
+    public struct RefusedSave: Identifiable, Sendable, Equatable {
+        /// The queued op's id.
+        public let id: Int64
+        public let payload: WorkoutDraftOpPayload
+        public let reason: String
+    }
 
     /// The app's write queue once someone is signed in (`AppModel` attaches it;
-    /// the schedule is built before it). An exercise created with no signal
-    /// waits in its library lane.
+    /// the schedule is built before it). An exercise created or a workout saved
+    /// with no signal waits in its outbox lane.
     @ObservationIgnored public private(set) var writeQueue: WriteQueue?
-    @ObservationIgnored private var libraryLaneTask: Task<Void, Never>?
+    @ObservationIgnored private var outboxTask: Task<Void, Never>?
 
-    /// Attach (or, on sign-out, detach) the queue, and settle a library create
-    /// the server refused: it has no tracker bar to show on, so say so, drop
-    /// the op, and re-read the schedule — the cached library still holds the
-    /// local copy, and the server's list is the one without it.
+    /// Builder saves waiting to sync, counted by the draft's date — the day's
+    /// "waiting to sync" line. The workout itself appears once the server has
+    /// it: nothing here builds an event or expands a series (D-008).
+    public private(set) var pendingSaves: [String: Int] = [:]
+    /// Builder saves the server refused, oldest first.
+    public private(set) var refusedSaves: [RefusedSave] = []
+
+    /// Attach (or, on sign-out, detach) the queue, and follow its outbox lane:
+    /// a refused exercise create is said and dropped (its local copy goes with
+    /// a re-read); a refused save is said and kept for Fix; a save that lands
+    /// re-reads the schedule so the workout appears.
     public func attach(writeQueue queue: WriteQueue?) {
-        libraryLaneTask?.cancel()
+        outboxTask?.cancel()
         writeQueue = queue
+        pendingSaves = [:]
+        refusedSaves = []
         guard let queue else { return }
-        libraryLaneTask = Task { [weak self] in
+        outboxTask = Task { [weak self] in
+            await self?.reloadOutbox()
             for await event in await queue.subscribe() {
                 guard !Task.isCancelled else { return }
-                guard case .failed(let session, .createDefinition, let message) = event, session == .library else { continue }
-                ToastBus.shared.post("Couldn't add an exercise to your library — \(message)", level: .failure)
-                await queue.discardFailed(.library)
-                await self?.refresh(reason: .afterEdit)
+                switch event {
+                case .failed(let session, .createDefinition, let message) where session == .outbox:
+                    ToastBus.shared.post("Couldn't add an exercise to your library — \(message)", level: .failure)
+                    for op in await queue.ops(for: .outbox) where op.state == .failed {
+                        if case .createDefinition = op.payload { await queue.discard(op.id, in: .outbox) }
+                    }
+                    await self?.refresh(reason: .afterEdit)
+                case .failed(let session, .workoutDraft, let message) where session == .outbox:
+                    ToastBus.shared.post("A workout saved offline wasn't accepted — \(message). Open its day to fix it.", level: .failure)
+                case .changed(let session) where session == .outbox:
+                    await self?.reloadOutbox()
+                default:
+                    break
+                }
             }
         }
     }
+
+    /// Re-reads the outbox's Builder saves; when one has left the pending
+    /// set, the schedule is re-read too, so a save that landed shows.
+    func reloadOutbox() async {
+        guard let queue = writeQueue else { return }
+        var pending: [String: Int] = [:]
+        var refused: [RefusedSave] = []
+        for op in await queue.ops(for: .outbox) {
+            guard case .workoutDraft(let save) = op.payload else { continue }
+            switch op.state {
+            case .pending:
+                pending[save.draft.date, default: 0] += 1
+            case .failed:
+                refused.append(RefusedSave(id: op.id, payload: save, reason: op.lastError ?? "The server did not accept this workout."))
+            }
+        }
+        let wasWaiting = pendingSaves.values.reduce(0, +)
+        let waiting = pending.values.reduce(0, +)
+        pendingSaves = pending
+        refusedSaves = refused
+        if waiting < wasWaiting { await refresh(reason: .afterEdit) }
+    }
+
     /// The cached workout library — the builder's template search reads this.
     public func templates() async -> [WorkoutTemplate] {
         guard let entry = try? await deps.cache.read(kind: .templates, key: ScheduleCacheKey.templates),
