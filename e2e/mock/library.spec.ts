@@ -45,6 +45,21 @@ test('the library search offers "did you mean" and creates what is missing, as t
   await search.fill('pancake fold');
   await expect(page.locator('.exercise-picker__create-row')).toHaveCount(0);
 
+  // A partial name lists the movements it already names before any create.
+  await search.fill('Pancake');
+  const list = page.locator('.library-list > *');
+  await expect(list.nth(0)).toContainText('Pancake Fold');
+  await expect(list.nth(1)).toContainText('Pancake Hold');
+  await expect(list.nth(2)).toHaveClass(/exercise-picker__create-row/);
+  await expect(list.nth(2)).toContainText('anyway');
+
+  // The create starts from the filter in force, even one chosen after typing.
+  await search.fill('Couch Stretch');
+  await page.locator('.library-filter', { hasText: 'Stretch' }).click();
+  await page.locator('.exercise-picker__create-row').click();
+  await expect(page.locator('.exercise-picker__create-form select')).toHaveValue('stretch');
+  await page.locator('.library-filter', { hasText: 'All' }).click();
+
   // A new name creates in place and opens the new exercise.
   await search.fill('Copenhagen Plank');
   await expect(suggestions).toHaveCount(0);

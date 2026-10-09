@@ -16,6 +16,9 @@ struct CreateDefinitionRow: View {
     let confirmLabel: String
     /// `picker` or `library`: `<prefix>.create`, `.create.category`, …
     let identifierPrefix: String
+    /// Followed while the form is closed: a filter chip changed after the
+    /// row appeared is the category the create should start from.
+    let initialCategory: String
     let onCreate: (String, String, Bool) async -> ExerciseDefinition?
     let onCreated: (ExerciseDefinition) -> Void
 
@@ -35,6 +38,7 @@ struct CreateDefinitionRow: View {
         self.anyway = anyway
         self.confirmLabel = confirmLabel
         self.identifierPrefix = identifierPrefix
+        self.initialCategory = initialCategory
         self.onCreate = onCreate
         self.onCreated = onCreated
         _creating = State(initialValue: startsOpen)
@@ -78,6 +82,7 @@ struct CreateDefinitionRow: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("\(identifierPrefix).create")
+            .onChange(of: initialCategory) { _, next in category = next }
         }
     }
 }

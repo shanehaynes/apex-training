@@ -80,11 +80,13 @@ public struct LibraryView: View {
                 } else if model.active.isEmpty, model.archived.isEmpty, !model.canCreate {
                     Text("No exercises match.").apexBody().accessibilityIdentifier("library.empty")
                 } else {
-                    if model.canCreate {
-                        createSection
-                    }
+                    // Existing matches first: a partial name must show the
+                    // movements it already names above any offer to create.
                     if !model.active.isEmpty {
                         rows(model.active)
+                    }
+                    if model.canCreate {
+                        createSection
                     }
                     if !model.archived.isEmpty {
                         archivedDivider
@@ -138,7 +140,7 @@ public struct LibraryView: View {
         SettingsSection {
             CreateDefinitionRow(
                 name: model.query.trimmingCharacters(in: .whitespaces),
-                categories: Entries.categories, initialCategory: model.createCategory, anyway: !near.isEmpty,
+                categories: Entries.categories, initialCategory: model.createCategory, anyway: !near.isEmpty || !model.active.isEmpty,
                 confirmLabel: "Create", identifierPrefix: "library",
                 onCreate: { name, category, isUnilateral in
                     await model.create(name: name, category: category, isUnilateral: isUnilateral)

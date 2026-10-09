@@ -51,9 +51,7 @@ public struct ScheduleTab: View {
             onCompletionChanged: { event, isCompleted, completedAt in
                 model.applyCompletionLocally(id: event.id, isCompleted: isCompleted, completedAt: completedAt)
             },
-            createDefinition: { name, category, isUnilateral in
-                await model.createDefinition(name: name, category: category, isUnilateral: isUnilateral)
-            }
+            rememberDefinition: { definition in await model.rememberDefinition(definition) }
         )
     }
 

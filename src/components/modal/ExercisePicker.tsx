@@ -21,6 +21,11 @@ interface Props {
    * replaces (per-set rows vs one cardio row).
    */
   restrictTo?: ExerciseCategory[];
+  /**
+   * The create form's starting category when no chip is pre-selected — a
+   * swap starts from the replaced movement's, without narrowing the search.
+   */
+  createCategory?: ExerciseCategory;
 }
 
 const ALL_CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobility', 'skill', 'cardio', 'climbing'];
@@ -41,7 +46,7 @@ function defaultsPreview(def: ExerciseDefinition): string {
  * never fuzzy — seeing the near-matches before "Create" is what prevents
  * duplicate library entries.
  */
-export default function ExercisePicker({ onSelect, onClose, initialCategory, restrictTo }: Props) {
+export default function ExercisePicker({ onSelect, onClose, initialCategory, restrictTo, createCategory }: Props) {
   const { definitions } = useSchedule();
   const categories = restrictTo?.length ? restrictTo : ALL_CATEGORIES;
   const [query, setQuery] = useState('');
@@ -173,8 +178,8 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory, res
             <CreateDefinitionInline
               name={trimmed}
               categories={categories}
-              initialCategory={initialCategory ?? categories[0]}
-              anyway={nearMatches.length > 0}
+              initialCategory={[initialCategory, createCategory].find(c => c && categories.includes(c)) ?? categories[0]}
+              anyway={nearMatches.length > 0 || results.length > 0}
               confirmLabel="Create & add"
               onCreated={onSelect}
             />

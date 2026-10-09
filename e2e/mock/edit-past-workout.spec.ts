@@ -206,3 +206,15 @@ test('swapping onto a unilateral movement warns that the reps are now per side',
   await expect(exercise.locator('.tracker-exercise__notes--warn')).toContainText('per side');
   await shot(page, 'tracker-exercise-swapped-unilateral');
 });
+
+test('a movement created from the swap picker starts in the replaced one\'s category', async ({ page }) => {
+  await stubFinishedSession(page, []);
+  await openFinishedTracker(page);
+
+  await page.locator('.tracker-exercise').first().locator('.tracker-exercise__swap').click();
+  await page.locator('.exercise-picker__input').fill('Couch Stretch');
+  await page.locator('.exercise-picker__create-row').click();
+  // The seed's first exercise on the pinned day is a mobility movement; the
+  // create used to start at the first category on offer (strength).
+  await expect(page.locator('.exercise-picker__create-form select')).toHaveValue('mobility');
+});

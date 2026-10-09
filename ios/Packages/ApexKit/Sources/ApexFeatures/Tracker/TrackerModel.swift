@@ -629,11 +629,27 @@ public final class TrackerModel {
             .sorted { $0.canonicalName.localizedCaseInsensitiveCompare($1.canonicalName) == .orderedAscending }
     }
 
-    /// The picker's create-and-swap: write the definition, then add it here so
-    /// the sheet (and a second swap in this session) sees it without a reload.
+    /// The picker's create-and-swap. Mid-workout may mean no signal, so the
+    /// write is a queued op like every other tracker write: queued here, ahead
+    /// of the swap that follows, and sent in order by that swap's flush. The
+    /// definition is recorded locally first so the sheet, a second swap and
+    /// every other picker see it now.
     public func createDefinition(name: String, category: String, isUnilateral: Bool) async -> ExerciseDefinition? {
-        guard let created = await deps.createDefinition(name, category, isUnilateral) else { return nil }
-        definitions = definitions.filter { $0.id != created.id } + [created]
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        let id = Slug.name(trimmed)
+        guard !id.isEmpty else { return nil }
+        let payload = DefinitionCreatePayload(id: id, canonicalName: trimmed, category: category, isUnilateral: isUnilateral)
+        do {
+            try await services.queue.enqueue(.createDefinition(payload), for: session)
+        } catch {
+            ToastBus.shared.post("Couldn't add the exercise — try again", level: .failure)
+            return nil
+        }
+        let created = ExerciseDefinition(
+            id: id, canonicalName: trimmed, aliases: [], category: category, muscleGroups: [], equipment: [], isUnilateral: isUnilateral
+        )
+        definitions = definitions.filter { $0.id != id } + [created]
+        await deps.rememberDefinition(created)
         return created
     }
 

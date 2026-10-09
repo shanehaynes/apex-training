@@ -109,13 +109,19 @@ struct ExercisePickerSheet: View {
             let matched = results
             let near = nearMatches(excluding: matched)
             List {
+                // Existing matches first: a partial name ("Pancake") must show
+                // the movements it already names above any offer to create.
+                ForEach(matched, id: \.id) { definition in
+                    row(definition)
+                        .accessibilityIdentifier("picker.option.\(definition.id)")
+                }
                 ForEach(near, id: \.id) { definition in
                     row(definition, hint: "did you mean?")
                         .accessibilityIdentifier("picker.near.\(definition.id)")
                 }
                 if canCreate {
                     CreateDefinitionRow(
-                        name: trimmed, categories: categories, initialCategory: newCategory, anyway: !near.isEmpty,
+                        name: trimmed, categories: categories, initialCategory: newCategory, anyway: !near.isEmpty || !matched.isEmpty,
                         confirmLabel: confirmLabel, identifierPrefix: "picker", startsOpen: initialCreating,
                         onCreate: onCreate, onCreated: onPick
                     )
@@ -125,10 +131,6 @@ struct ExercisePickerSheet: View {
                     Text(definitions.isEmpty ? "The library is empty — type a name to add the first exercise." : "No matches — keep typing to create it.")
                         .apexBody()
                         .listRowBackground(ApexColor.bgSurface)
-                }
-                ForEach(matched, id: \.id) { definition in
-                    row(definition)
-                        .accessibilityIdentifier("picker.option.\(definition.id)")
                 }
             }
             .listStyle(.plain)

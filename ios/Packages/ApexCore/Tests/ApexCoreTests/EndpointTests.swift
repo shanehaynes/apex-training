@@ -113,6 +113,13 @@ final class TrackerEndpointTests: XCTestCase {
             for: ScheduleIndex(try! TestFixtures.decode(ScheduleResponse.self, "schedule.json")).events(on: DayKey("2026-09-08")!)[0],
             isNowCompleted: true, now: Date(timeIntervalSince1970: 1_788_868_800)
         )
+        // A movement created mid-workout queues the library's own create.
+        let created = DefinitionCreatePayload(id: "pancake-fold", canonicalName: "Pancake Fold", category: "stretch", isUnilateral: false)
+        XCTAssertEqual(
+            Endpoint.tracker(.createDefinition(created), session: session),
+            .createDefinition(id: "pancake-fold", canonicalName: "Pancake Fold", category: "stretch", isUnilateral: false)
+        )
+        XCTAssertEqual(TrackerOpPayload.createDefinition(created).action.rawValue, "create-definition")
         let completion = Endpoint.tracker(.completion(completionRow: rows.completionRow, logRow: rows.logRow), session: session)
         XCTAssertEqual(completion.path, "api/completions")
         XCTAssertEqual(completion, .completions(completionRow: rows.completionRow, logRow: rows.logRow))
@@ -132,6 +139,7 @@ final class TrackerEndpointTests: XCTestCase {
             .finish(FinishPayload(autofillRows: [setRow(3, weight: "0", reps: "0")], finishedAt: "y",
                                   score: ScoreSubmission(templateId: "t", score: .forTime(timeSeconds: 1)))),
             .swapExercise(SwapPayload(section: "exercise", exerciseId: "x", exerciseName: "Y", definitionId: nil)),
+            .createDefinition(DefinitionCreatePayload(id: "pancake-fold", canonicalName: "Pancake Fold", category: "stretch", isUnilateral: false)),
         ]
         for payload in payloads {
             let data = try JSONEncoder().encode(payload)

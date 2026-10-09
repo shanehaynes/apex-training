@@ -145,13 +145,16 @@ export default function LibraryView() {
       </div>
 
       <div className="library-list">
+        {/* Existing matches first: a partial name must show the movements it
+            already names above any offer to create. */}
+        {active.map(def => renderRow(def))}
         {nearMatches.map(def => renderRow(def, 'did you mean?'))}
         {canCreate && (
           <CreateDefinitionInline
             name={trimmed}
             categories={CATEGORIES}
             initialCategory={category === 'all' ? 'strength' : category}
-            anyway={nearMatches.length > 0}
+            anyway={nearMatches.length > 0 || active.length > 0}
             confirmLabel="Create"
             onCreated={def => { setSearch(''); setDetailId(def.id); }}
           />
@@ -159,7 +162,6 @@ export default function LibraryView() {
         {active.length === 0 && archived.length === 0 && !canCreate && (
           <p className="library-empty">No exercises match.</p>
         )}
-        {active.map(def => renderRow(def))}
         {archived.length > 0 && (
           <>
             <div className="library-list__divider">

@@ -9,7 +9,7 @@ interface Props {
   name: string;
   categories: ExerciseCategory[];
   initialCategory: ExerciseCategory;
-  /** Near matches are on screen above: the create is the override. */
+  /** Matches or near matches are on screen above: the create is the override. */
   anyway: boolean;
   confirmLabel: string;
   onCreated: (def: ExerciseDefinition) => void;
@@ -29,6 +29,8 @@ export default function CreateDefinitionInline({ name, categories, initialCatego
 
   // A changed name is a new question: fold the form back to the row.
   useEffect(() => { setCreating(false); }, [name]);
+  // A filter chip changed after the row appeared is the category to start from.
+  useEffect(() => { setCategory(initialCategory); }, [initialCategory]);
 
   const create = async () => {
     setBusy(true);

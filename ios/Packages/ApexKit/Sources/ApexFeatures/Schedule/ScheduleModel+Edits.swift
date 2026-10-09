@@ -95,10 +95,17 @@ extension ScheduleModel {
         let definition = ExerciseDefinition(
             id: id, canonicalName: trimmed, aliases: [], category: category, muscleGroups: [], equipment: [], isUnilateral: isUnilateral
         )
-        let updated = await definitions().filter { $0.id != id } + [definition]
+        await rememberDefinition(definition)
+        return definition
+    }
+
+    /// Puts a definition in the cached list every picker reads, ahead of the
+    /// server: the create above after its write, and the tracker's queued
+    /// create (made offline mid-workout) before its write lands.
+    public func rememberDefinition(_ definition: ExerciseDefinition) async {
+        let updated = await definitions().filter { $0.id != definition.id } + [definition]
         if let json = try? JSONEncoder().encode(updated) {
             try? await deps.cache.write(CacheEntry(kind: .definitions, key: ScheduleCacheKey.definitions, json: json, fetchedAt: deps.clock.now))
         }
-        return definition
     }
 }

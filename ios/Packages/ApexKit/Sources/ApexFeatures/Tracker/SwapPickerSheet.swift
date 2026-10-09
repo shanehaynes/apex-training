@@ -18,8 +18,8 @@ struct SwapPickerSheet: View {
             note: "Logged instead of \(tracked.substitutedFrom ?? tracked.exercise.name) — this day only; the plan is unchanged.",
             restrictTo: TrackerModel.swapCategories(for: tracked),
             excluding: tracked.exercise.definitionId,
-            confirmLabel: "Create & swap",
             createCategory: tracked.exercise.category,
+            confirmLabel: "Create & swap",
             onPick: { definition in
                 Task {
                     await model.swap(section: tracked.section, exerciseId: tracked.exercise.id, to: definition)
