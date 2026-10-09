@@ -4,9 +4,11 @@ import {
   canonicalNameOf,
   canonicalizeLogNames,
   countSpecNote,
+  editDistance,
   entryFromDefinition,
   expandNamesWithAliases,
   hasPerSideCount,
+  nearMatchDefinitions,
   stripCountSpec,
   resolveExercise,
   resolveEventExercises,
@@ -239,5 +241,48 @@ describe('rowToDefinition', () => {
     expect(def.techniqueNotes).toBe('Slight forward lean.');
     expect(def.defaultSets).toBe(3);
     expect(def.archivedAt).toBeUndefined();
+  });
+});
+
+// Mirrored case for case in ApexCore's NearMatchTests.swift — keep them in step.
+describe('near-match (did you mean)', () => {
+  const library = [
+    makeDefinition({ id: 'pancake-fold', canonicalName: 'Pancake Fold', category: 'stretch' }),
+    makeDefinition({ id: 'pancake-hold', canonicalName: 'Pancake Hold', category: 'stretch' }),
+    makeDefinition({ id: 'bench-press', canonicalName: 'Bench Press' }),
+    makeDefinition({ id: 'pull-up', canonicalName: 'Pull-Up' }),
+    makeDefinition({ id: 'rdl', canonicalName: 'Romanian Deadlift', aliases: ['Stiff-Leg Deadlift'] }),
+    makeDefinition({ id: 'row', canonicalName: 'Row', category: 'cardio' }),
+  ];
+  const near = (q: string) => nearMatchDefinitions(q, library).map(d => d.id);
+
+  it('counts an adjacent swap as one edit', () => {
+    expect(editDistance('pnacake', 'pancake')).toBe(1);
+    expect(editDistance('kitten', 'sitting')).toBe(3);
+    expect(editDistance('', 'abc')).toBe(3);
+  });
+
+  it('finds the name a typo was reaching for, closest first', () => {
+    expect(near('Pnacake Fold')).toEqual(['pancake-fold', 'pancake-hold']);
+    expect(near('bnech pres')).toEqual(['bench-press']);
+    expect(near('Stif Leg Deadlfit')).toEqual(['rdl']);
+  });
+
+  it('matches a half-typed name on its opening', () => {
+    expect(near('Pnacake')).toEqual(['pancake-fold', 'pancake-hold']);
+  });
+
+  it('ignores punctuation, so "pullup" is not a new movement', () => {
+    expect(near('pullup')).toEqual(['pull-up']);
+  });
+
+  it('stays quiet for short queries and genuinely new names', () => {
+    expect(near('rdl')).toEqual([]);
+    expect(near('Hip Airplane')).toEqual([]);
+    expect(near('Copenhagen Plank')).toEqual([]);
+  });
+
+  it('respects the limit', () => {
+    expect(nearMatchDefinitions('Pnacake', library, 1).map(d => d.id)).toEqual(['pancake-fold']);
   });
 });

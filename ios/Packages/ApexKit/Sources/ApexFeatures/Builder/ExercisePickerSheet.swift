@@ -43,12 +43,17 @@ struct ExercisePickerSheet: View {
 
     private var trimmed: String { query.trimmingCharacters(in: .whitespaces) }
 
-    private var results: [ExerciseDefinition] {
-        let needle = trimmed.lowercased()
+    /// What could be picked at all here, before the search narrows it.
+    private var pickable: [ExerciseDefinition] {
         let allowed = Set(categories.map(\.value))
         return definitions
             .filter { $0.archivedAt == nil && allowed.contains($0.category ?? "") && $0.id != excluding }
             .filter { category == nil || $0.category == category }
+    }
+
+    private var results: [ExerciseDefinition] {
+        let needle = trimmed.lowercased()
+        return pickable
             .filter { definition in
                 guard !needle.isEmpty else { return true }
                 if definition.canonicalName.lowercased().contains(needle) { return true }
@@ -60,6 +65,14 @@ struct ExercisePickerSheet: View {
 
     /// Exact-match-or-create: two characters and nothing exact in the library.
     private var canCreate: Bool { trimmed.count > 1 && Entries.match(trimmed, in: definitions) == nil }
+
+    /// The "did you mean" ahead of Create: a typo the substring search missed
+    /// would otherwise fork the movement's history.
+    private func nearMatches(excluding shown: [ExerciseDefinition]) -> [ExerciseDefinition] {
+        guard canCreate else { return [] }
+        let shownIds = Set(shown.map(\.id))
+        return NearMatch.definitions(for: trimmed, in: pickable.filter { !shownIds.contains($0.id) })
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -90,32 +103,24 @@ struct ExercisePickerSheet: View {
             .padding(.horizontal, Spacing.screen)
             .padding(.vertical, Spacing.md)
 
+            let matched = results
+            let near = nearMatches(excluding: matched)
             List {
-                if canCreate {
-                    createRow
+                ForEach(near, id: \.id) { definition in
+                    row(definition, hint: "did you mean?")
+                        .accessibilityIdentifier("picker.near.\(definition.id)")
                 }
-                if results.isEmpty, !canCreate {
+                if canCreate {
+                    createRow(anyway: !near.isEmpty)
+                }
+                if matched.isEmpty, !canCreate {
                     Text(definitions.isEmpty ? "The library is empty — type a name to add the first exercise." : "No matches — keep typing to create it.")
                         .apexBody()
                         .listRowBackground(ApexColor.bgSurface)
                 }
-                ForEach(results, id: \.id) { definition in
-                    Button { onPick(definition) } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(definition.canonicalName)
-                                .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
-                                .foregroundStyle(ApexColor.textPrimary)
-                            Text(subtitle(definition))
-                                .font(.apex(.mono, size: TypeScale.micro, relativeTo: .caption2))
-                                .foregroundStyle(ApexColor.textMuted)
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        .contentShape(.rect)
-                    }
-                    .buttonStyle(.plain)
-                    .listRowBackground(ApexColor.bgSurface)
-                    .listRowSeparatorTint(ApexColor.borderSubtle)
-                    .accessibilityIdentifier("picker.option.\(definition.id)")
+                ForEach(matched, id: \.id) { definition in
+                    row(definition)
+                        .accessibilityIdentifier("picker.option.\(definition.id)")
                 }
             }
             .listStyle(.plain)
@@ -134,8 +139,26 @@ struct ExercisePickerSheet: View {
         .accessibilityIdentifier("picker")
     }
 
+    private func row(_ definition: ExerciseDefinition, hint: String? = nil) -> some View {
+        Button { onPick(definition) } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(definition.canonicalName)
+                    .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
+                    .foregroundStyle(ApexColor.textPrimary)
+                Text([subtitle(definition), hint].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
+                    .font(.apex(.mono, size: TypeScale.micro, relativeTo: .caption2))
+                    .foregroundStyle(ApexColor.textMuted)
+            }
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(ApexColor.bgSurface)
+        .listRowSeparatorTint(ApexColor.borderSubtle)
+    }
+
     @ViewBuilder
-    private var createRow: some View {
+    private func createRow(anyway: Bool) -> some View {
         if creating {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text("New exercise: \(trimmed)")
@@ -165,7 +188,7 @@ struct ExercisePickerSheet: View {
             .listRowBackground(ApexColor.bgSurface)
         } else {
             Button { creating = true } label: {
-                Label("Create \"\(trimmed)\"", systemImage: ApexIcon.plus.systemName)
+                Label(anyway ? "Create \"\(trimmed)\" anyway" : "Create \"\(trimmed)\"", systemImage: ApexIcon.plus.systemName)
                     .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
                     .foregroundStyle(ApexColor.accent)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)

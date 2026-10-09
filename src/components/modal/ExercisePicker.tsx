@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { format, parseISO } from 'date-fns';
 import { Plus, Search, X } from 'lucide-react';
 import { useSchedule } from '../../context/schedule';
-import { buildAliasIndex, hasPerSideCount, matchDefinitionByName } from '../../lib/schedule/definitions';
+import { buildAliasIndex, hasPerSideCount, matchDefinitionByName, nearMatchDefinitions } from '../../lib/schedule/definitions';
 import { fetchLastPerformedRows } from '../../lib/library/repo';
 import { lastPerformedByCanonical } from '../../lib/library/stats';
 import type { ExerciseCategory, ExerciseDefinition } from '../../types/workout';
@@ -70,24 +70,36 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory, res
     return () => { cancelled = true; };
   }, [definitions]);
 
-  const results = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return [...definitions.values()]
+  // What could be picked at all here, before the search narrows it.
+  const pickable = useMemo(() =>
+    [...definitions.values()]
       .filter(def => !def.archivedAt)
       .filter(def => categories.includes(def.category))
-      .filter(def => !category || def.category === category)
+      .filter(def => !category || def.category === category),
+  [definitions, category, categories]);
+
+  const results = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return pickable
       .filter(def =>
         !needle ||
         def.canonicalName.toLowerCase().includes(needle) ||
         def.aliases.some(a => a.toLowerCase().includes(needle)) ||
         def.muscleGroups.some(m => m.toLowerCase().includes(needle)))
       .sort((a, b) => a.canonicalName.localeCompare(b.canonicalName));
-  }, [definitions, query, category, categories]);
+  }, [pickable, query]);
 
   const trimmed = query.trim();
   // Offer create only when the query is no existing name/alias — an exact
   // match should be selected, not duplicated.
   const canCreate = trimmed.length > 1 && !matchDefinitionByName(trimmed, definitions.values());
+  // Substring search misses typos ("Pnacake Fold"), and a typo that reaches
+  // Create forks the movement's history — so name the likely target first.
+  const nearMatches = useMemo(() => {
+    if (!canCreate) return [];
+    const shown = new Set(results.map(def => def.id));
+    return nearMatchDefinitions(trimmed, pickable.filter(def => !shown.has(def.id)));
+  }, [canCreate, trimmed, pickable, results]);
 
   const createAndSelect = async () => {
     setBusy(true);
@@ -165,13 +177,25 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory, res
             );
           })}
 
+          {nearMatches.map(def => (
+            <button key={def.id} className="exercise-picker__row" onClick={() => onSelect(def)}>
+              <div className="exercise-picker__row-main">
+                <span className="exercise-picker__row-name">{def.canonicalName}</span>
+                <span className="exercise-picker__row-meta">
+                  <span className="library-row__category">{def.category}</span>
+                  <span>did you mean?</span>
+                </span>
+              </div>
+            </button>
+          ))}
+
           {results.length === 0 && !canCreate && (
             <p className="library-empty">No exercises match.</p>
           )}
 
           {canCreate && !creating && (
             <button className="exercise-picker__create-row" onClick={() => setCreating(true)}>
-              <Plus size={14} strokeWidth={1.5} /> Create "{trimmed}" as a new exercise
+              <Plus size={14} strokeWidth={1.5} /> Create "{trimmed}" as a new exercise{nearMatches.length > 0 ? ' anyway' : ''}
             </button>
           )}
 
