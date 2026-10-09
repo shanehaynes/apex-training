@@ -12,8 +12,9 @@ public nonisolated protocol TrackerActivityPublishing: Sendable {
     /// twice (an offline stamp, then the server's echo of it) and the island
     /// must agree with the tracker header either way.
     func sync(_ snapshot: TrackerActivitySnapshot) async
-    /// End the session's activity. With a total the final "Done · 42:10" state
-    /// stays up for a few minutes (finish); without one it goes at once (cancel).
+    /// End the session's activity and take it off the Lock Screen at once.
+    /// With a total (finish) the final content records it; without one (cancel)
+    /// any activity for the session still on screen goes.
     func end(_ session: SessionKey, totalSeconds: Int?) async
 }
 

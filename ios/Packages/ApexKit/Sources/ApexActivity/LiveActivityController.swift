@@ -17,8 +17,6 @@ import os
 /// Never spawns outside the tracker screen: `adoptExisting` only reconciles
 /// what is already there.
 public nonisolated struct LiveActivityController: TrackerActivityPublishing {
-    public static let doneLingers: TimeInterval = 5 * 60
-
     /// How long a running activity's content is trusted. A session finished on
     /// the web, or an app killed mid-workout, leaves ActivityKit rendering a
     /// timer nobody is updating; past this the system marks the activity stale
@@ -68,14 +66,17 @@ public nonisolated struct LiveActivityController: TrackerActivityPublishing {
 
     public func end(_ session: SessionKey, totalSeconds: Int?) async {
         if let totalSeconds {
+            // A finished workout leaves the Lock Screen at once. The final
+            // "Done" content is still handed over so the system's last record
+            // of the activity carries the total, but nothing lingers: the
+            // summary in the app is where the result lives.
             guard let activity = Self.live(for: session) else { return }
             var state = activity.content.state
             state.phase = .done(totalSeconds: totalSeconds)
-            await activity.end(ActivityContent(state: state, staleDate: Self.staleDate(for: state)), dismissalPolicy: .after(.now + Self.doneLingers))
+            await activity.end(ActivityContent(state: state, staleDate: Self.staleDate(for: state)), dismissalPolicy: .immediate)
         } else {
-            // A cancel after a finish: the activity is already `.ended` and
-            // lingering on the Lock Screen as "Done" — that has to go too, so
-            // this matches anything not yet dismissed, not only the live ones.
+            // Cancel: anything not yet dismissed goes, not only the live ones,
+            // so an `.ended` activity the system has not cleared yet goes too.
             for activity in Self.all where activity.attributes.session == session && activity.activityState.isOnScreen {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
