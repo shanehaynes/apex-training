@@ -346,14 +346,23 @@ D-016 said yes to the island; these are the calls the build forced.
   a stateless struct over `Activity.activities`: `Activity` is not `Sendable`, and the system's
   list is the one record that survives a kill anyway.
 - **Three hooks, not four.** End of `open()` (running sessions only), finish (`end` with the
-  total → "Done · m:ss" lingers 5 minutes on the Lock Screen; the island drops an ended
-  activity at once, which is the system's rule, not ours), cancel (`end` immediate). Back does
+  total → dismissed at once, island and Lock Screen alike; until 2026-10 a "Done · m:ss"
+  card lingered 5 minutes on the Lock Screen, and Shane ruled that a finished workout should
+  leave the Lock Screen when it ends), cancel (`end` immediate). Back does
   nothing: leaving the screen is not leaving the gym.
 - **One activity at a time; never spawned outside the tracker.** `sync` for session B ends
   A's. On launch `adoptExisting` keeps an activity whose cached bootstrap has a started,
   unfinished session and ends the rest — a finished session, or one with no cache (cancel
   purges it; the mock's memory cache has none), has no business in the island. Sign-out ends
   all.
+- **A workout finished elsewhere ends the activity too (2026-10).** The web's finish, the
+  Schedule's check, the coach and a provider sync never reach `end`; all of them mark the
+  occurrence complete, so after every successful schedule refresh (launch, foreground, realtime
+  on `workout_completions`, a completion toggle) `endFinished` dismisses any running activity
+  whose occurrence is now complete. Limit, accepted for now: the app has to be running to see it,
+  so a card on a locked phone clears when the app next foregrounds — or goes stale after 4 h.
+  Clearing it while suspended needs ActivityKit push updates (an APNs key, a push-token column,
+  a server send on finish), which is a backend workstream, not a client fix.
 - **The tap route is `apextraining://app/tracker/<id>/<date>`**, and the custom scheme gained
   an `app` host that mirrors the universal `/app/...` routes. `RouteBus` (tab selection +
   the parked link) is the first consumer of what `AppModel` used to park in `pendingRoute`;

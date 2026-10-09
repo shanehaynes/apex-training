@@ -82,3 +82,8 @@ Out: rest timer (Backlog) — leave a hook in `ContentState` for it.
   first-run permission prompt was accepted. Acceptance met except the two timings not clocked
   (30-minute background, 5-minute Done linger). Observed, not a bug: the running timer reads
   `0:29` (`Text(timerInterval:)` does not pad minutes) while the Done state reads `00:29`.
+- 2026-10-09 · Linux · Shane: the Lock Screen card should go when the workout is over. Finish now
+  ends with `.immediate` (the 5-minute Done linger is gone), and a workout finished elsewhere —
+  web, Schedule check, coach, provider sync — is ended after the next schedule refresh through
+  `ScheduleIndex.isCompleted(_:)` → `LiveActivityController.endFinished`. ApexCore test added;
+  Mac/device verification needed (Linux has no Swift toolchain in this container).

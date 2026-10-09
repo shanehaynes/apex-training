@@ -83,6 +83,19 @@ final class ScheduleIndexTests: XCTestCase {
         XCTAssertEqual(flipped, ScheduleIndex(flipped.response))
     }
 
+    /// The Live Activity's finished-elsewhere check: completion of the
+    /// session's own occurrence on the session's own date, nothing else.
+    func testIsCompletedMatchesTheSessionsOccurrenceAndDate() throws {
+        let index = ScheduleIndex(try response(sample))
+        XCTAssertTrue(index.isCompleted(SessionKey(eventId: "b", eventDate: "2026-09-08")))
+        XCTAssertFalse(index.isCompleted(SessionKey(eventId: "a__2026-09-08", eventDate: "2026-09-08")))
+        XCTAssertFalse(index.isCompleted(SessionKey(eventId: "b", eventDate: "2026-09-09")), "another date is not this session")
+        XCTAssertFalse(index.isCompleted(SessionKey(eventId: "nope", eventDate: "2026-09-08")), "unknown is not finished")
+
+        let flipped = index.settingCompletion(id: "a__2026-09-08", isCompleted: true, completedAt: "2026-09-08T18:00:00.000Z")
+        XCTAssertTrue(flipped.isCompleted(SessionKey(eventId: "a__2026-09-08", eventDate: "2026-09-08")))
+    }
+
     func testSettingCompletionOnAnUnknownIdIsANoOp() throws {
         let index = ScheduleIndex(try response(sample))
         XCTAssertEqual(index.settingCompletion(id: "nope", isCompleted: true, completedAt: "t"), index)

@@ -199,6 +199,9 @@ final class AppModel {
             // Whatever the system kept alive across a kill: keep it if the
             // session is still open, end it otherwise (architecture.md §12).
             Task { await controller.adoptExisting { key in await Self.isSessionOpen(key, in: cache) } }
+            // A workout finished anywhere else marks its occurrence complete;
+            // the next schedule refresh (realtime, foreground) ends the card.
+            schedule.onIndexRefreshed = { index in await controller.endFinished { index.isCompleted($0) } }
         }
         trackerServices = TrackerServices(client: client, cache: cache, queue: queue, clock: clock, activity: publisher)
         queueDriver?.stop()

@@ -100,6 +100,17 @@ public struct ScheduleIndex: Sendable, Equatable {
         return seen
     }
 
+    /// Whether the occurrence a tracker session belongs to is marked complete.
+    /// Completion is the one record every way of finishing a workout writes —
+    /// the tracker here or on the web, the Schedule's check, the coach, a
+    /// provider sync — so it is how the Live Activity learns that a workout it
+    /// is still counting has ended somewhere else. An occurrence outside the
+    /// window, or on another date, is not known to be finished.
+    public func isCompleted(_ session: SessionKey) -> Bool {
+        guard let event = byId[session.eventId], event.date == session.eventDate else { return false }
+        return event.isCompleted
+    }
+
     /// The optimistic flip: the same window with one stub's completion changed.
     /// Returns a new index (and, through `response`, the JSON to write back to
     /// the cache so an offline relaunch shows the flip).
