@@ -603,7 +603,7 @@ final class ScheduleModelTests: XCTestCase {
         let (model, queue, store) = await outboxModel(transport)
         let draft = WorkoutDraft.empty(date: "2026-09-10", title: "Leg day")
 
-        let queued = await model.queueDraft(draft, action: .create)
+        let queued = await model.queueDraft(draft, action: .create, clientId: "ai-0b9f3c52-6a1e-4c47-9d3a-5f2e8b7c1a90")
         XCTAssertTrue(queued)
         XCTAssertEqual(model.pendingSaves["2026-09-10"], 1, "the day says a workout is waiting")
         let held = await store.all
@@ -625,7 +625,7 @@ final class ScheduleModelTests: XCTestCase {
     func testASaveRefusedAfterQueueingIsKeptForFixUntilDismissed() async throws {
         let transport = healthy()
         let (model, queue, store) = await outboxModel(transport)
-        _ = await model.queueDraft(.empty(date: "2026-09-10", title: "Leg day"), action: .create)
+        _ = await model.queueDraft(.empty(date: "2026-09-10", title: "Leg day"), action: .create, clientId: "ai-0b9f3c52-6a1e-4c47-9d3a-5f2e8b7c1a90")
 
         transport.set("POST", "/api/workout-draft", body: Data(#"{"ok":false,"problem":"Add at least one exercise"}"#.utf8))
         await queue.resume()

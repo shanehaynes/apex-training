@@ -41,6 +41,10 @@ public final class BuilderModel {
     private var model: ScheduleModel { scheduleModel }
     private let coachServices: CoachServices?
     private var original: WorkoutDraft
+    /// The id a new event from this sheet takes, minted once and sent on every
+    /// attempt — direct or queued — so a save whose answer was lost can only
+    /// ever land once. A reopened refused save keeps the id it was queued with.
+    private let clientId: String
 
     public init(model: ScheduleModel, route: BuilderRoute, coachServices: CoachServices? = nil) {
         self.scheduleModel = model
@@ -70,6 +74,7 @@ public final class BuilderModel {
         }
         draft = initial
         original = initial
+        clientId = resumed?.payload.clientId ?? "ai-" + UUID().uuidString.lowercased()
         problem = resumed?.reason
     }
 
@@ -232,11 +237,11 @@ public final class BuilderModel {
         defer { isSaving = false }
         let response: WorkoutDraftResponse
         do {
-            response = try await model.applyDraft(sent, action: action)
+            response = try await model.applyDraft(sent, action: action, clientId: clientId)
         } catch {
             // No signal: queue it (it shows on its day as waiting to sync)
             // rather than hold the sheet open until there is one.
-            if ScheduleModel.isNetwork(error), await model.queueDraft(sent, action: action) {
+            if ScheduleModel.isNetwork(error), await model.queueDraft(sent, action: action, clientId: clientId) {
                 if let resumed { await model.dismissRefusedSave(resumed.id) }
                 original = draft
                 return true

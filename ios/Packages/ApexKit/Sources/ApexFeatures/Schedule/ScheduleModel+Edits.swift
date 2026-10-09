@@ -27,8 +27,11 @@ extension ScheduleModel {
 
     /// The builder's Apply. nil = the request never landed (toasted here);
     /// `ok: false` = the server's validation, for the sheet to show inline.
-    public func applyDraft(_ draft: WorkoutDraft, action: WorkoutDraftAction) async throws -> WorkoutDraftResponse {
-        let data = try await deps.client.data(for: .workoutDraft(draft: draft, today: today.string, action: action))
+    /// `clientId`: the id a new event (create, detach) takes — the same one on
+    /// every attempt, so a save that landed unanswered and is then queued is
+    /// answered as already done, not written twice.
+    public func applyDraft(_ draft: WorkoutDraft, action: WorkoutDraftAction, clientId: String? = nil) async throws -> WorkoutDraftResponse {
+        let data = try await deps.client.data(for: .workoutDraft(draft: draft, today: today.string, action: action, clientId: clientId))
         let response = try JSONDecoder().decode(WorkoutDraftResponse.self, from: data)
         guard response.ok else { return response }
         if let current = index, let event = response.event, let id = response.id, let date = response.date {
@@ -60,11 +63,10 @@ extension ScheduleModel {
     /// waiting to sync until the server has it. A new event carries the id it
     /// will take, so a replay of a save whose answer was lost lands once.
     /// false = no queue (signed out) or the queue would not take it.
-    public func queueDraft(_ draft: WorkoutDraft, action: WorkoutDraftAction) async -> Bool {
+    /// `clientId` is the one the failed direct attempt already sent.
+    public func queueDraft(_ draft: WorkoutDraft, action: WorkoutDraftAction, clientId: String) async -> Bool {
         guard let queue = writeQueue else { return false }
-        let payload = WorkoutDraftOpPayload(
-            draft: draft, today: today.string, action: action, clientId: "ai-" + UUID().uuidString.lowercased()
-        )
+        let payload = WorkoutDraftOpPayload(draft: draft, today: today.string, action: action, clientId: clientId)
         do {
             try await queue.enqueue(.workoutDraft(payload), for: .outbox)
         } catch {

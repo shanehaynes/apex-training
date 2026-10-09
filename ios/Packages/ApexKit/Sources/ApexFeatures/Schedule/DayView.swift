@@ -98,6 +98,17 @@ struct DayView: View {
                     Text(save.reason).apexBody()
                 }
                 Spacer(minLength: 0)
+                // A save that can never land (its workout was deleted elsewhere)
+                // must be let go, or Fix would retry it forever.
+                Button { Task { await model.dismissRefusedSave(save.id) } } label: {
+                    Text("Dismiss")
+                        .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
+                        .foregroundStyle(ApexColor.textMuted)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("schedule.day.dismissSave.\(save.id)")
                 if let onFixSave {
                     Button { onFixSave(save.id) } label: {
                         Text("Fix")
