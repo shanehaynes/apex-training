@@ -606,11 +606,17 @@ public final class TrackerModel {
 
     // MARK: - Swap
 
+    /// What a swap may log as (`CARDIO_CATEGORIES` / `SET_TRACKED_CATEGORIES`):
+    /// the replacement has to log the same shape — one cardio row or per-set rows.
+    public static func swapCategories(for tracked: TrackedExercise) -> [String] {
+        tracked.isCardio ? ["cardio"] : ["strength", "stretch", "mobility", "skill"]
+    }
+
     /// The movements a logged exercise may be swapped onto: same logged shape
     /// (cardio ↔ cardio; everything else ↔ set-tracked), never archived, never
     /// a pitch. Matched on name, aliases and muscle groups.
     public static func swapCandidates(_ definitions: [ExerciseDefinition], for tracked: TrackedExercise, query: String) -> [ExerciseDefinition] {
-        let allowed: Set<String> = tracked.isCardio ? ["cardio"] : ["strength", "stretch", "mobility", "skill"]
+        let allowed = Set(swapCategories(for: tracked))
         let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
         return definitions
             .filter { $0.archivedAt == nil && allowed.contains($0.category ?? "") }
@@ -621,6 +627,30 @@ public final class TrackerModel {
                 return (definition.muscleGroups ?? []).contains { $0.lowercased().contains(needle) }
             }
             .sorted { $0.canonicalName.localizedCaseInsensitiveCompare($1.canonicalName) == .orderedAscending }
+    }
+
+    /// The picker's create-and-swap. Mid-workout may mean no signal, so the
+    /// write is a queued op like every other tracker write: queued here, ahead
+    /// of the swap that follows, and sent in order by that swap's flush. The
+    /// definition is recorded locally first so the sheet, a second swap and
+    /// every other picker see it now.
+    public func createDefinition(name: String, category: String, isUnilateral: Bool) async -> ExerciseDefinition? {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        let id = Slug.name(trimmed)
+        guard !id.isEmpty else { return nil }
+        let payload = DefinitionCreatePayload(id: id, canonicalName: trimmed, category: category, isUnilateral: isUnilateral)
+        do {
+            try await services.queue.enqueue(.createDefinition(payload), for: session)
+        } catch {
+            ToastBus.shared.post("Couldn't add the exercise — try again", level: .failure)
+            return nil
+        }
+        let created = ExerciseDefinition(
+            id: id, canonicalName: trimmed, aliases: [], category: category, muscleGroups: [], equipment: [], isUnilateral: isUnilateral
+        )
+        definitions = definitions.filter { $0.id != id } + [created]
+        await deps.rememberDefinition(created)
+        return created
     }
 
     public func canSwap(_ tracked: TrackedExercise) -> Bool {

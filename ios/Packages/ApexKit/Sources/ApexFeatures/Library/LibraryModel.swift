@@ -20,13 +20,17 @@ public struct LibraryDependencies: Sendable {
     public var refreshSchedule: @MainActor @Sendable () async -> Void
     /// The schedule's own archive/restore (it rewrites the templates cache).
     public var archiveTemplate: @MainActor @Sendable (_ id: String, _ archived: Bool) async -> Bool
+    /// The schedule's definition create (the picker's write), so the new row
+    /// lands in the cache every picker and this list read.
+    public var createDefinition: @MainActor @Sendable (_ name: String, _ category: String, _ isUnilateral: Bool) async -> ExerciseDefinition?
 
     public init(
         client: ApexClient, cache: any CacheStore, clock: any ApexClock = SystemClock(),
         definitions: @escaping @MainActor @Sendable () async -> [ExerciseDefinition],
         templates: @escaping @MainActor @Sendable () async -> [WorkoutTemplate],
         refreshSchedule: @escaping @MainActor @Sendable () async -> Void = {},
-        archiveTemplate: @escaping @MainActor @Sendable (String, Bool) async -> Bool = { _, _ in false }
+        archiveTemplate: @escaping @MainActor @Sendable (String, Bool) async -> Bool = { _, _ in false },
+        createDefinition: @escaping @MainActor @Sendable (String, String, Bool) async -> ExerciseDefinition? = { _, _, _ in nil }
     ) {
         self.client = client
         self.cache = cache
@@ -35,6 +39,7 @@ public struct LibraryDependencies: Sendable {
         self.templates = templates
         self.refreshSchedule = refreshSchedule
         self.archiveTemplate = archiveTemplate
+        self.createDefinition = createDefinition
     }
 }
 
@@ -152,6 +157,37 @@ public final class LibraryModel {
 
     public var active: [ExerciseDefinition] { matching.filter { $0.archivedAt == nil } }
     public var archived: [ExerciseDefinition] { matching.filter { $0.archivedAt != nil } }
+
+    private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
+
+    /// The picker's exact-match-or-create: a name the library lacks can be
+    /// added here as it can mid-workout.
+    public var canCreate: Bool {
+        trimmedQuery.count > 1 && Entries.match(trimmedQuery, in: definitions) == nil
+    }
+
+    /// The "did you mean" ahead of Create, as the picker shows it: active
+    /// rows in the chosen category the substring search did not already list.
+    public var nearMatches: [ExerciseDefinition] {
+        guard canCreate else { return [] }
+        let shown = Set(active.map(\.id))
+        return NearMatch.definitions(for: trimmedQuery, in: definitions.filter {
+            $0.archivedAt == nil && !shown.contains($0.id) && (category == "all" || $0.category == category)
+        })
+    }
+
+    /// The create's starting category: the chip in force, else strength.
+    public var createCategory: String { category == "all" ? "strength" : category }
+
+    /// Create from the search: the schedule writes it (and its cache), the
+    /// list re-reads, the search clears. nil = refused (the write toasts).
+    public func create(name: String, category: String, isUnilateral: Bool) async -> ExerciseDefinition? {
+        guard let created = await deps.createDefinition(name, category, isUnilateral) else { return nil }
+        query = ""
+        await reload()
+        if !definitions.contains(where: { $0.id == created.id }) { definitions.append(created) }
+        return created
+    }
 
     public func definition(id: String) -> ExerciseDefinition? {
         definitions.first { $0.id == id }

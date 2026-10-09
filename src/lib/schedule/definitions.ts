@@ -99,6 +99,68 @@ export function matchDefinitionByName(
   return undefined;
 }
 
+/** Lowercase, letters/digits/spaces only, whitespace collapsed — "Pull-Up" ≈ "pullup". */
+const nearKey = (name: string) =>
+  name.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').trim().replace(/\s+/g, ' ');
+
+/** Edits a query of this length may be off by and still be "the same name". */
+function nearBudget(length: number): number {
+  if (length < 4) return 0;
+  if (length <= 5) return 1;
+  if (length <= 10) return 2;
+  return 3;
+}
+
+/**
+ * Optimal string alignment distance: insert, delete, substitute, and swap two
+ * adjacent characters, each one edit — so "pnacake" is one from "pancake".
+ */
+export function editDistance(a: string, b: string): number {
+  const rows: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) rows[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let d = Math.min(rows[i - 1][j] + 1, rows[i][j - 1] + 1, rows[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d = Math.min(d, rows[i - 2][j - 2] + 1);
+      rows[i][j] = d;
+    }
+  }
+  return rows[a.length][b.length];
+}
+
+/**
+ * Library names a query is probably a typo of — the "did you mean" the
+ * picker shows before it offers to create. Compared on the whole name and on
+ * the name's opening (query length ±1), so a half-typed "pnacake" still finds
+ * "Pancake Fold". Closest first, then by name; at most `limit`.
+ */
+export function nearMatchDefinitions(
+  query: string,
+  defs: Iterable<ExerciseDefinition>,
+  limit = 3,
+): ExerciseDefinition[] {
+  const q = nearKey(query);
+  const budget = nearBudget(q.length);
+  if (budget === 0) return [];
+  const scored: { def: ExerciseDefinition; distance: number }[] = [];
+  for (const def of defs) {
+    let best = Infinity;
+    for (const name of [def.canonicalName, ...def.aliases]) {
+      const key = nearKey(name);
+      best = Math.min(best, editDistance(q, key));
+      for (let n = q.length - 1; n <= q.length + 1; n++) {
+        if (n > 0 && n < key.length) best = Math.min(best, editDistance(q, key.slice(0, n)));
+      }
+    }
+    if (best <= budget) scored.push({ def, distance: best });
+  }
+  return scored
+    .sort((a, b) => a.distance - b.distance || a.def.canonicalName.localeCompare(b.def.canonicalName))
+    .slice(0, limit)
+    .map(s => s.def);
+}
+
 // ─── Entry authoring (shared by the coach tools and the UI picker) ────────────
 
 const PER_SIDE_RE = /\beach\b|\bper\s+(side|leg|arm)\b|\btotal\b/i;

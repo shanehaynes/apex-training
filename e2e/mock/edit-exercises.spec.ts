@@ -1,4 +1,5 @@
 import { test, expect, apexState, gotoCalendar, shot } from '../lib/fixtures';
+import { stubLibrary } from '../lib/library';
 
 test('add an exercise via the picker and save (stubbed PATCH)', async ({ page }) => {
   await gotoCalendar(page);
@@ -34,4 +35,26 @@ test('add an exercise via the picker and save (stubbed PATCH)', async ({ page })
   await expect(page.locator('.exercise-card').first()).toBeVisible();
   await expect(page.locator('.modal-body')).toContainText(addedName!);
   await shot(page, 'edit-exercises-saved');
+});
+
+
+test('a typo in the picker offers the library name before Create', async ({ page }) => {
+  await stubLibrary(page);
+  await gotoCalendar(page);
+
+  await page.locator('.event-chip__main').first().click();
+  await page.locator('.modal-edit-exercises').click();
+  await page.locator('.exercise-editor__add').first().click();
+  await page.locator('.library-filter', { hasText: 'All' }).click();
+  await page.locator('.exercise-picker__input').fill('Pnacake Fold');
+
+  const suggestions = page.locator('.exercise-picker__row', { hasText: 'did you mean?' }).locator('.exercise-picker__row-name');
+  await expect(suggestions).toHaveText(['Pancake Fold', 'Pancake Hold']);
+  await expect(page.locator('.exercise-picker__create-row')).toContainText('Create "Pnacake Fold" as a new exercise anyway');
+  await shot(page, 'picker-did-you-mean');
+
+  // A new name nowhere near the library gets a plain Create, no suggestions.
+  await page.locator('.exercise-picker__input').fill('Copenhagen Plank');
+  await expect(suggestions).toHaveCount(0);
+  await expect(page.locator('.exercise-picker__create-row')).not.toContainText('anyway');
 });

@@ -36,15 +36,20 @@ public struct TrackerDependencies: Sendable {
     public var services: TrackerServices
     public var definitions: @Sendable () async -> [ExerciseDefinition]
     public var onCompletionChanged: @MainActor @Sendable (_ event: ScheduleEvent, _ isCompleted: Bool, _ completedAt: String?) -> Void
+    /// The swap picker's inline create, recorded in the cache every other
+    /// picker reads; the write itself is a queued op, so it works offline.
+    public var rememberDefinition: @MainActor @Sendable (ExerciseDefinition) async -> Void
 
     public init(
         services: TrackerServices,
         definitions: @escaping @Sendable () async -> [ExerciseDefinition],
-        onCompletionChanged: @escaping @MainActor @Sendable (ScheduleEvent, Bool, String?) -> Void
+        onCompletionChanged: @escaping @MainActor @Sendable (ScheduleEvent, Bool, String?) -> Void,
+        rememberDefinition: @escaping @MainActor @Sendable (ExerciseDefinition) async -> Void = { _ in }
     ) {
         self.services = services
         self.definitions = definitions
         self.onCompletionChanged = onCompletionChanged
+        self.rememberDefinition = rememberDefinition
     }
 }
 

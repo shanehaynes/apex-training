@@ -311,6 +311,7 @@ export default function TrackerExercise({
           onSelect={def => { setPicking(false); onSwap(def); }}
           onClose={() => setPicking(false)}
           restrictTo={tracked.isCardio ? CARDIO_CATEGORIES : SET_TRACKED_CATEGORIES}
+          createCategory={tracked.exercise.category}
         />
       )}
     </div>

@@ -21,7 +21,7 @@ public struct YouTab: View {
     public var body: some View {
         NavigationStack(path: $path) {
             if let model {
-                YouRootView(model: model)
+                YouRootView(model: model, open: { route in path.append(route) })
             } else {
                 EmptyState(eyebrow: "You", message: "Signing in…", symbol: ApexIcon.person.systemName)
                     .navigationTitle("You")
@@ -50,9 +50,13 @@ public struct YouTab: View {
 
 public struct YouRootView: View {
     @Bindable private var model: YouModel
+    /// Pushes onto the tab's stack from inside a pushed screen (the Library's
+    /// create opens the new exercise); the stack's path is the tab's.
+    private let open: ((YouRoute) -> Void)?
 
-    public init(model: YouModel) {
+    public init(model: YouModel, open: ((YouRoute) -> Void)? = nil) {
         self.model = model
+        self.open = open
     }
 
     public var body: some View {
@@ -201,7 +205,7 @@ public struct YouRootView: View {
         // `.library` is the Library screen the regrouped row pushes; the two
         // library routes still exist and still land on their own screen, so a
         // deep link and the onboarding are unchanged.
-        case .library: libraryScreen { LibraryHomeView(model: $0) }
+        case .library: libraryScreen { library in LibraryHomeView(model: library, open: open) }
         case .exercise(let id): libraryScreen { ExerciseDetailView(model: $0, id: id) }
         case .workoutLibrary: libraryScreen { WorkoutLibraryView(model: $0).youScreen("Workout library") }
         case .blocks: blocksScreen { BlocksView(model: $0) }

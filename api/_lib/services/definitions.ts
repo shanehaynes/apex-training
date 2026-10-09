@@ -43,7 +43,7 @@ export async function createDefinition(
   userId: string,
   row: Record<string, unknown>,
   triggeredBy: TriggeredBy | undefined,
-): Promise<ServiceResult<{ id: string }>> {
+): Promise<ServiceResult<{ id: string; existing?: true }>> {
   if (typeof row.id !== 'string' || typeof row.canonical_name !== 'string' || typeof row.category !== 'string') {
     return fail(400, 'Missing required definition fields (id, canonical_name, category)');
   }
@@ -56,6 +56,10 @@ export async function createDefinition(
   const { error } = await supabase
     .from('exercise_definitions')
     .insert({ ...picked, user_id: userId } as TablesInsert<'exercise_definitions'>);
+  // The key is (user_id, id) and the id is the name's slug, so a duplicate is
+  // this user's own row: a create replayed by the iOS tracker's offline queue
+  // after its first attempt landed unanswered. Already done, not a failure.
+  if (error?.code === '23505') return succeed({ id: row.id, existing: true });
   if (error) {
     console.error('[api/exercise-definitions] insert failed:', error.message);
     return fail(500, 'Failed to create definition');

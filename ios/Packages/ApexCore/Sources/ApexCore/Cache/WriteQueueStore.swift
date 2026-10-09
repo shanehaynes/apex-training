@@ -6,6 +6,25 @@ import Foundation
 public enum TrackerAction: String, Codable, Sendable {
     case start, save, finish, cancel, completion
     case swapExercise = "swap-exercise"
+    case createDefinition = "create-definition"
+}
+
+/// A movement created from the swap picker mid-workout. Queued ahead of the
+/// swap that uses it, so both land in order once there is a connection; the
+/// id is the slug, so a replay is the same row (the server answers a repeat
+/// as success).
+public struct DefinitionCreatePayload: Codable, Sendable, Equatable {
+    public var id: String
+    public var canonicalName: String
+    public var category: String
+    public var isUnilateral: Bool
+
+    public init(id: String, canonicalName: String, category: String, isUnilateral: Bool) {
+        self.id = id
+        self.canonicalName = canonicalName
+        self.category = category
+        self.isUnilateral = isUnilateral
+    }
 }
 
 /// Typed, not opaque JSON: merging two saves and counting pending sets both
@@ -18,6 +37,7 @@ public enum TrackerOpPayload: Codable, Sendable, Equatable {
     case finish(FinishPayload)
     case cancel
     case swapExercise(SwapPayload)
+    case createDefinition(DefinitionCreatePayload)
     /// `POST /api/completions` — finishing flips the occurrence's completion the
     /// way the web does after `finish`; cancelling a finished session flips it back.
     case completion(completionRow: CompletionRow, logRow: CompletionLogRow)
@@ -29,6 +49,7 @@ public enum TrackerOpPayload: Codable, Sendable, Equatable {
         case .finish: .finish
         case .cancel: .cancel
         case .swapExercise: .swapExercise
+        case .createDefinition: .createDefinition
         case .completion: .completion
         }
     }

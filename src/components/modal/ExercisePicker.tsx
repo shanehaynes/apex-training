@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { format, parseISO } from 'date-fns';
-import { Plus, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useSchedule } from '../../context/schedule';
-import { buildAliasIndex, hasPerSideCount, matchDefinitionByName } from '../../lib/schedule/definitions';
+import { buildAliasIndex, matchDefinitionByName, nearMatchDefinitions } from '../../lib/schedule/definitions';
 import { fetchLastPerformedRows } from '../../lib/library/repo';
 import { lastPerformedByCanonical } from '../../lib/library/stats';
+import CreateDefinitionInline from './CreateDefinitionInline';
 import type { ExerciseCategory, ExerciseDefinition } from '../../types/workout';
 
 interface Props {
@@ -20,6 +21,11 @@ interface Props {
    * replaces (per-set rows vs one cardio row).
    */
   restrictTo?: ExerciseCategory[];
+  /**
+   * The create form's starting category when no chip is pre-selected — a
+   * swap starts from the replaced movement's, without narrowing the search.
+   */
+  createCategory?: ExerciseCategory;
 }
 
 const ALL_CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobility', 'skill', 'cardio', 'climbing'];
@@ -40,15 +46,11 @@ function defaultsPreview(def: ExerciseDefinition): string {
  * never fuzzy — seeing the near-matches before "Create" is what prevents
  * duplicate library entries.
  */
-export default function ExercisePicker({ onSelect, onClose, initialCategory, restrictTo }: Props) {
-  const { definitions, createDefinition } = useSchedule();
+export default function ExercisePicker({ onSelect, onClose, initialCategory, restrictTo, createCategory }: Props) {
+  const { definitions } = useSchedule();
   const categories = restrictTo?.length ? restrictTo : ALL_CATEGORIES;
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<ExerciseCategory | null>(initialCategory ?? null);
-  const [creating, setCreating] = useState(false);
-  const [newCategory, setNewCategory] = useState<ExerciseCategory>(initialCategory ?? categories[0]);
-  const [newUnilateral, setNewUnilateral] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [lastPerformed, setLastPerformed] = useState<Map<string, string>>(new Map());
 
   // Capture phase so Escape closes the picker before the modal's document
@@ -70,45 +72,36 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory, res
     return () => { cancelled = true; };
   }, [definitions]);
 
-  const results = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return [...definitions.values()]
+  // What could be picked at all here, before the search narrows it.
+  const pickable = useMemo(() =>
+    [...definitions.values()]
       .filter(def => !def.archivedAt)
       .filter(def => categories.includes(def.category))
-      .filter(def => !category || def.category === category)
+      .filter(def => !category || def.category === category),
+  [definitions, category, categories]);
+
+  const results = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return pickable
       .filter(def =>
         !needle ||
         def.canonicalName.toLowerCase().includes(needle) ||
         def.aliases.some(a => a.toLowerCase().includes(needle)) ||
         def.muscleGroups.some(m => m.toLowerCase().includes(needle)))
       .sort((a, b) => a.canonicalName.localeCompare(b.canonicalName));
-  }, [definitions, query, category, categories]);
+  }, [pickable, query]);
 
   const trimmed = query.trim();
   // Offer create only when the query is no existing name/alias — an exact
   // match should be selected, not duplicated.
   const canCreate = trimmed.length > 1 && !matchDefinitionByName(trimmed, definitions.values());
-
-  const createAndSelect = async () => {
-    setBusy(true);
-    const result = await createDefinition({
-      canonicalName: trimmed,
-      category: newCategory,
-      isUnilateral: newUnilateral,
-    });
-    setBusy(false);
-    if (!result) return;
-    // Built locally — the context's definitions map updates on its own schedule.
-    onSelect({
-      id: result.id,
-      canonicalName: trimmed,
-      aliases: [],
-      category: newCategory,
-      muscleGroups: [],
-      equipment: [],
-      isUnilateral: newUnilateral || hasPerSideCount(trimmed),
-    });
-  };
+  // Substring search misses typos ("Pnacake Fold"), and a typo that reaches
+  // Create forks the movement's history — so name the likely target first.
+  const nearMatches = useMemo(() => {
+    if (!canCreate) return [];
+    const shown = new Set(results.map(def => def.id));
+    return nearMatchDefinitions(trimmed, pickable.filter(def => !shown.has(def.id)));
+  }, [canCreate, trimmed, pickable, results]);
 
   return createPortal(
     <div className="modal-backdrop modal-backdrop--library-editor" onClick={onClose}>
@@ -120,7 +113,7 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory, res
             className="exercise-picker__input"
             placeholder="Search the exercise library…"
             value={query}
-            onChange={e => { setQuery(e.target.value); setCreating(false); }}
+            onChange={e => setQuery(e.target.value)}
           />
           <button className="library-close" onClick={onClose} aria-label="Close picker">
             <X size={16} strokeWidth={1.5} />
@@ -165,36 +158,31 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory, res
             );
           })}
 
+          {nearMatches.map(def => (
+            <button key={def.id} className="exercise-picker__row" onClick={() => onSelect(def)}>
+              <div className="exercise-picker__row-main">
+                <span className="exercise-picker__row-name">{def.canonicalName}</span>
+                <span className="exercise-picker__row-meta">
+                  <span className="library-row__category">{def.category}</span>
+                  <span>did you mean?</span>
+                </span>
+              </div>
+            </button>
+          ))}
+
           {results.length === 0 && !canCreate && (
             <p className="library-empty">No exercises match.</p>
           )}
 
-          {canCreate && !creating && (
-            <button className="exercise-picker__create-row" onClick={() => setCreating(true)}>
-              <Plus size={14} strokeWidth={1.5} /> Create "{trimmed}" as a new exercise
-            </button>
-          )}
-
-          {canCreate && creating && (
-            <div className="exercise-picker__create-form">
-              <span className="exercise-picker__create-name">New exercise: <strong>{trimmed}</strong></span>
-              <div className="exercise-picker__create-controls">
-                <select
-                  className="library-field__input"
-                  value={newCategory}
-                  onChange={e => setNewCategory(e.target.value as ExerciseCategory)}
-                >
-                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <label className="library-field--checkbox exercise-picker__unilateral">
-                  <input type="checkbox" checked={newUnilateral} onChange={e => setNewUnilateral(e.target.checked)} />
-                  <span className="library-field__label">Unilateral</span>
-                </label>
-                <button className="library-editor__save" onClick={createAndSelect} disabled={busy}>
-                  {busy ? 'Creating…' : 'Create & add'}
-                </button>
-              </div>
-            </div>
+          {canCreate && (
+            <CreateDefinitionInline
+              name={trimmed}
+              categories={categories}
+              initialCategory={[initialCategory, createCategory].find(c => c && categories.includes(c)) ?? categories[0]}
+              anyway={nearMatches.length > 0 || results.length > 0}
+              confirmLabel="Create & add"
+              onCreated={onSelect}
+            />
           )}
         </div>
       </div>

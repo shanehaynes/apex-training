@@ -88,7 +88,8 @@ final class TrackerModelTests: XCTestCase {
         _ transport: ScriptedTransport, cache: MemoryCacheStore = MemoryCacheStore(),
         store: MemoryWriteQueueStore = MemoryWriteQueueStore(), clock: TestClock = TestClock(now: now),
         calendar: Calendar = Calendar(), event: ScheduleEvent = TrackerModelTests.event,
-        activity: any TrackerActivityPublishing = NoActivityPublisher()
+        activity: any TrackerActivityPublishing = NoActivityPublisher(),
+        rememberDefinition: @escaping @MainActor @Sendable (ExerciseDefinition) async -> Void = { _ in }
     ) -> (TrackerModel, WriteQueue) {
         let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: Tokens())
         let queue = WriteQueue(store: store, client: client, clock: clock)
@@ -98,7 +99,8 @@ final class TrackerModelTests: XCTestCase {
             definitions: { [ExerciseDefinition(id: "d-row", canonicalName: "Rowing Machine", category: "cardio"),
                             ExerciseDefinition(id: "d-db", canonicalName: "Single-Arm Dumbbell Press", category: "strength", isUnilateral: true),
                             ExerciseDefinition(id: "d-old", canonicalName: "Retired Lift", category: "strength", archivedAt: "2026-01-01T00:00:00.000Z")] },
-            onCompletionChanged: { event, isCompleted, _ in calendar.flips.append((event.id, isCompleted)) }
+            onCompletionChanged: { event, isCompleted, _ in calendar.flips.append((event.id, isCompleted)) },
+            rememberDefinition: rememberDefinition
         )
         return (TrackerModel(event: event, deps: deps), queue)
     }
@@ -495,6 +497,76 @@ final class TrackerModelTests: XCTestCase {
         XCTAssertEqual(TrackerModel.swapCandidates(model.definitions, for: row, query: "").map(\.id), ["d-row"])
         XCTAssertEqual(TrackerModel.swapCandidates(model.definitions, for: press, query: "nothing").count, 0)
         XCTAssertEqual(TrackerModel.swapCandidates(model.definitions, for: press, query: "dumbbell").map(\.id), ["d-db"])
+    }
+
+    /// What the tracker recorded in the schedule's cached library.
+    private final class Remembered: @unchecked Sendable {
+        var ids: [String] = []
+    }
+
+    @MainActor
+    func testCreatingFromTheSwapPickerQueuesTheCreateAheadOfTheSwap() async throws {
+        let transport = healthy()
+        transport.set("POST /api/exercise-definitions")
+        let remembered = Remembered()
+        let (model, _) = make(transport, rememberDefinition: { remembered.ids.append($0.id) })
+        await model.open()
+        let maybeCreated = await model.createDefinition(name: "Pancake Fold", category: "stretch", isUnilateral: false)
+        let created = try XCTUnwrap(maybeCreated)
+        XCTAssertEqual(created.id, "pancake-fold")
+        XCTAssertEqual(remembered.ids, ["pancake-fold"], "every other picker sees it now")
+        let press = model.editor.exercise(section: "exercise", id: "fx-press")!
+        XCTAssertEqual(TrackerModel.swapCandidates(model.definitions, for: press, query: "pancake").map(\.id), ["pancake-fold"],
+                       "the new movement is offered without a reload")
+
+        await model.swap(section: "exercise", exerciseId: "fx-press", to: created)
+        XCTAssertEqual(model.editor.exercise(section: "exercise", id: "fx-press")?.exercise.name, "Pancake Fold")
+        let writes = transport.requests.compactMap { r -> String? in
+            if r.path == "/api/exercise-definitions" { return "create" }
+            return r.body?.contains("\"action\":\"swap-exercise\"") == true ? "swap" : nil
+        }
+        XCTAssertEqual(writes, ["create", "swap"])
+        XCTAssertTrue(transport.requests.contains { $0.body?.contains("\"definitionId\":\"pancake-fold\"") == true })
+    }
+
+    @MainActor
+    func testACreateMadeOfflineSwapsNowAndLandsInOrderWhenTheConnectionReturns() async throws {
+        let transport = healthy()
+        transport.set("POST /api/exercise-definitions")
+        let store = MemoryWriteQueueStore()
+        let (model, queue) = make(transport, store: store)
+        await model.open()
+        transport.offline = true
+
+        let maybeCreated = await model.createDefinition(name: "Pancake Fold", category: "stretch", isUnilateral: false)
+        let created = try XCTUnwrap(maybeCreated, "no signal is not a refusal: the create is queued")
+        await model.swap(section: "exercise", exerciseId: "fx-press", to: created)
+        XCTAssertEqual(model.editor.exercise(section: "exercise", id: "fx-press")?.exercise.name, "Pancake Fold",
+                       "the swap shows at once, as an offline set does")
+        let held = await store.all.map { $0.payload.action }
+        XCTAssertEqual(held, [.createDefinition, .swapExercise], "the create waits ahead of the swap that uses it")
+
+        transport.offline = false
+        await Self.drain(queue)
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+        // Every attempt is recorded, offline ones too; the replay that landed
+        // is the tail: the create, then the swap.
+        let sent = transport.requests.compactMap { r -> String? in
+            if r.path == "/api/exercise-definitions" { return "create" }
+            return r.body?.contains("\"action\":\"swap-exercise\"") == true ? "swap" : nil
+        }
+        XCTAssertEqual(Array(sent.suffix(2)), ["create", "swap"], "the swap lands after its create")
+    }
+
+    @MainActor
+    func testANamelessCreateIsRefusedBeforeItQueues() async {
+        let (model, queue) = make(healthy())
+        await model.open()
+        let created = await model.createDefinition(name: "  ", category: "stretch", isUnilateral: false)
+        XCTAssertNil(created)
+        let pending = await queue.pendingOps(for: model.session)
+        XCTAssertTrue(pending.isEmpty)
     }
 
     // MARK: - Reopen

@@ -188,6 +188,12 @@ public struct Endpoint: Sendable, Equatable {
                 exerciseId: swap.exerciseId, exerciseName: swap.exerciseName, definitionId: swap.definitionId
             ))
 
+        case .createDefinition(let definition):
+            return Endpoint.createDefinition(
+                id: definition.id, canonicalName: definition.canonicalName,
+                category: definition.category, isUnilateral: definition.isUnilateral
+            )
+
         case .completion(let completionRow, let logRow):
             return completions(completionRow: completionRow, logRow: logRow)
         }
