@@ -136,6 +136,11 @@ export async function forgetLiveActivityTokens(
   return succeed(undefined);
 }
 
+/** 200, or a 4xx other than 429: nothing a retry of the same token would change. */
+function isFinal(status: number): boolean {
+  return status === 200 || (status >= 400 && status < 500 && status !== 429);
+}
+
 export interface EndDeps {
   /** Defaults to the env-configured key; null means "not configured". */
   config?: ApnsConfig | null;
@@ -200,11 +205,17 @@ export async function endLiveActivities(
       if (r.status !== 200) console.error(`[live-activity] end push failed: ${r.status} ${r.reason ?? ''}`.trim());
     });
 
-    // Sent or refused, a token is done with: an ended activity takes no more
-    // pushes, and a refused one (expired, wrong environment) never will.
-    const { error: deleteErr } = await supabase
-      .from('live_activity_tokens').delete().in('id', rows.map(r => r.id));
-    if (deleteErr) console.error('[live-activity] token delete failed:', deleteErr.message);
+    // Accepted or refused for good, a token is done with: an ended activity
+    // takes no more pushes, and an expired or unknown one never will. A
+    // timeout, 429 or 5xx is APNs' problem, not the token's — keep it, so the
+    // next end path for this session (a web finish is followed by its
+    // completion write; the phone replays its queue) gets another try. The
+    // day-old sweep on register is the backstop.
+    const done = rows.filter((_, i) => isFinal(results[i].status)).map(r => r.id);
+    if (done.length > 0) {
+      const { error: deleteErr } = await supabase.from('live_activity_tokens').delete().in('id', done);
+      if (deleteErr) console.error('[live-activity] token delete failed:', deleteErr.message);
+    }
     return results.filter(r => r.status === 200).length;
   } catch (err) {
     console.error('[live-activity] end failed:', err instanceof Error ? err.message : err);

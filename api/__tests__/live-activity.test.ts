@@ -221,6 +221,20 @@ describe('endLiveActivities', () => {
     spy.mockRestore();
   });
 
+  it.each([[0, 'Timeout'], [429, 'TooManyRequests'], [503, 'ServiceUnavailable']])(
+    'keeps the token after a transient %i so the next end path retries it', async (status, reason) => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const { config } = makeConfig();
+      const { admin, calls } = makeAdmin([row, { ...row, id: 'row-2', push_token: TOKEN.replace('a1', 'b2') }]);
+      // The first token hits a transient failure, the second is accepted.
+      const transport: ApnsTransport = async (_host, headers) =>
+        headers[':path'].endsWith(TOKEN) ? { status, reason } : { status: 200 };
+      expect(await endLiveActivities(admin, 'user-123', session, {}, { config, transport })).toBe(1);
+      expect(calls.find(c => c.op === 'delete.in')?.args).toEqual(['id', ['row-2']]);
+      spy.mockRestore();
+    },
+  );
+
   it('is a no-op on a failed read', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { config } = makeConfig();
