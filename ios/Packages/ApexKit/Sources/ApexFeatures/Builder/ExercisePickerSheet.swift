@@ -31,10 +31,6 @@ struct ExercisePickerSheet: View {
 
     @State private var query = ""
     @State private var category: String?
-    @State private var creating = false
-    @State private var newCategory = "strength"
-    @State private var newUnilateral = false
-    @State private var busy = false
     @FocusState private var searching: Bool
 
     private var categories: [(value: String, label: String)] {
@@ -61,6 +57,13 @@ struct ExercisePickerSheet: View {
                 return (definition.muscleGroups ?? []).contains { $0.lowercased().contains(needle) }
             }
             .sorted { $0.canonicalName.localizedCaseInsensitiveCompare($1.canonicalName) == .orderedAscending }
+    }
+
+    /// The create's starting category: the workout type's chip, else the
+    /// replaced movement's (a swap), else the first offered.
+    private var newCategory: String {
+        [preferredCategory, createCategory].compactMap { $0 }.first { value in categories.contains { $0.value == value } }
+            ?? categories.first?.value ?? "strength"
     }
 
     /// Exact-match-or-create: two characters and nothing exact in the library.
@@ -111,7 +114,12 @@ struct ExercisePickerSheet: View {
                         .accessibilityIdentifier("picker.near.\(definition.id)")
                 }
                 if canCreate {
-                    createRow(anyway: !near.isEmpty)
+                    CreateDefinitionRow(
+                        name: trimmed, categories: categories, initialCategory: newCategory, anyway: !near.isEmpty,
+                        confirmLabel: confirmLabel, identifierPrefix: "picker", startsOpen: initialCreating,
+                        onCreate: onCreate, onCreated: onPick
+                    )
+                    .listRowBackground(ApexColor.bgSurface)
                 }
                 if matched.isEmpty, !canCreate {
                     Text(definitions.isEmpty ? "The library is empty — type a name to add the first exercise." : "No matches — keep typing to create it.")
@@ -130,10 +138,7 @@ struct ExercisePickerSheet: View {
         .onAppear {
             searching = true
             if let preferredCategory, categories.contains(where: { $0.value == preferredCategory }) { category = preferredCategory }
-            newCategory = [preferredCategory, createCategory].compactMap { $0 }.first { value in categories.contains { $0.value == value } }
-                ?? categories.first?.value ?? "strength"
             if query.isEmpty { query = initialQuery }
-            if initialCreating { creating = true }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("picker")
@@ -155,49 +160,6 @@ struct ExercisePickerSheet: View {
         .buttonStyle(.plain)
         .listRowBackground(ApexColor.bgSurface)
         .listRowSeparatorTint(ApexColor.borderSubtle)
-    }
-
-    @ViewBuilder
-    private func createRow(anyway: Bool) -> some View {
-        if creating {
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                Text("New exercise: \(trimmed)")
-                    .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
-                    .foregroundStyle(ApexColor.textPrimary)
-                ChipRow("Category", options: categories, selection: $newCategory, identifier: "picker.create.category")
-                Toggle("Unilateral (counts per side)", isOn: $newUnilateral)
-                    .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
-                    .foregroundStyle(ApexColor.textSecondary)
-                    .tint(ApexColor.accent)
-                    .accessibilityIdentifier("picker.create.unilateral")
-                HStack(spacing: Spacing.sm) {
-                    ApexButton("Back", kind: .secondary) { creating = false }
-                    ApexButton(confirmLabel, isLoading: busy) {
-                        busy = true
-                        Task {
-                            if let created = await onCreate(trimmed, newCategory, newUnilateral || Entries.hasPerSideCount(trimmed)) {
-                                onPick(created)
-                            }
-                            busy = false
-                        }
-                    }
-                    .accessibilityIdentifier("picker.create.confirm")
-                }
-            }
-            .padding(.vertical, Spacing.sm)
-            .listRowBackground(ApexColor.bgSurface)
-        } else {
-            Button { creating = true } label: {
-                Label(anyway ? "Create \"\(trimmed)\" anyway" : "Create \"\(trimmed)\"", systemImage: ApexIcon.plus.systemName)
-                    .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
-                    .foregroundStyle(ApexColor.accent)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .listRowBackground(ApexColor.bgSurface)
-            .accessibilityIdentifier("picker.create")
-        }
     }
 
     private func subtitle(_ definition: ExerciseDefinition) -> String {

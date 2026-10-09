@@ -205,4 +205,37 @@ final class LibraryModelTests: XCTestCase {
         XCTAssertEqual(LibraryModel.referencesText(1), "in 1 workout")
         XCTAssertEqual(LibraryModel.referencesText(3), "in 3 workouts")
     }
+
+    // MARK: - Create from the search (the picker's, mid-workout)
+
+    @MainActor
+    func testATypoOffersTheActiveNameAndAnExactNameOffersNoCreate() async {
+        let (model, _) = await started()
+        model.query = "Cabel Row"
+        XCTAssertTrue(model.canCreate)
+        XCTAssertEqual(model.nearMatches.map(\.id), ["cable-row"])
+
+        model.query = "cable row"
+        XCTAssertFalse(model.canCreate, "an exact name is the existing row")
+        XCTAssertEqual(model.nearMatches.map(\.id), [])
+
+        model.query = "Old Jgo"
+        XCTAssertEqual(model.nearMatches.map(\.id), [], "archived rows are not suggested")
+
+        model.query = "Cabel Row"
+        model.category = "cardio"
+        XCTAssertEqual(model.nearMatches.map(\.id), [], "the category chip in force applies")
+        XCTAssertEqual(model.createCategory, "cardio")
+    }
+
+    @MainActor
+    func testCreateWritesThroughTheScheduleAndClearsTheSearch() async {
+        let (model, hooks) = await started()
+        model.query = "Copenhagen Plank"
+        let created = await model.create(name: "Copenhagen Plank", category: "strength", isUnilateral: true)
+        XCTAssertEqual(created?.id, "copenhagen-plank")
+        XCTAssertEqual(hooks.created.map { $0.name }, ["Copenhagen Plank"])
+        XCTAssertEqual(model.query, "")
+        XCTAssertNotNil(model.definition(id: "copenhagen-plank"), "the list re-read carries it")
+    }
 }

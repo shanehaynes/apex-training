@@ -247,7 +247,10 @@ final class AppModel {
                 definitions: { [weak self] in await self?.schedule.definitions() ?? [] },
                 templates: { [weak self] in await self?.schedule.templates() ?? [] },
                 refreshSchedule: { [weak self] in await self?.schedule.refresh(reason: .afterEdit) },
-                archiveTemplate: { [weak self] id, archived in await self?.schedule.archiveTemplate(id: id, archived: archived) ?? false }
+                archiveTemplate: { [weak self] id, archived in await self?.schedule.archiveTemplate(id: id, archived: archived) ?? false },
+                createDefinition: { [weak self] name, category, isUnilateral in
+                    await self?.schedule.createDefinition(name: name, category: category, isUnilateral: isUnilateral)
+                }
             ),
             blocks: BlocksDependencies(client: client, cache: cache, clock: clock, realtime: hub),
             meals: mealsModel

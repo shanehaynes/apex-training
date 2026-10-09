@@ -11,12 +11,15 @@ public struct LibraryHomeView: View {
     public nonisolated enum Tab: Hashable, Sendable { case exercises, workouts }
 
     private let model: LibraryModel
+    private let open: ((YouRoute) -> Void)?
     @State private var tab: Tab
 
     /// `tab` lets a snapshot open on the Workouts segment; the screen itself
-    /// always opens on Exercises.
-    public init(model: LibraryModel, tab: Tab = .exercises) {
+    /// always opens on Exercises. `open` pushes onto the You stack (an
+    /// exercise just created from the search).
+    public init(model: LibraryModel, tab: Tab = .exercises, open: ((YouRoute) -> Void)? = nil) {
         self.model = model
+        self.open = open
         _tab = State(initialValue: tab)
     }
 
@@ -34,7 +37,7 @@ public struct LibraryHomeView: View {
             .accessibilityIdentifier("library.templates")
 
             switch tab {
-            case .exercises: LibraryView(model: model)
+            case .exercises: LibraryView(model: model, open: open)
             case .workouts: WorkoutLibraryView(model: model)
             }
         }
@@ -47,17 +50,20 @@ public struct LibraryHomeView: View {
 /// The exercise library (`LibraryView.tsx`): search in the navigation bar,
 /// category chips once there are enough rows to need filtering, rows with the
 /// name over its category and stats — shown on the phone too (U11) — and the
-/// archived section under a divider.
+/// archived section under a divider. A name the library lacks gets the
+/// picker's "did you mean" and inline create, as it does mid-workout.
 public struct LibraryView: View {
     @Bindable private var model: LibraryModel
+    private let open: ((YouRoute) -> Void)?
 
     /// ux-review §3.8: filter controls over a short list are clutter. Seven
     /// category chips earn their place at the seeded stack's 69 rows and not
     /// at the dozen a new account has.
     private static let chipThreshold = 12
 
-    public init(model: LibraryModel) {
+    public init(model: LibraryModel, open: ((YouRoute) -> Void)? = nil) {
         self.model = model
+        self.open = open
     }
 
     public var body: some View {
@@ -71,10 +77,15 @@ public struct LibraryView: View {
                 }
                 if model.isLoading, model.definitions.isEmpty {
                     ProgressView().tint(ApexColor.textMuted).frame(maxWidth: .infinity)
-                } else if model.active.isEmpty, model.archived.isEmpty {
+                } else if model.active.isEmpty, model.archived.isEmpty, !model.canCreate {
                     Text("No exercises match.").apexBody().accessibilityIdentifier("library.empty")
                 } else {
-                    rows(model.active)
+                    if model.canCreate {
+                        createSection
+                    }
+                    if !model.active.isEmpty {
+                        rows(model.active)
+                    }
                     if !model.archived.isEmpty {
                         archivedDivider
                         rows(model.archived)
@@ -99,8 +110,8 @@ public struct LibraryView: View {
     /// Lazy: the library is every exercise the account knows, and the search
     /// field above re-evaluates this on each keystroke — eagerly that was the
     /// whole list built per character.
-    private func rows(_ definitions: [ExerciseDefinition]) -> some View {
-        SettingsSection(lazy: true) {
+    private func rows(_ definitions: [ExerciseDefinition], title: String? = nil) -> some View {
+        SettingsSection(title, lazy: true) {
             ForEach(Array(definitions.enumerated()), id: \.element.id) { index, definition in
                 if index > 0 { SettingsDivider() }
                 NavigationLink(value: YouRoute.exercise(id: definition.id)) {
@@ -113,6 +124,28 @@ public struct LibraryView: View {
                 .buttonStyle(SettingsRowButtonStyle())
                 .accessibilityIdentifier("library.row.\(definition.id)")
             }
+        }
+    }
+
+    @ViewBuilder
+    private var createSection: some View {
+        let near = model.nearMatches
+        if !near.isEmpty {
+            rows(near, title: "Did you mean")
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("library.near")
+        }
+        SettingsSection {
+            CreateDefinitionRow(
+                name: model.query.trimmingCharacters(in: .whitespaces),
+                categories: Entries.categories, initialCategory: model.createCategory, anyway: !near.isEmpty,
+                confirmLabel: "Create", identifierPrefix: "library",
+                onCreate: { name, category, isUnilateral in
+                    await model.create(name: name, category: category, isUnilateral: isUnilateral)
+                },
+                onCreated: { created in open?(.exercise(id: created.id)) }
+            )
+            .padding(.horizontal, Spacing.lg)
         }
     }
 

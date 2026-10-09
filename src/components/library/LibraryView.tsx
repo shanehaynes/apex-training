@@ -5,13 +5,15 @@ import { X, Search, ChevronRight, Archive } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/calendar';
 import { useSchedule } from '../../context/schedule';
-import { buildAliasIndex, countDefinitionReferences } from '../../lib/schedule/definitions';
+import { buildAliasIndex, countDefinitionReferences, matchDefinitionByName, nearMatchDefinitions } from '../../lib/schedule/definitions';
 import { fetchLastPerformedRows } from '../../lib/library/repo';
 import { lastPerformedByCanonical } from '../../lib/library/stats';
 import ExerciseDetail from './ExerciseDetail';
+import CreateDefinitionInline from '../modal/CreateDefinitionInline';
 import type { ExerciseCategory, ExerciseDefinition } from '../../types/workout';
 
-const CATEGORY_FILTERS: (ExerciseCategory | 'all')[] = ['all', 'strength', 'stretch', 'mobility', 'skill', 'cardio', 'climbing'];
+const CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobility', 'skill', 'cardio', 'climbing'];
+const CATEGORY_FILTERS: (ExerciseCategory | 'all')[] = ['all', ...CATEGORIES];
 
 export default function LibraryView() {
   const { state, dispatch } = useCalendar();
@@ -58,6 +60,17 @@ export default function LibraryView() {
     };
   }, [definitions, search, category]);
 
+  // The picker's exact-match-or-create, with its "did you mean" first: a
+  // name the library lacks can be added here as it can mid-workout.
+  const trimmed = search.trim();
+  const canCreate = trimmed.length > 1 && !matchDefinitionByName(trimmed, definitions.values());
+  const nearMatches = useMemo(() => {
+    if (!canCreate) return [];
+    const shown = new Set(active.map(def => def.id));
+    return nearMatchDefinitions(trimmed, [...definitions.values()].filter(def =>
+      !def.archivedAt && !shown.has(def.id) && (category === 'all' || def.category === category)));
+  }, [canCreate, trimmed, definitions, active, category]);
+
   const detail = detailId ? definitions.get(detailId) : undefined;
 
   // Offered while the list is on screen — its copy is about the list — so a
@@ -68,7 +81,7 @@ export default function LibraryView() {
     return <ExerciseDetail definition={detail} onBack={() => setDetailId(null)} onClose={close} />;
   }
 
-  const renderRow = (def: ExerciseDefinition) => {
+  const renderRow = (def: ExerciseDefinition, hint?: string) => {
     const last = lastPerformed.get(def.canonicalName);
     const refs = referenceCounts.get(def.id) ?? 0;
     return (
@@ -78,6 +91,7 @@ export default function LibraryView() {
           <span className="library-row__meta">
             <span className="library-row__category">{def.category}</span>
             {def.muscleGroups.length > 0 && <span>{def.muscleGroups.join(', ')}</span>}
+            {hint && <span>{hint}</span>}
           </span>
         </div>
         <div className="library-row__stats">
@@ -131,16 +145,27 @@ export default function LibraryView() {
       </div>
 
       <div className="library-list">
-        {active.length === 0 && archived.length === 0 && (
+        {nearMatches.map(def => renderRow(def, 'did you mean?'))}
+        {canCreate && (
+          <CreateDefinitionInline
+            name={trimmed}
+            categories={CATEGORIES}
+            initialCategory={category === 'all' ? 'strength' : category}
+            anyway={nearMatches.length > 0}
+            confirmLabel="Create"
+            onCreated={def => { setSearch(''); setDetailId(def.id); }}
+          />
+        )}
+        {active.length === 0 && archived.length === 0 && !canCreate && (
           <p className="library-empty">No exercises match.</p>
         )}
-        {active.map(renderRow)}
+        {active.map(def => renderRow(def))}
         {archived.length > 0 && (
           <>
             <div className="library-list__divider">
               <Archive size={12} strokeWidth={1.5} /> Archived
             </div>
-            {archived.map(renderRow)}
+            {archived.map(def => renderRow(def))}
           </>
         )}
       </div>

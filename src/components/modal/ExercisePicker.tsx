@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { format, parseISO } from 'date-fns';
-import { Plus, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useSchedule } from '../../context/schedule';
-import { buildAliasIndex, hasPerSideCount, matchDefinitionByName, nearMatchDefinitions } from '../../lib/schedule/definitions';
+import { buildAliasIndex, matchDefinitionByName, nearMatchDefinitions } from '../../lib/schedule/definitions';
 import { fetchLastPerformedRows } from '../../lib/library/repo';
 import { lastPerformedByCanonical } from '../../lib/library/stats';
+import CreateDefinitionInline from './CreateDefinitionInline';
 import type { ExerciseCategory, ExerciseDefinition } from '../../types/workout';
 
 interface Props {
@@ -41,14 +42,10 @@ function defaultsPreview(def: ExerciseDefinition): string {
  * duplicate library entries.
  */
 export default function ExercisePicker({ onSelect, onClose, initialCategory, restrictTo }: Props) {
-  const { definitions, createDefinition } = useSchedule();
+  const { definitions } = useSchedule();
   const categories = restrictTo?.length ? restrictTo : ALL_CATEGORIES;
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<ExerciseCategory | null>(initialCategory ?? null);
-  const [creating, setCreating] = useState(false);
-  const [newCategory, setNewCategory] = useState<ExerciseCategory>(initialCategory ?? categories[0]);
-  const [newUnilateral, setNewUnilateral] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [lastPerformed, setLastPerformed] = useState<Map<string, string>>(new Map());
 
   // Capture phase so Escape closes the picker before the modal's document
@@ -101,27 +98,6 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory, res
     return nearMatchDefinitions(trimmed, pickable.filter(def => !shown.has(def.id)));
   }, [canCreate, trimmed, pickable, results]);
 
-  const createAndSelect = async () => {
-    setBusy(true);
-    const result = await createDefinition({
-      canonicalName: trimmed,
-      category: newCategory,
-      isUnilateral: newUnilateral,
-    });
-    setBusy(false);
-    if (!result) return;
-    // Built locally — the context's definitions map updates on its own schedule.
-    onSelect({
-      id: result.id,
-      canonicalName: trimmed,
-      aliases: [],
-      category: newCategory,
-      muscleGroups: [],
-      equipment: [],
-      isUnilateral: newUnilateral || hasPerSideCount(trimmed),
-    });
-  };
-
   return createPortal(
     <div className="modal-backdrop modal-backdrop--library-editor" onClick={onClose}>
       <div className="exercise-picker" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
@@ -132,7 +108,7 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory, res
             className="exercise-picker__input"
             placeholder="Search the exercise library…"
             value={query}
-            onChange={e => { setQuery(e.target.value); setCreating(false); }}
+            onChange={e => setQuery(e.target.value)}
           />
           <button className="library-close" onClick={onClose} aria-label="Close picker">
             <X size={16} strokeWidth={1.5} />
@@ -193,32 +169,15 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory, res
             <p className="library-empty">No exercises match.</p>
           )}
 
-          {canCreate && !creating && (
-            <button className="exercise-picker__create-row" onClick={() => setCreating(true)}>
-              <Plus size={14} strokeWidth={1.5} /> Create "{trimmed}" as a new exercise{nearMatches.length > 0 ? ' anyway' : ''}
-            </button>
-          )}
-
-          {canCreate && creating && (
-            <div className="exercise-picker__create-form">
-              <span className="exercise-picker__create-name">New exercise: <strong>{trimmed}</strong></span>
-              <div className="exercise-picker__create-controls">
-                <select
-                  className="library-field__input"
-                  value={newCategory}
-                  onChange={e => setNewCategory(e.target.value as ExerciseCategory)}
-                >
-                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <label className="library-field--checkbox exercise-picker__unilateral">
-                  <input type="checkbox" checked={newUnilateral} onChange={e => setNewUnilateral(e.target.checked)} />
-                  <span className="library-field__label">Unilateral</span>
-                </label>
-                <button className="library-editor__save" onClick={createAndSelect} disabled={busy}>
-                  {busy ? 'Creating…' : 'Create & add'}
-                </button>
-              </div>
-            </div>
+          {canCreate && (
+            <CreateDefinitionInline
+              name={trimmed}
+              categories={categories}
+              initialCategory={initialCategory ?? categories[0]}
+              anyway={nearMatches.length > 0}
+              confirmLabel="Create & add"
+              onCreated={onSelect}
+            />
           )}
         </div>
       </div>

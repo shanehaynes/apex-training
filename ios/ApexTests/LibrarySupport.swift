@@ -11,6 +11,7 @@ final class LibraryHooks {
     var templates: [WorkoutTemplate]
     var refreshes = 0
     var archived: [(id: String, archived: Bool)] = []
+    var created: [(name: String, category: String, isUnilateral: Bool)] = []
 
     init(definitions: [ExerciseDefinition], templates: [WorkoutTemplate]) {
         self.definitions = definitions
@@ -56,6 +57,12 @@ func makeLibraryModel(_ transport: YouTransport, hooks: LibraryHooks, cache: any
                 return WorkoutTemplate(id: template.id, title: template.title, type: template.type, archivedAt: archived ? "2026-09-08T12:00:00Z" : nil, updatedAt: template.updatedAt)
             }
             return true
+        },
+        createDefinition: { name, category, isUnilateral in
+            hooks.created.append((name, category, isUnilateral))
+            let definition = ExerciseDefinition(id: Slug.name(name), canonicalName: name, aliases: [], category: category, isUnilateral: isUnilateral)
+            hooks.definitions.append(definition)
+            return definition
         }
     ))
 }
