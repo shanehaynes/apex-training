@@ -194,7 +194,7 @@ public actor WriteQueue {
                     try? await store.update(next)
                     continue
                 }
-                switch policy.classify(error, attempts: op.attempts) {
+                switch verdict(for: error, op: op, in: session) {
                 case .retry(let delay):
                     var next = op
                     next.attempts += 1
@@ -273,12 +273,29 @@ public actor WriteQueue {
     }
 
     /// Network back, scene active, signed in again: lift the pause and flush.
+    /// The library lane also drops its backoff wait: its ops only ever wait on
+    /// the network (see `verdict`), so this trigger is exactly what they wait for.
     public func resume() async {
         if isPaused {
             isPaused = false
             emit(.resumed)
         }
+        callOffRetry(for: .library)
+        notBefore[.library] = nil
         await flush()
+    }
+
+    /// The policy's verdict, except that a library write never gives up on
+    /// the network. A tracker op stops at the ceiling so the session drains
+    /// past it and the Retry bar shows it; the library lane has no bar, its
+    /// creates are idempotent (the server answers a repeat as done), and
+    /// nothing queues behind them but other creates — so it waits out an
+    /// outage of any length. A 5xx or a refusal still fails as usual.
+    private func verdict(for error: APIError, op: TrackerOp, in session: SessionKey) -> RetryPolicy.Verdict {
+        if session == .library, case .network = error {
+            return .retry(after: policy.backoff(attempts: op.attempts))
+        }
+        return policy.classify(error, attempts: op.attempts)
     }
 
     // MARK: - Failed ops
@@ -302,6 +319,20 @@ public actor WriteQueue {
     }
 
     // MARK: - Reads
+
+    /// Every exercise created with no signal and not yet on the server, from
+    /// any session (the Library's lane and a tracker's swap). The cached
+    /// library is replaced wholesale by each schedule refresh, so its readers
+    /// overlay these to keep a pending create on screen until it lands.
+    public func pendingDefinitionCreates() async -> [DefinitionCreatePayload] {
+        var creates: [DefinitionCreatePayload] = []
+        for session in (try? await store.sessionsWithPending()) ?? [] {
+            for op in await pendingOps(for: session) {
+                if case .createDefinition(let payload) = op.payload { creates.append(payload) }
+            }
+        }
+        return creates
+    }
 
     public func status(for session: SessionKey) async -> SessionSyncStatus {
         var status = SessionSyncStatus()

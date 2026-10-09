@@ -546,4 +546,70 @@ final class WriteQueueTests: XCTestCase {
         let v45 = await transport.requests.map(\.action)
         XCTAssertEqual(v45, ["save", "save"])
     }
+
+    // MARK: - The library lane (an exercise created offline outside a workout)
+
+    private let pancake = DefinitionCreatePayload(id: "pancake-fold", canonicalName: "Pancake Fold", category: "stretch", isUnilateral: false)
+
+    func testALibraryCreateWaitsOutAnOutageLongerThanTheCeiling() async throws {
+        // Five failed sends against a two-attempt ceiling: a tracker op would
+        // have failed at the third; the library create keeps waiting and lands.
+        let transport = ScriptedTransport([.throwNetwork, .throwNetwork, .throwNetwork, .throwNetwork, .throwNetwork, .ok()])
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store, policy: RetryPolicy(maxAttempts: 2))
+        try await queue.enqueue(.createDefinition(pancake), for: .library)
+
+        await queue.flush(.library)
+        await queue.awaitRetries()
+
+        let sent = await transport.requests.map(\.path)
+        XCTAssertEqual(sent, Array(repeating: "/api/exercise-definitions", count: 6))
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+    }
+
+    func testALibraryCreateStillFailsOnAServerError() async throws {
+        let transport = ScriptedTransport([.status(500, body: "boom"), .status(500, body: "boom"), .status(500, body: "boom")])
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store, policy: RetryPolicy(maxAttempts: 2))
+        try await queue.enqueue(.createDefinition(pancake), for: .library)
+
+        await queue.flush(.library)
+        await queue.awaitRetries()
+
+        let remaining = await store.all.map(\.state)
+        XCTAssertEqual(remaining, [.failed], "only the network is waited out")
+    }
+
+    func testResumeSendsALibraryCreateWithoutWaitingOutItsBackoff() async throws {
+        let transport = ScriptedTransport([.throwNetwork, .ok()])
+        let store = MemoryWriteQueueStore()
+        let clock = HeldClock()
+        let queue = makeQueue(transport, store: store, clock: clock)
+        try await queue.enqueue(.createDefinition(pancake), for: .library)
+
+        await queue.flush(.library)
+        let first = await transport.requests.count
+        XCTAssertEqual(first, 1, "offline: one try, then a backoff the held clock never ends")
+
+        // The network is back: the create goes now, not when the backoff ends.
+        await queue.resume()
+        let sent = await transport.requests.count
+        XCTAssertEqual(sent, 2)
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+        await queue.awaitRetries()
+    }
+
+    func testPendingCreatesAreReadAcrossSessions() async throws {
+        let transport = ScriptedTransport([.throwNetwork])
+        let queue = makeQueue(transport, clock: HeldClock())
+        let couch = DefinitionCreatePayload(id: "couch-stretch", canonicalName: "Couch Stretch", category: "stretch", isUnilateral: false)
+        try await queue.enqueue(.createDefinition(pancake), for: .library)
+        try await queue.enqueue(.createDefinition(couch), for: session)
+        try await queue.enqueue(save([setRow(1)]), for: session)
+
+        let pending = await queue.pendingDefinitionCreates().map(\.id).sorted()
+        XCTAssertEqual(pending, ["couch-stretch", "pancake-fold"])
+    }
 }

@@ -232,9 +232,48 @@ public final class ScheduleModel {
     /// The cached exercise definitions — the tracker's swap picker reads these
     /// (`search_exercises` carries no ids).
     public func definitions() async -> [ExerciseDefinition] {
-        guard let entry = try? await deps.cache.read(kind: .definitions, key: ScheduleCacheKey.definitions),
-              let decoded = try? JSONDecoder().decode([ExerciseDefinition].self, from: entry.json) else { return [] }
-        return decoded
+        var cached: [ExerciseDefinition] = []
+        if let entry = try? await deps.cache.read(kind: .definitions, key: ScheduleCacheKey.definitions),
+           let decoded = try? JSONDecoder().decode([ExerciseDefinition].self, from: entry.json) {
+            cached = decoded
+        }
+        // A refresh replaces the cached list with the server's, which does not
+        // have an exercise created offline until its queued write lands: keep
+        // offering those meanwhile.
+        guard let queue = writeQueue else { return cached }
+        var known = Set(cached.map(\.id))
+        for pending in await queue.pendingDefinitionCreates() {
+            guard known.insert(pending.id).inserted else { continue }
+            cached.append(ExerciseDefinition(
+                id: pending.id, canonicalName: pending.canonicalName, aliases: [], category: pending.category,
+                muscleGroups: [], equipment: [], isUnilateral: pending.isUnilateral
+            ))
+        }
+        return cached
+    }
+
+    // MARK: - Offline library writes
+
+    /// The app's write queue once someone is signed in (`AppModel` attaches it;
+    /// the schedule is built before it). An exercise created with no signal
+    /// waits in its library lane.
+    @ObservationIgnored public private(set) var writeQueue: WriteQueue?
+    @ObservationIgnored private var libraryLaneTask: Task<Void, Never>?
+
+    /// Attach (or, on sign-out, detach) the queue, and report a library create
+    /// the server refused: it has no tracker bar to show on.
+    public func attach(writeQueue queue: WriteQueue?) {
+        libraryLaneTask?.cancel()
+        writeQueue = queue
+        guard let queue else { return }
+        libraryLaneTask = Task {
+            for await event in await queue.subscribe() {
+                guard !Task.isCancelled else { return }
+                if case .failed(let session, .createDefinition, let message) = event, session == .library {
+                    ToastBus.shared.post("Couldn't add an exercise to your library — \(message)", level: .failure)
+                }
+            }
+        }
     }
     /// The cached workout library — the builder's template search reads this.
     public func templates() async -> [WorkoutTemplate] {

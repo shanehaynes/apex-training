@@ -80,21 +80,34 @@ extension ScheduleModel {
         return true
     }
 
-    /// The picker's inline create (`ExercisePicker` on the web): the id is the
-    /// slug, the row lands immediately so the entry can reference it.
+    /// The picker's inline create (`ExercisePicker` on the web) — the Library's
+    /// and the Builder's: the id is the slug, the row lands immediately so the
+    /// entry can reference it. With no signal the write waits in the queue's
+    /// library lane instead of failing, and the row is offered here meanwhile
+    /// (`definitions()` overlays it); a refusal is a toast.
     public func createDefinition(name: String, category: String, isUnilateral: Bool) async -> ExerciseDefinition? {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         let id = Slug.name(trimmed)
         guard !id.isEmpty else { return nil }
-        do {
-            _ = try await deps.client.data(for: .createDefinition(id: id, canonicalName: trimmed, category: category, isUnilateral: isUnilateral))
-        } catch {
-            ToastBus.shared.post("Couldn't add the exercise — try again", level: .failure)
-            return nil
-        }
         let definition = ExerciseDefinition(
             id: id, canonicalName: trimmed, aliases: [], category: category, muscleGroups: [], equipment: [], isUnilateral: isUnilateral
         )
+        do {
+            _ = try await deps.client.data(for: .createDefinition(id: id, canonicalName: trimmed, category: category, isUnilateral: isUnilateral))
+        } catch {
+            guard Self.isNetwork(error), let queue = writeQueue else {
+                ToastBus.shared.post("Couldn't add the exercise — try again", level: .failure)
+                return nil
+            }
+            let payload = DefinitionCreatePayload(id: id, canonicalName: trimmed, category: category, isUnilateral: isUnilateral)
+            do {
+                try await queue.enqueue(.createDefinition(payload), for: .library)
+            } catch {
+                ToastBus.shared.post("Couldn't add the exercise — try again", level: .failure)
+                return nil
+            }
+            ToastBus.shared.post("No connection — “\(trimmed)” is added here and syncs when you're back online", level: .info)
+        }
         await rememberDefinition(definition)
         return definition
     }
