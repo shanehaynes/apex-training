@@ -546,6 +546,13 @@ final class TrackerModelTests: XCTestCase {
         let held = await store.all.map { $0.payload.action }
         XCTAssertEqual(held, [.createDefinition, .swapExercise], "the create waits ahead of the swap that uses it")
 
+        // Let the offline attempts run out before the signal returns. Under
+        // the test clock they retry instantly, and reconnecting mid-ladder
+        // lets whichever op is still retrying land first — the swap, once the
+        // create has given up and the session drains past it (by design: a
+        // failed op never blocks the rest of a workout). Settled, both sit
+        // failed in FIFO order and the reconnect replays them in it.
+        await queue.awaitRetries()
         transport.offline = false
         await Self.drain(queue)
         let left = await store.all.count
