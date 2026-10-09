@@ -107,6 +107,9 @@ extension ScheduleModel {
                 return nil
             }
             ToastBus.shared.post("No connection — “\(trimmed)” is added here and syncs when you're back online", level: .info)
+            // Start the lane now: the try above may have timed out with the
+            // path still up, and then no "network back" trigger will come.
+            Task { await queue.flush(.library) }
         }
         await rememberDefinition(definition)
         return definition

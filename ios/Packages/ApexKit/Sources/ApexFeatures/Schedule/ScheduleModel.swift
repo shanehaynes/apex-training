@@ -260,18 +260,21 @@ public final class ScheduleModel {
     @ObservationIgnored public private(set) var writeQueue: WriteQueue?
     @ObservationIgnored private var libraryLaneTask: Task<Void, Never>?
 
-    /// Attach (or, on sign-out, detach) the queue, and report a library create
-    /// the server refused: it has no tracker bar to show on.
+    /// Attach (or, on sign-out, detach) the queue, and settle a library create
+    /// the server refused: it has no tracker bar to show on, so say so, drop
+    /// the op, and re-read the schedule — the cached library still holds the
+    /// local copy, and the server's list is the one without it.
     public func attach(writeQueue queue: WriteQueue?) {
         libraryLaneTask?.cancel()
         writeQueue = queue
         guard let queue else { return }
-        libraryLaneTask = Task {
+        libraryLaneTask = Task { [weak self] in
             for await event in await queue.subscribe() {
                 guard !Task.isCancelled else { return }
-                if case .failed(let session, .createDefinition, let message) = event, session == .library {
-                    ToastBus.shared.post("Couldn't add an exercise to your library — \(message)", level: .failure)
-                }
+                guard case .failed(let session, .createDefinition, let message) = event, session == .library else { continue }
+                ToastBus.shared.post("Couldn't add an exercise to your library — \(message)", level: .failure)
+                await queue.discardFailed(.library)
+                await self?.refresh(reason: .afterEdit)
             }
         }
     }

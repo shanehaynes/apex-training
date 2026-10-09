@@ -598,6 +598,9 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(sent, 2)
         let left = await store.all.count
         XCTAssertEqual(left, 0)
+        // The called-off retry is still parked on the held clock (a cancelled
+        // HeldClock sleep ends only at open()): release it so it winds down.
+        clock.open()
         await queue.awaitRetries()
     }
 
