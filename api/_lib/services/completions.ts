@@ -1,6 +1,7 @@
 import type { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { pickAllowed, COMPLETION_COLUMNS, COMPLETION_LOG_COLUMNS, SERVER_STAMPED_COLUMNS } from '../allowlist.js';
 import { fail, succeed, type ServiceResult } from './result.js';
+import { endLiveActivities } from './liveActivity.js';
 import type { TablesInsert } from '../../../src/lib/db/types.js';
 
 // Completion state + the append-only completion log, extracted from
@@ -66,5 +67,13 @@ export async function recordCompletion(
   if (upsertErr) console.error('[api/completions] upsert failed:', upsertErr.message);
   if (logErr) console.error('[api/completions] log insert failed:', logErr.message);
   if (upsertErr || logErr) return fail(500, 'Failed to record completion');
+  // Marked done from the calendar, by the coach or by the web tracker: the
+  // phone's Lock Screen card for this occurrence, if any, ends now.
+  if (completion.picked.is_completed === true) {
+    await endLiveActivities(supabase, userId, {
+      eventId: completion.picked.event_id,
+      eventDate: completion.picked.event_date,
+    });
+  }
   return succeed(undefined);
 }

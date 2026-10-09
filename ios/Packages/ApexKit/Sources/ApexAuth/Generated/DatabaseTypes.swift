@@ -940,6 +940,66 @@ internal enum PublicSchema {
       case userId = "user_id"
     }
   }
+  internal struct LiveActivityTokensSelect: Codable, Hashable, Sendable {
+    internal let createdAt: String
+    internal let environment: String
+    internal let eventDate: String
+    internal let eventId: String
+    internal let id: UUID
+    internal let pushToken: String
+    internal let startedAt: String
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case createdAt = "created_at"
+      case environment = "environment"
+      case eventDate = "event_date"
+      case eventId = "event_id"
+      case id = "id"
+      case pushToken = "push_token"
+      case startedAt = "started_at"
+      case userId = "user_id"
+    }
+  }
+  internal struct LiveActivityTokensInsert: Codable, Hashable, Sendable {
+    internal let createdAt: String?
+    internal let environment: String
+    internal let eventDate: String
+    internal let eventId: String
+    internal let id: UUID?
+    internal let pushToken: String
+    internal let startedAt: String
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case createdAt = "created_at"
+      case environment = "environment"
+      case eventDate = "event_date"
+      case eventId = "event_id"
+      case id = "id"
+      case pushToken = "push_token"
+      case startedAt = "started_at"
+      case userId = "user_id"
+    }
+  }
+  internal struct LiveActivityTokensUpdate: Codable, Hashable, Sendable {
+    internal let createdAt: String?
+    internal let environment: String?
+    internal let eventDate: String?
+    internal let eventId: String?
+    internal let id: UUID?
+    internal let pushToken: String?
+    internal let startedAt: String?
+    internal let userId: UUID?
+    internal enum CodingKeys: String, CodingKey {
+      case createdAt = "created_at"
+      case environment = "environment"
+      case eventDate = "event_date"
+      case eventId = "event_id"
+      case id = "id"
+      case pushToken = "push_token"
+      case startedAt = "started_at"
+      case userId = "user_id"
+    }
+  }
   internal struct McpTokensSelect: Codable, Hashable, Sendable {
     internal let clientId: String?
     internal let createdAt: String

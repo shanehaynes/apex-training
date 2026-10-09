@@ -29,6 +29,7 @@ State verified against the tree and `gh secret list` on **2026-09-19**.
 | `ASC_KEY_ID`, `ASC_ISSUER_ID` | GitHub Actions secrets; `ios/Config/appstoreconnect.env` on the release Mac | not needed — identifiers, readable in App Store Connect | — | read them back from Users and Access → Integrations |
 | `AuthKey_<KEY_ID>.p8` (= `ASC_KEY_P8_BASE64`) | GitHub Actions secret; `~/.appstoreconnect/private_keys/` on the release Mac | **TODO (Shane)** | Account Holder or Admin — §2 | revoke and mint a new key (§2); Apple offers the download **once** |
 | `ANTHROPIC_API_KEY` (repo secret, `evals` job only) | GitHub Actions secret | not needed | Anthropic Console, workspace-scoped key | the nightly eval job fails; the app is unaffected (coach keys are per user) |
+| `APNS_KEY_ID` / `APNS_TEAM_ID` / `APNS_PRIVATE_KEY` (APNs `.p8`) | Vercel (server-only) | **TODO (Shane)** — Apple offers the `.p8` download once | Account Holder or Admin: developer.apple.com → Certificates, IDs & Profiles → Keys → + → Apple Push Notifications service | revoke and mint a new key, set all three, redeploy; until then the Lock Screen card ends only when the app next runs (D-051) |
 | `SUPABASE_ANON_KEY` in `ios/Config/Secrets.xcconfig` | git-ignored, per worktree | **not needed, by design** | `ios/scripts/secrets.sh` re-derives it from the deployed bundle | run the script; a Release build without it traps at launch on `REPLACE_ME` |
 
 `gh secret list` on 2026-09-19 returns exactly `ANTHROPIC_API_KEY`, `ASC_ISSUER_ID`,

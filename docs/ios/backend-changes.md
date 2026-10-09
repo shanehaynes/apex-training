@@ -470,6 +470,15 @@ or OAuth grant from before write access existed, read-only for life. The connect
 its newest live refresh grant's. Fixture `mcp-tokens.json` regenerated (token `mcp:read`,
 connection `null`).
 
+### `POST` / `DELETE /api/live-activity-tokens` + APNs `end` sender (D-051, phase52)
+`POST { eventId, eventDate, token, environment: 'sandbox'|'production', startedAt }` stores one
+Live Activity push token (hex, upsert on the token; sweeps the user's rows older than a day).
+`DELETE ?eventId=&eventDate=` forgets a session's tokens. `services/liveActivity.ts`
+`endLiveActivities` pushes ActivityKit `end` from finish, cancel, quick-complete,
+`recordCompletion` (completed) and the provider import; a no-op without `APNS_*`. Fixture
+`live-activity-end.json` is written by `api/__tests__/live-activity.test.ts`, not the integration
+emitter.
+
 ## Not in this roadmap (Backlog)
 `device_tokens` migration + `/api/devices` + APNs sender (push).
 
@@ -494,3 +503,4 @@ connection `null`).
 | `GET /api/profile` widened (profiles row, feed URL, model catalog) | W11 | models.ts, oauth/common.ts | no | — | 50 | — |
 | `X-Apex-Client` logged, `GET /api/version` → `{ sha, minBuild, message? }` | G8 | clientVersion.ts | no | — | 60 | — |
 | `/api/coach-conversations` (list · load · create · append · rename · delete) | D-013 | new tables; shaped as `ConversationStore` | **yes** (useChat) | conversations | 330 | **yes** (phase46 `coach_conversations`, `coach_messages`) |
+| `/api/live-activity-tokens` + APNs `end` sender | D-051 | apns.ts, services/liveActivity.ts | no (server hooks only) | writes | 300 | **yes** (phase52 `live_activity_tokens`) |

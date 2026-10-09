@@ -3,10 +3,12 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import handler, { TIMESTAMP_WINDOW_BODY } from '../_lib/handlers/workoutSessions';
 import { CONSTRAINT_VIOLATION_BODY } from '../_lib/pgError';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
+import { endLiveActivities } from '../_lib/services/liveActivity';
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
 vi.mock('../_lib/auth.js', () => ({ requireUser: vi.fn(async () => 'user-123') }));
 vi.mock('../_lib/rateLimit.js', () => ({ enforceRateLimit: vi.fn(async () => true) }));
+vi.mock('../_lib/services/liveActivity.js', () => ({ endLiveActivities: vi.fn(async () => 0) }));
 vi.mock('../_lib/trackerSession.js', async (importOriginal) => ({
   // The real quick-complete writer runs against the mock admin below (its
   // upserts are what these tests assert); only the loaders are scripted.
@@ -343,6 +345,10 @@ describe('POST /api/workout-sessions — bootstrap and client timestamps', () =>
     expect(ok.statusCode()).toBe(200);
     const patch = state.updates.find(u => u.table === 'workout_sessions')!.patch;
     expect(patch.finished_at).toBe(thirtySecondsAgo);
+    // The phone's Lock Screen card ends with the session's own total.
+    expect(vi.mocked(endLiveActivities)).toHaveBeenLastCalledWith(
+      expect.anything(), 'user-123', { eventId: 'evt-1', eventDate: '2026-08-07' }, { totalSeconds: patch.total_duration_seconds },
+    );
     // The mock session started a minute ago → ~30s, not ~60s.
     expect(patch.total_duration_seconds).toBeGreaterThanOrEqual(28);
     expect(patch.total_duration_seconds).toBeLessThanOrEqual(32);

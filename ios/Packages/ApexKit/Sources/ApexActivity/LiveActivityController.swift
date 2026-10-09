@@ -16,6 +16,13 @@ import os
 /// starting a second session ends the first's activity rather than stacking.
 /// Never spawns outside the tracker screen: `adoptExisting` only reconciles
 /// what is already there.
+///
+/// With a token sink the activity is requested with `pushType: .token` and
+/// every APNs token ActivityKit issues for it goes to the server (phase52),
+/// which pushes `end` when the workout is finished somewhere the phone cannot
+/// see — the web, the calendar, the coach — even while the app is suspended.
+/// A request the system refuses with push (no `aps-environment` entitlement,
+/// say) is retried without it: the card matters more than the push.
 public nonisolated struct LiveActivityController: TrackerActivityPublishing {
     /// How long a running activity's content is trusted. A session finished on
     /// the web, or an app killed mid-workout, leaves ActivityKit rendering a
@@ -26,8 +33,15 @@ public nonisolated struct LiveActivityController: TrackerActivityPublishing {
     public static let staleAfter: TimeInterval = 4 * 60 * 60
 
     private let log = Logger(subsystem: "com.shanehaynes.apextraining", category: "activity")
+    private let tokens: (any LiveActivityTokenSink)?
+    private let environment: LiveActivityTokenRegistration.Environment
 
-    public init() {}
+    /// `tokens` nil requests activities without push, as before phase52.
+    /// `environment` is the APNs host this build's tokens belong to.
+    public init(tokens: (any LiveActivityTokenSink)? = nil, environment: LiveActivityTokenRegistration.Environment = .production) {
+        self.tokens = tokens
+        self.environment = environment
+    }
 
     /// The moment this content stops being believable: `startedAt + 4h` while
     /// the workout is running, and nothing for a finished one — a `.done` state
@@ -46,18 +60,27 @@ public nonisolated struct LiveActivityController: TrackerActivityPublishing {
             if live.content.state != snapshot.state {
                 await live.update(ActivityContent(state: snapshot.state, staleDate: Self.staleDate(for: snapshot.state)))
             }
+            watchTokens(of: live.id)
             return
         }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             log.info("Live Activities are off in Settings; not requesting one")
             return
         }
+        let content = ActivityContent(state: snapshot.state, staleDate: Self.staleDate(for: snapshot.state))
         do {
-            _ = try Activity.request(
-                attributes: snapshot.attributes,
-                content: ActivityContent(state: snapshot.state, staleDate: Self.staleDate(for: snapshot.state)),
-                pushType: nil
-            )
+            let activity: Activity<TrackerActivityAttributes>
+            if tokens != nil {
+                do {
+                    activity = try Activity.request(attributes: snapshot.attributes, content: content, pushType: .token)
+                } catch {
+                    log.error("Activity.request with push failed, retrying without: \(error.localizedDescription, privacy: .public)")
+                    activity = try Activity.request(attributes: snapshot.attributes, content: content, pushType: nil)
+                }
+            } else {
+                activity = try Activity.request(attributes: snapshot.attributes, content: content, pushType: nil)
+            }
+            watchTokens(of: activity.id)
         } catch {
             // Not fatal: the tracker works without the island.
             log.error("Activity.request failed: \(error.localizedDescription, privacy: .public)")
@@ -70,7 +93,10 @@ public nonisolated struct LiveActivityController: TrackerActivityPublishing {
             // "Done" content is still handed over so the system's last record
             // of the activity carries the total, but nothing lingers: the
             // summary in the app is where the result lives.
-            guard let activity = Self.live(for: session) else { return }
+            guard let activity = Self.live(for: session) else {
+                await tokens?.forget(session)
+                return
+            }
             var state = activity.content.state
             state.phase = .done(totalSeconds: totalSeconds)
             await activity.end(ActivityContent(state: state, staleDate: Self.staleDate(for: state)), dismissalPolicy: .immediate)
@@ -81,6 +107,8 @@ public nonisolated struct LiveActivityController: TrackerActivityPublishing {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
         }
+        // Ended here: the server has nothing left to push to.
+        await tokens?.forget(session)
     }
 
     // MARK: - Relaunch
@@ -94,6 +122,7 @@ public nonisolated struct LiveActivityController: TrackerActivityPublishing {
             let session = activity.attributes.session
             if await isSessionOpen(session) {
                 log.info("keeping a live activity for \(session.eventId, privacy: .public)")
+                watchTokens(of: activity.id)
             } else {
                 log.info("ending a stale activity for \(session.eventId, privacy: .public)")
                 await activity.end(nil, dismissalPolicy: .immediate)
@@ -126,6 +155,38 @@ public nonisolated struct LiveActivityController: TrackerActivityPublishing {
         }
     }
 
+    // MARK: - Push tokens
+
+    /// Forward every token ActivityKit issues for this activity — the first
+    /// one and each rotation — until the activity ends. Keyed by the
+    /// activity's id, which is `Sendable` where the activity is not: the
+    /// watching task looks the activity up itself, so no handle crosses an
+    /// isolation boundary. One watcher per activity, however often `sync`
+    /// runs for it.
+    private func watchTokens(of id: String) {
+        guard let tokens else { return }
+        let environment = environment
+        Task.detached {
+            guard await TokenWatchers.shared.claim(id) else { return }
+            if let activity = Activity<TrackerActivityAttributes>.activities.first(where: { $0.id == id }) {
+                let session = activity.attributes.session
+                // A relaunch re-watches an activity whose token was issued
+                // before the kill; the current one may never come round again.
+                if let token = activity.pushToken {
+                    await tokens.register(LiveActivityTokenRegistration(
+                        session: session, token: token, environment: environment, startedAt: activity.content.state.startedAt
+                    ))
+                }
+                for await token in activity.pushTokenUpdates {
+                    await tokens.register(LiveActivityTokenRegistration(
+                        session: session, token: token, environment: environment, startedAt: activity.content.state.startedAt
+                    ))
+                }
+            }
+            await TokenWatchers.shared.release(id)
+        }
+    }
+
     private static var all: [Activity<TrackerActivityAttributes>] { Activity<TrackerActivityAttributes>.activities }
 
     private static func live(for session: SessionKey) -> Activity<TrackerActivityAttributes>? {
@@ -149,4 +210,14 @@ private nonisolated extension ActivityState {
         default: false
         }
     }
+}
+
+/// The activity ids whose tokens are being watched, so a second `sync` for
+/// the same activity does not start a second watcher.
+private actor TokenWatchers {
+    static let shared = TokenWatchers()
+    private var ids: Set<String> = []
+
+    func claim(_ id: String) -> Bool { ids.insert(id).inserted }
+    func release(_ id: String) { ids.remove(id) }
 }

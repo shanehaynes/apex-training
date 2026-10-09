@@ -60,6 +60,14 @@ export const ENV_KEYS = [
   // say what broke, when the gate is raised for a specific reason.
   // Vercel project env.
   'APEX_UPDATE_MESSAGE',
+  // APNs token-auth key that ends the iOS Live Activity by push when a
+  // workout finishes off the phone (liveActivity.ts). Key ID and Team ID of
+  // an "Apple Push Notifications service" key from developer.apple.com; the
+  // private key is the .p8 file's PEM text (newlines may be written as \n).
+  // Vercel project env; all three unset = no push, the app-side end still runs.
+  'APNS_KEY_ID',
+  'APNS_TEAM_ID',
+  'APNS_PRIVATE_KEY',
 ] as const;
 
 export type EnvKey = (typeof ENV_KEYS)[number];

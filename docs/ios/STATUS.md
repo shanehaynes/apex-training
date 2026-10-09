@@ -344,6 +344,10 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
   ends: finish dismisses at once (no 5-minute Done linger), and a finish anywhere else (web,
   Schedule check, coach, provider sync) ends it on the next schedule refresh. Mac/device run
   needed; clearing it while the app is suspended would need ActivityKit push (not built).
+- 2026-10-09 · W12 push · Linux. D-051: the server ends the Lock Screen card by ActivityKit push
+  (phase52 `live_activity_tokens`, `/api/live-activity-tokens`, APNs sender, `aps-environment`).
+  Waits on Shane: an APNs key in Vercel (`APNS_*`), the Push Notifications capability on the App
+  ID, and a device run (finish on the web with the phone locked → the card goes).
 
 ## Open questions
 - (none — all twelve design questions were answered 2026-09-02; see decisions.md)

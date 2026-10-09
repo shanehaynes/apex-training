@@ -47,3 +47,29 @@ public nonisolated struct NoActivityPublisher: TrackerActivityPublishing {
     public func sync(_ snapshot: TrackerActivitySnapshot) async {}
     public func end(_ session: SessionKey, totalSeconds: Int?) async {}
 }
+
+/// Where the Live Activity's APNs tokens go (phase52). Fire-and-forget: a
+/// token that fails to register costs the push, never the card — the app
+/// still ends the activity itself when it next runs.
+public nonisolated protocol LiveActivityTokenSink: Sendable {
+    func register(_ registration: LiveActivityTokenRegistration) async
+    /// The app ended the session's activity; the server can drop its tokens.
+    func forget(_ session: SessionKey) async
+}
+
+/// The app's sink: `/api/live-activity-tokens` through the signed-in client.
+public nonisolated struct APITokenSink: LiveActivityTokenSink {
+    private let client: ApexClient
+
+    public init(client: ApexClient) {
+        self.client = client
+    }
+
+    public func register(_ registration: LiveActivityTokenRegistration) async {
+        _ = try? await client.data(for: .liveActivityToken(registration))
+    }
+
+    public func forget(_ session: SessionKey) async {
+        _ = try? await client.data(for: .forgetLiveActivityTokens(session))
+    }
+}
