@@ -65,6 +65,11 @@ public actor WriteQueue {
     private var rerun: Set<SessionKey> = []
     private var cancelledMidFlight: Set<SessionKey> = []
     private var notBefore: [SessionKey: Date] = [:]
+    /// Bumped by every `resume()`. An outbox send that fails on the network
+    /// while a resume landed mid-flight retries at once: the backoff it would
+    /// set was decided before the network came back, and `resume()` already
+    /// cleared the gate it would re-close.
+    private var resumes = 0
     /// The retry waiting out each session's backoff: the one a cancel, a purge
     /// or a newer retry calls off. A retry leaves it when it fires.
     private var waitingRetry: [SessionKey: UUID] = [:]
@@ -158,6 +163,7 @@ public actor WriteQueue {
             guard let op = try? await store.nextPending(for: session) else { return }
 
             inFlight[op.id] = session
+            let resumesBefore = resumes
             let outcome: Result<Data, APIError>
             do {
                 outcome = .success(try await client.data(for: Endpoint.tracker(op.payload, session: session)))
@@ -215,6 +221,10 @@ public actor WriteQueue {
                     next.attempts += 1
                     next.lastError = error.description
                     try? await store.update(next)
+                    if session == .outbox, resumes != resumesBefore {
+                        // The network came back while this was in the air.
+                        continue
+                    }
                     scheduleRetry(session, after: delay)
                     return
                 case .pause:
@@ -295,6 +305,7 @@ public actor WriteQueue {
             isPaused = false
             emit(.resumed)
         }
+        resumes += 1
         callOffRetry(for: .outbox)
         notBefore[.outbox] = nil
         await flush()

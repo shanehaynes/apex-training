@@ -659,4 +659,29 @@ final class WriteQueueTests: XCTestCase {
         let left = await store.all.count
         XCTAssertEqual(left, 0)
     }
+
+    func testAResumeDuringAFailingOutboxSendStillSendsAtOnce() async throws {
+        // The send is in the air with no signal when the network comes back:
+        // its failure must not re-close the gate resume() just opened.
+        let transport = ScriptedTransport([.throwNetwork, .ok()])
+        let gate = Gate()
+        await transport.hold(with: gate)
+        let store = MemoryWriteQueueStore()
+        let clock = HeldClock()
+        let queue = makeQueue(transport, store: store, clock: clock)
+        try await queue.enqueue(.createDefinition(pancake), for: .outbox)
+
+        let first = Task { await queue.flush(.outbox) }
+        while await transport.requests.isEmpty { await Task.yield() }
+        await queue.resume()          // finds the flush running: it only asks for a re-run
+        await gate.open()             // the in-flight send now fails on the network
+        await first.value
+
+        let sent = await transport.requests.count
+        XCTAssertEqual(sent, 2, "retried at once, not after a backoff the held clock never ends")
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+        clock.open()
+        await queue.awaitRetries()
+    }
 }
