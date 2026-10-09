@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- aps-environment: the Live Activity is requested with pushType .token so
+	     the server can end it by push when a workout finishes off the phone
+	     (phase52). "development" here; exporting an archive for TestFlight or
+	     the App Store re-signs it "production" from the distribution profile. -->
+	<key>aps-environment</key>
+	<string>development</string>
 	<!-- applinks: universal links for /auth/* and /app/* (the AASA is served
 	     from public/.well-known/ on every host Vercel attaches). webcredentials:
 	     lets Password AutoFill offer the saved login on the sign-in screen.

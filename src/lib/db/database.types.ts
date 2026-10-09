@@ -534,6 +534,39 @@ export type Database = {
         }
         Relationships: []
       }
+      live_activity_tokens: {
+        Row: {
+          created_at: string
+          environment: string
+          event_date: string
+          event_id: string
+          id: string
+          push_token: string
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          environment: string
+          event_date: string
+          event_id: string
+          id?: string
+          push_token: string
+          started_at: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          environment?: string
+          event_date?: string
+          event_id?: string
+          id?: string
+          push_token?: string
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       mcp_tokens: {
         Row: {
           client_id: string | null

@@ -2,10 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import handler from '../_lib/handlers/completions';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
+import { endLiveActivities } from '../_lib/services/liveActivity';
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
 vi.mock('../_lib/auth.js', () => ({ requireUser: vi.fn(async () => 'user-123') }));
 vi.mock('../_lib/rateLimit.js', () => ({ enforceRateLimit: vi.fn(async () => true) }));
+vi.mock('../_lib/services/liveActivity.js', () => ({ endLiveActivities: vi.fn(async () => 0) }));
 
 const mockedAdmin = vi.mocked(getSupabaseAdmin);
 
@@ -176,5 +178,27 @@ describe('POST /api/completions — replay', () => {
   it('400s on a client_toggle_id that is not a UUID, and writes no log row', async () => {
     expect(await post({ completionRow, logRow: { ...logRow, client_toggle_id: "'; drop" } })).toBe(400);
     expect(state.log).toHaveLength(0);
+  });
+});
+
+describe('POST /api/completions — the phone\'s Live Activity', () => {
+  beforeEach(() => vi.mocked(endLiveActivities).mockClear());
+
+  it('ends the occurrence\'s Lock Screen card when it is marked complete', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq({ completionRow, logRow }), res);
+    expect(statusCode()).toBe(200);
+    expect(vi.mocked(endLiveActivities)).toHaveBeenCalledWith(
+      expect.anything(), 'user-123', { eventId: 'evt-1', eventDate: '2026-08-07' },
+    );
+  });
+
+  it('leaves it alone on an uncomplete, and on a rejected write', async () => {
+    await handler(makeReq({
+      completionRow: { ...completionRow, is_completed: false },
+      logRow: { ...logRow, action: 'uncomplete' },
+    }), makeRes().res);
+    await handler(makeReq({ completionRow, logRow: { ...logRow, action: 'fabricate' } }), makeRes().res);
+    expect(vi.mocked(endLiveActivities)).not.toHaveBeenCalled();
   });
 });

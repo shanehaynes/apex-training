@@ -361,8 +361,7 @@ D-016 said yes to the island; these are the calls the build forced.
   on `workout_completions`, a completion toggle) `endFinished` dismisses any running activity
   whose occurrence is now complete. Limit, accepted for now: the app has to be running to see it,
   so a card on a locked phone clears when the app next foregrounds — or goes stale after 4 h.
-  Clearing it while suspended needs ActivityKit push updates (an APNs key, a push-token column,
-  a server send on finish), which is a backend workstream, not a client fix.
+  Closed by D-051: the server now ends it by ActivityKit push; this path stays as the fallback.
 - **The tap route is `apextraining://app/tracker/<id>/<date>`**, and the custom scheme gained
   an `app` host that mirrors the universal `/app/...` routes. `RouteBus` (tab selection +
   the parked link) is the first consumer of what `AppModel` used to park in `pendingRoute`;
@@ -967,3 +966,40 @@ call site cannot fall back to the server's read-only default by accident. The le
 mint, as the server fixes it; the row shows `read-only` only where it applies, so a full token
 reads as it always did. The web's consent page remains the only place an OAuth connection's level
 is chosen — the phone shows the result, never picks it.
+
+## D-051 · The server ends the Live Activity by ActivityKit push
+
+**Status:** decided · Shane · 2026-10-09.
+
+**Context.** D-026's finished-elsewhere path (#383) ends the tracker's Lock Screen card after a
+schedule refresh, which needs the app running. The card matters most on a locked phone with the
+app suspended — exactly when a refresh cannot happen. Shane asked for the push.
+
+**Options.**
+1. Background app refresh to re-check. Timing is the system's, often hours; no.
+2. A full `device_tokens` + alert-push stack (D-017's Backlog item). Far more than this needs.
+3. **ActivityKit push-token updates, end events only.** Chosen.
+
+**Decision.** The tracker requests its activity with `pushType: .token` (retrying without push if
+the system refuses, so the card never depends on it) and posts every token ActivityKit issues to
+`POST /api/live-activity-tokens` (phase52 `live_activity_tokens`, service-role only). Every server
+path that ends a session — `workout-sessions` finish / cancel / quick-complete, `recordCompletion`
+with `is_completed` (calendar toggle on either client, the coach, MCP writes) and the provider
+import — calls `endLiveActivities`, which sends an `end` with `dismissal-date` = now to each of
+the session's tokens and deletes them. The app `DELETE`s a session's tokens when it ends the
+activity itself. Token auth: an APNs `.p8` key (`APNS_KEY_ID`, `APNS_TEAM_ID`,
+`APNS_PRIVATE_KEY` in Vercel), signed with `node:crypto`, sent over `node:http2` — no dependency.
+
+**Consequences.**
+- No key configured = no push and no extra DB read; the client-side end (D-026) still runs.
+- The `content-state` must decode into `ContentState` with a default `JSONDecoder` (dates as
+  seconds since 2001) or ActivityKit drops the push silently. `ios/Fixtures/live-activity-end.json`
+  pins it from both sides: written by `api/__tests__/live-activity.test.ts`, decoded by
+  `ActivityAttributesTests.testTheServersEndPushDecodes`.
+- The app guesses its APNs environment (`DEBUG` → sandbox); the server retries the other host on
+  `BadDeviceToken`, so a mismatch costs one round trip, not the push.
+- Only `end` is pushed. The running card needs no updates (the system draws the timer from
+  `startedAt`), and push-to-start is not wanted: the card never appears outside the tracker.
+- D-017 stands: this is not user-facing notification push, and asks no permission.
+- `aps-environment` joins the app's entitlements, and the App ID needs the Push Notifications
+  capability; the ops runbook lists the new key.

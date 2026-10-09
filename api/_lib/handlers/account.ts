@@ -49,6 +49,7 @@ export const USER_DATA_TABLES = [
   'coach_conversations',
   'coach_messages',
   'coach_memory',
+  'live_activity_tokens',
 ] as const;
 
 /**

@@ -233,3 +233,5 @@ Uploading publishes a build to Apple. Confirm with Shane before running it witho
   into `ApexUI/Resources/ConnectorFigures.xcassets` + `Generated/ConnectorFigures.swift`.
 - `Fixtures/` come from `api/__tests__/integration/ios-read.integration.test.ts`
   (`APEX_FIXTURES_WRITE=1` to update after a deliberate shape change). Never edit them by hand.
+  The one exception to the emitter is `live-activity-end.json`, the server's ActivityKit `end`
+  push, written by `api/__tests__/live-activity.test.ts` under the same flag.

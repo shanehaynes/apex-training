@@ -1,0 +1,15 @@
+{
+  "aps": {
+    "timestamp": 1788889512,
+    "event": "end",
+    "dismissal-date": 1788889512,
+    "content-state": {
+      "startedAt": 810579600,
+      "phase": {
+        "done": {
+          "totalSeconds": 2712
+        }
+      }
+    }
+  }
+}

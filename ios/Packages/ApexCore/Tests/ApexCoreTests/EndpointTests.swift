@@ -38,6 +38,32 @@ final class EndpointTests: XCTestCase {
         XCTAssertEqual(Endpoint.termsAcceptance.url(relativeTo: base)?.path, "/api/terms-acceptance")
     }
 
+    func testLiveActivityTokenRegistration() {
+        let session = SessionKey(eventId: "base__2026-09-08", eventDate: "2026-09-08")
+        let registration = LiveActivityTokenRegistration(
+            session: session, token: Data([0x00, 0xAB, 0x10, 0xFF]), environment: .production,
+            startedAt: Date(timeIntervalSince1970: 1_788_886_800)
+        )
+        XCTAssertEqual(registration.token, "00ab10ff")
+        let endpoint = Endpoint.liveActivityToken(registration)
+        XCTAssertEqual(endpoint.method, .post)
+        XCTAssertEqual(endpoint.url(relativeTo: base)?.path, "/api/live-activity-tokens")
+        XCTAssertEqual(
+            String(decoding: endpoint.body!, as: UTF8.self),
+            #"{"environment":"production","eventDate":"2026-09-08","eventId":"base__2026-09-08","startedAt":"2026-09-08T17:00:00.000Z","token":"00ab10ff"}"#
+        )
+    }
+
+    func testForgetLiveActivityTokensIsADeleteForTheSession() {
+        let endpoint = Endpoint.forgetLiveActivityTokens(SessionKey(eventId: "evt-1", eventDate: "2026-09-08"))
+        XCTAssertEqual(endpoint.method, .delete)
+        XCTAssertNil(endpoint.body)
+        XCTAssertEqual(
+            endpoint.url(relativeTo: base)?.absoluteString,
+            "http://127.0.0.1:5314/api/live-activity-tokens?eventId=evt-1&eventDate=2026-09-08"
+        )
+    }
+
     func testTrailingSlashOnTheBaseDoesNotDoubleUp() {
         let slashed = URL(string: "http://127.0.0.1:5314/")!
         XCTAssertEqual(

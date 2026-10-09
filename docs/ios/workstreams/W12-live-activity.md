@@ -87,3 +87,9 @@ Out: rest timer (Backlog) — leave a hook in `ContentState` for it.
   web, Schedule check, coach, provider sync — is ended after the next schedule refresh through
   `ScheduleIndex.isCompleted(_:)` → `LiveActivityController.endFinished`. ApexCore test added;
   Mac/device verification needed (Linux has no Swift toolchain in this container).
+- 2026-10-09 · Linux · D-051: the server ends the activity by ActivityKit push. phase52
+  `live_activity_tokens`, `/api/live-activity-tokens`, `api/_lib/apns.ts` (ES256 token auth over
+  HTTP/2, no dependency), `services/liveActivity.ts` hooked into finish / cancel / quick-complete /
+  completions / provider import. App: `pushType: .token` (with a no-push retry), token watcher per
+  activity, `APITokenSink`, `aps-environment`. Vitest green; Swift unverified here — Mac and device
+  run needed, and the APNs key must be minted and set in Vercel before anything is pushed.

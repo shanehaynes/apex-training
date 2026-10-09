@@ -17,6 +17,7 @@ import { minutesToDisplayTime } from '../../../src/lib/time.js';
 import type { WorkoutEvent } from '../../../src/types/workout.js';
 import type { Exercise } from '../../../src/types/workout.js';
 import { toJson } from '../../../src/lib/db/types.js';
+import { endLiveActivities } from '../services/liveActivity.js';
 
 // The two-phase activity grab.
 //
@@ -625,6 +626,8 @@ async function writeActivityRecords(
   ]);
   if (completionErr) throw new Error(`completion upsert failed: ${completionErr.message}`);
   if (logErr) console.error('[provider-sync] completion log insert failed:', logErr.message);
+  // A watch import that completes a workout the phone is still counting.
+  await endLiveActivities(supabase, userId, { eventId, eventDate });
 
   // Session with the measured instants. ignoreDuplicates keeps a session the
   // user tracked by hand; our timing only lands when none exists.

@@ -193,7 +193,15 @@ final class AppModel {
         if CommandLine.arguments.contains("-apexUITest") {
             publisher = NoActivityPublisher()
         } else {
-            let controller = LiveActivityController()
+            // A development-signed build gets sandbox APNs tokens, an archive
+            // (TestFlight, the App Store) production ones; the server retries
+            // the other host on a mismatch, so this is a hint, not a gate.
+            #if DEBUG
+            let apnsEnvironment = LiveActivityTokenRegistration.Environment.sandbox
+            #else
+            let apnsEnvironment = LiveActivityTokenRegistration.Environment.production
+            #endif
+            let controller = LiveActivityController(tokens: APITokenSink(client: client), environment: apnsEnvironment)
             activity = controller
             publisher = controller
             // Whatever the system kept alive across a kill: keep it if the

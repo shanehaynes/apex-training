@@ -12,6 +12,7 @@ import { enforceRateLimit } from '../rateLimit.js';
 import { applyQuickComplete, applyQuickUncomplete, buildBootstrap, buildFinishSummary, loadResolvedOccurrence } from '../trackerSession.js';
 import { sendFailure } from '../services/result.js';
 import { sendWriteFailure } from '../pgError.js';
+import { endLiveActivities } from '../services/liveActivity.js';
 import { buildQuickCompleteLogs } from '../../../src/lib/tracking/plan.js';
 import type { CardioLogRow, SetLogRow, TablesInsert, TrackedSection, WorkoutSessionRow } from '../../../src/lib/db/types.js';
 import { sessionScoreFromRow } from '../../../src/lib/tracking/records.js';
@@ -379,6 +380,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // Finished here (the web tracker) or on the phone: either way the
+    // phone's Lock Screen card ends, carrying the session's own total.
+    await endLiveActivities(supabase, userId, { eventId, eventDate }, { totalSeconds });
+
     // PRs, the workout-level score record and the recap come back with the
     // finish (W3): computed from the rows just saved against full history,
     // so no client carries records.ts. An event deleted mid-session still
@@ -481,6 +486,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const result = await applyQuickComplete(supabase, userId, eventId, eventDate, { setLogs, cardioLogs }, durationSeconds);
     if (!result.ok) return sendFailure(res, result);
+    await endLiveActivities(supabase, userId, { eventId, eventDate });
     res.status(200).json({ ok: true });
     return;
   }
@@ -561,6 +567,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sendWriteFailure(res, '[api/workout-sessions] cancel', failed.error, 'Failed to cancel session');
       return;
     }
+    // A cancelled session has nothing left to show on the Lock Screen.
+    await endLiveActivities(supabase, userId, { eventId, eventDate });
 
     res.status(200).json({ ok: true });
     return;

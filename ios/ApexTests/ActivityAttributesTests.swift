@@ -33,6 +33,28 @@ final class ActivityAttributesTests: XCTestCase {
         XCTAssertNil(LiveActivityController.staleDate(for: done))
     }
 
+    /// The server's `end` push (api/_lib/services/liveActivity.ts) is decoded
+    /// by ActivityKit with a default `JSONDecoder`. A content state that does
+    /// not decode is dropped silently on the device, so the server writes the
+    /// vector (api/__tests__/live-activity.test.ts) and this proves it lands:
+    /// dates as seconds since 2001, `.done` in Swift's synthesized enum shape.
+    func testTheServersEndPushDecodes() throws {
+        let fixture = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()  // ApexTests
+            .deletingLastPathComponent()  // ios
+            .appendingPathComponent("Fixtures/live-activity-end.json")
+        let push = try JSONSerialization.jsonObject(with: Data(contentsOf: fixture)) as? [String: Any]
+        let aps = try XCTUnwrap(push?["aps"] as? [String: Any])
+        XCTAssertEqual(aps["event"] as? String, "end")
+        let contentState = try JSONSerialization.data(withJSONObject: XCTUnwrap(aps["content-state"]))
+
+        let state = try JSONDecoder().decode(TrackerActivityAttributes.ContentState.self, from: contentState)
+        XCTAssertEqual(state.startedAt, ISO8601DateFormatter().date(from: "2026-09-08T17:00:00Z"))
+        XCTAssertEqual(state.phase, .done(totalSeconds: 2712))
+        XCTAssertNil(state.exerciseCount)
+        XCTAssertTrue(state.isDone)
+    }
+
     func testTapURLIsTheCustomSchemeTrackerRoute() {
         let url = TrackerActivityURL.make(eventId: "ios-fixture-weekly__2026-09-22", eventDate: "2026-09-22")
         XCTAssertEqual(url.absoluteString, "apextraining://app/tracker/ios-fixture-weekly__2026-09-22/2026-09-22")
