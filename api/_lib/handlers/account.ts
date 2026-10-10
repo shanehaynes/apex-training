@@ -30,6 +30,7 @@ export const USER_DATA_TABLES = [
   'workout_sessions',
   'workout_set_logs',
   'workout_cardio_logs',
+  'workout_exercise_notes',
   'exercise_definitions',
   'definition_mutations_log',
   'workout_templates',

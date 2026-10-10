@@ -487,6 +487,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_unilateral: boolean
+          log_fields: string[]
           muscle_groups: string[]
           technique_notes: string | null
           updated_at: string
@@ -507,6 +508,7 @@ export type Database = {
           id: string
           image_url?: string | null
           is_unilateral?: boolean
+          log_fields?: string[]
           muscle_groups?: string[]
           technique_notes?: string | null
           updated_at?: string
@@ -527,6 +529,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_unilateral?: boolean
+          log_fields?: string[]
           muscle_groups?: string[]
           technique_notes?: string | null
           updated_at?: string
@@ -1461,6 +1464,36 @@ export type Database = {
           updated_at?: string
           user_id?: string
           warmup?: Json
+        }
+        Relationships: []
+      }
+      workout_exercise_notes: {
+        Row: {
+          event_date: string
+          event_id: string
+          exercise_id: string
+          note: string
+          section: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          event_date: string
+          event_id: string
+          exercise_id: string
+          note: string
+          section: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          event_date?: string
+          event_id?: string
+          exercise_id?: string
+          note?: string
+          section?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

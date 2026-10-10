@@ -88,6 +88,7 @@ const FULL_DEFINITION_FIELDS: Partial<ExerciseDefinition> = {
   imageUrl: null,
   techniqueNotes: 'notes',
   isUnilateral: false,
+  logFields: ['weight'],
   defaultSets: 3,
   defaultReps: '8',
   defaultDuration: null,

@@ -44,7 +44,7 @@ export default function TrackerView() {
   const {
     groups, session, elapsed, isFinished, isFinishing, isCancelling, summary,
     onSetChange, onCardioChange, onCommitSetShadow, onCommitCardioShadow, onAddSet, onRemoveSet,
-    onSwapExercise, flushSave, requestFinish, cancelWorkout, openSavedSummary, dismissSummary,
+    onSwapExercise, onNoteChange, flushSave, requestFinish, cancelWorkout, openSavedSummary, dismissSummary,
   } = useWorkoutSession(event, setCompletion);
 
   const [confirmCount, setConfirmCount] = useState<number | null>(null);
@@ -154,6 +154,7 @@ export default function TrackerView() {
                   onAddSet={() => onAddSet(group.section, tracked.exercise.id)}
                   onRemoveSet={setNumber => onRemoveSet(group.section, tracked.exercise.id, setNumber)}
                   onSwap={def => handleSwap(group.section, tracked.exercise.id, def)}
+                  onNoteChange={note => onNoteChange(group.section, tracked.exercise.id, note)}
                 />
               ))}
             </div>

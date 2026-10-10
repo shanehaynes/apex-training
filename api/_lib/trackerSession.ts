@@ -1,7 +1,7 @@
 import type { getSupabaseAdmin } from './supabaseAdmin.js';
 import { aliasIndexOf, fetchDefinitionRows } from './mcp/data.js';
 import { fetchAllPages } from './pagination.js';
-import type { CardioLogRow, MealRow, SetLogRow, WorkoutEventRow, WorkoutSessionRow } from '../../src/lib/db/types.js';
+import type { CardioLogRow, ExerciseNoteRow, MealRow, SetLogRow, WorkoutEventRow, WorkoutSessionRow } from '../../src/lib/db/types.js';
 import type { Meal } from '../../src/types/nutrition.js';
 import type { WorkoutEvent } from '../../src/types/workout.js';
 import { rowToEvent } from '../../src/lib/schedule/mapping.js';
@@ -88,6 +88,20 @@ export async function loadSavedRows(supabase: Admin, userId: string, eventId: st
     ),
   ]);
   return { savedSets, savedCardio };
+}
+
+/** This occurrence's per-exercise notes (phase 54) — one row per exercise at most. */
+async function loadExerciseNotes(supabase: Admin, userId: string, eventId: string, eventDate: string): Promise<ExerciseNoteRow[]> {
+  const { data, error } = await supabase
+    .from('workout_exercise_notes')
+    .select('section,exercise_id,note,event_id,event_date')
+    .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate);
+  // A note is never worth failing the whole tracker over.
+  if (error) {
+    console.error('[trackerSession] exercise notes load failed:', error.message);
+    return [];
+  }
+  return (data ?? []) as ExerciseNoteRow[];
 }
 
 export interface TrackerHistory {
@@ -192,11 +206,15 @@ export async function buildBootstrap(
   session: WorkoutSessionRow | null,
   event: WorkoutEvent,
 ): Promise<TrackerBootstrap> {
-  const saved = await loadSavedRows(supabase, userId, event.id, event.date);
+  const [saved, notes] = await Promise.all([
+    loadSavedRows(supabase, userId, event.id, event.date),
+    loadExerciseNotes(supabase, userId, event.id, event.date),
+  ]);
   const hist = await loadTrackerHistory(supabase, userId, event, saved);
   const groups = buildTrackerModel(
     event, saved.savedSets, saved.savedCardio,
     buildLastPerformance(hist.history), buildLastCardio(hist.cardioHistory),
+    notes,
   );
   let prs: WirePersonalRecord[] = [];
   let scoreRecord: WireScoreRecord | null = null;

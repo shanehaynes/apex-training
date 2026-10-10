@@ -155,6 +155,13 @@ export type CardioLogRow = Row<'workout_cardio_logs', {
   definition_id?: string | null;
 }>;
 
+// A note on one exercise for one occurrence only (phase 54).
+export type ExerciseNoteRow = Row<'workout_exercise_notes', {
+  user_id?: string;
+  updated_at?: string;
+  section: TrackedSection;
+}>;
+
 // All overrides NULL = the occurrence at skipped_date is removed. Any
 // override set = that occurrence is displayed at override_date (or
 // skipped_date when only the time changed) with the overridden times.

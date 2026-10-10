@@ -28,6 +28,13 @@ export interface RemovedSetKey {
   setNumber: number;
 }
 
+/** One exercise's note for this occurrence; an empty note deletes it. */
+export interface ExerciseNoteEdit {
+  section: TrackedSection;
+  exerciseId: string;
+  note: string;
+}
+
 export interface TrackerSessionData {
   session: SessionInfo;
   groups: TrackedSectionGroup[];
@@ -82,7 +89,7 @@ export async function loadSession(event: WorkoutEvent): Promise<TrackerSessionDa
 export async function saveLogs(
   eventId: string,
   eventDate: string,
-  payload: { setLogs: SetLogRow[]; cardioLogs: CardioLogRow[]; removedSets: RemovedSetKey[] },
+  payload: { setLogs: SetLogRow[]; cardioLogs: CardioLogRow[]; removedSets: RemovedSetKey[]; exerciseNotes?: ExerciseNoteEdit[] },
 ): Promise<void> {
   if (!supabase) return;
   await postJson('/api/workout-sessions', { action: 'save', eventId, eventDate, ...payload }, 'Autosave');

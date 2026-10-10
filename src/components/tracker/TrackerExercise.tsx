@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { Plus, Repeat2, X } from 'lucide-react';
+import { Pencil, Plus, Repeat2, X } from 'lucide-react';
 import type { ExerciseCategory, ExerciseDefinition, PlannedSet } from '../../types/workout';
 import type { TrackedExercise, TrackedSet, CardioActuals, LastSetActuals } from '../../lib/tracking/plan';
-import { resolvePlannedSets } from '../../lib/tracking/plan';
+import { FIELD_ORDER, SET_FIELD_TO_LOG_FIELD, inputFields, type SetField } from '../../lib/tracking/fields';
 import { countSpecNote, hasPerSideCount, stripCountSpec } from '../../lib/schedule/definitions';
 import { useSchedule } from '../../context/schedule';
 import ExercisePicker from '../modal/ExercisePicker';
 import DurationInput from './DurationInput';
 
-export type SetField = 'actualWeight' | 'actualReps' | 'actualDuration';
+export type { SetField };
 export type CardioField = keyof Omit<CardioActuals, 'isLogged' | 'shadow'>;
 
 interface Props {
@@ -23,6 +23,8 @@ interface Props {
   onRemoveSet: (setNumber: number) => void;
   /** Re-point this exercise's logs at another movement, for this day only. */
   onSwap: (def: ExerciseDefinition) => void;
+  /** This occurrence's note on the exercise — never written to the plan. */
+  onNoteChange: (note: string) => void;
 }
 
 // A swap has to keep the logged shape: cardio logs one structured row, every
@@ -39,44 +41,6 @@ function plannedLabel(p: PlannedSet): string {
   const duration = stripCountSpec(p.targetDuration);
   if (duration) parts.push(duration);
   return parts.length ? parts.join(' ') : '—';
-}
-
-const FIELD_ORDER: SetField[] = ['actualWeight', 'actualReps', 'actualDuration'];
-
-/**
- * Which actual inputs an exercise gets: the union of its planned targets, of
- * whatever already carries a value, and — once swapped — of what the
- * replacement movement is normally logged in. Reps is the fallback so every
- * set has something to log.
- *
- * The already-has-a-value rule keeps logged data reachable no matter which
- * plan it was entered against; without it a swap onto a loaded movement
- * (ring dips → single-arm DB press) would have nowhere to put the weight,
- * since the dips it replaced never prescribed one.
- */
-function inputFields(tracked: TrackedExercise, swappedTo?: ExerciseDefinition): SetField[] {
-  // A pitch logs exactly one thing: the grade (stored in the weight column —
-  // see resolvePlannedSets).
-  if (tracked.exercise.category === 'climbing') return ['actualWeight'];
-
-  const fields = new Set<SetField>();
-  const planned = resolvePlannedSets(tracked.exercise);
-  if (planned.some(p => p.targetWeight)) fields.add('actualWeight');
-  if (planned.some(p => p.targetReps)) fields.add('actualReps');
-  if (planned.some(p => p.targetDuration)) fields.add('actualDuration');
-
-  for (const set of tracked.sets) {
-    for (const field of FIELD_ORDER) if (set[field]) fields.add(field);
-  }
-
-  if (tracked.substitutedFrom) {
-    if (swappedTo?.defaultDuration) fields.add('actualDuration');
-    if (swappedTo?.defaultWeight || swappedTo?.category === 'strength' || !swappedTo) fields.add('actualWeight');
-    if (swappedTo?.defaultReps || swappedTo?.category === 'strength' || !swappedTo) fields.add('actualReps');
-  }
-
-  if (!fields.size) fields.add('actualReps');
-  return FIELD_ORDER.filter(f => fields.has(f));
 }
 
 const FIELD_LABEL: Record<SetField, string> = {
@@ -184,14 +148,60 @@ export default function TrackerExercise({
   onAddSet,
   onRemoveSet,
   onSwap,
+  onNoteChange,
 }: Props) {
-  const { definitions } = useSchedule();
+  const { definitions, updateDefinition } = useSchedule();
   const [picking, setPicking] = useState(false);
+  // Shown at once; the definition write that makes them stick lands via the
+  // realtime refetch, and an ad-hoc entry with no definition keeps them for
+  // this sitting only.
+  const [addedHere, setAddedHere] = useState<SetField[]>([]);
+  // The subtitle is the library definition's technique notes, so it follows
+  // the movement into every workout. The draft is null while not editing;
+  // savedSubtitle covers the gap until the realtime refetch brings it back.
+  const [subtitleDraft, setSubtitleDraft] = useState<string | null>(null);
+  const [savedSubtitle, setSavedSubtitle] = useState<string | null>(null);
+  const [noteOpen, setNoteOpen] = useState(false);
 
   const { exercise, substitutedFrom } = tracked;
   const isClimb = exercise.category === 'climbing';
-  const swappedTo = substitutedFrom && exercise.definitionId ? definitions.get(exercise.definitionId) : undefined;
-  const fields = inputFields(tracked, swappedTo);
+  const definition = exercise.definitionId ? definitions.get(exercise.definitionId) : undefined;
+  const swappedTo = substitutedFrom ? definition : undefined;
+  const fields = inputFields(tracked, definition, addedHere);
+  const addable = isClimb ? [] : FIELD_ORDER.filter(f => !fields.includes(f));
+
+  const showNote = noteOpen || !!tracked.sessionNote;
+  const noteButton = showNote ? null : (
+    <button
+      className="tracker-add-set"
+      onClick={() => setNoteOpen(true)}
+      aria-label={`Add a note on ${exercise.name} for this workout`}
+      title="Stays with this workout only"
+    >
+      <Plus size={13} strokeWidth={1.5} /> note
+    </button>
+  );
+
+  const subtitle = savedSubtitle ?? definition?.techniqueNotes ?? exercise.techniqueNotes ?? '';
+  const commitSubtitle = () => {
+    if (subtitleDraft === null || !definition) return;
+    const next = subtitleDraft.trim();
+    setSubtitleDraft(null);
+    if (next === subtitle) return;
+    setSavedSubtitle(next);
+    void updateDefinition({ id: definition.id, fields: { techniqueNotes: next } }).then(ok => {
+      if (!ok) setSavedSubtitle(null);
+    });
+  };
+
+  const addField = (field: SetField) => {
+    setAddedHere(prev => [...prev, field]);
+    if (!definition) return;
+    const logField = SET_FIELD_TO_LOG_FIELD[field];
+    const current = definition.logFields ?? [];
+    if (current.includes(logField)) return;
+    void updateDefinition({ id: definition.id, fields: { logFields: [...current, logField] } });
+  };
   const labels: Record<SetField, string> = isClimb ? { ...FIELD_LABEL, actualWeight: 'grade' } : FIELD_LABEL;
   const specNote = isClimb ? undefined : countSpecNote(exercise);
 
@@ -221,6 +231,16 @@ export default function TrackerExercise({
             <Repeat2 size={14} strokeWidth={1.5} />
           </button>
         )}
+        {definition && !subtitle && subtitleDraft === null && (
+          <button
+            className="tracker-exercise__swap"
+            onClick={() => setSubtitleDraft('')}
+            aria-label={`Add a subtitle for ${exercise.name}`}
+            title="Add a subtitle, shown with this exercise in every workout"
+          >
+            <Pencil size={13} strokeWidth={1.5} />
+          </button>
+        )}
         {exercise.restPeriod && (
           <span className="tracker-exercise__rest" style={{ color: accentColor }}>
             Rest {exercise.restPeriod}
@@ -239,8 +259,37 @@ export default function TrackerExercise({
         </p>
       )}
       {specNote && <p className="tracker-exercise__notes">{specNote}</p>}
-      {exercise.techniqueNotes && <p className="tracker-exercise__notes">{exercise.techniqueNotes}</p>}
-      {exercise.notes && exercise.notes !== exercise.techniqueNotes && (
+      {subtitleDraft !== null ? (
+        <input
+          className="tracker-input"
+          style={{ fontFamily: 'inherit', marginBottom: 8 }}
+          autoFocus
+          maxLength={500}
+          aria-label={`Subtitle for ${exercise.name}, shown in every workout`}
+          placeholder="e.g. false grip, rings at chest height"
+          value={subtitleDraft}
+          onChange={e => setSubtitleDraft(e.target.value)}
+          onBlur={commitSubtitle}
+          onKeyDown={e => {
+            if (e.key === 'Enter') e.currentTarget.blur();
+            if (e.key === 'Escape') setSubtitleDraft(null);
+          }}
+        />
+      ) : definition && subtitle ? (
+        <button
+          type="button"
+          className="tracker-exercise__notes"
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
+          onClick={() => setSubtitleDraft(subtitle)}
+          aria-label={`Edit subtitle for ${exercise.name}`}
+          title="Shown with this exercise in every workout"
+        >
+          {subtitle} <Pencil size={11} strokeWidth={1.5} aria-hidden="true" />
+        </button>
+      ) : subtitle ? (
+        <p className="tracker-exercise__notes">{subtitle}</p>
+      ) : null}
+      {exercise.notes && exercise.notes !== subtitle && (
         <p className="tracker-exercise__notes">{exercise.notes}</p>
       )}
 
@@ -268,6 +317,7 @@ export default function TrackerExercise({
               </label>
             );
           })}
+          {noteButton && <div style={{ gridColumn: '1 / -1' }}>{noteButton}</div>}
         </div>
       ) : (
         <>
@@ -300,10 +350,41 @@ export default function TrackerExercise({
               onRemove={set.isExtra ? () => onRemoveSet(set.setNumber) : undefined}
             />
           ))}
-          <button className="tracker-add-set" onClick={onAddSet}>
-            <Plus size={13} strokeWidth={1.5} /> Add set
-          </button>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <button className="tracker-add-set" onClick={onAddSet}>
+              <Plus size={13} strokeWidth={1.5} /> Add set
+            </button>
+            {addable.map(field => (
+              <button
+                key={field}
+                className="tracker-add-set"
+                onClick={() => addField(field)}
+                aria-label={`Track ${FIELD_LABEL[field]} for ${exercise.name}`}
+                title={definition
+                  ? `Log ${FIELD_LABEL[field]} for ${exercise.name} from now on, in every workout`
+                  : `Log ${FIELD_LABEL[field]} for this workout (not in the exercise library)`}
+              >
+                <Plus size={13} strokeWidth={1.5} /> {FIELD_LABEL[field]}
+              </button>
+            ))}
+            {noteButton}
+          </div>
         </>
+      )}
+
+      {showNote && (
+        <textarea
+          className="tracker-input"
+          style={{ fontFamily: 'inherit', height: 'auto', padding: '6px 10px', marginTop: 8, resize: 'vertical' }}
+          rows={2}
+          maxLength={2000}
+          autoFocus={noteOpen && !tracked.sessionNote}
+          aria-label={`Note on ${exercise.name} for this workout only`}
+          placeholder="Today only — e.g. left shoulder pinchy on set 3"
+          value={tracked.sessionNote}
+          onChange={e => onNoteChange(e.target.value)}
+          onBlur={() => { if (!tracked.sessionNote.trim()) setNoteOpen(false); }}
+        />
       )}
 
       {picking && (

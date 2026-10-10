@@ -1,4 +1,4 @@
-import type { Exercise, ExerciseCategory, ExerciseDefinition, WorkoutEvent } from '../../types/workout.js';
+import type { Exercise, ExerciseCategory, ExerciseDefinition, LogField, WorkoutEvent } from '../../types/workout.js';
 import type { ExerciseDefinitionRow } from '../db/types.js';
 import { baseIdOf } from './occurrence.js';
 
@@ -20,6 +20,7 @@ export function rowToDefinition(row: ExerciseDefinitionRow): ExerciseDefinition 
     imageUrl: row.image_url ?? undefined,
     techniqueNotes: row.technique_notes ?? undefined,
     isUnilateral: row.is_unilateral,
+    logFields: (row.log_fields ?? []).filter(isLogField),
     defaultSets: row.default_sets ?? undefined,
     defaultReps: row.default_reps ?? undefined,
     defaultDuration: row.default_duration ?? undefined,
@@ -27,6 +28,12 @@ export function rowToDefinition(row: ExerciseDefinitionRow): ExerciseDefinition 
     defaultRest: row.default_rest ?? undefined,
     archivedAt: row.archived_at ?? undefined,
   };
+}
+
+const LOG_FIELDS: readonly LogField[] = ['weight', 'reps', 'duration'];
+
+export function isLogField(value: unknown): value is LogField {
+  return LOG_FIELDS.includes(value as LogField);
 }
 
 /**
@@ -313,6 +320,7 @@ export function definitionFieldsToRow(fields: Partial<Omit<ExerciseDefinition, '
     imageUrl: 'image_url',
     techniqueNotes: 'technique_notes',
     isUnilateral: 'is_unilateral',
+    logFields: 'log_fields',
     defaultSets: 'default_sets',
     defaultReps: 'default_reps',
     defaultDuration: 'default_duration',

@@ -41,6 +41,12 @@ export type ExerciseCategory = 'strength' | 'stretch' | 'cardio' | 'skill' | 'mo
  * default* fields are insert-time prefills only — copied into a new event
  * entry, never resolved live.
  */
+/**
+ * A set-log dimension, named after the set_logs column it fills
+ * (actual_weight / actual_reps / actual_duration — the UI says "time").
+ */
+export type LogField = 'weight' | 'reps' | 'duration';
+
 export interface ExerciseDefinition {
   id: string;
   canonicalName: string;
@@ -52,6 +58,12 @@ export interface ExerciseDefinition {
   imageUrl?: string;
   techniqueNotes?: string;
   isUnilateral: boolean;
+  /**
+   * Dimensions this movement is always logged in, on top of whatever a given
+   * prescription names — "ring pull-ups take a weight" even when today's plan
+   * says only "3 × 8". Additive; set from the tracker or the library editor.
+   */
+  logFields?: LogField[];
   defaultSets?: number;
   defaultReps?: string;
   defaultDuration?: string;

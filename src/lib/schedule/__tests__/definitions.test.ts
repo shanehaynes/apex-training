@@ -231,6 +231,7 @@ describe('rowToDefinition', () => {
       id: 'weighted-dip', canonical_name: 'Weighted Dip', aliases: ['Weighted Dips'],
       category: 'strength', muscle_groups: ['chest', 'triceps'], equipment: ['dip belt'],
       image_url: null, technique_notes: 'Slight forward lean.', is_unilateral: false,
+      log_fields: ['weight', 'pace'],
       default_sets: 3, default_reps: '8', default_duration: null, default_weight: '25lb',
       default_rest: '2 min', archived_at: null,
       created_at: '2026-07-08T00:00:00Z', updated_at: '2026-07-08T00:00:00Z',
@@ -241,6 +242,9 @@ describe('rowToDefinition', () => {
     expect(def.techniqueNotes).toBe('Slight forward lean.');
     expect(def.defaultSets).toBe(3);
     expect(def.archivedAt).toBeUndefined();
+    // Unknown dimensions are dropped rather than trusted — the DB CHECK
+    // guards writes, this guards a row read across a schema change.
+    expect(def.logFields).toEqual(['weight']);
   });
 });
 
