@@ -22,12 +22,21 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W10 | Library, Blocks, Meals | done (#184–#188) | both | TestFlight build 7 (0.8.0/353) uploaded 2026-09-17; device acceptance is Shane's |
 | W11 | Profile, integrations, account | done (#149, #157) | both | on TestFlight build 6; phase41 in prod (2026-09-16); device runs are Shane's |
 | W12 | Live Activity | done (#131, #132) | Mac | TestFlight build 4 (0.5.0/306); device run passed 2026-09-11 (30-min background and the Done linger not timed) |
-| W13 | Release + polish | done (#190, #191, #193, #194) · **App Store: build 509 attached, awaiting Shane's device run, then Add for Review** | Mac | 2026-10-09: build 10 = 1.0.0 (509) from `testflight.yml` run 37964880205 carries W15, #383–#388; phase52 in prod; Push Notifications enabled on the App ID; version 1.0 at *Prepare for Submission*, manual release set |
+| W13 | Release + polish | done (#190, #191, #193, #194) · **App Store: 1.0 (509) rejected 2026-10-09 — 2.1 Information Needed; reply + recording pending (app-store.md §3)** | Mac | 2026-10-09: build 10 = 1.0.0 (509) from `testflight.yml` run 37964880205 carries W15, #383–#388; phase52 in prod; Push Notifications enabled on the App ID; version 1.0 at *Prepare for Submission*, manual release set |
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
 
 ## Next up
-0. **Submit 1.0 on build 509 (2026-10-09).** The console is complete (demo account verified, review
+0. **Answer App Review: 2.1 *Information Needed* (rejected 2026-10-09 11:54 PM, submission
+   `9a4347ed`).** No defect named — Apple's standard request for a new developer account: a
+   physical-device recording from launch (login, the flow, account deletion, any UGC/paid
+   content) plus six written answers, also pasted into the Notes field. The answers and the shot
+   list are in app-store.md §3. Left, all Shane's: invite a throwaway account; record on the
+   iPhone 15 Pro (latest iOS, TestFlight 509); untick China mainland in Pricing and
+   Availability (decided 2026-10-12: generative-AI permit, no Anthropic API there); paste the
+   Notes; reply with the recording; **Resubmit to App Review**. prod-schema-check exit 0 on
+   2026-10-12.
+0. **Submitted 1.0 on build 509 (2026-10-09).** The console is complete (demo account verified, review
    contact and notes filled, manual release set). Left: (a) Shane's device run on 1.0.0 (509) from
    TestFlight, including You → Data → Delete account on a throwaway account; (b) **Add for Review**
    on the version page; (c) the APNs key — Shane mints it at developer.apple.com → Keys, sets
@@ -82,6 +91,11 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-12 · App Review rejection · Mac. Read the rejection in App Store Connect: Guideline 2.1
+  *Information Needed – New App Submission* (limited review history), asking for a device recording
+  and six answers (purpose, setup, external services, regions, regulated material). Drafted the
+  reply/Notes and the recording shot list into app-store.md §3, added the §5 row, corrected the
+  age rating to 9+ and recorded the China mainland removal. prod-schema-check exit 0 (37 tables).
 - 2026-10-09 · App Store build 10 · Mac. Pre-flight for the submission build: `prod-schema-check` was
   exit 1 on `live_activity_tokens` (phase52, #386) — Shane pasted it, now exit 0; Push Notifications
   was unchecked on the `com.shanehaynes.apextraining` App ID (needed by #386's `aps-environment`) —
