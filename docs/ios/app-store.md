@@ -34,7 +34,10 @@ same page the About screen links to. Terms: `/terms`.
 
 - **Name** Apex Training · **Subtitle** Plan, log, and coach your training
 - **Category** Health & Fitness · **Secondary** none
-- **Age rating** 4+ (no objectionable content; the coach is text about the user's own training)
+- **Age rating** 9+ — the questionnaire's *Health or Wellness Topics* is Yes (set 2026-10-06);
+  regulated medical device No
+- **Availability** every territory except **China mainland** (removed 2026-10-12): generative-AI
+  apps there need a government permit and Anthropic's API is not offered there
 - **Copyright** © 2026 Shane Haynes
 - **Support URL** `https://github.com/shanehaynes/apex-training` (README + WELCOME.md)
 - **Invite contact** the sign-in screen's "Request an invite" link comes from
@@ -111,26 +114,64 @@ reused for a later review.
 
 ### Notes to the reviewer (paste into the Notes field)
 
-> Apex Training is a personal training log with an optional AI coach. Accounts are created by
-> invitation only (the sign-in screen says so and offers a "Request an invite" link); please use
-> the demo account above.
->
-> The AI coach (the Coach tab) runs on the user's own Anthropic API key, which the user pastes
-> in under You → AI coach → Anthropic key. The app is fully usable without a key: scheduling,
-> the workout tracker, meals, blocks, the library and analytics never need one. Nothing is
-> sold in the app and no price is shown; the key is a credential the user already holds with
-> Anthropic, not a purchase. The demo account has a key saved, so the Coach tab works as is —
-> try "What did I do this week?".
->
-> Account deletion is in the app: You → Data → Delete account.
->
-> The tracker keeps a Live Activity (elapsed timer) while a workout is open; start one from any
-> workout's sheet with "Start Workout" and end it with "Finish".
->
-> COROS (You → Integrations) is an optional watch sync and needs a COROS account; it is not
-> required to review anything.
+Apple's 2.1 *Information Needed* request (2026-10-09, below in §5) asks for six answers, both in
+the reply and in this field "for reference on future submissions", so the Notes and the reply
+are the same text. Keep it under 4,000 characters (the field's limit). Fill the two
+`<…>` placeholders from the recording before pasting.
+
+```text
+Apex is a personal training planner and log with an optional AI coach.
+
+1. SCREEN RECORDING
+Recorded on an iPhone 15 Pro running iOS <version>, build 1.0.0 (509): <link, or "attached to the App Review reply">. It starts at launch and shows sign-in, the schedule, the workout tracker and its Live Activity, meals, training blocks, the exercise library, analytics, the AI coach, sign-out, and account deletion (You > Data > Delete account) on a second account.
+- Registration: there is none in the app. Accounts are by invitation only; the sign-in screen says so and links "Request an invite" (support@apex-training.app).
+- User-generated content: none is shared between users. Every plan, log and coach conversation is private to its owner, so there is nothing to report or block.
+- Paid content: none. No in-app purchases, subscriptions, prices or ads.
+
+2. PURPOSE AND AUDIENCE
+For self-coached athletes (climbers, alpinists, runners, strength trainees) who plan their own training. It replaces a spreadsheet, a calendar and a notes app: schedule workouts, log sets in a tracker, follow multi-week training blocks, record meals, and see progress in analytics. The optional coach answers questions about the user's own training and proposes schedule changes that the user confirms.
+
+3. SETUP
+Sign in with the demo account in Sign-In Information. It already has a training plan, a logged workout and an Anthropic key saved. No sample files are needed.
+- Coach tab: ask "What did I do this week?"
+- Workout tracker: open any workout on Schedule > Start Workout. A Live Activity shows the elapsed time; Finish ends it.
+- Account deletion: You > Data > Delete account. It permanently removes the account, so deleting the demo account ends access to it; the recording shows deletion on a separate account.
+
+4. EXTERNAL SERVICES
+- Supabase: sign-in and database
+- Vercel: hosts the app's API
+- Anthropic Claude API: the optional AI coach. It runs on the user's own Anthropic API key, entered under You > AI coach. The key is a credential the user already holds with Anthropic; Apex sells nothing, takes no payment, and every other feature works without a key.
+- COROS Open API: optional sync from a COROS watch (You > Integrations); needs a COROS account and is not needed for review
+- Apple Push Notification service: Live Activity updates
+- Resend: delivers invitation emails
+- Cloudflare: DNS and support email routing
+
+5. REGIONS
+The app works the same in every country where it is offered. It is not offered in China mainland. The optional coach depends on Anthropic's API being available in the user's country.
+
+6. REGULATED INDUSTRY / THIRD-PARTY MATERIAL
+Not applicable. Apex is a fitness log, not a medical device: it makes no diagnosis, does not read HealthKit, and contains no licensed third-party content.
+```
 
 Contact: Shane Haynes, the phone number and email in the form.
+
+### The physical-device recording
+
+Apple wants a recording from a physical device on the latest iOS, starting at launch. Use
+Control Center → Screen Recording on a TestFlight install of the submitted build, one take:
+
+1. Cold launch → sign-in screen; let the invite-only line and "Request an invite" show.
+2. Sign in as the demo account. Schedule day and month, open a workout, **Start Workout**, lock
+   the phone to show the Live Activity, unlock, log a set, **Finish**.
+3. Meals, Blocks, Library, Analytics — a few seconds each.
+4. Coach: "What did I do this week?", then a request that produces a confirmation card. Then
+   You → AI coach → Anthropic key: the user's own credential, no price.
+5. You → Integrations → COROS: show the screen, do not connect.
+6. Sign out. Sign in as a **throwaway** account (Supabase → Invite user, a plus-address), You →
+   Data → Delete account, type the confirmation, land on sign-in, try signing in again and fail.
+   Never delete the demo account on camera — the review form points at it.
+
+Attach the `.mov` to the App Review reply; if it is too large, a link-shared Drive file works.
 
 ## 4. Screenshots
 
@@ -169,6 +210,7 @@ carry a 2026-09-08 date. No text overlays, no device frames: Apple's own frame i
 | 3.1.1 — "paying" for a feature outside IAP | the key is a credential, not a purchase; no price, no purchase flow, the app works without it — the notes say so |
 | 2.1 — a crash or an empty screen on review | the demo account has a starter plan and one logged workout (§3 step 3) |
 | 2.3.3 — screenshots that do not match the app | the fixture screenshots are the app; prefer device shots from a real account |
+| 2.1 — *Information Needed* for a new developer account (**happened 2026-10-09**, submission `9a4347ed`) | the reply and Notes in §3 answer Apple's six items; the recording in §3 covers launch, login, the flow and deletion |
 | Missing privacy manifest / required-reason API reason | `ios/Apex/PrivacyInfo.xcprivacy` declares UserDefaults (CA92.1) and file timestamps (C617.1); GRDB ships its own; `ios/ApexWidgets/PrivacyInfo.xcprivacy` declares the extension's nothing, because the scan is per binary (ITMS-91053) |
 | App Privacy answers disagree with the manifest | §1 is the manifest, row for row |
 
