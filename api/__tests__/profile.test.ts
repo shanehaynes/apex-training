@@ -671,6 +671,30 @@ describe('tips_seen (one-time tips, docs/onboarding D-O01)', () => {
     expect(Object.keys(state.profileUpdate?.tips_seen as object)).toEqual(['setup-skip:connector']);
   });
 
+  it('PATCH setup_unskip takes back a skip and leaves every other key', async () => {
+    const state: AdminState = {
+      key: null,
+      profile: { tips_seen: { 'setup-skip:goal': '2026-10-12T00:00:00Z', 'coach-goal': '2026-09-20T00:00:00Z' } },
+    };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { setup_unskip: 'goal' }), res);
+    expect(statusCode()).toBe(200);
+    expect(state.profileUpdate?.tips_seen).toEqual({ 'coach-goal': '2026-09-20T00:00:00Z' });
+  });
+
+  it('400s a setup_unskip that is not a checklist row — a tip cannot be un-seen', async () => {
+    for (const value of ['coach-goal', 'setup-skip:goal', '', 1, null]) {
+      const state: AdminState = { key: null };
+      mockedAdmin.mockReturnValue(makeAdmin(state));
+      const { res, statusCode, body } = makeRes();
+      await handler(makeReq('PATCH', { setup_unskip: value }), res);
+      expect(statusCode(), `setup_unskip: ${JSON.stringify(value)}`).toBe(400);
+      expect(body()).toBe('Invalid setup_unskip');
+      expect(state.profileUpdate).toBeUndefined();
+    }
+  });
+
   it('400s an id that is not in the tip catalog', async () => {
     for (const value of ['not-a-tip', 'setup-skip:nope', '', 1, null, true, ['coach-goal'], { id: 'coach-goal' }]) {
       const state: AdminState = { key: null };

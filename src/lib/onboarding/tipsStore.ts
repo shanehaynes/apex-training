@@ -85,3 +85,12 @@ export function saveLocalTipSeen(userId: string | null, id: TipId | SetupSkipId,
     localStorage.setItem(LS_PREFIX + userId, JSON.stringify({ ...loadLocalTipsSeen(userId), [id]: at }));
   } catch {}
 }
+
+/** Only a checklist skip can be taken back; a seen tip stays seen. */
+export function removeLocalTipSeen(userId: string | null, id: SetupSkipId) {
+  if (!userId) return;
+  try {
+    const { [id]: _removed, ...rest } = loadLocalTipsSeen(userId);
+    localStorage.setItem(LS_PREFIX + userId, JSON.stringify(rest));
+  } catch {}
+}

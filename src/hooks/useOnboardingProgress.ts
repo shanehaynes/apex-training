@@ -42,6 +42,12 @@ export function useSkipSetupRow() {
   return (id: ChecklistId) => markTipSeen(setupSkipId(id));
 }
 
+/** Take a skip back: the row is owed again, on every device. */
+export function useUnskipSetupRow() {
+  const { unskipSetupRow } = useAuth();
+  return unskipSetupRow;
+}
+
 /**
  * The full checklist, including the two rows that cost a request to resolve.
  * Only mount this where the extra calls are justified (ProfileView, which the
@@ -69,11 +75,14 @@ export function useOnboardingProgress() {
     hasConnector,
   }, tipsSeen);
 
+  const active = rows.filter(r => !r.skipped);
   return {
     ...actions,
     rows,
     applies: !!profile && !profile.is_template_source,
-    doneCount: rows.filter(r => r.done).length,
-    allDone: rows.every(r => r.done),
+    /** Rows still in play — the score's denominator. */
+    activeCount: active.length,
+    doneCount: active.filter(r => r.done).length,
+    allDone: active.length > 0 && active.every(r => r.done),
   };
 }

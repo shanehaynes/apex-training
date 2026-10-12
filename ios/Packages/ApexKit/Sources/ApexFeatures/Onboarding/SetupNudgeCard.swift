@@ -59,12 +59,12 @@ public struct SetupNudgeCard: View {
     private var card: some View {
         let rows = model.nudgeRows
         return VStack(alignment: .leading, spacing: isExpanded ? Spacing.sm : 0) {
-            summary(count: rows.count)
+            summary(count: model.nudgeActiveCount)
             if isExpanded {
                 ForEach(rows) { row in
                     checklistRow(row)
                         .accessibilityElement(children: .combine)
-                        .accessibilityLabel("\(row.item.label), \(row.done ? "done" : "not done")")
+                        .accessibilityLabel("\(row.item.label), \(row.done ? "done" : row.skipped ? "skipped" : "not done")")
                         .accessibilityIdentifier("onboarding.nudge.row.\(row.id.rawValue)")
                 }
             }
@@ -186,7 +186,7 @@ public struct SetupNudgeCard: View {
             .accessibilityHidden(true)
             Text(row.item.label)
                 .font(.apex(.display, size: TypeScale.sm, relativeTo: .subheadline))
-                .foregroundStyle(row.done ? ApexColor.textMuted : ApexColor.textPrimary)
+                .foregroundStyle(row.done || row.skipped ? ApexColor.textMuted : ApexColor.textPrimary)
                 .strikethrough(row.done, color: ApexColor.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
                 .multilineTextAlignment(.leading)
@@ -194,8 +194,26 @@ public struct SetupNudgeCard: View {
     }
 
     /// The row's own button, with a quiet way out beside it for a step the
-    /// user does not want — skipped for good, here and on the web.
+    /// user does not want — skipped for good, here and on the web. A row
+    /// skipped this session offers only the way back.
+    @ViewBuilder
     private func rowAction(_ row: OnboardingModel.NudgeRow) -> some View {
+        if row.skipped {
+            Button {
+                Task { await model.unskip(row.id) }
+            } label: {
+                capsule("Undo")
+            }
+            .buttonStyle(.plain)
+            .frame(minHeight: 44)
+            .accessibilityLabel("Undo skip: \(row.item.label)")
+            .accessibilityIdentifier("onboarding.nudge.undo.\(row.id.rawValue)")
+        } else {
+            skipAndAction(row)
+        }
+    }
+
+    private func skipAndAction(_ row: OnboardingModel.NudgeRow) -> some View {
         HStack(spacing: Spacing.xs) {
             Button {
                 Task { await model.skip(row.id) }
@@ -220,18 +238,22 @@ public struct SetupNudgeCard: View {
         Button {
             Task { await model.run(row.item.action, for: row.id.rawValue) }
         } label: {
-            Text(row.item.action.label)
-                .font(.apex(.display, size: TypeScale.xs, weight: .semibold, relativeTo: .caption))
-                .foregroundStyle(ApexColor.textPrimary)
-                .lineLimit(1)
-                .padding(.horizontal, Spacing.md)
-                .frame(minHeight: 32)
-                .background(ApexColor.bgElevated, in: .capsule)
-                .overlay(Capsule().strokeBorder(ApexColor.borderSubtle, lineWidth: 1))
+            capsule(row.item.action.label)
         }
         .buttonStyle(.plain)
         .frame(minHeight: 44)
         .disabled(row.id == .template && model.isCopying)
         .accessibilityIdentifier("onboarding.nudge.action.\(row.id.rawValue)")
+    }
+
+    private func capsule(_ title: String) -> some View {
+        Text(title)
+            .font(.apex(.display, size: TypeScale.xs, weight: .semibold, relativeTo: .caption))
+            .foregroundStyle(ApexColor.textPrimary)
+            .lineLimit(1)
+            .padding(.horizontal, Spacing.md)
+            .frame(minHeight: 32)
+            .background(ApexColor.bgElevated, in: .capsule)
+            .overlay(Capsule().strokeBorder(ApexColor.borderSubtle, lineWidth: 1))
     }
 }

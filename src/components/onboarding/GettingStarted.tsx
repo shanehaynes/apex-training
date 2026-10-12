@@ -2,7 +2,9 @@ import { Check, X } from 'lucide-react';
 import { useState } from 'react';
 import { useCalendar } from '../../context/calendar';
 import { useTemplateCopy } from '../../hooks/useTemplateCopy';
-import { useOnboardingProgress, useLocalSetupProgress, useSkipSetupRow } from '../../hooks/useOnboardingProgress';
+import {
+  useOnboardingProgress, useLocalSetupProgress, useSkipSetupRow, useUnskipSetupRow,
+} from '../../hooks/useOnboardingProgress';
 import { CHECKLIST_ITEMS, EXTRA_NOTES } from '../../lib/onboarding/content';
 
 // Two surfaces over the same setup state:
@@ -16,17 +18,18 @@ import { CHECKLIST_ITEMS, EXTRA_NOTES } from '../../lib/onboarding/content';
 //     single app load.
 
 export default function GettingStarted() {
-  const { rows, applies, doneCount, allDone, run, isBusy } = useOnboardingProgress();
+  const { rows, applies, activeCount, doneCount, allDone, run, isBusy } = useOnboardingProgress();
   const skip = useSkipSetupRow();
+  const unskip = useUnskipSetupRow();
 
-  // Every row skipped: nothing is left to show or to look back on.
+  // Skipped rows stay listed, last, so a skip can always be taken back here.
   if (!applies || rows.length === 0) return null;
 
   return (
     <section className="profile-section">
       <h3 className="profile-section__title">
         Getting started
-        <span className="setup__score">{doneCount}/{rows.length}</span>
+        {activeCount > 0 && <span className="setup__score">{doneCount}/{activeCount}</span>}
       </h3>
 
       {allDone && (
@@ -35,15 +38,23 @@ export default function GettingStarted() {
 
       <ul className="setup__list">
         {rows.map(row => (
-          <li key={row.id} className={`setup__row${row.done ? ' setup__row--done' : ''}`}>
+          <li
+            key={row.id}
+            className={`setup__row${row.done ? ' setup__row--done' : ''}${row.skipped ? ' setup__row--skipped' : ''}`}
+          >
             <span className="setup__mark" aria-hidden="true">
               {row.done && <Check size={12} strokeWidth={3} />}
             </span>
             <div className="setup__main">
               <span className="setup__label">{row.label}</span>
-              <span className="setup__hint">{row.hint}</span>
+              <span className="setup__hint">{row.skipped ? 'Skipped.' : row.hint}</span>
             </div>
-            {!row.done && (
+            {row.skipped && (
+              <button className="setup__action" onClick={() => unskip(row.id)} aria-label={`Undo skip: ${row.label}`}>
+                Undo
+              </button>
+            )}
+            {!row.done && !row.skipped && (
               <div className="setup__buttons">
                 <button
                   className="setup__action"

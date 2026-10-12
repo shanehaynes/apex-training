@@ -41,9 +41,13 @@ export function setupSkipId(id: ChecklistId): SetupSkipId {
   return `${SKIP_PREFIX}${id}`;
 }
 
+export function isChecklistId(value: unknown): value is ChecklistId {
+  return typeof value === 'string' && CHECKLIST_ITEMS.some(item => item.id === value);
+}
+
 export function isSetupSkipId(value: unknown): value is SetupSkipId {
   return typeof value === 'string' && value.startsWith(SKIP_PREFIX)
-    && CHECKLIST_ITEMS.some(item => item.id === value.slice(SKIP_PREFIX.length));
+    && isChecklistId(value.slice(SKIP_PREFIX.length));
 }
 
 export function isSkipped(id: ChecklistId, seen: ReadonlySet<string>): boolean {
@@ -65,9 +69,11 @@ export interface RemoteSignals {
 
 export interface ProgressRow extends ChecklistItem {
   done: boolean;
+  /** Skipped by the user: neither done nor owed, and listed last so it can be undone. */
+  skipped: boolean;
 }
 
-/** Skipped rows are left out entirely: they are neither done nor owed. */
+/** Skipped rows come last, kept so the list can offer to undo them. */
 export function checklistRows(
   local: LocalSignals, remote: RemoteSignals, seen: ReadonlySet<string> = new Set(),
 ): ProgressRow[] {
@@ -89,6 +95,11 @@ export function checklistRows(
     // A deployment without COROS env vars hides the whole feature; promising
     // it in a checklist the user can never satisfy would be a dead end.
     .filter(item => !item.requiresCoros || remote.corosConfigured)
-    .filter(item => !isSkipped(item.id, seen))
-    .map(item => ({ ...item, done: doneFor(item.id) }));
+    .map(item => {
+      const done = doneFor(item.id);
+      // Done anyway after a skip: it is done, and there is nothing to undo.
+      return { ...item, done, skipped: !done && isSkipped(item.id, seen) };
+    })
+    // Stable: catalog order within each group.
+    .sort((a, b) => Number(a.skipped) - Number(b.skipped));
 }
