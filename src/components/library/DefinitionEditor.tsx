@@ -4,7 +4,7 @@ import { X, Archive, ArchiveRestore } from 'lucide-react';
 import { useSchedule } from '../../context/schedule';
 import { notify } from '../../lib/notify';
 import DurationInput from '../tracker/DurationInput';
-import type { ExerciseCategory, ExerciseDefinition } from '../../types/workout';
+import type { ExerciseCategory, ExerciseDefinition, LogField } from '../../types/workout';
 
 interface Props {
   definition: ExerciseDefinition;
@@ -13,6 +13,12 @@ interface Props {
 }
 
 const CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobility', 'skill', 'cardio', 'climbing'];
+
+const LOG_FIELD_OPTIONS: { field: LogField; label: string }[] = [
+  { field: 'weight', label: 'weight' },
+  { field: 'reps', label: 'reps' },
+  { field: 'duration', label: 'time' },
+];
 
 const splitList = (value: string) => value.split(',').map(s => s.trim()).filter(Boolean);
 
@@ -31,6 +37,7 @@ export default function DefinitionEditor({ definition, referenceCount, onClose }
   const [equipment, setEquipment] = useState(definition.equipment.join(', '));
   const [techniqueNotes, setTechniqueNotes] = useState(definition.techniqueNotes ?? '');
   const [isUnilateral, setIsUnilateral] = useState(definition.isUnilateral);
+  const [logFields, setLogFields] = useState<LogField[]>(definition.logFields ?? []);
   const [defaultSets, setDefaultSets] = useState(definition.defaultSets != null ? String(definition.defaultSets) : '');
   const [defaultReps, setDefaultReps] = useState(definition.defaultReps ?? '');
   const [defaultDuration, setDefaultDuration] = useState(definition.defaultDuration ?? '');
@@ -50,6 +57,8 @@ export default function DefinitionEditor({ definition, referenceCount, onClose }
     if (equip.join('|') !== definition.equipment.join('|')) fields.equipment = equip;
     if (techniqueNotes.trim() !== (definition.techniqueNotes ?? '')) fields.techniqueNotes = techniqueNotes.trim();
     if (isUnilateral !== definition.isUnilateral) fields.isUnilateral = isUnilateral;
+    const orderedLogFields = LOG_FIELD_OPTIONS.map(o => o.field).filter(f => logFields.includes(f));
+    if (orderedLogFields.join('|') !== (definition.logFields ?? []).join('|')) fields.logFields = orderedLogFields;
     const sets = defaultSets.trim() === '' ? undefined : Number(defaultSets);
     if (sets !== definition.defaultSets && !(Number.isNaN(sets))) fields.defaultSets = sets;
     if (defaultReps.trim() !== (definition.defaultReps ?? '')) fields.defaultReps = defaultReps.trim();
@@ -127,6 +136,23 @@ export default function DefinitionEditor({ definition, referenceCount, onClose }
               <input type="checkbox" checked={isUnilateral} onChange={e => setIsUnilateral(e.target.checked)} />
               <span className="library-field__label">Unilateral (counts are per side)</span>
             </label>
+          </div>
+
+          <div className="library-field">
+            <span className="library-field__label">Always log <em>(in every workout, on top of what it prescribes)</em></span>
+            <div className="library-field-row">
+              {LOG_FIELD_OPTIONS.map(({ field, label }) => (
+                <label key={field} className="library-field library-field--checkbox">
+                  <input
+                    type="checkbox"
+                    checked={logFields.includes(field)}
+                    onChange={e => setLogFields(prev =>
+                      e.target.checked ? [...prev, field] : prev.filter(f => f !== field))}
+                  />
+                  <span className="library-field__label">{label}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
           <label className="library-field">

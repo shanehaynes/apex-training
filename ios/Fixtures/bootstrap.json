@@ -77,6 +77,7 @@
             ]
           },
           "substitutedFrom": null,
+          "sessionNote": "",
           "isCardio": false,
           "sets": [
             {
@@ -125,6 +126,7 @@
             "duration": "20 min"
           },
           "substitutedFrom": null,
+          "sessionNote": "",
           "isCardio": true,
           "sets": [],
           "cardio": {

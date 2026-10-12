@@ -111,3 +111,51 @@ test.describe('duration input', () => {
     await expect(field).toHaveValue('45s');
   });
 });
+
+test('a missing dimension can be added mid-workout', async ({ page }) => {
+  await gotoCalendar(page);
+  await page.locator('.event-chip__main').first().click();
+  await page.locator('.modal-completion__btn--start').click();
+  await expect(page.locator('.tracker-set').first()).toBeVisible({ timeout: 15000 });
+
+  // First exercise the plan gives no weight column — e.g. ring pull-ups
+  // prescribed as "3 × 8". Pinned by index: once weight is added the
+  // button leaves, and a live :has() filter would jump exercises.
+  const exercises = page.locator('.tracker-exercise');
+  const index = await exercises.evaluateAll(
+    els => els.findIndex(el => el.querySelector('button[aria-label^="Track weight for"]')),
+  );
+  test.skip(index < 0, 'seed has no set-tracked exercise without a weight column');
+  const exercise = exercises.nth(index);
+
+  await expect(exercise.locator('.tracker-input--weight')).toHaveCount(0);
+  await exercise.locator('button[aria-label^="Track weight for"]').click();
+  await expect(exercise.locator('.tracker-input-label.tracker-input--weight')).toHaveText('weight');
+  const firstWeight = exercise.locator('.tracker-set:not(.tracker-set--head)').first().locator('.tracker-input--weight');
+  // Tap first, as a person does: a row with last session's ghost commits it
+  // on focus, and an instant fill() would race that commit.
+  await firstWeight.click();
+  await expect(firstWeight).toBeFocused();
+  await firstWeight.fill('10 lb');
+  await expect(firstWeight).toHaveValue('10 lb');
+  await expect(exercise.locator('button[aria-label^="Track weight for"]')).toHaveCount(0);
+  await shot(page, 'tracker-added-weight');
+});
+
+test('a note can be left on one exercise for this workout only', async ({ page }) => {
+  await gotoCalendar(page);
+  await page.locator('.event-chip__main').first().click();
+  await page.locator('.modal-completion__btn--start').click();
+  const exercise = page.locator('.tracker-exercise').first();
+  await expect(exercise).toBeVisible({ timeout: 15000 });
+
+  await exercise.locator('button[aria-label^="Add a note on"]').click();
+  const note = exercise.locator('textarea[aria-label$="for this workout only"]');
+  await expect(note).toBeFocused();
+  await note.fill('used the blue band');
+  await note.blur();
+  // A non-empty note stays open; the add button is gone.
+  await expect(note).toHaveValue('used the blue band');
+  await expect(exercise.locator('button[aria-label^="Add a note on"]')).toHaveCount(0);
+  await shot(page, 'tracker-session-note');
+});

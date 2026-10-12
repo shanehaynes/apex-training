@@ -288,7 +288,8 @@
       "equipment": [
         "barbell"
       ],
-      "isUnilateral": false
+      "isUnilateral": false,
+      "logFields": []
     }
   ],
   "templates": [

@@ -13,7 +13,7 @@ import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from '../lib/tr
 import {
   cancelSession, finishSession, generateCoachSummary, loadSession, saveLogs, swapLoggedExercise,
 } from '../lib/tracking/sessionRepo';
-import type { RemovedSetKey, SessionInfo } from '../lib/tracking/sessionRepo';
+import type { ExerciseNoteEdit, RemovedSetKey, SessionInfo } from '../lib/tracking/sessionRepo';
 import type { SetField, CardioField } from '../components/tracker/TrackerExercise';
 import { registerAgentState } from '../dev/agentBridge';
 
@@ -63,6 +63,7 @@ export function useWorkoutSession(
   const dirtySetsRef = useRef<Set<string>>(new Set());   // `${section}|${exerciseId}|${setNumber}`
   const dirtyCardioRef = useRef<Set<string>>(new Set()); // `${section}|${exerciseId}`
   const removedRef = useRef<RemovedSetKey[]>([]);
+  const dirtyNotesRef = useRef<Set<string>>(new Set()); // `${section}|${exerciseId}`
   // What the server last reported for this session — bootstrap for a
   // finished session, or the finish response — so reopening the summary
   // costs nothing.
@@ -174,14 +175,21 @@ export function useWorkoutSession(
         if (tracked?.cardio) cardioLogs.push(cardioToRow(eventId, eventDate, tracked));
       }
     }
+    const exerciseNotes: ExerciseNoteEdit[] = [];
+    for (const key of dirtyNotesRef.current) {
+      const [section, exerciseId] = key.split('|') as [TrackedSection, string];
+      const tracked = groupsRef.current.find(g => g.section === section)?.exercises.find(t => t.exercise.id === exerciseId);
+      if (tracked) exerciseNotes.push({ section, exerciseId, note: tracked.sessionNote });
+    }
     const removedSets = removedRef.current;
-    if (!setLogs.length && !cardioLogs.length && !removedSets.length) return;
+    if (!setLogs.length && !cardioLogs.length && !removedSets.length && !exerciseNotes.length) return;
 
     dirtySetsRef.current = new Set();
     dirtyCardioRef.current = new Set();
+    dirtyNotesRef.current = new Set();
     removedRef.current = [];
 
-    await saveLogs(eventId, eventDate, { setLogs, cardioLogs, removedSets }).catch(() => {});
+    await saveLogs(eventId, eventDate, { setLogs, cardioLogs, removedSets, exerciseNotes }).catch(() => {});
   }, [eventId, eventDate]);
 
   const scheduleSave = useCallback(() => {
@@ -225,6 +233,13 @@ export function useWorkoutSession(
       cardio: t.cardio && { ...t.cardio, [field]: value },
     }));
     dirtyCardioRef.current.add(`${section}|${exerciseId}`);
+    scheduleSave();
+  };
+
+  // This occurrence only — it never touches the plan entry's notes.
+  const onNoteChange = (section: TrackedSection, exerciseId: string, note: string) => {
+    updateExercise(section, exerciseId, t => ({ ...t, sessionNote: note }));
+    dirtyNotesRef.current.add(`${section}|${exerciseId}`);
     scheduleSave();
   };
 
@@ -458,6 +473,7 @@ export function useWorkoutSession(
     onAddSet,
     onRemoveSet,
     onSwapExercise,
+    onNoteChange,
     flushSave,
     requestFinish,
     cancelWorkout,

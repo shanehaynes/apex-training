@@ -1,5 +1,5 @@
 import type { Exercise, PlannedSet, WorkoutEvent } from '../../types/workout';
-import type { CardioLogRow, SetLogRow, TrackedSection } from '../db/types';
+import type { CardioLogRow, ExerciseNoteRow, SetLogRow, TrackedSection } from '../db/types';
 import { sectionLabels } from '../climbing.js';
 import { parseDurationSeconds } from './records.js';
 
@@ -50,6 +50,9 @@ export interface TrackedExercise {
   /** Name of the planned movement when this day's logs were swapped onto a
    *  different one; null when the logs match the plan. */
   substitutedFrom: string | null;
+  /** This occurrence's note on the exercise — never the plan's `notes`,
+   *  which a recurring series shares (workout_exercise_notes, phase 54). */
+  sessionNote: string;
 }
 
 export interface TrackedSectionGroup {
@@ -132,7 +135,9 @@ export function buildTrackerModel(
   savedCardio: CardioLogRow[] = [],
   lastByName: Map<string, LastPerformance> = new Map(),
   lastCardioByName: Map<string, LastCardioActuals> = new Map(),
+  savedNotes: ExerciseNoteRow[] = [],
 ): TrackedSectionGroup[] {
+  const notesByKey = new Map(savedNotes.map(r => [`${r.section}|${r.exercise_id}`, r.note]));
   const setKey = (section: string, exerciseId: string, setNumber: number) =>
     `${section}|${exerciseId}|${setNumber}`;
   const setsByKey = new Map(savedSets.map(r => [setKey(r.section, r.exercise_id, r.set_number), r]));
@@ -152,6 +157,7 @@ export function buildTrackerModel(
         );
         const exercise = swappedTo ?? planned_;
         const substitutedFrom = swappedTo ? planned_.name : null;
+        const sessionNote = notesByKey.get(`${section}|${planned_.id}`) ?? '';
 
         if (exercise.category === 'cardio') {
           const row = cardioByKey.get(`${section}|${exercise.id}`);
@@ -160,6 +166,7 @@ export function buildTrackerModel(
             section,
             exercise,
             substitutedFrom,
+            sessionNote,
             isCardio: true,
             sets: [],
             cardio: row
@@ -229,7 +236,7 @@ export function buildTrackerModel(
         }
         sets.sort((a, b) => a.setNumber - b.setNumber);
 
-        return { section, exercise, substitutedFrom, isCardio: false, sets, cardio: null };
+        return { section, exercise, substitutedFrom, sessionNote, isCardio: false, sets, cardio: null };
       }),
     }))
     .filter(group => group.exercises.length > 0);

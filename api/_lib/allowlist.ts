@@ -150,6 +150,7 @@ export const DEFINITION_INSERT_COLUMNS: ReadonlySet<string> = new Set([
   'image_url',
   'technique_notes',
   'is_unilateral',
+  'log_fields',
   'default_sets',
   'default_reps',
   'default_duration',

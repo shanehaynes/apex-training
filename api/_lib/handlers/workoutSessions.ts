@@ -28,6 +28,14 @@ interface RemovedSetKey {
   setNumber: number;
 }
 
+interface ExerciseNoteEdit {
+  section: TrackedSection;
+  exerciseId: string;
+  note: string;
+}
+
+const MAX_NOTE_LENGTH = 2000;
+
 interface Body {
   action?: 'bootstrap' | 'start' | 'save' | 'finish' | 'cancel' | 'summary' | 'quick-complete' | 'quick-uncomplete' | 'swap-exercise';
   /** bootstrap/start: when the session really began — a native client's
@@ -44,6 +52,8 @@ interface Body {
   setLogs?: SetLogRow[];
   cardioLogs?: CardioLogRow[];
   removedSets?: RemovedSetKey[];
+  /** save only: this occurrence's per-exercise notes; an empty note deletes. */
+  exerciseNotes?: ExerciseNoteEdit[];
   /** swap-exercise only: which logged exercise to relabel, and to what. */
   section?: TrackedSection;
   exerciseId?: string;
@@ -259,6 +269,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(400).send(`removedSets cannot exceed ${MAX_BATCH_ROWS} rows`);
       return;
     }
+    const notes = body.exerciseNotes ?? [];
+    if (!Array.isArray(notes) || notes.length > MAX_BATCH_ROWS) {
+      res.status(400).send(`exerciseNotes must be an array of at most ${MAX_BATCH_ROWS}`);
+      return;
+    }
+    for (const [i, n] of notes.entries()) {
+      if (
+        typeof n !== 'object' || n === null ||
+        !SECTIONS.has(n.section) || typeof n.exerciseId !== 'string' || !n.exerciseId ||
+        typeof n.note !== 'string' || n.note.length > MAX_NOTE_LENGTH
+      ) {
+        res.status(400).send(`exerciseNotes[${i}] needs a valid section, an exerciseId, and a note under ${MAX_NOTE_LENGTH} characters`);
+        return;
+      }
+    }
 
     const now = new Date().toISOString();
     // `code` rides along so sendWriteFailure can read the SQLSTATE class.
@@ -279,6 +304,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           cardioLogs.map(r => ({ ...r, user_id: userId, updated_at: now })) as TablesInsert<'workout_cardio_logs'>[],
           { onConflict: CARDIO_CONFLICT },
         ));
+    }
+    for (const n of notes) {
+      const note = n.note.trim();
+      const key = { user_id: userId, event_id: eventId, event_date: eventDate, section: n.section, exercise_id: n.exerciseId };
+      ops.push(note
+        ? supabase
+          .from('workout_exercise_notes')
+          .upsert({ ...key, note, updated_at: now }, { onConflict: 'user_id,event_id,event_date,section,exercise_id' })
+        : supabase
+          .from('workout_exercise_notes')
+          .delete()
+          .eq('user_id', userId).eq('event_id', eventId)
+          .eq('event_date', eventDate)
+          .eq('section', n.section)
+          .eq('exercise_id', n.exerciseId));
     }
     for (const key of body.removedSets ?? []) {
       ops.push(supabase
@@ -560,6 +600,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const results = await Promise.all([
       supabase.from('workout_set_logs').delete().eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate),
       supabase.from('workout_cardio_logs').delete().eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate),
+      supabase.from('workout_exercise_notes').delete().eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate),
       supabase.from('workout_sessions').delete().eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate),
     ]);
     const failed = results.find(r => r.error);

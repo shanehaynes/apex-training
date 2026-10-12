@@ -43,6 +43,7 @@ interface UpdateCall {
 interface AdminState {
   upserts: Record<string, Record<string, unknown>[]>;
   updates: UpdateCall[];
+  deletes: { table: string; filters: Record<string, unknown> }[];
   /** Scripted PostgREST failure for every write, for the status-mapping tests. */
   writeError?: { message: string; code?: string };
 }
@@ -70,6 +71,11 @@ function makeAdmin(state: AdminState) {
         upsert: async (rows: Record<string, unknown>[] | Record<string, unknown>) => {
           state.upserts[table] = Array.isArray(rows) ? rows : [rows];
           return { error: state.writeError ?? null };
+        },
+        delete: () => {
+          const call = { table, patch: {}, filters: {} };
+          state.deletes.push(call);
+          return updateChain(call, state);
         },
         update: (patch: Record<string, unknown>) => {
           const call: UpdateCall = { table, patch, filters: {} };
@@ -112,7 +118,7 @@ function makeRes() {
 let state: AdminState;
 
 beforeEach(() => {
-  state = { upserts: {}, updates: [] };
+  state = { upserts: {}, updates: [], deletes: [] };
   mockedAdmin.mockReturnValue(makeAdmin(state));
 });
 
@@ -175,6 +181,55 @@ describe('POST /api/workout-sessions — save row validation', () => {
     }), res);
     expect(statusCode()).toBe(400);
     expect(state.upserts['workout_set_logs']).toBeUndefined();
+  });
+});
+
+describe('POST /api/workout-sessions — per-occurrence exercise notes', () => {
+  const save = (exerciseNotes: unknown) => ({
+    action: 'save', eventId: 'evt-1', eventDate: '2026-08-07', exerciseNotes,
+  });
+
+  it('upserts a note keyed to this occurrence and user, trimmed', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq(save([{ section: 'exercise', exerciseId: 'bench', note: '  used the blue band ' }])), res);
+    expect(statusCode()).toBe(200);
+    expect(state.upserts['workout_exercise_notes']).toEqual([expect.objectContaining({
+      user_id: 'user-123', event_id: 'evt-1', event_date: '2026-08-07',
+      section: 'exercise', exercise_id: 'bench', note: 'used the blue band',
+    })]);
+  });
+
+  it('deletes the row when the note is emptied, scoped to the occurrence', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq(save([{ section: 'exercise', exerciseId: 'bench', note: '   ' }])), res);
+    expect(statusCode()).toBe(200);
+    expect(state.upserts['workout_exercise_notes']).toBeUndefined();
+    expect(state.deletes).toEqual([{
+      table: 'workout_exercise_notes', patch: {},
+      filters: { user_id: 'user-123', event_id: 'evt-1', event_date: '2026-08-07', section: 'exercise', exercise_id: 'bench' },
+    }]);
+  });
+
+  it('400s on a bad section or an oversized note, writing nothing', async () => {
+    for (const bad of [
+      [{ section: 'nope', exerciseId: 'bench', note: 'x' }],
+      [{ section: 'exercise', exerciseId: 'bench', note: 'x'.repeat(2001) }],
+      [{ section: 'exercise', exerciseId: '', note: 'x' }],
+      'not-an-array',
+    ]) {
+      const { res, statusCode } = makeRes();
+      await handler(makeReq(save(bad)), res);
+      expect(statusCode()).toBe(400);
+    }
+    expect(state.upserts['workout_exercise_notes']).toBeUndefined();
+    expect(state.deletes).toEqual([]);
+  });
+
+  it('cancel takes the notes with the session', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq({ action: 'cancel', eventId: 'evt-1', eventDate: '2026-08-07' }), res);
+    expect(statusCode()).toBe(200);
+    expect(state.deletes.map(d => d.table)).toContain('workout_exercise_notes');
   });
 });
 
