@@ -12,6 +12,8 @@ import {
   setToRow,
   cardioToRow,
   makeExtraSet,
+  makeAddedExercise,
+  newAddedExerciseId,
 } from '../plan';
 import type { Exercise, WorkoutEvent } from '../../../types/workout';
 import type { CardioLogRow, SetLogRow } from '../../db/types';
@@ -225,6 +227,86 @@ describe('buildTrackerModel — swapped (substituted) exercises', () => {
       exercise_name: 'Bench Press', definition_id: null,
     })]);
     expect(groups[1].exercises[0].substitutedFrom).toBeNull();
+  });
+});
+
+describe('buildTrackerModel — exercises added mid-workout', () => {
+  const pushupRow = (overrides: Partial<SetLogRow> = {}): SetLogRow => ({
+    event_id: 'e', event_date: '2026-07-06', section: 'exercise',
+    exercise_id: 'added-1000', exercise_name: 'Push-Up', definition_id: 'def-pushup', set_number: 1,
+    planned_weight: null, planned_reps: null, planned_duration: null,
+    actual_weight: null, actual_reps: '20', actual_duration: null,
+    is_autofilled: false,
+    ...overrides,
+  });
+
+  it('appends them after the plan, rebuilt from their rows as logged extras', () => {
+    const groups = buildTrackerModel(makeEvent(), [pushupRow({ set_number: 2, actual_reps: '15' }), pushupRow()]);
+    const main = groups[1].exercises;
+    expect(main.map(t => t.exercise.id)).toEqual(['ub-1', 'run-1', 'added-1000']);
+    const pushups = main[2];
+    expect(pushups).toMatchObject({ isAdded: true, isCardio: false, substitutedFrom: null });
+    expect(pushups.exercise).toMatchObject({ name: 'Push-Up', definitionId: 'def-pushup' });
+    expect(pushups.sets.map(s => [s.setNumber, s.actualReps, s.isExtra, s.isLogged])).toEqual([
+      [1, '20', true, true],
+      [2, '15', true, true],
+    ]);
+  });
+
+  it('orders several additions by when they were added', () => {
+    const groups = buildTrackerModel(makeEvent(), [
+      pushupRow({ exercise_id: 'added-1700000000500', exercise_name: 'Dip' }),
+      pushupRow({ exercise_id: 'added-999' }),
+    ]);
+    expect(groups[1].exercises.slice(2).map(t => t.exercise.name)).toEqual(['Push-Up', 'Dip']);
+  });
+
+  it('rebuilds an added cardio entry from its row', () => {
+    const groups = buildTrackerModel(makeEvent(), [], [{
+      event_id: 'e', event_date: '2026-07-06', section: 'exercise',
+      exercise_id: 'added-2000', exercise_name: 'Assault Bike', definition_id: 'def-bike',
+      duration_minutes: 10, distance: null, elevation_gain: null, avg_heart_rate: null,
+      is_autofilled: false,
+    }]);
+    const bike = groups[1].exercises[2];
+    expect(bike).toMatchObject({ isAdded: true, isCardio: true, sets: [] });
+    expect(bike.cardio).toMatchObject({ durationMinutes: '10', isLogged: true });
+  });
+
+  it('opens a section the plan left empty', () => {
+    const groups = buildTrackerModel(makeEvent(), [pushupRow({ section: 'cooldown' })]);
+    expect(groups.map(g => g.section)).toEqual(['warmup', 'exercise', 'cooldown']);
+  });
+
+  it('still drops rows for a plan entry that no longer exists', () => {
+    const groups = buildTrackerModel(makeEvent(), [pushupRow({ exercise_id: 'removed-from-plan' })]);
+    expect(groups[1].exercises).toHaveLength(2);
+  });
+
+  it('never zero-fills an added exercise at finish', () => {
+    const groups = buildTrackerModel(makeEvent(), [pushupRow()]);
+    groups[1].exercises.push(makeAddedExercise('exercise', { id: 'def-dip', canonicalName: 'Dip', category: 'strength' }));
+    const filled = collectUntouchedPlanned('e', '2026-07-06', groups);
+    expect(filled.some(r => r.exercise_id.startsWith('added-'))).toBe(false);
+  });
+
+  it('serializes like any other exercise, under its own id', () => {
+    const added = makeAddedExercise('exercise', { id: 'def-pushup', canonicalName: 'Push-Up', category: 'strength' }, 'added-5');
+    const row = setToRow('e', '2026-07-06', added, { ...added.sets[0], actualReps: '20' });
+    expect(row).toMatchObject({
+      exercise_id: 'added-5', exercise_name: 'Push-Up', definition_id: 'def-pushup',
+      set_number: 1, planned_reps: null, actual_reps: '20',
+    });
+  });
+
+  it('starts a cardio addition with an empty form instead of sets', () => {
+    const added = makeAddedExercise('exercise', { id: 'def-bike', canonicalName: 'Assault Bike', category: 'cardio' });
+    expect(added.sets).toEqual([]);
+    expect(added.cardio).toMatchObject({ durationMinutes: '', isLogged: false });
+  });
+
+  it('mints ids that sort by time', () => {
+    expect(newAddedExerciseId(1700000000000)).toBe('added-1700000000000');
   });
 });
 

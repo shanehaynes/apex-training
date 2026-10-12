@@ -159,3 +159,49 @@ test('a note can be left on one exercise for this workout only', async ({ page }
   await expect(exercise.locator('button[aria-label^="Add a note on"]')).toHaveCount(0);
   await shot(page, 'tracker-session-note');
 });
+
+test('an exercise the plan lacks can be added mid-workout and removed again', async ({ page }) => {
+  await gotoCalendar(page);
+  await page.locator('.event-chip__main').first().click();
+  await page.locator('.modal-completion__btn--start').click();
+  await expect(page.locator('.tracker-set').first()).toBeVisible({ timeout: 15000 });
+  const before = await page.locator('.tracker-exercise').count();
+
+  await page.getByRole('button', { name: 'Add exercise' }).click();
+  const picker = page.locator('.exercise-picker');
+  await expect(picker).toBeVisible();
+  // Climbing pitches need a grade the tracker can't ask for.
+  await expect(picker.locator('.library-filter', { hasText: /^climbing$/i })).toHaveCount(0);
+  // The seed library may not have it — the picker's own create path adds it.
+  const name = 'Push-Up';
+  await picker.locator('.exercise-picker__input').fill(name);
+  const existing = picker.locator('.exercise-picker__row', { hasText: name }).first();
+  if (await existing.count()) await existing.click();
+  else {
+    await picker.getByRole('button', { name: `Create "${name}" as a new exercise` }).click();
+    await picker.getByRole('button', { name: 'Create & add' }).click();
+  }
+
+  const added = page.locator('.tracker-exercise').last();
+  await expect(page.locator('.tracker-exercise')).toHaveCount(before + 1);
+  await expect(added.locator('.tracker-exercise__name')).toHaveText(name);
+  await expect(added).toContainText('Added to this workout — the plan is unchanged.');
+
+  // Typing saves it under its own id, as an ordinary set row.
+  const saved = page.waitForRequest(req => req.url().includes('/api/workout-sessions')
+    && req.postDataJSON()?.action === 'save'
+    && (req.postDataJSON()?.setLogs ?? []).some((r: { exercise_id: string }) => r.exercise_id.startsWith('added-')));
+  const reps = added.locator('input.tracker-input--reps').first();
+  await reps.click();
+  await reps.fill('20');
+  const row = (await saved).postDataJSON().setLogs.find((r: { exercise_id: string }) => r.exercise_id.startsWith('added-'));
+  expect(row).toMatchObject({ exercise_name: name, set_number: 1, actual_reps: '20', planned_reps: null });
+  await shot(page, 'tracker-added-exercise');
+
+  const removed = page.waitForRequest(req => req.url().includes('/api/workout-sessions')
+    && req.postDataJSON()?.action === 'save'
+    && (req.postDataJSON()?.removedSets ?? []).some((k: { exerciseId: string }) => k.exerciseId === row.exercise_id));
+  await added.getByRole('button', { name: `Remove ${name} from this workout` }).click();
+  await expect(page.locator('.tracker-exercise')).toHaveCount(before);
+  await removed;
+});

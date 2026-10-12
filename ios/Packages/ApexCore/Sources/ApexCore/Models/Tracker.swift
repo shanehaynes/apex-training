@@ -110,10 +110,14 @@ public struct TrackedExercise: Codable, Sendable, Equatable {
     public let isCardio: Bool
     public var sets: [TrackedSet]
     public var cardio: CardioLog?
+    /// Added in the tracker, not in the plan: it exists only as this day's log
+    /// rows (`addedExercisesIn` in plan.ts), so every set is an extra. The
+    /// server omits the key for a planned exercise.
+    public var isAdded: Bool?
 
     public init(
         section: String, exercise: Exercise, substitutedFrom: String? = nil,
-        isCardio: Bool, sets: [TrackedSet], cardio: CardioLog? = nil
+        isCardio: Bool, sets: [TrackedSet], cardio: CardioLog? = nil, isAdded: Bool? = nil
     ) {
         self.section = section
         self.exercise = exercise
@@ -121,7 +125,13 @@ public struct TrackedExercise: Codable, Sendable, Equatable {
         self.isCardio = isCardio
         self.sets = sets
         self.cardio = cardio
+        self.isAdded = isAdded
     }
+
+    public var added: Bool { isAdded == true }
+    /// Swapped or added: no prescription of its own, so the definition says
+    /// what it is logged in.
+    public var isOffPlan: Bool { substitutedFrom != nil || added }
 }
 
 public struct TrackedSet: Codable, Sendable, Equatable {

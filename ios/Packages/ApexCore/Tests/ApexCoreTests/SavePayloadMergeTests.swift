@@ -67,4 +67,23 @@ final class SavePayloadMergeTests: XCTestCase {
         XCTAssertTrue(SavePayload().isEmpty)
         XCTAssertFalse(SavePayload(removedSets: [k1]).isEmpty)
     }
+
+    func testRemovingAnAddedCardioExerciseDropsItsEarlierUpsert() {
+        let bike = CardioLogRow(eventId: "e", eventDate: "d", section: "exercise", exerciseId: "added-1", exerciseName: "Bike", durationMinutes: 10)
+        let sentinel = SetKey(section: "exercise", exerciseId: "added-1", setNumber: 0)
+        let merged = SavePayload(cardioLogs: [bike]).merging(SavePayload(removedSets: [sentinel]))
+        XCTAssertEqual(merged.cardioLogs, [])
+        XCTAssertEqual(merged.removedSets, [sentinel])
+        // A planned cardio row is never touched by a removed set.
+        let row = CardioLogRow(eventId: "e", eventDate: "d", section: "exercise", exerciseId: "fx-row", exerciseName: "Row", durationMinutes: 20)
+        XCTAssertEqual(SavePayload(cardioLogs: [row]).merging(SavePayload(removedSets: [k1])).cardioLogs, [row])
+    }
+
+    func testALaterCardioUpsertRevivesARemovedAddedExercise() {
+        let sentinel = SetKey(section: "exercise", exerciseId: "added-1", setNumber: 0)
+        let bike = CardioLogRow(eventId: "e", eventDate: "d", section: "exercise", exerciseId: "added-1", exerciseName: "Bike", durationMinutes: 10)
+        let merged = SavePayload(removedSets: [sentinel]).merging(SavePayload(cardioLogs: [bike]))
+        XCTAssertEqual(merged.cardioLogs, [bike])
+        XCTAssertTrue(merged.removedSets.isEmpty)
+    }
 }

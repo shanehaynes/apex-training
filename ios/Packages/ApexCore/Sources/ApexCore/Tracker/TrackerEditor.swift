@@ -134,7 +134,82 @@ public struct TrackerEditor: Sendable, Equatable {
         groups[g].exercises[e].sets.remove(at: s)
         dirtySets.remove(key)
         if !removedSets.contains(key) { removedSets.append(key) }
+        // An added exercise is nothing but its sets: the last one takes it along.
+        if groups[g].exercises[e].added, !groups[g].exercises[e].isCardio, groups[g].exercises[e].sets.isEmpty {
+            dropExercise(group: g, exercise: e)
+        }
         return true
+    }
+
+    // MARK: - Added exercises
+
+    /// The prefix of an exercise added in the tracker (`ADDED_EXERCISE_PREFIX`).
+    public static let addedPrefix = "added-"
+
+    /// `newAddedExerciseId`: milliseconds, so additions order by when they were made.
+    public static func addedExerciseId(at date: Date) -> String {
+        "\(addedPrefix)\(Int64((date.timeIntervalSince1970 * 1000).rounded()))"
+    }
+
+    public static func isAddedExerciseId(_ id: String) -> Bool { id.hasPrefix(addedPrefix) }
+
+    /// "Pushups weren't in today's plan" (`makeAddedExercise`): appended to the
+    /// main section with one empty extra set, or an empty cardio form. Like any
+    /// empty extra it is not dirty — nothing persists until a value is typed —
+    /// and it lives on the log rows only, never on the plan.
+    @discardableResult
+    public mutating func addExercise(
+        id: String, name: String, definitionId: String?, category: String?, sectionLabel: String
+    ) -> TrackedExercise {
+        let isCardio = category == "cardio"
+        let tracked = TrackedExercise(
+            section: Self.mainSection,
+            exercise: Exercise(id: id, name: name, category: category, definitionId: definitionId),
+            isCardio: isCardio,
+            sets: isCardio ? [] : [TrackedSet(setNumber: 1, planned: PlannedSet(setNumber: 1), isExtra: true)],
+            cardio: isCardio ? CardioLog() : nil,
+            isAdded: true
+        )
+        insert(tracked, sectionLabel: sectionLabel)
+        return tracked
+    }
+
+    /// Take an added exercise back out. Every set it has is removed — the
+    /// server deletes its cardio row too, for any removed key naming an added
+    /// id, which is what the set-number-0 key is for.
+    @discardableResult
+    public mutating func removeAddedExercise(section: String, exerciseId: String) -> Bool {
+        guard let (g, e) = locate(section: section, exerciseId: exerciseId), groups[g].exercises[e].added else { return false }
+        let tracked = groups[g].exercises[e]
+        var keys = tracked.sets.map { SetKey(section: section, exerciseId: exerciseId, setNumber: $0.setNumber) }
+        if tracked.isCardio { keys.append(SetKey(section: section, exerciseId: exerciseId, setNumber: 0)) }
+        for key in keys {
+            dirtySets.remove(key)
+            if !removedSets.contains(key) { removedSets.append(key) }
+        }
+        dirtyCardio.remove(CardioKey(section: section, exerciseId: exerciseId))
+        dropExercise(group: g, exercise: e)
+        return true
+    }
+
+    private static let mainSection = "exercise"
+
+    private static let sectionOrder = ["warmup", "exercise", "cooldown"]
+
+    /// Into its section, opening it in plan order when the plan had none.
+    private mutating func insert(_ tracked: TrackedExercise, sectionLabel: String) {
+        if let g = groups.firstIndex(where: { $0.section == tracked.section }) {
+            groups[g].exercises.append(tracked)
+            return
+        }
+        let rank = { (section: String) in Self.sectionOrder.firstIndex(of: section) ?? Self.sectionOrder.count }
+        let at = groups.firstIndex(where: { rank($0.section) > rank(tracked.section) }) ?? groups.endIndex
+        groups.insert(TrackedSectionGroup(section: tracked.section, label: sectionLabel, exercises: [tracked]), at: at)
+    }
+
+    private mutating func dropExercise(group g: Int, exercise e: Int) {
+        groups[g].exercises.remove(at: e)
+        if groups[g].exercises.isEmpty { groups.remove(at: g) }
     }
 
     // MARK: - Swap
@@ -174,13 +249,13 @@ public struct TrackerEditor: Sendable, Equatable {
     /// has one, and looking it up in the editor again only made the row observe
     /// every other exercise's edits.
     public static func needsPerSideWarning(for tracked: TrackedExercise, swappedTo: ExerciseDefinition?) -> Bool {
-        guard tracked.substitutedFrom != nil, let swappedTo, swappedTo.isUnilateral == true else { return false }
+        guard tracked.isOffPlan, let swappedTo, swappedTo.isUnilateral == true else { return false }
         return tracked.sets.contains { !$0[.reps].isEmpty && !CountSpec.hasPerSideCount($0[.reps]) }
     }
 
     /// Which actual inputs an exercise gets (`inputFields` in TrackerExercise.tsx):
     /// the union of its planned targets, of whatever already carries a value,
-    /// and — once swapped — of what the replacement is normally logged in. Reps
+    /// and — once swapped or added — of what that movement is normally logged in. Reps
     /// is the fallback so every set has something to log. A climbing pitch logs
     /// exactly one thing: the grade, stored in the weight column.
     public static func inputFields(for tracked: TrackedExercise, swappedTo: ExerciseDefinition?) -> [SetField] {
@@ -194,7 +269,7 @@ public struct TrackerEditor: Sendable, Equatable {
             }
             for field in SetField.allCases where !set[field].isEmpty { fields.insert(field) }
         }
-        if tracked.substitutedFrom != nil {
+        if tracked.isOffPlan {
             if swappedTo?.defaultDuration?.isEmpty == false { fields.insert(.duration) }
             if swappedTo?.defaultWeight?.isEmpty == false || swappedTo?.category == "strength" || swappedTo == nil {
                 fields.insert(.weight)
@@ -215,9 +290,21 @@ public struct TrackerEditor: Sendable, Equatable {
     /// server would hydrate them once the save lands.
     public mutating func apply(_ payload: SavePayload) {
         for key in payload.removedSets {
-            if let (g, e, s) = locate(key) { groups[g].exercises[e].sets.remove(at: s) }
+            if let (g, e, s) = locate(key) {
+                groups[g].exercises[e].sets.remove(at: s)
+                if groups[g].exercises[e].added, !groups[g].exercises[e].isCardio, groups[g].exercises[e].sets.isEmpty {
+                    dropExercise(group: g, exercise: e)
+                }
+            } else if Self.isAddedExerciseId(key.exerciseId), let (g, e) = locate(section: key.section, exerciseId: key.exerciseId),
+                      groups[g].exercises[e].isCardio {
+                dropExercise(group: g, exercise: e)
+            }
         }
         for row in payload.setLogs {
+            if locate(section: row.section, exerciseId: row.exerciseId) == nil, Self.isAddedExerciseId(row.exerciseId) {
+                insertAdded(section: row.section, exerciseId: row.exerciseId, name: row.exerciseName,
+                            definitionId: row.definitionId, isCardio: false)
+            }
             guard let (g, e) = locate(section: row.section, exerciseId: row.exerciseId) else { continue }
             if let s = groups[g].exercises[e].sets.firstIndex(where: { $0.setNumber == row.setNumber }) {
                 var set = groups[g].exercises[e].sets[s]
@@ -243,6 +330,10 @@ public struct TrackerEditor: Sendable, Equatable {
             }
         }
         for row in payload.cardioLogs {
+            if locate(section: row.section, exerciseId: row.exerciseId) == nil, Self.isAddedExerciseId(row.exerciseId) {
+                insertAdded(section: row.section, exerciseId: row.exerciseId, name: row.exerciseName,
+                            definitionId: row.definitionId, isCardio: true)
+            }
             guard let (g, e) = locate(section: row.section, exerciseId: row.exerciseId),
                   groups[g].exercises[e].cardio != nil else { continue }
             groups[g].exercises[e].cardio?.durationMinutes = row.durationMinutes.map(Self.decimalText) ?? ""
@@ -253,6 +344,21 @@ public struct TrackerEditor: Sendable, Equatable {
             groups[g].exercises[e].cardio?.shadow = nil
         }
     }
+
+    /// A queued row for an added exercise the cached model has not seen yet —
+    /// the shape the server rebuilds it in once the save lands.
+    private mutating func insertAdded(section: String, exerciseId: String, name: String, definitionId: String?, isCardio: Bool) {
+        let tracked = TrackedExercise(
+            section: section,
+            exercise: Exercise(id: exerciseId, name: name, category: isCardio ? "cardio" : "strength", definitionId: definitionId),
+            isCardio: isCardio, sets: [], cardio: isCardio ? CardioLog() : nil, isAdded: true
+        )
+        insert(tracked, sectionLabel: Self.defaultLabels[section] ?? section)
+    }
+
+    /// `sectionLabels` for every type but outdoor climbing — only ever needed
+    /// when an offline replay opens a section the cached model did not have.
+    private static let defaultLabels = ["warmup": "Warm-Up", "exercise": "Main Work", "cooldown": "Cool-Down"]
 
     /// The render-first flow: a fresh server model replaces the cached one only
     /// when nothing local is ahead of it. With dirty keys or unsent ops the

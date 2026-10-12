@@ -13,7 +13,7 @@ import { applyQuickComplete, applyQuickUncomplete, buildBootstrap, buildFinishSu
 import { sendFailure } from '../services/result.js';
 import { sendWriteFailure } from '../pgError.js';
 import { endLiveActivities } from '../services/liveActivity.js';
-import { buildQuickCompleteLogs } from '../../../src/lib/tracking/plan.js';
+import { buildQuickCompleteLogs, isAddedExerciseId } from '../../../src/lib/tracking/plan.js';
 import type { CardioLogRow, SetLogRow, TablesInsert, TrackedSection, WorkoutSessionRow } from '../../../src/lib/db/types.js';
 import { sessionScoreFromRow } from '../../../src/lib/tracking/records.js';
 
@@ -289,6 +289,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // `code` rides along so sendWriteFailure can read the SQLSTATE class.
     const ops: PromiseLike<{ error: { message: string; code?: string } | null }>[] = [];
 
+    // An exercise added mid-workout is only its rows, so removing it from
+    // the tracker names it here; a cardio one has one row, with no set number.
+    // A cardio or note write for it in the same batch is skipped, so the
+    // deletes below cannot race an upsert.
+    const removedAdded = new Map<string, RemovedSetKey>();
+    for (const key of body.removedSets ?? []) {
+      if (typeof key.exerciseId === 'string' && isAddedExerciseId(key.exerciseId)) {
+        removedAdded.set(`${key.section}|${key.exerciseId}`, key);
+      }
+    }
     if (setLogs.length) {
       ops.push(supabase
         .from('workout_set_logs')
@@ -297,15 +307,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           { onConflict: SET_LOG_CONFLICT },
         ));
     }
-    if (cardioLogs.length) {
+    const keptCardio = cardioLogs.filter(r => !removedAdded.has(`${r.section}|${r.exercise_id}`));
+    if (keptCardio.length) {
       ops.push(supabase
         .from('workout_cardio_logs')
         .upsert(
-          cardioLogs.map(r => ({ ...r, user_id: userId, updated_at: now })) as TablesInsert<'workout_cardio_logs'>[],
+          keptCardio.map(r => ({ ...r, user_id: userId, updated_at: now })) as TablesInsert<'workout_cardio_logs'>[],
           { onConflict: CARDIO_CONFLICT },
         ));
     }
     for (const n of notes) {
+      if (removedAdded.has(`${n.section}|${n.exerciseId}`)) continue;
       const note = n.note.trim();
       const key = { user_id: userId, event_id: eventId, event_date: eventDate, section: n.section, exercise_id: n.exerciseId };
       ops.push(note
@@ -329,6 +341,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .eq('section', key.section)
         .eq('exercise_id', key.exerciseId)
         .eq('set_number', key.setNumber));
+    }
+    // Its note goes too: nothing rebuilds an added exercise without its rows.
+    for (const key of removedAdded.values()) {
+      for (const table of ['workout_cardio_logs', 'workout_exercise_notes'] as const) {
+        ops.push(supabase
+          .from(table)
+          .delete()
+          .eq('user_id', userId).eq('event_id', eventId)
+          .eq('event_date', eventDate)
+          .eq('section', key.section)
+          .eq('exercise_id', key.exerciseId));
+      }
     }
 
     const results = await Promise.all(ops);

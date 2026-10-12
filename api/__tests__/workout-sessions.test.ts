@@ -233,6 +233,50 @@ describe('POST /api/workout-sessions — per-occurrence exercise notes', () => {
   });
 });
 
+describe('POST /api/workout-sessions — removing an exercise added mid-workout', () => {
+  const remove = (removedSets: unknown) => ({
+    action: 'save', eventId: 'evt-1', eventDate: '2026-08-07', removedSets,
+  });
+
+  it('deletes an added exercise\'s cardio row once, whatever keys name it', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq(remove([
+      { section: 'exercise', exerciseId: 'added-1700000000000', setNumber: 0 },
+      { section: 'exercise', exerciseId: 'added-1700000000000', setNumber: 1 },
+    ])), res);
+    expect(statusCode()).toBe(200);
+    expect(state.deletes.filter(d => d.table === 'workout_cardio_logs')).toEqual([{
+      table: 'workout_cardio_logs', patch: {},
+      filters: { user_id: 'user-123', event_id: 'evt-1', event_date: '2026-08-07', section: 'exercise', exercise_id: 'added-1700000000000' },
+    }]);
+  });
+
+  it('takes the note with it and drops a same-batch cardio upsert or note edit for it', async () => {
+    const { res, statusCode } = makeRes();
+    const id = 'added-1700000000000';
+    await handler(makeReq({
+      action: 'save', eventId: 'evt-1', eventDate: '2026-08-07',
+      removedSets: [{ section: 'exercise', exerciseId: id, setNumber: 0 }],
+      cardioLogs: [{ event_id: 'evt-1', event_date: '2026-08-07', section: 'exercise', exercise_id: id, exercise_name: 'Bike', duration_minutes: 10 }],
+      exerciseNotes: [{ section: 'exercise', exerciseId: id, note: 'legs gone' }],
+    }), res);
+    expect(statusCode()).toBe(200);
+    expect(state.upserts['workout_cardio_logs']).toBeUndefined();
+    expect(state.upserts['workout_exercise_notes']).toBeUndefined();
+    expect(state.deletes.filter(d => d.table === 'workout_exercise_notes')).toEqual([{
+      table: 'workout_exercise_notes', patch: {},
+      filters: { user_id: 'user-123', event_id: 'evt-1', event_date: '2026-08-07', section: 'exercise', exercise_id: id },
+    }]);
+  });
+
+  it('never deletes a planned exercise\'s cardio row through a removed set', async () => {
+    const { res, statusCode } = makeRes();
+    await handler(makeReq(remove([{ section: 'exercise', exerciseId: 'run-1', setNumber: 4 }])), res);
+    expect(statusCode()).toBe(200);
+    expect(state.deletes.filter(d => d.table === 'workout_cardio_logs')).toEqual([]);
+  });
+});
+
 describe('POST /api/workout-sessions — swap-exercise', () => {
   const swap = {
     action: 'swap-exercise', eventId: 'evt-1', eventDate: '2026-08-07',

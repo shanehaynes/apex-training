@@ -416,4 +416,106 @@ final class TrackerEditorTests: XCTestCase {
         XCTAssertTrue(editor.replaceGroupsIfClean(fresh, queueHasPending: false))
         XCTAssertEqual(editor.groups.count, 2)
     }
+
+    // MARK: - Added exercises
+
+    private var pushupSet1: SetKey { SetKey(section: "exercise", exerciseId: "added-1000", setNumber: 1) }
+
+    private func withPushups() -> TrackerEditor {
+        var editor = handBuilt()
+        editor.addExercise(id: "added-1000", name: "Push-Up", definitionId: "def-pushup", category: "strength", sectionLabel: "Main Work")
+        return editor
+    }
+
+    func testAddedExerciseIdsSortByTime() {
+        XCTAssertEqual(TrackerEditor.addedExerciseId(at: Date(timeIntervalSince1970: 1_700_000_000)), "added-1700000000000")
+        XCTAssertTrue(TrackerEditor.isAddedExerciseId("added-1"))
+        XCTAssertFalse(TrackerEditor.isAddedExerciseId("ub-1"))
+    }
+
+    func testAddingAppendsOneEmptyExtraSetAndIsNotAnEdit() {
+        let editor = withPushups()
+        let pushups = editor.groups[1].exercises.last
+        XCTAssertEqual(pushups?.exercise.name, "Push-Up")
+        XCTAssertEqual(pushups?.added, true)
+        XCTAssertEqual(pushups?.sets.map(\.isExtra), [true])
+        // Nothing persists until a value is typed, like any empty extra set.
+        XCTAssertFalse(editor.isDirty)
+        XCTAssertTrue(editor.collectUntouchedPlanned().allSatisfy { $0.exerciseId != "added-1000" })
+    }
+
+    func testAnAddedSetSavesUnderItsOwnIdAndName() {
+        var editor = withPushups()
+        editor.setValue("20", .reps, at: pushupSet1)
+        let payload = editor.takeSavePayload()
+        XCTAssertEqual(payload?.setLogs.first?.exerciseId, "added-1000")
+        XCTAssertEqual(payload?.setLogs.first?.exerciseName, "Push-Up")
+        XCTAssertEqual(payload?.setLogs.first?.definitionId, "def-pushup")
+        XCTAssertNil(payload?.setLogs.first?.plannedReps)
+    }
+
+    func testAddingOpensTheMainSectionInPlanOrder() {
+        var editor = TrackerEditor(groups: [
+            TrackedSectionGroup(section: "warmup", label: "Warm-Up", exercises: []),
+            TrackedSectionGroup(section: "cooldown", label: "Cool-Down", exercises: []),
+        ], session: SessionKey(eventId: "eid", eventDate: "2026-07-06"))
+        editor.addExercise(id: "added-1", name: "Push-Up", definitionId: nil, category: "strength", sectionLabel: "Main Work")
+        XCTAssertEqual(editor.groups.map(\.section), ["warmup", "exercise", "cooldown"])
+        XCTAssertEqual(editor.groups[1].label, "Main Work")
+    }
+
+    func testRemovingTheLastSetRemovesTheAddedExercise() {
+        var editor = withPushups()
+        editor.setValue("20", .reps, at: pushupSet1)
+        XCTAssertTrue(editor.removeExtraSet(at: pushupSet1))
+        XCTAssertNil(editor.exercise(section: "exercise", id: "added-1000"))
+        XCTAssertEqual(editor.takeSavePayload(), SavePayload(removedSets: [pushupSet1]))
+    }
+
+    func testRemovingAnAddedExerciseRemovesEverySetAndNamesACardioRow() {
+        var editor = withPushups()
+        editor.addExtraSet(section: "exercise", exerciseId: "added-1000")
+        editor.setValue("20", .reps, at: pushupSet1)
+        XCTAssertTrue(editor.removeAddedExercise(section: "exercise", exerciseId: "added-1000"))
+        XCTAssertEqual(editor.takeSavePayload()?.removedSets.map(\.setNumber), [1, 2])
+
+        editor.addExercise(id: "added-2000", name: "Assault Bike", definitionId: "def-bike", category: "cardio", sectionLabel: "Main Work")
+        editor.setCardio("10", .durationMinutes, at: CardioKey(section: "exercise", exerciseId: "added-2000"))
+        XCTAssertTrue(editor.removeAddedExercise(section: "exercise", exerciseId: "added-2000"))
+        let payload = editor.takeSavePayload()
+        XCTAssertEqual(payload?.cardioLogs, [])
+        XCTAssertEqual(payload?.removedSets, [SetKey(section: "exercise", exerciseId: "added-2000", setNumber: 0)])
+        // A planned exercise is not the editor's to remove.
+        XCTAssertFalse(editor.removeAddedExercise(section: "exercise", exerciseId: "ub-1"))
+    }
+
+    func testAddedExercisesTakeTheirFieldsFromTheDefinition() {
+        let editor = withPushups()
+        let pushups = editor.exercise(section: "exercise", id: "added-1000")!
+        XCTAssertEqual(TrackerEditor.inputFields(for: pushups, swappedTo: nil), [.weight, .reps])
+        let plank = ExerciseDefinition(id: "plank", canonicalName: "Plank", aliases: [], category: "mobility", muscleGroups: [], equipment: [], defaultDuration: "60s")
+        XCTAssertEqual(TrackerEditor.inputFields(for: pushups, swappedTo: plank), [.duration])
+    }
+
+    func testReplayRebuildsAnAddedExerciseTheCacheHasNotSeen() {
+        var editor = handBuilt()
+        editor.apply(SavePayload(
+            setLogs: [SetLogRow(eventId: "eid", eventDate: "2026-07-06", section: "exercise", exerciseId: "added-1000",
+                                exerciseName: "Push-Up", definitionId: "def-pushup", setNumber: 1, actualReps: "20")],
+            cardioLogs: [CardioLogRow(eventId: "eid", eventDate: "2026-07-06", section: "exercise", exerciseId: "added-2000",
+                                      exerciseName: "Assault Bike", definitionId: "def-bike", durationMinutes: 10)]
+        ))
+        let pushups = editor.exercise(section: "exercise", id: "added-1000")
+        XCTAssertEqual(pushups?.added, true)
+        XCTAssertEqual(pushups?.sets.first?.actualReps, "20")
+        XCTAssertEqual(editor.exercise(section: "exercise", id: "added-2000")?.cardio?.durationMinutes, "10")
+        XCTAssertFalse(editor.isDirty)
+
+        editor.apply(SavePayload(removedSets: [
+            SetKey(section: "exercise", exerciseId: "added-1000", setNumber: 1),
+            SetKey(section: "exercise", exerciseId: "added-2000", setNumber: 0),
+        ]))
+        XCTAssertNil(editor.exercise(section: "exercise", id: "added-1000"))
+        XCTAssertNil(editor.exercise(section: "exercise", id: "added-2000"))
+    }
 }

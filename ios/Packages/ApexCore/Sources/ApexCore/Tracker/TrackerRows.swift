@@ -185,6 +185,12 @@ public struct SavePayload: Codable, Sendable, Equatable {
 
         for key in later.removedSets {
             sets.removeAll { $0.key == key }
+            // Removing an added exercise deletes its cardio row too (server
+            // side, for any removed key naming the id), so an earlier upsert
+            // of that row must not ride along in the same un-ordered batch.
+            if TrackerEditor.isAddedExerciseId(key.exerciseId) {
+                cardio.removeAll { $0.section == key.section && $0.exerciseId == key.exerciseId }
+            }
             if !removed.contains(key) { removed.append(key) }
         }
         for row in later.setLogs {
@@ -196,6 +202,9 @@ public struct SavePayload: Codable, Sendable, Equatable {
             }
         }
         for row in later.cardioLogs {
+            if TrackerEditor.isAddedExerciseId(row.exerciseId) {
+                removed.removeAll { $0.section == row.section && $0.exerciseId == row.exerciseId }
+            }
             if let i = cardio.firstIndex(where: { $0.key == row.key }) {
                 cardio[i] = row
             } else {
