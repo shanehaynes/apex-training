@@ -1073,8 +1073,10 @@ exercise (Library, Builder): both now queue when there is no signal. The lines d
   workout re-evaluating on each focus move. Laziness existed to stop a keystroke rebuilding every
   field; the skip does that job, so both stacks are plain `VStack`s.
 - **Measured.** Six flings over 3 sections × 4–6 exercises × 5 sets (`-apexMockDense`): late frames
-  9 → 1. Opening the tracker builds every field up front: +~130 ms on the simulator for 60 rows,
-  behind the loading phase. The gate-protected smoke (`testTrackerOnFixtures`,
+  9 → 1. Opening the tracker builds every field up front: +~130 ms on the simulator for 60 rows. On
+  a cold open that sits behind "Loading session…"; on a cached open `.ready` lands during the
+  cover's presentation, so the cost may show as one stutter in that transition (a realistic 10 × 4
+  workout is ~100 fields, well under the dense case). Not yet timed on a device. The gate-protected smoke (`testTrackerOnFixtures`,
   `testRunningWorkoutIsVisibleFromTheDayOnFixtures`) and the 321 unit tests pass unchanged.
 - **Why not Instruments.** Hitches, the SwiftUI instrument and Core Animation FPS all refuse the
   simulator, and `xctrace --attach` returned empty traces there. `-apexFrameLog` (DEBUG) logs late

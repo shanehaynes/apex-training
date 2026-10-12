@@ -511,13 +511,16 @@ actor FixtureTransport: HTTPTransport {
     /// smoke's identifiers resolve under the flag too. Ids are unique app-wide
     /// (`fx-press-w1`), which is all `fieldOrder` and the identifiers need.
     private func densified(_ data: Data) -> Data {
-        guard dense,
-              var object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+        guard dense else { return data }
+        guard var object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let groups = object["groups"] as? [[String: Any]],
               let templates = groups.first?["exercises"] as? [[String: Any]],
               let press = templates.first(where: { ($0["isCardio"] as? Bool) == false }),
               let row = templates.first(where: { ($0["isCardio"] as? Bool) == true })
-        else { return data }
+        else {
+            assertionFailure("-apexMockDense needs one set-tracked and one cardio exercise in bootstrap-peek.json")
+            return data
+        }
         let sections: [(section: String, label: String, tag: String)] = [
             ("warmup", "Warm-Up", "w"), ("exercise", "Main Work", "m"), ("cooldown", "Cool-Down", "c"),
         ]
