@@ -32,9 +32,13 @@ private struct ExerciseCardsPreview: View {
                 ForEach(model.editor.groups, id: \.section) { group in
                     ForEach(group.exercises, id: \.exercise.id) { tracked in
                         TrackedExerciseView(
-                            model: model, tracked: tracked,
-                            palette: WorkoutTypeTokens.palette(for: model.event.type.rawValue),
-                            focus: $focus, durationModeToggle: 0, onSwap: {}
+                            model: model,
+                            input: ExerciseRowInput(
+                                tracked: tracked, fields: model.inputFields(for: tracked),
+                                perSideWarning: model.perSideWarning(for: tracked), canSwap: model.canSwap(tracked),
+                                focusedField: nil, durationModeToggle: 0
+                            ),
+                            focus: $focus, onSwap: { _ in }
                         )
                     }
                 }

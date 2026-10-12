@@ -21,6 +21,12 @@ import Foundation
 ///                                   so the welcome flow shows after sign-in
 ///                                   (W13); without it every leg lands on the
 ///                                   tabs, as the fixture user always has
+///   -apexMockDense                  the tracker's bootstrap is 3 sections × 4
+///                                   exercises × 5 sets, cloned in-process from
+///                                   bootstrap-peek.json (the fixture stays
+///                                   untouched), so the screen has enough rows
+///                                   to scroll — the fixture workout is two
+///                                   exercises and never does
 ///
 /// W7: the sheet's and the builder's writes (`/api/events`, `/api/event-instances`,
 /// `/api/workout-draft`, templates, definitions) are remembered and replayed
@@ -43,7 +49,8 @@ struct MockEnvironment {
             failingRoute: failing, failOnce: failOnce, clock: clock,
             hasKey: CommandLine.arguments.contains("-apexMockHasKey"),
             corosStatus: Self.argument("-apexMockCoros") ?? "connected",
-            freshUser: CommandLine.arguments.contains("-apexMockFreshUser")
+            freshUser: CommandLine.arguments.contains("-apexMockFreshUser"),
+            dense: CommandLine.arguments.contains("-apexMockDense")
         )
         streams = FixtureStreams()
     }
@@ -98,6 +105,8 @@ actor FixtureTransport: HTTPTransport {
     private var revokedTokens: Set<String> = []
     private var disconnectedApps: Set<String> = []
     private var corosStatus = "connected"
+    /// `-apexMockDense`: the bootstrap is cloned out to a scrollable workout.
+    private let dense: Bool
     private var corosAutoSync = true
     private var corosSynced = false
     /// W13: the welcome flow's latch and the starter-plan copy, replayed into
@@ -143,7 +152,8 @@ actor FixtureTransport: HTTPTransport {
         var deletedFavorites: Set<String> = []
     }
 
-    init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false, corosStatus: String = "connected", freshUser: Bool = false) {
+    init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false, corosStatus: String = "connected", freshUser: Bool = false, dense: Bool = false) {
+        self.dense = dense
         self.failingRoute = failingRoute
         self.failOnce = failOnce
         self.clock = clock
@@ -387,12 +397,12 @@ actor FixtureTransport: HTTPTransport {
             case ("POST", "/api/workout-sessions"):
                 switch action {
                 case "bootstrap" where body?["peek"] as? Bool == true:
-                    return ok(try Fixtures.data("bootstrap-peek.json"))
+                    return ok(densified(try Fixtures.data("bootstrap-peek.json")))
                 case "bootstrap":
                     // A session started now, the way the real handler creates one —
                     // the committed bootstrap.json is a finished session, which is
                     // what a reopen shows, not what Start Workout should.
-                    return ok(startedBootstrap(try Fixtures.data("bootstrap-peek.json"), eventId: body?["eventId"] as? String, eventDate: body?["eventDate"] as? String))
+                    return ok(startedBootstrap(densified(try Fixtures.data("bootstrap-peek.json")), eventId: body?["eventId"] as? String, eventDate: body?["eventDate"] as? String))
                 case "finish":
                     return ok(try Fixtures.data("finish.json"))
                 default:
@@ -492,6 +502,53 @@ actor FixtureTransport: HTTPTransport {
             "event_id": eventId ?? "ios-fixture-weekly__2026-09-08", "event_date": eventDate ?? "2026-09-08",
             "started_at": CompletionRows.isoTimestamp(clock.now.addingTimeInterval(-7 * 60)),
         ]
+        return (try? JSONSerialization.data(withJSONObject: object)) ?? data
+    }
+
+    /// `-apexMockDense`: three sections, each the fixture's two exercises plus
+    /// three set-tracked clones at five sets, every set still a ghost row. The
+    /// fixture's own `fx-press` / `fx-row` keep their ids in Main Work so the
+    /// smoke's identifiers resolve under the flag too. Ids are unique app-wide
+    /// (`fx-press-w1`), which is all `fieldOrder` and the identifiers need.
+    private func densified(_ data: Data) -> Data {
+        guard dense else { return data }
+        guard var object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let groups = object["groups"] as? [[String: Any]],
+              let templates = groups.first?["exercises"] as? [[String: Any]],
+              let press = templates.first(where: { ($0["isCardio"] as? Bool) == false }),
+              let row = templates.first(where: { ($0["isCardio"] as? Bool) == true })
+        else {
+            assertionFailure("-apexMockDense needs one set-tracked and one cardio exercise in bootstrap-peek.json")
+            return data
+        }
+        let sections: [(section: String, label: String, tag: String)] = [
+            ("warmup", "Warm-Up", "w"), ("exercise", "Main Work", "m"), ("cooldown", "Cool-Down", "c"),
+        ]
+        func clone(_ template: [String: Any], section: String, suffix: String, sets: Int) -> [String: Any] {
+            var out = template
+            out["section"] = section
+            var exercise = template["exercise"] as? [String: Any] ?? [:]
+            if let id = exercise["id"] as? String { exercise["id"] = "\(id)-\(suffix)" }
+            if let name = exercise["name"] as? String { exercise["name"] = "\(name) \(suffix.uppercased())" }
+            if sets > 0 { exercise["sets"] = sets }
+            out["exercise"] = exercise
+            if sets > 0, let first = (template["sets"] as? [[String: Any]])?.first {
+                out["sets"] = (1...sets).map { n -> [String: Any] in
+                    var set = first
+                    set["setNumber"] = n
+                    if var planned = set["planned"] as? [String: Any] { planned["setNumber"] = n; set["planned"] = planned }
+                    return set
+                }
+            }
+            return out
+        }
+        object["groups"] = sections.map { section -> [String: Any] in
+            var exercises: [[String: Any]] = []
+            if section.section == "exercise" { exercises = templates }
+            for n in 1...3 { exercises.append(clone(press, section: section.section, suffix: "\(section.tag)\(n)", sets: 5)) }
+            exercises.append(clone(row, section: section.section, suffix: "\(section.tag)4", sets: 0))
+            return ["section": section.section, "label": section.label, "exercises": exercises]
+        }
         return (try? JSONSerialization.data(withJSONObject: object)) ?? data
     }
 

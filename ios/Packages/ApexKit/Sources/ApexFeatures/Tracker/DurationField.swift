@@ -11,23 +11,24 @@ struct DurationField: View {
     @Binding var value: String
     let ghost: String?
     let id: FieldID
+    /// Handed in by the row (see `TrackerTextField`), not read off the binding.
+    let isFocused: Bool
     var focus: FocusState<FieldID?>.Binding
     let modeToggle: Int
 
     @State private var entry: DurationEntry
     @State private var lastToggle: Int
 
-    init(value: Binding<String>, ghost: String?, id: FieldID, focus: FocusState<FieldID?>.Binding, modeToggle: Int) {
+    init(value: Binding<String>, ghost: String?, id: FieldID, isFocused: Bool, focus: FocusState<FieldID?>.Binding, modeToggle: Int) {
         self._value = value
         self.ghost = ghost
         self.id = id
+        self.isFocused = isFocused
         self.focus = focus
         self.modeToggle = modeToggle
         self._entry = State(initialValue: DurationEntry(value: value.wrappedValue))
         self._lastToggle = State(initialValue: modeToggle)
     }
-
-    private var isFocused: Bool { focus.wrappedValue == id }
 
     var body: some View {
         TextField(

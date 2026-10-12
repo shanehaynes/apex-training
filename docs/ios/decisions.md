@@ -1051,3 +1051,37 @@ exercise (Library, Builder): both now queue when there is no signal. The lines d
   launch handler takes (a) and the expiration handler, which only cancels a `Task`, takes (b).
   Already-annotated APIs (`NWPathMonitor.pathUpdateHandler`, `UIApplication.beginBackgroundTask`'s
   handler) need nothing.
+
+## D-054 · The tracker's scroll content is eager; rows are `Equatable` values SwiftUI can skip
+**Status:** decided · Mac session · 2026-10-12
+- **The symptom.** Scrolling the tracker on the iPhone 15 Pro (TestFlight 1.0.0/509) stuttered. The
+  content was a `LazyVStack` nested in a `LazyVStack` whose rows are exercise cards of two or three
+  UIKit-backed `TextField`s per set. Each card was realized in the frame it entered the viewport —
+  ten to fifteen `UITextField`s plus their overlays at once — and the inner lazy stack could only
+  estimate the rest, so the height shifted as the finger moved. On the simulator (60 Hz, dense mock
+  workout, six identical flings) that is one late frame per card: nine of 26–39 ms.
+- **Options.** (a) Eager `VStack`s with rows that skip re-evaluation; (b) unfocused inputs drawn as
+  `Text` with one live `TextField` (fewest UIKit views, but a focus hand-off redesign, the
+  `DurationField` mode lifecycle rewritten, and `app.textFields[…]` in the smoke no longer matches
+  an idle cell). (a) was taken; (b) stays available if a device run still shows hitches.
+- **The design.** `TrackerScreen` computes an `ExerciseRowInput` per card (tracked exercise, input
+  fields, per-side warning, swap eligibility, the focused field *when it lies in that exercise*,
+  the duration-mode toggle) and each card builds a `SetRowInput` per set. `TrackedExerciseView`,
+  `SetRowView` and `CardioRowView` are `Equatable` on those values and the model's identity — never
+  on the focus binding or a closure — and are wrapped in `.equatable()`. The fields take
+  `isFocused` as a value instead of reading `focus.wrappedValue`, which had every field in the
+  workout re-evaluating on each focus move. Laziness existed to stop a keystroke rebuilding every
+  field; the skip does that job, so both stacks are plain `VStack`s.
+- **Measured.** Six flings over 3 sections × 4–6 exercises × 5 sets (`-apexMockDense`): late frames
+  9 → 1. Opening the tracker builds every field up front: +~130 ms on the simulator for 60 rows. On
+  a cold open that sits behind "Loading session…"; on a cached open `.ready` lands during the
+  cover's presentation, so the cost may show as one stutter in that transition (a realistic 10 × 4
+  workout is ~100 fields, well under the dense case). Not yet timed on a device. The gate-protected smoke (`testTrackerOnFixtures`,
+  `testRunningWorkoutIsVisibleFromTheDayOnFixtures`) and the 321 unit tests pass unchanged.
+- **Why not Instruments.** Hitches, the SwiftUI instrument and Core Animation FPS all refuse the
+  simulator, and `xctrace --attach` returned empty traces there. `-apexFrameLog` (DEBUG) logs late
+  frames off a `CADisplayLink` into the unified log instead; the number is the same proxy a device
+  would give against its own frame period.
+- **Where the palette went.** `WorkoutPalette`'s synthesized `Equatable` is main-actor-isolated
+  (ApexUI's default isolation), which a `nonisolated` value type cannot call, so the card derives
+  it from `model.event` — a `let`, constant for the screen's life — rather than carrying it.

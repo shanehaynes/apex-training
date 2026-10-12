@@ -152,7 +152,13 @@ The tracker (W4) is answered too: `bootstrap` → `bootstrap.json` (or `bootstra
 seven minutes before the fixed clock, so Start Workout opens a live session rather than the
 committed (finished) `bootstrap.json`. `-apexMockFailOnce save 3` makes the first three `save`
 actions (or a path suffix) answer 500 and then succeed — the write queue's pending → synced path
-the smoke asserts on; `-apexMockFail` also matches an action name now.
+the smoke asserts on; `-apexMockFail` also matches an action name now. `-apexMockDense` clones
+the bootstrap in-process to 3 sections × 4–6 exercises × 5 sets (the fixture file is untouched;
+`fx-press` / `fx-row` keep their ids), because the fixture workout is two exercises and never
+scrolls. `-apexFrameLog` (DEBUG, any mode) runs a `CADisplayLink` and logs every late frame under
+category `frames` — the simulator has no Hitches instrument, so this is how a scroll is measured
+there: `xcrun simctl spawn <udid> log show --last 2m --info --predicate 'subsystem ==
+"com.shanehaynes.apextraining" AND category == "frames"'`.
 The Analytics tab (W9) is answered too: `GET /api/analytics-tiles` → `analytics-tiles.json` plus
 every save, layout commit and delete the session made; `POST /api/analytics-compute` matches each
 spec to a seeded tile and serves that slot of `analytics-compute.json` (index-aligned on purpose),
