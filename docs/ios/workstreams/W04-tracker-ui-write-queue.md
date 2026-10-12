@@ -149,3 +149,11 @@ Out: Live Activity (W12), rest timer (Backlog).
     `finished_at` are the phone's stamps.
 - 2026-09-08 · Mac · merged and shipped. A, B, C squash-merged in order; TestFlight build 2 = 0.3.0
   (build 295) uploaded from `chore/testflight-build-2`. Left for Shane: the airplane-mode device run.
+- 2026-10-12 · Mac · Scroll smoothing (D-054). Shane felt stutter scrolling the tracker on the
+  15 Pro. Cause: a `LazyVStack` in a `LazyVStack` realizing a whole text-field-heavy card per frame
+  as it entered the viewport. Both stacks are eager now; `TrackedExerciseView`/`SetRowView`/
+  `CardioRowView` are `Equatable` on `ExerciseRowInput`/`SetRowInput` values and the fields take
+  `isFocused` as a value. Measured with the new `-apexFrameLog` over a `-apexMockDense` workout
+  (both DEBUG flags, ios/CLAUDE.md): six flings, late frames 9 → 1. Smoke legs and unit tests
+  green. Snapshot references on `main` predate #390's "Add exercise" button, so the tracker-* images
+  mismatch before and after this change alike — not re-recorded here.

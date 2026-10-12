@@ -27,6 +27,9 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
 
 ## Next up
+0. **Tracker scroll fix (D-054) is on a branch, PR pending** — carries no migration; next
+   `testflight.yml` run after merge ships it, and Shane's phone run is the real verdict. If the
+   120 Hz device still hitches, the fallback is D-054's option (b): unfocused inputs as `Text`.
 0. **Answer App Review: 2.1 *Information Needed* (rejected 2026-10-09 11:54 PM, submission
    `9a4347ed`).** No defect named — Apple's standard request for a new developer account: a
    physical-device recording from launch (login, the flow, account deletion, any UGC/paid
@@ -91,6 +94,13 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-12 · Tracker scroll smoothing · Mac. The tracker's nested lazy stacks realized a
+  text-field-heavy card per frame mid-fling; both are eager `VStack`s now with rows `Equatable` on
+  value inputs so a keystroke still touches one card (D-054). Measured on the simulator with the new
+  DEBUG flags `-apexMockDense` (a 60-row workout) and `-apexFrameLog` (late frames off a
+  `CADisplayLink`): six flings, 9 late frames → 1. Smoke tracker legs and unit tests green. Shane's
+  device run on the next TestFlight build confirms the 120 Hz feel. Found in passing: the tracker-*
+  snapshot references predate #390's "Add exercise" button and need re-recording.
 - 2026-10-12 · App Review rejection · Mac. Read the rejection in App Store Connect: Guideline 2.1
   *Information Needed – New App Submission* (limited review history), asking for a device recording
   and six answers (purpose, setup, external services, regions, regulated material). Drafted the
