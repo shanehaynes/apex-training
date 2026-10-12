@@ -27,7 +27,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
 
 ## Next up
-0. **Tracker scroll fix (D-054) is on a branch, PR pending** — carries no migration; next
+0. **Tracker scroll fix (D-054) is PR #398** — carries no migration; next
    `testflight.yml` run after merge ships it, and Shane's phone run is the real verdict. If the
    120 Hz device still hitches, the fallback is D-054's option (b): unfocused inputs as `Text`.
 0. **Answer App Review: 2.1 *Information Needed* (rejected 2026-10-09 11:54 PM, submission
