@@ -10,7 +10,11 @@ import SwiftUI
 /// `Equatable` on these values alone — never on the model reference, the
 /// focus binding or a closure — so one keystroke re-evaluates one card, one
 /// row and one field, and a focus move the two rows whose border changes.
-/// `TrackerScreen` computes them; nothing here reads `model.editor`.
+/// `TrackerScreen` computes them; nothing here reads `model.editor`. The one
+/// value every input carries is `durationModeToggle`: an "Abc / 123" tap
+/// re-evaluates every row (as it always did), and it must stay that way —
+/// zeroing it for unfocused rows would hand `DurationField` the jump in the
+/// same pass that focuses it, and flip its mode.
 nonisolated struct ExerciseRowInput: Equatable, Sendable {
     let tracked: TrackedExercise
     let fields: [SetField]
