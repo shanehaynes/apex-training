@@ -835,6 +835,7 @@ internal enum PublicSchema {
     internal let id: String
     internal let imageUrl: String?
     internal let isUnilateral: Bool
+    internal let logFields: [String]
     internal let muscleGroups: [String]
     internal let techniqueNotes: String?
     internal let updatedAt: String
@@ -854,6 +855,7 @@ internal enum PublicSchema {
       case id = "id"
       case imageUrl = "image_url"
       case isUnilateral = "is_unilateral"
+      case logFields = "log_fields"
       case muscleGroups = "muscle_groups"
       case techniqueNotes = "technique_notes"
       case updatedAt = "updated_at"
@@ -875,6 +877,7 @@ internal enum PublicSchema {
     internal let id: String
     internal let imageUrl: String?
     internal let isUnilateral: Bool?
+    internal let logFields: [String]?
     internal let muscleGroups: [String]?
     internal let techniqueNotes: String?
     internal let updatedAt: String?
@@ -894,6 +897,7 @@ internal enum PublicSchema {
       case id = "id"
       case imageUrl = "image_url"
       case isUnilateral = "is_unilateral"
+      case logFields = "log_fields"
       case muscleGroups = "muscle_groups"
       case techniqueNotes = "technique_notes"
       case updatedAt = "updated_at"
@@ -915,6 +919,7 @@ internal enum PublicSchema {
     internal let id: String?
     internal let imageUrl: String?
     internal let isUnilateral: Bool?
+    internal let logFields: [String]?
     internal let muscleGroups: [String]?
     internal let techniqueNotes: String?
     internal let updatedAt: String?
@@ -934,6 +939,7 @@ internal enum PublicSchema {
       case id = "id"
       case imageUrl = "image_url"
       case isUnilateral = "is_unilateral"
+      case logFields = "log_fields"
       case muscleGroups = "muscle_groups"
       case techniqueNotes = "technique_notes"
       case updatedAt = "updated_at"
@@ -2624,6 +2630,60 @@ internal enum PublicSchema {
       case updatedAt = "updated_at"
       case userId = "user_id"
       case warmup = "warmup"
+    }
+  }
+  internal struct WorkoutExerciseNotesSelect: Codable, Hashable, Sendable {
+    internal let eventDate: String
+    internal let eventId: String
+    internal let exerciseId: String
+    internal let note: String
+    internal let section: String
+    internal let updatedAt: String
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case eventDate = "event_date"
+      case eventId = "event_id"
+      case exerciseId = "exercise_id"
+      case note = "note"
+      case section = "section"
+      case updatedAt = "updated_at"
+      case userId = "user_id"
+    }
+  }
+  internal struct WorkoutExerciseNotesInsert: Codable, Hashable, Sendable {
+    internal let eventDate: String
+    internal let eventId: String
+    internal let exerciseId: String
+    internal let note: String
+    internal let section: String
+    internal let updatedAt: String?
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case eventDate = "event_date"
+      case eventId = "event_id"
+      case exerciseId = "exercise_id"
+      case note = "note"
+      case section = "section"
+      case updatedAt = "updated_at"
+      case userId = "user_id"
+    }
+  }
+  internal struct WorkoutExerciseNotesUpdate: Codable, Hashable, Sendable {
+    internal let eventDate: String?
+    internal let eventId: String?
+    internal let exerciseId: String?
+    internal let note: String?
+    internal let section: String?
+    internal let updatedAt: String?
+    internal let userId: UUID?
+    internal enum CodingKeys: String, CodingKey {
+      case eventDate = "event_date"
+      case eventId = "event_id"
+      case exerciseId = "exercise_id"
+      case note = "note"
+      case section = "section"
+      case updatedAt = "updated_at"
+      case userId = "user_id"
     }
   }
   internal struct WorkoutSessionsSelect: Codable, Hashable, Sendable {
