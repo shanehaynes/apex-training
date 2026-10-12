@@ -27,11 +27,14 @@ public final class OnboardingModel {
         /// no page to resolve them against. Nil hides a relative link rather
         /// than opening a URL with no host.
         public let publicOrigin: URL?
+        /// "Today" for the starter plan, which the server starts on the device's local date.
+        public let clock: any ApexClock
+        public let timeZone: TimeZone
 
         public init(
             client: ApexClient, routes: RouteBus, corosConfigured: @escaping @MainActor () async -> Bool,
             onTemplateCopied: @escaping @MainActor () async -> Void, openKeySheet: @escaping @MainActor () -> Void,
-            publicOrigin: URL? = nil
+            publicOrigin: URL? = nil, clock: any ApexClock = SystemClock(), timeZone: TimeZone = .current
         ) {
             self.client = client
             self.routes = routes
@@ -39,6 +42,8 @@ public final class OnboardingModel {
             self.onTemplateCopied = onTemplateCopied
             self.openKeySheet = openKeySheet
             self.publicOrigin = publicOrigin
+            self.clock = clock
+            self.timeZone = timeZone
         }
     }
 
@@ -217,10 +222,11 @@ public final class OnboardingModel {
         isCopying = true
         defer { isCopying = false }
         do {
-            let data = try await deps.client.data(for: .copyTemplate)
+            let today = DayKey.today(clock: deps.clock, timeZone: deps.timeZone)
+            let data = try await deps.client.data(for: .copyTemplate(startDate: today))
             let result = (try? JSONDecoder().decode(TemplateCopyResult.self, from: data)) ?? TemplateCopyResult()
             ToastBus.shared.post(
-                result.alreadyCopied == true ? "Already copied" : "Added \(result.events ?? 0) recurring workouts",
+                result.alreadyCopied == true ? "Already copied" : "Added \(result.events ?? 0) recurring workouts for the next 4 weeks",
                 level: .success
             )
             await deps.onTemplateCopied()

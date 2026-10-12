@@ -191,6 +191,8 @@ final class OnboardingModelTests: XCTestCase {
         transport.set("GET /api/profile", .json(200, Self.profile(dismissed: true, template: true)))
         await model.copyTemplate()
         XCTAssertEqual(transport.requests("/api/template-copy").count, 1)
+        let startDate = transport.requests("/api/template-copy").first?.body?["startDate"] as? String
+        XCTAssertNotNil(startDate.flatMap(DayKey.init), "the plan starts on the device's local today")
         XCTAssertEqual(recorder.templateCopied, 1, "the schedule re-reads its window")
         XCTAssertEqual(model.nudgeRows.first?.done, true)
     }

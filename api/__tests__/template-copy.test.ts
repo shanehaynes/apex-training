@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import handler from '../_lib/handlers/templateCopy';
+import handler, { resolveStartDate } from '../_lib/handlers/templateCopy';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 import { enforceRateLimit } from '../_lib/rateLimit';
 
@@ -25,6 +25,8 @@ interface AdminState {
   /** Recorded: every profiles UPDATE payload, in order. */
   profileUpdates: Array<Record<string, unknown>>;
   insertedEvents: number;
+  /** Recorded: the rows of the last workout_events insert. */
+  insertedRows: Array<Record<string, unknown>>;
 }
 
 function makeAdmin(state: AdminState) {
@@ -52,7 +54,10 @@ function makeAdmin(state: AdminState) {
       };
       b.insert = (rows: unknown[]) => {
         op = 'insert';
-        if (table === 'workout_events') state.insertedEvents += rows.length;
+        if (table === 'workout_events') {
+          state.insertedEvents += rows.length;
+          state.insertedRows = rows as Array<Record<string, unknown>>;
+        }
         return b;
       };
       b.upsert = () => { op = 'upsert'; return b; };
@@ -64,8 +69,8 @@ function makeAdmin(state: AdminState) {
   } as unknown as NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 }
 
-function makeReq(): VercelRequest {
-  return { method: 'POST', headers: {}, body: {}, query: {} } as unknown as VercelRequest;
+function makeReq(body: unknown = {}): VercelRequest {
+  return { method: 'POST', headers: {}, body, query: {} } as unknown as VercelRequest;
 }
 
 function makeRes() {
@@ -83,7 +88,7 @@ function makeRes() {
 let state: AdminState;
 
 beforeEach(() => {
-  state = { lockRows: [{ id: 'user-123' }], copiedAt: null, sourceEvents: [], profileUpdates: [], insertedEvents: 0 };
+  state = { lockRows: [{ id: 'user-123' }], copiedAt: null, sourceEvents: [], profileUpdates: [], insertedEvents: 0, insertedRows: [] };
   mockedAdmin.mockReturnValue(makeAdmin(state));
   mockedLimit.mockClear();
   mockedLimit.mockResolvedValue(true);
@@ -106,11 +111,14 @@ describe('POST /api/template-copy — throttle', () => {
 
 describe('POST /api/template-copy — a lost claim', () => {
   it('copies when it wins the claim', async () => {
-    state.sourceEvents = [{ id: 'src-1', user_id: 'source-1', title: 'Push day' }];
+    state.sourceEvents = [{
+      id: 'src-1', user_id: 'source-1', title: 'Push day', date: '2026-07-06',
+      is_recurring: true, recurrence_rule: 'FREQ=WEEKLY;BYDAY=MO;UNTIL=20260927',
+    }];
     const { res, statusCode, body } = makeRes();
     await handler(makeReq(), res);
     expect(statusCode()).toBe(200);
-    expect(body()).toEqual({ events: 1, definitions: 0 });
+    expect(body()).toMatchObject({ events: 1, definitions: 0 });
     expect(state.insertedEvents).toBe(1);
   });
 
@@ -144,5 +152,43 @@ describe('POST /api/template-copy — a lost claim', () => {
     const { res, statusCode } = makeRes();
     await handler(makeReq(), res);
     expect(statusCode()).toBe(404);
+  });
+});
+
+describe('POST /api/template-copy — the 4-week block', () => {
+  it('rebases each series onto the block starting on the sent date', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    state.sourceEvents = [
+      { id: 'src-1', user_id: 'source-1', date: '2026-07-06', is_recurring: true,
+        recurrence_rule: 'FREQ=DAILY;UNTIL=20260927' },
+      // 'custom' legacy pattern — nothing the engine can rebase, so skipped.
+      { id: 'src-2', user_id: 'source-1', date: '2026-07-06', is_recurring: true,
+        recurrence_rule: null, recurring_frequency: 'custom' },
+    ];
+    const { res, body } = makeRes();
+    await handler(makeReq({ startDate: today }), res);
+    const [y, m, d] = today.split('-').map(Number);
+    const end = new Date(Date.UTC(y, m - 1, d + 27)).toISOString().slice(0, 10);
+    expect(body()).toEqual({ events: 1, definitions: 0, startDate: today, endDate: end });
+    expect(state.insertedRows[0]).toMatchObject({
+      date: today,
+      recurrence_rule: `FREQ=DAILY;UNTIL=${end.replace(/-/g, '')}`,
+      recurring_end_date: end,
+      user_id: 'user-123',
+    });
+  });
+});
+
+describe('resolveStartDate', () => {
+  it('takes a date within a day of UTC today', () => {
+    expect(resolveStartDate({ startDate: '2026-10-11' }, '2026-10-12')).toBe('2026-10-11');
+    expect(resolveStartDate({ startDate: '2026-10-13' }, '2026-10-12')).toBe('2026-10-13');
+  });
+
+  it('falls back to UTC today for missing, malformed or far-off dates', () => {
+    expect(resolveStartDate({}, '2026-10-12')).toBe('2026-10-12');
+    expect(resolveStartDate(null, '2026-10-12')).toBe('2026-10-12');
+    expect(resolveStartDate({ startDate: 'tomorrow' }, '2026-10-12')).toBe('2026-10-12');
+    expect(resolveStartDate({ startDate: '2026-07-06' }, '2026-10-12')).toBe('2026-10-12');
   });
 });
