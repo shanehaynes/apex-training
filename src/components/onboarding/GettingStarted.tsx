@@ -2,7 +2,7 @@ import { Check, X } from 'lucide-react';
 import { useState } from 'react';
 import { useCalendar } from '../../context/calendar';
 import { useTemplateCopy } from '../../hooks/useTemplateCopy';
-import { useOnboardingProgress, useLocalSetupProgress } from '../../hooks/useOnboardingProgress';
+import { useOnboardingProgress, useLocalSetupProgress, useSkipSetupRow } from '../../hooks/useOnboardingProgress';
 import { CHECKLIST_ITEMS, EXTRA_NOTES } from '../../lib/onboarding/content';
 
 // Two surfaces over the same setup state:
@@ -17,8 +17,10 @@ import { CHECKLIST_ITEMS, EXTRA_NOTES } from '../../lib/onboarding/content';
 
 export default function GettingStarted() {
   const { rows, applies, doneCount, allDone, run, isBusy } = useOnboardingProgress();
+  const skip = useSkipSetupRow();
 
-  if (!applies) return null;
+  // Every row skipped: nothing is left to show or to look back on.
+  if (!applies || rows.length === 0) return null;
 
   return (
     <section className="profile-section">
@@ -42,13 +44,16 @@ export default function GettingStarted() {
               <span className="setup__hint">{row.hint}</span>
             </div>
             {!row.done && (
-              <button
-                className="setup__action"
-                onClick={() => run(row.action.kind)}
-                disabled={isBusy(row.action.kind)}
-              >
-                {row.action.label}
-              </button>
+              <div className="setup__buttons">
+                <button
+                  className="setup__action"
+                  onClick={() => run(row.action.kind)}
+                  disabled={isBusy(row.action.kind)}
+                >
+                  {row.action.label}
+                </button>
+                <button className="setup__skip" onClick={() => skip(row.id)}>Skip</button>
+              </div>
             )}
           </li>
         ))}
@@ -65,14 +70,14 @@ export default function GettingStarted() {
 const NUDGE_IDS = ['template', 'key', 'goal'] as const;
 
 export function SetupNudge() {
-  const { done, applies, allDone } = useLocalSetupProgress();
+  const { done, skipped, applies, allDone } = useLocalSetupProgress();
   const { dispatch } = useCalendar();
   const { copyTemplate, isCopying } = useTemplateCopy();
   const [hidden, setHidden] = useState(false);
 
   if (!applies || allDone || hidden) return null;
 
-  const items = NUDGE_IDS.map(id => ({
+  const items = NUDGE_IDS.filter(id => !skipped(id)).map(id => ({
     ...CHECKLIST_ITEMS.find(i => i.id === id)!,
     done: done[id],
   }));

@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/auth';
 import { useOnboardingActions } from './useOnboardingActions';
 import { listMcpTokens } from '../lib/api';
-import { checklistRows, localSetupDone, type LocalSignals } from '../lib/onboarding/progress';
+import {
+  checklistRows, isSkipped, localSetupDone, setupSkipId, type LocalId, type LocalSignals,
+} from '../lib/onboarding/progress';
+import type { ChecklistId } from '../lib/onboarding/content';
 
 // Thin wiring only — the decisions live in lib/onboarding/progress.ts.
 
@@ -19,15 +22,24 @@ function signalsFrom(
 
 /** Signals already in memory — no network, safe on every render of the calendar. */
 export function useLocalSetupProgress() {
-  const { profile, anthropicKey } = useAuth();
+  const { profile, anthropicKey, tipsSeen } = useAuth();
   const done = localSetupDone(signalsFrom(profile, anthropicKey?.hasKey ?? null));
+  const owed = (id: LocalId) => !done[id] && !isSkipped(id, tipsSeen);
 
   return {
     done,
+    skipped: (id: LocalId) => isSkipped(id, tipsSeen),
     /** Fresh accounts only — the template source is Shane's own, set up by definition. */
     applies: !!profile && !profile.is_template_source,
-    allDone: done.template && done.key && done.goal,
+    /** Nothing left to ask for: every row is done or skipped. */
+    allDone: !owed('template') && !owed('key') && !owed('goal'),
   };
+}
+
+/** Skip a row for good, on every device. */
+export function useSkipSetupRow() {
+  const { markTipSeen } = useAuth();
+  return (id: ChecklistId) => markTipSeen(setupSkipId(id));
 }
 
 /**
@@ -36,7 +48,7 @@ export function useLocalSetupProgress() {
  * user opened deliberately) — the calendar uses useLocalSetupProgress instead.
  */
 export function useOnboardingProgress() {
-  const { profile, anthropicKey } = useAuth();
+  const { profile, anthropicKey, tipsSeen } = useAuth();
   const actions = useOnboardingActions();
   const [hasConnector, setHasConnector] = useState<boolean | null>(null);
 
@@ -55,7 +67,7 @@ export function useOnboardingProgress() {
     corosConnected: actions.corosStatus === 'connected',
     corosConfigured: actions.corosConfigured,
     hasConnector,
-  });
+  }, tipsSeen);
 
   return {
     ...actions,

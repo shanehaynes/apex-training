@@ -7,7 +7,7 @@ import { enforceRateLimit } from '../rateLimit.js';
 import { isCurrent, latestAcceptance } from '../legal.js';
 import { COACH_MODELS, isCoachModelId, resolveCoachModel } from '../../../src/lib/coach/models.js';
 import { publicOrigin } from '../oauth/common.js';
-import { localSetupDone } from '../../../src/lib/onboarding/progress.js';
+import { isSetupSkipId, localSetupDone, skippedIds } from '../../../src/lib/onboarding/progress.js';
 import { isTipId } from '../../../src/lib/onboarding/tips/index.js';
 import { contractProblem, normalizeContract } from '../../../src/lib/coach/contract.js';
 
@@ -147,6 +147,9 @@ function onboardingState(
     // Ids of the one-time tips this account has dismissed (profiles.tips_seen),
     // for the native app. Empty until the column exists.
     tipsSeen: row.tipsSeen,
+    // The checklist rows the user skipped (`setup-skip:<id>` in the same map),
+    // so the native card drops them exactly as the web's does.
+    skipped: skippedIds(new Set(row.tipsSeen)),
   };
 }
 
@@ -296,11 +299,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // One-time tip dismissed (docs/onboarding, D-O01): the id must be in the
-  // catalog, and the time is the server's, like onboarding_dismissed. The
+  // catalog, or a skipped Getting started row (`setup-skip:<id>`), and the time is the server's, like onboarding_dismissed. The
   // column is a map, so this reads it and writes back the merge — read here,
   // before any other write, so a missing column 409s with nothing changed.
   if (body?.tip_seen !== undefined) {
-    if (!isTipId(body.tip_seen)) {
+    if (!isTipId(body.tip_seen) && !isSetupSkipId(body.tip_seen)) {
       res.status(400).send('Invalid tip_seen');
       return;
     }

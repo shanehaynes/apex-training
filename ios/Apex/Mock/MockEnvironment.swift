@@ -104,6 +104,8 @@ actor FixtureTransport: HTTPTransport {
     /// the profile's `onboarding` block. A non-fresh user starts dismissed.
     private var onboardingDismissed: Bool
     private var templateCopied = false
+    /// Checklist rows skipped this session (`tip_seen: setup-skip:<id>`).
+    private var skippedRows: [String] = []
 
     /// W9: the dashboard's writes, replayed into later tile reads.
     private var tileEdits = TileEdits()
@@ -204,6 +206,10 @@ actor FixtureTransport: HTTPTransport {
                     hasKey = !(entry is NSNull)
                 }
                 if body?["onboarding_dismissed"] as? Bool == true { onboardingDismissed = true }
+                if let tip = body?["tip_seen"] as? String, tip.hasPrefix("setup-skip:") {
+                    let id = String(tip.dropFirst("setup-skip:".count))
+                    if !skippedRows.contains(id) { skippedRows.append(id) }
+                }
                 for key in ["display_name", "avatar_key", "coach_goal", "coach_context", "coach_model", "max_hr", "threshold_hr"] {
                     if let value = body?[key] { profileEdits[key] = value }
                 }
@@ -466,6 +472,7 @@ actor FixtureTransport: HTTPTransport {
             "dismissedAt": onboardingDismissed ? CompletionRows.isoTimestamp(clock.now.addingTimeInterval(-86_400)) : NSNull(),
             "applies": true,
             "setup": ["template": templateCopied, "key": hasKey, "goal": !goal.isEmpty],
+            "skipped": skippedRows,
         ] as [String: Any]
         return (try? JSONSerialization.data(withJSONObject: object)) ?? data
     }

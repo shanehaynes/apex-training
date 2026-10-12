@@ -405,7 +405,9 @@ final class SmokeUITests: XCTestCase {
         let copy = app.buttons["onboarding.welcome.action"]
         XCTAssertTrue(copy.waitForExistence(timeout: 5))
         copy.tap()
-        XCTAssertTrue(app.staticTexts["Added 3 recurring workouts"].waitForExistence(timeout: 10))
+        // A prefix: #392 added where the plan lands ("… for the next 4 weeks").
+        let toast = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Added 3 recurring workouts")).firstMatch
+        XCTAssertTrue(toast.waitForExistence(timeout: 10))
         attach(app, name: "w13-02-welcome-copied")
 
         // The last page is the coach: its key button, the goal row, and the

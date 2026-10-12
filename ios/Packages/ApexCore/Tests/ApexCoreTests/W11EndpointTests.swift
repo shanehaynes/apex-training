@@ -19,6 +19,7 @@ final class W11EndpointTests: XCTestCase {
 
         XCTAssertEqual(body(Endpoint.setAvatarKey("ibex")), #"{"avatar_key":"ibex"}"#)
         XCTAssertEqual(body(Endpoint.dismissOnboarding), #"{"onboarding_dismissed":true}"#)
+        XCTAssertEqual(body(Endpoint.skipSetupRow(.connector)), #"{"tip_seen":"setup-skip:connector"}"#)
     }
 
     /// Whole numbers must not encode as `190.0`: the server takes an integer
