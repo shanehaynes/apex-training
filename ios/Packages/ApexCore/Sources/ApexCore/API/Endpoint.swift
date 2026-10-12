@@ -459,7 +459,10 @@ public struct Endpoint: Sendable, Equatable {
     /// Copy the starter plan (Shane's recurring workouts) into this account.
     /// Idempotent server-side: `profiles.template_copied_at` is the lock, and a
     /// second call answers `{ alreadyCopied: true }` (W13, the welcome flow).
-    public static let copyTemplate = Endpoint(method: .post, path: "api/template-copy", body: json([String: String]()))
+    /// `startDate` is the device's local today: the server rebases the starter plan onto the 4 weeks from it.
+    public static func copyTemplate(startDate: DayKey) -> Endpoint {
+        Endpoint(method: .post, path: "api/template-copy", body: json(["startDate": startDate.string]))
+    }
 
     /// A one-way latch — there is no un-dismiss, and only `true` is accepted.
     public static let dismissOnboarding = Endpoint(

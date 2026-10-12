@@ -4,14 +4,27 @@ import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { optionalEnv } from '../env.js';
 import { requireUser } from '../auth.js';
 import { enforceRateLimit } from '../rateLimit.js';
-import { cloneEventRow, collectDefinitionIds } from '../../../src/lib/template/clone.js';
+import { addIsoDays, cloneEventRow, collectDefinitionIds, templateBlockEnd } from '../../../src/lib/template/clone.js';
 import type { ExerciseDefinitionRow, TablesInsert, WorkoutEventRow } from '../../../src/lib/db/types.js';
 
 // Copies the template user's recurring workouts (plus every exercise
-// definition they reference) onto the caller's calendar. One-time per
+// definition they reference) onto the caller's calendar, each series rebased
+// to a 4-week block starting on the caller's clone date. One-time per
 // account: profiles.template_copied_at is both the record and the
 // idempotency lock, claimed atomically before any inserts so a double-click
 // or retry can never duplicate the plan.
+
+/**
+ * The block starts on the client's local "today" when it sends one. Clients
+ * that send nothing (older iOS builds), or a date more than a day from the
+ * server's UTC today — further than any time zone can be — get UTC today.
+ */
+export function resolveStartDate(body: unknown, todayUtc = new Date().toISOString().slice(0, 10)): string {
+  const sent = (body as { startDate?: unknown } | null)?.startDate;
+  if (typeof sent !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(sent)) return todayUtc;
+  const allowed = [addIsoDays(todayUtc, -1), todayUtc, addIsoDays(todayUtc, 1)];
+  return allowed.includes(sent) ? sent : todayUtc;
+}
 
 async function resolveSourceUserId(
   supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
@@ -108,8 +121,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const events = (sourceEvents ?? []) as WorkoutEventRow[];
-  const definitionIds = collectDefinitionIds(events);
+  const startDate = resolveStartDate(req.body);
+  const endDate = templateBlockEnd(startDate);
+  const eventClones = ((sourceEvents ?? []) as WorkoutEventRow[])
+    .map(row => cloneEventRow(row, `tpl-${randomUUID()}`, userId, startDate))
+    .filter(row => row !== null);
+  const definitionIds = collectDefinitionIds(eventClones as WorkoutEventRow[]);
 
   let definitions: ExerciseDefinitionRow[] = [];
   if (definitionIds.length > 0) {
@@ -145,8 +162,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  if (events.length > 0) {
-    const eventClones = events.map(row => cloneEventRow(row, `tpl-${randomUUID()}`, userId));
+  if (eventClones.length > 0) {
     const { error } = await supabase
       .from('workout_events')
       .insert(eventClones as TablesInsert<'workout_events'>[]);
@@ -160,5 +176,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Deliberately not copied: exceptions, completions, sessions, logs — those
   // are the source user's history, not part of the plan.
-  res.status(200).json({ events: events.length, definitions: definitions.length });
+  res.status(200).json({ events: eventClones.length, definitions: definitions.length, startDate, endDate });
 }

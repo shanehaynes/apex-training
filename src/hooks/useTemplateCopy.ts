@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { format } from 'date-fns';
 import { postJson } from '../lib/api';
 import { notify } from '../lib/notify';
+import { now } from '../lib/clock';
 import { useAuth } from '../context/auth';
 import { useSchedule } from '../context/schedule';
 
@@ -45,14 +47,15 @@ export function useTemplateCopy() {
     setIsCopying(true);
     try {
       const result = await postJson<{ events?: number; alreadyCopied?: boolean; copiedAt?: string | null }>(
-        '/api/template-copy', {}, 'Copying starter workouts',
+        // The plan starts on the user's local today, not the server's.
+        '/api/template-copy', { startDate: format(now(), 'yyyy-MM-dd') }, 'Copying starter workouts',
       );
       if (!result.alreadyCopied) markTemplateCopiedHere(session?.user.id ?? null);
       // The re-check: whatever the answer, the calendar and profile are
       // refetched before anything is claimed about them.
       await Promise.all([refreshEvents(), refreshProfile()]);
       if (!result.alreadyCopied) {
-        notify(`Added ${result.events ?? 0} recurring workouts`);
+        notify(`Added ${result.events ?? 0} recurring workouts for the next 4 weeks`);
         return;
       }
       // Someone else holds the claim. Only a stamp old enough to have settled

@@ -280,7 +280,8 @@ final class AppModel {
             },
             onTemplateCopied: { [weak self] in await self?.schedule.refresh(reason: .afterEdit) },
             openKeySheet: { [weak self] in self?.you?.showKeySheet = true },
-            publicOrigin: AppConfig.publicOrigin
+            publicOrigin: AppConfig.publicOrigin,
+            clock: clock
         ))
         onboarding = onboardingModel
         Task { await onboardingModel.start() }
