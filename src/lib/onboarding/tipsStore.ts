@@ -1,4 +1,5 @@
 import type { TipId } from './tips/index';
+import type { SetupSkipId } from './progress';
 import type { TipCandidate } from './tipHost';
 
 // The tips' two pieces of client state, neither of which is React state.
@@ -78,7 +79,7 @@ export function loadLocalTipsSeen(userId: string | null): Record<string, string>
   }
 }
 
-export function saveLocalTipSeen(userId: string | null, id: TipId, at: string) {
+export function saveLocalTipSeen(userId: string | null, id: TipId | SetupSkipId, at: string) {
   if (!userId) return;
   try {
     localStorage.setItem(LS_PREFIX + userId, JSON.stringify({ ...loadLocalTipsSeen(userId), [id]: at }));

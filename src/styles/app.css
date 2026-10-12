@@ -5432,6 +5432,28 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 .setup__action:hover:not(:disabled) { border-color: var(--accent-primary); }
 .setup__action:disabled { opacity: 0.55; cursor: default; }
 
+/* The row's own action, with a quiet way out under it for a step the user
+   does not want. */
+.setup__buttons {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.setup__skip {
+  height: 24px;
+  padding: 0 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.setup__skip:hover { color: var(--text-primary); }
+
 .setup__notes {
   margin-top: 14px;
   display: flex;

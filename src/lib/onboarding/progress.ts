@@ -29,6 +29,27 @@ export function localSetupDone(signals: LocalSignals): Record<LocalId, boolean> 
   };
 }
 
+// A row the user does not want to do can be skipped. The skip is a one-way
+// latch with the same lifetime as a dismissed tip, so it is stored the same
+// way: a `setup-skip:<id>` key in profiles.tips_seen (and the device mirror),
+// which crosses devices with no column of its own.
+const SKIP_PREFIX = 'setup-skip:';
+
+export type SetupSkipId = `${typeof SKIP_PREFIX}${ChecklistId}`;
+
+export function setupSkipId(id: ChecklistId): SetupSkipId {
+  return `${SKIP_PREFIX}${id}`;
+}
+
+export function isSetupSkipId(value: unknown): value is SetupSkipId {
+  return typeof value === 'string' && value.startsWith(SKIP_PREFIX)
+    && CHECKLIST_ITEMS.some(item => item.id === value.slice(SKIP_PREFIX.length));
+}
+
+export function isSkipped(id: ChecklistId, seen: ReadonlySet<string>): boolean {
+  return seen.has(setupSkipId(id));
+}
+
 /** The two signals that cost a request, resolved by the caller. */
 export interface RemoteSignals {
   corosConnected: boolean;
@@ -41,7 +62,10 @@ export interface ProgressRow extends ChecklistItem {
   done: boolean;
 }
 
-export function checklistRows(local: LocalSignals, remote: RemoteSignals): ProgressRow[] {
+/** Skipped rows are left out entirely: they are neither done nor owed. */
+export function checklistRows(
+  local: LocalSignals, remote: RemoteSignals, seen: ReadonlySet<string> = new Set(),
+): ProgressRow[] {
   const localDone = localSetupDone(local);
 
   const doneFor = (id: ChecklistId): boolean => {
@@ -60,5 +84,6 @@ export function checklistRows(local: LocalSignals, remote: RemoteSignals): Progr
     // A deployment without COROS env vars hides the whole feature; promising
     // it in a checklist the user can never satisfy would be a dead end.
     .filter(item => !item.requiresCoros || remote.corosConfigured)
+    .filter(item => !isSkipped(item.id, seen))
     .map(item => ({ ...item, done: doneFor(item.id) }));
 }

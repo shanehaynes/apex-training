@@ -6,6 +6,7 @@ import type { AcceptanceStatus } from '../lib/api';
 import { clearCompletedIds } from '../lib/schedule/localCompletion';
 import { loadLocalTipsSeen, saveLocalTipSeen } from '../lib/onboarding/tipsStore';
 import type { TipId } from '../lib/onboarding/tips/index';
+import type { SetupSkipId } from '../lib/onboarding/progress';
 import { publicOrigin } from '../lib/origin';
 import { parseAuthLinkError } from '../lib/auth/linkError';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
@@ -248,7 +249,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // migration is applied to prod by hand and may lag this code for weeks, and
   // until it lands the server could only answer 409. The local mirror is
   // written either way, so a tip never comes back on this device.
-  const markTipSeen = useCallback((id: TipId) => {
+  const markTipSeen = useCallback((id: TipId | SetupSkipId) => {
     const at = new Date().toISOString();
     saveLocalTipSeen(userId, id, at);
     // From memory as well as storage: a browser refusing localStorage must

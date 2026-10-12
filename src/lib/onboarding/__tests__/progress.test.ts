@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { localSetupDone, checklistRows, type LocalSignals, type RemoteSignals } from '../progress';
+import {
+  localSetupDone, checklistRows, isSetupSkipId, setupSkipId, type LocalSignals, type RemoteSignals,
+} from '../progress';
 
 const local = (over: Partial<LocalSignals> = {}): LocalSignals => ({
   templateCopiedAt: null,
@@ -68,6 +70,11 @@ describe('checklistRows', () => {
     expect(row?.done).toBe(false);
   });
 
+  it('leaves out the rows the user skipped', () => {
+    const rows = checklistRows(local(), remote(), new Set([setupSkipId('coros'), 'some-tip']));
+    expect(rows.map(r => r.id)).toEqual(['template', 'key', 'goal', 'connector']);
+  });
+
   it('reports everything done for a fully set-up account', () => {
     const rows = checklistRows(
       local({ templateCopiedAt: '2026-08-12T00:00:00Z', hasAnthropicKey: true, coachGoal: 'Summit Denali' }),
@@ -82,5 +89,14 @@ describe('checklistRows', () => {
       expect(row.hint.length).toBeGreaterThan(0);
       expect(row.action.label.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('isSetupSkipId', () => {
+  it('accepts a skip for a real row and nothing else', () => {
+    expect(isSetupSkipId(setupSkipId('connector'))).toBe(true);
+    expect(isSetupSkipId('setup-skip:nope')).toBe(false);
+    expect(isSetupSkipId('connector')).toBe(false);
+    expect(isSetupSkipId(42)).toBe(false);
   });
 });
