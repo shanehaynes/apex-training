@@ -68,6 +68,7 @@
       "key": false,
       "goal": false
     },
-    "tipsSeen": []
+    "tipsSeen": [],
+    "skipped": []
   }
 }

@@ -67,6 +67,11 @@ public struct ProfileResponse: Codable, Sendable, Equatable {
         /// False for the template source (Shane's own account): no flow, no card.
         public let applies: Bool
         public let setup: Setup
+        /// The checklist rows the user skipped for good (`setup-skip:<id>` in
+        /// `profiles.tips_seen`). Absent from a server older than the skip,
+        /// and an id this build does not know is dropped rather than failing
+        /// the whole profile.
+        public let skipped: Set<OnboardingCatalog.ChecklistID>
 
         public struct Setup: Codable, Sendable, Equatable {
             public let template: Bool
@@ -89,10 +94,32 @@ public struct ProfileResponse: Codable, Sendable, Equatable {
             public var allDone: Bool { template && key && goal }
         }
 
-        public init(dismissedAt: String?, applies: Bool, setup: Setup) {
+        public init(dismissedAt: String?, applies: Bool, setup: Setup, skipped: Set<OnboardingCatalog.ChecklistID> = []) {
             self.dismissedAt = dismissedAt
             self.applies = applies
             self.setup = setup
+            self.skipped = skipped
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case dismissedAt, applies, setup, skipped
+        }
+
+        public init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            dismissedAt = try container.decodeIfPresent(String.self, forKey: .dismissedAt)
+            applies = try container.decode(Bool.self, forKey: .applies)
+            setup = try container.decode(Setup.self, forKey: .setup)
+            let raw = try container.decodeIfPresent([String].self, forKey: .skipped) ?? []
+            skipped = Set(raw.compactMap(OnboardingCatalog.ChecklistID.init(rawValue:)))
+        }
+
+        public func encode(to encoder: any Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(dismissedAt, forKey: .dismissedAt)
+            try container.encode(applies, forKey: .applies)
+            try container.encode(setup, forKey: .setup)
+            try container.encode(skipped.map(\.rawValue).sorted(), forKey: .skipped)
         }
     }
 

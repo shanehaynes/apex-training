@@ -62,6 +62,8 @@ public final class OnboardingModel {
     /// failed PATCH means the flow comes back on the next launch, which is the
     /// web's behaviour too.
     private var dismissedLocally = false
+    /// Rows skipped this session, ahead of the server's `skipped` coming back.
+    private var skippedLocally: Set<OnboardingCatalog.ChecklistID> = []
     /// The card's close is session-only (the web's `hidden`): the full list
     /// lives on the You tab, so nothing is lost and no flag is spent.
     public var nudgeHidden = false
@@ -110,10 +112,15 @@ public final class OnboardingModel {
         return state.dismissedAt == nil
     }
 
-    /// The card: same user, flow already dismissed, something left to do.
+    /// The card: same user, flow already dismissed, something left to do —
+    /// a row that is neither done nor skipped.
     public var showsNudge: Bool {
         guard let state, state.applies, !nudgeHidden else { return false }
-        return (state.dismissedAt != nil || dismissedLocally) && !state.setup.allDone
+        return (state.dismissedAt != nil || dismissedLocally) && nudgeRows.contains { !$0.done }
+    }
+
+    private var skipped: Set<OnboardingCatalog.ChecklistID> {
+        (state?.skipped ?? []).union(skippedLocally)
     }
 
     public var welcomeSteps: [OnboardingCatalog.Step] {
@@ -173,7 +180,7 @@ public final class OnboardingModel {
     public var nudgeRows: [NudgeRow] {
         guard let setup = state?.setup else { return [] }
         return OnboardingCatalog.nudgeIDs.compactMap { id in
-            guard let item = OnboardingCatalog.checklistItem(id), let done = setup.isDone(id) else { return nil }
+            guard !skipped.contains(id), let item = OnboardingCatalog.checklistItem(id), let done = setup.isDone(id) else { return nil }
             return NudgeRow(item: item, done: done)
         }
     }
@@ -187,6 +194,15 @@ public final class OnboardingModel {
     public func dismissWelcome() async {
         dismissedLocally = true
         _ = try? await deps.client.data(for: .dismissOnboarding)
+        await refresh()
+    }
+
+    /// A row the user does not want: gone at once, then on the server so no
+    /// other device (nor the web) asks again. A failed PATCH brings it back on
+    /// the next launch, like the welcome flow's dismissal.
+    public func skip(_ id: OnboardingCatalog.ChecklistID) async {
+        skippedLocally.insert(id)
+        _ = try? await deps.client.data(for: .skipSetupRow(id))
         await refresh()
     }
 

@@ -469,6 +469,12 @@ public struct Endpoint: Sendable, Equatable {
         method: .patch, path: "api/profile", body: json(["onboarding_dismissed": JSONValue.bool(true)])
     )
 
+    /// Skip a "Finish setting up" row for good, on every device: the same
+    /// one-way latch as a dismissed tip, stored as `setup-skip:<id>`.
+    public static func skipSetupRow(_ id: OnboardingCatalog.ChecklistID) -> Endpoint {
+        profilePatch(["tip_seen": .string("setup-skip:\(id.rawValue)")])
+    }
+
     /// The activity log: the three audit tables merged newest-first, capped at
     /// 100 server-side. No paging and no parameters.
     public static let mutationsLog = Endpoint(path: "api/mutations-log")

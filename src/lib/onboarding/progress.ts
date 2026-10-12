@@ -50,6 +50,11 @@ export function isSkipped(id: ChecklistId, seen: ReadonlySet<string>): boolean {
   return seen.has(setupSkipId(id));
 }
 
+/** The skipped rows among a set of seen ids, in checklist order. */
+export function skippedIds(seen: ReadonlySet<string>): ChecklistId[] {
+  return CHECKLIST_ITEMS.map(item => item.id).filter(id => isSkipped(id, seen));
+}
+
 /** The two signals that cost a request, resolved by the caller. */
 export interface RemoteSignals {
   corosConnected: boolean;

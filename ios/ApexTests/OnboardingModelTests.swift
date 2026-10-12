@@ -6,12 +6,16 @@ import XCTest
 /// server's `onboarding` block; these prove the model reads them, latches the
 /// dismissal, sends the two writes, and routes each button where it says.
 final class OnboardingModelTests: XCTestCase {
-    private static func profile(dismissed: Bool, applies: Bool = true, template: Bool = false, key: Bool = false, goal: Bool = false) -> Data {
+    private static func profile(
+        dismissed: Bool, applies: Bool = true, template: Bool = false, key: Bool = false, goal: Bool = false,
+        skipped: [String] = []
+    ) -> Data {
         var object = try! JSONSerialization.jsonObject(with: YouTransport.fixture("profile.json")) as! [String: Any]
         object["onboarding"] = [
             "dismissedAt": dismissed ? "2026-09-07T11:00:00.000Z" : NSNull(),
             "applies": applies,
             "setup": ["template": template, "key": key, "goal": goal],
+            "skipped": skipped,
         ] as [String: Any]
         return try! JSONSerialization.data(withJSONObject: object)
     }
@@ -137,6 +141,36 @@ final class OnboardingModelTests: XCTestCase {
         model.nudgeHidden = true
         XCTAssertFalse(model.showsNudge, "the close is session-only, no write")
         XCTAssertTrue(transport.requests("/api/profile").filter { $0.method == "PATCH" }.isEmpty)
+    }
+
+    /// A skipped row leaves the card at once, the skip is sent as a tip id the
+    /// web shares, and the server's `skipped` keeps it gone after the re-read.
+    @MainActor
+    func testSkippingARowDropsItAndPatchesTheServer() async {
+        let transport = YouTransport()
+        transport.set("GET /api/profile", .json(200, Self.profile(dismissed: true, key: true)))
+        transport.set("PATCH /api/profile", .json(200, Data(#"{"ok":true}"#.utf8)))
+        let (model, _, _) = make(transport)
+        await model.start()
+        await model.skip(.goal)
+        XCTAssertEqual(model.nudgeRows.map(\.id), [.template, .key])
+        let patch = transport.requests("/api/profile").last { $0.method == "PATCH" }
+        XCTAssertEqual(patch?.body?["tip_seen"] as? String, "setup-skip:goal")
+        XCTAssertTrue(model.showsNudge, "the starter plan is still owed")
+
+        await model.skip(.template)
+        XCTAssertFalse(model.showsNudge, "only the done key is left: nothing owed")
+    }
+
+    @MainActor
+    func testTheServersSkipsHideRowsOnLaunch() async {
+        let transport = YouTransport()
+        transport.set("GET /api/profile", .json(200, Self.profile(dismissed: true, skipped: ["template", "goal", "from-a-newer-server"])))
+        let (model, _, _) = make(transport)
+        await model.start()
+        XCTAssertEqual(model.nudgeRows.map(\.id), [.key])
+        XCTAssertEqual(model.nudgeDoneCount, 0)
+        XCTAssertTrue(model.showsNudge)
     }
 
     @MainActor

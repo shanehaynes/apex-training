@@ -70,7 +70,7 @@ const PROFILE_DEFAULTS = {
   maxHr: null, thresholdHr: null, calendarFeedUrl: null,
   // W13: a fresh account with no key — the welcome flow is due, nothing ticked.
   onboarding: {
-    dismissedAt: null, applies: true, setup: { template: false, key: false, goal: false }, tipsSeen: [],
+    dismissedAt: null, applies: true, setup: { template: false, key: false, goal: false }, tipsSeen: [], skipped: [],
   },
 };
 
@@ -267,6 +267,7 @@ describe('GET /api/profile', () => {
       applies: true,
       setup: { template: true, key: true, goal: true },
       tipsSeen: [],
+      skipped: [],
     });
   });
 
@@ -651,8 +652,27 @@ describe('tips_seen (one-time tips, docs/onboarding D-O01)', () => {
     expect(Object.keys(state.profileUpdate?.tips_seen as object)).toEqual(['coach-goal']);
   });
 
+  it('GET lists the skipped checklist rows apart from the tips', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({
+      key: null,
+      profile: { tips_seen: { 'setup-skip:goal': '2026-10-12T00:00:00Z', 'coach-goal': '2026-09-20T00:00:00Z', 'setup-skip:template': '2026-10-12T00:00:00Z' } },
+    }));
+    const { res, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect((body() as { onboarding: { skipped: string[] } }).onboarding.skipped).toEqual(['template', 'goal']);
+  });
+
+  it('PATCH accepts a skipped checklist row', async () => {
+    const state: AdminState = { key: null, profile: { tips_seen: {} } };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode } = makeRes();
+    await handler(makeReq('PATCH', { tip_seen: 'setup-skip:connector' }), res);
+    expect(statusCode()).toBe(200);
+    expect(Object.keys(state.profileUpdate?.tips_seen as object)).toEqual(['setup-skip:connector']);
+  });
+
   it('400s an id that is not in the tip catalog', async () => {
-    for (const value of ['not-a-tip', '', 1, null, true, ['coach-goal'], { id: 'coach-goal' }]) {
+    for (const value of ['not-a-tip', 'setup-skip:nope', '', 1, null, true, ['coach-goal'], { id: 'coach-goal' }]) {
       const state: AdminState = { key: null };
       mockedAdmin.mockReturnValue(makeAdmin(state));
       const { res, statusCode, body } = makeRes();

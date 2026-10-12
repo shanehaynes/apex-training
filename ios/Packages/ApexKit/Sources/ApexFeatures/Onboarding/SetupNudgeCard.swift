@@ -193,7 +193,30 @@ public struct SetupNudgeCard: View {
         }
     }
 
+    /// The row's own button, with a quiet way out beside it for a step the
+    /// user does not want — skipped for good, here and on the web.
     private func rowAction(_ row: OnboardingModel.NudgeRow) -> some View {
+        HStack(spacing: Spacing.xs) {
+            Button {
+                Task { await model.skip(row.id) }
+            } label: {
+                Text("Skip")
+                    .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
+                    .foregroundStyle(ApexColor.textMuted)
+                    .lineLimit(1)
+                    .padding(.horizontal, Spacing.sm)
+                    .frame(minHeight: 44)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Skip \(row.item.label)")
+            .accessibilityIdentifier("onboarding.nudge.skip.\(row.id.rawValue)")
+
+            primaryAction(row)
+        }
+    }
+
+    private func primaryAction(_ row: OnboardingModel.NudgeRow) -> some View {
         Button {
             Task { await model.run(row.item.action, for: row.id.rawValue) }
         } label: {

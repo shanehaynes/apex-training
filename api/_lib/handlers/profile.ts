@@ -7,7 +7,7 @@ import { enforceRateLimit } from '../rateLimit.js';
 import { isCurrent, latestAcceptance } from '../legal.js';
 import { COACH_MODELS, isCoachModelId, resolveCoachModel } from '../../../src/lib/coach/models.js';
 import { publicOrigin } from '../oauth/common.js';
-import { isSetupSkipId, localSetupDone } from '../../../src/lib/onboarding/progress.js';
+import { isSetupSkipId, localSetupDone, skippedIds } from '../../../src/lib/onboarding/progress.js';
 import { isTipId } from '../../../src/lib/onboarding/tips/index.js';
 import { contractProblem, normalizeContract } from '../../../src/lib/coach/contract.js';
 
@@ -147,6 +147,9 @@ function onboardingState(
     // Ids of the one-time tips this account has dismissed (profiles.tips_seen),
     // for the native app. Empty until the column exists.
     tipsSeen: row.tipsSeen,
+    // The checklist rows the user skipped (`setup-skip:<id>` in the same map),
+    // so the native card drops them exactly as the web's does.
+    skipped: skippedIds(new Set(row.tipsSeen)),
   };
 }
 

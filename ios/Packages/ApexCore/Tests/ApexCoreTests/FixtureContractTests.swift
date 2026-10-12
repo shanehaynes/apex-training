@@ -239,6 +239,7 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertFalse(onboarding.setup.allDone)
         XCTAssertEqual(onboarding.setup.isDone(.key), false)
         XCTAssertNil(onboarding.setup.isDone(.coros), "the card never answers the two remote rows")
+        XCTAssertEqual(onboarding.skipped, [])
     }
 
     /// Every source the feed can carry, and both attribution badges.
