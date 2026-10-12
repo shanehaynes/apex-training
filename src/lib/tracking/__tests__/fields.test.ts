@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Exercise, ExerciseDefinition } from '../../../types/workout';
 import { buildTrackerModel, type TrackedExercise } from '../plan';
-import { inputFields } from '../fields';
+import { inputFields, nextLogFields } from '../fields';
 
 function tracked(exercise: Partial<Exercise>): TrackedExercise {
   const groups = buildTrackerModel({
@@ -60,5 +60,16 @@ describe('buildTrackerModel — session notes', () => {
     );
     expect(groups.find(g => g.section === 'warmup')!.exercises[0].sessionNote).toBe('');
     expect(groups.find(g => g.section === 'exercise')!.exercises[0].sessionNote).toBe('blue band');
+  });
+});
+
+describe('nextLogFields', () => {
+  it('carries a field added earlier this sitting, before the stored set has caught up', () => {
+    // Weight tapped, then time, while the definition still reads [].
+    expect(nextLogFields([], ['actualWeight'], 'actualDuration')).toEqual(['weight', 'duration']);
+  });
+
+  it('keeps what is stored and never duplicates', () => {
+    expect(nextLogFields(['reps'], ['actualReps'], 'actualWeight')).toEqual(['reps', 'weight']);
   });
 });

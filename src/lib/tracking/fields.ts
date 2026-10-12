@@ -64,3 +64,17 @@ export function inputFields(
   if (!fields.size) fields.add('actualReps');
   return FIELD_ORDER.filter(f => fields.has(f));
 }
+
+/**
+ * What a definition's log_fields become after adding `field` this sitting:
+ * the stored set plus every field added here so far, not the stored set plus
+ * this one alone — so a write sent before the previous one has round-tripped
+ * still carries it.
+ */
+export function nextLogFields(
+  stored: readonly LogField[],
+  addedHere: readonly SetField[],
+  field: SetField,
+): LogField[] {
+  return [...new Set([...stored, ...[...addedHere, field].map(f => SET_FIELD_TO_LOG_FIELD[f])])];
+}

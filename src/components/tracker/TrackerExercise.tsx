@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pencil, Plus, Repeat2, X } from 'lucide-react';
 import type { ExerciseCategory, ExerciseDefinition, PlannedSet } from '../../types/workout';
 import type { TrackedExercise, TrackedSet, CardioActuals, LastSetActuals } from '../../lib/tracking/plan';
-import { FIELD_ORDER, SET_FIELD_TO_LOG_FIELD, inputFields, type SetField } from '../../lib/tracking/fields';
+import { FIELD_ORDER, SET_FIELD_TO_LOG_FIELD, inputFields, nextLogFields, type SetField } from '../../lib/tracking/fields';
 import { countSpecNote, hasPerSideCount, stripCountSpec } from '../../lib/schedule/definitions';
 import { useSchedule } from '../../context/schedule';
 import ExercisePicker from '../modal/ExercisePicker';
@@ -162,6 +162,21 @@ export default function TrackerExercise({
   const [subtitleDraft, setSubtitleDraft] = useState<string | null>(null);
   const [savedSubtitle, setSavedSubtitle] = useState<string | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
+  // Log-field writes go out one after another, each carrying every field
+  // added so far: built from the definition alone, a second tap before the
+  // realtime refetch would send a stale array and drop the first.
+  const logFieldWrites = useRef<Promise<unknown>>(Promise.resolve());
+
+  // A swap re-points this entry at another definition without remounting
+  // (the key is the plan entry's id), so anything cached against the old
+  // movement must not carry over onto — or be written into — the new one.
+  const [scopeId, setScopeId] = useState(tracked.exercise.definitionId);
+  if (scopeId !== tracked.exercise.definitionId) {
+    setScopeId(tracked.exercise.definitionId);
+    setAddedHere([]);
+    setSubtitleDraft(null);
+    setSavedSubtitle(null);
+  }
 
   const { exercise, substitutedFrom } = tracked;
   const isClimb = exercise.category === 'climbing';
@@ -197,10 +212,12 @@ export default function TrackerExercise({
   const addField = (field: SetField) => {
     setAddedHere(prev => [...prev, field]);
     if (!definition) return;
-    const logField = SET_FIELD_TO_LOG_FIELD[field];
     const current = definition.logFields ?? [];
-    if (current.includes(logField)) return;
-    void updateDefinition({ id: definition.id, fields: { logFields: [...current, logField] } });
+    if (current.includes(SET_FIELD_TO_LOG_FIELD[field])) return;
+    const next = nextLogFields(current, addedHere, field);
+    const { id } = definition;
+    logFieldWrites.current = logFieldWrites.current.then(() =>
+      updateDefinition({ id, fields: { logFields: next } }));
   };
   const labels: Record<SetField, string> = isClimb ? { ...FIELD_LABEL, actualWeight: 'grade' } : FIELD_LABEL;
   const specNote = isClimb ? undefined : countSpecNote(exercise);
