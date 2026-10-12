@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Exercise, ExerciseDefinition } from '../../../types/workout';
-import { buildTrackerModel, type TrackedExercise } from '../plan';
+import { buildTrackerModel, makeAddedExercise, type TrackedExercise } from '../plan';
 import { inputFields, nextLogFields } from '../fields';
 
 function tracked(exercise: Partial<Exercise>): TrackedExercise {
@@ -73,3 +73,18 @@ describe('nextLogFields', () => {
     expect(nextLogFields(['reps'], ['actualReps'], 'actualWeight')).toEqual(['reps', 'weight']);
   });
 });
+
+describe('inputFields — an exercise added mid-workout', () => {
+  const added = (def: ExerciseDefinition) => makeAddedExercise('exercise', def, 'added-1');
+
+  it('logs a strength movement in weight and reps', () => {
+    const def = ringPullUp({ id: 'push-up', canonicalName: 'Push-Up' });
+    expect(inputFields(added(def), def)).toEqual(['actualWeight', 'actualReps']);
+  });
+
+  it('logs a held movement in time when that is how it is normally done', () => {
+    const def = ringPullUp({ id: 'plank', canonicalName: 'Plank', category: 'mobility', defaultDuration: '60s' });
+    expect(inputFields(added(def), def)).toEqual(['actualDuration']);
+  });
+});
+

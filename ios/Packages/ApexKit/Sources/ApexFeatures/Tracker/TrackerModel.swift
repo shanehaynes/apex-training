@@ -377,7 +377,7 @@ public final class TrackerModel {
     // MARK: - Display helpers
 
     public func definition(for tracked: TrackedExercise) -> ExerciseDefinition? {
-        guard tracked.substitutedFrom != nil, let id = tracked.exercise.definitionId else { return nil }
+        guard tracked.isOffPlan, let id = tracked.exercise.definitionId else { return nil }
         return definitions.first { $0.id == id }
     }
 
@@ -654,7 +654,8 @@ public final class TrackerModel {
     }
 
     public func canSwap(_ tracked: TrackedExercise) -> Bool {
-        tracked.exercise.category != "climbing" && !isFinishedAndClean(tracked)
+        // An added exercise is its pick: a wrong one is removed and added again.
+        tracked.exercise.category != "climbing" && !tracked.added && !isFinishedAndClean(tracked)
     }
 
     private func isFinishedAndClean(_ tracked: TrackedExercise) -> Bool { false }
@@ -675,6 +676,31 @@ public final class TrackerModel {
         }
         ToastBus.shared.post("Logged as \(definition.canonicalName)", level: .success)
         await services.queue.flush(session)
+    }
+
+    // MARK: - Add
+
+    /// Anything that logs as sets or as one cardio row; a climbing pitch needs
+    /// a grade the tracker has no way to ask for.
+    public static let addableCategories = ["strength", "stretch", "mobility", "skill", "cardio"]
+
+    /// A movement the plan does not have (`onAddExercise`): appended to the
+    /// main section with one empty set. Nothing is queued — like any extra set
+    /// it is saved once something is typed, and only for this day.
+    public func addExercise(_ definition: ExerciseDefinition) {
+        let label = event.type.rawValue == "outdoor-climbing" ? "Pitches" : "Main Work"
+        editor.addExercise(
+            id: TrackerEditor.addedExerciseId(at: services.clock.now), name: definition.canonicalName,
+            definitionId: definition.id, category: definition.category, sectionLabel: label
+        )
+        Task { await syncActivity() }
+    }
+
+    /// Take an added exercise back out; what it logged is deleted with the next save.
+    public func removeAddedExercise(section: String, exerciseId: String) {
+        guard editor.removeAddedExercise(section: section, exerciseId: exerciseId) else { return }
+        scheduleSave()
+        Task { await syncActivity() }
     }
 
     // MARK: - Failed ops

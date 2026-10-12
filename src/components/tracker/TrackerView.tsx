@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, CheckCircle2, Flag, Trash2 } from 'lucide-react';
+import { ChevronLeft, CheckCircle2, Flag, Plus, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/calendar';
 import { useSchedule } from '../../context/schedule';
@@ -9,8 +9,9 @@ import { notify } from '../../lib/notify';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { useWorkoutSession } from '../../hooks/useWorkoutSession';
 import type { TrackedSection } from '../../lib/db/types';
-import type { ExerciseDefinition } from '../../types/workout';
+import type { ExerciseCategory, ExerciseDefinition } from '../../types/workout';
 import TrackerExercise from './TrackerExercise';
+import ExercisePicker from '../modal/ExercisePicker';
 import WorkoutSummary from './WorkoutSummary';
 import ConfirmBar from './ConfirmBar';
 import ScorePrompt from './ScorePrompt';
@@ -36,6 +37,10 @@ function TrackerTips({ groups }: { groups: TrackedSectionGroup[] }) {
   return null;
 }
 
+// Anything that logs as sets or as one cardio row; a climbing pitch needs a
+// grade the tracker has no way to ask for.
+const ADDABLE_CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobility', 'skill', 'cardio'];
+
 export default function TrackerView() {
   const { state, dispatch } = useCalendar();
   const { setCompletion } = useSchedule();
@@ -44,12 +49,13 @@ export default function TrackerView() {
   const {
     groups, session, elapsed, isFinished, isFinishing, isCancelling, summary,
     onSetChange, onCardioChange, onCommitSetShadow, onCommitCardioShadow, onAddSet, onRemoveSet,
-    onSwapExercise, onNoteChange, flushSave, requestFinish, cancelWorkout, openSavedSummary, dismissSummary,
+    onAddExercise, onRemoveAddedExercise, onSwapExercise, onNoteChange, flushSave, requestFinish, cancelWorkout, openSavedSummary, dismissSummary,
   } = useWorkoutSession(event, setCompletion);
 
   const [confirmCount, setConfirmCount] = useState<number | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
+  const [addingExercise, setAddingExercise] = useState(false);
 
   const color = event ? getWorkoutColor(event.type) : null;
   if (!event || !color) return null;
@@ -155,10 +161,21 @@ export default function TrackerView() {
                   onRemoveSet={setNumber => onRemoveSet(group.section, tracked.exercise.id, setNumber)}
                   onSwap={def => handleSwap(group.section, tracked.exercise.id, def)}
                   onNoteChange={note => onNoteChange(group.section, tracked.exercise.id, note)}
+                  onRemove={tracked.isAdded ? () => onRemoveAddedExercise(group.section, tracked.exercise.id) : undefined}
                 />
               ))}
             </div>
           ))
+        )}
+        {groups && !isFinished && (
+          <button
+            className="tracker-add-set"
+            style={{ margin: '4px 0 16px' }}
+            onClick={() => setAddingExercise(true)}
+            title="Log a movement that isn't in the plan — this workout only"
+          >
+            <Plus size={13} strokeWidth={1.5} /> Add exercise
+          </button>
         )}
         {groups && (
           <button
@@ -170,6 +187,15 @@ export default function TrackerView() {
           </button>
         )}
       </div>
+
+      {addingExercise && (
+        <ExercisePicker
+          onSelect={def => { setAddingExercise(false); onAddExercise(def); }}
+          onClose={() => setAddingExercise(false)}
+          restrictTo={ADDABLE_CATEGORIES}
+          createCategory="strength"
+        />
+      )}
 
       {confirmCount !== null && !isFinishing && (
         <ConfirmBar

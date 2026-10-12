@@ -13,6 +13,7 @@ public struct TrackerScreen: View {
 
     @FocusState private var focus: FieldID?
     @State private var swapTarget: SwapTarget?
+    @State private var addingExercise = false
     @State private var durationModeToggle = 0
     /// A select-all asked for before the field took over as first responder.
     @State private var selectAllPending = false
@@ -50,6 +51,28 @@ public struct TrackerScreen: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 .presentationBackground(ApexColor.bgSurface)
+        }
+        .sheet(isPresented: $addingExercise) {
+            ExercisePickerSheet(
+                definitions: model.definitions,
+                title: "Add exercise",
+                note: "Added to this workout only — the plan is unchanged.",
+                restrictTo: TrackerModel.addableCategories,
+                createCategory: "strength",
+                confirmLabel: "Create & add",
+                onPick: { definition in
+                    addingExercise = false
+                    model.addExercise(definition)
+                },
+                onCreate: { name, category, isUnilateral in
+                    await model.createDefinition(name: name, category: category, isUnilateral: isUnilateral)
+                },
+                onClose: { addingExercise = false }
+            )
+            .accessibilityIdentifier("tracker.add.picker")
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(ApexColor.bgSurface)
         }
         .onChange(of: focus) { old, new in focusChanged(from: old, to: new) }
         .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { note in
@@ -111,6 +134,7 @@ public struct TrackerScreen: View {
                             }
                         }
                     }
+                    if !model.isFinished { addExerciseButton }
                     cancelButton
                 }
                 .padding(.horizontal, Spacing.screen)
@@ -121,6 +145,25 @@ public struct TrackerScreen: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
+    }
+
+    private var addExerciseButton: some View {
+        Button {
+            focus = nil
+            addingExercise = true
+        } label: {
+            HStack(spacing: Spacing.xs) {
+                ApexIcon.plus.image.font(.system(size: 13, weight: .medium))
+                Text("Add exercise")
+            }
+            .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
+            .foregroundStyle(ApexColor.textSecondary)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .overlay(RoundedRectangle(cornerRadius: Radius.lg).strokeBorder(ApexColor.borderSubtle, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+        }
+        .buttonStyle(.plain)
+        .disabled(model.gate == .finishing || model.gate == .cancelling)
+        .accessibilityIdentifier("tracker.add-exercise")
     }
 
     private var cancelButton: some View {

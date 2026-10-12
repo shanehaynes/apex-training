@@ -1,4 +1,4 @@
-import type { Exercise, PlannedSet, WorkoutEvent } from '../../types/workout';
+import type { Exercise, ExerciseDefinition, PlannedSet, WorkoutEvent } from '../../types/workout';
 import type { CardioLogRow, ExerciseNoteRow, SetLogRow, TrackedSection } from '../db/types';
 import { sectionLabels } from '../climbing.js';
 import { parseDurationSeconds } from './records.js';
@@ -53,6 +53,9 @@ export interface TrackedExercise {
   /** This occurrence's note on the exercise — never the plan's `notes`,
    *  which a recurring series shares (workout_exercise_notes, phase 54). */
   sessionNote: string;
+  /** Added in the tracker, not in the plan: it exists only as this day's log
+   *  rows (see `addedExercisesIn`), so every set is an extra. */
+  isAdded?: boolean;
 }
 
 export interface TrackedSectionGroup {
@@ -129,6 +132,121 @@ function substitutionOf(
   return { ...exercise, name: row.exercise_name, definitionId: row.definition_id };
 }
 
+// ─── Exercises added mid-workout ──────────────────────────────────────────────
+// "Pushups aren't in today's plan, but I did them." Like a swap, the addition
+// lives on the log rows, never on the plan: a recurring series keeps its
+// prescription, and an offline client needs nothing but the ordinary save.
+// The id is minted by the client and orders the additions by when they were
+// made.
+
+export const ADDED_EXERCISE_PREFIX = 'added-';
+
+export function isAddedExerciseId(id: string): boolean {
+  return id.startsWith(ADDED_EXERCISE_PREFIX);
+}
+
+export function newAddedExerciseId(now: number = Date.now()): string {
+  return `${ADDED_EXERCISE_PREFIX}${now}`;
+}
+
+function addedOrder(id: string): number {
+  const n = Number(id.slice(ADDED_EXERCISE_PREFIX.length));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function loggedCardio(row: CardioLogRow): CardioActuals {
+  return {
+    durationMinutes: row.duration_minutes != null ? String(row.duration_minutes) : '',
+    distance: row.distance ?? '',
+    elevationGain: row.elevation_gain ?? '',
+    avgHeartRate: row.avg_heart_rate != null ? String(row.avg_heart_rate) : '',
+    isLogged: true,
+    shadow: null,
+  };
+}
+
+function loggedExtraSet(row: SetLogRow): TrackedSet {
+  return {
+    ...makeExtraSet(row.set_number),
+    actualWeight: row.actual_weight ?? '',
+    actualReps: row.actual_reps ?? '',
+    actualDuration: row.actual_duration ?? '',
+    isLogged: true,
+    isAutofilled: row.is_autofilled,
+  };
+}
+
+/**
+ * A movement picked in the tracker, before anything is logged against it:
+ * one empty extra set (or an empty cardio form). Nothing persists until a
+ * value is typed — the same rule as an empty extra set.
+ */
+export function makeAddedExercise(
+  section: TrackedSection,
+  def: Pick<ExerciseDefinition, 'id' | 'canonicalName' | 'category'>,
+  id: string = newAddedExerciseId(),
+): TrackedExercise {
+  const isCardio = def.category === 'cardio';
+  return {
+    section,
+    exercise: { id, name: def.canonicalName, definitionId: def.id, category: isCardio ? 'cardio' : def.category },
+    isAdded: true,
+    isCardio,
+    sets: isCardio ? [] : [makeExtraSet(1)],
+    cardio: isCardio
+      ? { durationMinutes: '', distance: '', elevationGain: '', avgHeartRate: '', isLogged: false, shadow: null }
+      : null,
+    substitutedFrom: null,
+    sessionNote: '',
+  };
+}
+
+/** One section's added exercises, rebuilt from the rows logged against them. */
+function addedExercisesIn(
+  section: TrackedSection,
+  savedSets: SetLogRow[],
+  savedCardio: CardioLogRow[],
+  notesByKey: Map<string, string>,
+): TrackedExercise[] {
+  const byId = new Map<string, TrackedExercise>();
+  const entry = (row: SetLogRow | CardioLogRow, isCardio: boolean): TrackedExercise => {
+    let tracked = byId.get(row.exercise_id);
+    if (!tracked) {
+      tracked = {
+        section,
+        exercise: {
+          id: row.exercise_id,
+          name: row.exercise_name,
+          definitionId: row.definition_id ?? undefined,
+          // The rows do not say; the table does. Clients read the logged
+          // dimensions off the definition (inputFields).
+          category: isCardio ? 'cardio' : 'strength',
+        },
+        isAdded: true,
+        isCardio,
+        sets: [],
+        cardio: null,
+        substitutedFrom: null,
+        sessionNote: notesByKey.get(`${section}|${row.exercise_id}`) ?? '',
+      };
+      byId.set(row.exercise_id, tracked);
+    }
+    return tracked;
+  };
+  for (const row of savedCardio) {
+    if (row.section !== section || !isAddedExerciseId(row.exercise_id)) continue;
+    entry(row, true).cardio = loggedCardio(row);
+  }
+  for (const row of savedSets) {
+    if (row.section !== section || !isAddedExerciseId(row.exercise_id)) continue;
+    const tracked = entry(row, false);
+    if (!tracked.isCardio) tracked.sets.push(loggedExtraSet(row));
+  }
+  const added = [...byId.values()];
+  for (const tracked of added) tracked.sets.sort((a, b) => a.setNumber - b.setNumber);
+  return added.sort((a, b) => addedOrder(a.exercise.id) - addedOrder(b.exercise.id));
+}
+
 export function buildTrackerModel(
   event: WorkoutEvent,
   savedSets: SetLogRow[] = [],
@@ -170,14 +288,7 @@ export function buildTrackerModel(
             isCardio: true,
             sets: [],
             cardio: row
-              ? {
-                  durationMinutes: row.duration_minutes != null ? String(row.duration_minutes) : '',
-                  distance: row.distance ?? '',
-                  elevationGain: row.elevation_gain ?? '',
-                  avgHeartRate: row.avg_heart_rate != null ? String(row.avg_heart_rate) : '',
-                  isLogged: true,
-                  shadow: null,
-                }
+              ? loggedCardio(row)
               : {
                   durationMinutes: '',
                   distance: '',
@@ -224,20 +335,13 @@ export function buildTrackerModel(
         const maxPlanned = planned.length ? planned[planned.length - 1].setNumber : 0;
         for (const row of savedSets) {
           if (row.section === section && row.exercise_id === exercise.id && row.set_number > maxPlanned) {
-            sets.push({
-              ...makeExtraSet(row.set_number),
-              actualWeight: row.actual_weight ?? '',
-              actualReps: row.actual_reps ?? '',
-              actualDuration: row.actual_duration ?? '',
-              isLogged: true,
-              isAutofilled: row.is_autofilled,
-            });
+            sets.push(loggedExtraSet(row));
           }
         }
         sets.sort((a, b) => a.setNumber - b.setNumber);
 
         return { section, exercise, substitutedFrom, sessionNote, isCardio: false, sets, cardio: null };
-      }),
+      }).concat(addedExercisesIn(section, savedSets, savedCardio, notesByKey)),
     }))
     .filter(group => group.exercises.length > 0);
 }

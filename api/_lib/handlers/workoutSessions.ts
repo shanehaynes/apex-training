@@ -13,7 +13,7 @@ import { applyQuickComplete, applyQuickUncomplete, buildBootstrap, buildFinishSu
 import { sendFailure } from '../services/result.js';
 import { sendWriteFailure } from '../pgError.js';
 import { endLiveActivities } from '../services/liveActivity.js';
-import { buildQuickCompleteLogs } from '../../../src/lib/tracking/plan.js';
+import { buildQuickCompleteLogs, isAddedExerciseId } from '../../../src/lib/tracking/plan.js';
 import type { CardioLogRow, SetLogRow, TablesInsert, TrackedSection, WorkoutSessionRow } from '../../../src/lib/db/types.js';
 import { sessionScoreFromRow } from '../../../src/lib/tracking/records.js';
 
@@ -329,6 +329,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .eq('section', key.section)
         .eq('exercise_id', key.exerciseId)
         .eq('set_number', key.setNumber));
+    }
+    // An exercise added mid-workout is only its rows, so removing it from
+    // the tracker names it here; a cardio one has one row, with no set number.
+    const removedAdded = new Map<string, RemovedSetKey>();
+    for (const key of body.removedSets ?? []) {
+      if (typeof key.exerciseId === 'string' && isAddedExerciseId(key.exerciseId)) {
+        removedAdded.set(`${key.section}|${key.exerciseId}`, key);
+      }
+    }
+    for (const key of removedAdded.values()) {
+      ops.push(supabase
+        .from('workout_cardio_logs')
+        .delete()
+        .eq('user_id', userId).eq('event_id', eventId)
+        .eq('event_date', eventDate)
+        .eq('section', key.section)
+        .eq('exercise_id', key.exerciseId));
     }
 
     const results = await Promise.all(ops);

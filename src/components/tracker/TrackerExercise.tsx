@@ -25,6 +25,8 @@ interface Props {
   onSwap: (def: ExerciseDefinition) => void;
   /** This occurrence's note on the exercise — never written to the plan. */
   onNoteChange: (note: string) => void;
+  /** Added mid-workout only: take it back out, deleting what it logged. */
+  onRemove?: () => void;
 }
 
 // A swap has to keep the logged shape: cardio logs one structured row, every
@@ -66,11 +68,14 @@ function SetRow({
   fields,
   labels,
   freeText,
+  unplanned,
   onChange,
   onCommitShadow,
   onRemove,
 }: {
   set: TrackedSet;
+  /** An added exercise has no plan at all, so no set of it is an "extra". */
+  unplanned?: boolean;
   fields: SetField[];
   labels: Record<SetField, string>;
   /** Text keyboard instead of decimal — climbing grades mix digits and letters. */
@@ -90,7 +95,7 @@ function SetRow({
   return (
     <div className="tracker-set">
       <span className="tracker-set__num">{set.setNumber}</span>
-      <span className="tracker-set__planned">{set.isExtra ? 'extra' : plannedLabel(set.planned)}</span>
+      <span className="tracker-set__planned">{unplanned ? '—' : set.isExtra ? 'extra' : plannedLabel(set.planned)}</span>
       <div className="tracker-set__inputs">
         {fields.map(field => {
           const ghost = set.shadow ? set.shadow[SHADOW_FIELD[field]] : '';
@@ -149,6 +154,7 @@ export default function TrackerExercise({
   onRemoveSet,
   onSwap,
   onNoteChange,
+  onRemove,
 }: Props) {
   const { definitions, updateDefinition } = useSchedule();
   const [picking, setPicking] = useState(false);
@@ -181,7 +187,7 @@ export default function TrackerExercise({
   const { exercise, substitutedFrom } = tracked;
   const isClimb = exercise.category === 'climbing';
   const definition = exercise.definitionId ? definitions.get(exercise.definitionId) : undefined;
-  const swappedTo = substitutedFrom ? definition : undefined;
+  const swappedTo = substitutedFrom || tracked.isAdded ? definition : undefined;
   const fields = inputFields(tracked, definition, addedHere);
   const addable = isClimb ? [] : FIELD_ORDER.filter(f => !fields.includes(f));
 
@@ -238,7 +244,7 @@ export default function TrackerExercise({
             {exercise.superset}
           </span>
         )}
-        {!isClimb && (
+        {!isClimb && !tracked.isAdded && (
           <button
             className="tracker-exercise__swap"
             onClick={() => setPicking(true)}
@@ -258,12 +264,26 @@ export default function TrackerExercise({
             <Pencil size={13} strokeWidth={1.5} />
           </button>
         )}
+        {onRemove && (
+          <button
+            className="tracker-exercise__swap"
+            style={{ marginLeft: 'auto' }}
+            onClick={onRemove}
+            aria-label={`Remove ${exercise.name} from this workout`}
+            title="Remove — deletes what was logged for it today"
+          >
+            <X size={14} strokeWidth={1.5} />
+          </button>
+        )}
         {exercise.restPeriod && (
           <span className="tracker-exercise__rest" style={{ color: accentColor }}>
             Rest {exercise.restPeriod}
           </span>
         )}
       </div>
+      {tracked.isAdded && (
+        <p className="tracker-exercise__swapped">Added to this workout — the plan is unchanged.</p>
+      )}
       {substitutedFrom && (
         <p className="tracker-exercise__swapped">
           Logged instead of {substitutedFrom} — this day only, the plan is unchanged.
@@ -357,6 +377,7 @@ export default function TrackerExercise({
               fields={fields}
               labels={labels}
               freeText={isClimb}
+              unplanned={tracked.isAdded}
               onChange={(field, value) => onSetChange(set.setNumber, field, value)}
               onCommitShadow={() => {
                 if (!set.shadow) return;

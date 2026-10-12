@@ -3,10 +3,12 @@ import type { ExerciseDefinition, WorkoutEvent } from '../types/workout';
 import type { CardioLogRow, SetLogRow, TrackedSection } from '../lib/db/types';
 import {
   collectUntouchedPlanned,
+  makeAddedExercise,
   makeExtraSet,
   setToRow,
   cardioToRow,
 } from '../lib/tracking/plan';
+import { sectionLabels } from '../lib/climbing';
 import type { TrackedSectionGroup } from '../lib/tracking/plan';
 import { sessionScoreFromRow } from '../lib/tracking/records';
 import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from '../lib/tracking/records';
@@ -287,13 +289,56 @@ export function useWorkoutSession(
     });
   };
 
+  // An added exercise is nothing but its sets: removing the last one removes it.
+  const dropEmptyAdded = (prev: TrackedSectionGroup[] | null) => prev && prev
+    .map(g => ({ ...g, exercises: g.exercises.filter(t => !(t.isAdded && !t.isCardio && t.sets.length === 0)) }))
+    .filter(g => g.exercises.length > 0);
+
   const onRemoveSet = (section: TrackedSection, exerciseId: string, setNumber: number) => {
     updateExercise(section, exerciseId, t => ({
       ...t,
       sets: t.sets.filter(s => !(s.isExtra && s.setNumber === setNumber)),
     }));
+    setGroups(dropEmptyAdded);
     dirtySetsRef.current.delete(`${section}|${exerciseId}|${setNumber}`);
     removedRef.current.push({ section, exerciseId, setNumber });
+    scheduleSave();
+  };
+
+  /**
+   * A movement the plan doesn't have — "pushups weren't in today's strength
+   * session". Appended to the main section with one empty set; like any
+   * extra set it persists once something is typed, and only for this day.
+   */
+  const onAddExercise = (def: ExerciseDefinition) => {
+    const target = eventRef.current;
+    if (!target) return;
+    const added = makeAddedExercise('exercise', def);
+    setGroups(prev => {
+      if (!prev) return prev;
+      if (prev.some(g => g.section === 'exercise')) {
+        return prev.map(g => (g.section === 'exercise' ? { ...g, exercises: [...g.exercises, added] } : g));
+      }
+      const group = { section: 'exercise' as const, label: sectionLabels(target.type).exercises, exercises: [added] };
+      const warmup = prev.findIndex(g => g.section === 'warmup');
+      return [...prev.slice(0, warmup + 1), group, ...prev.slice(warmup + 1)];
+    });
+  };
+
+  /** Take an added exercise back out: every set it logged is deleted. */
+  const onRemoveAddedExercise = (section: TrackedSection, exerciseId: string) => {
+    const tracked = findTracked(section, exerciseId);
+    if (!tracked?.isAdded) return;
+    for (const set of tracked.sets) {
+      dirtySetsRef.current.delete(`${section}|${exerciseId}|${set.setNumber}`);
+      removedRef.current.push({ section, exerciseId, setNumber: set.setNumber });
+    }
+    // A cardio entry has no sets; any key naming the added id deletes its row.
+    if (tracked.isCardio) removedRef.current.push({ section, exerciseId, setNumber: 0 });
+    dirtyCardioRef.current.delete(`${section}|${exerciseId}`);
+    setGroups(prev => prev && prev
+      .map(g => (g.section !== section ? g : { ...g, exercises: g.exercises.filter(t => t.exercise.id !== exerciseId) }))
+      .filter(g => g.exercises.length > 0));
     scheduleSave();
   };
 
@@ -472,6 +517,8 @@ export function useWorkoutSession(
     onCommitCardioShadow,
     onAddSet,
     onRemoveSet,
+    onAddExercise,
+    onRemoveAddedExercise,
     onSwapExercise,
     onNoteChange,
     flushSave,

@@ -2,7 +2,7 @@ import ApexCore
 import ApexUI
 import SwiftUI
 
-/// One exercise (`TrackerExercise.tsx`): name, swap, rest, the swapped note
+/// One exercise (`TrackerExercise.tsx`): name, swap or remove, rest, the swapped or added note
 /// and per-side warning, notes, then either the cardio grid or the set rows.
 struct TrackedExerciseView: View {
     let model: TrackerModel
@@ -76,6 +76,20 @@ struct TrackedExerciseView: View {
                     // Rest is a fact about the set, not a status (ux-review §3.4).
                     .foregroundStyle(ApexColor.textSecondary)
             }
+            if tracked.added {
+                Button {
+                    model.removeAddedExercise(section: tracked.section, exerciseId: tracked.exercise.id)
+                } label: {
+                    ApexIcon.close.image
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(ApexColor.textMuted)
+                        .frame(width: 44, height: 44)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Remove \(tracked.exercise.name) from this workout")
+                .accessibilityIdentifier("tracker.remove.\(tracked.exercise.id)")
+            }
             if model.canSwap(tracked) {
                 Button(action: onSwap) {
                     ApexIcon.swap.image
@@ -92,6 +106,7 @@ struct TrackedExerciseView: View {
     }
 
     private var swappedNote: String? {
+        if tracked.added { return "Added to this workout — the plan is unchanged." }
         guard let from = tracked.substitutedFrom else { return nil }
         return "Logged instead of \(from) — this day only, the plan is unchanged."
     }
@@ -197,9 +212,9 @@ struct SetRowView: View {
                 .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
                 .foregroundStyle(ApexColor.textMuted)
                 .frame(width: 22, alignment: .leading)
-            Text(set.isExtra ? "extra" : CountSpec.plannedLabel(set.planned))
+            Text(tracked.added ? "—" : set.isExtra ? "extra" : CountSpec.plannedLabel(set.planned))
                 .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
-                .italic(set.isExtra)
+                .italic(set.isExtra && !tracked.added)
                 .foregroundStyle(ApexColor.textSecondary)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)

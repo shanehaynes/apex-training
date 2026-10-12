@@ -24,8 +24,8 @@ export const SET_FIELD_TO_LOG_FIELD: Record<SetField, LogField> = {
  * Which actual inputs an exercise gets: the union of its planned targets, of
  * whatever already carries a value, of the dimensions its library definition
  * is always logged in (plus any added this sitting before that save lands),
- * and — once swapped — of what the replacement movement is normally logged
- * in. Reps is the fallback so every set has something to log.
+ * and — once swapped or added mid-workout — of what that movement is
+ * normally logged in. Reps is the fallback so every set has something to log.
  *
  * The already-has-a-value rule keeps logged data reachable no matter which
  * plan it was entered against; without it a swap onto a loaded movement
@@ -54,8 +54,10 @@ export function inputFields(
   for (const field of definition?.logFields ?? []) fields.add(LOG_FIELD_TO_SET_FIELD[field]);
   for (const field of addedHere) fields.add(field);
 
-  const swappedTo = tracked.substitutedFrom ? definition : undefined;
-  if (tracked.substitutedFrom) {
+  // A swapped or added movement has no prescription of its own to read.
+  const offPlan = !!tracked.substitutedFrom || !!tracked.isAdded;
+  const swappedTo = offPlan ? definition : undefined;
+  if (offPlan) {
     if (swappedTo?.defaultDuration) fields.add('actualDuration');
     if (swappedTo?.defaultWeight || swappedTo?.category === 'strength' || !swappedTo) fields.add('actualWeight');
     if (swappedTo?.defaultReps || swappedTo?.category === 'strength' || !swappedTo) fields.add('actualReps');
