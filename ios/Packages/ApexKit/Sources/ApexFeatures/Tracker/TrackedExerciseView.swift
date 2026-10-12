@@ -2,27 +2,54 @@ import ApexCore
 import ApexUI
 import SwiftUI
 
+/// Everything one exercise card draws, as a single value SwiftUI can compare.
+///
+/// The scroll content is eager (every card and field exists before the first
+/// frame, so a fling realizes nothing), which only works if a keystroke does
+/// not re-evaluate every card: `TrackedExerciseView` and `SetRowView` are
+/// `Equatable` on these values alone — never on the model reference, the
+/// focus binding or a closure — so one keystroke re-evaluates one card, one
+/// row and one field, and a focus move the two rows whose border changes.
+/// `TrackerScreen` computes them; nothing here reads `model.editor`.
+nonisolated struct ExerciseRowInput: Equatable, Sendable {
+    let tracked: TrackedExercise
+    let fields: [SetField]
+    let perSideWarning: String?
+    let canSwap: Bool
+    /// The focused field, when it lies inside this exercise; nil otherwise, so
+    /// a focus move elsewhere compares equal here.
+    let focusedField: FieldID?
+    let durationModeToggle: Int
+}
+
 /// One exercise (`TrackerExercise.tsx`): name, swap or remove, rest, the swapped or added note
 /// and per-side warning, notes, then either the cardio grid or the set rows.
-struct TrackedExerciseView: View {
+struct TrackedExerciseView: View, Equatable {
     let model: TrackerModel
-    let tracked: TrackedExercise
-    let palette: WorkoutPalette
+    let input: ExerciseRowInput
     var focus: FocusState<FieldID?>.Binding
-    let durationModeToggle: Int
-    let onSwap: () -> Void
+    let onSwap: (TrackedExercise) -> Void
 
-    private var fields: [SetField] { model.inputFields(for: tracked) }
-    private var exerciseKey: CardioKey { CardioKey(section: tracked.section, exerciseId: tracked.exercise.id) }
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.model === rhs.model && lhs.input == rhs.input
+    }
+
+    private var tracked: TrackedExercise { input.tracked }
+    private var fields: [SetField] { input.fields }
+    /// Off the event, a `let` on the model: constant for the screen's life,
+    /// so it is not part of the compared input (its `Equatable` is
+    /// main-actor-isolated, which a `nonisolated` value cannot use anyway).
+    private var palette: WorkoutPalette { WorkoutTypeTokens.palette(for: model.event.type.rawValue) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             header
             if let note = swappedNote { noteLine(note, warning: false) }
-            if let warning = model.perSideWarning(for: tracked) { noteLine(warning, warning: true) }
+            if let warning = input.perSideWarning { noteLine(warning, warning: true) }
             ForEach(notes, id: \.self) { noteLine($0, warning: false) }
             if tracked.isCardio, tracked.cardio != nil {
-                CardioRowView(model: model, tracked: tracked, focus: focus)
+                CardioRowView(model: model, tracked: tracked, focusedField: focusedCardioField, focus: focus)
+                    .equatable()
             } else {
                 setTable
             }
@@ -90,8 +117,8 @@ struct TrackedExerciseView: View {
                 .accessibilityLabel("Remove \(tracked.exercise.name) from this workout")
                 .accessibilityIdentifier("tracker.remove.\(tracked.exercise.id)")
             }
-            if model.canSwap(tracked) {
-                Button(action: onSwap) {
+            if input.canSwap {
+                Button { onSwap(tracked) } label: {
                     ApexIcon.swap.image
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(ApexColor.textMuted)
@@ -148,9 +175,15 @@ struct TrackedExerciseView: View {
 
             ForEach(tracked.sets, id: \.setNumber) { set in
                 SetRowView(
-                    model: model, tracked: tracked, set: set, fields: fields, focus: focus,
-                    durationModeToggle: durationModeToggle
+                    model: model,
+                    input: SetRowInput(
+                        key: SetKey(section: tracked.section, exerciseId: tracked.exercise.id, setNumber: set.setNumber),
+                        set: set, fields: fields, added: tracked.added, climbing: tracked.exercise.category == "climbing",
+                        focusedField: focusedSetField(of: set), durationModeToggle: input.durationModeToggle
+                    ),
+                    focus: focus
                 )
+                .equatable()
             }
 
             Button {
@@ -172,27 +205,54 @@ struct TrackedExerciseView: View {
             .accessibilityIdentifier("tracker.add-set.\(tracked.exercise.id)")
         }
     }
+
+    /// The field of `set` that has focus, if focus is on this set at all.
+    private func focusedSetField(of set: TrackedSet) -> SetField? {
+        guard case .set(let key, let field) = input.focusedField, key.setNumber == set.setNumber else { return nil }
+        return field
+    }
+
+    private var focusedCardioField: CardioField? {
+        guard case .cardio(_, let field) = input.focusedField else { return nil }
+        return field
+    }
+}
+
+/// One set row's inputs, as a value (see `ExerciseRowInput`).
+nonisolated struct SetRowInput: Equatable, Sendable {
+    let key: SetKey
+    let set: TrackedSet
+    let fields: [SetField]
+    let added: Bool
+    let climbing: Bool
+    /// The field of this set that has focus, if any.
+    let focusedField: SetField?
+    let durationModeToggle: Int
 }
 
 /// One set (`SetRow`): number · target · inputs · remove. A shadowed row shows
 /// its ghost as an italic placeholder until first focus commits it; an extra
 /// row says "extra" where the target would be and can be removed.
 ///
-/// Every value it shows comes from the `TrackedSet` it was handed, never from
+/// Every value it shows comes from the `SetRowInput` it was handed, never from
 /// `model.editor`: reading the editor here registered each of a workout's set
 /// rows as an observer of the *whole* editor, so one keystroke in one field
 /// invalidated every field in every exercise. `TrackerScreen` holds the one
-/// subscription; the fresh value flows down from there.
-struct SetRowView: View {
+/// subscription; the fresh value flows down from there — and the row is
+/// `Equatable` on that value, so rows whose set did not change are skipped.
+struct SetRowView: View, Equatable {
     let model: TrackerModel
-    let tracked: TrackedExercise
-    let set: TrackedSet
-    let fields: [SetField]
+    let input: SetRowInput
     var focus: FocusState<FieldID?>.Binding
-    let durationModeToggle: Int
 
-    private var key: SetKey { SetKey(section: tracked.section, exerciseId: tracked.exercise.id, setNumber: set.setNumber) }
-    private var climbing: Bool { tracked.exercise.category == "climbing" }
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.model === rhs.model && lhs.input == rhs.input
+    }
+
+    private var key: SetKey { input.key }
+    private var set: TrackedSet { input.set }
+    private var fields: [SetField] { input.fields }
+    private var climbing: Bool { input.climbing }
 
     static func label(for field: SetField, climbing: Bool) -> String {
         switch field {
@@ -212,9 +272,9 @@ struct SetRowView: View {
                 .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
                 .foregroundStyle(ApexColor.textMuted)
                 .frame(width: 22, alignment: .leading)
-            Text(tracked.added ? "—" : set.isExtra ? "extra" : CountSpec.plannedLabel(set.planned))
+            Text(input.added ? "—" : set.isExtra ? "extra" : CountSpec.plannedLabel(set.planned))
                 .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
-                .italic(set.isExtra && !tracked.added)
+                .italic(set.isExtra && !input.added)
                 .foregroundStyle(ApexColor.textSecondary)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
@@ -235,13 +295,13 @@ struct SetRowView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Remove set \(set.setNumber)")
-                .accessibilityIdentifier("tracker.remove.\(tracked.exercise.id).\(set.setNumber)")
+                .accessibilityIdentifier("tracker.remove.\(key.exerciseId).\(set.setNumber)")
             } else {
                 Color.clear.frame(width: 32, height: 44)
             }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("tracker.set.\(tracked.exercise.id).\(set.setNumber)")
+        .accessibilityIdentifier("tracker.set.\(key.exerciseId).\(set.setNumber)")
     }
 
     @ViewBuilder
@@ -253,32 +313,39 @@ struct SetRowView: View {
                 value: Binding(get: { set[.duration] }, set: { model.setValue($0, .duration, at: key) }),
                 ghost: ghost.isEmpty ? nil : ghost,
                 id: id,
+                isFocused: input.focusedField == .duration,
                 focus: focus,
-                modeToggle: durationModeToggle
+                modeToggle: input.durationModeToggle
             )
             .accessibilityLabel("Set \(set.setNumber) time")
-            .accessibilityIdentifier("tracker.input.\(tracked.exercise.id).\(set.setNumber).time")
+            .accessibilityIdentifier("tracker.input.\(key.exerciseId).\(set.setNumber).time")
         } else {
             TrackerTextField(
                 text: Binding(get: { set[field] }, set: { model.setValue($0, field, at: key) }),
                 ghost: ghost,
                 keyboard: field == .weight && climbing ? .default : .decimalPad,
                 id: id,
+                isFocused: input.focusedField == field,
                 focus: focus
             )
             .accessibilityLabel("Set \(set.setNumber) \(Self.label(for: field, climbing: climbing))")
-            .accessibilityIdentifier("tracker.input.\(tracked.exercise.id).\(set.setNumber).\(field == .weight ? "weight" : "reps")")
+            .accessibilityIdentifier("tracker.input.\(key.exerciseId).\(set.setNumber).\(field == .weight ? "weight" : "reps")")
         }
     }
 }
 
 /// The mono input every actual uses: surface fill, 44pt, ghost placeholder in
 /// the web's `.tracker-input--shadow` treatment (italic, secondary).
+///
+/// `isFocused` is handed in rather than read off `focus.wrappedValue`: that
+/// read made every field in the workout re-evaluate on each focus move. The
+/// binding is still what `.focused` needs to move focus.
 struct TrackerTextField: View {
     @Binding var text: String
     let ghost: String
     let keyboard: UIKeyboardType
     let id: FieldID
+    let isFocused: Bool
     var focus: FocusState<FieldID?>.Binding
 
     var body: some View {
@@ -294,16 +361,22 @@ struct TrackerTextField: View {
             .frame(height: 44)
             .background(ApexColor.bgElevated, in: .rect(cornerRadius: Radius.md))
             .overlay(RoundedRectangle(cornerRadius: Radius.md).strokeBorder(
-                focus.wrappedValue == id ? ApexColor.accent.opacity(0.7) : ApexColor.borderSubtle, lineWidth: 1
+                isFocused ? ApexColor.accent.opacity(0.7) : ApexColor.borderSubtle, lineWidth: 1
             ))
     }
 }
 
 /// The 2×2 cardio grid (`.tracker-cardio`): each metric commits its own ghost.
-struct CardioRowView: View {
+struct CardioRowView: View, Equatable {
     let model: TrackerModel
     let tracked: TrackedExercise
+    /// The metric that has focus, if focus is on this exercise.
+    let focusedField: CardioField?
     var focus: FocusState<FieldID?>.Binding
+
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.model === rhs.model && lhs.tracked == rhs.tracked && lhs.focusedField == rhs.focusedField
+    }
 
     private var key: CardioKey { CardioKey(section: tracked.section, exerciseId: tracked.exercise.id) }
     private var cardio: CardioLog { tracked.cardio ?? CardioLog() }
@@ -325,6 +398,7 @@ struct CardioRowView: View {
                         ghost: cardio.shadow?[field].isEmpty == false ? cardio.shadow![field] : placeholder,
                         keyboard: keyboard,
                         id: .cardio(key, field),
+                        isFocused: focusedField == field,
                         focus: focus
                     )
                     .accessibilityLabel(label)

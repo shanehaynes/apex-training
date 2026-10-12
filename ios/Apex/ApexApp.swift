@@ -14,6 +14,7 @@ struct ApexApp: App {
         // Must precede launch completion (BGTaskScheduler refuses later registrations).
         WriteQueueDriver.registerBackgroundTask()
         #if DEBUG
+        FrameLog.startIfRequested()
         if CommandLine.arguments.contains("-apexMockClient") {
             _model = State(initialValue: AppModel(mock: MockEnvironment()))
             return

@@ -112,10 +112,16 @@ public struct TrackerScreen: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .ready:
             ScrollView {
-                // Lazy, both levels: a workout's sections and their exercises are
-                // a `TextField` per set each, and every one of them used to be
-                // built — and laid out again on every keystroke.
-                LazyVStack(alignment: .leading, spacing: Spacing.xl) {
+                // Eager, both levels: every card and every field exists before
+                // the first frame, so a fling realizes nothing and the scroll
+                // view knows its full height. The lazy stacks this replaces
+                // built each card — ten to fifteen UIKit text fields — in the
+                // frame it entered the viewport, a visible hitch per card at
+                // 120 Hz, and estimated the rest. Eager is affordable because
+                // the rows are `Equatable` values (`ExerciseRowInput`): a
+                // keystroke re-evaluates one card, one row and one field, which
+                // is the problem laziness was guarding against.
+                VStack(alignment: .leading, spacing: Spacing.xl) {
                     if model.isFinished {
                         Text("This workout is finished — reps and weights are still editable, and edits save as you type.")
                             .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
@@ -123,14 +129,14 @@ public struct TrackerScreen: View {
                             .accessibilityIdentifier("tracker.finished-note")
                     }
                     ForEach(model.editor.groups, id: \.section) { group in
-                        LazyVStack(alignment: .leading, spacing: Spacing.lg) {
+                        VStack(alignment: .leading, spacing: Spacing.lg) {
                             SectionRule(label: group.label)
                             ForEach(group.exercises, id: \.exercise.id) { tracked in
                                 TrackedExerciseView(
-                                    model: model, tracked: tracked, palette: palette, focus: $focus,
-                                    durationModeToggle: durationModeToggle,
-                                    onSwap: { swapTarget = SwapTarget(tracked: tracked) }
+                                    model: model, input: rowInput(tracked), focus: $focus,
+                                    onSwap: { swapTarget = SwapTarget(tracked: $0) }
                                 )
+                                .equatable()
                             }
                         }
                     }
@@ -145,6 +151,21 @@ public struct TrackerScreen: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
+    }
+
+    /// One card's inputs, computed here so the card itself reads nothing off
+    /// the model and can be skipped when they are unchanged.
+    private func rowInput(_ tracked: TrackedExercise) -> ExerciseRowInput {
+        let exerciseKey = CardioKey(section: tracked.section, exerciseId: tracked.exercise.id)
+        let focused: FieldID? = switch focus {
+        case .set(let key, _) where key.exerciseKey == exerciseKey: focus
+        case .cardio(let key, _) where key == exerciseKey: focus
+        default: nil
+        }
+        return ExerciseRowInput(
+            tracked: tracked, fields: model.inputFields(for: tracked), perSideWarning: model.perSideWarning(for: tracked),
+            canSwap: model.canSwap(tracked), focusedField: focused, durationModeToggle: durationModeToggle
+        )
     }
 
     private var addExerciseButton: some View {
