@@ -210,6 +210,7 @@ actor FixtureTransport: HTTPTransport {
                     let id = String(tip.dropFirst("setup-skip:".count))
                     if !skippedRows.contains(id) { skippedRows.append(id) }
                 }
+                if let id = body?["setup_unskip"] as? String { skippedRows.removeAll { $0 == id } }
                 for key in ["display_name", "avatar_key", "coach_goal", "coach_context", "coach_model", "max_hr", "threshold_hr"] {
                     if let value = body?[key] { profileEdits[key] = value }
                 }

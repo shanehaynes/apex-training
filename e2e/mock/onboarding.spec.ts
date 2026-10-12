@@ -95,23 +95,25 @@ test('the checklist lives in Profile and omits rows the deployment cannot honour
   await expect(page.locator('.setup__action')).toHaveCount(3);
 });
 
-test('a checklist row the user does not want can be skipped', async ({ page }) => {
+test('a checklist row can be skipped, and the skip undone', async ({ page }) => {
   await gotoCalendar(page);
   await page.locator('.welcome__skip').click();
 
   await page.locator('.top-nav__avatar').click();
   const goal = page.locator('.setup__row', { hasText: 'Tell the coach your goal' });
   await goal.locator('.setup__skip').click();
-  await expect(goal).toHaveCount(0);
-  await expect(page.locator('.setup__row')).toHaveCount(3);
-  await expect(page.locator('.setup__score')).toHaveText('1/3');
 
-  // Skipping every remaining undone row retires the section.
-  for (let left = 2; left > 0; left--) {
-    await page.locator('.setup__row:not(.setup__row--done) .setup__skip').first().click();
-  }
-  await expect(page.locator('.setup__row')).toHaveCount(1);
-  await expect(page.locator('.setup__skip')).toHaveCount(0);
+  // Skipped rows move last, out of the score, with a way back.
+  await expect(goal).toHaveClass(/setup__row--skipped/);
+  await expect(page.locator('.setup__row').last()).toHaveClass(/setup__row--skipped/);
+  await expect(page.locator('.setup__score')).toHaveText('1/3');
+  await expect(goal.locator('.setup__skip')).toHaveCount(0);
+  await shot(page, 'onboarding-checklist-skipped');
+
+  await goal.getByRole('button', { name: 'Undo skip: Tell the coach your goal' }).click();
+  await expect(goal).not.toHaveClass(/setup__row--skipped/);
+  await expect(goal.locator('.setup__skip')).toBeVisible();
+  await expect(page.locator('.setup__score')).toHaveText('1/4');
 });
 
 test('welcome flow and nudge survive a phone viewport', async ({ page }) => {

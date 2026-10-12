@@ -143,23 +143,43 @@ final class OnboardingModelTests: XCTestCase {
         XCTAssertTrue(transport.requests("/api/profile").filter { $0.method == "PATCH" }.isEmpty)
     }
 
-    /// A skipped row leaves the card at once, the skip is sent as a tip id the
-    /// web shares, and the server's `skipped` keeps it gone after the re-read.
+    /// A skipped row stays on the card for the session, muted and out of the
+    /// score, so it can be undone where it happened; the skip is sent as a tip
+    /// id the web shares.
     @MainActor
-    func testSkippingARowDropsItAndPatchesTheServer() async {
+    func testSkippingARowKeepsItForUndoAndPatchesTheServer() async {
         let transport = YouTransport()
         transport.set("GET /api/profile", .json(200, Self.profile(dismissed: true, key: true)))
         transport.set("PATCH /api/profile", .json(200, Data(#"{"ok":true}"#.utf8)))
         let (model, _, _) = make(transport)
         await model.start()
         await model.skip(.goal)
-        XCTAssertEqual(model.nudgeRows.map(\.id), [.template, .key])
+        XCTAssertEqual(model.nudgeRows.map(\.id), [.template, .key, .goal])
+        XCTAssertEqual(model.nudgeRows.map(\.skipped), [false, false, true])
+        XCTAssertEqual(model.nudgeActiveCount, 2)
+        XCTAssertEqual(model.nudgeDoneCount, 1)
         let patch = transport.requests("/api/profile").last { $0.method == "PATCH" }
         XCTAssertEqual(patch?.body?["tip_seen"] as? String, "setup-skip:goal")
-        XCTAssertTrue(model.showsNudge, "the starter plan is still owed")
 
         await model.skip(.template)
-        XCTAssertFalse(model.showsNudge, "only the done key is left: nothing owed")
+        XCTAssertTrue(model.showsNudge, "nothing is owed, but this session's skips can still be undone")
+    }
+
+    /// Undo puts the row back in play and takes the skip off the server, even
+    /// before the re-read stops reporting it.
+    @MainActor
+    func testUndoPutsTheRowBackAndPatchesTheServer() async {
+        let transport = YouTransport()
+        transport.set("GET /api/profile", .json(200, Self.profile(dismissed: true, key: true, skipped: ["goal"])))
+        transport.set("PATCH /api/profile", .json(200, Data(#"{"ok":true}"#.utf8)))
+        let (model, _, _) = make(transport)
+        await model.start()
+        await model.skip(.template)
+        await model.unskip(.template)
+        XCTAssertEqual(model.nudgeRows.map(\.id), [.template, .key], "an earlier session's skip stays settled")
+        XCTAssertEqual(model.nudgeRows.map(\.skipped), [false, false])
+        let patch = transport.requests("/api/profile").last { $0.method == "PATCH" }
+        XCTAssertEqual(patch?.body?["setup_unskip"] as? String, "template")
     }
 
     @MainActor

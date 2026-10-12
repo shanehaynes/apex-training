@@ -5455,6 +5455,9 @@ button.tracker-header__done-badge--button:hover:not(:disabled) {
 
 .setup__skip:hover { color: var(--text-primary); }
 
+.setup__row--skipped .setup__label { color: var(--text-muted); }
+.setup__row--skipped .setup__mark { border-style: dashed; }
+
 .setup__notes {
   margin-top: 14px;
   display: flex;

@@ -70,9 +70,15 @@ describe('checklistRows', () => {
     expect(row?.done).toBe(false);
   });
 
-  it('leaves out the rows the user skipped', () => {
-    const rows = checklistRows(local(), remote(), new Set([setupSkipId('coros'), 'some-tip']));
-    expect(rows.map(r => r.id)).toEqual(['template', 'key', 'goal', 'connector']);
+  it('marks the rows the user skipped and lists them last', () => {
+    const rows = checklistRows(local(), remote(), new Set([setupSkipId('coros'), setupSkipId('template'), 'some-tip']));
+    expect(rows.map(r => r.id)).toEqual(['key', 'goal', 'connector', 'template', 'coros']);
+    expect(rows.filter(r => r.skipped).map(r => r.id)).toEqual(['template', 'coros']);
+  });
+
+  it('counts a row done after a skip as done, not skipped', () => {
+    const rows = checklistRows(local({ coachGoal: 'Climb 5.13a' }), remote(), new Set([setupSkipId('goal')]));
+    expect(rows.find(r => r.id === 'goal')).toMatchObject({ done: true, skipped: false });
   });
 
   it('reports everything done for a fully set-up account', () => {

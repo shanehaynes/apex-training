@@ -50,6 +50,9 @@ public final class OnboardingModel {
     public struct NudgeRow: Identifiable, Hashable, Sendable {
         public let item: OnboardingCatalog.ChecklistItem
         public let done: Bool
+        /// Skipped this session: the row stays, muted, with an Undo, until the
+        /// next launch drops it.
+        public let skipped: Bool
         public var id: OnboardingCatalog.ChecklistID { item.id }
     }
 
@@ -62,8 +65,11 @@ public final class OnboardingModel {
     /// failed PATCH means the flow comes back on the next launch, which is the
     /// web's behaviour too.
     private var dismissedLocally = false
-    /// Rows skipped this session, ahead of the server's `skipped` coming back.
-    private var skippedLocally: Set<OnboardingCatalog.ChecklistID> = []
+    /// Rows skipped this session: hidden from the score but kept on the card,
+    /// so a mis-tap can be undone right where it happened.
+    private var skippedThisSession: Set<OnboardingCatalog.ChecklistID> = []
+    /// Skips taken back this session, ahead of the server's `skipped` catching up.
+    private var unskippedLocally: Set<OnboardingCatalog.ChecklistID> = []
     /// The card's close is session-only (the web's `hidden`): the full list
     /// lives on the You tab, so nothing is lost and no flag is spent.
     public var nudgeHidden = false
@@ -113,14 +119,14 @@ public final class OnboardingModel {
     }
 
     /// The card: same user, flow already dismissed, something left to do —
-    /// a row that is neither done nor skipped.
+    /// a row neither done nor skipped — or a skip from this session to undo.
     public var showsNudge: Bool {
         guard let state, state.applies, !nudgeHidden else { return false }
         return (state.dismissedAt != nil || dismissedLocally) && nudgeRows.contains { !$0.done }
     }
 
     private var skipped: Set<OnboardingCatalog.ChecklistID> {
-        (state?.skipped ?? []).union(skippedLocally)
+        (state?.skipped ?? []).union(skippedThisSession).subtracting(unskippedLocally)
     }
 
     public var welcomeSteps: [OnboardingCatalog.Step] {
@@ -179,12 +185,19 @@ public final class OnboardingModel {
 
     public var nudgeRows: [NudgeRow] {
         guard let setup = state?.setup else { return [] }
+        let skipped = skipped
         return OnboardingCatalog.nudgeIDs.compactMap { id in
-            guard !skipped.contains(id), let item = OnboardingCatalog.checklistItem(id), let done = setup.isDone(id) else { return nil }
-            return NudgeRow(item: item, done: done)
+            guard let item = OnboardingCatalog.checklistItem(id), let done = setup.isDone(id) else { return nil }
+            // Done anyway after a skip: it is done, and there is nothing to undo.
+            let isSkipped = !done && skipped.contains(id)
+            // An earlier session's skip is settled; only this session's stays to be undone.
+            if isSkipped && !skippedThisSession.contains(id) { return nil }
+            return NudgeRow(item: item, done: done, skipped: isSkipped)
         }
     }
 
+    /// The score: rows still in play, and how many of them are done.
+    public var nudgeActiveCount: Int { nudgeRows.filter { !$0.skipped }.count }
     public var nudgeDoneCount: Int { nudgeRows.filter(\.done).count }
 
     // MARK: - Writes
@@ -201,8 +214,17 @@ public final class OnboardingModel {
     /// other device (nor the web) asks again. A failed PATCH brings it back on
     /// the next launch, like the welcome flow's dismissal.
     public func skip(_ id: OnboardingCatalog.ChecklistID) async {
-        skippedLocally.insert(id)
+        skippedThisSession.insert(id)
+        unskippedLocally.remove(id)
         _ = try? await deps.client.data(for: .skipSetupRow(id))
+        await refresh()
+    }
+
+    /// Take a skip back: the row is owed again, here and on the web.
+    public func unskip(_ id: OnboardingCatalog.ChecklistID) async {
+        skippedThisSession.remove(id)
+        unskippedLocally.insert(id)
+        _ = try? await deps.client.data(for: .unskipSetupRow(id))
         await refresh()
     }
 

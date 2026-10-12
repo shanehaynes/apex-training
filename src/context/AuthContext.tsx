@@ -4,9 +4,10 @@ import { supabase } from '../lib/supabaseClient';
 import { acceptTerms as postAcceptance, ApiError, getJson, patchJson } from '../lib/api';
 import type { AcceptanceStatus } from '../lib/api';
 import { clearCompletedIds } from '../lib/schedule/localCompletion';
-import { loadLocalTipsSeen, saveLocalTipSeen } from '../lib/onboarding/tipsStore';
+import { loadLocalTipsSeen, removeLocalTipSeen, saveLocalTipSeen } from '../lib/onboarding/tipsStore';
 import type { TipId } from '../lib/onboarding/tips/index';
-import type { SetupSkipId } from '../lib/onboarding/progress';
+import { setupSkipId, type SetupSkipId } from '../lib/onboarding/progress';
+import type { ChecklistId } from '../lib/onboarding/content';
 import { publicOrigin } from '../lib/origin';
 import { parseAuthLinkError } from '../lib/auth/linkError';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
@@ -265,6 +266,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     patchJson('/api/profile', { tip_seen: id }, 'Saving', { quiet: true }).catch(() => {});
   }, [userId, profile]);
 
+  // The one way back out of tips_seen: a skipped checklist row. Same posture
+  // as markTipSeen — gone here at once, then off the server.
+  const unskipSetupRow = useCallback((row: ChecklistId) => {
+    const id = setupSkipId(row);
+    removeLocalTipSeen(userId, id);
+    setLocalTips(prev => {
+      const { [id]: _removed, ...rest } = prev.userId === userId ? prev.seen : loadLocalTipsSeen(userId);
+      return { userId, seen: rest };
+    });
+    if (!supabase || !profile || !('tips_seen' in profile)) return;
+    setProfile(prev => {
+      if (!prev) return prev;
+      const { [id]: _removed, ...rest } = (prev.tips_seen ?? {}) as Record<string, string>;
+      return { ...prev, tips_seen: rest };
+    });
+    patchJson('/api/profile', { setup_unskip: row }, 'Saving', { quiet: true }).catch(() => {});
+  }, [userId, profile]);
+
   const refreshProfile = useCallback(async () => {
     if (session) await loadProfile(session.user.id);
   }, [session, loadProfile]);
@@ -323,13 +342,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     dismissOnboarding,
     tipsSeen,
     markTipSeen,
+    unskipSetupRow,
     refreshProfile,
     saveAnthropicKey,
     removeAnthropicKey,
     acceptTerms,
   }), [
     status, session, profile, anthropicKey, termsStatus, signIn, signUp, signOut, resetPassword,
-    setNewPassword, updateProfile, dismissOnboarding, tipsSeen, markTipSeen, refreshProfile,
+    setNewPassword, updateProfile, dismissOnboarding, tipsSeen, markTipSeen, unskipSetupRow, refreshProfile,
     saveAnthropicKey, removeAnthropicKey, acceptTerms,
   ]);
 

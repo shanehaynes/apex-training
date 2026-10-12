@@ -475,6 +475,11 @@ public struct Endpoint: Sendable, Equatable {
         profilePatch(["tip_seen": .string("setup-skip:\(id.rawValue)")])
     }
 
+    /// Take a skipped row back: the one key that ever leaves `tips_seen`.
+    public static func unskipSetupRow(_ id: OnboardingCatalog.ChecklistID) -> Endpoint {
+        profilePatch(["setup_unskip": .string(id.rawValue)])
+    }
+
     /// The activity log: the three audit tables merged newest-first, capped at
     /// 100 server-side. No paging and no parameters.
     public static let mutationsLog = Endpoint(path: "api/mutations-log")

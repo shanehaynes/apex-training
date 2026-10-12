@@ -7,7 +7,7 @@ import { enforceRateLimit } from '../rateLimit.js';
 import { isCurrent, latestAcceptance } from '../legal.js';
 import { COACH_MODELS, isCoachModelId, resolveCoachModel } from '../../../src/lib/coach/models.js';
 import { publicOrigin } from '../oauth/common.js';
-import { isSetupSkipId, localSetupDone, skippedIds } from '../../../src/lib/onboarding/progress.js';
+import { isChecklistId, isSetupSkipId, localSetupDone, setupSkipId, skippedIds } from '../../../src/lib/onboarding/progress.js';
 import { isTipId } from '../../../src/lib/onboarding/tips/index.js';
 import { contractProblem, normalizeContract } from '../../../src/lib/coach/contract.js';
 
@@ -218,6 +218,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     max_hr?: unknown;
     threshold_hr?: unknown;
     tip_seen?: unknown;
+    setup_unskip?: unknown;
     coach_contract?: unknown;
     reflection_opt_in?: unknown;
   } | undefined;
@@ -299,11 +300,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // One-time tip dismissed (docs/onboarding, D-O01): the id must be in the
-  // catalog, or a skipped Getting started row (`setup-skip:<id>`), and the time is the server's, like onboarding_dismissed. The
-  // column is a map, so this reads it and writes back the merge — read here,
-  // before any other write, so a missing column 409s with nothing changed.
-  if (body?.tip_seen !== undefined) {
-    if (!isTipId(body.tip_seen) && !isSetupSkipId(body.tip_seen)) {
+  // catalog, or a skipped Getting started row (`setup-skip:<id>`), and the
+  // time is the server's, like onboarding_dismissed. The column is a map, so
+  // this reads it and writes back the merge — read here, before any other
+  // write, so a missing column 409s with nothing changed. A skipped row taken
+  // back (`setup_unskip: '<row id>'`) is the one key that ever leaves the
+  // map; a dismissed tip stays dismissed.
+  const unskip = body?.setup_unskip;
+  if (unskip !== undefined && !isChecklistId(unskip)) {
+    res.status(400).send('Invalid setup_unskip');
+    return;
+  }
+  if (body?.tip_seen !== undefined || unskip !== undefined) {
+    if (body?.tip_seen !== undefined && !isTipId(body.tip_seen) && !isSetupSkipId(body.tip_seen)) {
       res.status(400).send('Invalid tip_seen');
       return;
     }
@@ -321,8 +330,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(500).send('Failed to update profile');
       return;
     }
-    const current = tipsSeenRecord((data as { tips_seen?: unknown } | null)?.tips_seen);
-    fields.tips_seen = { ...current, [body.tip_seen]: new Date().toISOString() };
+    const next = { ...tipsSeenRecord((data as { tips_seen?: unknown } | null)?.tips_seen) };
+    if (body?.tip_seen !== undefined) next[body.tip_seen as string] = new Date().toISOString();
+    if (unskip !== undefined) delete next[setupSkipId(unskip)];
+    fields.tips_seen = next;
   }
 
   // The coaching contract (lane D01): athlete-owned text, '' clears it. The
