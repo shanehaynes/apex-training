@@ -336,6 +336,7 @@ export function useWorkoutSession(
     // A cardio entry has no sets; any key naming the added id deletes its row.
     if (tracked.isCardio) removedRef.current.push({ section, exerciseId, setNumber: 0 });
     dirtyCardioRef.current.delete(`${section}|${exerciseId}`);
+    dirtyNotesRef.current.delete(`${section}|${exerciseId}`);
     setGroups(prev => prev && prev
       .map(g => (g.section !== section ? g : { ...g, exercises: g.exercises.filter(t => t.exercise.id !== exerciseId) }))
       .filter(g => g.exercises.length > 0));
