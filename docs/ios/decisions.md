@@ -1028,3 +1028,26 @@ exercise (Library, Builder): both now queue when there is no signal. The lines d
   local copy.
 - **Still online-only:** the event sheet's inline edits, delete and reschedule, and the web,
   which has no offline writes at all.
+
+## D-053 · System callbacks the SDK leaves un-annotated run on main or are written `@Sendable`
+**Status:** decided · Mac session · 2026-10-12
+- **The crash.** TestFlight users saw "Apex unexpectedly crashed" some time after sending the app to
+  the background without force-quitting it. `sceneEnteredBackground` schedules a
+  `BGAppRefreshTask`; when iOS later woke the suspended app to run it, the launch handler registered
+  in `WriteQueueDriver.registerBackgroundTask()` trapped on entry. A force-quit app is never woken
+  for a refresh, which is why fully closing it never crashed. Present since W4 (#119).
+- **Why.** `BGTaskScheduler.register(forTaskWithIdentifier:using:launchHandler:)` takes a plain ObjC
+  block (no `NS_SWIFT_SENDABLE` in the iOS 26.5 SDK), and so does `BGTask.expirationHandler`. Under
+  MainActor default isolation (D-031) a closure written in MainActor code is therefore inferred
+  `@MainActor`, and Swift 6 opens it with `_checkExpectedExecutor` (visible in SIL as
+  `Isolation: global_actor. type: MainActor`). `using: nil` delivers on BGTaskScheduler's own
+  background queue, the check fails, and the process traps. The compiler raises no warning,
+  because nothing in the signature says the block crosses threads.
+- **The rule.** In a MainActor-default target, a closure handed to a system API whose SDK type is
+  neither Sendable nor `@MainActor` either (a) is delivered on the main queue when the API takes a
+  queue (`using: .main`), so the inferred isolation is true, or (b) is written `{ @Sendable … }`
+  and touches nothing isolated. (b) alone is not enough when the closure must pass a non-Sendable
+  argument (a `BGTask`) on to the main actor: Swift 6 rejects that as a data race, which is why the
+  launch handler takes (a) and the expiration handler, which only cancels a `Task`, takes (b).
+  Already-annotated APIs (`NWPathMonitor.pathUpdateHandler`, `UIApplication.beginBackgroundTask`'s
+  handler) need nothing.

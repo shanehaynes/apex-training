@@ -44,15 +44,22 @@ final class WriteQueueDriver {
 
     /// Registration has to happen before the app finishes launching, and only
     /// once — hence static, from `ApexApp.init`.
+    ///
+    /// The SDK does not mark these blocks Sendable, so under MainActor default
+    /// isolation they are inferred `@MainActor` and open with a runtime executor
+    /// check (D-053). With `using: nil` BGTaskScheduler called the launch handler
+    /// on its own background queue and the check trapped the app the first time
+    /// iOS woke it for a refresh — hence `.main`. The expiration handler's queue
+    /// is unspecified, so it is `@Sendable` and only cancels.
     static func registerBackgroundTask() {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: taskIdentifier, using: nil) { task in
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: taskIdentifier, using: .main) { task in
             guard let refresh = task as? BGAppRefreshTask else { return }
             let work = Task {
                 if let queue = current { await queue.resume() }
                 refresh.setTaskCompleted(success: true)
                 scheduleAppRefresh()
             }
-            refresh.expirationHandler = { work.cancel() }
+            refresh.expirationHandler = { @Sendable in work.cancel() }
         }
     }
 
