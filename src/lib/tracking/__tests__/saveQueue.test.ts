@@ -527,4 +527,103 @@ describe('createSaveQueue', () => {
     expect(queue.state().pending).toBe(0);
     queue.dispose();
   });
+
+  it('dispose() during an isolation pass ends it: no further single-key send, the flush false, the rest pending', async () => {
+    const h = harness();
+    h.queue.markDirty('a');
+    h.queue.markDirty('b');
+    h.queue.markDirty('c');
+    const attempt = h.queue.flush();
+    await started();
+    h.sends[0].reject(Object.assign(new Error('bad row'), { status: 422 }));
+    await started();
+    expect(h.sends[1].keys).toEqual(['a']);
+    h.queue.dispose();
+    h.sends[1].resolve();
+    await expect(attempt).resolves.toBe(false);
+    await tick();
+    expect(h.sends.map(x => x.keys)).toEqual([['a', 'b', 'c'], ['a']]);
+    expect(h.queue.state()).toMatchObject({ pending: 2, inFlight: false, rejected: 0, consecutiveFailures: 0 });
+    expect(h.live()).toHaveLength(0);
+  });
+
+  it('a batch refused after dispose() is not isolated: the flush resolves false with every key still pending', async () => {
+    const h = harness();
+    h.queue.markDirty('a');
+    h.queue.markDirty('b');
+    const attempt = h.queue.flush();
+    await started();
+    h.queue.dispose();
+    h.sends[0].reject(Object.assign(new Error('bad row'), { status: 422 }));
+    await expect(attempt).resolves.toBe(false);
+    await tick();
+    expect(h.sends).toHaveLength(1);
+    expect(h.queue.state()).toMatchObject({ pending: 2, inFlight: false, rejected: 0 });
+  });
+
+  it('pausedStatus() is the status that paused the queue, null before and after retryNow()', async () => {
+    for (const status of [401, 403] as const) {
+      const h = harness();
+      expect(h.queue.pausedStatus()).toBeNull();
+      h.queue.markDirty('a');
+      const attempt = h.queue.flush();
+      await started();
+      h.sends[0].reject(Object.assign(new Error('auth'), { status }));
+      await expect(attempt).resolves.toBe(false);
+      expect(h.queue.state().paused).toBe(true);
+      expect(h.queue.pausedStatus()).toBe(status);
+      const resumed = h.queue.retryNow();
+      await started();
+      expect(h.queue.pausedStatus()).toBeNull();
+      h.sends[1].resolve();
+      await expect(resumed).resolves.toBe(true);
+      expect(h.queue.pausedStatus()).toBeNull();
+    }
+  });
+
+  it('pausedStatus() is set by an auth failure during isolation and survives dispose()', async () => {
+    const h = harness();
+    h.queue.markDirty('a');
+    h.queue.markDirty('b');
+    const attempt = h.queue.flush();
+    await started();
+    h.sends[0].reject(Object.assign(new Error('bad row'), { status: 422 }));
+    await started();
+    h.sends[1].reject(Object.assign(new Error('terms'), { status: 403 }));
+    await expect(attempt).resolves.toBe(false);
+    expect(h.queue.state()).toMatchObject({ paused: true, pending: 2 });
+    expect(h.queue.pausedStatus()).toBe(403);
+    h.queue.dispose();
+    expect(h.queue.pausedStatus()).toBe(403);
+    await expect(h.queue.retryNow()).resolves.toBe(false);
+    expect(h.queue.pausedStatus()).toBe(403);
+  });
+
+  it('ignoreRejected: a refused key it matches is dropped, not counted, whether refused alone or in isolation', async () => {
+    const h = harness({ ignoreRejected: key => key.startsWith('removed|') });
+    h.queue.markDirty('removed|x');
+    const alone = h.queue.flush();
+    await started();
+    h.sends[0].reject(Object.assign(new Error('bad row'), { status: 422 }));
+    await expect(alone).resolves.toBe(true);
+    expect(h.queue.state()).toMatchObject({ pending: 0, rejected: 0, rejectedKeys: [], showBar: false });
+
+    h.queue.markDirty('set|a');
+    h.queue.markDirty('removed|b');
+    h.queue.markDirty('set|c');
+    const batch = h.queue.flush();
+    await started();
+    h.sends[1].reject(Object.assign(new Error('bad row'), { status: 422 }));
+    await started();
+    h.sends[2].resolve(); // set|a
+    await started();
+    h.sends[3].reject(Object.assign(new Error('bad row'), { status: 422 })); // removed|b
+    await started();
+    h.sends[4].reject(Object.assign(new Error('bad row'), { status: 422 })); // set|c
+    await expect(batch).resolves.toBe(true);
+    expect(h.queue.state()).toMatchObject({ pending: 0, rejected: 1, rejectedKeys: ['set|c'], showBar: true });
+    // No transition ever showed the ignored key as rejected, so a listener
+    // has nothing to unmark — the one that used to re-enter the queue.
+    expect(h.states.every(s => !s.rejectedKeys.some(k => k.startsWith('removed|')))).toBe(true);
+  });
 });

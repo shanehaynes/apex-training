@@ -7,7 +7,7 @@ import { useSchedule } from '../../context/schedule';
 import { formatElapsed } from '../../lib/time';
 import { notify } from '../../lib/notify';
 import { getWorkoutColor } from '../../utils/workoutColors';
-import { useWorkoutSession } from '../../hooks/useWorkoutSession';
+import { pauseCause, useWorkoutSession } from '../../hooks/useWorkoutSession';
 import type { TrackedSection } from '../../lib/db/types';
 import type { ExerciseCategory, ExerciseDefinition } from '../../types/workout';
 import TrackerExercise from './TrackerExercise';
@@ -64,16 +64,25 @@ export default function TrackerView() {
   // Leaving the tracker drops its save queue, so Back waits for the save:
   // a failed flush keeps the session open with its edits still dirty (the
   // queue keeps retrying; the bar's Retry sends now) rather than losing them.
-  // Refused edits are the user's call to abandon — said out loud, never
-  // silently.
+  // A paused queue is the exception: nothing will land until the user signs
+  // in or accepts the terms, and holding them in the tracker until then is
+  // not a save, so Back leaves and says what is lost and why. Refused edits
+  // are the user's call to abandon — said out loud, never silently.
   const close = async () => {
     if (isCancelling) return;
-    if (!(await flushSave())) {
+    const saved = await flushSave();
+    const { paused, pausedStatus, pending, rejected } = getSaveState();
+    if (!saved && !paused) {
       notify('Unsaved changes — retry before leaving');
       return;
     }
-    const refused = getSaveState().rejected;
-    if (refused > 0) notify(`${refused} refused ${refused === 1 ? 'edit' : 'edits'} will be lost`);
+    const lost = paused ? pending + rejected : rejected;
+    if (lost > 0) {
+      const edits = lost === 1 ? 'edit' : 'edits';
+      notify(paused
+        ? `${lost} unsaved ${edits} will be lost — ${pauseCause(pausedStatus)}`
+        : `${lost} refused ${edits} will be lost`);
+    }
     dispatch({ type: 'STOP_TRACKING' });
   };
 

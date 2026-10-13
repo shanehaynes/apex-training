@@ -12,7 +12,8 @@
 // than 401/403/408/429 is the server refusing rows, not a transient fault:
 // the batch is re-sent one key at a time so only the refused key leaves the
 // queue as `rejected` (re-dirtying it re-queues it). A 401/403 pauses the
-// queue — nothing retries until the user, signed in again, presses Retry.
+// queue — nothing retries until the user, signed in again, presses Retry —
+// and `pausedStatus()` says which, so the caller can name the cause.
 
 export interface SaveQueueDeps {
   /** Send these keys now. Resolves on success; rejects on failure. A rejection may carry `{ retryAfterMs?: number }` (e.g. from a 429) and `{ status?: number }`. */
@@ -24,7 +25,15 @@ export interface SaveQueueDeps {
   maxRetryMs?: number;
   barAfterFailures?: number;                                // default 2
   onChange?: (state: SaveQueueState) => void;               // called after every state change
+  /**
+   * A refused key this returns true for is dropped instead of counted as
+   * rejected — for a key the user has no field to re-edit (a removed set).
+   */
+  ignoreRejected?: (key: string) => boolean;
 }
+
+/** The status that paused the queue: 401 (session gone) or 403 (terms). */
+export type PausedStatus = 401 | 403;
 
 export interface SaveQueueState {
   pending: number;              // distinct keys still dirty
@@ -43,6 +52,7 @@ export interface SaveQueue {
   flush(): Promise<boolean>;      // see A2, A5
   retryNow(): Promise<boolean>;   // cancels any scheduled retry, then flushes
   state(): SaveQueueState;
+  pausedStatus(): PausedStatus | null; // what paused the queue, null while not paused
   dispose(): void;                // cancels timers; afterwards markDirty is ignored and flush resolves false without sending
 }
 
@@ -110,6 +120,7 @@ export function createSaveQueue(deps: SaveQueueDeps): SaveQueue {
   let retryHandle: unknown = null;
   let nextRetryAt: number | null = null;
   let paused = false;
+  let pausedStatus: PausedStatus | null = null;
   let disposed = false;
 
   const state = (): SaveQueueState => ({
@@ -158,13 +169,14 @@ export function createSaveQueue(deps: SaveQueueDeps): SaveQueue {
   const settleKey = (key: string, generation: number, refused: boolean) => {
     if (generations.get(key) !== generation) return;
     generations.delete(key);
-    if (refused) rejected.add(key);
+    if (refused && !deps.ignoreRejected?.(key)) rejected.add(key);
   };
 
   // The three ways a send can end badly, shared by the batch and the
   // single-key isolation sends. Each returns the flush outcome.
-  const onPaused = (): boolean => {
+  const onPaused = (err: unknown): boolean => {
     paused = true;
+    pausedStatus = statusOf(err) as PausedStatus;
     cancelRetry();
     inFlight = null;
     emit();
@@ -188,8 +200,16 @@ export function createSaveQueue(deps: SaveQueueDeps): SaveQueue {
   // snapshot key alone, in order, so only the key it actually refuses is
   // rejected. One send is in flight throughout; a transient failure stops
   // the pass with the rest still pending, and an auth failure pauses it.
+  // dispose() ends it too — the hook disposes once the session is gone,
+  // and a single-key send after that would re-create a deleted row — with
+  // the rest still pending and the flush false.
   const isolate = async (snapshot: Map<string, number>): Promise<boolean> => {
     for (const key of snapshot.keys()) {
+      if (disposed) {
+        inFlight = null;
+        emit();
+        return false;
+      }
       const generation = generations.get(key);
       if (generation === undefined) continue; // unmarked meanwhile
       try {
@@ -197,7 +217,7 @@ export function createSaveQueue(deps: SaveQueueDeps): SaveQueue {
         settleKey(key, generation, false);
         emit();
       } catch (err) {
-        if (isAuthFailure(err)) return onPaused();
+        if (isAuthFailure(err)) return onPaused(err);
         if (!isNonRetryable(err)) return onFailed(err);
         settleKey(key, generation, true);
         emit();
@@ -222,7 +242,7 @@ export function createSaveQueue(deps: SaveQueueDeps): SaveQueue {
           return onDone();
         },
         (err: unknown) => {
-          if (isAuthFailure(err)) return onPaused();
+          if (isAuthFailure(err)) return onPaused(err);
           if (!isNonRetryable(err)) return onFailed(err);
           if (snapshot.size > 1) return isolate(snapshot);
           // A one-key refusal is its own transition (the streak count
@@ -284,12 +304,16 @@ export function createSaveQueue(deps: SaveQueueDeps): SaveQueue {
     },
     flush,
     retryNow() {
-      if (!disposed) paused = false;
+      if (!disposed) {
+        paused = false;
+        pausedStatus = null;
+      }
       cancelRetry();
       emit();
       return flush();
     },
     state,
+    pausedStatus: () => pausedStatus,
     dispose() {
       disposed = true;
       cancelRetry();
