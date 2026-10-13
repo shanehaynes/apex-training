@@ -68,13 +68,42 @@ Do not use `claude/*` or `worktree-*`. Those encode *who* made the branch or
 Run the gate, then open the PR:
 
 ```bash
-npm run agent:check       # tsc -b, vitest, oxlint, playwright (mock) — what CI's check + e2e-mock jobs run
+npm run agent:check       # build (tsc -b + vite build), vitest, oxlint, playwright (mock), ci:guards — exactly CI's check + e2e-mock jobs
 gh pr create --base main  # squash-merge it on GitHub; the remote branch auto-deletes
 ```
 
 `gh` is how a session opens PRs and watches CI (`gh pr checks`,
 `gh api repos/…/commits/<sha>/check-runs`). Its token needs the `workflow`
 scope to push anything under `.github/workflows/` — see "Repo settings".
+
+### Stopping is gated
+
+A session that cut a lane with `git-new.sh` cannot end its turn while that
+lane is dirty, red, or unpushed: a Stop hook (`scripts/hooks/stop-gate.mjs`,
+wired in `.claude/settings.json`) checks the worktree, runs `agent:check`
+once per commit (cached by SHA — it is minutes on a Mac and a quarter hour in
+a cloud container), and refuses the stop with the reason until the SHA is
+green and on origin. "Done" is no longer a feeling. Two deliberate ways out, both
+on the record:
+
+- `scripts/stop-gate.sh blocked "<reason>"` lets one stop through — for an
+  irreversible action that needs Shane, or an ambiguity that changes the
+  design. Say the same thing in your report.
+- The gate runs at most 3 times per commit and 10 times per session while
+  red; past that it stands aside with a note, so an unfixable red (stale
+  stack, a flake, no network for `npm audit`) cannot loop a session forever.
+  Commit and push anyway — a red branch on origin is visible, uncommitted
+  work is not — and say what was red.
+
+A lane whose work already landed in `origin/main` (squash-merged, remote
+branch gone) is done and never blocks. A stop taken while background tasks
+are still running is a wait, not an end, and passes. At any other ambiguity:
+decide, write the decision down (the lane report's DECISIONS line, or the
+board's decisions file), and keep going. Resuming a session in an existing
+lane? `scripts/stop-gate.sh status` shows what the hook thinks;
+`bind <worktree>` attaches it; an orchestrator that cuts several lanes is
+bound to all of them. `APEX_STOP_GATE=off` in the environment `claude` was
+launched with disables it (a hook does not see the Bash tool's shell).
 
 Squash-merge it. GitHub deletes the remote branch. Then retire the local side:
 

@@ -105,10 +105,19 @@ refactor — which is exactly what happened once (see CONTRIBUTING.md).
 ## Checks
 
 ```bash
-npm run agent:check     # tsc -b + vitest + oxlint + playwright (mock)
+npm run agent:check     # build + vitest + oxlint + playwright (mock) + ci:guards — the gate, same as CI
 npm test                # vitest only
-npm run build           # tsc -b + vite build — what CI runs
+npm run build           # tsc -b + vite build
 ```
+
+**Stopping is gated.** A session that cut a lane with `git-new.sh` cannot end
+its turn while that lane is dirty, red (`agent:check`), or unpushed — a Stop
+hook (`scripts/hooks/stop-gate.mjs`) refuses with the reason. At an ambiguity
+that does not change the design: decide, log it (DECISIONS in your report, or
+the board's decisions file), continue. Stop early only for an irreversible
+action or a design-changing ambiguity, and then run
+`scripts/stop-gate.sh blocked "<reason>"` first so the stop is on the record
+(CONTRIBUTING.md, "Stopping is gated").
 
 CI runs build, test, lint, and `npm run ci:guards` — the root-level `api/*.ts`
 count (new handlers belong in `api/_lib/handlers/`, behind the Hono router)
