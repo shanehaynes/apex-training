@@ -334,7 +334,8 @@ if [ -n "$GH" ] && [ -n "$since" ]; then
     echo "   merged PRs: none since $since (or gh unavailable)"
   fi
 fi
-if [ -s ".claude/state/claims.tsv" ] && [ -n "$since" ]; then
+# Lanes are this machine's claims, so they belong to the local sections.
+if [ "$local_sections" = 1 ] && [ -s ".claude/state/claims.tsv" ] && [ -n "$since" ]; then
   since_epoch=$(epoch_utc "${since}T00:00:00Z" || echo 0)
   lanes=$(awk -F'\t' '{print $2}' .claude/state/claims.tsv | while read -r ts; do
     e=$(epoch_utc "$ts" || echo 0); [ "$e" -ge "$since_epoch" ] && iso_week "$ts"; done | sort | uniq -c)

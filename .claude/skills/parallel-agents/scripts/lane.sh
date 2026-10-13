@@ -351,13 +351,14 @@ cmd_port() {
   local dir root top row port
   dir=$(cd "${1:-.}" && pwd -P)
   root=$(cd "$dir" && primary_root)
-  # A project that resolves its own per-worktree port (Apex: dev/port.mjs,
-  # read by vite, Playwright and drive.mjs) is the authority — the port this
-  # script would allocate is one nothing binds.
-  if [ -f "$root/dev/port.mjs" ]; then (cd "$dir" && node "$root/dev/port.mjs") && return; fi
   if [ "$dir" = "$root" ]; then echo "${LANE_PORT_DEFAULT:-5173}"; return; fi
   top=$(cd "$(cd "$dir" && git rev-parse --show-toplevel)" && pwd -P)
   if [ "$top" = "$root" ]; then echo "${LANE_PORT_DEFAULT:-5173}"; return; fi
+  # A project that resolves its own per-worktree port (Apex: dev/port.mjs,
+  # read by vite, Playwright and drive.mjs) is the authority — the port this
+  # script would allocate is one nothing binds. It must be the WORKTREE's copy
+  # of the module: it derives the checkout from its own location, not the cwd.
+  if [ -f "$top/dev/port.mjs" ]; then (cd "$top" && node "$top/dev/port.mjs") && return; fi
   if row=$(claim_find "$root/.claude/state/claims.tsv" "$top"); then
     IFS="$US" read -r _ _ _ _ port _ _ _ <<EOF
 $row
