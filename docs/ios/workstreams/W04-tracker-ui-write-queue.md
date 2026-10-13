@@ -173,4 +173,8 @@ Out: Live Activity (W12), rest timer (Backlog).
   (phase 54, `workout_exercise_notes`) — see STATUS "Next up". **Mac verification needed:** no
   Swift toolchain in this session; the `ApexCore` tests ran only in CI, and the chips, the toggles
   and the snapshot deltas are unseen. The smoke has no leg for the chip yet
-  (`tracker.add-field.<id>.<weight|reps|duration>` is the identifier to drive).
+  (`tracker.add-field.<id>.<weight|reps|duration>` is the identifier to drive). **Known edge
+  (reviewer, not fixed):** two different chips tapped within one SQLite append of each other can
+  enqueue out of tap order — `WriteQueue.enqueue` has no per-session ordering token — and land
+  the older array last on the server; the card stays right (the local copy is re-read after the
+  await), and a per-session ticket in `enqueue` is a queue change for its own lane.
