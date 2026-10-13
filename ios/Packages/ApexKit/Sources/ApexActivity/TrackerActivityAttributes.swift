@@ -17,7 +17,12 @@ public nonisolated struct TrackerActivityAttributes: ActivityAttributes, Sendabl
         public var startedAt: Date
         public var exerciseCount: Int?
         public var phase: Phase
-        /// Reserved for the rest timer between sets (D-015, Backlog). Unused.
+        /// The rest countdown between sets (D-015): the instant the current
+        /// rest ends, which the views hand to `Text(timerInterval:)` so the
+        /// island counts down on its own. Nil when no rest is running — the
+        /// app clears it when the rest is skipped or runs out while it is
+        /// foregrounded; a countdown that reached zero while the app slept
+        /// reads 0:00 until the next sync.
         public var restEndsAt: Date?
 
         public init(startedAt: Date, exerciseCount: Int? = nil, phase: Phase = .running, restEndsAt: Date? = nil) {

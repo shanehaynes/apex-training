@@ -23,12 +23,15 @@ public nonisolated struct TrackerActivitySnapshot: Sendable, Equatable {
     public var title: String
     public var startedAt: Date
     public var exerciseCount: Int?
+    /// The rest countdown's end (D-015); nil when none is running.
+    public var restEndsAt: Date?
 
-    public init(session: SessionKey, title: String, startedAt: Date, exerciseCount: Int? = nil) {
+    public init(session: SessionKey, title: String, startedAt: Date, exerciseCount: Int? = nil, restEndsAt: Date? = nil) {
         self.session = session
         self.title = title
         self.startedAt = startedAt
         self.exerciseCount = exerciseCount
+        self.restEndsAt = restEndsAt
     }
 
     public var attributes: TrackerActivityAttributes {
@@ -36,7 +39,7 @@ public nonisolated struct TrackerActivitySnapshot: Sendable, Equatable {
     }
 
     public var state: TrackerActivityAttributes.ContentState {
-        TrackerActivityAttributes.ContentState(startedAt: startedAt, exerciseCount: exerciseCount, phase: .running)
+        TrackerActivityAttributes.ContentState(startedAt: startedAt, exerciseCount: exerciseCount, phase: .running, restEndsAt: restEndsAt)
     }
 }
 

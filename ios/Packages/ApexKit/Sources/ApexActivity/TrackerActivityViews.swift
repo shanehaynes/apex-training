@@ -78,6 +78,45 @@ public enum TrackerActivityViews {
         return "\(count) exercise\(count == 1 ? "" : "s")"
     }
 
+    // MARK: - Rest (D-015)
+
+    /// The rest countdown's range, when one is worth drawing: running, not
+    /// stale, and not already over at the moment the content is rendered (a
+    /// rest that ran out while the phone slept reads as nothing rather than
+    /// as a frozen 0:00). `Text(timerInterval:)` counts it down from here and
+    /// stops at zero on its own.
+    static func restRange(_ state: State, isStale: Bool = false, now: Date = .now) -> ClosedRange<Date>? {
+        guard !state.isDone, !isStale, let end = state.restEndsAt, end > now else { return nil }
+        return now...end
+    }
+
+    /// "Rest" and the countdown, in the accent so it reads as the thing to
+    /// glance at between sets.
+    public struct RestCountdown: View {
+        let range: ClosedRange<Date>
+        var font: Font
+        var labelFont: Font?
+
+        public init(range: ClosedRange<Date>, font: Font, labelFont: Font? = nil) {
+            self.range = range
+            self.font = font
+            self.labelFont = labelFont
+        }
+
+        public var body: some View {
+            HStack(spacing: Spacing.xs) {
+                if let labelFont {
+                    Text("Rest").font(labelFont)
+                }
+                Text(timerInterval: range, countsDown: true, showsHours: false)
+                    .font(font)
+                    .monospacedDigit()
+            }
+            .foregroundStyle(ApexColor.accent)
+            .lineLimit(1)
+        }
+    }
+
     // MARK: - Lock Screen banner
 
     public struct LockScreen: View {
@@ -126,6 +165,12 @@ public enum TrackerActivityViews {
                         Text(staleHint)
                             .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
                             .foregroundStyle(ApexColor.textSecondary)
+                    } else if let rest = restRange(state, isStale: isStale) {
+                        RestCountdown(
+                            range: rest,
+                            font: .apex(.mono, size: TypeScale.sm, weight: .medium, relativeTo: .callout),
+                            labelFont: .apex(.display, size: TypeScale.sm, relativeTo: .callout)
+                        )
                     } else if let label = exerciseLabel(state.exerciseCount) {
                         Text(label)
                             .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
@@ -205,9 +250,17 @@ public enum TrackerActivityViews {
 
         public var body: some View {
             HStack(spacing: Spacing.sm) {
-                Text(status)
-                    .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
-                    .foregroundStyle(ApexColor.textSecondary)
+                if let rest = restRange(state, isStale: isStale) {
+                    RestCountdown(
+                        range: rest,
+                        font: .apex(.mono, size: TypeScale.xs, weight: .medium, relativeTo: .caption),
+                        labelFont: .apex(.display, size: TypeScale.xs, relativeTo: .caption)
+                    )
+                } else {
+                    Text(status)
+                        .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
+                        .foregroundStyle(ApexColor.textSecondary)
+                }
                 Spacer()
                 HStack(spacing: Spacing.xs) {
                     Text("Open")
@@ -247,10 +300,18 @@ public enum TrackerActivityViews {
         }
 
         public var body: some View {
-            Timer(state: state, font: .system(size: 14, weight: .semibold), color: ApexColor.accent, isStale: isStale)
-                // A fixed frame so the digits never push the island wider as
-                // the minutes roll over; wide enough for h:mm:ss.
-                .frame(minWidth: 44, alignment: .trailing)
+            Group {
+                // Between sets the countdown is the number to glance at; the
+                // elapsed stays in the expanded trailing slot.
+                if let rest = restRange(state, isStale: isStale) {
+                    RestCountdown(range: rest, font: .system(size: 14, weight: .semibold))
+                } else {
+                    Timer(state: state, font: .system(size: 14, weight: .semibold), color: ApexColor.accent, isStale: isStale)
+                }
+            }
+            // A fixed frame so the digits never push the island wider as
+            // the minutes roll over; wide enough for h:mm:ss.
+            .frame(minWidth: 44, alignment: .trailing)
         }
     }
 
