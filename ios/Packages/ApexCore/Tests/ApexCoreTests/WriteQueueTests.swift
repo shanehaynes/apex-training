@@ -751,9 +751,9 @@ final class WriteQueueTests: XCTestCase {
     }
 
     func testARefusedCompletionIsReportedWithItsActionAndKept() async throws {
-        // A 4xx is final: the completion is kept as failed and named in the
-        // event, so the schedule can undo its optimistic flip. The lane does
-        // not block behind it.
+        // A 4xx is final: the completion is kept as failed (a refusal, not a
+        // give-up) and named in the event, so the schedule can undo its
+        // optimistic flip. The plan-fill queued behind it goes with it, unsent.
         let transport = ScriptedTransport([.status(400, body: "Invalid action"), .ok()])
         let store = MemoryWriteQueueStore()
         let queue = makeQueue(transport, store: store)
@@ -771,8 +771,97 @@ final class WriteQueueTests: XCTestCase {
         let kept = await store.all
         XCTAssertEqual(kept.map(\.state), [.failed])
         XCTAssertEqual(kept.first?.payload.action, .completion)
+        XCTAssertEqual(kept.first?.isRefused, true)
+        XCTAssertEqual(kept.first?.isWaiting, false)
         let sent = await transport.requests.map(\.path)
-        XCTAssertEqual(sent, ["/api/completions", "/api/workout-sessions"])
+        XCTAssertEqual(sent, ["/api/completions"], "the quick-complete behind a refused completion is never sent")
+    }
+
+    func testARefusedCompletionRetiresOnlyItsOwnQuickComplete() async throws {
+        // Two toggles queued offline; the first's completion is refused. Its
+        // plan-fill is retired with it; the second toggle lands whole.
+        let transport = ScriptedTransport([.status(400, body: "Invalid action"), .ok(), .ok()])
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store)
+        let first = toggle(complete: true)
+        let second = SessionKey(eventId: "ios-fixture-weekly__2026-09-22", eventDate: "2026-09-22")
+        try await queue.enqueue(first.completion, for: .outbox)
+        try await queue.enqueue(first.quick, for: .outbox)
+        try await queue.enqueue(.completion(
+            completionRow: CompletionRow(eventId: second.eventId, eventDate: second.eventDate, eventType: "strength", eventTitle: "Press",
+                                         durationMinutes: nil, isCompleted: true, completedAt: "2026-09-22T12:00:00.000Z"),
+            logRow: CompletionLogRow(eventId: second.eventId, eventDate: second.eventDate, eventType: "strength", eventTitle: "Press",
+                                     durationMinutes: nil, action: "complete", clientToggleId: "1b9f3c52-6a1e-4c47-9d3a-5f2e8b7c1a90")
+        ), for: .outbox)
+        try await queue.enqueue(.quickComplete(QuickCompletePayload(eventId: second.eventId, eventDate: second.eventDate, isCompleting: true)), for: .outbox)
+        await queue.flush(.outbox)
+
+        let requests = await transport.requests
+        XCTAssertEqual(requests.map(\.path), ["/api/completions", "/api/completions", "/api/workout-sessions"])
+        XCTAssertEqual(requests[2].body?["eventId"] as? String, second.eventId)
+        let kept = await store.all
+        XCTAssertEqual(kept.count, 1)
+        XCTAssertEqual(kept.first?.isRefused, true)
+    }
+
+    func testAnOutboxOpThePolicyGaveUpOnIsKeptAsWaitingAndTheNextFlushRetriesIt() async throws {
+        // A server that keeps answering 5xx: past the ceiling the op is
+        // failed, but marked given-up — still waiting, never dropped — and the
+        // next resume (foreground, launch, network back) puts it back and
+        // sends it.
+        let transport = ScriptedTransport([.status(500, body: "boom"), .status(500, body: "boom"), .status(500, body: "boom"), .ok()])
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store, policy: RetryPolicy(maxAttempts: 2))
+        let recorder = EventRecorder()
+        await recorder.start(await queue.subscribe())
+        try await queue.enqueue(.meal(mealCreate()), for: .outbox)
+        await queue.flush(.outbox)
+        await queue.awaitRetries()
+
+        let kept = await store.all
+        XCTAssertEqual(kept.map(\.state), [.failed])
+        XCTAssertEqual(kept.first?.gaveUp, true)
+        XCTAssertEqual(kept.first?.isWaiting, true)
+        XCTAssertEqual(kept.first?.isRefused, false)
+        XCTAssertEqual(kept.first?.lastError, "Could not sync after 3 attempts. boom")
+        let waiting = await queue.waitingOps(for: .outbox).count
+        XCTAssertEqual(waiting, 1)
+        let events = await recorder.waitFor { $0.contains { if case .failed(.outbox, .meal, _) = $0 { return true } else { return false } } }
+        XCTAssertTrue(events.contains { if case .failed(.outbox, .meal, _) = $0 { return true } else { return false } })
+        await recorder.stop()
+
+        await queue.resume()
+        await queue.awaitRetries()
+        let sent = await transport.requests.count
+        XCTAssertEqual(sent, 4)
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+    }
+
+    func testRetryPutsBackAGaveUpCompletionButNeverARefusedMeal() async throws {
+        // Retry on the day line: the gave-up op goes back with a fresh
+        // ladder; the refusal next to it is the user's to fix and stays put.
+        let transport = ScriptedTransport([
+            .status(503, body: "down"), .status(400, body: "Total fat can't be less than saturated + trans"), .ok(), .ok(),
+        ])
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store, policy: RetryPolicy(maxAttempts: 0))
+        let ops = toggle(complete: true)
+        try await queue.enqueue(ops.completion, for: .outbox)
+        try await queue.enqueue(.meal(mealCreate()), for: .outbox)
+        await queue.flush(.outbox)
+        await queue.awaitRetries()
+        let before = await store.all
+        XCTAssertEqual(before.map(\.gaveUp), [true, false])
+        XCTAssertEqual(before.map(\.isRefused), [false, true])
+
+        await queue.retryGaveUp(.outbox)
+        let after = await store.all
+        XCTAssertEqual(after.map(\.payload.action), [.meal], "the completion landed; the refused meal is untouched")
+        XCTAssertEqual(after.first?.isRefused, true)
+        XCTAssertEqual(after.first?.lastError, "Total fat can't be less than saturated + trans")
+        let sent = await transport.requests.map(\.path)
+        XCTAssertEqual(sent, ["/api/completions", "/api/meals", "/api/completions"])
     }
 
     // MARK: - A meal in the outbox

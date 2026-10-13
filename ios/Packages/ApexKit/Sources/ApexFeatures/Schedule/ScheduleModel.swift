@@ -214,7 +214,7 @@ public final class ScheduleModel {
     private func overlayingPendingCompletions(_ index: ScheduleIndex) async -> ScheduleIndex {
         guard let queue = writeQueue else { return index }
         var result = index
-        for op in await queue.pendingOps(for: .outbox) {
+        for op in await queue.waitingOps(for: .outbox) {
             guard case .completion(let row, _) = op.payload else { continue }
             result = result.settingCompletion(id: row.eventId, isCompleted: row.isCompleted, completedAt: row.completedAt)
         }
@@ -294,10 +294,17 @@ public final class ScheduleModel {
     /// itself is already on the calendar (optimistic); this is the line that
     /// says the server has not heard yet.
     public private(set) var pendingCompletions: [String: Int] = [:]
-    /// Meals saved from the composer and waiting to sync, by the meal's day.
+    /// Meals saved from the composer and waiting to sync, on every day they
+    /// touch (`MealOpPayload.days` — the same count the meals model keeps).
     /// The meal appears in the day's list once the server has it (D-052).
     public private(set) var pendingMeals: [String: Int] = [:]
-    /// Every pending op in the lane that touches the schedule (a save, both
+    /// Meals the server refused, by day: fixed or let go from the Meals screen.
+    public private(set) var refusedMeals: [String: Int] = [:]
+    /// Days with a waiting op the retry policy gave up on (a server that kept
+    /// answering 5xx): still waiting, retried on the next resume, and offered
+    /// a Retry now. Nothing in the lane is dropped for want of a server.
+    public private(set) var stalledDays: Set<String> = []
+    /// Every waiting op in the lane that touches the schedule (a save, both
     /// halves of a toggle, an exercise create): what has to drop for the
     /// window to be re-read. Meals are counted apart and re-read their own.
     private var waitingOutboxOps = 0
@@ -313,6 +320,8 @@ public final class ScheduleModel {
         refusedSaves = []
         pendingCompletions = [:]
         pendingMeals = [:]
+        refusedMeals = [:]
+        stalledDays = []
         waitingOutboxOps = 0
         guard let queue else { return }
         outboxTask = Task { [weak self] in
@@ -329,16 +338,12 @@ public final class ScheduleModel {
                 case .failed(let session, .workoutDraft, let message) where session == .outbox:
                     ToastBus.shared.post("A workout saved offline wasn't accepted — \(message). Open its day to fix it.", level: .failure)
                 case .failed(let session, .completion, let message) where session == .outbox:
-                    // The server refused the row for good (or gave up past
-                    // the ceiling): the optimistic flip is undone by its
-                    // truth, and the refused op is let go — nothing to fix.
-                    ToastBus.shared.post("A completion didn't save — \(message)", level: .failure)
-                    _ = await self?.retireFailed(.completion)
-                    await self?.refresh(reason: .afterCompletion)
+                    await self?.completionFailed(message)
                 case .failed(let session, .quickComplete, _) where session == .outbox:
-                    // The web's fire-and-forget: the completion stands, the
-                    // session log did not follow.
-                    for payload in await self?.retireFailed(.quickComplete) ?? [] {
+                    // A refusal: the completion stands, the session log did
+                    // not follow (the web's fire-and-forget). A gave-up one
+                    // is still waiting and says nothing here.
+                    for payload in await self?.retireRefused(.quickComplete) ?? [] {
                         guard case .quickComplete(let quick) = payload else { continue }
                         ToastBus.shared.post(Self.planFillFailure(markingComplete: quick.isCompleting), level: .failure)
                     }
@@ -351,16 +356,43 @@ public final class ScheduleModel {
         }
     }
 
-    /// Drops the lane's failed ops of one action and hands back what they
-    /// carried, for the toast that names them.
-    private func retireFailed(_ action: TrackerAction) async -> [TrackerOpPayload] {
+    /// The lane gave up on, or the server refused, a completion. A refusal
+    /// (4xx) is final: the flip is undone here, from the refused row, before
+    /// anything is asked of the network — then the server's truth is re-read
+    /// on top, and the refused op is let go (its plan-fill went with it in
+    /// the queue). A gave-up op is still waiting: it is retried on the next
+    /// resume or Retry, and the flip stays.
+    private func completionFailed(_ message: String) async {
+        let refused = await retireRefused(.completion)
+        guard !refused.isEmpty else {
+            ToastBus.shared.post("A completion hasn't synced — the app keeps trying; Retry on its day sends it now.", level: .info)
+            return
+        }
+        for payload in refused {
+            guard case .completion(let row, _) = payload else { continue }
+            index = index?.settingCompletion(id: row.eventId, isCompleted: !row.isCompleted, completedAt: nil)
+        }
+        ToastBus.shared.post("A completion didn't save — \(message)", level: .failure)
+        await persistIndex()
+        await refresh(reason: .afterCompletion)
+    }
+
+    /// Drops the lane's refused ops of one action (never a gave-up one) and
+    /// hands back what they carried, for the toast that names them.
+    private func retireRefused(_ action: TrackerAction) async -> [TrackerOpPayload] {
         guard let queue = writeQueue else { return [] }
         var retired: [TrackerOpPayload] = []
-        for op in await queue.ops(for: .outbox) where op.state == .failed && op.payload.action == action {
+        for op in await queue.ops(for: .outbox) where op.isRefused && op.payload.action == action {
             retired.append(op.payload)
             await queue.discard(op.id, in: .outbox)
         }
         return retired
+    }
+
+    /// The day line's Retry: every gave-up op in the lane goes back to
+    /// pending and the lane flushes now.
+    public func retryOutbox() async {
+        await writeQueue?.retryGaveUp(.outbox)
     }
 
     /// Re-reads the outbox: Builder saves, completion toggles and meals
@@ -373,20 +405,37 @@ public final class ScheduleModel {
         var refused: [RefusedSave] = []
         var completions: [String: Int] = [:]
         var meals: [String: Int] = [:]
+        var mealsRefused: [String: Int] = [:]
+        var stalled: Set<String> = []
         var waiting = 0
         for op in await queue.ops(for: .outbox) {
-            switch (op.payload, op.state) {
-            case (.workoutDraft(let save), .pending):
-                pending[save.draft.date, default: 0] += 1
-                waiting += 1
-            case (.workoutDraft(let save), .failed):
-                refused.append(RefusedSave(id: op.id, payload: save, reason: op.lastError ?? "The server did not accept this workout."))
-            case (.completion(let row, _), .pending):
+            // A gave-up op is still waiting (`TrackerOp.isWaiting`): counted on
+            // its day like a pending one, and the day gets Retry.
+            let days: [String]
+            switch op.payload {
+            case .workoutDraft(let save): days = [save.draft.date]
+            case .completion(let row, _): days = [row.eventDate]
+            case .quickComplete(let quick): days = [quick.eventDate]
+            case .meal(let meal): days = meal.days
+            default: days = []
+            }
+            if op.isWaiting, op.gaveUp { stalled.formUnion(days) }
+            switch op.payload {
+            case .workoutDraft(let save):
+                if op.isWaiting {
+                    pending[save.draft.date, default: 0] += 1
+                    waiting += 1
+                } else {
+                    refused.append(RefusedSave(id: op.id, payload: save, reason: op.lastError ?? "The server did not accept this workout."))
+                }
+            case .completion(let row, _) where op.isWaiting:
                 completions[row.eventDate, default: 0] += 1
                 waiting += 1
-            case (.meal(let meal), .pending):
-                meals[meal.day, default: 0] += 1
-            case (_, .pending):
+            case .meal(let meal):
+                for day in meal.days {
+                    if op.isWaiting { meals[day, default: 0] += 1 } else { mealsRefused[day, default: 0] += 1 }
+                }
+            case _ where op.isWaiting:
                 waiting += 1
             default:
                 break
@@ -399,6 +448,8 @@ public final class ScheduleModel {
         refusedSaves = refused
         pendingCompletions = completions
         pendingMeals = meals
+        refusedMeals = mealsRefused
+        stalledDays = stalled
         waitingOutboxOps = waiting
         // A landed toggle re-reads the window only (as the direct path did);
         // a landed save may have changed meals' days too.

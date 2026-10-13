@@ -597,6 +597,94 @@ final class ScheduleModelTests: XCTestCase {
         while !condition(), Date() < deadline { try await Task.sleep(for: .milliseconds(10)) }
     }
 
+    /// The reads only — every write is "No connection", for the outbox.
+    private func readsOnly() -> ScriptedTransport {
+        let t = ScriptedTransport()
+        t.set("GET", "/api/schedule", body: Self.fixture("schedule.json"))
+        t.set("GET", "/api/profile", body: Self.fixture("profile.json"))
+        t.set("POST", "/api/query", body: Self.fixture("query-get_meals.json"))
+        return t
+    }
+
+    @MainActor
+    private func offlineToggle(_ transport: ScriptedTransport) async throws -> (ScheduleModel, WriteQueue, MemoryWriteQueueStore) {
+        let (model, queue, store) = await outboxModel(transport)
+        let run = try XCTUnwrap(model.event(id: "ios-fixture-run"))
+        XCTAssertFalse(run.isCompleted)
+        await model.toggleCompletion(run)
+        // The model starts the lane on a detached task; this makes its one
+        // failed try deterministic before the assertions.
+        await queue.flush(.outbox)
+        return (model, queue, store)
+    }
+
+    @MainActor
+    func testAToggleWithNoSignalFlipsTheCardAndWaitsOnItsDay() async throws {
+        let transport = readsOnly()
+        let (model, _, store) = try await offlineToggle(transport)
+        XCTAssertTrue(model.event(id: "ios-fixture-run")!.isCompleted, "optimistic, and not rolled back for want of signal")
+        XCTAssertEqual(model.pendingCompletions["2026-09-08"], 1)
+        let held = await store.all
+        XCTAssertEqual(held.map(\.payload.action), [.completion, .quickComplete])
+        XCTAssertEqual(held.map(\.session), [.outbox, .outbox])
+        XCTAssertEqual(transport.count("POST", "/api/completions"), 1, "one try, then the lane waits for the network")
+        XCTAssertEqual(transport.count("POST", "/api/workout-sessions"), 0, "the plan-fill waits behind the completion")
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
+    func testAWaitingFlipSurvivesARefreshThatSaysOtherwise() async throws {
+        let transport = readsOnly()  // schedule.json says ios-fixture-run is not completed
+        let (model, _, _) = try await offlineToggle(transport)
+        await model.refresh(reason: .foreground)
+        XCTAssertTrue(model.event(id: "ios-fixture-run")!.isCompleted, "the pending flip is laid over the server's window")
+        XCTAssertEqual(model.pendingCompletions["2026-09-08"], 1)
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
+    func testResumeLandsBothHalvesOfTheToggleAndReReadsTheWindow() async throws {
+        let transport = readsOnly()
+        let (model, queue, store) = try await offlineToggle(transport)
+        let refetches = transport.count("GET", "/api/schedule")
+        transport.set("POST", "/api/completions")
+        transport.set("POST", "/api/workout-sessions")
+        transport.set("GET", "/api/schedule", body: Self.flippedFixture(id: "ios-fixture-run", completedAt: "2026-09-08T12:00:00.000Z"))
+
+        await queue.resume()
+        await queue.awaitRetries()
+        try await waitUntil { model.pendingCompletions.isEmpty }
+        XCTAssertTrue(model.pendingCompletions.isEmpty)
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+        XCTAssertEqual(transport.count("POST", "/api/completions"), 2, "the offline try, then the one that landed")
+        XCTAssertEqual(transport.count("POST", "/api/workout-sessions"), 1)
+        XCTAssertTrue(transport.requests.last { $0.path == "/api/workout-sessions" }!.body!.contains("quick-complete"))
+        try await waitUntil { transport.count("GET", "/api/schedule") > refetches }
+        XCTAssertGreaterThan(transport.count("GET", "/api/schedule"), refetches, "a landed toggle re-reads the window")
+        XCTAssertTrue(model.event(id: "ios-fixture-run")!.isCompleted)
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
+    func testARefusedCompletionUndoesTheFlipEvenWhenTheReReadFails() async throws {
+        let transport = readsOnly()
+        let (model, queue, store) = try await offlineToggle(transport)
+        transport.set("POST", "/api/completions", status: 400, body: Data("Invalid action".utf8))
+        transport.set("POST", "/api/workout-sessions")
+        transport.set("GET", "/api/schedule", status: 503, body: Data("down".utf8))
+
+        await queue.resume()
+        try await waitUntil { model.event(id: "ios-fixture-run")?.isCompleted == false }
+        XCTAssertFalse(model.event(id: "ios-fixture-run")!.isCompleted, "undone from the refused row, not from a re-read")
+        XCTAssertEqual(transport.count("POST", "/api/workout-sessions"), 0, "the plan-fill went with the refusal, unsent")
+        try await waitUntil { model.pendingCompletions.isEmpty }
+        XCTAssertTrue(model.pendingCompletions.isEmpty)
+        let left = await store.all.count
+        XCTAssertEqual(left, 0, "a refusal is final: let go, nothing to fix")
+        model.attach(writeQueue: nil)
+    }
+
     @MainActor
     func testAnOfflineSaveWaitsOnItsDayAndLandsWhenTheConnectionReturns() async throws {
         let transport = healthy()  // no /api/workout-draft route: "No connection"

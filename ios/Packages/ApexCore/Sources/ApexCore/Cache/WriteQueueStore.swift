@@ -187,10 +187,16 @@ public struct TrackerOp: Sendable, Equatable, Identifiable {
     public var attempts: Int
     public var lastError: String?
     public var state: TrackerOpState
+    /// A `.failed` op the policy gave up on (network, 5xx, 429 past the
+    /// ceiling) rather than one the server refused for good. Kept apart
+    /// because the two are shown and retried differently: a gave-up op is
+    /// still waiting — the outbox puts it back on every resume and a Retry
+    /// does so by hand — while a refusal needs the user (Fix, or let go).
+    public var gaveUp: Bool
 
     public init(
         id: Int64 = 0, session: SessionKey, payload: TrackerOpPayload, createdAt: Date,
-        attempts: Int = 0, lastError: String? = nil, state: TrackerOpState = .pending
+        attempts: Int = 0, lastError: String? = nil, state: TrackerOpState = .pending, gaveUp: Bool = false
     ) {
         self.id = id
         self.session = session
@@ -199,7 +205,14 @@ public struct TrackerOp: Sendable, Equatable, Identifiable {
         self.attempts = attempts
         self.lastError = lastError
         self.state = state
+        self.gaveUp = gaveUp
     }
+
+    /// Pending, or failed only for want of a connection or a working server:
+    /// what the outbox counts as waiting to sync.
+    public var isWaiting: Bool { state == .pending || (state == .failed && gaveUp) }
+    /// The server said no: kept for the user, never retried on its own.
+    public var isRefused: Bool { state == .failed && !gaveUp }
 }
 
 /// Implemented by `ApexPersistence` over GRDB (`tracker_ops`); in memory for
@@ -207,7 +220,7 @@ public struct TrackerOp: Sendable, Equatable, Identifiable {
 public protocol WriteQueueStore: Sendable {
     /// Assigns and returns the id.
     func append(_ op: TrackerOp) async throws -> Int64
-    /// By id: payload (a merge), attempts, lastError, state.
+    /// By id: payload (a merge), attempts, lastError, state, gaveUp.
     func update(_ op: TrackerOp) async throws
     /// "Sent": a finished op leaves no row behind.
     func delete(id: Int64) async throws

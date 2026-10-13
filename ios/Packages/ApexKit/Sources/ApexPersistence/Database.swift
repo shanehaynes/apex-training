@@ -142,6 +142,15 @@ public enum ApexDatabase {
             }
         }
 
+        // The outbox keeps an op the retry policy gave up on apart from one
+        // the server refused: the first is still waiting (put back on every
+        // resume, or by Retry), the second needs the user (D-052).
+        migrator.registerMigration("v5_tracker_ops_gave_up") { db in
+            try db.alter(table: "tracker_ops") { table in
+                table.add(column: "gave_up", .boolean).notNull().defaults(to: false)
+            }
+        }
+
         return migrator
     }
 }
