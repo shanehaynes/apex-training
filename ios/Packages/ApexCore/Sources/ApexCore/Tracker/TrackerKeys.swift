@@ -55,6 +55,21 @@ public enum SetField: String, CaseIterable, Codable, Sendable {
     case weight = "actualWeight"
     case reps = "actualReps"
     case duration = "actualDuration"
+
+    /// The field's name in a definition's `log_fields` (`SET_FIELD_TO_LOG_FIELD`
+    /// in src/lib/tracking/fields.ts): the set-log column, not the input name.
+    public var logField: String {
+        switch self {
+        case .weight: "weight"
+        case .reps: "reps"
+        case .duration: "duration"
+        }
+    }
+
+    public init?(logField: String) {
+        guard let field = SetField.allCases.first(where: { $0.logField == logField }) else { return nil }
+        self = field
+    }
 }
 
 public enum CardioField: String, CaseIterable, Codable, Sendable {

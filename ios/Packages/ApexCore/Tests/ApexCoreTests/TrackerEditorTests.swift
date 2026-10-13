@@ -342,36 +342,75 @@ final class TrackerEditorTests: XCTestCase {
     func testInputFieldsVectors() {
         let editor = handBuilt()
         let bench = editor.exercise(section: "exercise", id: "ub-1")!
-        XCTAssertEqual(TrackerEditor.inputFields(for: bench, swappedTo: nil), [.weight, .reps])
+        XCTAssertEqual(TrackerEditor.inputFields(for: bench, definition: nil), [.weight, .reps])
         let stretch = editor.exercise(section: "warmup", id: "ub-cd-1")!
-        XCTAssertEqual(TrackerEditor.inputFields(for: stretch, swappedTo: nil), [.duration])
+        XCTAssertEqual(TrackerEditor.inputFields(for: stretch, definition: nil), [.duration])
         // A pitch logs exactly one thing: the grade.
-        XCTAssertEqual(TrackerEditor.inputFields(for: editor.exercise(section: "exercise", id: "p-1")!, swappedTo: nil), [.weight])
+        XCTAssertEqual(TrackerEditor.inputFields(for: editor.exercise(section: "exercise", id: "p-1")!, definition: nil), [.weight])
 
         // A value already carried surfaces its field regardless of the plan.
         var withTime = stretch
         withTime.sets[0].actualReps = "12"
-        XCTAssertEqual(TrackerEditor.inputFields(for: withTime, swappedTo: nil), [.reps, .duration])
+        XCTAssertEqual(TrackerEditor.inputFields(for: withTime, definition: nil), [.reps, .duration])
 
         // Swapped onto a loaded movement: weight + reps appear even though the plan had neither.
         var swapped = stretch
         swapped.substitutedFrom = "Doorway Pec Stretch"
         let strength = ExerciseDefinition(id: "d", canonicalName: "DB Press", category: "strength")
-        XCTAssertEqual(TrackerEditor.inputFields(for: swapped, swappedTo: strength), [.weight, .reps, .duration])
+        XCTAssertEqual(TrackerEditor.inputFields(for: swapped, definition: strength), [.weight, .reps, .duration])
         let timed = ExerciseDefinition(id: "d2", canonicalName: "Plank", category: "skill", defaultDuration: "60s")
-        XCTAssertEqual(TrackerEditor.inputFields(for: swapped, swappedTo: timed), [.duration])
+        XCTAssertEqual(TrackerEditor.inputFields(for: swapped, definition: timed), [.duration])
         // Unknown replacement: assume weight + reps.
-        XCTAssertEqual(TrackerEditor.inputFields(for: swapped, swappedTo: nil), [.weight, .reps, .duration])
+        XCTAssertEqual(TrackerEditor.inputFields(for: swapped, definition: nil), [.weight, .reps, .duration])
 
         // Nothing planned, nothing logged: reps.
         let bare = TrackedExercise(section: "exercise", exercise: Exercise(id: "x", name: "Burpees"), isCardio: false,
                                    sets: [TrackedSet(setNumber: 1, planned: PlannedSet(setNumber: 1))])
-        XCTAssertEqual(TrackerEditor.inputFields(for: bare, swappedTo: nil), [.reps])
+        XCTAssertEqual(TrackerEditor.inputFields(for: bare, definition: nil), [.reps])
+    }
+
+    /// `log_fields` (phase 53): what a movement is always logged in applies on
+    /// a planned entry too — the prescription says "3 × 8", the library says
+    /// the dips are sometimes weighted, so the weight has somewhere to go.
+    func testDefinitionLogFieldsApplyOnPlanAndAddedFieldsShowAtOnce() {
+        let editor = handBuilt()
+        let stretch = editor.exercise(section: "warmup", id: "ub-cd-1")!
+        XCTAssertFalse(stretch.isOffPlan)
+        let weighted = ExerciseDefinition(id: "d", canonicalName: "Doorway Pec Stretch", category: "stretch",
+                                          defaultWeight: "20 lb", logFields: ["weight"])
+        // Only logFields is read on-plan: the default weight alone adds nothing.
+        XCTAssertEqual(TrackerEditor.inputFields(for: stretch, definition: ExerciseDefinition(
+            id: "d", canonicalName: "Doorway Pec Stretch", category: "strength", defaultWeight: "20 lb")), [.duration])
+        XCTAssertEqual(TrackerEditor.inputFields(for: stretch, definition: weighted), [.weight, .duration])
+        // A field added this sitting shows before (and without) a definition write.
+        XCTAssertEqual(TrackerEditor.inputFields(for: stretch, definition: nil, addedHere: [.reps]), [.reps, .duration])
+        // A pitch ignores both: the grade is its one input.
+        let pitch = editor.exercise(section: "exercise", id: "p-1")!
+        XCTAssertEqual(TrackerEditor.inputFields(for: pitch, definition: weighted, addedHere: [.reps]), [.weight])
+        XCTAssertEqual(TrackerEditor.addableFields(for: pitch, fields: [.weight]), [])
+        XCTAssertEqual(TrackerEditor.addableFields(for: stretch, fields: [.duration]), [.weight, .reps])
+        XCTAssertEqual(TrackerEditor.addableFields(for: stretch, fields: [.weight, .reps, .duration]), [])
+        // An unknown name in the column is ignored rather than crashing the card.
+        let odd = ExerciseDefinition(id: "d", canonicalName: "X", logFields: ["tempo", "reps"])
+        XCTAssertEqual(TrackerEditor.inputFields(for: stretch, definition: odd), [.reps, .duration])
+    }
+
+    /// Each queued write carries the stored set plus everything added this
+    /// sitting, so a second tap before the first write lands cannot drop it.
+    func testNextLogFieldsCarriesEveryFieldAddedThisSitting() {
+        XCTAssertEqual(TrackerEditor.nextLogFields(stored: [], addedHere: [], adding: .weight), ["weight"])
+        XCTAssertEqual(TrackerEditor.nextLogFields(stored: [], addedHere: [.weight], adding: .duration), ["weight", "duration"])
+        XCTAssertEqual(TrackerEditor.nextLogFields(stored: ["duration"], addedHere: [.weight], adding: .reps), ["weight", "reps", "duration"])
+        // Idempotent, column-ordered, and a stray stored name is dropped.
+        XCTAssertEqual(TrackerEditor.nextLogFields(stored: ["reps", "tempo"], addedHere: [.reps], adding: .reps), ["reps"])
+        XCTAssertEqual(SetField(logField: "duration"), .duration)
+        XCTAssertNil(SetField(logField: "time"))
+        XCTAssertEqual(SetField.allCases.map(\.logField), ["weight", "reps", "duration"])
     }
 
     func testFieldOrderWalksSetsThenCardioInReadingOrder() {
         let editor = handBuilt()
-        let order = editor.fieldOrder { TrackerEditor.inputFields(for: $0, swappedTo: nil) }
+        let order = editor.fieldOrder { TrackerEditor.inputFields(for: $0, definition: nil) }
         XCTAssertEqual(order.first, .set(SetKey(section: "warmup", exerciseId: "ub-cd-1", setNumber: 1), .duration))
         XCTAssertEqual(order[1], .set(SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 1), .weight))
         XCTAssertEqual(order[2], .set(SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 1), .reps))
@@ -492,9 +531,9 @@ final class TrackerEditorTests: XCTestCase {
     func testAddedExercisesTakeTheirFieldsFromTheDefinition() {
         let editor = withPushups()
         let pushups = editor.exercise(section: "exercise", id: "added-1000")!
-        XCTAssertEqual(TrackerEditor.inputFields(for: pushups, swappedTo: nil), [.weight, .reps])
+        XCTAssertEqual(TrackerEditor.inputFields(for: pushups, definition: nil), [.weight, .reps])
         let plank = ExerciseDefinition(id: "plank", canonicalName: "Plank", aliases: [], category: "mobility", muscleGroups: [], equipment: [], defaultDuration: "60s")
-        XCTAssertEqual(TrackerEditor.inputFields(for: pushups, swappedTo: plank), [.duration])
+        XCTAssertEqual(TrackerEditor.inputFields(for: pushups, definition: plank), [.duration])
     }
 
     func testReplayRebuildsAnAddedExerciseTheCacheHasNotSeen() {

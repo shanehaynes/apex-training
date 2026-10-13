@@ -35,6 +35,8 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertEqual(weekly.type, .weights)
         XCTAssertEqual(schedule.occurrences.count, 8)
         XCTAssertEqual(schedule.definitions?.first?.canonicalName, "Fixture Press")
+        // `log_fields` (phase 53) rides the schedule's definitions; empty on the fixture.
+        XCTAssertEqual(schedule.definitions?.first?.logFields, [])
 
         // The recurring occurrence id is `${baseId}__${date}` — the OccurrenceID
         // shape the whole app keys off — and the series anchor's own occurrence

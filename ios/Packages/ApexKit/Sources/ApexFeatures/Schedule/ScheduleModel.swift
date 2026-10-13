@@ -351,6 +351,17 @@ public final class ScheduleModel {
                     } else {
                         ToastBus.shared.post(await self?.keepsTrying("An exercise", .createDefinition) ?? "", level: .info)
                     }
+                case .failed(let session, .updateDefinition, let message) where session == .outbox:
+                    // The tracker's "+ weight": the input stayed on that workout; only the
+                    // library write was refused. Nothing to fix from here, so it is dropped
+                    // and the re-read puts the cached definition back to the server's row.
+                    // A gave-up write (a 5xx run) is still waiting, like every outbox op.
+                    if await self?.retireRefused(.updateDefinition).isEmpty == false {
+                        ToastBus.shared.post("Couldn't save a log field to your library — \(message)", level: .failure)
+                        await self?.refresh(reason: .afterEdit)
+                    } else {
+                        ToastBus.shared.post(await self?.keepsTrying("A log field", .updateDefinition) ?? "", level: .info)
+                    }
                 case .failed(let session, .workoutDraft, let message) where session == .outbox:
                     await self?.draftFailed(message)
                 case .failed(let session, .completion, let message) where session == .outbox:

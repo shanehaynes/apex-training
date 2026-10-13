@@ -18,18 +18,31 @@ import {
 import type { ExerciseNoteEdit, RemovedSetKey, SessionInfo } from '../lib/tracking/sessionRepo';
 import { notify } from '../lib/notify';
 import { createSaveQueue, isAuthFailure, isNonRetryable } from '../lib/tracking/saveQueue';
-import type { SaveQueue, SaveQueueState } from '../lib/tracking/saveQueue';
+import type { PausedStatus, SaveQueue, SaveQueueState } from '../lib/tracking/saveQueue';
 import type { SetField, CardioField } from '../components/tracker/TrackerExercise';
 import { registerAgentState } from '../dev/agentBridge';
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
-const IDLE_SAVE_STATE: SaveQueueState = {
+/** The queue's state as the tracker paints it: the queue's own plus what paused it. */
+export interface TrackerSaveState extends SaveQueueState {
+  pausedStatus: PausedStatus | null;
+}
+
+const IDLE_SAVE_STATE: TrackerSaveState = {
   pending: 0, inFlight: false, consecutiveFailures: 0, showBar: false, nextRetryAt: null,
-  rejected: 0, rejectedKeys: [], paused: false,
+  rejected: 0, rejectedKeys: [], paused: false, pausedStatus: null,
 };
 
 const refusedMessage = (n: number) => `${n} ${n === 1 ? 'edit was' : 'edits were'} refused — edit again to resend`;
+
+/**
+ * What the user has to do before a paused queue can send again, as a clause
+ * for a toast: a 401 is a lost session, a 403 is the terms changing under a
+ * signed-in user (api/_lib/auth.ts), which only accepting them clears.
+ */
+export const pauseCause = (status: PausedStatus | null) =>
+  status === 403 ? 'the terms changed; accept them from Profile' : 'sign in again';
 
 // Dirty keys, as the save queue tracks them. One key per row the server
 // upserts or deletes, so a key stays dirty until the send that carried its
@@ -79,7 +92,7 @@ export function useWorkoutSession(
   const [isFinishing, setIsFinishing] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [summary, setSummary] = useState<SummaryState | null>(null);
-  const [saveState, setSaveState] = useState<SaveQueueState>(IDLE_SAVE_STATE);
+  const [saveState, setSaveState] = useState<TrackerSaveState>(IDLE_SAVE_STATE);
 
   const groupsRef = useRef<TrackedSectionGroup[]>([]);
   // The one source of truth for what is unsaved. Created per session load,
@@ -124,7 +137,15 @@ export function useWorkoutSession(
   // streak are quiet — that failure toasted, and the bar carries the state.
   // A refusal (4xx) is not retried, so it toasts the server's own message
   // once here; the bar then says how many edits were refused.
+  //
+  // While the cancel request is out nothing may leave — a save landing
+  // after the delete would re-create rows — and the callers that start a
+  // send are gated on `cancellingRef`, but a send the queue starts on its
+  // own (a backoff retry, the follow-up to an in-flight send, an isolation
+  // pass) is not. So the send itself refuses, as a transient failure: the
+  // keys stay pending for the queue a failed cancel leaves behind.
   const buildSend = (eventId: string, eventDate: string, queue: () => SaveQueue) => async (keys: readonly string[]) => {
+    if (cancellingRef.current) throw new Error('Not sent: the workout is being cancelled');
     const setLogs: SetLogRow[] = [];
     const cardioLogs: CardioLogRow[] = [];
     const exerciseNotes: ExerciseNoteEdit[] = [];
@@ -157,9 +178,11 @@ export function useWorkoutSession(
     } catch (err) {
       // A refused batch is isolated by the queue, so only a single-key
       // refusal names the row the user can act on. A refused `removed|`
-      // key is dropped below and gets no toast: nothing to edit.
-      if (isAuthFailure(err)) notify('Autosave paused — sign in again, then Retry');
-      else if (isNonRetryable(err) && keys.length === 1 && !keys[0].startsWith('removed|')) {
+      // key is dropped by the queue (ignoreRejected) and gets no toast:
+      // nothing to edit.
+      if (isAuthFailure(err)) {
+        notify(`Autosave paused — ${pauseCause((err as { status?: number }).status === 403 ? 403 : 401)}, then Retry`);
+      } else if (isNonRetryable(err) && keys.length === 1 && !keys[0].startsWith('removed|')) {
         notify(`Autosave refused: ${(err as Error).message.slice(0, 140)}`);
       }
       throw err;
@@ -169,18 +192,14 @@ export function useWorkoutSession(
   const makeQueue = (eventId: string, eventDate: string): SaveQueue => {
     const queue: SaveQueue = createSaveQueue({
       send: buildSend(eventId, eventDate, () => queue),
+      // A refused delete has no field to re-edit: the server kept the row,
+      // the model no longer shows it, and a refusal nobody can act on must
+      // not block Finish — the queue drops it instead of counting it.
+      ignoreRejected: key => key.startsWith('removed|'),
       onChange: state => {
-        // A refused delete has no field to re-edit: the server kept the
-        // row, the model no longer shows it, and a refusal nobody can act
-        // on must not block Finish. Unmarking re-emits the final state.
-        const stale = state.rejectedKeys.filter(k => k.startsWith('removed|'));
-        if (stale.length) {
-          for (const key of stale) queue.unmark(key);
-          return;
-        }
         // A superseded queue's last send may settle after its replacement
         // exists; only the live queue paints the state.
-        if (queueRef.current === queue) setSaveState(state);
+        if (queueRef.current === queue) setSaveState({ ...state, pausedStatus: queue.pausedStatus() });
       },
     });
     return queue;
@@ -195,7 +214,7 @@ export function useWorkoutSession(
     let cancelled = false;
 
     queueRef.current = makeQueue(eventId, eventDate);
-    setSaveState(queueRef.current.state());
+    setSaveState({ ...queueRef.current.state(), pausedStatus: null });
 
     loadSession(loadEvent).then(data => {
       if (cancelled) return;
@@ -266,7 +285,10 @@ export function useWorkoutSession(
   }, []);
 
   /** The queue's state right now — the React copy lags by a render. */
-  const getSaveState = useCallback((): SaveQueueState => queueRef.current?.state() ?? IDLE_SAVE_STATE, []);
+  const getSaveState = useCallback((): TrackerSaveState => {
+    const queue = queueRef.current;
+    return queue ? { ...queue.state(), pausedStatus: queue.pausedStatus() } : IDLE_SAVE_STATE;
+  }, []);
 
   /** The Unsaved bar's Retry: cancels the scheduled retry and sends now. */
   const retrySave = useCallback((): Promise<boolean> => {
@@ -533,10 +555,16 @@ export function useWorkoutSession(
       // rows it does not have. The queue keeps retrying; Finish is a retry.
       // Refused edits block it too — the numbers on screen are not the
       // numbers on the server until they are edited again and accepted.
+      // A paused queue retries nothing on its own, so that toast names
+      // what the user has to do first.
       const ok = await flushSave();
-      const refused = queueRef.current?.state().rejected ?? 0;
+      const { rejected: refused, paused, pausedStatus } = getSaveState();
       if (!ok || refused > 0) {
-        notify(ok ? refusedMessage(refused) : 'Unsaved changes — finish once they save');
+        notify(
+          ok ? refusedMessage(refused)
+            : paused ? `Unsaved changes — ${pauseCause(pausedStatus)}, then Retry`
+            : 'Unsaved changes — finish once they save',
+        );
         setIsFinishing(false);
         return { status: 'failed' };
       }
@@ -594,6 +622,10 @@ export function useWorkoutSession(
     } catch {
       cancellingRef.current = false;
       setIsCancelling(false);
+      // The debounce was dropped above and every send during the request
+      // was refused, so an edit marked meanwhile has nothing armed for it:
+      // re-arm the autosave rather than wait for the next edit or hide.
+      if ((queueRef.current?.state().pending ?? 0) > 0) scheduleSave();
       return false;
     }
   };

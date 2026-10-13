@@ -7,7 +7,7 @@ import { useSchedule } from '../../context/schedule';
 import { formatElapsed } from '../../lib/time';
 import { notify } from '../../lib/notify';
 import { getWorkoutColor } from '../../utils/workoutColors';
-import { useWorkoutSession } from '../../hooks/useWorkoutSession';
+import { pauseCause, useWorkoutSession } from '../../hooks/useWorkoutSession';
 import type { TrackedSection } from '../../lib/db/types';
 import type { ExerciseCategory, ExerciseDefinition } from '../../types/workout';
 import TrackerExercise from './TrackerExercise';
@@ -19,6 +19,8 @@ import ScorePrompt from './ScorePrompt';
 import type { SessionScore } from '../../lib/tracking/records';
 import type { TrackedSectionGroup } from '../../lib/tracking/plan';
 import { useTip } from '../../hooks/useTip';
+import { useTrackerRestTimer } from '../../hooks/useRestTimer';
+import RestTimerBar from './RestTimerBar';
 
 /**
  * The tracker's two first-open tips. A child rendered only while a session is
@@ -57,6 +59,9 @@ export default function TrackerView() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
+  // Rest countdown between sets: a row's first non-empty reps/duration (or
+  // its ghost tapped) starts it from the exercise's rest text (lib/tracking/rest.ts).
+  const rest = useTrackerRestTimer({ groups, sessionKey: event?.id ?? null, finished: isFinished });
 
   const color = event ? getWorkoutColor(event.type) : null;
   if (!event || !color) return null;
@@ -64,16 +69,25 @@ export default function TrackerView() {
   // Leaving the tracker drops its save queue, so Back waits for the save:
   // a failed flush keeps the session open with its edits still dirty (the
   // queue keeps retrying; the bar's Retry sends now) rather than losing them.
-  // Refused edits are the user's call to abandon — said out loud, never
-  // silently.
+  // A paused queue is the exception: nothing will land until the user signs
+  // in or accepts the terms, and holding them in the tracker until then is
+  // not a save, so Back leaves and says what is lost and why. Refused edits
+  // are the user's call to abandon — said out loud, never silently.
   const close = async () => {
     if (isCancelling) return;
-    if (!(await flushSave())) {
+    const saved = await flushSave();
+    const { paused, pausedStatus, pending, rejected } = getSaveState();
+    if (!saved && !paused) {
       notify('Unsaved changes — retry before leaving');
       return;
     }
-    const refused = getSaveState().rejected;
-    if (refused > 0) notify(`${refused} refused ${refused === 1 ? 'edit' : 'edits'} will be lost`);
+    const lost = paused ? pending + rejected : rejected;
+    if (lost > 0) {
+      const edits = lost === 1 ? 'edit' : 'edits';
+      notify(paused
+        ? `${lost} unsaved ${edits} will be lost — ${pauseCause(pausedStatus)}`
+        : `${lost} refused ${edits} will be lost`);
+    }
     dispatch({ type: 'STOP_TRACKING' });
   };
 
@@ -145,6 +159,9 @@ export default function TrackerView() {
       </header>
 
       {saveState.showBar && <UnsavedBar state={saveState} onRetry={() => { retrySave(); }} />}
+      {rest.running && (
+        <RestTimerBar remaining={rest.remaining} progress={rest.progress} label={rest.exerciseLabel} onExtend={rest.extend} onSkip={rest.skip} />
+      )}
 
       <div className="tracker-body">
         {isFinished && groups && (
@@ -171,6 +188,7 @@ export default function TrackerView() {
                   onCardioChange={(field, value) => onCardioChange(group.section, tracked.exercise.id, field, value)}
                   onCommitSetShadow={(setNumber, values) => onCommitSetShadow(group.section, tracked.exercise.id, setNumber, values)}
                   onCommitCardioShadow={field => onCommitCardioShadow(group.section, tracked.exercise.id, field)}
+                  onSetCommit={setNumber => rest.commit(group.section, tracked.exercise.id, setNumber)}
                   onAddSet={() => onAddSet(group.section, tracked.exercise.id)}
                   onRemoveSet={setNumber => onRemoveSet(group.section, tracked.exercise.id, setNumber)}
                   onSwap={def => handleSwap(group.section, tracked.exercise.id, def)}

@@ -51,6 +51,7 @@ public struct DefinitionEditorSheet: View {
                     FormField("Muscle groups (comma-separated)", text: $form.muscleGroups, placeholder: "quads, glutes", identifier: "library.editor.muscles")
                     FormField("Equipment (comma-separated)", text: $form.equipment, placeholder: "barbell, rack", identifier: "library.editor.equipment")
                     FormField("Technique notes", text: $form.techniqueNotes, placeholder: "Form cues, setup, safety…", isMultiline: true, identifier: "library.editor.notes")
+                    alwaysLog
                     defaults
                 }
                 .padding(Spacing.screen)
@@ -73,6 +74,30 @@ public struct DefinitionEditorSheet: View {
             .foregroundStyle(ApexColor.textSecondary)
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityIdentifier("library.editor.radius")
+    }
+
+    /// `log_fields` (DefinitionEditor.tsx "Always log"): the tracker's "+ weight"
+    /// lands here, and here is where it is taken back off.
+    private var alwaysLog: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text("Always log").apexEyebrow()
+            Text("In every workout, on top of what it prescribes.")
+                .font(.apex(.display, size: TypeScale.xs, relativeTo: .caption))
+                .foregroundStyle(ApexColor.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+            ForEach(DefinitionForm.logFieldOptions, id: \.field) { option in
+                Toggle(isOn: Binding(
+                    get: { form.logFields.contains(option.field) },
+                    set: { on in if on { form.logFields.insert(option.field) } else { form.logFields.remove(option.field) } }
+                )) {
+                    Text(option.label)
+                        .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
+                        .foregroundStyle(ApexColor.textPrimary)
+                }
+                .tint(ApexColor.accent)
+                .accessibilityIdentifier("library.editor.log.\(option.field.logField)")
+            }
+        }
     }
 
     private var defaults: some View {

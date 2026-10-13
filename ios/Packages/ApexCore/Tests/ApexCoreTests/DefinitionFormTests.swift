@@ -42,6 +42,23 @@ final class DefinitionFormTests: XCTestCase {
         ])
     }
 
+    /// "Always log" travels as the whole column, in column order, only when it changed.
+    func testAlwaysLogIsSentAsTheWholeColumnWhenItChanged() {
+        var form = DefinitionForm(definition: bench)
+        XCTAssertEqual(form.logFields, [])
+        XCTAssertEqual(form.changedFields(against: bench), [:])
+        form.logFields = [.duration, .weight]
+        XCTAssertEqual(form.changedFields(against: bench), ["log_fields": .array([.string("weight"), .string("duration")])])
+
+        let dips = ExerciseDefinition(id: "dips", canonicalName: "Ring Dips", category: "strength", logFields: ["weight"])
+        var undo = DefinitionForm(definition: dips)
+        XCTAssertEqual(undo.logFields, [.weight])
+        XCTAssertEqual(undo.changedFields(against: dips), [:])
+        undo.logFields = []
+        // Taking the tracker's addition back off clears the column rather than dropping the key.
+        XCTAssertEqual(undo.changedFields(against: dips), ["log_fields": .array([])])
+    }
+
     /// The improvement over the web: a cleared default is an explicit null.
     func testClearedDefaultsAreSentAsNulls() {
         var form = DefinitionForm(definition: bench)
