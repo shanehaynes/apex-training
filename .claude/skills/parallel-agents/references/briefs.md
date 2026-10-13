@@ -309,6 +309,10 @@ NOT VERIFIED: <what the gate does not cover that this could break — specific>
 OUTSIDE MY OWNERSHIP: none | <precise change needed elsewhere>
 DECISIONS: <judgment calls where the brief left room; alternatives rejected>
 FOLLOW-UPS: <problems noticed and deliberately not fixed>
+NEXT BRIEF: <draft of the next milestone's brief — Goal, Scope, Acceptance,
+  Owns — concrete enough for a session with no memory of this one; or "none:
+  <why this is the last milestone>". The orchestrator (or Shane) edits it,
+  never writes it from blank.>
 BLOCKER: <only if blocked: exact command, exact error, what I need>
 ```
 

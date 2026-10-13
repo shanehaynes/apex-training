@@ -232,7 +232,7 @@ Do not capture external sites. Write `<!-- EXTERNAL: <url> — <state>, <viewpor
 ## If blocked — stop and report; do not widen scope.
 ## Report
 STATUS / BRANCH SHA PUSHED / CHANGED / GATE / NOT VERIFIED / OUTSIDE MY OWNERSHIP /
-DECISIONS / FOLLOW-UPS / BLOCKER
+DECISIONS / FOLLOW-UPS / NEXT BRIEF / BLOCKER
 + TIPS: <id → word count> ; SHOTS: <count, both viewports> ;
 EXTERNAL SHOTS NEEDED: <url, state, viewport> | none
 ```
@@ -261,7 +261,9 @@ EXTERNAL SHOTS NEEDED: <url, state, viewport> | none
 4. Gate as the brief says. Commit, push the branch, report. The orchestrator opens the PR.
 5. Before ending: flip the lane's state in STATUS.md (the orchestrator does this for
    subagent lanes), add a line to the brief's session log, append any decision to
-   decisions.md.
+   decisions.md, and draft the next brief — the next lane this one unblocks, or the next
+   wave — under "Next up" in STATUS.md as a paragraph (Goal, Scope, Acceptance, Owns), not a
+   one-liner. Shane edits a draft; he does not write one from blank.
 
 ## What Shane owes
 

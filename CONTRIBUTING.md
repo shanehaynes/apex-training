@@ -93,6 +93,19 @@ Run it when you finish something. The alternative is what this repo looked like
 before this document: 7 worktrees, 15 merged-but-undeleted local branches, and
 10 remote refs pointing at branches that no longer existed.
 
+### A review before Shane reads the diff
+
+Between the gate and `gh pr create`, launch the `reviewer` agent
+(`.claude/agents/reviewer.md`) with the spec or brief and the diff
+(`git diff origin/main...HEAD`) — not your reasoning: a reviewer that has read
+the author's story checks the story. Fix or answer each finding, then paste
+the report into the PR body under `## Review` (the PR template has the
+section), one line per finding: `fixed in <sha>` or `not fixed because <why>`.
+Shane reads that first and skims the diff, instead of reading it cold. A PR
+that skipped the reviewer says so and why. Gate-protected paths in the diff
+(tests you did not add, CI, hooks, the merge policy, `settings.json`) are a
+finding on their own unless the spec asked for them.
+
 ### Merging more than one PR
 
 `main` requires a branch to be **up to date** before it merges (see "Repo

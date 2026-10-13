@@ -309,6 +309,41 @@ else
 fi
 fi   # end of the local-machine sections (--no-local)
 
+# ISO week of a date (YYYY-MM-DD or RFC3339), GNU or BSD date.
+iso_week() {
+  [ -n "${1:-}" ] || return 1
+  local d=${1:0:10}
+  date -d "$d" +%G-W%V 2>/dev/null \
+    || TZ=UTC date -j -f %Y-%m-%d "$d" +%G-W%V 2>/dev/null
+}
+
+echo
+echo "── throughput (merged PRs and new lanes per ISO week, last 4 weeks)"
+# The number that matters is Shane's attention per merged PR, which no script
+# sees; these two are the proxies the session-gate work is measured by
+# (CONTRIBUTING.md, "Stopping is gated"). Merged PRs come from GitHub; lanes
+# are claims.tsv rows, so sessions on this machine only.
+since=$(date -d '28 days ago' +%F 2>/dev/null || date -v-28d +%F 2>/dev/null || echo "")
+if [ -n "$GH" ] && [ -n "$since" ]; then
+  merged=$("$GH" pr list --state merged --limit 200 --search "merged:>=$since" \
+    --json mergedAt --jq '.[].mergedAt' 2>/dev/null || true)
+  if [ -n "$merged" ]; then
+    echo "   merged PRs:"
+    while read -r ts; do iso_week "$ts"; done <<< "$merged" | sort | uniq -c | awk '{printf "     %s  %s\n", $2, $1}'
+  else
+    echo "   merged PRs: none since $since (or gh unavailable)"
+  fi
+fi
+if [ -s ".claude/state/claims.tsv" ] && [ -n "$since" ]; then
+  since_epoch=$(epoch_utc "${since}T00:00:00Z" || echo 0)
+  lanes=$(awk -F'\t' '{print $2}' .claude/state/claims.tsv | while read -r ts; do
+    e=$(epoch_utc "$ts" || echo 0); [ "$e" -ge "$since_epoch" ] && iso_week "$ts"; done | sort | uniq -c)
+  if [ -n "$lanes" ]; then
+    echo "   new lanes (claims):"
+    echo "$lanes" | awk '{printf "     %s  %s\n", $2, $1}'
+  fi
+fi
+
 echo
 echo "── open PRs"
 if [ -n "$GH" ]; then

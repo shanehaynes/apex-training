@@ -252,6 +252,12 @@ locked_create_lane() {
   [ -e "$dir" ] && die "worktree path already exists: $dir"
   port=$(alloc_port "$f") || exit 1
   "$@" || die "git worktree add failed; nothing claimed"
+  # A project that resolves its own per-worktree port (Apex: dev/port.mjs,
+  # read by vite, Playwright and drive.mjs) decides; record what will actually
+  # bind, not what this script would have allocated.
+  if [ -f "$dir/dev/port.mjs" ]; then
+    port=$(cd "$dir" && node dev/port.mjs 2>/dev/null) || port=$(alloc_port "$f")
+  fi
   claim_append "$f" "$(printf '%s\t%s\t%s\t%s\t%s\t%s\t%s' "$(clean_field "$name")" \
     "$(clean_field "$(date -u +%Y-%m-%dT%H:%M:%SZ)")" "$(clean_field "$dir")" "$(clean_field "$intent")" \
     "$(clean_field "$port")" active "$(clean_field "$kind")")"
@@ -345,6 +351,10 @@ cmd_port() {
   local dir root top row port
   dir=$(cd "${1:-.}" && pwd -P)
   root=$(cd "$dir" && primary_root)
+  # A project that resolves its own per-worktree port (Apex: dev/port.mjs,
+  # read by vite, Playwright and drive.mjs) is the authority — the port this
+  # script would allocate is one nothing binds.
+  if [ -f "$root/dev/port.mjs" ]; then (cd "$dir" && node "$root/dev/port.mjs") && return; fi
   if [ "$dir" = "$root" ]; then echo "${LANE_PORT_DEFAULT:-5173}"; return; fi
   top=$(cd "$(cd "$dir" && git rev-parse --show-toplevel)" && pwd -P)
   if [ "$top" = "$root" ]; then echo "${LANE_PORT_DEFAULT:-5173}"; return; fi
@@ -484,7 +494,7 @@ cmd_list() {
   [ -s "$claims" ] || { echo "no claimed lanes"; return; }
   def=$(cd "$root" && default_branch)
   while IFS="$US" read -r name _ path intent port status kind _; do
-    [ -n "$port" ] || port=$(hash_port "$(basename "$path")")
+    [ -n "$port" ] || port=$(cmd_port "$path" 2>/dev/null || hash_port "$(basename "$path")")
     if [ ! -d "$path" ]; then
       printf '%-4s %s  status=%s port=%s kind=%s dirty=- ahead=-  %s%s\n' \
         GONE "$name" "$status" "$port" "$kind" "$path" "${intent:+  — $intent}"
