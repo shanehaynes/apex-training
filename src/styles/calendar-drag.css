@@ -1,0 +1,36 @@
+/* Drag-to-reschedule (src/components/calendar/useDragReschedule.ts).
+   The chip being dragged lifts, the cell or column under the pointer
+   highlights; the week block also translates to its snapped landing spot. */
+
+body.calendar-dragging {
+  user-select: none;
+  cursor: grabbing;
+}
+
+/* The chip's buttons would otherwise show a pointer mid-drag. */
+body.calendar-dragging .event-chip button,
+body.calendar-dragging .week-event button,
+body.calendar-dragging .day-cell {
+  cursor: grabbing;
+}
+
+.event-chip--dragging {
+  opacity: 0.45;
+}
+
+.day-cell--drop-target {
+  background: rgba(232, 226, 217, 0.08);
+  box-shadow: inset 0 0 0 1.5px var(--accent-primary);
+}
+
+.week-event--dragging {
+  /* Inline translate moves it; no spring on the way there. */
+  transition: none;
+  z-index: 6;
+  opacity: 0.92;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.week-view__day-col--drop-target {
+  background: rgba(232, 226, 217, 0.06);
+}
