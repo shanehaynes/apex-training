@@ -169,7 +169,8 @@ public struct TrackerScreen: View {
         }
         return ExerciseRowInput(
             tracked: tracked, fields: model.inputFields(for: tracked), perSideWarning: model.perSideWarning(for: tracked),
-            canSwap: model.canSwap(tracked), focusedField: focused, durationModeToggle: durationModeToggle
+            canSwap: model.canSwap(tracked), inLibrary: model.libraryDefinition(for: tracked) != nil,
+            focusedField: focused, durationModeToggle: durationModeToggle
         )
     }
 

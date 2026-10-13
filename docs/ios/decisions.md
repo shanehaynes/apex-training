@@ -1085,3 +1085,30 @@ exercise (Library, Builder): both now queue when there is no signal. The lines d
 - **Where the palette went.** `WorkoutPalette`'s synthesized `Equatable` is main-actor-isolated
   (ApexUI's default isolation), which a `nonisolated` value type cannot call, so the card derives
   it from `model.event` — a `let`, constant for the screen's life — rather than carrying it.
+
+## D-055 · A log field added mid-workout is a queued definition write
+**Status:** decided · session call · 2026-10-13
+The web (#390) PATCHes `exercise_definitions.log_fields` directly from the card and serializes
+the writes in a ref. On iOS the same tap is a queued op (`update-definition`), for the reason
+`create-definition` already is (D-052): mid-workout may mean no signal, and the field must still
+show now and still reach the library later.
+- **The outbox lane, not the session's.** It is a library edit, not workout data: a workout
+  cancel purges the session's lane (`cancelSession`), and a field added before a cancel must
+  still land — the card and the cache already say it did. The outbox is never purged and a
+  network loss there retries without a ceiling. The one exception is a movement created from
+  this workout's picker whose `create-definition` is still queued in the session's lane: the
+  PATCH is queued behind it there, or it would meet a 404.
+- **The payload is the whole column.** Each op carries the stored set plus everything added this
+  sitting (`TrackerEditor.nextLogFields`), so the server writes the array as sent, a replay is
+  idempotent, and two taps queued before either lands both carry the first — the web's
+  `nextLogFields`, with FIFO order supplied by the lane instead of a promise chain.
+- **Local first, like a create.** The model's copy of the definition and the schedule's cached
+  list are updated ahead of the write (`rememberDefinition`); the next schedule refresh carries
+  the server's row. A field added to an entry with no library definition is kept for this
+  sitting only, as on the web.
+- **A refusal is toasted and dropped,** like a refused create (D-052): the input stays on that
+  workout, nothing in it can be fixed from the card, and the schedule re-read puts the cached
+  definition back to the server's row. Only the behind-a-create case fails in the session's
+  lane, where the sync-failed bar's Retry / Discard shows it.
+- **Reversible in the Library, not on the card.** The editor's "Always log" toggles send the whole
+  column too (`[]` clears it), so the card needs no "– weight".

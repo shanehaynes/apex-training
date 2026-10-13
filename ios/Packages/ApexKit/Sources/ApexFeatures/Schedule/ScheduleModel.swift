@@ -297,6 +297,15 @@ public final class ScheduleModel {
                         if case .createDefinition = op.payload { await queue.discard(op.id, in: .outbox) }
                     }
                     await self?.refresh(reason: .afterEdit)
+                case .failed(let session, .updateDefinition, let message) where session == .outbox:
+                    // The tracker's "+ weight": the input stayed on that workout; only the
+                    // library write was refused. Nothing to fix from here, so it is dropped
+                    // and the re-read puts the cached definition back to the server's row.
+                    ToastBus.shared.post("Couldn't save a log field to your library — \(message)", level: .failure)
+                    for op in await queue.ops(for: .outbox) where op.state == .failed {
+                        if case .updateDefinition = op.payload { await queue.discard(op.id, in: .outbox) }
+                    }
+                    await self?.refresh(reason: .afterEdit)
                 case .failed(let session, .workoutDraft, let message) where session == .outbox:
                     ToastBus.shared.post("A workout saved offline wasn't accepted — \(message). Open its day to fix it.", level: .failure)
                 case .changed(let session) where session == .outbox:

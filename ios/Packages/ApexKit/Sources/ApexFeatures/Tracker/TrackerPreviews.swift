@@ -36,7 +36,7 @@ private struct ExerciseCardsPreview: View {
                             input: ExerciseRowInput(
                                 tracked: tracked, fields: model.inputFields(for: tracked),
                                 perSideWarning: model.perSideWarning(for: tracked), canSwap: model.canSwap(tracked),
-                                focusedField: nil, durationModeToggle: 0
+                                inLibrary: model.libraryDefinition(for: tracked) != nil, focusedField: nil, durationModeToggle: 0
                             ),
                             focus: $focus, onSwap: { _ in }
                         )
