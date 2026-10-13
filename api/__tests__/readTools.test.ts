@@ -24,7 +24,6 @@ const EXPECTED_ORDER = [
   'get_training_blocks',
   'search_exercises',
   'get_meals',
-  'list_sessions',
   'get_session_summaries',
   'get_reviews',
   'search_history',
@@ -52,7 +51,9 @@ function brokenAdmin(message: string): Admin {
 describe('COACH_READ_TOOLS / readToolSchemas', () => {
   it('is the MCP tools in registry order, then the history readers, each name once', () => {
     expect(COACH_READ_TOOLS.map(t => t.name)).toEqual(EXPECTED_ORDER);
-    for (const tool of MCP_TOOLS) expect(COACH_READ_TOOLS).toContain(tool);
+    // list_sessions is the one MCP query tool the coach is not offered (readTools.ts).
+    for (const tool of MCP_TOOLS.filter(t => t.name !== 'list_sessions')) expect(COACH_READ_TOOLS).toContain(tool);
+    expect(COACH_READ_TOOLS.map(t => t.name)).not.toContain('list_sessions');
   });
 
   it('yields one Anthropic.Tool per entry in the same order, identically on every call', () => {
