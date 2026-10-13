@@ -5,12 +5,14 @@
 // "not implemented: parseWeight"; classification cases fail by that error or
 // by assertion, because today's classifySet reads parseLeadingNumber and
 // knows nothing of units, body weight or `load`.
-// Cases whose name starts with `AMBIGUOUS:` assume something the spec does
-// not say; each is listed under SPEC GAPS in the lane report. Cases whose
-// name starts with `REGRESSION:` also pass on the stub and are kept because
-// the spec names the behaviour as one the change must not alter.
+// Seven readings the spec left open were ruled by the coordinator and are
+// pinned here as ordinary cases (thousands comma, number lexicon, BW+0, a
+// non-positive bodyweight result, the record weight, a trailing period after
+// a unit, bodyWeightLb always in lb). Cases whose name starts with
+// `REGRESSION:` also pass on the stub and are kept because the spec names
+// the behaviour as one the change must not alter.
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_WEIGHT_CONTEXT, parseWeight } from '../weight';
+import { DEFAULT_WEIGHT_CONTEXT, LB_PER_KG, parseWeight } from '../weight';
 import type { WeightContext } from '../weight';
 import { bestHistoricalOneRM, classifySet, computeSessionPRs, estimateOneRepMax } from '../records';
 import { buildTrackerModel } from '../plan';
@@ -18,9 +20,10 @@ import type { TrackedSectionGroup } from '../plan';
 import type { Exercise, WorkoutEvent } from '../../../types/workout';
 import type { SetLogRow } from '../../db/types';
 
-/** The spec's conversion factor — defined here, not imported, so the test
- *  pins the number rather than whatever constant the implementation exports. */
-const LB_PER_KG = 2.20462;
+/** The spec's conversion factor, used for every expected value here so the
+ *  arithmetic never depends on the implementation's export (which a case
+ *  below pins to this number). */
+const SPEC_LB_PER_KG = 2.20462;
 
 const LB: WeightContext = { unit: 'lb', bodyWeightLb: null };
 const KG: WeightContext = { unit: 'kg', bodyWeightLb: null };
@@ -163,16 +166,41 @@ describe('parseWeight — accepted forms', () => {
     expect(parseWeight('62,5 kg', LB)).toEqual(parseWeight('62.5 kg', LB));
   });
 
-  it('AMBIGUOUS: a comma is only ever a decimal separator, never a thousands separator', () => {
-    // R1.4 says "comma or dot decimal" and nothing about grouping, so the
-    // whole-string grammar reads "1,200" as 1.200 — the spec may mean to
-    // reject or regroup it instead.
-    expect(parseWeight('1,200', LB)).toEqual({ lb: 1.2, kind: 'absolute' });
+  it('a comma followed by exactly three digits and nothing more is a thousands separator', () => {
+    expect(parseWeight('1,200', LB)).toEqual({ lb: 1200, kind: 'absolute' });
+    expect(parseWeight('12,345', LB)).toEqual({ lb: 12345, kind: 'absolute' });
+    expect(parseWeight('1,200 lb', LB)).toEqual({ lb: 1200, kind: 'absolute' });
+    expect(parseWeight('1,200', KG)?.lb).toBeCloseTo(1200 * SPEC_LB_PER_KG, 5);
+    expect(parseWeight('1,200 kg', LB)?.lb).toBeCloseTo(1200 * SPEC_LB_PER_KG, 5);
+    // Any other digit count after the comma is a decimal.
+    expect(parseWeight('1,20', LB)).toEqual({ lb: 1.2, kind: 'absolute' });
+    expect(parseWeight('1,2', LB)).toEqual({ lb: 1.2, kind: 'absolute' });
+    expect(parseWeight('1,2000', LB)).toEqual({ lb: 1.2, kind: 'absolute' });
+    expect(parseWeight('62,5', LB)).toEqual({ lb: 62.5, kind: 'absolute' });
+  });
+
+  it('accepts an optional trailing period after a unit', () => {
+    expect(parseWeight('185 lbs.', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('185 lb.', KG)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('185lbs.', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('185 LBS.', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('100 kg.', LB)?.lb).toBeCloseTo(220.462, 5);
+    expect(parseWeight('100kg.', LB)?.lb).toBeCloseTo(220.462, 5);
+    expect(parseWeight('100 kgs.', LB)?.lb).toBeCloseTo(220.462, 5);
+    expect(parseWeight('185 lbs. ', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    // "after a unit" — the load suffix of a bodyweight form is a unit too.
+    expect(parseWeight('BW+25 lbs.', LB_BW)).toEqual({ lb: 205, kind: 'bodyweight' });
+    // Only one, only after a unit, and nothing after it.
+    expect(parseWeight('185 lbs..', LB)).toBeNull();
+    expect(parseWeight('185 lbs. kg', LB)).toBeNull();
+    expect(parseWeight('185 .lbs', LB)).toBeNull();
+    expect(parseWeight('185.', LB)).toBeNull();
+    expect(parseWeight('BW.', LB_BW)).toBeNull();
   });
 });
 
 describe('parseWeight — rejected forms', () => {
-  const rejects = ['5.10a', 'V5', '100kg x 5', '80%', 'heavy', '-10', '+10', '185 lbs.', ''];
+  const rejects = ['5.10a', 'V5', '100kg x 5', '80%', 'heavy', '-10', '+10', ''];
 
   it.each(rejects)('rejects %j', (text) => {
     expect(parseWeight(text, LB)).toBeNull();
@@ -212,9 +240,9 @@ describe('parseWeight — rejected forms', () => {
     expect(parseWeight('0x10', LB)).toBeNull();
   });
 
-  it('AMBIGUOUS: rejects exponent notation and a bare decimal separator', () => {
-    // "a number" in R1.4 is read as digits with an optional fraction, like
-    // every other tracker parser; "1e3", ".5" and "185." are not spelled out.
+  it('rejects exponent notation and a bare decimal separator', () => {
+    // "a number" is digits with an optional fraction, like every other
+    // tracker parser.
     expect(parseWeight('1e3', LB)).toBeNull();
     expect(parseWeight('.5', LB)).toBeNull();
     expect(parseWeight('185.', LB)).toBeNull();
@@ -240,9 +268,9 @@ describe('parseWeight — bodyweight forms with a body weight', () => {
     expect(parseWeight('BW-10', LB_BW)).toEqual({ lb: 170, kind: 'bodyweight' });
     const plusKg = parseWeight('BW+25', KG_BW);
     expect(plusKg).toMatchObject({ kind: 'bodyweight' });
-    expect(plusKg?.lb).toBeCloseTo(180 + 25 * LB_PER_KG, 5); // 235.1155
+    expect(plusKg?.lb).toBeCloseTo(180 + 25 * SPEC_LB_PER_KG, 5); // 235.1155
     const minusKg = parseWeight('BW-10', KG_BW);
-    expect(minusKg?.lb).toBeCloseTo(180 - 10 * LB_PER_KG, 5); // 157.9538
+    expect(minusKg?.lb).toBeCloseTo(180 - 10 * SPEC_LB_PER_KG, 5); // 157.9538
   });
 
   it('a suffix on the load wins over the context unit', () => {
@@ -266,7 +294,7 @@ describe('parseWeight — bodyweight forms with a body weight', () => {
   it('accepts a decimal load with dot or comma', () => {
     expect(parseWeight('BW+2.5', LB_BW)).toEqual({ lb: 182.5, kind: 'bodyweight' });
     expect(parseWeight('BW+2,5', LB_BW)).toEqual({ lb: 182.5, kind: 'bodyweight' });
-    expect(parseWeight('BW+2,5kg', LB_BW)?.lb).toBeCloseTo(180 + 2.5 * LB_PER_KG, 5);
+    expect(parseWeight('BW+2,5kg', LB_BW)?.lb).toBeCloseTo(180 + 2.5 * SPEC_LB_PER_KG, 5);
   });
 
   it('rejects malformed BW forms', () => {
@@ -281,14 +309,18 @@ describe('parseWeight — bodyweight forms with a body weight', () => {
     expect(parseWeight('BW+-25', LB_BW)).toBeNull();
   });
 
-  it('AMBIGUOUS: BW+0 is the body weight, still tagged bodyweight', () => {
+  it('BW+0 is the body weight, still tagged bodyweight', () => {
     expect(parseWeight('BW+0', LB_BW)).toEqual({ lb: 180, kind: 'bodyweight' });
+    expect(parseWeight('BW-0', LB_BW)).toEqual({ lb: 180, kind: 'bodyweight' });
   });
 
-  it('AMBIGUOUS: a load larger than the body weight is returned as parsed, not rejected', () => {
-    // R1.4 is a grammar and R1.2 is the only resolution rule; nothing caps
-    // the magnitude. classifySet's w > 0 gate then drops such a row.
-    expect(parseWeight('BW-200', LB_BW)).toEqual({ lb: -20, kind: 'bodyweight' });
+  it('a bodyweight form whose resolved weight is not positive is null', () => {
+    expect(parseWeight('BW-200', LB_BW)).toBeNull();
+    expect(parseWeight('BW-180', LB_BW)).toBeNull();
+    expect(parseWeight('BW-179', LB_BW)).toEqual({ lb: 1, kind: 'bodyweight' });
+    expect(parseWeight('BW-82kg', LB_BW)).toBeNull(); // 82 kg = 180.78 lb
+    expect(parseWeight('BW-81kg', LB_BW)?.lb).toBeCloseTo(180 - 81 * SPEC_LB_PER_KG, 5);
+    expect(parseWeight('bw - 200 lbs', KG_BW)).toBeNull();
   });
 });
 
@@ -329,10 +361,14 @@ describe('parseWeight — zero (R1.5)', () => {
 });
 
 describe('parseWeight — kg precision (R1.7)', () => {
+  it('exports the conversion factor the spec names', () => {
+    expect(LB_PER_KG).toBe(2.20462);
+  });
+
   it('converts kg × 2.20462 and keeps the float', () => {
     expect(parseWeight('62.5 kg', LB)?.lb).toBeCloseTo(137.78875, 5);
     expect(parseWeight('1 kg', LB)?.lb).toBeCloseTo(2.20462, 5);
-    expect(parseWeight('1kg', LB)?.lb).toBe(LB_PER_KG);
+    expect(parseWeight('1kg', LB)?.lb).toBe(SPEC_LB_PER_KG);
     expect(parseWeight('100', KG)?.lb).toBeCloseTo(220.462, 5);
   });
 
@@ -449,17 +485,23 @@ describe('classifySet — unit-aware weights', () => {
     expect(classifySet('BW+25', null, '60s', LB_BW)).toBeNull();
   });
 
-  it('AMBIGUOUS: text the grammar rejects is treated as no weight and falls through', () => {
-    // Today parseLeadingNumber reads 185 out of "185 lbs." and 100 out of
-    // "100kg x 5"; the spec rejects both at the parser but does not say what
-    // classifySet does with a rejected weight. The existing rule — weight ×
-    // reps when the weight parses, otherwise duration, otherwise reps — is
-    // taken to apply, so these rows stop earning oneRM.
-    expect(classifySet('185 lbs.', '5', null, LB)).toEqual({ kind: 'reps', reps: 5 });
+  it('text the grammar rejects is treated as no weight and falls through', () => {
+    // Today parseLeadingNumber reads 100 out of "100kg x 5" and 80 out of
+    // "80%"; the parser rejects both, so the rule — weight × reps when the
+    // weight parses, otherwise duration, otherwise reps — sends them on.
     expect(classifySet('100kg x 5', '5', null, LB)).toEqual({ kind: 'reps', reps: 5 });
     expect(classifySet('80%', '5', null, LB)).toEqual({ kind: 'reps', reps: 5 });
     expect(classifySet('5.10a', '5', null, LB)).toEqual({ kind: 'reps', reps: 5 });
     expect(classifySet('heavy', null, '60s', LB)).toEqual({ kind: 'duration', seconds: 60 });
+  });
+
+  it('a trailing period after the unit still parses, so the row is oneRM', () => {
+    expect(classifySet('185 lbs.', '5', null, LB)).toEqual({
+      kind: 'oneRM', weight: 185, reps: 5, oneRM: epley(185, 5), load: 'absolute',
+    });
+    const kg = classifySet('100 kg.', '5', null, LB);
+    expect(kg).toMatchObject({ kind: 'oneRM', reps: 5, load: 'absolute' });
+    expect(kg?.kind === 'oneRM' && kg.weight).toBeCloseTo(220.462, 5);
   });
 });
 
@@ -486,8 +528,8 @@ describe('bestHistoricalOneRM — mixed-unit history', () => {
       historyRow({ actual_weight: '135 lb', actual_reps: '5', event_date: '2026-06-08' }), // 157.5
     ], LB);
     const record = best.get('Bench Press');
-    expect(record?.weight).toBeCloseTo(65 * LB_PER_KG, 5);
-    expect(record?.oneRM).toBeCloseTo(epley(65 * LB_PER_KG, 5), 5);
+    expect(record?.weight).toBeCloseTo(65 * SPEC_LB_PER_KG, 5);
+    expect(record?.oneRM).toBeCloseTo(epley(65 * SPEC_LB_PER_KG, 5), 5);
     expect(record?.date).toBe('2026-06-01');
   });
 
@@ -499,7 +541,7 @@ describe('bestHistoricalOneRM — mixed-unit history', () => {
       ...mixedHistory,
       historyRow({ actual_weight: '70', actual_reps: '5', event_date: '2026-06-15' }),
     ], KG);
-    expect(best.get('Bench Press')?.weight).toBeCloseTo(70 * LB_PER_KG, 5);
+    expect(best.get('Bench Press')?.weight).toBeCloseTo(70 * SPEC_LB_PER_KG, 5);
     expect(best.get('Bench Press')?.date).toBe('2026-06-15');
     // The same bare "70" under lb is 70 lb and loses.
     expect(bestHistoricalOneRM([
@@ -540,7 +582,7 @@ describe('computeSessionPRs — PRs across units', () => {
     expect(prs).toHaveLength(1);
     expect(prs[0]).toMatchObject({ kind: 'oneRM', exerciseName: 'Bench Press', reps: 5, previousDate: '2026-06-08' });
     const pr = prs[0];
-    expect(pr.kind === 'oneRM' && pr.estimatedOneRM).toBeCloseTo(epley(62 * LB_PER_KG, 5), 5);
+    expect(pr.kind === 'oneRM' && pr.estimatedOneRM).toBeCloseTo(epley(62 * SPEC_LB_PER_KG, 5), 5);
     expect(pr.kind === 'oneRM' && pr.previousOneRM).toBeCloseTo(157.5, 5);
   });
 
@@ -555,15 +597,13 @@ describe('computeSessionPRs — PRs across units', () => {
       LB,
     );
     expect(prs).toHaveLength(1);
-    expect(prs[0].kind === 'oneRM' && prs[0].estimatedOneRM).toBeCloseTo(epley(61 * LB_PER_KG, 5), 5);
+    expect(prs[0].kind === 'oneRM' && prs[0].estimatedOneRM).toBeCloseTo(epley(61 * SPEC_LB_PER_KG, 5), 5);
   });
 
-  it('AMBIGUOUS: the record weight is the lb value classifySet produced', () => {
-    // The oneRM result's weight is specified as lb; OneRMRecord.weight is
-    // "the weight × reps set that produced it" and is not re-specified.
+  it('the record weight is the lb float classifySet produced', () => {
     const prs = computeSessionPRs(groupsWith(bench, [{ weight: '62 kg', reps: '5' }]), mixedHistory, [], LB);
     const pr = prs[0];
-    expect(pr.kind === 'oneRM' && pr.weight).toBeCloseTo(62 * LB_PER_KG, 5);
+    expect(pr.kind === 'oneRM' && pr.weight).toBeCloseTo(62 * SPEC_LB_PER_KG, 5);
   });
 
   it('a bare number in the current session follows the context unit', () => {
@@ -648,6 +688,6 @@ describe('computeSessionPRs — PRs across units', () => {
       LB,
     );
     expect(prs).toHaveLength(1);
-    expect(prs[0].kind === 'oneRM' && prs[0].estimatedOneRM).toBeCloseTo(epley(62 * LB_PER_KG, 5), 5);
+    expect(prs[0].kind === 'oneRM' && prs[0].estimatedOneRM).toBeCloseTo(epley(62 * SPEC_LB_PER_KG, 5), 5);
   });
 });
