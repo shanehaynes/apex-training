@@ -1,0 +1,178 @@
+/* Per-set targets (src/components/modal/PlannedSetsEditor.tsx): the
+   disclosure under an editor card's prescription, its preset forms and the
+   one-row-per-set table. Inputs match .editor-field's mono look. */
+
+.planned-sets {
+  margin-top: 8px;
+  border-top: 1px dashed var(--border-subtle);
+  padding-top: 6px;
+}
+
+.planned-sets__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  padding: 2px 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.planned-sets__toggle:hover { color: var(--text-primary); }
+
+.planned-sets__chevron {
+  transition: transform var(--duration-fast) ease;
+}
+
+.planned-sets__toggle[aria-expanded="true"] .planned-sets__chevron {
+  transform: rotate(90deg);
+}
+
+.planned-sets__badge {
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.planned-sets__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.planned-sets__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.planned-sets__preset,
+.planned-sets__action,
+.planned-sets__fill {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.planned-sets__preset:hover,
+.planned-sets__action:hover:not(:disabled),
+.planned-sets__fill:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+}
+
+.planned-sets__preset--on {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.planned-sets__action--remove:hover { color: #b91c1c; }
+
+.planned-sets__fill {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.planned-sets__fill:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.planned-sets__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.planned-sets__input {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 72px;
+}
+
+.planned-sets__input--narrow {
+  flex: 0 1 64px;
+  min-width: 56px;
+}
+
+.planned-sets__input span,
+.planned-sets__table th {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.planned-sets__input input,
+.planned-sets__input select,
+.planned-sets__table input {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  outline: none;
+  width: 100%;
+  transition: border-color var(--duration-fast) ease;
+}
+
+.planned-sets__input input:focus,
+.planned-sets__input select:focus,
+.planned-sets__table input:focus { border-color: var(--accent-primary); }
+
+.planned-sets__form-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.planned-sets__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 6px 4px;
+  margin: 0 -6px;
+}
+
+.planned-sets__table th {
+  text-align: left;
+  padding: 0 2px;
+}
+
+.planned-sets__table tbody th {
+  width: 2ch;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-align: right;
+}
+
+.planned-sets__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

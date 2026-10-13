@@ -1,4 +1,5 @@
 import { BarChart2, ChevronLeft, ChevronRight, Dumbbell, Plus, Target } from 'lucide-react';
+import { History } from 'lucide-react';
 import { useCalendar } from '../../context/calendar';
 import { useAuth } from '../../context/auth';
 import ProviderSyncControls from '../sync/ProviderSyncControls';
@@ -83,6 +84,15 @@ export default function TopNav() {
         >
           <BarChart2 size={14} strokeWidth={1.5} />
           <span className="btn-library__label">Analytics</span>
+        </button>
+        <button
+          className="btn-library btn-library--history"
+          data-testid="nav-history"
+          onClick={() => dispatch({ type: 'OPEN_HISTORY' })}
+          title="Workout history"
+        >
+          <History size={14} strokeWidth={1.5} />
+          <span className="btn-library__label">History</span>
         </button>
         <button
           className="btn-today"

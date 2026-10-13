@@ -30,6 +30,7 @@ function state(over: Partial<CalendarState> = {}): CalendarState {
     weeklyReviewOpen: false,
     analyticsOpen: false,
     notebookOpen: false,
+    historyOpen: false,
     askCoach: null,
     ...over,
   };

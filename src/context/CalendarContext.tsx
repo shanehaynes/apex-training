@@ -21,6 +21,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     weeklyReviewOpen: false,
     analyticsOpen: false,
     notebookOpen: false,
+    historyOpen: false,
     askCoach: null,
   });
 
@@ -44,6 +45,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
       weeklyReviewOpen: state.weeklyReviewOpen,
       analyticsOpen: state.analyticsOpen,
       notebookOpen: state.notebookOpen,
+      historyOpen: state.historyOpen,
       askCoachEventId: state.askCoach?.eventId ?? null,
     }));
   }, [state]);

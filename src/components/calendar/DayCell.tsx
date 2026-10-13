@@ -5,6 +5,7 @@ import EventChip from './EventChip';
 import AnnotationChip from './AnnotationChip';
 import { useCalendar } from '../../context/calendar';
 import { useAnnotations } from '../../context/annotations';
+import { DROP_DATE_ATTR, useIsDropTarget } from './useDragReschedule';
 import type { WorkoutEvent } from '../../types/workout';
 
 interface Props {
@@ -29,6 +30,8 @@ function DayCell({ date, currentMonth, events }: Props) {
   const today = isToday(date);
   const inMonth = isSameMonth(date, currentMonth);
   const dateKey = format(date, 'yyyy-MM-dd');
+  // A chip dragged over this cell: highlighted as the drop target.
+  const isDropTarget = useIsDropTarget(dateKey);
 
   const visible = events.slice(0, MAX_VISIBLE);
   const overflow = events.length - MAX_VISIBLE;
@@ -40,7 +43,11 @@ function DayCell({ date, currentMonth, events }: Props) {
   const openDay = () => dispatch({ type: 'SELECT_DAY', payload: dateKey });
 
   return (
-    <div className={`day-cell ${!inMonth ? 'day-cell--adjacent' : ''}`} onClick={openDay}>
+    <div
+      className={`day-cell ${!inMonth ? 'day-cell--adjacent' : ''}${isDropTarget ? ' day-cell--drop-target' : ''}`}
+      onClick={openDay}
+      {...{ [DROP_DATE_ATTR]: dateKey }}
+    >
       <div className="day-cell__header">
         <button
           className={`day-cell__date-btn day-cell__date ${today ? 'day-cell__date--today' : ''}`}
