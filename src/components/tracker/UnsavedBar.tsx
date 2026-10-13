@@ -1,20 +1,21 @@
 import { RefreshCw } from 'lucide-react';
-import type { SaveQueueState } from '../../lib/tracking/saveQueue';
+import type { TrackerSaveState } from '../../hooks/useWorkoutSession';
 import '../../styles/tracker-unsaved.css';
 
 interface Props {
-  state: SaveQueueState;
+  state: TrackerSaveState;
   onRetry: () => void;
 }
 
 /**
  * The persistent strip under the tracker header while autosave is not
  * landing. Three situations, in any combination: a failure streak (the
- * queue keeps retrying on its own; Retry sends now), a pause after a
- * 401/403 (nothing is sent until the user signs in again and presses
- * Retry), and refused edits (the server said no — editing the field again
- * re-queues it, so there is nothing to retry). It stays until a save
- * lands: the edits are still on screen and still dirty, which is the point.
+ * queue keeps retrying on its own; Retry sends now), a pause after a 401
+ * (nothing is sent until the user signs in again and presses Retry) or a
+ * 403 (the terms changed; accepting them from Profile, then Retry), and
+ * refused edits (the server said no — editing the field again re-queues
+ * it, so there is nothing to retry). It stays until a save lands: the
+ * edits are still on screen and still dirty, which is the point.
  */
 export default function UnsavedBar({ state, onRetry }: Props) {
   const failing = state.paused || state.consecutiveFailures > 0;
@@ -25,7 +26,9 @@ export default function UnsavedBar({ state, onRetry }: Props) {
       <span className="tracker-unsaved__msg">
         {failing && (
           <span>
-            {state.paused ? 'Sign in again' : 'Unsaved changes'}
+            {!state.paused ? 'Unsaved changes'
+              : state.pausedStatus === 403 ? 'Terms changed — accept them from Profile'
+              : 'Sign in again'}
             {state.pending > 0 && <span className="tracker-unsaved__count"> · {state.pending} unsaved</span>}
           </span>
         )}
