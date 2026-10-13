@@ -1,5 +1,6 @@
 import { ApiError, authHeaders, postJson } from '../api';
 import { supabase } from '../supabaseClient';
+import { notify } from '../notify';
 import { createWireCollector } from '../coach/wire';
 import type { CardioLogRow, SetLogRow, TrackedSection, WorkoutSessionRow } from '../db/types';
 import type { WorkoutEvent } from '../../types/workout';
@@ -85,14 +86,79 @@ export async function loadSession(event: WorkoutEvent): Promise<TrackerSessionDa
   }
 }
 
-/** Idempotent upsert of everything the user touched since the last flush. */
+export interface SaveLogsOptions {
+  /**
+   * Let the request outlive the page — the hidden-tab flush, which the
+   * browser would otherwise cancel on unload. Keepalive bodies are capped
+   * (64 KiB) and a batch is far smaller than that.
+   */
+  keepalive?: boolean;
+  /** No failure toast (still the console.warn): retries of a streak that
+   *  already toasted once — the Unsaved bar carries the state after that. */
+  quiet?: boolean;
+}
+
+/**
+ * An autosave failure, carrying the server's Retry-After (ms) on a 429 so
+ * the save queue backs off at least that long.
+ */
+export class AutosaveError extends ApiError {
+  retryAfterMs?: number;
+
+  constructor(message: string, status: number | null, retryAfterMs?: number) {
+    super(message, status);
+    this.name = 'AutosaveError';
+    if (retryAfterMs !== undefined) this.retryAfterMs = retryAfterMs;
+  }
+}
+
+/** Retry-After is seconds or an HTTP date; either becomes a delay in ms. */
+function parseRetryAfterMs(header: string | null): number | undefined {
+  if (!header) return undefined;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const at = Date.parse(header);
+  return Number.isNaN(at) ? undefined : Math.max(0, at - Date.now());
+}
+
+/**
+ * Idempotent upsert of everything the user touched since the last flush.
+ * Rejects with an AutosaveError on failure — the save queue keeps the keys
+ * dirty and retries. Its own fetch rather than postJson: the queue needs
+ * `keepalive` and the 429's Retry-After, which the shared transport does
+ * not expose.
+ */
 export async function saveLogs(
   eventId: string,
   eventDate: string,
   payload: { setLogs: SetLogRow[]; cardioLogs: CardioLogRow[]; removedSets: RemovedSetKey[]; exerciseNotes?: ExerciseNoteEdit[] },
+  opts: SaveLogsOptions = {},
 ): Promise<void> {
   if (!supabase) return;
-  await postJson('/api/workout-sessions', { action: 'save', eventId, eventDate, ...payload }, 'Autosave');
+  const label = 'Autosave';
+  let res: Response;
+  try {
+    res = await fetch('/api/workout-sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+      body: JSON.stringify({ action: 'save', eventId, eventDate, ...payload }),
+      keepalive: opts.keepalive === true,
+    });
+  } catch (err) {
+    console.warn(`[apex] ${label} failed:`, err);
+    if (!opts.quiet) notify(`${label} failed`);
+    throw new AutosaveError(`${label} failed`, null);
+  }
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    console.warn(`[apex] ${label} failed (${res.status}):`, detail);
+    if (!opts.quiet) notify(`${label} failed`);
+    throw new AutosaveError(
+      detail || `${label} failed`,
+      res.status,
+      res.status === 429 ? parseRetryAfterMs(res.headers.get('Retry-After')) : undefined,
+    );
+  }
 }
 
 export interface FinishResult {

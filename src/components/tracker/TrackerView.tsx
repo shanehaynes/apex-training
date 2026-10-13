@@ -14,6 +14,7 @@ import TrackerExercise from './TrackerExercise';
 import ExercisePicker from '../modal/ExercisePicker';
 import WorkoutSummary from './WorkoutSummary';
 import ConfirmBar from './ConfirmBar';
+import UnsavedBar from './UnsavedBar';
 import ScorePrompt from './ScorePrompt';
 import type { SessionScore } from '../../lib/tracking/records';
 import type { TrackedSectionGroup } from '../../lib/tracking/plan';
@@ -47,9 +48,9 @@ export default function TrackerView() {
   const event = state.trackingSession;
 
   const {
-    groups, session, elapsed, isFinished, isFinishing, isCancelling, summary,
+    groups, session, elapsed, isFinished, isFinishing, isCancelling, summary, saveState,
     onSetChange, onCardioChange, onCommitSetShadow, onCommitCardioShadow, onAddSet, onRemoveSet,
-    onAddExercise, onRemoveAddedExercise, onSwapExercise, onNoteChange, flushSave, requestFinish, cancelWorkout, openSavedSummary, dismissSummary,
+    onAddExercise, onRemoveAddedExercise, onSwapExercise, onNoteChange, flushSave, retrySave, requestFinish, cancelWorkout, openSavedSummary, dismissSummary,
   } = useWorkoutSession(event, setCompletion);
 
   const [confirmCount, setConfirmCount] = useState<number | null>(null);
@@ -60,8 +61,14 @@ export default function TrackerView() {
   const color = event ? getWorkoutColor(event.type) : null;
   if (!event || !color) return null;
 
+  // Leaving the tracker drops its save queue, so Back waits for the save:
+  // a failed flush keeps the session open with its edits still dirty (the
+  // queue keeps retrying; the bar's Retry sends now) rather than losing them.
   const close = async () => {
-    await flushSave();
+    if (!(await flushSave())) {
+      notify('Unsaved changes — retry before leaving');
+      return;
+    }
     dispatch({ type: 'STOP_TRACKING' });
   };
 
@@ -131,6 +138,8 @@ export default function TrackerView() {
           </button>
         )}
       </header>
+
+      {saveState.showBar && <UnsavedBar state={saveState} onRetry={() => { retrySave(); }} />}
 
       <div className="tracker-body">
         {isFinished && groups && (

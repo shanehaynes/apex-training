@@ -16,10 +16,24 @@ import {
   cancelSession, finishSession, generateCoachSummary, loadSession, saveLogs, swapLoggedExercise,
 } from '../lib/tracking/sessionRepo';
 import type { ExerciseNoteEdit, RemovedSetKey, SessionInfo } from '../lib/tracking/sessionRepo';
+import { createSaveQueue } from '../lib/tracking/saveQueue';
+import type { SaveQueue, SaveQueueState } from '../lib/tracking/saveQueue';
 import type { SetField, CardioField } from '../components/tracker/TrackerExercise';
 import { registerAgentState } from '../dev/agentBridge';
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
+
+const IDLE_SAVE_STATE: SaveQueueState = {
+  pending: 0, inFlight: false, consecutiveFailures: 0, showBar: false, nextRetryAt: null,
+};
+
+// Dirty keys, as the save queue tracks them. One key per row the server
+// upserts or deletes, so a key stays dirty until the send that carried its
+// latest value resolves.
+const setKey = (section: TrackedSection, exerciseId: string, setNumber: number) => `set|${section}|${exerciseId}|${setNumber}`;
+const cardioKey = (section: TrackedSection, exerciseId: string) => `cardio|${section}|${exerciseId}`;
+const noteKey = (section: TrackedSection, exerciseId: string) => `note|${section}|${exerciseId}`;
+const removedKey = (section: TrackedSection, exerciseId: string, setNumber: number) => `removed|${section}|${exerciseId}|${setNumber}`;
 
 export type CoachStatus = 'loading' | 'ready' | 'unavailable';
 
@@ -43,7 +57,8 @@ export type FinishOutcome =
 
 /**
  * Owns a workout-tracking session end to end: load/hydrate, in-memory edits
- * with debounced autosave (flushed on tab hide), the elapsed timer, and the
+ * with debounced autosave (flushed on tab hide; a failed save keeps the edits
+ * dirty and retries — lib/tracking/saveQueue), the elapsed timer, and the
  * finish/cancel/summary lifecycle. The view renders what this returns.
  * `setCompletion` is injected so the hook stays free of ScheduleContext.
  *
@@ -60,20 +75,19 @@ export function useWorkoutSession(
   const [isFinishing, setIsFinishing] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [summary, setSummary] = useState<SummaryState | null>(null);
+  const [saveState, setSaveState] = useState<SaveQueueState>(IDLE_SAVE_STATE);
 
   const groupsRef = useRef<TrackedSectionGroup[]>([]);
-  const dirtySetsRef = useRef<Set<string>>(new Set());   // `${section}|${exerciseId}|${setNumber}`
-  const dirtyCardioRef = useRef<Set<string>>(new Set()); // `${section}|${exerciseId}`
-  const removedRef = useRef<RemovedSetKey[]>([]);
-  const dirtyNotesRef = useRef<Set<string>>(new Set()); // `${section}|${exerciseId}`
+  // The one source of truth for what is unsaved. Created per session load,
+  // disposed on cancel; null between sessions, when there is nothing to save.
+  const queueRef = useRef<SaveQueue | null>(null);
+  // The hidden-tab flush marks its send so the request can outlive the page.
+  const keepaliveRef = useRef(false);
   // What the server last reported for this session — bootstrap for a
   // finished session, or the finish response — so reopening the summary
   // costs nothing.
   const recordsRef = useRef<{ prs: PersonalRecord[]; scoreRecord: WorkoutScoreRecord | null }>({ prs: [], scoreRecord: null });
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Set the moment a cancel is confirmed: blocks the debounced autosave and
-  // the visibilitychange flush from re-creating rows after the delete.
-  const cancelledRef = useRef(false);
 
   // Written after commit, not during render (unsafe under StrictMode). The
   // autosave timer and finish/cancel handlers fire well after effects run.
@@ -94,6 +108,54 @@ export function useWorkoutSession(
 
   const isFinished = !!session?.finished_at;
 
+  // ── Save queue ──────────────────────────────────────────────────────────────
+
+  // One send: the rows for these keys, read from the current model, in the
+  // shape the server's `save` op takes. A key whose row is gone (a set
+  // removed before its save landed) contributes nothing and is still
+  // cleared by the queue on success. Retries after the first failure of a
+  // streak are quiet — that failure toasted, and the bar carries the state.
+  const buildSend = (eventId: string, eventDate: string, queue: () => SaveQueue) => async (keys: readonly string[]) => {
+    const setLogs: SetLogRow[] = [];
+    const cardioLogs: CardioLogRow[] = [];
+    const exerciseNotes: ExerciseNoteEdit[] = [];
+    const removedSets: RemovedSetKey[] = [];
+    const find = (section: string, exerciseId: string) =>
+      groupsRef.current.find(g => g.section === section)?.exercises.find(t => t.exercise.id === exerciseId);
+    for (const key of keys) {
+      const [kind, section, exerciseId, setNumberStr] = key.split('|') as [string, TrackedSection, string, string | undefined];
+      const tracked = find(section, exerciseId);
+      if (kind === 'set') {
+        const setNumber = Number(setNumberStr);
+        const set = tracked?.sets.find(s => s.setNumber === setNumber);
+        if (tracked && set) setLogs.push(setToRow(eventId, eventDate, tracked, set));
+      } else if (kind === 'cardio') {
+        if (tracked?.cardio) cardioLogs.push(cardioToRow(eventId, eventDate, tracked));
+      } else if (kind === 'note') {
+        if (tracked) exerciseNotes.push({ section, exerciseId, note: tracked.sessionNote });
+      } else if (kind === 'removed') {
+        removedSets.push({ section, exerciseId, setNumber: Number(setNumberStr) });
+      }
+    }
+    if (!setLogs.length && !cardioLogs.length && !removedSets.length && !exerciseNotes.length) return;
+    const keepalive = keepaliveRef.current;
+    keepaliveRef.current = false;
+    await saveLogs(eventId, eventDate, { setLogs, cardioLogs, removedSets, exerciseNotes }, {
+      keepalive,
+      quiet: queue().state().consecutiveFailures > 0,
+    });
+  };
+
+  const makeQueue = (eventId: string, eventDate: string): SaveQueue => {
+    const queue: SaveQueue = createSaveQueue({
+      send: buildSend(eventId, eventDate, () => queue),
+      // A superseded queue's last send may settle after its replacement
+      // exists; only the live queue paints the state.
+      onChange: state => { if (queueRef.current === queue) setSaveState(state); },
+    });
+    return queue;
+  };
+
   // ── Load: get-or-create the session, hydrate any previously-saved logs ─────
 
   useEffect(() => {
@@ -102,6 +164,9 @@ export function useWorkoutSession(
     if (!loadEvent) return;
     let cancelled = false;
 
+    queueRef.current = makeQueue(eventId, eventDate);
+    setSaveState(queueRef.current.state());
+
     loadSession(loadEvent).then(data => {
       if (cancelled) return;
       setSession(data.session);
@@ -109,7 +174,12 @@ export function useWorkoutSession(
       setGroups(data.groups);
     });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      queueRef.current?.dispose();
+    };
+    // makeQueue closes over refs only; the primitives are the inputs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId, eventDate]);
 
   // ── Elapsed timer — derived from server started_at, immune to tab sleep ────
@@ -143,56 +213,32 @@ export function useWorkoutSession(
         ? session.total_duration_seconds ?? 0
         : Math.max(0, Math.floor((Date.now() - new Date(session.started_at).getTime()) / 1000)),
       groups,
+      saveState,
       summary: summary && {
         prs: summary.prs,
         coachStatus: summary.coachStatus,
         coachText: summary.coachText,
       },
     }));
-  }, [event, session, groups, summary]);
+  }, [event, session, groups, summary, saveState]);
 
   // ── Autosave ────────────────────────────────────────────────────────────────
 
-  const flushSave = useCallback(async () => {
+  /**
+   * Send everything unsaved now. Resolves true once every edit pending at
+   * the call is on the server, false when that attempt failed — the edits
+   * stay dirty and the queue keeps retrying.
+   */
+  const flushSave = useCallback((): Promise<boolean> => {
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
-    if (!eventId || !eventDate || cancelledRef.current) return;
+    return queueRef.current?.flush() ?? Promise.resolve(true);
+  }, []);
 
-    const setLogs: SetLogRow[] = [];
-    for (const key of dirtySetsRef.current) {
-      const [section, exerciseId, setNumberStr] = key.split('|');
-      const setNumber = Number(setNumberStr);
-      for (const group of groupsRef.current) {
-        if (group.section !== section) continue;
-        const tracked = group.exercises.find(t => t.exercise.id === exerciseId);
-        const set = tracked?.sets.find(s => s.setNumber === setNumber);
-        if (tracked && set) setLogs.push(setToRow(eventId, eventDate, tracked, set));
-      }
-    }
-    const cardioLogs: CardioLogRow[] = [];
-    for (const key of dirtyCardioRef.current) {
-      const [section, exerciseId] = key.split('|');
-      for (const group of groupsRef.current) {
-        if (group.section !== section) continue;
-        const tracked = group.exercises.find(t => t.exercise.id === exerciseId);
-        if (tracked?.cardio) cardioLogs.push(cardioToRow(eventId, eventDate, tracked));
-      }
-    }
-    const exerciseNotes: ExerciseNoteEdit[] = [];
-    for (const key of dirtyNotesRef.current) {
-      const [section, exerciseId] = key.split('|') as [TrackedSection, string];
-      const tracked = groupsRef.current.find(g => g.section === section)?.exercises.find(t => t.exercise.id === exerciseId);
-      if (tracked) exerciseNotes.push({ section, exerciseId, note: tracked.sessionNote });
-    }
-    const removedSets = removedRef.current;
-    if (!setLogs.length && !cardioLogs.length && !removedSets.length && !exerciseNotes.length) return;
-
-    dirtySetsRef.current = new Set();
-    dirtyCardioRef.current = new Set();
-    dirtyNotesRef.current = new Set();
-    removedRef.current = [];
-
-    await saveLogs(eventId, eventDate, { setLogs, cardioLogs, removedSets, exerciseNotes }).catch(() => {});
-  }, [eventId, eventDate]);
+  /** The Unsaved bar's Retry: cancels the scheduled retry and sends now. */
+  const retrySave = useCallback((): Promise<boolean> => {
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
+    return queueRef.current?.retryNow() ?? Promise.resolve(true);
+  }, []);
 
   const scheduleSave = useCallback(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -200,8 +246,13 @@ export function useWorkoutSession(
   }, [flushSave]);
 
   // Flush pending edits when the tab is backgrounded or closed mid-workout.
+  // Keepalive lets that one request outlive the page; a retry cannot.
   useEffect(() => {
-    const onHide = () => { if (document.visibilityState === 'hidden') flushSave(); };
+    const onHide = () => {
+      if (document.visibilityState !== 'hidden') return;
+      keepaliveRef.current = true;
+      flushSave();
+    };
     document.addEventListener('visibilitychange', onHide);
     return () => document.removeEventListener('visibilitychange', onHide);
   }, [flushSave]);
@@ -220,12 +271,24 @@ export function useWorkoutSession(
     ));
   };
 
+  // A set and its removal are one server row: dirtying one drops the other,
+  // so a batch never carries both a delete and an upsert of the same key —
+  // the server runs its ops concurrently and would not order them.
+  const markSetDirty = (section: TrackedSection, exerciseId: string, setNumber: number) => {
+    queueRef.current?.unmark(removedKey(section, exerciseId, setNumber));
+    queueRef.current?.markDirty(setKey(section, exerciseId, setNumber));
+  };
+  const markSetRemoved = (section: TrackedSection, exerciseId: string, setNumber: number) => {
+    queueRef.current?.unmark(setKey(section, exerciseId, setNumber));
+    queueRef.current?.markDirty(removedKey(section, exerciseId, setNumber));
+  };
+
   const onSetChange = (section: TrackedSection, exerciseId: string, setNumber: number, field: SetField, value: string) => {
     updateExercise(section, exerciseId, t => ({
       ...t,
       sets: t.sets.map(s => (s.setNumber === setNumber ? { ...s, [field]: value } : s)),
     }));
-    dirtySetsRef.current.add(`${section}|${exerciseId}|${setNumber}`);
+    markSetDirty(section, exerciseId, setNumber);
     scheduleSave();
   };
 
@@ -234,14 +297,14 @@ export function useWorkoutSession(
       ...t,
       cardio: t.cardio && { ...t.cardio, [field]: value },
     }));
-    dirtyCardioRef.current.add(`${section}|${exerciseId}`);
+    queueRef.current?.markDirty(cardioKey(section, exerciseId));
     scheduleSave();
   };
 
   // This occurrence only — it never touches the plan entry's notes.
   const onNoteChange = (section: TrackedSection, exerciseId: string, note: string) => {
     updateExercise(section, exerciseId, t => ({ ...t, sessionNote: note }));
-    dirtyNotesRef.current.add(`${section}|${exerciseId}`);
+    queueRef.current?.markDirty(noteKey(section, exerciseId));
     scheduleSave();
   };
 
@@ -265,7 +328,7 @@ export function useWorkoutSession(
       ...t,
       sets: t.sets.map(s => (s.setNumber === setNumber ? { ...s, ...values, shadow: null } : s)),
     }));
-    dirtySetsRef.current.add(`${section}|${exerciseId}|${setNumber}`);
+    markSetDirty(section, exerciseId, setNumber);
     scheduleSave();
   };
 
@@ -278,7 +341,7 @@ export function useWorkoutSession(
         ? { ...t.cardio, [field]: t.cardio.shadow[field], shadow: { ...t.cardio.shadow, [field]: '' } }
         : t.cardio,
     }));
-    dirtyCardioRef.current.add(`${section}|${exerciseId}`);
+    queueRef.current?.markDirty(cardioKey(section, exerciseId));
     scheduleSave();
   };
 
@@ -300,8 +363,7 @@ export function useWorkoutSession(
       sets: t.sets.filter(s => !(s.isExtra && s.setNumber === setNumber)),
     }));
     setGroups(dropEmptyAdded);
-    dirtySetsRef.current.delete(`${section}|${exerciseId}|${setNumber}`);
-    removedRef.current.push({ section, exerciseId, setNumber });
+    markSetRemoved(section, exerciseId, setNumber);
     scheduleSave();
   };
 
@@ -329,14 +391,12 @@ export function useWorkoutSession(
   const onRemoveAddedExercise = (section: TrackedSection, exerciseId: string) => {
     const tracked = findTracked(section, exerciseId);
     if (!tracked?.isAdded) return;
-    for (const set of tracked.sets) {
-      dirtySetsRef.current.delete(`${section}|${exerciseId}|${set.setNumber}`);
-      removedRef.current.push({ section, exerciseId, setNumber: set.setNumber });
-    }
+    const queue = queueRef.current;
+    for (const set of tracked.sets) markSetRemoved(section, exerciseId, set.setNumber);
     // A cardio entry has no sets; any key naming the added id deletes its row.
-    if (tracked.isCardio) removedRef.current.push({ section, exerciseId, setNumber: 0 });
-    dirtyCardioRef.current.delete(`${section}|${exerciseId}`);
-    dirtyNotesRef.current.delete(`${section}|${exerciseId}`);
+    if (tracked.isCardio) queue?.markDirty(removedKey(section, exerciseId, 0));
+    queue?.unmark(cardioKey(section, exerciseId));
+    queue?.unmark(noteKey(section, exerciseId));
     setGroups(prev => prev && prev
       .map(g => (g.section !== section ? g : { ...g, exercises: g.exercises.filter(t => t.exercise.id !== exerciseId) }))
       .filter(g => g.exercises.length > 0));
@@ -357,8 +417,9 @@ export function useWorkoutSession(
     if (!target) return false;
 
     // Order matters: a pending autosave carries the old name, and would write
-    // it straight back over the rows the swap just relabelled.
-    await flushSave();
+    // it straight back over the rows the swap just relabelled. A flush that
+    // failed leaves those rows dirty, so the swap waits for a save that works.
+    if (!(await flushSave())) return false;
 
     try {
       await swapLoggedExercise(target.id, target.date, {
@@ -431,7 +492,13 @@ export function useWorkoutSession(
 
     setIsFinishing(true);
     try {
-      await flushSave();
+      // Unsaved edits never finish: the server would stamp the session over
+      // rows it does not have. The queue keeps retrying; Finish is a retry.
+      const ok = await flushSave();
+      if (!ok) {
+        setIsFinishing(false);
+        return { status: 'failed' };
+      }
       const result = await finishSession(
         event.id,
         event.date,
@@ -467,11 +534,10 @@ export function useWorkoutSession(
   const cancelWorkout = async (): Promise<boolean> => {
     if (!event || isCancelling) return false;
 
-    cancelledRef.current = true;
+    // Disposing the queue is what blocks the debounced autosave and the
+    // visibilitychange flush from re-creating rows after the delete.
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
-    dirtySetsRef.current = new Set();
-    dirtyCardioRef.current = new Set();
-    removedRef.current = [];
+    queueRef.current?.dispose();
 
     setIsCancelling(true);
     try {
@@ -481,7 +547,10 @@ export function useWorkoutSession(
       if (isFinished) setCompletion(event.id, false);
       return true;
     } catch {
-      cancelledRef.current = false;
+      // The session survives, so its edits must save again: a fresh queue.
+      // What was unsaved at the cancel was discarded with the old one.
+      queueRef.current = makeQueue(event.id, event.date);
+      setSaveState(queueRef.current.state());
       setIsCancelling(false);
       return false;
     }
@@ -512,6 +581,7 @@ export function useWorkoutSession(
     isFinishing,
     isCancelling,
     summary,
+    saveState,
     onSetChange,
     onCardioChange,
     onCommitSetShadow,
@@ -523,6 +593,7 @@ export function useWorkoutSession(
     onSwapExercise,
     onNoteChange,
     flushSave,
+    retrySave,
     requestFinish,
     cancelWorkout,
     openSavedSummary,
