@@ -2,7 +2,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import type { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { ToolInputError, type McpToolDef } from '../mcp/protocol.js';
 import { MCP_TOOLS } from '../mcp/toolRegistry.js';
-import { getSessionSummariesTool } from '../mcp/tools/sessions.js';
+import { getSessionSummariesTool, listSessionsTool } from '../mcp/tools/sessions.js';
 import { getReviewsTool } from '../mcp/tools/reviews.js';
 import { searchHistoryTool } from '../mcp/tools/history.js';
 
@@ -26,7 +26,8 @@ const HISTORY_TOOLS: readonly McpToolDef[] = [getSessionSummariesTool, getReview
  * so each name appears exactly once, at its fixed position.
  */
 export const COACH_READ_TOOLS: readonly McpToolDef[] = [
-  ...MCP_TOOLS.filter(t => !HISTORY_TOOLS.includes(t)),
+  // list_sessions stays with the connector and /api/query; the coach gets it only via a coach-owned change under the eval gate.
+  ...MCP_TOOLS.filter(t => !HISTORY_TOOLS.includes(t) && t !== listSessionsTool),
   ...HISTORY_TOOLS,
 ];
 

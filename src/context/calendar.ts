@@ -42,6 +42,8 @@ export interface CalendarState {
   analyticsOpen: boolean;
   /** Coach notebook overlay (memory, contract, doctrine — lane D02); opens from the profile. */
   notebookOpen: boolean;
+  /** Workout history overlay (same full-screen pattern as the library). */
+  historyOpen: boolean;
   /**
    * A session the athlete asked the coach about (lane E02): set by the
    * workout modal or the tracker's summary, sent by ChatSidebar as a hidden
@@ -80,6 +82,8 @@ export type CalendarAction =
   | { type: 'CLOSE_ANALYTICS' }
   | { type: 'OPEN_NOTEBOOK' }
   | { type: 'CLOSE_NOTEBOOK' }
+  | { type: 'OPEN_HISTORY' }
+  | { type: 'CLOSE_HISTORY' }
   | { type: 'ASK_COACH'; payload: AskCoachRequest }
   | { type: 'CLEAR_ASK_COACH' };
 
@@ -163,6 +167,10 @@ export function calendarReducer(state: CalendarState, action: CalendarAction): C
       return { ...state, notebookOpen: true };
     case 'CLOSE_NOTEBOOK':
       return { ...state, notebookOpen: false };
+    case 'OPEN_HISTORY':
+      return { ...state, historyOpen: true };
+    case 'CLOSE_HISTORY':
+      return { ...state, historyOpen: false };
     case 'ASK_COACH':
       // Also closes the workout modal: on a phone the coach tab replaces the
       // calendar, and a modal left open would sit over the answer.
