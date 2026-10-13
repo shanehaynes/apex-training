@@ -16,7 +16,8 @@ import {
   cancelSession, finishSession, generateCoachSummary, loadSession, saveLogs, swapLoggedExercise,
 } from '../lib/tracking/sessionRepo';
 import type { ExerciseNoteEdit, RemovedSetKey, SessionInfo } from '../lib/tracking/sessionRepo';
-import { createSaveQueue } from '../lib/tracking/saveQueue';
+import { notify } from '../lib/notify';
+import { createSaveQueue, isNonRetryable } from '../lib/tracking/saveQueue';
 import type { SaveQueue, SaveQueueState } from '../lib/tracking/saveQueue';
 import type { SetField, CardioField } from '../components/tracker/TrackerExercise';
 import { registerAgentState } from '../dev/agentBridge';
@@ -24,8 +25,10 @@ import { registerAgentState } from '../dev/agentBridge';
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
 const IDLE_SAVE_STATE: SaveQueueState = {
-  pending: 0, inFlight: false, consecutiveFailures: 0, showBar: false, nextRetryAt: null,
+  pending: 0, inFlight: false, consecutiveFailures: 0, showBar: false, nextRetryAt: null, rejected: 0,
 };
+
+const refusedMessage = (n: number) => `${n} ${n === 1 ? 'edit was' : 'edits were'} refused — edit again to resend`;
 
 // Dirty keys, as the save queue tracks them. One key per row the server
 // upserts or deletes, so a key stays dirty until the send that carried its
@@ -115,6 +118,8 @@ export function useWorkoutSession(
   // removed before its save landed) contributes nothing and is still
   // cleared by the queue on success. Retries after the first failure of a
   // streak are quiet — that failure toasted, and the bar carries the state.
+  // A refusal (4xx) is not retried, so it toasts the server's own message
+  // once here; the bar then says how many edits were refused.
   const buildSend = (eventId: string, eventDate: string, queue: () => SaveQueue) => async (keys: readonly string[]) => {
     const setLogs: SetLogRow[] = [];
     const cardioLogs: CardioLogRow[] = [];
@@ -140,10 +145,15 @@ export function useWorkoutSession(
     if (!setLogs.length && !cardioLogs.length && !removedSets.length && !exerciseNotes.length) return;
     const keepalive = keepaliveRef.current;
     keepaliveRef.current = false;
-    await saveLogs(eventId, eventDate, { setLogs, cardioLogs, removedSets, exerciseNotes }, {
-      keepalive,
-      quiet: queue().state().consecutiveFailures > 0,
-    });
+    try {
+      await saveLogs(eventId, eventDate, { setLogs, cardioLogs, removedSets, exerciseNotes }, {
+        keepalive,
+        quiet: queue().state().consecutiveFailures > 0,
+      });
+    } catch (err) {
+      if (isNonRetryable(err)) notify(`Autosave refused: ${(err as Error).message.slice(0, 140)}`);
+      throw err;
+    }
   };
 
   const makeQueue = (eventId: string, eventDate: string): SaveQueue => {
@@ -246,12 +256,14 @@ export function useWorkoutSession(
   }, [flushSave]);
 
   // Flush pending edits when the tab is backgrounded or closed mid-workout.
-  // Keepalive lets that one request outlive the page; a retry cannot.
+  // Keepalive lets that one request outlive the page; a retry cannot. The
+  // flag covers only the send this flush issues: it is consumed by that
+  // send, and cleared here in case the flush sent nothing.
   useEffect(() => {
     const onHide = () => {
       if (document.visibilityState !== 'hidden') return;
       keepaliveRef.current = true;
-      flushSave();
+      flushSave().finally(() => { keepaliveRef.current = false; });
     };
     document.addEventListener('visibilitychange', onHide);
     return () => document.removeEventListener('visibilitychange', onHide);
@@ -494,8 +506,12 @@ export function useWorkoutSession(
     try {
       // Unsaved edits never finish: the server would stamp the session over
       // rows it does not have. The queue keeps retrying; Finish is a retry.
+      // Refused edits block it too — the numbers on screen are not the
+      // numbers on the server until they are edited again and accepted.
       const ok = await flushSave();
-      if (!ok) {
+      const refused = queueRef.current?.state().rejected ?? 0;
+      if (!ok || refused > 0) {
+        notify(ok ? refusedMessage(refused) : 'Unsaved changes — finish once they save');
         setIsFinishing(false);
         return { status: 'failed' };
       }
@@ -534,23 +550,22 @@ export function useWorkoutSession(
   const cancelWorkout = async (): Promise<boolean> => {
     if (!event || isCancelling) return false;
 
-    // Disposing the queue is what blocks the debounced autosave and the
-    // visibilitychange flush from re-creating rows after the delete.
+    // The debounced autosave is dropped now; the queue is disposed only once
+    // the delete has happened, so a failed cancel leaves the session with
+    // its edits still queued (and anything typed during the request lands
+    // on that same queue). Disposing is what blocks the visibilitychange
+    // flush from re-creating rows after the delete.
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
-    queueRef.current?.dispose();
 
     setIsCancelling(true);
     try {
       await cancelSession(event.id, event.date);
+      queueRef.current?.dispose();
       // A finished session set the completion flag — forgetting the workout
       // forgets that too. A never-finished session never completed anything.
       if (isFinished) setCompletion(event.id, false);
       return true;
     } catch {
-      // The session survives, so its edits must save again: a fresh queue.
-      // What was unsaved at the cancel was discarded with the old one.
-      queueRef.current = makeQueue(event.id, event.date);
-      setSaveState(queueRef.current.state());
       setIsCancelling(false);
       return false;
     }

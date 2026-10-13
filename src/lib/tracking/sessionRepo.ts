@@ -5,6 +5,7 @@ import { createWireCollector } from '../coach/wire';
 import type { CardioLogRow, SetLogRow, TrackedSection, WorkoutSessionRow } from '../db/types';
 import type { WorkoutEvent } from '../../types/workout';
 import { buildTrackerModel } from './plan';
+import { DEFAULT_MAX_RETRY_MS } from './saveQueue';
 import type { TrackedSectionGroup } from './plan';
 import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from './records';
 
@@ -94,7 +95,9 @@ export interface SaveLogsOptions {
    */
   keepalive?: boolean;
   /** No failure toast (still the console.warn): retries of a streak that
-   *  already toasted once — the Unsaved bar carries the state after that. */
+   *  already toasted once — the Unsaved bar carries the state after that.
+   *  A refusal (4xx other than 408/429) never toasts here: the hook shows
+   *  the server's message once instead. */
   quiet?: boolean;
 }
 
@@ -112,13 +115,17 @@ export class AutosaveError extends ApiError {
   }
 }
 
-/** Retry-After is seconds or an HTTP date; either becomes a delay in ms. */
-function parseRetryAfterMs(header: string | null): number | undefined {
+/**
+ * Retry-After is seconds or an HTTP date; either becomes a delay in ms,
+ * capped at the save queue's clamp so a hostile or absurd header cannot
+ * park the retry for an hour.
+ */
+export function parseRetryAfterMs(header: string | null): number | undefined {
   if (!header) return undefined;
   const seconds = Number(header);
-  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
-  const at = Date.parse(header);
-  return Number.isNaN(at) ? undefined : Math.max(0, at - Date.now());
+  const ms = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(header) - Date.now();
+  if (Number.isNaN(ms)) return undefined;
+  return Math.min(DEFAULT_MAX_RETRY_MS, Math.max(0, ms));
 }
 
 /**
@@ -152,7 +159,8 @@ export async function saveLogs(
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     console.warn(`[apex] ${label} failed (${res.status}):`, detail);
-    if (!opts.quiet) notify(`${label} failed`);
+    const refused = res.status >= 400 && res.status <= 499 && res.status !== 408 && res.status !== 429;
+    if (!opts.quiet && !refused) notify(`${label} failed`);
     throw new AutosaveError(
       detail || `${label} failed`,
       res.status,

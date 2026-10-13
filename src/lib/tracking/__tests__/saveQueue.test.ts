@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createSaveQueue } from '../saveQueue';
+import { createSaveQueue, isNonRetryable } from '../saveQueue';
 import type { SaveQueueDeps, SaveQueueState } from '../saveQueue';
 
 // The autosave queue's contract (the brief's A1–A9), at the seam: `send` is
@@ -25,15 +25,17 @@ function harness(over: Partial<SaveQueueDeps> = {}) {
     ...over,
   });
   const live = () => timers.filter(t => !t.cleared);
-  const fire = () => {
+  const fire = async () => {
     const t = live()[0];
     if (!t) throw new Error('no timer scheduled');
     t.cleared = true;
     t.fn();
+    await started();
   };
   // Fail the newest send (flushing first if none is running) and settle.
   const rejectNext = async () => {
     const attempt = queue.state().inFlight ? null : queue.flush();
+    await started();
     sends.at(-1)!.reject(new Error('boom'));
     await (attempt ?? tick());
     await tick();
@@ -47,6 +49,12 @@ async function tick() {
   await vi.advanceTimersByTimeAsync(0);
 }
 
+// `send` is invoked a microtask after flush() (inFlight is set first), so a
+// test looks at the sends only after that hop.
+async function started() {
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+}
+
 describe('createSaveQueue', () => {
   beforeEach(() => { vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] }); vi.setSystemTime(1_000_000); });
   afterEach(() => { vi.useRealTimers(); });
@@ -58,12 +66,13 @@ describe('createSaveQueue', () => {
     h.queue.markDirty('b');
     expect(h.queue.state().pending).toBe(2);
     const done = h.queue.flush();
+    await started();
     expect(h.sends).toHaveLength(1);
     expect(h.sends[0].keys).toEqual(['b', 'a']);
     expect(h.queue.state().inFlight).toBe(true);
     h.sends[0].resolve();
     await expect(done).resolves.toBe(true);
-    expect(h.queue.state()).toEqual({ pending: 0, inFlight: false, consecutiveFailures: 0, showBar: false, nextRetryAt: null });
+    expect(h.queue.state()).toEqual({ pending: 0, inFlight: false, consecutiveFailures: 0, showBar: false, nextRetryAt: null, rejected: 0 });
   });
 
   it('A5: with nothing pending, flush resolves true without sending', async () => {
@@ -77,11 +86,13 @@ describe('createSaveQueue', () => {
     h.queue.markDirty('a');
     h.queue.markDirty('b');
     const first = h.queue.flush();
+    await started();
     h.queue.markDirty('a');
     h.sends[0].resolve();
     await first;
     expect(h.queue.state().pending).toBe(1);
     const second = h.queue.flush();
+    await started();
     expect(h.sends[1].keys).toEqual(['a']);
     h.sends[1].resolve();
     await expect(second).resolves.toBe(true);
@@ -92,9 +103,12 @@ describe('createSaveQueue', () => {
     const h = harness();
     h.queue.markDirty('a');
     const first = h.queue.flush();
+    await started();
     h.queue.markDirty('b');
     const second = h.queue.flush();
+    await started();
     const third = h.queue.flush();
+    await started();
     expect(h.sends).toHaveLength(1);
     h.sends[0].resolve();
     await first;
@@ -111,7 +125,9 @@ describe('createSaveQueue', () => {
     const h = harness();
     h.queue.markDirty('a');
     const first = h.queue.flush();
+    await started();
     const second = h.queue.flush();
+    await started();
     h.sends[0].resolve();
     await expect(first).resolves.toBe(true);
     await expect(second).resolves.toBe(true);
@@ -122,8 +138,10 @@ describe('createSaveQueue', () => {
     const h = harness({ backoff: { baseMs: 100, maxMs: 1000 } });
     h.queue.markDirty('a');
     const first = h.queue.flush();
+    await started();
     h.queue.markDirty('b');
     const second = h.queue.flush();
+    await started();
     h.sends[0].reject(new Error('boom'));
     await expect(first).resolves.toBe(false);
     await expect(second).resolves.toBe(false);
@@ -131,7 +149,7 @@ describe('createSaveQueue', () => {
     expect(h.sends).toHaveLength(1);
     expect(h.queue.state()).toMatchObject({ pending: 2, consecutiveFailures: 1, nextRetryAt: 1_000_000 + 100 });
     expect(h.live()).toHaveLength(1);
-    h.fire();
+    await h.fire();
     expect(h.sends[1].keys).toEqual(['a', 'b']);
   });
 
@@ -139,6 +157,7 @@ describe('createSaveQueue', () => {
     const h = harness();
     h.queue.markDirty('a');
     const first = h.queue.flush();
+    await started();
     h.queue.markDirty('a');
     h.sends[0].resolve();
     await expect(first).resolves.toBe(true);
@@ -153,6 +172,7 @@ describe('createSaveQueue', () => {
     await h.rejectNext();
     expect(h.live()).toHaveLength(1);
     const again = h.queue.flush();
+    await started();
     expect(h.live()).toHaveLength(0);
     h.sends[1].resolve();
     await expect(again).resolves.toBe(true);
@@ -164,7 +184,7 @@ describe('createSaveQueue', () => {
     h.queue.markDirty('a');
     await h.rejectNext();
     h.queue.unmark('a');
-    h.fire();
+    await h.fire();
     expect(h.sends).toHaveLength(1);
     expect(h.queue.state().nextRetryAt).toBeNull();
   });
@@ -173,6 +193,7 @@ describe('createSaveQueue', () => {
     const h = harness();
     h.queue.markDirty('a');
     const attempt = h.queue.flush();
+    await started();
     h.queue.dispose();
     h.sends[0].resolve();
     await expect(attempt).resolves.toBe(true);
@@ -192,29 +213,30 @@ describe('createSaveQueue', () => {
     const h = harness({ backoff: { baseMs: 100, maxMs: 350 } });
     h.queue.markDirty('a');
     const attempt = h.queue.flush();
+    await started();
     h.sends[0].reject(new Error('boom'));
     await expect(attempt).resolves.toBe(false);
     expect(h.queue.state()).toMatchObject({ pending: 1, inFlight: false, consecutiveFailures: 1, nextRetryAt: 1_000_000 + 100 });
     expect(h.live()).toHaveLength(1);
     expect(h.live()[0].ms).toBe(100);
 
-    h.fire();
+    await h.fire();
     expect(h.sends[1].keys).toEqual(['a']);
     h.sends[1].reject(new Error('boom'));
     await tick();
     expect(h.queue.state().consecutiveFailures).toBe(2);
     expect(h.live()[0].ms).toBe(200);
 
-    h.fire();
+    await h.fire();
     h.sends[2].reject(new Error('boom'));
     await tick();
     expect(h.queue.state().consecutiveFailures).toBe(3);
     expect(h.live()[0].ms).toBe(350); // capped at maxMs, not 400
 
-    h.fire();
+    await h.fire();
     h.sends[3].resolve();
     await tick();
-    expect(h.queue.state()).toEqual({ pending: 0, inFlight: false, consecutiveFailures: 0, showBar: false, nextRetryAt: null });
+    expect(h.queue.state()).toEqual({ pending: 0, inFlight: false, consecutiveFailures: 0, showBar: false, nextRetryAt: null, rejected: 0 });
     expect(h.live()).toHaveLength(0);
   });
 
@@ -222,6 +244,7 @@ describe('createSaveQueue', () => {
     const h = harness({ backoff: { baseMs: 100, maxMs: 30_000 } });
     h.queue.markDirty('a');
     const attempt = h.queue.flush();
+    await started();
     h.sends[0].reject(Object.assign(new Error('429'), { retryAfterMs: 5000 }));
     await attempt;
     expect(h.live()[0].ms).toBe(5000);
@@ -232,6 +255,7 @@ describe('createSaveQueue', () => {
     const h = harness({ backoff: { baseMs: 1000, maxMs: 30_000 } });
     h.queue.markDirty('a');
     const attempt = h.queue.flush();
+    await started();
     h.sends[0].reject(Object.assign(new Error('429'), { retryAfterMs: 10 }));
     await attempt;
     expect(h.live()[0].ms).toBe(1000);
@@ -242,10 +266,10 @@ describe('createSaveQueue', () => {
     h.queue.markDirty('a');
     await h.rejectNext();
     expect(h.queue.state().showBar).toBe(false);
-    h.fire();
+    await h.fire();
     await h.rejectNext();
     expect(h.queue.state().showBar).toBe(true);
-    h.fire();
+    await h.fire();
     h.sends[2].resolve();
     await tick();
     expect(h.queue.state().showBar).toBe(false);
@@ -258,6 +282,7 @@ describe('createSaveQueue', () => {
     await h.rejectNext();
     expect(h.live()).toHaveLength(1);
     const retry = h.queue.retryNow();
+    await started();
     expect(h.live()).toHaveLength(0);
     expect(h.queue.state().nextRetryAt).toBeNull();
     expect(h.sends).toHaveLength(2);
@@ -269,11 +294,12 @@ describe('createSaveQueue', () => {
     const h = harness();
     h.queue.markDirty('a');
     const attempt = h.queue.flush();
+    await started();
     h.queue.markDirty('b');
     h.sends[0].reject(new Error('boom'));
     await attempt;
     expect(h.queue.state().pending).toBe(2);
-    h.fire();
+    await h.fire();
     expect(h.sends[1].keys).toEqual(['a', 'b']);
   });
 
@@ -283,6 +309,7 @@ describe('createSaveQueue', () => {
     expect(h.states.at(-1)).toEqual(h.queue.state());
     expect(h.states.at(-1)?.pending).toBe(1);
     const attempt = h.queue.flush();
+    await started();
     expect(h.states.at(-1)?.inFlight).toBe(true);
     h.sends[0].reject(new Error('boom'));
     await attempt;
@@ -297,6 +324,7 @@ describe('createSaveQueue', () => {
     h.queue.unmark('a');
     expect(h.queue.state().pending).toBe(1);
     const done = h.queue.flush();
+    await started();
     expect(h.sends[0].keys).toEqual(['b']);
     h.sends[0].resolve();
     await done;
@@ -306,6 +334,7 @@ describe('createSaveQueue', () => {
     const h = harness();
     h.queue.markDirty('a');
     const first = h.queue.flush();
+    await started();
     h.queue.unmark('a');
     h.queue.markDirty('a');
     h.sends[0].resolve();
@@ -332,10 +361,76 @@ describe('createSaveQueue', () => {
     const h = harness();
     h.queue.markDirty('a');
     const attempt = h.queue.flush();
+    await started();
     h.queue.dispose();
     h.sends[0].reject(new Error('boom'));
     await expect(attempt).resolves.toBe(false);
     expect(h.live()).toHaveLength(0);
+  });
+
+  it('A10: a numeric 4xx other than 408/429 is refused — keys leave pending as rejected, no retry, flush true', async () => {
+    const h = harness();
+    h.queue.markDirty('a');
+    h.queue.markDirty('b');
+    const attempt = h.queue.flush();
+    await started();
+    h.queue.markDirty('b'); // re-dirtied in flight: stays pending, not rejected
+    h.sends[0].reject(Object.assign(new Error('bad row'), { status: 422 }));
+    await expect(attempt).resolves.toBe(true);
+    expect(h.queue.state()).toEqual({ pending: 1, inFlight: false, consecutiveFailures: 0, showBar: true, nextRetryAt: null, rejected: 1 });
+    expect(h.live()).toHaveLength(0);
+    h.queue.markDirty('a');
+    expect(h.queue.state()).toMatchObject({ pending: 2, rejected: 0, showBar: false });
+    h.queue.unmark('a');
+    h.queue.unmark('b');
+    expect(h.queue.state()).toMatchObject({ pending: 0, rejected: 0 });
+  });
+
+  it('A11: a retryAfterMs past maxRetryMs waits the clamp, and the default clamp is 60s', async () => {
+    const h = harness({ maxRetryMs: 2000 });
+    h.queue.markDirty('a');
+    await h.rejectNext();
+    expect(h.live()[0].ms).toBe(1000);
+    await h.fire();
+    h.sends[1].reject(Object.assign(new Error('429'), { retryAfterMs: 2 ** 31 }));
+    await tick();
+    expect(h.live()[0].ms).toBe(2000);
+    expect(h.queue.state().nextRetryAt).toBe(Date.now() + 2000);
+
+    const d = harness();
+    d.queue.markDirty('a');
+    const attempt = d.queue.flush();
+    await started();
+    d.sends[0].reject(Object.assign(new Error('429'), { retryAfterMs: 10 ** 9 }));
+    await attempt;
+    expect(d.live()[0].ms).toBe(60_000);
+  });
+
+  it('A13: a send that throws synchronously is one failure with a retry armed and inFlight false', async () => {
+    let calls = 0;
+    const h = harness({
+      send: () => { calls += 1; if (calls === 1) throw new Error('sync'); return Promise.resolve(); },
+    });
+    h.queue.markDirty('a');
+    await expect(h.queue.flush()).resolves.toBe(false);
+    expect(h.queue.state()).toMatchObject({ pending: 1, inFlight: false, consecutiveFailures: 1 });
+    expect(h.live()).toHaveLength(1);
+    await h.fire();
+    await tick();
+    expect(calls).toBe(2);
+    expect(h.queue.state()).toMatchObject({ pending: 0, consecutiveFailures: 0 });
+  });
+
+  it('isNonRetryable: numeric 400–499 except 408 and 429; strings and 5xx are retryable', () => {
+    expect(isNonRetryable({ status: 400 })).toBe(true);
+    expect(isNonRetryable({ status: 404 })).toBe(true);
+    expect(isNonRetryable({ status: 499 })).toBe(true);
+    expect(isNonRetryable({ status: 408 })).toBe(false);
+    expect(isNonRetryable({ status: 429 })).toBe(false);
+    expect(isNonRetryable({ status: 500 })).toBe(false);
+    expect(isNonRetryable({ status: '404' })).toBe(false);
+    expect(isNonRetryable(new Error('x'))).toBe(false);
+    expect(isNonRetryable(null)).toBe(false);
   });
 
   it('defaults to the global timers with a 1s base and 30s cap', async () => {
@@ -345,6 +440,7 @@ describe('createSaveQueue', () => {
     });
     queue.markDirty('a');
     const attempt = queue.flush();
+    await started();
     sends[0].reject(new Error('boom'));
     await expect(attempt).resolves.toBe(false);
     expect(queue.state().nextRetryAt).toBe(Date.now() + 1000);

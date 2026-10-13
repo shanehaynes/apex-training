@@ -65,6 +65,7 @@ export default function TrackerView() {
   // a failed flush keeps the session open with its edits still dirty (the
   // queue keeps retrying; the bar's Retry sends now) rather than losing them.
   const close = async () => {
+    if (isCancelling) return;
     if (!(await flushSave())) {
       notify('Unsaved changes — retry before leaving');
       return;

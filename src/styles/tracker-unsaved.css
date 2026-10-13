@@ -45,9 +45,13 @@
   background: var(--bg-surface);
 }
 
-.tracker-unsaved__retry:disabled {
-  opacity: 0.4;
-  cursor: default;
+.tracker-unsaved__retry[aria-busy='true'] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.tracker-unsaved__sep {
+  color: var(--text-secondary);
 }
 
 .tracker-unsaved__spin {
