@@ -1,0 +1,23 @@
+/* Repeat picker additions: the Weekly/Daily choice and the "after N times"
+   end. The card, chips and interval field live in app.css (.builder-repeat). */
+
+.builder-repeat__freq {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.builder-repeat__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.builder-repeat__count--active {
+  color: var(--text-secondary);
+}
+
+.builder-repeat__count-input {
+  width: 52px;
+  text-align: center;
+}
