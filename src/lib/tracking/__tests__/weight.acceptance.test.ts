@@ -1,0 +1,653 @@
+// Acceptance tests for weight parsing (parseWeight, R1.x) and the unit-aware
+// set classification built on it (classifySet / bestHistoricalOneRM /
+// computeSessionPRs), written from the spec alone against an implementation
+// this file never saw. On the contract stub every parser case fails with
+// "not implemented: parseWeight"; classification cases fail by that error or
+// by assertion, because today's classifySet reads parseLeadingNumber and
+// knows nothing of units, body weight or `load`.
+// Cases whose name starts with `AMBIGUOUS:` assume something the spec does
+// not say; each is listed under SPEC GAPS in the lane report. Cases whose
+// name starts with `REGRESSION:` also pass on the stub and are kept because
+// the spec names the behaviour as one the change must not alter.
+import { describe, it, expect } from 'vitest';
+import { DEFAULT_WEIGHT_CONTEXT, parseWeight } from '../weight';
+import type { WeightContext } from '../weight';
+import { bestHistoricalOneRM, classifySet, computeSessionPRs, estimateOneRepMax } from '../records';
+import { buildTrackerModel } from '../plan';
+import type { TrackedSectionGroup } from '../plan';
+import type { Exercise, WorkoutEvent } from '../../../types/workout';
+import type { SetLogRow } from '../../db/types';
+
+/** The spec's conversion factor — defined here, not imported, so the test
+ *  pins the number rather than whatever constant the implementation exports. */
+const LB_PER_KG = 2.20462;
+
+const LB: WeightContext = { unit: 'lb', bodyWeightLb: null };
+const KG: WeightContext = { unit: 'kg', bodyWeightLb: null };
+const LB_BW: WeightContext = { unit: 'lb', bodyWeightLb: 180 };
+const KG_BW: WeightContext = { unit: 'kg', bodyWeightLb: 180 };
+
+const bench: Exercise = {
+  id: 'ub-1',
+  name: 'Bench Press',
+  category: 'strength',
+  sets: 3,
+  reps: '5',
+  weight: '185lb',
+};
+
+const dips: Exercise = {
+  id: 'ub-4',
+  name: 'Weighted Dips',
+  category: 'strength',
+  sets: 3,
+  reps: '8',
+  weight: 'BW+25',
+};
+
+function makeEvent(exercises: Exercise[]): WorkoutEvent {
+  return {
+    id: 'w1__2026-07-06',
+    type: 'weights',
+    title: 'Upper Body',
+    date: '2026-07-06',
+    estimatedDuration: 60,
+    description: '',
+    exercises,
+    difficulty: 3,
+    tags: [],
+    isCompleted: false,
+    isRecurring: false,
+  };
+}
+
+function historyRow(overrides: Partial<SetLogRow>): SetLogRow {
+  return {
+    event_id: 'old__2026-06-01',
+    event_date: '2026-06-01',
+    section: 'exercise',
+    exercise_id: 'ub-1',
+    exercise_name: 'Bench Press',
+    set_number: 1,
+    planned_weight: null,
+    planned_reps: null,
+    planned_duration: null,
+    actual_weight: '185',
+    actual_reps: '5',
+    actual_duration: null,
+    is_autofilled: false,
+    ...overrides,
+  };
+}
+
+/** Groups with actuals entered on the given exercise's sets. */
+function groupsWith(
+  exercise: Exercise,
+  actuals: { weight?: string; reps?: string; duration?: string }[],
+): TrackedSectionGroup[] {
+  const groups = buildTrackerModel(makeEvent([exercise]));
+  const tracked = groups[0].exercises[0];
+  tracked.sets = tracked.sets.map((s, i) =>
+    actuals[i]
+      ? {
+          ...s,
+          actualWeight: actuals[i].weight ?? '',
+          actualReps: actuals[i].reps ?? '',
+          actualDuration: actuals[i].duration ?? '',
+        }
+      : s,
+  );
+  return groups;
+}
+
+/** The mixed-unit lineage from the spec: 60 kg × 5 (est 154.32) and 135 lb × 5 (est 157.5). */
+const mixedHistory = [
+  historyRow({ actual_weight: '60 kg', actual_reps: '5', event_date: '2026-06-01' }),
+  historyRow({ actual_weight: '135 lb', actual_reps: '5', event_date: '2026-06-08' }),
+];
+
+const epley = (lb: number, reps: number) => estimateOneRepMax(lb, reps);
+
+// ─── parseWeight: grammar (R1.4) ─────────────────────────────────────────────
+
+describe('parseWeight — accepted forms', () => {
+  it('a bare number is absolute in the context unit', () => {
+    expect(parseWeight('185', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('62.5', LB)).toEqual({ lb: 62.5, kind: 'absolute' });
+    const kg = parseWeight('100', KG);
+    expect(kg).toMatchObject({ kind: 'absolute' });
+    expect(kg?.lb).toBeCloseTo(220.462, 5);
+  });
+
+  it('a suffixed number is absolute in the suffix unit, both spellings of each', () => {
+    expect(parseWeight('185lb', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('185lbs', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('100kg', LB)?.lb).toBeCloseTo(220.462, 5);
+    expect(parseWeight('100kgs', LB)?.lb).toBeCloseTo(220.462, 5);
+    expect(parseWeight('100kg', LB)?.kind).toBe('absolute');
+  });
+
+  it('a suffix wins over the context unit in both directions', () => {
+    expect(parseWeight('100 lb', KG)).toEqual({ lb: 100, kind: 'absolute' });
+    expect(parseWeight('100 lbs', KG)).toEqual({ lb: 100, kind: 'absolute' });
+    expect(parseWeight('100 kg', LB)?.lb).toBeCloseTo(220.462, 5);
+    expect(parseWeight('100 kg', KG)?.lb).toBeCloseTo(220.462, 5);
+  });
+
+  it('space between number and suffix changes nothing', () => {
+    expect(parseWeight('100 kg', LB)).toEqual(parseWeight('100kg', LB));
+    expect(parseWeight('185 lb', LB)).toEqual(parseWeight('185lb', LB));
+    expect(parseWeight('185 lbs', LB)).toEqual({ lb: 185, kind: 'absolute' });
+  });
+
+  it('is case-insensitive in suffixes', () => {
+    expect(parseWeight('185LB', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('185 Lbs', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('100KG', LB)?.lb).toBeCloseTo(220.462, 5);
+    expect(parseWeight('100Kg', LB)?.lb).toBeCloseTo(220.462, 5);
+    expect(parseWeight('100KGS', LB)?.lb).toBeCloseTo(220.462, 5);
+  });
+
+  it('tolerates leading and trailing whitespace', () => {
+    expect(parseWeight('  185', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('185  ', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight(' 185 lb ', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('\t185\n', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('  100 kg  ', LB)?.lb).toBeCloseTo(220.462, 5);
+  });
+
+  it('accepts a comma as the decimal separator', () => {
+    expect(parseWeight('62,5', LB)).toEqual({ lb: 62.5, kind: 'absolute' });
+    expect(parseWeight('62,5 lb', LB)).toEqual({ lb: 62.5, kind: 'absolute' });
+    expect(parseWeight('62,5 kg', LB)?.lb).toBeCloseTo(137.78875, 5);
+    expect(parseWeight('62,5 kg', LB)).toEqual(parseWeight('62.5 kg', LB));
+  });
+
+  it('AMBIGUOUS: a comma is only ever a decimal separator, never a thousands separator', () => {
+    // R1.4 says "comma or dot decimal" and nothing about grouping, so the
+    // whole-string grammar reads "1,200" as 1.200 — the spec may mean to
+    // reject or regroup it instead.
+    expect(parseWeight('1,200', LB)).toEqual({ lb: 1.2, kind: 'absolute' });
+  });
+});
+
+describe('parseWeight — rejected forms', () => {
+  const rejects = ['5.10a', 'V5', '100kg x 5', '80%', 'heavy', '-10', '+10', '185 lbs.', ''];
+
+  it.each(rejects)('rejects %j', (text) => {
+    expect(parseWeight(text, LB)).toBeNull();
+    expect(parseWeight(text, KG_BW)).toBeNull();
+  });
+
+  it('rejects null and undefined', () => {
+    expect(parseWeight(null, LB)).toBeNull();
+    expect(parseWeight(undefined, LB)).toBeNull();
+    expect(parseWeight(null, KG_BW)).toBeNull();
+  });
+
+  it('rejects whitespace-only text', () => {
+    expect(parseWeight('   ', LB)).toBeNull();
+    expect(parseWeight('\t', LB)).toBeNull();
+  });
+
+  it('is whole-string: anything beyond one number and one suffix is null', () => {
+    expect(parseWeight('185 5', LB)).toBeNull();
+    expect(parseWeight('185lb5', LB)).toBeNull();
+    expect(parseWeight('185 lb kg', LB)).toBeNull();
+    expect(parseWeight('lb 185', LB)).toBeNull();
+    expect(parseWeight('185 pounds', LB)).toBeNull();
+    expect(parseWeight('185l', LB)).toBeNull();
+    expect(parseWeight('100 k', LB)).toBeNull();
+    expect(parseWeight('kg', LB)).toBeNull();
+    expect(parseWeight('lb', LB)).toBeNull();
+    expect(parseWeight('~185', LB)).toBeNull();
+    expect(parseWeight('185-190', LB)).toBeNull();
+    expect(parseWeight('1.2.3', LB)).toBeNull();
+    expect(parseWeight('1,2,3', LB)).toBeNull();
+  });
+
+  it('rejects words that Number() would accept', () => {
+    expect(parseWeight('Infinity', LB)).toBeNull();
+    expect(parseWeight('NaN', LB)).toBeNull();
+    expect(parseWeight('0x10', LB)).toBeNull();
+  });
+
+  it('AMBIGUOUS: rejects exponent notation and a bare decimal separator', () => {
+    // "a number" in R1.4 is read as digits with an optional fraction, like
+    // every other tracker parser; "1e3", ".5" and "185." are not spelled out.
+    expect(parseWeight('1e3', LB)).toBeNull();
+    expect(parseWeight('.5', LB)).toBeNull();
+    expect(parseWeight('185.', LB)).toBeNull();
+  });
+});
+
+// ─── parseWeight: bodyweight forms (R1.2, R1.4) ──────────────────────────────
+
+describe('parseWeight — bodyweight forms with a body weight', () => {
+  it('bare BW is the body weight itself, case-insensitive, whitespace tolerated', () => {
+    expect(parseWeight('BW', LB_BW)).toEqual({ lb: 180, kind: 'bodyweight' });
+    expect(parseWeight('bw', LB_BW)).toEqual({ lb: 180, kind: 'bodyweight' });
+    expect(parseWeight('Bw', LB_BW)).toEqual({ lb: 180, kind: 'bodyweight' });
+    expect(parseWeight('  BW  ', LB_BW)).toEqual({ lb: 180, kind: 'bodyweight' });
+  });
+
+  it('BW is the stored body weight in lb regardless of the context unit', () => {
+    expect(parseWeight('BW', KG_BW)).toEqual({ lb: 180, kind: 'bodyweight' });
+  });
+
+  it('BW±load adds or subtracts the load in the context unit', () => {
+    expect(parseWeight('BW+25', LB_BW)).toEqual({ lb: 205, kind: 'bodyweight' });
+    expect(parseWeight('BW-10', LB_BW)).toEqual({ lb: 170, kind: 'bodyweight' });
+    const plusKg = parseWeight('BW+25', KG_BW);
+    expect(plusKg).toMatchObject({ kind: 'bodyweight' });
+    expect(plusKg?.lb).toBeCloseTo(180 + 25 * LB_PER_KG, 5); // 235.1155
+    const minusKg = parseWeight('BW-10', KG_BW);
+    expect(minusKg?.lb).toBeCloseTo(180 - 10 * LB_PER_KG, 5); // 157.9538
+  });
+
+  it('a suffix on the load wins over the context unit', () => {
+    const kgUnderLb = parseWeight('BW+25kg', LB_BW);
+    expect(kgUnderLb).toMatchObject({ kind: 'bodyweight' });
+    expect(kgUnderLb?.lb).toBeCloseTo(235.1155, 5);
+    expect(parseWeight('BW+25lb', KG_BW)).toEqual({ lb: 205, kind: 'bodyweight' });
+    expect(parseWeight('BW+25 lbs', KG_BW)).toEqual({ lb: 205, kind: 'bodyweight' });
+    expect(parseWeight('BW-10kgs', LB_BW)?.lb).toBeCloseTo(157.9538, 5);
+  });
+
+  it('tolerates spaces around the sign and before the suffix, and any case', () => {
+    expect(parseWeight('bw + 25 lbs', LB_BW)).toEqual({ lb: 205, kind: 'bodyweight' });
+    expect(parseWeight('BW +25', LB_BW)).toEqual({ lb: 205, kind: 'bodyweight' });
+    expect(parseWeight('BW+ 25', LB_BW)).toEqual({ lb: 205, kind: 'bodyweight' });
+    expect(parseWeight('bw - 10', LB_BW)).toEqual({ lb: 170, kind: 'bodyweight' });
+    expect(parseWeight('BW+25KG', LB_BW)?.lb).toBeCloseTo(235.1155, 5);
+    expect(parseWeight(' bw+25 ', LB_BW)).toEqual({ lb: 205, kind: 'bodyweight' });
+  });
+
+  it('accepts a decimal load with dot or comma', () => {
+    expect(parseWeight('BW+2.5', LB_BW)).toEqual({ lb: 182.5, kind: 'bodyweight' });
+    expect(parseWeight('BW+2,5', LB_BW)).toEqual({ lb: 182.5, kind: 'bodyweight' });
+    expect(parseWeight('BW+2,5kg', LB_BW)?.lb).toBeCloseTo(180 + 2.5 * LB_PER_KG, 5);
+  });
+
+  it('rejects malformed BW forms', () => {
+    expect(parseWeight('BW25', LB_BW)).toBeNull();
+    expect(parseWeight('BW+', LB_BW)).toBeNull();
+    expect(parseWeight('+BW', LB_BW)).toBeNull();
+    expect(parseWeight('BW+25+5', LB_BW)).toBeNull();
+    expect(parseWeight('BW+25 x 8', LB_BW)).toBeNull();
+    expect(parseWeight('BW*2', LB_BW)).toBeNull();
+    expect(parseWeight('BWT', LB_BW)).toBeNull();
+    expect(parseWeight('BW+25%', LB_BW)).toBeNull();
+    expect(parseWeight('BW+-25', LB_BW)).toBeNull();
+  });
+
+  it('AMBIGUOUS: BW+0 is the body weight, still tagged bodyweight', () => {
+    expect(parseWeight('BW+0', LB_BW)).toEqual({ lb: 180, kind: 'bodyweight' });
+  });
+
+  it('AMBIGUOUS: a load larger than the body weight is returned as parsed, not rejected', () => {
+    // R1.4 is a grammar and R1.2 is the only resolution rule; nothing caps
+    // the magnitude. classifySet's w > 0 gate then drops such a row.
+    expect(parseWeight('BW-200', LB_BW)).toEqual({ lb: -20, kind: 'bodyweight' });
+  });
+});
+
+describe('parseWeight — bodyweight forms without a usable body weight (R1.2)', () => {
+  const noBody: [string, WeightContext][] = [
+    ['null', { unit: 'lb', bodyWeightLb: null }],
+    ['zero', { unit: 'lb', bodyWeightLb: 0 }],
+    ['negative', { unit: 'lb', bodyWeightLb: -180 }],
+    ['NaN', { unit: 'lb', bodyWeightLb: Number.NaN }],
+    ['Infinity', { unit: 'lb', bodyWeightLb: Number.POSITIVE_INFINITY }],
+    ['the default context', DEFAULT_WEIGHT_CONTEXT],
+  ];
+
+  it.each(noBody)('every BW form is null when bodyWeightLb is %s', (_label, ctx) => {
+    expect(parseWeight('BW', ctx)).toBeNull();
+    expect(parseWeight('BW+25', ctx)).toBeNull();
+    expect(parseWeight('BW-10', ctx)).toBeNull();
+    expect(parseWeight('BW+25kg', ctx)).toBeNull();
+    expect(parseWeight('bw + 25 lbs', ctx)).toBeNull();
+  });
+
+  it.each(noBody)('absolute weights still parse when bodyWeightLb is %s', (_label, ctx) => {
+    expect(parseWeight('185', ctx)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('100 kg', ctx)?.lb).toBeCloseTo(220.462, 5);
+  });
+});
+
+// ─── parseWeight: zero, precision, defaults (R1.5, R1.7, R1.3) ───────────────
+
+describe('parseWeight — zero (R1.5)', () => {
+  it('"0" parses as an absolute zero, not null', () => {
+    expect(parseWeight('0', LB)).toEqual({ lb: 0, kind: 'absolute' });
+    expect(parseWeight('0', KG)).toEqual({ lb: 0, kind: 'absolute' });
+    expect(parseWeight('0 kg', LB)).toEqual({ lb: 0, kind: 'absolute' });
+    expect(parseWeight('0.0', LB)).toEqual({ lb: 0, kind: 'absolute' });
+    expect(parseWeight('0 lbs', LB)).toEqual({ lb: 0, kind: 'absolute' });
+  });
+});
+
+describe('parseWeight — kg precision (R1.7)', () => {
+  it('converts kg × 2.20462 and keeps the float', () => {
+    expect(parseWeight('62.5 kg', LB)?.lb).toBeCloseTo(137.78875, 5);
+    expect(parseWeight('1 kg', LB)?.lb).toBeCloseTo(2.20462, 5);
+    expect(parseWeight('1kg', LB)?.lb).toBe(LB_PER_KG);
+    expect(parseWeight('100', KG)?.lb).toBeCloseTo(220.462, 5);
+  });
+
+  it('never rounds: a tiny load keeps its decimals', () => {
+    // 0.001 kg = 0.00220462 lb; rounding to two or three places would zero it.
+    expect(parseWeight('0.001 kg', LB)?.lb).toBeCloseTo(0.00220462, 8);
+    expect(parseWeight('0.001 kg', LB)?.lb).toBeGreaterThan(0);
+    const lb = parseWeight('62.5 kg', LB)?.lb;
+    expect(lb).not.toBe(137.79);
+    expect(lb).not.toBe(137.8);
+    expect(lb).not.toBe(138);
+  });
+
+  it('parses identical text to identical numbers, with or without a space', () => {
+    expect(parseWeight('100 kg', LB)?.lb).toBe(parseWeight('100kg', LB)?.lb);
+    expect(parseWeight('62.5 kg', LB)?.lb).toBe(parseWeight('62.5kg', LB)?.lb);
+    expect(parseWeight('62.5 kg', LB)?.lb).toBe(parseWeight('62.5 KG', KG)?.lb);
+  });
+});
+
+describe('parseWeight — context unit default (R1.3)', () => {
+  it('a bare number follows ctx.unit', () => {
+    expect(parseWeight('100', LB)).toEqual({ lb: 100, kind: 'absolute' });
+    expect(parseWeight('100', KG)?.lb).toBeCloseTo(220.462, 5);
+    expect(parseWeight('100', KG)?.kind).toBe('absolute');
+    expect(parseWeight('62.5', KG)?.lb).toBeCloseTo(137.78875, 5);
+  });
+
+  it('DEFAULT_WEIGHT_CONTEXT is lb with no body weight', () => {
+    expect(parseWeight('100', DEFAULT_WEIGHT_CONTEXT)).toEqual({ lb: 100, kind: 'absolute' });
+    expect(parseWeight('100 kg', DEFAULT_WEIGHT_CONTEXT)?.lb).toBeCloseTo(220.462, 5);
+    expect(parseWeight('BW', DEFAULT_WEIGHT_CONTEXT)).toBeNull();
+    expect(parseWeight('BW+25', DEFAULT_WEIGHT_CONTEXT)).toBeNull();
+  });
+
+  it('does not mutate the context it is given', () => {
+    const ctx: WeightContext = { unit: 'kg', bodyWeightLb: 180 };
+    parseWeight('100', ctx);
+    parseWeight('BW+25', ctx);
+    expect(ctx).toEqual({ unit: 'kg', bodyWeightLb: 180 });
+  });
+});
+
+// ─── classifySet with a context ───────────────────────────────────────────────
+
+describe('classifySet — unit-aware weights', () => {
+  it('a bare number is in the context unit, and the result carries load: absolute', () => {
+    expect(classifySet('100', '5', null, LB)).toEqual({
+      kind: 'oneRM', weight: 100, reps: 5, oneRM: epley(100, 5), load: 'absolute',
+    });
+    const kg = classifySet('100', '5', null, KG);
+    expect(kg).toMatchObject({ kind: 'oneRM', reps: 5, load: 'absolute' });
+    expect(kg?.kind === 'oneRM' && kg.weight).toBeCloseTo(220.462, 5);
+    expect(kg?.kind === 'oneRM' && kg.oneRM).toBeCloseTo(epley(220.462, 5), 5);
+  });
+
+  it('a kg suffix converts to lb before Epley, under either context unit', () => {
+    for (const ctx of [LB, KG]) {
+      const set = classifySet('62.5 kg', '5', null, ctx);
+      expect(set).toMatchObject({ kind: 'oneRM', reps: 5, load: 'absolute' });
+      expect(set?.kind === 'oneRM' && set.weight).toBeCloseTo(137.78875, 5);
+      expect(set?.kind === 'oneRM' && set.oneRM).toBeCloseTo(epley(137.78875, 5), 5);
+    }
+  });
+
+  it('omitting ctx is the same as passing DEFAULT_WEIGHT_CONTEXT', () => {
+    expect(classifySet('100 kg', '5', null)).toEqual(classifySet('100 kg', '5', null, DEFAULT_WEIGHT_CONTEXT));
+    expect(classifySet('100', '5', null)).toEqual(classifySet('100', '5', null, DEFAULT_WEIGHT_CONTEXT));
+    expect(classifySet('BW', '8', null)).toEqual(classifySet('BW', '8', null, DEFAULT_WEIGHT_CONTEXT));
+    expect(classifySet('100', '5', null)).toEqual({
+      kind: 'oneRM', weight: 100, reps: 5, oneRM: epley(100, 5), load: 'absolute',
+    });
+    const kg = classifySet('100 kg', '5', null);
+    expect(kg?.kind === 'oneRM' && kg.weight).toBeCloseTo(220.462, 5);
+  });
+
+  it('a bodyweight row earns oneRM like any other, tagged load: bodyweight (R1.1)', () => {
+    expect(classifySet('BW+25', '8', null, LB_BW)).toEqual({
+      kind: 'oneRM', weight: 205, reps: 8, oneRM: epley(205, 8), load: 'bodyweight',
+    });
+    expect(classifySet('BW', '12', null, LB_BW)).toEqual({
+      kind: 'oneRM', weight: 180, reps: 12, oneRM: epley(180, 12), load: 'bodyweight',
+    });
+    expect(classifySet('bw - 10', '1', null, LB_BW)).toEqual({
+      kind: 'oneRM', weight: 170, reps: 1, oneRM: 170, load: 'bodyweight',
+    });
+    const kgLoad = classifySet('BW+25', '8', null, KG_BW);
+    expect(kgLoad).toMatchObject({ kind: 'oneRM', reps: 8, load: 'bodyweight' });
+    expect(kgLoad?.kind === 'oneRM' && kgLoad.weight).toBeCloseTo(235.1155, 5);
+  });
+
+  it('a bodyweight row with no body weight in the context is not a oneRM candidate', () => {
+    // Without a body weight "BW" cannot resolve, so the row falls through to
+    // its reps or duration exactly as it does today.
+    expect(classifySet('BW+25', '8', null, LB)).toEqual({ kind: 'reps', reps: 8 });
+    expect(classifySet('BW', null, '60s', LB)).toEqual({ kind: 'duration', seconds: 60 });
+    expect(classifySet('BW+25', '8', null, { unit: 'lb', bodyWeightLb: 0 })).toEqual({ kind: 'reps', reps: 8 });
+    // And with one, the same row is a oneRM.
+    expect(classifySet('BW+25', '8', null, LB_BW)?.kind).toBe('oneRM');
+  });
+
+  it('REGRESSION: a zero weight is never oneRM and falls through (R1.5)', () => {
+    expect(classifySet('0', '5', null, LB)).toEqual({ kind: 'reps', reps: 5 });
+    expect(classifySet('0', '5', null, KG)).toEqual({ kind: 'reps', reps: 5 });
+    expect(classifySet('0 kg', '5', null, LB)).toEqual({ kind: 'reps', reps: 5 });
+    expect(classifySet('0', null, '60s', LB)).toEqual({ kind: 'duration', seconds: 60 });
+    expect(classifySet('0', '5', null)).toEqual({ kind: 'reps', reps: 5 });
+    expect(classifySet('0', null, null, LB)).toBeNull();
+  });
+
+  it('a weight that parses with no usable reps is null, not a fall-through', () => {
+    expect(classifySet('100 kg', null, '60s', LB)).toBeNull();
+    expect(classifySet('100 kg', '0', null, LB)).toBeNull();
+    expect(classifySet('BW+25', null, '60s', LB_BW)).toBeNull();
+  });
+
+  it('AMBIGUOUS: text the grammar rejects is treated as no weight and falls through', () => {
+    // Today parseLeadingNumber reads 185 out of "185 lbs." and 100 out of
+    // "100kg x 5"; the spec rejects both at the parser but does not say what
+    // classifySet does with a rejected weight. The existing rule — weight ×
+    // reps when the weight parses, otherwise duration, otherwise reps — is
+    // taken to apply, so these rows stop earning oneRM.
+    expect(classifySet('185 lbs.', '5', null, LB)).toEqual({ kind: 'reps', reps: 5 });
+    expect(classifySet('100kg x 5', '5', null, LB)).toEqual({ kind: 'reps', reps: 5 });
+    expect(classifySet('80%', '5', null, LB)).toEqual({ kind: 'reps', reps: 5 });
+    expect(classifySet('5.10a', '5', null, LB)).toEqual({ kind: 'reps', reps: 5 });
+    expect(classifySet('heavy', null, '60s', LB)).toEqual({ kind: 'duration', seconds: 60 });
+  });
+});
+
+// ─── bestHistoricalOneRM: one lineage across units ────────────────────────────
+
+describe('bestHistoricalOneRM — mixed-unit history', () => {
+  it('compares kg and lb rows of one exercise in lb and keeps the higher Epley value', () => {
+    const best = bestHistoricalOneRM(mixedHistory, LB);
+    expect(best.size).toBe(1);
+    const record = best.get('Bench Press');
+    expect(record?.weight).toBe(135);
+    expect(record?.reps).toBe(5);
+    expect(record?.oneRM).toBeCloseTo(157.5, 5);
+    expect(record?.date).toBe('2026-06-08');
+    // The kg row lost on its converted value, not by failing to parse: alone it is the best.
+    const kgAlone = bestHistoricalOneRM([mixedHistory[0]], LB).get('Bench Press');
+    expect(kgAlone?.weight).toBeCloseTo(132.2772, 4);
+    expect(kgAlone?.oneRM).toBeCloseTo(154.3234, 4);
+  });
+
+  it('the kg row wins when its converted value is higher', () => {
+    const best = bestHistoricalOneRM([
+      historyRow({ actual_weight: '65 kg', actual_reps: '5', event_date: '2026-06-01' }), // 143.30 lb → 167.18
+      historyRow({ actual_weight: '135 lb', actual_reps: '5', event_date: '2026-06-08' }), // 157.5
+    ], LB);
+    const record = best.get('Bench Press');
+    expect(record?.weight).toBeCloseTo(65 * LB_PER_KG, 5);
+    expect(record?.oneRM).toBeCloseTo(epley(65 * LB_PER_KG, 5), 5);
+    expect(record?.date).toBe('2026-06-01');
+  });
+
+  it('suffixed rows are unit-fixed whatever the context; bare rows follow it', () => {
+    // Under kg the suffixed rows are unchanged, so the 135 lb set still wins.
+    expect(bestHistoricalOneRM(mixedHistory, KG).get('Bench Press')?.weight).toBe(135);
+    // A bare "70" under kg is 70 kg = 154.32 lb → est 180.04, beating 157.5.
+    const best = bestHistoricalOneRM([
+      ...mixedHistory,
+      historyRow({ actual_weight: '70', actual_reps: '5', event_date: '2026-06-15' }),
+    ], KG);
+    expect(best.get('Bench Press')?.weight).toBeCloseTo(70 * LB_PER_KG, 5);
+    expect(best.get('Bench Press')?.date).toBe('2026-06-15');
+    // The same bare "70" under lb is 70 lb and loses.
+    expect(bestHistoricalOneRM([
+      ...mixedHistory,
+      historyRow({ actual_weight: '70', actual_reps: '5', event_date: '2026-06-15' }),
+    ], LB).get('Bench Press')?.weight).toBe(135);
+  });
+
+  it('omitting ctx is the same as passing DEFAULT_WEIGHT_CONTEXT', () => {
+    expect(bestHistoricalOneRM(mixedHistory)).toEqual(bestHistoricalOneRM(mixedHistory, DEFAULT_WEIGHT_CONTEXT));
+    expect(bestHistoricalOneRM(mixedHistory).get('Bench Press')?.weight).toBe(135);
+    const kgOnly = [historyRow({ actual_weight: '60 kg', actual_reps: '5' })];
+    expect(bestHistoricalOneRM(kgOnly).get('Bench Press')?.weight).toBeCloseTo(132.2772, 4);
+  });
+
+  it('bodyweight rows join the lineage when the context has a body weight', () => {
+    const rows = [
+      historyRow({ exercise_id: 'ub-4', exercise_name: 'Weighted Dips', actual_weight: 'BW+25', actual_reps: '8' }),
+      historyRow({ exercise_id: 'ub-4', exercise_name: 'Weighted Dips', actual_weight: 'BW', actual_reps: '15', event_date: '2026-06-08' }),
+    ];
+    const best = bestHistoricalOneRM(rows, LB_BW).get('Weighted Dips');
+    // 205 × 8 → 259.67 loses to 180 × 15 → 270: more reps at body weight wins.
+    expect(best?.weight).toBe(180);
+    expect(best?.reps).toBe(15);
+    expect(best?.oneRM).toBeCloseTo(270, 5);
+    expect(best?.date).toBe('2026-06-08');
+    // Without a body weight neither row is a oneRM.
+    expect(bestHistoricalOneRM(rows, LB).size).toBe(0);
+    expect(bestHistoricalOneRM(rows).size).toBe(0);
+  });
+});
+
+// ─── computeSessionPRs: PR detection across units ────────────────────────────
+
+describe('computeSessionPRs — PRs across units', () => {
+  it('reports a PR for 62 kg × 5 against the mixed history', () => {
+    const prs = computeSessionPRs(groupsWith(bench, [{ weight: '62 kg', reps: '5' }]), mixedHistory, [], LB);
+    expect(prs).toHaveLength(1);
+    expect(prs[0]).toMatchObject({ kind: 'oneRM', exerciseName: 'Bench Press', reps: 5, previousDate: '2026-06-08' });
+    const pr = prs[0];
+    expect(pr.kind === 'oneRM' && pr.estimatedOneRM).toBeCloseTo(epley(62 * LB_PER_KG, 5), 5);
+    expect(pr.kind === 'oneRM' && pr.previousOneRM).toBeCloseTo(157.5, 5);
+  });
+
+  it('reports no PR for 61 kg × 5 against the mixed history', () => {
+    expect(computeSessionPRs(groupsWith(bench, [{ weight: '61 kg', reps: '5' }]), mixedHistory, [], LB)).toHaveLength(0);
+    expect(computeSessionPRs(groupsWith(bench, [{ weight: '61kg', reps: '5' }]), mixedHistory, [], KG)).toHaveLength(0);
+    // It is a near miss (156.90 vs 157.5), not an unparsed set: against 133 lb × 5 (155.17) it is a PR.
+    const prs = computeSessionPRs(
+      groupsWith(bench, [{ weight: '61 kg', reps: '5' }]),
+      [historyRow({ actual_weight: '133 lb', actual_reps: '5' })],
+      [],
+      LB,
+    );
+    expect(prs).toHaveLength(1);
+    expect(prs[0].kind === 'oneRM' && prs[0].estimatedOneRM).toBeCloseTo(epley(61 * LB_PER_KG, 5), 5);
+  });
+
+  it('AMBIGUOUS: the record weight is the lb value classifySet produced', () => {
+    // The oneRM result's weight is specified as lb; OneRMRecord.weight is
+    // "the weight × reps set that produced it" and is not re-specified.
+    const prs = computeSessionPRs(groupsWith(bench, [{ weight: '62 kg', reps: '5' }]), mixedHistory, [], LB);
+    const pr = prs[0];
+    expect(pr.kind === 'oneRM' && pr.weight).toBeCloseTo(62 * LB_PER_KG, 5);
+  });
+
+  it('a bare number in the current session follows the context unit', () => {
+    // 70 under kg = 154.32 lb → est 180.04, beats 157.5; 70 under lb loses.
+    expect(computeSessionPRs(groupsWith(bench, [{ weight: '70', reps: '5' }]), mixedHistory, [], KG)).toHaveLength(1);
+    expect(computeSessionPRs(groupsWith(bench, [{ weight: '70', reps: '5' }]), mixedHistory, [], LB)).toHaveLength(0);
+    // 140 under lb beats 157.5 (163.33); under kg it is 308.6 lb and beats it too.
+    expect(computeSessionPRs(groupsWith(bench, [{ weight: '140', reps: '5' }]), mixedHistory, [], LB)).toHaveLength(1);
+  });
+
+  it('omitting ctx is the same as passing DEFAULT_WEIGHT_CONTEXT', () => {
+    const groups = () => groupsWith(bench, [{ weight: '62 kg', reps: '5' }]);
+    expect(computeSessionPRs(groups(), mixedHistory)).toEqual(computeSessionPRs(groups(), mixedHistory, [], DEFAULT_WEIGHT_CONTEXT));
+    expect(computeSessionPRs(groups(), mixedHistory)).toHaveLength(1);
+    expect(computeSessionPRs(groupsWith(bench, [{ weight: '61 kg', reps: '5' }]), mixedHistory)).toHaveLength(0);
+  });
+
+  it('a set re-entered with the same text never beats itself (R1.7)', () => {
+    const sameText = (history: string, current: string, ctx: WeightContext = LB) =>
+      computeSessionPRs(
+        groupsWith(bench, [{ weight: current, reps: '5' }]),
+        [historyRow({ actual_weight: history, actual_reps: '5' })],
+        [],
+        ctx,
+      );
+    expect(sameText('62.5 kg', '62.5 kg')).toHaveLength(0);
+    expect(sameText('62.5kg', '62.5 kg')).toHaveLength(0);
+    expect(sameText('62,5 kg', '62.5 kg')).toHaveLength(0);
+    expect(sameText('62.5 KG', '62.5 kg')).toHaveLength(0);
+    expect(sameText('62.5', '62.5 kg', KG)).toHaveLength(0);
+    expect(sameText('62.5 kg', '62.5', KG)).toHaveLength(0);
+    expect(sameText('137.78875', '62.5 kg')).toHaveLength(0);
+    // The lineage exists — the no-PR result is a tie, not a missing history.
+    expect(bestHistoricalOneRM([historyRow({ actual_weight: '62,5 kg', actual_reps: '5' })], LB).get('Bench Press')?.weight)
+      .toBeCloseTo(137.78875, 5);
+  });
+
+  it('a bodyweight set earns a PR against bodyweight history, and the same text does not', () => {
+    const history = [
+      historyRow({ exercise_id: 'ub-4', exercise_name: 'Weighted Dips', actual_weight: 'BW+25', actual_reps: '8' }),
+    ];
+    const prs = computeSessionPRs(groupsWith(dips, [{ weight: 'BW+30', reps: '8' }]), history, [], LB_BW);
+    expect(prs).toHaveLength(1);
+    expect(prs[0]).toMatchObject({
+      kind: 'oneRM', exerciseName: 'Weighted Dips', weight: 210, reps: 8, previousDate: '2026-06-01',
+    });
+    expect(prs[0].kind === 'oneRM' && prs[0].previousOneRM).toBeCloseTo(epley(205, 8), 5);
+    expect(computeSessionPRs(groupsWith(dips, [{ weight: 'BW+25', reps: '8' }]), history, [], LB_BW)).toHaveLength(0);
+    expect(computeSessionPRs(groupsWith(dips, [{ weight: 'bw + 25 lbs', reps: '8' }]), history, [], LB_BW)).toHaveLength(0);
+    expect(computeSessionPRs(groupsWith(dips, [{ weight: 'BW+20', reps: '8' }]), history, [], LB_BW)).toHaveLength(0);
+  });
+
+  it('a bodyweight set beats absolute history of the same exercise in lb', () => {
+    // 205 lb × 8 → 259.67 beats 200 lb × 8 → 253.33.
+    const history = [
+      historyRow({ exercise_id: 'ub-4', exercise_name: 'Weighted Dips', actual_weight: '200', actual_reps: '8' }),
+    ];
+    const prs = computeSessionPRs(groupsWith(dips, [{ weight: 'BW+25', reps: '8' }]), history, [], LB_BW);
+    expect(prs).toHaveLength(1);
+    expect(prs[0]).toMatchObject({ kind: 'oneRM', weight: 205, reps: 8 });
+    // 200 lb history beats BW+10 (190 × 8 → 240.67).
+    expect(computeSessionPRs(groupsWith(dips, [{ weight: 'BW+10', reps: '8' }]), history, [], LB_BW)).toHaveLength(0);
+  });
+
+  it('a bodyweight set with no body weight in the context cannot earn a oneRM PR', () => {
+    const history = [
+      historyRow({ exercise_id: 'ub-4', exercise_name: 'Weighted Dips', actual_weight: '100', actual_reps: '8' }),
+    ];
+    // With a body weight the set wins outright; without one it is a rep-only
+    // row, and rep-only rows never race oneRM history.
+    expect(computeSessionPRs(groupsWith(dips, [{ weight: 'BW+25', reps: '8' }]), history, [], LB_BW)).toHaveLength(1);
+    expect(computeSessionPRs(groupsWith(dips, [{ weight: 'BW+25', reps: '8' }]), history, [], LB)).toHaveLength(0);
+    expect(computeSessionPRs(groupsWith(dips, [{ weight: 'BW+25', reps: '8' }]), history)).toHaveLength(0);
+  });
+
+  it('the best set of the session is the one compared, across units', () => {
+    // 61 kg × 5 loses, 62 kg × 5 wins; one PR, from the 62 kg set.
+    const prs = computeSessionPRs(
+      groupsWith(bench, [{ weight: '61 kg', reps: '5' }, { weight: '62 kg', reps: '5' }, { weight: '130 lb', reps: '5' }]),
+      mixedHistory,
+      [],
+      LB,
+    );
+    expect(prs).toHaveLength(1);
+    expect(prs[0].kind === 'oneRM' && prs[0].estimatedOneRM).toBeCloseTo(epley(62 * LB_PER_KG, 5), 5);
+  });
+});
