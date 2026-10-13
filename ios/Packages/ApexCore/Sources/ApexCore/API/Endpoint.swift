@@ -197,8 +197,23 @@ public struct Endpoint: Sendable, Equatable {
                 category: definition.category, isUnilateral: definition.isUnilateral
             )
 
+        case .updateDefinition(let update):
+            return Endpoint.updateDefinition(
+                id: update.id, fields: ["log_fields": .array(update.logFields.map(JSONValue.string))],
+                name: update.canonicalName
+            )
+
         case .completion(let completionRow, let logRow):
             return completions(completionRow: completionRow, logRow: logRow)
+
+        case .quickComplete(let quick):
+            return workoutSessions(action: quick.action, eventId: quick.eventId, eventDate: quick.eventDate)
+
+        case .meal(let meal):
+            switch meal.kind {
+            case .create: return createMeal(row: meal.columns)
+            case .update: return updateMeal(id: meal.id, fields: meal.columns, title: meal.title)
+            }
         }
     }
 

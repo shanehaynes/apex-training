@@ -185,13 +185,17 @@ public struct ExerciseDefinition: Codable, Sendable, Equatable {
     public let defaultRest: String?
     /// Set once archived; the swap picker hides archived movements.
     public let archivedAt: String?
+    /// What the movement is always logged in, on top of any day's prescription
+    /// (`log_fields`, phase 53): a subset of `weight` · `reps` · `duration`.
+    /// Mutable so the tracker can record its own write ahead of the refetch.
+    public var logFields: [String]?
 
     public init(
         id: String, canonicalName: String, aliases: [String]? = nil, category: String? = nil,
         muscleGroups: [String]? = nil, equipment: [String]? = nil, imageUrl: String? = nil,
         techniqueNotes: String? = nil, isUnilateral: Bool? = nil, defaultSets: Int? = nil,
         defaultReps: String? = nil, defaultDuration: String? = nil, defaultWeight: String? = nil,
-        defaultRest: String? = nil, archivedAt: String? = nil
+        defaultRest: String? = nil, archivedAt: String? = nil, logFields: [String]? = nil
     ) {
         self.id = id
         self.canonicalName = canonicalName
@@ -208,6 +212,7 @@ public struct ExerciseDefinition: Codable, Sendable, Equatable {
         self.defaultWeight = defaultWeight
         self.defaultRest = defaultRest
         self.archivedAt = archivedAt
+        self.logFields = logFields
     }
 }
 

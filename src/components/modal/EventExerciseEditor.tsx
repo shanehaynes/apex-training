@@ -1,21 +1,25 @@
 import { useMemo, useState } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
 import { GripVertical, Link2, Plus, X } from 'lucide-react';
+import { useCalendar } from '../../context/calendar';
 import { useSchedule } from '../../context/schedule';
-import { baseIdOf, isOccurrenceId } from '../../lib/schedule/occurrence';
+import { baseIdOf } from '../../lib/schedule/occurrence';
+import { draftFromEvent } from '../../lib/builder/draft';
+import { withPrescriptionPatch } from '../../lib/builder/plannedSets';
+import { asksScope, saveRequest } from './exerciseScope';
+import type { SaveScope } from './exerciseScope';
 import { entryFromDefinition, uniqueEntryId, validateUnilateral } from '../../lib/schedule/definitions';
 import type { SectionKey, SectionLists } from '../../lib/schedule/definitions';
 import { linkWithAbove, normalizeSupersets, unlink } from '../../lib/schedule/supersets';
 import { notify } from '../../lib/notify';
 import { CLIMB_STYLES, ascentStylesFor, climbStyleLabel, sectionLabels } from '../../lib/climbing';
 import ExercisePicker from './ExercisePicker';
+import PlannedSetsEditor from './PlannedSetsEditor';
 import type { AscentStyle, ClimbStyle, Exercise, ExerciseCategory, ExerciseDefinition, WorkoutEvent, WorkoutType } from '../../types/workout';
 
 export type { SectionKey, SectionLists };
 
 const SECTION_KEYS: SectionKey[] = ['warmup', 'exercises', 'cooldown'];
-
-const PRESCRIPTION_FIELDS = ['sets', 'reps', 'duration', 'weight', 'restPeriod'] as const;
 
 interface Props {
   event: WorkoutEvent;
@@ -52,9 +56,6 @@ function EditorCard({
         </button>
         <span className="editor-card__name">{entry.name}</span>
         {entry.superset && <span className="superset-badge">{entry.superset}</span>}
-        {entry.plannedSets?.length ? (
-          <span className="editor-card__ramp-hint">custom per-set targets — editing clears them</span>
-        ) : null}
         {(canLink || entry.superset) && (
           <button
             className={`editor-card__link${entry.superset ? ' editor-card__link--on' : ''}`}
@@ -142,6 +143,9 @@ function EditorCard({
         </label>
       </div>
       )}
+      {entry.category !== 'climbing' && (
+        <PlannedSetsEditor entry={entry} onChange={plannedSets => onChange({ plannedSets })} />
+      )}
       {error && <p className="editor-card__error">{error}</p>}
     </Reorder.Item>
   );
@@ -202,13 +206,11 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
     setSection(key, [...lists[key], entry]);
   };
 
-  const updateEntry = (key: SectionKey, id: string, patch: Partial<Exercise>) => {
-    setSection(key, lists[key].map(e => {
-      if (e.id !== id) return e;
-      const touchesPrescription = PRESCRIPTION_FIELDS.some(f => f in patch);
-      return { ...e, ...patch, ...(touchesPrescription && e.plannedSets ? { plannedSets: undefined } : {}) };
-    }));
-  };
+  // A prescription edit keeps any per-set targets (a new set count resizes
+  // the table); the disclosure's own actions are the only writers of the
+  // rows themselves.
+  const updateEntry = (key: SectionKey, id: string, patch: Partial<Exercise>) =>
+    setSection(key, lists[key].map(e => (e.id === id ? withPrescriptionPatch(e, patch) : e)));
 
   const addFromDefinition = (def: ExerciseDefinition) => {
     if (!pickerSection) return;
@@ -271,12 +273,20 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
   );
 }
 
+// The last scope chosen in this tab: the chooser opens with it focused, so a
+// user who keeps tweaking single days is not re-deciding each time. The
+// editor unmounts on every save, which is why this outlives the component.
+let rememberedScope: SaveScope | null = null;
+
 /**
  * Edit mode for the modal's exercise sections. Edits batch locally and
- * commit as one updateEvent on Save.
+ * commit as one write on Save: a PATCH of the base event, or — "This day
+ * only" on a series — the builder's detach, which the modal then follows to
+ * the standalone event.
  */
 export default function EventExerciseEditor({ event, accentColor, onDone }: Props) {
-  const { definitions, updateEvent } = useSchedule();
+  const { definitions, updateEvent, applyWorkoutDraft } = useSchedule();
+  const { dispatch } = useCalendar();
   const [lists, setLists] = useState<SectionLists>({
     warmup: event.warmup ?? [],
     exercises: event.exercises,
@@ -284,20 +294,20 @@ export default function EventExerciseEditor({ event, accentColor, onDone }: Prop
   });
   const [errors, setErrors] = useState<Map<string, string>>(new Map());
   const [saving, setSaving] = useState(false);
+  const [choosingScope, setChoosingScope] = useState(false);
+  const [lastScope, setLastScope] = useState<SaveScope | null>(rememberedScope);
 
-  const seriesWide = event.isRecurring || isOccurrenceId(event.id);
+  const seriesWide = asksScope(event);
 
-  const save = async () => {
-    const violations = validateUnilateral(lists, definitions);
-    setErrors(violations);
-    if (violations.size > 0) return;
-
+  const changedFields = (): Partial<WorkoutEvent> => {
     const fields: Partial<WorkoutEvent> = {};
     if (JSON.stringify(lists.warmup) !== JSON.stringify(event.warmup ?? [])) fields.warmup = lists.warmup;
     if (JSON.stringify(lists.exercises) !== JSON.stringify(event.exercises)) fields.exercises = lists.exercises;
     if (JSON.stringify(lists.cooldown) !== JSON.stringify(event.cooldown ?? [])) fields.cooldown = lists.cooldown;
-    if (Object.keys(fields).length === 0) { onDone(); return; }
+    return fields;
+  };
 
+  const saveSeries = async (fields: Partial<WorkoutEvent>) => {
     setSaving(true);
     const ok = await updateEvent({ id: baseIdOf(event.id), fields, triggeredBy: 'user' });
     setSaving(false);
@@ -309,27 +319,104 @@ export default function EventExerciseEditor({ event, accentColor, onDone }: Prop
     }
   };
 
+  // The builder's detach, as one POST: the occurrence becomes a standalone
+  // event with these exercises, or nothing changes at all — never a detached
+  // day still carrying the old plan.
+  const saveThisDay = async () => {
+    setSaving(true);
+    const result = await applyWorkoutDraft(
+      { ...draftFromEvent(event), lists },
+      { kind: 'detach', eventId: event.id },
+    );
+    setSaving(false);
+    // null = the request itself failed; the transport has already toasted
+    // the detail (the builder's own wording for the same outcome).
+    if (!result) { notify('Failed to save — try again'); return; }
+    if (!result.ok) {
+      if (result.violations && Object.keys(result.violations).length) {
+        setErrors(new Map(Object.entries(result.violations)));
+      } else {
+        notify(result.problem);
+      }
+      return;
+    }
+    // The modal reads its event by id, and the occurrence id just stopped
+    // expanding: point it at the standalone so the user keeps looking at the
+    // day they edited.
+    dispatch({ type: 'SELECT_EVENT', payload: result.event });
+    notify('Saved — this day now stands alone');
+    onDone();
+  };
+
+  const save = async () => {
+    const violations = validateUnilateral(lists, definitions);
+    setErrors(violations);
+    if (violations.size > 0) return;
+    const fields = changedFields();
+    if (Object.keys(fields).length === 0) { onDone(); return; }
+    if (seriesWide) setChoosingScope(true);
+    else await saveSeries(fields);
+  };
+
+  const choose = async (scope: SaveScope) => {
+    rememberedScope = scope;
+    setLastScope(scope);
+    if (saveRequest(event, scope).kind === 'detach') await saveThisDay();
+    else await saveSeries(changedFields());
+  };
+
   return (
     <div className="exercise-editor">
       {seriesWide && (
         <p className="exercise-editor__series-note">
-          This workout repeats. Changes here reach every day in the series.
+          This workout repeats. Save asks whether the change is for this day only or the whole series.
         </p>
       )}
 
       <ExerciseSectionsEditor lists={lists} onChange={setLists} errors={errors} workoutType={event.type} />
 
-      <div className="exercise-editor__bar">
-        <button className="exercise-editor__cancel" onClick={onDone} disabled={saving}>Cancel</button>
-        <button
-          className="exercise-editor__save"
-          style={{ borderColor: accentColor }}
-          onClick={save}
-          disabled={saving}
-        >
-          {saving ? 'Saving…' : 'Save exercises'}
-        </button>
-      </div>
+      {choosingScope ? (
+        <div className="exercise-editor__bar builder-scope">
+          <span className="builder-scope__question">
+            Save to this day only — it leaves the series for good, keeping anything logged — or to the whole series?
+          </span>
+          <button className="exercise-editor__cancel" onClick={() => setChoosingScope(false)} disabled={saving}>
+            Back
+          </button>
+          <button
+            className="exercise-editor__save"
+            style={{ borderColor: accentColor }}
+            onClick={() => choose('occurrence')}
+            disabled={saving}
+            autoFocus={lastScope === 'occurrence'}
+            data-default={lastScope === 'occurrence' || undefined}
+          >
+            {saving ? 'Saving…' : 'This day only'}
+          </button>
+          <button
+            className="exercise-editor__save"
+            style={{ borderColor: accentColor }}
+            onClick={() => choose('series')}
+            disabled={saving}
+            autoFocus={lastScope === 'series'}
+            data-default={lastScope === 'series' || undefined}
+          >
+            {saving ? 'Saving…' : 'Whole series'}
+          </button>
+        </div>
+      ) : (
+        <div className="exercise-editor__bar">
+          <button className="exercise-editor__cancel" onClick={onDone} disabled={saving}>Cancel</button>
+          <button
+            className="exercise-editor__save"
+            style={{ borderColor: accentColor }}
+            onClick={save}
+            disabled={saving}
+          >
+            {saving ? 'Saving…' : 'Save exercises'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

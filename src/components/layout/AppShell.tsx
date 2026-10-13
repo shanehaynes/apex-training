@@ -13,6 +13,7 @@ import WeeklyReviewView from '../review/WeeklyReviewView';
 import AnalyticsView from '../analytics/AnalyticsView';
 import ProfileView from '../profile/ProfileView';
 import NotebookView from '../notebook/NotebookView';
+import HistoryView from '../history/HistoryView';
 import OnboardingHost from '../onboarding/OnboardingHost';
 import MobileBottomNav from './MobileBottomNav';
 import Toasts from './Toasts';
@@ -70,6 +71,7 @@ export default function AppShell() {
       {state.analyticsOpen && <AnalyticsView />}
       {state.profileOpen && <ProfileView />}
       {state.notebookOpen && <NotebookView />}
+      {state.historyOpen && <HistoryView />}
       <OnboardingHost />
       <Toasts />
     </div>

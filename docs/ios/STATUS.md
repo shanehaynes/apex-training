@@ -27,6 +27,20 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
 
 ## Next up
+0. **Tracker parity with web #390, second half — the subtitle and the day-only note.** Goal: the two
+   edits #390 added to the web card that the iOS card still lacks. Scope: (a) the definition's
+   technique notes as an editable subtitle under the exercise name (pencil in the header when
+   empty; a PATCH of `technique_notes` through the same `update-definition` op, generalised from
+   `log_fields` to a `[String: JSONValue]` of changed columns); (b) "+ note" — a note on one
+   exercise for this occurrence only, `workout_exercise_notes` (phase 54, keyed by event_id +
+   event_date + section + exercise_id), which rides the web's debounced save, loads in bootstrap
+   and goes with the session on cancel — check `api/_lib` for how `save` carries it and whether
+   the iOS `SavePayload`/`TrackerBootstrap` need the field (fixtures re-emitted if so).
+   Acceptance: both edits on `TrackedExerciseView` with identifiers; `ApexCore` tests for the
+   op payload and the save merge; the smoke drives "+ weight" on a reps-only fixture exercise
+   (`tracker.add-field.<id>.weight`, from this session's chips) and the new note; snapshots
+   re-recorded. Owns: `ios/Packages/ApexCore/Sources/ApexCore/{Tracker,Cache,API}`,
+   `ApexFeatures/Tracker`, fixtures only if the bootstrap shape changes. Mac session.
 0. **Tracker scroll fix (D-054) is PR #398** — carries no migration; next
    `testflight.yml` run after merge ships it, and Shane's phone run is the real verdict. If the
    120 Hz device still hitches, the fallback is D-054's option (b): unfocused inputs as `Text`.
@@ -94,6 +108,12 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-13 · Tracker: add a log field mid-workout · Linux. "+ weight / + reps / + time" chips on
+  the card (web #390 parity, first half): the input shows at once and the definition's
+  `log_fields` is written as a queued `update-definition` op in the outbox lane (D-055), so every
+  workout referencing the movement gets it, cancel or not; the Library editor's new "Always log" toggles take it back off. No Swift
+  toolchain here — `ApexCore` tests proved in CI only; Mac verification of the chips and a smoke
+  leg are outstanding (W4 session log).
 - 2026-10-12 · Tracker scroll smoothing · Mac. The tracker's nested lazy stacks realized a
   text-field-heavy card per frame mid-fling; both are eager `VStack`s now with rows `Equatable` on
   value inputs so a keystroke still touches one card (D-054). Measured on the simulator with the new

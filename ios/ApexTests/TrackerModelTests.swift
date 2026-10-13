@@ -299,6 +299,66 @@ final class TrackerModelTests: XCTestCase {
         XCTAssertTrue(model.sync.isIdle)
     }
 
+    /// D-015: the first non-empty reps of a row starts the exercise's rest, the
+    /// island gets the same end, a second keystroke on the row is not a second
+    /// set, +15 s and skip move it, and a rest that ran out while the tracker
+    /// was away clears on reopen without a late buzz. (The buzz at zero itself
+    /// is proved on `RestTimer` in ApexCore: the model's tick is a real
+    /// second, and `TestClock.sleep` jumps the clock on every autosave.)
+    @MainActor
+    func testLoggingRepsStartsTheRestAndTheIslandCountsItDown() async throws {
+        let clock = TestClock(now: Self.now)
+        let spy = ActivitySpy()
+        let (model, _) = make(healthy(), clock: clock, activity: spy)
+        await model.open()
+        XCTAssertFalse(model.rest.isRunning)
+        XCTAssertEqual(spy.calls.count, 1)
+
+        model.setValue("135", .weight, at: press1)
+        XCTAssertFalse(model.rest.isRunning, "weight alone is not a logged set")
+        model.setValue("1", .reps, at: press1)
+        XCTAssertTrue(model.rest.isRunning)
+        XCTAssertEqual(model.rest.endsAt, Self.now.addingTimeInterval(120), "the fixture press rests 2 min")
+        XCTAssertEqual(model.restRemaining, 120)
+        XCTAssertEqual(model.restLabel, "2:00")
+        for _ in 0..<200 where spy.calls.count < 2 { await Task.yield() }
+        XCTAssertEqual(spy.calls.last, .sync(TrackerActivitySnapshot(
+            session: model.session, title: Self.event.title, startedAt: model.startedAt!,
+            exerciseCount: 2, restEndsAt: Self.now.addingTimeInterval(120)
+        )))
+
+        model.setValue("12", .reps, at: press1)
+        XCTAssertEqual(model.rest.endsAt, Self.now.addingTimeInterval(120), "the second keystroke of a row is the same set")
+
+        clock.advance(by: 30)
+        model.extendRest()
+        XCTAssertEqual(model.rest.endsAt, Self.now.addingTimeInterval(135))
+        XCTAssertEqual(model.restRemaining, model.rest.remaining(at: clock.now))
+        model.skipRest()
+        XCTAssertFalse(model.rest.isRunning)
+        XCTAssertEqual(model.restRemaining, 0)
+        for _ in 0..<200 where spy.calls.count < 4 { await Task.yield() }
+        guard case .sync(let cleared)? = spy.calls.last else { return XCTFail("\(spy.calls)") }
+        XCTAssertNil(cleared.restEndsAt, "skip clears the island's countdown")
+
+        // The ghost committing on focus is a logged set too.
+        XCTAssertTrue(model.focusSet(at: press2))
+        XCTAssertTrue(model.rest.isRunning)
+        XCTAssertFalse(model.focusSet(at: press2))
+        model.setValue("4", .reps, at: press2)
+        XCTAssertEqual(model.rest.startedAt, clock.now, "the row was spent by the ghost commit")
+
+        // Away for a while: reopening settles the stale rest quietly.
+        let buzzes = model.restEndedCount
+        await model.close()
+        clock.advance(by: 600)
+        await model.open()
+        XCTAssertFalse(model.rest.isRunning)
+        XCTAssertEqual(model.restEndedCount, buzzes, "no buzz minutes after zero")
+        guard case .sync(let reopened)? = spy.calls.last else { return XCTFail("\(spy.calls)") }
+        XCTAssertNil(reopened.restEndsAt)
+    }
+
     @MainActor
     func testOfflineEditsShowAsPendingAndFlushLater() async throws {
         let transport = healthy()

@@ -25,11 +25,25 @@ public struct MealComposerSheet: View {
         switch route {
         case .create(let day): _form = State(initialValue: MealForm(day: day))
         case .edit(let day, let item): _form = State(initialValue: MealForm(item: item, day: day))
+        case .fix(let refused):
+            _form = State(initialValue: MealForm(item: refused.item, day: refused.day))
+            // The server's reason, where the composer shows its own refusals.
+            _problem = State(initialValue: refused.reason)
         }
     }
 
+    /// The meal an edit rewrites: the one opened, or — for a refused edit
+    /// reopened to fix — the one the queued save was for.
     private var editing: MealsQueryResult.Item? {
-        if case .edit(_, let item) = route { return item }
+        switch route {
+        case .edit(_, let item): return item
+        case .fix(let refused): return refused.isUpdate ? refused.item : nil
+        case .create: return nil
+        }
+    }
+
+    private var fixing: MealsModel.RefusedMeal? {
+        if case .fix(let refused) = route { return refused }
         return nil
     }
 
@@ -37,6 +51,7 @@ public struct MealComposerSheet: View {
         switch route {
         case .create: !form.title.isEmpty || form.derivedCalories != nil || !form.notes.isEmpty
         case .edit(let day, let item): form != MealForm(item: item, day: day)
+        case .fix(let refused): form != MealForm(item: refused.item, day: refused.day)
         }
     }
 
@@ -216,8 +231,12 @@ public struct MealComposerSheet: View {
     private func save() async {
         isSaving = true
         defer { isSaving = false }
-        let originalDay: DayKey? = if case .edit(let day, _) = route { day } else { nil }
-        if let refusal = await model.save(form, editing: editing, originalDay: originalDay) {
+        let originalDay: DayKey? = switch route {
+        case .edit(let day, _): day
+        case .fix(let refused): refused.originalDay
+        case .create: nil
+        }
+        if let refusal = await model.save(form, editing: editing, originalDay: originalDay, fixing: fixing) {
             problem = refusal
         } else {
             onClose()

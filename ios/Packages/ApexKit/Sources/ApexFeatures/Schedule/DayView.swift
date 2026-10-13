@@ -74,21 +74,81 @@ struct DayView: View {
         .simultaneousGesture(swipe(days: 7))
     }
 
-    /// Builder saves made offline for this day: a line while they wait, and a
-    /// row per save the server refused, with its reason and Fix. The workout
-    /// itself appears once the server has it (nothing is built locally, D-008).
+    /// Writes made offline for this day: a line per kind while they wait
+    /// (Builder saves, completion toggles, meals), and a row per save the
+    /// server refused, with its reason and Fix. The workout or meal itself
+    /// appears once the server has it (nothing is built locally, D-008); a
+    /// toggle is already on its card.
+    /// One kind of waiting write. When the lane gave up on one of the day's
+    /// ops (a server that kept failing), the line offers Retry: the op is
+    /// still queued and comes back on the next foreground, but the user need
+    /// not wait for that.
     @ViewBuilder
-    private var outbox: some View {
-        let day = model.selectedDay.string
-        let waiting = model.pendingSaves[day] ?? 0
-        let refused = model.refusedSaves.filter { $0.payload.draft.date == day }
-        if waiting > 0 {
-            Label(waiting == 1 ? "1 workout waiting to sync" : "\(waiting) workouts waiting to sync", systemImage: "icloud.and.arrow.up")
+    private func waitingLine(
+        _ count: Int, _ singular: String, _ plural: String, id: String, kinds: Set<TrackerAction>,
+        stalled: Bool? = nil, canLetGo: Bool? = nil
+    ) -> some View {
+        if count > 0 {
+            let day = model.selectedDay.string
+            HStack(spacing: Spacing.sm) {
+                Label(count == 1 ? "1 \(singular) waiting to sync" : "\(count) \(plural) waiting to sync", systemImage: "icloud.and.arrow.up")
+                    .font(.apex(.mono, size: TypeScale.micro, weight: .medium, relativeTo: .caption2))
+                    .foregroundStyle(ApexColor.textMuted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier(id)
+                // Given up on three times: the way out, beside the retry.
+                if canLetGo ?? model.letGoDays.contains(day) {
+                    Button { Task { await model.letGoStalled(day: canLetGo == nil ? day : nil, kinds: kinds) } } label: {
+                        Text("Let go")
+                            .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
+                            .foregroundStyle(ApexColor.textMuted)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("\(id).letgo")
+                }
+                if stalled ?? model.stalledDays.contains(day) {
+                    Button { Task { await model.retryOutbox() } } label: {
+                        Text("Retry")
+                            .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
+                            .foregroundStyle(ApexColor.textPrimary)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("\(id).retry")
+                }
+            }
+        }
+    }
+
+    /// Meals the server refused: fixed or let go from the Meals screen, which
+    /// lists them with their reason.
+    @ViewBuilder
+    private func refusedMealsLine(_ count: Int) -> some View {
+        if count > 0 {
+            Label(count == 1 ? "1 meal wasn't accepted — fix it in Meals" : "\(count) meals weren't accepted — fix them in Meals", systemImage: "exclamationmark.circle")
                 .font(.apex(.mono, size: TypeScale.micro, weight: .medium, relativeTo: .caption2))
                 .foregroundStyle(ApexColor.textMuted)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityIdentifier("schedule.day.pendingSaves")
+                .accessibilityIdentifier("schedule.day.refusedMeals")
         }
+    }
+
+    @ViewBuilder
+    private var outbox: some View {
+        let day = model.selectedDay.string
+        let refused = model.refusedSaves.filter { $0.payload.draft.date == day }
+        waitingLine(model.pendingSaves[day] ?? 0, "workout", "workouts", id: "schedule.day.pendingSaves", kinds: [.workoutDraft])
+        waitingLine(model.pendingCompletions[day] ?? 0, "completion", "completions", id: "schedule.day.pendingCompletions", kinds: [.completion, .quickComplete])
+        waitingLine(model.pendingMeals[day] ?? 0, "meal", "meals", id: "schedule.day.pendingMeals", kinds: [.meal])
+        // The library's, not the day's: shown wherever the user is looking.
+        waitingLine(
+            model.pendingCreates, "exercise", "exercises", id: "schedule.day.pendingCreates", kinds: [.createDefinition],
+            stalled: model.createsStalled, canLetGo: model.createsCanLetGo
+        )
+        refusedMealsLine(model.refusedMeals[day] ?? 0)
         ForEach(refused) { save in
             HStack(alignment: .top, spacing: Spacing.sm) {
                 VStack(alignment: .leading, spacing: 2) {

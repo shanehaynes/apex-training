@@ -234,6 +234,8 @@ final class AppModel {
         meals?.stop()
         let mealsModel = MealsModel(deps: MealsDependencies(
             client: client, cache: cache, clock: clock, realtime: hub,
+            // The composer's saves wait in the queue's outbox lane (D-052).
+            writeQueue: queue,
             // A write from either tab re-reads the schedule's own months so
             // the Day view follows at once, not on the realtime echo.
             onMealsChanged: { [weak self] in await self?.schedule.refreshMeals() }

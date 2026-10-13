@@ -1,4 +1,5 @@
 import ApexCore
+import ApexUI
 import XCTest
 import ApexFeatures
 
@@ -37,12 +38,20 @@ final class ScheduleModelTests: XCTestCase {
             lock.unlock()
         }
 
+        /// One answer for the next request on the route, then the route as set
+        /// (or no route — "No connection"). For a refusal that must happen once.
+        private var once: [String: (Int, Data)] = [:]
+        func setOnce(_ method: String, _ path: String, status: Int, body: Data) {
+            lock.lock(); once["\(method) \(path)"] = (status, body); lock.unlock()
+        }
+
         func send(_ request: URLRequest) async throws -> HTTPResponse {
             let key = "\(request.httpMethod ?? "GET") \(request.url?.path ?? "")"
             let recorded = Recorded(method: request.httpMethod ?? "GET", path: request.url?.path ?? "",
                                     body: request.httpBody.map { String(decoding: $0, as: UTF8.self) })
             let answer: (Int, Data)? = lock.withLock {
                 requests.append(recorded)
+                if let single = once.removeValue(forKey: key) { return single }
                 return routes[key]
             }
             if delay > .zero { try await Task.sleep(for: delay) }
@@ -581,11 +590,11 @@ final class ScheduleModelTests: XCTestCase {
     // MARK: - Offline Builder save
 
     @MainActor
-    private func outboxModel(_ transport: ScriptedTransport) async -> (ScheduleModel, WriteQueue, MemoryWriteQueueStore) {
+    private func outboxModel(_ transport: ScriptedTransport, policy: RetryPolicy = .default) async -> (ScheduleModel, WriteQueue, MemoryWriteQueueStore) {
         let model = makeModel(transport)
         let store = MemoryWriteQueueStore()
         let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: Tokens())
-        let queue = WriteQueue(store: store, client: client, clock: StalledClock(now: Self.fixtureNow))
+        let queue = WriteQueue(store: store, client: client, clock: StalledClock(now: Self.fixtureNow), policy: policy)
         model.attach(writeQueue: queue)
         await model.start()
         return (model, queue, store)
@@ -595,6 +604,179 @@ final class ScheduleModelTests: XCTestCase {
     private func waitUntil(_ condition: @MainActor () -> Bool) async throws {
         let deadline = Date().addingTimeInterval(2)
         while !condition(), Date() < deadline { try await Task.sleep(for: .milliseconds(10)) }
+    }
+
+    /// The reads only — every write is "No connection", for the outbox.
+    private func readsOnly() -> ScriptedTransport {
+        let t = ScriptedTransport()
+        t.set("GET", "/api/schedule", body: Self.fixture("schedule.json"))
+        t.set("GET", "/api/profile", body: Self.fixture("profile.json"))
+        t.set("POST", "/api/query", body: Self.fixture("query-get_meals.json"))
+        return t
+    }
+
+    @MainActor
+    private func offlineToggle(_ transport: ScriptedTransport) async throws -> (ScheduleModel, WriteQueue, MemoryWriteQueueStore) {
+        let (model, queue, store) = await outboxModel(transport)
+        let run = try XCTUnwrap(model.event(id: "ios-fixture-run"))
+        XCTAssertFalse(run.isCompleted)
+        await model.toggleCompletion(run)
+        // The model starts the lane on a detached task; this makes its one
+        // failed try deterministic before the assertions.
+        await queue.flush(.outbox)
+        return (model, queue, store)
+    }
+
+    @MainActor
+    func testAToggleWithNoSignalFlipsTheCardAndWaitsOnItsDay() async throws {
+        let transport = readsOnly()
+        let (model, _, store) = try await offlineToggle(transport)
+        XCTAssertTrue(model.event(id: "ios-fixture-run")!.isCompleted, "optimistic, and not rolled back for want of signal")
+        XCTAssertEqual(model.pendingCompletions["2026-09-08"], 1)
+        let held = await store.all
+        XCTAssertEqual(held.map(\.payload.action), [.completion, .quickComplete])
+        XCTAssertEqual(held.map(\.session), [.outbox, .outbox])
+        XCTAssertEqual(transport.count("POST", "/api/completions"), 1, "one try, then the lane waits for the network")
+        XCTAssertEqual(transport.count("POST", "/api/workout-sessions"), 0, "the plan-fill waits behind the completion")
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
+    func testAWaitingFlipSurvivesARefreshThatSaysOtherwise() async throws {
+        let transport = readsOnly()  // schedule.json says ios-fixture-run is not completed
+        let (model, _, _) = try await offlineToggle(transport)
+        await model.refresh(reason: .foreground)
+        XCTAssertTrue(model.event(id: "ios-fixture-run")!.isCompleted, "the pending flip is laid over the server's window")
+        XCTAssertEqual(model.pendingCompletions["2026-09-08"], 1)
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
+    func testResumeLandsBothHalvesOfTheToggleAndReReadsTheWindow() async throws {
+        let transport = readsOnly()
+        let (model, queue, store) = try await offlineToggle(transport)
+        let refetches = transport.count("GET", "/api/schedule")
+        transport.set("POST", "/api/completions")
+        transport.set("POST", "/api/workout-sessions")
+        transport.set("GET", "/api/schedule", body: Self.flippedFixture(id: "ios-fixture-run", completedAt: "2026-09-08T12:00:00.000Z"))
+
+        await queue.resume()
+        await queue.awaitRetries()
+        try await waitUntil { model.pendingCompletions.isEmpty }
+        XCTAssertTrue(model.pendingCompletions.isEmpty)
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+        XCTAssertEqual(transport.count("POST", "/api/completions"), 2, "the offline try, then the one that landed")
+        XCTAssertEqual(transport.count("POST", "/api/workout-sessions"), 1)
+        XCTAssertTrue(transport.requests.last { $0.path == "/api/workout-sessions" }!.body!.contains("quick-complete"))
+        try await waitUntil { transport.count("GET", "/api/schedule") > refetches }
+        XCTAssertGreaterThan(transport.count("GET", "/api/schedule"), refetches, "a landed toggle re-reads the window")
+        XCTAssertTrue(model.event(id: "ios-fixture-run")!.isCompleted)
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
+    func testARefusedCompletionUndoesTheFlipEvenWhenTheReReadFails() async throws {
+        let transport = readsOnly()
+        let (model, queue, store) = try await offlineToggle(transport)
+        transport.set("POST", "/api/completions", status: 400, body: Data("Invalid action".utf8))
+        transport.set("POST", "/api/workout-sessions")
+        transport.set("GET", "/api/schedule", status: 503, body: Data("down".utf8))
+
+        await queue.resume()
+        try await waitUntil { model.event(id: "ios-fixture-run")?.isCompleted == false }
+        XCTAssertFalse(model.event(id: "ios-fixture-run")!.isCompleted, "undone from the refused row, not from a re-read")
+        XCTAssertEqual(transport.count("POST", "/api/workout-sessions"), 0, "the plan-fill went with the refusal, unsent")
+        try await waitUntil { model.pendingCompletions.isEmpty }
+        XCTAssertTrue(model.pendingCompletions.isEmpty)
+        let left = await store.all.count
+        XCTAssertEqual(left, 0, "a refusal is final: let go, nothing to fix")
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
+    func testARefusedCompletionIsUndoneUnderTheTogglesStillWaitingForTheSameEvent() async throws {
+        // Complete, undo, complete again, all offline; the first is refused.
+        // Its undo is laid under the two still waiting, so the card shows the
+        // newest intent — before, and without, a re-read.
+        let transport = readsOnly()
+        let (model, queue, store) = try await offlineToggle(transport)
+        await model.toggleCompletion(try XCTUnwrap(model.event(id: "ios-fixture-run")))   // undo
+        await model.toggleCompletion(try XCTUnwrap(model.event(id: "ios-fixture-run")))   // complete again
+        await queue.flush(.outbox)
+        let queued = await store.all.map(\.payload.action)
+        XCTAssertEqual(queued, [.completion, .quickComplete, .completion, .quickComplete, .completion, .quickComplete])
+        XCTAssertTrue(model.event(id: "ios-fixture-run")!.isCompleted)
+
+        transport.setOnce("POST", "/api/completions", status: 400, body: Data("Invalid action".utf8))   // then "No connection" again
+        transport.set("GET", "/api/schedule", status: 503, body: Data("down".utf8))
+        await queue.resume()
+        var left = await store.all.count
+        let deadline = Date().addingTimeInterval(2)
+        while left != 4, Date() < deadline { try await Task.sleep(for: .milliseconds(10)); left = await store.all.count }
+        XCTAssertEqual(left, 4, "the refused completion and its plan-fill are gone; the two newer toggles wait")
+        try await waitUntil { model.pendingCompletions["2026-09-08"] == 2 }
+        XCTAssertTrue(model.event(id: "ios-fixture-run")!.isCompleted, "the newest waiting toggle wins, not the undo of the refused one")
+        XCTAssertEqual(transport.count("POST", "/api/workout-sessions"), 0)
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
+    func testACompletionGivenUpOnThreeTimesCanBeLetGoAndUnflipsTheCard() async throws {
+        let transport = readsOnly()
+        let (model, queue, store) = await outboxModel(transport, policy: RetryPolicy(maxAttempts: 0))
+        let run = try XCTUnwrap(model.event(id: "ios-fixture-run"))
+        await model.toggleCompletion(run)
+        await queue.flush(.outbox)
+        transport.set("POST", "/api/completions", status: 500, body: Data("boom".utf8))
+        for _ in 0..<3 {
+            await queue.resume()
+            await queue.awaitRetries()
+        }
+        try await waitUntil { model.letGoDays.contains("2026-09-08") }
+        XCTAssertTrue(model.stalledDays.contains("2026-09-08"), "Retry is offered")
+        XCTAssertTrue(model.letGoDays.contains("2026-09-08"), "and, after three give-ups, Let go")
+        XCTAssertTrue(model.event(id: "ios-fixture-run")!.isCompleted, "still waiting, still shown")
+        let counts = await store.all.map(\.giveUpCount)
+        XCTAssertEqual(counts, [3, 0])
+
+        await model.letGoStalled(day: "2026-09-08", kinds: [.completion, .quickComplete])
+        XCTAssertFalse(model.event(id: "ios-fixture-run")!.isCompleted, "let go: undone on the card like a refusal")
+        let left = await store.all.count
+        XCTAssertEqual(left, 0, "the completion and its own plan-fill, unsent")
+        XCTAssertTrue(model.pendingCompletions.isEmpty)
+        XCTAssertTrue(model.letGoDays.isEmpty)
+        XCTAssertEqual(transport.count("POST", "/api/workout-sessions"), 0)
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
+    func testACreateTheServerKeepsFailingStaysWaitingAndOffered() async throws {
+        // A 5xx run is not a refusal: the create is kept (gave up, waiting
+        // with Retry), still overlaid on the library, and the toast says the
+        // app keeps trying — never "couldn't add".
+        let transport = readsOnly()   // no /api/exercise-definitions route: the create queues
+        let (model, queue, store) = await outboxModel(transport, policy: RetryPolicy(maxAttempts: 0))
+        let created = await model.createDefinition(name: "Copenhagen Plank", category: "strength", isUnilateral: true)
+        XCTAssertEqual(created?.id, "copenhagen-plank")
+        let mark = ToastBus.shared.toasts.count
+
+        transport.set("POST", "/api/exercise-definitions", status: 503, body: Data("down".utf8))
+        await queue.resume()
+        await queue.awaitRetries()
+        let held = await store.all
+        XCTAssertEqual(held.map(\.payload.action), [.createDefinition])
+        XCTAssertEqual(held.first?.gaveUp, true)
+        XCTAssertEqual(held.first?.isWaiting, true)
+        let offered = await model.definitions()
+        XCTAssertTrue(offered.contains { $0.id == "copenhagen-plank" }, "still waiting, still offered")
+        try await waitUntil { ToastBus.shared.toasts.count > mark }
+        let since = Array(ToastBus.shared.toasts.dropFirst(mark))
+        XCTAssertFalse(since.contains { $0.level == .failure }, "a gave-up create is not a refusal: \(since.map(\.message))")
+        try await waitUntil { model.createsStalled }
+        XCTAssertEqual(model.pendingCreates, 1, "shown as waiting on every day — the library has no day")
+        XCTAssertTrue(model.createsStalled, "and offered Retry")
+        model.attach(writeQueue: nil)
     }
 
     @MainActor

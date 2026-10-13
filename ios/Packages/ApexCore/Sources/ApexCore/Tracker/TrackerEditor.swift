@@ -253,12 +253,20 @@ public struct TrackerEditor: Sendable, Equatable {
         return tracked.sets.contains { !$0[.reps].isEmpty && !CountSpec.hasPerSideCount($0[.reps]) }
     }
 
-    /// Which actual inputs an exercise gets (`inputFields` in TrackerExercise.tsx):
-    /// the union of its planned targets, of whatever already carries a value,
-    /// and — once swapped or added — of what that movement is normally logged in. Reps
-    /// is the fallback so every set has something to log. A climbing pitch logs
-    /// exactly one thing: the grade, stored in the weight column.
-    public static func inputFields(for tracked: TrackedExercise, swappedTo: ExerciseDefinition?) -> [SetField] {
+    /// Which actual inputs an exercise gets (`inputFields` in src/lib/tracking/fields.ts):
+    /// the union of its planned targets, of whatever already carries a value, of the
+    /// dimensions its library definition is always logged in (`log_fields`, plus any
+    /// added this sitting before that write lands), and — once swapped or added — of
+    /// what that movement is normally logged in. Reps is the fallback so every set has
+    /// something to log. A climbing pitch logs exactly one thing: the grade, stored in
+    /// the weight column.
+    ///
+    /// `definition` is the movement's library entry whenever the entry has one — on
+    /// a planned exercise only its `logFields` are read; the default prescription is
+    /// consulted only off-plan, where there is no prescription of its own to read.
+    public static func inputFields(
+        for tracked: TrackedExercise, definition: ExerciseDefinition?, addedHere: [SetField] = []
+    ) -> [SetField] {
         if tracked.exercise.category == "climbing" { return [.weight] }
         var fields = Set<SetField>()
         for set in tracked.sets {
@@ -269,7 +277,12 @@ public struct TrackerEditor: Sendable, Equatable {
             }
             for field in SetField.allCases where !set[field].isEmpty { fields.insert(field) }
         }
+        for name in definition?.logFields ?? [] {
+            if let field = SetField(logField: name) { fields.insert(field) }
+        }
+        fields.formUnion(addedHere)
         if tracked.isOffPlan {
+            let swappedTo = definition
             if swappedTo?.defaultDuration?.isEmpty == false { fields.insert(.duration) }
             if swappedTo?.defaultWeight?.isEmpty == false || swappedTo?.category == "strength" || swappedTo == nil {
                 fields.insert(.weight)
@@ -280,6 +293,23 @@ public struct TrackerEditor: Sendable, Equatable {
         }
         if fields.isEmpty { fields.insert(.reps) }
         return SetField.allCases.filter(fields.contains)
+    }
+
+    /// The inputs an exercise does not have yet and could add mid-workout
+    /// (`addable` in TrackerExercise.tsx). A pitch's one input is fixed.
+    public static func addableFields(for tracked: TrackedExercise, fields: [SetField]) -> [SetField] {
+        if tracked.exercise.category == "climbing" { return [] }
+        return SetField.allCases.filter { !fields.contains($0) }
+    }
+
+    /// What a definition's `log_fields` become after adding `field` this sitting
+    /// (`nextLogFields` in fields.ts): the stored set plus every field added here
+    /// so far, not the stored set plus this one alone — so a write queued before
+    /// the previous one has landed still carries it. Column order; a stored name
+    /// outside the three columns is dropped (the table's CHECK refuses it anyway).
+    public static func nextLogFields(stored: [String], addedHere: [SetField], adding field: SetField) -> [String] {
+        let wanted = Set(stored.compactMap(SetField.init(logField:))).union(addedHere).union([field])
+        return SetField.allCases.filter(wanted.contains).map(\.logField)
     }
 
     // MARK: - Replay and refresh

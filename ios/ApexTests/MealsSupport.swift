@@ -24,11 +24,23 @@ extension YouTransport {
     }
 }
 
+extension YouTransport {
+    /// The meals reads only — every write is "No connection", for the queue.
+    static func mealsOffline() -> YouTransport {
+        let t = YouTransport()
+        t.set("POST /api/query get_meals", .json(200, fixture("query-get_meals.json")))
+        t.set("GET /api/meal-favorites", .json(200, fixture("meal-favorites.json")))
+        return t
+    }
+}
+
 @MainActor
-func makeMealsModel(_ transport: YouTransport, hooks: MealsHooks, cache: any CacheStore = MemoryCacheStore()) -> MealsModel {
+func makeMealsModel(
+    _ transport: YouTransport, hooks: MealsHooks, cache: any CacheStore = MemoryCacheStore(), writeQueue: WriteQueue? = nil
+) -> MealsModel {
     let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: CoachTestTokens())
     return MealsModel(deps: MealsDependencies(
         client: client, cache: cache, clock: TestClock(now: coachTestNow), timeZone: TimeZone(identifier: "UTC")!,
-        onMealsChanged: { hooks.changes += 1 }
+        writeQueue: writeQueue, onMealsChanged: { hooks.changes += 1 }
     ))
 }

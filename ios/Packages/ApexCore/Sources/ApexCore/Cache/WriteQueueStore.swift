@@ -7,7 +7,10 @@ public enum TrackerAction: String, Codable, Sendable {
     case start, save, finish, cancel, completion
     case swapExercise = "swap-exercise"
     case createDefinition = "create-definition"
+    case updateDefinition = "update-definition"
     case workoutDraft = "workout-draft"
+    case quickComplete = "quick-complete"
+    case meal
 }
 
 /// A Builder save made with no signal (`POST /api/workout-draft`), queued in
@@ -68,6 +71,72 @@ public struct DefinitionCreatePayload: Codable, Sendable, Equatable {
     }
 }
 
+/// A log field added to a movement mid-workout ("+ weight" on the card): the
+/// definition's whole `log_fields` after the add, so a replay is idempotent
+/// and two adds queued before either lands both carry the first. The server
+/// writes the array as sent, so each op must be the full set.
+public struct DefinitionLogFieldsPayload: Codable, Sendable, Equatable {
+    public var id: String
+    /// For the mutation log's `definition_name`.
+    public var canonicalName: String
+    public var logFields: [String]
+
+    public init(id: String, canonicalName: String, logFields: [String]) {
+        self.id = id
+        self.canonicalName = canonicalName
+        self.logFields = logFields
+    }
+}
+
+/// The plan-fill behind a calendar completion toggle (`quick-complete`) or
+/// its undo (`quick-uncomplete`), queued in the outbox lane behind the
+/// `.completion` it belongs to. The lane's key is not the occurrence, so the
+/// payload carries its own; the server upserts with `ignoreDuplicates`, so a
+/// replay is a no-op.
+public struct QuickCompletePayload: Codable, Sendable, Equatable {
+    public var eventId: String
+    public var eventDate: String
+    public var isCompleting: Bool
+
+    public init(eventId: String, eventDate: String, isCompleting: Bool) {
+        self.eventId = eventId
+        self.eventDate = eventDate
+        self.isCompleting = isCompleting
+    }
+
+    public var action: String { isCompleting ? "quick-complete" : "quick-uncomplete" }
+}
+
+/// A meal saved from the composer with the queue in front of the network:
+/// a create (`POST /api/meals`, the flat row, id minted once so a replay of a
+/// create whose answer was lost is answered as already landed) or an edit
+/// (`PATCH /api/meals?id=`, every column). `day` is where the composer put
+/// it — the day's "waiting to sync" line and the month to re-read once it
+/// lands; `originalDay` is where an edit moved it from.
+public struct MealOpPayload: Codable, Sendable, Equatable {
+    public enum Kind: String, Codable, Sendable { case create, update }
+
+    public var kind: Kind
+    public var id: String
+    public var title: String
+    public var day: String
+    public var originalDay: String?
+    /// The create's row, or the update's `fields`.
+    public var columns: [String: JSONValue]
+
+    public init(kind: Kind, id: String, title: String, day: String, originalDay: String? = nil, columns: [String: JSONValue]) {
+        self.kind = kind
+        self.id = id
+        self.title = title
+        self.day = day
+        self.originalDay = originalDay
+        self.columns = columns
+    }
+
+    /// The days whose months show this meal once it lands.
+    public var days: [String] { [day] + (originalDay.map { $0 == day ? [] : [$0] } ?? []) }
+}
+
 /// Typed, not opaque JSON: merging two saves and counting pending sets both
 /// need to see inside a payload.
 public enum TrackerOpPayload: Codable, Sendable, Equatable {
@@ -79,10 +148,17 @@ public enum TrackerOpPayload: Codable, Sendable, Equatable {
     case cancel
     case swapExercise(SwapPayload)
     case createDefinition(DefinitionCreatePayload)
+    case updateDefinition(DefinitionLogFieldsPayload)
     case workoutDraft(WorkoutDraftOpPayload)
     /// `POST /api/completions` — finishing flips the occurrence's completion the
     /// way the web does after `finish`; cancelling a finished session flips it back.
     case completion(completionRow: CompletionRow, logRow: CompletionLogRow)
+    /// `POST /api/workout-sessions` `quick-complete` / `quick-uncomplete`: the
+    /// plan-fill (or its clearing) a calendar toggle makes after its
+    /// `.completion`. Best-effort on the web; here it waits with the toggle.
+    case quickComplete(QuickCompletePayload)
+    /// `POST` / `PATCH /api/meals` from the composer.
+    case meal(MealOpPayload)
 
     public var action: TrackerAction {
         switch self {
@@ -92,8 +168,11 @@ public enum TrackerOpPayload: Codable, Sendable, Equatable {
         case .cancel: .cancel
         case .swapExercise: .swapExercise
         case .createDefinition: .createDefinition
+        case .updateDefinition: .updateDefinition
         case .workoutDraft: .workoutDraft
         case .completion: .completion
+        case .quickComplete: .quickComplete
+        case .meal: .meal
         }
     }
 
@@ -128,10 +207,26 @@ public struct TrackerOp: Sendable, Equatable, Identifiable {
     public var attempts: Int
     public var lastError: String?
     public var state: TrackerOpState
+    /// A `.failed` op the policy gave up on (network, 5xx, 429 past the
+    /// ceiling) rather than one the server refused for good. Kept apart
+    /// because the two are shown and retried differently: a gave-up op is
+    /// still waiting — the outbox puts it back on every resume and a Retry
+    /// does so by hand — while a refusal needs the user (Fix, or let go).
+    public var gaveUp: Bool
+    /// How many times the policy has given up on this op across its retries
+    /// (a put-back keeps the count; only landing or discarding ends it). A
+    /// 5xx that is deterministic — a migration lagging the code, a bad row
+    /// the server 500s on — would otherwise hold the outbox's head forever:
+    /// at `letGoThreshold` the day line offers **Let go** beside Retry.
+    public var giveUpCount: Int
+
+    /// Give-ups before the user is offered to let the op go.
+    public static let letGoThreshold = 3
 
     public init(
         id: Int64 = 0, session: SessionKey, payload: TrackerOpPayload, createdAt: Date,
-        attempts: Int = 0, lastError: String? = nil, state: TrackerOpState = .pending
+        attempts: Int = 0, lastError: String? = nil, state: TrackerOpState = .pending, gaveUp: Bool = false,
+        giveUpCount: Int = 0
     ) {
         self.id = id
         self.session = session
@@ -140,7 +235,18 @@ public struct TrackerOp: Sendable, Equatable, Identifiable {
         self.attempts = attempts
         self.lastError = lastError
         self.state = state
+        self.gaveUp = gaveUp
+        self.giveUpCount = giveUpCount
     }
+
+    /// A waiting op the lane has given up on enough times to be let go.
+    public var canLetGo: Bool { isWaiting && giveUpCount >= Self.letGoThreshold }
+
+    /// Pending, or failed only for want of a connection or a working server:
+    /// what the outbox counts as waiting to sync.
+    public var isWaiting: Bool { state == .pending || (state == .failed && gaveUp) }
+    /// The server said no: kept for the user, never retried on its own.
+    public var isRefused: Bool { state == .failed && !gaveUp }
 }
 
 /// Implemented by `ApexPersistence` over GRDB (`tracker_ops`); in memory for
@@ -148,7 +254,7 @@ public struct TrackerOp: Sendable, Equatable, Identifiable {
 public protocol WriteQueueStore: Sendable {
     /// Assigns and returns the id.
     func append(_ op: TrackerOp) async throws -> Int64
-    /// By id: payload (a merge), attempts, lastError, state.
+    /// By id: payload (a merge), attempts, lastError, state, gaveUp, giveUpCount.
     func update(_ op: TrackerOp) async throws
     /// "Sent": a finished op leaves no row behind.
     func delete(id: Int64) async throws

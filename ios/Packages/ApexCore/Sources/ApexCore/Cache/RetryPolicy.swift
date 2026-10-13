@@ -38,6 +38,16 @@ public struct RetryPolicy: Sendable, Equatable {
         min(maxDelay, baseDelay * pow(2, Double(max(0, attempts))))
     }
 
+    /// Network, 5xx, 429: the errors `classify` retries and eventually gives
+    /// up on — as opposed to a refusal, which is final on the first answer.
+    public static func isTransient(_ error: APIError) -> Bool {
+        switch error {
+        case .network, .rateLimited: return true
+        case .server(let status, _): return (500...599).contains(status)
+        default: return false
+        }
+    }
+
     public func classify(_ error: APIError, attempts: Int) -> Verdict {
         switch error {
         case .network:
