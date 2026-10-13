@@ -96,8 +96,8 @@ export interface SaveLogsOptions {
   keepalive?: boolean;
   /** No failure toast (still the console.warn): retries of a streak that
    *  already toasted once — the Unsaved bar carries the state after that.
-   *  A refusal (4xx other than 408/429) never toasts here: the hook shows
-   *  the server's message once instead. */
+   *  A refusal (4xx other than 408/429) or an auth failure (401/403) never
+   *  toasts here: the hook shows its own message once instead. */
   quiet?: boolean;
 }
 
@@ -159,8 +159,8 @@ export async function saveLogs(
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     console.warn(`[apex] ${label} failed (${res.status}):`, detail);
-    const refused = res.status >= 400 && res.status <= 499 && res.status !== 408 && res.status !== 429;
-    if (!opts.quiet && !refused) notify(`${label} failed`);
+    const ownMessage = res.status >= 400 && res.status <= 499 && res.status !== 408 && res.status !== 429;
+    if (!opts.quiet && !ownMessage) notify(`${label} failed`);
     throw new AutosaveError(
       detail || `${label} failed`,
       res.status,

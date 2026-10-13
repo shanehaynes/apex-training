@@ -72,7 +72,7 @@ describe('createSaveQueue', () => {
     expect(h.queue.state().inFlight).toBe(true);
     h.sends[0].resolve();
     await expect(done).resolves.toBe(true);
-    expect(h.queue.state()).toEqual({ pending: 0, inFlight: false, consecutiveFailures: 0, showBar: false, nextRetryAt: null, rejected: 0 });
+    expect(h.queue.state()).toEqual({ pending: 0, inFlight: false, consecutiveFailures: 0, showBar: false, nextRetryAt: null, rejected: 0, rejectedKeys: [], paused: false });
   });
 
   it('A5: with nothing pending, flush resolves true without sending', async () => {
@@ -236,7 +236,7 @@ describe('createSaveQueue', () => {
     await h.fire();
     h.sends[3].resolve();
     await tick();
-    expect(h.queue.state()).toEqual({ pending: 0, inFlight: false, consecutiveFailures: 0, showBar: false, nextRetryAt: null, rejected: 0 });
+    expect(h.queue.state()).toEqual({ pending: 0, inFlight: false, consecutiveFailures: 0, showBar: false, nextRetryAt: null, rejected: 0, rejectedKeys: [], paused: false });
     expect(h.live()).toHaveLength(0);
   });
 
@@ -368,22 +368,94 @@ describe('createSaveQueue', () => {
     expect(h.live()).toHaveLength(0);
   });
 
-  it('A10: a numeric 4xx other than 408/429 is refused — keys leave pending as rejected, no retry, flush true', async () => {
+  it('A10: a one-key refusal (4xx other than 401/403/408/429) leaves pending as rejected, no retry, flush true', async () => {
+    const h = harness();
+    h.queue.markDirty('a');
+    const attempt = h.queue.flush();
+    await started();
+    h.sends[0].reject(Object.assign(new Error('bad row'), { status: 422 }));
+    await expect(attempt).resolves.toBe(true);
+    expect(h.queue.state()).toEqual({
+      pending: 0, inFlight: false, consecutiveFailures: 0, showBar: true, nextRetryAt: null,
+      rejected: 1, rejectedKeys: ['a'], paused: false,
+    });
+    expect(h.live()).toHaveLength(0);
+    h.queue.markDirty('a');
+    expect(h.queue.state()).toMatchObject({ pending: 1, rejected: 0, rejectedKeys: [], showBar: false });
+    h.queue.unmark('a');
+    expect(h.queue.state()).toMatchObject({ pending: 0, rejected: 0 });
+  });
+
+  it('A14: a refused batch is isolated one key at a time; only the refused key is rejected', async () => {
+    const h = harness();
+    h.queue.markDirty('a');
+    h.queue.markDirty('b');
+    h.queue.markDirty('c');
+    const attempt = h.queue.flush();
+    await started();
+    h.sends[0].reject(Object.assign(new Error('bad row'), { status: 422 }));
+    await started();
+    expect(h.sends[1].keys).toEqual(['a']);
+    expect(h.queue.state().inFlight).toBe(true);
+    h.sends[1].resolve();
+    await started();
+    expect(h.sends[2].keys).toEqual(['b']);
+    h.sends[2].reject(Object.assign(new Error('bad row'), { status: 422 }));
+    await started();
+    expect(h.sends[3].keys).toEqual(['c']);
+    h.sends[3].resolve();
+    await expect(attempt).resolves.toBe(true);
+    expect(h.queue.state()).toMatchObject({ pending: 0, inFlight: false, rejected: 1, rejectedKeys: ['b'], showBar: true });
+    expect(h.sends.map(x => x.keys)).toEqual([['a', 'b', 'c'], ['a'], ['b'], ['c']]);
+  });
+
+  it('A14: a transient failure mid-isolation stops it with the rest pending and backoff armed', async () => {
     const h = harness();
     h.queue.markDirty('a');
     h.queue.markDirty('b');
     const attempt = h.queue.flush();
     await started();
-    h.queue.markDirty('b'); // re-dirtied in flight: stays pending, not rejected
     h.sends[0].reject(Object.assign(new Error('bad row'), { status: 422 }));
-    await expect(attempt).resolves.toBe(true);
-    expect(h.queue.state()).toEqual({ pending: 1, inFlight: false, consecutiveFailures: 0, showBar: true, nextRetryAt: null, rejected: 1 });
-    expect(h.live()).toHaveLength(0);
+    await started();
+    h.sends[1].reject(new Error('socket'));
+    await expect(attempt).resolves.toBe(false);
+    expect(h.queue.state()).toMatchObject({ pending: 2, inFlight: false, consecutiveFailures: 1, rejected: 0 });
+    expect(h.live()).toHaveLength(1);
+  });
+
+  it('A16: a 401 pauses — keys stay pending, no timer, flush false until retryNow', async () => {
+    const h = harness();
     h.queue.markDirty('a');
-    expect(h.queue.state()).toMatchObject({ pending: 2, rejected: 0, showBar: false });
-    h.queue.unmark('a');
-    h.queue.unmark('b');
-    expect(h.queue.state()).toMatchObject({ pending: 0, rejected: 0 });
+    await h.rejectNext();
+    expect(h.queue.state().consecutiveFailures).toBe(1);
+    const retried = h.queue.retryNow();
+    await started();
+    h.sends[1].reject(Object.assign(new Error('expired'), { status: 401 }));
+    await expect(retried).resolves.toBe(false);
+    expect(h.queue.state()).toMatchObject({ pending: 1, paused: true, showBar: true, nextRetryAt: null, consecutiveFailures: 1 });
+    expect(h.live()).toHaveLength(0);
+    h.queue.markDirty('b');
+    await expect(h.queue.flush()).resolves.toBe(false);
+    expect(h.sends).toHaveLength(2);
+    const resumed = h.queue.retryNow();
+    await started();
+    expect(h.queue.state().paused).toBe(false);
+    expect(h.sends[2].keys).toEqual(['a', 'b']);
+    h.sends[2].resolve();
+    await expect(resumed).resolves.toBe(true);
+    expect(h.queue.state()).toMatchObject({ pending: 0, consecutiveFailures: 0, paused: false, showBar: false });
+  });
+
+  it('state().rejectedKeys is a snapshot the caller cannot mutate the queue through', async () => {
+    const h = harness();
+    h.queue.markDirty('a');
+    const attempt = h.queue.flush();
+    await started();
+    h.sends[0].reject(Object.assign(new Error('bad row'), { status: 422 }));
+    await attempt;
+    const keys = h.queue.state().rejectedKeys as string[];
+    keys.length = 0;
+    expect(h.queue.state().rejectedKeys).toEqual(['a']);
   });
 
   it('A11: a retryAfterMs past maxRetryMs waits the clamp, and the default clamp is 60s', async () => {
@@ -421,10 +493,12 @@ describe('createSaveQueue', () => {
     expect(h.queue.state()).toMatchObject({ pending: 0, consecutiveFailures: 0 });
   });
 
-  it('isNonRetryable: numeric 400–499 except 408 and 429; strings and 5xx are retryable', () => {
+  it('isNonRetryable: numeric 400–499 except 401/403/408/429; strings and 5xx are retryable', () => {
     expect(isNonRetryable({ status: 400 })).toBe(true);
     expect(isNonRetryable({ status: 404 })).toBe(true);
     expect(isNonRetryable({ status: 499 })).toBe(true);
+    expect(isNonRetryable({ status: 401 })).toBe(false);
+    expect(isNonRetryable({ status: 403 })).toBe(false);
     expect(isNonRetryable({ status: 408 })).toBe(false);
     expect(isNonRetryable({ status: 429 })).toBe(false);
     expect(isNonRetryable({ status: 500 })).toBe(false);

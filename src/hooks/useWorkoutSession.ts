@@ -17,7 +17,7 @@ import {
 } from '../lib/tracking/sessionRepo';
 import type { ExerciseNoteEdit, RemovedSetKey, SessionInfo } from '../lib/tracking/sessionRepo';
 import { notify } from '../lib/notify';
-import { createSaveQueue, isNonRetryable } from '../lib/tracking/saveQueue';
+import { createSaveQueue, isAuthFailure, isNonRetryable } from '../lib/tracking/saveQueue';
 import type { SaveQueue, SaveQueueState } from '../lib/tracking/saveQueue';
 import type { SetField, CardioField } from '../components/tracker/TrackerExercise';
 import { registerAgentState } from '../dev/agentBridge';
@@ -25,7 +25,8 @@ import { registerAgentState } from '../dev/agentBridge';
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
 const IDLE_SAVE_STATE: SaveQueueState = {
-  pending: 0, inFlight: false, consecutiveFailures: 0, showBar: false, nextRetryAt: null, rejected: 0,
+  pending: 0, inFlight: false, consecutiveFailures: 0, showBar: false, nextRetryAt: null,
+  rejected: 0, rejectedKeys: [], paused: false,
 };
 
 const refusedMessage = (n: number) => `${n} ${n === 1 ? 'edit was' : 'edits were'} refused — edit again to resend`;
@@ -86,6 +87,9 @@ export function useWorkoutSession(
   const queueRef = useRef<SaveQueue | null>(null);
   // The hidden-tab flush marks its send so the request can outlive the page.
   const keepaliveRef = useRef(false);
+  // While the cancel request is out nothing is sent: a save landing after
+  // the delete would re-create rows. Mirrors isCancelling for the callbacks.
+  const cancellingRef = useRef(false);
   // What the server last reported for this session — bootstrap for a
   // finished session, or the finish response — so reopening the summary
   // costs nothing.
@@ -151,7 +155,13 @@ export function useWorkoutSession(
         quiet: queue().state().consecutiveFailures > 0,
       });
     } catch (err) {
-      if (isNonRetryable(err)) notify(`Autosave refused: ${(err as Error).message.slice(0, 140)}`);
+      // A refused batch is isolated by the queue, so only a single-key
+      // refusal names the row the user can act on. A refused `removed|`
+      // key is dropped below and gets no toast: nothing to edit.
+      if (isAuthFailure(err)) notify('Autosave paused — sign in again, then Retry');
+      else if (isNonRetryable(err) && keys.length === 1 && !keys[0].startsWith('removed|')) {
+        notify(`Autosave refused: ${(err as Error).message.slice(0, 140)}`);
+      }
       throw err;
     }
   };
@@ -159,9 +169,19 @@ export function useWorkoutSession(
   const makeQueue = (eventId: string, eventDate: string): SaveQueue => {
     const queue: SaveQueue = createSaveQueue({
       send: buildSend(eventId, eventDate, () => queue),
-      // A superseded queue's last send may settle after its replacement
-      // exists; only the live queue paints the state.
-      onChange: state => { if (queueRef.current === queue) setSaveState(state); },
+      onChange: state => {
+        // A refused delete has no field to re-edit: the server kept the
+        // row, the model no longer shows it, and a refusal nobody can act
+        // on must not block Finish. Unmarking re-emits the final state.
+        const stale = state.rejectedKeys.filter(k => k.startsWith('removed|'));
+        if (stale.length) {
+          for (const key of stale) queue.unmark(key);
+          return;
+        }
+        // A superseded queue's last send may settle after its replacement
+        // exists; only the live queue paints the state.
+        if (queueRef.current === queue) setSaveState(state);
+      },
     });
     return queue;
   };
@@ -241,8 +261,12 @@ export function useWorkoutSession(
    */
   const flushSave = useCallback((): Promise<boolean> => {
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
+    if (cancellingRef.current) return Promise.resolve(true);
     return queueRef.current?.flush() ?? Promise.resolve(true);
   }, []);
+
+  /** The queue's state right now — the React copy lags by a render. */
+  const getSaveState = useCallback((): SaveQueueState => queueRef.current?.state() ?? IDLE_SAVE_STATE, []);
 
   /** The Unsaved bar's Retry: cancels the scheduled retry and sends now. */
   const retrySave = useCallback((): Promise<boolean> => {
@@ -251,6 +275,7 @@ export function useWorkoutSession(
   }, []);
 
   const scheduleSave = useCallback(() => {
+    if (cancellingRef.current) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => { flushSave(); }, AUTOSAVE_DEBOUNCE_MS);
   }, [flushSave]);
@@ -261,7 +286,7 @@ export function useWorkoutSession(
   // send, and cleared here in case the flush sent nothing.
   useEffect(() => {
     const onHide = () => {
-      if (document.visibilityState !== 'hidden') return;
+      if (document.visibilityState !== 'hidden' || cancellingRef.current) return;
       keepaliveRef.current = true;
       flushSave().finally(() => { keepaliveRef.current = false; });
     };
@@ -557,6 +582,7 @@ export function useWorkoutSession(
     // flush from re-creating rows after the delete.
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
 
+    cancellingRef.current = true;
     setIsCancelling(true);
     try {
       await cancelSession(event.id, event.date);
@@ -566,6 +592,7 @@ export function useWorkoutSession(
       if (isFinished) setCompletion(event.id, false);
       return true;
     } catch {
+      cancellingRef.current = false;
       setIsCancelling(false);
       return false;
     }
@@ -609,6 +636,7 @@ export function useWorkoutSession(
     onNoteChange,
     flushSave,
     retrySave,
+    getSaveState,
     requestFinish,
     cancelWorkout,
     openSavedSummary,

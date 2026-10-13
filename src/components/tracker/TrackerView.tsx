@@ -50,7 +50,7 @@ export default function TrackerView() {
   const {
     groups, session, elapsed, isFinished, isFinishing, isCancelling, summary, saveState,
     onSetChange, onCardioChange, onCommitSetShadow, onCommitCardioShadow, onAddSet, onRemoveSet,
-    onAddExercise, onRemoveAddedExercise, onSwapExercise, onNoteChange, flushSave, retrySave, requestFinish, cancelWorkout, openSavedSummary, dismissSummary,
+    onAddExercise, onRemoveAddedExercise, onSwapExercise, onNoteChange, flushSave, retrySave, getSaveState, requestFinish, cancelWorkout, openSavedSummary, dismissSummary,
   } = useWorkoutSession(event, setCompletion);
 
   const [confirmCount, setConfirmCount] = useState<number | null>(null);
@@ -64,12 +64,16 @@ export default function TrackerView() {
   // Leaving the tracker drops its save queue, so Back waits for the save:
   // a failed flush keeps the session open with its edits still dirty (the
   // queue keeps retrying; the bar's Retry sends now) rather than losing them.
+  // Refused edits are the user's call to abandon — said out loud, never
+  // silently.
   const close = async () => {
     if (isCancelling) return;
     if (!(await flushSave())) {
       notify('Unsaved changes — retry before leaving');
       return;
     }
+    const refused = getSaveState().rejected;
+    if (refused > 0) notify(`${refused} refused ${refused === 1 ? 'edit' : 'edits'} will be lost`);
     dispatch({ type: 'STOP_TRACKING' });
   };
 

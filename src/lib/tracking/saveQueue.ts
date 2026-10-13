@@ -9,8 +9,10 @@
 // no versioning, so a stale batch landing after a newer one would overwrite
 // the newer values. Failures retry with exponential backoff, honouring the
 // server's Retry-After on a 429 and clamped to `maxRetryMs`. A 4xx other
-// than 408/429 is the server refusing the rows, not a transient fault: those
-// keys leave the queue as `rejected` and are retried only when re-dirtied.
+// than 401/403/408/429 is the server refusing rows, not a transient fault:
+// the batch is re-sent one key at a time so only the refused key leaves the
+// queue as `rejected` (re-dirtying it re-queues it). A 401/403 pauses the
+// queue — nothing retries until the user, signed in again, presses Retry.
 
 export interface SaveQueueDeps {
   /** Send these keys now. Resolves on success; rejects on failure. A rejection may carry `{ retryAfterMs?: number }` (e.g. from a 429) and `{ status?: number }`. */
@@ -28,9 +30,11 @@ export interface SaveQueueState {
   pending: number;              // distinct keys still dirty
   inFlight: boolean;
   consecutiveFailures: number;
-  showBar: boolean;             // consecutiveFailures >= barAfterFailures || rejected > 0
+  showBar: boolean;             // consecutiveFailures >= barAfterFailures || rejected > 0 || paused
   nextRetryAt: number | null;   // epoch ms of the scheduled retry, or null
   rejected: number;             // distinct keys the server refused (4xx); re-dirtying one re-queues it
+  rejectedKeys: readonly string[]; // those keys, first-dirtied order; a snapshot per call
+  paused: boolean;              // a 401/403 stopped the queue; retryNow() resumes it
 }
 
 export interface SaveQueue {
@@ -52,15 +56,36 @@ function retryAfterOf(err: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
 }
 
+function statusOf(err: unknown): number | null {
+  if (typeof err !== 'object' || err === null) return null;
+  const status = (err as { status?: unknown }).status;
+  return typeof status === 'number' ? status : null;
+}
+
+/** A 401/403: the session is gone, so no row will land until the user signs in again. */
+export function isAuthFailure(err: unknown): boolean {
+  const status = statusOf(err);
+  return status === 401 || status === 403;
+}
+
 /**
- * A rejection the server will keep giving: a numeric 4xx status other than
- * 408 (timeout) and 429 (rate limit). Anything else — 5xx, a dead socket, a
- * status given as a string — is transient and retried.
+ * A rejection the server will keep giving for these rows: a numeric 4xx
+ * status other than 401/403 (auth — pauses instead), 408 (timeout) and 429
+ * (rate limit). Anything else — 5xx, a dead socket, a status given as a
+ * string — is transient and retried.
  */
 export function isNonRetryable(err: unknown): boolean {
-  if (typeof err !== 'object' || err === null) return false;
-  const status = (err as { status?: unknown }).status;
-  return typeof status === 'number' && status >= 400 && status <= 499 && status !== 408 && status !== 429;
+  const status = statusOf(err);
+  return status !== null && status >= 400 && status <= 499
+    && status !== 401 && status !== 403 && status !== 408 && status !== 429;
+}
+
+function sameState(a: SaveQueueState, b: SaveQueueState): boolean {
+  return a.pending === b.pending && a.inFlight === b.inFlight
+    && a.consecutiveFailures === b.consecutiveFailures && a.showBar === b.showBar
+    && a.nextRetryAt === b.nextRetryAt && a.rejected === b.rejected && a.paused === b.paused
+    && a.rejectedKeys.length === b.rejectedKeys.length
+    && a.rejectedKeys.every((k, i) => k === b.rejectedKeys[i]);
 }
 
 export function createSaveQueue(deps: SaveQueueDeps): SaveQueue {
@@ -84,22 +109,24 @@ export function createSaveQueue(deps: SaveQueueDeps): SaveQueue {
   let consecutiveFailures = 0;
   let retryHandle: unknown = null;
   let nextRetryAt: number | null = null;
+  let paused = false;
   let disposed = false;
 
   const state = (): SaveQueueState => ({
     pending: generations.size,
     inFlight: inFlight !== null,
     consecutiveFailures,
-    showBar: consecutiveFailures >= barAfterFailures || rejected.size > 0,
+    showBar: consecutiveFailures >= barAfterFailures || rejected.size > 0 || paused,
     nextRetryAt,
     rejected: rejected.size,
+    rejectedKeys: [...rejected],
+    paused,
   });
 
   let lastEmitted = state();
   const emit = () => {
     const next = state();
-    const changed = (Object.keys(next) as (keyof SaveQueueState)[]).some(k => next[k] !== lastEmitted[k]);
-    if (!changed) return;
+    if (sameState(next, lastEmitted)) return;
     lastEmitted = next;
     deps.onChange?.(next);
   };
@@ -120,29 +147,63 @@ export function createSaveQueue(deps: SaveQueueDeps): SaveQueue {
     retryHandle = setTimer(() => {
       retryHandle = null;
       nextRetryAt = null;
-      if (disposed || inFlight) return;
+      if (disposed || inFlight || paused) return;
       if (generations.size > 0) send();
       else emit();
     }, delay);
   };
 
-  // Forget the snapshot's keys that nobody touched meanwhile (A1); a key
-  // re-dirtied during the send keeps its newer generation and stays pending.
-  const settleSnapshot = (snapshot: Map<string, number>, onSettled: (key: string) => void) => {
-    for (const [key, generation] of snapshot) {
-      if (generations.get(key) !== generation) continue;
-      generations.delete(key);
-      onSettled(key);
-    }
+  // A key leaves the dirty set only if nobody touched it since `generation`
+  // was read (A1); a re-dirtied key keeps its newer generation and stays.
+  const settleKey = (key: string, generation: number, refused: boolean) => {
+    if (generations.get(key) !== generation) return;
+    generations.delete(key);
+    if (refused) rejected.add(key);
   };
 
-  // A flush with nothing to send is a successful flush (A12): the failure
-  // streak is over and an armed retry has nothing to retry.
-  const flushEmpty = (): Promise<boolean> => {
+  // The three ways a send can end badly, shared by the batch and the
+  // single-key isolation sends. Each returns the flush outcome.
+  const onPaused = (): boolean => {
+    paused = true;
     cancelRetry();
-    consecutiveFailures = 0;
+    inFlight = null;
     emit();
-    return Promise.resolve(true);
+    return false;
+  };
+  const onFailed = (err: unknown): boolean => {
+    consecutiveFailures += 1;
+    inFlight = null;
+    if (!disposed) scheduleRetry(err);
+    emit();
+    return false;
+  };
+  const onDone = (): boolean => {
+    consecutiveFailures = 0;
+    inFlight = null;
+    emit();
+    return true;
+  };
+
+  // The server refused a batch, and it refuses a batch whole: re-send each
+  // snapshot key alone, in order, so only the key it actually refuses is
+  // rejected. One send is in flight throughout; a transient failure stops
+  // the pass with the rest still pending, and an auth failure pauses it.
+  const isolate = async (snapshot: Map<string, number>): Promise<boolean> => {
+    for (const key of snapshot.keys()) {
+      const generation = generations.get(key);
+      if (generation === undefined) continue; // unmarked meanwhile
+      try {
+        await deps.send([key]);
+        settleKey(key, generation, false);
+        emit();
+      } catch (err) {
+        if (isAuthFailure(err)) return onPaused();
+        if (!isNonRetryable(err)) return onFailed(err);
+        settleKey(key, generation, true);
+        emit();
+      }
+    }
+    return onDone();
   };
 
   // One send: snapshot the dirty keys with their generations and post them.
@@ -157,35 +218,34 @@ export function createSaveQueue(deps: SaveQueueDeps): SaveQueue {
       .then(() => deps.send(keys))
       .then(
         () => {
-          settleSnapshot(snapshot, () => {});
-          consecutiveFailures = 0;
-          inFlight = null;
-          emit();
-          return true;
+          for (const [key, generation] of snapshot) settleKey(key, generation, false);
+          return onDone();
         },
         (err: unknown) => {
-          if (isNonRetryable(err)) {
-            // The server refused these rows: they leave the queue as
-            // rejected (its own transition, the streak count untouched),
-            // and the flush then counts as successful (A10, A12).
-            settleSnapshot(snapshot, key => rejected.add(key));
-            cancelRetry();
-            inFlight = null;
-            emit();
-            consecutiveFailures = 0;
-            emit();
-            return true;
-          }
-          consecutiveFailures += 1;
+          if (isAuthFailure(err)) return onPaused();
+          if (!isNonRetryable(err)) return onFailed(err);
+          if (snapshot.size > 1) return isolate(snapshot);
+          // A one-key refusal is its own transition (the streak count
+          // untouched); the flush then counts as successful (A10, A12).
+          for (const [key, generation] of snapshot) settleKey(key, generation, true);
+          cancelRetry();
           inFlight = null;
-          if (!disposed) scheduleRetry(err);
           emit();
-          return false;
+          return onDone();
         },
       );
     inFlight = run;
     emit();
     return run;
+  };
+
+  // A flush with nothing to send is a successful flush (A12): the failure
+  // streak is over and an armed retry has nothing to retry.
+  const flushEmpty = (): Promise<boolean> => {
+    cancelRetry();
+    consecutiveFailures = 0;
+    emit();
+    return Promise.resolve(true);
   };
 
   // What a flush that waited on a send does once it settles: a failure is
@@ -206,6 +266,7 @@ export function createSaveQueue(deps: SaveQueueDeps): SaveQueue {
       });
       return queued;
     }
+    if (paused) return Promise.resolve(false);
     return generations.size > 0 ? send() : flushEmpty();
   };
 
@@ -223,6 +284,7 @@ export function createSaveQueue(deps: SaveQueueDeps): SaveQueue {
     },
     flush,
     retryNow() {
+      if (!disposed) paused = false;
       cancelRetry();
       emit();
       return flush();

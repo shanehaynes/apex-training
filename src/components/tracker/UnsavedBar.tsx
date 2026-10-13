@@ -9,14 +9,15 @@ interface Props {
 
 /**
  * The persistent strip under the tracker header while autosave is not
- * landing. Two situations, both or either: a failure streak (the queue
- * keeps retrying on its own; Retry sends now) and refused edits (the server
- * said no — editing the field again re-queues it, so there is nothing to
- * retry). It stays until a save lands: the edits are still on screen and
- * still dirty, which is the whole point.
+ * landing. Three situations, in any combination: a failure streak (the
+ * queue keeps retrying on its own; Retry sends now), a pause after a
+ * 401/403 (nothing is sent until the user signs in again and presses
+ * Retry), and refused edits (the server said no — editing the field again
+ * re-queues it, so there is nothing to retry). It stays until a save
+ * lands: the edits are still on screen and still dirty, which is the point.
  */
 export default function UnsavedBar({ state, onRetry }: Props) {
-  const failing = state.consecutiveFailures > 0;
+  const failing = state.paused || state.consecutiveFailures > 0;
   const refused = state.rejected > 0;
   const retrying = state.inFlight;
   return (
@@ -24,8 +25,8 @@ export default function UnsavedBar({ state, onRetry }: Props) {
       <span className="tracker-unsaved__msg">
         {failing && (
           <span>
-            Unsaved changes
-            {state.pending > 0 && <span className="tracker-unsaved__count"> · {state.pending}</span>}
+            {state.paused ? 'Sign in again' : 'Unsaved changes'}
+            {state.pending > 0 && <span className="tracker-unsaved__count"> · {state.pending} unsaved</span>}
           </span>
         )}
         {failing && refused && <span className="tracker-unsaved__sep"> · </span>}
