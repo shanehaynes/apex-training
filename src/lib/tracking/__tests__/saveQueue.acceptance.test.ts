@@ -21,7 +21,17 @@ const INITIAL: SaveQueueState = {
   showBar: false,
   nextRetryAt: null,
   rejected: 0,
+  rejectedKeys: [],
+  paused: false,
 };
+
+/** Idle state after `keys` were rejected non-retryably, in first-dirtied order. */
+const REJECTED = (keys: string[]): SaveQueueState => ({
+  ...INITIAL,
+  rejected: keys.length,
+  rejectedKeys: keys,
+  showBar: true,
+});
 
 /** A rejection carrying an HTTP status, as a fetch wrapper would throw it. */
 const httpError = (status: number, extra: Record<string, unknown> = {}): Error =>
@@ -737,22 +747,21 @@ describe('saveQueue acceptance', () => {
   });
 
   describe('A10 — non-retryable rejection', () => {
-    it('a 4xx rejection schedules no retry: the snapshot keys leave pending and count as rejected', CASE, async () => {
+    it('a 4xx rejection of a one-key snapshot schedules no retry: the key leaves pending and counts as rejected', CASE, async () => {
       const h = makeHarness();
       h.queue.markDirty('a');
-      h.queue.markDirty('b');
       const flushed = h.queue.flush();
       await settle();
       await h.fail(httpError(422));
       await expect(flushed).resolves.toBe(true);
-      expect(h.queue.state()).toEqual({ ...INITIAL, rejected: 2, showBar: true });
+      expect(h.queue.state()).toEqual(REJECTED(['a']));
       expect(h.timers.pending()).toBe(0);
       await h.timers.advance(120000);
       expect(h.send).toHaveBeenCalledTimes(1);
       // Nothing pending: a later flush sends nothing and leaves the rejects alone.
       await expect(h.queue.flush()).resolves.toBe(true);
       expect(h.send).toHaveBeenCalledTimes(1);
-      expect(h.queue.state().rejected).toBe(2);
+      expect(h.queue.state().rejected).toBe(1);
     });
 
     it('400 and 499 are non-retryable; 399, 408, 429 and 500 retry as before', CASE, async () => {
@@ -811,7 +820,7 @@ describe('saveQueue acceptance', () => {
       expect(h.queue.state().consecutiveFailures).toBe(1);
       const retried = h.queue.retryNow();
       await settle();
-      await h.fail(httpError(403));
+      await h.fail(httpError(410));
       await expect(retried).resolves.toBe(true);
       const atRejection = h.states.find((st) => st.rejected === 1);
       expect(atRejection).toBeDefined();
@@ -836,7 +845,7 @@ describe('saveQueue acceptance', () => {
       expect(h.attempt(1).keys).toEqual(['b']);
       await h.succeed(1);
       await expect(p2).resolves.toBe(true);
-      expect(h.queue.state()).toEqual({ ...INITIAL, rejected: 1, showBar: true });
+      expect(h.queue.state()).toEqual(REJECTED(['a']));
       expect(h.maxConcurrent()).toBe(1);
     });
   });
@@ -936,7 +945,7 @@ describe('saveQueue acceptance', () => {
       await settle();
       await h.succeed();
       await expect(third).resolves.toBe(true);
-      expect(h.queue.state()).toEqual({ ...INITIAL, rejected: 1, showBar: true });
+      expect(h.queue.state()).toEqual(REJECTED(['a']));
     });
   });
 
@@ -988,7 +997,308 @@ describe('saveQueue acceptance', () => {
     });
   });
 
+  describe('A14 — isolation on batch refusal', () => {
+    it('a multi-key batch refused 4xx is re-sent one key at a time, in order, and the flush resolves true', CASE, async () => {
+      const h = makeHarness();
+      for (const key of ['a', 'b', 'c']) h.queue.markDirty(key);
+      const flushed = h.queue.flush();
+      await settle();
+      expect(h.attempt(0).keys).toEqual(['a', 'b', 'c']);
+      await h.fail(httpError(422), 0);
+      expect(h.attempt(1).keys).toEqual(['a']);
+      expect(h.queue.state().inFlight).toBe(true);
+      await h.succeed(1);
+      expect(h.queue.state()).toMatchObject({ pending: 2, inFlight: true, rejected: 0 });
+      expect(h.lastState()).toMatchObject({ pending: 2, inFlight: true, rejected: 0 });
+      expect(h.attempt(2).keys).toEqual(['b']);
+      await h.fail(httpError(422), 2);
+      expect(h.queue.state()).toMatchObject({ pending: 1, inFlight: true, rejected: 1, rejectedKeys: ['b'] });
+      expect(h.lastState()).toMatchObject({ pending: 1, inFlight: true, rejected: 1 });
+      expect(h.attempt(3).keys).toEqual(['c']);
+      await h.succeed(3);
+      await expect(flushed).resolves.toBe(true);
+      expect(h.queue.state()).toEqual(REJECTED(['b']));
+      expect(h.sentKeys()).toEqual([['a', 'b', 'c'], ['a'], ['b'], ['c']]);
+      expect(h.maxConcurrent()).toBe(1);
+      expect(h.timers.pending()).toBe(0);
+      expect(h.mismatches()).toBe(0);
+    });
+
+    it('a retryable failure during isolation stops it: that key and the rest stay pending and backoff applies', CASE, async () => {
+      const h = makeHarness();
+      for (const key of ['a', 'b', 'c']) h.queue.markDirty(key);
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail(httpError(422), 0);
+      expect(h.attempt(1).keys).toEqual(['a']);
+      await h.succeed(1);
+      expect(h.attempt(2).keys).toEqual(['b']);
+      await h.fail(httpError(500), 2);
+      await expect(flushed).resolves.toBe(false);
+      expect(h.send).toHaveBeenCalledTimes(3); // 'c' was never isolated
+      expect(h.queue.state()).toMatchObject({ pending: 2, inFlight: false, rejected: 0, consecutiveFailures: 1 });
+      expect(h.timers.pending()).toBe(1);
+      expect(h.timers.lastDelay()).toBe(BACKOFF.baseMs);
+      await h.timers.advance(BACKOFF.baseMs);
+      expect(h.attempt(3).keys).toEqual(['b', 'c']);
+      await h.succeed(3);
+      expect(h.queue.state()).toEqual(INITIAL);
+    });
+
+    it('keys dirtied during the refused batch are not isolated and stay pending', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      h.queue.markDirty('b');
+      const flushed = h.queue.flush();
+      await settle();
+      h.queue.markDirty('c');
+      await h.fail(httpError(422), 0);
+      expect(h.attempt(1).keys).toEqual(['a']);
+      await h.succeed(1);
+      expect(h.attempt(2).keys).toEqual(['b']);
+      await h.succeed(2);
+      await expect(flushed).resolves.toBe(true);
+      expect(h.queue.state()).toMatchObject({ pending: 1, inFlight: false, rejected: 0 });
+      const next = h.queue.flush();
+      await settle();
+      const last = h.attempts[h.attempts.length - 1];
+      expect(last.keys).toEqual(['c']);
+      await h.succeed();
+      await expect(next).resolves.toBe(true);
+      expect(h.queue.state()).toEqual(INITIAL);
+    });
+
+    it('a key re-dirtied while its single-key isolation send is in flight stays pending (A1)', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      h.queue.markDirty('b');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail(httpError(422), 0);
+      expect(h.attempt(1).keys).toEqual(['a']);
+      h.queue.markDirty('a');
+      await h.succeed(1);
+      expect(h.attempt(2).keys).toEqual(['b']);
+      await h.succeed(2);
+      await expect(flushed).resolves.toBe(true);
+      expect(h.queue.state()).toMatchObject({ pending: 1, rejected: 0 });
+      const next = h.queue.flush();
+      await settle();
+      const last = h.attempts[h.attempts.length - 1];
+      expect(last.keys).toEqual(['a']);
+      await h.succeed();
+      await expect(next).resolves.toBe(true);
+    });
+
+    it('flush() during isolation waits; sends never overlap and the new key is sent after', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      h.queue.markDirty('b');
+      const p1 = h.queue.flush();
+      await settle();
+      await h.fail(httpError(422), 0);
+      expect(h.attempt(1).keys).toEqual(['a']);
+      h.queue.markDirty('d');
+      const p2 = h.queue.flush();
+      await settle();
+      // Drive whatever is in flight to success until the queue goes quiet.
+      for (let guard = 0; guard < 8 && h.attempts.some((a) => !a.settled); guard++) {
+        await h.succeed(h.attempts.findIndex((a) => !a.settled));
+      }
+      await expect(p1).resolves.toBe(true);
+      await expect(p2).resolves.toBe(true);
+      const sent = h.sentKeys();
+      expect(sent.slice(1, 3)).toEqual([['a'], ['b']]);
+      expect(sent.slice(3)).toEqual([['d']]);
+      expect(h.maxConcurrent()).toBe(1);
+      expect(h.queue.state()).toEqual(INITIAL);
+    });
+  });
+
+  describe('A15 — rejectedKeys', () => {
+    it('rejectedKeys lists rejected keys in first-dirtied order; unmark and markDirty each remove one', CASE, async () => {
+      const h = makeHarness();
+      for (const key of ['b', 'c', 'a']) h.queue.markDirty(key);
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail(httpError(422), 0);
+      await h.fail(httpError(422), 1); // b
+      await h.succeed(2); // c
+      await h.fail(httpError(422), 3); // a
+      await expect(flushed).resolves.toBe(true);
+      expect(h.queue.state()).toEqual(REJECTED(['b', 'a']));
+      h.queue.unmark('b');
+      expect(h.queue.state()).toEqual(REJECTED(['a']));
+      expect(h.lastState()).toEqual(REJECTED(['a']));
+      h.queue.unmark('never-rejected');
+      expect(h.queue.state()).toEqual(REJECTED(['a']));
+      h.queue.markDirty('a');
+      expect(h.queue.state()).toEqual({ ...INITIAL, pending: 1 });
+      expect(h.lastState()).toEqual({ ...INITIAL, pending: 1 });
+      expect(h.mismatches()).toBe(0);
+    });
+
+    it('unmark of the last rejected key lowers the bar', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail(httpError(400));
+      await expect(flushed).resolves.toBe(true);
+      expect(h.queue.state()).toEqual(REJECTED(['a']));
+      h.queue.unmark('a');
+      expect(h.queue.state()).toEqual(INITIAL);
+      expect(h.send).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('A16 — paused on auth', () => {
+    it('401 and 403 pause the queue: keys stay pending, no retry is armed, the count is untouched, the bar is up', CASE, async () => {
+      for (const status of [401, 403]) {
+        const h = makeHarness();
+        h.queue.markDirty('a');
+        const flushed = h.queue.flush();
+        await settle();
+        await h.fail(httpError(status));
+        await expect(flushed).resolves.toBe(false);
+        expect(h.queue.state()).toEqual({ ...INITIAL, pending: 1, paused: true, showBar: true });
+        expect(h.lastState()).toEqual({ ...INITIAL, pending: 1, paused: true, showBar: true });
+        expect(h.timers.pending()).toBe(0);
+        await h.timers.advance(120000);
+        expect(h.send).toHaveBeenCalledTimes(1);
+      }
+    });
+
+    it('while paused, markDirty keeps it paused and flush() resolves false without sending', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail(httpError(401));
+      await expect(flushed).resolves.toBe(false);
+      h.queue.markDirty('b');
+      expect(h.queue.state()).toMatchObject({ pending: 2, paused: true, showBar: true });
+      await expect(h.queue.flush()).resolves.toBe(false);
+      expect(h.send).toHaveBeenCalledTimes(1);
+      expect(h.queue.state()).toMatchObject({ pending: 2, paused: true });
+    });
+
+    it('retryNow() clears paused and sends; a success leaves the queue unpaused', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail(httpError(403));
+      await expect(flushed).resolves.toBe(false);
+      h.queue.markDirty('b');
+      const retried = h.queue.retryNow();
+      await settle();
+      expect(h.queue.state()).toMatchObject({ paused: false, inFlight: true, pending: 2 });
+      expect(h.attempt(1).keys).toEqual(['a', 'b']);
+      await h.succeed(1);
+      await expect(retried).resolves.toBe(true);
+      expect(h.queue.state()).toEqual(INITIAL);
+    });
+
+    it('after retryNow() a retryable failure backs off as usual and a second 401 pauses again', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail(httpError(401));
+      await expect(flushed).resolves.toBe(false);
+      const first = h.queue.retryNow();
+      await settle();
+      await h.fail(httpError(500));
+      await expect(first).resolves.toBe(false);
+      expect(h.queue.state()).toMatchObject({ paused: false, consecutiveFailures: 1, pending: 1 });
+      expect(h.timers.pending()).toBe(1);
+      await h.timers.advance(BACKOFF.baseMs);
+      await h.fail(httpError(401));
+      expect(h.queue.state()).toMatchObject({ paused: true, consecutiveFailures: 1, nextRetryAt: null, pending: 1 });
+      expect(h.timers.pending()).toBe(0);
+      await h.timers.advance(120000);
+      expect(h.send).toHaveBeenCalledTimes(3);
+    });
+
+    it('a pause leaves consecutiveFailures where it was, and the next success clears both', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail();
+      await expect(flushed).resolves.toBe(false);
+      expect(h.queue.state().consecutiveFailures).toBe(1);
+      const retried = h.queue.retryNow();
+      await settle();
+      await h.fail(httpError(401));
+      await expect(retried).resolves.toBe(false);
+      expect(h.queue.state()).toEqual({ ...INITIAL, pending: 1, consecutiveFailures: 1, paused: true, showBar: true });
+      expect(h.timers.pending()).toBe(0);
+      const again = h.queue.retryNow();
+      await settle();
+      await h.succeed();
+      await expect(again).resolves.toBe(true);
+      expect(h.queue.state()).toEqual(INITIAL);
+    });
+  });
+
   describe('spec gaps (ruled before they count)', () => {
+    it('AMBIGUOUS: rejectedKeys is a snapshot, not the live internal list', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      h.queue.markDirty('b');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail(httpError(422), 0);
+      await h.fail(httpError(422), 1);
+      await h.fail(httpError(422), 2);
+      await expect(flushed).resolves.toBe(true);
+      const before = h.queue.state().rejectedKeys;
+      expect(before).toEqual(['a', 'b']);
+      h.queue.unmark('a');
+      expect(before).toEqual(['a', 'b']);
+      expect(h.queue.state().rejectedKeys).toEqual(['b']);
+    });
+
+    it('AMBIGUOUS: a 401 during isolation pauses with the isolating key and the rest still pending', CASE, async () => {
+      const h = makeHarness();
+      for (const key of ['a', 'b', 'c']) h.queue.markDirty(key);
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail(httpError(422), 0);
+      await h.succeed(1); // a
+      await h.fail(httpError(401), 2); // b
+      await expect(flushed).resolves.toBe(false);
+      expect(h.send).toHaveBeenCalledTimes(3);
+      expect(h.queue.state()).toEqual({ ...INITIAL, pending: 2, paused: true, showBar: true });
+      expect(h.timers.pending()).toBe(0);
+      const retried = h.queue.retryNow();
+      await settle();
+      expect(h.attempt(3).keys).toEqual(['b', 'c']);
+      await h.succeed(3);
+      await expect(retried).resolves.toBe(true);
+      expect(h.queue.state()).toEqual(INITIAL);
+    });
+
+    it('AMBIGUOUS: dispose() leaves paused and rejectedKeys as they were', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      h.queue.markDirty('b');
+      const first = h.queue.flush();
+      await settle();
+      await h.fail(httpError(422), 0);
+      await h.fail(httpError(422), 1); // a rejected
+      await h.fail(httpError(401), 2); // b pauses
+      await expect(first).resolves.toBe(false);
+      expect(h.queue.state()).toMatchObject({ pending: 1, paused: true, rejectedKeys: ['a'] });
+      h.queue.dispose();
+      expect(h.queue.state()).toMatchObject({ paused: true, rejected: 1, rejectedKeys: ['a'] });
+      await expect(h.queue.flush()).resolves.toBe(false);
+      await expect(h.queue.retryNow()).resolves.toBe(false);
+      expect(h.send).toHaveBeenCalledTimes(3);
+    });
+
     it('AMBIGUOUS: the flush whose own send was rejected 4xx resolves true even though a key dirtied in flight is still pending', CASE, async () => {
       const h = makeHarness();
       h.queue.markDirty('a');
@@ -1034,7 +1344,7 @@ describe('saveQueue acceptance', () => {
       await expect(flushed).resolves.toBe(false);
       const retried = h.queue.retryNow();
       await settle();
-      await h.fail(httpError(403));
+      await h.fail(httpError(410));
       await expect(retried).resolves.toBe(true);
       const atRejection = h.states.find((st) => st.rejected === 1);
       expect(atRejection).toMatchObject({ pending: 0, rejected: 1, consecutiveFailures: 1, nextRetryAt: null });
@@ -1052,7 +1362,7 @@ describe('saveQueue acceptance', () => {
       await settle();
       await h.fail(httpError(410));
       await expect(retried).resolves.toBe(true);
-      expect(h.queue.state()).toEqual({ ...INITIAL, rejected: 1, showBar: true });
+      expect(h.queue.state()).toEqual(REJECTED(['a']));
     });
 
     it('AMBIGUOUS: the originating flush does not start a second send on its own for a key re-dirtied in flight', CASE, async () => {
