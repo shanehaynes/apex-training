@@ -11,7 +11,7 @@
 //   1. uncommitted or untracked files            → "commit them" (lists them)
 //   2. work already landed in origin/main         → nothing left to prove
 //   3. the gate (npm run agent:check) is red      → the failing tail
-//   4. commits not on origin                      → "push"
+//   4. commits not on origin/<branch>             → "push"
 //
 // and refuses the stop (exit 2, reason on stderr — Claude reads it and keeps
 // working). A green run is cached by commit SHA, so a session that stops
@@ -182,14 +182,21 @@ export function landedInMain(wt) {
   return merged.out.split('\n')[0] === git(wt, ['rev-parse', 'origin/main^{tree}']).out;
 }
 
-// Commits on HEAD that no remote-tracking ref has.
-export function unpushedCount(wt) {
-  const r = git(wt, ['rev-list', '--count', 'HEAD', '--not', '--remotes']);
-  return r.ok ? Number(r.out) || 0 : 0;
-}
-
 export function hasRemoteBranch(wt, branch) {
   return !!branch && git(wt, ['rev-parse', '-q', '--verify', `refs/remotes/origin/${branch}`]).ok;
+}
+
+// Commits on HEAD that origin/<branch> does not have — the branch's own ref,
+// not "any remote ref": a push under another name must not count. A branch
+// with no remote ref is wholly unpushed; detached HEAD falls back to every
+// remote ref, since there is no name to check against.
+export function unpushedCount(wt, branch) {
+  const r = branch
+    ? hasRemoteBranch(wt, branch)
+      ? git(wt, ['rev-list', '--count', `refs/remotes/origin/${branch}..HEAD`])
+      : git(wt, ['rev-list', '--count', 'HEAD', '--not', '--remotes'])
+    : git(wt, ['rev-list', '--count', 'HEAD', '--not', '--remotes']);
+  return r.ok ? Number(r.out) || 0 : 0;
 }
 
 // Run the gate in its own process group so a timeout kills vite, vitest and
@@ -340,7 +347,7 @@ export async function decide(input, { primary, run = runGate, maxRedRuns = MAX_R
 
     // 4. On origin, under its own name.
     const branch = branchOf(wt);
-    const unpushed = unpushedCount(wt);
+    const unpushed = unpushedCount(wt, branch);
     if (unpushed > 0 || (branch && !hasRemoteBranch(wt, branch))) {
       const push = branch ? `git -C ${wt} push -u origin ${branch}` : 'push it (HEAD is detached — check out the branch first)';
       const what = unpushed > 0 ? `${unpushed} commit(s) not on origin` : `branch ${branch} is not on origin`;

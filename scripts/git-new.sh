@@ -78,6 +78,15 @@ git fetch origin main --quiet
 
 git worktree add "$dir" -b "$branch" origin/main
 
+# Bind this Claude Code session to the lane so the Stop hook
+# (scripts/hooks/stop-gate.mjs) knows which worktree must be clean, green and
+# pushed before the session may stop. Before the install: a failed `npm ci`
+# exits this script, and a lane that exists must already be gated. Outside
+# Claude Code there is no session to bind.
+if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] && [ -x "$root/scripts/stop-gate.sh" ]; then
+  "$root/scripts/stop-gate.sh" bind "$dir" >/dev/null || true
+fi
+
 if [ "$install" -eq 1 ]; then
   echo "── installing dependencies (node_modules is per-worktree; --no-install skips this)"
   (cd "$dir" && npm ci --no-audit --no-fund --silent)
@@ -92,14 +101,6 @@ state_dir="$root/.claude/state"
 mkdir -p "$state_dir"
 printf '%s\t%s\t%s\t%s\n' "$branch" "$(date -u +%FT%TZ)" "$dir" "${intent//$'\t'/ }" \
   >> "$state_dir/claims.tsv"
-
-# Bind this Claude Code session to the lane so the Stop hook
-# (scripts/hooks/stop-gate.mjs) knows which worktree must be clean, green and
-# pushed before the session may stop. Outside Claude Code there is no session
-# to bind.
-if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] && [ -x "$root/scripts/stop-gate.sh" ]; then
-  "$root/scripts/stop-gate.sh" bind "$dir" >/dev/null || true
-fi
 
 # dev/port.mjs resolves the per-worktree dev/e2e port (CONTRIBUTING.md).
 port=$(cd "$dir" && node dev/port.mjs 2>/dev/null || echo "?")

@@ -194,6 +194,18 @@ describe('the gate, in order', () => {
     git(lane, 'push', '-q', 'origin', '--delete', 'other-name');
   });
 
+  it('origin/<branch> behind HEAD is unpushed even when the new commits sit under another remote ref', async () => {
+    git(lane, 'push', '-q', '-u', 'origin', 'feat/a');
+    writeFileSync(join(lane, 'behind.txt'), 'x\n');
+    git(lane, 'add', '.');
+    git(lane, 'commit', '-q', '-m', 'behind');
+    git(lane, 'push', '-q', 'origin', 'HEAD:refs/heads/other-name');
+    const v = await stop(gate(true).run);
+    expect(v.action).toBe('block');
+    expect(v.reason).toContain('1 commit(s) not on origin');
+    git(lane, 'push', '-q', 'origin', '--delete', 'other-name');
+  });
+
   it('pushed: allows, and the cached green run is not repeated', async () => {
     git(lane, 'push', '-q', '-u', 'origin', 'feat/a');
     const g = gate(false); // would be red if it ran
