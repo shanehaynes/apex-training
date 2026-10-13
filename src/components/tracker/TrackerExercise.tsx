@@ -19,6 +19,9 @@ interface Props {
   /** First focus in a shadow row — commit the rendered ghost values into the actuals. */
   onCommitSetShadow: (setNumber: number, values: Partial<Record<SetField, string>>) => void;
   onCommitCardioShadow: (field: CardioField) => void;
+  /** A set row's reps or duration went empty → non-empty (blur or Enter), or
+   *  its ghost was tapped: the row is done, the rest starts (R2.1, R2.2). */
+  onSetCommit?: (setNumber: number) => void;
   onAddSet: () => void;
   onRemoveSet: (setNumber: number) => void;
   /** Re-point this exercise's logs at another movement, for this day only. */
@@ -63,6 +66,14 @@ const SHADOW_FIELD: Record<SetField, keyof LastSetActuals> = {
   actualDuration: 'duration',
 };
 
+// Weight alone is not a set done; reps or a duration is (R2.2).
+const COMMIT_FIELDS: SetField[] = ['actualReps', 'actualDuration'];
+
+/** The row holds reps or a duration, among the fields it shows. */
+function rowFilled(values: Partial<Record<SetField, string>>, fields: SetField[]): boolean {
+  return COMMIT_FIELDS.some(field => fields.includes(field) && !!values[field]?.trim());
+}
+
 function SetRow({
   set,
   fields,
@@ -71,6 +82,7 @@ function SetRow({
   unplanned,
   onChange,
   onCommitShadow,
+  onCommit,
   onRemove,
 }: {
   set: TrackedSet;
@@ -82,6 +94,8 @@ function SetRow({
   freeText?: boolean;
   onChange: (field: SetField, value: string) => void;
   onCommitShadow: () => void;
+  /** The row's reps/duration went empty → non-empty between focus and blur. */
+  onCommit: () => void;
   onRemove?: () => void;
 }) {
   // Commit the whole row's ghost, then select the tapped field so the first
@@ -92,11 +106,28 @@ function SetRow({
     requestAnimationFrame(() => el.select());
   };
 
+  // Whether the row already held reps/duration when a field took focus. A
+  // ghost row counts as filled when its ghost would fill those fields: the
+  // tap commits it, and that commit is reported by onCommitShadow's caller,
+  // not by the blur that follows.
+  const filledAtFocus = useRef(false);
+  const filled = rowFilled(set, fields);
+  const shadowFills = !!set.shadow && rowFilled(
+    { actualReps: set.shadow.reps, actualDuration: set.shadow.duration }, fields,
+  );
+
   return (
     <div className="tracker-set">
       <span className="tracker-set__num">{set.setNumber}</span>
       <span className="tracker-set__planned">{unplanned ? '—' : set.isExtra ? 'extra' : plannedLabel(set.planned)}</span>
-      <div className="tracker-set__inputs">
+      <div
+        className="tracker-set__inputs"
+        // React's focus/blur bubble, so the row sees every field's; the
+        // commit is read at blur from the row's state, not the DOM, because
+        // DurationInput's display is a digit buffer while it is focused.
+        onFocus={() => { filledAtFocus.current = filled || shadowFills; }}
+        onBlur={() => { if (!filledAtFocus.current && filled) onCommit(); }}
+      >
         {fields.map(field => {
           const ghost = set.shadow ? set.shadow[SHADOW_FIELD[field]] : '';
           const className = `tracker-input ${FIELD_CLASS[field]}${ghost ? ' tracker-input--shadow' : ''}`;
@@ -121,6 +152,8 @@ function SetRow({
               placeholder={ghost || undefined}
               onFocus={e => focusShadow(e.currentTarget)}
               onChange={e => onChange(field, e.target.value)}
+              // Enter is "done", as it is in DurationInput: the blur commits.
+              onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
             />
           );
         })}
@@ -150,6 +183,7 @@ export default function TrackerExercise({
   onCardioChange,
   onCommitSetShadow,
   onCommitCardioShadow,
+  onSetCommit,
   onAddSet,
   onRemoveSet,
   onSwap,
@@ -384,7 +418,10 @@ export default function TrackerExercise({
                 const values: Partial<Record<SetField, string>> = {};
                 for (const field of fields) values[field] = set.shadow[SHADOW_FIELD[field]];
                 onCommitSetShadow(set.setNumber, values);
+                // Tapping the ghost logs the row (R2.1) — when it logs reps or a duration.
+                if (rowFilled(values, fields)) onSetCommit?.(set.setNumber);
               }}
+              onCommit={() => onSetCommit?.(set.setNumber)}
               onRemove={set.isExtra ? () => onRemoveSet(set.setNumber) : undefined}
             />
           ))}

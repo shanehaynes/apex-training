@@ -1,0 +1,84 @@
+/* ─── Tracker: Rest countdown bar ──────────────────────────────────────────
+   Under the header (below the Unsaved bar), in flow, so the body scrolls
+   beneath it and it never meets the confirm/score bars pinned to the bottom.
+   Same surface as .tracker-unsaved; the controls are 44px targets. */
+
+.rest-timer {
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-lg);
+  flex-shrink: 0;
+}
+
+.rest-timer__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px;
+  min-height: 48px;
+}
+
+.rest-timer__label {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rest-timer__name {
+  color: var(--text-muted);
+}
+
+.rest-timer__time {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  min-width: 3.2em;
+  text-align: right;
+}
+
+.rest-timer__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-family: var(--font-display);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+
+.rest-timer__btn:hover {
+  background: var(--bg-surface);
+}
+
+/* What is left of the round, thinning to nothing at zero. */
+.rest-timer__track {
+  height: 3px;
+  background: var(--border-subtle);
+}
+
+.rest-timer__fill {
+  height: 100%;
+  background: var(--accent-primary);
+  transition: width 1s linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rest-timer__fill {
+    transition: none;
+  }
+}
