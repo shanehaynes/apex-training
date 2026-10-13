@@ -298,6 +298,12 @@ send only what was actually touched.
    authoring UI for ramps/pyramids — the schema supports it, but until something writes
    `plannedSets`, the tracker will only ever show synthesized uniform targets. Worth deciding
    whether that's acceptable for v1 or whether a minimal authoring path is needed alongside.
+   *Resolved since:* the exercise editor's "Per-set targets" disclosure (web
+   `src/components/modal/PlannedSetsEditor.tsx`, iOS `PlannedSetsEditor.swift`) authors the
+   rows — one per set, with Ramp / Pyramid / Top set + back-offs presets over the pure builders
+   in `src/lib/builder/plannedSets.ts` (`ApexCore/Schedule/PlannedSets.swift`). Editing the
+   base prescription keeps the rows; "Apply to all sets" and "Remove per-set targets" are the
+   explicit ways back. The coach's tools still cannot author them (follow-up).
 3. **Exercise ID stability** (Section 3.2) is unverified. If ids are regenerated on every
    event edit rather than preserved, the unique constraints on `workout_set_logs`/
    `workout_cardio_logs` will silently orphan historical logs the first time someone edits
@@ -324,7 +330,8 @@ send only what was actually touched.
   This project only makes the data exist; using it is future work.
 - An authoring UI for `plannedSets` (ramps/pyramids). The schema supports it; nothing here
   builds a way to create them beyond manual DB/JSON edits or the existing coach tool-call
-  path (if that path is extended separately).
+  path (if that path is extended separately). *Since landed* as the exercise editor's
+  "Per-set targets" disclosure on web and iOS (Section 6, item 2).
 - Draft/resume UI for interrupted sessions. Autosave-for-crash-safety is recommended
   (Section 6.1) but a "resume where you left off" *experience* is explicitly out of scope
   per the single-sitting requirement.
@@ -377,7 +384,12 @@ Resolve these before or during implementation — don't guess:
 4. **Cardio session timer** — runs for every session, cardio-only included; cardio
    exercises just get the structured form instead of per-set rows.
 5. **plannedSets authoring** — out of scope for v1. Schema + type + tracker support landed;
-   authoring is manual DB/JSON edits until a future project.
+   authoring was manual DB/JSON edits until the exercise editor's "Per-set targets"
+   disclosure (web and iOS) took it over: a row per set, Ramp / Pyramid / Top set + back-offs
+   presets, rows editable after a preset, the set count resizing the table, and no silent
+   clear on a prescription edit — "Apply to all sets" and "Remove per-set targets" are the
+   explicit replacements. Pure builders: `src/lib/builder/plannedSets.ts`,
+   `ApexCore/Schedule/PlannedSets.swift`; proof: `e2e/mock/planned-sets.spec.ts`.
 6. **Finish confirmation** — yes, but only when unlogged planned sets exist ("N planned
    sets unlogged — recorded as 0. Finish anyway?").
 7. **Post-finish landing** — back to the calendar. Reopening the event shows a
