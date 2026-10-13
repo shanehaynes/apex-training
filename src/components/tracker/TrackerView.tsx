@@ -19,6 +19,8 @@ import ScorePrompt from './ScorePrompt';
 import type { SessionScore } from '../../lib/tracking/records';
 import type { TrackedSectionGroup } from '../../lib/tracking/plan';
 import { useTip } from '../../hooks/useTip';
+import { useTrackerRestTimer } from '../../hooks/useRestTimer';
+import RestTimerBar from './RestTimerBar';
 
 /**
  * The tracker's two first-open tips. A child rendered only while a session is
@@ -57,6 +59,9 @@ export default function TrackerView() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
+  // Rest countdown between sets: a row's first non-empty reps/duration (or
+  // its ghost tapped) starts it from the exercise's rest text (lib/tracking/rest.ts).
+  const rest = useTrackerRestTimer({ groups, sessionKey: event?.id ?? null, finished: isFinished });
 
   const color = event ? getWorkoutColor(event.type) : null;
   if (!event || !color) return null;
@@ -154,6 +159,9 @@ export default function TrackerView() {
       </header>
 
       {saveState.showBar && <UnsavedBar state={saveState} onRetry={() => { retrySave(); }} />}
+      {rest.running && (
+        <RestTimerBar remaining={rest.remaining} progress={rest.progress} label={rest.exerciseLabel} onExtend={rest.extend} onSkip={rest.skip} />
+      )}
 
       <div className="tracker-body">
         {isFinished && groups && (
@@ -180,6 +188,7 @@ export default function TrackerView() {
                   onCardioChange={(field, value) => onCardioChange(group.section, tracked.exercise.id, field, value)}
                   onCommitSetShadow={(setNumber, values) => onCommitSetShadow(group.section, tracked.exercise.id, setNumber, values)}
                   onCommitCardioShadow={field => onCommitCardioShadow(group.section, tracked.exercise.id, field)}
+                  onSetCommit={setNumber => rest.commit(group.section, tracked.exercise.id, setNumber)}
                   onAddSet={() => onAddSet(group.section, tracked.exercise.id)}
                   onRemoveSet={setNumber => onRemoveSet(group.section, tracked.exercise.id, setNumber)}
                   onSwap={def => handleSwap(group.section, tracked.exercise.id, def)}
