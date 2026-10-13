@@ -1,0 +1,124 @@
+/* ============================================================================
+   COPY — "Duplicate to…" on the workout modal and "Copy last week" on an
+   empty week (src/lib/calendar/copy.ts). Lives outside app.css on purpose
+   (CLAUDE.md: feature lanes never edit it); every colour is a token from
+   tokens.css and the controls reuse the modal's own chip and button sizes.
+   ========================================================================== */
+
+/* ── Duplicate: a chip in the modal's meta strip. Its own class, not
+   .modal-meta-item--edit — that class is the date + time pair, and the
+   reschedule spec counts it. ─────────────────────────────────────────── */
+
+.copy-duplicate {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  border-bottom: 1px dashed transparent;
+}
+
+.copy-duplicate:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-bottom-color: var(--border-subtle);
+}
+
+.copy-duplicate:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* ── Duplicate: the past-date confirm, a line under the meta strip ────── */
+
+.copy-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.copy-confirm__text {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  max-width: 46ch;
+}
+
+.copy-confirm__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.copy-confirm__btn {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  font-family: var(--font-display);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.copy-confirm__btn:hover:not(:disabled) {
+  background: var(--bg-elevated);
+}
+
+.copy-confirm__btn--primary {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.copy-confirm__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ── Copy last week: a slim banner between the calendar toolbar and the
+   views, only while the viewed week has nothing on it ───────────────── */
+
+.copy-week {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 6px 12px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.copy-week__text {
+  margin: 0;
+}
+
+.copy-week__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--accent-primary);
+  background: transparent;
+  color: var(--accent-primary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.copy-week__btn:hover:not(:disabled) {
+  background: var(--bg-elevated);
+}
+
+.copy-week__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

@@ -7,6 +7,7 @@ import { clearTemplateCopiedHere, templateCopiedHere } from '../../hooks/useTemp
 import MonthView from './MonthView';
 import WeekView from './WeekView';
 import DayView from './DayView';
+import CopyWeek from './CopyWeek';
 import '../review/weekly-review.css';
 
 export default function Calendar() {
@@ -54,6 +55,9 @@ export default function Calendar() {
           <span className="calendar-toolbar__label">Weekly review</span>
         </button>
       </div>
+      {/* "Copy last week" (src/lib/calendar/copy.ts): a slim row only while
+          the viewed week has nothing on it; renders null otherwise. */}
+      <CopyWeek currentDate={state.currentDate} view={state.selectedView} />
       <div className="calendar-toolbar__views">
         {state.selectedView === 'month' ? (
           <MonthView currentDate={state.currentDate} direction={direction} />
