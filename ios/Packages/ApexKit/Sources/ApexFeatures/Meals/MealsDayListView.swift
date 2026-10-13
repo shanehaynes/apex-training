@@ -21,6 +21,13 @@ public struct MealsDayListView: View {
                     .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
                     .foregroundStyle(day == nil ? ApexColor.textMuted : ApexColor.textSecondary)
                     .accessibilityIdentifier("meals.rollup")
+                if let waiting = model.pendingMeals[model.selectedDay.string], waiting > 0 {
+                    // A meal saved with no signal: listed once the server has it (D-052).
+                    Label(waiting == 1 ? "1 meal waiting to sync" : "\(waiting) meals waiting to sync", systemImage: "icloud.and.arrow.up")
+                        .font(.apex(.mono, size: TypeScale.micro, weight: .medium, relativeTo: .caption2))
+                        .foregroundStyle(ApexColor.textMuted)
+                        .accessibilityIdentifier("meals.pending")
+                }
                 if let meals = day?.meals, !meals.isEmpty {
                     SettingsSection {
                         ForEach(Array(meals.enumerated()), id: \.offset) { index, meal in

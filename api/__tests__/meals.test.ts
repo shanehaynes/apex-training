@@ -19,6 +19,8 @@ const mockedAdmin = vi.mocked(getSupabaseAdmin);
 // pre-read and the audit log, and records what it was asked to write.
 interface AdminState {
   current?: Record<string, unknown> | null;
+  /** What the insert answers instead of success (a duplicate key, a dead connection). */
+  insertError?: { code?: string; message: string };
   inserted?: Record<string, unknown>;
   updated?: Record<string, unknown>;
   logged?: Record<string, unknown>;
@@ -33,7 +35,11 @@ function makeAdmin(state: AdminState) {
       }
       if (table !== 'meals') throw new Error(`unexpected table ${table}`);
       return {
-        insert: async (row: Record<string, unknown>) => { state.inserted = row; return { error: null }; },
+        insert: async (row: Record<string, unknown>) => {
+          if (state.insertError) return { error: state.insertError };
+          state.inserted = row;
+          return { error: null };
+        },
         select: () => ({
           eq: () => ({
             eq: () => ({
@@ -111,6 +117,37 @@ describe('POST /api/meals', () => {
     expect(state.inserted).toMatchObject({ id: 'meal-1', title: 'Oats', user_id: 'user-123', fat_saturated_g: 4 });
     expect(state.logged).toMatchObject({ operation: 'create', meal_id: 'meal-1', meal_title: 'Oats', triggered_by: 'user' });
     expect(enforceAiMutationCap).not.toHaveBeenCalled();
+  });
+
+  it('answers a replayed create (duplicate key on the caller\'s own row) as already landed', async () => {
+    // The iOS outbox re-sends a create whose answer it never heard, with
+    // the same client-minted id. The row is there: 200, nothing written,
+    // nothing logged a second time.
+    state.insertError = { code: '23505', message: 'duplicate key value violates unique constraint "meals_pkey"' };
+    state.current = { id: 'meal-1' };
+    const { res, captured } = makeRes();
+    await handler(makeReq('POST', { body: { ...meal, triggered_by: 'user' } }), res);
+    expect(captured.statusCode).toBe(200);
+    expect(captured.body).toEqual({ id: 'meal-1', replayed: true });
+    expect(state.reads).toBe(1);
+    expect(state.inserted).toBeUndefined();
+    expect(state.logged).toBeUndefined();
+  });
+
+  it('refuses a duplicate id that belongs to someone else, and still 500s any other insert failure', async () => {
+    state.insertError = { code: '23505', message: 'duplicate key value violates unique constraint "meals_pkey"' };
+    state.current = null;
+    const taken = makeRes();
+    await handler(makeReq('POST', { body: { ...meal, triggered_by: 'user' } }), taken.res);
+    expect(taken.captured.statusCode).toBe(409);
+    expect(taken.captured.body).toBe('Meal id already in use');
+    expect(state.logged).toBeUndefined();
+
+    state.insertError = { code: '57P01', message: 'terminating connection due to administrator command' };
+    const down = makeRes();
+    await handler(makeReq('POST', { body: { ...meal, triggered_by: 'user' } }), down.res);
+    expect(down.captured.statusCode).toBe(500);
+    expect(down.captured.body).toBe('Failed to create meal');
   });
 });
 

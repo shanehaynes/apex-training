@@ -144,7 +144,7 @@ public final class ScheduleModel {
     private func loadCache() async {
         if let entry = try? await deps.cache.read(kind: .scheduleWindow, key: ScheduleCacheKey.window),
            let cached = try? await Self.buildIndex(from: entry.json) {
-            index = cached
+            index = await overlayingPendingCompletions(cached)
             fetchedAt = entry.fetchedAt
         }
         if let entry = try? await deps.cache.read(kind: .profile, key: ScheduleCacheKey.profile),
@@ -170,7 +170,7 @@ public final class ScheduleModel {
             let built = try await Self.buildIndex(from: data)
             let response = built.response
             let now = deps.clock.now
-            index = built
+            index = await overlayingPendingCompletions(built)
             fetchedAt = now
             lastRefreshFailed = false
             loadError = nil
@@ -204,6 +204,21 @@ public final class ScheduleModel {
             pendingRefresh = nil
             await refresh(reason: next)
         }
+    }
+
+    /// A toggle made with no signal is in the lane, not on the server: a
+    /// window read before it lands would show the occurrence un-flipped. The
+    /// pending flips are laid over every window read (cache and network), so
+    /// what the user did stays on screen until the server agrees. A single
+    /// field on a row the client already has — not a built event (D-008).
+    private func overlayingPendingCompletions(_ index: ScheduleIndex) async -> ScheduleIndex {
+        guard let queue = writeQueue else { return index }
+        var result = index
+        for op in await queue.pendingOps(for: .outbox) {
+            guard case .completion(let row, _) = op.payload else { continue }
+            result = result.settingCompletion(id: row.eventId, isCompleted: row.isCompleted, completedAt: row.completedAt)
+        }
+        return result
     }
 
     /// Decode one window and index it away from the main actor.
@@ -275,6 +290,17 @@ public final class ScheduleModel {
     public private(set) var pendingSaves: [String: Int] = [:]
     /// Builder saves the server refused, oldest first.
     public private(set) var refusedSaves: [RefusedSave] = []
+    /// Completion toggles waiting to sync, by the occurrence's date. The flip
+    /// itself is already on the calendar (optimistic); this is the line that
+    /// says the server has not heard yet.
+    public private(set) var pendingCompletions: [String: Int] = [:]
+    /// Meals saved from the composer and waiting to sync, by the meal's day.
+    /// The meal appears in the day's list once the server has it (D-052).
+    public private(set) var pendingMeals: [String: Int] = [:]
+    /// Every pending op in the lane that touches the schedule (a save, both
+    /// halves of a toggle, an exercise create): what has to drop for the
+    /// window to be re-read. Meals are counted apart and re-read their own.
+    private var waitingOutboxOps = 0
 
     /// Attach (or, on sign-out, detach) the queue, and follow its outbox lane:
     /// a refused exercise create is said and dropped (its local copy goes with
@@ -285,6 +311,9 @@ public final class ScheduleModel {
         writeQueue = queue
         pendingSaves = [:]
         refusedSaves = []
+        pendingCompletions = [:]
+        pendingMeals = [:]
+        waitingOutboxOps = 0
         guard let queue else { return }
         outboxTask = Task { [weak self] in
             await self?.reloadOutbox()
@@ -299,6 +328,20 @@ public final class ScheduleModel {
                     await self?.refresh(reason: .afterEdit)
                 case .failed(let session, .workoutDraft, let message) where session == .outbox:
                     ToastBus.shared.post("A workout saved offline wasn't accepted — \(message). Open its day to fix it.", level: .failure)
+                case .failed(let session, .completion, let message) where session == .outbox:
+                    // The server refused the row for good (or gave up past
+                    // the ceiling): the optimistic flip is undone by its
+                    // truth, and the refused op is let go — nothing to fix.
+                    ToastBus.shared.post("A completion didn't save — \(message)", level: .failure)
+                    _ = await self?.retireFailed(.completion)
+                    await self?.refresh(reason: .afterCompletion)
+                case .failed(let session, .quickComplete, _) where session == .outbox:
+                    // The web's fire-and-forget: the completion stands, the
+                    // session log did not follow.
+                    for payload in await self?.retireFailed(.quickComplete) ?? [] {
+                        guard case .quickComplete(let quick) = payload else { continue }
+                        ToastBus.shared.post(Self.planFillFailure(markingComplete: quick.isCompleting), level: .failure)
+                    }
                 case .changed(let session) where session == .outbox:
                     await self?.reloadOutbox()
                 default:
@@ -308,26 +351,63 @@ public final class ScheduleModel {
         }
     }
 
-    /// Re-reads the outbox's Builder saves; when one has left the pending
-    /// set, the schedule is re-read too, so a save that landed shows.
+    /// Drops the lane's failed ops of one action and hands back what they
+    /// carried, for the toast that names them.
+    private func retireFailed(_ action: TrackerAction) async -> [TrackerOpPayload] {
+        guard let queue = writeQueue else { return [] }
+        var retired: [TrackerOpPayload] = []
+        for op in await queue.ops(for: .outbox) where op.state == .failed && op.payload.action == action {
+            retired.append(op.payload)
+            await queue.discard(op.id, in: .outbox)
+        }
+        return retired
+    }
+
+    /// Re-reads the outbox: Builder saves, completion toggles and meals
+    /// waiting by day, and the refused saves. When an op has left the lane
+    /// the schedule is re-read too, so a save or a flip that landed shows as
+    /// the server has it.
     func reloadOutbox() async {
         guard let queue = writeQueue else { return }
         var pending: [String: Int] = [:]
         var refused: [RefusedSave] = []
+        var completions: [String: Int] = [:]
+        var meals: [String: Int] = [:]
+        var waiting = 0
         for op in await queue.ops(for: .outbox) {
-            guard case .workoutDraft(let save) = op.payload else { continue }
-            switch op.state {
-            case .pending:
+            switch (op.payload, op.state) {
+            case (.workoutDraft(let save), .pending):
                 pending[save.draft.date, default: 0] += 1
-            case .failed:
+                waiting += 1
+            case (.workoutDraft(let save), .failed):
                 refused.append(RefusedSave(id: op.id, payload: save, reason: op.lastError ?? "The server did not accept this workout."))
+            case (.completion(let row, _), .pending):
+                completions[row.eventDate, default: 0] += 1
+                waiting += 1
+            case (.meal(let meal), .pending):
+                meals[meal.day, default: 0] += 1
+            case (_, .pending):
+                waiting += 1
+            default:
+                break
             }
         }
-        let wasWaiting = pendingSaves.values.reduce(0, +)
-        let waiting = pending.values.reduce(0, +)
+        let wasWaiting = waitingOutboxOps
+        let savesLanded = pendingSaves.values.reduce(0, +) > pending.values.reduce(0, +)
+        let mealsLanded = pendingMeals.values.reduce(0, +) > meals.values.reduce(0, +)
         pendingSaves = pending
         refusedSaves = refused
-        if waiting < wasWaiting { await refresh(reason: .afterEdit) }
+        pendingCompletions = completions
+        pendingMeals = meals
+        waitingOutboxOps = waiting
+        // A landed toggle re-reads the window only (as the direct path did);
+        // a landed save may have changed meals' days too.
+        if waiting < wasWaiting { await refresh(reason: savesLanded ? .afterEdit : .afterCompletion) }
+        // The meals model re-reads its own months when a meal lands and
+        // tells the schedule through `onMealsChanged`; that hook is wired
+        // per sign-in and the queue is shared, so this covers the day row
+        // when the meals model was never started.
+        if mealsLanded { await refreshMeals() }
     }
 
     /// The cached workout library — the builder's template search reads this.
@@ -394,9 +474,15 @@ public final class ScheduleModel {
 
     // MARK: - Completion
 
-    /// Optimistic. `/api/completions` is the authoritative row: if it fails the
-    /// flip is undone. The plan-fill (`quick-complete`) is best-effort, like the
-    /// web's fire-and-forget: a failure keeps the state and says so.
+    /// Optimistic, and queued. The flip shows at once; `/api/completions` and
+    /// the plan-fill (`quick-complete`, the web's fire-and-forget) wait in the
+    /// outbox lane behind it, so a toggle made with no signal lands when there
+    /// is one (D-052's lane, which never gives up on the network). No rollback
+    /// on a transport error — the queue retries; the flip is undone only when
+    /// the server refuses the row for good, which arrives as the lane's
+    /// `.failed` and re-reads the server's truth (`attach`). The window is
+    /// re-read once the writes land. With no queue attached (signed out, a
+    /// test without one) the writes go direct, as they did before the lane.
     public func toggleCompletion(_ event: ScheduleEvent) async {
         guard index != nil else { return }
         let target = !event.isCompleted
@@ -406,6 +492,32 @@ public final class ScheduleModel {
         if target { completedCount += 1 }
         let rows = CompletionRows.build(for: event, isNowCompleted: target, now: deps.clock.now)
         index = index?.settingCompletion(id: event.id, isCompleted: target, completedAt: rows.completionRow.completedAt)
+        guard let queue = writeQueue else {
+            await sendCompletionDirect(event, target: target, rows: rows)
+            return
+        }
+        let quick = QuickCompletePayload(eventId: event.id, eventDate: event.date, isCompleting: target)
+        do {
+            try await queue.enqueue(.completion(completionRow: rows.completionRow, logRow: rows.logRow), for: .outbox)
+            try await queue.enqueue(.quickComplete(quick), for: .outbox)
+        } catch {
+            // The store would not take it: nothing will ever send, so undo.
+            index = index?.settingCompletion(id: event.id, isCompleted: event.isCompleted, completedAt: event.completedAt)
+            ToastBus.shared.post(target ? "Couldn't mark complete — try again" : "Couldn't undo the completion — try again", level: .failure)
+            return
+        }
+        await persistIndex()
+        await reloadOutbox()
+        // Start the lane now rather than on the next trigger: online, the
+        // flip is confirmed in a moment; offline, the first try fails on the
+        // network and the lane waits for `resume()`.
+        Task { await queue.flush(.outbox) }
+    }
+
+    /// The pre-queue path, kept for a model with no queue: `/api/completions`
+    /// is authoritative and a failure undoes the flip; the plan-fill is
+    /// best-effort and a failure keeps the state and says so.
+    private func sendCompletionDirect(_ event: ScheduleEvent, target: Bool, rows: (completionRow: CompletionRow, logRow: CompletionLogRow)) async {
         do {
             _ = try await deps.client.data(for: .completions(completionRow: rows.completionRow, logRow: rows.logRow))
         } catch {
@@ -418,10 +530,7 @@ public final class ScheduleModel {
                 action: target ? "quick-complete" : "quick-uncomplete", eventId: event.id, eventDate: event.date
             ))
         } catch {
-            ToastBus.shared.post(
-                target ? "Marked complete, but the session log didn't save." : "Marked incomplete, but the session log didn't clear.",
-                level: .failure
-            )
+            ToastBus.shared.post(Self.planFillFailure(markingComplete: target), level: .failure)
         }
         await persistIndex()
         await refresh(reason: .afterCompletion)
@@ -547,6 +656,10 @@ public final class ScheduleModel {
             return api.description
         }
         return error.localizedDescription
+    }
+
+    static func planFillFailure(markingComplete: Bool) -> String {
+        markingComplete ? "Marked complete, but the session log didn't save." : "Marked incomplete, but the session log didn't clear."
     }
 
     static func completionFailure(_ error: Error, markingComplete: Bool) -> String {

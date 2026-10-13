@@ -63,6 +63,64 @@ final class MealsModelTests: XCTestCase {
         XCTAssertNil(model.pendingNotice)
     }
 
+    /// A backoff that never ends on its own: the outbox lane never gives up
+    /// on the network, and under `TestClock` it would retry in a hot loop for
+    /// as long as the test keeps it offline.
+    private struct StalledClock: ApexClock {
+        let now: Date
+        func sleep(seconds: Double) async throws { try await Task.sleep(for: .seconds(3600)) }
+    }
+
+    @MainActor
+    private func waitUntil(_ condition: @MainActor () -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(2)
+        while !condition(), Date() < deadline { try await Task.sleep(for: .milliseconds(10)) }
+    }
+
+    @MainActor
+    func testACreateWithTheQueueWaitsInTheOutboxAndIsListedOnceItLands() async throws {
+        let transport = YouTransport.mealsOffline()
+        let store = MemoryWriteQueueStore()
+        let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: CoachTestTokens())
+        let queue = WriteQueue(store: store, client: client, clock: StalledClock(now: coachTestNow))
+        let hooks = MealsHooks()
+        let model = makeMealsModel(transport, hooks: hooks, writeQueue: queue)
+        await model.start()
+
+        var form = MealForm(day: fixtureDay)
+        form.title = "Toast"
+        form.protein = "12"
+        let refusal = await model.save(form, editing: nil, originalDay: nil)
+        XCTAssertNil(refusal, "no signal is not a refusal")
+        XCTAssertEqual(model.pendingNotice, "Meal added")
+        await queue.flush(.outbox)
+        XCTAssertEqual(model.pendingMeals["2026-09-08"], 1, "waiting on its day")
+        let queued = await store.all.map(\.payload.action)
+        XCTAssertEqual(queued, [.meal])
+        let tried = transport.requests("/api/meals").filter { $0.method == "POST" }
+        XCTAssertEqual(tried.count, 1, "one try, then the lane waits for the network")
+        XCTAssertEqual(transport.queries(tool: "get_meals").count, 1, "nothing to re-read: the server has no meal yet")
+        XCTAssertEqual(hooks.changes, 0)
+
+        // The connection is back: it lands with the id minted at save time,
+        // the month is re-read and the schedule told, as a direct save does.
+        transport.set("POST /api/meals", .json(200, Data(#"{"id":"meal-new"}"#.utf8)))
+        await queue.resume()
+        await queue.awaitRetries()
+        try await waitUntil { model.pendingMeals.isEmpty && hooks.changes == 1 }
+        XCTAssertEqual(model.pendingMeals, [:])
+        let landed = transport.requests("/api/meals").filter { $0.method == "POST" }
+        XCTAssertEqual(landed.count, 2)
+        XCTAssertEqual(landed[0].body?["id"] as? String, landed[1].body?["id"] as? String, "the same meal both times")
+        XCTAssertEqual(landed[1].body?["title"] as? String, "Toast")
+        XCTAssertEqual(landed[1].body?["triggered_by"] as? String, "user")
+        XCTAssertEqual(transport.queries(tool: "get_meals").count, 2, "the month is re-read once it lands")
+        XCTAssertEqual(hooks.changes, 1)
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+        model.stop()
+    }
+
     @MainActor
     func testEditSendsEveryColumnAndAMoveReloadsBothMonths() async {
         let transport = YouTransport.meals()

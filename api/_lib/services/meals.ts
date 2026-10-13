@@ -70,12 +70,15 @@ async function logMealMutation(
   if (error) console.error('[api/meals] mutation log insert failed:', error.message);
 }
 
+/** `replayed`: the row was already there — a repeat of a create that landed unanswered. */
+export type CreateMealOutcome = { id: string; replayed?: true };
+
 export async function createMeal(
   supabase: Admin,
   userId: string,
   row: Record<string, unknown>,
   triggeredBy: TriggeredBy | undefined,
-): Promise<ServiceResult<{ id: string }>> {
+): Promise<ServiceResult<CreateMealOutcome>> {
   if (typeof row.id !== 'string' || typeof row.title !== 'string') {
     return fail(400, 'Missing required meal fields');
   }
@@ -90,6 +93,25 @@ export async function createMeal(
   const { error } = await supabase
     .from('meals')
     .insert({ ...picked, user_id: userId } as TablesInsert<'meals'>);
+  // The id is the client's (`meal-<uuid>`, minted once per save) and comes
+  // again when the iOS outbox replays a create whose answer it never heard.
+  // A duplicate key is that replay: answered with the row already there,
+  // unwritten and unlogged — after checking it is the caller's own row, so
+  // a stranger's id cannot be "replayed" into a 200.
+  if (error?.code === '23505') {
+    const { data: existing, error: readError } = await supabase
+      .from('meals')
+      .select('id')
+      .eq('id', row.id)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (readError) {
+      console.error('[api/meals] replay lookup failed:', readError.message);
+      return fail(500, 'Failed to create meal');
+    }
+    if (!existing) return fail(409, 'Meal id already in use');
+    return succeed({ id: row.id, replayed: true });
+  }
   if (error) {
     console.error('[api/meals] insert failed:', error.message);
     return fail(500, 'Failed to create meal');

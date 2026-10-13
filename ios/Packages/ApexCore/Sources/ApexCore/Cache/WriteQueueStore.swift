@@ -8,6 +8,8 @@ public enum TrackerAction: String, Codable, Sendable {
     case swapExercise = "swap-exercise"
     case createDefinition = "create-definition"
     case workoutDraft = "workout-draft"
+    case quickComplete = "quick-complete"
+    case meal
 }
 
 /// A Builder save made with no signal (`POST /api/workout-draft`), queued in
@@ -68,6 +70,55 @@ public struct DefinitionCreatePayload: Codable, Sendable, Equatable {
     }
 }
 
+/// The plan-fill behind a calendar completion toggle (`quick-complete`) or
+/// its undo (`quick-uncomplete`), queued in the outbox lane behind the
+/// `.completion` it belongs to. The lane's key is not the occurrence, so the
+/// payload carries its own; the server upserts with `ignoreDuplicates`, so a
+/// replay is a no-op.
+public struct QuickCompletePayload: Codable, Sendable, Equatable {
+    public var eventId: String
+    public var eventDate: String
+    public var isCompleting: Bool
+
+    public init(eventId: String, eventDate: String, isCompleting: Bool) {
+        self.eventId = eventId
+        self.eventDate = eventDate
+        self.isCompleting = isCompleting
+    }
+
+    public var action: String { isCompleting ? "quick-complete" : "quick-uncomplete" }
+}
+
+/// A meal saved from the composer with the queue in front of the network:
+/// a create (`POST /api/meals`, the flat row, id minted once so a replay of a
+/// create whose answer was lost is answered as already landed) or an edit
+/// (`PATCH /api/meals?id=`, every column). `day` is where the composer put
+/// it — the day's "waiting to sync" line and the month to re-read once it
+/// lands; `originalDay` is where an edit moved it from.
+public struct MealOpPayload: Codable, Sendable, Equatable {
+    public enum Kind: String, Codable, Sendable { case create, update }
+
+    public var kind: Kind
+    public var id: String
+    public var title: String
+    public var day: String
+    public var originalDay: String?
+    /// The create's row, or the update's `fields`.
+    public var columns: [String: JSONValue]
+
+    public init(kind: Kind, id: String, title: String, day: String, originalDay: String? = nil, columns: [String: JSONValue]) {
+        self.kind = kind
+        self.id = id
+        self.title = title
+        self.day = day
+        self.originalDay = originalDay
+        self.columns = columns
+    }
+
+    /// The days whose months show this meal once it lands.
+    public var days: [String] { [day] + (originalDay.map { $0 == day ? [] : [$0] } ?? []) }
+}
+
 /// Typed, not opaque JSON: merging two saves and counting pending sets both
 /// need to see inside a payload.
 public enum TrackerOpPayload: Codable, Sendable, Equatable {
@@ -83,6 +134,12 @@ public enum TrackerOpPayload: Codable, Sendable, Equatable {
     /// `POST /api/completions` — finishing flips the occurrence's completion the
     /// way the web does after `finish`; cancelling a finished session flips it back.
     case completion(completionRow: CompletionRow, logRow: CompletionLogRow)
+    /// `POST /api/workout-sessions` `quick-complete` / `quick-uncomplete`: the
+    /// plan-fill (or its clearing) a calendar toggle makes after its
+    /// `.completion`. Best-effort on the web; here it waits with the toggle.
+    case quickComplete(QuickCompletePayload)
+    /// `POST` / `PATCH /api/meals` from the composer.
+    case meal(MealOpPayload)
 
     public var action: TrackerAction {
         switch self {
@@ -94,6 +151,8 @@ public enum TrackerOpPayload: Codable, Sendable, Equatable {
         case .createDefinition: .createDefinition
         case .workoutDraft: .workoutDraft
         case .completion: .completion
+        case .quickComplete: .quickComplete
+        case .meal: .meal
         }
     }
 

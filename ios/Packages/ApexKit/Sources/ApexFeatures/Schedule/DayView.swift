@@ -74,21 +74,29 @@ struct DayView: View {
         .simultaneousGesture(swipe(days: 7))
     }
 
-    /// Builder saves made offline for this day: a line while they wait, and a
-    /// row per save the server refused, with its reason and Fix. The workout
-    /// itself appears once the server has it (nothing is built locally, D-008).
+    /// Writes made offline for this day: a line per kind while they wait
+    /// (Builder saves, completion toggles, meals), and a row per save the
+    /// server refused, with its reason and Fix. The workout or meal itself
+    /// appears once the server has it (nothing is built locally, D-008); a
+    /// toggle is already on its card.
     @ViewBuilder
-    private var outbox: some View {
-        let day = model.selectedDay.string
-        let waiting = model.pendingSaves[day] ?? 0
-        let refused = model.refusedSaves.filter { $0.payload.draft.date == day }
-        if waiting > 0 {
-            Label(waiting == 1 ? "1 workout waiting to sync" : "\(waiting) workouts waiting to sync", systemImage: "icloud.and.arrow.up")
+    private func waitingLine(_ count: Int, _ singular: String, _ plural: String, id: String) -> some View {
+        if count > 0 {
+            Label(count == 1 ? "1 \(singular) waiting to sync" : "\(count) \(plural) waiting to sync", systemImage: "icloud.and.arrow.up")
                 .font(.apex(.mono, size: TypeScale.micro, weight: .medium, relativeTo: .caption2))
                 .foregroundStyle(ApexColor.textMuted)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityIdentifier("schedule.day.pendingSaves")
+                .accessibilityIdentifier(id)
         }
+    }
+
+    @ViewBuilder
+    private var outbox: some View {
+        let day = model.selectedDay.string
+        let refused = model.refusedSaves.filter { $0.payload.draft.date == day }
+        waitingLine(model.pendingSaves[day] ?? 0, "workout", "workouts", id: "schedule.day.pendingSaves")
+        waitingLine(model.pendingCompletions[day] ?? 0, "completion", "completions", id: "schedule.day.pendingCompletions")
+        waitingLine(model.pendingMeals[day] ?? 0, "meal", "meals", id: "schedule.day.pendingMeals")
         ForEach(refused) { save in
             HStack(alignment: .top, spacing: Spacing.sm) {
                 VStack(alignment: .leading, spacing: 2) {
