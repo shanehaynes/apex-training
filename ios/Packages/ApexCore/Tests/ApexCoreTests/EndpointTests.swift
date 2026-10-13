@@ -146,6 +146,21 @@ final class TrackerEndpointTests: XCTestCase {
             .createDefinition(id: "pancake-fold", canonicalName: "Pancake Fold", category: "stretch", isUnilateral: false)
         )
         XCTAssertEqual(TrackerOpPayload.createDefinition(created).action.rawValue, "create-definition")
+        // "+ weight" on a card: the library editor's PATCH, as a queued op.
+        let added = DefinitionLogFieldsPayload(id: "ring-dips", canonicalName: "Ring Dips", logFields: ["weight", "reps"])
+        XCTAssertEqual(
+            Endpoint.tracker(.updateDefinition(added), session: session),
+            .updateDefinition(id: "ring-dips", fields: ["log_fields": .array([.string("weight"), .string("reps")])], name: "Ring Dips")
+        )
+        let update = Endpoint.tracker(.updateDefinition(added), session: session)
+        XCTAssertEqual(update.method, .patch)
+        XCTAssertEqual(update.path, "api/exercise-definitions")
+        XCTAssertEqual(update.query, [URLQueryItem(name: "id", value: "ring-dips")])
+        XCTAssertEqual(
+            body(update),
+            #"{"fields":{"log_fields":["weight","reps"]},"log":{"definition_name":"Ring Dips","triggered_by":"user"}}"#
+        )
+        XCTAssertEqual(TrackerOpPayload.updateDefinition(added).action.rawValue, "update-definition")
         let completion = Endpoint.tracker(.completion(completionRow: rows.completionRow, logRow: rows.logRow), session: session)
         XCTAssertEqual(completion.path, "api/completions")
         XCTAssertEqual(completion, .completions(completionRow: rows.completionRow, logRow: rows.logRow))
@@ -166,6 +181,7 @@ final class TrackerEndpointTests: XCTestCase {
                                   score: ScoreSubmission(templateId: "t", score: .forTime(timeSeconds: 1)))),
             .swapExercise(SwapPayload(section: "exercise", exerciseId: "x", exerciseName: "Y", definitionId: nil)),
             .createDefinition(DefinitionCreatePayload(id: "pancake-fold", canonicalName: "Pancake Fold", category: "stretch", isUnilateral: false)),
+            .updateDefinition(DefinitionLogFieldsPayload(id: "pancake-fold", canonicalName: "Pancake Fold", logFields: ["duration"])),
             .workoutDraft(WorkoutDraftOpPayload(draft: .empty(date: "2026-09-10", title: "Leg day"), today: "2026-09-08",
                                                 action: .detach(eventId: "a__2026-09-15", occurrenceDate: "2026-09-15"), clientId: "ai-x")),
         ]

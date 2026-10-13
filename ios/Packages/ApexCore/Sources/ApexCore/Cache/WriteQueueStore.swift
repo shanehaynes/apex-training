@@ -7,6 +7,7 @@ public enum TrackerAction: String, Codable, Sendable {
     case start, save, finish, cancel, completion
     case swapExercise = "swap-exercise"
     case createDefinition = "create-definition"
+    case updateDefinition = "update-definition"
     case workoutDraft = "workout-draft"
 }
 
@@ -68,6 +69,23 @@ public struct DefinitionCreatePayload: Codable, Sendable, Equatable {
     }
 }
 
+/// A log field added to a movement mid-workout ("+ weight" on the card): the
+/// definition's whole `log_fields` after the add, so a replay is idempotent
+/// and two adds queued before either lands both carry the first. The server
+/// writes the array as sent, so each op must be the full set.
+public struct DefinitionLogFieldsPayload: Codable, Sendable, Equatable {
+    public var id: String
+    /// For the mutation log's `definition_name`.
+    public var canonicalName: String
+    public var logFields: [String]
+
+    public init(id: String, canonicalName: String, logFields: [String]) {
+        self.id = id
+        self.canonicalName = canonicalName
+        self.logFields = logFields
+    }
+}
+
 /// Typed, not opaque JSON: merging two saves and counting pending sets both
 /// need to see inside a payload.
 public enum TrackerOpPayload: Codable, Sendable, Equatable {
@@ -79,6 +97,7 @@ public enum TrackerOpPayload: Codable, Sendable, Equatable {
     case cancel
     case swapExercise(SwapPayload)
     case createDefinition(DefinitionCreatePayload)
+    case updateDefinition(DefinitionLogFieldsPayload)
     case workoutDraft(WorkoutDraftOpPayload)
     /// `POST /api/completions` — finishing flips the occurrence's completion the
     /// way the web does after `finish`; cancelling a finished session flips it back.
@@ -92,6 +111,7 @@ public enum TrackerOpPayload: Codable, Sendable, Equatable {
         case .cancel: .cancel
         case .swapExercise: .swapExercise
         case .createDefinition: .createDefinition
+        case .updateDefinition: .updateDefinition
         case .workoutDraft: .workoutDraft
         case .completion: .completion
         }

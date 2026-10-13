@@ -20,6 +20,9 @@ nonisolated struct ExerciseRowInput: Equatable, Sendable {
     let fields: [SetField]
     let perSideWarning: String?
     let canSwap: Bool
+    /// Whether the model holds the entry's library definition — what a "+ weight"
+    /// tap writes to. Without one the field is this workout's only.
+    let inLibrary: Bool
     /// The focused field, when it lies inside this exercise; nil otherwise, so
     /// a focus move elsewhere compares equal here.
     let focusedField: FieldID?
@@ -190,24 +193,49 @@ struct TrackedExerciseView: View, Equatable {
                 .equatable()
             }
 
-            Button {
-                model.addSet(section: tracked.section, exerciseId: tracked.exercise.id)
-            } label: {
-                HStack(spacing: Spacing.xs) {
-                    ApexIcon.plus.image.font(.system(size: 12, weight: .medium))
-                    Text("Add set")
+            HStack(spacing: Spacing.xs) {
+                Button {
+                    model.addSet(section: tracked.section, exerciseId: tracked.exercise.id)
+                } label: {
+                    dashedChip("Add set")
                 }
-                .font(.apex(.display, size: TypeScale.xs, weight: .medium, relativeTo: .caption))
-                .foregroundStyle(ApexColor.textSecondary)
-                .padding(.horizontal, Spacing.md)
-                .frame(minHeight: 32)
-                .overlay(Capsule().strokeBorder(ApexColor.borderSubtle, style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
+                .buttonStyle(.plain)
+                .frame(minHeight: 44)
+                .accessibilityIdentifier("tracker.add-set.\(tracked.exercise.id)")
+                // "+ weight / + reps / + time" (TrackerExercise.tsx `addable`): the
+                // input the card lacks, added now and — through the definition's
+                // `log_fields` — to every workout that references the movement.
+                ForEach(addable, id: \.self) { field in
+                    Button {
+                        Task { await model.addField(field, section: tracked.section, exerciseId: tracked.exercise.id) }
+                    } label: {
+                        dashedChip(SetRowView.label(for: field, climbing: false))
+                    }
+                    .buttonStyle(.plain)
+                    .frame(minHeight: 44)
+                    .accessibilityLabel("Track \(SetRowView.label(for: field, climbing: false)) for \(tracked.exercise.name)")
+                    .accessibilityHint(input.inLibrary
+                        ? "From now on, in every workout"
+                        : "For this workout — the exercise is not in the library")
+                    .accessibilityIdentifier("tracker.add-field.\(tracked.exercise.id).\(field.logField)")
+                }
             }
-            .buttonStyle(.plain)
-            .frame(minHeight: 44)
             .padding(.top, Spacing.xs)
-            .accessibilityIdentifier("tracker.add-set.\(tracked.exercise.id)")
         }
+    }
+
+    private var addable: [SetField] { TrackerEditor.addableFields(for: tracked, fields: fields) }
+
+    private func dashedChip(_ text: String) -> some View {
+        HStack(spacing: Spacing.xs) {
+            ApexIcon.plus.image.font(.system(size: 12, weight: .medium))
+            Text(text).lineLimit(1)
+        }
+        .font(.apex(.display, size: TypeScale.xs, weight: .medium, relativeTo: .caption))
+        .foregroundStyle(ApexColor.textSecondary)
+        .padding(.horizontal, Spacing.md)
+        .frame(minHeight: 32)
+        .overlay(Capsule().strokeBorder(ApexColor.borderSubtle, style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
     }
 
     /// The field of `set` that has focus, if focus is on this set at all.

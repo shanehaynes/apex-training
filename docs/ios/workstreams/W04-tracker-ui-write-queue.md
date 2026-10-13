@@ -157,3 +157,24 @@ Out: Live Activity (W12), rest timer (Backlog).
   (both DEBUG flags, ios/CLAUDE.md): six flings, late frames 9 → 1. Smoke legs and unit tests
   green. Snapshot references on `main` predate #390's "Add exercise" button, so the tracker-* images
   mismatch before and after this change alike — not re-recorded here.
+- 2026-10-13 · Linux · Add a log field mid-workout (parity with web #390, first half). Shane's
+  screenshot: Overhead Squat planned as reps only, no way to log the bar. The card now offers
+  "+ weight / + reps / + time" beside Add set (`TrackerEditor.addableFields`); a tap shows the
+  input at once (`TrackerModel.addedFields`, this sitting) and, when the entry has a library
+  definition, queues `update-definition` — the editor's PATCH with the definition's whole
+  `log_fields` (`nextLogFields`, so two taps before either lands both carry the first) — in the
+  outbox lane, which a workout cancel does not purge, or behind a create still queued in the
+  session's lane (D-055). `ExerciseDefinition.logFields`
+  decodes off `/api/schedule` (the fixture already carried it) and `inputFields` reads it on a
+  planned entry too, so every workout referencing the movement gets the input; the default
+  prescription is still read only off-plan. The Library editor gains the "Always log" toggles
+  (`DefinitionForm.logFields` → `log_fields`), which is where an addition is taken back off.
+  **Not ported here:** #390's editable subtitle (technique notes) and the day-only exercise note
+  (phase 54, `workout_exercise_notes`) — see STATUS "Next up". **Mac verification needed:** no
+  Swift toolchain in this session; the `ApexCore` tests ran only in CI, and the chips, the toggles
+  and the snapshot deltas are unseen. The smoke has no leg for the chip yet
+  (`tracker.add-field.<id>.<weight|reps|duration>` is the identifier to drive). **Known edge
+  (reviewer, not fixed):** two different chips tapped within one SQLite append of each other can
+  enqueue out of tap order — `WriteQueue.enqueue` has no per-session ordering token — and land
+  the older array last on the server; the card stays right (the local copy is re-read after the
+  await), and a per-session ticket in `enqueue` is a queue change for its own lane.

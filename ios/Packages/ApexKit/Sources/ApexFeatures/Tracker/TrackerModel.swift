@@ -84,6 +84,13 @@ public final class TrackerModel {
     public private(set) var coachSummary: String?
     public private(set) var definitions: [ExerciseDefinition] = []
     public private(set) var isSwapping = false
+    /// Log fields added from a card this sitting, by exercise: shown at once,
+    /// and kept here for an entry with no library definition (this sitting
+    /// only) or until the queued write has been recorded on the definition.
+    /// Cleared for an exercise when a swap re-points it at another movement,
+    /// so a field added to the old one is neither shown under nor written into
+    /// the replacement.
+    public private(set) var addedFields: [CardioKey: [SetField]] = [:]
 
     /// The rest countdown between sets (D-015): pure state in ApexCore, driven
     /// by the injected clock. The one-second tick settles it; the bar reads
@@ -457,13 +464,79 @@ public final class TrackerModel {
 
     // MARK: - Display helpers
 
-    public func definition(for tracked: TrackedExercise) -> ExerciseDefinition? {
-        guard tracked.isOffPlan, let id = tracked.exercise.definitionId else { return nil }
+    /// The movement's library entry, swapped or not: its `logFields` apply to
+    /// every workout that references it. `inputFields` reads the default
+    /// prescription off it only when the entry is off-plan.
+    public func libraryDefinition(for tracked: TrackedExercise) -> ExerciseDefinition? {
+        guard let id = tracked.exercise.definitionId else { return nil }
         return definitions.first { $0.id == id }
     }
 
+    /// The replacement movement, once swapped or added; nil on a planned entry.
+    public func definition(for tracked: TrackedExercise) -> ExerciseDefinition? {
+        guard tracked.isOffPlan else { return nil }
+        return libraryDefinition(for: tracked)
+    }
+
     public func inputFields(for tracked: TrackedExercise) -> [SetField] {
-        TrackerEditor.inputFields(for: tracked, swappedTo: definition(for: tracked))
+        TrackerEditor.inputFields(
+            for: tracked, definition: libraryDefinition(for: tracked),
+            addedHere: addedFields[CardioKey(section: tracked.section, exerciseId: tracked.exercise.id)] ?? []
+        )
+    }
+
+    /// The "+ weight / + reps / + time" chips a card offers.
+    public func addableFields(for tracked: TrackedExercise) -> [SetField] {
+        TrackerEditor.addableFields(for: tracked, fields: inputFields(for: tracked))
+    }
+
+    /// Give this exercise `field` now, and — when it has a library definition —
+    /// every workout that references the movement from now on: the definition's
+    /// `log_fields` is written through the queue, so it works with no signal.
+    /// It is a library edit, not workout data, so it goes in the outbox lane
+    /// (D-052: never purged by a workout cancel, retried through a network
+    /// loss) — unless the movement was created from this workout's picker and
+    /// that create is still queued in the session's lane, where the PATCH must
+    /// follow it. The local copy is updated ahead of the write, as
+    /// `createDefinition` does, so the swap picker, a second tap and the
+    /// Library's cache all see it now.
+    public func addField(_ field: SetField, section: String, exerciseId: String) async {
+        guard let tracked = editor.exercise(section: section, id: exerciseId) else { return }
+        let key = CardioKey(section: section, exerciseId: exerciseId)
+        let addedSoFar = addedFields[key] ?? []
+        guard !inputFields(for: tracked).contains(field) else { return }
+        addedFields[key] = addedSoFar + [field]
+        guard let index = definitions.firstIndex(where: { $0.id == tracked.exercise.definitionId }) else { return }
+        let definition = definitions[index]
+        let stored = definition.logFields ?? []
+        guard !stored.contains(field.logField) else { return }
+        let next = TrackerEditor.nextLogFields(stored: stored, addedHere: addedSoFar, adding: field)
+        let payload = DefinitionLogFieldsPayload(id: definition.id, canonicalName: definition.canonicalName, logFields: next)
+        let lane = await definitionWriteLane(for: definition.id)
+        do {
+            try await services.queue.enqueue(.updateDefinition(payload), for: lane)
+        } catch {
+            // Still shown for this sitting; only the library write was lost.
+            ToastBus.shared.post("Couldn't save \(SetRowView.label(for: field, climbing: false)) to \(definition.canonicalName) — it's on for this workout", level: .failure)
+            return
+        }
+        // Re-read after the await: a second chip tapped meanwhile may have
+        // recorded its own field, and its op carried this one (addedFields).
+        guard let current = definitions.firstIndex(where: { $0.id == payload.id }) else { return }
+        var updated = definitions[current]
+        updated.logFields = TrackerEditor.nextLogFields(stored: updated.logFields ?? [], addedHere: addedFields[key] ?? [], adding: field)
+        definitions[current] = updated
+        await deps.rememberDefinition(updated)
+        await services.queue.flush(lane)
+    }
+
+    /// The outbox, unless this session's lane still holds the create the
+    /// write depends on (`createDefinition` queues it there, ahead of the swap).
+    private func definitionWriteLane(for definitionId: String) async -> SessionKey {
+        for op in await services.queue.pendingOps(for: session) {
+            if case .createDefinition(let create) = op.payload, create.id == definitionId { return session }
+        }
+        return .outbox
     }
 
     public func perSideWarning(for tracked: TrackedExercise) -> String? {
@@ -752,6 +825,7 @@ public final class TrackerModel {
         defer { isSwapping = false }
         await flushEdits()
         guard editor.swap(section: section, exerciseId: exerciseId, toName: definition.canonicalName, definitionId: definition.id) else { return }
+        addedFields[CardioKey(section: section, exerciseId: exerciseId)] = nil
         let payload = SwapPayload(section: section, exerciseId: exerciseId, exerciseName: definition.canonicalName, definitionId: definition.id)
         do {
             try await services.queue.enqueue(.swapExercise(payload), for: session)

@@ -197,6 +197,12 @@ public struct Endpoint: Sendable, Equatable {
                 category: definition.category, isUnilateral: definition.isUnilateral
             )
 
+        case .updateDefinition(let update):
+            return Endpoint.updateDefinition(
+                id: update.id, fields: ["log_fields": .array(update.logFields.map(JSONValue.string))],
+                name: update.canonicalName
+            )
+
         case .completion(let completionRow, let logRow):
             return completions(completionRow: completionRow, logRow: logRow)
         }

@@ -20,8 +20,16 @@ public struct DefinitionForm: Sendable, Equatable {
     public var defaultDuration: String
     public var defaultWeight: String
     public var defaultRest: String
+    /// "Always log" (`log_fields`): the inputs every workout gets for this
+    /// movement on top of what it prescribes. Here is where a field added from
+    /// the tracker is taken back off.
+    public var logFields: Set<SetField>
 
     public static let categories = ["strength", "stretch", "mobility", "skill", "cardio", "climbing"]
+    /// The toggles, in column order, with the tracker's labels.
+    public static let logFieldOptions: [(field: SetField, label: String)] = [
+        (.weight, "Weight"), (.reps, "Reps"), (.duration, "Time"),
+    ]
 
     public init(definition d: ExerciseDefinition) {
         name = d.canonicalName
@@ -35,6 +43,7 @@ public struct DefinitionForm: Sendable, Equatable {
         defaultDuration = d.defaultDuration ?? ""
         defaultWeight = d.defaultWeight ?? ""
         defaultRest = d.defaultRest ?? ""
+        logFields = Set((d.logFields ?? []).compactMap(SetField.init(logField:)))
     }
 
     public var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
@@ -70,6 +79,10 @@ public struct DefinitionForm: Sendable, Equatable {
         ] {
             let value = typed.trimmingCharacters(in: .whitespaces)
             if value != (stored ?? "") { out[column] = value.isEmpty ? .null : .string(value) }
+        }
+        let storedLogFields = Set((d.logFields ?? []).compactMap(SetField.init(logField:)))
+        if logFields != storedLogFields {
+            out["log_fields"] = .array(SetField.allCases.filter(logFields.contains).map { .string($0.logField) })
         }
         return out
     }
