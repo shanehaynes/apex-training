@@ -48,7 +48,7 @@ export async function loadAnalyticsInputs(
         .order('event_date').order('event_id').range(from, to),
     ),
     fetchAllPages<SetLogRow>('workout_set_logs', (from, to) =>
-      supabase.from('workout_set_logs').select('*').eq('user_id', userId).eq('is_autofilled', false)
+      supabase.from('workout_set_logs').select('*').eq('user_id', userId).eq('is_autofilled', false).eq('is_warmup', false)
         .gte('event_date', startDate).lt('event_date', endDateExclusive)
         .order('event_date', { ascending: true }).order('event_id').order('exercise_id').order('set_number').range(from, to),
     ),

@@ -51,6 +51,7 @@ export async function fetchPeriodInputs<P extends StatsPeriod>(
         .select('*')
         .eq('user_id', userId)
         .eq('is_autofilled', false)
+        .eq('is_warmup', false)
         .lt('event_date', period.endDateExclusive)
         .order('event_date', { ascending: true })
         .order('event_id', { ascending: true })

@@ -1,6 +1,6 @@
 import { differenceInCalendarDays, format, parseISO, startOfISOWeek } from 'date-fns';
 import type { CardioLogRow, CompletionRow, SetLogRow, WorkoutSessionRow } from '../db/types.js';
-import { classifySet, parseQuantity } from '../tracking/records.js';
+import { classifySet, isPerformedSet, parseQuantity } from '../tracking/records.js';
 import {
   getIsoMonth,
   isoWeeksInYear,
@@ -107,7 +107,7 @@ export function computePeriodPRs(
     const dayReps = new Map<string, BestValue>();
 
     for (const row of rows) {
-      if (row.is_autofilled) continue;
+      if (!isPerformedSet(row)) continue;
       const set = classifySet(row.actual_weight, row.actual_reps, minutesForBareDuration(row.actual_duration));
       if (!set) continue;
       const name = row.exercise_name;
@@ -178,7 +178,7 @@ export function computePeriodPRs(
   for (const [date, rows] of groupByDateAscending(cardioLogs)) {
     const dayBest = new Map<string, { kind: 'distance' | 'elevation'; name: string; unit: string; value: number }>();
     for (const row of rows) {
-      if (row.is_autofilled) continue;
+      if (!isPerformedSet(row)) continue;
       const candidates: Array<{ kind: 'distance' | 'elevation'; raw: string | null }> = [
         { kind: 'distance', raw: row.distance },
         { kind: 'elevation', raw: row.elevation_gain },
@@ -269,7 +269,7 @@ export function computeCardioStats(cardioLogs: CardioLogRow[], period: StatsPeri
   const climbs: QuantityHighlight[] = [];
 
   for (const row of cardioLogs) {
-    if (row.is_autofilled || !inPeriod(row.event_date, period)) continue;
+    if (!isPerformedSet(row) || !inPeriod(row.event_date, period)) continue;
     const dist = parseQuantity(row.distance);
     if (dist) {
       distanceByUnit[dist.unit] = (distanceByUnit[dist.unit] ?? 0) + dist.value;
@@ -298,7 +298,7 @@ export function computeStrengthStats(setLogs: SetLogRow[], period: StatsPeriod):
   const setsByExercise = new Map<string, number>();
 
   for (const row of setLogs) {
-    if (row.is_autofilled || !inPeriod(row.event_date, period)) continue;
+    if (!isPerformedSet(row) || !inPeriod(row.event_date, period)) continue;
     const set = classifySet(row.actual_weight, row.actual_reps, minutesForBareDuration(row.actual_duration));
     if (!set) continue;
     totalSets += 1;

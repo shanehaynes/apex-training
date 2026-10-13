@@ -1,6 +1,6 @@
 import { format, parseISO, startOfWeek, subDays, subWeeks } from 'date-fns';
 import { zoneBounds, zoneOf } from '../analytics/hrZones.js';
-import { classifySet } from '../tracking/records.js';
+import { classifySet, isPerformedSet } from '../tracking/records.js';
 import { minutesForBareDuration } from '../review/stats.js';
 import type {
   ActivityInput,
@@ -196,7 +196,7 @@ function computeTonnage(setLogs: SetLogInput[], weekStarts: string[], inWindow: 
   // weighted sets only, weight × reps, autofilled zero-fills skipped.
   const perWeek = new Map<string, number>();
   for (const row of setLogs) {
-    if (row.isAutofilled || !inWindow(row.eventDate)) continue;
+    if (!isPerformedSet({ is_autofilled: row.isAutofilled }) || !inWindow(row.eventDate)) continue;
     const set = classifySet(row.actualWeight, row.actualReps, minutesForBareDuration(row.actualDuration));
     if (set?.kind !== 'oneRM') continue;
     const week = weekStartOf(row.eventDate);

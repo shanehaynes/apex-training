@@ -1,6 +1,6 @@
 import type { CardioLogRow, CompletionRow, MealRow, SetLogRow, WorkoutSessionRow } from '../db/types';
 import type { Sport } from '../../types/workout';
-import { classifySet, parseQuantity } from '../tracking/records.js';
+import { classifySet, isPerformedSet, parseQuantity } from '../tracking/records.js';
 import { durationMinutesFor, minutesForBareDuration, sessionSecondsMap } from '../review/stats.js';
 import { parseGrade } from '../climbing.js';
 import { mealCalories, rowToMeal } from '../nutrition/mapping.js';
@@ -303,7 +303,7 @@ function extractPoints(
 
     case 'set-logs': {
       for (const row of inputs.setLogs) {
-        if (row.is_autofilled || !keepDate(row.event_date) || !logRowPasses(row)) continue;
+        if (!isPerformedSet(row) || !keepDate(row.event_date) || !logRowPasses(row)) continue;
         const group = groupFor.logRow(row);
         if (s.measure === 'set-count') {
           points.push({ date: row.event_date, value: 1, group });
@@ -327,7 +327,7 @@ function extractPoints(
       // (grade text rides in actual_weight); rows without a definition fall
       // back to the completion's climbing event types.
       for (const row of inputs.setLogs) {
-        if (row.is_autofilled || !keepDate(row.event_date) || !logRowPasses(row)) continue;
+        if (!isPerformedSet(row) || !keepDate(row.event_date) || !logRowPasses(row)) continue;
         const category = row.definition_id ? inputs.categories.get(row.definition_id) : undefined;
         const isPitch = category === 'climbing' ||
           (category === undefined && isClimbingEvent(shared.eventTypeOf.get(completionKey(row.event_id, row.event_date))));
@@ -353,7 +353,7 @@ function extractPoints(
 
     case 'cardio-logs': {
       for (const row of inputs.cardioLogs) {
-        if (row.is_autofilled || !keepDate(row.event_date) || !logRowPasses(row)) continue;
+        if (!isPerformedSet(row) || !keepDate(row.event_date) || !logRowPasses(row)) continue;
         const group = groupFor.logRow(row);
         if (s.measure === 'cardio-time') {
           if (row.duration_minutes != null) points.push({ date: row.event_date, value: row.duration_minutes, group });

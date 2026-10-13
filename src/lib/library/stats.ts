@@ -3,6 +3,7 @@ import type { CardioLogRow, SetLogRow } from '../db/types';
 import {
   classifySet,
   estimateOneRepMax,
+  isPerformedSet,
   parseQuantity,
 } from '../tracking/records.js';
 import { formatSeconds } from '../time.js';
@@ -68,7 +69,7 @@ export function formatStatDate(date: string): string {
 
 /** Stats over set-tracked history. Rows may span spellings — canonicalize first. */
 function setStats(rows: SetLogRow[]): ExerciseStats {
-  const real = rows.filter(r => !r.is_autofilled);
+  const real = rows.filter(isPerformedSet);
 
   // Dominant kind decides the PR dimension and the trend axis; a weighted
   // exercise never earns duration/rep records (mirrors records.ts).
@@ -128,7 +129,7 @@ function setStats(rows: SetLogRow[]): ExerciseStats {
 
 /** Stats over cardio history: distance trend in the dominant unit. */
 function cardioStats(rows: CardioLogRow[]): ExerciseStats {
-  const real = rows.filter(r => !r.is_autofilled);
+  const real = rows.filter(isPerformedSet);
   const parsed = real
     .map(r => ({ row: r, qty: parseQuantity(r.distance) }))
     .filter((p): p is { row: CardioLogRow; qty: { value: number; unit: string } } => p.qty !== null);
@@ -178,8 +179,8 @@ function cardioStats(rows: CardioLogRow[]): ExerciseStats {
  * the richer side is the useful one).
  */
 export function buildExerciseStats(setRows: SetLogRow[], cardioRows: CardioLogRow[]): ExerciseStats {
-  if (setRows.some(r => !r.is_autofilled)) return setStats(setRows);
-  if (cardioRows.some(r => !r.is_autofilled)) return cardioStats(cardioRows);
+  if (setRows.some(isPerformedSet)) return setStats(setRows);
+  if (cardioRows.some(isPerformedSet)) return cardioStats(cardioRows);
   return EMPTY;
 }
 

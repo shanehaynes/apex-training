@@ -2,7 +2,7 @@ import { CheckCircle2, MessageSquare, Trophy, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { WorkoutEvent } from '../../types/workout';
 import type { TrackedSectionGroup, TrackedSet, CardioActuals } from '../../lib/tracking/plan';
-import { describeRecordForPeople, describeWorkoutScore, formatScore } from '../../lib/tracking/records';
+import { describeRecordForPeople, describeWorkoutScore, formatScore, isPerformedSet } from '../../lib/tracking/records';
 import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from '../../lib/tracking/records';
 import type { CoachStatus } from '../../hooks/useWorkoutSession';
 import { useTip } from '../../hooks/useTip';
@@ -150,7 +150,7 @@ export default function WorkoutSummary({
                   ) : (
                     tracked.sets.map(set => {
                       const label = setLabel(set);
-                      const skipped = set.isAutofilled || (!label && !set.isExtra);
+                      const skipped = !isPerformedSet({ is_autofilled: set.isAutofilled }) || (!label && !set.isExtra);
                       return (
                         <span key={set.setNumber} className="tracker-summary__set">
                           <span className="tracker-summary__set-num">{set.setNumber}</span>
