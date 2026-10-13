@@ -85,11 +85,21 @@ public final class TrackerModel {
     public private(set) var definitions: [ExerciseDefinition] = []
     public private(set) var isSwapping = false
 
+    /// The rest countdown between sets (D-015): pure state in ApexCore, driven
+    /// by the injected clock. The one-second tick settles it; the bar reads
+    /// `restRemaining`, and the island gets `rest.endsAt` through `syncActivity`.
+    public private(set) var rest = RestTimer()
+    /// Seconds left on the rest — refreshed by the tick and by every rest
+    /// change, so the bar is observable without reading the clock itself.
+    public private(set) var restRemaining = 0
+
     /// `.sensoryFeedback` triggers (design-spec §9): bump, never reset.
     public private(set) var loggedSetCount = 0
     public private(set) var prCount = 0
     public private(set) var confirmCount = 0
     public private(set) var completedCount = 0
+    /// The buzz at zero (D-015): bumped once when a rest runs out on the tick.
+    public private(set) var restEndedCount = 0
 
     private let deps: TrackerDependencies
     private var services: TrackerServices { deps.services }
@@ -141,6 +151,7 @@ public final class TrackerModel {
             if phase == .ready {
                 editor.replaceGroupsIfClean(fresh.groups, queueHasPending: status.pendingOps > 0)
                 applySession(fresh)
+                seedRest()
             } else {
                 apply(fresh)
             }
@@ -168,6 +179,7 @@ public final class TrackerModel {
     private func apply(_ bootstrap: TrackerBootstrap) {
         editor = TrackerEditor(bootstrap: bootstrap, session: session)
         applySession(bootstrap)
+        seedRest()
         phase = .ready
     }
 
@@ -227,6 +239,7 @@ public final class TrackerModel {
                 durationSeconds: totalDurationSeconds
             )
         }
+        seedRest()
     }
 
     private func subscribeToQueue() {
@@ -273,6 +286,13 @@ public final class TrackerModel {
         } else if let startedAt {
             elapsed = max(0, Int(services.clock.now.timeIntervalSince(startedAt)))
         }
+        if rest.isRunning {
+            let now = services.clock.now
+            if rest.settle(at: now) { restEndedCount += 1 }
+            restRemaining = rest.remaining(at: now)
+            // Over, buzzed or not: the island's countdown goes with it.
+            if !rest.isRunning { Task { await syncActivity() } }
+        }
     }
 
     // MARK: - Live Activity (W12)
@@ -284,9 +304,63 @@ public final class TrackerModel {
         guard phase == .ready, !isFinished, let startedAt else { return }
         await services.activity.sync(TrackerActivitySnapshot(
             session: session, title: event.title, startedAt: startedAt,
-            exerciseCount: editor.groups.reduce(0) { $0 + $1.exercises.count }
+            exerciseCount: editor.groups.reduce(0) { $0 + $1.exercises.count },
+            restEndsAt: rest.endsAt
         ))
     }
+
+    // MARK: - Rest (D-015)
+
+    /// A row committed something: its first non-empty reps or duration starts
+    /// the exercise's rest (`RestTimer.setCommitted` holds the rule). The
+    /// keystroke is the commit — on a phone mid-set there is no blur to wait
+    /// for — and the row is spent by its first one, so "1" then "12" is one
+    /// set. A finished workout's edits are corrections, not sets.
+    private func restCommitted(_ key: SetKey) {
+        guard !isFinished, let set = editor.set(at: key) else { return }
+        let prescription = editor.exercise(section: key.section, id: key.exerciseId)?.exercise.restPeriod
+        let now = services.clock.now
+        var started = false
+        for field in [SetField.reps, .duration] where !set[field].isEmpty {
+            if rest.setCommitted(key, field: field, value: set[field], rest: prescription, at: now) { started = true }
+        }
+        if started { restChanged() }
+    }
+
+    /// Rows already logged when the tracker rendered — a resumed session, the
+    /// replayed queue, the server's fresh copy — never start a rest on edit.
+    private func seedRest() {
+        rest.markLogged(editor.groups.lazy.flatMap { group in
+            group.exercises.lazy.flatMap { tracked in
+                tracked.sets.lazy
+                    .filter { !$0[.reps].isEmpty || !$0[.duration].isEmpty }
+                    .map { SetKey(section: tracked.section, exerciseId: tracked.exercise.id, setNumber: $0.setNumber) }
+            }
+        })
+    }
+
+    private func restChanged() {
+        restRemaining = rest.remaining(at: services.clock.now)
+        Task { await syncActivity() }
+    }
+
+    public func extendRest() {
+        guard rest.isRunning else { return }
+        rest.extend(at: services.clock.now)
+        restChanged()
+    }
+
+    public func skipRest() {
+        guard rest.isRunning else { return }
+        rest.skip()
+        restChanged()
+    }
+
+    /// "1:30" — the clock format, like a completion time; never padded to "01:30".
+    public var restLabel: String { DurationBuffer.formatClock(restRemaining) }
+
+    /// 0 at the start of the round, 1 at its end.
+    public var restProgress: Double { rest.progress(at: services.clock.now) }
 
     // MARK: - Edits
 
@@ -294,6 +368,7 @@ public final class TrackerModel {
 
     public func setValue(_ value: String, _ field: SetField, at key: SetKey) {
         guard editor.setValue(value, field, at: key) else { return }
+        restCommitted(key)
         scheduleSave()
     }
 
@@ -305,6 +380,7 @@ public final class TrackerModel {
         guard let tracked = editor.exercise(section: key.section, id: key.exerciseId) else { return false }
         guard editor.commitShadow(at: key, fields: inputFields(for: tracked)) else { return false }
         loggedSetCount += 1
+        restCommitted(key)
         scheduleSave()
         return true
     }
@@ -327,6 +403,11 @@ public final class TrackerModel {
         let count = editor.commitAllShadows(section: section, exerciseId: exerciseId, fields: inputFields(for: tracked))
         guard count > 0 else { return }
         loggedSetCount += count
+        // Every row commits at once; they share one prescription, so this is
+        // one rest, started from the last of them.
+        for set in tracked.sets {
+            restCommitted(SetKey(section: section, exerciseId: exerciseId, setNumber: set.setNumber))
+        }
         scheduleSave()
     }
 
@@ -472,6 +553,8 @@ public final class TrackerModel {
             coachStatus: .unavailable(Self.summaryPendingSync), pendingSync: true, durationSeconds: elapsed
         )
         gate = .idle
+        rest.reset()
+        restRemaining = 0
         await markCachedFinished(at: finish.finishedAt, total: elapsed)
         await services.activity.end(session, totalSeconds: elapsed)
         let queue = services.queue
@@ -597,6 +680,8 @@ public final class TrackerModel {
         try? await services.cache.delete(kind: .trackerBootstrap, key: cacheKey)
         isPresented = false
         timerTask?.cancel()
+        rest.reset()
+        restRemaining = 0
         await services.activity.end(session, totalSeconds: nil)
         let queue = services.queue
         let session = session
