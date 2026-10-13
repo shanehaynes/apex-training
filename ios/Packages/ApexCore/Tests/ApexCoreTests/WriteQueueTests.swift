@@ -827,6 +827,60 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(kept.first?.isRefused, true)
     }
 
+    func testAHeadTheServerAlwaysFailsCountsItsGiveUpsAndCanBeLetGo() async throws {
+        // A deterministic 500 (a row the server will never take): every
+        // resume puts the head back and it gives up again, the meal behind
+        // it never moves. The count climbs to the let-go threshold; letting
+        // the head go frees the lane and the next flush sends the rest.
+        let transport = ScriptedTransport([.status(500, body: "boom")])
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store, policy: RetryPolicy(maxAttempts: 1))
+        let ops = toggle(complete: true)
+        try await queue.enqueue(ops.completion, for: .outbox)
+        try await queue.enqueue(ops.quick, for: .outbox)
+        try await queue.enqueue(.meal(mealCreate()), for: .outbox)
+        await queue.flush(.outbox)
+        await queue.awaitRetries()
+        await queue.resume()
+        await queue.awaitRetries()
+        await queue.resume()
+        await queue.awaitRetries()
+
+        let held = await store.all
+        XCTAssertEqual(held.map(\.payload.action), [.completion, .quickComplete, .meal])
+        XCTAssertEqual(held.first?.giveUpCount, 3)
+        XCTAssertEqual(held.first?.canLetGo, true)
+        XCTAssertEqual(held.map(\.canLetGo), [true, false, false])
+        let sent = await transport.requests.map(\.path)
+        XCTAssertEqual(sent, Array(repeating: "/api/completions", count: 6), "two tries per give-up; nothing behind the head moved")
+
+        await transport.script([.ok()])
+        let letGo = await queue.letGo(held[0].id, in: .outbox)
+        XCTAssertEqual(letGo?.action, .completion)
+        let after = await store.all.map(\.payload.action)
+        XCTAssertEqual(after, [.meal], "the completion and its own plan-fill are gone, unsent")
+        await queue.flush(.outbox)
+        let paths = await transport.requests.map(\.path)
+        XCTAssertEqual(paths.suffix(1), ["/api/meals"], "the meal behind the let-go head lands on the next flush")
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+    }
+
+    func testLetGoRefusesAnOpNotYetGivenUpOnEnough() async throws {
+        let transport = ScriptedTransport([.status(500, body: "boom")])
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store, policy: RetryPolicy(maxAttempts: 0))
+        try await queue.enqueue(.meal(mealCreate()), for: .outbox)
+        await queue.flush(.outbox)
+        await queue.awaitRetries()
+        let held = await store.all
+        XCTAssertEqual(held.first?.giveUpCount, 1)
+        let letGo = await queue.letGo(held[0].id, in: .outbox)
+        XCTAssertNil(letGo, "one give-up is Retry's business, not Let go's")
+        let left = await store.all.count
+        XCTAssertEqual(left, 1)
+    }
+
     func testAnOutboxOpThePolicyGaveUpOnIsKeptAsWaitingAndTheNextFlushRetriesIt() async throws {
         // A server that keeps answering 5xx: past the ceiling the op is
         // failed, but marked given-up — still waiting, never dropped — and the

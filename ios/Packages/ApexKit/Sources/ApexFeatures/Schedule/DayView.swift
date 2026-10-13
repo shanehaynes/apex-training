@@ -84,15 +84,31 @@ struct DayView: View {
     /// still queued and comes back on the next foreground, but the user need
     /// not wait for that.
     @ViewBuilder
-    private func waitingLine(_ count: Int, _ singular: String, _ plural: String, id: String, stalled: Bool? = nil) -> some View {
+    private func waitingLine(
+        _ count: Int, _ singular: String, _ plural: String, id: String, kinds: Set<TrackerAction>,
+        stalled: Bool? = nil, canLetGo: Bool? = nil
+    ) -> some View {
         if count > 0 {
+            let day = model.selectedDay.string
             HStack(spacing: Spacing.sm) {
                 Label(count == 1 ? "1 \(singular) waiting to sync" : "\(count) \(plural) waiting to sync", systemImage: "icloud.and.arrow.up")
                     .font(.apex(.mono, size: TypeScale.micro, weight: .medium, relativeTo: .caption2))
                     .foregroundStyle(ApexColor.textMuted)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityIdentifier(id)
-                if stalled ?? model.stalledDays.contains(model.selectedDay.string) {
+                // Given up on three times: the way out, beside the retry.
+                if canLetGo ?? model.letGoDays.contains(day) {
+                    Button { Task { await model.letGoStalled(day: canLetGo == nil ? day : nil, kinds: kinds) } } label: {
+                        Text("Let go")
+                            .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
+                            .foregroundStyle(ApexColor.textMuted)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("\(id).letgo")
+                }
+                if stalled ?? model.stalledDays.contains(day) {
                     Button { Task { await model.retryOutbox() } } label: {
                         Text("Retry")
                             .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
@@ -124,11 +140,14 @@ struct DayView: View {
     private var outbox: some View {
         let day = model.selectedDay.string
         let refused = model.refusedSaves.filter { $0.payload.draft.date == day }
-        waitingLine(model.pendingSaves[day] ?? 0, "workout", "workouts", id: "schedule.day.pendingSaves")
-        waitingLine(model.pendingCompletions[day] ?? 0, "completion", "completions", id: "schedule.day.pendingCompletions")
-        waitingLine(model.pendingMeals[day] ?? 0, "meal", "meals", id: "schedule.day.pendingMeals")
+        waitingLine(model.pendingSaves[day] ?? 0, "workout", "workouts", id: "schedule.day.pendingSaves", kinds: [.workoutDraft])
+        waitingLine(model.pendingCompletions[day] ?? 0, "completion", "completions", id: "schedule.day.pendingCompletions", kinds: [.completion, .quickComplete])
+        waitingLine(model.pendingMeals[day] ?? 0, "meal", "meals", id: "schedule.day.pendingMeals", kinds: [.meal])
         // The library's, not the day's: shown wherever the user is looking.
-        waitingLine(model.pendingCreates, "exercise", "exercises", id: "schedule.day.pendingCreates", stalled: model.createsStalled)
+        waitingLine(
+            model.pendingCreates, "exercise", "exercises", id: "schedule.day.pendingCreates", kinds: [.createDefinition],
+            stalled: model.createsStalled, canLetGo: model.createsCanLetGo
+        )
         refusedMealsLine(model.refusedMeals[day] ?? 0)
         ForEach(refused) { save in
             HStack(alignment: .top, spacing: Spacing.sm) {

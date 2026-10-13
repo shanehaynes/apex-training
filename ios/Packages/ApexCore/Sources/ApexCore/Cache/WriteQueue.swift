@@ -251,6 +251,7 @@ public actor WriteQueue {
                     next.lastError = message
                     next.state = .failed
                     next.gaveUp = RetryPolicy.isTransient(error)
+                    if next.gaveUp { next.giveUpCount += 1 }
                     try? await store.update(next)
                     if !next.gaveUp, case .completion(let row, _) = op.payload {
                         // The plan-fill queued behind a completion the server
@@ -430,6 +431,20 @@ public actor WriteQueue {
     public func discard(_ id: Int64, in session: SessionKey) async {
         try? await store.delete(id: id)
         emit(.changed(session))
+    }
+
+    /// The user lets a gave-up op go (`TrackerOp.canLetGo`): dropped, and —
+    /// for a completion — so is its own plan-fill, by the rule a refusal
+    /// uses. Nothing is sent. Returns what was let go, for the caller's undo.
+    @discardableResult
+    public func letGo(_ id: Int64, in session: SessionKey) async -> TrackerOpPayload? {
+        guard let op = ((try? await store.ops(for: session)) ?? []).first(where: { $0.id == id }), op.canLetGo else { return nil }
+        try? await store.delete(id: op.id)
+        if case .completion(let row, _) = op.payload {
+            await retireQuickComplete(after: op, for: row, in: session)
+        }
+        emit(.changed(session))
+        return op.payload
     }
 
     /// Every exercise created with no signal and not yet on the server, from

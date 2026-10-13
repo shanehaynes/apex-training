@@ -722,6 +722,35 @@ final class ScheduleModelTests: XCTestCase {
     }
 
     @MainActor
+    func testACompletionGivenUpOnThreeTimesCanBeLetGoAndUnflipsTheCard() async throws {
+        let transport = readsOnly()
+        let (model, queue, store) = await outboxModel(transport, policy: RetryPolicy(maxAttempts: 0))
+        let run = try XCTUnwrap(model.event(id: "ios-fixture-run"))
+        await model.toggleCompletion(run)
+        await queue.flush(.outbox)
+        transport.set("POST", "/api/completions", status: 500, body: Data("boom".utf8))
+        for _ in 0..<3 {
+            await queue.resume()
+            await queue.awaitRetries()
+        }
+        try await waitUntil { model.letGoDays.contains("2026-09-08") }
+        XCTAssertTrue(model.stalledDays.contains("2026-09-08"), "Retry is offered")
+        XCTAssertTrue(model.letGoDays.contains("2026-09-08"), "and, after three give-ups, Let go")
+        XCTAssertTrue(model.event(id: "ios-fixture-run")!.isCompleted, "still waiting, still shown")
+        let counts = await store.all.map(\.giveUpCount)
+        XCTAssertEqual(counts, [3, 0])
+
+        await model.letGoStalled(day: "2026-09-08", kinds: [.completion, .quickComplete])
+        XCTAssertFalse(model.event(id: "ios-fixture-run")!.isCompleted, "let go: undone on the card like a refusal")
+        let left = await store.all.count
+        XCTAssertEqual(left, 0, "the completion and its own plan-fill, unsent")
+        XCTAssertTrue(model.pendingCompletions.isEmpty)
+        XCTAssertTrue(model.letGoDays.isEmpty)
+        XCTAssertEqual(transport.count("POST", "/api/workout-sessions"), 0)
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
     func testACreateTheServerKeepsFailingStaysWaitingAndOffered() async throws {
         // A 5xx run is not a refusal: the create is kept (gave up, waiting
         // with Retry), still overlaid on the library, and the toast says the

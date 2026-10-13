@@ -151,6 +151,15 @@ public enum ApexDatabase {
             }
         }
 
+        // How often the lane has given up on an op: at three the day line
+        // offers to let it go, so a server that 500s one row forever cannot
+        // hold the outbox's head for good.
+        migrator.registerMigration("v6_tracker_ops_give_up_count") { db in
+            try db.alter(table: "tracker_ops") { table in
+                table.add(column: "give_up_count", .integer).notNull().defaults(to: 0)
+            }
+        }
+
         return migrator
     }
 }

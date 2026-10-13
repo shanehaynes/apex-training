@@ -223,6 +223,37 @@ final class MealsModelTests: XCTestCase {
     }
 
     @MainActor
+    func testAMealGivenUpOnThreeTimesCanBeLetGo() async throws {
+        let transport = YouTransport.mealsOffline()   // no write route yet: the first try is "No connection", not a give-up
+        let (model, queue, store, _) = await queued(transport, policy: RetryPolicy(maxAttempts: 0))
+        var form = MealForm(day: fixtureDay)
+        form.title = "Toast"
+        _ = await model.save(form, editing: nil, originalDay: nil)
+        await queue.flush(.outbox)
+        transport.set("POST /api/meals", status: 500, body: "boom")   // a row the server will never take
+        await queue.resume()
+        await queue.awaitRetries()
+        try await waitUntil { model.stalledDays.contains("2026-09-08") }
+        XCTAssertFalse(model.letGoDays.contains("2026-09-08"), "one give-up: Retry only")
+        for _ in 0..<2 {
+            await queue.resume()
+            await queue.awaitRetries()
+        }
+        try await waitUntil { model.letGoDays.contains("2026-09-08") }
+        let counts = await store.all.map(\.giveUpCount)
+        XCTAssertEqual(counts, [3])
+        XCTAssertEqual(model.pendingMeals["2026-09-08"], 1)
+
+        await model.letGoStalled(day: "2026-09-08")
+        XCTAssertTrue(model.pendingMeals.isEmpty)
+        XCTAssertTrue(model.letGoDays.isEmpty)
+        XCTAssertTrue(model.refusedMeals.isEmpty)
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+        model.stop()
+    }
+
+    @MainActor
     func testARefusedMealCanBeLetGo() async throws {
         let transport = YouTransport.mealsOffline()
         transport.set("POST /api/meals", status: 404, body: "Meal not found")

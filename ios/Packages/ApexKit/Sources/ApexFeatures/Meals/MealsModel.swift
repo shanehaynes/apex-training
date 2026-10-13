@@ -64,6 +64,8 @@ public final class MealsModel {
     public private(set) var pendingMeals: [String: Int] = [:]
     /// Days whose waiting meals include one the lane gave up on: Retry is offered.
     public private(set) var stalledDays: Set<String> = []
+    /// Days whose waiting meals include one given up on three times: Let go is offered.
+    public private(set) var letGoDays: Set<String> = []
     /// The days of every waiting meal op in the lane, by op id: one that is
     /// gone next time has landed, and its days are re-read. A refused op
     /// that goes was let go or replaced — nothing on the server changed.
@@ -220,6 +222,7 @@ public final class MealsModel {
         guard let queue = deps.writeQueue else { return }
         var pending: [String: Int] = [:]
         var stalled: Set<String> = []
+        var letGo: Set<String> = []
         var refused: [RefusedMeal] = []
         var days: [Int64: [String]] = [:]
         for op in await queue.ops(for: .outbox) {
@@ -228,6 +231,7 @@ public final class MealsModel {
                 days[op.id] = meal.days
                 for day in meal.days { pending[day, default: 0] += 1 }
                 if op.gaveUp { stalled.formUnion(meal.days) }
+                if op.canLetGo { letGo.formUnion(meal.days) }
             } else if let item = Self.item(from: meal) {
                 refused.append(RefusedMeal(
                     id: op.id, day: DayKey(meal.day) ?? selectedDay, originalDay: meal.originalDay.flatMap { DayKey($0) },
@@ -239,6 +243,7 @@ public final class MealsModel {
         outboxDays = days
         pendingMeals = pending
         stalledDays = stalled
+        letGoDays = letGo
         refusedMeals = refused
         guard !landed.isEmpty else { return }
         await reload(days: landed)
@@ -268,8 +273,20 @@ public final class MealsModel {
         if refusedMeals.contains(where: { !known.contains($0.id) }) {
             ToastBus.shared.post("A meal wasn't accepted — \(message). Open Meals to fix it.", level: .failure)
         } else {
-            ToastBus.shared.post("A meal hasn't synced — the app keeps trying; Retry on its day sends it now.", level: .info)
+            let wayOut = letGoDays.isEmpty ? "." : " — or let it go from its day."
+            ToastBus.shared.post("A meal hasn't synced — the app keeps trying; Retry on its day sends it now" + wayOut, level: .info)
         }
+    }
+
+    /// The day line's Let go: every meal on the day the lane has given up on
+    /// enough times is dropped, unsent — the same end as deleting a refused one.
+    public func letGoStalled(day: String) async {
+        guard let queue = deps.writeQueue else { return }
+        for op in await queue.ops(for: .outbox) where op.canLetGo {
+            guard case .meal(let meal) = op.payload, meal.days.contains(day) else { continue }
+            await queue.letGo(op.id, in: .outbox)
+        }
+        await reloadOutbox()
     }
 
     /// Let a refused meal go.

@@ -309,6 +309,10 @@ public final class ScheduleModel {
     /// one of them has been given up on (Retry).
     public private(set) var pendingCreates = 0
     public private(set) var createsStalled = false
+    /// Days (and, for creates, the library) with a waiting op the lane has
+    /// given up on `TrackerOp.letGoThreshold` times: Let go is offered.
+    public private(set) var letGoDays: Set<String> = []
+    public private(set) var createsCanLetGo = false
     /// Every waiting op in the lane that touches the schedule (a save, both
     /// halves of a toggle, an exercise create): what has to drop for the
     /// window to be re-read. Meals are counted apart and re-read their own.
@@ -329,6 +333,8 @@ public final class ScheduleModel {
         stalledDays = []
         pendingCreates = 0
         createsStalled = false
+        letGoDays = []
+        createsCanLetGo = false
         waitingOutboxOps = 0
         guard let queue else { return }
         outboxTask = Task { [weak self] in
@@ -343,7 +349,7 @@ public final class ScheduleModel {
                         ToastBus.shared.post("Couldn't add an exercise to your library — \(message)", level: .failure)
                         await self?.refresh(reason: .afterEdit)
                     } else {
-                        ToastBus.shared.post("An exercise hasn't synced — the app keeps trying; Retry on its day sends it now.", level: .info)
+                        ToastBus.shared.post(await self?.keepsTrying("An exercise", .createDefinition) ?? "", level: .info)
                     }
                 case .failed(let session, .workoutDraft, let message) where session == .outbox:
                     await self?.draftFailed(message)
@@ -375,7 +381,7 @@ public final class ScheduleModel {
     private func completionFailed(_ message: String) async {
         let refused = await retireRefused(.completion)
         guard !refused.isEmpty else {
-            ToastBus.shared.post("A completion hasn't synced — the app keeps trying; Retry on its day sends it now.", level: .info)
+            ToastBus.shared.post(await keepsTrying("A completion", .completion), level: .info)
             return
         }
         var undone: Set<String> = []
@@ -405,7 +411,7 @@ public final class ScheduleModel {
         if refusedSaves.contains(where: { !known.contains($0.id) }) {
             ToastBus.shared.post("A workout saved offline wasn't accepted — \(message). Open its day to fix it.", level: .failure)
         } else {
-            ToastBus.shared.post("A workout saved offline hasn't synced — the app keeps trying; Retry on its day sends it now.", level: .info)
+            ToastBus.shared.post(await keepsTrying("A workout saved offline", .workoutDraft), level: .info)
         }
     }
 
@@ -427,6 +433,47 @@ public final class ScheduleModel {
         await writeQueue?.retryGaveUp(.outbox)
     }
 
+    /// The day line's Let go: every op of these kinds on the day that the
+    /// lane has given up on enough times is dropped (a completion takes its
+    /// own plan-fill with it). A let-go completion is undone on the card
+    /// the way a refused one is — from its row, under the toggles still
+    /// waiting — and the server's truth re-read on top. `day` nil = the
+    /// library's creates, which belong to no day.
+    public func letGoStalled(day: String?, kinds: Set<TrackerAction>) async {
+        guard let queue = writeQueue else { return }
+        var undone: Set<String> = []
+        for op in await queue.ops(for: .outbox) where op.canLetGo && kinds.contains(op.payload.action) {
+            let opDay: String? = switch op.payload {
+            case .workoutDraft(let save): save.draft.date
+            case .completion(let row, _): row.eventDate
+            case .quickComplete(let quick): quick.eventDate
+            case .meal(let meal): meal.days.contains(day ?? "") ? day : meal.day
+            default: nil
+            }
+            guard opDay == day else { continue }
+            guard let payload = await queue.letGo(op.id, in: .outbox) else { continue }
+            if case .completion(let row, _) = payload {
+                index = index?.settingCompletion(id: row.eventId, isCompleted: !row.isCompleted, completedAt: nil)
+                undone.insert(row.eventId)
+            }
+        }
+        for op in await queue.waitingOps(for: .outbox) {
+            guard case .completion(let row, _) = op.payload, undone.contains(row.eventId) else { continue }
+            index = index?.settingCompletion(id: row.eventId, isCompleted: row.isCompleted, completedAt: row.completedAt)
+        }
+        await reloadOutbox()
+        guard !undone.isEmpty else { return }
+        await persistIndex()
+        await refresh(reason: .afterCompletion)
+    }
+
+    /// The keeps-trying line, with the way out once the lane has given up
+    /// on one of these ops enough times.
+    private func keepsTrying(_ what: String, _ action: TrackerAction) async -> String {
+        let canLetGo = await writeQueue?.ops(for: .outbox).contains { $0.canLetGo && $0.payload.action == action } ?? false
+        return "\(what) hasn't synced — the app keeps trying; Retry on its day sends it now" + (canLetGo ? " — or let it go from its day." : ".")
+    }
+
     /// Re-reads the outbox: Builder saves, completion toggles and meals
     /// waiting by day, and the refused saves. When an op has left the lane
     /// the schedule is re-read too, so a save or a flip that landed shows as
@@ -441,6 +488,8 @@ public final class ScheduleModel {
         var stalled: Set<String> = []
         var creates = 0
         var createsGaveUp = false
+        var createsLetGo = false
+        var letGo: Set<String> = []
         var waiting = 0
         for op in await queue.ops(for: .outbox) {
             // A gave-up op is still waiting (`TrackerOp.isWaiting`): counted on
@@ -454,6 +503,7 @@ public final class ScheduleModel {
             default: days = []
             }
             if op.isWaiting, op.gaveUp { stalled.formUnion(days) }
+            if op.canLetGo { letGo.formUnion(days) }
             switch op.payload {
             case .workoutDraft(let save):
                 if op.isWaiting {
@@ -472,6 +522,7 @@ public final class ScheduleModel {
             case .createDefinition where op.isWaiting:
                 creates += 1
                 if op.gaveUp { createsGaveUp = true }
+                if op.canLetGo { createsLetGo = true }
                 waiting += 1
             case _ where op.isWaiting:
                 waiting += 1
@@ -490,6 +541,8 @@ public final class ScheduleModel {
         stalledDays = stalled
         pendingCreates = creates
         createsStalled = createsGaveUp
+        letGoDays = letGo
+        createsCanLetGo = createsLetGo
         waitingOutboxOps = waiting
         // A landed toggle re-reads the window only (as the direct path did);
         // a landed save may have changed meals' days too.

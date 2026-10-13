@@ -193,10 +193,20 @@ public struct TrackerOp: Sendable, Equatable, Identifiable {
     /// still waiting — the outbox puts it back on every resume and a Retry
     /// does so by hand — while a refusal needs the user (Fix, or let go).
     public var gaveUp: Bool
+    /// How many times the policy has given up on this op across its retries
+    /// (a put-back keeps the count; only landing or discarding ends it). A
+    /// 5xx that is deterministic — a migration lagging the code, a bad row
+    /// the server 500s on — would otherwise hold the outbox's head forever:
+    /// at `letGoThreshold` the day line offers **Let go** beside Retry.
+    public var giveUpCount: Int
+
+    /// Give-ups before the user is offered to let the op go.
+    public static let letGoThreshold = 3
 
     public init(
         id: Int64 = 0, session: SessionKey, payload: TrackerOpPayload, createdAt: Date,
-        attempts: Int = 0, lastError: String? = nil, state: TrackerOpState = .pending, gaveUp: Bool = false
+        attempts: Int = 0, lastError: String? = nil, state: TrackerOpState = .pending, gaveUp: Bool = false,
+        giveUpCount: Int = 0
     ) {
         self.id = id
         self.session = session
@@ -206,7 +216,11 @@ public struct TrackerOp: Sendable, Equatable, Identifiable {
         self.lastError = lastError
         self.state = state
         self.gaveUp = gaveUp
+        self.giveUpCount = giveUpCount
     }
+
+    /// A waiting op the lane has given up on enough times to be let go.
+    public var canLetGo: Bool { isWaiting && giveUpCount >= Self.letGoThreshold }
 
     /// Pending, or failed only for want of a connection or a working server:
     /// what the outbox counts as waiting to sync.
@@ -220,7 +234,7 @@ public struct TrackerOp: Sendable, Equatable, Identifiable {
 public protocol WriteQueueStore: Sendable {
     /// Assigns and returns the id.
     func append(_ op: TrackerOp) async throws -> Int64
-    /// By id: payload (a merge), attempts, lastError, state, gaveUp.
+    /// By id: payload (a merge), attempts, lastError, state, gaveUp, giveUpCount.
     func update(_ op: TrackerOp) async throws
     /// "Sent": a finished op leaves no row behind.
     func delete(id: Int64) async throws

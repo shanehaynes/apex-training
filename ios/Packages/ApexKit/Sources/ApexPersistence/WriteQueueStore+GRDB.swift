@@ -19,12 +19,12 @@ public struct GRDBWriteQueueStore: WriteQueueStore {
         return try await pool.write { [owner] db in
             try db.execute(
                 sql: """
-                INSERT INTO tracker_ops (owner, event_id, event_date, action, payload, created_at, attempts, last_error, state, gave_up)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO tracker_ops (owner, event_id, event_date, action, payload, created_at, attempts, last_error, state, gave_up, give_up_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 arguments: [
                     owner, op.session.eventId, op.session.eventDate, op.payload.action.rawValue, payload,
-                    op.createdAt.timeIntervalSince1970, op.attempts, op.lastError, op.state.rawValue, op.gaveUp,
+                    op.createdAt.timeIntervalSince1970, op.attempts, op.lastError, op.state.rawValue, op.gaveUp, op.giveUpCount,
                 ]
             )
             return db.lastInsertedRowID
@@ -36,10 +36,10 @@ public struct GRDBWriteQueueStore: WriteQueueStore {
         try await pool.write { [owner] db in
             try db.execute(
                 sql: """
-                UPDATE tracker_ops SET action = ?, payload = ?, attempts = ?, last_error = ?, state = ?, gave_up = ?
+                UPDATE tracker_ops SET action = ?, payload = ?, attempts = ?, last_error = ?, state = ?, gave_up = ?, give_up_count = ?
                 WHERE id = ? AND owner = ?
                 """,
-                arguments: [op.payload.action.rawValue, payload, op.attempts, op.lastError, op.state.rawValue, op.gaveUp, op.id, owner]
+                arguments: [op.payload.action.rawValue, payload, op.attempts, op.lastError, op.state.rawValue, op.gaveUp, op.giveUpCount, op.id, owner]
             )
         }
     }
@@ -118,7 +118,8 @@ public struct GRDBWriteQueueStore: WriteQueueStore {
             attempts: row["attempts"],
             lastError: row["last_error"],
             state: state,
-            gaveUp: row["gave_up"] ?? false
+            gaveUp: row["gave_up"] ?? false,
+            giveUpCount: row["give_up_count"] ?? 0
         )
     }
 }

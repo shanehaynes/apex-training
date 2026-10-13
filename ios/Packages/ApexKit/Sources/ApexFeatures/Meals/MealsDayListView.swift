@@ -69,6 +69,17 @@ public struct MealsDayListView: View {
                     .foregroundStyle(ApexColor.textMuted)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityIdentifier("meals.pending")
+                if model.letGoDays.contains(day) {
+                    Button { Task { await model.letGoStalled(day: day) } } label: {
+                        Text("Let go")
+                            .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
+                            .foregroundStyle(ApexColor.textMuted)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("meals.pending.letgo")
+                }
                 if model.stalledDays.contains(day) {
                     Button { Task { await model.retryOutbox() } } label: {
                         Text("Retry")
