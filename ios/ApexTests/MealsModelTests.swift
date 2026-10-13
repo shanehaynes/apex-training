@@ -247,9 +247,73 @@ final class MealsModelTests: XCTestCase {
         await model.letGoStalled(day: "2026-09-08")
         XCTAssertTrue(model.pendingMeals.isEmpty)
         XCTAssertTrue(model.letGoDays.isEmpty)
+        XCTAssertEqual(model.refusedMeals.map(\.item.title), ["Toast"], "kept for Fix or Delete, not dropped")
+        let left = await store.all.map(\.isRefused)
+        XCTAssertEqual(left, [true])
+        model.stop()
+    }
+
+    @MainActor
+    func testALetGoMealIsKeptForFixAndTheLaneBehindItMoves() async throws {
+        // Two meals queued; the server 500s the head forever. Letting it go
+        // keeps it — content, day, and a reason that says the lane gave up —
+        // listed with Fix and Delete as a refusal is, and the meal behind it
+        // lands on the next resume. The let-go meal is never retried.
+        let transport = YouTransport.mealsOffline()
+        let (model, queue, store, hooks) = await queued(transport, policy: RetryPolicy(maxAttempts: 0))
+        var toast = MealForm(day: fixtureDay)
+        toast.title = "Toast"
+        toast.protein = "12"
+        var butter = MealForm(day: fixtureDay)
+        butter.title = "Butter"
+        _ = await model.save(toast, editing: nil, originalDay: nil)
+        _ = await model.save(butter, editing: nil, originalDay: nil)
+        await queue.flush(.outbox)
+        transport.set("POST /api/meals", status: 500, body: "boom")
+        // A resume that lands mid-flush folds into it: resume until the
+        // lane has given up three times rather than counting resumes.
+        for _ in 0..<8 {
+            await queue.resume()
+            await queue.awaitRetries()
+            if let count = await store.all.first?.giveUpCount, count >= 3 { break }
+        }
+        try await waitUntil { model.letGoDays.contains("2026-09-08") }
+        XCTAssertEqual(model.pendingMeals["2026-09-08"], 2)
+        let before = await store.all
+        XCTAssertEqual(before.map(\.canLetGo), [true, false], "the head gave up enough; Butter never moved")
+        let giveUps = before[0].giveUpCount
+
+        await model.letGoStalled(day: "2026-09-08")
+        XCTAssertEqual(model.pendingMeals["2026-09-08"], 1, "Butter still waits")
+        XCTAssertTrue(model.letGoDays.isEmpty)
+        XCTAssertTrue(model.stalledDays.isEmpty)
+        let kept = try XCTUnwrap(model.refusedMeals.first)
+        XCTAssertEqual(model.refusedMeals.count, 1)
+        XCTAssertEqual(kept.item.title, "Toast")
+        XCTAssertEqual(kept.item.proteinG, 12)
+        XCTAssertEqual(kept.day, fixtureDay)
+        XCTAssertFalse(kept.isUpdate)
+        XCTAssertEqual(kept.reason, WriteQueue.letGoReason(giveUps: giveUps))
+        XCTAssertTrue(kept.reason.contains("given up after"))
+        XCTAssertEqual(hooks.changes, 0, "nothing landed, nothing to re-read")
+
+        let toastTries = transport.requests("/api/meals").filter { $0.body?["title"] as? String == "Toast" }.count
+        transport.set("POST /api/meals", .json(200, Data(#"{"id":"meal-new"}"#.utf8)))
+        await queue.resume()
+        await queue.awaitRetries()
+        try await waitUntil { model.pendingMeals.isEmpty && hooks.changes == 1 }
+        XCTAssertTrue(model.pendingMeals.isEmpty)
+        let posts = transport.requests("/api/meals").filter { $0.method == "POST" }
+        XCTAssertEqual(posts.last?.body?["title"] as? String, "Butter", "the lane behind the let-go meal moved")
+        XCTAssertEqual(posts.filter { $0.body?["title"] as? String == "Toast" }.count, toastTries, "the let-go meal was not sent again")
+        let left = await store.all.map(\.isRefused)
+        XCTAssertEqual(left, [true], "Toast is kept until Fix or Delete")
+        XCTAssertEqual(model.refusedMeals.map(\.item.title), ["Toast"])
+
+        await model.deleteRefused(kept.id)
         XCTAssertTrue(model.refusedMeals.isEmpty)
-        let left = await store.all.count
-        XCTAssertEqual(left, 0)
+        let none = await store.all.count
+        XCTAssertEqual(none, 0)
         model.stop()
     }
 
