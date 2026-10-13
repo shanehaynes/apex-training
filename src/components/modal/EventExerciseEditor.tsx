@@ -5,6 +5,7 @@ import { useCalendar } from '../../context/calendar';
 import { useSchedule } from '../../context/schedule';
 import { baseIdOf } from '../../lib/schedule/occurrence';
 import { draftFromEvent } from '../../lib/builder/draft';
+import { withPrescriptionPatch } from '../../lib/builder/plannedSets';
 import { asksScope, saveRequest } from './exerciseScope';
 import type { SaveScope } from './exerciseScope';
 import { entryFromDefinition, uniqueEntryId, validateUnilateral } from '../../lib/schedule/definitions';
@@ -13,13 +14,12 @@ import { linkWithAbove, normalizeSupersets, unlink } from '../../lib/schedule/su
 import { notify } from '../../lib/notify';
 import { CLIMB_STYLES, ascentStylesFor, climbStyleLabel, sectionLabels } from '../../lib/climbing';
 import ExercisePicker from './ExercisePicker';
+import PlannedSetsEditor from './PlannedSetsEditor';
 import type { AscentStyle, ClimbStyle, Exercise, ExerciseCategory, ExerciseDefinition, WorkoutEvent, WorkoutType } from '../../types/workout';
 
 export type { SectionKey, SectionLists };
 
 const SECTION_KEYS: SectionKey[] = ['warmup', 'exercises', 'cooldown'];
-
-const PRESCRIPTION_FIELDS = ['sets', 'reps', 'duration', 'weight', 'restPeriod'] as const;
 
 interface Props {
   event: WorkoutEvent;
@@ -56,9 +56,6 @@ function EditorCard({
         </button>
         <span className="editor-card__name">{entry.name}</span>
         {entry.superset && <span className="superset-badge">{entry.superset}</span>}
-        {entry.plannedSets?.length ? (
-          <span className="editor-card__ramp-hint">custom per-set targets — editing clears them</span>
-        ) : null}
         {(canLink || entry.superset) && (
           <button
             className={`editor-card__link${entry.superset ? ' editor-card__link--on' : ''}`}
@@ -146,6 +143,9 @@ function EditorCard({
         </label>
       </div>
       )}
+      {entry.category !== 'climbing' && (
+        <PlannedSetsEditor entry={entry} onChange={plannedSets => onChange({ plannedSets })} />
+      )}
       {error && <p className="editor-card__error">{error}</p>}
     </Reorder.Item>
   );
@@ -206,13 +206,11 @@ export function ExerciseSectionsEditor({ lists, onChange, errors, pickerCategory
     setSection(key, [...lists[key], entry]);
   };
 
-  const updateEntry = (key: SectionKey, id: string, patch: Partial<Exercise>) => {
-    setSection(key, lists[key].map(e => {
-      if (e.id !== id) return e;
-      const touchesPrescription = PRESCRIPTION_FIELDS.some(f => f in patch);
-      return { ...e, ...patch, ...(touchesPrescription && e.plannedSets ? { plannedSets: undefined } : {}) };
-    }));
-  };
+  // A prescription edit keeps any per-set targets (a new set count resizes
+  // the table); the disclosure's own actions are the only writers of the
+  // rows themselves.
+  const updateEntry = (key: SectionKey, id: string, patch: Partial<Exercise>) =>
+    setSection(key, lists[key].map(e => (e.id === id ? withPrescriptionPatch(e, patch) : e)));
 
   const addFromDefinition = (def: ExerciseDefinition) => {
     if (!pickerSection) return;

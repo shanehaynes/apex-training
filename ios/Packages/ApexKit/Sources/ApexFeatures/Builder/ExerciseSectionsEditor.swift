@@ -5,8 +5,9 @@ import SwiftUI
 /// `ExerciseSectionsEditor` from `EventExerciseEditor.tsx`: the sections as one
 /// `List` with real drag handles (U10), a prescription row per entry, the
 /// superset link toggle, remove, and Add exercise / Add pitch. Every reorder,
-/// link and remove re-letters through `Supersets`; a prescription edit clears
-/// the per-set ramp it no longer describes.
+/// link and remove re-letters through `Supersets`; per-set targets are
+/// authored under each row (`PlannedSetsEditor`) and survive prescription
+/// edits — a new set count resizes them.
 ///
 /// A workout with nothing in its warm-up or cool-down is *one* list, with no
 /// eyebrow over it and one Add exercise under it (ux-review §3.5: an empty new
@@ -161,8 +162,10 @@ struct ExerciseSectionsEditor: View {
 }
 
 /// One entry: name, the prescription (or the pitch's style / grade / ascent),
-/// the link toggle and remove. Editing sets/reps/duration/weight/rest clears
-/// `plannedSets` — the ramp no longer describes the prescription.
+/// the per-set targets disclosure, the link toggle and remove. Editing
+/// sets/reps/duration/weight/rest keeps `plannedSets`; the set count resizes
+/// them (`PlannedSets.settingSets`), and the disclosure's own actions are
+/// the only writers of the rows themselves.
 struct ExerciseEditorRow: View {
     @Binding var entry: Exercise
     let error: String?
@@ -197,6 +200,7 @@ struct ExerciseEditorRow: View {
                 pitchFields
             } else {
                 prescriptionFields
+                PlannedSetsEditor(entry: $entry)
             }
             HStack(spacing: Spacing.md) {
                 if let linkTitle {
@@ -253,24 +257,19 @@ struct ExerciseEditorRow: View {
         }
     }
 
-    /// A prescription field: a `String?` on the entry, empty = nil; clears the ramp.
+    /// A prescription field: a `String?` on the entry, empty = nil.
     private func field(_ keyPath: WritableKeyPath<Exercise, String?>) -> Binding<String> {
         Binding(
             get: { entry[keyPath: keyPath] ?? "" },
-            set: { value in
-                entry[keyPath: keyPath] = value.isEmpty ? nil : value
-                entry.plannedSets = nil
-            }
+            set: { value in entry[keyPath: keyPath] = value.isEmpty ? nil : value }
         )
     }
 
+    /// The set count also sizes the per-set table, keeping its rows.
     private var setsBinding: Binding<String> {
         Binding(
             get: { entry.sets.map(String.init) ?? "" },
-            set: { value in
-                entry.sets = Int(value)
-                entry.plannedSets = nil
-            }
+            set: { value in entry = PlannedSets.settingSets(entry, to: Int(value)) }
         )
     }
 
