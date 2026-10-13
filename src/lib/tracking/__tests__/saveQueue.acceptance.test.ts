@@ -20,7 +20,12 @@ const INITIAL: SaveQueueState = {
   consecutiveFailures: 0,
   showBar: false,
   nextRetryAt: null,
+  rejected: 0,
 };
+
+/** A rejection carrying an HTTP status, as a fetch wrapper would throw it. */
+const httpError = (status: number, extra: Record<string, unknown> = {}): Error =>
+  Object.assign(new Error(`HTTP ${status}`), { status, ...extra });
 
 /** Drain the microtask queue a few turns deep, then one macrotask. Never real time. */
 async function settle(): Promise<void> {
@@ -94,6 +99,9 @@ interface HarnessOptions {
   /** 'default' omits the dep so the module's own default applies. */
   backoff?: { baseMs: number; maxMs: number } | 'default';
   barAfterFailures?: number;
+  maxRetryMs?: number;
+  /** How many leading `send` calls throw synchronously instead of returning a promise. */
+  throwSyncFirst?: number;
 }
 
 function makeHarness(options: HarnessOptions = {}) {
@@ -107,8 +115,13 @@ function makeHarness(options: HarnessOptions = {}) {
   let mismatches = 0;
   let open = 0;
   let maxConcurrent = 0;
+  let throwSync = options.throwSyncFirst ?? 0;
 
   const send = vi.fn((keys: readonly string[]): Promise<void> => {
+    if (throwSync > 0) {
+      throwSync -= 1;
+      throw new Error('send threw synchronously');
+    }
     open += 1;
     maxConcurrent = Math.max(maxConcurrent, open);
     return new Promise<void>((resolve, reject) => {
@@ -145,6 +158,7 @@ function makeHarness(options: HarnessOptions = {}) {
   };
   if (options.backoff !== 'default') deps.backoff = options.backoff ?? BACKOFF;
   if (options.barAfterFailures !== undefined) deps.barAfterFailures = options.barAfterFailures;
+  if (options.maxRetryMs !== undefined) deps.maxRetryMs = options.maxRetryMs;
   queue = createSaveQueue(deps);
 
   const attempt = (index: number): Attempt => {
@@ -722,7 +736,325 @@ describe('saveQueue acceptance', () => {
     });
   });
 
+  describe('A10 — non-retryable rejection', () => {
+    it('a 4xx rejection schedules no retry: the snapshot keys leave pending and count as rejected', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      h.queue.markDirty('b');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail(httpError(422));
+      await expect(flushed).resolves.toBe(true);
+      expect(h.queue.state()).toEqual({ ...INITIAL, rejected: 2, showBar: true });
+      expect(h.timers.pending()).toBe(0);
+      await h.timers.advance(120000);
+      expect(h.send).toHaveBeenCalledTimes(1);
+      // Nothing pending: a later flush sends nothing and leaves the rejects alone.
+      await expect(h.queue.flush()).resolves.toBe(true);
+      expect(h.send).toHaveBeenCalledTimes(1);
+      expect(h.queue.state().rejected).toBe(2);
+    });
+
+    it('400 and 499 are non-retryable; 399, 408, 429 and 500 retry as before', CASE, async () => {
+      for (const status of [400, 499]) {
+        const h = makeHarness();
+        h.queue.markDirty('a');
+        const flushed = h.queue.flush();
+        await settle();
+        await h.fail(httpError(status));
+        await expect(flushed).resolves.toBe(true);
+        expect(h.queue.state()).toMatchObject({ pending: 0, rejected: 1, consecutiveFailures: 0, nextRetryAt: null });
+        expect(h.timers.pending()).toBe(0);
+      }
+      for (const status of [399, 408, 429, 500]) {
+        const h = makeHarness();
+        h.queue.markDirty('a');
+        const flushed = h.queue.flush();
+        await settle();
+        await h.fail(httpError(status));
+        await expect(flushed).resolves.toBe(false);
+        expect(h.queue.state()).toMatchObject({ pending: 1, rejected: 0, consecutiveFailures: 1 });
+        expect(h.timers.pending()).toBe(1);
+        await h.timers.advance(BACKOFF.baseMs);
+        expect(h.attempt(1).keys).toEqual(['a']);
+      }
+    });
+
+    it('markDirty of a rejected key makes it pending again, and onChange reports both transitions', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail(httpError(400));
+      await expect(flushed).resolves.toBe(true);
+      expect(h.queue.state().rejected).toBe(1);
+      expect(h.lastState()).toMatchObject({ pending: 0, rejected: 1, showBar: true });
+      h.queue.markDirty('a');
+      expect(h.queue.state()).toEqual({ ...INITIAL, pending: 1 });
+      expect(h.lastState()).toEqual({ ...INITIAL, pending: 1 });
+      const again = h.queue.flush();
+      await settle();
+      expect(h.attempt(1).keys).toEqual(['a']);
+      await h.succeed();
+      await expect(again).resolves.toBe(true);
+      expect(h.queue.state()).toEqual(INITIAL);
+      expect(h.mismatches()).toBe(0);
+    });
+
+    it('a 4xx on a retry leaves consecutiveFailures un-incremented and arms no further retry', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail();
+      await expect(flushed).resolves.toBe(false);
+      expect(h.queue.state().consecutiveFailures).toBe(1);
+      const retried = h.queue.retryNow();
+      await settle();
+      await h.fail(httpError(403));
+      await expect(retried).resolves.toBe(true);
+      const atRejection = h.states.find((st) => st.rejected === 1);
+      expect(atRejection).toBeDefined();
+      expect(atRejection?.consecutiveFailures).toBeLessThan(2); // the 4xx path never increments
+      expect(h.queue.state()).toMatchObject({ pending: 0, rejected: 1, nextRetryAt: null, showBar: true });
+      expect(h.timers.pending()).toBe(0);
+      await h.timers.advance(120000);
+      expect(h.send).toHaveBeenCalledTimes(2);
+    });
+
+    it('a 4xx rejects only the snapshot: a key dirtied during that send stays pending and a waiting flush sends it', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      const p1 = h.queue.flush();
+      await settle();
+      h.queue.markDirty('b');
+      const p2 = h.queue.flush();
+      await settle();
+      await h.fail(httpError(404), 0);
+      expect(typeof (await p1)).toBe('boolean');
+      expect(h.queue.state()).toMatchObject({ pending: 1, rejected: 1 });
+      expect(h.attempt(1).keys).toEqual(['b']);
+      await h.succeed(1);
+      await expect(p2).resolves.toBe(true);
+      expect(h.queue.state()).toEqual({ ...INITIAL, rejected: 1, showBar: true });
+      expect(h.maxConcurrent()).toBe(1);
+    });
+  });
+
+  describe('A11 — delay clamp', () => {
+    it('retryAfterMs beyond an explicit maxRetryMs waits exactly the clamp', CASE, async () => {
+      const h = makeHarness({ maxRetryMs: 2000 });
+      h.queue.markDirty('a');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail({ retryAfterMs: 9999 });
+      await expect(flushed).resolves.toBe(false);
+      expect(h.timers.lastDelay()).toBe(2000);
+      expect(h.queue.state().nextRetryAt).not.toBeNull();
+      await h.timers.advance(1999);
+      expect(h.send).toHaveBeenCalledTimes(1);
+      await h.timers.advance(1);
+      expect(h.send).toHaveBeenCalledTimes(2);
+    });
+
+    it('backoff beyond an explicit maxRetryMs is clamped too', CASE, async () => {
+      const h = makeHarness({ backoff: { baseMs: 1000, maxMs: 30000 }, maxRetryMs: 2500 });
+      h.queue.markDirty('a');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail();
+      await expect(flushed).resolves.toBe(false);
+      const expected = [1000, 2000, 2500, 2500];
+      for (let i = 0; i < expected.length; i++) {
+        expect(h.timers.lastDelay()).toBe(expected[i]);
+        await h.timers.advance(expected[i]);
+        await h.fail();
+      }
+      expect(h.timers.delays).toEqual([...expected, 2500]);
+    });
+
+    it('the default maxRetryMs is 60000', CASE, async () => {
+      const h = makeHarness({ backoff: 'default' });
+      h.queue.markDirty('a');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail({ retryAfterMs: 100000 });
+      await expect(flushed).resolves.toBe(false);
+      expect(h.timers.lastDelay()).toBe(60000);
+      await h.timers.advance(60000);
+      await h.fail({ retryAfterMs: 59999 }); // under the clamp, above the 2000ms backoff: honoured as is
+      expect(h.timers.lastDelay()).toBe(59999);
+    });
+
+    it('a non-finite or negative retryAfterMs is ignored and the backoff applies', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail({ retryAfterMs: Number.POSITIVE_INFINITY });
+      await expect(flushed).resolves.toBe(false);
+      expect(h.timers.lastDelay()).toBe(100);
+      await h.timers.advance(100);
+      await h.fail({ retryAfterMs: Number.NaN });
+      expect(h.timers.lastDelay()).toBe(200);
+      await h.timers.advance(200);
+      await h.fail({ retryAfterMs: -5 });
+      expect(h.timers.lastDelay()).toBe(350);
+      expect(h.timers.delays.every((ms) => Number.isFinite(ms))).toBe(true);
+    });
+  });
+
+  describe('A12 — a true flush resets the failure count', () => {
+    it('flush() with nothing pending resolves true and resets consecutiveFailures and the bar', CASE, async () => {
+      const h = makeHarness({ barAfterFailures: 1 });
+      h.queue.markDirty('a');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail();
+      await expect(flushed).resolves.toBe(false);
+      expect(h.queue.state()).toMatchObject({ consecutiveFailures: 1, showBar: true });
+      h.queue.unmark('a');
+      await expect(h.queue.flush()).resolves.toBe(true);
+      expect(h.send).toHaveBeenCalledTimes(1);
+      expect(h.queue.state()).toMatchObject({ pending: 0, consecutiveFailures: 0, showBar: false });
+    });
+
+    it('a true flush leaves showBar up while rejected > 0', CASE, async () => {
+      const h = makeHarness({ barAfterFailures: 1 });
+      h.queue.markDirty('a');
+      const first = h.queue.flush();
+      await settle();
+      await h.fail(httpError(400));
+      await expect(first).resolves.toBe(true);
+      h.queue.markDirty('b');
+      const second = h.queue.flush();
+      await settle();
+      await h.fail(); // one retryable failure: bar is up on both counts
+      await expect(second).resolves.toBe(false);
+      expect(h.queue.state()).toMatchObject({ consecutiveFailures: 1, rejected: 1, showBar: true });
+      const third = h.queue.retryNow();
+      await settle();
+      await h.succeed();
+      await expect(third).resolves.toBe(true);
+      expect(h.queue.state()).toEqual({ ...INITIAL, rejected: 1, showBar: true });
+    });
+  });
+
+  describe('A13 — serialisation under re-entrancy', () => {
+    it('a flush chained off the first flush and a flush during the send produce exactly one follow-up send', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      const p1 = h.queue.flush();
+      const p3 = p1.then(() => h.queue.flush());
+      h.queue.markDirty('b');
+      const p2 = h.queue.flush();
+      await settle();
+      expect(h.send).toHaveBeenCalledTimes(1);
+      await h.succeed(0);
+      await expect(p1).resolves.toBe(true);
+      expect(h.send).toHaveBeenCalledTimes(2);
+      expect(h.attempt(1).keys).toEqual(['b']);
+      expect(h.maxConcurrent()).toBe(1);
+      await h.succeed(1);
+      await expect(p2).resolves.toBe(true);
+      await expect(p3).resolves.toBe(true);
+      await settle();
+      expect(h.send).toHaveBeenCalledTimes(2);
+      expect(h.maxConcurrent()).toBe(1);
+      expect(h.queue.state()).toEqual(INITIAL);
+    });
+
+    it('a send that throws synchronously counts as one failure and is retried', CASE, async () => {
+      const h = makeHarness({ throwSyncFirst: 1 });
+      h.queue.markDirty('a');
+      const flushed = h.queue.flush();
+      await settle();
+      await expect(flushed).resolves.toBe(false);
+      expect(h.queue.state()).toMatchObject({ pending: 1, inFlight: false, consecutiveFailures: 1 });
+      expect(h.timers.pending()).toBe(1);
+      expect(h.timers.lastDelay()).toBe(BACKOFF.baseMs);
+      await h.timers.advance(BACKOFF.baseMs);
+      expect(h.send).toHaveBeenCalledTimes(2);
+      expect(h.attempt(0).keys).toEqual(['a']); // the retry is the first call that returned a promise
+      await h.succeed(0);
+      expect(h.queue.state()).toEqual(INITIAL);
+      // And a later flush still reaches send.
+      h.queue.markDirty('c');
+      const later = h.queue.flush();
+      await settle();
+      expect(h.attempt(1).keys).toEqual(['c']);
+      await h.succeed(1);
+      await expect(later).resolves.toBe(true);
+    });
+  });
+
   describe('spec gaps (ruled before they count)', () => {
+    it('AMBIGUOUS: the flush whose own send was rejected 4xx resolves true even though a key dirtied in flight is still pending', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      const p1 = h.queue.flush();
+      await settle();
+      h.queue.markDirty('b');
+      await h.fail(httpError(404), 0);
+      await expect(p1).resolves.toBe(true);
+      expect(h.queue.state()).toMatchObject({ pending: 1, rejected: 1 });
+    });
+
+    it('AMBIGUOUS: a rejected 4xx error with a status given as a numeric string is not treated as non-retryable', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail(Object.assign(new Error('odd'), { status: '404' }));
+      await expect(flushed).resolves.toBe(false);
+      expect(h.queue.state()).toMatchObject({ pending: 1, rejected: 0, consecutiveFailures: 1 });
+    });
+
+    it('AMBIGUOUS: nextRetryAt is Date.now() + the clamped delay', CASE, async () => {
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+      try {
+        const h = makeHarness({ maxRetryMs: 2000 });
+        h.queue.markDirty('a');
+        const flushed = h.queue.flush();
+        await settle();
+        await h.fail({ retryAfterMs: 9999 });
+        await expect(flushed).resolves.toBe(false);
+        expect(h.queue.state().nextRetryAt).toBe(1_700_000_000_000 + 2000);
+      } finally {
+        nowSpy.mockRestore();
+      }
+    });
+
+    it('AMBIGUOUS: the onChange transition that first reports a rejection shows consecutiveFailures unchanged; the A12 reset is a later transition', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail();
+      await expect(flushed).resolves.toBe(false);
+      const retried = h.queue.retryNow();
+      await settle();
+      await h.fail(httpError(403));
+      await expect(retried).resolves.toBe(true);
+      const atRejection = h.states.find((st) => st.rejected === 1);
+      expect(atRejection).toMatchObject({ pending: 0, rejected: 1, consecutiveFailures: 1, nextRetryAt: null });
+      expect(h.queue.state().consecutiveFailures).toBe(0);
+    });
+
+    it('AMBIGUOUS: the originating flush resolves true after a 4xx that followed a retryable failure, so A12 ends consecutiveFailures at 0', CASE, async () => {
+      const h = makeHarness();
+      h.queue.markDirty('a');
+      const flushed = h.queue.flush();
+      await settle();
+      await h.fail();
+      await expect(flushed).resolves.toBe(false);
+      const retried = h.queue.retryNow();
+      await settle();
+      await h.fail(httpError(410));
+      await expect(retried).resolves.toBe(true);
+      expect(h.queue.state()).toEqual({ ...INITIAL, rejected: 1, showBar: true });
+    });
+
     it('AMBIGUOUS: the originating flush does not start a second send on its own for a key re-dirtied in flight', CASE, async () => {
       const h = makeHarness();
       h.queue.markDirty('a');
