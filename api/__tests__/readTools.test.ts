@@ -24,6 +24,7 @@ const EXPECTED_ORDER = [
   'get_training_blocks',
   'search_exercises',
   'get_meals',
+  'list_sessions',
   'get_session_summaries',
   'get_reviews',
   'search_history',

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CalendarDays, BarChart2, MessageSquare, Dumbbell, Plus, UtensilsCrossed } from 'lucide-react';
+import { History } from 'lucide-react';
 import { useCalendar } from '../../context/calendar';
 import { toDateString } from '../../utils/dateHelpers';
 
@@ -77,6 +78,15 @@ export default function MobileBottomNav({ activeTab, onChange }: Props) {
       >
         <BarChart2 size={22} strokeWidth={1.5} />
         <span>Analytics</span>
+      </button>
+      <button
+        className={`mobile-nav__tab${state.historyOpen ? ' mobile-nav__tab--active' : ''}`}
+        onClick={() => dispatch({ type: 'OPEN_HISTORY' })}
+        aria-selected={state.historyOpen}
+        data-testid="mobile-nav-history"
+      >
+        <History size={22} strokeWidth={1.5} />
+        <span>History</span>
       </button>
     </nav>
   );
