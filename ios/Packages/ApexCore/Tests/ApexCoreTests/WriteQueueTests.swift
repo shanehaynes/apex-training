@@ -881,6 +881,74 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(left, 1)
     }
 
+    func testAGiveUpOnTheRateLimitDoesNotCountTowardLetGo() async throws {
+        // Three 429s past the ceiling: the create waits like any give-up,
+        // but the server's write cap says nothing about the row, so the
+        // count stays at zero and Let go is never offered for it. Three
+        // 500s on the same op count as they always did.
+        let transport = ScriptedTransport([.status(429, headers: ["Retry-After": "7"])])
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store, policy: RetryPolicy(maxAttempts: 0))
+        try await queue.enqueue(.createDefinition(pancake), for: .outbox)
+        for _ in 0..<3 {
+            await queue.resume()
+            await queue.awaitRetries()
+        }
+        var held = await store.all
+        XCTAssertEqual(held.map(\.gaveUp), [true], "still waiting")
+        XCTAssertEqual(held.first?.giveUpCount, 0)
+        XCTAssertEqual(held.first?.canLetGo, false)
+        XCTAssertTrue(RetryPolicy.isRateLimitGiveUp(held.first?.lastError ?? ""), "the keeps-trying toast can name the rate limit")
+        let sent = await transport.requests.count
+        XCTAssertEqual(sent, 3)
+
+        await transport.script([.status(500, body: "boom")])
+        for _ in 0..<3 {
+            await queue.resume()
+            await queue.awaitRetries()
+        }
+        held = await store.all
+        XCTAssertEqual(held.first?.giveUpCount, 3)
+        XCTAssertEqual(held.first?.canLetGo, true)
+        XCTAssertFalse(RetryPolicy.isRateLimitGiveUp(held.first?.lastError ?? ""))
+    }
+
+    func testLettingGoAMealKeepsItAsARefusalAndFreesTheLane() async throws {
+        // Content worth keeping is not dropped by Let go: the meal becomes a
+        // refusal — off the lane's path, with what the composer had, under
+        // a reason that says why — and the create behind it lands on the
+        // next flush. The refusal itself is never retried.
+        let transport = ScriptedTransport([.status(500, body: "boom")])
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store, policy: RetryPolicy(maxAttempts: 0))
+        try await queue.enqueue(.meal(mealCreate()), for: .outbox)
+        try await queue.enqueue(.createDefinition(pancake), for: .outbox)
+        for _ in 0..<3 {
+            await queue.resume()
+            await queue.awaitRetries()
+        }
+        let before = await store.all
+        XCTAssertEqual(before.map(\.canLetGo), [true, false])
+        let sent = await transport.requests.map(\.path)
+        XCTAssertEqual(sent, Array(repeating: "/api/meals", count: 3), "nothing behind the head moved")
+
+        await transport.script([.ok()])
+        let letGo = await queue.letGo(before[0].id, in: .outbox)
+        XCTAssertEqual(letGo?.action, .meal)
+        let kept = await store.all
+        XCTAssertEqual(kept.map(\.payload.action), [.meal, .createDefinition], "kept, not dropped")
+        XCTAssertEqual(kept.first?.isRefused, true)
+        XCTAssertEqual(kept.first?.isWaiting, false)
+        XCTAssertEqual(kept.first?.lastError, WriteQueue.letGoReason(giveUps: 3))
+        XCTAssertEqual(kept.first?.payload, .meal(mealCreate()), "with its content")
+
+        await queue.flush(.outbox)
+        let after = await store.all.map(\.payload.action)
+        XCTAssertEqual(after, [.meal], "the create behind it landed; the refusal waits for the user")
+        let paths = await transport.requests.map(\.path)
+        XCTAssertEqual(paths.suffix(1), ["/api/exercise-definitions"])
+    }
+
     func testAnOutboxOpThePolicyGaveUpOnIsKeptAsWaitingAndTheNextFlushRetriesIt() async throws {
         // A server that keeps answering 5xx: past the ceiling the op is
         // failed, but marked given-up — still waiting, never dropped — and the

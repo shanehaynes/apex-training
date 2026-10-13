@@ -751,6 +751,83 @@ final class ScheduleModelTests: XCTestCase {
     }
 
     @MainActor
+    func testAGaveUpPlanFillCountsOnItsDayAndCanBeLetGo() async throws {
+        // The completion lands; its plan-fill meets a server that 500s it
+        // forever (the one write a well-formed client row can still fail on,
+        // `applyQuickComplete`). The lane's head is now the plan-fill: it has
+        // to count on its day, or the day draws no Retry / Let go for it and
+        // the lane stays blocked.
+        let transport = readsOnly()
+        transport.set("POST", "/api/completions")
+        transport.set("POST", "/api/workout-sessions", status: 500, body: Data("boom".utf8))
+        let (model, queue, store) = await outboxModel(transport, policy: RetryPolicy(maxAttempts: 0))
+        await model.toggleCompletion(try XCTUnwrap(model.event(id: "ios-fixture-run")))
+        await queue.flush(.outbox)
+        // A resume that lands mid-flush folds into it: resume until the
+        // lane has given up three times rather than counting resumes.
+        for _ in 0..<8 {
+            await queue.resume()
+            await queue.awaitRetries()
+            if let count = await store.all.first?.giveUpCount, count >= 3 { break }
+        }
+        try await waitUntil { model.letGoDays.contains("2026-09-08") }
+        let held = await store.all
+        XCTAssertEqual(held.map(\.payload.action), [.quickComplete], "the completion landed; the plan-fill waits")
+        XCTAssertEqual(held.first?.canLetGo, true)
+        XCTAssertEqual(model.pendingCompletions["2026-09-08"], 1, "counted on its day, as the completion was: one toggle, one count")
+        XCTAssertTrue(model.stalledDays.contains("2026-09-08"), "Retry is offered")
+        XCTAssertTrue(model.letGoDays.contains("2026-09-08"), "and Let go")
+
+        await model.letGoStalled(day: "2026-09-08", kinds: [.completion, .quickComplete])
+        let left = await store.all.count
+        XCTAssertEqual(left, 0, "dropped: a plan-fill has nothing to fix")
+        XCTAssertTrue(model.pendingCompletions.isEmpty)
+        XCTAssertTrue(model.stalledDays.isEmpty)
+        XCTAssertTrue(model.letGoDays.isEmpty)
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
+    func testALetGoSaveIsKeptForFixNotDropped() async throws {
+        // Letting a Builder save go keeps the workout: it is listed as a
+        // refusal with Fix and Dismiss, under a reason that says the lane
+        // gave up on it, rather than deleted.
+        let transport = healthy()
+        transport.set("POST", "/api/workout-draft", status: 500, body: Data("boom".utf8))
+        let (model, queue, store) = await outboxModel(transport, policy: RetryPolicy(maxAttempts: 0))
+        _ = await model.queueDraft(.empty(date: "2026-09-10", title: "Leg day"), action: .create, clientId: "ai-0b9f3c52-6a1e-4c47-9d3a-5f2e8b7c1a90")
+        // The model starts the lane on a detached task; a resume that lands
+        // mid-flush folds into it, so resume until the lane has given up
+        // three times rather than counting resumes.
+        await queue.flush(.outbox)
+        for _ in 0..<8 {
+            await queue.resume()
+            await queue.awaitRetries()
+            if let count = await store.all.first?.giveUpCount, count >= 3 { break }
+        }
+        try await waitUntil { model.letGoDays.contains("2026-09-10") }
+        XCTAssertEqual(model.pendingSaves["2026-09-10"], 1)
+        XCTAssertTrue(model.refusedSaves.isEmpty)
+        let before = await store.all
+        let giveUps = try XCTUnwrap(before.first?.giveUpCount)
+        XCTAssertGreaterThanOrEqual(giveUps, 3)
+
+        await model.letGoStalled(day: "2026-09-10", kinds: [.workoutDraft])
+        XCTAssertTrue(model.pendingSaves.isEmpty)
+        XCTAssertTrue(model.letGoDays.isEmpty)
+        XCTAssertEqual(model.refusedSaves.map(\.payload.draft.title), ["Leg day"], "kept, with what the builder had")
+        XCTAssertEqual(model.refusedSaves.first?.reason, WriteQueue.letGoReason(giveUps: giveUps))
+        let held = await store.all
+        XCTAssertEqual(held.map(\.isRefused), [true])
+
+        await model.dismissRefusedSave(try XCTUnwrap(model.refusedSaves.first).id)
+        XCTAssertTrue(model.refusedSaves.isEmpty)
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+        model.attach(writeQueue: nil)
+    }
+
+    @MainActor
     func testACreateTheServerKeepsFailingStaysWaitingAndOffered() async throws {
         // A 5xx run is not a refusal: the create is kept (gave up, waiting
         // with Retry), still overlaid on the library, and the toast says the

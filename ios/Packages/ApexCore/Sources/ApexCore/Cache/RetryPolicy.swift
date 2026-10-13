@@ -48,6 +48,26 @@ public struct RetryPolicy: Sendable, Equatable {
         }
     }
 
+    /// A 429: the server's write cap. Transient, retried and given up on
+    /// like the rest, but never a sign the row itself is bad — so
+    /// `WriteQueue` does not count it toward letting the op go.
+    public static func isRateLimited(_ error: APIError) -> Bool {
+        if case .rateLimited = error { return true }
+        return false
+    }
+
+    /// Whether a give-up message (`gaveUpMessage`, an op's `lastError`) was
+    /// written for a 429 — what the keeps-trying toast reads to name the
+    /// rate limit. Matched on the `APIError.rateLimited` description the
+    /// message carries; `rateLimitedDescription` pins that text here.
+    public static func isRateLimitGiveUp(_ message: String) -> Bool {
+        message.contains(rateLimitedDescription)
+    }
+
+    /// The opening of `APIError.rateLimited`'s description, with or without
+    /// a `Retry-After`.
+    static let rateLimitedDescription = "Too many requests."
+
     public func classify(_ error: APIError, attempts: Int) -> Verdict {
         switch error {
         case .network:

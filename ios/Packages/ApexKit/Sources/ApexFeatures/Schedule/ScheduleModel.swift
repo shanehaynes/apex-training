@@ -292,7 +292,9 @@ public final class ScheduleModel {
     public private(set) var refusedSaves: [RefusedSave] = []
     /// Completion toggles waiting to sync, by the occurrence's date. The flip
     /// itself is already on the calendar (optimistic); this is the line that
-    /// says the server has not heard yet.
+    /// says the server has not heard yet. A toggle whose completion landed
+    /// but whose plan-fill still waits counts here too — it is the line
+    /// that draws Retry and Let go for it.
     public private(set) var pendingCompletions: [String: Int] = [:]
     /// Meals saved from the composer and waiting to sync, on every day they
     /// touch (`MealOpPayload.days` — the same count the meals model keeps).
@@ -349,7 +351,7 @@ public final class ScheduleModel {
                         ToastBus.shared.post("Couldn't add an exercise to your library — \(message)", level: .failure)
                         await self?.refresh(reason: .afterEdit)
                     } else {
-                        ToastBus.shared.post(await self?.keepsTrying("An exercise", .createDefinition) ?? "", level: .info)
+                        ToastBus.shared.post(await self?.keepsTrying("An exercise", .createDefinition, message) ?? "", level: .info)
                     }
                 case .failed(let session, .updateDefinition, let message) where session == .outbox:
                     // The tracker's "+ weight": the input stayed on that workout; only the
@@ -360,7 +362,7 @@ public final class ScheduleModel {
                         ToastBus.shared.post("Couldn't save a log field to your library — \(message)", level: .failure)
                         await self?.refresh(reason: .afterEdit)
                     } else {
-                        ToastBus.shared.post(await self?.keepsTrying("A log field", .updateDefinition) ?? "", level: .info)
+                        ToastBus.shared.post(await self?.keepsTrying("A log field", .updateDefinition, message) ?? "", level: .info)
                     }
                 case .failed(let session, .workoutDraft, let message) where session == .outbox:
                     await self?.draftFailed(message)
@@ -392,7 +394,7 @@ public final class ScheduleModel {
     private func completionFailed(_ message: String) async {
         let refused = await retireRefused(.completion)
         guard !refused.isEmpty else {
-            ToastBus.shared.post(await keepsTrying("A completion", .completion), level: .info)
+            ToastBus.shared.post(await keepsTrying("A completion", .completion, message), level: .info)
             return
         }
         var undone: Set<String> = []
@@ -422,7 +424,7 @@ public final class ScheduleModel {
         if refusedSaves.contains(where: { !known.contains($0.id) }) {
             ToastBus.shared.post("A workout saved offline wasn't accepted — \(message). Open its day to fix it.", level: .failure)
         } else {
-            ToastBus.shared.post(await keepsTrying("A workout saved offline", .workoutDraft), level: .info)
+            ToastBus.shared.post(await keepsTrying("A workout saved offline", .workoutDraft, message), level: .info)
         }
     }
 
@@ -445,8 +447,10 @@ public final class ScheduleModel {
     }
 
     /// The day line's Let go: every op of these kinds on the day that the
-    /// lane has given up on enough times is dropped (a completion takes its
-    /// own plan-fill with it). A let-go completion is undone on the card
+    /// lane has given up on enough times leaves the lane — a Builder save
+    /// is kept as a refusal (`refusedSaves`, for Fix or Dismiss), a meal as
+    /// a refused meal; a completion is dropped and takes its own plan-fill
+    /// with it, a plan-fill is dropped. A let-go completion is undone on the card
     /// the way a refused one is — from its row, under the toggles still
     /// waiting — and the server's truth re-read on top. `day` nil = the
     /// library's creates, which belong to no day.
@@ -479,10 +483,15 @@ public final class ScheduleModel {
     }
 
     /// The keeps-trying line, with the way out once the lane has given up
-    /// on one of these ops enough times.
-    private func keepsTrying(_ what: String, _ action: TrackerAction) async -> String {
+    /// on one of these ops enough times. A give-up on the server's rate
+    /// limit says so: the row is fine, the cap is in the way.
+    private func keepsTrying(_ what: String, _ action: TrackerAction, _ message: String) async -> String {
         let canLetGo = await writeQueue?.ops(for: .outbox).contains { $0.canLetGo && $0.payload.action == action } ?? false
-        return "\(what) hasn't synced — the app keeps trying; Retry on its day sends it now" + (canLetGo ? " — or let it go from its day." : ".")
+        let wayOut = canLetGo ? " — or let it go from its day." : "."
+        if RetryPolicy.isRateLimitGiveUp(message) {
+            return "\(what) hasn't synced — the server is rate-limiting writes; the app keeps trying once the limit lifts" + wayOut
+        }
+        return "\(what) hasn't synced — the app keeps trying; Retry on its day sends it now" + wayOut
     }
 
     /// Re-reads the outbox: Builder saves, completion toggles and meals
@@ -502,6 +511,11 @@ public final class ScheduleModel {
         var createsLetGo = false
         var letGo: Set<String> = []
         var waiting = 0
+        // The occurrences whose completion is still in the lane, in lane
+        // order: a plan-fill behind one is that toggle's second half and
+        // counts with it; one whose completion has landed is the toggle
+        // still waiting, and counts as the completion did.
+        var completionsAhead: Set<String> = []
         for op in await queue.ops(for: .outbox) {
             // A gave-up op is still waiting (`TrackerOp.isWaiting`): counted on
             // its day like a pending one, and the day gets Retry.
@@ -525,6 +539,12 @@ public final class ScheduleModel {
                 }
             case .completion(let row, _) where op.isWaiting:
                 completions[row.eventDate, default: 0] += 1
+                completionsAhead.insert(row.eventId + "|" + row.eventDate)
+                waiting += 1
+            case .quickComplete(let quick) where op.isWaiting:
+                if !completionsAhead.contains(quick.eventId + "|" + quick.eventDate) {
+                    completions[quick.eventDate, default: 0] += 1
+                }
                 waiting += 1
             case .meal(let meal):
                 for day in meal.days {

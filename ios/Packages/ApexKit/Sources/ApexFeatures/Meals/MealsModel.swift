@@ -274,12 +274,19 @@ public final class MealsModel {
             ToastBus.shared.post("A meal wasn't accepted — \(message). Open Meals to fix it.", level: .failure)
         } else {
             let wayOut = letGoDays.isEmpty ? "." : " — or let it go from its day."
-            ToastBus.shared.post("A meal hasn't synced — the app keeps trying; Retry on its day sends it now" + wayOut, level: .info)
+            // A give-up on the server's rate limit says so: the row is fine,
+            // the cap is in the way.
+            if RetryPolicy.isRateLimitGiveUp(message) {
+                ToastBus.shared.post("A meal hasn't synced — the server is rate-limiting writes; the app keeps trying once the limit lifts" + wayOut, level: .info)
+            } else {
+                ToastBus.shared.post("A meal hasn't synced — the app keeps trying; Retry on its day sends it now" + wayOut, level: .info)
+            }
         }
     }
 
     /// The day line's Let go: every meal on the day the lane has given up on
-    /// enough times is dropped, unsent — the same end as deleting a refused one.
+    /// enough times leaves the lane unsent and is kept in `refusedMeals`
+    /// with what the composer had — Fix saves it again, Delete drops it.
     public func letGoStalled(day: String) async {
         guard let queue = deps.writeQueue else { return }
         for op in await queue.ops(for: .outbox) where op.canLetGo {

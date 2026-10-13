@@ -251,7 +251,10 @@ public actor WriteQueue {
                     next.lastError = message
                     next.state = .failed
                     next.gaveUp = RetryPolicy.isTransient(error)
-                    if next.gaveUp { next.giveUpCount += 1 }
+                    // A 429 is the server's write cap, not a row it will never
+                    // take: the op waits like any give-up, but the cap is no
+                    // reason to offer letting it go.
+                    if next.gaveUp, !RetryPolicy.isRateLimited(error) { next.giveUpCount += 1 }
                     try? await store.update(next)
                     if !next.gaveUp, case .completion(let row, _) = op.payload {
                         // The plan-fill queued behind a completion the server
@@ -433,18 +436,36 @@ public actor WriteQueue {
         emit(.changed(session))
     }
 
-    /// The user lets a gave-up op go (`TrackerOp.canLetGo`): dropped, and —
-    /// for a completion — so is its own plan-fill, by the rule a refusal
-    /// uses. Nothing is sent. Returns what was let go, for the caller's undo.
+    /// The user lets a gave-up op go (`TrackerOp.canLetGo`). Nothing is sent.
+    /// An op with content worth keeping — a meal, a Builder save — becomes a
+    /// refusal: off the lane's path, kept with what the user typed and listed
+    /// with Fix / Delete as a refusal is, under `letGoReason`. A completion
+    /// or a plan-fill has nothing to fix and is dropped; a completion's own
+    /// plan-fill goes with it, by the rule a refusal uses. Returns what was
+    /// let go, for the caller's undo.
     @discardableResult
     public func letGo(_ id: Int64, in session: SessionKey) async -> TrackerOpPayload? {
         guard let op = ((try? await store.ops(for: session)) ?? []).first(where: { $0.id == id }), op.canLetGo else { return nil }
-        try? await store.delete(id: op.id)
-        if case .completion(let row, _) = op.payload {
-            await retireQuickComplete(after: op, for: row, in: session)
+        switch op.payload {
+        case .meal, .workoutDraft:
+            var kept = op
+            kept.state = .failed
+            kept.gaveUp = false
+            kept.lastError = Self.letGoReason(giveUps: op.giveUpCount)
+            try? await store.update(kept)
+        default:
+            try? await store.delete(id: op.id)
+            if case .completion(let row, _) = op.payload {
+                await retireQuickComplete(after: op, for: row, in: session)
+            }
         }
         emit(.changed(session))
         return op.payload
+    }
+
+    /// The reason a let-go op is kept under: what the refusal line shows.
+    public static func letGoReason(giveUps: Int) -> String {
+        "Let go — given up after \(giveUps) tries."
     }
 
     /// Every exercise created with no signal and not yet on the server, from
