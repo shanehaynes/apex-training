@@ -1,0 +1,69 @@
+/* ─── Tracker: Unsaved-changes bar ─────────────────────────────────────────
+   Sits under the header, in flow, so the body scrolls beneath it. The look
+   is the confirm bar's (.tracker-confirm in app.css): elevated surface,
+   hairline edge, the same 32px buttons. */
+
+.tracker-unsaved {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-lg);
+  flex-shrink: 0;
+}
+
+.tracker-unsaved__msg {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--danger-text);
+}
+
+.tracker-unsaved__count {
+  color: var(--text-secondary);
+}
+
+.tracker-unsaved__retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-family: var(--font-display);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--duration-fast), opacity var(--duration-fast);
+}
+
+.tracker-unsaved__retry:hover {
+  background: var(--bg-surface);
+}
+
+.tracker-unsaved__retry[aria-busy='true'] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.tracker-unsaved__sep {
+  color: var(--text-secondary);
+}
+
+.tracker-unsaved__spin {
+  animation: tracker-unsaved-spin 1s linear infinite;
+}
+
+@keyframes tracker-unsaved-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tracker-unsaved__spin {
+    animation: none;
+  }
+}

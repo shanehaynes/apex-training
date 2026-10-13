@@ -4,7 +4,7 @@ import { getExerciseHistoryTool, getPeriodStatsTool, getPrsTool } from './tools/
 import { getTrainingBlocksTool } from './tools/blocks.js';
 import { searchExercisesTool } from './tools/library.js';
 import { getMealsTool } from './tools/meals.js';
-import { getSessionSummariesTool } from './tools/sessions.js';
+import { getSessionSummariesTool, listSessionsTool } from './tools/sessions.js';
 import { getReviewsTool } from './tools/reviews.js';
 
 // The MCP tool surface — read-only by design. MCP clients are an
@@ -26,6 +26,7 @@ export const MCP_TOOLS: readonly McpToolDef[] = [
   getTrainingBlocksTool,
   searchExercisesTool,
   getMealsTool,
+  listSessionsTool,
   getSessionSummariesTool,
   getReviewsTool,
 ];

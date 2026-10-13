@@ -45,6 +45,7 @@ public struct TrackerScreen: View {
         }
         .apexAnimation(model.gate)
         .apexAnimation(model.summary == nil)
+        .apexAnimation(model.rest.isRunning)
         .toolbar { keyboardAccessory }
         .sheet(item: $swapTarget) { target in
             SwapPickerSheet(model: model, target: target) { swapTarget = nil }
@@ -85,6 +86,10 @@ public struct TrackerScreen: View {
         .sensoryFeedback(.success, trigger: model.prCount)
         .sensoryFeedback(.success, trigger: model.completedCount)
         .sensoryFeedback(.impact(weight: .medium), trigger: model.confirmCount)
+        // The buzz at zero (D-015): UINotificationFeedbackGenerator's success,
+        // fired by the tick, so only while the tracker is up — the island
+        // carries the countdown when it is not.
+        .sensoryFeedback(.success, trigger: model.restEndedCount)
         .preferredColorScheme(.dark)
     }
 
@@ -236,6 +241,8 @@ public struct TrackerScreen: View {
                     secondary: .init("Discard") { Task { await model.discardFailed() } }
                 )
                 .accessibilityIdentifier("tracker.sync-failed")
+            } else if model.rest.isRunning {
+                RestTimerBar(model: model)
             }
         }
     }

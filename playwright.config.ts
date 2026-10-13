@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { defineConfig } from '@playwright/test';
 import type { ApexOptions } from './e2e/lib/fixtures';
 import { devPort } from './dev/port.mjs';
@@ -16,6 +17,17 @@ import { MOCK_SUPABASE } from './e2e/lib/session.mjs';
 //          tests: `npm run e2e` and CI name --project=mock, so these only run
 //          when asked for by name (e2e/shots/README.md).
 const live = !!process.env.APEX_LOCAL_SUPABASE;
+
+// Which Chromium to launch. Normally Playwright's own download for this
+// version. A Claude Code cloud session ships one preinstalled build under
+// /opt/pw-browsers (PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 there, and the proxy
+// blocks a fresh download), usually not the build this version wants — so
+// the gate, and the Stop hook that runs it, would be red on every e2e spec
+// in exactly the sessions that need it most. PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+// overrides anywhere; the cloud fallback is automatic. CI sets neither.
+const chromium =
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ||
+  (process.env.CLAUDE_CODE_REMOTE === 'true' && existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : '');
 
 // Per-checkout port, the same one vite.config.ts binds (dev/port.mjs). That is
 // what makes reuseExistingServer safe below: a server already listening here
@@ -45,6 +57,7 @@ export default defineConfig<ApexOptions>({
     baseURL: `http://localhost:${port}`,
     viewport: { width: 1280, height: 950 },
     trace: 'retain-on-failure',
+    ...(chromium ? { launchOptions: { executablePath: chromium } } : {}),
   },
   projects: [
     {

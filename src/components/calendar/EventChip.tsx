@@ -4,6 +4,7 @@ import { useCalendar } from '../../context/calendar';
 import { useSchedule } from '../../context/schedule';
 import { useAnnotations } from '../../context/annotations';
 import { AnnotationMarker } from './AnnotationChip';
+import { useDragReschedule } from './useDragReschedule';
 import type { WorkoutEvent } from '../../types/workout';
 import './annotations.css';
 
@@ -15,6 +16,9 @@ export default function EventChip({ event }: Props) {
   const { dispatch } = useCalendar();
   const { toggleCompletion } = useSchedule();
   const { byEvent } = useAnnotations();
+  // Mouse drag to another day cell moves the occurrence; a press that stays
+  // within the threshold is still the click that opens the modal.
+  const drag = useDragReschedule({ event, view: 'month' });
   const color = getWorkoutColor(event.type);
   // One marker however many notes: the chip is 22px tall, so the notes read
   // in the tooltip rather than in the row. Coloured by the worst of them.
@@ -25,8 +29,10 @@ export default function EventChip({ event }: Props) {
 
   return (
     <div
-      className={`event-chip${event.isCompleted ? ' event-chip--done' : ''}`}
+      className={`event-chip${event.isCompleted ? ' event-chip--done' : ''}${drag.dragging ? ' event-chip--dragging' : ''}`}
       style={{ background: color.light, borderLeft: `3px solid ${color.solid}` }}
+      data-event-id={event.id}
+      {...drag.handlers}
     >
       <button
         className="event-chip__main"

@@ -166,13 +166,13 @@ describe('/api/mcp — protocol flow', () => {
     expect(result.protocolVersion).toBe(SUPPORTED_PROTOCOL_VERSIONS[0]);
   });
 
-  it('tools/list for a write-capable token returns every connector tool, the ten query tools first', async () => {
+  it('tools/list for a write-capable token returns every connector tool, the eleven query tools first', async () => {
     const { res, body } = makeRes();
     await handler(makeReq('POST', rpc('tools/list')), res);
     const { tools } = (body() as {
       result: { tools: Array<{ name: string; inputSchema: { type: string }; annotations: { readOnlyHint: boolean } }> };
     }).result;
-    expect(tools.map(t => t.name).slice(0, 10)).toEqual([
+    expect(tools.map(t => t.name).slice(0, 11)).toEqual([
       'get_schedule',
       'get_workout_detail',
       'get_exercise_history',
@@ -181,6 +181,7 @@ describe('/api/mcp — protocol flow', () => {
       'get_training_blocks',
       'search_exercises',
       'get_meals',
+      'list_sessions',
       'get_session_summaries',
       'get_reviews',
     ]);
@@ -188,7 +189,7 @@ describe('/api/mcp — protocol flow', () => {
     // search_history stays out: it reads the athlete's private coach
     // conversations, which never leave the app (toolRegistry.ts).
     expect(tools.map(t => t.name)).not.toContain('search_history');
-    expect(MCP_TOOLS).toHaveLength(10);
+    expect(MCP_TOOLS).toHaveLength(11);
     for (const tool of tools) expect(tool.inputSchema.type).toBe('object');
     // Annotations tell the client which tools change data (ChatGPT asks
     // before any tool without readOnlyHint; Claude shows it).

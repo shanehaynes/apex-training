@@ -23,7 +23,7 @@ export default function OnboardingHost() {
   const overlayOpen = !!(
     state.selectedEvent || state.selectedDay || state.composerDate ||
     state.mealComposerDate || state.trackingSession ||
-    state.libraryOpen || state.blocksOpen || state.profileOpen
+    state.libraryOpen || state.blocksOpen || state.profileOpen || state.historyOpen
   );
 
   // TipHost ignores overlayOpen: overlays are where the features, and so the
