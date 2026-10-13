@@ -1620,6 +1620,7 @@ internal enum PublicSchema {
   }
   internal struct ProfilesSelect: Codable, Hashable, Sendable {
     internal let avatarKey: String
+    internal let bodyWeightLb: Decimal?
     internal let coachContext: String
     internal let coachContract: String?
     internal let coachGoal: String
@@ -1636,8 +1637,10 @@ internal enum PublicSchema {
     internal let thresholdHr: Int32?
     internal let tipsSeen: AnyJSON
     internal let updatedAt: String
+    internal let weightUnit: String
     internal enum CodingKeys: String, CodingKey {
       case avatarKey = "avatar_key"
+      case bodyWeightLb = "body_weight_lb"
       case coachContext = "coach_context"
       case coachContract = "coach_contract"
       case coachGoal = "coach_goal"
@@ -1654,10 +1657,12 @@ internal enum PublicSchema {
       case thresholdHr = "threshold_hr"
       case tipsSeen = "tips_seen"
       case updatedAt = "updated_at"
+      case weightUnit = "weight_unit"
     }
   }
   internal struct ProfilesInsert: Codable, Hashable, Sendable {
     internal let avatarKey: String?
+    internal let bodyWeightLb: Decimal?
     internal let coachContext: String?
     internal let coachContract: String?
     internal let coachGoal: String?
@@ -1674,8 +1679,10 @@ internal enum PublicSchema {
     internal let thresholdHr: Int32?
     internal let tipsSeen: AnyJSON?
     internal let updatedAt: String?
+    internal let weightUnit: String?
     internal enum CodingKeys: String, CodingKey {
       case avatarKey = "avatar_key"
+      case bodyWeightLb = "body_weight_lb"
       case coachContext = "coach_context"
       case coachContract = "coach_contract"
       case coachGoal = "coach_goal"
@@ -1692,10 +1699,12 @@ internal enum PublicSchema {
       case thresholdHr = "threshold_hr"
       case tipsSeen = "tips_seen"
       case updatedAt = "updated_at"
+      case weightUnit = "weight_unit"
     }
   }
   internal struct ProfilesUpdate: Codable, Hashable, Sendable {
     internal let avatarKey: String?
+    internal let bodyWeightLb: Decimal?
     internal let coachContext: String?
     internal let coachContract: String?
     internal let coachGoal: String?
@@ -1712,8 +1721,10 @@ internal enum PublicSchema {
     internal let thresholdHr: Int32?
     internal let tipsSeen: AnyJSON?
     internal let updatedAt: String?
+    internal let weightUnit: String?
     internal enum CodingKeys: String, CodingKey {
       case avatarKey = "avatar_key"
+      case bodyWeightLb = "body_weight_lb"
       case coachContext = "coach_context"
       case coachContract = "coach_contract"
       case coachGoal = "coach_goal"
@@ -1730,6 +1741,7 @@ internal enum PublicSchema {
       case thresholdHr = "threshold_hr"
       case tipsSeen = "tips_seen"
       case updatedAt = "updated_at"
+      case weightUnit = "weight_unit"
     }
   }
   internal struct ProviderActivityImportsSelect: Codable, Hashable, Sendable {
@@ -2692,6 +2704,7 @@ internal enum PublicSchema {
     internal let eventId: String
     internal let finishedAt: String?
     internal let id: UUID
+    internal let note: String?
     internal let scoreReps: Int32?
     internal let scoreRounds: Int32?
     internal let scoreTimeSeconds: Int32?
@@ -2707,6 +2720,7 @@ internal enum PublicSchema {
       case eventId = "event_id"
       case finishedAt = "finished_at"
       case id = "id"
+      case note = "note"
       case scoreReps = "score_reps"
       case scoreRounds = "score_rounds"
       case scoreTimeSeconds = "score_time_seconds"
@@ -2724,6 +2738,7 @@ internal enum PublicSchema {
     internal let eventId: String
     internal let finishedAt: String?
     internal let id: UUID?
+    internal let note: String?
     internal let scoreReps: Int32?
     internal let scoreRounds: Int32?
     internal let scoreTimeSeconds: Int32?
@@ -2739,6 +2754,7 @@ internal enum PublicSchema {
       case eventId = "event_id"
       case finishedAt = "finished_at"
       case id = "id"
+      case note = "note"
       case scoreReps = "score_reps"
       case scoreRounds = "score_rounds"
       case scoreTimeSeconds = "score_time_seconds"
@@ -2756,6 +2772,7 @@ internal enum PublicSchema {
     internal let eventId: String?
     internal let finishedAt: String?
     internal let id: UUID?
+    internal let note: String?
     internal let scoreReps: Int32?
     internal let scoreRounds: Int32?
     internal let scoreTimeSeconds: Int32?
@@ -2771,6 +2788,7 @@ internal enum PublicSchema {
       case eventId = "event_id"
       case finishedAt = "finished_at"
       case id = "id"
+      case note = "note"
       case scoreReps = "score_reps"
       case scoreRounds = "score_rounds"
       case scoreTimeSeconds = "score_time_seconds"
@@ -2786,6 +2804,8 @@ internal enum PublicSchema {
     internal let actualDuration: String?
     internal let actualReps: String?
     internal let actualWeight: String?
+    internal let ascentStyle: String?
+    internal let attempts: Int32?
     internal let definitionId: String?
     internal let eventDate: String
     internal let eventId: String
@@ -2793,9 +2813,11 @@ internal enum PublicSchema {
     internal let exerciseName: String
     internal let id: UUID
     internal let isAutofilled: Bool
+    internal let isWarmup: Bool
     internal let plannedDuration: String?
     internal let plannedReps: String?
     internal let plannedWeight: String?
+    internal let rpe: Decimal?
     internal let section: String
     internal let setNumber: Int32
     internal let updatedAt: String
@@ -2804,6 +2826,8 @@ internal enum PublicSchema {
       case actualDuration = "actual_duration"
       case actualReps = "actual_reps"
       case actualWeight = "actual_weight"
+      case ascentStyle = "ascent_style"
+      case attempts = "attempts"
       case definitionId = "definition_id"
       case eventDate = "event_date"
       case eventId = "event_id"
@@ -2811,9 +2835,11 @@ internal enum PublicSchema {
       case exerciseName = "exercise_name"
       case id = "id"
       case isAutofilled = "is_autofilled"
+      case isWarmup = "is_warmup"
       case plannedDuration = "planned_duration"
       case plannedReps = "planned_reps"
       case plannedWeight = "planned_weight"
+      case rpe = "rpe"
       case section = "section"
       case setNumber = "set_number"
       case updatedAt = "updated_at"
@@ -2824,6 +2850,8 @@ internal enum PublicSchema {
     internal let actualDuration: String?
     internal let actualReps: String?
     internal let actualWeight: String?
+    internal let ascentStyle: String?
+    internal let attempts: Int32?
     internal let definitionId: String?
     internal let eventDate: String
     internal let eventId: String
@@ -2831,9 +2859,11 @@ internal enum PublicSchema {
     internal let exerciseName: String
     internal let id: UUID?
     internal let isAutofilled: Bool?
+    internal let isWarmup: Bool?
     internal let plannedDuration: String?
     internal let plannedReps: String?
     internal let plannedWeight: String?
+    internal let rpe: Decimal?
     internal let section: String
     internal let setNumber: Int32
     internal let updatedAt: String?
@@ -2842,6 +2872,8 @@ internal enum PublicSchema {
       case actualDuration = "actual_duration"
       case actualReps = "actual_reps"
       case actualWeight = "actual_weight"
+      case ascentStyle = "ascent_style"
+      case attempts = "attempts"
       case definitionId = "definition_id"
       case eventDate = "event_date"
       case eventId = "event_id"
@@ -2849,9 +2881,11 @@ internal enum PublicSchema {
       case exerciseName = "exercise_name"
       case id = "id"
       case isAutofilled = "is_autofilled"
+      case isWarmup = "is_warmup"
       case plannedDuration = "planned_duration"
       case plannedReps = "planned_reps"
       case plannedWeight = "planned_weight"
+      case rpe = "rpe"
       case section = "section"
       case setNumber = "set_number"
       case updatedAt = "updated_at"
@@ -2862,6 +2896,8 @@ internal enum PublicSchema {
     internal let actualDuration: String?
     internal let actualReps: String?
     internal let actualWeight: String?
+    internal let ascentStyle: String?
+    internal let attempts: Int32?
     internal let definitionId: String?
     internal let eventDate: String?
     internal let eventId: String?
@@ -2869,9 +2905,11 @@ internal enum PublicSchema {
     internal let exerciseName: String?
     internal let id: UUID?
     internal let isAutofilled: Bool?
+    internal let isWarmup: Bool?
     internal let plannedDuration: String?
     internal let plannedReps: String?
     internal let plannedWeight: String?
+    internal let rpe: Decimal?
     internal let section: String?
     internal let setNumber: Int32?
     internal let updatedAt: String?
@@ -2880,6 +2918,8 @@ internal enum PublicSchema {
       case actualDuration = "actual_duration"
       case actualReps = "actual_reps"
       case actualWeight = "actual_weight"
+      case ascentStyle = "ascent_style"
+      case attempts = "attempts"
       case definitionId = "definition_id"
       case eventDate = "event_date"
       case eventId = "event_id"
@@ -2887,9 +2927,11 @@ internal enum PublicSchema {
       case exerciseName = "exercise_name"
       case id = "id"
       case isAutofilled = "is_autofilled"
+      case isWarmup = "is_warmup"
       case plannedDuration = "planned_duration"
       case plannedReps = "planned_reps"
       case plannedWeight = "planned_weight"
+      case rpe = "rpe"
       case section = "section"
       case setNumber = "set_number"
       case updatedAt = "updated_at"
