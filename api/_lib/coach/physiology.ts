@@ -78,7 +78,7 @@ export async function fetchPhysiologyInputs(
       ),
       fetchAllPages<SetRow>('workout_set_logs', (from, to) =>
         supabase.from('workout_set_logs').select('event_date,actual_weight,actual_reps,actual_duration,is_autofilled')
-          .eq('user_id', userId).eq('is_autofilled', false)
+          .eq('user_id', userId).eq('is_autofilled', false).eq('is_warmup', false)
           .gte('event_date', startDate).lte('event_date', todayIso)
           .order('event_date').order('event_id').order('exercise_id').order('set_number').range(from, to),
       ),

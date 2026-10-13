@@ -14,6 +14,18 @@ import { formatSeconds } from '../time.js';
 //   elevation — most cardio elevation gain (per unit)
 // A first-ever log of an exercise is never a PR: there is nothing to beat.
 
+/**
+ * Whether a set-log row counts as a performance. Two kinds of row do not:
+ * the zero-fills Finish writes for planned sets never logged (is_autofilled)
+ * and warm-up sets (is_warmup, phase55). Every stat — PRs, last-performance
+ * shadows, tonnage, the library's history — reads this, never the flags
+ * directly, so the two rules cannot drift. Cardio rows have no is_warmup;
+ * an absent flag means "not a warm-up".
+ */
+export function isPerformedSet(row: { is_autofilled: boolean; is_warmup?: boolean | null }): boolean {
+  return !row.is_autofilled && !row.is_warmup;
+}
+
 interface BaseRecord {
   exerciseName: string;
   /** event_date of the session that held the previous best. */
@@ -191,7 +203,7 @@ export function classifySet(weight: string | null, reps: string | null, duration
 export function bestHistoricalOneRM(rows: SetLogRow[]): Map<string, BestSet> {
   const byName = new Map<string, BestSet>();
   for (const row of rows) {
-    if (row.is_autofilled) continue;
+    if (!isPerformedSet(row)) continue;
     const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration);
     if (set?.kind !== 'oneRM') continue;
     keepBetterSet(byName, row.exercise_name, { oneRM: set.oneRM, weight: set.weight, reps: set.reps, date: row.event_date });
@@ -203,7 +215,7 @@ export function bestHistoricalOneRM(rows: SetLogRow[]): Map<string, BestSet> {
 export function bestHistoricalDuration(rows: SetLogRow[]): Map<string, BestValue> {
   const byName = new Map<string, BestValue>();
   for (const row of rows) {
-    if (row.is_autofilled) continue;
+    if (!isPerformedSet(row)) continue;
     const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration);
     if (set?.kind !== 'duration') continue;
     keepBetterValue(byName, row.exercise_name, { value: set.seconds, date: row.event_date });
@@ -215,7 +227,7 @@ export function bestHistoricalDuration(rows: SetLogRow[]): Map<string, BestValue
 export function bestHistoricalReps(rows: SetLogRow[]): Map<string, BestValue> {
   const byName = new Map<string, BestValue>();
   for (const row of rows) {
-    if (row.is_autofilled) continue;
+    if (!isPerformedSet(row)) continue;
     const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration);
     if (set?.kind !== 'reps') continue;
     keepBetterValue(byName, row.exercise_name, { value: set.reps, date: row.event_date });
@@ -276,7 +288,7 @@ export function computeSessionPRs(
         continue;
       }
       for (const set of tracked.sets) {
-        if (set.isAutofilled) continue;
+        if (!isPerformedSet({ is_autofilled: set.isAutofilled })) continue;
         const classified = classifySet(set.actualWeight, set.actualReps, set.actualDuration);
         if (!classified) continue;
         if (classified.kind === 'oneRM') {

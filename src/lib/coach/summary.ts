@@ -3,7 +3,7 @@ import { mealCalories, sumDayMacros } from '../nutrition/mapping.js';
 import type { Meal } from '../../types/nutrition';
 import type { WorkoutEvent } from '../../types/workout';
 import type { TrackedSectionGroup } from '../tracking/plan';
-import { describeRecord } from '../tracking/records.js';
+import { describeRecord, isPerformedSet } from '../tracking/records.js';
 import type { PersonalRecord } from '../tracking/records';
 
 // ─── Post-workout coach recap ─────────────────────────────────────────────────
@@ -75,7 +75,7 @@ export function buildSessionRecap(
       const done: string[] = [];
       let skipped = 0;
       for (const set of tracked.sets) {
-        if (set.isAutofilled) { skipped += 1; continue; }
+        if (!isPerformedSet({ is_autofilled: set.isAutofilled })) { skipped += 1; continue; }
         const line = setLine(set.actualWeight, set.actualReps, set.actualDuration);
         if (line) done.push(line);
         else if (!set.isExtra) skipped += 1;

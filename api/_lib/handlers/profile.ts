@@ -221,6 +221,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     setup_unskip?: unknown;
     coach_contract?: unknown;
     reflection_opt_in?: unknown;
+    weight_unit?: unknown;
+    body_weight_lb?: unknown;
   } | undefined;
 
   const fields: Record<string, string | number | boolean | null | Record<string, string>> = {};
@@ -358,6 +360,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
     fields.reflection_opt_in = body.reflection_opt_in;
+  }
+
+  // Weight entry (phase55). The unit is the display/parse default, never a
+  // conversion of stored rows; body weight is pounds, null clears it. Bounds
+  // mirror the column CHECKs so a bad value 400s here instead of 500ing on
+  // the constraint.
+  if (body?.weight_unit !== undefined) {
+    if (body.weight_unit !== 'lb' && body.weight_unit !== 'kg') {
+      res.status(400).send("weight_unit must be 'lb' or 'kg'");
+      return;
+    }
+    fields.weight_unit = body.weight_unit;
+  }
+
+  if (body?.body_weight_lb !== undefined) {
+    if (body.body_weight_lb !== null && (typeof body.body_weight_lb !== 'number' || !Number.isFinite(body.body_weight_lb) || body.body_weight_lb <= 0)) {
+      res.status(400).send('body_weight_lb must be a positive number, or null');
+      return;
+    }
+    fields.body_weight_lb = body.body_weight_lb;
   }
 
   const hasKeyChange = body !== undefined && 'anthropic_api_key' in body;

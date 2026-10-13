@@ -911,6 +911,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_key: string
+          body_weight_lb: number | null
           coach_context: string
           coach_contract: string | null
           coach_goal: string
@@ -927,9 +928,11 @@ export type Database = {
           threshold_hr: number | null
           tips_seen: Json
           updated_at: string
+          weight_unit: string
         }
         Insert: {
           avatar_key?: string
+          body_weight_lb?: number | null
           coach_context?: string
           coach_contract?: string | null
           coach_goal?: string
@@ -946,9 +949,11 @@ export type Database = {
           threshold_hr?: number | null
           tips_seen?: Json
           updated_at?: string
+          weight_unit?: string
         }
         Update: {
           avatar_key?: string
+          body_weight_lb?: number | null
           coach_context?: string
           coach_contract?: string | null
           coach_goal?: string
@@ -965,6 +970,7 @@ export type Database = {
           threshold_hr?: number | null
           tips_seen?: Json
           updated_at?: string
+          weight_unit?: string
         }
         Relationships: []
       }
@@ -1504,6 +1510,7 @@ export type Database = {
           event_id: string
           finished_at: string | null
           id: string
+          note: string | null
           score_reps: number | null
           score_rounds: number | null
           score_time_seconds: number | null
@@ -1520,6 +1527,7 @@ export type Database = {
           event_id: string
           finished_at?: string | null
           id?: string
+          note?: string | null
           score_reps?: number | null
           score_rounds?: number | null
           score_time_seconds?: number | null
@@ -1536,6 +1544,7 @@ export type Database = {
           event_id?: string
           finished_at?: string | null
           id?: string
+          note?: string | null
           score_reps?: number | null
           score_rounds?: number | null
           score_time_seconds?: number | null
@@ -1553,6 +1562,8 @@ export type Database = {
           actual_duration: string | null
           actual_reps: string | null
           actual_weight: string | null
+          ascent_style: string | null
+          attempts: number | null
           definition_id: string | null
           event_date: string
           event_id: string
@@ -1560,9 +1571,11 @@ export type Database = {
           exercise_name: string
           id: string
           is_autofilled: boolean
+          is_warmup: boolean
           planned_duration: string | null
           planned_reps: string | null
           planned_weight: string | null
+          rpe: number | null
           section: string
           set_number: number
           updated_at: string
@@ -1572,6 +1585,8 @@ export type Database = {
           actual_duration?: string | null
           actual_reps?: string | null
           actual_weight?: string | null
+          ascent_style?: string | null
+          attempts?: number | null
           definition_id?: string | null
           event_date: string
           event_id: string
@@ -1579,9 +1594,11 @@ export type Database = {
           exercise_name: string
           id?: string
           is_autofilled?: boolean
+          is_warmup?: boolean
           planned_duration?: string | null
           planned_reps?: string | null
           planned_weight?: string | null
+          rpe?: number | null
           section: string
           set_number: number
           updated_at?: string
@@ -1591,6 +1608,8 @@ export type Database = {
           actual_duration?: string | null
           actual_reps?: string | null
           actual_weight?: string | null
+          ascent_style?: string | null
+          attempts?: number | null
           definition_id?: string | null
           event_date?: string
           event_id?: string
@@ -1598,9 +1617,11 @@ export type Database = {
           exercise_name?: string
           id?: string
           is_autofilled?: boolean
+          is_warmup?: boolean
           planned_duration?: string | null
           planned_reps?: string | null
           planned_weight?: string | null
+          rpe?: number | null
           section?: string
           set_number?: number
           updated_at?: string

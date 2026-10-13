@@ -43,6 +43,7 @@ export async function loadBlockLogs(block: TrainingBlock): Promise<BlockLogs> {
       .from('workout_set_logs')
       .select('*')
       .eq('is_autofilled', false)
+      .eq('is_warmup', false)
       .gte('event_date', startDate)
       .lt('event_date', endDateExclusive)
       .order('event_date', { ascending: true }),

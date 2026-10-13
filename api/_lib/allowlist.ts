@@ -238,6 +238,12 @@ export const SET_LOG_COLUMNS: ReadonlySet<string> = new Set([
   'actual_reps',
   'actual_duration',
   'is_autofilled',
+  // Per-set metadata (phase55). Values are bounded by the column CHECKs
+  // (rpe 1–10, attempts >= 0, ascent_style one of AscentStyle).
+  'rpe',
+  'is_warmup',
+  'ascent_style',
+  'attempts',
 ]);
 
 export const CARDIO_LOG_COLUMNS: ReadonlySet<string> = new Set([

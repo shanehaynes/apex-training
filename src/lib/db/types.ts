@@ -15,6 +15,7 @@
 // never needs to read it (RLS already scopes selects to the signed-in user).
 
 import type { Database, Json, Tables, TablesInsert } from './database.types';
+import type { AscentStyle } from '../../types/workout';
 
 export type { Json, Tables, TablesInsert, TablesUpdate } from './database.types';
 
@@ -131,7 +132,10 @@ export type MealMutationLogRow = LogRow<'meal_mutations_log', {
 // occurrences it is the expanded `${baseId}__${date}` id.
 
 // coach_summary: AI-generated post-workout summary, saved once at Finish.
-export type WorkoutSessionRow = Row<'workout_sessions', { user_id?: string }>;
+// note (phase55) is optional on the client row for the same reason the set
+// metadata is: the client sends it only when the user wrote one, and rows
+// written before the migration have no such key.
+export type WorkoutSessionRow = Row<'workout_sessions', { user_id?: string; note?: string | null }>;
 
 export type TrackedSection = 'warmup' | 'exercise' | 'cooldown';
 
@@ -139,12 +143,22 @@ export type TrackedSection = 'warmup' | 'exercise' | 'cooldown';
 // on every upsert), so the client builds log rows without them.
 // definition_id is stamped on rows logged after phase 8; older rows are
 // matched by name+alias.
+//
+// The phase55 per-set metadata (rpe, is_warmup, ascent_style, attempts) is
+// optional on the client row: the tracker only sends what the user touched,
+// the DB defaults the rest, and rows written before the migration have no
+// such keys. A warm-up set is a logged set that is not a performance — see
+// isPerformedSet() in src/lib/tracking/records.ts.
 export type SetLogRow = Row<'workout_set_logs', {
   user_id?: string;
   id?: string;
   updated_at?: string;
   section: TrackedSection;
   definition_id?: string | null;
+  rpe?: number | null;
+  is_warmup?: boolean;
+  ascent_style?: AscentStyle | null;
+  attempts?: number | null;
 }>;
 
 export type CardioLogRow = Row<'workout_cardio_logs', {

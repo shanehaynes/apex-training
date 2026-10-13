@@ -1,7 +1,7 @@
 import type { Exercise, ExerciseDefinition, PlannedSet, WorkoutEvent } from '../../types/workout';
 import type { CardioLogRow, ExerciseNoteRow, SetLogRow, TrackedSection } from '../db/types';
 import { sectionLabels } from '../climbing.js';
-import { parseDurationSeconds } from './records.js';
+import { isPerformedSet, parseDurationSeconds } from './records.js';
 
 // ─── Tracker form model ───────────────────────────────────────────────────────
 // Pure builders that turn a WorkoutEvent (plan) plus previously-saved rows
@@ -402,7 +402,7 @@ export function cardioExerciseNames(event: WorkoutEvent): string[] {
 export function buildLastPerformance(rows: SetLogRow[]): Map<string, LastPerformance> {
   const byName = new Map<string, LastPerformance>();
   for (const row of rows) {
-    if (row.is_autofilled) continue;
+    if (!isPerformedSet(row)) continue;
     if (!row.actual_weight && !row.actual_reps && !row.actual_duration) continue;
     const existing = byName.get(row.exercise_name);
     if (existing && row.event_date < existing.date) continue;
@@ -448,7 +448,7 @@ export interface LastCardioActuals {
 export function buildLastCardio(rows: CardioLogRow[]): Map<string, LastCardioActuals> {
   const byName = new Map<string, LastCardioActuals>();
   for (const row of rows) {
-    if (row.is_autofilled) continue;
+    if (!isPerformedSet(row)) continue;
     if (row.duration_minutes == null && !row.distance && !row.elevation_gain && row.avg_heart_rate == null) continue;
     const existing = byName.get(row.exercise_name);
     if (existing && row.event_date <= existing.date) continue;
