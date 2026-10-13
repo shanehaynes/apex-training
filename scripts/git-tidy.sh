@@ -219,6 +219,42 @@ if [ -f "$claims" ]; then
   fi
 fi
 
+# ── session → lane bindings ─────────────────────────────────────────────────
+# scripts/stop-gate.sh (via git-new.sh) binds a Claude Code session to its
+# worktree under .claude/state/sessions/<session id>; the Stop hook reads it.
+# A binding whose worktree is gone is dead, and so are that session's
+# stop-gate counters.
+sessions="$claims_root/.claude/state/sessions"
+if [ -d "$sessions" ]; then
+  echo
+  echo "── session bindings"
+  for f in "$sessions"/*; do
+    [ -f "$f" ] || continue
+    sid=$(basename "$f")
+    kept_lanes=$(mktemp)
+    while read -r wt; do
+      [ -n "$wt" ] || continue
+      if [ -d "$wt" ]; then
+        echo "   KEEP  $sid → $wt"
+        printf '%s\n' "$wt" >> "$kept_lanes"
+      else
+        echo "   DROP  $sid → $wt (worktree gone)"
+        [ "$apply" -eq 1 ] && rm -f "$claims_root/.claude/state/stop-gate/$sid/$(basename "$wt")".*
+      fi
+    done < "$f"
+    if [ "$apply" -eq 1 ]; then
+      if [ -s "$kept_lanes" ]; then
+        mv "$kept_lanes" "$f"
+      else
+        rm -f "$kept_lanes" "$f"
+        rm -rf "$claims_root/.claude/state/stop-gate/$sid"
+      fi
+    else
+      rm -f "$kept_lanes"
+    fi
+  done
+fi
+
 # ── summary ─────────────────────────────────────────────────────────────────
 echo
 if [ "$apply" -eq 1 ]; then
