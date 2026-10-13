@@ -261,12 +261,15 @@ public final class MealsModel {
     /// deleted elsewhere: said once, and kept in `refusedMeals` for Fix. A
     /// gave-up op is still waiting and says nothing here.
     private func mealFailed(_ message: String) async {
-        guard let queue = deps.writeQueue else { return }
-        let refusedNow = await queue.ops(for: .outbox).contains { $0.isRefused && $0.payload.action == .meal }
-        if refusedNow {
-            ToastBus.shared.post("A meal wasn't accepted — \(message). Open Meals to fix it.", level: .failure)
-        }
+        // Only the op the event names: a refusal is one that is new in
+        // `refusedMeals`, not an older one still waiting for Fix.
+        let known = Set(refusedMeals.map(\.id))
         await reloadOutbox()
+        if refusedMeals.contains(where: { !known.contains($0.id) }) {
+            ToastBus.shared.post("A meal wasn't accepted — \(message). Open Meals to fix it.", level: .failure)
+        } else {
+            ToastBus.shared.post("A meal hasn't synced — the app keeps trying; Retry on its day sends it now.", level: .info)
+        }
     }
 
     /// Let a refused meal go.

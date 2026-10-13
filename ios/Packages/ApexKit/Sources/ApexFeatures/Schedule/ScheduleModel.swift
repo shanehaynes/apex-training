@@ -304,6 +304,11 @@ public final class ScheduleModel {
     /// answering 5xx): still waiting, retried on the next resume, and offered
     /// a Retry now. Nothing in the lane is dropped for want of a server.
     public private(set) var stalledDays: Set<String> = []
+    /// Exercises created with no signal and waiting to land — the library's,
+    /// not any day's, so the day view shows them on every day — and whether
+    /// one of them has been given up on (Retry).
+    public private(set) var pendingCreates = 0
+    public private(set) var createsStalled = false
     /// Every waiting op in the lane that touches the schedule (a save, both
     /// halves of a toggle, an exercise create): what has to drop for the
     /// window to be re-read. Meals are counted apart and re-read their own.
@@ -322,6 +327,8 @@ public final class ScheduleModel {
         pendingMeals = [:]
         refusedMeals = [:]
         stalledDays = []
+        pendingCreates = 0
+        createsStalled = false
         waitingOutboxOps = 0
         guard let queue else { return }
         outboxTask = Task { [weak self] in
@@ -330,13 +337,16 @@ public final class ScheduleModel {
                 guard !Task.isCancelled else { return }
                 switch event {
                 case .failed(let session, .createDefinition, let message) where session == .outbox:
-                    ToastBus.shared.post("Couldn't add an exercise to your library — \(message)", level: .failure)
-                    for op in await queue.ops(for: .outbox) where op.state == .failed {
-                        if case .createDefinition = op.payload { await queue.discard(op.id, in: .outbox) }
+                    // A refusal is dropped (the re-read removes its local
+                    // copy); a gave-up create is still waiting, still offered.
+                    if await self?.retireRefused(.createDefinition).isEmpty == false {
+                        ToastBus.shared.post("Couldn't add an exercise to your library — \(message)", level: .failure)
+                        await self?.refresh(reason: .afterEdit)
+                    } else {
+                        ToastBus.shared.post("An exercise hasn't synced — the app keeps trying; Retry on its day sends it now.", level: .info)
                     }
-                    await self?.refresh(reason: .afterEdit)
                 case .failed(let session, .workoutDraft, let message) where session == .outbox:
-                    ToastBus.shared.post("A workout saved offline wasn't accepted — \(message). Open its day to fix it.", level: .failure)
+                    await self?.draftFailed(message)
                 case .failed(let session, .completion, let message) where session == .outbox:
                     await self?.completionFailed(message)
                 case .failed(let session, .quickComplete, _) where session == .outbox:
@@ -368,13 +378,35 @@ public final class ScheduleModel {
             ToastBus.shared.post("A completion hasn't synced — the app keeps trying; Retry on its day sends it now.", level: .info)
             return
         }
+        var undone: Set<String> = []
         for payload in refused {
             guard case .completion(let row, _) = payload else { continue }
             index = index?.settingCompletion(id: row.eventId, isCompleted: !row.isCompleted, completedAt: nil)
+            undone.insert(row.eventId)
+        }
+        // The toggles still waiting for the same occurrence are the newer
+        // truth: laid back over the undo, in lane order, before any re-read.
+        for op in await writeQueue?.waitingOps(for: .outbox) ?? [] {
+            guard case .completion(let row, _) = op.payload, undone.contains(row.eventId) else { continue }
+            index = index?.settingCompletion(id: row.eventId, isCompleted: row.isCompleted, completedAt: row.completedAt)
         }
         ToastBus.shared.post("A completion didn't save — \(message)", level: .failure)
         await persistIndex()
         await refresh(reason: .afterCompletion)
+    }
+
+    /// A Builder save the lane reported: a refusal is kept for Fix and said
+    /// as such; a gave-up save is still waiting and says it keeps trying.
+    /// "Refused" is decided by what is new in `refusedSaves`, not by the
+    /// presence of an older refusal still waiting for Fix.
+    private func draftFailed(_ message: String) async {
+        let known = Set(refusedSaves.map(\.id))
+        await reloadOutbox()
+        if refusedSaves.contains(where: { !known.contains($0.id) }) {
+            ToastBus.shared.post("A workout saved offline wasn't accepted — \(message). Open its day to fix it.", level: .failure)
+        } else {
+            ToastBus.shared.post("A workout saved offline hasn't synced — the app keeps trying; Retry on its day sends it now.", level: .info)
+        }
     }
 
     /// Drops the lane's refused ops of one action (never a gave-up one) and
@@ -407,6 +439,8 @@ public final class ScheduleModel {
         var meals: [String: Int] = [:]
         var mealsRefused: [String: Int] = [:]
         var stalled: Set<String> = []
+        var creates = 0
+        var createsGaveUp = false
         var waiting = 0
         for op in await queue.ops(for: .outbox) {
             // A gave-up op is still waiting (`TrackerOp.isWaiting`): counted on
@@ -435,6 +469,10 @@ public final class ScheduleModel {
                 for day in meal.days {
                     if op.isWaiting { meals[day, default: 0] += 1 } else { mealsRefused[day, default: 0] += 1 }
                 }
+            case .createDefinition where op.isWaiting:
+                creates += 1
+                if op.gaveUp { createsGaveUp = true }
+                waiting += 1
             case _ where op.isWaiting:
                 waiting += 1
             default:
@@ -450,6 +488,8 @@ public final class ScheduleModel {
         pendingMeals = meals
         refusedMeals = mealsRefused
         stalledDays = stalled
+        pendingCreates = creates
+        createsStalled = createsGaveUp
         waitingOutboxOps = waiting
         // A landed toggle re-reads the window only (as the direct path did);
         // a landed save may have changed meals' days too.

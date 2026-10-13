@@ -1,4 +1,5 @@
 import ApexCore
+import ApexUI
 import ApexFeatures
 import XCTest
 
@@ -123,10 +124,10 @@ final class MealsModelTests: XCTestCase {
     }
 
     @MainActor
-    private func queued(_ transport: YouTransport) async -> (MealsModel, WriteQueue, MemoryWriteQueueStore, MealsHooks) {
+    private func queued(_ transport: YouTransport, policy: RetryPolicy = .default) async -> (MealsModel, WriteQueue, MemoryWriteQueueStore, MealsHooks) {
         let store = MemoryWriteQueueStore()
         let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: CoachTestTokens())
-        let queue = WriteQueue(store: store, client: client, clock: StalledClock(now: coachTestNow))
+        let queue = WriteQueue(store: store, client: client, clock: StalledClock(now: coachTestNow), policy: policy)
         let hooks = MealsHooks()
         let model = makeMealsModel(transport, hooks: hooks, writeQueue: queue)
         await model.start()
@@ -181,6 +182,43 @@ final class MealsModelTests: XCTestCase {
         let left = await store.all.count
         XCTAssertEqual(left, 0)
         XCTAssertEqual(hooks.changes, 1)
+        model.stop()
+    }
+
+    @MainActor
+    func testAMealThatGivesUpBehindAKeptRefusalIsNotCalledRefused() async throws {
+        // One meal refused and kept for Fix; a second meets a 5xx run and
+        // gives up. The second is waiting with Retry — the toast must not
+        // say "wasn't accepted" because the first still is.
+        let transport = YouTransport.mealsOffline()
+        transport.set("POST /api/meals", status: 400, body: "Total fat can't be less than saturated + trans")
+        let (model, queue, store, _) = await queued(transport, policy: RetryPolicy(maxAttempts: 0))
+        var butter = MealForm(day: fixtureDay)
+        butter.title = "Butter"
+        butter.fatTotal = "5"
+        butter.fatSaturated = "9"
+        _ = await model.save(butter, editing: nil, originalDay: nil)
+        await queue.flush(.outbox)
+        try await waitUntil { !model.refusedMeals.isEmpty }
+        XCTAssertEqual(model.refusedMeals.map(\.item.title), ["Butter"])
+
+        transport.set("POST /api/meals", status: 503, body: "down")
+        let mark = ToastBus.shared.toasts.count
+        var toast = MealForm(day: fixtureDay)
+        toast.title = "Toast"
+        _ = await model.save(toast, editing: nil, originalDay: nil)
+        await queue.flush(.outbox)
+        await queue.awaitRetries()
+        try await waitUntil { model.stalledDays.contains("2026-09-08") }
+        let held = await store.all
+        XCTAssertEqual(held.map(\.isRefused), [true, false])
+        XCTAssertEqual(held.map(\.gaveUp), [false, true])
+        XCTAssertEqual(model.refusedMeals.map(\.item.title), ["Butter"], "the refusal is still the one kept")
+        XCTAssertEqual(model.pendingMeals["2026-09-08"], 1, "the gave-up meal is waiting")
+        XCTAssertTrue(model.stalledDays.contains("2026-09-08"), "and offered Retry")
+        try await waitUntil { ToastBus.shared.toasts.count > mark }
+        let since = Array(ToastBus.shared.toasts.dropFirst(mark))
+        XCTAssertFalse(since.contains { $0.level == .failure }, "no refusal toast for a gave-up meal: \(since.map(\.message))")
         model.stop()
     }
 

@@ -84,7 +84,7 @@ struct DayView: View {
     /// still queued and comes back on the next foreground, but the user need
     /// not wait for that.
     @ViewBuilder
-    private func waitingLine(_ count: Int, _ singular: String, _ plural: String, id: String) -> some View {
+    private func waitingLine(_ count: Int, _ singular: String, _ plural: String, id: String, stalled: Bool? = nil) -> some View {
         if count > 0 {
             HStack(spacing: Spacing.sm) {
                 Label(count == 1 ? "1 \(singular) waiting to sync" : "\(count) \(plural) waiting to sync", systemImage: "icloud.and.arrow.up")
@@ -92,7 +92,7 @@ struct DayView: View {
                     .foregroundStyle(ApexColor.textMuted)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityIdentifier(id)
-                if model.stalledDays.contains(model.selectedDay.string) {
+                if stalled ?? model.stalledDays.contains(model.selectedDay.string) {
                     Button { Task { await model.retryOutbox() } } label: {
                         Text("Retry")
                             .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
@@ -127,6 +127,8 @@ struct DayView: View {
         waitingLine(model.pendingSaves[day] ?? 0, "workout", "workouts", id: "schedule.day.pendingSaves")
         waitingLine(model.pendingCompletions[day] ?? 0, "completion", "completions", id: "schedule.day.pendingCompletions")
         waitingLine(model.pendingMeals[day] ?? 0, "meal", "meals", id: "schedule.day.pendingMeals")
+        // The library's, not the day's: shown wherever the user is looking.
+        waitingLine(model.pendingCreates, "exercise", "exercises", id: "schedule.day.pendingCreates", stalled: model.createsStalled)
         refusedMealsLine(model.refusedMeals[day] ?? 0)
         ForEach(refused) { save in
             HStack(alignment: .top, spacing: Spacing.sm) {

@@ -156,6 +156,9 @@ public actor WriteQueue {
             return
         }
         flushing.insert(session)
+        // A gave-up op is retried where it stands, never moved behind what
+        // was queued after it (the lane is FIFO across waiting ops).
+        if session == .outbox { await repend(gaveUpIn: session) }
         await drain(session)
         flushing.remove(session)
         if rerun.remove(session) != nil { await flush(session) }
@@ -164,7 +167,7 @@ public actor WriteQueue {
     private func drain(_ session: SessionKey) async {
         while !isPaused {
             if let gate = notBefore[session], gate > clock.now { return }
-            guard let op = try? await store.nextPending(for: session) else { return }
+            guard let op = await next(in: session) else { return }
 
             inFlight[op.id] = session
             let resumesBefore = resumes
@@ -253,7 +256,7 @@ public actor WriteQueue {
                         // The plan-fill queued behind a completion the server
                         // refused would log a session for an occurrence it did
                         // not mark complete: it goes with the refusal, unsent.
-                        await retireQuickComplete(for: row, in: session)
+                        await retireQuickComplete(after: op, for: row, in: session)
                     }
                     emit(.failed(session, op.payload.action, message))
                     emit(.changed(session))
@@ -262,11 +265,34 @@ public actor WriteQueue {
         }
     }
 
-    private func retireQuickComplete(for row: CompletionRow, in session: SessionKey) async {
-        for op in (try? await store.ops(for: session)) ?? [] where op.state == .pending {
-            guard case .quickComplete(let quick) = op.payload,
-                  quick.eventId == row.eventId, quick.eventDate == row.eventDate else { continue }
-            try? await store.delete(id: op.id)
+    /// The op to send next. A tracker session drains past a failed op (the
+    /// Retry bar shows it; the rest of the workout must land). The outbox is
+    /// FIFO across *waiting* ops: a gave-up op at its head keeps its place
+    /// and blocks what was queued after it — a later edit or an undo must not
+    /// land before the write it supersedes — until a flush, a resume or
+    /// Retry puts it back and it lands, or a refusal retires it. A refusal
+    /// never blocks: it waits for the user, off the path.
+    private func next(in session: SessionKey) async -> TrackerOp? {
+        guard session == .outbox else { return try? await store.nextPending(for: session) }
+        let lane = (try? await store.ops(for: session)) ?? []
+        guard let head = lane.first(where: \.isWaiting) else { return nil }
+        return head.state == .pending ? head : nil
+    }
+
+    /// Only the plan-fill of *this* toggle: the first `.quickComplete` for the
+    /// occurrence queued after the refused completion, and none past the next
+    /// completion for it — a later toggle's plan-fill belongs to that toggle.
+    private func retireQuickComplete(after refused: TrackerOp, for row: CompletionRow, in session: SessionKey) async {
+        for op in (try? await store.ops(for: session)) ?? [] where op.id > refused.id && op.state == .pending {
+            switch op.payload {
+            case .completion(let next, _) where next.eventId == row.eventId && next.eventDate == row.eventDate:
+                return
+            case .quickComplete(let quick) where quick.eventId == row.eventId && quick.eventDate == row.eventDate:
+                try? await store.delete(id: op.id)
+                return
+            default:
+                continue
+            }
         }
     }
 
@@ -332,9 +358,9 @@ public actor WriteQueue {
         await flush()
     }
 
-    /// A gave-up op back to pending with a fresh ladder — the outbox's Retry,
-    /// and what every `flush()` does for that lane on its own. A refusal
-    /// (`isRefused`) is left where it is: only the user can answer it.
+    /// A gave-up op back to pending with a fresh ladder, in its own place —
+    /// the outbox's Retry, and what every flush of that lane does on its own.
+    /// A refusal (`isRefused`) is left where it is: only the user can answer it.
     public func retryGaveUp(_ session: SessionKey) async {
         await repend(gaveUpIn: session)
         emit(.changed(session))
@@ -412,8 +438,13 @@ public actor WriteQueue {
     /// overlay these to keep a pending create on screen until it lands.
     public func pendingDefinitionCreates() async -> [DefinitionCreatePayload] {
         var creates: [DefinitionCreatePayload] = []
-        for session in (try? await store.sessionsWithPending()) ?? [] {
-            for op in await pendingOps(for: session) {
+        // A create the lane gave up on is still waiting (and still offered);
+        // a lane holding only gave-up ops has nothing pending, so the outbox
+        // is read whether or not it is listed.
+        var sessions = (try? await store.sessionsWithPending()) ?? []
+        if !sessions.contains(.outbox) { sessions.append(.outbox) }
+        for session in sessions {
+            for op in await waitingOps(for: session) {
                 if case .createDefinition(let payload) = op.payload { creates.append(payload) }
             }
         }

@@ -804,6 +804,29 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(kept.first?.isRefused, true)
     }
 
+    func testARefusedCompletionLeavesALaterToggleOfTheSameOccurrenceWhole() async throws {
+        // Complete then undo, both offline; the completion is refused. Only
+        // its own plan-fill goes with it — the undo and *its* plan-fill land.
+        let transport = ScriptedTransport([.status(400, body: "Invalid action"), .ok(), .ok()])
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store)
+        let complete = toggle(complete: true)
+        let undo = toggle(complete: false)
+        try await queue.enqueue(complete.completion, for: .outbox)
+        try await queue.enqueue(complete.quick, for: .outbox)
+        try await queue.enqueue(undo.completion, for: .outbox)
+        try await queue.enqueue(undo.quick, for: .outbox)
+        await queue.flush(.outbox)
+
+        let requests = await transport.requests
+        XCTAssertEqual(requests.map(\.path), ["/api/completions", "/api/completions", "/api/workout-sessions"])
+        XCTAssertEqual((requests[1].body?["logRow"] as? [String: Any])?["action"] as? String, "uncomplete")
+        XCTAssertEqual(requests[2].action, "quick-uncomplete")
+        let kept = await store.all
+        XCTAssertEqual(kept.map(\.payload.action), [.completion])
+        XCTAssertEqual(kept.first?.isRefused, true)
+    }
+
     func testAnOutboxOpThePolicyGaveUpOnIsKeptAsWaitingAndTheNextFlushRetriesIt() async throws {
         // A server that keeps answering 5xx: past the ceiling the op is
         // failed, but marked given-up — still waiting, never dropped — and the
@@ -840,20 +863,21 @@ final class WriteQueueTests: XCTestCase {
 
     func testRetryPutsBackAGaveUpCompletionButNeverARefusedMeal() async throws {
         // Retry on the day line: the gave-up op goes back with a fresh
-        // ladder; the refusal next to it is the user's to fix and stays put.
+        // ladder; the refusal ahead of it is the user's to fix and stays put
+        // (a refusal never blocks the lane; a gave-up op does).
         let transport = ScriptedTransport([
-            .status(503, body: "down"), .status(400, body: "Total fat can't be less than saturated + trans"), .ok(), .ok(),
+            .status(400, body: "Total fat can't be less than saturated + trans"), .status(503, body: "down"), .ok(),
         ])
         let store = MemoryWriteQueueStore()
         let queue = makeQueue(transport, store: store, policy: RetryPolicy(maxAttempts: 0))
         let ops = toggle(complete: true)
-        try await queue.enqueue(ops.completion, for: .outbox)
         try await queue.enqueue(.meal(mealCreate()), for: .outbox)
+        try await queue.enqueue(ops.completion, for: .outbox)
         await queue.flush(.outbox)
         await queue.awaitRetries()
         let before = await store.all
-        XCTAssertEqual(before.map(\.gaveUp), [true, false])
-        XCTAssertEqual(before.map(\.isRefused), [false, true])
+        XCTAssertEqual(before.map(\.gaveUp), [false, true])
+        XCTAssertEqual(before.map(\.isRefused), [true, false])
 
         await queue.retryGaveUp(.outbox)
         let after = await store.all
@@ -861,7 +885,77 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(after.first?.isRefused, true)
         XCTAssertEqual(after.first?.lastError, "Total fat can't be less than saturated + trans")
         let sent = await transport.requests.map(\.path)
-        XCTAssertEqual(sent, ["/api/completions", "/api/meals", "/api/completions"])
+        XCTAssertEqual(sent, ["/api/meals", "/api/completions", "/api/completions"])
+    }
+
+    func testAGaveUpOpKeepsItsPlaceAndWhatWasQueuedBehindItWaits() async throws {
+        // Complete, the server keeps failing, the user undoes: the undo must
+        // not land before the completion it reverses. The gave-up head
+        // blocks the lane; a flush retries it where it stands; once it lands
+        // the rest follows in order, and the server ends on the undo.
+        let transport = ScriptedTransport([.status(503, body: "down"), .status(503, body: "down"), .ok(), .ok(), .ok()])
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store, policy: RetryPolicy(maxAttempts: 0))
+        let complete = toggle(complete: true)
+        let undo = toggle(complete: false)
+        try await queue.enqueue(complete.completion, for: .outbox)
+        await queue.flush(.outbox)
+        await queue.awaitRetries()
+        let gaveUp = await store.all.map(\.gaveUp)
+        XCTAssertEqual(gaveUp, [true])
+
+        try await queue.enqueue(undo.completion, for: .outbox)
+        try await queue.enqueue(undo.quick, for: .outbox)
+        await queue.flush(.outbox)   // retries the head in place: 503 again, so nothing behind it moves
+        await queue.awaitRetries()
+        let paths = await transport.requests.map(\.path)
+        XCTAssertEqual(paths, ["/api/completions", "/api/completions"], "the undo waits behind the gave-up completion")
+        let held = await store.all
+        XCTAssertEqual(held.map(\.payload.action), [.completion, .completion, .quickComplete])
+        XCTAssertEqual(held.map(\.isWaiting), [true, true, true])
+        XCTAssertEqual(held.map(\.gaveUp), [true, false, false])
+
+        await queue.resume()
+        await queue.awaitRetries()
+        let requests = await transport.requests
+        XCTAssertEqual(requests.map(\.path), ["/api/completions", "/api/completions", "/api/completions", "/api/completions", "/api/workout-sessions"])
+        let last = requests[3].body?["completionRow"] as? [String: Any]
+        XCTAssertEqual(last?["is_completed"] as? Bool, false, "the server ends on the undo, not the stale completion")
+        XCTAssertEqual(requests[4].action, "quick-uncomplete")
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+    }
+
+    func testANewerMealEditLandsAfterTheGaveUpOneItSupersedes() async throws {
+        let transport = ScriptedTransport([.status(503, body: "down"), .ok(), .ok()])
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store, policy: RetryPolicy(maxAttempts: 0))
+        let v1 = MealOpPayload(kind: .update, id: "ios-fixture-meal-1", title: "v1", day: "2026-09-08", columns: ["title": .string("v1")])
+        let v2 = MealOpPayload(kind: .update, id: "ios-fixture-meal-1", title: "v2", day: "2026-09-08", columns: ["title": .string("v2")])
+        try await queue.enqueue(.meal(v1), for: .outbox)
+        await queue.flush(.outbox)
+        await queue.awaitRetries()
+        try await queue.enqueue(.meal(v2), for: .outbox)
+
+        await queue.resume()
+        await queue.awaitRetries()
+        let titles = await transport.requests.map { ($0.body?["fields"] as? [String: Any])?["title"] as? String }
+        XCTAssertEqual(titles, ["v1", "v1", "v2"], "v1 lands first, then v2 — never the other way round")
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+    }
+
+    func testAGaveUpLibraryCreateIsStillOffered() async throws {
+        let transport = ScriptedTransport([.status(503, body: "down")])
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store, policy: RetryPolicy(maxAttempts: 0))
+        try await queue.enqueue(.createDefinition(pancake), for: .outbox)
+        await queue.flush(.outbox)
+        await queue.awaitRetries()
+        let held = await store.all
+        XCTAssertEqual(held.map(\.gaveUp), [true])
+        let offered = await queue.pendingDefinitionCreates().map(\.id)
+        XCTAssertEqual(offered, ["pancake-fold"], "waiting, so still overlaid on the library")
     }
 
     // MARK: - A meal in the outbox
