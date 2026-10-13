@@ -151,6 +151,28 @@ command by the directory it would actually run in: a chain that opens with
 `cd <worktree>`, or a `git -C` / `xcodebuild -project` naming one, builds there
 even when the shell's cwd is the primary — which is every subagent's cwd.
 
+## Specs, skills and review
+
+- **Work larger than one PR starts as a spec**: copy `docs/specs/TEMPLATE.md`
+  to `docs/specs/<slug>.md` (the iOS brief format — Goal, Scope, Milestones
+  with acceptance boxes, Owns). The session instruction is then "implement
+  until every box is checked and the gate is green", one PR per milestone,
+  `scripts/merge-babysit.sh --yes` between milestones. Board work
+  (`docs/ios/`, `docs/onboarding/`) already has briefs; use those.
+- **Every lane report and every board session ends with a drafted next
+  brief** (NEXT BRIEF in the report; "Next up" on a board as a paragraph, not
+  a one-liner). Shane edits a draft; he does not write one from blank.
+- **Before `gh pr create`, launch the `reviewer` agent** on the spec plus
+  `git diff origin/main...HEAD` — never your own explanation — and paste its
+  report into the PR body under `## Review` with one line per finding (fixed
+  in <sha> | not fixed because). Shane reads the review, then skims the diff.
+- **Skills and agents by task**, so none depends on description matching:
+  running, screenshotting or driving the app → `run-apex-training` skill;
+  proving a UI or API change works in the real app → `app-verifier` agent;
+  any coach prompt, model or tool change → `eval-analyst` agent, before it
+  ships; landing or shepherding PRs, repo health → `merge-shepherd` agent;
+  any fan-out → parallel-agents (the `agent-guard` hook injects it).
+
 ## Commits and merging
 
 Commits and PRs land as Shane alone — no co-author trailers, no attribution; the

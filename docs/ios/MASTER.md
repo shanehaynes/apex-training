@@ -137,7 +137,10 @@ re-created key means re-setting all three. Details: [testing-and-ci.md](testing-
 5. Before ending: update the brief's Status and Session log, update
    [STATUS.md](STATUS.md) (state, one line under Recent sessions, Next up), append to
    [decisions.md](decisions.md) if anything was decided, and update the memory entry
-   `apex-ios-app-project` if the next step changed.
+   `apex-ios-app-project` if the next step changed. "Next up" is a drafted brief, not a
+   one-liner: the next milestone's Goal, Scope, Acceptance and Owns, concrete enough for a
+   session with no memory of this one. Shane edits a draft; he does not write one from
+   blank.
 6. Change this file only when scope, architecture or a principle changes, and note it in the
    changelog below.
 
