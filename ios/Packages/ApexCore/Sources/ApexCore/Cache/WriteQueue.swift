@@ -132,8 +132,12 @@ public actor WriteQueue {
     // MARK: - Flush
 
     /// Every session with something pending, concurrently; FIFO within each.
+    /// The outbox's gave-up ops are put back first: a foreground, a launch
+    /// or a background refresh is their next try (D-052 — nothing in that
+    /// lane is dropped for want of a server).
     public func flush() async {
         guard !isPaused else { return }
+        await repend(gaveUpIn: .outbox)
         let sessions = (try? await store.sessionsWithPending()) ?? []
         await withTaskGroup(of: Void.self) { group in
             for session in sessions {
@@ -152,6 +156,9 @@ public actor WriteQueue {
             return
         }
         flushing.insert(session)
+        // A gave-up op is retried where it stands, never moved behind what
+        // was queued after it (the lane is FIFO across waiting ops).
+        if session == .outbox { await repend(gaveUpIn: session) }
         await drain(session)
         flushing.remove(session)
         if rerun.remove(session) != nil { await flush(session) }
@@ -160,7 +167,7 @@ public actor WriteQueue {
     private func drain(_ session: SessionKey) async {
         while !isPaused {
             if let gate = notBefore[session], gate > clock.now { return }
-            guard let op = try? await store.nextPending(for: session) else { return }
+            guard let op = await next(in: session) else { return }
 
             inFlight[op.id] = session
             let resumesBefore = resumes
@@ -236,15 +243,56 @@ public actor WriteQueue {
                     // (`RetryPolicy.maxAttempts`): keep it, show it, and let the
                     // rest of the session sync — blocking behind one op the
                     // server will never take would mean the whole workout never
-                    // lands.
+                    // lands. `gaveUp` records which of the two it was: a
+                    // gave-up op is still waiting and comes back on the next
+                    // resume; a refusal waits for the user.
                     var next = op
                     next.attempts += 1
                     next.lastError = message
                     next.state = .failed
+                    next.gaveUp = RetryPolicy.isTransient(error)
+                    if next.gaveUp { next.giveUpCount += 1 }
                     try? await store.update(next)
+                    if !next.gaveUp, case .completion(let row, _) = op.payload {
+                        // The plan-fill queued behind a completion the server
+                        // refused would log a session for an occurrence it did
+                        // not mark complete: it goes with the refusal, unsent.
+                        await retireQuickComplete(after: op, for: row, in: session)
+                    }
                     emit(.failed(session, op.payload.action, message))
                     emit(.changed(session))
                 }
+            }
+        }
+    }
+
+    /// The op to send next. A tracker session drains past a failed op (the
+    /// Retry bar shows it; the rest of the workout must land). The outbox is
+    /// FIFO across *waiting* ops: a gave-up op at its head keeps its place
+    /// and blocks what was queued after it — a later edit or an undo must not
+    /// land before the write it supersedes — until a flush, a resume or
+    /// Retry puts it back and it lands, or a refusal retires it. A refusal
+    /// never blocks: it waits for the user, off the path.
+    private func next(in session: SessionKey) async -> TrackerOp? {
+        guard session == .outbox else { return try? await store.nextPending(for: session) }
+        let lane = (try? await store.ops(for: session)) ?? []
+        guard let head = lane.first(where: \.isWaiting) else { return nil }
+        return head.state == .pending ? head : nil
+    }
+
+    /// Only the plan-fill of *this* toggle: the first `.quickComplete` for the
+    /// occurrence queued after the refused completion, and none past the next
+    /// completion for it — a later toggle's plan-fill belongs to that toggle.
+    private func retireQuickComplete(after refused: TrackerOp, for row: CompletionRow, in session: SessionKey) async {
+        for op in (try? await store.ops(for: session)) ?? [] where op.id > refused.id && op.state == .pending {
+            switch op.payload {
+            case .completion(let next, _) where next.eventId == row.eventId && next.eventDate == row.eventDate:
+                return
+            case .quickComplete(let quick) where quick.eventId == row.eventId && quick.eventDate == row.eventDate:
+                try? await store.delete(id: op.id)
+                return
+            default:
+                continue
             }
         }
     }
@@ -311,6 +359,25 @@ public actor WriteQueue {
         await flush()
     }
 
+    /// A gave-up op back to pending with a fresh ladder, in its own place —
+    /// the outbox's Retry, and what every flush of that lane does on its own.
+    /// A refusal (`isRefused`) is left where it is: only the user can answer it.
+    public func retryGaveUp(_ session: SessionKey) async {
+        await repend(gaveUpIn: session)
+        emit(.changed(session))
+        await flush(session)
+    }
+
+    private func repend(gaveUpIn session: SessionKey) async {
+        for var op in (try? await store.ops(for: session)) ?? [] where op.state == .failed && op.gaveUp {
+            op.state = .pending
+            op.attempts = 0
+            op.lastError = nil
+            op.gaveUp = false
+            try? await store.update(op)
+        }
+    }
+
     /// The policy's verdict, except that a library write never gives up on
     /// the network. A tracker op stops at the ceiling so the session drains
     /// past it and the Retry bar shows it; the outbox lane has no bar, its
@@ -331,6 +398,7 @@ public actor WriteQueue {
             op.state = .pending
             op.attempts = 0
             op.lastError = nil
+            op.gaveUp = false
             try? await store.update(op)
         }
         emit(.changed(session))
@@ -365,18 +433,43 @@ public actor WriteQueue {
         emit(.changed(session))
     }
 
+    /// The user lets a gave-up op go (`TrackerOp.canLetGo`): dropped, and —
+    /// for a completion — so is its own plan-fill, by the rule a refusal
+    /// uses. Nothing is sent. Returns what was let go, for the caller's undo.
+    @discardableResult
+    public func letGo(_ id: Int64, in session: SessionKey) async -> TrackerOpPayload? {
+        guard let op = ((try? await store.ops(for: session)) ?? []).first(where: { $0.id == id }), op.canLetGo else { return nil }
+        try? await store.delete(id: op.id)
+        if case .completion(let row, _) = op.payload {
+            await retireQuickComplete(after: op, for: row, in: session)
+        }
+        emit(.changed(session))
+        return op.payload
+    }
+
     /// Every exercise created with no signal and not yet on the server, from
     /// any session (the Library's lane and a tracker's swap). The cached
     /// library is replaced wholesale by each schedule refresh, so its readers
     /// overlay these to keep a pending create on screen until it lands.
     public func pendingDefinitionCreates() async -> [DefinitionCreatePayload] {
         var creates: [DefinitionCreatePayload] = []
-        for session in (try? await store.sessionsWithPending()) ?? [] {
-            for op in await pendingOps(for: session) {
+        // A create the lane gave up on is still waiting (and still offered);
+        // a lane holding only gave-up ops has nothing pending, so the outbox
+        // is read whether or not it is listed.
+        var sessions = (try? await store.sessionsWithPending()) ?? []
+        if !sessions.contains(.outbox) { sessions.append(.outbox) }
+        for session in sessions {
+            for op in await waitingOps(for: session) {
                 if case .createDefinition(let payload) = op.payload { creates.append(payload) }
             }
         }
         return creates
+    }
+
+    /// The lane's ops still to land: pending, and failed only for want of a
+    /// connection or a working server (`TrackerOp.isWaiting`), oldest first.
+    public func waitingOps(for session: SessionKey) async -> [TrackerOp] {
+        ((try? await store.ops(for: session)) ?? []).filter(\.isWaiting)
     }
 
     public func status(for session: SessionKey) async -> SessionSyncStatus {

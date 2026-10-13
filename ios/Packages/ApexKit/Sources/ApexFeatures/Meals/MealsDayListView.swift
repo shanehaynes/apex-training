@@ -21,6 +21,7 @@ public struct MealsDayListView: View {
                     .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
                     .foregroundStyle(day == nil ? ApexColor.textMuted : ApexColor.textSecondary)
                     .accessibilityIdentifier("meals.rollup")
+                outbox
                 if let meals = day?.meals, !meals.isEmpty {
                     SettingsSection {
                         ForEach(Array(meals.enumerated()), id: \.offset) { index, meal in
@@ -50,6 +51,78 @@ public struct MealsDayListView: View {
         .refreshable { await model.loadMonth(for: model.selectedDay) }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("meals.root")
+    }
+
+    /// Queued saves for this day: a line while they wait (with Retry when the
+    /// lane gave up on one — it is still queued and comes back on the next
+    /// foreground, but the user need not wait), and a row per save the server
+    /// refused, with its reason, Fix and Delete. The meal itself is listed
+    /// once the server has it (D-052).
+    @ViewBuilder
+    private var outbox: some View {
+        let day = model.selectedDay.string
+        let waiting = model.pendingMeals[day] ?? 0
+        if waiting > 0 {
+            HStack(spacing: Spacing.sm) {
+                Label(waiting == 1 ? "1 meal waiting to sync" : "\(waiting) meals waiting to sync", systemImage: "icloud.and.arrow.up")
+                    .font(.apex(.mono, size: TypeScale.micro, weight: .medium, relativeTo: .caption2))
+                    .foregroundStyle(ApexColor.textMuted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("meals.pending")
+                if model.letGoDays.contains(day) {
+                    Button { Task { await model.letGoStalled(day: day) } } label: {
+                        Text("Let go")
+                            .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
+                            .foregroundStyle(ApexColor.textMuted)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("meals.pending.letgo")
+                }
+                if model.stalledDays.contains(day) {
+                    Button { Task { await model.retryOutbox() } } label: {
+                        Text("Retry")
+                            .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
+                            .foregroundStyle(ApexColor.textPrimary)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("meals.pending.retry")
+                }
+            }
+        }
+        ForEach(model.refusedMeals.filter { $0.day.string == day || $0.originalDay?.string == day }) { refused in
+            HStack(alignment: .top, spacing: Spacing.sm) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("“\(refused.item.title)” wasn't saved")
+                        .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
+                        .foregroundStyle(ApexColor.textPrimary)
+                    Text(refused.reason).apexBody()
+                }
+                Spacer(minLength: 0)
+                Button { Task { await model.deleteRefused(refused.id) } } label: {
+                    Text("Delete")
+                        .font(.apex(.display, size: TypeScale.sm, relativeTo: .callout))
+                        .foregroundStyle(ApexColor.textMuted)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("meals.refused.delete.\(refused.id)")
+                Button { composer = .fix(refused) } label: {
+                    Text("Fix")
+                        .font(.apex(.display, size: TypeScale.sm, weight: .medium, relativeTo: .callout))
+                        .foregroundStyle(ApexColor.textPrimary)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("meals.refused.fix.\(refused.id)")
+            }
+            .accessibilityIdentifier("meals.refused.\(refused.id)")
+        }
     }
 
     private var dayBar: some View {

@@ -205,6 +205,15 @@ public struct Endpoint: Sendable, Equatable {
 
         case .completion(let completionRow, let logRow):
             return completions(completionRow: completionRow, logRow: logRow)
+
+        case .quickComplete(let quick):
+            return workoutSessions(action: quick.action, eventId: quick.eventId, eventDate: quick.eventDate)
+
+        case .meal(let meal):
+            switch meal.kind {
+            case .create: return createMeal(row: meal.columns)
+            case .update: return updateMeal(id: meal.id, fields: meal.columns, title: meal.title)
+            }
         }
     }
 
