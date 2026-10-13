@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useModalChrome } from '../../hooks/useModalChrome';
 import { useTip } from '../../hooks/useTip';
 import { useCoachReachable } from '../../hooks/useCoachReachable';
-import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play, Pencil, Route, TrendingUp, HeartPulse, Mountain, Layers, Trash2, MessageSquare } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, CheckCircle2, Circle, Play, Pencil, Route, TrendingUp, HeartPulse, Mountain, Layers, Trash2, MessageSquare, Copy } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendar } from '../../context/calendar';
 import { useSchedule } from '../../context/schedule';
@@ -12,16 +12,20 @@ import { getWorkoutColor } from '../../utils/workoutColors';
 import { formatEventTime, formatDuration } from '../../utils/dateHelpers';
 import { minutesToDisplayTime, timeToMinutes, toDisplayTime, toInputTime } from '../../lib/time';
 import { notify } from '../../lib/notify';
+import { postJson } from '../../lib/api';
+import { isPastDay } from '../../lib/clock';
+import { addIsoDays, copyBody, mintCopyId } from '../../lib/calendar/copy';
 import ExerciseCard from './ExerciseCard';
 import EventExerciseEditor from './EventExerciseEditor';
 import SyncMetrics from './SyncMetrics';
 import { isOutdoorClimbing, resolveClimbingTargets, sectionLabels } from '../../lib/climbing';
 import { DIFFICULTY_LABELS } from '../../utils/difficulty';
 import type { Exercise } from '../../types/workout';
+import '../../styles/copy.css';
 
 export default function WorkoutModal() {
   const { state, dispatch } = useCalendar();
-  const { events, toggleCompletion, rescheduleEvent, updateEvent, deleteEvent, deleteOccurrence } = useSchedule();
+  const { events, toggleCompletion, rescheduleEvent, updateEvent, deleteEvent, deleteOccurrence, refreshEvents } = useSchedule();
   const event = state.selectedEvent;
   const close = () => dispatch({ type: 'CLEAR_EVENT' });
 
@@ -31,6 +35,10 @@ export default function WorkoutModal() {
   const [editingExercises, setEditingExercises] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
+  // A past target date waits here for an explicit "Copy anyway".
+  const [pendingPast, setPendingPast] = useState<string | null>(null);
+  const [isCopying, setIsCopying] = useState(false);
 
   // Escape backs out of exercise editing, then out of the delete confirm,
   // before closing the modal. The hook reads the handler through a ref, so
@@ -38,6 +46,7 @@ export default function WorkoutModal() {
   useModalChrome(() => {
     if (editingExercises) setEditingExercises(false);
     else if (confirmDelete) setConfirmDelete(false);
+    else if (pendingPast) setPendingPast(null);
     else close();
   });
 
@@ -102,6 +111,33 @@ export default function WorkoutModal() {
       return;
     }
     rescheduleEvent(event.id, { endTime: stored });
+  };
+
+  // "Duplicate to…": a one-off copy of what this modal shows — for a series
+  // occurrence, the resolved occurrence — on the chosen date, through
+  // POST /api/events only. The draft door would auto-complete and plan-fill
+  // a past-dated copy, and a copy must never be retro-logged; a past date
+  // is allowed, but warned about first. The modal stays on the original.
+  const duplicate = async (date: string) => {
+    setPendingPast(null);
+    setIsCopying(true);
+    const body = copyBody(live, date, mintCopyId());
+    try {
+      // Quiet: the failure toast below is the one message.
+      await postJson('/api/events', body, 'Duplicating workout', { quiet: true });
+      notify(`Copied to ${format(parseISO(date), 'EEE, MMM d')} — delete the copy to undo`);
+      refreshEvents().catch(() => {});
+    } catch {
+      notify('Copy failed — nothing was created');
+    }
+    setIsCopying(false);
+  };
+
+  const commitDuplicate = (value: string) => {
+    setDuplicating(false);
+    if (!value) return;
+    if (isPastDay(value)) { setPendingPast(value); return; }
+    duplicate(value);
   };
 
   // A recurring occurrence can go two ways: drop this one day, or end the
@@ -269,6 +305,35 @@ export default function WorkoutModal() {
                 {live.startTime ? formatEventTime(live.startTime, live.endTime) : 'Add time'}
               </button>
             )}
+            {duplicating ? (
+              <span className="modal-meta-item">
+                <Copy size={14} strokeWidth={1.5} />
+                <input
+                  type="date"
+                  className="modal-meta-input"
+                  data-testid="duplicate-date"
+                  aria-label="Duplicate to date"
+                  autoFocus
+                  defaultValue={addIsoDays(live.date, 7)}
+                  onBlur={e => commitDuplicate(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') { e.stopPropagation(); setDuplicating(false); }
+                  }}
+                />
+              </span>
+            ) : (
+              <button
+                className="modal-meta-item copy-duplicate"
+                data-testid="duplicate-to"
+                onClick={() => setDuplicating(true)}
+                disabled={isCopying}
+                title="Make a one-off copy of this workout on another date"
+              >
+                <Copy size={14} strokeWidth={1.5} />
+                {isCopying ? 'Copying…' : 'Duplicate to…'}
+              </button>
+            )}
             <span className="modal-meta-item">
               <Clock size={14} strokeWidth={1.5} />
               {formatDuration(event.estimatedDuration)}
@@ -310,6 +375,29 @@ export default function WorkoutModal() {
               </span>
             )}
           </div>
+
+          {/* Past-date duplicate: warn before creating. */}
+          {pendingPast && (
+            <div className="copy-confirm" data-testid="duplicate-past-confirm">
+              <p className="copy-confirm__text">
+                {format(parseISO(pendingPast), 'EEE, MMM d')} is in the past. The copy will be a planned
+                workout there, not a logged one — delete it to undo.
+              </p>
+              <div className="copy-confirm__actions">
+                <button className="copy-confirm__btn" onClick={() => setPendingPast(null)} disabled={isCopying}>
+                  Cancel
+                </button>
+                <button
+                  className="copy-confirm__btn copy-confirm__btn--primary"
+                  data-testid="duplicate-past-anyway"
+                  onClick={() => duplicate(pendingPast)}
+                  disabled={isCopying}
+                >
+                  Copy anyway
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Measured provider metrics (COROS etc.) — renders only when a
               streams row exists for this occurrence. */}
