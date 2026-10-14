@@ -429,7 +429,7 @@ export function builderToolSchemas(): Anthropic.Tool[] {
 const CHART_MEASURES = [
   'session-count', 'training-time',
   'set-count', 'rep-count', 'tonnage', 'est-1rm',
-  'pitches', 'max-grade',
+  'pitches', 'max-grade', 'sends-by-grade',
   'distance', 'elevation-gain', 'cardio-time', 'avg-hr', 'hr-zone-time',
   'calories', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'alcohol', 'meal-count',
 ];
@@ -450,6 +450,7 @@ export const updateChartDraftSchema: Anthropic.Tool = {
       chart_type: { type: 'string', enum: ['line', 'bar', 'stacked-bar', 'area', 'kpi', 'table'], description: 'kpi = one big stat; stacked-bar needs series of one unit kind.' },
       bucket: { type: 'string', enum: ['day', 'week', 'iso-month', 'total'], description: "Time resolution. 'iso-month' = the app's 4-week training month; 'total' = one number for the whole range." },
       display_unit: { type: 'string', enum: ['mi', 'km', 'm', 'ft'], description: 'Opt-in length conversion for distance/elevation series; null to clear (chart in the dominant logged unit).' },
+      weight_unit: { type: 'string', enum: ['lb', 'kg'], description: 'Weight unit for tonnage/est-1rm series; null to clear (chart in the profile unit).' },
       date_range: {
         type: 'object',
         description: 'One of: {kind:"rolling", days} · {kind:"fixed", start_date, end_date} (YYYY-MM-DD, end inclusive) · {kind:"preset", preset}.',
@@ -480,7 +481,7 @@ export const updateChartDraftSchema: Anthropic.Tool = {
             exercise_names: { type: 'array', items: { type: 'string' } },
             categories: { type: 'array', items: { type: 'string' } },
             meal_types: { type: 'array', items: { type: 'string', enum: ['breakfast', 'lunch', 'dinner', 'snack'] } },
-            grade_scale: { type: 'string', enum: ['yds', 'boulder', 'ice', 'mixed'], description: 'Required by max-grade (grades only order within one scale).' },
+            grade_scale: { type: 'string', enum: ['yds', 'boulder', 'ice', 'mixed'], description: 'Required by max-grade (grades only order within one scale); optional on sends-by-grade (keeps it to one scale).' },
             day_filter: {
               type: 'object',
               description: 'Keep rows by proximity to training days: {event_types, offset_days (-7..7; 1 = day after), mode include|exclude}. Pass {off:true} to clear. E.g. protein the day after strength days.',
