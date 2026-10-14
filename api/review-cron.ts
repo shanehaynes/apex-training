@@ -16,6 +16,7 @@ import {
   type Recipient,
 } from './_lib/reviewData.js';
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js';
+import { promptFingerprint, recordModelCall } from './_lib/coachRuns.js';
 import { renderReviewEmail } from '../src/lib/review/email.js';
 import { getIsoMonth, lastCompletedIsoYear, lastCompletedMonth } from '../src/lib/review/isoMonth.js';
 import {
@@ -54,6 +55,14 @@ const MAX_WORK_ITEMS_PER_RUN = 10;
 // revoked key can't block a review forever.
 const AI_RETRY_DAYS = 3;
 
+// coach_runs.prompt_version for the recap commentary (phase57).
+const RECAP_PROMPT_VERSION = {
+  month: promptFingerprint(MONTHLY_REVIEW_SYSTEM_PROMPT),
+  year: promptFingerprint(YEARLY_REVIEW_SYSTEM_PROMPT),
+} satisfies Record<PeriodType, string>;
+
+type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
+
 interface WorkPeriod {
   periodType: PeriodType;
   isoYear: number;
@@ -64,6 +73,7 @@ const periodName = (p: WorkPeriod) =>
   p.periodType === 'month' ? `${p.isoYear}-M${p.monthIndex}` : `${p.isoYear}`;
 
 async function generateCommentary(
+  supabase: Admin,
   apiKey: string,
   stats: ReviewStats | YearlyStats,
   recipient: Recipient,
@@ -80,12 +90,19 @@ async function generateCommentary(
   // api/chat.ts — one hung upstream call can no longer eat the whole run
   // (api/_lib/anthropicClient.ts).
   const client = makeAnthropicClient(apiKey);
-  const response = await client.messages.create({
+  // One coach_runs row per call, a failed one included.
+  const response = await recordModelCall(supabase, {
+    user_id: recipient.userId,
+    mode: 'recap',
+    model: coachModel.id,
+    prompt_version: RECAP_PROMPT_VERSION[periodType],
+    client: 'cron',
+  }, () => client.messages.create({
     model: coachModel.id,
     max_tokens: yearly ? YEARLY_MAX_TOKENS : MONTHLY_MAX_TOKENS,
     system: yearly ? YEARLY_REVIEW_SYSTEM_PROMPT : MONTHLY_REVIEW_SYSTEM_PROMPT,
     messages: [{ role: 'user', content: recap }],
-  });
+  }));
   const text = response.content
     .filter((block): block is Anthropic.TextBlock => block.type === 'text')
     .map(block => block.text)
@@ -263,7 +280,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const apiKey = await getAnthropicKey(supabase, recipient.userId);
           if (apiKey) {
             try {
-              commentary = await generateCommentary(apiKey, stats, recipient, work.periodType);
+              commentary = await generateCommentary(supabase, apiKey, stats, recipient, work.periodType);
               await saveCommentary(supabase, row.id, commentary);
             } catch (err) {
               const ageDays = (now.getTime() - new Date(row.created_at).getTime()) / 86_400_000;

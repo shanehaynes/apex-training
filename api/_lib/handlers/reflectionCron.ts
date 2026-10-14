@@ -7,6 +7,7 @@ import { fetchReflectionInputs, isReflectionDay, yesterdayUtc } from '../reflect
 import { REFLECTION_SYSTEM_PROMPT, renderReflectionInput } from '../reflection/prompt.js';
 import { reflectForUser, type ReflectOutcome } from '../reflection/reflect.js';
 import { resolveCoachModel } from '../../../src/lib/coach/models.js';
+import { instrumentMessages, promptFingerprint } from '../coachRuns.js';
 
 // The nightly reflection cron (lane D01), the target vercel.json schedules
 // at 05:00 UTC — after provider-cron's 03:30 has pulled the day's activities
@@ -41,6 +42,9 @@ import { resolveCoachModel } from '../../../src/lib/coach/models.js';
 // Escape hatches for manual operation: ?userId= limits to one athlete,
 // ?day=YYYY-MM-DD picks the day, ?dryRun=1 (with userId) renders the prompt
 // that WOULD be sent and touches nothing — no row, no model call.
+
+// coach_runs.prompt_version for every reflection call (phase57).
+const REFLECTION_PROMPT_VERSION = promptFingerprint(REFLECTION_SYSTEM_PROMPT);
 
 /** Model calls one invocation may make; the rest resume next night. */
 export const MAX_WORK_ITEMS_PER_RUN = 10;
@@ -232,12 +236,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         continue;
       }
       workBudget -= 1;
-      const outcome: ReflectOutcome = await reflectForUser(supabase, {
-        userId: user.userId,
-        day: itemDay,
-        model: resolveCoachModel(user.coachModel).id,
-        client: makeAnthropicClient(apiKey),
-      }, now);
+      // Every model call the reflection makes (the first ask and its one
+      // retry) writes a coach_runs row, both under one request id.
+      const instrumented = instrumentMessages(makeAnthropicClient(apiKey), supabase, {
+        user_id: user.userId,
+        mode: 'reflection',
+        prompt_version: REFLECTION_PROMPT_VERSION,
+        request_id: crypto.randomUUID(),
+        client: 'cron',
+      });
+      let outcome: ReflectOutcome;
+      try {
+        outcome = await reflectForUser(supabase, {
+          userId: user.userId,
+          day: itemDay,
+          model: resolveCoachModel(user.coachModel).id,
+          client: instrumented.client,
+        }, now);
+      } finally {
+        // The rows are written beside the calls, not by them: wait for them
+        // before the function can return and be frozen.
+        await instrumented.settled();
+      }
       processed.push({
         ...label,
         action: outcome.action,
