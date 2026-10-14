@@ -163,7 +163,7 @@ export interface MeasureDef {
 export type MeasureId =
   | 'session-count' | 'training-time'
   | 'set-count' | 'rep-count' | 'tonnage' | 'est-1rm'
-  | 'pitches' | 'max-grade' | 'sends-by-grade'
+  | 'pitches' | 'max-grade'
   | 'distance' | 'elevation-gain' | 'cardio-time' | 'avg-hr'
   | 'hr-zone-time'
   | 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber' | 'sugar' | 'alcohol' | 'meal-count';
@@ -189,9 +189,6 @@ export const MEASURES: Record<MeasureId, MeasureDef> = {
   'est-1rm':        measure({ id: 'est-1rm',        label: 'Est. 1RM',            source: 'set-logs',    unitKind: 'weight',  defaultAgg: 'max',   allowedAggs: AVG_MAX,     allowedGroupBys: ['exercise'], aggLevel: 'row' }),
   'pitches':        measure({ id: 'pitches',        label: 'Pitches',             source: 'pitch-logs',  unitKind: 'count',   defaultAgg: 'count', allowedAggs: COUNT_ONLY,  allowedGroupBys: ['event-type', 'exercise'], aggLevel: 'row' }),
   'max-grade':      measure({ id: 'max-grade',      label: 'Max grade',           source: 'pitch-logs',  unitKind: 'grade',   defaultAgg: 'max',   allowedAggs: ['max'],     allowedGroupBys: NO_GROUPS, aggLevel: 'row' }),
-  // Fans into one series per grade on its own (like hr-zone-time by zone);
-  // a gradeScale filter keeps it to one discipline's scale.
-  'sends-by-grade': measure({ id: 'sends-by-grade', label: 'Sends by grade',      source: 'pitch-logs',  unitKind: 'count',   defaultAgg: 'count', allowedAggs: COUNT_ONLY,  allowedGroupBys: NO_GROUPS, aggLevel: 'row' }),
   'distance':       measure({ id: 'distance',       label: 'Distance',            source: 'cardio-logs', unitKind: 'length',  defaultAgg: 'sum',   allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['event-type', 'sport', 'exercise', 'category', 'unit'], aggLevel: 'row' }),
   'elevation-gain': measure({ id: 'elevation-gain', label: 'Elevation gain',      source: 'cardio-logs', unitKind: 'length',  defaultAgg: 'sum',   allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['event-type', 'sport', 'exercise', 'category', 'unit'], aggLevel: 'row' }),
   'cardio-time':    measure({ id: 'cardio-time',    label: 'Cardio time',         source: 'cardio-logs', unitKind: 'minutes', defaultAgg: 'sum',   allowedAggs: SUM_AVG_MAX, allowedGroupBys: ['event-type', 'sport', 'exercise', 'category'], aggLevel: 'row' }),
@@ -403,7 +400,6 @@ const SPORT_BLOCKLIST: Partial<Record<MeasureId, readonly Sport[]>> = {
   // Pitches and grades exist only on climbs.
   pitches: ['running', 'biking', 'swimming', 'other'],
   'max-grade': ['running', 'biking', 'swimming', 'other'],
-  'sends-by-grade': ['running', 'biking', 'swimming', 'other'],
 };
 
 /** Whether a sport filter value makes sense for a measure. */

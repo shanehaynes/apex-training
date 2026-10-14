@@ -1,9 +1,9 @@
 import type { CardioLogRow, CompletionRow, MealRow, SetLogRow, WorkoutSessionRow } from '../db/types';
 import type { Sport } from '../../types/workout';
-import { classifySet, isCleanSend, isPerformedSet, isPitchRow, parseQuantity } from '../tracking/records.js';
+import { classifySet, isPerformedSet, isPitchRow, parseQuantity } from '../tracking/records.js';
 import { DEFAULT_WEIGHT_CONTEXT, lbToUnit, type WeightContext } from '../tracking/weight.js';
 import { durationMinutesFor, minutesForBareDuration, sessionSecondsMap } from '../review/stats.js';
-import { parseGrade, type GradeScale } from '../climbing.js';
+import { parseGrade } from '../climbing.js';
 import { mealCalories, rowToMeal } from '../nutrition/mapping.js';
 import type { Meal } from '../../types/nutrition';
 import {
@@ -172,8 +172,7 @@ export function computeTile(spec: ChartSpec, inputs: AnalyticsInputs, ctx: Compu
 
   for (const s of spec.series) {
     const points = extractPoints(s, inputs, shared, range, excluded, weight);
-    const fanned = fanOut(s, points);
-    const groups = s.measure === 'sends-by-grade' ? byGradeOrder(fanned) : fanned;
+    const groups = fanOut(s, points);
 
     for (const [group, groupPoints] of groups) {
       const rendered = renderSeries(spec, s, group, groupPoints, buckets, groups.size, excluded, weight);
@@ -359,14 +358,6 @@ function extractPoints(
         const group = groupFor.logRow(row);
         if (s.measure === 'pitches') {
           points.push({ date: row.event_date, value: 1, group });
-        } else if (s.measure === 'sends-by-grade') {
-          // One point per clean send, fanned by the grade it went at.
-          if (!isCleanSend(row.ascent_style)) continue;
-          if (!grade) {
-            if (row.actual_weight?.trim()) excluded.unparseable += 1;
-            continue;
-          }
-          points.push({ date: row.event_date, value: 1, group: gradeGroup(row.actual_weight!, grade.scale) });
         } else {
           // max-grade
           if (!grade) {
@@ -444,27 +435,6 @@ function extractPoints(
 
 function isClimbingEvent(type: string | undefined): boolean {
   return type === 'climbing' || type === 'outdoor-climbing';
-}
-
-/** One spelling per grade, so "5.10A" and "5.10a " count together: YDS letters lowercase, other scales uppercase. */
-function gradeGroup(text: string, scale: GradeScale): string {
-  const compact = text.trim().replace(/\s+/g, '');
-  return scale === 'yds' ? compact.toLowerCase() : compact.toUpperCase();
-}
-
-const SCALE_ORDER: readonly GradeScale[] = ['yds', 'boulder', 'ice', 'mixed'];
-
-/** Grade series easiest to hardest, scale by scale — the order a pyramid reads in. */
-function byGradeOrder(groups: Map<string, Point[]>): Map<string, Point[]> {
-  const order = (key: string): [number, number] => {
-    const g = parseGrade(key);
-    return g ? [SCALE_ORDER.indexOf(g.scale), g.rank] : [SCALE_ORDER.length, 0];
-  };
-  return new Map([...groups.entries()].sort((a, b) => {
-    const [sa, ra] = order(a[0]);
-    const [sb, rb] = order(b[0]);
-    return sa - sb || ra - rb || a[0].localeCompare(b[0]);
-  }));
 }
 
 function mealValue(meal: Meal, measure: string): number | null {

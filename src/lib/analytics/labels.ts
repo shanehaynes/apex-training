@@ -53,7 +53,7 @@ export const MEAL_TYPES: readonly MealType[] = ['breakfast', 'lunch', 'dinner', 
 export const MEASURE_GROUPS: ReadonlyArray<{ label: string; ids: readonly MeasureId[] }> = [
   { label: 'Training', ids: ['session-count', 'training-time'] },
   { label: 'Strength', ids: ['set-count', 'rep-count', 'tonnage', 'est-1rm'] },
-  { label: 'Climbing', ids: ['pitches', 'max-grade', 'sends-by-grade'] },
+  { label: 'Climbing', ids: ['pitches', 'max-grade'] },
   { label: 'Cardio', ids: ['distance', 'elevation-gain', 'cardio-time', 'avg-hr', 'hr-zone-time'] },
   { label: 'Nutrition', ids: ['calories', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'alcohol', 'meal-count'] },
 ];
