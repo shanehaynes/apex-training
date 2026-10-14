@@ -79,7 +79,9 @@ Scope:
   (`apex.health.<userId>.workoutsWrite` in UserDefaults — not a global key like the onboarding
   nudge, so a second account never inherits the first one's opt-in); M2i migrates it to the
   server once, for that owner. Toggle ON → `requestAuthorization(toShare: [.workoutType()],
-  read: [])`; denied renders "Denied — Health › Sources › Apex".
+  read: [])`; denied renders "Denied in Health" with the path to allow it. No draft past a
+  plausible session length (6 h; 14 h for outdoor climbing): the tracker has no pause, and a
+  session left open overnight is not a 15-hour workout (5.1.3, accurate data).
 - HELD: `Apex/Apex.entitlements` (+`com.apple.developer.healthkit`), `Apex/Info.plist`
   (+`NSHealthUpdateUsageDescription` only — the share string waits for M2i so the 1.1 review is
   write-only), `project.yml` (`- sdk: HealthKit.framework`, `ApexHealth` on the Apex target and
