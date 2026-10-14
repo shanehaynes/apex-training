@@ -40,7 +40,8 @@ import { rowToMeal } from '../../src/lib/nutrition/mapping.js';
 import { buildQuickCompleteLogs } from '../../src/lib/tracking/plan.js';
 import type { TablesInsert } from '../../src/lib/db/types.js';
 import { fail, succeed, type ServiceResult } from './services/result.js';
-import { fetchWeightContext } from './weightContext.js';
+import { fetchWeightContext, readWeightContext } from './weightContext.js';
+import { hasPercentTargets, resolvePercentTargets } from '../../src/lib/tracking/percent.js';
 
 // Server-side tracker session model (docs/ios/backend-changes.md, W3). The
 // pure builders in src/lib/tracking run here against the service-role
@@ -219,17 +220,23 @@ export async function buildBootstrap(
     loadExerciseNotes(supabase, userId, event.id, event.date),
   ]);
   const hist = await loadTrackerHistory(supabase, userId, event, saved);
-  const groups = buildTrackerModel(
+  const model = buildTrackerModel(
     event, saved.savedSets, saved.savedCardio,
     buildLastPerformance(hist.history), buildLastCardio(hist.cardioHistory),
     notes, hist.definitionCategories,
   );
+  // "80%" becomes 80% of the lift's best estimated 1RM here, once, so every
+  // client renders the same load (D-008) — only under the unit the profile
+  // actually holds: a guessed lb would put a kg lifter's 80 kg on the bar
+  // as 177.5. Unknown unit, the raw "80%" shows.
+  const known = hasPercentTargets(model) ? await readWeightContext(supabase, userId) : null;
+  const groups = known ? resolvePercentTargets(model, hist.history, known) : model;
   let prs: WirePersonalRecord[] = [];
   let scoreRecord: WireScoreRecord | null = null;
   if (session?.finished_at) {
     // The same context the review reads with, so a bare "80" is 80 kg for a
     // kg lifter here too and the two never disagree about a record.
-    const weight = await fetchWeightContext(supabase, userId);
+    const weight = known ?? await fetchWeightContext(supabase, userId);
     prs = describePRs(computeSessionPRs(groups, hist.history, hist.cardioHistory, weight));
     const score = sessionScoreFromRow(session);
     scoreRecord = describeScore(score ? computeWorkoutScorePR(score, hist.scoreHistory) : null);
