@@ -101,7 +101,11 @@ function run(
   return new Promise((resolve) => child.on('close', (status) => resolve({ status, stdout, stderr })));
 }
 
-describe('auth-redirect-check.sh — sign-up is disabled (#210)', () => {
+// Each case spawns the shell script (twice, for some) against stub servers;
+// the 5s default times out when the machine is busy with other sessions.
+const SCRIPT_TIMEOUT = 30_000;
+
+describe('auth-redirect-check.sh — sign-up is disabled (#210)', { timeout: SCRIPT_TIMEOUT }, () => {
   it('passes only on the signup_disabled refusal, and sends no password', async () => {
     const { prod, supabase, signupPosts } = await stubProject();
     const res = await run({ APEX_PROD_URL: prod, APEX_SUPABASE_URL: supabase, APEX_SUPABASE_ANON_KEY: 'anon-test-key' });
@@ -219,7 +223,7 @@ describe('auth-redirect-check.sh — sign-up is disabled (#210)', () => {
   });
 });
 
-describe('auth-redirect-check.sh — APEX_REPO_ROOT', () => {
+describe('auth-redirect-check.sh — APEX_REPO_ROOT', { timeout: SCRIPT_TIMEOUT }, () => {
   // scripts/supervisor-report.sh runs origin/main's copy from a temp file, so
   // the checkout it reads .env.local from cannot be derived from $0.
   it('reads .env.local from APEX_REPO_ROOT when run from outside any checkout', async () => {

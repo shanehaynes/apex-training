@@ -260,7 +260,9 @@ describe('POST /api/workout-sessions save — phase55 row validation', () => {
       row({ set_number: 3 }),
     ]);
     expect(statusCode()).toBe(200);
-    expect(state.upserts).toHaveLength(1);
+    // One upsert per row shape: a batch is sent as the union of its keys,
+    // and a key a row omits would arrive as NULL (is_warmup is NOT NULL).
+    expect(state.upserts.map(u => (u.rows as unknown[]).length)).toEqual([1, 1, 1]);
   });
 
   it('writes the session note, trimmed, and clears it on an empty string', async () => {

@@ -25,8 +25,25 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W13 | Release + polish | done (#190, #191, #193, #194) · **App Store: 1.0 (509) rejected 2026-10-09 — 2.1 Information Needed; reply + recording pending (app-store.md §3)** | Mac | 2026-10-09: build 10 = 1.0.0 (509) from `testflight.yml` run 37964880205 carries W15, #383–#388; phase52 in prod; Push Notifications enabled on the App ID; version 1.0 at *Prepare for Submission*, manual release set |
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
+| W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 in review (#430, HELD) | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
 
 ## Next up
+0. **W16 M1 — write finished sessions to Apple Health (Mac).** Goal: a tracker finish writes an
+   Apex-branded `HKWorkout` with the real start and end, the mapped activity type and
+   `HKMetadataKeySyncIdentifier`/`SyncVersion` so a re-save replaces; cancel-after-finish deletes
+   it; You → Apple Health holds one device-local toggle (server categories arrive in M2). Scope:
+   new `ApexHealth` ApexKit product (store protocol, HK adapter, fake, publisher), ApexCore
+   `HealthWorkoutDraft` + kind map, `TrackerServices.health` injected in `AppModel` the way the
+   Live Activity publisher is, `-apexMockHealth` flag; HELD: HealthKit entitlement,
+   `NSHealthUpdateUsageDescription` only, `HealthKit.framework` + `MARKETING_VERSION` 1.1.0 in
+   `project.yml`, `HealthKit` added to the ApexCore import ban in `scripts/ci-guards.sh`.
+   Acceptance: the five M1 boxes in [W16](workstreams/W16-apple-health.md) — ApexCore mapping
+   tests, `TrackerModelTests` health spy (finish publishes once, toggle off publishes nothing,
+   cancel deletes, offline finish still publishes), You snapshots + smoke, Shane's device run.
+   Owns: the W16 "Next brief" list. The PR can open now; it merges only after 1.0 is approved
+   (it carries 1.1.0 and the entitlement). In parallel: **W16 MT** (Mac — a signed-in user can
+   re-accept updated terms in the app; the privacy bump waits for it) and **W16 M0** (Linux —
+   the one migration for M2/M3; HELD).
 0. **Tracker parity with web #390, second half — the subtitle and the day-only note.** Goal: the two
    edits #390 added to the web card that the iOS card still lacks. Scope: (a) the definition's
    technique notes as an editable subtitle under the exercise name (pencil in the header when
@@ -108,6 +125,17 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-14 · W16 M1 · Mac. PR #430 (HELD until 1.0 is approved): a tracker finish writes an
+  Apex-branded HKWorkout (real start/end, sync id + version, 6 h / 14 h cap), cancel deletes it after
+  any in-flight save; You › Apple Health per-account toggle; `ApexHealth` product; `-apexMockHealth`.
+  Unit, snapshot and smoke legs green on the iPhone 17 Pro Max simulator. Open: Shane's device run,
+  the App ID HealthKit capability and the 1.1 description (sign-in needed), ITMS-90683 at first upload.
+  Found in passing: `testMealsOnFixtures` fails on main itself (owned by `fix/ios-meals-direct-first`).
+- 2026-10-14 · W16 Apple Health brief · Mac. Shane put the whole Health surface in scope
+  (write, read workouts, daily metrics, body weight, meals; server storage, per-category opt-in;
+  write first). D-056 supersedes D-018; brief [W16](workstreams/W16-apple-health.md) has eight
+  milestones with contracts; the reviewer's terms lock-out finding added MT (in-app
+  re-acceptance) ahead of the privacy bump. `backend-changes.md` and MASTER updated. Docs only.
 - 2026-10-13 · Tracker: add a log field mid-workout · Linux. "+ weight / + reps / + time" chips on
   the card (web #390 parity, first half): the input shows at once and the definition's
   `log_fields` is written as a queued `update-definition` op in the outbox lane (D-055), so every
