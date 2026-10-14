@@ -158,7 +158,9 @@ the bootstrap in-process to 3 sections × 4–6 exercises × 5 sets (the fixture
 scrolls. Apple Health (W16) is always the in-memory `FakeHealthStore` under `-apexUITest`
 (undecided, toggle off — the You tab shows "Apple Health · Off"); `-apexMockHealth authorized`
 or `denied` starts it in that state with the toggle on, `unavailable` with no Health store; fresh
-each launch. `-apexFrameLog` (DEBUG, any mode) runs a `CADisplayLink` and logs every late frame under
+each launch. `-apexMockTermsStale` (W16 MT) publishes updated terms the fixture user has not
+accepted: every gated route answers 403 `terms-acceptance-required` until
+`POST /api/terms-acceptance`, and the app shows its re-acceptance screen. `-apexFrameLog` (DEBUG, any mode) runs a `CADisplayLink` and logs every late frame under
 category `frames` — the simulator has no Hitches instrument, so this is how a scroll is measured
 there: `xcrun simctl spawn <udid> log show --last 2m --info --predicate 'subsystem ==
 "com.shanehaynes.apextraining" AND category == "frames"'`.

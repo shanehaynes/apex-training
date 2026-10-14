@@ -169,6 +169,23 @@ public struct ProfileResponse: Codable, Sendable, Equatable {
     }
 }
 
+/// `GET /api/terms-acceptance` (and the POST's answer, which omits the
+/// versions): the latest acceptance on record, whether it names the versions
+/// deployed now, and which those are.
+public struct TermsStatus: Codable, Sendable, Equatable {
+    public let accepted: ProfileResponse.TermsAcceptance?
+    public let current: Bool
+    public let termsVersion: String?
+    public let privacyVersion: String?
+
+    public init(accepted: ProfileResponse.TermsAcceptance?, current: Bool, termsVersion: String? = nil, privacyVersion: String? = nil) {
+        self.accepted = accepted
+        self.current = current
+        self.termsVersion = termsVersion
+        self.privacyVersion = privacyVersion
+    }
+}
+
 /// `GET /api/query?tool=…` wraps every read-only coach tool in the same envelope.
 public struct QueryEnvelope<Result: Codable & Sendable & Equatable>: Codable, Sendable, Equatable {
     public let tool: String

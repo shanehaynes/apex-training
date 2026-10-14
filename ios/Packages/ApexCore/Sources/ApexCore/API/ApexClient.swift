@@ -17,6 +17,12 @@ public actor ApexClient {
     private let transport: HTTPTransport
     private let tokens: TokenProvider
     private let clientTag: String?
+    private nonisolated let noticeSink: AsyncStream<ClientNotice>.Continuation
+
+    /// What the app has to hear about whichever request met it: today only
+    /// the terms gate (W16 MT), which any `/api/*` call can be the first to
+    /// meet once a new version is published. One consumer — `AppModel`.
+    public nonisolated let notices: AsyncStream<ClientNotice>
 
     /// `clientTag` is what every request announces itself as in `X-Apex-Client`
     /// — `ios/<CFBundleShortVersionString>+<CFBundleVersion>`, built by
@@ -28,6 +34,7 @@ public actor ApexClient {
         self.transport = transport
         self.tokens = tokens
         self.clientTag = clientTag
+        (notices, noticeSink) = AsyncStream.makeStream(of: ClientNotice.self, bufferingPolicy: .bufferingNewest(1))
     }
 
     public func send<T: Decodable & Sendable>(_ endpoint: Endpoint, as type: T.Type) async throws -> T {
@@ -156,6 +163,7 @@ public actor ApexClient {
     /// refresh (or signs out); the caller then retries exactly once with
     /// `allowRefresh: false`, so a second 401 lands in the sign-out branch.
     private func refreshOnce(for apiError: APIError, allowRefresh: Bool) async throws {
+        if case .termsAcceptanceRequired = apiError { noticeSink.yield(.termsAcceptanceRequired) }
         guard case .unauthorized = apiError else { throw apiError }
         guard allowRefresh else {
             // Refreshed once already and still unauthorized: the session is gone.
@@ -192,4 +200,11 @@ public actor ApexClient {
         request.httpBody = endpoint.body
         return request
     }
+}
+
+/// Something a response told the client that the app, not the caller, acts on.
+public enum ClientNotice: Sendable, Equatable {
+    /// A 403 `terms-acceptance-required`: updated Terms or Privacy are
+    /// published and this user has not accepted them yet.
+    case termsAcceptanceRequired
 }

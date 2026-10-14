@@ -823,6 +823,38 @@ final class SmokeUITests: XCTestCase {
         add(shot)
     }
 
+    // MARK: - W16 MT · updated terms while signed in
+
+    /// sign in with updated terms published (`-apexMockTermsStale`) → the
+    /// re-acceptance screen covers the tabs, naming what was accepted
+    /// before → Accept stays off until the box is ticked → tick → Accept →
+    /// the tabs, with the schedule loading again.
+    func testUpdatedTermsAreAcceptedInTheApp() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockTermsStale"]
+        app.launch()
+        signIn(app)
+
+        let title = app.staticTexts["terms.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 20), "the gate covers the tabs")
+        XCTAssertEqual(title.label, "Our terms have changed")
+        XCTAssertFalse(app.tabBars.buttons["Schedule"].isHittable, "the tabs are covered, not reachable")
+        let accept = app.buttons["terms.accept"]
+        XCTAssertFalse(accept.isEnabled, "not until the box is ticked")
+        attach(app, name: "w16-mt-01-terms")
+
+        let toggle = app.switches["terms.accept.toggle"].firstMatch
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        XCTAssertTrue(accept.isEnabled)
+        accept.tap()
+
+        let schedule = app.tabBars.buttons["Schedule"]
+        XCTAssertTrue(schedule.waitForExistence(timeout: 15), "accepting brings the tabs back")
+        let card = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'event.card.'")).firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 15), "and the schedule loads its workouts again")
+        attach(app, name: "w16-mt-02-accepted")
+    }
+
     // MARK: - W11 · the You tab
 
     /// sign in → You → the header names the fixture user → AI connector → mint a
