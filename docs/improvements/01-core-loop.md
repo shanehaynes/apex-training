@@ -102,7 +102,10 @@ was last session's values as ghost text ([plan.ts:22](../../src/lib/tracking/pla
    ([EventExerciseEditor.tsx:147](../../src/components/modal/EventExerciseEditor.tsx),
    [plannedSets.ts:157](../../src/lib/builder/plannedSets.ts)); a prescription edit no longer
    clears them ([plannedSets.ts:212](../../src/lib/builder/plannedSets.ts)).
-2. `%1RM` as a weight syntax — in review.
+2. #423 (in review, not merged) — `"80%"` planned weights resolve server-side at bootstrap to
+   80% of the exercise's best estimated 1RM in the profile's unit, rounded to the plate step and
+   shown as "185 (80%)"; the ghost tap enters the resolved load; no history shows the raw text;
+   a percentage is display-only and never counts as a lift.
 
 **Deferred, HELD for Shane.** §3.3 plate calculator. §3.4 progression rule — a coach tool, so
 under the eval gate.
@@ -239,7 +242,7 @@ iOS climbing controls.
 | 2 | §1 units + BW | Every number depends on it; blocks §3 | Landed — #417, #420, #421; coach unit text deferred |
 | 3 | §2 rest timer | Most-felt daily gap; no schema | Landed — #408 (iOS), #416 (web); interval mode deferred |
 | 4 | §4 metadata migration | One migration unlocks §3 and doc 2 §7 | Landed — #417, #419; iOS parity deferred |
-| 5 | §3.1–3.3 progression | The reason to plan in Apex rather than a notebook | §3.1 landed — #411; §3.2 in review; §3.3, §3.4 deferred (HELD) |
+| 5 | §3.1–3.3 progression | The reason to plan in Apex rather than a notebook | §3.1 landed — #411; §3.2 in review — #423; §3.3, §3.4 deferred (HELD) |
 | 6 | §6, §7, §8 | Independent; good parallel lanes | Landed — #403, #404, #406, #407; #405; #422 |
 
 *Corrected:* not one PR per row, and not two migrations. One migration, phase55 (#417), carried
