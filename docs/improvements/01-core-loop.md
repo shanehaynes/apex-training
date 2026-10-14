@@ -67,8 +67,8 @@ prompt's "tonnage (lb)", MCP descriptions stating pounds. iOS unit suffixing.
 ## 2. No rest or interval timer — **P0 · M (web) + M (iOS)**
 
 **Evidence.** `restPeriod` rendered only as static text "Rest 90s"
-([TrackerExercise.tsx:448](../../src/components/tracker/TrackerExercise.tsx)). The only clock was
-the session elapsed timer ([useWorkoutSession.ts:273](../../src/hooks/useWorkoutSession.ts)).
+([TrackerExercise.tsx:471](../../src/components/tracker/TrackerExercise.tsx)). The only clock was
+the session elapsed timer ([useWorkoutSession.ts:274](../../src/hooks/useWorkoutSession.ts)).
 AMRAP has a time-cap field but no countdown. iOS backlog D-015
 ([decisions.md:158](../ios/decisions.md)). *Corrected:* the Live Activity already reserved
 `restEndsAt` for D-015
@@ -102,10 +102,21 @@ was last session's values as ghost text ([plan.ts:22](../../src/lib/tracking/pla
    ([EventExerciseEditor.tsx:147](../../src/components/modal/EventExerciseEditor.tsx),
    [plannedSets.ts:157](../../src/lib/builder/plannedSets.ts)); a prescription edit no longer
    clears them ([plannedSets.ts:212](../../src/lib/builder/plannedSets.ts)).
-2. #423 (in review, not merged) — `"80%"` planned weights resolve server-side at bootstrap to
-   80% of the exercise's best estimated 1RM in the profile's unit, rounded to the plate step and
-   shown as "185 (80%)"; the ghost tap enters the resolved load; no history shows the raw text;
-   a percentage is display-only and never counts as a lift.
+2. #423 — `"80%"` as a weight syntax ([percent.ts:27](../../src/lib/tracking/percent.ts),
+   `parsePercent`), resolved server-side at bootstrap
+   ([trackerSession.ts:233](../../api/_lib/trackerSession.ts), `resolvePercentTargets`,
+   [percent.ts:99](../../src/lib/tracking/percent.ts)) to that percentage of the exercise's best
+   estimated 1RM (`percentBasis`, [percent.ts:67](../../src/lib/tracking/percent.ts)), rounded
+   to the plate step (`resolvePercentWeight`, [percent.ts:44](../../src/lib/tracking/percent.ts))
+   and shown as "185 lb (80%)"; the ghost tap enters the resolved load; no history shows the raw
+   text; a percentage is display-only and never counts as a lift. The load is resolved only
+   under the profile's actual unit and carries its unit end to end; a bodyweight-load best never
+   resolves; a mid-session swap clears it (`clearResolvedLoads`,
+   [percent.ts:130](../../src/lib/tracking/percent.ts)); only sets of ≤ 12 reps feed the estimate.
+
+**Review findings — %1RM.** Two rounds. Round one: a failed profile read resolved under a guessed
+unit (critical — a kg lifter's 80 kg would show as a pound load); a bodyweight 1RM became a bar
+load; a swap kept the old lift's load. Round two found nothing critical or major.
 
 **Deferred, HELD for Shane.** §3.3 plate calculator. §3.4 progression rule — a coach tool, so
 under the eval gate.
@@ -130,7 +141,7 @@ logging yesterday's session today recorded a wrong duration.
 - #419 — the tracker: warm-up toggle, RPE behind a device preference, session note, and
   tap-to-edit start and finish (`edit-times`,
   [workoutSessions.ts:687](../../api/_lib/handlers/workoutSessions.ts); bounds in
-  [trackerSession.ts:442](../../api/_lib/trackerSession.ts)).
+  [trackerSession.ts:449](../../api/_lib/trackerSession.ts)).
 
 **Deferred.** iOS parity for set metadata.
 
@@ -138,7 +149,7 @@ logging yesterday's session today recorded a wrong duration.
 
 **Evidence.** The dirty set was cleared *before* the request and the error swallowed (the save
 path in [useWorkoutSession.ts](../../src/hooks/useWorkoutSession.ts), now replaced by the queue
-at :219). On iOS, marking complete from the schedule, quick-complete and logging meals required
+at :220). On iOS, marking complete from the schedule, quick-complete and logging meals required
 signal even though the tracker queued offline. *Corrected:* D-052
 ([decisions.md:1007](../ios/decisions.md)) is the decision that opened the outbox lane for
 builder saves and exercise creates; it did not cover completions or meals, which is the gap.
@@ -161,7 +172,7 @@ siblings. The rules that came out: on batch refusal, isolate — resend key by k
 row is rejected ([saveQueue.ts:206](../../src/lib/tracking/saveQueue.ts)); pause on 401/403
 rather than retry ([saveQueue.ts:178](../../src/lib/tracking/saveQueue.ts)); clamp every delay
 ([saveQueue.ts:61](../../src/lib/tracking/saveQueue.ts)); nothing leaves while a cancel is out
-([useWorkoutSession.ts:164](../../src/hooks/useWorkoutSession.ts)).
+([useWorkoutSession.ts:165](../../src/hooks/useWorkoutSession.ts)).
 
 **Review findings — iOS outbox.** Four rounds: refused meals were discarded; the retry ceiling
 dropped ops; a plan-fill was sent after its completion was refused; a gave-up op lost its place;
@@ -228,7 +239,7 @@ reps; `parseWeight`'s grammar now rejects it ([weight.ts:32](../../src/lib/track
 record, the hardest clean send per exercise and grade scale
 ([records.ts:342](../../src/lib/tracking/records.ts)); a pitch can be added mid-session
 ([TrackerView.tsx:57](../../src/components/tracker/TrackerView.tsx)); swap refuses a change of
-logged shape ([trackerSession.ts:594](../../api/_lib/trackerSession.ts)).
+logged shape ([trackerSession.ts:601](../../api/_lib/trackerSession.ts)).
 
 **Deferred.** The "sends by grade" measure, parked on `feat/sends-by-grade` because it changes
 the coach's chart schema (eval gate). Sends in review/period PRs, `get_prs` and library stats.
@@ -242,7 +253,7 @@ iOS climbing controls.
 | 2 | §1 units + BW | Every number depends on it; blocks §3 | Landed — #417, #420, #421; coach unit text deferred |
 | 3 | §2 rest timer | Most-felt daily gap; no schema | Landed — #408 (iOS), #416 (web); interval mode deferred |
 | 4 | §4 metadata migration | One migration unlocks §3 and doc 2 §7 | Landed — #417, #419; iOS parity deferred |
-| 5 | §3.1–3.3 progression | The reason to plan in Apex rather than a notebook | §3.1 landed — #411; §3.2 in review — #423; §3.3, §3.4 deferred (HELD) |
+| 5 | §3.1–3.3 progression | The reason to plan in Apex rather than a notebook | §3.1 landed — #411; §3.2 landed — #423; §3.3, §3.4 deferred (HELD) |
 | 6 | §6, §7, §8 | Independent; good parallel lanes | Landed — #403, #404, #406, #407; #405; #422 |
 
 *Corrected:* not one PR per row, and not two migrations. One migration, phase55 (#417), carried
