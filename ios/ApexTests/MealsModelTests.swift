@@ -100,7 +100,7 @@ final class MealsModelTests: XCTestCase {
         let queued = await store.all.map(\.payload.action)
         XCTAssertEqual(queued, [.meal])
         let tried = transport.requests("/api/meals").filter { $0.method == "POST" }
-        XCTAssertEqual(tried.count, 1, "one try, then the lane waits for the network")
+        XCTAssertEqual(tried.count, 2, "the direct try, one lane try, then the lane waits for the network")
         XCTAssertEqual(transport.queries(tool: "get_meals").count, 1, "nothing to re-read: the server has no meal yet")
         XCTAssertEqual(hooks.changes, 0)
 
@@ -112,10 +112,12 @@ final class MealsModelTests: XCTestCase {
         try await waitUntil { model.pendingMeals.isEmpty && hooks.changes == 1 }
         XCTAssertEqual(model.pendingMeals, [:])
         let landed = transport.requests("/api/meals").filter { $0.method == "POST" }
-        XCTAssertEqual(landed.count, 2)
-        XCTAssertEqual(landed[0].body?["id"] as? String, landed[1].body?["id"] as? String, "the same meal both times")
-        XCTAssertEqual(landed[1].body?["title"] as? String, "Toast")
-        XCTAssertEqual(landed[1].body?["triggered_by"] as? String, "user")
+        XCTAssertEqual(landed.count, 3)
+        let ids = landed.compactMap { $0.body?["id"] as? String }
+        XCTAssertEqual(ids.count, landed.count)
+        XCTAssertEqual(Set(ids).count, 1, "the same meal every time")
+        XCTAssertEqual(landed.last?.body?["title"] as? String, "Toast")
+        XCTAssertEqual(landed.last?.body?["triggered_by"] as? String, "user")
         XCTAssertEqual(transport.queries(tool: "get_meals").count, 2, "the month is re-read once it lands")
         XCTAssertEqual(hooks.changes, 1)
         let left = await store.all.count
@@ -140,7 +142,6 @@ final class MealsModelTests: XCTestCase {
         // queued, the refusal comes after the sheet closed. The meal is kept
         // whole for Fix, said once, and never built into the list.
         let transport = YouTransport.mealsOffline()
-        transport.set("POST /api/meals", status: 400, body: "Total fat can't be less than saturated + trans")
         let (model, queue, store, hooks) = await queued(transport)
         var form = MealForm(day: fixtureDay)
         form.title = "Butter"
@@ -151,6 +152,9 @@ final class MealsModelTests: XCTestCase {
         XCTAssertEqual(model.pendingNotice, MealsModel.queuedNotice, "queued, not \"added\"")
         XCTAssertEqual(model.pendingNoticeLevel, .info)
         await queue.flush(.outbox)
+        transport.set("POST /api/meals", status: 400, body: "Total fat can't be less than saturated + trans")
+        await queue.resume()
+        await queue.awaitRetries()
         try await waitUntil { !model.refusedMeals.isEmpty }
 
         let kept = try XCTUnwrap(model.refusedMeals.first)
@@ -176,9 +180,11 @@ final class MealsModelTests: XCTestCase {
         try await waitUntil { model.refusedMeals.isEmpty && model.pendingMeals.isEmpty && hooks.changes == 1 }
         XCTAssertTrue(model.refusedMeals.isEmpty)
         let posts = transport.requests("/api/meals").filter { $0.method == "POST" }
-        XCTAssertEqual(posts.count, 2)
-        XCTAssertEqual(posts[0].body?["id"] as? String, posts[1].body?["id"] as? String, "a refused create keeps its id")
-        XCTAssertEqual(posts[1].body?["fat_saturated_g"] as? Int, 4)
+        XCTAssertEqual(posts.count, 4, "the direct try, the lane's offline try, the refused try, the fix")
+        let ids = posts.compactMap { $0.body?["id"] as? String }
+        XCTAssertEqual(ids.count, posts.count)
+        XCTAssertEqual(Set(ids).count, 1, "a refused create keeps its id")
+        XCTAssertEqual(posts.last?.body?["fat_saturated_g"] as? Int, 4)
         let left = await store.all.count
         XCTAssertEqual(left, 0)
         XCTAssertEqual(hooks.changes, 1)
@@ -191,7 +197,6 @@ final class MealsModelTests: XCTestCase {
         // gives up. The second is waiting with Retry — the toast must not
         // say "wasn't accepted" because the first still is.
         let transport = YouTransport.mealsOffline()
-        transport.set("POST /api/meals", status: 400, body: "Total fat can't be less than saturated + trans")
         let (model, queue, store, _) = await queued(transport, policy: RetryPolicy(maxAttempts: 0))
         var butter = MealForm(day: fixtureDay)
         butter.title = "Butter"
@@ -199,6 +204,9 @@ final class MealsModelTests: XCTestCase {
         butter.fatSaturated = "9"
         _ = await model.save(butter, editing: nil, originalDay: nil)
         await queue.flush(.outbox)
+        transport.set("POST /api/meals", status: 400, body: "Total fat can't be less than saturated + trans")
+        await queue.resume()
+        await queue.awaitRetries()
         try await waitUntil { !model.refusedMeals.isEmpty }
         XCTAssertEqual(model.refusedMeals.map(\.item.title), ["Butter"])
 
@@ -320,12 +328,14 @@ final class MealsModelTests: XCTestCase {
     @MainActor
     func testARefusedMealCanBeLetGo() async throws {
         let transport = YouTransport.mealsOffline()
-        transport.set("POST /api/meals", status: 404, body: "Meal not found")
         let (model, queue, store, _) = await queued(transport)
         var form = MealForm(day: fixtureDay)
         form.title = "Toast"
         _ = await model.save(form, editing: nil, originalDay: nil)
         await queue.flush(.outbox)
+        transport.set("POST /api/meals", status: 404, body: "Meal not found")
+        await queue.resume()
+        await queue.awaitRetries()
         try await waitUntil { !model.refusedMeals.isEmpty }
         await model.deleteRefused(try XCTUnwrap(model.refusedMeals.first).id)
         XCTAssertTrue(model.refusedMeals.isEmpty)
@@ -350,7 +360,7 @@ final class MealsModelTests: XCTestCase {
         guard case .meal(let payload) = held.first?.payload else { return XCTFail("not queued") }
         XCTAssertEqual(payload.kind, .update)
         XCTAssertEqual(payload.id, "ios-fixture-meal-1")
-        XCTAssertEqual(transport.requests("/api/meals").filter { $0.method == "PATCH" }.count, 1, "one try, then the lane waits")
+        XCTAssertEqual(transport.requests("/api/meals").filter { $0.method == "PATCH" }.count, 2, "the direct try, one lane try, then the lane waits")
 
         transport.set("PATCH /api/meals", .json(200, Data(#"{"ok":true}"#.utf8)))
         await queue.resume()
@@ -358,9 +368,10 @@ final class MealsModelTests: XCTestCase {
         try await waitUntil { model.pendingMeals.isEmpty && hooks.changes == 1 }
         XCTAssertEqual(model.pendingMeals, [:])
         let patches = transport.requests("/api/meals").filter { $0.method == "PATCH" }
-        XCTAssertEqual(patches.count, 2)
-        XCTAssertEqual(patches[1].query, "id=ios-fixture-meal-1")
-        XCTAssertTrue((patches[1].body?["fields"] as? [String: Any])?["fiber_g"] is NSNull)
+        XCTAssertEqual(patches.count, 3)
+        XCTAssertEqual(Set(patches.map(\.query)), ["id=ios-fixture-meal-1"], "the same meal every time")
+        XCTAssertEqual(patches.last?.query, "id=ios-fixture-meal-1")
+        XCTAssertTrue((patches.last?.body?["fields"] as? [String: Any])?["fiber_g"] is NSNull)
         let months = transport.queries(tool: "get_meals").compactMap { ($0.body?["args"] as? [String: Any])?["start_date"] as? String }
         XCTAssertEqual(Set(months.dropFirst()), ["2026-09-01", "2026-10-01"], "both months re-read once it lands")
         XCTAssertEqual(hooks.changes, 1)
