@@ -1127,7 +1127,8 @@ the coach, body weight both ways, meals as dietary samples. Brief:
   `profiles`, so status, disconnect and purge reuse COROS's code and copy.
 - **Order: write first.** Write is iOS-only, carries no migration and a write-only Health
   entitlement (no `NSHealthShareUsageDescription`, privacy label unchanged), so it can ship as
-  1.1 the day 1.0 is approved. Read workouts second, metrics third.
+  1.1 once 1.0 is approved — and merges only then, so a 1.0 rebuild never carries it. Read
+  workouts second, metrics third.
 - **Write at finish time from local state**, inside `TrackerModel.requestFinish`, not when the
   queued `finish` lands. The model holds everything the workout needs; the write does not wait
   on the network; an offline finish that lands after the tracker closes has no listener today.
@@ -1138,11 +1139,20 @@ the coach, body weight both ways, meals as dietary samples. Brief:
   (`provider_activity_imports`) is the dedup, and matching, fill, HR streams and D-051's
   Live Activity end come free. Apple gets its own activity-type mapper keyed on the integer
   `HKWorkoutActivityType` because COROS's label mapper reads "Traditional Strength" as trad
-  climbing. Own-app workouts are excluded on the phone and skipped on the server.
+  climbing. Own-app workouts are excluded on the phone and skipped on the server; a Watch
+  workout overlapping an Apex tracker session is a duplicate, not a second workout. The match
+  window comes from the batch, not the last-sync watermark. Matches the user has not decided
+  wait on the phone (`healthPending`) so nothing is lost to a background ingest. Health ops get
+  their own queue lane so a refused batch never blocks meals and builder saves in the outbox.
+  The server enforces the categories: data for an off category is refused.
 - **HealthKit code lives in a new `ApexHealth` ApexKit product**; `HealthKit` joins the
   ApexCore import ban in `scripts/ci-guards.sh`; mapping and payloads stay in ApexCore so
   `swift test` on Linux proves them.
 - **Not now:** an Apple Watch companion app; GPS routes (App Privacy keeps "Location: No");
   HR-derived training load (`computeLoad` counts COROS only until then).
-- **Privacy policy:** one version bump, at the first milestone that puts Health data on the
-  server (M2), with text that already covers M3 — users re-accept once. Shane confirms it.
+- **Privacy policy:** one version bump, after the first milestone that puts Health data on the
+  server (M2b), with text that already covers M3 and names Anthropic as the recipient of daily
+  metrics in coach context (guideline 5.1.2(i)) — users re-accept once. Shane confirms it.
+  **Prerequisite:** an iOS build that lets a signed-in user re-accept (W16 MT). Today a bump
+  makes every JWT route answer 403 `terms-acceptance-required` and the app only asks during
+  set-password, so a signed-in phone user would be locked out.
