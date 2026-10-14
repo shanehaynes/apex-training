@@ -38,6 +38,7 @@ import {
 import { buildSessionRecap } from '../../src/lib/coach/summary.js';
 import { rowToMeal } from '../../src/lib/nutrition/mapping.js';
 import { buildQuickCompleteLogs } from '../../src/lib/tracking/plan.js';
+import { upsertByShape } from './upsertByShape.js';
 import type { TablesInsert } from '../../src/lib/db/types.js';
 import { fail, succeed, type ServiceResult } from './services/result.js';
 import { writeFailure } from './pgError.js';
@@ -341,20 +342,20 @@ export async function applyQuickComplete(
 
   const ops: PromiseLike<{ error: { message: string } | null }>[] = [];
   if (rows.setLogs.length) {
-    ops.push(supabase
-      .from('workout_set_logs')
-      .upsert(
-        rows.setLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })) as TablesInsert<'workout_set_logs'>[],
-        { onConflict: SET_LOG_CONFLICT, ignoreDuplicates: true },
-      ));
+    ops.push(upsertByShape(
+      rows.setLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })),
+      batch => supabase
+        .from('workout_set_logs')
+        .upsert(batch as TablesInsert<'workout_set_logs'>[], { onConflict: SET_LOG_CONFLICT, ignoreDuplicates: true }),
+    ));
   }
   if (rows.cardioLogs.length) {
-    ops.push(supabase
-      .from('workout_cardio_logs')
-      .upsert(
-        rows.cardioLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })) as TablesInsert<'workout_cardio_logs'>[],
-        { onConflict: CARDIO_CONFLICT, ignoreDuplicates: true },
-      ));
+    ops.push(upsertByShape(
+      rows.cardioLogs.map(r => ({ ...r, user_id: userId, is_autofilled: true, updated_at: now })),
+      batch => supabase
+        .from('workout_cardio_logs')
+        .upsert(batch as TablesInsert<'workout_cardio_logs'>[], { onConflict: CARDIO_CONFLICT, ignoreDuplicates: true }),
+    ));
   }
   const results = await Promise.all(ops);
   const failed = results.find(r => r.error);
