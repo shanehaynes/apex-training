@@ -264,6 +264,16 @@ makes granting it a small decision rather than a large one:
   through the babysitter or a human, nothing else. (A review approval cannot
   be the token: `gh` acts as the repo owner, who cannot approve their own
   PRs.)
+- **A migration merges only onto a current production.** Before a PR
+  touching `supabase/migrations/` merges, the babysitter runs
+  `scripts/prod-schema-check.mjs`; unless production has every object
+  `origin/main` already expects, the PR is `HOLD`ed with the missing objects
+  and the migrations that create them. `shipit` does not waive it: the label
+  grants the PR, not a gap under it. Could-not-check holds too (fail closed).
+  A migration PR still waiting for `shipit` gets the same check, printed
+  under its HOLD, so a gap shows before the label goes on.
+  A fleet carries at most one migration PR, and a run that merged one ends by
+  printing what production must now be given.
 - **The kill switch stops everything.** `touch .claude/AUTOMERGE_OFF` in the
   primary checkout; it is checked every pass, so it also halts a loop that is
   already running.
@@ -554,10 +564,18 @@ from whatever reads the missing object. `node scripts/prod-schema-check.mjs`
 compares production against `main`'s committed types — every table, column
 and function, through read-only `limit=0` PostgREST probes with the
 service-role key from `~/.config/apex-training/prod.env` — and names the
-migration behind anything missing; `supervisor-report.sh` runs it on every sweep. Run it after pasting a
-migration. It cannot see triggers, policies, grants or the realtime
-publication, so a migration that only changes those still needs checking by
-hand.
+migration behind anything missing; `supervisor-report.sh` runs it on every sweep.
+
+**Run it before and after every production migration.** Before: every missing
+object must name the migration you are about to apply. Anything else names an
+older migration production skipped — apply that one first, in phase order,
+because a migration pasted over a gap can fail halfway or build on objects
+that are not there. (On 2026-10-14 two older migrations surfaced exactly this
+way.) After: it must exit 0. The babysitter enforces the "before" half on
+every migration PR ("Autonomous merging" below); whoever applies DDL by
+hand runs both itself. The check cannot see triggers, policies, grants or the
+realtime publication, so a migration that only changes those still needs
+checking by hand.
 
 Production keys live in `~/.config/apex-training/prod.env` (`chmod 600`,
 `VITE_SUPABASE_URL=` and `SUPABASE_SERVICE_ROLE_KEY=` lines), never in a
