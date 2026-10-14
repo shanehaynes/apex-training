@@ -16,7 +16,7 @@ import {
   type WeekWindow, type WeeklyReviewResponse,
 } from '../../lib/review/weekly';
 import {
-  DoctrineSection, MemoryProposalsSection, NextWeekSection, PhysiologySection, PlanVsDoneSection,
+  DoctrineSection, MemoryProposalsSection, NextWeekSection, NumbersSection, PhysiologySection, PlanVsDoneSection,
   type AcceptState, type NextWeekCard,
 } from './WeeklyReviewSections';
 import '../sidebar/confirm-preview.css';
@@ -27,6 +27,9 @@ import './weekly-review.css';
 // on the athlete's own key; the arrows move a week either way and
 // regenerate; Regenerate asks again for the same week. Nothing is stored,
 // so every open is a fresh request — the header says which model wrote it.
+// Without a key the server still answers with the week's computed numbers
+// (no document), and the view shows those with one line on what a key adds.
+// A 402 — a server from before that — keeps the add-your-key state.
 //
 // Accepting a next-week item POSTs the exact tool input to /api/coach-tool,
 // the executor behind the chat's Confirm, and refreshes completion state the
@@ -63,8 +66,8 @@ export default function WeeklyReviewView() {
   const [memoryStates, setMemoryStates] = useState<AcceptState[]>([]);
   const [nextWeekStates, setNextWeekStates] = useState<AcceptState[]>([]);
 
-  // A known-missing key blocks the request with the setup prompt; unknown
-  // (still loading, offline) lets the server's 402 decide.
+  // A known-missing key changes only the wording: the request still runs,
+  // and the server answers with the numbers alone.
   const needsKey = anthropicKey?.hasKey === false;
   const badge = useMemo(() => resolveCoachModel(profile?.coach_model).badge, [profile?.coach_model]);
 
@@ -100,19 +103,16 @@ export default function WeeklyReviewView() {
   // twice. Regenerate bypasses this on purpose — that click is a new ask.
   const requestedWeek = useRef<string | null>(null);
   useEffect(() => {
-    if (needsKey) {
-      requestedWeek.current = null;
-      setStatus({ kind: 'no-key' });
-      return;
-    }
     if (requestedWeek.current === week.start) return;
     requestedWeek.current = week.start;
     void generate(week);
-  }, [generate, week, needsKey]);
+  }, [generate, week]);
 
   const ctx = useMemo(() => ({ definitions, events, meals }), [definitions, events, meals]);
 
   const document = status.kind === 'ready' ? status.response.document : null;
+  const stats = status.kind === 'ready' ? status.response.stats : undefined;
+  const openProfile = useCallback(() => dispatch({ type: 'OPEN_PROFILE' }), [dispatch]);
 
   // The label and preview are resolved against live state the way the
   // confirm card resolves them, so a card names what will actually change.
@@ -158,7 +158,9 @@ export default function WeeklyReviewView() {
         <div className="library-header__titles">
           <h2 className="library-header__title">Weekly review</h2>
           <span className="library-header__count" data-testid="weekly-review-model">
-            {status.kind === 'ready' ? status.response.model.badge : badge}
+            {status.kind === 'ready'
+              ? status.response.model?.badge ?? 'numbers only'
+              : needsKey ? 'numbers only' : badge}
           </span>
         </div>
         <div className="library-header__actions">
@@ -185,8 +187,8 @@ export default function WeeklyReviewView() {
             className="library-edit-btn"
             data-testid="weekly-review-regenerate"
             onClick={() => void generate(week)}
-            disabled={loading || needsKey}
-            title="Ask the coach again for this week"
+            disabled={loading}
+            title={needsKey ? 'Recompute this week' : 'Ask the coach again for this week'}
           >
             <RefreshCw size={14} strokeWidth={1.5} /> Regenerate
           </button>
@@ -200,7 +202,7 @@ export default function WeeklyReviewView() {
         {status.kind === 'loading' && (
           <div className="weekly-review__state" aria-busy="true" data-testid="weekly-review-loading">
             <span className="chat-typing"><span /><span /><span /></span>
-            <p className="weekly-review__muted">Reading the week on {badge}…</p>
+            <p className="weekly-review__muted">{needsKey ? 'Reading the week…' : `Reading the week on ${badge}…`}</p>
           </div>
         )}
 
@@ -209,7 +211,7 @@ export default function WeeklyReviewView() {
             <p className="weekly-review__text">
               The weekly review runs on your own Anthropic key. Add one in Profile to turn it on.
             </p>
-            <button className="chat-key-setup-btn" onClick={() => dispatch({ type: 'OPEN_PROFILE' })}>
+            <button className="chat-key-setup-btn" onClick={openProfile}>
               <KeyRound size={13} /> Add key
             </button>
           </div>
@@ -231,9 +233,23 @@ export default function WeeklyReviewView() {
             )}
             <PlanVsDoneSection plan={document.planVsDone} />
             <PhysiologySection physiology={document.physiology} />
+            {stats && <NumbersSection stats={stats} />}
             <DoctrineSection doctrine={document.doctrine} />
             <MemoryProposalsSection proposals={document.memoryProposals} states={memoryStates} onRemember={rememberProposal} />
             <NextWeekSection cards={nextWeekCards} states={nextWeekStates} onAccept={acceptNextWeek} />
+          </article>
+        )}
+
+        {status.kind === 'ready' && !document && stats && (
+          <article className="weekly-review__document" data-testid="weekly-review-numbers-only">
+            <PlanVsDoneSection plan={stats.plan} />
+            <NumbersSection stats={stats} />
+            <p className="weekly-review__key-hint" data-testid="weekly-review-key-hint">
+              Add your Anthropic key and the coach writes a review of these numbers.
+              <button className="weekly-review__key-link" onClick={openProfile}>
+                <KeyRound size={12} /> Add key
+              </button>
+            </p>
           </article>
         )}
       </div>

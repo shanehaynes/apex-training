@@ -1,5 +1,6 @@
 import { addDays, format, parseISO, startOfISOWeek } from 'date-fns';
 import { isMemoryKind, type MemoryKind } from '../coach/memory.js';
+import type { HrvSummary, LoadSummary, WeekTonnage, ZoneMethod, ZoneMinutes } from '../physiology/types.js';
 
 // The weekly review as a document (lane D03): the shapes the server returns
 // and the client renders, plus the pure shape guard both sides run. The
@@ -82,11 +83,52 @@ export interface WeeklyReviewDocument {
   headline: string;
 }
 
-/** What POST /api/weekly-review answers. */
+/** One PR set in the reviewed week, described in the athlete's unit. */
+export interface WeeklyStatsPr {
+  exerciseName: string;
+  kind: 'oneRM' | 'duration' | 'reps' | 'distance' | 'elevation' | 'send';
+  date: string;
+  /** "est. best single lift 216 (190 × 5), up from 206 on Jun 12" — describeRecordForPeople. */
+  detail: string;
+}
+
+/**
+ * The week's computed numbers, no model involved: sent with every response,
+ * key or no key. Physiology is the panel (src/lib/physiology) computed as of
+ * `asOf` — the reviewed week's Sunday, or today while that week is still
+ * running — so an old week shows that week's load, not this one's.
+ */
+export interface WeeklyReviewStats {
+  week: WeekWindow;
+  asOf: string;
+  /** Plan vs done as computePlanVsDone counts it; misses carry no `why`. */
+  plan: WeeklyPlanVsDone;
+  prs: WeeklyStatsPr[];
+  /** The athlete's display unit; every tonnage figure stays in pounds. */
+  weightUnit: 'lb' | 'kg';
+  physiology: {
+    /** Acute 7 d vs chronic 28 d weekly average; null without data. */
+    load: LoadSummary | null;
+    hrv: HrvSummary | null;
+    /** Z1…Z5 minutes in the reviewed week; null when no session yielded a reading. */
+    zoneMinutes: ZoneMinutes | null;
+    zoneMethod: ZoneMethod | null;
+    /** The reviewed week and the four before it, oldest first; empty without logged sets. */
+    tonnageByWeek: WeekTonnage[];
+  };
+}
+
+/**
+ * What POST /api/weekly-review answers. Without an Anthropic key the server
+ * still answers 200: `document` and `model` are null and `stats` carries
+ * the week. `stats` is optional only for a response from a server that
+ * predates it; this one always sends it.
+ */
 export interface WeeklyReviewResponse {
-  document: WeeklyReviewDocument;
-  /** The coach model the document was generated on — the badge the view shows. */
-  model: { id: string; label: string; badge: string };
+  document: WeeklyReviewDocument | null;
+  /** The coach model the document was generated on — the badge the view shows; null when none ran. */
+  model: { id: string; label: string; badge: string } | null;
+  stats?: WeeklyReviewStats;
   /** Sections the server dropped or trimmed, one line each. */
   warnings: string[];
   generatedAt: string;
@@ -187,10 +229,58 @@ export function isWeeklyReviewDocument(value: unknown): value is WeeklyReviewDoc
   return isString(value.headline);
 }
 
-/** The response envelope, with the document inside checked by the guard above. */
+const isNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const isNullableNumber = (v: unknown): v is number | null => v === null || isNumber(v);
+
+function isLoad(value: unknown): value is LoadSummary {
+  return isRecord(value) && (value.source === 'trainingLoad' || value.source === 'cardioMinutes')
+    && isNumber(value.acute7d) && isNumber(value.chronicWeeklyAvg28d) && isNullableNumber(value.ratio);
+}
+
+function isHrv(value: unknown): value is HrvSummary {
+  return isRecord(value) && isNullableNumber(value.mean7d) && isNumber(value.mean28d);
+}
+
+function isZoneMinutes(value: unknown): value is ZoneMinutes {
+  return Array.isArray(value) && value.length === 5 && value.every(isCount);
+}
+
+function isStatsPr(value: unknown): value is WeeklyStatsPr {
+  return isRecord(value) && isString(value.exerciseName) && isString(value.kind)
+    && isIsoDate(value.date) && isString(value.detail);
+}
+
+/** True when `value` is the computed stats payload, every section typed. */
+export function isWeeklyReviewStats(value: unknown): value is WeeklyReviewStats {
+  if (!isRecord(value)) return false;
+  const week = value.week;
+  if (!isRecord(week) || !isIsoDate(week.start) || !isIsoDate(week.end) || !isIsoDate(value.asOf)) return false;
+  if (!isPlanVsDone(value.plan) || !Array.isArray(value.prs) || !value.prs.every(isStatsPr)) return false;
+  if (value.weightUnit !== 'lb' && value.weightUnit !== 'kg') return false;
+  const p = value.physiology;
+  if (!isRecord(p)) return false;
+  if (p.load !== null && !isLoad(p.load)) return false;
+  if (p.hrv !== null && !isHrv(p.hrv)) return false;
+  if (p.zoneMinutes !== null && !isZoneMinutes(p.zoneMinutes)) return false;
+  if (p.zoneMethod !== null && p.zoneMethod !== 'device' && p.zoneMethod !== 'avgHr' && p.zoneMethod !== 'mixed') return false;
+  return Array.isArray(p.tonnageByWeek)
+    && p.tonnageByWeek.every(w => isRecord(w) && isIsoDate(w.weekStart) && isNullableNumber(w.tonnageLb));
+}
+
+/**
+ * The response envelope. Either a document (checked by the guard above)
+ * with its model, or — the keyless answer — no document, no model and the
+ * stats. Stats, when present, must be well formed either way.
+ */
 export function isWeeklyReviewResponse(value: unknown): value is WeeklyReviewResponse {
-  if (!isRecord(value) || !isWeeklyReviewDocument(value.document)) return false;
-  const model = value.model;
-  if (!isRecord(model) || !isString(model.id) || !isString(model.label) || !isString(model.badge)) return false;
+  if (!isRecord(value)) return false;
+  if (value.stats !== undefined && !isWeeklyReviewStats(value.stats)) return false;
+  if (value.document === null) {
+    if (value.model !== null || value.stats === undefined) return false;
+  } else {
+    if (!isWeeklyReviewDocument(value.document)) return false;
+    const model = value.model;
+    if (!isRecord(model) || !isString(model.id) || !isString(model.label) || !isString(model.badge)) return false;
+  }
   return isStringArray(value.warnings) && isString(value.generatedAt);
 }

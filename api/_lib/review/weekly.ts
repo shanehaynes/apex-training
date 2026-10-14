@@ -13,7 +13,8 @@ import { athleteSection, blockSection, memorySection, sanitizeInlineText, saniti
 import { DOCTRINE_TOPICS, readDoctrine } from '../../../src/lib/coach/doctrine/index.js';
 import { createEventSchema, EXERCISE_INPUT_SCHEMA, updateEventSchema } from '../../../src/lib/coach/schemas.js';
 import { baseIdOf, isOccurrenceId } from '../../../src/lib/schedule/occurrence.js';
-import { computePhysiology, describePhysiology } from '../../../src/lib/physiology/index.js';
+import { computePhysiology, describePhysiology, type PhysiologySummary } from '../../../src/lib/physiology/index.js';
+import { describeRecordForPeople } from '../../../src/lib/tracking/records.js';
 import { computeReviewStats, durationMinutesFor, sessionSecondsMap } from '../../../src/lib/review/stats.js';
 import type { PeriodStats, StatsPeriod } from '../../../src/lib/review/types.js';
 import { rowToBlock, rowToObjective } from '../../../src/lib/blocks/mapping.js';
@@ -24,7 +25,7 @@ import type { CoachModelOption } from '../../../src/lib/coach/models.js';
 import {
   isIsoDate, isNextWeekTool, isoWeekOf, isWeeklyVerdict, MEMORY_PROPOSALS_MAX, NEXT_WEEK_MAX, shiftWeek,
   type WeekWindow, type WeeklyDoctrine, type WeeklyMemoryProposal, type WeeklyMiss, type WeeklyNextWeekItem,
-  type WeeklyPlanVsDone, type WeeklyReviewDocument,
+  type WeeklyPlanVsDone, type WeeklyReviewDocument, type WeeklyReviewStats,
 } from '../../../src/lib/review/weekly.js';
 
 // The weekly review as a document (lane D03). Three pure stages and one
@@ -92,6 +93,15 @@ function weekPeriod(window: WeekWindow): StatsPeriod {
 
 const inWindow = (date: string, w: WeekWindow) => date >= w.start && date <= w.end;
 
+/**
+ * The day the physiology panel is computed as of: the reviewed week's
+ * Sunday, or today while that week is still running (a date past today
+ * would only count plans as measurements).
+ */
+export function physiologyAsOf(todayIso: string, window: WeekWindow): string {
+  return window.end < todayIso ? window.end : todayIso;
+}
+
 // ─── Inputs ──────────────────────────────────────────────────────────────────
 
 export interface WeeklyInputs {
@@ -114,6 +124,9 @@ export interface WeeklyInputs {
   athlete: { goal?: string; context?: string };
   libraryNames: string[];
 }
+
+/** What fetchWeeklyInputs returns: the recap's inputs plus the response's `stats`, with or without a document. */
+export type GatheredWeek = WeeklyInputs & { weeklyStats: WeeklyReviewStats };
 
 /** The active block's summary, as the chat prompt carries it; null on any failure. */
 async function blockSummary(
@@ -144,12 +157,12 @@ async function blockSummary(
   }
 }
 
-async function physiologyBlock(supabase: Admin, userId: string, todayIso: string): Promise<string> {
+async function physiologySummary(supabase: Admin, userId: string, asOfIso: string): Promise<PhysiologySummary | null> {
   try {
-    return describePhysiology(computePhysiology(await fetchPhysiologyInputs(supabase, userId, todayIso)));
+    return computePhysiology(await fetchPhysiologyInputs(supabase, userId, asOfIso));
   } catch (err) {
     console.warn('[api/weekly-review] physiology panel unavailable:', err instanceof Error ? err.message : err);
-    return '';
+    return null;
   }
 }
 
@@ -174,12 +187,13 @@ export async function fetchWeeklyInputs(
   todayIso: string,
   window: WeekWindow,
   athlete: { goal?: string; context?: string } = {},
-): Promise<WeeklyInputs> {
+): Promise<GatheredWeek> {
   const nextWeek = shiftWeek(window, 1);
-  const [{ occurrences, definitions }, period, physiology, memories] = await Promise.all([
+  const asOf = physiologyAsOf(todayIso, window);
+  const [{ occurrences, definitions }, period, panel, memories] = await Promise.all([
     fetchExpandedSchedule(supabase, userId, todayIso),
     fetchPeriodInputs(supabase, userId, weekPeriod(window)),
-    physiologyBlock(supabase, userId, todayIso),
+    physiologySummary(supabase, userId, asOf),
     memoryEntries(supabase, userId),
   ]);
 
@@ -200,6 +214,12 @@ export async function fetchWeeklyInputs(
   }
   const block = await blockSummary(supabase, userId, todayIso, withCompletion);
   const libraryNames = [...definitions.values()].map(d => d.canonicalName).sort().slice(0, LIBRARY_NAMES_MAX);
+  const stats = computeReviewStats(period);
+  const physiology = panel ? describePhysiology(panel) : '';
+  const weeklyStats = computeWeeklyStats({
+    window, asOf, stats, panel,
+    plan: computePlanVsDone({ today: todayIso, events, completions: period.completions, sessions: period.sessions }),
+  });
 
   return {
     today: todayIso,
@@ -210,8 +230,9 @@ export async function fetchWeeklyInputs(
     knownEventIds,
     completions: period.completions,
     sessions: period.sessions,
-    stats: computeReviewStats(period),
+    stats,
     physiology,
+    weeklyStats,
     memories,
     block,
     athlete,
@@ -251,6 +272,44 @@ export function computePlanVsDone(inputs: Pick<WeeklyInputs, 'today' | 'events' 
     minutesPlanned: Math.round(minutesPlanned),
     minutesDone: Math.round(minutesDone),
     misses,
+  };
+}
+
+// ─── Stats ───────────────────────────────────────────────────────────────────
+
+/**
+ * The response's `stats`: plan vs done, the week's PRs and the physiology
+ * panel's numbers, reshaped for the view and nothing recomputed — the panel
+ * is computePhysiology's (as of `asOf`), the PRs computeReviewStats'.
+ */
+export function computeWeeklyStats(args: {
+  window: WeekWindow;
+  asOf: string;
+  plan: WeeklyPlanVsDone;
+  stats: PeriodStats<StatsPeriod>;
+  panel: PhysiologySummary | null;
+}): WeeklyReviewStats {
+  const { window, asOf, plan, stats, panel } = args;
+  const weightUnit = stats.strength.displayUnit ?? 'lb';
+  const zones = panel?.zoneMinutesByWeek?.find(w => w.weekStart === window.start)?.minutes ?? null;
+  return {
+    week: window,
+    asOf,
+    plan,
+    prs: stats.prs.map(pr => ({
+      exerciseName: pr.exerciseName,
+      kind: pr.kind,
+      date: pr.date,
+      detail: describeRecordForPeople(pr, weightUnit),
+    })),
+    weightUnit,
+    physiology: {
+      load: panel?.load ?? null,
+      hrv: panel?.hrv ?? null,
+      zoneMinutes: zones,
+      zoneMethod: zones ? panel?.zoneMethod ?? null : null,
+      tonnageByWeek: panel?.tonnageByWeek ?? [],
+    },
   };
 }
 
