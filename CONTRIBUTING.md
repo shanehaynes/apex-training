@@ -270,6 +270,8 @@ makes granting it a small decision rather than a large one:
   `origin/main` already expects, the PR is `HOLD`ed with the missing objects
   and the migrations that create them. `shipit` does not waive it: the label
   grants the PR, not a gap under it. Could-not-check holds too (fail closed).
+  A migration PR still waiting for `shipit` gets the same check, printed
+  under its HOLD, so a gap shows before the label goes on.
   A fleet carries at most one migration PR, and a run that merged one ends by
   printing what production must now be given.
 - **The kill switch stops everything.** `touch .claude/AUTOMERGE_OFF` in the

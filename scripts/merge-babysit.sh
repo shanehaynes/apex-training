@@ -52,6 +52,8 @@
 # A PR touching supabase/migrations/ also needs production to be current:
 # scripts/prod-schema-check.mjs must find every object origin/main expects
 # before it merges, or it HOLDs — shipit grants the PR, not a gap under it.
+# A migration PR still waiting for shipit gets the same check, reported with
+# its HOLD, so the gap is visible before the label goes on.
 # After one merges, the run ends by naming what production must now be given.
 set -euo pipefail
 
@@ -203,6 +205,21 @@ report_migration_obligation() {
   esac
 }
 trap 'report_migration_obligation || true' EXIT
+
+# A policy-held migration PR gets the preflight too, so a production gap shows
+# up when Shane is deciding whether to grant the PR, not after he labels it
+# and the next run holds it again. Informational: the PR stays held either way.
+held_preflight() {
+  if schema_preflight "$1"; then
+    if [ "$preflight_touched" -eq 1 ]; then
+      echo "      production is current, so shipit is all this one needs"
+    fi
+  else
+    echo "      shipit alone will not merge it — production is not proven current:"
+    printf '%s\n' "$preflight_out" | sed 's/^/        /'
+    echo "        $preflight_reason"
+  fi
+}
 
 preflight_hold() {
   echo "HOLD  #$1 — $preflight_what and production is not proven current; shipit does not waive this. ($2)"
@@ -423,6 +440,7 @@ fleet_pass() {
     if ! verdict=$(policy_check "$number"); then
       echo "HOLD  #$number — ${verdict:-policy gave no verdict (fail closed)}"
       echo "      a human grants this one with: gh pr edit $number --add-label shipit  ($title)"
+      held_preflight "$number"
       skipped="$skipped $number"
       continue
     fi
@@ -668,6 +686,7 @@ EOF
         if ! verdict=$(policy_check "$number"); then
           echo "HOLD  #$number — ${verdict:-policy gave no verdict (fail closed)}"
           echo "      a human grants this one with: gh pr edit $number --add-label shipit  ($title)"
+          held_preflight "$number"
           skipped="$skipped $number"
           continue
         fi
