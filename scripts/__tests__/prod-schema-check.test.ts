@@ -3,7 +3,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { checkSchema, credentials, migrationIndex, parseDatabaseTypes, sourceOf } from '../prod-schema-check.mjs';
+import {
+  checkSchema,
+  credentials,
+  migrationIndex,
+  parseDatabaseTypes,
+  readLedger,
+  sourceOf,
+  unstampedMigrations,
+} from '../prod-schema-check.mjs';
 
 const repo = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -332,6 +340,40 @@ describe('checkSchema', () => {
     expect(result.skipped).toMatch(/rejected the service-role key \(401\)/);
     // sb_ keys are not JWTs: they go in apikey alone, with no Authorization header.
     expect(sent).toEqual([{ apikey: 'sb_secret_abc' }]);
+  });
+});
+
+describe('the migration ledger', () => {
+  const url = 'https://ref.supabase.co';
+  const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
+
+  it('reads every stamped name with the key in headers only, and an explicit limit', async () => {
+    const seen: string[] = [];
+    const fetch = async (input: string, init: { headers: Record<string, string> }) => {
+      seen.push(input);
+      expect(init.headers.apikey).toBe('secret-key-xyz');
+      return json(200, [{ name: 'phase55_core_loop_columns' }, { name: 'phase56_migration_ledger' }]);
+    };
+    const ledger = await readLedger({ url, key: 'secret-key-xyz', fetch });
+    expect(ledger.names).toEqual(new Set(['phase55_core_loop_columns', 'phase56_migration_ledger']));
+    expect(seen).toEqual([`${url}/rest/v1/migration_ledger?select=name&limit=10000`]);
+    expect(seen[0]).not.toContain('secret-key-xyz');
+  });
+
+  it('an unreadable ledger or a full page is unverified, never "nothing stamped"', async () => {
+    const denied = async () => json(401, { message: 'permission denied for table migration_ledger', code: '42501' });
+    expect((await readLedger({ url, key: 'k', fetch: denied })).unverified).toMatch(/401 42501 permission denied/);
+    const offline = async () => {
+      throw new TypeError('fetch failed', { cause: { code: 'ENOTFOUND' } });
+    };
+    expect(await readLedger({ url, key: 'k', fetch: offline })).toEqual({ unverified: 'ENOTFOUND' });
+    const full = async () => json(200, Array.from({ length: 10_000 }, (_, i) => ({ name: `m${i}` })));
+    expect((await readLedger({ url, key: 'k', fetch: full })).unverified).toMatch(/may be truncated/);
+  });
+
+  it('names the migrations with no stamp, in apply order', () => {
+    const files = ['phase54_a.sql', 'phase55_b.sql', 'phase56_migration_ledger.sql', 'phase57_c.sql'].map((file) => ({ file, sql: '' }));
+    expect(unstampedMigrations(files, new Set(['phase54_a', 'phase56_migration_ledger']))).toEqual(['phase55_b.sql', 'phase57_c.sql']);
   });
 });
 
