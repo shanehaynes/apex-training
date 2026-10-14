@@ -153,6 +153,80 @@ async function occurrence(client: Admin): Promise<WorkoutEvent> {
   return event!;
 }
 
+// bootstrap-full.json: the integration suite's "Mixed Day" — a scored
+// for-time event whose finished session reaches every optional branch the two
+// fixtures above leave null or absent.
+const MIXED = 'ios-fixture-mixed';
+const MIXED_DAY = '2026-12-08';
+const PRIOR = 'ios-fixture-mixed-prior';
+const PRIOR_DAY = '2026-12-01';
+const ADDED = 'added-1765000000000';
+
+const mixedEventRow: Tables<'workout_events'> = {
+  ...eventRow, id: MIXED, title: 'Mixed Day', date: MIXED_DAY, start_time: '07:00', end_time: null,
+  description: 'Every tracker branch at once.', is_recurring: false, recurrence_rule: null,
+  template_id: 'ios-fixture-template', scoring_type: 'for-time',
+  exercises: [
+    { id: 'mx-squat', name: 'Mixed Squat', category: 'strength', sets: 2, reps: '5', weight: '80%' },
+    { id: 'mx-plank', name: 'Mixed Plank', category: 'strength', duration: '60 s' },
+    { id: 'mx-pullup', name: 'Mixed Pull-Up', category: 'strength', sets: 1, reps: '8' },
+    { id: 'mx-pitch', name: 'Mixed Arete', category: 'climbing', climbStyle: 'sport', grade: '5.10a' },
+    { id: 'mx-bike', name: 'Mixed Bike', category: 'cardio', duration: '30 min' },
+    { id: 'mx-ski', name: 'Mixed Ski', category: 'cardio', duration: '10 min' },
+  ],
+};
+
+const mixedSet = (exercise_id: string, exercise_name: string, over: Partial<Tables<'workout_set_logs'>>) => setLog({
+  event_id: MIXED, event_date: MIXED_DAY, exercise_id, exercise_name, definition_id: null,
+  planned_weight: null, planned_reps: null, actual_weight: null, actual_reps: null, ...over,
+});
+const priorSet = (exercise_id: string, exercise_name: string, over: Partial<Tables<'workout_set_logs'>>) =>
+  mixedSet(exercise_id, exercise_name, { event_id: PRIOR, event_date: PRIOR_DAY, ...over });
+
+function cardioLog(over: Partial<Tables<'workout_cardio_logs'>>): Tables<'workout_cardio_logs'> {
+  return {
+    id: 'cardio', user_id: 'u1', event_id: MIXED, event_date: MIXED_DAY, section: 'exercise',
+    exercise_id: 'mx-bike', exercise_name: 'Mixed Bike', definition_id: null, duration_minutes: 30,
+    distance: null, elevation_gain: null, avg_heart_rate: null, is_autofilled: false,
+    updated_at: '2026-12-08T08:00:00.000Z', ...over,
+  };
+}
+
+const priorSession: Tables<'workout_sessions'> = {
+  ...finishedSession, event_id: PRIOR, event_date: PRIOR_DAY, template_id: 'ios-fixture-template',
+  score_type: 'for-time', score_time_seconds: 1800,
+};
+const mixedSession: Tables<'workout_sessions'> = {
+  ...finishedSession, event_id: MIXED, event_date: MIXED_DAY, template_id: 'ios-fixture-template',
+  score_type: 'for-time', score_time_seconds: 1500,
+};
+
+function mixedAdmin() {
+  return makeAdmin({
+    profiles: [{ id: 'u1', weight_unit: 'lb', body_weight_lb: null }],
+    workout_events: [mixedEventRow],
+    exercise_definitions: [definition],
+    workout_sessions: [priorSession],
+    workout_set_logs: [
+      priorSet('mx-squat', 'Mixed Squat', { actual_weight: '200 lb', actual_reps: '5' }),
+      priorSet('mx-plank', 'Mixed Plank', { actual_duration: '60 s' }),
+      priorSet('mx-pullup', 'Mixed Pull-Up', { actual_reps: '8' }),
+      priorSet('mx-pitch', 'Mixed Arete', { actual_weight: '5.9', ascent_style: 'redpoint' }),
+      mixedSet('mx-squat', 'Mixed Squat', { actual_weight: '135 lb', actual_reps: '5', is_warmup: true, rpe: 5 }),
+      mixedSet('mx-squat', 'Mixed Squat', { set_number: 2, actual_weight: '210 lb', actual_reps: '5', rpe: 8.5 }),
+      mixedSet('mx-plank', 'Mixed Plank', { actual_duration: '90 s' }),
+      mixedSet('mx-pullup', 'Mixed Pull-Up', { actual_reps: '10' }),
+      mixedSet('mx-pitch', 'Mixed Arete', { actual_weight: '5.10b', ascent_style: 'flash', attempts: 1 }),
+      mixedSet(ADDED, 'Mixed Curl', { actual_weight: '30 lb', actual_reps: '10' }),
+    ],
+    workout_cardio_logs: [
+      cardioLog({ event_id: PRIOR, event_date: PRIOR_DAY, distance: '10 mi', elevation_gain: '500 ft', avg_heart_rate: 140 }),
+      cardioLog({ event_id: PRIOR, event_date: PRIOR_DAY, exercise_id: 'mx-ski', exercise_name: 'Mixed Ski', duration_minutes: 10, distance: '2 km' }),
+      cardioLog({ distance: '12 mi', elevation_gain: '600 ft', avg_heart_rate: 145 }),
+    ],
+  } as unknown as Record<string, Record<string, unknown>[]>);
+}
+
 describe('iOS bootstrap fixtures carry exactly the fields the server sends', () => {
   it('bootstrap.json — a finished session, re-opened', async () => {
     const logged = setLog({
@@ -168,6 +242,17 @@ describe('iOS bootstrap fixtures carry exactly the fields the server sends', () 
     const client = admin([]);
     const boot = await buildBootstrap(client, 'u1', null, await occurrence(client));
     expectSameShape('bootstrap-peek.json', boot);
+  });
+
+  it('bootstrap-full.json — every optional branch at once', async () => {
+    const client = mixedAdmin();
+    const event = await loadResolvedOccurrence(client, 'u1', MIXED, MIXED_DAY);
+    const boot = await buildBootstrap(client, 'u1', mixedSession as WorkoutSessionRow, event!);
+    // The scenario must still reach what it exists to reach, or a missing
+    // branch would pass as "no drift".
+    expect(boot.scoreRecord?.kind).toBe('workout-score');
+    expect(boot.prs.map(pr => pr.kind).sort()).toEqual(['distance', 'duration', 'elevation', 'oneRM', 'reps', 'send']);
+    expectSameShape('bootstrap-full.json', boot);
   });
 
   it('key paths see through nesting and arrays', () => {

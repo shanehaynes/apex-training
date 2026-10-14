@@ -187,6 +187,25 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertEqual(events[2], .done)
     }
 
+    /// Every optional bootstrap branch the other two fixtures leave null or
+    /// absent: a workout score record, every PR kind, an added exercise, a
+    /// pitch, a cardio shadow and a percentage target.
+    func testFullBootstrapDecodesEveryOptionalBranch() throws {
+        let full = try decode(TrackerBootstrap.self, from: "bootstrap-full.json")
+        XCTAssertTrue(full.scored)
+        XCTAssertEqual(full.session?.scoreType, "for-time")
+        XCTAssertEqual(full.scoreRecord?.kind, "workout-score")
+        XCTAssertEqual(Set(full.prs?.map(\.kind) ?? []), ["oneRM", "duration", "reps", "distance", "elevation", "send"])
+
+        let exercises = full.groups.flatMap(\.exercises)
+        let byId = { (id: String) in exercises.first { $0.exercise.id == id } }
+        XCTAssertEqual(byId("mx-squat")?.sets.first?.planned?.targetWeight, "80%")
+        XCTAssertTrue(try XCTUnwrap(byId("added-1765000000000")).added)
+        XCTAssertEqual(byId("mx-ski")?.cardio?.shadow?.distance, "2 km")
+        XCTAssertNil(byId("mx-bike")?.cardio?.shadow)
+        XCTAssertEqual(byId("mx-pitch")?.sets.first?.actualWeight, "5.10b")
+    }
+
     func testFinishDecodes() throws {
         let finish = try decode(FinishResponse.self, from: "finish.json")
         XCTAssertTrue(finish.ok)

@@ -29,7 +29,7 @@ say so.
 2. **Fixture contract tests** — the integration suite
    (`api/__tests__/integration/ios-read.integration.test.ts`) runs the real handlers against the local
    stack and writes canonical responses to `ios/Fixtures/`: `schedule.json`,
-   `bootstrap.json`, `bootstrap-peek.json`, `finish.json`, `chat-stream.ndjson`, `chat-stream-builder.ndjson`,
+   `bootstrap.json`, `bootstrap-peek.json`, `bootstrap-full.json`, `finish.json`, `chat-stream.ndjson`, `chat-stream-builder.ndjson`,
    `coach-summary.ndjson`, `coach-tool.json`, `coach-tool-draft.json`, `workout-draft-{create,edit,detach}.json`,
    `analytics-compute.json`, `query-*.json`, `profile.json`. `swift test` decodes every file, but
    Swift's decoder ignores keys it does not know, so a field the server adds never fails it. By
@@ -38,12 +38,14 @@ say so.
    deliberate shape change. It needs the local stack, so `agent:check` skips it; CI's `full` job
    and `npm run agent:check:full` run it. The tracker's opening response — the file most often drifted (#417, #419,
    #422) — also has a no-DB check that `agent:check` does run:
-   `api/__tests__/ios-fixture-shape.test.ts` builds `bootstrap.json` and `bootstrap-peek.json`
+   `api/__tests__/ios-fixture-shape.test.ts` rebuilds all three bootstrap fixtures
    through `loadResolvedOccurrence` and `buildBootstrap` on a fake client seeded with typed rows,
-   and compares field names, so a field added to or dropped from what the fixture scenario
-   reaches fails locally; the byte-for-byte check stays in CI. Subtrees neither fixture contains
-   (a non-null `scoreRecord`, PR kinds other than `oneRM`, `resolvedPlannedWeight`, climbing
-   pitches, cardio shadows) are checked by neither.
+   and compares field names, so an added or dropped field fails locally; the byte-for-byte check
+   stays in CI. `bootstrap-full.json` exists for that coverage: a finished, scored session with
+   a workout score record, every PR kind, a percentage target, a pitch, an added exercise and a
+   cardio shadow — every optional branch the other two leave null or absent. Its scenario is the
+   last test in the integration file and deletes its rows, because `get_prs` reads all of the
+   user's records and would otherwise move `query-get_prs.json`.
 3. **Snapshot tests** (`swift-snapshot-testing`) in `ApexFeatures`: Day view (empty, three
    events, completed), tracker set row in each state (planned / shadow / logged / autofilled /
    extra), confirmation card, KPI and line tiles, event detail sheet. iPhone 17 (iOS 26) and,
