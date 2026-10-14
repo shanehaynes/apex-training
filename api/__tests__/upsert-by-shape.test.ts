@@ -12,11 +12,16 @@ describe('upsertByShape', () => {
     expect(batches).toEqual([[{ a: 1, b: 1 }, { b: 3, a: 3 }], [{ a: 2 }]]);
   });
 
-  it('returns the first error when any batch fails', async () => {
+  it('runs batches in order and stops at the first error', async () => {
+    const sent: unknown[] = [];
     const result = await upsertByShape(
-      [{ a: 1 }, { b: 1 }],
-      async batch => ({ error: 'b' in batch[0] ? { message: 'boom', code: '23502' } : null }),
+      [{ a: 1 }, { b: 1 }, { c: 1 }],
+      async batch => {
+        sent.push(batch[0]);
+        return { error: 'b' in batch[0] ? { message: 'boom', code: '23502' } : null };
+      },
     );
     expect(result.error).toEqual({ message: 'boom', code: '23502' });
+    expect(sent).toEqual([{ a: 1 }, { b: 1 }]);
   });
 });

@@ -65,6 +65,7 @@ describe.skipIf(!RUN)('workout-sessions save with mixed row shapes', () => {
 
   async function clear() {
     await admin.from('workout_set_logs').delete().eq('user_id', userId).eq('event_id', EVENT_ID);
+    await admin.from('workout_cardio_logs').delete().eq('user_id', userId).eq('event_id', EVENT_ID);
   }
 
   beforeAll(async () => {
@@ -103,8 +104,14 @@ describe.skipIf(!RUN)('workout-sessions save with mixed row shapes', () => {
   });
 
   it('leaves is_warmup alone on an existing row that omits it in a mixed batch', async () => {
-    // Set 1 is a warm-up from the save above; re-saving it without the key
-    // (beside a row that has it) must not reset it to the column default.
+    // Set 1 is a warm-up; re-saving it without the key (beside a row that
+    // has it) must not reset it to the column default.
+    await clear();
+    const seeded = await post(token, {
+      action: 'save', eventId: EVENT_ID, eventDate: EVENT_DATE,
+      setLogs: [setRow(1, { is_warmup: true })],
+    });
+    expect(seeded.statusCode, String(seeded.body)).toBe(200);
     const captured = await post(token, {
       action: 'save', eventId: EVENT_ID, eventDate: EVENT_DATE,
       setLogs: [setRow(1, { actual_weight: '95' }), setRow(2, { is_warmup: false, actual_weight: '185' })],
@@ -113,6 +120,29 @@ describe.skipIf(!RUN)('workout-sessions save with mixed row shapes', () => {
     expect(await savedSets()).toEqual([
       { set_number: 1, is_warmup: true, actual_weight: '95' },
       { set_number: 2, is_warmup: false, actual_weight: '185' },
+    ]);
+  });
+
+  it('saves a cardio batch where one row sets is_autofilled and one omits it', async () => {
+    const cardio = (exerciseId: string, extra: Record<string, unknown> = {}) => ({
+      event_id: EVENT_ID, event_date: EVENT_DATE, section: 'exercise',
+      exercise_id: exerciseId, exercise_name: exerciseId, duration_minutes: 20,
+      ...extra,
+    });
+    const captured = await post(token, {
+      action: 'save', eventId: EVENT_ID, eventDate: EVENT_DATE,
+      cardioLogs: [cardio('row', { is_autofilled: true }), cardio('run')],
+    });
+    expect(captured.statusCode, String(captured.body)).toBe(200);
+    const { data, error } = await admin
+      .from('workout_cardio_logs')
+      .select('exercise_id, is_autofilled')
+      .eq('user_id', userId).eq('event_id', EVENT_ID).eq('event_date', EVENT_DATE)
+      .order('exercise_id');
+    if (error) throw new Error(error.message);
+    expect(data).toEqual([
+      { exercise_id: 'row', is_autofilled: true },
+      { exercise_id: 'run', is_autofilled: false },
     ]);
   });
 });

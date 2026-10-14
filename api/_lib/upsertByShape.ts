@@ -8,6 +8,11 @@ type UpsertResult = { error: { message: string; code?: string } | null };
  * would avoid the error but write the column default over an existing
  * row's value on conflict. Grouped by shape, each row updates exactly the
  * columns it carries, and a new row takes the table default for the rest.
+ *
+ * Groups run one after another, stopping at the first error: two
+ * concurrent upserts sharing a conflict key could deadlock, or land in
+ * either order. Not atomic across groups — a failed group leaves earlier
+ * ones written, as a save's set, cardio and note writes already are.
  */
 export async function upsertByShape<R extends Record<string, unknown>>(
   rows: R[],
@@ -20,6 +25,9 @@ export async function upsertByShape<R extends Record<string, unknown>>(
     if (group) group.push(row);
     else groups.set(shape, [row]);
   }
-  const results = await Promise.all([...groups.values()].map(batch => upsert(batch)));
-  return results.find(r => r.error) ?? { error: null };
+  for (const batch of groups.values()) {
+    const result = await upsert(batch);
+    if (result.error) return result;
+  }
+  return { error: null };
 }
