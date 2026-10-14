@@ -174,11 +174,11 @@ schema_preflight() {
   run_schema_check
   preflight_out=$schema_out
   if [ "$schema_code" -eq 0 ]; then
-    echo "CHECK #$1 $preflight_what — production has every table, column and function origin/main expects"
+    echo "CHECK #$1 $preflight_what — production passes the schema check against origin/main"
     return 0
   fi
   case $schema_code in
-    1) preflight_reason="production lacks objects main already expects — apply the migrations named above in the Supabase SQL Editor, in phase order, then re-run" ;;
+    1) preflight_reason="production is behind main — apply what is named above (missing objects, unapplied or edited migrations) in the Supabase SQL Editor, in phase order, then re-run" ;;
     2) preflight_reason="could not verify production's schema — a migration merges only onto a production proven current; restore the check's access (~/.config/apex-training/prod.env) and re-run" ;;
     *) preflight_reason="scripts/prod-schema-check.mjs failed (exit $schema_code) — fix the check and re-run" ;;
   esac
@@ -199,7 +199,7 @@ report_migration_obligation() {
   run_schema_check
   printf '%s\n' "$schema_out" | sed 's/^/   /'
   case $schema_code in
-    0) echo "   already applied: every migration is stamped in production's migration_ledger" ;;
+    0) echo "   already applied: production's migration_ledger has every migration as written" ;;
     1) echo "ACTION apply the migration(s) named above in the Supabase SQL Editor, in phase order, then re-run node scripts/prod-schema-check.mjs until it exits 0" ;;
     *) echo "ACTION the production schema check could not run (exit $schema_code) — the merged migration(s) still need applying in the Supabase SQL Editor and verifying with node scripts/prod-schema-check.mjs" ;;
   esac

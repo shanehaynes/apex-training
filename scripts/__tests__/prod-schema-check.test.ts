@@ -8,9 +8,10 @@ import {
   credentials,
   migrationIndex,
   parseDatabaseTypes,
+  fingerprint,
+  ledgerGaps,
   readLedger,
   sourceOf,
-  unstampedMigrations,
 } from '../prod-schema-check.mjs';
 
 const repo = fileURLToPath(new URL('../../', import.meta.url));
@@ -345,35 +346,55 @@ describe('checkSchema', () => {
 
 describe('the migration ledger', () => {
   const url = 'https://ref.supabase.co';
-  const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
+  const page = (rows: unknown[], range: string | null, status = 200) =>
+    new Response(JSON.stringify(rows), { status, headers: range ? { 'content-range': range } : {} });
 
-  it('reads every stamped name with the key in headers only, and an explicit limit', async () => {
-    const seen: string[] = [];
+  it('reads every stamp with an exact count, the key in headers only', async () => {
+    const seen: { url: string; headers: Record<string, string> }[] = [];
     const fetch = async (input: string, init: { headers: Record<string, string> }) => {
-      seen.push(input);
-      expect(init.headers.apikey).toBe('secret-key-xyz');
-      return json(200, [{ name: 'phase55_core_loop_columns' }, { name: 'phase56_migration_ledger' }]);
+      seen.push({ url: input, headers: init.headers });
+      return page([{ name: 'phase55_b', fingerprint: 'aaaaaaaaaaaaaaaa' }, { name: 'phase55_b', fingerprint: 'bbbbbbbbbbbbbbbb' }], '0-1/2');
     };
-    const ledger = await readLedger({ url, key: 'secret-key-xyz', fetch });
-    expect(ledger.names).toEqual(new Set(['phase55_core_loop_columns', 'phase56_migration_ledger']));
-    expect(seen).toEqual([`${url}/rest/v1/migration_ledger?select=name&limit=10000`]);
-    expect(seen[0]).not.toContain('secret-key-xyz');
+    const read = await readLedger({ url, key: 'secret-key-xyz', fetch });
+    expect(read.ledger).toEqual(new Map([['phase55_b', new Set(['aaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbb'])]]));
+    expect(seen[0].url).toBe(`${url}/rest/v1/migration_ledger?select=name,fingerprint`);
+    expect(seen[0].url).not.toContain('secret-key-xyz');
+    expect(seen[0].headers.Prefer).toBe('count=exact');
   });
 
-  it('an unreadable ledger or a full page is unverified, never "nothing stamped"', async () => {
-    const denied = async () => json(401, { message: 'permission denied for table migration_ledger', code: '42501' });
-    expect((await readLedger({ url, key: 'k', fetch: denied })).unverified).toMatch(/401 42501 permission denied/);
+  it('a max-rows-capped or uncounted read is unverified, never "unapplied"', async () => {
+    const capped = async () => page(Array.from({ length: 1000 }, (_, i) => ({ name: `m${i}`, fingerprint: 'a'.repeat(16) })), '0-999/1054');
+    expect((await readLedger({ url, key: 'k', fetch: capped })).unverified).toMatch(/read 1000 of 1054 rows/);
+    const uncounted = async () => page([], null);
+    expect((await readLedger({ url, key: 'k', fetch: uncounted })).unverified).toMatch(/no row count/);
     const offline = async () => {
       throw new TypeError('fetch failed', { cause: { code: 'ENOTFOUND' } });
     };
     expect(await readLedger({ url, key: 'k', fetch: offline })).toEqual({ unverified: 'ENOTFOUND' });
-    const full = async () => json(200, Array.from({ length: 10_000 }, (_, i) => ({ name: `m${i}` })));
-    expect((await readLedger({ url, key: 'k', fetch: full })).unverified).toMatch(/may be truncated/);
   });
 
-  it('names the migrations with no stamp, in apply order', () => {
-    const files = ['phase54_a.sql', 'phase55_b.sql', 'phase56_migration_ledger.sql', 'phase57_c.sql'].map((file) => ({ file, sql: '' }));
-    expect(unstampedMigrations(files, new Set(['phase54_a', 'phase56_migration_ledger']))).toEqual(['phase55_b.sql', 'phase57_c.sql']);
+  it('a project that answers but will not serve the ledger is a fault, not an outage', async () => {
+    const denied = async () =>
+      new Response(JSON.stringify({ code: '42501', message: 'permission denied for table migration_ledger' }), { status: 403 });
+    expect((await readLedger({ url, key: 'k', fetch: denied })).error).toMatch(/403 42501 permission denied/);
+  });
+
+  it('names what is unapplied and what was edited after it ran, in apply order', () => {
+    const a = 'create table a (id int);';
+    const b = 'create table b (id int);';
+    const files = [
+      { file: 'phase54_a.sql', sql: a },
+      { file: 'phase55_b.sql', sql: b },
+      { file: 'phase57_c.sql', sql: 'select 1;' },
+    ];
+    const ledger = new Map([
+      ['phase54_a', new Set([fingerprint(a)])],
+      ['phase55_b', new Set([fingerprint('create table b (id bigint);')])],
+    ]);
+    expect(ledgerGaps(files, ledger)).toEqual([
+      { file: 'phase55_b.sql', kind: 'edited' },
+      { file: 'phase57_c.sql', kind: 'unapplied' },
+    ]);
   });
 });
 

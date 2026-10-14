@@ -579,19 +579,28 @@ hand runs both itself.
 triggers, policies, grants or the realtime publication, so the object probes
 alone would pass a migration that only changes those and was never applied.
 Production therefore records what ran: `public.migration_ledger` (phase56),
-and every migration's **last statement** stamps its own file name there:
+and every migration's **last statement** stamps its file name and a
+fingerprint of its SQL there:
 
 ```sql
-insert into public.migration_ledger (name) values ('phase57_example') on conflict do nothing;
+insert into public.migration_ledger (name, fingerprint) values ('phase57_example', '0123456789abcdef') on conflict do nothing;
 ```
 
-Last, so it runs only if everything above it did; a paste that stops at an
-error leaves no stamp. The check names every migration on `main` that
-production has no stamp for, whatever it changes, and
-`scripts/__tests__/migration-ledger.test.ts` fails a migration that does not
-end with its stamp, printing the line to add. Finishing a partly applied file
-by hand means its missing statements, then its stamp. Never paste a stamp on
-its own: the ledger is only as honest as that.
+```bash
+node scripts/prod-schema-check.mjs --stamp supabase/migrations/phase57_example.sql
+```
+
+prints the line for a file. Last, so it runs only if everything above it did;
+a paste that stops at an error leaves no stamp. The fingerprint is a hash of
+the file's statements, comments and whitespace ignored, so editing a migration
+production already ran shows up as edited rather than applied. The check names
+every migration on `main` that production has not applied as written,
+whatever it changes. `scripts/__tests__/migration-ledger.test.ts` fails a
+migration without a current stamp (printing the line to add) and any SQL edit
+to one of the backfilled phase2–55: **write a new migration rather than editing
+an applied one.** Finishing a partly applied file by hand means its missing
+statements, then its stamp. Never paste a stamp for statements that did not
+run: the ledger is only as honest as that.
 
 Production keys live in `~/.config/apex-training/prod.env` (`chmod 600`,
 `VITE_SUPABASE_URL=` and `SUPABASE_SERVICE_ROLE_KEY=` lines), never in a

@@ -97,9 +97,11 @@ refactor — which is exactly what happened once (see CONTRIBUTING.md).
   that is not the migration being applied is an older gap, applied first in
   phase order; after, exit 0. The babysitter HOLDs a migration PR until
   production matches `main`, `shipit` or not. Every migration's last
-  statement stamps its own name into `public.migration_ledger` (phase56), so
-  the check names any migration production never finished, even one that
-  only changes policies; a CI test fails a migration without its stamp.
+  statement stamps its name and SQL fingerprint into `public.migration_ledger`
+  (phase56; `prod-schema-check.mjs --stamp <file>` prints it), so the check
+  names any migration production never finished or ran as different SQL,
+  even one that only changes policies. A CI test fails a missing stamp; write
+  a new migration rather than editing an applied one.
 - **Migration numbers.** `supabase/migrations/phaseN_*.sql` is ordered by
   `sort -V` across the directory, so `N` is repo-global. Two branches can both
   add `phase33_*.sql`, merge cleanly, and leave an apply order nobody chose. Run

@@ -32,16 +32,20 @@
 // then the primary checkout's. The key goes in request headers only and is
 // never printed.
 //
-// Exit codes: 0 in sync; 1 drift; 2 could not check (no credentials, project
+// Exit codes: 0 in sync; 1 drift (a missing object, a migration not applied
+// as written, or a ledger that will not be read); 2 could not check (no credentials, project
 // unreachable or paused, key rejected) — an outage is not drift, so
 // scripts/supervisor-report.sh prints 2 as status, never an ACTION; 3 the
 // check itself failed (unreadable ref, a types file it cannot parse).
 //
-// The migration ledger (phase56). Every migration ends by stamping its own
-// name into public.migration_ledger, as its last statement, so a stamp means
-// the whole file ran. Once the expected schema has the ledger, this reads it
-// and names every migration on the ref with no stamp in production — the
-// check that does not depend on what a migration changes.
+// The migration ledger (phase56). Every migration ends by stamping its name
+// and a fingerprint of its SQL into public.migration_ledger, as its last
+// statement, so a stamp means the whole file ran as written. Once the
+// expected schema has the ledger, this reads it and names every migration on
+// the ref that production has not applied, or applied as different SQL — the
+// check that does not depend on what a migration changes. An unreadable
+// ledger on a project that answered everything else is drift (1), not an
+// outage. `--stamp <file>` prints the stamp a migration must end with.
 //
 // Honest limits: PostgREST cannot see triggers, RLS policies, grants,
 // constraints, defaults, column types, function signatures or realtime
@@ -50,6 +54,7 @@
 // paste finished off with the stamp, is a claim this cannot check.
 
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
@@ -60,7 +65,9 @@ const TYPES_PATH = 'src/lib/db/database.types.ts';
 const MIGRATIONS_DIR = 'supabase/migrations/';
 const BLIND_SPOTS =
   'triggers, RLS policies, grants, constraints, defaults, column types, function signatures, realtime publication membership (phase40)';
-const USAGE = 'usage: node scripts/prod-schema-check.mjs [--ref <git-ref>]   (default: origin/main, fetched first)';
+const USAGE =
+  'usage: node scripts/prod-schema-check.mjs [--ref <git-ref>]   (default: origin/main, fetched first)\n' +
+  '       node scripts/prod-schema-check.mjs --stamp <migration.sql>   (print the stamp it must end with)';
 
 // ── the expected schema: database.types.ts ──────────────────────────────────
 // Parsed rather than imported: this is plain node, the file is TypeScript, and
@@ -161,7 +168,7 @@ export function parseDatabaseTypes(src) {
 // ── where each object comes from: supabase/migrations ───────────────────────
 
 /** SQL split into statements, comments dropped; a `;` inside quotes or a $$ body does not split. */
-function statements(sql) {
+export function statements(sql) {
   const out = [];
   let cur = '';
   for (let i = 0; i < sql.length; i++) {
@@ -428,25 +435,59 @@ export async function checkSchema({ url, key, expected, fetch = globalThis.fetch
 }
 
 // ── the migration ledger ────────────────────────────────────────────────────
+// Each row is one migration as it was applied: its file name and a
+// fingerprint of its SQL. Keyed by name alone, an edit to a migration
+// production already ran would read as applied; with the fingerprint it reads
+// as edited (2463cf7e once changed a function signature inside phase31 —
+// exactly what PostgREST cannot see).
 
 export const LEDGER_TABLE = 'migration_ledger';
 
-/** The statement a migration must end with: its own stamp in the ledger. */
-export const stampFor = (file) =>
-  `insert into public.${LEDGER_TABLE} (name) values ('${file.replace(/\.sql$/, '')}') on conflict do nothing;`;
+const STAMP = new RegExp(
+  String.raw`^insert\s+into\s+public\.${LEDGER_TABLE}\s*\(\s*name\s*,\s*fingerprint\s*\)\s*values\s*` +
+    String.raw`\(\s*'([^']+)'\s*,\s*'([0-9a-f]{16})'\s*\)\s*on\s+conflict\s+do\s+nothing$`,
+  'i',
+);
+
+/** { name, fingerprint } when `statement` is a single-row ledger stamp, else null. */
+export function parseStamp(statement) {
+  const m = STAMP.exec(statement.trim());
+  return m ? { name: m[1], fingerprint: m[2] } : null;
+}
 
 /**
- * Every migration name production's ledger holds. Resolves { names } or, when
- * the ledger cannot be read, { unverified } with the reason.
+ * A migration's fingerprint: its statements with comments dropped and
+ * whitespace collapsed — so a comment or a reflow is not an edit — minus a
+ * trailing stamp, which cannot contain its own hash. 16 hex characters.
+ */
+export function fingerprint(sql) {
+  const stmts = statements(sql);
+  if (stmts.length > 0 && parseStamp(stmts.at(-1))) stmts.pop();
+  const body = stmts.map((st) => st.replace(/\s+/g, ' ').trim()).join(';\n');
+  return createHash('sha256').update(body).digest('hex').slice(0, 16);
+}
+
+/** The statement a migration must end with: its own stamp in the ledger. */
+export const stampFor = (file, sql) =>
+  `insert into public.${LEDGER_TABLE} (name, fingerprint) values ('${file.replace(/\.sql$/, '')}', '${fingerprint(sql)}') on conflict do nothing;`;
+
+/**
+ * Production's ledger as name → fingerprints. Resolves { ledger }; { error }
+ * when the project answered but would not serve the ledger (a real fault,
+ * not an outage: the key worked for everything else); { unverified } when it
+ * could not be reached, or the read came back short of the row count.
  */
 export async function readLedger({ url, key, fetch = globalThis.fetch }) {
-  const headers = { apikey: key, ...(key.startsWith('sb_') ? {} : { Authorization: `Bearer ${key}` }) };
-  // limit= is explicit so a project max-rows cap cannot quietly truncate the
-  // list into "unstamped"; a full page is reported rather than trusted.
-  const LIMIT = 10_000;
+  const headers = {
+    apikey: key,
+    ...(key.startsWith('sb_') ? {} : { Authorization: `Bearer ${key}` }),
+    // max-rows (1000 here) caps a read whatever limit= asks for, silently;
+    // the exact count in Content-Range is what proves the read is whole.
+    Prefer: 'count=exact',
+  };
   let res;
   try {
-    res = await fetch(`${url}/rest/v1/${LEDGER_TABLE}?select=name&limit=${LIMIT}`, {
+    res = await fetch(`${url}/rest/v1/${LEDGER_TABLE}?select=name,fingerprint`, {
       headers,
       signal: AbortSignal.timeout(15_000),
     });
@@ -454,14 +495,28 @@ export async function readLedger({ url, key, fetch = globalThis.fetch }) {
     return { unverified: reason(err) };
   }
   const body = await res.json().catch(() => null);
-  if (!res.ok || !Array.isArray(body)) return { unverified: explain({ status: res.status, ...(body ?? {}) }) };
-  if (body.length >= LIMIT) return { unverified: `${body.length} rows — the read may be truncated` };
-  return { names: new Set(body.map((r) => r.name)) };
+  if (!res.ok || !Array.isArray(body)) return { error: explain({ status: res.status, ...(body ?? {}) }) };
+  const total = Number(res.headers.get('content-range')?.split('/')[1]);
+  if (!Number.isFinite(total)) return { unverified: 'no row count in Content-Range — cannot prove the read is whole' };
+  if (body.length < total) return { unverified: `read ${body.length} of ${total} rows (max-rows cap)` };
+  const ledger = new Map();
+  for (const row of body) ledger.set(row.name, new Set([...(ledger.get(row.name) ?? []), row.fingerprint]));
+  return { ledger };
 }
 
-/** The migration files with no stamp among `names`, in apply order. */
-export const unstampedMigrations = (files, names) =>
-  files.map((f) => f.file).filter((file) => !names.has(file.replace(/\.sql$/, '')));
+/**
+ * Each migration production has not applied as written, in apply order:
+ * 'unapplied' when its name has no stamp, 'edited' when it has one for other SQL.
+ */
+export function ledgerGaps(files, ledger) {
+  const gaps = [];
+  for (const { file, sql } of files) {
+    const stamps = ledger.get(file.replace(/\.sql$/, ''));
+    if (!stamps) gaps.push({ file, kind: 'unapplied' });
+    else if (!stamps.has(fingerprint(sql))) gaps.push({ file, kind: 'edited' });
+  }
+  return gaps;
+}
 
 // ── the command ─────────────────────────────────────────────────────────────
 
@@ -530,7 +585,11 @@ async function main(argv) {
   let ref = 'origin/main';
   let fetchRef = true;
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--ref' && argv[i + 1]) {
+    if (argv[i] === '--stamp' && argv[i + 1]) {
+      const path = argv[++i];
+      console.log(stampFor(path.split('/').pop(), readFileSync(path, 'utf8')));
+      return 0;
+    } else if (argv[i] === '--ref' && argv[i + 1]) {
       ref = argv[++i];
       fetchRef = false;
     } else if (argv[i] === '-h' || argv[i] === '--help') {
@@ -579,26 +638,6 @@ async function main(argv) {
   let files = null;
   const filesAtRef = () => (files ??= migrationsAt(ref));
 
-  // The ledger, once main's schema has it. A ledger table production lacks is
-  // already reported missing above; listing every migration as unstamped on
-  // top of that would bury the one line that matters.
-  let unstamped = [];
-  let ledgerRead = false;
-  const hasLedger = expected.tables.some((t) => t.name === LEDGER_TABLE);
-  if (hasLedger && !missing.some((m) => m.kind === 'table' && m.name === LEDGER_TABLE)) {
-    const ledger = await readLedger({ url: creds.url, key: creds.key });
-    if (ledger.unverified) {
-      unverified.push({ what: LEDGER_TABLE, why: ledger.unverified });
-    } else {
-      try {
-        unstamped = unstampedMigrations(filesAtRef(), ledger.names);
-        ledgerRead = true;
-      } catch (err) {
-        unverified.push({ what: LEDGER_TABLE, why: `could not list the migrations at ${ref}: ${err.message}` });
-      }
-    }
-  }
-
   if (missing.length > 0) {
     let index = null;
     try {
@@ -609,16 +648,7 @@ async function main(argv) {
       console.log(`✗ ${what} is missing${index ? ` — ${sourceOf(m, index)}` : ''}`);
     }
   }
-  for (const file of unstamped) {
-    console.log(`✗ migration ${file} has no stamp in production's ${LEDGER_TABLE} — not applied, or it stopped before its last statement`);
-  }
   for (const u of unverified) console.log(`? ${u.what} could not be checked: ${u.why}`);
-  if (unstamped.length > 0) {
-    console.log(
-      `${unstamped.length} migration(s) on ${ref} unstamped in production. Apply each in phase order; a file that is ` +
-        'partly applied wants only its missing statements, then its stamp (its last statement).',
-    );
-  }
   if (missing.length > 0) {
     console.log(
       `${missing.length} missing of the ${scope} main's code expects. Apply the statements that create them in the ` +
@@ -630,12 +660,54 @@ async function main(argv) {
   } else {
     console.log(`✓ all ${scope} main's code expects are present`);
   }
-  if (!ledgerRead) {
-    console.log(`not visible to this check: ${BLIND_SPOTS}`);
-  } else if (unstamped.length === 0) {
-    console.log(`✓ every migration on ${ref} is stamped in production's ${LEDGER_TABLE}`);
+
+  // The ledger, once main's schema has it. A ledger table production lacks
+  // (or one the probes already could not check) is reported above; listing
+  // every migration as unapplied on top of that would bury the line that
+  // matters.
+  const hasLedger = expected.tables.some((t) => t.name === LEDGER_TABLE);
+  const ledgerProbed = !missing.some((m) => m.kind === 'table' && m.name === LEDGER_TABLE)
+    && !unverified.some((u) => u.what === LEDGER_TABLE);
+  let gaps = [];
+  let ledgerFault = false;
+  let ledgerUnverified = false;
+  let ledgerRead = false;
+  if (hasLedger && ledgerProbed) {
+    const read = await readLedger({ url: creds.url, key: creds.key });
+    let why = read.unverified;
+    if (read.error) {
+      ledgerFault = true;
+      console.log(`✗ production's ${LEDGER_TABLE} exists but would not be read (${read.error}) — no migration's application can be confirmed`);
+    } else if (!why) {
+      try {
+        gaps = ledgerGaps(filesAtRef(), read.ledger);
+        ledgerRead = true;
+      } catch (err) {
+        why = `could not list the migrations at ${ref}: ${err.message}`;
+      }
+    }
+    if (why) {
+      ledgerUnverified = true;
+      console.log(`? ${LEDGER_TABLE} could not be checked: ${why}`);
+    }
   }
-  return missing.length > 0 || unstamped.length > 0 ? 1 : unverified.length > 0 ? 2 : 0;
+  for (const g of gaps) {
+    console.log(
+      g.kind === 'unapplied'
+        ? `✗ migration ${g.file} is not in production's ${LEDGER_TABLE} — never applied, or the paste stopped before its last statement`
+        : `✗ migration ${g.file} was applied as different SQL — it was edited after production ran it`,
+    );
+  }
+  if (gaps.length > 0) {
+    console.log(
+      `${gaps.length} migration(s) on ${ref} not applied as written. Apply each in phase order and end with its stamp ` +
+        '(its last statement); a partly applied or edited one wants only the statements production lacks, then its stamp.',
+    );
+  } else if (ledgerRead) {
+    console.log(`✓ every migration on ${ref} is in production's ${LEDGER_TABLE}, as written`);
+  }
+  if (!ledgerRead) console.log(`not visible to this check: ${BLIND_SPOTS}`);
+  return missing.length > 0 || gaps.length > 0 || ledgerFault ? 1 : unverified.length > 0 || ledgerUnverified ? 2 : 0;
 }
 
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {

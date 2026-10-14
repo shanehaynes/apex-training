@@ -771,14 +771,17 @@ export type Database = {
       migration_ledger: {
         Row: {
           applied_at: string
+          fingerprint: string
           name: string
         }
         Insert: {
           applied_at?: string
+          fingerprint: string
           name: string
         }
         Update: {
           applied_at?: string
+          fingerprint?: string
           name?: string
         }
         Relationships: []
