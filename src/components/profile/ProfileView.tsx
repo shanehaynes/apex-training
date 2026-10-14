@@ -15,6 +15,7 @@ import ConnectorGuide from './ConnectorGuide';
 import CorosConnection from './CorosConnection';
 import AccountData from './AccountData';
 import ProfileDisclosure from './ProfileDisclosure';
+import NotebookButton from './NotebookButton';
 import RpeTrackingToggle from './RpeTrackingToggle';
 import type { AvatarKey } from '../../lib/db/types';
 import { bodyWeightEdit, bodyWeightText, type WeightUnit } from '../../lib/tracking/weight';
@@ -436,14 +437,7 @@ export default function ProfileView() {
                 it works to and the method it prescribes from — every
                 proposal it makes is approved there. */}
             <div className="profile-feed">
-              <button
-                type="button"
-                className="btn-today"
-                data-testid="open-notebook"
-                onClick={() => dispatch({ type: 'OPEN_NOTEBOOK' })}
-              >
-                <NotebookPen size={14} strokeWidth={1.5} /> Open the notebook
-              </button>
+              <NotebookButton icon={<NotebookPen size={14} strokeWidth={1.5} />} />
               <span className="profile-hint">What the coach remembers, and what it proposes.</span>
             </div>
           </section>
