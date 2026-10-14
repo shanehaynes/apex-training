@@ -25,7 +25,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W13 | Release + polish | done (#190, #191, #193, #194) · **App Store: 1.0 (509) rejected 2026-10-09 — 2.1 Information Needed; reply + recording pending (app-store.md §3)** | Mac | 2026-10-09: build 10 = 1.0.0 (509) from `testflight.yml` run 37964880205 carries W15, #383–#388; phase52 in prod; Push Notifications enabled on the App ID; version 1.0 at *Prepare for Submission*, manual release set |
 | W14 | UX review implementation | done (#283–#292, #296, #297) | Mac | ux-review.md §7; decisions D-037…D-044; **TestFlight build 8 (0.9.0/424) uploaded 2026-09-22 by the first `testflight.yml` run**; snapshots re-recorded on the iPhone 17 (#300); Shane's device run on build 8 is next |
 | W15 | Connector access level (look-only / full tokens) | done (#379) | Mac | after #371/#376 gave `/api/mcp` write access; brief [W15](workstreams/W15-connector-access.md) |
-| W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 merged (#430); MT in review | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
+| W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0/M2b next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
 
 ## Next up
 0. **W16 M1 — write finished sessions to Apple Health (Mac).** Goal: a tracker finish writes an
@@ -125,6 +125,13 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-14 · W16 release · Mac. **TestFlight 1.1.0 (561)** uploaded by `testflight.yml` run
+  38615346669: HealthKit workout write (M1) and in-app terms re-acceptance (MT). The first two runs
+  were refused for ITMS-90683 — App Store Connect requires `NSHealthShareUsageDescription` for any
+  HealthKit app, even write-only (#439 adds it; the second run had built the commit before #439
+  landed). Signing passed with the HealthKit entitlement. Open, Shane's: device run on 561 (a
+  finished workout in Health, cancel removes it; the terms screen needs a bumped version to show),
+  the 1.1 App Store description, and the privacy bump once testers are on 561.
 - 2026-10-14 · W16 MT · Mac. A signed-in user who meets updated Terms/Privacy (a 403
   `terms-acceptance-required`, or the background check after sign-in) gets an in-app
   re-acceptance screen over the tabs (an open workout keeps its state); the write queue pauses on the gate and resumes on
