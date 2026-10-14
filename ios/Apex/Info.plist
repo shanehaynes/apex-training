@@ -79,9 +79,13 @@
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<!-- W16 M1: the system sheet's reason for writing workouts to Apple Health.
-	     No NSHealthShareUsageDescription until Apex reads from Health (M2). -->
+	     The share string is required by App Store Connect for any app carrying
+	     the HealthKit entitlement, read or not (ITMS-90683 refused 1.1.0 without
+	     it). 1.1 never asks to read, so it is never shown until W16 M2. -->
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Apex saves the workouts you finish in the tracker to Apple Health, with their real start and end times, so they show up in Health and Fitness.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>If you turn it on under You › Apple Health, Apex reads the workouts recorded by your watch and other apps so they fill in the matching sessions on your training calendar.</string>
 	<!-- The web hand-off button (D-020); consumed in W2. -->
 	<key>CFBundleURLTypes</key>
 	<array>

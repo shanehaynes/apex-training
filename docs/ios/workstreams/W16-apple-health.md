@@ -106,8 +106,9 @@ Acceptance:
 - [ ] Device (Shane): a finished workout appears in Health with Apex as source and the right
       type; cancel removes it; a second finish of the same occurrence replaces, not duplicates.
 - [ ] Merged after 1.0 is approved; released as 1.1.0 by `testflight.yml`. The first upload is
-      also the proof that a write-only app passes ITMS-90683 without `NSHealthShareUsageDescription`;
-      if Apple demands it, add the key (one HELD line) before resubmitting.
+      also the proof that a write-only app passes ITMS-90683 without `NSHealthShareUsageDescription`
+      — it does not: the 2026-10-14 upload (run 38606595787) was refused, so the key ships in 1.1,
+      worded for M2's read and never shown until M2 asks.
 
 ### MT — In-app terms re-acceptance for a signed-in user · Mac
 Why: bumping `PRIVACY_VERSION` makes every JWT route answer 403 `terms-acceptance-required`
@@ -273,7 +274,8 @@ Scope:
   never loses a match.
 - `HealthModel` toggles move to the server (`connect` on first ON, `set-categories` after); M1's
   per-owner local flag migrates once, then is deleted.
-- HELD: `Info.plist` `+NSHealthShareUsageDescription`; entitlement
+- HELD: `Info.plist` `NSHealthShareUsageDescription` (already present since 1.1 — check its wording
+  still matches what M2 reads); entitlement
   `+com.apple.developer.healthkit.background-delivery`; `PrivacyInfo.xcprivacy`
   `+NSPrivacyCollectedDataTypeHealth`.
 
