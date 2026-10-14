@@ -1,0 +1,14 @@
+/* The count of notebook proposals waiting on the athlete (NotebookButton). */
+.notebook-button__badge {
+  margin-left: 8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 18px;
+  text-align: center;
+}
