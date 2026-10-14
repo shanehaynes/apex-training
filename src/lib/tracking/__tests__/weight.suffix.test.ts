@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseWeight, withExplicitUnit, type WeightContext } from '../weight';
+import { knownUnitContext, parseWeight, rowWithExplicitUnit, withExplicitUnit, type WeightContext } from '../weight';
 
 // A committed bare weight carries the unit it was typed in, so a later unit
 // switch (which re-declares what bare numbers mean) never reinterprets it.
@@ -50,5 +50,44 @@ describe('withExplicitUnit', () => {
     for (const text of ['0', '0.0', '-10', '+10', '', '   ', 'heavy', '100kg x 5', '80%', '5.10a', '185.', '.5', '1e3', 'BW25']) {
       expect(withExplicitUnit(text, KG)).toBe(text);
     }
+  });
+});
+
+// The save path's rule: every set row sent carries its unit, even one that
+// leaves before its field's blur rewrote it.
+describe('rowWithExplicitUnit', () => {
+  const row = (actual_weight: string | null) => ({ set_number: 1, actual_weight, actual_reps: '5' });
+
+  it('suffixes a bare weight with the known unit, leaving the rest of the row alone', () => {
+    expect(rowWithExplicitUnit(row('100'), KG, false)).toEqual({ set_number: 1, actual_weight: '100 kg', actual_reps: '5' });
+    expect(rowWithExplicitUnit(row('185'), LB, false)).toEqual({ set_number: 1, actual_weight: '185 lb', actual_reps: '5' });
+  });
+
+  it('does not rewrite when the unit is not known', () => {
+    const r = row('100');
+    expect(rowWithExplicitUnit(r, null, false)).toBe(r);
+  });
+
+  it('never rewrites a climbing pitch (its weight column holds the grade)', () => {
+    const r = row('12');
+    expect(rowWithExplicitUnit(r, KG, true)).toBe(r);
+  });
+
+  it('passes suffixed, BW, zero, empty and junk weights through unchanged', () => {
+    for (const w of ['185 lb', '100 kg', 'BW+10', '0', null, 'heavy']) {
+      const r = row(w);
+      expect(rowWithExplicitUnit(r, KG, false)).toBe(r);
+    }
+  });
+});
+
+describe('knownUnitContext', () => {
+  it('is the profile context only when weight_unit is lb or kg', () => {
+    expect(knownUnitContext({ weight_unit: 'kg', body_weight_lb: 180 })).toEqual({ unit: 'kg', bodyWeightLb: 180 });
+    expect(knownUnitContext({ weight_unit: 'lb', body_weight_lb: null })).toEqual({ unit: 'lb', bodyWeightLb: null });
+    expect(knownUnitContext(null)).toBeNull();
+    expect(knownUnitContext(undefined)).toBeNull();
+    expect(knownUnitContext({ body_weight_lb: 180 })).toBeNull();
+    expect(knownUnitContext({ weight_unit: 'stone' })).toBeNull();
   });
 });

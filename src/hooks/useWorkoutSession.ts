@@ -21,6 +21,8 @@ import { createSaveQueue, isAuthFailure, isNonRetryable } from '../lib/tracking/
 import type { PausedStatus, SaveQueue, SaveQueueState } from '../lib/tracking/saveQueue';
 import type { SetField, CardioField } from '../components/tracker/TrackerExercise';
 import { registerAgentState } from '../dev/agentBridge';
+import { useAuth } from '../context/auth';
+import { knownUnitContext, rowWithExplicitUnit, type WeightContext } from '../lib/tracking/weight';
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
@@ -116,6 +118,11 @@ export function useWorkoutSession(
   // finished session, or the finish response — so reopening the summary
   // costs nothing.
   const recordsRef = useRef<{ prs: PersonalRecord[]; scoreRecord: WorkoutScoreRecord | null }>({ prs: [], scoreRecord: null });
+  // The unit a bare weight is sent with, null while it is not known. Read by
+  // the send like groupsRef, so a queued send uses the current profile.
+  const { profile } = useAuth();
+  const unitContextRef = useRef<WeightContext | null>(null);
+  useEffect(() => { unitContextRef.current = knownUnitContext(profile); }, [profile]);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Written after commit, not during render (unsafe under StrictMode). The
@@ -168,7 +175,14 @@ export function useWorkoutSession(
       if (kind === 'set') {
         const setNumber = Number(setNumberStr);
         const set = tracked?.sets.find(s => s.setNumber === setNumber);
-        if (tracked && set) setLogs.push(setToRow(eventId, eventDate, tracked, set));
+        // A row can leave before its field's blur suffixes it (autosave
+        // mid-typing, a tab hide, Finish while focused): it carries its unit
+        // anyway.
+        if (tracked && set) {
+          setLogs.push(rowWithExplicitUnit(
+            setToRow(eventId, eventDate, tracked, set), unitContextRef.current, tracked.exercise.category === 'climbing',
+          ));
+        }
       } else if (kind === 'cardio') {
         if (tracked?.cardio) cardioLogs.push(cardioToRow(eventId, eventDate, tracked));
       } else if (kind === 'note') {

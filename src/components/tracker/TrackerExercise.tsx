@@ -8,7 +8,7 @@ import type { SetMetaPatch } from '../../hooks/useWorkoutSession';
 import { countSpecNote, hasPerSideCount, stripCountSpec } from '../../lib/schedule/definitions';
 import { useSchedule } from '../../context/schedule';
 import { AuthContext } from '../../context/auth';
-import { withExplicitUnit } from '../../lib/tracking/weight';
+import { knownUnitContext, withExplicitUnit } from '../../lib/tracking/weight';
 import ExercisePicker from '../modal/ExercisePicker';
 import DurationInput from './DurationInput';
 
@@ -254,12 +254,8 @@ export default function TrackerExercise({
   onRemove,
 }: Props) {
   const { definitions, updateDefinition } = useSchedule();
-  // Suffixing needs the unit the profile actually holds: not before the
-  // profile loads, and not while the phase55 column is absent — the
-  // context's lb default there is a guess, and a suffix would store it.
-  const auth = useContext(AuthContext);
-  const profileUnit = auth?.profile?.weight_unit;
-  const weightContext = auth && (profileUnit === 'lb' || profileUnit === 'kg') ? auth.weightContext : null;
+  // Suffixing needs the unit the profile actually holds (knownUnitContext).
+  const weightContext = knownUnitContext(useContext(AuthContext)?.profile);
   const [picking, setPicking] = useState(false);
   // Shown at once; the definition write that makes them stick lands via the
   // realtime refetch, and an ad-hoc entry with no definition keeps them for

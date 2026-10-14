@@ -112,6 +112,40 @@ test('under a kg profile a bare weight is saved with its unit; BW forms and suff
   expect(sent.map(r => r.actual_weight).filter(w => w && /^\s*\d+(?:[.,]\d+)?\s*$/.test(w))).toEqual([]);
 });
 
+// The rows below leave while the field still has focus, so its blur never
+// runs: only the send path can give them their unit. dispatchEvent clicks
+// without moving focus, as a tap that lands before the blur would.
+test('a row sent before its blur still carries its unit: the autosave mid-typing, and Finish while focused', async ({ page }) => {
+  await stubProfile(page, { weight_unit: 'kg', body_weight_lb: 180 });
+  const sent = await installSessionStub(page);
+  await openTracker(page);
+
+  // The debounced autosave fires while the field is focused: the field still
+  // reads "100", the row on the wire reads "100 kg".
+  const autosaved = page.waitForRequest(req =>
+    isSave(req) && setLogsOf(req).some(r => r.set_number === 3 && r.actual_weight === '100 kg'));
+  await weight(page, 3).click();
+  await weight(page, 3).fill('100');
+  await autosaved;
+  await expect(weight(page, 3)).toBeFocused();
+  await expect(weight(page, 3)).toHaveValue('100');
+
+  // Type, then Finish without leaving the field: Finish's flush sends the
+  // row, with its unit.
+  await weight(page, 2).click();
+  await weight(page, 2).fill('92.5');
+  await expect(weight(page, 2)).toBeFocused();
+  const finishFlush = page.waitForRequest(req =>
+    isSave(req) && setLogsOf(req).some(r => r.set_number === 2 && r.actual_weight === '92.5 kg'));
+  await page.locator('.tracker-header__finish').dispatchEvent('click');
+  await page.getByRole('button', { name: 'Finish anyway' }).dispatchEvent('click');
+  await finishFlush;
+  await expect(page.locator('.tracker-summary')).toBeVisible();
+
+  // Nothing bare ever left the tracker.
+  expect(sent.map(r => r.actual_weight).filter(w => w && /^\s*\d+(?:[.,]\d+)?\s*$/.test(w))).toEqual([]);
+});
+
 test('with no known unit on the profile, a bare weight is saved as typed', async ({ page }) => {
   // The fixtures' driver profile predates phase55: no weight_unit column.
   await installSessionStub(page);
