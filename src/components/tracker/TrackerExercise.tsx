@@ -12,7 +12,9 @@ import { AuthContext } from '../../context/auth';
 import { knownUnitContext, withExplicitUnit } from '../../lib/tracking/weight';
 import ExercisePicker from '../modal/ExercisePicker';
 import DurationInput from './DurationInput';
+import { resolvedLoadNumber } from '../../lib/tracking/percent';
 import '../../styles/climbing.css';
+import '../../styles/percent-1rm.css';
 
 export type { SetField };
 export type CardioField = keyof Omit<CardioActuals, 'isLogged' | 'shadow'>;
@@ -51,9 +53,12 @@ const CARDIO_CATEGORIES: ExerciseCategory[] = ['cardio'];
 // A percentage target the server resolved reads as the load first: "185 (80%)".
 function plannedLabel(p: PlannedSet, resolvedWeight?: string): string {
   const parts: string[] = [];
-  if (p.targetWeight) parts.push(resolvedWeight ? `${resolvedWeight} (${p.targetWeight.trim()})` : p.targetWeight);
+  if (p.targetWeight) {
+    parts.push(resolvedWeight ? `${resolvedLoadNumber(resolvedWeight)} (${p.targetWeight.trim()})` : p.targetWeight);
+  }
   const reps = stripCountSpec(p.targetReps);
-  if (reps) parts.push(`× ${reps}`);
+  // A resolved label wraps in its column; "× 5" stays on one line.
+  if (reps) parts.push(resolvedWeight ? `×\u00a0${reps}` : `× ${reps}`);
   const duration = stripCountSpec(p.targetDuration);
   if (duration) parts.push(duration);
   return parts.length ? parts.join(' ') : '—';
@@ -78,9 +83,10 @@ const SHADOW_FIELD: Record<SetField, keyof LastSetActuals> = {
 };
 
 /**
- * A field's ghost: last session's value — except the weight of a set whose
- * percentage target resolved, which ghosts today's load instead, so the tap
- * that commits the ghost commits what the plan asks for.
+ * What a ghost tap commits into a field: last session's value — except the
+ * weight of a set whose percentage target resolved, which commits today's
+ * load instead, with the unit it was resolved in ("185 lb"), so what the
+ * plan asks for is stored whatever unit the profile says by then.
  */
 function ghostOf(set: TrackedSet, field: SetField): string {
   if (!set.shadow) return '';
@@ -227,7 +233,9 @@ function SetRow({
       >
         {set.isWarmup ? 'W' : set.setNumber}
       </button>
-      <span className="tracker-set__planned">{unplanned ? '—' : set.isExtra ? 'extra' : plannedLabel(set.planned, set.resolvedPlannedWeight)}</span>
+      <span className={`tracker-set__planned${set.resolvedPlannedWeight && !unplanned && !set.isExtra ? ' percent-target' : ''}`}>
+        {unplanned ? '—' : set.isExtra ? 'extra' : plannedLabel(set.planned, set.resolvedPlannedWeight)}
+      </span>
       <div
         className="tracker-set__inputs"
         // React's focus/blur bubble, so the row sees every field's; the
@@ -239,8 +247,9 @@ function SetRow({
         {fields.map(field => {
           const ghost = ghostOf(set, field);
           const className = `tracker-input ${FIELD_CLASS[field]}${ghost ? ' tracker-input--shadow' : ''}`;
-          // With no ghost to commit, a resolved percentage still shows as the hint.
-          const hint = ghost || (field === 'actualWeight' ? set.resolvedPlannedWeight : undefined) || undefined;
+          // A resolved load shows as its number, ghost or (with nothing to commit) plain hint.
+          const resolved = field === 'actualWeight' ? set.resolvedPlannedWeight : undefined;
+          const hint = (resolved ? resolvedLoadNumber(resolved) : ghost) || undefined;
           return field === 'actualDuration' ? (
             <DurationInput
               key={field}

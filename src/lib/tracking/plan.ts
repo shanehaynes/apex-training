@@ -33,10 +33,11 @@ export interface TrackedSet {
   ascentStyle: AscentStyle | null;
   /** Climbing pitches only: goes it took, as typed ('' = not counted). */
   attempts: string;
-  /** A percentage target ("80%") as today's load, in the profile's unit
-   *  without a suffix ("185"): resolved by the server at bootstrap
-   *  (resolvePercentTargets, percent.ts). Absent when the target is not a
-   *  percentage or the lift has no history. Display only — never saved. */
+  /** A percentage target ("80%") as today's load, with its unit ("185 lb",
+   *  "80 kg"): resolved by the server at bootstrap under the profile's known
+   *  unit (resolvePercentTargets, percent.ts). Absent when the target is not
+   *  a percentage, the lift has no usable history or the unit is unknown.
+   *  Never saved as itself — a ghost tap commits it as an actual weight. */
   resolvedPlannedWeight?: string;
 }
 

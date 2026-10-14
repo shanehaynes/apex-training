@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { hasPercentTargets, parsePercent, resolvePercentTargets, resolvePercentWeight } from '../percent';
+import {
+  MAX_BASIS_REPS, clearResolvedLoads, hasPercentTargets, parsePercent, percentBasis, resolvePercentTargets, resolvePercentWeight,
+  resolvedLoadNumber,
+} from '../percent';
 import { buildTrackerModel, setToRow } from '../plan';
 import { classifySet, computeSessionPRs } from '../records';
 import { computeStrengthStats } from '../../review/stats';
@@ -37,18 +40,19 @@ describe('parsePercent — the grammar', () => {
 
 describe('resolvePercentWeight — rounding per unit', () => {
   it('pounds round to the nearest 2.5 lb', () => {
-    expect(resolvePercentWeight('80%', 231.25, LB)).toEqual({ lb: 185, display: '185' });
+    expect(resolvePercentWeight('80%', 231.25, LB)).toEqual({ lb: 185, display: '185', text: '185 lb' });
     // 230 × 0.8 = 184 → 185; 233.33 × 0.8 = 186.67 → 187.5; 230 × 0.7 = 161 → 160.
-    expect(resolvePercentWeight('80%', 230, LB)).toEqual({ lb: 185, display: '185' });
-    expect(resolvePercentWeight('80%', 200 * (1 + 5 / 30), LB)).toEqual({ lb: 187.5, display: '187.5' });
-    expect(resolvePercentWeight('70%', 230, LB)).toEqual({ lb: 160, display: '160' });
-    expect(resolvePercentWeight('72.5%', 200, LB)).toEqual({ lb: 145, display: '145' });
+    expect(resolvePercentWeight('80%', 230, LB)).toEqual({ lb: 185, display: '185', text: '185 lb' });
+    expect(resolvePercentWeight('80%', 200 * (1 + 5 / 30), LB)).toEqual({ lb: 187.5, display: '187.5', text: '187.5 lb' });
+    expect(resolvePercentWeight('70%', 230, LB)).toEqual({ lb: 160, display: '160', text: '160 lb' });
+    expect(resolvePercentWeight('72.5%', 200, LB)).toEqual({ lb: 145, display: '145', text: '145 lb' });
   });
 
   it('kilograms round to the nearest 1 kg and print in kg', () => {
     // 100 kg × 0.8 = 80 kg; 103 kg × 0.8 = 82.4 → 82 kg; 103 kg × 0.85 = 87.55 → 88 kg.
     const r80 = resolvePercentWeight('80%', 100 * LB_PER_KG, KG)!;
     expect(r80.display).toBe('80');
+    expect(r80.text).toBe('80 kg');
     expect(r80.lb).toBeCloseTo(80 * LB_PER_KG, 6);
     expect(resolvePercentWeight('80%', 103 * LB_PER_KG, KG)!.display).toBe('82');
     expect(resolvePercentWeight('85%', 103 * LB_PER_KG, KG)!.display).toBe('88');
@@ -56,13 +60,19 @@ describe('resolvePercentWeight — rounding per unit', () => {
 
   it('the same 1RM rounds by the unit it is read in', () => {
     // 231.25 lb × 0.8 = 185 lb = 83.91 kg → 84 kg.
-    expect(resolvePercentWeight('80%', 231.25, LB)!.display).toBe('185');
-    expect(resolvePercentWeight('80%', 231.25, KG)!.display).toBe('84');
+    expect(resolvePercentWeight('80%', 231.25, LB)!.text).toBe('185 lb');
+    expect(resolvePercentWeight('80%', 231.25, KG)!.text).toBe('84 kg');
+  });
+
+  it('a label reads the number of a resolved load', () => {
+    expect(resolvedLoadNumber('185 lb')).toBe('185');
+    expect(resolvedLoadNumber('82 kg')).toBe('82');
+    expect(resolvedLoadNumber('187.5 lb')).toBe('187.5');
   });
 
   it('a load that rounds to nothing is not a target', () => {
     expect(resolvePercentWeight('1%', 100, LB)).toBeNull();
-    expect(resolvePercentWeight('1%', 200, LB)).toEqual({ lb: 2.5, display: '2.5' });
+    expect(resolvePercentWeight('1%', 200, LB)).toEqual({ lb: 2.5, display: '2.5', text: '2.5 lb' });
   });
 
   it('no history — no 1RM — resolves nothing', () => {
@@ -124,9 +134,9 @@ describe('resolvePercentTargets — the bootstrap step', () => {
 
   it('resolves uniform and per-set percentage targets against the lift’s best 1RM', () => {
     const groups = resolvePercentTargets(model, HISTORY, LB);
-    expect(setsOf(groups, 'Bench Press').map(s => s.resolvedPlannedWeight)).toEqual(['185', '185']);
+    expect(setsOf(groups, 'Bench Press').map(s => s.resolvedPlannedWeight)).toEqual(['185 lb', '185 lb']);
     // 300 × 0.7 = 210; set 2 is a plain weight and stays as written.
-    expect(setsOf(groups, 'Back Squat').map(s => s.resolvedPlannedWeight)).toEqual(['210', undefined]);
+    expect(setsOf(groups, 'Back Squat').map(s => s.resolvedPlannedWeight)).toEqual(['210 lb', undefined]);
     expect(setsOf(groups, 'Back Squat')[1]).not.toHaveProperty('resolvedPlannedWeight');
   });
 
@@ -142,14 +152,50 @@ describe('resolvePercentTargets — the bootstrap step', () => {
     expect(setsOf(groups, 'Board')[0]).not.toHaveProperty('resolvedPlannedWeight');
   });
 
-  it('reads history under the profile’s unit', () => {
-    const kgHistory = [row({ exercise_name: 'Bench Press', actual_weight: '100', actual_reps: '1' })];
-    expect(setsOf(resolvePercentTargets(model, kgHistory, KG), 'Bench Press')[0].resolvedPlannedWeight).toBe('80');
-    // The same bare "100" is 100 lb to a pounds lifter: 80 lb.
-    expect(setsOf(resolvePercentTargets(model, kgHistory, LB), 'Bench Press')[0].resolvedPlannedWeight).toBe('80');
-    const lbHistory = [row({ exercise_name: 'Bench Press', actual_weight: '100 lb', actual_reps: '1' })];
-    // 100 lb = 45.36 kg × 0.8 = 36.3 → 36 kg.
-    expect(setsOf(resolvePercentTargets(model, lbHistory, KG), 'Bench Press')[0].resolvedPlannedWeight).toBe('36');
+  it('reads history and rounds under the profile’s unit, and says which', () => {
+    // A bare "103": 103 kg × 0.8 = 82.4 → 82 kg to a kg lifter; 103 lb × 0.8 = 82.4 → 82.5 lb to a pounds one.
+    const bare = [row({ exercise_name: 'Bench Press', actual_weight: '103', actual_reps: '1' })];
+    expect(setsOf(resolvePercentTargets(model, bare, KG), 'Bench Press')[0].resolvedPlannedWeight).toBe('82 kg');
+    expect(setsOf(resolvePercentTargets(model, bare, LB), 'Bench Press')[0].resolvedPlannedWeight).toBe('82.5 lb');
+    // A suffixed "100 kg" is 100 kg under either: 80 kg, or 176.4 lb → 177.5 lb.
+    const kgHistory = [row({ exercise_name: 'Bench Press', actual_weight: '100 kg', actual_reps: '1' })];
+    expect(setsOf(resolvePercentTargets(model, kgHistory, KG), 'Bench Press')[0].resolvedPlannedWeight).toBe('80 kg');
+    expect(setsOf(resolvePercentTargets(model, kgHistory, LB), 'Bench Press')[0].resolvedPlannedWeight).toBe('177.5 lb');
+  });
+
+  it('a bodyweight-load best set resolves no bar load', () => {
+    const BW: WeightContext = { unit: 'lb', bodyWeightLb: 180 };
+    const pullUp = buildTrackerModel(makeEvent([{ id: 'p', name: 'Pull-Up', category: 'strength', sets: 1, reps: '3', weight: '80%' }]));
+    const bw = [row({ exercise_name: 'Pull-Up', actual_weight: 'BW+45', actual_reps: '3' })];
+    expect(percentBasis(bw, BW).get('Pull-Up')).toBeNull();
+    expect(setsOf(resolvePercentTargets(pullUp, bw, BW), 'Pull-Up')[0]).not.toHaveProperty('resolvedPlannedWeight');
+    // An absolute load that beats it is a bar load: 300 × 0.8 = 240.
+    const both = [...bw, row({ exercise_name: 'Pull-Up', set_number: 2, actual_weight: '300', actual_reps: '1' })];
+    expect(setsOf(resolvePercentTargets(pullUp, both, BW), 'Pull-Up')[0].resolvedPlannedWeight).toBe('240 lb');
+  });
+
+  it(`only sets of at most ${MAX_BASIS_REPS} reps estimate the max`, () => {
+    const curl = buildTrackerModel(makeEvent([{ id: 'k', name: 'Curl', category: 'strength', sets: 1, reps: '10', weight: '50%' }]));
+    // 100 × 60 would be a 300 lb "max" and prescribe 150 — more than ever lifted.
+    const highRep = [row({ exercise_name: 'Curl', actual_weight: '100', actual_reps: '60' })];
+    expect(percentBasis(highRep, LB).has('Curl')).toBe(false);
+    expect(setsOf(resolvePercentTargets(curl, highRep, LB), 'Curl')[0]).not.toHaveProperty('resolvedPlannedWeight');
+    // 13 reps is out; 12 is in: 60 × (1 + 12/30) = 84 → 42 → 42.5.
+    const at13 = [row({ exercise_name: 'Curl', actual_weight: '60', actual_reps: '13' })];
+    expect(setsOf(resolvePercentTargets(curl, at13, LB), 'Curl')[0]).not.toHaveProperty('resolvedPlannedWeight');
+    const at12 = [...highRep, row({ exercise_name: 'Curl', set_number: 2, actual_weight: '60', actual_reps: '12' })];
+    expect(setsOf(resolvePercentTargets(curl, at12, LB), 'Curl')[0].resolvedPlannedWeight).toBe('42.5 lb');
+  });
+
+  it('a swap drops the resolved loads; nothing else on the sets changes', () => {
+    const [tracked] = resolvePercentTargets(buildTrackerModel(makeEvent([EXERCISES[0]])), HISTORY, LB)[0].exercises;
+    expect(tracked.sets[0].resolvedPlannedWeight).toBe('185 lb');
+    const swapped = clearResolvedLoads(tracked);
+    for (const set of swapped.sets) expect(set).not.toHaveProperty('resolvedPlannedWeight');
+    const { resolvedPlannedWeight: _r, ...rest } = tracked.sets[0];
+    expect(swapped.sets[0]).toEqual(rest);
+    const plain = buildTrackerModel(makeEvent([EXERCISES[2]]))[0].exercises[0];
+    expect(clearResolvedLoads(plain)).toBe(plain);
   });
 
   it('leaves a model with no percentage untouched, and does not mutate its input', () => {
@@ -188,6 +234,7 @@ describe('an unresolved percentage is never a lift', () => {
     expect(saved.planned_weight).toBe('80%');
     expect(saved.actual_weight).toBeNull();
     expect(JSON.stringify(saved)).not.toContain('185');
+    expect(saved).not.toHaveProperty('resolvedPlannedWeight');
     // Reps logged against a resolved target, no weight typed: no 1RM record.
     const logged = groups.map(g => ({
       ...g, exercises: g.exercises.map(t => ({ ...t, sets: t.sets.map(s => ({ ...s, actualReps: '5', isLogged: true })) })),

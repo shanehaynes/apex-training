@@ -9,8 +9,8 @@ type Admin = Parameters<typeof buildBootstrap>[0];
 // client renders the number it was handed. 80% of the best prior estimated
 // 1RM, read under the profile's weight context and rounded to its plate step.
 
-/** A chainable fake that applies eq / lt / in filters, and records which tables were read. */
-function makeAdmin(fixtures: Record<string, Record<string, unknown>[]>, reads: string[] = []): Admin {
+/** A chainable fake that applies eq / lt / in filters, records which tables were read, and fails reads of `failing`. */
+function makeAdmin(fixtures: Record<string, Record<string, unknown>[]>, reads: string[] = [], failing: string[] = []): Admin {
   return {
     from(table: string) {
       reads.push(table);
@@ -31,7 +31,8 @@ function makeAdmin(fixtures: Record<string, Record<string, unknown>[]>, reads: s
         filters.push(row => values.includes(row[column]));
         return builder;
       };
-      builder.maybeSingle = async () => ({ data: rows()[0] ?? null, error: null });
+      const error = failing.includes(table) ? { message: `${table} unavailable` } : null;
+      builder.maybeSingle = async () => (error ? { data: null, error } : { data: rows()[0] ?? null, error: null });
       builder.then = (resolve: (v: unknown) => unknown) => Promise.resolve({ data: rows(), error: null }).then(resolve);
       return builder;
     },
@@ -68,18 +69,48 @@ describe('bootstrap resolves percentage targets', () => {
       workout_set_logs: [setRow({})] as unknown as Record<string, unknown>[],
     });
     const boot = await buildBootstrap(admin, 'u1', OPEN, event('80%'));
-    expect(setsOf(boot).map(s => s.resolvedPlannedWeight)).toEqual(['185', '185']);
+    expect(setsOf(boot).map(s => s.resolvedPlannedWeight)).toEqual(['185 lb', '185 lb']);
     // The plan itself is untouched: the raw target is still what was written.
     expect(setsOf(boot)[0].planned.targetWeight).toBe('80%');
   });
 
-  it('reads history and rounds under the profile unit: a bare 100 is 100 kg, 80% is 80', async () => {
+  it.each([
+    ['kg', '82 kg'],
+    ['lb', '82.5 lb'],
+  ] as const)('reads history and rounds under the profile unit: a bare 103 × 1 at 80%% under %s is %s', async (unit, load) => {
     const admin = makeAdmin({
-      profiles: [{ id: 'u1', weight_unit: 'kg', body_weight_lb: null }],
-      workout_set_logs: [setRow({ actual_weight: '100' })] as unknown as Record<string, unknown>[],
+      profiles: [{ id: 'u1', weight_unit: unit, body_weight_lb: null }],
+      workout_set_logs: [setRow({ actual_weight: '103' })] as unknown as Record<string, unknown>[],
     });
     const boot = await buildBootstrap(admin, 'u1', OPEN, event('80%'));
-    expect(setsOf(boot)[0].resolvedPlannedWeight).toBe('80');
+    expect(setsOf(boot)[0].resolvedPlannedWeight).toBe(load);
+  });
+
+  it.each([
+    ['the profile read fails', { profiles: [{ id: 'u1', weight_unit: 'kg', body_weight_lb: null }] }, ['profiles']],
+    ['there is no profile row', {}, []],
+    ['the row predates weight_unit', { profiles: [{ id: 'u1', body_weight_lb: null }] }, []],
+  ])('no resolution under a guessed unit: %s', async (_case, extra, failing) => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const admin = makeAdmin({
+      ...extra,
+      workout_set_logs: [setRow({ actual_weight: '100 kg' })] as unknown as Record<string, unknown>[],
+    }, [], failing as string[]);
+    const boot = await buildBootstrap(admin, 'u1', OPEN, event('80%'));
+    for (const set of setsOf(boot)) expect(set).not.toHaveProperty('resolvedPlannedWeight');
+    expect(setsOf(boot)[0].planned.targetWeight).toBe('80%');
+  });
+
+  it("a finished session's records still read with the default when the profile cannot say", async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const finished = { finished_at: '2026-08-20T10:00:00.000Z', started_at: '2026-08-20T09:30:00.000Z' } as WorkoutSessionRow;
+    const admin = makeAdmin({
+      workout_set_logs: [setRow({}), setRow({ event_id: 'evt-1', event_date: '2026-08-20', actual_weight: '300' })] as unknown as Record<string, unknown>[],
+    });
+    const boot = await buildBootstrap(admin, 'u1', finished, event('80%'));
+    expect(setsOf(boot)[0]).not.toHaveProperty('resolvedPlannedWeight');
+    expect(boot.prs.map(pr => pr.kind)).toContain('oneRM');
+    expect(warn).toHaveBeenCalled();
   });
 
   it("today's own sets do not move today's target — only prior history counts", async () => {
@@ -91,7 +122,7 @@ describe('bootstrap resolves percentage targets', () => {
       ] as unknown as Record<string, unknown>[],
     });
     const boot = await buildBootstrap(admin, 'u1', OPEN, event('80%'));
-    expect(setsOf(boot)[0].resolvedPlannedWeight).toBe('185');
+    expect(setsOf(boot)[0].resolvedPlannedWeight).toBe('185 lb');
   });
 
   it('with no history the field is absent', async () => {
