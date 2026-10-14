@@ -22,6 +22,12 @@ export interface TrackedSet {
   /** Last session's actuals shown as ghost text, never persisted on their
    *  own — first focus anywhere in the row commits them into the actuals. */
   shadow: LastSetActuals | null;
+  /** Rate of perceived exertion as typed ('' = not rated); parseRpe bounds
+   *  it to 1–10 in half steps when the row is serialized (phase55). */
+  rpe: string;
+  /** A warm-up set is logged and shown like any other but is not a
+   *  performance: isPerformedSet excludes it from every stat (phase55). */
+  isWarmup: boolean;
 }
 
 export type CardioShadow = Omit<LastCardioActuals, 'date'>;
@@ -99,6 +105,42 @@ function emptySet(planned: PlannedSet, isExtra: boolean): TrackedSet {
     isAutofilled: false,
     isExtra,
     shadow: null,
+    rpe: '',
+    isWarmup: false,
+  };
+}
+
+// ─── Per-set metadata (phase55) ───────────────────────────────────────────────
+
+export const RPE_MIN = 1;
+export const RPE_MAX = 10;
+
+/**
+ * The RPE a row carries, from the free text the tracker holds: a number in
+ * 1–10, snapped to the nearest half step (the column is numeric; the scale
+ * is read in halves). Anything else — blank, letters, out of range — is
+ * null, so a stray keystroke never reaches the CHECK constraint as a 500.
+ */
+export function parseRpe(value: string | null | undefined): number | null {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || n < RPE_MIN || n > RPE_MAX) return null;
+  return Math.round(n * 2) / 2;
+}
+
+/** The text the RPE field settles to on blur: the parsed value, or empty. */
+export function normalizeRpeText(value: string): string {
+  const n = parseRpe(value);
+  return n === null ? '' : String(n);
+}
+
+/** The per-set metadata a saved row carries, as the tracker holds it. */
+function rowMetadata(row: SetLogRow): Pick<TrackedSet, 'rpe' | 'isWarmup'> {
+  return {
+    rpe: row.rpe != null ? String(row.rpe) : '',
+    isWarmup: row.is_warmup === true,
   };
 }
 
@@ -173,6 +215,7 @@ function loggedExtraSet(row: SetLogRow): TrackedSet {
     actualDuration: row.actual_duration ?? '',
     isLogged: true,
     isAutofilled: row.is_autofilled,
+    ...rowMetadata(row),
   };
 }
 
@@ -320,6 +363,7 @@ export function buildTrackerModel(
               actualDuration: row.actual_duration ?? '',
               isLogged: true,
               isAutofilled: row.is_autofilled,
+              ...rowMetadata(row),
             };
           }
           // When the plan has more sets than last time, extras inherit the
@@ -486,6 +530,8 @@ export function setToRow(
     actual_reps: set.actualReps || null,
     actual_duration: set.actualDuration || null,
     is_autofilled: false,
+    rpe: parseRpe(set.rpe),
+    is_warmup: set.isWarmup,
   };
 }
 
@@ -534,6 +580,9 @@ export function collectUntouchedPlanned(
           actual_reps: row.planned_reps || !row.planned_duration ? '0' : null,
           actual_duration: row.planned_duration ? '0' : null,
           is_autofilled: true,
+          // A skipped set is not a warm-up, whatever the row was toggled to.
+          rpe: null,
+          is_warmup: false,
         });
       }
     }

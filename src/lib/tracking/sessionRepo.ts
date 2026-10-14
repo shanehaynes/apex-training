@@ -22,6 +22,7 @@ export type SessionInfo = Pick<
   WorkoutSessionRow,
   | 'started_at' | 'finished_at' | 'total_duration_seconds' | 'coach_summary'
   | 'template_id' | 'score_type' | 'score_time_seconds' | 'score_rounds' | 'score_reps'
+  | 'note'
 >;
 
 export interface RemovedSetKey {
@@ -56,6 +57,7 @@ function inMemorySession(): SessionInfo {
     score_time_seconds: null,
     score_rounds: null,
     score_reps: null,
+    note: null,
   };
 }
 
@@ -138,7 +140,14 @@ export function parseRetryAfterMs(header: string | null): number | undefined {
 export async function saveLogs(
   eventId: string,
   eventDate: string,
-  payload: { setLogs: SetLogRow[]; cardioLogs: CardioLogRow[]; removedSets: RemovedSetKey[]; exerciseNotes?: ExerciseNoteEdit[] },
+  payload: {
+    setLogs: SetLogRow[];
+    cardioLogs: CardioLogRow[];
+    removedSets: RemovedSetKey[];
+    exerciseNotes?: ExerciseNoteEdit[];
+    /** The whole session's note (phase55); absent = untouched, '' clears. */
+    sessionNote?: string;
+  },
   opts: SaveLogsOptions = {},
 ): Promise<void> {
   if (!supabase) return;
@@ -199,6 +208,39 @@ export async function finishSession(
     prs: Array.isArray(data.prs) ? data.prs : [],
     scoreRecord: data.scoreRecord ?? null,
   };
+}
+
+/** What `edit-times` answers: the corrected times and the duration they make. */
+export interface EditedSessionTimes {
+  startedAt: string;
+  finishedAt: string;
+  totalDurationSeconds: number;
+}
+
+/**
+ * Change when a finished, tracker-logged session started and finished
+ * (rulings R4.1–R4.5 are the server's). Null offline. Rejects with an
+ * ApiError carrying the server's reason — a quick-completed or synced
+ * session, or a time outside the event's bounds — which the caller shows
+ * verbatim; the shared transport's generic toast is suppressed for that.
+ */
+export async function editSessionTimes(
+  eventId: string,
+  eventDate: string,
+  startedAt: string,
+  finishedAt: string,
+): Promise<EditedSessionTimes | null> {
+  if (!supabase) return null;
+  const data = await postJson<Partial<EditedSessionTimes>>(
+    '/api/workout-sessions',
+    { action: 'edit-times', eventId, eventDate, startedAt, finishedAt },
+    'Changing workout times',
+    { quiet: true },
+  );
+  if (typeof data?.totalDurationSeconds !== 'number' || typeof data.startedAt !== 'string' || typeof data.finishedAt !== 'string') {
+    throw new ApiError('Malformed edit-times response', null);
+  }
+  return { startedAt: data.startedAt, finishedAt: data.finishedAt, totalDurationSeconds: data.totalDurationSeconds };
 }
 
 export interface ExerciseSwap {

@@ -28,6 +28,7 @@ interface SetRow {
   actual_reps: string | null;
   actual_duration: string | null;
   is_autofilled: boolean;
+  is_warmup: boolean;
 }
 
 /** A number the provider may have sent as a number or a numeric string. */
@@ -77,7 +78,7 @@ export async function fetchPhysiologyInputs(
           .order('event_date').order('event_id').order('exercise_id').range(from, to),
       ),
       fetchAllPages<SetRow>('workout_set_logs', (from, to) =>
-        supabase.from('workout_set_logs').select('event_date,actual_weight,actual_reps,actual_duration,is_autofilled')
+        supabase.from('workout_set_logs').select('event_date,actual_weight,actual_reps,actual_duration,is_autofilled,is_warmup')
           .eq('user_id', userId).eq('is_autofilled', false).eq('is_warmup', false)
           .gte('event_date', startDate).lte('event_date', todayIso)
           .order('event_date').order('event_id').order('exercise_id').order('set_number').range(from, to),
@@ -98,6 +99,7 @@ export async function fetchPhysiologyInputs(
       actualReps: s.actual_reps,
       actualDuration: s.actual_duration,
       isAutofilled: s.is_autofilled,
+      isWarmup: s.is_warmup,
     }));
     return {
       today: todayIso,

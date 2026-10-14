@@ -15,6 +15,7 @@ import ConnectorGuide from './ConnectorGuide';
 import CorosConnection from './CorosConnection';
 import AccountData from './AccountData';
 import ProfileDisclosure from './ProfileDisclosure';
+import RpeTrackingToggle from './RpeTrackingToggle';
 import type { AvatarKey } from '../../lib/db/types';
 
 // Full-screen profile overlay, same pattern as LibraryView: fixed inset-0,
@@ -272,6 +273,11 @@ export default function ProfileView() {
                 />
               </label>
             </div>
+          </section>
+
+          <section className="profile-section">
+            <h3 className="profile-section__title">Training</h3>
+            <RpeTrackingToggle />
           </section>
 
           {/* 24 tiles is a third of a screen for a choice made once. The

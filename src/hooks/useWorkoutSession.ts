@@ -9,11 +9,11 @@ import {
   cardioToRow,
 } from '../lib/tracking/plan';
 import { sectionLabels } from '../lib/climbing';
-import type { TrackedSectionGroup } from '../lib/tracking/plan';
+import type { TrackedSectionGroup, TrackedSet } from '../lib/tracking/plan';
 import { sessionScoreFromRow } from '../lib/tracking/records';
 import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from '../lib/tracking/records';
 import {
-  cancelSession, finishSession, generateCoachSummary, loadSession, saveLogs, swapLoggedExercise,
+  cancelSession, editSessionTimes, finishSession, generateCoachSummary, loadSession, saveLogs, swapLoggedExercise,
 } from '../lib/tracking/sessionRepo';
 import type { ExerciseNoteEdit, RemovedSetKey, SessionInfo } from '../lib/tracking/sessionRepo';
 import { notify } from '../lib/notify';
@@ -51,6 +51,11 @@ const setKey = (section: TrackedSection, exerciseId: string, setNumber: number) 
 const cardioKey = (section: TrackedSection, exerciseId: string) => `cardio|${section}|${exerciseId}`;
 const noteKey = (section: TrackedSection, exerciseId: string) => `note|${section}|${exerciseId}`;
 const removedKey = (section: TrackedSection, exerciseId: string, setNumber: number) => `removed|${section}|${exerciseId}|${setNumber}`;
+// The note on the whole session (workout_sessions.note): one row, one key.
+const SESSION_NOTE_KEY = 'session-note';
+
+/** The per-set metadata a row control edits: RPE text and the warm-up flag. */
+export type SetMetaPatch = Partial<Pick<TrackedSet, 'rpe' | 'isWarmup'>>;
 
 export type CoachStatus = 'loading' | 'ready' | 'unavailable';
 
@@ -93,8 +98,12 @@ export function useWorkoutSession(
   const [isCancelling, setIsCancelling] = useState(false);
   const [summary, setSummary] = useState<SummaryState | null>(null);
   const [saveState, setSaveState] = useState<TrackerSaveState>(IDLE_SAVE_STATE);
+  const [sessionNote, setSessionNote] = useState('');
 
   const groupsRef = useRef<TrackedSectionGroup[]>([]);
+  // Read by the send like groupsRef; written in the change handler itself so
+  // the debounced send never carries a keystroke-old note.
+  const sessionNoteRef = useRef('');
   // The one source of truth for what is unsaved. Created per session load,
   // disposed on cancel; null between sessions, when there is nothing to save.
   const queueRef = useRef<SaveQueue | null>(null);
@@ -150,6 +159,7 @@ export function useWorkoutSession(
     const cardioLogs: CardioLogRow[] = [];
     const exerciseNotes: ExerciseNoteEdit[] = [];
     const removedSets: RemovedSetKey[] = [];
+    let sessionNoteEdit: string | undefined;
     const find = (section: string, exerciseId: string) =>
       groupsRef.current.find(g => g.section === section)?.exercises.find(t => t.exercise.id === exerciseId);
     for (const key of keys) {
@@ -165,13 +175,15 @@ export function useWorkoutSession(
         if (tracked) exerciseNotes.push({ section, exerciseId, note: tracked.sessionNote });
       } else if (kind === 'removed') {
         removedSets.push({ section, exerciseId, setNumber: Number(setNumberStr) });
+      } else if (kind === SESSION_NOTE_KEY) {
+        sessionNoteEdit = sessionNoteRef.current;
       }
     }
-    if (!setLogs.length && !cardioLogs.length && !removedSets.length && !exerciseNotes.length) return;
+    if (!setLogs.length && !cardioLogs.length && !removedSets.length && !exerciseNotes.length && sessionNoteEdit === undefined) return;
     const keepalive = keepaliveRef.current;
     keepaliveRef.current = false;
     try {
-      await saveLogs(eventId, eventDate, { setLogs, cardioLogs, removedSets, exerciseNotes }, {
+      await saveLogs(eventId, eventDate, { setLogs, cardioLogs, removedSets, exerciseNotes, sessionNote: sessionNoteEdit }, {
         keepalive,
         quiet: queue().state().consecutiveFailures > 0,
       });
@@ -220,6 +232,8 @@ export function useWorkoutSession(
       if (cancelled) return;
       setSession(data.session);
       recordsRef.current = { prs: data.prs, scoreRecord: data.scoreRecord };
+      sessionNoteRef.current = data.session.note ?? '';
+      setSessionNote(sessionNoteRef.current);
       setGroups(data.groups);
     });
 
@@ -365,6 +379,56 @@ export function useWorkoutSession(
     updateExercise(section, exerciseId, t => ({ ...t, sessionNote: note }));
     queueRef.current?.markDirty(noteKey(section, exerciseId));
     scheduleSave();
+  };
+
+  // The note on the whole session (phase55): its own key, its own column.
+  const onSessionNoteChange = (note: string) => {
+    sessionNoteRef.current = note;
+    setSessionNote(note);
+    queueRef.current?.markDirty(SESSION_NOTE_KEY);
+    scheduleSave();
+  };
+
+  // RPE and the warm-up flag ride the set's own row, so they dirty the same
+  // key as its reps — one upsert carries whatever changed.
+  const onSetMetaChange = (section: TrackedSection, exerciseId: string, setNumber: number, patch: SetMetaPatch) => {
+    updateExercise(section, exerciseId, t => ({
+      ...t,
+      sets: t.sets.map(s => (s.setNumber === setNumber ? { ...s, ...patch } : s)),
+    }));
+    markSetDirty(section, exerciseId, setNumber);
+    scheduleSave();
+  };
+
+  /**
+   * Correct when a finished session started and finished (R4.1–R4.5 are
+   * the server's; offline the edit applies in memory). Resolves true once
+   * the session carries the new times; a refusal toasts the server's own
+   * reason and resolves false.
+   */
+  const editTimes = async (startedAt: string, finishedAt: string): Promise<boolean> => {
+    const target = eventRef.current;
+    if (!target || !isFinished) return false;
+    try {
+      const result = await editSessionTimes(target.id, target.date, startedAt, finishedAt);
+      const times = result ?? {
+        startedAt,
+        finishedAt,
+        totalDurationSeconds: Math.max(0, Math.round((Date.parse(finishedAt) - Date.parse(startedAt)) / 1000)),
+      };
+      setSession(prev => prev && {
+        ...prev,
+        started_at: times.startedAt,
+        finished_at: times.finishedAt,
+        total_duration_seconds: times.totalDurationSeconds,
+      });
+      notify('Workout times updated');
+      return true;
+    } catch (err) {
+      const reason = err instanceof Error && err.message ? err.message : 'try again';
+      notify(`Times not changed — ${reason.slice(0, 160)}`);
+      return false;
+    }
   };
 
   const findTracked = (section: TrackedSection, exerciseId: string) =>
@@ -656,7 +720,11 @@ export function useWorkoutSession(
     isCancelling,
     summary,
     saveState,
+    sessionNote,
     onSetChange,
+    onSetMetaChange,
+    onSessionNoteChange,
+    editTimes,
     onCardioChange,
     onCommitSetShadow,
     onCommitCardioShadow,
