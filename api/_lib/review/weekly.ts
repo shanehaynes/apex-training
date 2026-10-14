@@ -1,5 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk';
-import { addDays, format, parseISO } from 'date-fns';
+import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
 import type { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { fetchExpandedSchedule } from '../mcp/data.js';
 import { fetchPeriodInputs } from '../reviewData.js';
@@ -13,7 +13,10 @@ import { athleteSection, blockSection, memorySection, sanitizeInlineText, saniti
 import { DOCTRINE_TOPICS, readDoctrine } from '../../../src/lib/coach/doctrine/index.js';
 import { createEventSchema, EXERCISE_INPUT_SCHEMA, updateEventSchema } from '../../../src/lib/coach/schemas.js';
 import { baseIdOf, isOccurrenceId } from '../../../src/lib/schedule/occurrence.js';
-import { computePhysiology, describePhysiology } from '../../../src/lib/physiology/index.js';
+import {
+  computePhysiology, describePhysiology, physiologyWindowStart, type LoadSummary, type PhysiologyInputs, type PhysiologySummary,
+} from '../../../src/lib/physiology/index.js';
+import { describeRecordForPeople } from '../../../src/lib/tracking/records.js';
 import { computeReviewStats, durationMinutesFor, sessionSecondsMap } from '../../../src/lib/review/stats.js';
 import type { PeriodStats, StatsPeriod } from '../../../src/lib/review/types.js';
 import { rowToBlock, rowToObjective } from '../../../src/lib/blocks/mapping.js';
@@ -24,7 +27,7 @@ import type { CoachModelOption } from '../../../src/lib/coach/models.js';
 import {
   isIsoDate, isNextWeekTool, isoWeekOf, isWeeklyVerdict, MEMORY_PROPOSALS_MAX, NEXT_WEEK_MAX, shiftWeek,
   type WeekWindow, type WeeklyDoctrine, type WeeklyMemoryProposal, type WeeklyMiss, type WeeklyNextWeekItem,
-  type WeeklyPlanVsDone, type WeeklyReviewDocument,
+  type WeeklyPlanVsDone, type WeeklyReviewDocument, type WeeklyReviewStats,
 } from '../../../src/lib/review/weekly.js';
 
 // The weekly review as a document (lane D03). Three pure stages and one
@@ -92,6 +95,15 @@ function weekPeriod(window: WeekWindow): StatsPeriod {
 
 const inWindow = (date: string, w: WeekWindow) => date >= w.start && date <= w.end;
 
+/**
+ * The day the physiology panel is computed as of: the reviewed week's
+ * Sunday, or today while that week is still running (a date past today
+ * would only count plans as measurements).
+ */
+export function physiologyAsOf(todayIso: string, window: WeekWindow): string {
+  return window.end < todayIso ? window.end : todayIso;
+}
+
 // ─── Inputs ──────────────────────────────────────────────────────────────────
 
 export interface WeeklyInputs {
@@ -114,6 +126,9 @@ export interface WeeklyInputs {
   athlete: { goal?: string; context?: string };
   libraryNames: string[];
 }
+
+/** What fetchWeeklyInputs returns: the recap's inputs plus the response's `stats`, with or without a document. */
+export type GatheredWeek = WeeklyInputs & { weeklyStats: WeeklyReviewStats };
 
 /** The active block's summary, as the chat prompt carries it; null on any failure. */
 async function blockSummary(
@@ -144,12 +159,19 @@ async function blockSummary(
   }
 }
 
-async function physiologyBlock(supabase: Admin, userId: string, todayIso: string): Promise<string> {
+/** The panel's inputs and its summary, as of `asOfIso`; null on any failure. */
+export interface PhysiologyPanel {
+  inputs: PhysiologyInputs;
+  summary: PhysiologySummary;
+}
+
+async function physiologyPanel(supabase: Admin, userId: string, asOfIso: string): Promise<PhysiologyPanel | null> {
   try {
-    return describePhysiology(computePhysiology(await fetchPhysiologyInputs(supabase, userId, todayIso)));
+    const inputs = await fetchPhysiologyInputs(supabase, userId, asOfIso);
+    return { inputs, summary: computePhysiology(inputs) };
   } catch (err) {
     console.warn('[api/weekly-review] physiology panel unavailable:', err instanceof Error ? err.message : err);
-    return '';
+    return null;
   }
 }
 
@@ -166,7 +188,9 @@ async function memoryEntries(supabase: Admin, userId: string): Promise<MemoryPro
  * Everything the recap needs, gathered server-side on the service-role
  * client with every query scoped to `userId`. The schedule, completions and
  * stats are required; the panel, the memory and the block are enhancements
- * that degrade to absent.
+ * that degrade to absent. `forPrompt: false` (the keyless answer, which
+ * never builds a recap) skips the reads only the prompt uses — the memory,
+ * the block and the library names come back empty.
  */
 export async function fetchWeeklyInputs(
   supabase: Admin,
@@ -174,13 +198,16 @@ export async function fetchWeeklyInputs(
   todayIso: string,
   window: WeekWindow,
   athlete: { goal?: string; context?: string } = {},
-): Promise<WeeklyInputs> {
+  options: { forPrompt?: boolean } = {},
+): Promise<GatheredWeek> {
+  const forPrompt = options.forPrompt ?? true;
   const nextWeek = shiftWeek(window, 1);
-  const [{ occurrences, definitions }, period, physiology, memories] = await Promise.all([
+  const asOf = physiologyAsOf(todayIso, window);
+  const [{ occurrences, definitions }, period, panel, memories] = await Promise.all([
     fetchExpandedSchedule(supabase, userId, todayIso),
     fetchPeriodInputs(supabase, userId, weekPeriod(window)),
-    physiologyBlock(supabase, userId, todayIso),
-    memoryEntries(supabase, userId),
+    physiologyPanel(supabase, userId, asOf),
+    forPrompt ? memoryEntries(supabase, userId) : Promise.resolve([]),
   ]);
 
   const done = new Set(period.completions.filter(c => c.is_completed).map(c => `${c.event_id}|${c.event_date}`));
@@ -198,8 +225,16 @@ export async function fetchWeeklyInputs(
     knownEventIds.add(e.id);
     knownEventIds.add(baseIdOf(e.id));
   }
-  const block = await blockSummary(supabase, userId, todayIso, withCompletion);
-  const libraryNames = [...definitions.values()].map(d => d.canonicalName).sort().slice(0, LIBRARY_NAMES_MAX);
+  const block = forPrompt ? await blockSummary(supabase, userId, todayIso, withCompletion) : null;
+  const libraryNames = forPrompt
+    ? [...definitions.values()].map(d => d.canonicalName).sort().slice(0, LIBRARY_NAMES_MAX)
+    : [];
+  const stats = computeReviewStats(period);
+  const physiology = panel ? describePhysiology(panel.summary) : '';
+  const weeklyStats = computeWeeklyStats({
+    window, asOf, stats, panel,
+    plan: computePlanVsDone({ today: todayIso, events, completions: period.completions, sessions: period.sessions }),
+  });
 
   return {
     today: todayIso,
@@ -210,8 +245,9 @@ export async function fetchWeeklyInputs(
     knownEventIds,
     completions: period.completions,
     sessions: period.sessions,
-    stats: computeReviewStats(period),
+    stats,
     physiology,
+    weeklyStats,
     memories,
     block,
     athlete,
@@ -251,6 +287,65 @@ export function computePlanVsDone(inputs: Pick<WeeklyInputs, 'today' | 'events' 
     minutesPlanned: Math.round(minutesPlanned),
     minutesDone: Math.round(minutesDone),
     misses,
+  };
+}
+
+// ─── Stats ───────────────────────────────────────────────────────────────────
+
+/**
+ * Days of load history behind the ratio: from the earliest sample of the
+ * load's own source (device load where any activity carries one, else
+ * cardio minutes — computePhysiology's choice) in the fetched window,
+ * through `asOf`, inclusive. Under 28 the chronic average is mostly the
+ * acute week itself, so the ratio is not a baseline comparison yet.
+ */
+export function loadHistoryDays(inputs: PhysiologyInputs, source: LoadSummary['source'], asOf: string): number {
+  const start = physiologyWindowStart(asOf);
+  const ok = (date: string) => date >= start && date <= asOf;
+  const dates = source === 'trainingLoad'
+    ? inputs.activities.filter(a => ok(a.eventDate) && Number.isFinite(a.trainingLoad) && (a.trainingLoad as number) >= 0).map(a => a.eventDate)
+    : inputs.cardioLogs.filter(c => ok(c.eventDate) && Number.isFinite(c.durationMinutes) && (c.durationMinutes as number) > 0).map(c => c.eventDate);
+  if (dates.length === 0) return 0;
+  const earliest = dates.reduce((min, d) => (d < min ? d : min));
+  return differenceInCalendarDays(parseISO(asOf), parseISO(earliest)) + 1;
+}
+
+/**
+ * The response's `stats`: plan vs done, the week's PRs and the physiology
+ * panel's numbers, reshaped for the view and nothing recomputed — the panel
+ * is computePhysiology's (as of `asOf`), the PRs computeReviewStats'.
+ */
+export function computeWeeklyStats(args: {
+  window: WeekWindow;
+  asOf: string;
+  plan: WeeklyPlanVsDone;
+  stats: PeriodStats<StatsPeriod>;
+  panel: PhysiologyPanel | null;
+}): WeeklyReviewStats {
+  const { window, asOf, plan, stats } = args;
+  const summary = args.panel?.summary;
+  const weightUnit = stats.strength.displayUnit ?? 'lb';
+  const zones = summary?.zoneMinutesByWeek?.find(w => w.weekStart === window.start)?.minutes ?? null;
+  const load = summary?.load && args.panel
+    ? { ...summary.load, historyDays: loadHistoryDays(args.panel.inputs, summary.load.source, asOf) }
+    : null;
+  return {
+    week: window,
+    asOf,
+    plan,
+    prs: stats.prs.map(pr => ({
+      exerciseName: pr.exerciseName,
+      kind: pr.kind,
+      date: pr.date,
+      detail: describeRecordForPeople(pr, weightUnit),
+    })),
+    weightUnit,
+    physiology: {
+      load,
+      hrv: summary?.hrv ?? null,
+      zoneMinutes: zones,
+      tonnageByWeek: summary?.tonnageByWeek ?? [],
+    },
   };
 }
 

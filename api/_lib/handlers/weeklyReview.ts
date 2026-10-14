@@ -10,17 +10,20 @@ import type { WeeklyReviewResponse } from '../../../src/lib/review/weekly.js';
 
 // POST /api/weekly-review — the weekly review as a document (lane D03).
 //
-//   POST { today, week? }  → { document, model, warnings, generatedAt }
+//   POST { today, week? }  → { document, model, stats, warnings, generatedAt }
 //   GET                    → 405: nothing is stored in v1, so there is
 //                            nothing to fetch — every open regenerates.
 //
 // `today` is the caller's local calendar date (the server never reads its
 // own clock for calendar logic); `week` (body or ?week=) is any date inside
-// the ISO week to review, default the week containing today. The document is
-// generated on the caller's own Anthropic key and their coach model, so the
-// POST rides the `writes` bucket: it spends their money. No key answers 402
-// `anthropic-key-missing`, which the client turns into "add your key in
-// Profile" rather than a toast (src/lib/api.ts). A reply the server cannot
+// the ISO week to review, default the week containing today. `stats` — plan
+// vs done, the week's PRs, the physiology numbers — is computed, never
+// generated, and comes back either way. The key is looked up first because
+// it picks the throttle: with a key the document is generated on the
+// caller's key and coach model, so the POST rides the `writes` bucket (it
+// spends their money); without one the answer is still 200, `document` and
+// `model` null, no model call and none of the prompt-only reads (profile,
+// memory, block, library), so it rides `reads`. A reply the server cannot
 // turn into a document is a 422 carrying the parse error.
 //
 // Every read is scoped to the JWT's user id inside fetchWeeklyInputs.
@@ -63,8 +66,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const userId = await requireUser(req, res);
   if (!userId) return;
 
-  if (!(await enforceRateLimit(supabase, res, userId, 'writes'))) return;
-
   let apiKey: string | null;
   try {
     apiKey = await getAnthropicKey(supabase, userId);
@@ -73,8 +74,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(500).send('Failed to load API key');
     return;
   }
+
+  if (!(await enforceRateLimit(supabase, res, userId, apiKey ? 'writes' : 'reads'))) return;
+
   if (!apiKey) {
-    res.status(402).send('anthropic-key-missing');
+    let gathered;
+    try {
+      gathered = await fetchWeeklyInputs(supabase, userId, today, week, {}, { forPrompt: false });
+    } catch (err) {
+      console.error('[api/weekly-review] inputs failed:', err instanceof Error ? err.message : err);
+      res.status(500).send('Failed to gather the week');
+      return;
+    }
+    const payload: WeeklyReviewResponse = {
+      document: null,
+      model: null,
+      stats: gathered.weeklyStats,
+      warnings: [],
+      generatedAt: new Date().toISOString(),
+    };
+    res.status(200).json(payload);
     return;
   }
 
@@ -112,6 +131,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const payload: WeeklyReviewResponse = {
       document: result.document,
       model: { id: coachModel.id, label: coachModel.label, badge: coachModel.badge },
+      stats: inputs.weeklyStats,
       warnings: result.warnings,
       generatedAt: new Date().toISOString(),
     };

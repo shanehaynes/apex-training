@@ -2,12 +2,14 @@ import { format, parseISO } from 'date-fns';
 import { BookOpen, Check, Plus } from 'lucide-react';
 import { DOCTRINE_TOPICS } from '../../lib/coach/doctrine';
 import type { ToolPreview } from '../../lib/coach/preview';
+import { formatNumber, formatTonnage } from '../../lib/review/formats';
 import type {
   WeeklyDoctrine,
   WeeklyMemoryProposal,
   WeeklyNextWeekItem,
   WeeklyPhysiology,
   WeeklyPlanVsDone,
+  WeeklyReviewStats,
 } from '../../lib/review/weekly';
 
 // The weekly review's sections (lane D03), one component each, every one a
@@ -72,6 +74,107 @@ export function PhysiologySection({ physiology }: { physiology: WeeklyPhysiology
           {physiology.flags.map((flag, i) => <li key={i} className="weekly-review__flag">{flag}</li>)}
         </ul>
       )}
+    </section>
+  );
+}
+
+// ─── Numbers ─────────────────────────────────────────────────────────────────
+// The computed stats, shown with or without the coach's document: plain
+// labels, no interpretation (src/lib/physiology defines no ratio bands, so
+// none is named here).
+
+/** Under this many days of load history the chronic average is mostly the acute week. */
+const RATIO_HISTORY_DAYS = 28;
+
+export function NumbersSection({ stats }: { stats: WeeklyReviewStats }) {
+  const { load, hrv, zoneMinutes, tonnageByWeek } = stats.physiology;
+  const hasPanel = load !== null || hrv !== null || zoneMinutes !== null || tonnageByWeek.length > 0;
+  return (
+    <section className="weekly-review__section" data-testid="weekly-review-numbers">
+      <h3 className="weekly-review__heading">Numbers</h3>
+
+      <h4 className="weekly-review__subheading">PRs this week</h4>
+      {stats.prs.length === 0 ? (
+        <p className="weekly-review__muted" data-testid="weekly-review-no-prs">No PRs this week.</p>
+      ) : (
+        <ul className="weekly-review__misses" aria-label="PRs this week">
+          {stats.prs.map((pr, i) => (
+            <li key={i} className="weekly-review__miss" data-testid="weekly-review-pr">
+              <span className="weekly-review__miss-when">{shortDay(pr.date)}</span>
+              <span className="weekly-review__pr-title">{pr.exerciseName}</span>
+              <span className="weekly-review__miss-why">{pr.detail}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {stats.prs.some(pr => pr.kind === 'oneRM') && (
+        <p className="weekly-review__muted">Lifts in {stats.weightUnit}.</p>
+      )}
+
+      <h4 className="weekly-review__subheading">Load</h4>
+      {!hasPanel ? (
+        <p className="weekly-review__muted">No measured data in the five weeks to {shortDay(stats.asOf)}.</p>
+      ) : (
+        <table className="weekly-review__table weekly-review__table--wide" data-testid="weekly-review-load">
+          <tbody>
+            {load && (
+              <>
+                <tr>
+                  <th scope="row">Acute load, 7 d</th>
+                  <td>{formatNumber(load.acute7d)} <span className="weekly-review__muted">{load.source === 'trainingLoad' ? 'device load' : 'cardio min'}</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Chronic load, 28 d weekly avg</th>
+                  <td>{formatNumber(load.chronicWeeklyAvg28d)}</td>
+                </tr>
+                <tr>
+                  <th scope="row">Acute : chronic</th>
+                  <td data-testid="weekly-review-acwr">
+                    {load.ratio === null
+                      ? <span className="weekly-review__muted">n/a, no 28 d baseline</span>
+                      : load.historyDays < RATIO_HISTORY_DAYS
+                        ? <span className="weekly-review__muted">n/a — under 28 d of history</span>
+                        : load.ratio.toFixed(2)}
+                  </td>
+                </tr>
+              </>
+            )}
+            {hrv && (
+              <tr>
+                <th scope="row">HRV, 7 d vs 28 d mean</th>
+                <td data-testid="weekly-review-hrv">
+                  {hrv.mean7d === null ? <span className="weekly-review__muted">no reading, 7 d</span> : `${formatNumber(hrv.mean7d)} ms`}
+                  {' vs '}{formatNumber(hrv.mean28d)} ms
+                </td>
+              </tr>
+            )}
+            {zoneMinutes && (
+              <tr>
+                <th scope="row">Zone minutes Z1–Z5</th>
+                <td data-testid="weekly-review-zones">
+                  {zoneMinutes.join(' / ')}
+                </td>
+              </tr>
+            )}
+            {tonnageByWeek.length > 0 && (
+              <tr>
+                <th scope="row">Tonnage by week</th>
+                <td>
+                  <ol className="weekly-review__tonnage" aria-label="Tonnage by week, oldest first">
+                    {tonnageByWeek.map(w => (
+                      <li key={w.weekStart} data-testid="weekly-review-tonnage-week">
+                        <span className="weekly-review__muted">{format(parseISO(w.weekStart), 'MMM d')}</span>{' '}
+                        {w.tonnageLb === null ? '—' : formatTonnage(w.tonnageLb, stats.weightUnit)}
+                      </li>
+                    ))}
+                  </ol>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
+      <p className="weekly-review__muted" data-testid="weekly-review-asof">Load as of {shortDay(stats.asOf)}.</p>
     </section>
   );
 }
