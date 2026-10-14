@@ -1,7 +1,9 @@
 import { format, parseISO } from 'date-fns';
 import type { CardioLogRow, SetLogRow } from '../db/types.js';
-import type { TrackedSectionGroup } from './plan.js';
+import type { AscentStyle, ClimbStyle } from '../../types/workout';
+import type { TrackedExercise, TrackedSectionGroup } from './plan.js';
 import { formatSeconds } from '../time.js';
+import { CLIMB_STYLES, ascentStyleLabel, parseGrade, type GradeScale } from '../climbing.js';
 import { DEFAULT_WEIGHT_CONTEXT, displayWeight, formatLb, lbToUnit, parseWeight, type WeightContext, type WeightUnit } from './weight.js';
 
 // ─── Personal records ─────────────────────────────────────────────────────────
@@ -13,6 +15,7 @@ import { DEFAULT_WEIGHT_CONTEXT, displayWeight, formatLb, lbToUnit, parseWeight,
 //   reps      — most reps in a set for rep-only exercises (no weight, no time)
 //   distance  — longest cardio distance (per unit — "5 mi" never races "8 km")
 //   elevation — most cardio elevation gain (per unit)
+//   send      — hardest clean send of a pitch (per name + grade scale)
 // A first-ever log of an exercise is never a PR: there is nothing to beat.
 
 /**
@@ -62,7 +65,19 @@ export interface QuantityRecord extends BaseRecord {
   previousValue: number;
 }
 
-export type PersonalRecord = OneRMRecord | DurationRecord | RepsRecord | QuantityRecord;
+export interface SendRecord extends BaseRecord {
+  kind: 'send';
+  /** The grade as logged ("5.11a"), hardest of the session in its scale. */
+  grade: string;
+  /** The pitch's discipline, when the plan or its name says (sport/trad/…). */
+  discipline: ClimbStyle | null;
+  /** How that pitch went — never 'attempt', which is not a send. */
+  style: AscentStyle;
+  /** The hardest clean send before this session, in the same scale. */
+  previousGrade: string;
+}
+
+export type PersonalRecord = OneRMRecord | DurationRecord | RepsRecord | QuantityRecord | SendRecord;
 
 // ─── Parsing free-text tracker values ─────────────────────────────────────────
 
@@ -212,7 +227,7 @@ export function classifySet(weight: string | null, reps: string | null, duration
 export function bestHistoricalOneRM(rows: SetLogRow[], ctx: WeightContext = DEFAULT_WEIGHT_CONTEXT): Map<string, BestSet> {
   const byName = new Map<string, BestSet>();
   for (const row of rows) {
-    if (!isPerformedSet(row)) continue;
+    if (!isPerformedSet(row) || isPitchRow(row)) continue;
     const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration, ctx);
     if (set?.kind !== 'oneRM') continue;
     keepBetterSet(byName, row.exercise_name, { oneRM: set.oneRM, weight: set.weight, reps: set.reps, date: row.event_date });
@@ -224,7 +239,7 @@ export function bestHistoricalOneRM(rows: SetLogRow[], ctx: WeightContext = DEFA
 export function bestHistoricalDuration(rows: SetLogRow[], ctx: WeightContext = DEFAULT_WEIGHT_CONTEXT): Map<string, BestValue> {
   const byName = new Map<string, BestValue>();
   for (const row of rows) {
-    if (!isPerformedSet(row)) continue;
+    if (!isPerformedSet(row) || isPitchRow(row)) continue;
     const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration, ctx);
     if (set?.kind !== 'duration') continue;
     keepBetterValue(byName, row.exercise_name, { value: set.seconds, date: row.event_date });
@@ -236,7 +251,7 @@ export function bestHistoricalDuration(rows: SetLogRow[], ctx: WeightContext = D
 export function bestHistoricalReps(rows: SetLogRow[], ctx: WeightContext = DEFAULT_WEIGHT_CONTEXT): Map<string, BestValue> {
   const byName = new Map<string, BestValue>();
   for (const row of rows) {
-    if (!isPerformedSet(row)) continue;
+    if (!isPerformedSet(row) || isPitchRow(row)) continue;
     const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration, ctx);
     if (set?.kind !== 'reps') continue;
     keepBetterValue(byName, row.exercise_name, { value: set.reps, date: row.event_date });
@@ -260,6 +275,106 @@ export function bestHistoricalCardio(rows: CardioLogRow[]): {
     if (elev) keepBetterValue(elevation, quantityKey(row.exercise_name, elev.unit), { value: elev.value, date: row.event_date });
   }
   return { distance, elevation };
+}
+
+// ─── Climbing sends ───────────────────────────────────────────────────────────
+// A pitch's grade rides the weight column, but it is never a weight: no pitch
+// enters the oneRM / duration / reps kinds, whatever its text parses to
+// ("5.10a" would read as 5.1). Its record is the send: the hardest clean
+// ascent per exercise name and grade scale — grades only order within their
+// own scale, and a pitch's name is its discipline ("Sport", "Trad"), so the
+// pair is the lineage. A first-ever send is not a PR, like everything else.
+
+/** A saved row carrying pitch metadata — only a pitch has either column. The
+ *  PR kinds above never read one. */
+export function isPitchRow(row: { ascent_style?: string | null; attempts?: number | null }): boolean {
+  return row.ascent_style != null || row.attempts != null;
+}
+
+/** A clean send: any stated ascent style except an attempt. Unstated is not a send. */
+export function isCleanSend(style: AscentStyle | null | undefined): style is AscentStyle {
+  return !!style && style !== 'attempt';
+}
+
+interface BestSend {
+  rank: number;
+  grade: string;
+  style: AscentStyle;
+  date: string;
+}
+
+const sendKey = (name: string, scale: GradeScale) => `${name}|${scale}`;
+
+function keepHarderSend(map: Map<string, BestSend>, key: string, candidate: BestSend) {
+  const current = map.get(key);
+  if (!current || candidate.rank > current.rank) map.set(key, candidate);
+}
+
+/**
+ * Hardest prior clean send per exercise name + grade scale. Only rows that
+ * state a clean style count: a pitch logged before styles existed says
+ * nothing about whether it went.
+ */
+export function bestHistoricalSends(rows: SetLogRow[]): Map<string, BestSend> {
+  const best = new Map<string, BestSend>();
+  for (const row of rows) {
+    if (!isPerformedSet(row) || !isCleanSend(row.ascent_style)) continue;
+    const grade = parseGrade(row.actual_weight ?? undefined);
+    if (!grade) continue;
+    keepHarderSend(best, sendKey(row.exercise_name, grade.scale), {
+      rank: grade.rank, grade: row.actual_weight!.trim(), style: row.ascent_style, date: row.event_date,
+    });
+  }
+  return best;
+}
+
+/** The pitch's discipline: the plan's, else its name's ("Trad"), else what its scale implies. */
+function disciplineOf(tracked: TrackedExercise, scale: GradeScale): ClimbStyle | null {
+  if (tracked.exercise.climbStyle) return tracked.exercise.climbStyle;
+  const named = CLIMB_STYLES.find(s => s.label.toLowerCase() === tracked.exercise.name.trim().toLowerCase());
+  if (named) return named.value;
+  if (scale === 'boulder') return 'boulder';
+  if (scale === 'ice' || scale === 'mixed') return 'ice-mixed';
+  return null;
+}
+
+/** Send PRs this session sets against prior history. */
+export function computeSendPRs(groups: TrackedSectionGroup[], history: SetLogRow[]): SendRecord[] {
+  const prior = bestHistoricalSends(history);
+  const current = new Map<string, BestSend & { discipline: ClimbStyle | null; name: string }>();
+  for (const group of groups) {
+    for (const tracked of group.exercises) {
+      if (tracked.exercise.category !== 'climbing') continue;
+      for (const set of tracked.sets) {
+        if (!isPerformedSet({ is_autofilled: set.isAutofilled, is_warmup: set.isWarmup })) continue;
+        if (!isCleanSend(set.ascentStyle)) continue;
+        const grade = parseGrade(set.actualWeight);
+        if (!grade) continue;
+        const key = sendKey(tracked.exercise.name, grade.scale);
+        const held = current.get(key);
+        if (held && held.rank >= grade.rank) continue;
+        current.set(key, {
+          rank: grade.rank, grade: set.actualWeight.trim(), style: set.ascentStyle, date: '',
+          discipline: disciplineOf(tracked, grade.scale), name: tracked.exercise.name,
+        });
+      }
+    }
+  }
+  const prs: SendRecord[] = [];
+  for (const [key, send] of current) {
+    const best = prior.get(key);
+    if (!best || send.rank <= best.rank) continue;
+    prs.push({
+      kind: 'send',
+      exerciseName: send.name,
+      grade: send.grade,
+      discipline: send.discipline,
+      style: send.style,
+      previousGrade: best.grade,
+      previousDate: best.date,
+    });
+  }
+  return prs;
 }
 
 // ─── Session PR computation ───────────────────────────────────────────────────
@@ -297,6 +412,8 @@ export function computeSessionPRs(
         if (elev && (currentElevation.get(name)?.value ?? 0) < elev.value) currentElevation.set(name, elev);
         continue;
       }
+      // A pitch's grade is not a weight: its record is the send (computeSendPRs).
+      if (tracked.exercise.category === 'climbing') continue;
       for (const set of tracked.sets) {
         if (!isPerformedSet({ is_autofilled: set.isAutofilled, is_warmup: set.isWarmup })) continue;
         const classified = classifySet(set.actualWeight, set.actualReps, set.actualDuration, ctx);
@@ -372,6 +489,8 @@ export function computeSessionPRs(
   };
   quantityPRs('distance', currentDistance, priorCardio.distance);
   quantityPRs('elevation', currentElevation, priorCardio.elevation);
+
+  prs.push(...computeSendPRs(groups, history));
 
   return prs;
 }
@@ -505,6 +624,8 @@ export function describeRecord(pr: PersonalRecord): string {
       return `${quantityLabel(pr.value, pr.unit)}, up from ${quantityLabel(pr.previousValue, pr.unit)} on ${prevDate}`;
     case 'elevation':
       return `${quantityLabel(pr.value, pr.unit)} elevation, up from ${quantityLabel(pr.previousValue, pr.unit)} on ${prevDate}`;
+    case 'send':
+      return `${ascentStyleLabel(pr.style) ?? 'Sent'} ${pr.grade}, up from ${pr.previousGrade} on ${prevDate}`;
   }
 }
 

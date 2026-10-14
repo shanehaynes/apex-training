@@ -1,7 +1,7 @@
-import type { Exercise, ExerciseDefinition, PlannedSet, WorkoutEvent } from '../../types/workout';
+import type { AscentStyle, Exercise, ExerciseCategory, ExerciseDefinition, PlannedSet, WorkoutEvent } from '../../types/workout';
 import type { CardioLogRow, ExerciseNoteRow, SetLogRow, TrackedSection } from '../db/types';
 import { sectionLabels } from '../climbing.js';
-import { isPerformedSet, parseDurationSeconds } from './records.js';
+import { isPerformedSet, isPitchRow, parseDurationSeconds } from './records.js';
 
 // ─── Tracker form model ───────────────────────────────────────────────────────
 // Pure builders that turn a WorkoutEvent (plan) plus previously-saved rows
@@ -28,6 +28,11 @@ export interface TrackedSet {
   /** A warm-up set is logged and shown like any other but is not a
    *  performance: isPerformedSet excludes it from every stat (phase55). */
   isWarmup: boolean;
+  /** Climbing pitches only: how the ascent went (null = not said). Any
+   *  style but 'attempt' is a clean send (isCleanSend, records.ts). */
+  ascentStyle: AscentStyle | null;
+  /** Climbing pitches only: goes it took, as typed ('' = not counted). */
+  attempts: string;
 }
 
 export type CardioShadow = Omit<LastCardioActuals, 'date'>;
@@ -107,6 +112,8 @@ function emptySet(planned: PlannedSet, isExtra: boolean): TrackedSet {
     shadow: null,
     rpe: '',
     isWarmup: false,
+    ascentStyle: null,
+    attempts: '',
   };
 }
 
@@ -136,12 +143,45 @@ export function normalizeRpeText(value: string): string {
   return n === null ? '' : String(n);
 }
 
+/**
+ * A pitch's attempt count from the stepper's text: a whole number of at
+ * least 1, or null. Zero goes is not a pitch, and anything else would meet
+ * the server's validation as a 400.
+ */
+export function parseAttempts(value: string | null | undefined): number | null {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const n = Number(trimmed);
+  return n >= 1 ? n : null;
+}
+
 /** The per-set metadata a saved row carries, as the tracker holds it. */
-function rowMetadata(row: SetLogRow): Pick<TrackedSet, 'rpe' | 'isWarmup'> {
+function rowMetadata(row: SetLogRow): Pick<TrackedSet, 'rpe' | 'isWarmup' | 'ascentStyle' | 'attempts'> {
   return {
     rpe: row.rpe != null ? String(row.rpe) : '',
     isWarmup: row.is_warmup === true,
+    ascentStyle: row.ascent_style ?? null,
+    attempts: row.attempts != null ? String(row.attempts) : '',
   };
+}
+
+// ─── Logged shape ─────────────────────────────────────────────────────────────
+
+/**
+ * What an exercise's log rows look like: one cardio row, per-set pitches
+ * (a grade in the weight column, plus style and attempts), or ordinary
+ * per-set rows. A swap may move logs only within one shape — relabelling a
+ * pitch as a bench press would turn "5.9" into a weight. Null when the
+ * category is unknown.
+ */
+export type LoggedShape = 'cardio' | 'climbing' | 'sets';
+
+export function loggedShapeOf(category: string | null | undefined): LoggedShape | null {
+  if (!category) return null;
+  if (category === 'cardio') return 'cardio';
+  if (category === 'climbing') return 'climbing';
+  return 'sets';
 }
 
 export function makeExtraSet(setNumber: number): TrackedSet {
@@ -244,12 +284,27 @@ export function makeAddedExercise(
   };
 }
 
+/**
+ * An added exercise's category, which its rows do not carry: the
+ * definition's when the caller knows it, else 'strength' — upgraded to
+ * 'climbing' below by any row with pitch metadata. A pitch rebuilt as
+ * 'strength' would get its grade suffixed as a weight on the next save.
+ */
+function addedCategory(
+  row: SetLogRow,
+  definitionCategories: ReadonlyMap<string, ExerciseCategory>,
+): ExerciseCategory {
+  const known = row.definition_id ? definitionCategories.get(row.definition_id) : undefined;
+  return known && known !== 'cardio' ? known : 'strength';
+}
+
 /** One section's added exercises, rebuilt from the rows logged against them. */
 function addedExercisesIn(
   section: TrackedSection,
   savedSets: SetLogRow[],
   savedCardio: CardioLogRow[],
   notesByKey: Map<string, string>,
+  definitionCategories: ReadonlyMap<string, ExerciseCategory>,
 ): TrackedExercise[] {
   const byId = new Map<string, TrackedExercise>();
   const entry = (row: SetLogRow | CardioLogRow, isCardio: boolean): TrackedExercise => {
@@ -263,7 +318,7 @@ function addedExercisesIn(
           definitionId: row.definition_id ?? undefined,
           // The rows do not say; the table does. Clients read the logged
           // dimensions off the definition (inputFields).
-          category: isCardio ? 'cardio' : 'strength',
+          category: isCardio ? 'cardio' : addedCategory(row as SetLogRow, definitionCategories),
         },
         isAdded: true,
         isCardio,
@@ -283,7 +338,12 @@ function addedExercisesIn(
   for (const row of savedSets) {
     if (row.section !== section || !isAddedExerciseId(row.exercise_id)) continue;
     const tracked = entry(row, false);
-    if (!tracked.isCardio) tracked.sets.push(loggedExtraSet(row));
+    if (tracked.isCardio) continue;
+    // Any one row with pitch metadata makes the whole entry a pitch.
+    if (tracked.exercise.category !== 'climbing' && isPitchRow(row)) {
+      tracked.exercise = { ...tracked.exercise, category: 'climbing' };
+    }
+    tracked.sets.push(loggedExtraSet(row));
   }
   const added = [...byId.values()];
   for (const tracked of added) tracked.sets.sort((a, b) => a.setNumber - b.setNumber);
@@ -297,6 +357,8 @@ export function buildTrackerModel(
   lastByName: Map<string, LastPerformance> = new Map(),
   lastCardioByName: Map<string, LastCardioActuals> = new Map(),
   savedNotes: ExerciseNoteRow[] = [],
+  /** definition id → category, for exercises added mid-workout (their rows don't say). */
+  definitionCategories: ReadonlyMap<string, ExerciseCategory> = new Map(),
 ): TrackedSectionGroup[] {
   const notesByKey = new Map(savedNotes.map(r => [`${r.section}|${r.exercise_id}`, r.note]));
   const setKey = (section: string, exerciseId: string, setNumber: number) =>
@@ -385,7 +447,7 @@ export function buildTrackerModel(
         sets.sort((a, b) => a.setNumber - b.setNumber);
 
         return { section, exercise, substitutedFrom, sessionNote, isCardio: false, sets, cardio: null };
-      }).concat(addedExercisesIn(section, savedSets, savedCardio, notesByKey)),
+      }).concat(addedExercisesIn(section, savedSets, savedCardio, notesByKey, definitionCategories)),
     }))
     .filter(group => group.exercises.length > 0);
 }
@@ -532,6 +594,11 @@ export function setToRow(
     is_autofilled: false,
     rpe: parseRpe(set.rpe),
     is_warmup: set.isWarmup,
+    // Pitch metadata rides only a pitch's row, so set work saves exactly
+    // what it did before the columns existed.
+    ...(tracked.exercise.category === 'climbing'
+      ? { ascent_style: set.ascentStyle, attempts: parseAttempts(set.attempts) }
+      : {}),
   };
 }
 
@@ -583,6 +650,8 @@ export function collectUntouchedPlanned(
           // A skipped set is not a warm-up, whatever the row was toggled to.
           rpe: null,
           is_warmup: false,
+          // Nor a send.
+          ...(tracked.exercise.category === 'climbing' ? { ascent_style: null, attempts: null } : {}),
         });
       }
     }

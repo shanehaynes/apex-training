@@ -1,9 +1,10 @@
 import { useContext, useRef, useState } from 'react';
-import { Pencil, Plus, Repeat2, X } from 'lucide-react';
-import type { ExerciseCategory, ExerciseDefinition, PlannedSet } from '../../types/workout';
+import { Minus, Pencil, Plus, Repeat2, X } from 'lucide-react';
+import type { AscentStyle, ExerciseCategory, ExerciseDefinition, PlannedSet } from '../../types/workout';
 import type { TrackedExercise, TrackedSet, CardioActuals, LastSetActuals } from '../../lib/tracking/plan';
 import { FIELD_ORDER, SET_FIELD_TO_LOG_FIELD, inputFields, nextLogFields, type SetField } from '../../lib/tracking/fields';
-import { normalizeRpeText } from '../../lib/tracking/plan';
+import { normalizeRpeText, parseAttempts } from '../../lib/tracking/plan';
+import { ascentStylesFor } from '../../lib/climbing';
 import type { SetMetaPatch } from '../../hooks/useWorkoutSession';
 import { countSpecNote, hasPerSideCount, stripCountSpec } from '../../lib/schedule/definitions';
 import { useSchedule } from '../../context/schedule';
@@ -11,6 +12,7 @@ import { AuthContext } from '../../context/auth';
 import { knownUnitContext, withExplicitUnit } from '../../lib/tracking/weight';
 import ExercisePicker from '../modal/ExercisePicker';
 import DurationInput from './DurationInput';
+import '../../styles/climbing.css';
 
 export type { SetField };
 export type CardioField = keyof Omit<CardioActuals, 'isLogged' | 'shadow'>;
@@ -82,6 +84,64 @@ function rowFilled(values: Partial<Record<SetField, string>>, fields: SetField[]
   return COMMIT_FIELDS.some(field => fields.includes(field) && !!values[field]?.trim());
 }
 
+/**
+ * A pitch's own controls, where a set row has reps: how it went and how many
+ * goes it took. Choosing a style on a planned pitch with no grade typed logs
+ * the planned grade — saying how the pitch went says it was climbed.
+ */
+function PitchControls({
+  set,
+  styles,
+  onChange,
+  onMetaChange,
+}: {
+  set: TrackedSet;
+  styles: { value: AscentStyle; label: string }[];
+  onChange: (field: SetField, value: string) => void;
+  onMetaChange: (patch: SetMetaPatch) => void;
+}) {
+  const attempts = parseAttempts(set.attempts);
+  const pickStyle = (style: AscentStyle | null) => {
+    if (style && !set.actualWeight.trim() && set.planned.targetWeight) onChange('actualWeight', set.planned.targetWeight);
+    onMetaChange({ ascentStyle: style });
+  };
+  return (
+    <>
+      <select
+        className="tracker-input tracker-input--style"
+        aria-label={`Set ${set.setNumber} ascent style`}
+        value={set.ascentStyle ?? ''}
+        onChange={e => pickStyle((e.target.value || null) as AscentStyle | null)}
+      >
+        <option value="">—</option>
+        {styles.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+      </select>
+      <span className="tracker-attempts">
+        <button
+          type="button"
+          className="tracker-attempts__step"
+          aria-label={`One fewer attempt on set ${set.setNumber}`}
+          disabled={attempts === null}
+          onClick={() => onMetaChange({ attempts: attempts !== null && attempts > 1 ? String(attempts - 1) : '' })}
+        >
+          <Minus size={12} strokeWidth={1.5} />
+        </button>
+        <output className="tracker-attempts__count" aria-label={`Set ${set.setNumber} attempts`}>
+          {attempts ?? '–'}
+        </output>
+        <button
+          type="button"
+          className="tracker-attempts__step"
+          aria-label={`One more attempt on set ${set.setNumber}`}
+          onClick={() => onMetaChange({ attempts: String((attempts ?? 0) + 1) })}
+        >
+          <Plus size={12} strokeWidth={1.5} />
+        </button>
+      </span>
+    </>
+  );
+}
+
 function SetRow({
   set,
   fields,
@@ -89,6 +149,7 @@ function SetRow({
   freeText,
   unplanned,
   showRpe,
+  pitchStyles,
   suffixWeight,
   onChange,
   onMetaChange,
@@ -104,6 +165,8 @@ function SetRow({
   /** Text keyboard instead of decimal — climbing grades mix digits and letters. */
   freeText?: boolean;
   showRpe?: boolean;
+  /** A climbing pitch: the ascent styles its discipline allows. */
+  pitchStyles?: { value: AscentStyle; label: string }[];
   /** The weight text to store once the field commits (blur or Enter) — a
    *  bare number gains the profile unit; absent, it stays as typed. */
   suffixWeight?: (text: string) => string;
@@ -136,7 +199,7 @@ function SetRow({
   );
 
   return (
-    <div className={`tracker-set${set.isWarmup ? ' tracker-set--warmup' : ''}`}>
+    <div className={`tracker-set${set.isWarmup ? ' tracker-set--warmup' : ''}${pitchStyles ? ' tracker-set--pitch' : ''}`}>
       {/* The leading slot is the warm-up toggle: the set number at rest, a W
           once marked. A warm-up set is logged and shown like any other and
           counted nowhere (isPerformedSet). */}
@@ -201,6 +264,9 @@ function SetRow({
             />
           );
         })}
+        {pitchStyles && (
+          <PitchControls set={set} styles={pitchStyles} onChange={onChange} onMetaChange={onMetaChange} />
+        )}
         {showRpe && (
           <input
             className="tracker-input tracker-input--rpe"
@@ -330,6 +396,7 @@ export default function TrackerExercise({
     ? (text: string) => withExplicitUnit(text, weightContext)
     : undefined;
   const specNote = isClimb ? undefined : countSpecNote(exercise);
+  const pitchStyles = isClimb ? ascentStylesFor(exercise.climbStyle) : undefined;
 
   // Only after a swap: the reps were entered against the movement this one
   // replaced, so a bilateral count carried onto a unilateral movement is
@@ -461,7 +528,7 @@ export default function TrackerExercise({
         </div>
       ) : (
         <>
-          <div className="tracker-set tracker-set--head" aria-hidden="true">
+          <div className={`tracker-set tracker-set--head${isClimb ? ' tracker-set--pitch' : ''}`} aria-hidden="true">
             <span className="tracker-set__num">#</span>
             <span className="tracker-set__planned">target</span>
             <div className="tracker-set__inputs">
@@ -470,6 +537,12 @@ export default function TrackerExercise({
                   {labels[field]}
                 </span>
               ))}
+              {isClimb && (
+                <>
+                  <span className="tracker-input-label tracker-input--style">style</span>
+                  <span className="tracker-input-label tracker-attempts">tries</span>
+                </>
+              )}
               {showRpe && <span className="tracker-input-label tracker-input--rpe">rpe</span>}
             </div>
             <span className="tracker-set__remove tracker-set__remove--spacer" />
@@ -483,6 +556,7 @@ export default function TrackerExercise({
               freeText={isClimb}
               unplanned={tracked.isAdded}
               showRpe={showRpe}
+              pitchStyles={pitchStyles}
               suffixWeight={suffixWeight}
               onChange={(field, value) => onSetChange(set.setNumber, field, value)}
               onMetaChange={patch => onSetMetaChange?.(set.setNumber, patch)}

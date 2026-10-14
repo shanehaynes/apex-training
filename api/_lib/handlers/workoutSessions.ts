@@ -9,7 +9,7 @@ import {
   EVENT_ID_PATTERN,
 } from '../allowlist.js';
 import { enforceRateLimit } from '../rateLimit.js';
-import { applyEditTimes, applyQuickComplete, applyQuickUncomplete, buildBootstrap, buildFinishSummary, loadResolvedOccurrence } from '../trackerSession.js';
+import { applyEditTimes, applyQuickComplete, applyQuickUncomplete, buildBootstrap, buildFinishSummary, checkSwapShape, loadResolvedOccurrence } from '../trackerSession.js';
 import { sendFailure } from '../services/result.js';
 import { sendWriteFailure } from '../pgError.js';
 import { endLiveActivities } from '../services/liveActivity.js';
@@ -630,6 +630,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (definitionId !== undefined && definitionId !== null && typeof definitionId !== 'string') {
       res.status(400).send('definitionId must be a string or null');
+      return;
+    }
+
+    // A swap keeps the logged shape: a pitch stays a pitch (its weight
+    // column is a grade), set work stays set work, cardio stays cardio.
+    try {
+      const event = definitionId ? await loadResolvedOccurrence(supabase, userId, eventId, eventDate) : null;
+      const shape = await checkSwapShape(supabase, userId, event, { eventId, eventDate, section: section as TrackedSection, exerciseId }, definitionId);
+      if (!shape.ok) return sendFailure(res, shape);
+    } catch (err) {
+      console.error('[api/workout-sessions] swap-exercise shape check failed:', err instanceof Error ? err.message : err);
+      res.status(500).send('Failed to swap exercise');
       return;
     }
 

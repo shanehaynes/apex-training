@@ -56,8 +56,8 @@ const removedKey = (section: TrackedSection, exerciseId: string, setNumber: numb
 // The note on the whole session (workout_sessions.note): one row, one key.
 const SESSION_NOTE_KEY = 'session-note';
 
-/** The per-set metadata a row control edits: RPE text and the warm-up flag. */
-export type SetMetaPatch = Partial<Pick<TrackedSet, 'rpe' | 'isWarmup'>>;
+/** The per-set metadata a row control edits: RPE text, the warm-up flag, and a pitch's style and attempts. */
+export type SetMetaPatch = Partial<Pick<TrackedSet, 'rpe' | 'isWarmup' | 'ascentStyle' | 'attempts'>>;
 
 export type CoachStatus = 'loading' | 'ready' | 'unavailable';
 

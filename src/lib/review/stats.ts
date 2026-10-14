@@ -415,6 +415,9 @@ function relativeImprovement(pr: DatedPersonalRecord): number {
     case 'distance':
     case 'elevation':
       return pr.previousValue > 0 ? (pr.value - pr.previousValue) / pr.previousValue : 0;
+    case 'send':
+      // A grade is a rank, not a quantity: no ratio to take.
+      return 0;
   }
 }
 
