@@ -7,6 +7,8 @@ import type { CardioLogRow, SetLogRow, WorkoutSessionRow } from '../../../../src
 import type { Exercise, WorkoutEvent } from '../../../../src/types/workout.js';
 import { classifySet, estimateOneRepMax } from '../../../../src/lib/tracking/records.js';
 import { makeOccurrenceId } from '../../../../src/lib/schedule/occurrence.js';
+import type { WeightContext } from '../../../../src/lib/tracking/weight.js';
+import { fetchWeightContext } from '../../weightContext.js';
 
 // Calendar-facing tools: what is planned, and what actually happened in one
 // workout. Occurrence expansion matches the calendar exactly (same pure
@@ -27,8 +29,10 @@ function prescriptionEntry(e: Exercise) {
   };
 }
 
-function loggedSet(row: SetLogRow) {
-  const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration);
+// The weight text is returned as logged; estimated_1rm reads it against
+// the athlete's profile (kg rows, "BW+25") and stays in pounds (R1.6).
+function loggedSet(row: SetLogRow, ctx: WeightContext) {
+  const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration, ctx);
   return {
     section: row.section,
     exercise: row.exercise_name,
@@ -119,7 +123,7 @@ export const getWorkoutDetailTool: McpToolDef = {
     }
     const occurrenceId = occurrence.id;
 
-    const [completionRes, sessionRes, setLogs, cardioLogs] = await Promise.all([
+    const [completionRes, sessionRes, setLogs, cardioLogs, weightCtx] = await Promise.all([
       supabase
         .from('workout_completions')
         .select('*')
@@ -155,6 +159,7 @@ export const getWorkoutDetailTool: McpToolDef = {
           .order('exercise_id', { ascending: true })
           .range(from, to),
       ),
+      fetchWeightContext(supabase, userId),
     ]);
 
     const session = (sessionRes.data ?? null) as WorkoutSessionRow | null;
@@ -189,7 +194,7 @@ export const getWorkoutDetailTool: McpToolDef = {
             coach_summary: session.coach_summary,
           }
         : null,
-      logged: { sets: setLogs.map(loggedSet), cardio: cardioLogs.map(loggedCardio) },
+      logged: { sets: setLogs.map(row => loggedSet(row, weightCtx)), cardio: cardioLogs.map(loggedCardio) },
     };
   },
 };

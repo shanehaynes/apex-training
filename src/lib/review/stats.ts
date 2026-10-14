@@ -1,6 +1,7 @@
 import { differenceInCalendarDays, format, parseISO, startOfISOWeek } from 'date-fns';
 import type { CardioLogRow, CompletionRow, SetLogRow, WorkoutSessionRow } from '../db/types.js';
 import { classifySet, isPerformedSet, parseQuantity } from '../tracking/records.js';
+import { DEFAULT_WEIGHT_CONTEXT, type WeightContext } from '../tracking/weight.js';
 import {
   getIsoMonth,
   isoWeeksInYear,
@@ -94,6 +95,7 @@ export function computePeriodPRs(
   setLogs: SetLogRow[],
   cardioLogs: CardioLogRow[],
   period: StatsPeriod,
+  ctx: WeightContext = DEFAULT_WEIGHT_CONTEXT,
 ): DatedPersonalRecord[] {
   const prs: DatedPersonalRecord[] = [];
 
@@ -108,7 +110,7 @@ export function computePeriodPRs(
 
     for (const row of rows) {
       if (!isPerformedSet(row)) continue;
-      const set = classifySet(row.actual_weight, row.actual_reps, minutesForBareDuration(row.actual_duration));
+      const set = classifySet(row.actual_weight, row.actual_reps, minutesForBareDuration(row.actual_duration), ctx);
       if (!set) continue;
       const name = row.exercise_name;
       if (set.kind === 'oneRM') {
@@ -290,7 +292,7 @@ export function computeCardioStats(cardioLogs: CardioLogRow[], period: StatsPeri
   };
 }
 
-export function computeStrengthStats(setLogs: SetLogRow[], period: StatsPeriod): StrengthStats {
+export function computeStrengthStats(setLogs: SetLogRow[], period: StatsPeriod, ctx: WeightContext = DEFAULT_WEIGHT_CONTEXT): StrengthStats {
   let tonnage = 0;
   let totalSets = 0;
   let totalReps = 0;
@@ -299,13 +301,18 @@ export function computeStrengthStats(setLogs: SetLogRow[], period: StatsPeriod):
 
   for (const row of setLogs) {
     if (!isPerformedSet(row) || !inPeriod(row.event_date, period)) continue;
-    const set = classifySet(row.actual_weight, row.actual_reps, minutesForBareDuration(row.actual_duration));
+    const set = classifySet(row.actual_weight, row.actual_reps, minutesForBareDuration(row.actual_duration), ctx);
     if (!set) continue;
     totalSets += 1;
     setsByExercise.set(row.exercise_name, (setsByExercise.get(row.exercise_name) ?? 0) + 1);
     if (set.kind === 'oneRM') {
+      // Pounds either way: a "62.5 kg" row contributes its converted load, a
+      // "BW+25" row body weight plus 25 (R1.1: bodyweight sets count here).
       tonnage += set.weight * set.reps;
       totalReps += set.reps;
+      // R1.1: a bodyweight-loaded set is never the "heaviest set" — the
+      // number is mostly the athlete, not the bar.
+      if (set.load === 'bodyweight') continue;
       if (!heaviestSet || set.weight > heaviestSet.weight || (set.weight === heaviestSet.weight && set.reps > heaviestSet.reps)) {
         heaviestSet = { weight: set.weight, reps: set.reps, exerciseName: row.exercise_name, date: row.event_date };
       }
@@ -319,11 +326,15 @@ export function computeStrengthStats(setLogs: SetLogRow[], period: StatsPeriod):
     .slice(0, 5)
     .map(([exerciseName, sets]) => ({ exerciseName, sets }));
 
-  return { tonnage: Math.round(tonnage), totalSets, totalReps, heaviestSet, topExercises };
+  // Compared on the float, stored to two decimals: a kg set's pound
+  // conversion is 185.18808…, which no reader needs.
+  if (heaviestSet) heaviestSet = { ...heaviestSet, weight: Math.round(heaviestSet.weight * 100) / 100 };
+  return { tonnage: Math.round(tonnage), totalSets, totalReps, heaviestSet, topExercises, displayUnit: ctx.unit };
 }
 
 export function computeReviewStats<P extends StatsPeriod>(inputs: PeriodInputs<P>): PeriodStats<P> {
   const { period } = inputs;
+  const ctx = inputs.weight ?? DEFAULT_WEIGHT_CONTEXT;
   const completions = inputs.completions.filter(c => c.is_completed && inPeriod(c.event_date, period));
   const sessions = inputs.sessions.filter(s => inPeriod(s.event_date, period));
   const seconds = sessionSecondsMap(sessions);
@@ -369,7 +380,7 @@ export function computeReviewStats<P extends StatsPeriod>(inputs: PeriodInputs<P
     }
   }
 
-  const prs = computePeriodPRs(inputs.setLogs, inputs.cardioLogs, period);
+  const prs = computePeriodPRs(inputs.setLogs, inputs.cardioLogs, period, ctx);
   const prCountsByKind: Record<string, number> = {};
   for (const pr of prs) prCountsByKind[pr.kind] = (prCountsByKind[pr.kind] ?? 0) + 1;
 
@@ -383,7 +394,7 @@ export function computeReviewStats<P extends StatsPeriod>(inputs: PeriodInputs<P
       weeksActive: sessionsByWeek.size,
     },
     cardio: computeCardioStats(inputs.cardioLogs, period),
-    strength: computeStrengthStats(inputs.setLogs, period),
+    strength: computeStrengthStats(inputs.setLogs, period, ctx),
     prs,
     prCountsByKind,
     streaks: { longestActiveDayStreak: longestStreak(activeDates), mostActiveWeek },
@@ -438,7 +449,7 @@ export function computeYearlyStats(inputs: ReviewInputs): YearlyStats {
     const monthPeriod = buildReviewPeriod('month', isoYear, m);
     const inMonth = (date: string) => date >= monthPeriod.startDate && date < monthPeriod.endDateExclusive;
     const monthCompletions = completions.filter(c => inMonth(c.event_date));
-    const strength = computeStrengthStats(inputs.setLogs, monthPeriod);
+    const strength = computeStrengthStats(inputs.setLogs, monthPeriod, inputs.weight ?? DEFAULT_WEIGHT_CONTEXT);
     const cardio = computeCardioStats(inputs.cardioLogs, monthPeriod);
     months.push({
       monthIndex: m,

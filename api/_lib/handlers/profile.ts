@@ -10,6 +10,7 @@ import { publicOrigin } from '../oauth/common.js';
 import { isChecklistId, isSetupSkipId, localSetupDone, setupSkipId, skippedIds } from '../../../src/lib/onboarding/progress.js';
 import { isTipId } from '../../../src/lib/onboarding/tips/index.js';
 import { contractProblem, normalizeContract } from '../../../src/lib/coach/contract.js';
+import { weightContextFromProfile } from '../../../src/lib/tracking/weight.js';
 
 // Profile reads/writes, same posture as every other table: the browser
 // reads profiles via RLS (own row only) and mutates through this
@@ -36,8 +37,8 @@ const PROFILE_COLUMNS = 'display_name, avatar_key, coach_goal, coach_context, co
 // Postgres on a select, PGRST204 from PostgREST's schema cache on an update.
 // Either one means "not yet", never a server fault. tips_seen (id → ISO time
 // a tip was dismissed) came first; coach_contract and reflection_opt_in
-// (lane D01) ride the same pattern.
-const TRAILING_COLUMNS = ['tips_seen', 'coach_contract', 'reflection_opt_in'] as const;
+// (lane D01) and the weight-entry pair (phase55) ride the same pattern.
+const TRAILING_COLUMNS = ['tips_seen', 'coach_contract', 'reflection_opt_in', 'weight_unit', 'body_weight_lb'] as const;
 const TRAILING_COLUMN_RE = new RegExp(TRAILING_COLUMNS.join('|'));
 
 function isTrailingColumnMissing(error: { code?: string; message?: string } | null): boolean {
@@ -99,8 +100,12 @@ async function profileFields(
     if (!missing) throw new Error(res.error.message);
     wanted = wanted.filter(c => c !== missing);
   }
-  const trailing = (data ?? {}) as { tips_seen?: unknown; coach_contract?: unknown; reflection_opt_in?: unknown };
+  const trailing = (data ?? {}) as {
+    tips_seen?: unknown; coach_contract?: unknown; reflection_opt_in?: unknown;
+    weight_unit?: unknown; body_weight_lb?: unknown;
+  };
   const tipsSeen = tipsSeenRecord(trailing.tips_seen);
+  const weight = weightContextFromProfile(trailing);
   const stored = typeof data?.coach_model === 'string' ? data.coach_model : null;
   return {
     displayName: data?.display_name ?? null,
@@ -114,6 +119,11 @@ async function profileFields(
     reflectionOptIn: trailing.reflection_opt_in === true,
     maxHr: data?.max_hr ?? null,
     thresholdHr: data?.threshold_hr ?? null,
+    // Weight entry (phase55): the unit weights are typed and read in, and
+    // the body weight "BW+25" resolves against — always pounds here; the
+    // client shows it in weightUnit. Pounds and null until the columns exist.
+    weightUnit: weight.unit,
+    bodyWeightLb: weight.bodyWeightLb,
     coachModel: stored,
     coachModelLabel: resolveCoachModel(stored).label,
     calendarFeedUrl: data?.ics_token ? `${publicOrigin(req)}/api/calendar-feed?token=${data.ics_token}` : null,

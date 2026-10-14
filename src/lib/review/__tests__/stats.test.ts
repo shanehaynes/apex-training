@@ -225,7 +225,7 @@ describe('computePeriodPRs', () => {
 });
 
 describe('computeReviewStats', () => {
-  it('sums tonnage from parseable weighted sets only', () => {
+  it('sums tonnage from parseable weighted sets only, honouring their units', () => {
     const stats = computeReviewStats(
       inputs({
         setLogs: [
@@ -237,10 +237,14 @@ describe('computeReviewStats', () => {
         ],
       }),
     );
-    expect(stats.strength.tonnage).toBe(185 * 5 + 84 * 5);
+    // 84 kg = 84 × 2.20462 = 185.18808 lb; tonnage is rounded to whole pounds:
+    // Math.round(185 × 5 + 185.18808 × 5) = Math.round(1850.9404) = 1851.
+    expect(stats.strength.tonnage).toBe(1851);
     expect(stats.strength.totalSets).toBe(3); // two lifts + the BW reps set
     expect(stats.strength.totalReps).toBe(5 + 10 + 5);
-    expect(stats.strength.heaviestSet).toMatchObject({ weight: 185, exerciseName: 'Bench Press' });
+    // 185.19 lb of squat now outweighs the 185 lb bench.
+    expect(stats.strength.heaviestSet).toMatchObject({ exerciseName: 'Squat', reps: 5, date: '2026-05-21' });
+    expect(stats.strength.heaviestSet?.weight).toBe(185.19); // A2: rounded to two decimals
   });
 
   it('sums cardio per unit without converting', () => {

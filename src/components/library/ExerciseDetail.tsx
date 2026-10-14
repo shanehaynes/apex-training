@@ -3,6 +3,7 @@ import { ArrowLeft, X, Pencil, Trophy } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useSchedule } from '../../context/schedule';
+import { useAuth } from '../../context/auth';
 import { buildAliasIndex, canonicalizeLogNames, countDefinitionReferences } from '../../lib/schedule/definitions';
 import { fetchExerciseHistory } from '../../lib/library/repo';
 import { buildExerciseStats, formatStatDate, formatTrendValue, type ExerciseStats } from '../../lib/library/stats';
@@ -40,6 +41,7 @@ function TrendTooltip({ active, payload, stats }: { active?: boolean; payload?: 
 
 export default function ExerciseDetail({ definition, onBack, onClose }: Props) {
   const { definitions, events } = useSchedule();
+  const { weightContext } = useAuth();
   const [stats, setStats] = useState<ExerciseStats | null>(null);
   const [editing, setEditing] = useState(false);
   // Recharts wants concrete colours: read the tokens rather than paste them.
@@ -61,11 +63,12 @@ export default function ExerciseDetail({ definition, onBack, onClose }: Props) {
         setStats(buildExerciseStats(
           canonicalizeLogNames(setRows, index),
           canonicalizeLogNames(cardioRows, index),
+          { ctx: weightContext },
         ));
       })
       .catch(() => { if (!cancelled) setStats(buildExerciseStats([], [])); });
     return () => { cancelled = true; };
-  }, [definition, definitions]);
+  }, [definition, definitions, weightContext]);
 
   const trendData = stats?.trend ?? [];
 

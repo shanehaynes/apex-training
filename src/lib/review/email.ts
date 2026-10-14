@@ -1,5 +1,5 @@
 import { addDays, format, parseISO } from 'date-fns';
-import { describeDatedRecord, formatMinutes, formatNumber, formatUnitMap, formatWeight, shortDate } from './formats.js';
+import { describeDatedRecordForPeople, formatMinutes, formatNumber, formatTonnage, formatUnitMap, formatWeight, shortDate } from './formats.js';
 import type { ReviewStats, YearlyStats } from './types.js';
 
 // ─── Review email rendering ───────────────────────────────────────────────────
@@ -120,11 +120,11 @@ function buildSections(stats: ReviewStats): Section[] {
   const st = stats.strength;
   if (st.totalSets > 0) {
     const strength: Section = { title: 'Strength', details: [] };
-    if (st.tonnage > 0) strength.details.push(['Total weight moved', `${formatWeight(st.tonnage)} (weight × reps)`]);
+    if (st.tonnage > 0) strength.details.push(['Total weight moved', `${formatTonnage(st.tonnage, st.displayUnit)} (weight × reps)`]);
     strength.details.push(['Sets · reps', `${st.totalSets} · ${formatNumber(st.totalReps)}`]);
     if (st.heaviestSet) {
       const h = st.heaviestSet;
-      strength.details.push(['Heaviest set', `${formatWeight(h.weight)} × ${h.reps} — ${h.exerciseName} (${shortDate(h.date)})`]);
+      strength.details.push(['Heaviest set', `${formatWeight(h.weight, st.displayUnit)} × ${h.reps} — ${h.exerciseName} (${shortDate(h.date)})`]);
     }
     if (st.topExercises.length > 0) {
       strength.details.push(['Most-trained', st.topExercises.map(e => `${e.exerciseName} (${e.sets})`).join(', ')]);
@@ -151,7 +151,7 @@ function buildSections(stats: ReviewStats): Section[] {
   sections.push({
     title: `Personal records (${stats.prs.length})`,
     details: [],
-    list: stats.prs.length > 0 ? stats.prs.map(describeDatedRecord) : ['No personal records this period.'],
+    list: stats.prs.length > 0 ? stats.prs.map(pr => describeDatedRecordForPeople(pr, stats.strength.displayUnit)) : ['No personal records this period.'],
   });
 
   if (isYearly(stats)) {
@@ -176,7 +176,7 @@ function buildSections(stats: ReviewStats): Section[] {
       highlights.details.push(['Most improved', `${i.type} (${i.firstHalf} → ${i.secondHalf} sessions, first vs second half)`]);
     }
     if (stats.biggestPRs.length > 0) {
-      highlights.list = stats.biggestPRs.map(pr => `Biggest PR: ${describeDatedRecord(pr)}`);
+      highlights.list = stats.biggestPRs.map(pr => `Biggest PR: ${describeDatedRecordForPeople(pr, stats.strength.displayUnit)}`);
     }
     if (highlights.details.length > 0 || highlights.list) sections.push(highlights);
 
@@ -207,7 +207,7 @@ export function renderReviewEmail(
   const t = stats.totals;
   const tiles: Array<[string, string]> = [[String(t.sessionsCompleted), 'Sessions']];
   if (t.totalDurationMinutes > 0) tiles.push([formatMinutes(t.totalDurationMinutes), 'Training time']);
-  if (stats.strength.tonnage > 0) tiles.push([formatWeight(stats.strength.tonnage), 'Weight moved']);
+  if (stats.strength.tonnage > 0) tiles.push([formatTonnage(stats.strength.tonnage, stats.strength.displayUnit), 'Weight moved']);
   if (Object.keys(stats.cardio.distanceByUnit).length > 0) tiles.push([formatUnitMap(stats.cardio.distanceByUnit), 'Distance']);
   if (Object.keys(stats.cardio.elevationByUnit).length > 0) tiles.push([formatUnitMap(stats.cardio.elevationByUnit), 'Elevation gain']);
   tiles.push([String(stats.prs.length), 'Personal records']);
@@ -245,7 +245,7 @@ export function renderReviewEmail(
     statGrid(tiles) +
     sectionsHtml +
     `<p style="font-size:12px;color:${COLORS.muted};margin:32px 0 0;border-top:1px solid ${COLORS.border};padding-top:12px;">` +
-    `Numbers are computed from your logged workouts; weights and distances are summed in the units you logged them.</p>` +
+    `Numbers are computed from your logged workouts; weights are converted and shown in ${escapeHtml(stats.strength.displayUnit ?? 'lb')}, distances are summed in the units you logged them.</p>` +
     `</div>`;
 
   const textLines: string[] = [`APEX TRAINING — ${heading}`, `${subheading} · ${displayName}`, ''];

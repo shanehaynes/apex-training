@@ -3,6 +3,7 @@ import type { CardioLogRow, CompletionRow, Json, ReviewRow, SetLogRow, WorkoutSe
 import { buildAliasIndex, canonicalizeLogNames } from '../../src/lib/schedule/definitions.js';
 import type { PeriodInputs, PeriodType, ReviewInputs, ReviewPeriod, StatsPeriod } from '../../src/lib/review/types.js';
 import { fetchAllPages } from './pagination.js';
+import { fetchWeightContext } from './weightContext.js';
 
 // Data access for the review cron — the only module that knows the review
 // queries. Runs on the service-role client (no user JWT in cron context),
@@ -20,7 +21,7 @@ export async function fetchPeriodInputs<P extends StatsPeriod>(
   userId: string,
   period: P,
 ): Promise<PeriodInputs<P>> {
-  const [completions, sessions, setLogs, cardioLogs, defs] = await Promise.all([
+  const [completions, sessions, setLogs, cardioLogs, defs, weight] = await Promise.all([
     fetchAllPages<CompletionRow>('workout_completions', (from, to) =>
       supabase
         .from('workout_completions')
@@ -79,6 +80,8 @@ export async function fetchPeriodInputs<P extends StatsPeriod>(
         .order('canonical_name', { ascending: true })
         .range(from, to),
     ),
+    // How a bare "80" or a "BW+25" row reads — the profile's unit and body weight.
+    fetchWeightContext(supabase, userId),
   ]);
 
   // Unify pre-rename spellings so a renamed exercise doesn't produce phantom
@@ -91,6 +94,7 @@ export async function fetchPeriodInputs<P extends StatsPeriod>(
     sessions,
     setLogs: canonicalizeLogNames(setLogs, aliasIndex),
     cardioLogs: canonicalizeLogNames(cardioLogs, aliasIndex),
+    weight,
   };
 }
 

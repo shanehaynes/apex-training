@@ -17,6 +17,7 @@ import AccountData from './AccountData';
 import ProfileDisclosure from './ProfileDisclosure';
 import RpeTrackingToggle from './RpeTrackingToggle';
 import type { AvatarKey } from '../../lib/db/types';
+import { bodyWeightEdit, bodyWeightText, type WeightUnit } from '../../lib/tracking/weight';
 
 // Full-screen profile overlay, same pattern as LibraryView: fixed inset-0,
 // Escape closes, body scroll locked while open.
@@ -44,13 +45,15 @@ export default function ProfileView() {
   const { dispatch } = useCalendar();
   const {
     session, profile, anthropicKey, signOut, setNewPassword, updateProfile,
-    saveAnthropicKey, removeAnthropicKey,
+    saveAnthropicKey, removeAnthropicKey, weightContext,
   } = useAuth();
   const close = () => dispatch({ type: 'CLOSE_PROFILE' });
 
   const [name, setName] = useState(profile?.display_name ?? '');
   const [maxHr, setMaxHr] = useState(profile?.max_hr != null ? String(profile.max_hr) : '');
   const [thresholdHr, setThresholdHr] = useState(profile?.threshold_hr != null ? String(profile.threshold_hr) : '');
+  // Body weight is stored in pounds and typed in the chosen unit, to one decimal.
+  const [bodyWeight, setBodyWeight] = useState(bodyWeightText(weightContext.bodyWeightLb, weightContext.unit));
   const [goal, setGoal] = useState(profile?.coach_goal ?? '');
   const [coachContext, setCoachContext] = useState(profile?.coach_context ?? '');
   const [password, setPassword] = useState('');
@@ -97,6 +100,29 @@ export default function ProfileView() {
 
   const saveMaxHr = saveHrField(maxHr, profile?.max_hr ?? null, [100, 250], v => updateProfile({ maxHr: v }), 'Max HR');
   const saveThresholdHr = saveHrField(thresholdHr, profile?.threshold_hr ?? null, [80, 230], v => updateProfile({ thresholdHr: v }), 'Threshold HR');
+
+  // Weight entry (phase55). The unit changes how weights are typed and read,
+  // never a stored row; the body-weight field re-reads in the new unit.
+  const pickWeightUnit = async (unit: WeightUnit) => {
+    if (unit === weightContext.unit) return;
+    const ok = await updateProfile({ weightUnit: unit });
+    if (!ok) return;
+    setBodyWeight(bodyWeightText(weightContext.bodyWeightLb, unit));
+    notify(`Weights now in ${unit}`);
+  };
+  // Blank clears (null); anything else is a positive number in the chosen
+  // unit, stored as pounds — the API 400s anything else, so pre-check here.
+  // A blur with no edit never PATCHes (bodyWeightEdit compares the text shown).
+  const saveBodyWeight = async () => {
+    const edit = bodyWeightEdit(bodyWeight, weightContext);
+    if (edit.kind === 'unchanged') return;
+    if (edit.kind === 'invalid') {
+      notify('Body weight must be a positive number');
+      return;
+    }
+    const ok = await updateProfile({ bodyWeightLb: edit.lb });
+    if (ok) notify(`Body weight ${edit.lb === null ? 'cleared' : 'updated'}`);
+  };
 
   // Unlike saveName, empty is a valid save — clearing a coach field is an edit.
   const saveGoal = async () => {
@@ -278,6 +304,44 @@ export default function ProfileView() {
           <section className="profile-section">
             <h3 className="profile-section__title">Training</h3>
             <RpeTrackingToggle />
+          </section>
+
+          <section className="profile-section">
+            <h3 className="profile-section__title">Weight</h3>
+            <p className="profile-section__hint">
+              The unit a bare number means when you log a set — a suffix (“62.5 kg”,
+              “137 lb”) always wins. It also applies to weights you already logged
+              without a unit: switching it changes what those mean in your stats.
+              Body weight makes “BW” and “BW+25” count as weighted sets. Blank the
+              field to clear it.
+            </p>
+            <div className="library-field-row">
+              <label className="auth-field">
+                <span className="auth-field__label">Unit</span>
+                <select
+                  className="auth-input"
+                  value={weightContext.unit}
+                  onChange={e => pickWeightUnit(e.target.value as WeightUnit)}
+                  data-testid="profile-weight-unit"
+                >
+                  <option value="lb">lb</option>
+                  <option value="kg">kg</option>
+                </select>
+              </label>
+              <label className="auth-field">
+                <span className="auth-field__label">Body weight ({weightContext.unit})</span>
+                <input
+                  className="auth-input"
+                  inputMode="decimal"
+                  value={bodyWeight}
+                  onChange={e => setBodyWeight(e.target.value)}
+                  onBlur={saveBodyWeight}
+                  onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                  placeholder={weightContext.unit === 'kg' ? 'e.g. 82' : 'e.g. 180'}
+                  data-testid="profile-body-weight"
+                />
+              </label>
+            </div>
           </section>
 
           {/* 24 tiles is a third of a screen for a choice made once. The

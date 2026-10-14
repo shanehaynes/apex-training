@@ -336,7 +336,9 @@ export function computeBlockProgress(inputs: BlockProgressInputs, today: Date): 
 
   // The one full-history pass: PR detection needs every prior log, so this
   // runs once for the whole block rather than per week.
-  const stats = computeReviewStats({ period, completions, sessions, setLogs, cardioLogs });
+  // The athlete's weight context rides through, so block PRs and tonnage
+  // read a bare "80" or "BW+25" the way the review does.
+  const stats = computeReviewStats({ period, completions, sessions, setLogs, cardioLogs, weight: inputs.weight });
 
   return {
     block,

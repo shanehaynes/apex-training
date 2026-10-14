@@ -14,6 +14,8 @@ import {
   describeRecord,
 } from '../../../../src/lib/tracking/records.js';
 import { buildExerciseStats } from '../../../../src/lib/library/stats.js';
+import { formatLb, type WeightContext } from '../../../../src/lib/tracking/weight.js';
+import { fetchWeightContext } from '../../weightContext.js';
 import { buildReviewPeriod, computePeriodPRs, computeReviewStats } from '../../../../src/lib/review/stats.js';
 import { canonicalNameOf } from '../../../../src/lib/schedule/definitions.js';
 import { formatSeconds } from '../../../../src/lib/time.js';
@@ -35,11 +37,13 @@ function downsample<T>(points: T[], max: number): T[] {
   return out;
 }
 
-function describeLoggedSet(row: SetLogRow): string | null {
-  const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration);
+// Weights are read against the athlete's profile (a bare "80" under kg, a
+// "BW+25") and reported in pounds: machine strings stay lb (R1.6).
+function describeLoggedSet(row: SetLogRow, ctx: WeightContext): string | null {
+  const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration, ctx);
   if (!set) return null;
   switch (set.kind) {
-    case 'oneRM': return `${set.weight} × ${set.reps}`;
+    case 'oneRM': return `${formatLb(set.weight)} × ${set.reps}`;
     case 'duration': return formatSeconds(set.seconds);
     case 'reps': return `${set.reps} reps`;
   }
@@ -73,8 +77,10 @@ export const getExerciseHistoryTool: McpToolDef = {
 
     // Scoped to this one exercise in the query rather than drained and
     // filtered here — the rows discarded were the entire rest of the history.
-    const { setLogs: setRows, cardioLogs: cardioRows, aliasIndex } =
-      await fetchCanonicalHistoryFor(supabase, userId, rawName);
+    const [{ setLogs: setRows, cardioLogs: cardioRows, aliasIndex }, ctx] = await Promise.all([
+      fetchCanonicalHistoryFor(supabase, userId, rawName),
+      fetchWeightContext(supabase, userId),
+    ]);
     const canonical = canonicalNameOf(rawName, aliasIndex);
     if (setRows.length === 0 && cardioRows.length === 0) {
       throw new ToolInputError(
@@ -83,13 +89,13 @@ export const getExerciseHistoryTool: McpToolDef = {
       );
     }
 
-    const stats = buildExerciseStats(setRows, cardioRows);
+    const stats = buildExerciseStats(setRows, cardioRows, { ctx, displayUnit: 'lb' });
 
     // Recent sessions, newest first, with the sets actually logged. (The
     // library page caps at 6; the tool honors the caller's limit instead.)
     const byDate = new Map<string, string[]>();
     const describe = setRows.length
-      ? setRows.map(r => ({ date: r.event_date, label: describeLoggedSet(r) }))
+      ? setRows.map(r => ({ date: r.event_date, label: describeLoggedSet(r, ctx) }))
       : cardioRows.map(r => ({ date: r.event_date, label: describeLoggedCardio(r) }));
     for (const { date, label } of describe) {
       if (!label) continue;
@@ -129,7 +135,10 @@ export const getPrsTool: McpToolDef = {
   },
   async run(supabase, userId, args) {
     const scope = optionalEnum(args, 'scope', ['all_time', 'period'] as const, 'all_time');
-    const { setLogs, cardioLogs } = await fetchCanonicalHistory(supabase, userId);
+    const [{ setLogs, cardioLogs }, ctx] = await Promise.all([
+      fetchCanonicalHistory(supabase, userId),
+      fetchWeightContext(supabase, userId),
+    ]);
 
     if (scope === 'period') {
       const { startDate, endDate } = requireDateRange(args, MAX_PR_PERIOD_DAYS);
@@ -146,6 +155,7 @@ export const getPrsTool: McpToolDef = {
         setLogs.filter(r => r.event_date < endExclusive),
         cardioLogs.filter(r => r.event_date < endExclusive),
         period,
+        ctx,
       );
       return {
         scope,
@@ -155,9 +165,9 @@ export const getPrsTool: McpToolDef = {
       };
     }
 
-    const oneRM = bestHistoricalOneRM(setLogs);
-    const duration = bestHistoricalDuration(setLogs);
-    const reps = bestHistoricalReps(setLogs);
+    const oneRM = bestHistoricalOneRM(setLogs, ctx);
+    const duration = bestHistoricalDuration(setLogs, ctx);
+    const reps = bestHistoricalReps(setLogs, ctx);
     const cardio = bestHistoricalCardio(cardioLogs);
 
     const splitKey = (key: string) => {
@@ -170,7 +180,8 @@ export const getPrsTool: McpToolDef = {
       lifts: [...oneRM.entries()].map(([exercise, best]) => ({
         exercise,
         estimated_1rm: Math.round(best.oneRM),
-        weight: best.weight,
+        // Pounds (R1.6); a kg-logged set reports its converted weight.
+        weight: Number(formatLb(best.weight)),
         reps: best.reps,
         date: best.date,
       })),

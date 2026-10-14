@@ -1,4 +1,4 @@
-import { describeDatedRecord, formatMinutes, formatNumber, formatUnitMap, formatWeight, shortDate } from './formats.js';
+import { describeDatedRecordForPeople, formatMinutes, formatNumber, formatTonnage, formatUnitMap, formatWeight, shortDate } from './formats.js';
 import type { ReviewStats, YearlyStats } from './types.js';
 
 // ─── AI recap: the model's entire view of the period ─────────────────────────
@@ -61,12 +61,12 @@ function statsBody(stats: ReviewStats): string[] {
     lines.push('');
     lines.push('Strength:');
     if (st.tonnage > 0) {
-      lines.push(`Total weight moved: ${formatWeight(st.tonnage)} (sum of weight × reps)`);
+      lines.push(`Total weight moved: ${formatTonnage(st.tonnage, st.displayUnit)} (sum of weight × reps)`);
     }
     lines.push(`Sets: ${st.totalSets}, reps: ${formatNumber(st.totalReps)}`);
     if (st.heaviestSet) {
       const h = st.heaviestSet;
-      lines.push(`Heaviest set: ${formatWeight(h.weight)} × ${h.reps} — ${h.exerciseName} (${shortDate(h.date)})`);
+      lines.push(`Heaviest set: ${formatWeight(h.weight, st.displayUnit)} × ${h.reps} — ${h.exerciseName} (${shortDate(h.date)})`);
     }
     if (st.topExercises.length > 0) {
       lines.push(`Most-trained: ${st.topExercises.map(e => `${e.exerciseName} (${e.sets} sets)`).join(', ')}`);
@@ -97,7 +97,7 @@ function statsBody(stats: ReviewStats): string[] {
   lines.push('');
   if (stats.prs.length > 0) {
     lines.push(`PERSONAL RECORDS (${stats.prs.length} — pre-computed and verified; never invent records not listed):`);
-    for (const pr of stats.prs) lines.push(`- ${describeDatedRecord(pr)}`);
+    for (const pr of stats.prs) lines.push(`- ${describeDatedRecordForPeople(pr, stats.strength.displayUnit)}`);
   } else {
     lines.push('No personal records this period.');
   }
@@ -146,7 +146,7 @@ export function buildYearlyRecap(stats: YearlyStats, displayName: string): strin
   if (stats.biggestPRs.length > 0) {
     lines.push('');
     lines.push('Biggest PRs of the year:');
-    for (const pr of stats.biggestPRs) lines.push(`- ${describeDatedRecord(pr)}`);
+    for (const pr of stats.biggestPRs) lines.push(`- ${describeDatedRecordForPeople(pr, stats.strength.displayUnit)}`);
   }
   if (stats.memorableCandidates.length > 0) {
     lines.push('');

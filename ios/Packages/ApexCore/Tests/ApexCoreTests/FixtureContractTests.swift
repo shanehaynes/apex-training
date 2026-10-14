@@ -400,6 +400,21 @@ final class FixtureContractTests: XCTestCase {
         }
     }
 
+    func testChartDraftWeightUnitRoundTrips() throws {
+        // A draft with a picked weight unit (the web's optional `weightUnit`)
+        // decodes it and re-encodes the draft intact; without the key it is nil
+        // and stays absent, so the empty draft's key set is unchanged.
+        guard case .object(var object) = try decode(JSONValue.self, from: "chart-draft-empty.json") else {
+            return XCTFail("chart-draft-empty.json should be an object")
+        }
+        XCTAssertNil(object["weightUnit"])
+        XCTAssertNil(try ChartDraft(jsonValue: .object(object)).weightUnit)
+        object["weightUnit"] = .string("kg")
+        let draft = try ChartDraft(jsonValue: .object(object))
+        XCTAssertEqual(draft.weightUnit, "kg")
+        XCTAssertEqual(try draft.jsonValue(), .object(object))
+    }
+
     func testAnalyticsDraftFixturesDecode() throws {
         // The web's emptyChartDraft() is the Swift mirror's `empty`, key for key.
         let empty = try decode(ChartDraft.self, from: "chart-draft-empty.json")

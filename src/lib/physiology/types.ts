@@ -7,6 +7,8 @@
 // hand. Nothing here imports React, supabase-js or a browser global: every
 // file under src/lib/physiology/ is reachable from api/**.
 
+import type { WeightContext } from '../tracking/weight.js';
+
 /** One synced activity (activity_streams row), summary scalars only. */
 export interface ActivityInput {
   eventId: string;
@@ -55,6 +57,12 @@ export interface PhysiologyInputs {
   setLogs: SetLogInput[];
   thresholdHr: number | null;
   maxHr: number | null;
+  /**
+   * How a bare "80" or a "BW+25" set reads (profiles.weight_unit /
+   * body_weight_lb). Absent = pounds, no body weight. The tonnage it yields
+   * stays in pounds either way (tonnageLb): the coach reads machine facts.
+   */
+  weight?: WeightContext;
 }
 
 /** Minutes in Z1…Z5, in that order. */
@@ -69,7 +77,7 @@ export interface WeekZoneMinutes {
 
 export interface WeekTonnage {
   weekStart: string;
-  /** Σ weight × reps of logged (non-autofilled) weighted sets; null when none were logged. */
+  /** Σ weight × reps of logged (non-autofilled) weighted sets, in pounds whatever the athlete's unit; null when none were logged. */
   tonnageLb: number | null;
 }
 

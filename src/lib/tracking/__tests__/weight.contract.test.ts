@@ -10,8 +10,9 @@ import {
 // Pins the parseWeight contract (phase55) so the implementation lane and
 // its callers can land in either order: the exports exist, the default
 // context has the agreed shape, and the signature is what callers compile
-// against. The stub throws by design — a passing test here says nothing
-// about parsing, only about the shape.
+// against. The third case is the first real assertion: a bare number under
+// the default context is that many pounds (the acceptance suite beside this
+// file covers the grammar).
 
 describe('parseWeight contract', () => {
   it('exports the default context in the agreed shape', () => {
@@ -31,7 +32,7 @@ describe('parseWeight contract', () => {
     expect([absolute, bodyweight, none]).toHaveLength(3);
   });
 
-  it('is a stub until the weight-units lane lands', () => {
-    expect(() => parseWeight('185', DEFAULT_WEIGHT_CONTEXT)).toThrow('not implemented: parseWeight');
+  it('reads a bare number as pounds under the default context', () => {
+    expect(parseWeight('185', DEFAULT_WEIGHT_CONTEXT)).toEqual({ lb: 185, kind: 'absolute' });
   });
 });

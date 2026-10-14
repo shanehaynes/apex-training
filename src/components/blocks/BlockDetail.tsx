@@ -10,6 +10,7 @@ import { loadBlockLogs } from '../../lib/blocks/repo';
 import { blockPeriod } from '../../lib/blocks/period';
 import { describeRecordForPeople } from '../../lib/tracking/records';
 import { now } from '../../lib/clock';
+import { useAuth } from '../../context/auth';
 import type { TrainingBlock } from '../../types/blocks';
 import BlockProgressBars from './BlockProgressBars';
 
@@ -30,6 +31,7 @@ export default function BlockDetail({
   const { events } = useSchedule();
   const { objectiveFor } = useBlocks();
   const { byBlock, dismiss } = useAnnotations();
+  const { weightContext } = useAuth();
   const notes = byBlock(block.id);
   const [progress, setProgress] = useState<BlockProgress | null>(null);
 
@@ -45,6 +47,7 @@ export default function BlockDetail({
               period,
               ...logs,
               block,
+              weight: weightContext,
               // Expanded occurrences inside the window are the source of the
               // calendar-derived fallback for any target left unauthored.
               plannedEvents: events.filter(
@@ -57,7 +60,7 @@ export default function BlockDetail({
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [block, events]);
+  }, [block, events, weightContext]);
 
   const objective = objectiveFor(block);
   const currentWeek = progress?.currentWeek ?? null;
@@ -185,7 +188,7 @@ export default function BlockDetail({
                   {progress.prs.map((pr, i) => (
                     <li key={`${pr.exerciseName}-${pr.date}-${i}`}>
                       <span className="block-prs__date">{pr.date}</span>{' '}
-                      <strong>{pr.exerciseName}</strong> — {describeRecordForPeople(pr)}
+                      <strong>{pr.exerciseName}</strong> — {describeRecordForPeople(pr, weightContext.unit)}
                     </li>
                   ))}
                 </ul>

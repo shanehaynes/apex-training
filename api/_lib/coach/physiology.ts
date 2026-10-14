@@ -1,5 +1,6 @@
 import type { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { fetchAllPages } from '../pagination.js';
+import { readWeightContext } from '../weightContext.js';
 import { physiologyWindowStart } from '../../../src/lib/physiology/index.js';
 import type {
   ActivityInput,
@@ -65,7 +66,7 @@ export async function fetchPhysiologyInputs(
 ): Promise<PhysiologyInputs> {
   try {
     const startDate = physiologyWindowStart(todayIso);
-    const [streams, cardio, sets, profileRes] = await Promise.all([
+    const [streams, cardio, sets, profileRes, weight] = await Promise.all([
       fetchAllPages<StreamSummaryRow>('activity_streams', (from, to) =>
         supabase.from('activity_streams').select('event_id,event_date,summary').eq('user_id', userId)
           .gte('event_date', startDate).lte('event_date', todayIso)
@@ -84,6 +85,10 @@ export async function fetchPhysiologyInputs(
           .order('event_date').order('event_id').order('exercise_id').order('set_number').range(from, to),
       ),
       supabase.from('profiles').select('threshold_hr, max_hr').eq('id', userId).maybeSingle(),
+      // Its own read, quiet and optional: a trailing weight column must
+      // not cost the whole panel, and an unknown context is simply absent
+      // (pounds, the pure module's default).
+      readWeightContext(supabase, userId),
     ]);
     if (profileRes.error) throw new Error(`profiles fetch failed: ${profileRes.error.message}`);
 
@@ -108,6 +113,7 @@ export async function fetchPhysiologyInputs(
       setLogs,
       thresholdHr: profileRes.data?.threshold_hr ?? null,
       maxHr: profileRes.data?.max_hr ?? null,
+      ...(weight ? { weight } : {}),
     };
   } catch (err) {
     console.warn('[api/chat] physiology unavailable for the prompt:', err instanceof Error ? err.message : err);
