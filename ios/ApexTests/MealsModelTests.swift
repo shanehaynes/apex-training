@@ -369,6 +369,174 @@ final class MealsModelTests: XCTestCase {
         model.stop()
     }
 
+    // MARK: - Direct first, the lane only when the server can't be reached
+
+    @MainActor
+    func testAnOnlineCreateWithTheQueueGoesDirectAndQueuesNothing() async throws {
+        let transport = YouTransport.meals()
+        let (model, _, store, hooks) = await queued(transport)
+        var form = MealForm(day: fixtureDay)
+        form.title = "Toast"
+        form.protein = "12"
+        let refusal = await model.save(form, editing: nil, originalDay: nil)
+        XCTAssertNil(refusal)
+        XCTAssertEqual(model.pendingNotice, "Meal added", "online, the save is answered at once")
+        XCTAssertEqual(model.pendingNoticeLevel, .success)
+        let held = await store.all.count
+        XCTAssertEqual(held, 0, "nothing queued")
+        XCTAssertTrue(model.pendingMeals.isEmpty)
+        let posts = transport.requests("/api/meals").filter { $0.method == "POST" }
+        XCTAssertEqual(posts.count, 1)
+        XCTAssertTrue((posts[0].body?["id"] as? String ?? "").hasPrefix("meal-"))
+        XCTAssertEqual(posts[0].body?["triggered_by"] as? String, "user")
+        XCTAssertEqual(transport.queries(tool: "get_meals").count, 2, "the month is re-read")
+        XCTAssertEqual(hooks.changes, 1)
+        model.stop()
+    }
+
+    @MainActor
+    func testAnOnlineRefusalWithTheQueueIsReturnedToTheComposerAndQueuesNothing() async throws {
+        let transport = YouTransport.meals()
+        transport.set("POST /api/meals", status: 400, body: "Total fat can't be less than saturated + trans")
+        let (model, _, store, hooks) = await queued(transport)
+        var form = MealForm(day: fixtureDay)
+        form.title = "Butter"
+        form.fatTotal = "5"
+        form.fatSaturated = "9"
+        let refusal = await model.save(form, editing: nil, originalDay: nil)
+        XCTAssertEqual(refusal, "Total fat can't be less than saturated + trans", "shown inline in the open composer")
+        XCTAssertNil(model.pendingNotice)
+        let held = await store.all.count
+        XCTAssertEqual(held, 0, "a refusal is final: nothing queued")
+        XCTAssertTrue(model.refusedMeals.isEmpty, "the composer has it; nothing to Fix later")
+        XCTAssertTrue(model.pendingMeals.isEmpty)
+        XCTAssertEqual(transport.requests("/api/meals").filter { $0.method == "POST" }.count, 1)
+        XCTAssertEqual(hooks.changes, 0)
+        model.stop()
+    }
+
+    @MainActor
+    func testNoConnectionOrAServerErrorQueuesTheSaveWithTheQueuedNotice() async throws {
+        for answer in [YouTransport.Answer.fail, .json(503, Data("down".utf8)), .json(429, Data("slow down".utf8))] {
+            let transport = YouTransport.meals()
+            transport.set("POST /api/meals", answer)
+            let (model, queue, store, hooks) = await queued(transport)
+            var form = MealForm(day: fixtureDay)
+            form.title = "Toast"
+            let refusal = await model.save(form, editing: nil, originalDay: nil)
+            XCTAssertNil(refusal, "\(answer): not a refusal")
+            XCTAssertEqual(model.pendingNotice, MealsModel.queuedNotice, "\(answer)")
+            XCTAssertEqual(model.pendingNoticeLevel, .info)
+            XCTAssertEqual(model.pendingMeals["2026-09-08"], 1, "\(answer): waiting on its day")
+            let held = await store.all
+            guard case .meal(let payload) = held.first?.payload else { return XCTFail("\(answer): not queued") }
+            XCTAssertEqual(held.count, 1)
+            XCTAssertEqual(payload.title, "Toast")
+            let direct = transport.requests("/api/meals").first { $0.method == "POST" }
+            XCTAssertEqual(payload.id, direct?.body?["id"] as? String, "the queued op is the meal the direct try sent")
+            XCTAssertEqual(hooks.changes, 0)
+            await queue.pause()
+            model.stop()
+        }
+    }
+
+    @MainActor
+    func testADirectCreateWhoseAnswerWasLostLandsOnceThroughTheQueue() async throws {
+        // The insert landed but the answer never came back: the lane replays
+        // the same id and the server answers it as landed — one meal.
+        let transport = YouTransport.mealsOffline()
+        let (model, queue, store, hooks) = await queued(transport)
+        var form = MealForm(day: fixtureDay)
+        form.title = "Toast"
+        let refusal = await model.save(form, editing: nil, originalDay: nil)
+        XCTAssertNil(refusal)
+        XCTAssertEqual(model.pendingNotice, MealsModel.queuedNotice)
+        await queue.flush(.outbox)
+
+        transport.set("POST /api/meals", .json(200, Data(#"{"id":"replayed-id","replayed":true}"#.utf8)))
+        await queue.resume()
+        await queue.awaitRetries()
+        try await waitUntil { model.pendingMeals.isEmpty && hooks.changes == 1 }
+        let posts = transport.requests("/api/meals").filter { $0.method == "POST" }
+        XCTAssertGreaterThanOrEqual(posts.count, 2, "the direct try, then the replay")
+        XCTAssertEqual(Set(posts.compactMap { $0.body?["id"] as? String }).count, 1, "every try is the same meal")
+        XCTAssertTrue(model.pendingMeals.isEmpty)
+        XCTAssertTrue(model.refusedMeals.isEmpty, "a replay answered as landed is not a refusal")
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+        XCTAssertEqual(hooks.changes, 1)
+        model.stop()
+    }
+
+    @MainActor
+    func testAFixSavedOnlineLandsDirectAndLetsTheRefusedOpGo() async throws {
+        // Queued offline, refused by the server once it came back, fixed
+        // while online: the fix goes direct with the same id and the kept
+        // refusal is let go.
+        let transport = YouTransport.mealsOffline()
+        let (model, queue, store, hooks) = await queued(transport)
+        var form = MealForm(day: fixtureDay)
+        form.title = "Butter"
+        form.fatTotal = "5"
+        form.fatSaturated = "9"
+        _ = await model.save(form, editing: nil, originalDay: nil)
+        await queue.flush(.outbox)
+        transport.set("POST /api/meals", status: 400, body: "Total fat can't be less than saturated + trans")
+        await queue.resume()
+        await queue.awaitRetries()
+        try await waitUntil { !model.refusedMeals.isEmpty }
+        let kept = try XCTUnwrap(model.refusedMeals.first)
+
+        transport.set("POST /api/meals", .json(200, Data(#"{"id":"meal-new"}"#.utf8)))
+        var fixed = MealForm(item: kept.item, day: kept.day)
+        fixed.fatSaturated = "4"
+        let tries = transport.requests("/api/meals").filter { $0.method == "POST" }.count
+        let again = await model.save(fixed, editing: nil, originalDay: nil, fixing: kept)
+        XCTAssertNil(again)
+        XCTAssertEqual(model.pendingNotice, "Meal added")
+        XCTAssertTrue(model.refusedMeals.isEmpty, "the refusal it fixed is let go")
+        let left = await store.all.count
+        XCTAssertEqual(left, 0, "nothing queued")
+        let posts = transport.requests("/api/meals").filter { $0.method == "POST" }
+        XCTAssertEqual(posts.count, tries + 1, "one direct send")
+        XCTAssertEqual(posts.last?.body?["id"] as? String, kept.item.id, "a refused create keeps its id")
+        XCTAssertEqual(posts.last?.body?["fat_saturated_g"] as? Int, 4)
+        XCTAssertEqual(hooks.changes, 1)
+        model.stop()
+    }
+
+    @MainActor
+    func testAnEditOfAMealWhoseSaveStillWaitsQueuesBehindIt() async throws {
+        // Sent direct, the second edit could land first and be overwritten
+        // by the first when it replays.
+        let transport = YouTransport.mealsOffline()
+        let (model, queue, store, hooks) = await queued(transport)
+        let item = model.item(id: "ios-fixture-meal-1", on: fixtureDay)!
+        var first = MealForm(item: item, day: fixtureDay)
+        first.calories = "500"
+        _ = await model.save(first, editing: item, originalDay: fixtureDay)
+        await queue.flush(.outbox)
+        XCTAssertEqual(model.pendingMeals["2026-09-08"], 1)
+
+        transport.set("PATCH /api/meals", .json(200, Data(#"{"ok":true}"#.utf8)))
+        let tries = transport.requests("/api/meals").filter { $0.method == "PATCH" }.count
+        var second = MealForm(item: item, day: fixtureDay)
+        second.calories = "600"
+        let refusal = await model.save(second, editing: item, originalDay: fixtureDay)
+        XCTAssertNil(refusal)
+        XCTAssertEqual(model.pendingNotice, MealsModel.queuedNotice, "queued behind the waiting save, not sent ahead of it")
+        XCTAssertEqual(transport.requests("/api/meals").filter { $0.method == "PATCH" }.count, tries, "no direct send")
+        let held = await store.all.count
+        XCTAssertEqual(held, 2)
+
+        await queue.resume()
+        await queue.awaitRetries()
+        try await waitUntil { model.pendingMeals.isEmpty && hooks.changes >= 1 }
+        let landed = transport.requests("/api/meals").filter { $0.method == "PATCH" }.dropFirst(tries)
+        XCTAssertEqual(landed.map { ($0.body?["fields"] as? [String: Any])?["calories"] as? Int }, [500, 600], "in the order they were saved")
+        model.stop()
+    }
+
     @MainActor
     func testEditSendsEveryColumnAndAMoveReloadsBothMonths() async {
         let transport = YouTransport.meals()
