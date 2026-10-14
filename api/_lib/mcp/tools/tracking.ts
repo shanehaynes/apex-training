@@ -211,7 +211,9 @@ export const getPeriodStatsTool: McpToolDef = {
   description:
     'Aggregated training stats for one month or year of the 13-month ISO training calendar: session totals ' +
     'by type, active days/weeks, cardio distance/elevation by unit, strength tonnage, streaks, and PRs set ' +
-    'in the period. Months are 1–13 (each 4 ISO weeks; month 13 may have 5).',
+    'in the period. Months are 1–13 (each 4 ISO weeks; month 13 may have 5). Weight numbers (tonnage, ' +
+    'heaviest set, est. 1RM PRs) are in pounds; strength.displayUnit is only the athlete\'s display preference, ' +
+    'not the unit of those numbers.',
   inputSchema: {
     type: 'object',
     properties: {

@@ -148,4 +148,17 @@ describe.skipIf(!RUN)('RLS posture of the local stack', () => {
       ORDER BY 1`);
     expect(grants, 'see the GRANT block in the latest migration; anon writes are how the phase42 leak happened').toEqual([]);
   });
+
+  it('lets the API key read the migration ledger and nothing else touch it', () => {
+    // The ledger is production's record of which migrations ran (phase56).
+    // Only the SQL Editor (postgres, the owner) writes it; a key that could
+    // write it could forge or erase stamps, and clients have no business there.
+    const grants = rows(`
+      SELECT grantee || ' ' || privilege_type
+      FROM information_schema.role_table_grants
+      WHERE table_schema = 'public' AND table_name = 'migration_ledger'
+        AND grantee IN ('anon', 'authenticated', 'service_role')
+      ORDER BY 1`);
+    expect(grants).toEqual(['service_role SELECT']);
+  });
 });

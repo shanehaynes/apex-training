@@ -29,7 +29,7 @@ say so.
 2. **Fixture contract tests** — the integration suite
    (`api/__tests__/integration/ios-read.integration.test.ts`) runs the real handlers against the local
    stack and writes canonical responses to `ios/Fixtures/`: `schedule.json`,
-   `bootstrap.json`, `bootstrap-peek.json`, `finish.json`, `chat-stream.ndjson`, `chat-stream-builder.ndjson`,
+   `bootstrap.json`, `bootstrap-peek.json`, `bootstrap-full.json`, `bootstrap-amrap.json`, `finish.json`, `chat-stream.ndjson`, `chat-stream-builder.ndjson`,
    `coach-summary.ndjson`, `coach-tool.json`, `coach-tool-draft.json`, `workout-draft-{create,edit,detach}.json`,
    `analytics-compute.json`, `query-*.json`, `profile.json`. `swift test` decodes every file, but
    Swift's decoder ignores keys it does not know, so a field the server adds never fails it. By
@@ -38,12 +38,17 @@ say so.
    deliberate shape change. It needs the local stack, so `agent:check` skips it; CI's `full` job
    and `npm run agent:check:full` run it. The tracker's opening response — the file most often drifted (#417, #419,
    #422) — also has a no-DB check that `agent:check` does run:
-   `api/__tests__/ios-fixture-shape.test.ts` builds `bootstrap.json` and `bootstrap-peek.json`
+   `api/__tests__/ios-fixture-shape.test.ts` rebuilds all four bootstrap fixtures
    through `loadResolvedOccurrence` and `buildBootstrap` on a fake client seeded with typed rows,
-   and compares field names, so a field added to or dropped from what the fixture scenario
-   reaches fails locally; the byte-for-byte check stays in CI. Subtrees neither fixture contains
-   (a non-null `scoreRecord`, PR kinds other than `oneRM`, `resolvedPlannedWeight`, climbing
-   pitches, cardio shadows) are checked by neither.
+   and compares field names (array elements merged, PRs per `kind`), so a field added to or
+   dropped from every element of an array fails locally; one element losing a field its siblings
+   keep is left to the byte-for-byte check in CI. `bootstrap-full.json` exists for that coverage:
+   a finished for-time session with a workout score record, every PR kind, a percentage target,
+   a pitch, an added exercise, a swap, a duration shadow, a cardio shadow and the session's
+   summary and note. A session row carries one score type, so `bootstrap-amrap.json` holds the
+   other: an AMRAP session (`score_rounds`, `score_reps`) and its record. Both scenarios are the
+   last tests in the integration file and delete their rows, because `get_prs` reads all of the
+   user's records and would otherwise move `query-get_prs.json`.
 3. **Snapshot tests** (`swift-snapshot-testing`) in `ApexFeatures`: Day view (empty, three
    events, completed), tracker set row in each state (planned / shadow / logged / autofilled /
    extra), confirmation card, KPI and line tiles, event detail sheet. iPhone 17 (iOS 26) and,
@@ -227,7 +232,8 @@ rule people remember.
   second one for the `ApexWidgets` extension — App Store Connect scans each binary in the
   upload on its own (ITMS-91053), and the extension links neither supabase-swift nor GRDB.
 - App Privacy answers: email (account), fitness data the user enters (linked to identity), no
-  tracking, no HealthKit.
+  tracking. HealthKit from 1.1 is write-only (W16 M1), so Health stays "not collected" until W16
+  M2 reads workouts.
 - In-app account deletion (guideline 5.1.1(v)) → `DELETE /api/profile` (W11).
 - BYO Anthropic key: the app is fully usable without it; the coach is presented as optional;
   no pricing shown. Review notes explain it and provide a demo account with a key already saved.

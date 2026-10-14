@@ -78,6 +78,10 @@
 	     a date, so nothing is ever pushed. -->
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<!-- W16 M1: the system sheet's reason for writing workouts to Apple Health.
+	     No NSHealthShareUsageDescription until Apex reads from Health (M2). -->
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Apex saves the workouts you finish in the tracker to Apple Health, with their real start and end times, so they show up in Health and Fitness.</string>
 	<!-- The web hand-off button (D-020); consumed in W2. -->
 	<key>CFBundleURLTypes</key>
 	<array>

@@ -78,9 +78,15 @@ public struct RetryPolicy: Sendable, Equatable {
             return transient(error, attempts: attempts, after: retryAfter ?? backoff(attempts: attempts))
         case .unauthorized:
             return .pause
+        // Not this op's fault and not permanent: every write is gated until the
+        // user accepts the updated terms, and accepting resumes the queue
+        // (W16 MT). Failing here would mark a workout's sets refused, or drop
+        // an outbox write, over a consent screen.
+        case .termsAcceptanceRequired:
+            return .pause
         case .server(_, let message):
             return .fail(message ?? error.description)
-        case .missingAnthropicKey, .termsAcceptanceRequired, .payloadTooLarge, .decoding:
+        case .missingAnthropicKey, .payloadTooLarge, .decoding:
             return .fail(error.description)
         }
     }

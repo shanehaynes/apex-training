@@ -53,6 +53,7 @@ public struct YouRootView: View {
     /// Pushes onto the tab's stack from inside a pushed screen (the Library's
     /// create opens the new exercise); the stack's path is the tab's.
     private let open: ((YouRoute) -> Void)?
+    @Environment(\.scenePhase) private var scenePhase
 
     public init(model: YouModel, open: ((YouRoute) -> Void)? = nil) {
         self.model = model
@@ -89,6 +90,10 @@ public struct YouRootView: View {
             .presentationBackground(ApexColor.bgSurface)
         }
         .task { await model.start() }
+        // Health's permission is changed in Settings, not here: the row re-reads
+        // it whenever the root shows or the app comes back.
+        .onAppear { model.health?.refresh() }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { model.health?.refresh() } }
         .refreshable { await model.refreshProfile() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("you.root")
@@ -175,6 +180,10 @@ public struct YouRootView: View {
                 SettingsLink("COROS", value: model.coros.statusLabel, to: YouRoute.coros, identifier: "you.row.coros")
                 SettingsDivider()
             }
+            if let health = model.health {
+                SettingsLink("Apple Health", value: health.statusLabel, to: YouRoute.appleHealth, identifier: "you.row.health")
+                SettingsDivider()
+            }
             SettingsLink("Heart-rate zones", value: model.heartRateLabel, to: YouRoute.heartRate, identifier: "you.row.heartrate")
             SettingsDivider()
             SettingsLink("Calendar feed", to: YouRoute.calendarFeed, identifier: "you.row.feed")
@@ -219,6 +228,12 @@ public struct YouRootView: View {
         case .coachProfile: CoachProfileView(model: model)
         case .coachModel: CoachModelPickerView(model: model)
         case .coros: CorosView(model: model.coros)
+        case .appleHealth:
+            if let health = model.health {
+                AppleHealthView(model: health)
+            } else {
+                EmptyState(eyebrow: "Apple Health", message: "Apple Health is not available here.", symbol: ApexIcon.heartPulse.systemName)
+            }
         case .calendarFeed: CalendarFeedView(model: model)
         case .connector: ConnectorView(model: model.connector)
         case .connectorGuide: ConnectorGuideView(endpoint: model.connector.endpoint)

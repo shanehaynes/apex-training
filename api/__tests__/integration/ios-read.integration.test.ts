@@ -183,6 +183,28 @@ const CIRCUIT_ID = `${FX}-circuit`;
 const MEAL_IDS = [`${FX}-meal-1`, `${FX}-meal-2`];
 const QUICK_OCCURRENCE = `${EVENT_ID}__2026-09-15`;
 const TRACKED_OCCURRENCE = `${EVENT_ID}__2026-09-22`;
+// bootstrap-full.json: one finished session that reaches every optional part
+// of the bootstrap bootstrap.json leaves null or absent — a workout score
+// record, every PR kind, a percentage target, a pitch, an added exercise, a
+// cardio shadow. December, and no "fixture" in its exercise names, so no
+// other fixture's window, search or carve sees it.
+const MIXED_ID = `${FX}-mixed`;
+const MIXED_DAY = '2026-12-08';
+const MIXED_PRIOR = `${FX}-mixed-prior`;
+const MIXED_PRIOR_DAY = '2026-12-01';
+const MIXED_ADDED = 'added-1765000000000';
+// bootstrap-amrap.json: the other score type. A session row carries one, so
+// AMRAP (score_rounds / score_reps) needs a session of its own.
+const AMRAP_ID = `${FX}-amrap`;
+const AMRAP_DAY = '2026-12-15';
+const AMRAP_PRIOR = `${FX}-amrap-prior`;
+const AMRAP_PRIOR_DAY = '2026-12-10';
+// A for-time session on the same template, later than the AMRAP one: the
+// score record must still compare against the AMRAP history only.
+const AMRAP_OTHER_TYPE = `${FX}-amrap-for-time`;
+// A bare template id: workout_sessions.template_id has no foreign key, and a
+// template row would join schedule.json's carve.
+const AMRAP_TEMPLATE = `${FX}-template-amrap`;
 // W9: the seeded dashboard. Fixed windows (a rolling range moves with
 // `today`), full-height rows in y order so the phone's list matches the grid.
 const CLIMB_DEF_ID = `${FX}-def-climb`;
@@ -306,6 +328,7 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     await admin.from('workout_cardio_logs').delete().like('event_id', `${FX}%`);
     await admin.from('analytics_tiles').delete().like('id', `${FX}%`);
     await admin.from('workout_sessions').delete().like('event_id', `${EVENT_ID}%`);
+    await admin.from('workout_sessions').delete().in('event_id', [MIXED_ID, MIXED_PRIOR, AMRAP_ID, AMRAP_PRIOR, AMRAP_OTHER_TYPE]);
     await admin.from('workout_completion_log').delete().like('event_id', `${EVENT_ID}%`);
     await admin.from('workout_completions').delete().like('event_id', `${EVENT_ID}%`);
     await admin.from('recurring_exceptions').delete().like('event_id', `${FX}%`);
@@ -1422,5 +1445,174 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
       {},
     ];
     fixture('nutrition-derived.json', { vectors: inputs.map(input => ({ input, output: derivedCalories(input) })) });
+  });
+
+  // Last in the file: get_prs and the period stats read every one of agent's
+  // rows, so this session must not exist while their fixtures are emitted.
+  it('bootstrap-full: a finished session that carries every optional bootstrap field', async () => {
+    const fail = (label: string, error: { message: string } | null) => {
+      if (error) throw new Error(`${label}: ${error.message}`);
+    };
+    // A for-time event on the fixture template: its score history is the
+    // prior session below, keyed on the template.
+    fail('mixed event', (await admin.from('workout_events').insert({
+      id: MIXED_ID, user_id: agent.userId, title: 'Mixed Day', type: 'weights', date: MIXED_DAY,
+      start_time: '07:00', estimated_duration: 60, difficulty: 3, description: 'Every tracker branch at once.',
+      tags: ['fixture'], template_id: TEMPLATE_ID, scoring_type: 'for-time',
+      exercises: [
+        { id: 'mx-squat', name: 'Mixed Squat', category: 'strength', sets: 2, reps: '5', weight: '80%' },
+        { id: 'mx-plank', name: 'Mixed Plank', category: 'strength', duration: '60 s' },
+        { id: 'mx-hang', name: 'Mixed Hang', category: 'strength', duration: '30 s' },
+        { id: 'mx-pullup', name: 'Mixed Pull-Up', category: 'strength', sets: 1, reps: '8' },
+        { id: 'mx-pitch', name: 'Mixed Arete', category: 'climbing', climbStyle: 'sport', grade: '5.10a' },
+        { id: 'mx-bike', name: 'Mixed Bike', category: 'cardio', duration: '30 min' },
+        { id: 'mx-ski', name: 'Mixed Ski', category: 'cardio', duration: '10 min' },
+      ],
+    })).error);
+    const prior = { user_id: agent.userId, event_id: MIXED_PRIOR, event_date: MIXED_PRIOR_DAY, section: 'exercise', is_autofilled: false };
+    fail('mixed prior session', (await admin.from('workout_sessions').insert({
+      user_id: agent.userId, event_id: MIXED_PRIOR, event_date: MIXED_PRIOR_DAY, template_id: TEMPLATE_ID,
+      started_at: '2026-12-01T12:00:00Z', finished_at: '2026-12-01T12:40:00Z', total_duration_seconds: 2400,
+      score_type: 'for-time', score_time_seconds: 1800,
+    })).error);
+    fail('mixed prior sets', (await admin.from('workout_set_logs').insert([
+      { ...prior, exercise_id: 'mx-squat', exercise_name: 'Mixed Squat', set_number: 1, actual_weight: '200 lb', actual_reps: '5' },
+      { ...prior, exercise_id: 'mx-plank', exercise_name: 'Mixed Plank', set_number: 1, actual_duration: '60 s' },
+      { ...prior, exercise_id: 'mx-hang', exercise_name: 'Mixed Hang', set_number: 1, actual_duration: '30 s' },
+      { ...prior, exercise_id: 'mx-pullup', exercise_name: 'Mixed Pull-Up', set_number: 1, actual_reps: '8' },
+      { ...prior, exercise_id: 'mx-pitch', exercise_name: 'Mixed Arete', set_number: 1, actual_weight: '5.9', ascent_style: 'redpoint' },
+    ])).error);
+    fail('mixed prior cardio', (await admin.from('workout_cardio_logs').insert([
+      { ...prior, exercise_id: 'mx-bike', exercise_name: 'Mixed Bike', duration_minutes: 30, distance: '10 mi', elevation_gain: '500 ft', avg_heart_rate: 140 },
+      { ...prior, exercise_id: 'mx-ski', exercise_name: 'Mixed Ski', duration_minutes: 10, distance: '2 km' },
+    ])).error);
+
+    const startedAt = new Date(Date.now() - 3600_000).toISOString();
+    const post = async (body: Record<string, unknown>) => {
+      const c = makeRes();
+      await sessionsHandler(makeReq({ method: 'POST', token: agent.token, body: { eventId: MIXED_ID, eventDate: MIXED_DAY, ...body } }), c.res);
+      expect(c.statusCode, JSON.stringify(c.body)).toBe(200);
+      return c.body;
+    };
+    await post({ action: 'bootstrap', startedAt });
+    const set = (over: Record<string, unknown>) => ({
+      event_id: MIXED_ID, event_date: MIXED_DAY, section: 'exercise', planned_weight: null, planned_reps: null,
+      planned_duration: null, actual_weight: null, actual_reps: null, actual_duration: null, is_autofilled: false,
+      // The web's row shape (setToRow): is_warmup and rpe on every row.
+      is_warmup: false, rpe: null, ...over,
+    });
+    await post({
+      action: 'save',
+      setLogs: [
+        // A warm-up with an RPE, then the working set: est. 1RM 245 beats 233.
+        set({ exercise_id: 'mx-squat', exercise_name: 'Mixed Squat', set_number: 1, actual_weight: '135 lb', actual_reps: '5', is_warmup: true, rpe: 5 }),
+        set({ exercise_id: 'mx-squat', exercise_name: 'Mixed Squat', set_number: 2, actual_weight: '210 lb', actual_reps: '5', rpe: 8.5 }),
+        set({ exercise_id: 'mx-plank', exercise_name: 'Mixed Plank', set_number: 1, actual_duration: '90 s' }),
+        // The hang is left unlogged: its shadow is last session's duration.
+        // The pull-up's row names a library definition the plan did not: a swap.
+        set({ exercise_id: 'mx-pullup', exercise_name: 'Mixed Pull-Up', definition_id: DEF_ID, set_number: 1, actual_reps: '10' }),
+        set({ exercise_id: 'mx-pitch', exercise_name: 'Mixed Arete', set_number: 1, actual_weight: '5.10b', ascent_style: 'flash', attempts: 1 }),
+        set({ exercise_id: MIXED_ADDED, exercise_name: 'Mixed Curl', set_number: 1, actual_weight: '30 lb', actual_reps: '10' }),
+      ],
+      // The bike is logged (distance and elevation PRs); the ski is not, so
+      // it keeps last session's shadow.
+      cardioLogs: [{
+        event_id: MIXED_ID, event_date: MIXED_DAY, section: 'exercise', exercise_id: 'mx-bike', exercise_name: 'Mixed Bike',
+        duration_minutes: 30, distance: '12 mi', elevation_gain: '600 ft', avg_heart_rate: 145, is_autofilled: false,
+      }],
+    });
+    const finishedAt = new Date(Date.parse(startedAt) + 1800_000).toISOString();
+    const finish = await post({ action: 'finish', autofillRows: [], finishedAt, score: { templateId: TEMPLATE_ID, type: 'for-time', timeSeconds: 1500 } }) as {
+      scoreRecord: unknown;
+    };
+    expect(finish.scoreRecord).toMatchObject({ kind: 'workout-score', previous: { type: 'for-time', timeSeconds: 1800 } });
+    // The two session-row texts nothing in this flow writes: the summary is
+    // the coach-summary stream's, the note the tracker's session note.
+    fail('mixed session texts', (await admin.from('workout_sessions')
+      .update({ coach_summary: 'Six records in one session.', note: 'Felt strong.' })
+      .eq('event_id', MIXED_ID)).error);
+
+    const full = await post({ action: 'bootstrap' }) as {
+      scored: boolean;
+      prs: Array<{ kind: string }>;
+      scoreRecord: { kind: string } | null;
+      session: { coach_summary: string | null; note: string | null };
+      groups: Array<{ exercises: Array<{ exercise: { id: string }; isAdded?: boolean; substitutedFrom: string | null; cardio: { shadow: unknown } | null; sets: Array<{ resolvedPlannedWeight?: string; isWarmup: boolean; ascentStyle: string | null; shadow: { duration: string } | null }> }> }>;
+    };
+    const byId = (id: string) => full.groups.flatMap(g => g.exercises).find(e => e.exercise.id === id)!;
+    expect(full.scored).toBe(true);
+    expect(full.scoreRecord?.kind).toBe('workout-score');
+    expect(full.prs.map(p => p.kind).sort()).toEqual(['distance', 'duration', 'elevation', 'oneRM', 'reps', 'send']);
+    // 80% of 233.3 (200 × 5), on the 2.5 lb plate step.
+    expect(byId('mx-squat').sets.map(s => s.resolvedPlannedWeight)).toEqual(['187.5 lb', '187.5 lb']);
+    expect(byId('mx-squat').sets[0].isWarmup).toBe(true);
+    expect(byId('mx-pitch').sets[0].ascentStyle).toBe('flash');
+    expect(byId(MIXED_ADDED).isAdded).toBe(true);
+    expect(byId('mx-pullup').substitutedFrom).toBe('Mixed Pull-Up');
+    expect(byId('mx-hang').sets[0].shadow).toMatchObject({ duration: '30 s' });
+    expect(full.session).toMatchObject({ coach_summary: 'Six records in one session.', note: 'Felt strong.' });
+    expect(byId('mx-bike').cardio!.shadow).toBeNull();
+    expect(byId('mx-ski').cardio!.shadow).toMatchObject({ distance: '2 km' });
+
+    fixture('bootstrap-full.json', full);
+    // Gone before anything else reads agent's records: get_prs and the
+    // stats tools see every row, whatever their arguments.
+    await admin.from('workout_set_logs').delete().in('event_id', [MIXED_ID, MIXED_PRIOR]);
+    await admin.from('workout_cardio_logs').delete().in('event_id', [MIXED_ID, MIXED_PRIOR]);
+    await admin.from('workout_sessions').delete().in('event_id', [MIXED_ID, MIXED_PRIOR]);
+    await admin.from('workout_events').delete().eq('id', MIXED_ID);
+  });
+
+  // After Mixed Day, for the same reason: last, and gone when it ends.
+  it('bootstrap-amrap: a finished AMRAP session carries rounds, reps and its score record', async () => {
+    const fail = (label: string, error: { message: string } | null) => {
+      if (error) throw new Error(`${label}: ${error.message}`);
+    };
+    fail('amrap event', (await admin.from('workout_events').insert({
+      id: AMRAP_ID, user_id: agent.userId, title: 'AMRAP Day', type: 'weights', date: AMRAP_DAY,
+      start_time: '07:00', estimated_duration: 20, difficulty: 4, description: 'As many rounds as possible.',
+      tags: ['fixture'], template_id: AMRAP_TEMPLATE, scoring_type: 'amrap', time_cap_minutes: 20,
+      exercises: [{ id: 'am-burpee', name: 'AMRAP Burpee', category: 'strength', sets: 1, reps: '10' }],
+    })).error);
+    fail('amrap prior session', (await admin.from('workout_sessions').insert({
+      user_id: agent.userId, event_id: AMRAP_PRIOR, event_date: AMRAP_PRIOR_DAY, template_id: AMRAP_TEMPLATE,
+      started_at: '2026-12-10T12:00:00Z', finished_at: '2026-12-10T12:20:00Z', total_duration_seconds: 1200,
+      score_type: 'amrap', score_rounds: 5, score_reps: 0,
+    })).error);
+    fail('amrap other-type session', (await admin.from('workout_sessions').insert({
+      user_id: agent.userId, event_id: AMRAP_OTHER_TYPE, event_date: '2026-12-12', template_id: AMRAP_TEMPLATE,
+      started_at: '2026-12-12T12:00:00Z', finished_at: '2026-12-12T12:15:00Z', total_duration_seconds: 900,
+      score_type: 'for-time', score_time_seconds: 900,
+    })).error);
+
+    const startedAt = new Date(Date.now() - 3600_000).toISOString();
+    const post = async (body: Record<string, unknown>) => {
+      const c = makeRes();
+      await sessionsHandler(makeReq({ method: 'POST', token: agent.token, body: { eventId: AMRAP_ID, eventDate: AMRAP_DAY, ...body } }), c.res);
+      expect(c.statusCode, JSON.stringify(c.body)).toBe(200);
+      return c.body;
+    };
+    await post({ action: 'bootstrap', startedAt });
+    const finishedAt = new Date(Date.parse(startedAt) + 1200_000).toISOString();
+    const finish = await post({
+      action: 'finish', autofillRows: [], finishedAt,
+      score: { templateId: AMRAP_TEMPLATE, type: 'amrap', rounds: 6, reps: 3 },
+    }) as { scoreRecord: unknown };
+    expect(finish.scoreRecord).toMatchObject({
+      kind: 'workout-score', score: { type: 'amrap', rounds: 6, reps: 3 }, previous: { type: 'amrap', rounds: 5, reps: 0 },
+    });
+
+    const amrap = await post({ action: 'bootstrap' }) as {
+      scored: boolean;
+      session: { score_type: string; score_rounds: number; score_reps: number; score_time_seconds: number | null };
+      scoreRecord: { description: string } | null;
+    };
+    expect(amrap.scored).toBe(true);
+    expect(amrap.session).toMatchObject({ score_type: 'amrap', score_rounds: 6, score_reps: 3, score_time_seconds: null });
+    expect(amrap.scoreRecord?.description).toBe('6 rounds + 3, beating 5 rounds on Dec 10');
+
+    fixture('bootstrap-amrap.json', amrap);
+    await admin.from('workout_sessions').delete().in('event_id', [AMRAP_ID, AMRAP_PRIOR, AMRAP_OTHER_TYPE]);
+    await admin.from('workout_events').delete().eq('id', AMRAP_ID);
   });
 });

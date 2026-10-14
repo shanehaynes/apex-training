@@ -155,7 +155,8 @@ echo "── production database schema"
 # Production migrations are pasted into the Supabase SQL Editor by hand, and a
 # skipped one shows up only as 500s: on 2026-09-15 prod lacked phase38, phase41
 # and phase32_quarantine while /api/version reported current code. The check
-# reads PostgREST's schema only (limit=0 probes and the OpenAPI document) with
+# reads PostgREST's schema (limit=0 probes and the OpenAPI document) and the
+# migration ledger (phase56: which migrations production ran, as written) with
 # the production service-role key from the environment, else
 # ~/.config/apex-training/prod.env, else .env.local. Exit 1
 # is drift; 2 is "could not check" (unreachable, key rejected) — status, never
@@ -173,7 +174,7 @@ else
   printf '%s\n' "$schema_out" | sed 's/^/   /'
   case $schema_code in
     0|2) ;;
-    1) echo "ACTION production database lacks objects main's code uses — apply the migrations named above in the Supabase SQL Editor; requests that touch them 500 until then" ;;
+    1) echo "ACTION production's database is behind main — apply what is named above (missing objects, unapplied or edited migrations) in the Supabase SQL Editor, in phase order; requests that touch a missing object 500 until then" ;;
     *) echo "ACTION scripts/prod-schema-check.mjs failed (exit $schema_code) — production schema drift goes unchecked until it is fixed" ;;
   esac
 fi

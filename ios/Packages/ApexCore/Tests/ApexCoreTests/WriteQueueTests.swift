@@ -218,6 +218,28 @@ final class WriteQueueTests: XCTestCase {
         XCTAssertEqual(v18, 2)
     }
 
+    /// W16 MT: the terms gate holds the write, it does not refuse it — the set
+    /// stays pending through the consent screen and lands on the resume that
+    /// accepting sends.
+    func testTheTermsGatePausesAndTheSetLandsAfterAccepting() async throws {
+        let transport = ScriptedTransport([.status(403, body: "terms-acceptance-required"), .ok()])
+        let store = MemoryWriteQueueStore()
+        let queue = makeQueue(transport, store: store)
+        try await queue.enqueue(save([setRow(1)]), for: session)
+        await queue.flush(session)
+
+        let paused = await queue.isPaused
+        XCTAssertTrue(paused)
+        let held = await store.all.map(\.state)
+        XCTAssertEqual(held, [.pending], "kept, not refused")
+
+        await queue.resume()
+        let left = await store.all.count
+        XCTAssertEqual(left, 0)
+        let sent = await transport.count
+        XCTAssertEqual(sent, 2)
+    }
+
     func testUnauthorizedPausesUntilResumed() async throws {
         // Two 401s: the client refreshes once, retries once, then gives up.
         let transport = ScriptedTransport([.status(401), .status(401), .ok()])

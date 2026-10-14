@@ -3,6 +3,10 @@
 // supabase-js sends the union of a batch's columns and PostgREST fills the
 // gaps with NULL, which the NOT NULL is_warmup column rejects (23502).
 //
+// Runs as its own throwaway user: ios-read.integration.test.ts snapshots
+// agent@apex.local's PRs into a fixture from a parallel worker, so a squat
+// written here under that user drifts the fixture whenever the two overlap.
+//
 // Requires: supabase start + scripts/db-reset-local.sh, then
 //   APEX_LOCAL_SUPABASE=1 vitest run api/__tests__/integration
 // Skipped entirely when APEX_LOCAL_SUPABASE is unset.
@@ -11,6 +15,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import workoutSessionsHandler from '../../_lib/handlers/workoutSessions';
+import acceptanceHandler from '../../_lib/handlers/termsAcceptance';
 // @ts-expect-error plain-JS helper shared with the seed scripts
 import { localSupabaseEnv } from '../../../scripts/lib/localEnv.mjs';
 
@@ -19,7 +24,11 @@ const RUN = !!process.env.APEX_LOCAL_SUPABASE;
 const EVENT_ID = 'itest-save-mixed';
 const EVENT_DATE = '2026-06-16';
 
-function post(token: string, body: unknown) {
+function call(
+  handler: (req: VercelRequest, res: VercelResponse) => Promise<unknown> | unknown,
+  token: string,
+  body: unknown,
+) {
   const captured = { statusCode: 200, body: undefined as unknown };
   const res = {
     setHeader: () => res,
@@ -36,8 +45,10 @@ function post(token: string, body: unknown) {
     body,
     cookies: {},
   } as unknown as VercelRequest;
-  return workoutSessionsHandler(req, res).then(() => captured);
+  return Promise.resolve(handler(req, res)).then(() => captured);
 }
+
+const post = (token: string, body: unknown) => call(workoutSessionsHandler, token, body);
 
 function setRow(setNumber: number, extra: Record<string, unknown> = {}) {
   return {
@@ -74,21 +85,31 @@ describe.skipIf(!RUN)('workout-sessions save with mixed row shapes', () => {
     process.env.SUPABASE_SERVICE_ROLE_KEY = env.serviceKey;
     admin = createClient(env.url, env.serviceKey, { auth: { persistSession: false } });
 
+    const email = `save-mixed-${Date.now()}@apex.local`;
+    const password = 'apex-save-mixed-password';
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email, password, email_confirm: true,
+    });
+    if (createErr || !created.user) throw new Error(`user create failed: ${createErr?.message}`);
+    userId = created.user.id;
+
     const res = await fetch(`${env.url}/auth/v1/token?grant_type=password`, {
       method: 'POST',
       headers: { apikey: env.anonKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'agent@apex.local', password: 'apex-agent-password' }),
+      body: JSON.stringify({ email, password }),
     });
     if (!res.ok) throw new Error(`sign-in failed: ${await res.text()}`);
-    const data = await res.json() as { access_token: string; user: { id: string } };
-    token = data.access_token;
-    userId = data.user.id;
-    await clear();
+    token = (await res.json() as { access_token: string }).access_token;
+
+    const accepted = await call(acceptanceHandler, token, undefined);
+    if (accepted.statusCode !== 200) throw new Error(`terms acceptance failed: ${String(accepted.body)}`);
   });
 
   afterAll(async () => {
-    if (!RUN) return;
+    if (!admin || !userId) return;
     await clear();
+    const { error } = await admin.auth.admin.deleteUser(userId);
+    expect(error).toBeNull();
   });
 
   it('saves a batch where one row sets is_warmup and one omits it', async () => {

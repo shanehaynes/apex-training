@@ -119,10 +119,19 @@ Scope: detect the 403 body (and the profile's terms state on launch), present a 
 sheet with the changed documents and an Accept button that calls the existing acceptance
 endpoint the web's modal uses, then retry. Mock flag `-apexMockTermsStale`.
 
+As built: `ApexClient.notices` announces the 403 (one consumer, `AppModel`); a background
+`GET /api/terms-acceptance` after sign-in catches it before any request does, and fails quiet
+offline. `TermsUpdateView` *covers* the tabs (an opaque overlay, modal for VoiceOver) without
+unmounting them, so a workout open in the tracker keeps its state; the screen meets the user
+when the tracker closes. A 403 that lands after the user is already current (set-password's
+acceptance racing the first reads) re-reads the status and shows nothing; a burst of 403s asks once. The write queue **pauses** on the 403
+instead of refusing the op (`RetryPolicy`), and accepting resumes it — a set logged in the gap
+lands, an outbox write is not dropped.
+
 Acceptance:
-- [ ] Unit test: a 403 `terms-acceptance-required` from any endpoint raises the sheet once, and
+- [x] Unit test: a 403 `terms-acceptance-required` from any endpoint raises the sheet once, and
       Accept clears it and retries.
-- [ ] Smoke leg on `-apexMockTermsStale`; snapshot of the sheet.
+- [x] Smoke leg on `-apexMockTermsStale`; snapshot of the sheet.
 - [ ] In a released build that most testers have installed **before** `PRIVACY_VERSION` moves.
 
 ### M0 — Migration `phaseN_apple_health.sql` (one file for M2 and M3) · Linux · HELD
@@ -386,6 +395,10 @@ acceptance endpoint MT calls (read the web's re-acceptance modal first).
 
 - 2026-10-14 · Mac · Shane approved the privacy bump and the two console steps; M1 started on
   `feat/w16-m1-health-write`.
+
+- 2026-10-14 · Mac · MT built (`feat/w16-mt-terms-reaccept`): client notice, background check,
+  in-place screen, queue pause on the gate. ApexCore, AppModel, snapshot and smoke tests green.
+  The release box is Shane's (ship before `PRIVACY_VERSION` moves).
 
 ## Next brief
 **M1 — Write finished sessions to Health.** Goal: a tracker finish writes an Apex-branded

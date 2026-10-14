@@ -823,16 +823,49 @@ final class SmokeUITests: XCTestCase {
         add(shot)
     }
 
+    // MARK: - W16 MT · updated terms while signed in
+
+    /// sign in with updated terms published (`-apexMockTermsStale`) → the
+    /// re-acceptance screen covers the tabs, naming what was accepted
+    /// before → Accept stays off until the box is ticked → tick → Accept →
+    /// the tabs, with the schedule loading again.
+    func testUpdatedTermsAreAcceptedInTheApp() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockTermsStale"]
+        app.launch()
+        signIn(app)
+
+        let title = app.staticTexts["terms.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 20), "the gate covers the tabs")
+        XCTAssertEqual(title.label, "Our terms have changed")
+        XCTAssertFalse(app.tabBars.buttons["Schedule"].isHittable, "the tabs are covered, not reachable")
+        let accept = app.buttons["terms.accept"]
+        XCTAssertFalse(accept.isEnabled, "not until the box is ticked")
+        attach(app, name: "w16-mt-01-terms")
+
+        let toggle = app.switches["terms.accept.toggle"].firstMatch
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        XCTAssertTrue(accept.isEnabled)
+        accept.tap()
+
+        let schedule = app.tabBars.buttons["Schedule"]
+        XCTAssertTrue(schedule.waitForExistence(timeout: 15), "accepting brings the tabs back")
+        let card = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'event.card.'")).firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 15), "and the schedule loads its workouts again")
+        attach(app, name: "w16-mt-02-accepted")
+    }
+
     // MARK: - W11 · the You tab
 
     /// sign in → You → the header names the fixture user → AI connector → mint a
     /// token → the one-time reveal → Done → the token is listed → COROS → Sync
     /// now → the confirmation sheet for the matched run → Fill it → the apply
-    /// toast → Activity log rows. All on fixtures; the mock answers
+    /// toast → Apple Health (W16) reads "Writing workouts" → Activity log rows.
+    /// All on fixtures; the mock answers
     /// `connect-start` with the callback itself, so Reconnect needs no browser.
     func testYouOnFixtures() {
         let app = XCUIApplication()
-        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockHasKey"]
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockHasKey", "-apexMockHealth", "authorized"]
         app.launch()
         signIn(app)
 
@@ -884,6 +917,18 @@ final class SmokeUITests: XCTestCase {
         let toast = app.staticTexts["COROS: Imported 1 activity · filled 1 planned workout"]
         XCTAssertTrue(toast.waitForExistence(timeout: 10))
         attach(app, name: "w11-06-synced")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        // Apple Health (W16 M1): the fake store has granted writing, the toggle is on.
+        let health = app.buttons["you.row.health"]
+        XCTAssertTrue(health.waitForExistence(timeout: 10))
+        XCTAssertTrue(health.label.contains("Writing workouts"), health.label)
+        health.tap()
+        let healthStatus = app.staticTexts["health.status"]
+        XCTAssertTrue(healthStatus.waitForExistence(timeout: 10))
+        XCTAssertEqual(healthStatus.label, "Writing workouts")
+        XCTAssertTrue(app.switches["health.writeWorkouts"].exists)
+        attach(app, name: "w16-01-apple-health")
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
         // The activity log renders the fixture's five rows with their badges.

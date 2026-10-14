@@ -109,6 +109,12 @@ public enum AnalyticsCatalog {
             blockedSports: ["running", "biking", "swimming", "other"]
         ),
         Measure(
+            id: "sends-by-grade", label: "Sends by grade", source: "pitch-logs", unitKind: "count",
+            defaultAgg: "count", allowedAggs: ["count"],
+            allowedGroupBys: [], aggLevel: "row",
+            blockedSports: ["running", "biking", "swimming", "other"]
+        ),
+        Measure(
             id: "distance", label: "Distance", source: "cardio-logs", unitKind: "length",
             defaultAgg: "sum", allowedAggs: ["sum", "avg", "max"],
             allowedGroupBys: ["event-type", "sport", "exercise", "category", "unit"], aggLevel: "row",
@@ -196,7 +202,7 @@ public enum AnalyticsCatalog {
     public static let measureGroups: [MeasureGroup] = [
         MeasureGroup(label: "Training", ids: ["session-count", "training-time"]),
         MeasureGroup(label: "Strength", ids: ["set-count", "rep-count", "tonnage", "est-1rm"]),
-        MeasureGroup(label: "Climbing", ids: ["pitches", "max-grade"]),
+        MeasureGroup(label: "Climbing", ids: ["pitches", "max-grade", "sends-by-grade"]),
         MeasureGroup(label: "Cardio", ids: ["distance", "elevation-gain", "cardio-time", "avg-hr", "hr-zone-time"]),
         MeasureGroup(label: "Nutrition", ids: ["calories", "protein", "carbs", "fat", "fiber", "sugar", "alcohol", "meal-count"]),
     ]

@@ -36,8 +36,8 @@ describe('PROMPT_VERSION', () => {
     expect(PROMPT_VERSION).toMatch(/^\d{4}\.\d{2}\.\d{2}-\d+$/);
   });
 
-  it('was bumped for quoting doctrine only from read_doctrine (doctrineSection), on top of the one-series and never-narrate-a-write rules', () => {
-    expect(PROMPT_VERSION).toBe('2026.10.06-3');
+  it('was bumped for the chart tool\'s sends-by-grade and weight_unit and the analytics prompt\'s unit wording', () => {
+    expect(PROMPT_VERSION).toBe('2026.10.14-1');
   });
 });
 

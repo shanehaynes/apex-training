@@ -1,0 +1,440 @@
+{
+  "session": {
+    "id": "<uuid>",
+    "event_id": "ios-fixture-mixed",
+    "event_date": "2026-12-08",
+    "started_at": "<timestamp>",
+    "finished_at": "<timestamp>",
+    "total_duration_seconds": 1800,
+    "updated_at": "<timestamp>",
+    "coach_summary": "Six records in one session.",
+    "user_id": "<uuid>",
+    "template_id": "ios-fixture-template",
+    "score_type": "for-time",
+    "score_time_seconds": 1500,
+    "score_rounds": null,
+    "score_reps": null,
+    "note": "Felt strong."
+  },
+  "event": {
+    "id": "ios-fixture-mixed",
+    "type": "weights",
+    "title": "Mixed Day",
+    "date": "2026-12-08",
+    "startTime": "07:00",
+    "estimatedDuration": 60,
+    "description": "Every tracker branch at once.",
+    "warmup": [],
+    "exercises": [
+      {
+        "id": "mx-squat",
+        "name": "Mixed Squat",
+        "reps": "5",
+        "sets": 2,
+        "weight": "80%",
+        "category": "strength"
+      },
+      {
+        "id": "mx-plank",
+        "name": "Mixed Plank",
+        "category": "strength",
+        "duration": "60 s"
+      },
+      {
+        "id": "mx-hang",
+        "name": "Mixed Hang",
+        "category": "strength",
+        "duration": "30 s"
+      },
+      {
+        "id": "mx-pullup",
+        "name": "Mixed Pull-Up",
+        "reps": "8",
+        "sets": 1,
+        "category": "strength"
+      },
+      {
+        "id": "mx-pitch",
+        "name": "Mixed Arete",
+        "grade": "5.10a",
+        "category": "climbing",
+        "climbStyle": "sport"
+      },
+      {
+        "id": "mx-bike",
+        "name": "Mixed Bike",
+        "category": "cardio",
+        "duration": "30 min"
+      },
+      {
+        "id": "mx-ski",
+        "name": "Mixed Ski",
+        "category": "cardio",
+        "duration": "10 min"
+      }
+    ],
+    "cooldown": [],
+    "difficulty": 3,
+    "tags": [
+      "fixture"
+    ],
+    "equipment": [],
+    "templateId": "ios-fixture-template",
+    "scoringType": "for-time",
+    "isCompleted": false,
+    "isRecurring": false
+  },
+  "groups": [
+    {
+      "section": "exercise",
+      "label": "Main Work",
+      "exercises": [
+        {
+          "section": "exercise",
+          "exercise": {
+            "id": "mx-squat",
+            "name": "Mixed Squat",
+            "reps": "5",
+            "sets": 2,
+            "weight": "80%",
+            "category": "strength"
+          },
+          "substitutedFrom": null,
+          "sessionNote": "",
+          "isCardio": false,
+          "sets": [
+            {
+              "setNumber": 1,
+              "planned": {
+                "setNumber": 1,
+                "targetWeight": "80%",
+                "targetReps": "5"
+              },
+              "actualWeight": "135 lb",
+              "actualReps": "5",
+              "actualDuration": "",
+              "isLogged": true,
+              "isAutofilled": false,
+              "isExtra": false,
+              "shadow": null,
+              "rpe": "5",
+              "isWarmup": true,
+              "ascentStyle": null,
+              "attempts": "",
+              "resolvedPlannedWeight": "187.5 lb"
+            },
+            {
+              "setNumber": 2,
+              "planned": {
+                "setNumber": 2,
+                "targetWeight": "80%",
+                "targetReps": "5"
+              },
+              "actualWeight": "210 lb",
+              "actualReps": "5",
+              "actualDuration": "",
+              "isLogged": true,
+              "isAutofilled": false,
+              "isExtra": false,
+              "shadow": null,
+              "rpe": "8.5",
+              "isWarmup": false,
+              "ascentStyle": null,
+              "attempts": "",
+              "resolvedPlannedWeight": "187.5 lb"
+            }
+          ],
+          "cardio": null
+        },
+        {
+          "section": "exercise",
+          "exercise": {
+            "id": "mx-plank",
+            "name": "Mixed Plank",
+            "category": "strength",
+            "duration": "60 s"
+          },
+          "substitutedFrom": null,
+          "sessionNote": "",
+          "isCardio": false,
+          "sets": [
+            {
+              "setNumber": 1,
+              "planned": {
+                "setNumber": 1,
+                "targetDuration": "60 s"
+              },
+              "actualWeight": "",
+              "actualReps": "",
+              "actualDuration": "90 s",
+              "isLogged": true,
+              "isAutofilled": false,
+              "isExtra": false,
+              "shadow": null,
+              "rpe": "",
+              "isWarmup": false,
+              "ascentStyle": null,
+              "attempts": ""
+            }
+          ],
+          "cardio": null
+        },
+        {
+          "section": "exercise",
+          "exercise": {
+            "id": "mx-hang",
+            "name": "Mixed Hang",
+            "category": "strength",
+            "duration": "30 s"
+          },
+          "substitutedFrom": null,
+          "sessionNote": "",
+          "isCardio": false,
+          "sets": [
+            {
+              "setNumber": 1,
+              "planned": {
+                "setNumber": 1,
+                "targetDuration": "30 s"
+              },
+              "actualWeight": "",
+              "actualReps": "",
+              "actualDuration": "",
+              "isLogged": false,
+              "isAutofilled": false,
+              "isExtra": false,
+              "shadow": {
+                "weight": "",
+                "reps": "",
+                "duration": "30 s"
+              },
+              "rpe": "",
+              "isWarmup": false,
+              "ascentStyle": null,
+              "attempts": ""
+            }
+          ],
+          "cardio": null
+        },
+        {
+          "section": "exercise",
+          "exercise": {
+            "id": "mx-pullup",
+            "name": "Mixed Pull-Up",
+            "reps": "8",
+            "sets": 1,
+            "category": "strength",
+            "definitionId": "ios-fixture-def"
+          },
+          "substitutedFrom": "Mixed Pull-Up",
+          "sessionNote": "",
+          "isCardio": false,
+          "sets": [
+            {
+              "setNumber": 1,
+              "planned": {
+                "setNumber": 1,
+                "targetReps": "8"
+              },
+              "actualWeight": "",
+              "actualReps": "10",
+              "actualDuration": "",
+              "isLogged": true,
+              "isAutofilled": false,
+              "isExtra": false,
+              "shadow": null,
+              "rpe": "",
+              "isWarmup": false,
+              "ascentStyle": null,
+              "attempts": ""
+            }
+          ],
+          "cardio": null
+        },
+        {
+          "section": "exercise",
+          "exercise": {
+            "id": "mx-pitch",
+            "name": "Mixed Arete",
+            "grade": "5.10a",
+            "category": "climbing",
+            "climbStyle": "sport"
+          },
+          "substitutedFrom": null,
+          "sessionNote": "",
+          "isCardio": false,
+          "sets": [
+            {
+              "setNumber": 1,
+              "planned": {
+                "setNumber": 1,
+                "targetWeight": "5.10a"
+              },
+              "actualWeight": "5.10b",
+              "actualReps": "",
+              "actualDuration": "",
+              "isLogged": true,
+              "isAutofilled": false,
+              "isExtra": false,
+              "shadow": null,
+              "rpe": "",
+              "isWarmup": false,
+              "ascentStyle": "flash",
+              "attempts": "1"
+            }
+          ],
+          "cardio": null
+        },
+        {
+          "section": "exercise",
+          "exercise": {
+            "id": "mx-bike",
+            "name": "Mixed Bike",
+            "category": "cardio",
+            "duration": "30 min"
+          },
+          "substitutedFrom": null,
+          "sessionNote": "",
+          "isCardio": true,
+          "sets": [],
+          "cardio": {
+            "durationMinutes": "30",
+            "distance": "12 mi",
+            "elevationGain": "600 ft",
+            "avgHeartRate": "145",
+            "isLogged": true,
+            "shadow": null
+          }
+        },
+        {
+          "section": "exercise",
+          "exercise": {
+            "id": "mx-ski",
+            "name": "Mixed Ski",
+            "category": "cardio",
+            "duration": "10 min"
+          },
+          "substitutedFrom": null,
+          "sessionNote": "",
+          "isCardio": true,
+          "sets": [],
+          "cardio": {
+            "durationMinutes": "",
+            "distance": "",
+            "elevationGain": "",
+            "avgHeartRate": "",
+            "isLogged": false,
+            "shadow": {
+              "durationMinutes": "10",
+              "distance": "2 km",
+              "elevationGain": "",
+              "avgHeartRate": ""
+            }
+          }
+        },
+        {
+          "section": "exercise",
+          "exercise": {
+            "id": "added-1765000000000",
+            "name": "Mixed Curl",
+            "category": "strength"
+          },
+          "isAdded": true,
+          "isCardio": false,
+          "sets": [
+            {
+              "setNumber": 1,
+              "planned": {
+                "setNumber": 1
+              },
+              "actualWeight": "30 lb",
+              "actualReps": "10",
+              "actualDuration": "",
+              "isLogged": true,
+              "isAutofilled": false,
+              "isExtra": true,
+              "shadow": null,
+              "rpe": "",
+              "isWarmup": false,
+              "ascentStyle": null,
+              "attempts": ""
+            }
+          ],
+          "cardio": null,
+          "substitutedFrom": null,
+          "sessionNote": ""
+        }
+      ]
+    }
+  ],
+  "scored": true,
+  "prs": [
+    {
+      "kind": "oneRM",
+      "exerciseName": "Mixed Squat",
+      "estimatedOneRM": 245.00000000000003,
+      "weight": 210,
+      "reps": 5,
+      "previousOneRM": 233.33333333333334,
+      "previousDate": "2026-12-01",
+      "description": "est. 1RM 245 (210 × 5), up from 233 on Dec 1"
+    },
+    {
+      "kind": "duration",
+      "exerciseName": "Mixed Plank",
+      "seconds": 90,
+      "previousSeconds": 60,
+      "previousDate": "2026-12-01",
+      "description": "1:30, up from 1:00 on Dec 1"
+    },
+    {
+      "kind": "reps",
+      "exerciseName": "Mixed Pull-Up",
+      "reps": 10,
+      "previousReps": 8,
+      "previousDate": "2026-12-01",
+      "description": "10 reps, up from 8 on Dec 1"
+    },
+    {
+      "kind": "distance",
+      "exerciseName": "Mixed Bike",
+      "value": 12,
+      "unit": "mi",
+      "previousValue": 10,
+      "previousDate": "2026-12-01",
+      "description": "12 mi, up from 10 mi on Dec 1"
+    },
+    {
+      "kind": "elevation",
+      "exerciseName": "Mixed Bike",
+      "value": 600,
+      "unit": "ft",
+      "previousValue": 500,
+      "previousDate": "2026-12-01",
+      "description": "600 ft elevation, up from 500 ft on Dec 1"
+    },
+    {
+      "kind": "send",
+      "exerciseName": "Mixed Arete",
+      "grade": "5.10b",
+      "discipline": "sport",
+      "style": "flash",
+      "previousGrade": "5.9",
+      "previousDate": "2026-12-01",
+      "description": "Flashed 5.10b, up from 5.9 on Dec 1"
+    }
+  ],
+  "scoreRecord": {
+    "kind": "workout-score",
+    "score": {
+      "type": "for-time",
+      "timeSeconds": 1500
+    },
+    "previous": {
+      "type": "for-time",
+      "timeSeconds": 1800
+    },
+    "previousDate": "2026-12-01",
+    "description": "25:00, beating 30:00 on Dec 1"
+  }
+}
