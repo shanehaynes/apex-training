@@ -304,12 +304,13 @@ struct SetRowView: View, Equatable {
                 .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
                 .foregroundStyle(ApexColor.textMuted)
                 .frame(width: 22, alignment: .leading)
-            Text(input.added ? "—" : set.isExtra ? "extra" : CountSpec.plannedLabel(set.planned))
+            Text(input.added ? "—" : set.isExtra ? "extra" : CountSpec.plannedLabel(set.planned, resolvedWeight: set.resolvedPlannedWeight))
                 .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
                 .italic(set.isExtra && !input.added)
                 .foregroundStyle(ApexColor.textSecondary)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
+                .accessibilityIdentifier("tracker.planned.\(key.exerciseId).\(set.setNumber)")
                 .frame(minWidth: 56, maxWidth: .infinity, alignment: .leading)
             ForEach(fields, id: \.self) { field in
                 input(for: field)
@@ -339,7 +340,11 @@ struct SetRowView: View, Equatable {
     @ViewBuilder
     private func input(for field: SetField) -> some View {
         let id = FieldID.set(key, field)
-        let ghost = set.shadow?[field] ?? ""
+        // What a tap would commit (TrackerEditor.ghost); with no shadow, a
+        // resolved load still shows as a hint that commits nothing (the web's
+        // `hint`).
+        let committed = TrackerEditor.ghost(of: set, field: field)
+        let ghost = committed.isEmpty && field == .weight ? (set.resolvedPlannedWeight ?? "") : committed
         if field == .duration {
             DurationField(
                 value: Binding(get: { set[.duration] }, set: { model.setValue($0, .duration, at: key) }),
