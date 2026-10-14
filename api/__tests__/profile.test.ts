@@ -68,6 +68,7 @@ const PROFILE_DEFAULTS = {
   // columns are null or not there yet.
   coachContract: null, reflectionOptIn: false,
   maxHr: null, thresholdHr: null, calendarFeedUrl: null,
+  weightUnit: 'lb', bodyWeightLb: null,
   // W13: a fresh account with no key — the welcome flow is due, nothing ticked.
   onboarding: {
     dismissedAt: null, applies: true, setup: { template: false, key: false, goal: false }, tipsSeen: [], skipped: [],
