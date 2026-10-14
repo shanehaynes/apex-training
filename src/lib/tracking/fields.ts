@@ -80,3 +80,23 @@ export function nextLogFields(
 ): LogField[] {
   return [...new Set([...stored, ...[...addedHere, field].map(f => SET_FIELD_TO_LOG_FIELD[f])])];
 }
+
+// ─── RPE column preference ────────────────────────────────────────────────────
+// Whether set rows offer an RPE field. A device preference in localStorage,
+// not a profile column: it decides what this screen shows, nothing the
+// server computes reads it, and a column would need a migration plus the
+// held allowlist for a yes/no. Off by default — most sessions never rate a
+// set, and the column is one more box between reps and the next row.
+
+export const RPE_PREFERENCE_KEY = 'apex.tracker.rpe';
+
+export function isRpeTrackingEnabled(): boolean {
+  try { return localStorage.getItem(RPE_PREFERENCE_KEY) === '1'; } catch { return false; }
+}
+
+export function setRpeTrackingEnabled(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(RPE_PREFERENCE_KEY, '1');
+    else localStorage.removeItem(RPE_PREFERENCE_KEY);
+  } catch {}
+}

@@ -3,6 +3,8 @@ import { Pencil, Plus, Repeat2, X } from 'lucide-react';
 import type { ExerciseCategory, ExerciseDefinition, PlannedSet } from '../../types/workout';
 import type { TrackedExercise, TrackedSet, CardioActuals, LastSetActuals } from '../../lib/tracking/plan';
 import { FIELD_ORDER, SET_FIELD_TO_LOG_FIELD, inputFields, nextLogFields, type SetField } from '../../lib/tracking/fields';
+import { normalizeRpeText } from '../../lib/tracking/plan';
+import type { SetMetaPatch } from '../../hooks/useWorkoutSession';
 import { countSpecNote, hasPerSideCount, stripCountSpec } from '../../lib/schedule/definitions';
 import { useSchedule } from '../../context/schedule';
 import ExercisePicker from '../modal/ExercisePicker';
@@ -15,6 +17,10 @@ interface Props {
   tracked: TrackedExercise;
   accentColor: string;
   onSetChange: (setNumber: number, field: SetField, value: string) => void;
+  /** A row's RPE text or warm-up flag changed (phase55). */
+  onSetMetaChange?: (setNumber: number, patch: SetMetaPatch) => void;
+  /** Offer an RPE field on every set row — the Profile preference. */
+  showRpe?: boolean;
   onCardioChange: (field: CardioField, value: string) => void;
   /** First focus in a shadow row — commit the rendered ghost values into the actuals. */
   onCommitSetShadow: (setNumber: number, values: Partial<Record<SetField, string>>) => void;
@@ -80,7 +86,9 @@ function SetRow({
   labels,
   freeText,
   unplanned,
+  showRpe,
   onChange,
+  onMetaChange,
   onCommitShadow,
   onCommit,
   onRemove,
@@ -92,7 +100,9 @@ function SetRow({
   labels: Record<SetField, string>;
   /** Text keyboard instead of decimal — climbing grades mix digits and letters. */
   freeText?: boolean;
+  showRpe?: boolean;
   onChange: (field: SetField, value: string) => void;
+  onMetaChange: (patch: SetMetaPatch) => void;
   onCommitShadow: () => void;
   /** The row's reps/duration went empty → non-empty between focus and blur. */
   onCommit: () => void;
@@ -117,8 +127,22 @@ function SetRow({
   );
 
   return (
-    <div className="tracker-set">
-      <span className="tracker-set__num">{set.setNumber}</span>
+    <div className={`tracker-set${set.isWarmup ? ' tracker-set--warmup' : ''}`}>
+      {/* The leading slot is the warm-up toggle: the set number at rest, a W
+          once marked. A warm-up set is logged and shown like any other and
+          counted nowhere (isPerformedSet). */}
+      <button
+        type="button"
+        className={`tracker-set__num tracker-set__warmup${set.isWarmup ? ' tracker-set__warmup--on' : ''}`}
+        aria-pressed={set.isWarmup}
+        aria-label={set.isWarmup
+          ? `Set ${set.setNumber} is a warm-up — tap to count it`
+          : `Set ${set.setNumber} — tap to mark as a warm-up`}
+        title={set.isWarmup ? 'Warm-up: logged here, counted in no stat' : 'Mark as a warm-up (not counted in stats)'}
+        onClick={() => onMetaChange({ isWarmup: !set.isWarmup })}
+      >
+        {set.isWarmup ? 'W' : set.setNumber}
+      </button>
       <span className="tracker-set__planned">{unplanned ? '—' : set.isExtra ? 'extra' : plannedLabel(set.planned)}</span>
       <div
         className="tracker-set__inputs"
@@ -157,6 +181,23 @@ function SetRow({
             />
           );
         })}
+        {showRpe && (
+          <input
+            className="tracker-input tracker-input--rpe"
+            type="text"
+            inputMode="decimal"
+            aria-label={`Set ${set.setNumber} RPE`}
+            placeholder="–"
+            value={set.rpe}
+            onChange={e => onMetaChange({ rpe: e.target.value })}
+            // Settles to a 1–10 half step, or empties: what the row would save.
+            onBlur={e => {
+              const settled = normalizeRpeText(e.target.value);
+              if (settled !== e.target.value) onMetaChange({ rpe: settled });
+            }}
+            onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+          />
+        )}
       </div>
       {onRemove ? (
         <button className="tracker-set__remove" onClick={onRemove} aria-label={`Remove set ${set.setNumber}`}>
@@ -180,6 +221,8 @@ export default function TrackerExercise({
   tracked,
   accentColor,
   onSetChange,
+  onSetMetaChange,
+  showRpe = false,
   onCardioChange,
   onCommitSetShadow,
   onCommitCardioShadow,
@@ -401,6 +444,7 @@ export default function TrackerExercise({
                   {labels[field]}
                 </span>
               ))}
+              {showRpe && <span className="tracker-input-label tracker-input--rpe">rpe</span>}
             </div>
             <span className="tracker-set__remove tracker-set__remove--spacer" />
           </div>
@@ -412,7 +456,9 @@ export default function TrackerExercise({
               labels={labels}
               freeText={isClimb}
               unplanned={tracked.isAdded}
+              showRpe={showRpe}
               onChange={(field, value) => onSetChange(set.setNumber, field, value)}
+              onMetaChange={patch => onSetMetaChange?.(set.setNumber, patch)}
               onCommitShadow={() => {
                 if (!set.shadow) return;
                 const values: Partial<Record<SetField, string>> = {};

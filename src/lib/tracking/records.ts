@@ -298,7 +298,7 @@ export function computeSessionPRs(
         continue;
       }
       for (const set of tracked.sets) {
-        if (!isPerformedSet({ is_autofilled: set.isAutofilled })) continue;
+        if (!isPerformedSet({ is_autofilled: set.isAutofilled, is_warmup: set.isWarmup })) continue;
         const classified = classifySet(set.actualWeight, set.actualReps, set.actualDuration, ctx);
         if (!classified) continue;
         if (classified.kind === 'oneRM') {

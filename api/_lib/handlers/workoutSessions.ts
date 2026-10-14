@@ -9,12 +9,13 @@ import {
   EVENT_ID_PATTERN,
 } from '../allowlist.js';
 import { enforceRateLimit } from '../rateLimit.js';
-import { applyQuickComplete, applyQuickUncomplete, buildBootstrap, buildFinishSummary, loadResolvedOccurrence } from '../trackerSession.js';
+import { applyEditTimes, applyQuickComplete, applyQuickUncomplete, buildBootstrap, buildFinishSummary, loadResolvedOccurrence } from '../trackerSession.js';
 import { sendFailure } from '../services/result.js';
 import { sendWriteFailure } from '../pgError.js';
 import { endLiveActivities } from '../services/liveActivity.js';
 import { buildQuickCompleteLogs, isAddedExerciseId } from '../../../src/lib/tracking/plan.js';
 import type { CardioLogRow, SetLogRow, TablesInsert, TrackedSection, WorkoutSessionRow } from '../../../src/lib/db/types.js';
+import type { AscentStyle } from '../../../src/types/workout.js';
 import { sessionScoreFromRow } from '../../../src/lib/tracking/records.js';
 
 // Single endpoint for the workout tracker's writes, discriminated by
@@ -37,11 +38,12 @@ interface ExerciseNoteEdit {
 const MAX_NOTE_LENGTH = 2000;
 
 interface Body {
-  action?: 'bootstrap' | 'start' | 'save' | 'finish' | 'cancel' | 'summary' | 'quick-complete' | 'quick-uncomplete' | 'swap-exercise';
+  action?: 'bootstrap' | 'start' | 'save' | 'finish' | 'cancel' | 'summary' | 'quick-complete' | 'quick-uncomplete' | 'swap-exercise' | 'edit-times';
   /** bootstrap/start: when the session really began — a native client's
-   *  offline write queue flushes hours late (docs/ios/architecture.md §7). */
+   *  offline write queue flushes hours late (docs/ios/architecture.md §7).
+   *  edit-times: the corrected start. */
   startedAt?: unknown;
-  /** finish: same, for when it really ended. */
+  /** finish: same, for when it really ended. edit-times: the corrected finish. */
   finishedAt?: unknown;
   /** bootstrap only: read the model without creating the session (W4). The
    *  native app prefetches today's workouts so one can start offline, and a
@@ -54,6 +56,9 @@ interface Body {
   removedSets?: RemovedSetKey[];
   /** save only: this occurrence's per-exercise notes; an empty note deletes. */
   exerciseNotes?: ExerciseNoteEdit[];
+  /** save only: the note on the whole session (workout_sessions.note,
+   *  phase55); an empty string clears it. Absent = untouched. */
+  sessionNote?: unknown;
   /** swap-exercise only: which logged exercise to relabel, and to what. */
   section?: TrackedSection;
   exerciseId?: string;
@@ -85,6 +90,30 @@ const CARDIO_CONFLICT = 'user_id,event_id,event_date,section,exercise_id';
 const MAX_BATCH_ROWS = 500;
 
 const SECTIONS: ReadonlySet<string> = new Set(['warmup', 'exercise', 'cooldown']);
+
+// The phase55 per-set columns, bounded here exactly as their CHECKs bound
+// them, so a client that sends an RPE of 11 gets a 400 that names the
+// field instead of the constraint's 500. Mirrors AscentStyle in
+// src/types/workout.ts — change both or neither.
+const ASCENT_STYLES: ReadonlySet<string> = new Set<AscentStyle>(['flash', 'redpoint', 'follow', 'attempt']);
+
+/** Why one row's per-set metadata is out of bounds, or null when it is fine. */
+function setMetadataProblem(row: Record<string, unknown>): string | null {
+  const { rpe, is_warmup, ascent_style, attempts } = row;
+  if (rpe != null && (typeof rpe !== 'number' || !Number.isFinite(rpe) || rpe < 1 || rpe > 10)) {
+    return 'rpe must be a number from 1 to 10';
+  }
+  if (is_warmup !== undefined && typeof is_warmup !== 'boolean') {
+    return 'is_warmup must be true or false';
+  }
+  if (ascent_style != null && (typeof ascent_style !== 'string' || !ASCENT_STYLES.has(ascent_style))) {
+    return `ascent_style must be one of ${[...ASCENT_STYLES].join(', ')}`;
+  }
+  if (attempts != null && (!Number.isInteger(attempts) || (attempts as number) < 0)) {
+    return 'attempts must be a whole number of at least 0';
+  }
+  return null;
+}
 
 // A client-supplied timestamp may lag (offline flush) but not by more than a
 // week, and may lead only by clock skew — anything else is a bug or a forgery.
@@ -168,6 +197,11 @@ function prepareLogRows(
     }
     if (requireSetNumber && !Number.isInteger(picked.set_number)) {
       res.status(400).send(`${label}[${i}] needs an integer set_number`);
+      return null;
+    }
+    const problem = setMetadataProblem(picked);
+    if (problem) {
+      res.status(400).send(`${label}[${i}]: ${problem}`);
       return null;
     }
     prepared.push(picked);
@@ -284,6 +318,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
       }
     }
+    const sessionNote = body.sessionNote;
+    if (sessionNote !== undefined && (typeof sessionNote !== 'string' || sessionNote.length > MAX_NOTE_LENGTH)) {
+      res.status(400).send(`sessionNote must be a string under ${MAX_NOTE_LENGTH} characters`);
+      return;
+    }
 
     const now = new Date().toISOString();
     // `code` rides along so sendWriteFailure can read the SQLSTATE class.
@@ -331,6 +370,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .eq('event_date', eventDate)
           .eq('section', n.section)
           .eq('exercise_id', n.exerciseId));
+    }
+    // The session's own note (phase55): the row exists since bootstrap, so
+    // this is an update, never an insert — a save cannot start a session.
+    if (typeof sessionNote === 'string') {
+      ops.push(supabase
+        .from('workout_sessions')
+        .update({ note: sessionNote.trim() || null, updated_at: now })
+        .eq('user_id', userId).eq('event_id', eventId)
+        .eq('event_date', eventDate));
     }
     for (const key of body.removedSets ?? []) {
       ops.push(supabase
@@ -616,6 +664,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     res.status(200).json({ ok: true });
+    return;
+  }
+
+  // ── edit-times: when a finished, tracker-logged session really ran ────────
+  // R4.1–R4.5 live in trackerSession.applyEditTimes: finished sessions only,
+  // refused for quick-completes and synced activities, bounded by the event
+  // date rather than the autosave window, duration recomputed and mirrored
+  // onto the completion row, score and coach summary untouched.
+  if (body.action === 'edit-times') {
+    const result = await applyEditTimes(supabase, userId, eventId, eventDate, {
+      startedAt: body.startedAt,
+      finishedAt: body.finishedAt,
+    });
+    if (!result.ok) return sendFailure(res, result);
+    res.status(200).json({
+      ok: true,
+      startedAt: result.value.startedAt.toISOString(),
+      finishedAt: result.value.finishedAt.toISOString(),
+      totalDurationSeconds: result.value.totalDurationSeconds,
+    });
     return;
   }
 

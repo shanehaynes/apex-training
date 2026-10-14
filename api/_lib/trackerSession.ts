@@ -398,3 +398,138 @@ export async function applyQuickUncomplete(
   }
   return succeed(undefined);
 }
+
+// ─── Editing a finished session's start and finish ───────────────────────────
+// The session row is created the moment the tracker opens, so opening it
+// early or logging yesterday's session today records a wrong duration
+// forever. `edit-times` lets a finished, tracker-logged session say when it
+// really ran (rulings R4.1–R4.5): the duration is recomputed and mirrored
+// onto workout_completions, and nothing else — not the score, not the
+// coach's summary — is touched.
+
+/** How far past "now" a finish may sit: clock skew, not a plan. */
+export const EDIT_TIMES_FUTURE_MS = 5 * 60 * 1000;
+const DAY_MS = 24 * 3600 * 1000;
+
+export interface EditedTimes {
+  startedAt: Date;
+  finishedAt: Date;
+  totalDurationSeconds: number;
+}
+
+/**
+ * R4.3 — the edit's own bounds, not the autosave timestamp window:
+ * event_date − 1 day ≤ started_at ≤ finished_at ≤ now + 5 min. The lower
+ * bound is midnight UTC of the day before the event, which admits a
+ * session that began the evening before in any timezone and refuses one
+ * filed under a day it could not have belonged to (R4.5: any day inside
+ * these bounds is fine — stats bucket by event_date, not by the clock).
+ */
+export function validateEditTimes(
+  input: { startedAt: unknown; finishedAt: unknown },
+  eventDate: string,
+  now: Date = new Date(),
+): ServiceResult<EditedTimes> {
+  const started = typeof input.startedAt === 'string' ? Date.parse(input.startedAt) : NaN;
+  const finished = typeof input.finishedAt === 'string' ? Date.parse(input.finishedAt) : NaN;
+  if (Number.isNaN(started) || Number.isNaN(finished)) {
+    return fail(400, 'startedAt and finishedAt must both be timestamps');
+  }
+  const dayStart = Date.parse(`${eventDate}T00:00:00Z`);
+  if (Number.isNaN(dayStart)) return fail(400, 'eventDate must be a calendar date');
+  if (started < dayStart - DAY_MS) {
+    return fail(400, 'The start must be no earlier than the day before the workout');
+  }
+  if (finished < started) {
+    return fail(400, 'The finish must come after the start');
+  }
+  if (finished > now.getTime() + EDIT_TIMES_FUTURE_MS) {
+    return fail(400, 'The finish cannot be in the future');
+  }
+  return succeed({
+    startedAt: new Date(started),
+    finishedAt: new Date(finished),
+    totalDurationSeconds: Math.round((finished - started) / 1000),
+  });
+}
+
+/**
+ * Change when a finished session started and finished. Refuses (R4.1,
+ * R4.2) a session that is still running, one with nothing hand-logged
+ * (every row autofilled — "Mark as Complete", whose duration is the plan's
+ * estimate), and one a synced activity filled (provider_activity_imports),
+ * whose time is the device's. The error says which.
+ */
+export async function applyEditTimes(
+  supabase: Admin,
+  userId: string,
+  eventId: string,
+  eventDate: string,
+  input: { startedAt: unknown; finishedAt: unknown },
+  now: Date = new Date(),
+): Promise<ServiceResult<EditedTimes>> {
+  const { data: session, error: sessionErr } = await supabase
+    .from('workout_sessions')
+    .select('finished_at')
+    .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate)
+    .maybeSingle();
+  if (sessionErr) {
+    console.error('[api/workout-sessions] edit-times session load failed:', sessionErr.message);
+    return fail(500, 'Failed to load session');
+  }
+  if (!session) return fail(404, 'Session not started');
+  if (!session.finished_at) return fail(409, 'Times can be edited once the workout is finished');
+
+  // Each table named literally: postgrest-js types a union table name as the
+  // intersection of the schemas, which has no is_autofilled.
+  const [sets, cardio, imports] = await Promise.all([
+    supabase.from('workout_set_logs').select('event_id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate).eq('is_autofilled', false),
+    supabase.from('workout_cardio_logs').select('event_id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate).eq('is_autofilled', false),
+    supabase.from('provider_activity_imports').select('event_id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate),
+  ]);
+  const failed = [sets, cardio, imports].find(r => r.error);
+  if (failed?.error) {
+    console.error('[api/workout-sessions] edit-times row check failed:', failed.error.message);
+    return fail(500, 'Failed to load session');
+  }
+  if ((imports.count ?? 0) > 0) {
+    return fail(409, 'This workout’s time came from a synced activity — it stays the device’s');
+  }
+  if ((sets.count ?? 0) === 0 && (cardio.count ?? 0) === 0) {
+    return fail(409, 'This workout was marked complete, not tracked — its duration is the plan’s estimate');
+  }
+
+  const validated = validateEditTimes(input, eventDate, now);
+  if (!validated.ok) return validated;
+  const times = validated.value;
+
+  const { error: updateErr } = await supabase
+    .from('workout_sessions')
+    .update({
+      started_at: times.startedAt.toISOString(),
+      finished_at: times.finishedAt.toISOString(),
+      total_duration_seconds: times.totalDurationSeconds,
+      updated_at: now.toISOString(),
+    })
+    .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate);
+  if (updateErr) {
+    console.error('[api/workout-sessions] edit-times update failed:', updateErr.message);
+    return fail(500, 'Failed to save times');
+  }
+
+  // R4.4: the completion row's minutes are what reflection and the review
+  // read, so they follow the session. No row (a session finished before the
+  // completion landed) is not an error.
+  const { error: completionErr } = await supabase
+    .from('workout_completions')
+    .update({ duration_minutes: Math.round(times.totalDurationSeconds / 60), updated_at: now.toISOString() })
+    .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate);
+  if (completionErr) {
+    console.error('[api/workout-sessions] edit-times completion mirror failed:', completionErr.message);
+    return fail(500, 'Failed to save times');
+  }
+  return succeed(times);
+}

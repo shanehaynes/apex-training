@@ -44,6 +44,9 @@ export interface SetLogInput {
   actualReps: string | null;
   actualDuration: string | null;
   isAutofilled: boolean;
+  /** A warm-up set (phase55): not a performance, so not tonnage. Absent on
+   *  inputs built before the column, which reads as false. */
+  isWarmup?: boolean;
 }
 
 export interface PhysiologyInputs {

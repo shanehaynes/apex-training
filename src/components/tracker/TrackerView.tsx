@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, CheckCircle2, Flag, Plus, Trash2 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, subDays } from 'date-fns';
 import { useCalendar } from '../../context/calendar';
 import { useSchedule } from '../../context/schedule';
 import { formatElapsed } from '../../lib/time';
@@ -21,6 +21,15 @@ import type { TrackedSectionGroup } from '../../lib/tracking/plan';
 import { useTip } from '../../hooks/useTip';
 import { useTrackerRestTimer } from '../../hooks/useRestTimer';
 import RestTimerBar from './RestTimerBar';
+import { isRpeTrackingEnabled } from '../../lib/tracking/fields';
+import '../../styles/set-metadata.css';
+
+// <input type="datetime-local"> speaks local wall-clock time without a zone.
+const INPUT_DATETIME = "yyyy-MM-dd'T'HH:mm";
+const toInputDateTime = (iso: string | null | undefined, fallback: string): string => {
+  const t = iso ? Date.parse(iso) : NaN;
+  return Number.isNaN(t) ? fallback : format(new Date(t), INPUT_DATETIME);
+};
 
 /**
  * The tracker's two first-open tips. A child rendered only while a session is
@@ -50,8 +59,8 @@ export default function TrackerView() {
   const event = state.trackingSession;
 
   const {
-    groups, session, elapsed, isFinished, isFinishing, isCancelling, summary, saveState,
-    onSetChange, onCardioChange, onCommitSetShadow, onCommitCardioShadow, onAddSet, onRemoveSet,
+    groups, session, elapsed, isFinished, isFinishing, isCancelling, summary, saveState, sessionNote,
+    onSetChange, onSetMetaChange, onSessionNoteChange, editTimes, onCardioChange, onCommitSetShadow, onCommitCardioShadow, onAddSet, onRemoveSet,
     onAddExercise, onRemoveAddedExercise, onSwapExercise, onNoteChange, flushSave, retrySave, getSaveState, requestFinish, cancelWorkout, openSavedSummary, dismissSummary,
   } = useWorkoutSession(event, setCompletion);
 
@@ -59,6 +68,16 @@ export default function TrackerView() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
+  // Editing a finished session's start and finish (R4.2: finished only).
+  // Drafts are datetime-local strings; the server holds the bounds and says
+  // why an edit is refused (a quick-complete, a synced activity).
+  const [timesOpen, setTimesOpen] = useState(false);
+  const [startDraft, setStartDraft] = useState('');
+  const [finishDraft, setFinishDraft] = useState('');
+  const [savingTimes, setSavingTimes] = useState(false);
+  // A device preference (Profile → Training), read on every paint so a
+  // change made with the tracker mounted behind the calendar shows on return.
+  const showRpe = isRpeTrackingEnabled();
   // Rest countdown between sets: a row's first non-empty reps/duration (or
   // its ghost tapped) starts it from the exercise's rest text (lib/tracking/rest.ts).
   const rest = useTrackerRestTimer({ groups, sessionKey: event?.id ?? null, finished: isFinished });
@@ -120,6 +139,26 @@ export default function TrackerView() {
     else setConfirmCancel(false);
   };
 
+  const openTimes = () => {
+    setStartDraft(toInputDateTime(session?.started_at, `${event.date}T09:00`));
+    setFinishDraft(toInputDateTime(session?.finished_at, `${event.date}T10:00`));
+    setTimesOpen(true);
+  };
+  const draftStart = Date.parse(startDraft);
+  const draftFinish = Date.parse(finishDraft);
+  const draftSeconds = Number.isNaN(draftStart) || Number.isNaN(draftFinish)
+    ? null
+    : Math.round((draftFinish - draftStart) / 1000);
+  const submitTimes = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (draftSeconds === null) { notify('Both times are needed'); return; }
+    if (draftSeconds < 0) { notify('The finish must come after the start'); return; }
+    setSavingTimes(true);
+    const ok = await editTimes(new Date(draftStart).toISOString(), new Date(draftFinish).toISOString());
+    setSavingTimes(false);
+    if (ok) setTimesOpen(false);
+  };
+
   return createPortal(
     <div className="tracker">
       {groups && !isFinished && !summary && confirmCount === null && !scoreOpen && !confirmCancel && (
@@ -133,9 +172,22 @@ export default function TrackerView() {
           <span className="tracker-header__title">{event.title}</span>
           <span className="tracker-header__date">{format(parseISO(event.date), 'EEEE, MMM d')}</span>
         </div>
-        <span className={`tracker-header__timer${isFinished ? ' tracker-header__timer--done' : ''}`}>
-          {formatElapsed(elapsed)}
-        </span>
+        {isFinished ? (
+          <button
+            type="button"
+            className="tracker-header__timer tracker-header__timer--done tracker-header__timer--button"
+            onClick={openTimes}
+            disabled={!groups}
+            title="Edit when this workout started and finished"
+            aria-label={`Duration ${formatElapsed(elapsed)} — edit start and finish times`}
+          >
+            {formatElapsed(elapsed)}
+          </button>
+        ) : (
+          <span className="tracker-header__timer">
+            {formatElapsed(elapsed)}
+          </span>
+        )}
         {isFinished ? (
           <button
             className="tracker-header__done-badge tracker-header__done-badge--button"
@@ -162,6 +214,50 @@ export default function TrackerView() {
       {rest.running && (
         <RestTimerBar remaining={rest.remaining} progress={rest.progress} label={rest.exerciseLabel} onExtend={rest.extend} onSkip={rest.skip} />
       )}
+      {timesOpen && isFinished && (
+        <form className="tracker-times" data-testid="edit-times" onSubmit={submitTimes}>
+          <label className="tracker-times__field">
+            <span>Started</span>
+            <input
+              type="datetime-local"
+              className="tracker-input"
+              aria-label="Started at"
+              value={startDraft}
+              min={format(subDays(parseISO(event.date), 1), INPUT_DATETIME)}
+              onChange={e => setStartDraft(e.target.value)}
+              required
+            />
+          </label>
+          <label className="tracker-times__field">
+            <span>Finished</span>
+            <input
+              type="datetime-local"
+              className="tracker-input"
+              aria-label="Finished at"
+              value={finishDraft}
+              min={startDraft || undefined}
+              onChange={e => setFinishDraft(e.target.value)}
+              required
+            />
+          </label>
+          <span className="tracker-times__preview" aria-live="polite">
+            {draftSeconds !== null && draftSeconds >= 0 ? formatElapsed(draftSeconds) : '—'}
+          </span>
+          <div className="tracker-times__actions">
+            <button type="button" className="tracker-times__btn" onClick={() => setTimesOpen(false)} disabled={savingTimes}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="tracker-times__btn tracker-times__btn--primary"
+              style={{ background: color.solid }}
+              disabled={savingTimes || draftSeconds === null || draftSeconds < 0}
+            >
+              {savingTimes ? 'Saving…' : 'Save times'}
+            </button>
+          </div>
+        </form>
+      )}
 
       <div className="tracker-body">
         {isFinished && groups && (
@@ -185,6 +281,8 @@ export default function TrackerView() {
                   tracked={tracked}
                   accentColor={color.solid}
                   onSetChange={(setNumber, field, value) => onSetChange(group.section, tracked.exercise.id, setNumber, field, value)}
+                  onSetMetaChange={(setNumber, patch) => onSetMetaChange(group.section, tracked.exercise.id, setNumber, patch)}
+                  showRpe={showRpe}
                   onCardioChange={(field, value) => onCardioChange(group.section, tracked.exercise.id, field, value)}
                   onCommitSetShadow={(setNumber, values) => onCommitSetShadow(group.section, tracked.exercise.id, setNumber, values)}
                   onCommitCardioShadow={field => onCommitCardioShadow(group.section, tracked.exercise.id, field)}
@@ -198,6 +296,20 @@ export default function TrackerView() {
               ))}
             </div>
           ))
+        )}
+        {groups && (
+          <label className="tracker-session-note">
+            <span className="tracker-session-note__label">Session notes</span>
+            <textarea
+              className="tracker-input tracker-session-note__input"
+              rows={2}
+              maxLength={2000}
+              aria-label="Session notes"
+              placeholder="The session as a whole — sleep, energy, anything the coach should know"
+              value={sessionNote}
+              onChange={e => onSessionNoteChange(e.target.value)}
+            />
+          </label>
         )}
         {groups && !isFinished && (
           <button
@@ -257,6 +369,7 @@ export default function TrackerView() {
           accentColor={color.solid}
           durationSeconds={session?.total_duration_seconds ?? null}
           groups={groups}
+          sessionNote={sessionNote}
           prs={summary.prs}
           score={summary.score}
           scoreRecord={summary.scoreRecord}

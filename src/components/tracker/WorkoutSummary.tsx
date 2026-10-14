@@ -2,7 +2,7 @@ import { CheckCircle2, MessageSquare, Trophy, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { WorkoutEvent } from '../../types/workout';
 import type { TrackedSectionGroup, TrackedSet, CardioActuals } from '../../lib/tracking/plan';
-import { describeRecordForPeople, describeWorkoutScore, formatScore, isPerformedSet } from '../../lib/tracking/records';
+import { classifySet, describeRecordForPeople, describeWorkoutScore, formatScore, isPerformedSet } from '../../lib/tracking/records';
 import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from '../../lib/tracking/records';
 import type { CoachStatus } from '../../hooks/useWorkoutSession';
 import { useTip } from '../../hooks/useTip';
@@ -13,6 +13,8 @@ interface Props {
   accentColor: string;
   durationSeconds: number | null;
   groups: TrackedSectionGroup[];
+  /** The note on the whole session (workout_sessions.note); '' when none. */
+  sessionNote?: string;
   prs: PersonalRecord[];
   /** Workout-level score for scored events (null = unscored session). */
   score: SessionScore | null;
@@ -42,6 +44,34 @@ function setLabel(set: TrackedSet): string {
   return parts.join(' ');
 }
 
+/** Whether a set counts: not a zero-fill, not a warm-up (isPerformedSet). */
+function performed(set: TrackedSet): boolean {
+  return isPerformedSet({ is_autofilled: set.isAutofilled, is_warmup: set.isWarmup });
+}
+
+/**
+ * Σ weight × reps over the session's working sets — the review's tonnage
+ * rule, so a warm-up set adds nothing here either. Null when no set
+ * carried a weight and reps.
+ */
+function sessionTonnage(groups: TrackedSectionGroup[]): number | null {
+  let total = 0;
+  let any = false;
+  for (const group of groups) {
+    for (const tracked of group.exercises) {
+      if (tracked.isCardio) continue;
+      for (const set of tracked.sets) {
+        if (!performed(set)) continue;
+        const classified = classifySet(set.actualWeight, set.actualReps, set.actualDuration);
+        if (classified?.kind !== 'oneRM') continue;
+        total += classified.weight * classified.reps;
+        any = true;
+      }
+    }
+  }
+  return any ? Math.round(total) : null;
+}
+
 function cardioLabel(cardio: CardioActuals): string {
   const parts: string[] = [];
   if (cardio.durationMinutes) parts.push(`${cardio.durationMinutes} min`);
@@ -56,6 +86,7 @@ export default function WorkoutSummary({
   accentColor,
   durationSeconds,
   groups,
+  sessionNote = '',
   prs,
   score,
   scoreRecord,
@@ -66,6 +97,7 @@ export default function WorkoutSummary({
   onAskCoach,
 }: Props) {
   const duration = formatDuration(durationSeconds);
+  const tonnage = sessionTonnage(groups);
   // First sight of the summary: what the trophies mean, and why a first try
   // at a movement never earns one.
   useTip('summary-first');
@@ -85,6 +117,15 @@ export default function WorkoutSummary({
               {event.title} · {format(parseISO(event.date), 'EEE, MMM d')}
               {score ? ` · ${formatScore(score)}` : duration ? ` · ${duration}` : ''}
             </span>
+            {tonnage !== null && (
+              <span
+                className="tracker-summary__meta"
+                data-testid="summary-tonnage"
+                title="Weight × reps over working sets — warm-ups and skipped sets excluded"
+              >
+                Volume {tonnage.toLocaleString()}
+              </span>
+            )}
           </div>
           <button className="tracker-summary__close" onClick={onClose} aria-label="Close summary">
             <X size={16} strokeWidth={1.5} />
@@ -114,6 +155,13 @@ export default function WorkoutSummary({
             </p>
           )}
         </div>
+
+        {sessionNote.trim() && (
+          <div className="tracker-summary__coach">
+            <span className="tracker-summary__label">Session notes</span>
+            <p className="tracker-summary__note" data-testid="summary-session-note">{sessionNote.trim()}</p>
+          </div>
+        )}
 
         {(scoreRecord || prs.length > 0) && (
           <div className="tracker-summary__prs">
@@ -150,11 +198,15 @@ export default function WorkoutSummary({
                   ) : (
                     tracked.sets.map(set => {
                       const label = setLabel(set);
-                      const skipped = !isPerformedSet({ is_autofilled: set.isAutofilled }) || (!label && !set.isExtra);
+                      // A warm-up is shown with what it did and a tag; only a
+                      // zero-fill or an empty planned set reads as skipped.
+                      const skipped = set.isAutofilled || (!label && !set.isExtra);
                       return (
                         <span key={set.setNumber} className="tracker-summary__set">
                           <span className="tracker-summary__set-num">{set.setNumber}</span>
                           {skipped || !label ? <em>skipped</em> : label}
+                          {set.isWarmup && !skipped && <span className="tracker-summary__tag">warm-up</span>}
+                          {set.rpe && !skipped && <span className="tracker-summary__tag">RPE {set.rpe}</span>}
                         </span>
                       );
                     })
