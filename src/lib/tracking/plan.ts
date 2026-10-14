@@ -33,6 +33,11 @@ export interface TrackedSet {
   ascentStyle: AscentStyle | null;
   /** Climbing pitches only: goes it took, as typed ('' = not counted). */
   attempts: string;
+  /** A percentage target ("80%") as today's load, in the profile's unit
+   *  without a suffix ("185"): resolved by the server at bootstrap
+   *  (resolvePercentTargets, percent.ts). Absent when the target is not a
+   *  percentage or the lift has no history. Display only — never saved. */
+  resolvedPlannedWeight?: string;
 }
 
 export type CardioShadow = Omit<LastCardioActuals, 'date'>;
