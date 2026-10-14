@@ -7,6 +7,7 @@ import SwiftUI
 /// session takes it back out.
 public struct AppleHealthView: View {
     private let model: HealthModel
+    @Environment(\.scenePhase) private var scenePhase
 
     public init(model: HealthModel) {
         self.model = model
@@ -17,12 +18,13 @@ public struct AppleHealthView: View {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 status
                 if model.isAvailable {
-                    Hint("A workout you finish in the tracker is saved to Apple Health with its real start and end, so it counts toward your rings. Apex reads nothing from Health.")
+                    Hint("A workout you finish in the tracker is saved to Apple Health with its real start and end, so it shows up in Health and Fitness. Apex reads nothing from Health.")
                     SettingsSection(footer: "Cancelling a finished workout removes it from Health too. Turning this off keeps what is already there.") {
                         SettingsToggle("Write workouts to Health", isOn: Binding(
                             get: { model.writesWorkouts },
                             set: { on in Task { await model.setWritesWorkouts(on) } }
                         ), identifier: "health.writeWorkouts")
+                        .disabled(model.isRequesting)
                     }
                     if model.isDenied {
                         Hint("Apple Health is not letting Apex save workouts. Allow it in the Health app under Sharing › Apps › Apex, or in Settings › Health › Data Access & Devices.")
@@ -36,6 +38,8 @@ public struct AppleHealthView: View {
         }
         .youScreen("Apple Health")
         .onAppear { model.refresh() }
+        // Back from Settings › Health with Apex allowed: say so at once.
+        .onChange(of: scenePhase) { _, phase in if phase == .active { model.refresh() } }
     }
 
     private var status: some View {

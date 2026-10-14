@@ -70,6 +70,13 @@ final class HealthTests: XCTestCase {
         XCTAssertEqual(store.saved.map(\.session.eventId), ["w2__2026-09-22"], "what Apex wrote goes with its session")
     }
 
+    func testAnOlderVersionNeverReplacesANewerOne() async {
+        let store = FakeHealthStore(authorization: .authorized)
+        try? await store.save(draft(end: 3000))
+        try? await store.save(draft(end: 2700))
+        XCTAssertEqual(store.saved.map(\.end), [draft(end: 3000).end], "HealthKit keeps the higher sync version")
+    }
+
     func testTheChoiceBelongsToOneAccount() {
         preferences("user-a").setWritesWorkouts(true)
         XCTAssertTrue(preferences("user-a").writesWorkouts)

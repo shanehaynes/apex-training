@@ -65,14 +65,24 @@ public struct HealthWorkoutDraft: Sendable, Equatable {
     }
 
     /// The tracker's finish: the occurrence, its logged groups, and the two
-    /// instants the model holds.
+    /// instants the model holds. Nil, too, past the type's longest plausible
+    /// session: the tracker has no pause, so a workout left open overnight and
+    /// finished in the morning would be fifteen hours of strength training in
+    /// Health — inaccurate data Apex must not write (guideline 5.1.3).
     public init?(event: ScheduleEvent, groups: [TrackedSectionGroup], startedAt: Date?, finishedAt: Date) {
+        if let startedAt, finishedAt.timeIntervalSince(startedAt) > Self.longestSession(for: event.base.type) { return nil }
         let hasMainCardio = groups.contains { $0.section == "exercise" && $0.exercises.contains(where: \.isCardio) }
         self.init(
             session: SessionKey(eventId: event.id, eventDate: event.date),
             kind: .forWorkout(type: event.base.type, sport: event.base.sport, hasMainCardio: hasMainCardio),
             title: event.title, startedAt: startedAt, finishedAt: finishedAt
         )
+    }
+
+    /// An outdoor climbing day can run from dawn to dusk; nothing else Apex
+    /// tracks runs past six hours.
+    public static func longestSession(for type: WorkoutType) -> TimeInterval {
+        type == .outdoorClimbing ? 14 * 3600 : 6 * 3600
     }
 
     public var syncIdentifier: String { Self.syncIdentifier(for: session) }

@@ -114,6 +114,10 @@ public final class TrackerModel {
     private var saveGeneration = 0
     private var timerTask: Task<Void, Never>?
     private var queueTask: Task<Void, Never>?
+    /// The finish's Health save is in flight; a cancel confirmed meanwhile
+    /// waits here and deletes after it lands, never before (no orphan workout).
+    private var isSavingToHealth = false
+    private var healthSaveWaiters: [CheckedContinuation<Void, Never>] = []
     private var isPresented = false
 
     /// The web's `AUTOSAVE_DEBOUNCE_MS`.
@@ -637,7 +641,11 @@ public final class TrackerModel {
         // Apple Health (W16, D-056): from what the tracker holds, not the
         // server's answer, so an offline finish writes it too.
         if let draft = HealthWorkoutDraft(event: event, groups: editor.groups, startedAt: startedAt, finishedAt: now) {
+            isSavingToHealth = true
             await services.health.workoutFinished(draft)
+            isSavingToHealth = false
+            healthSaveWaiters.forEach { $0.resume() }
+            healthSaveWaiters.removeAll()
         }
     }
 
@@ -766,7 +774,9 @@ public final class TrackerModel {
         let session = session
         Task { await queue.flush(session) }
         // Whatever Apex wrote to Health for this occurrence, in this sitting
-        // or an earlier one; nothing written is a no-op.
+        // or an earlier one; nothing written is a no-op. After any save still
+        // in flight, so the delete is the last word.
+        if isSavingToHealth { await withCheckedContinuation { healthSaveWaiters.append($0) } }
         await services.health.workoutCancelled(session)
         return true
     }

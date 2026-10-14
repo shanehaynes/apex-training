@@ -69,6 +69,16 @@ final class HealthWorkoutDraftTests: XCTestCase {
         XCTAssertGreaterThan(later.syncVersion, draft.syncVersion, "a re-finish replaces, never loses to, the earlier save")
     }
 
+    func testASessionLeftOpenPastAPlausibleLengthIsNotWritten() throws {
+        let weights = try event(type: "weights")
+        XCTAssertNotNil(HealthWorkoutDraft(event: weights, groups: [], startedAt: start, finishedAt: start.addingTimeInterval(6 * 3600)))
+        XCTAssertNil(HealthWorkoutDraft(event: weights, groups: [], startedAt: start, finishedAt: start.addingTimeInterval(15 * 3600)),
+                     "left open overnight: no pause in the tracker, so the span is not the workout")
+        let crag = try event(type: "outdoor-climbing")
+        XCTAssertNotNil(HealthWorkoutDraft(event: crag, groups: [], startedAt: start, finishedAt: start.addingTimeInterval(11 * 3600)), "a long day at the crag is real")
+        XCTAssertNil(HealthWorkoutDraft(event: crag, groups: [], startedAt: start, finishedAt: start.addingTimeInterval(20 * 3600)))
+    }
+
     func testNoDraftWithoutAStartOrWithAnEmptySpan() throws {
         let weights = try event(type: "weights")
         XCTAssertNil(HealthWorkoutDraft(event: weights, groups: [], startedAt: nil, finishedAt: end), "no measured start, nothing true to write")

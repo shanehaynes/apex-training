@@ -53,6 +53,7 @@ public struct YouRootView: View {
     /// Pushes onto the tab's stack from inside a pushed screen (the Library's
     /// create opens the new exercise); the stack's path is the tab's.
     private let open: ((YouRoute) -> Void)?
+    @Environment(\.scenePhase) private var scenePhase
 
     public init(model: YouModel, open: ((YouRoute) -> Void)? = nil) {
         self.model = model
@@ -89,6 +90,10 @@ public struct YouRootView: View {
             .presentationBackground(ApexColor.bgSurface)
         }
         .task { await model.start() }
+        // Health's permission is changed in Settings, not here: the row re-reads
+        // it whenever the root shows or the app comes back.
+        .onAppear { model.health?.refresh() }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { model.health?.refresh() } }
         .refreshable { await model.refreshProfile() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("you.root")

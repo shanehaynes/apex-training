@@ -94,6 +94,18 @@ final class TrackerModelTests: XCTestCase {
         func workoutCancelled(_ session: SessionKey) async { lock.withLock { _calls.append(.cancelled(session)) } }
     }
 
+    /// A Health store slow enough to be mid-save when Cancel is confirmed.
+    private final class SlowHealth: HealthWorkoutPublishing, @unchecked Sendable {
+        private let lock = NSLock()
+        private var _order: [String] = []
+        var order: [String] { lock.withLock { _order } }
+        func workoutFinished(_ draft: HealthWorkoutDraft) async {
+            try? await Task.sleep(for: .milliseconds(200))
+            lock.withLock { _order.append("saved") }
+        }
+        func workoutCancelled(_ session: SessionKey) async { lock.withLock { _order.append("deleted") } }
+    }
+
     @MainActor
     private func make(
         _ transport: ScriptedTransport, cache: MemoryCacheStore = MemoryCacheStore(),
@@ -328,6 +340,19 @@ final class TrackerModelTests: XCTestCase {
         await finished.open()
         await finished.requestFinish(force: true)
         XCTAssertTrue(spy.calls.isEmpty, "a session reopened finished is not finished again")
+    }
+
+    @MainActor
+    func testACancelDuringTheSaveDeletesAfterIt() async throws {
+        let health = SlowHealth()
+        let (model, _) = make(healthy(), health: health)
+        await model.open()
+        let finishing = Task { await model.requestFinish(force: true) }
+        while !model.isFinished { await Task.yield() }
+        model.confirmCancel()
+        _ = await model.cancelWorkout()
+        await finishing.value
+        XCTAssertEqual(health.order, ["saved", "deleted"], "no orphan workout left in Health")
     }
 
     @MainActor
