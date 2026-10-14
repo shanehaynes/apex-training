@@ -244,7 +244,7 @@ describe('computeReviewStats', () => {
     expect(stats.strength.totalReps).toBe(5 + 10 + 5);
     // 185.19 lb of squat now outweighs the 185 lb bench.
     expect(stats.strength.heaviestSet).toMatchObject({ exerciseName: 'Squat', reps: 5, date: '2026-05-21' });
-    expect(stats.strength.heaviestSet?.weight).toBeCloseTo(185.18808, 5);
+    expect(stats.strength.heaviestSet?.weight).toBe(185.19); // A2: rounded to two decimals
   });
 
   it('sums cardio per unit without converting', () => {
