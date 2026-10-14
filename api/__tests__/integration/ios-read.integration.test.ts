@@ -1498,8 +1498,7 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     const set = (over: Record<string, unknown>) => ({
       event_id: MIXED_ID, event_date: MIXED_DAY, section: 'exercise', planned_weight: null, planned_reps: null,
       planned_duration: null, actual_weight: null, actual_reps: null, actual_duration: null, is_autofilled: false,
-      // The web's row shape (setToRow): is_warmup and rpe on every row. A batch
-      // mixing rows with and without is_warmup sends null for the missing ones.
+      // The web's row shape (setToRow): is_warmup and rpe on every row.
       is_warmup: false, rpe: null, ...over,
     });
     await post({
