@@ -8,13 +8,23 @@
 // Seven readings the spec left open were ruled by the coordinator and are
 // pinned here as ordinary cases (thousands comma, number lexicon, BW+0, a
 // non-positive bodyweight result, the record weight, a trailing period after
-// a unit, bodyWeightLb always in lb). Cases whose name starts with
-// `REGRESSION:` also pass on the stub and are kept because the spec names
-// the behaviour as one the change must not alter.
+// a unit, bodyWeightLb always in lb). Amendments A3 (more unit spellings)
+// and A4 (how describeRecord prints a converted weight) are at the end.
+// Cases whose name starts with `REGRESSION:` also pass on the stub and are
+// kept because the spec names the behaviour as one the change must not alter.
+// Cases whose name starts with `AMBIGUOUS:` assume something the spec does
+// not say.
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_WEIGHT_CONTEXT, LB_PER_KG, parseWeight } from '../weight';
 import type { WeightContext } from '../weight';
-import { bestHistoricalOneRM, classifySet, computeSessionPRs, estimateOneRepMax } from '../records';
+import {
+  bestHistoricalOneRM,
+  classifySet,
+  computeSessionPRs,
+  describeRecord,
+  describeRecordForPeople,
+  estimateOneRepMax,
+} from '../records';
 import { buildTrackerModel } from '../plan';
 import type { TrackedSectionGroup } from '../plan';
 import type { Exercise, WorkoutEvent } from '../../../types/workout';
@@ -223,7 +233,6 @@ describe('parseWeight — rejected forms', () => {
     expect(parseWeight('185lb5', LB)).toBeNull();
     expect(parseWeight('185 lb kg', LB)).toBeNull();
     expect(parseWeight('lb 185', LB)).toBeNull();
-    expect(parseWeight('185 pounds', LB)).toBeNull();
     expect(parseWeight('185l', LB)).toBeNull();
     expect(parseWeight('100 k', LB)).toBeNull();
     expect(parseWeight('kg', LB)).toBeNull();
@@ -689,5 +698,176 @@ describe('computeSessionPRs — PRs across units', () => {
     );
     expect(prs).toHaveLength(1);
     expect(prs[0].kind === 'oneRM' && prs[0].estimatedOneRM).toBeCloseTo(epley(62 * SPEC_LB_PER_KG, 5), 5);
+  });
+});
+
+// ─── A3: more unit spellings ──────────────────────────────────────────────────
+
+describe('parseWeight — A3 unit spellings', () => {
+  it('pound, pounds and # are lb', () => {
+    expect(parseWeight('185#', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('185 pounds', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('185 pound', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('185pounds', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    // A suffix wins over the context unit, as with lb/lbs.
+    expect(parseWeight('185#', KG)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('185 pounds', KG)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('185 pound', KG)).toEqual({ lb: 185, kind: 'absolute' });
+  });
+
+  it('kilo, kilos, kilogram and kilograms are kg', () => {
+    for (const text of ['80 kilo', '80 kilos', '80 kilogram', '80 kilograms', '80kilos', '80kilograms']) {
+      const parsed = parseWeight(text, LB);
+      expect(parsed, text).toMatchObject({ kind: 'absolute' });
+      expect(parsed?.lb, text).toBeCloseTo(80 * SPEC_LB_PER_KG, 5); // 176.3696
+    }
+    expect(parseWeight('80 kilos', KG)?.lb).toBeCloseTo(176.3696, 5);
+  });
+
+  it('the new spellings are case-insensitive and take an optional trailing period', () => {
+    expect(parseWeight('185 POUNDS', LB)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('185 Pound.', KG)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('185 pounds.', KG)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('185#.', KG)).toEqual({ lb: 185, kind: 'absolute' });
+    expect(parseWeight('80 KILOS', LB)?.lb).toBeCloseTo(176.3696, 5);
+    expect(parseWeight('80 Kilograms.', LB)?.lb).toBeCloseTo(176.3696, 5);
+    expect(parseWeight('80 kilo.', LB)?.lb).toBeCloseTo(176.3696, 5);
+    expect(parseWeight('  80 kilos.  ', LB)?.lb).toBeCloseTo(176.3696, 5);
+  });
+
+  it('the new spellings combine with decimals and the thousands comma', () => {
+    expect(parseWeight('62,5 kilos', LB)?.lb).toBeCloseTo(137.78875, 5);
+    expect(parseWeight('62.5 kilograms', LB)?.lb).toBeCloseTo(137.78875, 5);
+    expect(parseWeight('1,200 pounds', KG)).toEqual({ lb: 1200, kind: 'absolute' });
+    expect(parseWeight('135.5#', KG)).toEqual({ lb: 135.5, kind: 'absolute' });
+  });
+
+  it('AMBIGUOUS: a space before # is tolerated like the space before any other suffix', () => {
+    // "100 kg" and "100kg" parse identically (R1.7); the amendment does not
+    // single # out, so "185 #" is read the same as "185#".
+    expect(parseWeight('185 #', KG)).toEqual({ lb: 185, kind: 'absolute' });
+  });
+
+  it('the new spellings work as the load suffix of a bodyweight form', () => {
+    expect(parseWeight('BW+25 pounds', LB_BW)).toEqual({ lb: 205, kind: 'bodyweight' });
+    expect(parseWeight('BW+25 pounds', KG_BW)).toEqual({ lb: 205, kind: 'bodyweight' });
+    expect(parseWeight('BW+25#', KG_BW)).toEqual({ lb: 205, kind: 'bodyweight' });
+    expect(parseWeight('bw - 10 POUND', KG_BW)).toEqual({ lb: 170, kind: 'bodyweight' });
+    expect(parseWeight('BW+10 kilos', LB_BW)?.lb).toBeCloseTo(180 + 10 * SPEC_LB_PER_KG, 5); // 202.0462
+    expect(parseWeight('BW+10 kilograms.', LB_BW)?.lb).toBeCloseTo(202.0462, 5);
+    // R1.2 still applies: no body weight, no bodyweight form.
+    expect(parseWeight('BW+25 pounds', LB)).toBeNull();
+  });
+
+  it('a new spelling earns oneRM in classifySet, in lb', () => {
+    expect(classifySet('185#', '5', null, KG)).toEqual({
+      kind: 'oneRM', weight: 185, reps: 5, oneRM: epley(185, 5), load: 'absolute',
+    });
+    const kilos = classifySet('80 kilos', '5', null, LB);
+    expect(kilos).toMatchObject({ kind: 'oneRM', reps: 5, load: 'absolute' });
+    expect(kilos?.kind === 'oneRM' && kilos.weight).toBeCloseTo(176.3696, 5);
+    expect(classifySet('BW+25 pounds', '8', null, LB_BW)).toEqual({
+      kind: 'oneRM', weight: 205, reps: 8, oneRM: epley(205, 8), load: 'bodyweight',
+    });
+  });
+
+  it('every spelling of one load is one lineage: re-entering it never beats itself', () => {
+    const prsFor = (history: string, current: string) =>
+      computeSessionPRs(
+        groupsWith(bench, [{ weight: current, reps: '5' }]),
+        [historyRow({ actual_weight: history, actual_reps: '5' })],
+        [],
+        LB,
+      );
+    expect(prsFor('80 kg', '80 kilos')).toHaveLength(0);
+    expect(prsFor('80 kilograms', '80kg')).toHaveLength(0);
+    expect(prsFor('185 lbs', '185#')).toHaveLength(0);
+    expect(prsFor('185 pounds', '185')).toHaveLength(0);
+    // And the lineage exists: a heavier spelling-variant set is a PR, compared in lb.
+    expect(prsFor('185 pounds', '190#')).toHaveLength(1);
+    const kilos = prsFor('80 kilos', '81 kilograms');
+    expect(kilos).toHaveLength(1);
+    expect(kilos[0].kind === 'oneRM' && kilos[0].estimatedOneRM).toBeCloseTo(epley(81 * SPEC_LB_PER_KG, 5), 5);
+    // 84 kilos = 185.19 lb beats 185 pounds; 83 kilos = 182.98 lb does not.
+    expect(prsFor('185 pounds', '84 kilos')).toHaveLength(1);
+    expect(prsFor('185 pounds', '83 kilos')).toHaveLength(0);
+  });
+
+  // These pass on an implementation that ignores A3 (they were null before
+  // it) and fail on the stub by the thrown error. They guard against an A3
+  // that widens the grammar past the listed spellings.
+  const stillNull = [
+    '135x5', '45/side', '25 each', '185 (paused)', '185lbs!', '185 lbz',
+    '185 poundss', '185 kilogramss', '185 ##', '185 lb#', '185# lbs', '#185',
+    '185 kilo grams', '185 pnds', '185 kgram', '185 p', '185 pounds!', '185 kilos x 5',
+  ];
+  it.each(stillNull)('still rejects %j', (text) => {
+    expect(parseWeight(text, LB)).toBeNull();
+    expect(parseWeight(text, KG_BW)).toBeNull();
+  });
+
+  it('still rejects malformed bodyweight forms with the new spellings', () => {
+    expect(parseWeight('BW+25 poundz', LB_BW)).toBeNull();
+    expect(parseWeight('BW+25 pounds each', LB_BW)).toBeNull();
+    expect(parseWeight('BW pounds', LB_BW)).toBeNull();
+    expect(parseWeight('BW#', LB_BW)).toBeNull();
+  });
+});
+
+// ─── A4: describeRecord prints a converted weight to the whole pound ──────────
+
+describe('describeRecord — A4 weight display', () => {
+  /** The one PR a "<current> × 5" set earns over a "<prior> × 1" history on Sep 8. */
+  const recordFor = (current: string, prior: string, ctx: WeightContext = LB) => {
+    const prs = computeSessionPRs(
+      groupsWith(bench, [{ weight: current, reps: '5' }]),
+      [historyRow({ actual_weight: prior, actual_reps: '1', event_date: '2026-09-08' })],
+      [],
+      ctx,
+    );
+    expect(prs).toHaveLength(1);
+    return prs[0];
+  };
+
+  it('a kg entry prints rounded to the whole pound', () => {
+    // 62.5 kg = 137.78875 lb → "138"; est 1RM 160.75 → "161".
+    expect(describeRecord(recordFor('62.5 kg', '150'))).toBe('est. 1RM 161 (138 × 5), up from 150 on Sep 8');
+    // The same load as a bare number under a kg context.
+    expect(describeRecord(recordFor('62.5', '150', KG))).toBe('est. 1RM 161 (138 × 5), up from 150 on Sep 8');
+  });
+
+  it('the record keeps the float; only the printed weight is rounded', () => {
+    const record = recordFor('62.5 kg', '150');
+    expect(record.kind === 'oneRM' && record.weight).toBeCloseTo(137.78875, 5);
+  });
+
+  it('a bodyweight form whose lb has more than two decimals prints rounded', () => {
+    // BW+2.5kg with 180 lb body weight = 185.51155 lb → "186"; est 216.43 → "216".
+    expect(describeRecord(recordFor('BW+2.5kg', '200', LB_BW))).toBe('est. 1RM 216 (186 × 5), up from 200 on Sep 8');
+  });
+
+  it('an lb value typed with more than two decimals prints rounded too', () => {
+    // The rule is on the lb value, not on how it was typed: 136.125 → "136".
+    expect(describeRecord(recordFor('136.125', '150'))).toBe('est. 1RM 159 (136 × 5), up from 150 on Sep 8');
+  });
+
+  // The next case passes on today's code, which prints the parsed number
+  // as-is; it pins A4's "exactly as an lb entry would have printed before",
+  // and fails an implementation that rounds every weight or rounds to one place.
+  it('REGRESSION: a weight with at most two decimals prints exactly as before', () => {
+    expect(describeRecord(recordFor('136.25', '150'))).toBe('est. 1RM 159 (136.25 × 5), up from 150 on Sep 8');
+    expect(describeRecord(recordFor('47.75', '40'))).toBe('est. 1RM 56 (47.75 × 5), up from 40 on Sep 8');
+    expect(describeRecord(recordFor('102.25', '100'))).toBe('est. 1RM 119 (102.25 × 5), up from 100 on Sep 8');
+    expect(describeRecord(recordFor('102.5', '100'))).toBe('est. 1RM 120 (102.5 × 5), up from 100 on Sep 8');
+    expect(describeRecord(recordFor('185', '150'))).toBe('est. 1RM 216 (185 × 5), up from 150 on Sep 8');
+  });
+
+  it('AMBIGUOUS: describeRecordForPeople prints the weight by the same rule', () => {
+    // A4 names describeRecord only; the people-facing line shows the same
+    // "(weight × reps)" and is assumed to follow it.
+    expect(describeRecordForPeople(recordFor('62.5 kg', '150')))
+      .toBe('est. best single lift 161 (138 × 5), up from 150 on Sep 8');
+    expect(describeRecordForPeople(recordFor('136.25', '150')))
+      .toBe('est. best single lift 159 (136.25 × 5), up from 150 on Sep 8');
   });
 });
