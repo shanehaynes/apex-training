@@ -1,5 +1,6 @@
 import ApexActivity
 import ApexCore
+import ApexHealth
 import ApexUI
 import Foundation
 import Observation
@@ -633,6 +634,11 @@ public final class TrackerModel {
         let queue = services.queue
         let session = session
         Task { await queue.flush(session) }
+        // Apple Health (W16, D-056): from what the tracker holds, not the
+        // server's answer, so an offline finish writes it too.
+        if let draft = HealthWorkoutDraft(event: event, groups: editor.groups, startedAt: startedAt, finishedAt: now) {
+            await services.health.workoutFinished(draft)
+        }
     }
 
     public func keepGoing() { gate = .idle }
@@ -759,6 +765,9 @@ public final class TrackerModel {
         let queue = services.queue
         let session = session
         Task { await queue.flush(session) }
+        // Whatever Apex wrote to Health for this occurrence, in this sitting
+        // or an earlier one; nothing written is a no-op.
+        await services.health.workoutCancelled(session)
         return true
     }
 

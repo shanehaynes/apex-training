@@ -28,6 +28,7 @@ let package = Package(
         .library(name: "ApexUI", targets: ["ApexUI"]),
         .library(name: "ApexFeatures", targets: ["ApexFeatures"]),
         .library(name: "ApexActivity", targets: ["ApexActivity"]),
+        .library(name: "ApexHealth", targets: ["ApexHealth"]),
     ],
     dependencies: [
         .package(path: "../ApexCore"),
@@ -66,7 +67,7 @@ let package = Package(
             name: "ApexFeatures",
             dependencies: [
                 .product(name: "ApexCore", package: "ApexCore"),
-                "ApexUI", "ApexAuth", "ApexPersistence", "ApexActivity",
+                "ApexUI", "ApexAuth", "ApexPersistence", "ApexActivity", "ApexHealth",
             ],
             swiftSettings: [.swiftLanguageMode(.v6), .defaultIsolation(MainActor.self)]
         ),
@@ -81,6 +82,15 @@ let package = Package(
             name: "ApexActivity",
             dependencies: [.product(name: "ApexCore", package: "ApexCore"), "ApexUI"],
             swiftSettings: [.swiftLanguageMode(.v6), .defaultIsolation(MainActor.self)]
+        ),
+        // Apple Health (W16, D-056): the HealthKit adapter, its fake, and the
+        // publisher the tracker calls at finish and cancel. ApexCore only, and
+        // not MainActor-isolated: HealthKit calls back off the main thread,
+        // and M2's observers run there. The widget never links it.
+        .target(
+            name: "ApexHealth",
+            dependencies: [.product(name: "ApexCore", package: "ApexCore")],
+            swiftSettings: [.swiftLanguageMode(.v6)]
         ),
     ]
 )

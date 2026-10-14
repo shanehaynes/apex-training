@@ -218,7 +218,8 @@ rule people remember.
   second one for the `ApexWidgets` extension — App Store Connect scans each binary in the
   upload on its own (ITMS-91053), and the extension links neither supabase-swift nor GRDB.
 - App Privacy answers: email (account), fitness data the user enters (linked to identity), no
-  tracking, no HealthKit.
+  tracking. HealthKit from 1.1 is write-only (W16 M1), so Health stays "not collected" until W16
+  M2 reads workouts.
 - In-app account deletion (guideline 5.1.1(v)) → `DELETE /api/profile` (W11).
 - BYO Anthropic key: the app is fully usable without it; the coach is presented as optional;
   no pricing shown. Review notes explain it and provide a demo account with a key already saved.

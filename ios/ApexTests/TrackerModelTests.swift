@@ -1,5 +1,6 @@
 import ApexActivity
 import ApexCore
+import ApexHealth
 import XCTest
 import ApexFeatures
 
@@ -83,17 +84,28 @@ final class TrackerModelTests: XCTestCase {
         func end(_ session: SessionKey, totalSeconds: Int?) async { lock.withLock { _calls.append(.end(session, totalSeconds)) } }
     }
 
+    /// Records what the tracker told Apple Health (W16).
+    private final class HealthSpy: HealthWorkoutPublishing, @unchecked Sendable {
+        enum Call: Equatable { case finished(HealthWorkoutDraft), cancelled(SessionKey) }
+        private let lock = NSLock()
+        private var _calls: [Call] = []
+        var calls: [Call] { lock.withLock { _calls } }
+        func workoutFinished(_ draft: HealthWorkoutDraft) async { lock.withLock { _calls.append(.finished(draft)) } }
+        func workoutCancelled(_ session: SessionKey) async { lock.withLock { _calls.append(.cancelled(session)) } }
+    }
+
     @MainActor
     private func make(
         _ transport: ScriptedTransport, cache: MemoryCacheStore = MemoryCacheStore(),
         store: MemoryWriteQueueStore = MemoryWriteQueueStore(), clock: TestClock = TestClock(now: now),
         calendar: Calendar = Calendar(), event: ScheduleEvent = TrackerModelTests.event,
         activity: any TrackerActivityPublishing = NoActivityPublisher(),
+        health: any HealthWorkoutPublishing = NoHealthPublisher(),
         rememberDefinition: @escaping @MainActor @Sendable (ExerciseDefinition) async -> Void = { _ in }
     ) -> (TrackerModel, WriteQueue) {
         let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: Tokens())
         let queue = WriteQueue(store: store, client: client, clock: clock)
-        let services = TrackerServices(client: client, cache: cache, queue: queue, clock: clock, activity: activity)
+        let services = TrackerServices(client: client, cache: cache, queue: queue, clock: clock, activity: activity, health: health)
         let deps = TrackerDependencies(
             services: services,
             definitions: { [ExerciseDefinition(id: "d-row", canonicalName: "Rowing Machine", category: "cardio"),
@@ -271,6 +283,64 @@ final class TrackerModelTests: XCTestCase {
         _ = await model.cancelWorkout()
         XCTAssertEqual(spy.calls.last, .end(model.session, nil))
         XCTAssertEqual(spy.calls.count, 3, "sync, end(total), end(nil)")
+    }
+
+    // MARK: - Apple Health (W16)
+
+    @MainActor
+    func testFinishPublishesOneWorkoutWithTheSessionsRealInstants() async throws {
+        let spy = HealthSpy()
+        let (model, _) = make(healthy(), health: spy)
+        await model.open()
+        let started = try XCTUnwrap(model.startedAt)
+        await model.requestFinish(force: true)
+        guard case .finished(let draft)? = spy.calls.first, spy.calls.count == 1 else { return XCTFail("\(spy.calls)") }
+        XCTAssertEqual(draft.session, model.session)
+        XCTAssertEqual(draft.start, started, "the session's own start, not the plan's")
+        XCTAssertEqual(draft.end, Self.now, "the moment Finish was tapped")
+        XCTAssertEqual(draft.title, Self.event.title)
+        XCTAssertEqual(draft.kind, .functionalStrengthTraining, "a weights session whose main work holds the fixture's row")
+    }
+
+    @MainActor
+    func testAnOfflineFinishStillPublishes() async throws {
+        let transport = healthy()
+        let spy = HealthSpy()
+        let (model, _) = make(transport, health: spy)
+        await model.open()
+        transport.offline = true
+        await model.requestFinish(force: true)
+        XCTAssertTrue(model.isFinished)
+        XCTAssertEqual(spy.calls.count, 1, "Health does not wait for the server")
+    }
+
+    @MainActor
+    func testTheConfirmGateAndAFinishedSessionPublishNothing() async throws {
+        let spy = HealthSpy()
+        let (gated, _) = make(healthy(), health: spy)
+        await gated.open()
+        await gated.requestFinish()
+        XCTAssertTrue(spy.calls.isEmpty, "unlogged sets stop the finish, and Health with it")
+
+        let transport = healthy()
+        transport.set("POST /api/workout-sessions bootstrap", body: Self.fixture("bootstrap.json"))
+        let (finished, _) = make(transport, health: spy)
+        await finished.open()
+        await finished.requestFinish(force: true)
+        XCTAssertTrue(spy.calls.isEmpty, "a session reopened finished is not finished again")
+    }
+
+    @MainActor
+    func testCancelTakesTheWorkoutBackOut() async throws {
+        let spy = HealthSpy()
+        let (model, queue) = make(healthy(), health: spy)
+        await model.open()
+        await model.requestFinish(force: true)
+        await queue.flush(model.session)
+        model.confirmCancel()
+        _ = await model.cancelWorkout()
+        XCTAssertEqual(spy.calls.count, 2)
+        XCTAssertEqual(spy.calls.last, .cancelled(model.session))
     }
 
     // MARK: - Edits

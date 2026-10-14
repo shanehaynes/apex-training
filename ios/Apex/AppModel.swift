@@ -2,6 +2,7 @@ import ApexActivity
 import ApexAuth
 import ApexCore
 import ApexFeatures
+import ApexHealth
 import ApexPersistence
 import ApexUI
 import Foundation
@@ -211,7 +212,8 @@ final class AppModel {
             // the next schedule refresh (realtime, foreground) ends the card.
             schedule.onIndexRefreshed = { index in await controller.endFinished { index.isCompleted($0) } }
         }
-        trackerServices = TrackerServices(client: client, cache: cache, queue: queue, clock: clock, activity: publisher)
+        let health = Self.healthServices(owner: owner)
+        trackerServices = TrackerServices(client: client, cache: cache, queue: queue, clock: clock, activity: publisher, health: health.publisher)
         queueDriver?.stop()
         queueDriver = WriteQueueDriver(queue: queue)
         // The Library's and the Builder's offline creates wait in its library lane.
@@ -268,7 +270,8 @@ final class AppModel {
                 }
             ),
             blocks: BlocksDependencies(client: client, cache: cache, clock: clock, realtime: hub),
-            meals: mealsModel
+            meals: mealsModel,
+            health: health
         ))
 
         let onboardingModel = OnboardingModel(deps: OnboardingModel.Dependencies(
@@ -593,6 +596,19 @@ final class AppModel {
               let bootstrap = try? JSONDecoder().decode(TrackerBootstrap.self, from: entry.json),
               let session = bootstrap.session else { return false }
         return session.startedAt != nil && session.finishedAt == nil
+    }
+
+    /// Apple Health for this account (W16): HealthKit in the app; the fake
+    /// under the XCUITest smoke and `-apexMockHealth`, whose unsigned build has
+    /// no HealthKit entitlement and whose simulator has no Health data.
+    private static func healthServices(owner: String) -> HealthServices {
+        #if DEBUG
+        let args = CommandLine.arguments
+        if args.contains("-apexUITest") || args.contains("-apexMockHealth") {
+            return MockEnvironment.health(owner: owner)
+        }
+        #endif
+        return HealthServices(store: HKHealthStoreAdapter(), preferences: HealthPreferences(owner: owner))
     }
 
     /// Tracker bootstraps are keyed by event *and* date: the schedule prefetches

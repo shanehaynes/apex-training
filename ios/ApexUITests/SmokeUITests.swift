@@ -828,11 +828,12 @@ final class SmokeUITests: XCTestCase {
     /// sign in → You → the header names the fixture user → AI connector → mint a
     /// token → the one-time reveal → Done → the token is listed → COROS → Sync
     /// now → the confirmation sheet for the matched run → Fill it → the apply
-    /// toast → Activity log rows. All on fixtures; the mock answers
+    /// toast → Apple Health (W16) reads "Writing workouts" → Activity log rows.
+    /// All on fixtures; the mock answers
     /// `connect-start` with the callback itself, so Reconnect needs no browser.
     func testYouOnFixtures() {
         let app = XCUIApplication()
-        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockHasKey"]
+        app.launchArguments += ["-apexUITest", "-apexMockClient", "-apexMockHasKey", "-apexMockHealth", "authorized"]
         app.launch()
         signIn(app)
 
@@ -884,6 +885,18 @@ final class SmokeUITests: XCTestCase {
         let toast = app.staticTexts["COROS: Imported 1 activity · filled 1 planned workout"]
         XCTAssertTrue(toast.waitForExistence(timeout: 10))
         attach(app, name: "w11-06-synced")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        // Apple Health (W16 M1): the fake store has granted writing, the toggle is on.
+        let health = app.buttons["you.row.health"]
+        XCTAssertTrue(health.waitForExistence(timeout: 10))
+        XCTAssertTrue(health.label.contains("Writing workouts"), health.label)
+        health.tap()
+        let healthStatus = app.staticTexts["health.status"]
+        XCTAssertTrue(healthStatus.waitForExistence(timeout: 10))
+        XCTAssertEqual(healthStatus.label, "Writing workouts")
+        XCTAssertTrue(app.switches["health.writeWorkouts"].exists)
+        attach(app, name: "w16-01-apple-health")
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
         // The activity log renders the fixture's five rows with their badges.
