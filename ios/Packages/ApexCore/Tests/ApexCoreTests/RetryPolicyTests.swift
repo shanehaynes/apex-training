@@ -51,11 +51,18 @@ final class RetryPolicyTests: XCTestCase {
         XCTAssertEqual(policy.classify(.unauthorized, attempts: 99), .pause)
     }
 
+    /// W16 MT: the terms gate holds every write until the user accepts, and
+    /// accepting resumes the queue — so it pauses like a lost session rather
+    /// than refusing the op.
+    func testTheTermsGatePausesInsteadOfRefusing() {
+        XCTAssertEqual(policy.classify(.termsAcceptanceRequired, attempts: 0), .pause)
+        XCTAssertEqual(policy.classify(.termsAcceptanceRequired, attempts: 99), .pause)
+    }
+
     func testEverythingElseIsPermanent() {
         XCTAssertEqual(policy.classify(.server(status: 400, message: "Invalid score"), attempts: 0), .fail("Invalid score"))
         XCTAssertEqual(policy.classify(.server(status: 404, message: nil), attempts: 0), .fail("Server error (404)."))
         XCTAssertEqual(policy.classify(.payloadTooLarge, attempts: 0), .fail(APIError.payloadTooLarge.description))
-        XCTAssertEqual(policy.classify(.termsAcceptanceRequired, attempts: 0), .fail(APIError.termsAcceptanceRequired.description))
         XCTAssertEqual(policy.classify(.decoding("x"), attempts: 0), .fail(APIError.decoding("x").description))
     }
 

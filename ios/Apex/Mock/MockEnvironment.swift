@@ -28,6 +28,11 @@ import Foundation
 ///                                   untouched), so the screen has enough rows
 ///                                   to scroll — the fixture workout is two
 ///                                   exercises and never does
+///   -apexMockTermsStale             updated Terms/Privacy are published and
+///                                   this user accepted the old ones (W16 MT):
+///                                   every gated route answers 403
+///                                   `terms-acceptance-required` until
+///                                   POST /api/terms-acceptance
 ///   -apexMockHealth authorized      Apple Health (W16) is a fake store that has
 ///                                   granted writing, with the toggle on (or
 ///                                   `denied`: on but refused; `unavailable`);
@@ -45,7 +50,9 @@ struct MockEnvironment {
     let transport: FixtureTransport
     let streams: FixtureStreams
 
-    init() {
+    /// `termsStale` overrides `-apexMockTermsStale` for the unit tests, which
+    /// cannot set launch arguments.
+    init(termsStale: Bool? = nil) {
         let failing = Self.argument("-apexMockFail")
         var failOnce: (route: String, count: Int)?
         if let route = Self.argument("-apexMockFailOnce") {
@@ -56,7 +63,8 @@ struct MockEnvironment {
             hasKey: CommandLine.arguments.contains("-apexMockHasKey"),
             corosStatus: Self.argument("-apexMockCoros") ?? "connected",
             freshUser: CommandLine.arguments.contains("-apexMockFreshUser"),
-            dense: CommandLine.arguments.contains("-apexMockDense")
+            dense: CommandLine.arguments.contains("-apexMockDense"),
+            termsStale: termsStale ?? CommandLine.arguments.contains("-apexMockTermsStale")
         )
         streams = FixtureStreams()
     }
@@ -141,6 +149,8 @@ actor FixtureTransport: HTTPTransport {
     /// W13: the welcome flow's latch and the starter-plan copy, replayed into
     /// the profile's `onboarding` block. A non-fresh user starts dismissed.
     private var onboardingDismissed: Bool
+    /// `-apexMockTermsStale` until the session accepts (W16 MT).
+    private var termsStale: Bool
     private var templateCopied = false
     /// Checklist rows skipped this session (`tip_seen: setup-skip:<id>`).
     private var skippedRows: [String] = []
@@ -181,8 +191,9 @@ actor FixtureTransport: HTTPTransport {
         var deletedFavorites: Set<String> = []
     }
 
-    init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false, corosStatus: String = "connected", freshUser: Bool = false, dense: Bool = false) {
+    init(failingRoute: String?, failOnce: (route: String, count: Int)? = nil, clock: any ApexClock, hasKey: Bool = false, corosStatus: String = "connected", freshUser: Bool = false, dense: Bool = false, termsStale: Bool = false) {
         self.dense = dense
+        self.termsStale = termsStale
         self.failingRoute = failingRoute
         self.failOnce = failOnce
         self.clock = clock
@@ -232,14 +243,27 @@ actor FixtureTransport: HTTPTransport {
             failOnce = (once.route, once.count - 1)
             return HTTPResponse(status: 500, headers: [:], body: Data("mock failure (once)".utf8))
         }
+        // The terms gate (W16 MT): `requireUser` answers 403 on every route but
+        // the three that exist to get a blocked user out — the profile, the
+        // acceptance itself, and the version check.
+        if termsStale, !["/api/profile", "/api/terms-acceptance", "/api/version"].contains(path) {
+            return HTTPResponse(status: 403, headers: [:], body: Data("terms-acceptance-required".utf8))
+        }
         do {
             switch (method, path) {
+            case ("GET", "/api/terms-acceptance"):
+                return ok(Data(termsStale
+                    ? #"{"accepted":{"termsVersion":"terms-v1","privacyVersion":"privacy-v1","acceptedAt":"2026-08-29T12:00:00.000Z"},"current":false,"termsVersion":"terms-v1","privacyVersion":"privacy-v2"}"#.utf8
+                    : #"{"accepted":{"termsVersion":"terms-v1","privacyVersion":"privacy-v2","acceptedAt":"2026-09-08T12:00:00.000Z"},"current":true,"termsVersion":"terms-v1","privacyVersion":"privacy-v2"}"#.utf8))
+            case ("POST", "/api/terms-acceptance"):
+                termsStale = false
+                return ok(Data(#"{"accepted":{"termsVersion":"terms-v1","privacyVersion":"privacy-v2","acceptedAt":"2026-09-08T12:00:00.000Z"},"current":true}"#.utf8))
             case ("GET", "/api/schedule"):
                 // Past the series' UNTIL: the empty window.
                 let start = query.split(separator: "&").first { $0.hasPrefix("start=") }?.dropFirst(6) ?? ""
                 return ok(applyEdits(to: applyCompletions(to: try Fixtures.data(start >= "2026-10-28" ? "schedule-empty.json" : "schedule.json"))))
             case ("GET", "/api/profile"):
-                return ok(withOnboarding(withProfileEdits(withKey(unscrubbed(try Fixtures.data("profile.json"))))))
+                return ok(withTerms(withOnboarding(withProfileEdits(withKey(unscrubbed(try Fixtures.data("profile.json")))))))
             case ("PATCH", "/api/profile"):
                 if let entry = body?["anthropic_api_key"] {
                     hasKey = !(entry is NSNull)
@@ -505,6 +529,13 @@ actor FixtureTransport: HTTPTransport {
     /// The handler's `onboarding` block over the mock's own signals (W13):
     /// dismissed unless `-apexMockFreshUser`, the copy and the key as this
     /// session set them, the goal from the profile edits.
+    /// The profile says what the gate says (W16 MT).
+    private func withTerms(_ data: Data) -> Data {
+        guard termsStale, var object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return data }
+        object["termsCurrent"] = false
+        return (try? JSONSerialization.data(withJSONObject: object)) ?? data
+    }
+
     private func withOnboarding(_ data: Data) -> Data {
         guard var object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return data }
         let goal = (profileEdits["coach_goal"] as? String ?? object["coachGoal"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)

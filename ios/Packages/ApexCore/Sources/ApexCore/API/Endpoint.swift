@@ -76,6 +76,10 @@ public struct Endpoint: Sendable, Equatable {
     /// Records acceptance of the current legal versions. No body: the server
     /// owns which versions are current (`api/_lib/handlers/termsAcceptance.ts`).
     public static let termsAcceptance = Endpoint(method: .post, path: "api/terms-acceptance")
+    /// The signed-in user's latest acceptance and the versions now deployed.
+    /// Exempt from the terms gate, like the POST: it is how the app learns it
+    /// is gated (W16 MT).
+    public static let termsStatus = Endpoint(path: "api/terms-acceptance")
 
     // MARK: - W2 writes
 

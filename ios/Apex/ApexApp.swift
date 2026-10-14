@@ -1,4 +1,5 @@
 import ApexAuth
+import ApexCore
 import ApexFeatures
 import ApexUI
 import SwiftUI
@@ -98,6 +99,16 @@ struct RootView: View {
                 },
                 onCancel: { model.cancelPasswordSetup() }
             )
+        case .signedIn(_, let email) where model.termsUpdate != nil:
+            // W16 MT: in place of the tabs, not over them (TermsUpdateView).
+            TermsUpdateView(
+                status: model.termsUpdate ?? TermsStatus(accepted: nil, current: false), email: email,
+                termsURL: AppConfig.publicOrigin.appendingPathComponent("terms"),
+                privacyURL: AppConfig.publicOrigin.appendingPathComponent("privacy"),
+                onAccept: { await model.acceptUpdatedTerms() },
+                onSignOut: { model.signOut() }
+            )
+            .preferredColorScheme(.dark)
         case .signedIn(let userID, let email):
             RootTabView(
                 schedule: model.schedule, analytics: model.analytics, tracker: model.trackerServices, coach: model.coach,

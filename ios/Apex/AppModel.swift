@@ -79,6 +79,13 @@ final class AppModel {
     /// Whether the set-password screen must also collect acceptance: the terms
     /// gate 403s every other read for an invitee who never accepted on the web.
     private(set) var needsTermsAcceptance = false
+    /// Updated Terms or Privacy are published and the signed-in user has not
+    /// accepted them (W16 MT): the root shows the re-acceptance screen in place
+    /// of the tabs, because every gated request would 403 behind it. Nil
+    /// otherwise — including offline, where nothing is known.
+    private(set) var termsUpdate: TermsStatus?
+    /// The one consumer of the client's notices.
+    private var termsWatch: Task<Void, Never>?
     /// The realtime hub ran out of rejoin attempts for some group (#223):
     /// what is on screen is only as fresh as the last refresh. Persistent on
     /// purpose — the toast announces it once, this stays until a join lands.
@@ -120,6 +127,7 @@ final class AppModel {
         // still render the moment the session comes back. The presenters do not
         // stay — a stopped one never starts again (#199).
         expiry.run = { [weak self] in await self?.tearDown(purgeCache: false) }
+        watchTerms(client)
     }
 
     #if DEBUG
@@ -141,6 +149,7 @@ final class AppModel {
         self.hub = nil
         self.schedule = Self.makeSchedule(client: client, cache: mock.cache, clock: mock.clock, streams: mock.streams, realtime: nil)
         self.analytics = Self.makeAnalytics(client: client, cache: mock.cache, clock: mock.clock, realtime: nil)
+        watchTerms(client)
     }
 
     // Under MainActor default isolation the deinit would be synthesized as
@@ -291,6 +300,8 @@ final class AppModel {
         onboarding = onboardingModel
         Task { await onboardingModel.start() }
         observeRealtimeAvailability()
+        // Off the launch path: an offline phone learns nothing and keeps working.
+        Task { await checkTerms() }
     }
 
     /// Mirror the hub's join verdict into observable state (#223): once the
@@ -518,6 +529,56 @@ final class AppModel {
     }
     #endif
 
+    // MARK: - Terms re-acceptance (W16 MT)
+
+    /// Any request can be the first to meet the gate once a new version is
+    /// published; the client says so here, whichever screen sent it.
+    private func watchTerms(_ client: ApexClient) {
+        termsWatch = Task { [weak self] in
+            for await notice in client.notices {
+                guard notice == .termsAcceptanceRequired else { continue }
+                await self?.termsGateMet()
+            }
+        }
+    }
+
+    private func termsGateMet() async {
+        guard case .signedIn = state, termsUpdate == nil else { return }
+        await checkTerms()
+        // The server has just said so even if the read failed.
+        if termsUpdate == nil { termsUpdate = TermsStatus(accepted: nil, current: false) }
+    }
+
+    /// `GET /api/terms-acceptance` is exempt from the gate, so it answers even
+    /// for a blocked user. Fails quiet: offline is not a reason to block.
+    func checkTerms() async {
+        guard case .signedIn = state, let client,
+              let status = try? await client.send(.termsStatus, as: TermsStatus.self) else { return }
+        termsUpdate = status.current ? nil : status
+    }
+
+    /// Records the acceptance (the server owns which versions), then lets
+    /// everything the gate held go: the paused write queue and the reads that
+    /// came back 403 while the screen was up. An error message, or nil.
+    func acceptUpdatedTerms() async -> String? {
+        guard let client else { return "Not signed in." }
+        do {
+            let status = try await client.send(.termsAcceptance, as: TermsStatus.self)
+            guard status.current else { return "The acceptance was not recorded. Try again." }
+        } catch {
+            return Self.readable(error)
+        }
+        termsUpdate = nil
+        ToastBus.shared.post("Thanks — you're all set.", level: .success)
+        Task {
+            await trackerServices?.queue.resume()
+            await schedule.refresh(reason: .retry)
+            await analytics.refresh(reason: .retry)
+            await you?.refreshProfile()
+        }
+        return nil
+    }
+
     func signOut() {
         Task {
             // Another account may sign in next; nothing cached belongs to it.
@@ -554,6 +615,7 @@ final class AppModel {
         meals?.stop()
         meals = nil
         onboarding = nil
+        termsUpdate = nil
         queueOwner = nil
         await hub?.reset()
         if purgeCache {
