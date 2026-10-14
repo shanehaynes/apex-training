@@ -10,7 +10,14 @@ import {
 } from '../schedule/definitions.js';
 import { normalizeSupersets } from '../schedule/supersets.js';
 import { WEEKDAYS, type Weekday } from '../recurrence/index.js';
-import { REPEAT_OFF, repeatFromRule, repeatProblem, ruleFromRepeat, snapAnchorDate, type DraftRepeat } from './repeat.js';
+import {
+  REPEAT_OFF, describeRepeat, repeatFreq, repeatFromRule, repeatProblem, ruleFromRepeat, snapAnchorDate,
+  type DraftRepeat,
+} from './repeat.js';
+
+/** The weekdays an anchor snaps to: none for a DAILY rule, whose stale
+ *  weekly chips must not move the start date. */
+const anchorDays = (repeat: DraftRepeat): Weekday[] => (repeatFreq(repeat) === 'DAILY' ? [] : repeat.days);
 
 // ─── The builder's draft model ───────────────────────────────────────────────
 // One plain object holding everything the workout builder edits, with pure
@@ -263,7 +270,7 @@ export function createInputFromDraft(draft: WorkoutDraft, templateId: string): C
     type: draft.type,
     sport: draft.sport || undefined,
     title: draft.title.trim(),
-    date: rule && !draft.repeat.custom ? snapAnchorDate(draft.date, draft.repeat.days) : draft.date,
+    date: rule && !draft.repeat.custom ? snapAnchorDate(draft.date, anchorDays(draft.repeat)) : draft.date,
     recurrenceRule: rule,
     estimatedDuration: parseInt(draft.duration, 10),
     difficulty: draft.difficulty,
@@ -324,7 +331,7 @@ export function eventFieldsFromDraft(
     ...(writesRule ? { recurrenceRule: rule } : {}),
     ...(includeSchedule
       ? {
-          date: writesRule ? snapAnchorDate(draft.date, draft.repeat.days) : draft.date,
+          date: writesRule ? snapAnchorDate(draft.date, anchorDays(draft.repeat)) : draft.date,
           startTime: draft.startTime ? toDisplayTime(draft.startTime) ?? undefined : undefined,
           endTime: draft.endTime ? toDisplayTime(draft.endTime) ?? undefined : undefined,
           ...(writesRule ? { isRecurring: true } : {}),
@@ -512,7 +519,7 @@ export function describeDraft(draft: WorkoutDraft): string {
     `Date: ${draft.date}${draft.startTime ? ` ${draft.startTime}` : ''}${draft.endTime ? `–${draft.endTime}` : ''} · ${draft.duration || '?'} min · difficulty ${draft.difficulty}`,
   ];
   if (draft.repeat.enabled) {
-    lines.push(`Repeat: ${draft.repeat.custom ?? `${draft.repeat.days.join(',')} every ${draft.repeat.interval} week(s)${draft.repeat.until ? ` until ${draft.repeat.until}` : ''}`}`);
+    lines.push(`Repeat: ${describeRepeat(draft.repeat)}`);
   }
   if (draft.location) lines.push(`Location: ${draft.location}`);
   if (draft.tags) lines.push(`Tags: ${draft.tags}`);

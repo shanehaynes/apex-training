@@ -109,6 +109,21 @@ describe('createInputFromDraft', () => {
     expect(createInputFromDraft(withType(emptyDraft('2026-08-28', 'Run'), 'cardio'), 'wt-3').cardioTargets)
       .toBeUndefined();
   });
+
+  it('snaps a weekly anchor to the first picked day', () => {
+    // 2026-08-28 is a Friday; the first Monday on or after it is 08-31.
+    const draft = { ...emptyDraft('2026-08-28', 'Upper'), repeat: { enabled: true, days: ['MO' as const], interval: '1', until: '' } };
+    expect(createInputFromDraft(draft, 'wt-4').date).toBe('2026-08-31');
+  });
+
+  it('never snaps a daily anchor to stale weekday chips', () => {
+    const draft = {
+      ...emptyDraft('2026-08-28', 'Mobility'),
+      repeat: { enabled: true, freq: 'DAILY' as const, days: ['MO' as const], interval: '1', until: '' },
+    };
+    expect(createInputFromDraft(draft, 'wt-5').date).toBe('2026-08-28');
+    expect(eventFieldsFromDraft(draft, { includeSchedule: true }).date).toBe('2026-08-28');
+  });
 });
 
 describe('draftFromEvent / eventFieldsFromDraft', () => {

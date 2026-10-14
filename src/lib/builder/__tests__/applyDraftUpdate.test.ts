@@ -95,6 +95,18 @@ describe('describeDraft', () => {
     expect(text).toContain('[superset A]');
     expect(text).toContain('Repeat: MO every 1 week(s)');
   });
+
+  it('describes a daily counted series in days, not weeks', () => {
+    const draft = { ...base(), repeat: { enabled: true, freq: 'DAILY' as const, days: [], interval: '2', until: '', count: '6' } };
+    const text = describeDraft(draft);
+    expect(text).toContain('Repeat: every 2 day(s), 6 times');
+    expect(text).not.toContain('week');
+  });
+
+  it('describes a weekly series with its days, interval and count', () => {
+    const draft = { ...base(), repeat: { enabled: true, days: ['MO' as const, 'TH' as const], interval: '2', until: '', count: '6' } };
+    expect(describeDraft(draft)).toContain('Repeat: MO,TH every 2 week(s), 6 times');
+  });
 });
 
 describe('sport (phase 37)', () => {
