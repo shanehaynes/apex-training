@@ -23,12 +23,14 @@ person to console.anthropic.com — two hops to a developer console.
 **What bounds cost today.** Less than it looks. `AI_DAILY_MUTATION_CAP` = 200
 ([rateLimit.ts:106](../../api/_lib/rateLimit.ts)) counts AI-made *writes* only (coach-tool, MCP,
 and the AI-stamped paths of events, meals and exercise definitions). Model calls are only
-throttled ([rateLimit.ts:31](../../api/_lib/rateLimit.ts)): chat 30 per 10 minutes (about 4,300 a
-day), summary 10 per hour, weekly review on the shared `writes` bucket at 120 per hour. There is
-no token or dollar cap, and the limiter fails open on a DB error
+throttled ([rateLimit.ts:31](../../api/_lib/rateLimit.ts)): chat 30 *requests* per 10 minutes
+(about 4,300 a day), summary 10 per hour, weekly review on the shared `writes` bucket at 120 per
+hour. One chat request can make up to 6 model calls (`MAX_SERVER_ROUNDS` = 5 after the first,
+[chat.ts:204](../../api/chat.ts), enforced at :631), so the worst case is about 26,000 calls a day
+at `max_tokens` 8192 ([chat.ts:577](../../api/chat.ts)). The crons are bounded only by their
+schedule. There is no token or dollar cap, and the limiter fails open on a DB error
 ([rateLimit.ts:70](../../api/_lib/rateLimit.ts)). The default model is Opus 5.5
-([models.ts:65](../../src/lib/coach/models.ts)) with chat `max_tokens` 8192
-([chat.ts:577](../../api/chat.ts)).
+([models.ts:65](../../src/lib/coach/models.ts)).
 
 **The contradiction.** Those two goals cannot both hold. The real decision is a **per-user monthly
 dollar budget** — what Apex will spend on one user — not "hosted vs BYOK". Options, in order of
@@ -63,10 +65,14 @@ is off by one; `search_history` is in-app only.
 **User sees.** "Mark today done" or "log 5×5 at 225" in the sidebar gets an apology; the same
 sentence in Claude Desktop just happens, unreviewed.
 
-**Not free to port.** `createServerDeps` ([serverDeps.ts:37](../../api/_lib/coach/serverDeps.ts))
-covers only the existing chat ops. The MCP-only tools are self-contained `run()` functions in
-`writeTools.ts`, so chat needs new `CoachToolDeps` methods (or the logic moved into shared
-services both doors call).
+**Cheaper to port than it looks.** `createServerDeps`
+([serverDeps.ts:37](../../api/_lib/coach/serverDeps.ts)) covers only the existing chat ops, but
+the MCP-only `run()` functions mostly call shared services already: `quickCompletePlan`,
+`applyQuickUncomplete` and `loadResolvedOccurrence` from `trackerSession`, `recordCompletion`
+from `services/completions`, and the block resources from `services/blocks`
+([writeTools.ts:9](../../api/_lib/mcp/writeTools.ts)). `serverDeps.ts` already uses
+`recordCompletion` and `quickCompletePlan` for retro-logs (:60–66). What remains per tool is a
+thin `CoachToolDeps` wrapper, a schema, a confirm card and its preview label, and evals.
 
 **Eval gap.** Wider than "no cases for the new tools". There are no positive cases for
 `create_exercise_definition`, `update_exercise_definition`, `log_meal`, `update_meal` or
@@ -75,10 +81,11 @@ services both doors call).
 the existing sight cases ([sight.ts](../../evals/cases/sight.ts) builds its list from the schemas)
 and moves the eval surface hash, so every tool PR runs the gate.
 
-### 2a. Complete and log from chat — **P0 · M**
+### 2a. Complete and log from chat — **P0 · S–M**
 
 Register `complete_workout` and `log_workout` (and `uncomplete_workout` as their undo) in
-`COACH_TOOLS` with confirm cards and preview labels, new deps methods, and positive eval cases.
+`COACH_TOOLS` with confirm cards and preview labels, thin deps wrappers over the shared services,
+and positive eval cases. The evals and the gate run are most of the work.
 
 ### 2b. The rest of parity — **P2**
 
@@ -90,23 +97,30 @@ writes should get an "undo last N" surface in Coach activity, since they have no
 **Evidence.** A multi-week plan arrives as N separate `create_event` cards confirmed one at a
 time, then at most 3 tools-on follow-up rounds ([useChat.ts:311](../../src/hooks/useChat.ts)). The
 planner drafts 1–24 blocks but never the workouts inside them
-([schemas.ts:525](../../src/lib/coach/schemas.ts)). Each card is its own `/api/coach-tool` call,
+([schemas.ts:531](../../src/lib/coach/schemas.ts)). Each card is its own `/api/coach-tool` call,
 and each counts against the 200/day cap ([coachTool.ts:120](../../api/_lib/handlers/coachTool.ts)),
 so a 24-card plan can fail partway.
 
 **Fix.** A grouped card: "Create 24 workouts across 8 weeks — Review · Confirm all · Cancel",
 with the per-item list expandable. Server side, a batch route that commits atomically or not at
-all and counts once against the cap; events plus their exercises span tables, so it needs a
-transactional RPC. The only atomic batch today is the block cycle commit, a single-table insert
-([trainingBlocks.ts:151](../../api/_lib/trainingBlocks.ts), fed by
-[blockCycle.ts](../../api/_lib/handlers/blockCycle.ts)). Let the planner emit a workouts draft per
+all and counts once against the cap. Exercises are a JSONB column on `workout_events`
+([phase2_events_tables.sql:17](../../supabase/migrations/phase2_events_tables.sql)), so the events
+themselves are one multi-row insert. What spans tables is the rest: the `event_mutations_log`
+rows the cap counts ([rateLimit.ts:145](../../api/_lib/rateLimit.ts)) and, for past dates, the
+retro-log completion rows ([serverDeps.ts:51–66](../../api/_lib/coach/serverDeps.ts)). The block
+cycle commit shows the cheaper shape, one multi-row insert followed by log rows, not one
+transaction ([trainingBlocks.ts:151](../../api/_lib/trainingBlocks.ts), fed by
+[blockCycle.ts](../../api/_lib/handlers/blockCycle.ts)). Truly all-or-nothing needs a
+transactional RPC; a plan of future-dated workouts can take the cheaper shape. Let the planner emit a workouts draft per
 block that the same grouped card applies.
 
 ## 4. Nothing reaches the user unprompted — **P0 · L**
 
-**Evidence.** No reminders, missed-workout nudge or live streak anywhere (web, iOS, email); a
-longest-streak stat exists only inside the review email
-([stats.ts:239](../../src/lib/review/stats.ts)) — reuse it. Reflection is opt-in, off by default
+**Evidence.** No reminders, missed-workout nudge or live streak anywhere (web, iOS, email). A
+longest-streak stat exists ([stats.ts:239](../../src/lib/review/stats.ts), returned at :400) and
+reaches the review email and `get_period_stats`
+([tracking.ts:19](../../api/_lib/mcp/tools/tracking.ts), :238), so the coach and MCP both read
+it; no UI shows it. Reuse it. Reflection is opt-in, off by default
 ([reflectionCron.ts:83](../../api/_lib/handlers/reflectionCron.ts)), and writes proposals into a
 notebook with no badge. The only emails are the monthly/yearly review and a cap alert
 ([mailer.ts](../../api/_lib/mailer.ts)); APNs ends a Live Activity and nothing else
@@ -122,11 +136,13 @@ notebook with no badge. The only emails are the monthly/yearly review and a cap 
 ## 5. Thread management — **P1 · S–M**
 
 **Precondition.** Confirm the Privacy Policy gate on `coach_messages` storage
-([backend-changes.md:410](../ios/backend-changes.md)) has been cleared before any thread work.
+([backend-changes.md:413](../ios/backend-changes.md)) has been cleared before any thread work.
 
-**Evidence.** The web loads only the newest thread per mode
-([useChat.ts:432](../../src/hooks/useChat.ts)); the API supports list/rename/delete
-([coachConversations.ts:19](../../api/_lib/handlers/coachConversations.ts)) but no UI calls them.
+**Evidence.** The web lists threads only to hydrate the newest one per mode
+([useChat.ts:439](../../src/hooks/useChat.ts)); the API also supports rename and delete
+([coachConversations.ts:19](../../api/_lib/handlers/coachConversations.ts)), whose client
+functions ([api.ts:269](../../src/lib/api.ts), :273) have no callers, and no thread-list UI
+exists.
 Coach's Notes replaces the visible thread. Saves stop silently at 80 rows; chat errors past ~160
 messages. iOS threads are local by design — D-013 *chose* that — and the iOS sync to the server
 table is the backlog item ([MASTER.md:118](../ios/MASTER.md)). iOS already has a thread list with
@@ -136,11 +152,16 @@ new / resume / delete ([screens.md:34](../ios/screens.md)) that the web can copy
 one; Coach's Notes into its own thread; a visible "thread is full — start a new one" state; and
 the iOS sync from the backlog.
 
-## 6. Computed insight that is never shown — **P1 · M**
+## 6. Computed insight that is never shown — **P1 · S–M**
 
-**Evidence.** `src/lib/physiology/` computes acute:chronic load, HRV 7d vs 28d, zone minutes and
-weekly tonnage for five weeks ([types.ts:52](../../src/lib/physiology/types.ts)). It reaches the
-user only as AI prose in the weekly review — which needs a key, is regenerated on every open
+**Evidence.** `src/lib/physiology/` computes acute:chronic load
+([types.ts:84](../../src/lib/physiology/types.ts), ratio at :92), HRV 7d vs 28d (:95) and five
+weeks of zone minutes and tonnage (`PhysiologySummary`, :109). Tonnage and zone time are already
+keyless analytics measures (`tonnage`, `hr-zone-time` in
+[spec.ts:188](../../src/lib/analytics/spec.ts), :199; `CHART_MEASURES` in
+[schemas.ts:429](../../src/lib/coach/schemas.ts)), computed by a separate path from physiology.
+Only ACWR and HRV 7d vs 28d are truly unshown. On main they reach the user only as AI prose in
+the weekly review — which needs a key, is regenerated on every open
 (a model call each time, a cost tied to §1), is never stored
 ([weekly.ts:11](../../src/lib/review/weekly.ts)), and computes physiology as of *today* even when
 viewing an old week ([api weekly.ts:149](../../api/_lib/review/weekly.ts)). Monthly and yearly
@@ -149,8 +170,10 @@ coach via `getReviewsTool` ([readTools.ts:21](../../api/_lib/coach/readTools.ts)
 is an in-app Reviews page.
 
 **Fix.**
-- A "Load" panel (or four analytics measures: `acwr`, `hrv`, `zone-minutes`, `tonnage-week`)
-  that renders the physiology numbers with no key — this is the product thesis made visible.
+- Show ACWR and HRV 7d vs 28d with no key — this is the product thesis made visible.
+  `feat/weekly-review-keyless` shows ACWR, HRV, zone minutes and tonnage in the weekly review
+  without a key and anchors physiology at the week's end. What remains is a home outside the
+  review: two analytics measures (`acwr`, `hrv`) or a small "Load" panel (S).
 - Store weekly reviews. `reviews.period_type` is `CHECK IN ('month','year')`
   ([phase12_reviews.sql:15](../../supabase/migrations/phase12_reviews.sql)) and `month_index` is
   tied to it (:26), so this needs a migration (HELD). Pass the week's end date, not today, as the
@@ -206,14 +229,15 @@ Then expose a 30-day token and estimated-dollar total on the AI Coach section, p
 | 0 | Re-attest the coach eval gate (`npm run eval:gate`). The attestation is from 2026-10-06 and #425 bypassed it, so §2/§3 PRs fail `coach-gate` until then. |
 | 1 | §1 budget decision + close D-O06; in parallel: §1b stats-only weekly review, §4 notebook badge (S) |
 | 2 | Record every model call in `coach_runs` (prerequisite for a hosted §1 and for §10) |
-| 3 | §2a complete/log tools + positive evals; §6 physiology numbers shown without a key |
+| 3 | §2a complete/log tools + positive evals; §6 ACWR and HRV shown outside the review |
 | 4 | §6 stored weekly reviews (migration, HELD) + Reviews page; §1 budget if hosted |
 | 5 | §3 grouped confirm + transactional batch route |
 | 6 | §4 notification channel (HELD) |
 | 7 | §2b, §5, §7 (after W16 M0), §8, §9, §10 UI as parallel lanes |
 
-**In flight (2026-10-14):** `feat/weekly-review-keyless` (stats-only weekly review + physiology
-section + week-end anchor), `feat/notebook-badge`, `db/coach-runs-all-calls`.
+**In flight (2026-10-14):** `feat/weekly-review-keyless` (§1b, plus the parts of §6 it delivers:
+physiology numbers shown without a key, week-end anchor), `feat/notebook-badge`,
+`db/coach-runs-all-calls`.
 
 §4 (channel), §6 (stored reviews) and §10 (`mode` CHECK) carry migrations and are HELD. Every
 change to `COACH_TOOLS` or the prompt runs the eval gate before it merges (evals/README.md).

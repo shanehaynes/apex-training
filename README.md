@@ -92,7 +92,7 @@ Connecting it to claude.ai or ChatGPT meant implementing the authorization side 
 | Grants | `authorization_code` + `refresh_token`, PKCE `S256` required, public clients (`token_endpoint_auth_methods: ["none"]`) |
 | Header-based clients | Personal access tokens minted in-app, listed and revocable per client |
 
-**Write access is a scope, not a default of the code.** A token carries `mcp:read` and, only if granted at consent or mint, `mcp:write`; the dispatcher refuses a write tool for any other token, and a token minted before the scope existed stays read-only for life. The write tools are the in-app coach's own executors — the ones the evals test — reached through the same server deps as the confirmation-card door, so a change made from Claude Desktop is stamped, logged under Coach activity and capped (200 AI-made changes a day) exactly as one made in the app. Per-client setup lives in [CONNECTORS.md](CONNECTORS.md).
+**Write access is a scope, not a default of the code.** A token carries `mcp:read` and, only if granted at consent or mint, `mcp:write`; the dispatcher refuses a write tool for any other token, and a token minted before the scope existed stays read-only for life. Eleven of the write tools are the in-app coach's own executors — the ones the evals test — reached through the same server deps as the confirmation-card door; the other twelve (completing and logging workouts, blocks, objectives, profile, coach memory, notes) are MCP-native, most of them over the same shared services. Either way, a change made from Claude Desktop is stamped, logged under Coach activity and capped (200 AI-made changes a day) exactly as one made in the app. Per-client setup lives in [CONNECTORS.md](CONNECTORS.md).
 
 ### The coach loop
 
