@@ -138,33 +138,74 @@ policy_check() {
 # preflight_out (the check's output) and preflight_reason; non-zero = hold.
 migration_prs=""
 merged_migration_prs=""
+
+# The check against a freshly fetched origin/main, pinned by SHA. The check's
+# own fetch only warns when it fails, so a stale ref could pass a migration
+# against a main that predates one already merged; here a failed fetch is a
+# could-not-check (exit 2). Sets schema_out and schema_code.
+run_schema_check() {
+  local sha
+  if ! git fetch -q origin main 2>/dev/null || ! sha=$(git rev-parse --verify -q origin/main); then
+    schema_out="could not fetch origin/main — production cannot be compared with what main expects"
+    schema_code=2
+    return 0
+  fi
+  schema_out=$(node scripts/prod-schema-check.mjs --ref "$sha" 2>&1) && schema_code=0 || schema_code=$?
+}
+
 schema_preflight() {
-  local counts changed seen mig code
+  local counts changed seen mig
   preflight_touched=0
+  preflight_what="touches supabase/migrations/"
   preflight_out=""
   preflight_reason=""
   if counts=$("$GH" pr view "$1" --json files,changedFiles \
     --jq '"\(.changedFiles) \(.files | length) \([.files[].path | select(startswith("supabase/migrations/"))] | length)"'); then
     read -r changed seen mig <<<"$counts"
     [ "${mig:-0}" -gt 0 ] || [ "$changed" != "$seen" ] || return 0
+    [ "${mig:-0}" -gt 0 ] || preflight_what="has a truncated file list (cannot prove it adds no migration)"
+  else
+    preflight_what="has a file list that could not be read (cannot prove it adds no migration)"
   fi
   preflight_touched=1
   migration_prs="$migration_prs $1"
-  preflight_out=$(node scripts/prod-schema-check.mjs 2>&1) && code=0 || code=$?
-  if [ "$code" -eq 0 ]; then
-    echo "CHECK #$1 touches supabase/migrations/ — production has every object origin/main expects"
+  run_schema_check
+  preflight_out=$schema_out
+  if [ "$schema_code" -eq 0 ]; then
+    echo "CHECK #$1 $preflight_what — production has every table, column and function origin/main expects"
     return 0
   fi
-  case $code in
+  case $schema_code in
     1) preflight_reason="production lacks objects main already expects — apply the migrations named above in the Supabase SQL Editor, in phase order, then re-run" ;;
     2) preflight_reason="could not verify production's schema — a migration merges only onto a production proven current; restore the check's access (~/.config/apex-training/prod.env) and re-run" ;;
-    *) preflight_reason="scripts/prod-schema-check.mjs failed (exit $code) — fix the check and re-run" ;;
+    *) preflight_reason="scripts/prod-schema-check.mjs failed (exit $schema_code) — fix the check and re-run" ;;
   esac
   return 1
 }
 
+# A merged migration is an obligation: main's code now expects objects that
+# reach production only when someone pastes them. Said once per run, however
+# the run ends — the normal path calls it before deploy-verify, and the EXIT
+# trap below covers the deadline, the kill switch and every other exit after
+# a merge.
+obligation_reported=0
+report_migration_obligation() {
+  [ -n "$merged_migration_prs" ] && [ "$obligation_reported" -eq 0 ] || return 0
+  obligation_reported=1
+  echo
+  echo "── production schema after migration PR(s)$(echo "$merged_migration_prs" | sed 's/ / #/g')"
+  run_schema_check
+  printf '%s\n' "$schema_out" | sed 's/^/   /'
+  case $schema_code in
+    0) echo "   already applied — or the migration only touches what the check cannot see (listed above): confirm those by hand" ;;
+    1) echo "ACTION apply the migration(s) named above in the Supabase SQL Editor, in phase order, then re-run node scripts/prod-schema-check.mjs until it exits 0" ;;
+    *) echo "ACTION the production schema check could not run (exit $schema_code) — the merged migration(s) still need applying in the Supabase SQL Editor and verifying with node scripts/prod-schema-check.mjs" ;;
+  esac
+}
+trap 'report_migration_obligation || true' EXIT
+
 preflight_hold() {
-  echo "HOLD  #$1 — touches supabase/migrations/ and production is not proven current; shipit does not waive this. ($2)"
+  echo "HOLD  #$1 — $preflight_what and production is not proven current; shipit does not waive this. ($2)"
   printf '%s\n' "$preflight_out" | sed 's/^/      /'
   echo "      $preflight_reason"
 }
@@ -390,15 +431,12 @@ fleet_pass() {
       skipped="$skipped $number"
       continue
     fi
-    if [ "$preflight_touched" -eq 1 ]; then
-      # The check proved production against main as it is now; a second
-      # migration in the same fleet would land on one nobody has applied yet.
-      if [ -n "$fleet_migration" ]; then
-        echo "SKIP  #$number touches supabase/migrations/ and so does #$fleet_migration in this fleet — one migration per fleet; it goes after #$fleet_migration's is applied. ($title)"
-        skipped="$skipped $number"
-        continue
-      fi
-      fleet_migration=$number
+    # The check proved production against main as it is now; a second
+    # migration in the same fleet would land on one nobody has applied yet.
+    if [ "$preflight_touched" -eq 1 ] && [ -n "$fleet_migration" ]; then
+      echo "SKIP  #$number $preflight_what, and #$fleet_migration in this fleet already does — one migration per fleet; it goes after #$fleet_migration's is applied. ($title)"
+      skipped="$skipped $number"
+      continue
     fi
     if ! head_sha=$(git rev-parse --quiet --verify "refs/remotes/origin/$head"); then
       echo "SKIP  #$number — origin/$head is not a branch of this repo (a fork?). ($title)"
@@ -412,6 +450,7 @@ fleet_pass() {
     fi
     cur=$(git commit-tree "$tree" -p "$cur" -p "$head_sha" -m "throwaway fleet fold")
     numbers+=("$number"); heads+=("$head"); titles+=("$title")
+    if [ "$preflight_touched" -eq 1 ]; then fleet_migration=$number; fi
     echo "FLEET #$number$note ($title)"
   done <<EOF
 $prs
@@ -724,20 +763,8 @@ else
   echo "── primary checkout dirty or not on main — left alone"
 fi
 
-# A merged migration is an obligation: main's code now expects objects that
-# reach production only when someone pastes them. Name them while the run's
-# output is still being read — before deploy-verify, which can end the run.
-if [ -n "$merged_migration_prs" ]; then
-  echo
-  echo "── production schema after migration PR(s)$(echo "$merged_migration_prs" | sed 's/ / #/g')"
-  if schema_after=$(node scripts/prod-schema-check.mjs 2>&1); then schema_code=0; else schema_code=$?; fi
-  printf '%s\n' "$schema_after" | sed 's/^/   /'
-  if [ "$schema_code" -eq 0 ]; then
-    echo "   already applied — or the migration only touches what the check cannot see (listed above): confirm those by hand"
-  else
-    echo "ACTION apply the migration(s) named above in the Supabase SQL Editor, in phase order, then re-run node scripts/prod-schema-check.mjs until it exits 0"
-  fi
-fi
+# Before deploy-verify, which can end the run.
+report_migration_obligation
 
 # Vercel builds every push to main in turn, so a fleet of N merges is N
 # production builds before the last SHA can serve: give it time in

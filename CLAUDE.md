@@ -96,7 +96,8 @@ refactor — which is exactly what happened once (see CONTRIBUTING.md).
   runs before and after every production migration: before, anything missing
   that is not the migration being applied is an older gap, applied first in
   phase order; after, exit 0. The babysitter HOLDs a migration PR until
-  production matches `main`, `shipit` or not.
+  production has every table, column and function `main` expects, `shipit`
+  or not. Triggers, policies and grants are invisible to it: check by hand.
 - **Migration numbers.** `supabase/migrations/phaseN_*.sql` is ordered by
   `sort -V` across the directory, so `N` is repo-global. Two branches can both
   add `phase33_*.sql`, merge cleanly, and leave an apply order nobody chose. Run

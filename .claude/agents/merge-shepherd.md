@@ -59,7 +59,10 @@ merging". Use `gh` by absolute path: `"$HOME/bin/gh"` — harness shells can mis
 - "HOLD … touches supabase/migrations/ and production is not proven current"
   → for Shane, and `shipit` does not clear it: production lacks objects main
   already expects (or the check could not run). Relay the missing objects and
-  their migrations; once applied, the next run re-checks on its own.
+  their migrations; once applied, the next run re-checks on its own. The
+  norm for whoever applies DDL: run `node scripts/prod-schema-check.mjs`
+  before (anything missing besides the migration being applied is an older
+  gap — apply it first, in phase order) and after (it must exit 0).
 - "production schema after migration PR(s)" followed by ACTION → the merged
   migration now has to be applied; relay what the check names.
 - "production database lacks objects main's code uses" → for Shane:
