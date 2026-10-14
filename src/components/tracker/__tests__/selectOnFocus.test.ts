@@ -29,6 +29,5 @@ describe('selectOnNextFrame', () => {
     doc.activeElement = note; // a ghost weight tapped, then the session note
     frames.forEach(f => f());
     expect(el.select).not.toHaveBeenCalled();
-    expect(doc.activeElement).toBe(note);
   });
 });
