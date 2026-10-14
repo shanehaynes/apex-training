@@ -592,15 +592,21 @@ node scripts/prod-schema-check.mjs --stamp supabase/migrations/phase57_example.s
 
 prints the line for a file. Last, so it runs only if everything above it did;
 a paste that stops at an error leaves no stamp. The fingerprint is a hash of
-the file's statements, comments and whitespace ignored, so editing a migration
-production already ran shows up as edited rather than applied. The check names
-every migration on `main` that production has not applied as written,
-whatever it changes. `scripts/__tests__/migration-ledger.test.ts` fails a
-migration without a current stamp (printing the line to add) and any SQL edit
-to one of the backfilled phase2–55: **write a new migration rather than editing
-an applied one.** Finishing a partly applied file by hand means its missing
-statements, then its stamp. Never paste a stamp for statements that did not
-run: the ledger is only as honest as that.
+the file's statements, ignoring SQL comments and whitespace between tokens
+(not inside string literals or function and DO bodies, where both are
+content), so editing a migration production already ran shows up as edited
+rather than applied. The check names every migration on `main` that
+production has not applied as written, whatever it changes; a ledger the key
+is refused is drift (exit 1), an outage is not (exit 2).
+
+`scripts/__tests__/migration-ledger.test.ts` fails a migration without a
+current stamp (printing the line to add), and any SQL edit to, or deletion of,
+a migration already on `main` — it compares each with its copy at the
+merge-base. **A migration on `main` is changed by a new migration, never by an
+edit.** Finishing a partly applied file by hand means its missing statements,
+then its stamp. Never paste a stamp for statements that did not run: a stamp
+records that the file's last statement ran, not what a hand-edited paste
+executed, and changes made outside migrations leave no stamp to miss.
 
 Production keys live in `~/.config/apex-training/prod.env` (`chmod 600`,
 `VITE_SUPABASE_URL=` and `SUPABASE_SERVICE_ROLE_KEY=` lines), never in a

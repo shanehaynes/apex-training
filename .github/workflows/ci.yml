@@ -39,6 +39,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          # scripts/__tests__/migration-ledger.test.ts compares every migration
+          # with its copy at the merge-base with origin/main: an applied
+          # migration is changed by a new one, never by an edit.
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
