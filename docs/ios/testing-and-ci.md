@@ -40,10 +40,13 @@ say so.
    #422) — also has a no-DB check that `agent:check` does run:
    `api/__tests__/ios-fixture-shape.test.ts` rebuilds all three bootstrap fixtures
    through `loadResolvedOccurrence` and `buildBootstrap` on a fake client seeded with typed rows,
-   and compares field names, so an added or dropped field fails locally; the byte-for-byte check
-   stays in CI. `bootstrap-full.json` exists for that coverage: a finished, scored session with
-   a workout score record, every PR kind, a percentage target, a pitch, an added exercise and a
-   cardio shadow — every optional branch the other two leave null or absent. Its scenario is the
+   and compares field names (array elements merged, PRs per `kind`), so a field added to or
+   dropped from every element of an array fails locally; one element losing a field its siblings
+   keep is left to the byte-for-byte check in CI. `bootstrap-full.json` exists for that coverage:
+   a finished for-time session with a workout score record, every PR kind, a percentage target,
+   a pitch, an added exercise, a swap, a duration shadow, a cardio shadow and the session's
+   summary and note. Still absent from every bootstrap fixture: an AMRAP score (`score_rounds`,
+   `score_reps`). Its scenario is the
    last test in the integration file and deletes its rows, because `get_prs` reads all of the
    user's records and would otherwise move `query-get_prs.json`.
 3. **Snapshot tests** (`swift-snapshot-testing`) in `ApexFeatures`: Day view (empty, three

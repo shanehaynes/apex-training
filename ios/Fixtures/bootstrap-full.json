@@ -7,14 +7,14 @@
     "finished_at": "<timestamp>",
     "total_duration_seconds": 1800,
     "updated_at": "<timestamp>",
-    "coach_summary": null,
+    "coach_summary": "Six records in one session.",
     "user_id": "<uuid>",
     "template_id": "ios-fixture-template",
     "score_type": "for-time",
     "score_time_seconds": 1500,
     "score_rounds": null,
     "score_reps": null,
-    "note": null
+    "note": "Felt strong."
   },
   "event": {
     "id": "ios-fixture-mixed",
@@ -39,6 +39,12 @@
         "name": "Mixed Plank",
         "category": "strength",
         "duration": "60 s"
+      },
+      {
+        "id": "mx-hang",
+        "name": "Mixed Hang",
+        "category": "strength",
+        "duration": "30 s"
       },
       {
         "id": "mx-pullup",
@@ -176,13 +182,51 @@
         {
           "section": "exercise",
           "exercise": {
+            "id": "mx-hang",
+            "name": "Mixed Hang",
+            "category": "strength",
+            "duration": "30 s"
+          },
+          "substitutedFrom": null,
+          "sessionNote": "",
+          "isCardio": false,
+          "sets": [
+            {
+              "setNumber": 1,
+              "planned": {
+                "setNumber": 1,
+                "targetDuration": "30 s"
+              },
+              "actualWeight": "",
+              "actualReps": "",
+              "actualDuration": "",
+              "isLogged": false,
+              "isAutofilled": false,
+              "isExtra": false,
+              "shadow": {
+                "weight": "",
+                "reps": "",
+                "duration": "30 s"
+              },
+              "rpe": "",
+              "isWarmup": false,
+              "ascentStyle": null,
+              "attempts": ""
+            }
+          ],
+          "cardio": null
+        },
+        {
+          "section": "exercise",
+          "exercise": {
             "id": "mx-pullup",
             "name": "Mixed Pull-Up",
             "reps": "8",
             "sets": 1,
-            "category": "strength"
+            "category": "strength",
+            "definitionId": "ios-fixture-def"
           },
-          "substitutedFrom": null,
+          "substitutedFrom": "Mixed Pull-Up",
           "sessionNote": "",
           "isCardio": false,
           "sets": [

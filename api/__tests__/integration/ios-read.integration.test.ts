@@ -1450,6 +1450,7 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
       exercises: [
         { id: 'mx-squat', name: 'Mixed Squat', category: 'strength', sets: 2, reps: '5', weight: '80%' },
         { id: 'mx-plank', name: 'Mixed Plank', category: 'strength', duration: '60 s' },
+        { id: 'mx-hang', name: 'Mixed Hang', category: 'strength', duration: '30 s' },
         { id: 'mx-pullup', name: 'Mixed Pull-Up', category: 'strength', sets: 1, reps: '8' },
         { id: 'mx-pitch', name: 'Mixed Arete', category: 'climbing', climbStyle: 'sport', grade: '5.10a' },
         { id: 'mx-bike', name: 'Mixed Bike', category: 'cardio', duration: '30 min' },
@@ -1465,6 +1466,7 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     fail('mixed prior sets', (await admin.from('workout_set_logs').insert([
       { ...prior, exercise_id: 'mx-squat', exercise_name: 'Mixed Squat', set_number: 1, actual_weight: '200 lb', actual_reps: '5' },
       { ...prior, exercise_id: 'mx-plank', exercise_name: 'Mixed Plank', set_number: 1, actual_duration: '60 s' },
+      { ...prior, exercise_id: 'mx-hang', exercise_name: 'Mixed Hang', set_number: 1, actual_duration: '30 s' },
       { ...prior, exercise_id: 'mx-pullup', exercise_name: 'Mixed Pull-Up', set_number: 1, actual_reps: '8' },
       { ...prior, exercise_id: 'mx-pitch', exercise_name: 'Mixed Arete', set_number: 1, actual_weight: '5.9', ascent_style: 'redpoint' },
     ])).error);
@@ -1495,7 +1497,9 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
         set({ exercise_id: 'mx-squat', exercise_name: 'Mixed Squat', set_number: 1, actual_weight: '135 lb', actual_reps: '5', is_warmup: true, rpe: 5 }),
         set({ exercise_id: 'mx-squat', exercise_name: 'Mixed Squat', set_number: 2, actual_weight: '210 lb', actual_reps: '5', rpe: 8.5 }),
         set({ exercise_id: 'mx-plank', exercise_name: 'Mixed Plank', set_number: 1, actual_duration: '90 s' }),
-        set({ exercise_id: 'mx-pullup', exercise_name: 'Mixed Pull-Up', set_number: 1, actual_reps: '10' }),
+        // The hang is left unlogged: its shadow is last session's duration.
+        // The pull-up's row names a library definition the plan did not: a swap.
+        set({ exercise_id: 'mx-pullup', exercise_name: 'Mixed Pull-Up', definition_id: DEF_ID, set_number: 1, actual_reps: '10' }),
         set({ exercise_id: 'mx-pitch', exercise_name: 'Mixed Arete', set_number: 1, actual_weight: '5.10b', ascent_style: 'flash', attempts: 1 }),
         set({ exercise_id: MIXED_ADDED, exercise_name: 'Mixed Curl', set_number: 1, actual_weight: '30 lb', actual_reps: '10' }),
       ],
@@ -1511,12 +1515,18 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
       scoreRecord: unknown;
     };
     expect(finish.scoreRecord).toMatchObject({ kind: 'workout-score', previous: { type: 'for-time', timeSeconds: 1800 } });
+    // The two session-row texts nothing in this flow writes: the summary is
+    // the coach-summary stream's, the note the tracker's session note.
+    fail('mixed session texts', (await admin.from('workout_sessions')
+      .update({ coach_summary: 'Six records in one session.', note: 'Felt strong.' })
+      .eq('event_id', MIXED_ID)).error);
 
     const full = await post({ action: 'bootstrap' }) as {
       scored: boolean;
       prs: Array<{ kind: string }>;
       scoreRecord: { kind: string } | null;
-      groups: Array<{ exercises: Array<{ exercise: { id: string }; isAdded?: boolean; cardio: { shadow: unknown } | null; sets: Array<{ resolvedPlannedWeight?: string; isWarmup: boolean; ascentStyle: string | null }> }> }>;
+      session: { coach_summary: string | null; note: string | null };
+      groups: Array<{ exercises: Array<{ exercise: { id: string }; isAdded?: boolean; substitutedFrom: string | null; cardio: { shadow: unknown } | null; sets: Array<{ resolvedPlannedWeight?: string; isWarmup: boolean; ascentStyle: string | null; shadow: { duration: string } | null }> }> }>;
     };
     const byId = (id: string) => full.groups.flatMap(g => g.exercises).find(e => e.exercise.id === id)!;
     expect(full.scored).toBe(true);
@@ -1527,6 +1537,9 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     expect(byId('mx-squat').sets[0].isWarmup).toBe(true);
     expect(byId('mx-pitch').sets[0].ascentStyle).toBe('flash');
     expect(byId(MIXED_ADDED).isAdded).toBe(true);
+    expect(byId('mx-pullup').substitutedFrom).toBe('Mixed Pull-Up');
+    expect(byId('mx-hang').sets[0].shadow).toMatchObject({ duration: '30 s' });
+    expect(full.session).toMatchObject({ coach_summary: 'Six records in one session.', note: 'Felt strong.' });
     expect(byId('mx-bike').cardio!.shadow).toBeNull();
     expect(byId('mx-ski').cardio!.shadow).toMatchObject({ distance: '2 km' });
 

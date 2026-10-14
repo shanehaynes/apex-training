@@ -48,11 +48,16 @@ function makeAdmin(fixtures: Record<string, Record<string, unknown>[]>): Admin {
 
 const read = (name: string) => JSON.parse(readFileSync(join(FIXTURE_DIR, name), 'utf8')) as Record<string, unknown>;
 
-/** Every key path in a JSON value, array elements merged as `[]`. */
+const kindOf = (x: unknown) =>
+  x && typeof x === 'object' && typeof (x as { kind?: unknown }).kind === 'string' ? `kind=${(x as { kind: string }).kind}` : '';
+
+/** Every key path in a JSON value, array elements merged as `[]` (or `[kind=…]`). */
 function keyPaths(value: unknown, prefix = ''): Set<string> {
   const out = new Set<string>();
   const walk = (v: unknown, p: string) => {
-    if (Array.isArray(v)) return v.forEach(x => walk(x, `${p}[]`));
+    // Elements of a tagged union (prs[]) are keyed by their kind, so a field
+    // dropped from one kind is not hidden by a sibling kind that has it.
+    if (Array.isArray(v)) return v.forEach(x => walk(x, `${p}[${kindOf(x)}]`));
     if (v && typeof v === 'object') {
       for (const [k, x] of Object.entries(v)) {
         const path = p ? `${p}.${k}` : k;
@@ -169,6 +174,7 @@ const mixedEventRow: Tables<'workout_events'> = {
   exercises: [
     { id: 'mx-squat', name: 'Mixed Squat', category: 'strength', sets: 2, reps: '5', weight: '80%' },
     { id: 'mx-plank', name: 'Mixed Plank', category: 'strength', duration: '60 s' },
+    { id: 'mx-hang', name: 'Mixed Hang', category: 'strength', duration: '30 s' },
     { id: 'mx-pullup', name: 'Mixed Pull-Up', category: 'strength', sets: 1, reps: '8' },
     { id: 'mx-pitch', name: 'Mixed Arete', category: 'climbing', climbStyle: 'sport', grade: '5.10a' },
     { id: 'mx-bike', name: 'Mixed Bike', category: 'cardio', duration: '30 min' },
@@ -198,7 +204,7 @@ const priorSession: Tables<'workout_sessions'> = {
 };
 const mixedSession: Tables<'workout_sessions'> = {
   ...finishedSession, event_id: MIXED, event_date: MIXED_DAY, template_id: 'ios-fixture-template',
-  score_type: 'for-time', score_time_seconds: 1500,
+  score_type: 'for-time', score_time_seconds: 1500, coach_summary: 'Six records in one session.', note: 'Felt strong.',
 };
 
 function mixedAdmin() {
@@ -210,12 +216,13 @@ function mixedAdmin() {
     workout_set_logs: [
       priorSet('mx-squat', 'Mixed Squat', { actual_weight: '200 lb', actual_reps: '5' }),
       priorSet('mx-plank', 'Mixed Plank', { actual_duration: '60 s' }),
+      priorSet('mx-hang', 'Mixed Hang', { actual_duration: '30 s' }),
       priorSet('mx-pullup', 'Mixed Pull-Up', { actual_reps: '8' }),
       priorSet('mx-pitch', 'Mixed Arete', { actual_weight: '5.9', ascent_style: 'redpoint' }),
       mixedSet('mx-squat', 'Mixed Squat', { actual_weight: '135 lb', actual_reps: '5', is_warmup: true, rpe: 5 }),
       mixedSet('mx-squat', 'Mixed Squat', { set_number: 2, actual_weight: '210 lb', actual_reps: '5', rpe: 8.5 }),
       mixedSet('mx-plank', 'Mixed Plank', { actual_duration: '90 s' }),
-      mixedSet('mx-pullup', 'Mixed Pull-Up', { actual_reps: '10' }),
+      mixedSet('mx-pullup', 'Mixed Pull-Up', { definition_id: 'ios-fixture-def', actual_reps: '10' }),
       mixedSet('mx-pitch', 'Mixed Arete', { actual_weight: '5.10b', ascent_style: 'flash', attempts: 1 }),
       mixedSet(ADDED, 'Mixed Curl', { actual_weight: '30 lb', actual_reps: '10' }),
     ],
@@ -259,5 +266,7 @@ describe('iOS bootstrap fixtures carry exactly the fields the server sends', () 
     // Guards the comparison itself: a key-path set that ignored nesting or
     // arrays would pass every fixture.
     expect([...keyPaths({ a: [{ b: 1 }, { c: { d: 2 } }] })].sort()).toEqual(['a', 'a[].b', 'a[].c', 'a[].c.d']);
+    expect([...keyPaths({ prs: [{ kind: 'a', x: 1 }, { kind: 'b' }] })].sort())
+      .toEqual(['prs', 'prs[kind=a].kind', 'prs[kind=a].x', 'prs[kind=b].kind']);
   });
 });
