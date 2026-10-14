@@ -56,6 +56,12 @@ merging". Use `gh` by absolute path: `"$HOME/bin/gh"` — harness shells can mis
 - "local stack lags main" → for Shane (auto-mode sessions are refused the
   reset); merging may continue, but say the `full` CI job covers what the
   local stack cannot.
+- "HOLD … touches supabase/migrations/ and production is not proven current"
+  → for Shane, and `shipit` does not clear it: production lacks objects main
+  already expects (or the check could not run). Relay the missing objects and
+  their migrations; once applied, the next run re-checks on its own.
+- "production schema after migration PR(s)" followed by ACTION → the merged
+  migration now has to be applied; relay what the check names.
 - "production database lacks objects main's code uses" → for Shane:
   production DDL is applied by hand in the Supabase SQL Editor, never by a
   session. Relay the missing objects and the migrations named beside them;
