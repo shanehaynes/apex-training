@@ -479,6 +479,30 @@ Live Activity push token (hex, upsert on the token; sweeps the user's rows older
 `live-activity-end.json` is written by `api/__tests__/live-activity.test.ts`, not the integration
 emitter.
 
+## W16 — Apple Health (planned, D-056)
+Full contracts in [workstreams/W16-apple-health.md](workstreams/W16-apple-health.md); landing
+order M0 → M2b → M3b. Nothing here has landed yet.
+
+### Migration `phaseN_apple_health.sql` (M0)
+`provider_connections.provider` CHECK widened to `('coros','apple')` and `+ categories jsonb`;
+`provider_activity_imports.mode` gains `'skipped'`; new service-role-only `daily_metrics`
+(PK `user_id, date, provider`); `profiles + body_weight_updated_at, body_weight_source`.
+`daily_metrics` joins `USER_DATA_TABLES`.
+
+### `POST /api/provider-sync` with `provider: 'apple'` (M2b)
+New actions `connect`, `set-categories`, `ingest`; `preview`/`apply` take `activities` in the
+body (the phone is the provider, no token) and a `'skip'` decision; `status` gains an `apple`
+block; `disconnect` takes `purgeMetrics`. Idempotent on the ledger PK
+`(user_id, 'apple', activityId = HKWorkout.uuid)`. Fixtures `provider-status.json` (apple block),
+`provider-preview-apple.json`.
+
+### `POST` / `GET /api/daily-metrics` + profile weight fields (M3b)
+Upsert per `(user_id, date, provider)`, absent fields untouched, `null` clears; newest
+`bodyMassLb` writes `profiles.body_weight_lb` when `categories.bodyMass` is on. `GET /api/profile`
+gains `weightUnit`, `bodyWeightLb`, `bodyWeightUpdatedAt`, `bodyWeightSource`. The coach's
+`<physiology>` block gains sleep, resting HR, HRV (SDNN), steps and body mass lines. Fixtures
+`daily-metrics.json`, `profile.json`.
+
 ## Not in this roadmap (Backlog)
 `device_tokens` migration + `/api/devices` + APNs sender (push).
 
@@ -504,3 +528,5 @@ emitter.
 | `X-Apex-Client` logged, `GET /api/version` → `{ sha, minBuild, message? }` | G8 | clientVersion.ts | no | — | 60 | — |
 | `/api/coach-conversations` (list · load · create · append · rename · delete) | D-013 | new tables; shaped as `ConversationStore` | **yes** (useChat) | conversations | 330 | **yes** (phase46 `coach_conversations`, `coach_messages`) |
 | `/api/live-activity-tokens` + APNs `end` sender | D-051 | apns.ts, services/liveActivity.ts | no (server hooks only) | writes | 300 | **yes** (phase52 `live_activity_tokens`) |
+| `provider-sync` `apple` (connect · set-categories · ingest · preview/apply with body activities) | W16 M2b | providers/sync.ts, connection.ts | status label only | providerSync | 450 | **yes** (W16 M0) |
+| `/api/daily-metrics` + profile weight fields + physiology lines | W16 M3b | coach/physiology.ts, physiology/compute.ts | no | providerSync / reads | 400 | **yes** (W16 M0 `daily_metrics`) |
