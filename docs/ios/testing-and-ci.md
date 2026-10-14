@@ -29,7 +29,7 @@ say so.
 2. **Fixture contract tests** — the integration suite
    (`api/__tests__/integration/ios-read.integration.test.ts`) runs the real handlers against the local
    stack and writes canonical responses to `ios/Fixtures/`: `schedule.json`,
-   `bootstrap.json`, `bootstrap-peek.json`, `bootstrap-full.json`, `finish.json`, `chat-stream.ndjson`, `chat-stream-builder.ndjson`,
+   `bootstrap.json`, `bootstrap-peek.json`, `bootstrap-full.json`, `bootstrap-amrap.json`, `finish.json`, `chat-stream.ndjson`, `chat-stream-builder.ndjson`,
    `coach-summary.ndjson`, `coach-tool.json`, `coach-tool-draft.json`, `workout-draft-{create,edit,detach}.json`,
    `analytics-compute.json`, `query-*.json`, `profile.json`. `swift test` decodes every file, but
    Swift's decoder ignores keys it does not know, so a field the server adds never fails it. By
@@ -38,16 +38,16 @@ say so.
    deliberate shape change. It needs the local stack, so `agent:check` skips it; CI's `full` job
    and `npm run agent:check:full` run it. The tracker's opening response — the file most often drifted (#417, #419,
    #422) — also has a no-DB check that `agent:check` does run:
-   `api/__tests__/ios-fixture-shape.test.ts` rebuilds all three bootstrap fixtures
+   `api/__tests__/ios-fixture-shape.test.ts` rebuilds all four bootstrap fixtures
    through `loadResolvedOccurrence` and `buildBootstrap` on a fake client seeded with typed rows,
    and compares field names (array elements merged, PRs per `kind`), so a field added to or
    dropped from every element of an array fails locally; one element losing a field its siblings
    keep is left to the byte-for-byte check in CI. `bootstrap-full.json` exists for that coverage:
    a finished for-time session with a workout score record, every PR kind, a percentage target,
    a pitch, an added exercise, a swap, a duration shadow, a cardio shadow and the session's
-   summary and note. Still absent from every bootstrap fixture: an AMRAP score (`score_rounds`,
-   `score_reps`). Its scenario is the
-   last test in the integration file and deletes its rows, because `get_prs` reads all of the
+   summary and note. A session row carries one score type, so `bootstrap-amrap.json` holds the
+   other: an AMRAP session (`score_rounds`, `score_reps`) and its record. Both scenarios are the
+   last tests in the integration file and delete their rows, because `get_prs` reads all of the
    user's records and would otherwise move `query-get_prs.json`.
 3. **Snapshot tests** (`swift-snapshot-testing`) in `ApexFeatures`: Day view (empty, three
    events, completed), tracker set row in each state (planned / shadow / logged / autofilled /
