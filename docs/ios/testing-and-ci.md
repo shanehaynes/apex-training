@@ -26,15 +26,21 @@ say so.
    `WriteQueue` (coalescing, ordering, retry classes, cancel purge), `APIError` mapping
    (401/402/413/429 + `Retry-After`), NDJSON line parser (split chunks, partial lines, `error`
    events).
-2. **Fixture contract tests** — a vitest in the web repo
-   (`api/__tests__/fixtures/emitIosFixtures.test.ts`) runs the real handlers against the local
+2. **Fixture contract tests** — the integration suite
+   (`api/__tests__/integration/ios-read.integration.test.ts`) runs the real handlers against the local
    stack and writes canonical responses to `ios/Fixtures/`: `schedule.json`,
    `bootstrap.json`, `bootstrap-peek.json`, `finish.json`, `chat-stream.ndjson`, `chat-stream-builder.ndjson`,
    `coach-summary.ndjson`, `coach-tool.json`, `coach-tool-draft.json`, `workout-draft-{create,edit,detach}.json`,
-   `analytics-compute.json`, `query-*.json`, `profile.json`. `swift test` decodes every file. The emitter runs inside the
-   integration suite (`api/__tests__/integration/ios-read.integration.test.ts`): by default it
-   **checks** the committed files and fails on drift; `APEX_FIXTURES_WRITE=1` regenerates them
-   after a deliberate shape change. CI's `full` job therefore checks them with no extra step.
+   `analytics-compute.json`, `query-*.json`, `profile.json`. `swift test` decodes every file, but
+   Swift's decoder ignores keys it does not know, so a field the server adds never fails it. By
+   default the suite **checks** the committed files byte for byte and fails on drift; `npm run
+   fixtures:ios` (stack-locked reset, then `APEX_FIXTURES_WRITE=1`) regenerates them after a
+   deliberate shape change. It needs the local stack, so `agent:check` skips it and only CI's
+   `full` job runs it. The tracker's opening response — the file most often drifted (#417, #419,
+   #422) — also has a no-DB check that `agent:check` does run:
+   `api/__tests__/ios-fixture-shape.test.ts` builds `bootstrap.json` and `bootstrap-peek.json`
+   through `buildBootstrap` on a fake client and compares field names, so an added or dropped
+   field fails locally and the byte-for-byte check stays in CI.
 3. **Snapshot tests** (`swift-snapshot-testing`) in `ApexFeatures`: Day view (empty, three
    events, completed), tracker set row in each state (planned / shadow / logged / autofilled /
    extra), confirmation card, KPI and line tiles, event detail sheet. iPhone 17 (iOS 26) and,
