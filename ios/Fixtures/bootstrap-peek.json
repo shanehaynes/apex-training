@@ -82,7 +82,9 @@
                 "weight": "100 lb",
                 "reps": "5",
                 "duration": ""
-              }
+              },
+              "rpe": "",
+              "isWarmup": false
             },
             {
               "setNumber": 2,
@@ -101,7 +103,9 @@
                 "weight": "110 lb",
                 "reps": "3",
                 "duration": ""
-              }
+              },
+              "rpe": "",
+              "isWarmup": false
             }
           ],
           "cardio": null
