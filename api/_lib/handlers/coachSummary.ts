@@ -7,6 +7,10 @@ import { makeAnthropicClient } from '../anthropicClient.js';
 import { enforceRateLimit } from '../rateLimit.js';
 import { streamToWireEvents, type UpstreamEvent } from '../wire.js';
 import { buildFinishSummary, loadResolvedOccurrence } from '../trackerSession.js';
+import { clientTag } from '../clientVersion.js';
+import {
+  promptFingerprint, recordCoachRun, recordModelCall, runErrorMessage, usageColumns, type CoachRunBase,
+} from '../coachRuns.js';
 import { athleteSection, safetySection } from '../../../src/lib/coach/prompt.js';
 import { defaultCoachModel, resolveCoachModel } from '../../../src/lib/coach/models.js';
 import { sessionScoreFromRow } from '../../../src/lib/tracking/records.js';
@@ -36,6 +40,9 @@ const SYSTEM_PROMPT =
   'sign-off, no markdown, no bullet points.';
 
 const MAX_RECAP_CHARS = 20_000;
+
+// coach_runs.prompt_version: the static prompt only, never the athlete section.
+const SUMMARY_PROMPT_VERSION = promptFingerprint(SYSTEM_PROMPT, safetySection());
 
 interface Body {
   eventId?: unknown;
@@ -99,6 +106,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const client = makeAnthropicClient(apiKey);
+  // One coach_runs row per model call (phase57), on either request shape.
+  const runBase: CoachRunBase = {
+    user_id: userId,
+    mode: 'summary',
+    model: coachModel.id,
+    prompt_version: SUMMARY_PROMPT_VERSION,
+    client: clientTag(req) ?? 'web',
+  };
   const request = (recap: string) => ({
     model: coachModel.id,
     max_tokens: 300,
@@ -114,7 +129,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
     try {
-      const response = await client.messages.create(request(recap));
+      const response = await recordModelCall(supabase, runBase, () => client.messages.create(request(recap)));
       const text = response.content
         .filter((block): block is Anthropic.TextBlock => block.type === 'text')
         .map(block => block.text)
@@ -184,9 +199,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let finished = false;
   res.on('close', () => { if (!finished) upstreamAbort.abort(); });
 
+  const startedAt = Date.now();
+  const run = { ...runBase, request_id: crypto.randomUUID(), with_tools: false };
+  let recorded = false;
   try {
     const stream = client.messages.stream(request(recap), { signal: upstreamAbort.signal });
-    await streamToWireEvents(stream as AsyncIterable<UpstreamEvent>, send);
+    const outcome = await streamToWireEvents(stream as AsyncIterable<UpstreamEvent>, send);
+    // Recorded before the persist: the tokens were spent whatever happens next.
+    await recordCoachRun(supabase, {
+      ...run,
+      ...usageColumns(outcome.usage),
+      stop_reason: outcome.stopReason,
+      latency_ms: Date.now() - startedAt,
+    });
+    recorded = true;
     const trimmed = text.trim();
     if (trimmed) {
       const { error } = await supabase
@@ -198,10 +224,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       send({ type: 'error', message: 'Empty summary response' });
     }
   } catch (err) {
-    if (!upstreamAbort.signal.aborted) {
+    const aborted = upstreamAbort.signal.aborted;
+    if (!aborted) {
       console.error('[api/coach-summary] generation failed:', err);
       send({ type: 'error', message: 'Summary generation failed' });
     }
+    // A throw after the success row (the persist) is not a failed model call.
+    if (!recorded) await recordCoachRun(supabase, {
+      ...run,
+      latency_ms: Date.now() - startedAt,
+      error: aborted ? 'client aborted' : runErrorMessage(err),
+    });
   }
   finished = true;
   res.end();

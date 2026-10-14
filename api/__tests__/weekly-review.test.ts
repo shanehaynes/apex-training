@@ -99,16 +99,21 @@ describe('POST /api/weekly-review', () => {
     vi.mocked(enforceRateLimit).mockResolvedValueOnce(false);
     await handler(POST({ today: '2026-09-28' }), makeRes().res);
     expect(enforceRateLimit).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), 'user-123', 'writes');
-    expect(getAnthropicKey).not.toHaveBeenCalled();
+    // The key is read before the throttle now (it picks the bucket); nothing else is.
     expect(fetchWeeklyInputs).not.toHaveBeenCalled();
   });
 
-  it('402s without a saved key, 500s when the key cannot be read — both before gathering the week', async () => {
+  it('answers the computed stats with no document and no model call without a saved key; 500s, before gathering the week, when the key cannot be read', async () => {
+    const STATS = { week: { start: '2026-09-28', end: '2026-10-04' }, asOf: '2026-09-28' };
+    vi.mocked(fetchWeeklyInputs).mockResolvedValueOnce({ physiology: '', weeklyStats: STATS } as never);
     vi.mocked(getAnthropicKey).mockResolvedValueOnce(null);
     const a = makeRes();
     await handler(POST({ today: '2026-09-28' }), a.res);
-    expect(a.statusCode()).toBe(402);
-    expect(a.body()).toBe('anthropic-key-missing');
+    expect(a.statusCode()).toBe(200);
+    expect(a.body()).toEqual({ document: null, model: null, stats: STATS, warnings: [], generatedAt: expect.any(String) });
+    expect(fetchWeeklyInputs).toHaveBeenCalledTimes(1);
+    expect(generateWeeklyDocument).not.toHaveBeenCalled();
+    vi.mocked(fetchWeeklyInputs).mockClear();
 
     vi.mocked(getAnthropicKey).mockRejectedValueOnce(new Error('rotated secret'));
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
