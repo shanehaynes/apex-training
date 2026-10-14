@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { updateChartDraftSchema } from '../schemas';
-import { MEASURE_IDS, SPORTS } from '../../analytics/spec';
+import { MEASURE_IDS, SPORTS, WEIGHT_DISPLAY_UNITS } from '../../analytics/spec';
 
 // schemas.ts must stay dependency-free (api/chat.ts imports it), so its
 // enum lists are hand-mirrored from the analytics catalog. This test is the
@@ -31,5 +31,10 @@ describe('update_chart_draft schema mirrors the analytics catalog', () => {
     expect(input.properties!.chart_type.enum).toEqual(['line', 'bar', 'stacked-bar', 'area', 'kpi', 'table']);
     expect(input.properties!.bucket.enum).toEqual(['day', 'week', 'iso-month', 'total']);
     expect(input.properties!.display_unit.enum).toEqual(['mi', 'km', 'm', 'ft']);
+  });
+
+  it('weight_unit enum equals WEIGHT_DISPLAY_UNITS', () => {
+    expect(input.properties!.weight_unit.enum).toEqual(['lb', 'kg']);
+    expect(input.properties!.weight_unit.enum).toEqual(WEIGHT_DISPLAY_UNITS);
   });
 });

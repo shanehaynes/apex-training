@@ -18,7 +18,9 @@ export const getReviewsTool: McpToolDef = {
   description:
     'Stored monthly and yearly reviews, newest first: the period label, the coach\'s written commentary ' +
     '(null when none was generated) and the pre-computed stats behind it. Filter with kind. ' +
-    'Months are the 13-month ISO training calendar.',
+    'Months are the 13-month ISO training calendar. Weight numbers in stats (tonnage, heaviest set, ' +
+    'est. 1RM PRs) are in pounds; strength.displayUnit is only the athlete\'s display preference, not the ' +
+    'unit of those numbers.',
   inputSchema: {
     type: 'object',
     properties: {
