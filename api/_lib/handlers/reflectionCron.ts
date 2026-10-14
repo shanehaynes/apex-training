@@ -236,20 +236,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         continue;
       }
       workBudget -= 1;
-      const outcome: ReflectOutcome = await reflectForUser(supabase, {
-        userId: user.userId,
-        day: itemDay,
-        model: resolveCoachModel(user.coachModel).id,
-        // Every model call the reflection makes (the first ask and its one
-        // retry) writes a coach_runs row, both under one request id.
-        client: instrumentMessages(makeAnthropicClient(apiKey), supabase, {
-          user_id: user.userId,
-          mode: 'reflection',
-          prompt_version: REFLECTION_PROMPT_VERSION,
-          request_id: crypto.randomUUID(),
-          client: 'cron',
-        }),
-      }, now);
+      // Every model call the reflection makes (the first ask and its one
+      // retry) writes a coach_runs row, both under one request id.
+      const instrumented = instrumentMessages(makeAnthropicClient(apiKey), supabase, {
+        user_id: user.userId,
+        mode: 'reflection',
+        prompt_version: REFLECTION_PROMPT_VERSION,
+        request_id: crypto.randomUUID(),
+        client: 'cron',
+      });
+      let outcome: ReflectOutcome;
+      try {
+        outcome = await reflectForUser(supabase, {
+          userId: user.userId,
+          day: itemDay,
+          model: resolveCoachModel(user.coachModel).id,
+          client: instrumented.client,
+        }, now);
+      } finally {
+        // The rows are written beside the calls, not by them: wait for them
+        // before the function can return and be frozen.
+        await instrumented.settled();
+      }
       processed.push({
         ...label,
         action: outcome.action,

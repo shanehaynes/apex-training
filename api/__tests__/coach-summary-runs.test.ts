@@ -44,6 +44,9 @@ vi.mock('@anthropic-ai/sdk', () => ({
 }));
 
 let runs: Array<Record<string, unknown>>;
+/** How the coach_runs insert and the coach_summary persist behave. */
+let insertMode: 'ok' | 'error' | 'reject';
+let updateMode: 'ok' | 'error' | 'reject';
 
 function makeAdmin() {
   const chain = {
@@ -52,12 +55,22 @@ function makeAdmin() {
       data: { finished_at: '2026-08-07T10:00:00Z', total_duration_seconds: 1800, score_type: null, coach_model: null },
       error: null,
     }),
-    update: () => chain,
-    then: (resolve: (v: unknown) => void) => resolve({ data: null, error: null }),
+    update: () => {
+      if (updateMode === 'reject') throw new Error('socket hang up');
+      return chain;
+    },
+    then: (resolve: (v: unknown) => void) =>
+      resolve({ data: null, error: updateMode === 'error' ? { message: 'permission denied' } : null }),
   };
   return {
     from: (table: string) => (table === 'coach_runs'
-      ? { insert: async (row: Record<string, unknown>) => { runs.push(row); return { error: null }; } }
+      ? {
+        insert: async (row: Record<string, unknown>) => {
+          runs.push(row);
+          if (insertMode === 'reject') throw new Error('fetch failed');
+          return { error: insertMode === 'error' ? { message: 'violates check constraint "coach_runs_mode_check"' } : null };
+        },
+      }
       : chain),
   } as unknown as NonNullable<ReturnType<typeof getSupabaseAdmin>>;
 }
@@ -66,18 +79,29 @@ function makeReq(body: unknown): VercelRequest {
   return { method: 'POST', headers: {}, query: {}, body } as unknown as VercelRequest;
 }
 
+let out: { status: number | null; body: unknown; lines: string[] };
+
 function makeRes() {
+  out = { status: null, body: undefined, lines: [] };
   const res = {
-    status() { return res; }, send() { return res; }, json() { return res; },
-    setHeader() { return res; }, write() { return true; }, end() { return res; }, on() { return res; },
+    status(c: number) { out.status = c; return res; },
+    send(b: unknown) { out.body = b; return res; },
+    json(b: unknown) { out.body = b; return res; },
+    setHeader() { return res; },
+    write(chunk: string) { out.lines.push(...chunk.trim().split('\n')); return true; },
+    end() { return res; },
+    on() { return res; },
   } as unknown as VercelResponse;
   return res;
 }
+const wire = () => out.lines.map(l => JSON.parse(l) as { type: string });
 
 beforeEach(() => {
   runs = [];
   sdk.streamFails = false;
   sdk.createFails = false;
+  insertMode = 'ok';
+  updateMode = 'ok';
   vi.mocked(getSupabaseAdmin).mockReturnValue(makeAdmin());
 });
 
@@ -131,4 +155,27 @@ describe('coach-summary coach_runs rows', () => {
     expect(serialized).not.toContain('Workout: Bench');
     expect(serialized).not.toContain('Strong session.');
   });
+
+  for (const mode of ['error', 'reject'] as const) {
+    it(`a coach_runs insert that ${mode === 'error' ? 'returns an error' : 'rejects'} never costs the summary`, async () => {
+      insertMode = mode;
+      await handler(makeReq({ eventId: 'evt-1', eventDate: '2026-08-07' }), makeRes());
+      expect(wire().map(e => e.type)).toEqual(['text', 'done']);
+      expect(runs).toHaveLength(1);
+
+      await handler(makeReq({ recap: 'Workout: Bench' }), makeRes());
+      expect(out.status).toBe(200);
+      expect(out.body).toEqual({ text: 'One-shot.' });
+    });
+  }
+
+  for (const mode of ['error', 'reject'] as const) {
+    it(`a persist that ${mode === 'error' ? 'returns an error' : 'throws'} after a good stream leaves exactly one row, without error`, async () => {
+      updateMode = mode;
+      await handler(makeReq({ eventId: 'evt-1', eventDate: '2026-08-07' }), makeRes());
+      expect(runs).toHaveLength(1);
+      expect(runs[0]).toMatchObject({ mode: 'summary', input_tokens: 812, output_tokens: 41 });
+      expect(runs[0]).not.toHaveProperty('error');
+    });
+  }
 });

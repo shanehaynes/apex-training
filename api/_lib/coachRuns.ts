@@ -110,23 +110,58 @@ export async function recordModelCall<T extends { usage?: ModelUsage | null; sto
   }
 }
 
+/** A wrapped client plus a way to wait for the rows its calls started. */
+export interface InstrumentedClient {
+  client: Pick<Anthropic, 'messages'>;
+  /** Resolves once every row started so far has been written (never rejects). */
+  settled: () => Promise<void>;
+}
+
 /**
- * A view of `client` whose non-streaming `messages.create` records every call
- * via recordModelCall, the model taken from each call's own params. For call
- * sites that hand the client to code this module does not own (the
- * reflection). Streaming calls are not covered: use usageColumns on the
- * stream's outcome instead.
+ * A view of `client` whose non-streaming `messages.create` writes a coach_runs
+ * row per call, the model taken from each call's own params. For call sites
+ * that hand the client to code this module does not own (the reflection).
+ *
+ * The SDK's own return value goes back UNCHANGED — an APIPromise, so
+ * `.withResponse()` / `.asResponse()` keep working — and the row is written
+ * from a side branch hung off it. `stream: true` calls (including the ones
+ * `messages.stream()` makes internally through `this.create`, where `this` is
+ * this proxy) pass straight through unrecorded: their usage arrives on the
+ * stream, so record those from the stream's outcome with usageColumns.
+ *
+ * The side branch is not awaited by the caller, so a serverless handler must
+ * `await settled()` before it returns or the platform may freeze the insert.
  */
 export function instrumentMessages(
   client: Pick<Anthropic, 'messages'>,
   admin: Admin,
   base: Omit<CoachRunBase, 'model'>,
-): Pick<Anthropic, 'messages'> {
+): InstrumentedClient {
   const target = client.messages;
-  const create = (params: Anthropic.MessageCreateParamsNonStreaming, options?: Parameters<Anthropic['messages']['create']>[1]) =>
-    recordModelCall(admin, { ...base, model: params.model }, () => target.create(params, options));
+  const pending = new Set<Promise<void>>();
+  type Create = Anthropic['messages']['create'];
+  const create = ((params: Parameters<Create>[0], options?: Parameters<Create>[1]) => {
+    const result = target.create(params, options);
+    if (params.stream) return result;
+    const startedAt = Date.now();
+    const row = { request_id: randomUUID(), client: null, with_tools: false, ...base, model: params.model };
+    const write: Promise<void> = Promise.resolve(result as PromiseLike<Anthropic.Message>).then(
+      response => recordCoachRun(admin, {
+        ...row,
+        ...usageColumns(response.usage),
+        stop_reason: response.stop_reason ?? null,
+        latency_ms: Date.now() - startedAt,
+      }),
+      err => recordCoachRun(admin, { ...row, latency_ms: Date.now() - startedAt, error: runErrorMessage(err) }),
+    ).then(() => { pending.delete(write); });
+    pending.add(write);
+    return result;
+  }) as Create;
   const messages = new Proxy(target, {
     get: (t, prop, receiver) => (prop === 'create' ? create : Reflect.get(t, prop, receiver)),
   });
-  return { messages };
+  return {
+    client: { messages },
+    settled: async () => { await Promise.all([...pending]); },
+  };
 }
