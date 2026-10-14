@@ -41,6 +41,7 @@ import { buildQuickCompleteLogs } from '../../src/lib/tracking/plan.js';
 import { upsertByShape } from './upsertByShape.js';
 import type { TablesInsert } from '../../src/lib/db/types.js';
 import { fail, succeed, type ServiceResult } from './services/result.js';
+import { writeFailure } from './pgError.js';
 import { fetchWeightContext, readWeightContext } from './weightContext.js';
 import { hasPercentTargets, resolvePercentTargets } from '../../src/lib/tracking/percent.js';
 
@@ -320,8 +321,7 @@ export async function applyQuickComplete(
       { onConflict: 'user_id,event_id,event_date', ignoreDuplicates: true },
     );
   if (sessionErr) {
-    console.error('[api/workout-sessions] quick-complete session upsert failed:', sessionErr.message);
-    return fail(500, 'Failed to quick-complete session');
+    return writeFailure('[api/workout-sessions] quick-complete session upsert', sessionErr, 'Failed to quick-complete session');
   }
 
   // Stamp unfinished sessions with the recommended duration; a genuinely
@@ -337,8 +337,7 @@ export async function applyQuickComplete(
     .eq('event_date', eventDate)
     .is('finished_at', null);
   if (finishErr) {
-    console.error('[api/workout-sessions] quick-complete finish failed:', finishErr.message);
-    return fail(500, 'Failed to quick-complete session');
+    return writeFailure('[api/workout-sessions] quick-complete finish', finishErr, 'Failed to quick-complete session');
   }
 
   const ops: PromiseLike<{ error: { message: string } | null }>[] = [];
@@ -361,8 +360,9 @@ export async function applyQuickComplete(
   const results = await Promise.all(ops);
   const failed = results.find(r => r.error);
   if (failed?.error) {
-    console.error('[api/workout-sessions] quick-complete logs failed:', failed.error.message);
-    return fail(500, 'Failed to log planned work');
+    // A row Postgres refuses (class 22/23) is 400: the native queue would
+    // otherwise retry it, blocking the session's later writes, until it gives up.
+    return writeFailure('[api/workout-sessions] quick-complete logs', failed.error, 'Failed to log planned work');
   }
   return succeed(undefined);
 }

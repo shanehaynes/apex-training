@@ -38,6 +38,9 @@ returns occurrences). Web keeps its in-browser path for now.
 Server builds the rows via `buildQuickCompleteLogs(event)` (`src/lib/tracking/plan.ts`) when
 `setLogs`/`cardioLogs` are absent; the web can keep sending rows during transition. Lets W2
 toggle completion without porting `plan.ts`.
+A row Postgres refuses on its own terms (SQLSTATE class 22/23) answers `400 constraint-violation`,
+the same body as `save` and `finish`; everything else stays 500. The queue treats the 400 as a
+refusal (`retireRefused(.quickComplete)`) instead of retrying it.
 
 ### `POST /api/query { tool, args }`
 A JWT door onto the read-only MCP registry (`api/_lib/mcp/toolRegistry.ts`): `get_prs`,
