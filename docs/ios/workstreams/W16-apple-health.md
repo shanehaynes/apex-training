@@ -85,8 +85,9 @@ Scope:
   ApexTests, `MARKETING_VERSION` 1.1.0), `scripts/ci-guards.sh` (add `HealthKit` to the ApexCore
   import ban). `PrivacyInfo.xcprivacy` unchanged (writing is not collection; UserDefaults is
   already declared).
-- Console (Shane): enable HealthKit on the App ID (the Push precedent: profiles regenerate on the
-  next archive); mention Health in the App Store description (guideline 2.5.1).
+- Console (approved by Shane 2026-10-14): enable HealthKit on the App ID (the Push precedent:
+  profiles regenerate on the next archive); mention Health in the App Store description of the
+  1.1 version (guideline 2.5.1) — not 1.0's, which does not write to Health.
 - Docs: `app-store.md` §1 Health row and the review-notes item that says "does not read
   HealthKit" reworded ("writes workouts to Health; reads nothing"); `testing-and-ci.md` App Store
   gate line; `check-deinits.sh` (D-031) for new classes.
@@ -220,7 +221,7 @@ Acceptance:
 - [ ] `provider-cron.test.ts`: apple rows absent from the nightly list.
 - [ ] Fixtures: `ios/Fixtures/provider-status.json` (apple block), `provider-preview-apple.json`.
 
-**Privacy bump (Shane's call; after M2b merges, after MT is adopted, before M2i ships).**
+**Privacy bump (approved by Shane 2026-10-14; after M2b merges, after MT is adopted, before M2i ships).**
 `legal/privacy-v2.md` + `PRIVACY_VERSION` in `src/lib/legal/versions.ts` — one bump, with text
 that already covers M3: what Health categories Apex reads, that they live on Apex's servers,
 and that daily metrics ride in the coach's context to **Anthropic** (guideline 5.1.2(i): third-
@@ -377,6 +378,9 @@ acceptance endpoint MT calls (read the web's re-acceptance modal first).
   The adversarial review found the terms lock-out (→ MT), dedup against tracker sessions, lost
   pending matches, the watermark window, body-weight recency, the outbox head-of-line block and
   owner-keyed toggles; all folded in. No code.
+
+- 2026-10-14 · Mac · Shane approved the privacy bump and the two console steps; M1 started on
+  `feat/w16-m1-health-write`.
 
 ## Next brief
 **M1 — Write finished sessions to Health.** Goal: a tracker finish writes an Apex-branded

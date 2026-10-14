@@ -1156,3 +1156,6 @@ the coach, body weight both ways, meals as dietary samples. Brief:
   **Prerequisite:** an iOS build that lets a signed-in user re-accept (W16 MT). Today a bump
   makes every JWT route answer 403 `terms-acceptance-required` and the app only asks during
   set-password, so a signed-in phone user would be locked out.
+- **Shane's approvals, 2026-10-14:** the privacy-policy bump (timing as above: after M2b, once MT
+  is adopted); enabling HealthKit on the App ID; mentioning Health in the App Store description
+  (on the 1.1 version, since 1.0 does not write to Health).
