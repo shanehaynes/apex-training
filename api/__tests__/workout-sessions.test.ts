@@ -48,6 +48,8 @@ interface AdminState {
   writeError?: { message: string; code?: string };
   /** Scripted failure for one table's upsert only. */
   upsertErrors?: Record<string, { message: string; code?: string }>;
+  /** Scripted failure for updates and deletes only. */
+  updateError?: { message: string; code?: string };
 }
 
 /**
@@ -57,7 +59,7 @@ interface AdminState {
  * scoped to — the user_id/event scoping is the security-relevant part.
  */
 function updateChain(call: UpdateCall, state: AdminState) {
-  const result = () => ({ error: state.writeError ?? null });
+  const result = () => ({ error: state.updateError ?? state.writeError ?? null });
   const chain = {
     eq(column: string, value: unknown) { call.filters[column] = value; return chain; },
     is(column: string, value: unknown) { call.filters[column] = value; return chain; },
@@ -597,6 +599,19 @@ describe('POST /api/workout-sessions — write failures carry their SQLSTATE ver
     expect(session.statusCode()).toBe(400);
     expect(session.body()).toBe(CONSTRAINT_VIOLATION_BODY);
     state.writeError = undefined;
+
+    state.updateError = { message: 'violates check constraint', code: '23514' };
+    const finishPermanent = makeRes();
+    await handler(quick(), finishPermanent.res);
+    expect(finishPermanent.statusCode()).toBe(400);
+    expect(finishPermanent.body()).toBe(CONSTRAINT_VIOLATION_BODY);
+
+    state.updateError = { message: 'could not serialize access', code: '40001' };
+    const finishTransient = makeRes();
+    await handler(quick(), finishTransient.res);
+    expect(finishTransient.statusCode()).toBe(500);
+    expect(finishTransient.body()).toBe('Failed to quick-complete session');
+    state.updateError = undefined;
 
     state.upsertErrors = { workout_set_logs: { message: 'null value in column "exercise_name"', code: '23502' } };
     const permanent = makeRes();
