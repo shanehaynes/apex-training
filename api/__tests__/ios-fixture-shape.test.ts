@@ -243,10 +243,10 @@ const amrapEventRow: Tables<'workout_events'> = {
   ...eventRow, id: AMRAP, title: 'AMRAP Day', date: AMRAP_DAY, start_time: '07:00', end_time: null,
   estimated_duration: 20, difficulty: 4, description: 'As many rounds as possible.',
   is_recurring: false, recurrence_rule: null,
-  template_id: 'ios-fixture-template', scoring_type: 'amrap', time_cap_minutes: 20,
+  template_id: 'ios-fixture-template-amrap', scoring_type: 'amrap', time_cap_minutes: 20,
   exercises: [{ id: 'am-burpee', name: 'AMRAP Burpee', category: 'strength', sets: 1, reps: '10' }],
 };
-const amrapScore = { template_id: 'ios-fixture-template', score_type: 'amrap', score_time_seconds: null } as const;
+const amrapScore = { template_id: 'ios-fixture-template-amrap', score_type: 'amrap', score_time_seconds: null } as const;
 const amrapSession: Tables<'workout_sessions'> = {
   ...finishedSession, ...amrapScore, event_id: AMRAP, event_date: AMRAP_DAY, total_duration_seconds: 1200,
   score_rounds: 6, score_reps: 3,
@@ -288,7 +288,10 @@ describe('iOS bootstrap fixtures carry exactly the fields the server sends', () 
     const client = makeAdmin({
       workout_events: [amrapEventRow],
       exercise_definitions: [definition],
-      workout_sessions: [amrapPrior],
+      workout_sessions: [amrapPrior, {
+        ...finishedSession, event_id: 'ios-fixture-amrap-for-time', event_date: '2026-12-12',
+        template_id: 'ios-fixture-template-amrap', score_type: 'for-time', score_time_seconds: 900,
+      }],
     } as unknown as Record<string, Record<string, unknown>[]>);
     const event = await loadResolvedOccurrence(client, 'u1', AMRAP, AMRAP_DAY);
     const boot = await buildBootstrap(client, 'u1', amrapSession as WorkoutSessionRow, event!);

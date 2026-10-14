@@ -9,7 +9,7 @@
     "updated_at": "<timestamp>",
     "coach_summary": null,
     "user_id": "<uuid>",
-    "template_id": "ios-fixture-template",
+    "template_id": "ios-fixture-template-amrap",
     "score_type": "amrap",
     "score_time_seconds": null,
     "score_rounds": 6,
@@ -40,7 +40,7 @@
       "fixture"
     ],
     "equipment": [],
-    "templateId": "ios-fixture-template",
+    "templateId": "ios-fixture-template-amrap",
     "scoringType": "amrap",
     "timeCapMinutes": 20,
     "isCompleted": false,

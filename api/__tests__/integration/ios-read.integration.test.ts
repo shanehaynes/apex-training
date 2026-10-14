@@ -199,6 +199,12 @@ const AMRAP_ID = `${FX}-amrap`;
 const AMRAP_DAY = '2026-12-15';
 const AMRAP_PRIOR = `${FX}-amrap-prior`;
 const AMRAP_PRIOR_DAY = '2026-12-10';
+// A for-time session on the same template, later than the AMRAP one: the
+// score record must still compare against the AMRAP history only.
+const AMRAP_OTHER_TYPE = `${FX}-amrap-for-time`;
+// A bare template id: workout_sessions.template_id has no foreign key, and a
+// template row would join schedule.json's carve.
+const AMRAP_TEMPLATE = `${FX}-template-amrap`;
 // W9: the seeded dashboard. Fixed windows (a rolling range moves with
 // `today`), full-height rows in y order so the phone's list matches the grid.
 const CLIMB_DEF_ID = `${FX}-def-climb`;
@@ -322,7 +328,7 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     await admin.from('workout_cardio_logs').delete().like('event_id', `${FX}%`);
     await admin.from('analytics_tiles').delete().like('id', `${FX}%`);
     await admin.from('workout_sessions').delete().like('event_id', `${EVENT_ID}%`);
-    await admin.from('workout_sessions').delete().in('event_id', [MIXED_ID, MIXED_PRIOR, AMRAP_ID, AMRAP_PRIOR]);
+    await admin.from('workout_sessions').delete().in('event_id', [MIXED_ID, MIXED_PRIOR, AMRAP_ID, AMRAP_PRIOR, AMRAP_OTHER_TYPE]);
     await admin.from('workout_completion_log').delete().like('event_id', `${EVENT_ID}%`);
     await admin.from('workout_completions').delete().like('event_id', `${EVENT_ID}%`);
     await admin.from('recurring_exceptions').delete().like('event_id', `${FX}%`);
@@ -1566,13 +1572,18 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     fail('amrap event', (await admin.from('workout_events').insert({
       id: AMRAP_ID, user_id: agent.userId, title: 'AMRAP Day', type: 'weights', date: AMRAP_DAY,
       start_time: '07:00', estimated_duration: 20, difficulty: 4, description: 'As many rounds as possible.',
-      tags: ['fixture'], template_id: TEMPLATE_ID, scoring_type: 'amrap', time_cap_minutes: 20,
+      tags: ['fixture'], template_id: AMRAP_TEMPLATE, scoring_type: 'amrap', time_cap_minutes: 20,
       exercises: [{ id: 'am-burpee', name: 'AMRAP Burpee', category: 'strength', sets: 1, reps: '10' }],
     })).error);
     fail('amrap prior session', (await admin.from('workout_sessions').insert({
-      user_id: agent.userId, event_id: AMRAP_PRIOR, event_date: AMRAP_PRIOR_DAY, template_id: TEMPLATE_ID,
+      user_id: agent.userId, event_id: AMRAP_PRIOR, event_date: AMRAP_PRIOR_DAY, template_id: AMRAP_TEMPLATE,
       started_at: '2026-12-10T12:00:00Z', finished_at: '2026-12-10T12:20:00Z', total_duration_seconds: 1200,
       score_type: 'amrap', score_rounds: 5, score_reps: 0,
+    })).error);
+    fail('amrap other-type session', (await admin.from('workout_sessions').insert({
+      user_id: agent.userId, event_id: AMRAP_OTHER_TYPE, event_date: '2026-12-12', template_id: AMRAP_TEMPLATE,
+      started_at: '2026-12-12T12:00:00Z', finished_at: '2026-12-12T12:15:00Z', total_duration_seconds: 900,
+      score_type: 'for-time', score_time_seconds: 900,
     })).error);
 
     const startedAt = new Date(Date.now() - 3600_000).toISOString();
@@ -1586,7 +1597,7 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     const finishedAt = new Date(Date.parse(startedAt) + 1200_000).toISOString();
     const finish = await post({
       action: 'finish', autofillRows: [], finishedAt,
-      score: { templateId: TEMPLATE_ID, type: 'amrap', rounds: 6, reps: 3 },
+      score: { templateId: AMRAP_TEMPLATE, type: 'amrap', rounds: 6, reps: 3 },
     }) as { scoreRecord: unknown };
     expect(finish.scoreRecord).toMatchObject({
       kind: 'workout-score', score: { type: 'amrap', rounds: 6, reps: 3 }, previous: { type: 'amrap', rounds: 5, reps: 0 },
@@ -1602,7 +1613,7 @@ describe.skipIf(!RUN)('W0 read foundation against the local stack', () => {
     expect(amrap.scoreRecord?.description).toBe('6 rounds + 3, beating 5 rounds on Dec 10');
 
     fixture('bootstrap-amrap.json', amrap);
-    await admin.from('workout_sessions').delete().in('event_id', [AMRAP_ID, AMRAP_PRIOR]);
+    await admin.from('workout_sessions').delete().in('event_id', [AMRAP_ID, AMRAP_PRIOR, AMRAP_OTHER_TYPE]);
     await admin.from('workout_events').delete().eq('id', AMRAP_ID);
   });
 });
