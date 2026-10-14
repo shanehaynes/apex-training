@@ -5,8 +5,9 @@
 **Status:** not started — brief drafted 2026-10-14 (D-056 supersedes D-018)
 
 ## Goal
-Apex is a citizen of the Apple Health ecosystem: a workout finished in the tracker closes the
-rings as an Apex-branded `HKWorkout`; a Watch, Garmin-via-Health or Whoop-via-Health workout
+Apex is a citizen of the Apple Health ecosystem: a workout finished in the tracker shows up in
+Health and Fitness as an Apex-branded `HKWorkout` (no energy written, so it does not move the
+rings); a Watch, Garmin-via-Health or Whoop-via-Health workout
 flows into the schedule the way a COROS activity does (match, fill, HR streams, ledger dedup);
 last night's sleep, HRV, resting HR, steps and body mass reach the coach's `<physiology>` block;
 body weight and logged meals go to Health. Every category is a separate opt-in, off by default,
@@ -56,12 +57,12 @@ Scope:
   target dependency and `project.yml` links it into ApexTests, as ApexActivity is.
 - ApexCore (Linux-tested, no HealthKit import): `Health/HealthWorkoutDraft.swift` — kind, start,
   end, title, `syncIdentifier = "apex:<eventId>|<eventDate>"`, `syncVersion` = unix seconds of
-  finishedAt, `effortScore: Int?`. Kind from `WorkoutEventBase.type` and `sport`
+  finishedAt (effort score left out until RPE parity; see below). Kind from `WorkoutEventBase.type` and `sport`
   (`ApexCore/Models/Schedule.swift:27-59`; `sport` is one of running/biking/swimming/climbing/
   other, phase37): weights → `.traditionalStrengthTraining` (`.functionalStrengthTraining` when
-  a cardio exercise is in the groups); climbing / outdoor-climbing → `.climbing`; cardio by
-  sport — running → `.running`, biking → `.cycling`, swimming → `.swimming`, other or nil →
-  `.mixedCardio`; yoga → `.yoga`; stretching / morning-routine → `.flexibility`; else `.other`.
+  a cardio exercise is in the main work — a cardio warm-up does not count); climbing / outdoor-climbing → `.climbing`; cardio by
+  sport — running → `.running`, biking → `.cycling`, swimming → `.swimming`, climbing → `.climbing`, other or
+  nil → `.mixedCardio`; yoga → `.yoga`; stretching / morning-routine → `.flexibility`; else `.other`.
 - Adapter: `HKWorkoutBuilder.beginCollection` → metadata `HKMetadataKeySyncIdentifier`,
   `HKMetadataKeySyncVersion` (a re-save replaces, never duplicates), `HKMetadataKeyExternalUUID`,
   `HKMetadataKeyWorkoutBrandName: "Apex"` → `endCollection` → `finishWorkout`. No fabricated
@@ -102,7 +103,9 @@ Acceptance:
       `-apexMockHealth authorized` reads "Writing workouts".
 - [ ] Device (Shane): a finished workout appears in Health with Apex as source and the right
       type; cancel removes it; a second finish of the same occurrence replaces, not duplicates.
-- [ ] Merged after 1.0 is approved; released as 1.1.0 by `testflight.yml`.
+- [ ] Merged after 1.0 is approved; released as 1.1.0 by `testflight.yml`. The first upload is
+      also the proof that a write-only app passes ITMS-90683 without `NSHealthShareUsageDescription`;
+      if Apple demands it, add the key (one HELD line) before resubmitting.
 
 ### MT — In-app terms re-acceptance for a signed-in user · Mac
 Why: bumping `PRIVACY_VERSION` makes every JWT route answer 403 `terms-acceptance-required`
