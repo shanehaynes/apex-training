@@ -573,9 +573,25 @@ because a migration pasted over a gap can fail halfway or build on objects
 that are not there. (On 2026-10-14 two older migrations surfaced exactly this
 way.) After: it must exit 0. The babysitter enforces the "before" half on
 every migration PR ("Autonomous merging" below); whoever applies DDL by
-hand runs both itself. The check cannot see triggers, policies, grants or the
-realtime publication, so a migration that only changes those still needs
-checking by hand.
+hand runs both itself.
+
+**Every migration ends with its own ledger stamp.** PostgREST cannot see
+triggers, policies, grants or the realtime publication, so the object probes
+alone would pass a migration that only changes those and was never applied.
+Production therefore records what ran: `public.migration_ledger` (phase56),
+and every migration's **last statement** stamps its own file name there:
+
+```sql
+insert into public.migration_ledger (name) values ('phase57_example') on conflict do nothing;
+```
+
+Last, so it runs only if everything above it did; a paste that stops at an
+error leaves no stamp. The check names every migration on `main` that
+production has no stamp for, whatever it changes, and
+`scripts/__tests__/migration-ledger.test.ts` fails a migration that does not
+end with its stamp, printing the line to add. Finishing a partly applied file
+by hand means its missing statements, then its stamp. Never paste a stamp on
+its own: the ledger is only as honest as that.
 
 Production keys live in `~/.config/apex-training/prod.env` (`chmod 600`,
 `VITE_SUPABASE_URL=` and `SUPABASE_SERVICE_ROLE_KEY=` lines), never in a

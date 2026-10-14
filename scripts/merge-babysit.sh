@@ -199,7 +199,7 @@ report_migration_obligation() {
   run_schema_check
   printf '%s\n' "$schema_out" | sed 's/^/   /'
   case $schema_code in
-    0) echo "   already applied — or the migration only touches what the check cannot see (listed above): confirm those by hand" ;;
+    0) echo "   already applied: every migration is stamped in production's migration_ledger" ;;
     1) echo "ACTION apply the migration(s) named above in the Supabase SQL Editor, in phase order, then re-run node scripts/prod-schema-check.mjs until it exits 0" ;;
     *) echo "ACTION the production schema check could not run (exit $schema_code) — the merged migration(s) still need applying in the Supabase SQL Editor and verifying with node scripts/prod-schema-check.mjs" ;;
   esac
