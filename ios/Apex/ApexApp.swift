@@ -99,16 +99,6 @@ struct RootView: View {
                 },
                 onCancel: { model.cancelPasswordSetup() }
             )
-        case .signedIn(_, let email) where model.termsUpdate != nil:
-            // W16 MT: in place of the tabs, not over them (TermsUpdateView).
-            TermsUpdateView(
-                status: model.termsUpdate ?? TermsStatus(accepted: nil, current: false), email: email,
-                termsURL: AppConfig.publicOrigin.appendingPathComponent("terms"),
-                privacyURL: AppConfig.publicOrigin.appendingPathComponent("privacy"),
-                onAccept: { await model.acceptUpdatedTerms() },
-                onSignOut: { model.signOut() }
-            )
-            .preferredColorScheme(.dark)
         case .signedIn(let userID, let email):
             RootTabView(
                 schedule: model.schedule, analytics: model.analytics, tracker: model.trackerServices, coach: model.coach,
@@ -117,6 +107,27 @@ struct RootView: View {
             ) {
                 model.signOut()
             }
+                // W16 MT: updated terms cover the tabs without unmounting them,
+                // so a workout open in the tracker (a cover of its own, above
+                // this) keeps its state and its queued sets; the screen meets
+                // the user when the tracker closes. Hidden from VoiceOver too.
+                .accessibilityHidden(model.termsUpdate != nil)
+                .overlay {
+                    if let status = model.termsUpdate {
+                        TermsUpdateView(
+                            status: status, email: email,
+                            termsURL: AppConfig.publicOrigin.appendingPathComponent("terms"),
+                            privacyURL: AppConfig.publicOrigin.appendingPathComponent("privacy"),
+                            onAccept: { await model.acceptUpdatedTerms() },
+                            onSignOut: { model.signOut() }
+                        )
+                        .background(ApexColor.bgPrimary.ignoresSafeArea())
+                        // VoiceOver stays on the screen; UIKit's tab bar ignores
+                        // the SwiftUI hide above.
+                        .accessibilityAddTraits(.isModal)
+                        .preferredColorScheme(.dark)
+                    }
+                }
                 .onAppear { model.ensureQueue(owner: userID, email: email) }
                 .task { model.replayParkedLink() }
                 // The first-run tour (W13): full screen, once per account. The

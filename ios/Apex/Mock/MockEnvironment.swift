@@ -244,9 +244,13 @@ actor FixtureTransport: HTTPTransport {
             return HTTPResponse(status: 500, headers: [:], body: Data("mock failure (once)".utf8))
         }
         // The terms gate (W16 MT): `requireUser` answers 403 on every route but
-        // the three that exist to get a blocked user out — the profile, the
-        // acceptance itself, and the version check.
-        if termsStale, !["/api/profile", "/api/terms-acceptance", "/api/version"].contains(path) {
+        // the ones the server exempts with `skipTermsGate` — the profile read,
+        // the acceptance itself, and the account's export and delete.
+        let exempt: Set<String> = ["GET /api/profile", "GET /api/terms-acceptance", "POST /api/terms-acceptance",
+                                   "GET /api/account", "DELETE /api/account",
+                                   // Unauthenticated: the launch's build check (G8).
+                                   "GET /api/version"]
+        if termsStale, !exempt.contains("\(method) \(path)") {
             return HTTPResponse(status: 403, headers: [:], body: Data("terms-acceptance-required".utf8))
         }
         do {

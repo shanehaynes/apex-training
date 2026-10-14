@@ -121,8 +121,10 @@ endpoint the web's modal uses, then retry. Mock flag `-apexMockTermsStale`.
 
 As built: `ApexClient.notices` announces the 403 (one consumer, `AppModel`); a background
 `GET /api/terms-acceptance` after sign-in catches it before any request does, and fails quiet
-offline. `TermsUpdateView` stands *in place of* the tabs, like the web's gate above its data
-providers, so nothing behind it fires gated reads. The write queue **pauses** on the 403
+offline. `TermsUpdateView` *covers* the tabs (an opaque overlay, modal for VoiceOver) without
+unmounting them, so a workout open in the tracker keeps its state; the screen meets the user
+when the tracker closes. A 403 that lands after the user is already current (set-password's
+acceptance racing the first reads) re-reads the status and shows nothing; a burst of 403s asks once. The write queue **pauses** on the 403
 instead of refusing the op (`RetryPolicy`), and accepting resumes it — a set logged in the gap
 lands, an outbox write is not dropped.
 

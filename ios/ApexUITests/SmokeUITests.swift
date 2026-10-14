@@ -826,7 +826,7 @@ final class SmokeUITests: XCTestCase {
     // MARK: - W16 MT · updated terms while signed in
 
     /// sign in with updated terms published (`-apexMockTermsStale`) → the
-    /// re-acceptance screen stands in for the tabs, naming what was accepted
+    /// re-acceptance screen covers the tabs, naming what was accepted
     /// before → Accept stays off until the box is ticked → tick → Accept →
     /// the tabs, with the schedule loading again.
     func testUpdatedTermsAreAcceptedInTheApp() {
@@ -836,9 +836,9 @@ final class SmokeUITests: XCTestCase {
         signIn(app)
 
         let title = app.staticTexts["terms.title"]
-        XCTAssertTrue(title.waitForExistence(timeout: 20), "the gate replaces the tabs")
+        XCTAssertTrue(title.waitForExistence(timeout: 20), "the gate covers the tabs")
         XCTAssertEqual(title.label, "Our terms have changed")
-        XCTAssertFalse(app.tabBars.buttons["Schedule"].exists, "nothing behind it to 403")
+        XCTAssertFalse(app.tabBars.buttons["Schedule"].isHittable, "the tabs are covered, not reachable")
         let accept = app.buttons["terms.accept"]
         XCTAssertFalse(accept.isEnabled, "not until the box is ticked")
         attach(app, name: "w16-mt-01-terms")
@@ -850,7 +850,8 @@ final class SmokeUITests: XCTestCase {
 
         let schedule = app.tabBars.buttons["Schedule"]
         XCTAssertTrue(schedule.waitForExistence(timeout: 15), "accepting brings the tabs back")
-        XCTAssertTrue(app.buttons["schedule.add"].waitForExistence(timeout: 15), "and the schedule loads")
+        let card = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'event.card.'")).firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 15), "and the schedule loads its workouts again")
         attach(app, name: "w16-mt-02-accepted")
     }
 

@@ -127,7 +127,7 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 ## Recent sessions
 - 2026-10-14 · W16 MT · Mac. A signed-in user who meets updated Terms/Privacy (a 403
   `terms-acceptance-required`, or the background check after sign-in) gets an in-app
-  re-acceptance screen in place of the tabs; the write queue pauses on the gate and resumes on
+  re-acceptance screen over the tabs (an open workout keeps its state); the write queue pauses on the gate and resumes on
   accept. `-apexMockTermsStale` for the smoke. Next: release it, then the approved privacy bump.
 - 2026-10-14 · W16 M1 · Mac. PR #430 (HELD until 1.0 is approved): a tracker finish writes an
   Apex-branded HKWorkout (real start/end, sync id + version, 6 h / 14 h cap), cancel deletes it after

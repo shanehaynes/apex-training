@@ -86,6 +86,8 @@ final class AppModel {
     private(set) var termsUpdate: TermsStatus?
     /// The one consumer of the client's notices.
     private var termsWatch: Task<Void, Never>?
+    /// A check is in flight: a burst of 403s (every tab's first read) asks once.
+    private var isCheckingTerms = false
     /// The realtime hub ran out of rejoin attempts for some group (#223):
     /// what is on screen is only as fresh as the last refresh. Persistent on
     /// purpose — the toast announces it once, this stays until a join lands.
@@ -542,19 +544,29 @@ final class AppModel {
         }
     }
 
-    private func termsGateMet() async {
-        guard case .signedIn = state, termsUpdate == nil else { return }
-        await checkTerms()
-        // The server has just said so even if the read failed.
-        if termsUpdate == nil { termsUpdate = TermsStatus(accepted: nil, current: false) }
+    /// A request met the gate. The read decides: a 403 can land *after* the
+    /// user became current — set-password's acceptance POST racing the tabs'
+    /// first reads, or a request in flight across Accept — and that must not
+    /// put the screen back. Only a read that failed falls back to the 403's
+    /// word for it.
+    func termsGateMet() async {
+        guard case .signedIn = state, termsUpdate == nil, !isCheckingTerms else { return }
+        if await checkTerms() == nil, termsUpdate == nil {
+            termsUpdate = TermsStatus(accepted: nil, current: false)
+        }
     }
 
     /// `GET /api/terms-acceptance` is exempt from the gate, so it answers even
     /// for a blocked user. Fails quiet: offline is not a reason to block.
-    func checkTerms() async {
-        guard case .signedIn = state, let client,
-              let status = try? await client.send(.termsStatus, as: TermsStatus.self) else { return }
+    /// Whether the terms are current, or nil when the read failed.
+    @discardableResult
+    func checkTerms() async -> Bool? {
+        guard case .signedIn = state, let client else { return nil }
+        isCheckingTerms = true
+        defer { isCheckingTerms = false }
+        guard let status = try? await client.send(.termsStatus, as: TermsStatus.self) else { return nil }
         termsUpdate = status.current ? nil : status
+        return status.current
     }
 
     /// Records the acceptance (the server owns which versions), then lets
