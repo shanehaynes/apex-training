@@ -25,11 +25,15 @@ public struct ChartDraft: Codable, Sendable, Equatable {
     public var bucket: String
     /// mi · km · m · ft, or `""` for as logged.
     public var displayUnit: String
+    /// lb · kg for the tile's weight series (tonnage, est. 1RM); absent = the
+    /// athlete's profile unit. Optional because the web writes the key only
+    /// once a unit is picked — `nil` round-trips as an absent key.
+    public var weightUnit: String?
     public var series: [SeriesDraft]
 
     public init(
         title: String, chartType: String, rangeKind: String, rollingDays: String, startDate: String, endDate: String,
-        preset: String, bucket: String, displayUnit: String, series: [SeriesDraft]
+        preset: String, bucket: String, displayUnit: String, weightUnit: String? = nil, series: [SeriesDraft]
     ) {
         self.title = title
         self.chartType = chartType
@@ -40,6 +44,7 @@ public struct ChartDraft: Codable, Sendable, Equatable {
         self.preset = preset
         self.bucket = bucket
         self.displayUnit = displayUnit
+        self.weightUnit = weightUnit
         self.series = series
     }
 

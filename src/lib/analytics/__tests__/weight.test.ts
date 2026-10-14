@@ -63,7 +63,10 @@ describe('chart draft — weight unit', () => {
     expect(updated.summary).toContain('weight unit');
     const cleared = applyChartDraftUpdate(draft, { weight_unit: null });
     if ('error' in cleared) throw new Error(cleared.error);
-    expect(cleared.draft.weightUnit).toBe('');
+    expect(cleared.draft).not.toHaveProperty('weightUnit');
+    // An untouched draft carries no weightUnit key at all (the iOS mirror pins the key set).
+    expect(emptyChartDraft()).not.toHaveProperty('weightUnit');
+    expect(draftFromSpec(makeSpec({ measure: 'tonnage' }))).not.toHaveProperty('weightUnit');
     const spec = specFromDraft(cleared.draft);
     expect('spec' in spec && spec.spec.weightUnit).toBeUndefined();
     expect(applyChartDraftUpdate(draft, { weight_unit: 'stone' })).toEqual({ error: expect.stringContaining('weight_unit must be one of lb, kg') });

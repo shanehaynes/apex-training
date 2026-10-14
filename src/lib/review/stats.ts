@@ -326,7 +326,10 @@ export function computeStrengthStats(setLogs: SetLogRow[], period: StatsPeriod, 
     .slice(0, 5)
     .map(([exerciseName, sets]) => ({ exerciseName, sets }));
 
-  return { tonnage: Math.round(tonnage), totalSets, totalReps, heaviestSet, topExercises, unit: ctx.unit };
+  // Compared on the float, stored to two decimals: a kg set's pound
+  // conversion is 185.18808…, which no reader needs.
+  if (heaviestSet) heaviestSet = { ...heaviestSet, weight: Math.round(heaviestSet.weight * 100) / 100 };
+  return { tonnage: Math.round(tonnage), totalSets, totalReps, heaviestSet, topExercises, displayUnit: ctx.unit };
 }
 
 export function computeReviewStats<P extends StatsPeriod>(inputs: PeriodInputs<P>): PeriodStats<P> {

@@ -40,12 +40,12 @@ describe('computeStrengthStats with a WeightContext', () => {
     const kg = computeStrengthStats(logs, MONTH, KG);
     const expected = 100 * LB_PER_KG * 5 + 185 * 5 + 84 * LB_PER_KG * 5 + (80 + 25) * LB_PER_KG * 8;
     expect(kg.tonnage).toBe(Math.round(expected));
-    expect(kg.unit).toBe('kg');
+    expect(kg.displayUnit).toBe('kg');
     // Under the default context the same rows read as pounds: the bare 100 is
     // 100 lb and the BW row (no body weight) is reps-only.
     const lb = computeStrengthStats(logs, MONTH);
     expect(lb.tonnage).toBe(Math.round(100 * 5 + 185 * 5 + 84 * LB_PER_KG * 5));
-    expect(lb.unit).toBe('lb');
+    expect(lb.displayUnit).toBe('lb');
     expect(lb.totalReps).toBe(5 + 5 + 5 + 8);
   });
 
@@ -61,7 +61,7 @@ describe('computeStrengthStats with a WeightContext', () => {
   it('threads the context from the inputs through the period and yearly rollups', () => {
     const period = inputs(logs, KG);
     const stats = computeReviewStats(period);
-    expect(stats.strength.unit).toBe('kg');
+    expect(stats.strength.displayUnit).toBe('kg');
     expect(stats.strength.tonnage).toBe(computeStrengthStats(logs, MONTH, KG).tonnage);
     const yearly = computeYearlyStats({ ...period, period: buildReviewPeriod('year', 2026) });
     expect(yearly.months.find(m => m.monthIndex === 6)?.tonnage).toBe(stats.strength.tonnage);
@@ -95,7 +95,41 @@ describe('weight labels', () => {
       expect(body).not.toContain(' lb');
     }
     // Stats stored before the unit existed read as pounds.
-    const legacy = { ...stats, strength: { ...stats.strength, unit: undefined } };
+    const legacy = { ...stats, strength: { ...stats.strength, displayUnit: undefined } };
     expect(buildMonthlyRecap(legacy, 'Shane')).toContain('Total weight moved: 1,102 lb');
+  });
+});
+
+describe('review PR lines and machine payloads (A1, A2)', () => {
+  // A kg athlete: 80 kg × 5 before the month, 90 kg × 5 inside it — a PR.
+  const logs = [makeSet('2026-05-01', 'Bench Press', '80', '5'), makeSet('2026-05-20', 'Bench Press', '90', '5')];
+  const stats = computeReviewStats(inputs(logs, KG));
+
+  it('prints PR lines in the athlete unit in the email and the recap, never unlabelled pounds', () => {
+    expect(stats.prs).toHaveLength(1);
+    const recap = buildMonthlyRecap(stats, 'Shane');
+    const { html, text } = renderReviewEmail(stats, null, 'Shane');
+    for (const body of [recap, html, text]) {
+      expect(body).toContain('(90 × 5)');
+      expect(body).not.toContain('198');
+    }
+    expect(recap).toContain('est. best single lift 105 (90 × 5), up from 93');
+    // Pounds stay the default for an lb athlete, as typed.
+    const lb = computeReviewStats(inputs([makeSet('2026-05-01', 'Bench Press', '185', '5'), makeSet('2026-05-20', 'Bench Press', '190', '5')]));
+    expect(buildMonthlyRecap(lb, 'Shane')).toContain('(190 × 5)');
+  });
+
+  it('names the display unit so a machine reader cannot take it for the numbers', () => {
+    expect(stats.strength).not.toHaveProperty('unit');
+    expect(stats.strength.displayUnit).toBe('kg');
+    expect(stats.strength.tonnage).toBe(Math.round(90 * LB_PER_KG * 5));
+    // heaviestSet is pounds, two decimals: 90 kg = 198.4158 lb.
+    expect(stats.strength.heaviestSet?.weight).toBe(198.42);
+  });
+
+  it('tells the reader in the footer that weights are converted to their unit', () => {
+    const { html } = renderReviewEmail(stats, null, 'Shane');
+    expect(html).toContain('weights are converted and shown in kg');
+    expect(html).not.toContain('weights and distances are summed in the units you logged them');
   });
 });

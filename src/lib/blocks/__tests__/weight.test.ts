@@ -34,10 +34,10 @@ describe('computeBlockProgress with a WeightContext', () => {
   it('reads a bare number in the profile unit for the block PRs and tonnage', () => {
     const kg = run({ weight: { unit: 'kg', bodyWeightLb: null } });
     expect(kg.prs).toMatchObject([{ kind: 'oneRM', exerciseName: 'Bench Press', weight: 100 * LB_PER_KG }]);
-    expect(kg.toDate.stats.strength).toMatchObject({ tonnage: Math.round(100 * LB_PER_KG * 5), unit: 'kg' });
+    expect(kg.toDate.stats.strength).toMatchObject({ tonnage: Math.round(100 * LB_PER_KG * 5), displayUnit: 'kg' });
     // Without a context the bare 100 is 100 lb: no PR over 200 lb.
     const lb = run({});
     expect(lb.prs).toEqual([]);
-    expect(lb.toDate.stats.strength).toMatchObject({ tonnage: 500, unit: 'lb' });
+    expect(lb.toDate.stats.strength).toMatchObject({ tonnage: 500, displayUnit: 'lb' });
   });
 });

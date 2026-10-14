@@ -8,7 +8,7 @@ import {
   describeRecordForPeople,
   estimateOneRepMax,
 } from '../records';
-import { DEFAULT_WEIGHT_CONTEXT, LB_PER_KG, type WeightContext } from '../weight';
+import { DEFAULT_WEIGHT_CONTEXT, LB_PER_KG, bodyWeightEdit, bodyWeightText, displayWeight, formatLb, parseWeight, type WeightContext } from '../weight';
 import { buildTrackerModel } from '../plan';
 import type { Exercise, WorkoutEvent } from '../../../types/workout';
 import type { SetLogRow } from '../../db/types';
@@ -104,5 +104,58 @@ describe('record descriptions', () => {
   it('shows people the numbers in their unit', () => {
     expect(describeRecordForPeople(pr)).toBe('est. best single lift 216 (185 × 5), up from 206 on Jun 12');
     expect(describeRecordForPeople(pr, 'kg')).toBe('est. best single lift 98 (83.9 × 5), up from 93 on Jun 12');
+  });
+});
+
+describe('unit spellings (A3)', () => {
+  it('reads pound and kilogram spellings, any case, with an optional trailing period', () => {
+    for (const t of ['185 pound', '185 Pounds', '185#', '185 # ', '185 pounds.', '185#.']) {
+      expect(parseWeight(t, KG)).toEqual({ lb: 185, kind: 'absolute' });
+    }
+    for (const t of ['80 kilo', '80 Kilos', '80 kilogram', '80 KILOGRAMS.', '80kilo.']) {
+      expect(parseWeight(t, DEFAULT_WEIGHT_CONTEXT)).toEqual({ lb: 80 * LB_PER_KG, kind: 'absolute' });
+    }
+    expect(parseWeight('BW+10 kilos', BW)).toEqual({ lb: 180 + 10 * LB_PER_KG, kind: 'bodyweight' });
+  });
+
+  it('still rejects trailing free text and near-miss spellings', () => {
+    for (const t of ['185 lbs heavy', '185 pounds x 5', '185##', '80 kilometres', '80 k', '185 lb..']) {
+      expect(parseWeight(t, DEFAULT_WEIGHT_CONTEXT)).toBeNull();
+    }
+  });
+});
+
+describe('number formatting (A4)', () => {
+  it('formatLb prints up to two decimals as typed, rounds a longer conversion to the pound', () => {
+    expect(formatLb(185)).toBe('185');
+    expect(formatLb(62.5)).toBe('62.5');
+    expect(formatLb(136.25)).toBe('136.25');
+    expect(formatLb(62.5 * LB_PER_KG)).toBe('138');
+    expect(formatLb(0.1 + 0.2)).toBe('0.3');
+  });
+
+  it('displayWeight follows formatLb under lb, and under kg prints kg-typed values as typed and conversions to a tenth', () => {
+    expect(displayWeight(62.25, 'lb')).toBe('62.25');
+    expect(displayWeight(62.25 * LB_PER_KG, 'kg')).toBe('62.25');
+    expect(displayWeight(185, 'kg')).toBe('83.9');
+    expect(displayWeight(62.5 * LB_PER_KG, 'lb')).toBe('138');
+  });
+});
+
+describe('the body-weight field (A6)', () => {
+  const kg180: WeightContext = { unit: 'kg', bodyWeightLb: 180 };
+
+  it('never writes on a blur with no edit, even when the shown kg is rounded', () => {
+    expect(bodyWeightText(180, 'kg')).toBe('81.6');
+    expect(bodyWeightEdit('81.6', kg180)).toEqual({ kind: 'unchanged' });
+    expect(bodyWeightEdit(' 81.6 ', kg180)).toEqual({ kind: 'unchanged' });
+    expect(bodyWeightEdit('', { unit: 'lb', bodyWeightLb: null })).toEqual({ kind: 'unchanged' });
+  });
+
+  it('stores an edit as pounds, clears on blank, and rejects anything not a positive number', () => {
+    expect(bodyWeightEdit('82', kg180)).toEqual({ kind: 'save', lb: Math.round(82 * LB_PER_KG * 100) / 100 });
+    expect(bodyWeightEdit('182,5', { unit: 'lb', bodyWeightLb: 180 })).toEqual({ kind: 'save', lb: 182.5 });
+    expect(bodyWeightEdit('', kg180)).toEqual({ kind: 'save', lb: null });
+    for (const t of ['0', '-80', 'heavy', '80kg', '1e3']) expect(bodyWeightEdit(t, kg180)).toEqual({ kind: 'invalid' });
   });
 });

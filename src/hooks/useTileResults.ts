@@ -68,6 +68,25 @@ function contentKeyOf(req: TileRequest, todayIso: string, salt: string): string 
   return JSON.stringify([body, todayIso, salt]);
 }
 
+/**
+ * Everything outside the request that feeds the server's computation: the
+ * HR settings, the active block, and how weights are read and labelled
+ * (phase55 weight_unit / body_weight_lb) — a change to any must refetch.
+ */
+export function tileSalt(
+  profile: { max_hr?: number | null; threshold_hr?: number | null; weight_unit?: string | null; body_weight_lb?: number | null } | null,
+  activePeriod: { startDate: string; endDateExclusive: string } | null,
+): string {
+  return [
+    profile?.max_hr ?? '',
+    profile?.threshold_hr ?? '',
+    profile?.weight_unit ?? '',
+    profile?.body_weight_lb ?? '',
+    activePeriod?.startDate ?? '',
+    activePeriod?.endDateExclusive ?? '',
+  ].join('|');
+}
+
 interface KeyedRequest extends TileRequest {
   contentKey: string;
 }
@@ -84,12 +103,7 @@ export function useTileResults(requests: TileRequest[], debounceMs: number): Til
     () => (activeBlock ? blockPeriod(activeBlock) : null),
     [activeBlock],
   );
-  const salt = [
-    profile?.max_hr ?? '',
-    profile?.threshold_hr ?? '',
-    activePeriod?.startDate ?? '',
-    activePeriod?.endDateExclusive ?? '',
-  ].join('|');
+  const salt = tileSalt(profile, activePeriod);
 
   const keyed: KeyedRequest[] = requests
     .filter(r => r.spec !== undefined || r.draft !== undefined)

@@ -2,7 +2,7 @@ import { format, parseISO } from 'date-fns';
 import type { CardioLogRow, SetLogRow } from '../db/types.js';
 import type { TrackedSectionGroup } from './plan.js';
 import { formatSeconds } from '../time.js';
-import { DEFAULT_WEIGHT_CONTEXT, formatLb, lbToUnit, parseWeight, type WeightContext, type WeightUnit } from './weight.js';
+import { DEFAULT_WEIGHT_CONTEXT, displayWeight, formatLb, lbToUnit, parseWeight, type WeightContext, type WeightUnit } from './weight.js';
 
 // ─── Personal records ─────────────────────────────────────────────────────────
 // Pure PR detection over set/cardio logs — computed client-side, never by the
@@ -517,6 +517,5 @@ export function describeRecord(pr: PersonalRecord): string {
 export function describeRecordForPeople(pr: PersonalRecord, unit: WeightUnit = 'lb'): string {
   if (pr.kind !== 'oneRM') return describeRecord(pr);
   const prevDate = format(parseISO(pr.previousDate), 'MMM d');
-  const n = (lb: number) => (unit === 'lb' ? formatLb(lb) : String(Math.round(lbToUnit(lb, unit) * 10) / 10));
-  return `est. best single lift ${Math.round(lbToUnit(pr.estimatedOneRM, unit))} (${n(pr.weight)} × ${pr.reps}), up from ${Math.round(lbToUnit(pr.previousOneRM, unit))} on ${prevDate}`;
+  return `est. best single lift ${Math.round(lbToUnit(pr.estimatedOneRM, unit))} (${displayWeight(pr.weight, unit)} × ${pr.reps}), up from ${Math.round(lbToUnit(pr.previousOneRM, unit))} on ${prevDate}`;
 }

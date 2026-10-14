@@ -17,7 +17,7 @@ import AccountData from './AccountData';
 import ProfileDisclosure from './ProfileDisclosure';
 import RpeTrackingToggle from './RpeTrackingToggle';
 import type { AvatarKey } from '../../lib/db/types';
-import { lbToUnit, unitToLb, type WeightUnit } from '../../lib/tracking/weight';
+import { bodyWeightEdit, bodyWeightText, type WeightUnit } from '../../lib/tracking/weight';
 
 // Full-screen profile overlay, same pattern as LibraryView: fixed inset-0,
 // Escape closes, body scroll locked while open.
@@ -53,9 +53,7 @@ export default function ProfileView() {
   const [maxHr, setMaxHr] = useState(profile?.max_hr != null ? String(profile.max_hr) : '');
   const [thresholdHr, setThresholdHr] = useState(profile?.threshold_hr != null ? String(profile.threshold_hr) : '');
   // Body weight is stored in pounds and typed in the chosen unit, to one decimal.
-  const bodyWeightIn = (unit: WeightUnit) =>
-    weightContext.bodyWeightLb != null ? String(Math.round(lbToUnit(weightContext.bodyWeightLb, unit) * 10) / 10) : '';
-  const [bodyWeight, setBodyWeight] = useState(bodyWeightIn(weightContext.unit));
+  const [bodyWeight, setBodyWeight] = useState(bodyWeightText(weightContext.bodyWeightLb, weightContext.unit));
   const [goal, setGoal] = useState(profile?.coach_goal ?? '');
   const [coachContext, setCoachContext] = useState(profile?.coach_context ?? '');
   const [password, setPassword] = useState('');
@@ -109,23 +107,21 @@ export default function ProfileView() {
     if (unit === weightContext.unit) return;
     const ok = await updateProfile({ weightUnit: unit });
     if (!ok) return;
-    setBodyWeight(bodyWeightIn(unit));
+    setBodyWeight(bodyWeightText(weightContext.bodyWeightLb, unit));
     notify(`Weights now in ${unit}`);
   };
   // Blank clears (null); anything else is a positive number in the chosen
   // unit, stored as pounds — the API 400s anything else, so pre-check here.
+  // A blur with no edit never PATCHes (bodyWeightEdit compares the text shown).
   const saveBodyWeight = async () => {
-    const trimmed = bodyWeight.trim();
-    const typed = trimmed === '' ? null : Number(trimmed.replace(',', '.'));
-    const current = weightContext.bodyWeightLb;
-    const lb = typed === null ? null : Math.round(unitToLb(typed, weightContext.unit) * 100) / 100;
-    if (lb === current) return;
-    if (typed !== null && (!Number.isFinite(typed) || typed <= 0)) {
+    const edit = bodyWeightEdit(bodyWeight, weightContext);
+    if (edit.kind === 'unchanged') return;
+    if (edit.kind === 'invalid') {
       notify('Body weight must be a positive number');
       return;
     }
-    const ok = await updateProfile({ bodyWeightLb: lb });
-    if (ok) notify(`Body weight ${lb === null ? 'cleared' : 'updated'}`);
+    const ok = await updateProfile({ bodyWeightLb: edit.lb });
+    if (ok) notify(`Body weight ${edit.lb === null ? 'cleared' : 'updated'}`);
   };
 
   // Unlike saveName, empty is a valid save — clearing a coach field is an edit.
@@ -314,8 +310,10 @@ export default function ProfileView() {
             <h3 className="profile-section__title">Weight</h3>
             <p className="profile-section__hint">
               The unit a bare number means when you log a set — a suffix (“62.5 kg”,
-              “137 lb”) always wins. Body weight makes “BW” and “BW+25” count as
-              weighted sets. Blank the field to clear it.
+              “137 lb”) always wins. It also applies to weights you already logged
+              without a unit: switching it changes what those mean in your stats.
+              Body weight makes “BW” and “BW+25” count as weighted sets. Blank the
+              field to clear it.
             </p>
             <div className="library-field-row">
               <label className="auth-field">

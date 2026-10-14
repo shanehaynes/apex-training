@@ -72,8 +72,12 @@ export interface ChartDraft {
   preset: RangePreset;
   bucket: TimeBucket;
   displayUnit: DisplayUnit | '';
-  /** '' = the profile's unit. */
-  weightUnit: WeightDisplayUnit | '';
+  /**
+   * Absent = the profile's unit. Optional rather than '' so a draft without a
+   * pick keeps the exact key set every client already reads and writes (the
+   * iOS mirror pins it); the key appears only once someone chooses a unit.
+   */
+  weightUnit?: WeightDisplayUnit;
   series: SeriesDraft[];
 }
 
@@ -110,7 +114,6 @@ export function emptyChartDraft(): ChartDraft {
     preset: 'this-iso-month',
     bucket: 'week',
     displayUnit: '',
-    weightUnit: '',
     series: [emptySeriesDraft('s1')],
   };
 }
@@ -260,7 +263,7 @@ export function draftFromSpec(spec: ChartSpec): ChartDraft {
     preset: spec.range.kind === 'preset' ? spec.range.preset : 'this-iso-month',
     bucket: spec.bucket,
     displayUnit: spec.displayUnit ?? '',
-    weightUnit: spec.weightUnit ?? '',
+    ...(spec.weightUnit ? { weightUnit: spec.weightUnit } : {}),
     series: spec.series.map(s => ({
       id: s.id,
       label: s.label ?? '',
@@ -388,7 +391,7 @@ export function applyChartDraftUpdate(
 
   if (input.weight_unit !== undefined) {
     if (input.weight_unit === null || input.weight_unit === '') {
-      next.weightUnit = '';
+      delete next.weightUnit;
       changed.push('weight unit cleared');
     } else if (oneOf(input.weight_unit, WEIGHT_DISPLAY_UNITS)) {
       next.weightUnit = input.weight_unit;

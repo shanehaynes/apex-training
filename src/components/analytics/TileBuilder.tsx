@@ -283,8 +283,11 @@ export default function TileBuilder({ tile, onClose }: Props) {
         {draft.series.some(s => s.measure && MEASURES[s.measure].unitKind === 'weight') && (
           <Chips label="Weight unit" clearable="Profile unit"
             options={WEIGHT_DISPLAY_UNITS.map(u => ({ value: u, label: u }))}
-            value={draft.weightUnit}
-            onSelect={v => setDraft(d => ({ ...d, weightUnit: v }))} />
+            value={draft.weightUnit ?? ''}
+            onSelect={v => setDraft(d => {
+              const { weightUnit: _cleared, ...rest } = d;
+              return v ? { ...rest, weightUnit: v } : rest;
+            })} />
         )}
 
         {draft.series.map((s, index) => (

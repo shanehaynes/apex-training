@@ -25,9 +25,11 @@ export const LB_PER_KG = 2.20462;
 // Whole-string grammar, case-insensitive: an optional BW, an optional sign, an
 // optional number (comma or dot decimal), an optional unit — which may carry a
 // trailing period ("185 lbs.", a sloppy stored entry that should keep its PR).
-// A bare trailing dot ("185."), an exponent ("1e3") and a leading dot (".5")
-// are not numbers; "100kg x 5", "80%", "5.10a" and "heavy" match nothing.
-const GRAMMAR = /^\s*(bw)?\s*([+-])?\s*(\d+(?:[.,]\d+)?)?\s*(?:(lb|lbs|kg|kgs)\.?)?\s*$/i;
+// Pound spellings: lb, lbs, pound, pounds, #. Kilogram spellings: kg, kgs,
+// kilo, kilos, kilogram, kilograms. A bare trailing dot ("185."), an exponent
+// ("1e3") and a leading dot (".5") are not numbers; "100kg x 5", "80%",
+// "5.10a", "185 lbs heavy" and "heavy" match nothing.
+const GRAMMAR = /^\s*(bw)?\s*([+-])?\s*(\d+(?:[.,]\d+)?)?\s*(?:(lbs?|pounds?|#|kgs?|kilos?|kilograms?)\.?)?\s*$/i;
 
 /** "1,200" is a thousands separator (a comma, exactly three digits, nothing after); any other comma is a decimal. */
 function numberOf(text: string): number {
@@ -55,7 +57,8 @@ export function parseWeight(text: string | null | undefined, ctx: WeightContext)
   const match = GRAMMAR.exec(text);
   if (!match) return null;
   const [, bw, sign, digits, rawUnit] = match;
-  const unit: WeightUnit = rawUnit ? (rawUnit.toLowerCase().startsWith('kg') ? 'kg' : 'lb') : ctx.unit;
+  // Every kilogram spelling starts with k; every pound spelling does not.
+  const unit: WeightUnit = rawUnit ? (rawUnit.toLowerCase().startsWith('k') ? 'kg' : 'lb') : ctx.unit;
 
   if (!bw) {
     // A sign, or a unit, without a number is not a weight; neither is a sign
@@ -86,14 +89,61 @@ export function unitToLb(value: number, unit: WeightUnit): number {
   return toLb(value, unit);
 }
 
+/** Whether a value carries at most two decimals (float noise aside). */
+function atMostTwoDecimals(value: number): boolean {
+  return Math.abs(value * 100 - Math.round(value * 100)) < 1e-6;
+}
+
 /**
- * A pound float as the machine-string number: a value with at most one
- * decimal prints as is (every lb entry an athlete types — 185, 62.5 — stays
- * byte-identical to before the parser), anything longer (a kg conversion,
- * 137.78875) prints rounded to the pound.
+ * A pound float as the machine-string number: a value with at most two
+ * decimals prints as is (every lb entry an athlete types — 185, 62.5,
+ * 136.25 — stays byte-identical to before the parser), anything longer (a
+ * kg conversion, 137.78875) prints rounded to the pound.
  */
 export function formatLb(lb: number): string {
-  return Math.abs(lb * 10 - Math.round(lb * 10)) < 1e-6 ? String(Math.round(lb * 10) / 10) : String(Math.round(lb));
+  return atMostTwoDecimals(lb) ? String(Math.round(lb * 100) / 100) : String(Math.round(lb));
+}
+
+/**
+ * A pound float as a person reads it in `unit`. Under lb it is formatLb (as
+ * typed up to two decimals, else the whole pound). Under kg a value typed in
+ * kg prints as typed (100, 62.25) and a converted one to a tenth (185 lb →
+ * 83.9). No unit suffix — the caller labels it.
+ */
+export function displayWeight(lb: number, unit: WeightUnit): string {
+  // Pounds print by the machine-string rule, so the people line and
+  // describeRecord agree number for number under lb.
+  if (unit === 'lb') return formatLb(lb);
+  const value = lbToUnit(lb, unit);
+  return atMostTwoDecimals(value) ? String(Math.round(value * 100) / 100) : String(Math.round(value * 10) / 10);
+}
+
+// ─── The profile's body-weight field ─────────────────────────────────────────
+
+/** The body-weight field's text: the stored pounds shown in `unit` to a tenth, '' when none. */
+export function bodyWeightText(bodyWeightLb: number | null, unit: WeightUnit): string {
+  return bodyWeightLb != null ? String(Math.round(lbToUnit(bodyWeightLb, unit) * 10) / 10) : '';
+}
+
+export type BodyWeightEdit =
+  | { kind: 'unchanged' }
+  | { kind: 'invalid' }
+  /** Pounds to store, to two decimals; null clears. */
+  | { kind: 'save'; lb: number | null };
+
+/**
+ * What leaving the body-weight field means. Compared as TEXT against what
+ * the field showed, so a blur with no edit never writes — re-deriving pounds
+ * from a kg reading rounded to a tenth would never match the stored float.
+ * Blank clears; anything else must be a positive number in ctx.unit.
+ */
+export function bodyWeightEdit(text: string, ctx: WeightContext): BodyWeightEdit {
+  const trimmed = text.trim();
+  if (trimmed === bodyWeightText(ctx.bodyWeightLb, ctx.unit)) return { kind: 'unchanged' };
+  if (trimmed === '') return { kind: 'save', lb: null };
+  const typed = /^\d+(?:[.,]\d+)?$/.test(trimmed) ? Number(trimmed.replace(',', '.')) : NaN;
+  if (!Number.isFinite(typed) || typed <= 0) return { kind: 'invalid' };
+  return { kind: 'save', lb: Math.round(unitToLb(typed, ctx.unit) * 100) / 100 };
 }
 
 /**

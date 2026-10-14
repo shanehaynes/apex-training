@@ -7,7 +7,7 @@ import {
   parseQuantity,
 } from '../tracking/records.js';
 import { formatSeconds } from '../time.js';
-import { DEFAULT_WEIGHT_CONTEXT, lbToUnit, type WeightContext, type WeightUnit } from '../tracking/weight.js';
+import { DEFAULT_WEIGHT_CONTEXT, displayWeight, lbToUnit, type WeightContext, type WeightUnit } from '../tracking/weight.js';
 
 // ─── Per-exercise library stats ───────────────────────────────────────────────
 // Pure computation over one exercise's (pre-canonicalized) log history for the
@@ -55,16 +55,11 @@ export interface StatsOptions {
   displayUnit?: WeightUnit;
 }
 
-/** A pound float in the display unit, at most one decimal. */
-function shownWeight(lb: number, unit: WeightUnit): number {
-  return Math.round(lbToUnit(lb, unit) * 10) / 10;
-}
-
 function describeSet(row: SetLogRow, ctx: WeightContext, unit: WeightUnit): string | null {
   const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration, ctx);
   if (!set) return null;
   switch (set.kind) {
-    case 'oneRM':    return `${shownWeight(set.weight, unit)} × ${set.reps}`;
+    case 'oneRM':    return `${displayWeight(set.weight, unit)} × ${set.reps}`;
     case 'duration': return formatSeconds(set.seconds);
     case 'reps':     return `${set.reps} reps`;
   }

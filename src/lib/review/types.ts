@@ -99,14 +99,15 @@ export interface StrengthStats {
   tonnage: number;
   totalSets: number;
   totalReps: number;
-  /** Heaviest absolute set, in pounds; bodyweight-loaded sets are excluded (R1.1). */
+  /** Heaviest absolute set, in pounds (two decimals); bodyweight-loaded sets are excluded (R1.1). */
   heaviestSet: { weight: number; reps: number; exerciseName: string; date: string } | null;
   /**
-   * The unit the athlete reads weights in when the stats were computed —
-   * the numbers above stay pounds; formatWeight converts for display. Stats
-   * stored before this field existed have none and read as pounds.
+   * The unit the athlete reads weights in when the stats were computed — a
+   * DISPLAY hint only: tonnage and heaviestSet above are pounds whatever it
+   * says (named so a machine reader of get_period_stats / get_reviews cannot
+   * take it for the numbers' unit). Stats stored before it existed read lb.
    */
-  unit?: WeightUnit;
+  displayUnit?: WeightUnit;
   /** Top 5 by set count. */
   topExercises: Array<{ exerciseName: string; sets: number }>;
 }

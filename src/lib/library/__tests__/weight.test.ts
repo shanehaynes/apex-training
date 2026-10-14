@@ -31,11 +31,18 @@ describe('buildExerciseStats with a WeightContext', () => {
 
   it('keeps pounds for a machine reader, and reads the default context as before', () => {
     const lb = buildExerciseStats(rows, [], { ctx: kg, displayUnit: 'lb' });
-    expect(lb.sessions.map(s => s.sets)).toEqual([['224.1 × 5'], ['185 × 5'], ['176.4 × 5']]);
+    expect(lb.sessions.map(s => s.sets)).toEqual([['224 × 5'], ['185 × 5'], ['176 × 5']]); // conversions print to the whole pound (formatLb)
     expect(lb.pr?.display).toBe(String(Math.round((180 + 20 * LB_PER_KG) * (1 + 5 / 30))));
     const plain = buildExerciseStats(rows, []);
     expect(plain.sessions.map(s => s.sets)).toEqual([['5 reps'], ['185 × 5'], ['80 × 5']]);
     expect(plain.pr?.display).toBe(String(Math.round(185 * (1 + 5 / 30))));
     expect(80 * LB_PER_KG).toBeGreaterThan(176); // the kg reading above is the converted bare 80
+  });
+});
+
+describe('library session labels keep typed precision (A4)', () => {
+  it('prints a two-decimal lb entry as typed', () => {
+    const stats = buildExerciseStats([setRow({ actual_weight: '62.25', actual_reps: '8' })], []);
+    expect(stats.sessions[0].sets).toEqual(['62.25 × 8']);
   });
 });
