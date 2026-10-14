@@ -1,6 +1,7 @@
 import type { Sport, WorkoutType } from '../../types/workout';
 import type { MealType } from '../../types/nutrition';
 import type { GradeScale } from '../climbing';
+import type { WeightUnit } from '../tracking/weight';
 
 // ─── ChartSpec: the analytics tile contract ──────────────────────────────────
 // The serializable spec a saved tile stores (analytics_tiles.spec JSONB), the
@@ -24,6 +25,9 @@ export type TimeBucket = 'day' | 'week' | 'iso-month' | 'total';
 export type Aggregation = 'sum' | 'avg' | 'count' | 'max';
 /** Length units the opt-in display conversion understands. */
 export type DisplayUnit = 'mi' | 'km' | 'm' | 'ft';
+/** Weight units a tile can show its weight-kind series in (absent = the profile's unit). */
+export type WeightDisplayUnit = WeightUnit;
+export const WEIGHT_DISPLAY_UNITS: readonly WeightDisplayUnit[] = ['lb', 'kg'];
 
 export type RangePreset =
   | 'this-iso-month'
@@ -107,6 +111,12 @@ export interface ChartSpec {
   bucket: TimeBucket;
   /** Opt-in length conversion for this tile; absent = dominant-unit rule. */
   displayUnit?: DisplayUnit;
+  /**
+   * The unit weight-kind series (tonnage, est. 1RM) are shown in; absent =
+   * the athlete's profile unit. The engine computes in pounds and converts
+   * at render, the same opt-in shape as displayUnit.
+   */
+  weightUnit?: WeightDisplayUnit;
   series: ChartSeries[];
 }
 
@@ -132,7 +142,7 @@ export type UnitKind =
   | 'minutes'
   | 'count'
   | 'reps'
-  | 'weight'    // bare numbers, pounds by app convention
+  | 'weight'    // pounds inside the engine; shown in the tile's / profile's unit
   | 'bpm'
   | 'kcal'
   | 'grams'
@@ -240,6 +250,9 @@ export function specProblem(spec: ChartSpec): string | null {
   if (!BUCKETS.includes(spec.bucket)) problems.push(`bucket must be one of ${BUCKETS.join(', ')}`);
   if (spec.displayUnit !== undefined && !DISPLAY_UNITS.includes(spec.displayUnit)) {
     problems.push(`displayUnit must be one of ${DISPLAY_UNITS.join(', ')}`);
+  }
+  if (spec.weightUnit !== undefined && !WEIGHT_DISPLAY_UNITS.includes(spec.weightUnit)) {
+    problems.push(`weightUnit must be one of ${WEIGHT_DISPLAY_UNITS.join(', ')}`);
   }
   if (spec.chartType === 'kpi' && spec.bucket !== 'total') problems.push('kpi charts use bucket "total"');
 

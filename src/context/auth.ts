@@ -6,6 +6,7 @@ import type { AuthLinkError } from '../lib/auth/linkError';
 import type { TipId } from '../lib/onboarding/tips/index';
 import type { SetupSkipId } from '../lib/onboarding/progress';
 import type { ChecklistId } from '../lib/onboarding/content';
+import type { WeightContext, WeightUnit } from '../lib/tracking/weight';
 
 // Context object + hook live apart from the provider so AuthContext.tsx
 // exports only a component and stays eligible for React Fast Refresh.
@@ -36,6 +37,12 @@ export interface AuthContextValue {
   status: AuthStatus;
   session: Session | null;
   profile: ProfileRow | null;
+  /**
+   * The unit weights are typed and read in, and the body weight "BW+25"
+   * resolves against (profiles.weight_unit / body_weight_lb) — pounds and
+   * none until the profile loads or the columns exist.
+   */
+  weightContext: WeightContext;
   /** null = not yet loaded/unknown (don't block the coach UI on it). */
   anthropicKey: AnthropicKeyStatus | null;
   /** null = not yet known (loading, or the profile fetch failed). The server
@@ -54,6 +61,8 @@ export interface AuthContextValue {
     coachModel?: string | null;
     /** HR-zone settings (phase 35): null clears a value. */
     maxHr?: number | null; thresholdHr?: number | null;
+    /** Weight entry (phase55): the unit, and the body weight in POUNDS (null clears it). */
+    weightUnit?: WeightUnit; bodyWeightLb?: number | null;
   }) => Promise<boolean>;
   /** Latch the welcome flow closed for good, on every device. */
   dismissOnboarding: () => Promise<void>;

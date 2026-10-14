@@ -2,6 +2,7 @@ import { format, parseISO, startOfWeek, subDays, subWeeks } from 'date-fns';
 import { zoneBounds, zoneOf } from '../analytics/hrZones.js';
 import { classifySet, isPerformedSet } from '../tracking/records.js';
 import { minutesForBareDuration } from '../review/stats.js';
+import { DEFAULT_WEIGHT_CONTEXT, type WeightContext } from '../tracking/weight.js';
 import type {
   ActivityInput,
   HrvSummary,
@@ -191,13 +192,14 @@ function computeLoad(inputs: PhysiologyInputs, inWindow: (date: string) => boole
   };
 }
 
-function computeTonnage(setLogs: SetLogInput[], weekStarts: string[], inWindow: (date: string) => boolean): WeekTonnage[] | null {
+function computeTonnage(setLogs: SetLogInput[], weekStarts: string[], inWindow: (date: string) => boolean, ctx: WeightContext): WeekTonnage[] | null {
   // Same rule as the review email's tonnage (computeStrengthStats): logged
-  // weighted sets only, weight × reps, autofilled zero-fills skipped.
+  // weighted sets only, weight × reps in pounds (parseWeight reads kg rows
+  // and "BW+25" against the profile), autofilled zero-fills skipped.
   const perWeek = new Map<string, number>();
   for (const row of setLogs) {
     if (!isPerformedSet({ is_autofilled: row.isAutofilled }) || !inWindow(row.eventDate)) continue;
-    const set = classifySet(row.actualWeight, row.actualReps, minutesForBareDuration(row.actualDuration));
+    const set = classifySet(row.actualWeight, row.actualReps, minutesForBareDuration(row.actualDuration), ctx);
     if (set?.kind !== 'oneRM') continue;
     const week = weekStartOf(row.eventDate);
     perWeek.set(week, (perWeek.get(week) ?? 0) + set.weight * set.reps);
@@ -239,7 +241,7 @@ export function computePhysiology(inputs: PhysiologyInputs): PhysiologySummary {
   }
   const load = computeLoad(inputs, inWindow);
   if (load) summary.load = load;
-  const tonnage = computeTonnage(inputs.setLogs, weekStarts, inWindow);
+  const tonnage = computeTonnage(inputs.setLogs, weekStarts, inWindow, inputs.weight ?? DEFAULT_WEIGHT_CONTEXT);
   if (tonnage) summary.tonnageByWeek = tonnage;
   const hrv = computeHrv(inputs.activities, inputs.today, inWindow);
   if (hrv) summary.hrv = hrv;

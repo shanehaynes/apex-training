@@ -6,6 +6,7 @@ import type { Period } from '../../src/lib/review/isoMonth.js';
 import type { AnalyticsInputs, EventLite, ZoneActivity } from '../../src/lib/analytics/engine.js';
 import { zoneBounds, zoneSeconds, type HrSettings } from '../../src/lib/analytics/hrZones.js';
 import { buildAliasIndex } from '../../src/lib/schedule/definitions.js';
+import { fetchWeightContext } from './weightContext.js';
 
 // Service-role loader for the analytics engine (W8): everything the engine
 // needs for one window, scoped by the verified user id. Two deliberate
@@ -36,7 +37,7 @@ export async function loadAnalyticsInputs(
   const { startDate, endDateExclusive } = window;
   const bounds = opts.withHrZones ? zoneBounds(opts.hr) : null;
 
-  const [completions, sessions, setLogs, cardioLogs, meals, events, definitions, hrStreams] = await Promise.all([
+  const [completions, sessions, setLogs, cardioLogs, meals, events, definitions, hrStreams, weight] = await Promise.all([
     fetchAllPages<CompletionRow>('workout_completions', (from, to) =>
       supabase.from('workout_completions').select('*').eq('user_id', userId).eq('is_completed', true)
         .gte('event_date', startDate).lt('event_date', endDateExclusive)
@@ -79,6 +80,9 @@ export async function loadAnalyticsInputs(
             .order('event_date').order('event_id').range(from, to) as never,
         )
       : Promise.resolve([] as Array<{ event_id: string; event_date: string; hr: unknown }>),
+    // The profile's unit and body weight: how weight text reads, and the
+    // unit weight-kind series render in unless the tile picks one.
+    fetchWeightContext(supabase, userId),
   ]);
 
   const categories = new Map<string, string>();
@@ -103,5 +107,5 @@ export async function loadAnalyticsInputs(
     }
   }
 
-  return { completions, sessions, setLogs, cardioLogs, meals, zoneActivities, categories, aliasIndex, events: eventMap };
+  return { completions, sessions, setLogs, cardioLogs, meals, zoneActivities, categories, aliasIndex, events: eventMap, weight };
 }

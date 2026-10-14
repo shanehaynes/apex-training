@@ -2,6 +2,7 @@ import { format, parseISO } from 'date-fns';
 import type { CardioLogRow, SetLogRow } from '../db/types.js';
 import type { TrackedSectionGroup } from './plan.js';
 import { formatSeconds } from '../time.js';
+import { DEFAULT_WEIGHT_CONTEXT, formatLb, lbToUnit, parseWeight, type WeightContext, type WeightUnit } from './weight.js';
 
 // ─── Personal records ─────────────────────────────────────────────────────────
 // Pure PR detection over set/cardio logs — computed client-side, never by the
@@ -35,7 +36,7 @@ interface BaseRecord {
 export interface OneRMRecord extends BaseRecord {
   kind: 'oneRM';
   estimatedOneRM: number;
-  /** The weight × reps set that produced it. */
+  /** The weight × reps set that produced it. Pounds, the float classifySet read — display rounds. */
   weight: number;
   reps: number;
   previousOneRM: number;
@@ -67,7 +68,8 @@ export type PersonalRecord = OneRMRecord | DurationRecord | RepsRecord | Quantit
 
 /**
  * Leading number from a free-text tracker value: "185lb" → 185, "62.5 kg" →
- * 62.5, "BW" → null. Unparseable values simply don't participate in PRs.
+ * 62.5, "BW" → null. Reps read through this; weights go through parseWeight
+ * (weight.ts), which knows units and body weight.
  */
 export function parseLeadingNumber(value: string | null | undefined): number | null {
   if (!value) return null;
@@ -177,17 +179,24 @@ function keepBetterValue(map: Map<string, BestValue>, key: string, candidate: Be
  * parses (oneRM), otherwise its duration when that parses (duration),
  * otherwise its rep count alone (reps). A weighted exercise never earns
  * duration or rep-count PRs.
+ *
+ * The weight is read by parseWeight against `ctx` (the athlete's unit and
+ * body weight; the lb default keeps every existing row meaning what it
+ * meant), so `weight` is a float of POUNDS and `load` says whether it came
+ * from "BW…" — a bodyweight set earns 1RM PRs and counts in tonnage but is
+ * not a "heaviest set". A zero weight (the autofill zero-fill, "0") is not a
+ * lift; text the grammar rejects falls through to duration, then reps.
  */
-export function classifySet(weight: string | null, reps: string | null, duration: string | null):
-  | { kind: 'oneRM'; weight: number; reps: number; oneRM: number }
+export function classifySet(weight: string | null, reps: string | null, duration: string | null, ctx: WeightContext = DEFAULT_WEIGHT_CONTEXT):
+  | { kind: 'oneRM'; weight: number; reps: number; oneRM: number; load: 'absolute' | 'bodyweight' }
   | { kind: 'duration'; seconds: number }
   | { kind: 'reps'; reps: number }
   | null {
-  const w = parseLeadingNumber(weight);
-  if (w !== null && w > 0) {
+  const parsed = parseWeight(weight, ctx);
+  if (parsed && parsed.lb > 0) {
     const r = parseLeadingNumber(reps);
     if (r === null || r < 1) return null;
-    return { kind: 'oneRM', weight: w, reps: r, oneRM: estimateOneRepMax(w, r) };
+    return { kind: 'oneRM', weight: parsed.lb, reps: r, oneRM: estimateOneRepMax(parsed.lb, r), load: parsed.kind };
   }
   const seconds = parseDurationSeconds(duration);
   if (seconds !== null) return { kind: 'duration', seconds };
@@ -200,11 +209,11 @@ export function classifySet(weight: string | null, reps: string | null, duration
  * skipped (a skipped set is not a performance), as is anything without a
  * parseable weight and at least one rep.
  */
-export function bestHistoricalOneRM(rows: SetLogRow[]): Map<string, BestSet> {
+export function bestHistoricalOneRM(rows: SetLogRow[], ctx: WeightContext = DEFAULT_WEIGHT_CONTEXT): Map<string, BestSet> {
   const byName = new Map<string, BestSet>();
   for (const row of rows) {
     if (!isPerformedSet(row)) continue;
-    const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration);
+    const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration, ctx);
     if (set?.kind !== 'oneRM') continue;
     keepBetterSet(byName, row.exercise_name, { oneRM: set.oneRM, weight: set.weight, reps: set.reps, date: row.event_date });
   }
@@ -212,11 +221,11 @@ export function bestHistoricalOneRM(rows: SetLogRow[]): Map<string, BestSet> {
 }
 
 /** Longest prior duration per exercise name, for rows with no weight metric. */
-export function bestHistoricalDuration(rows: SetLogRow[]): Map<string, BestValue> {
+export function bestHistoricalDuration(rows: SetLogRow[], ctx: WeightContext = DEFAULT_WEIGHT_CONTEXT): Map<string, BestValue> {
   const byName = new Map<string, BestValue>();
   for (const row of rows) {
     if (!isPerformedSet(row)) continue;
-    const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration);
+    const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration, ctx);
     if (set?.kind !== 'duration') continue;
     keepBetterValue(byName, row.exercise_name, { value: set.seconds, date: row.event_date });
   }
@@ -224,11 +233,11 @@ export function bestHistoricalDuration(rows: SetLogRow[]): Map<string, BestValue
 }
 
 /** Most prior reps in a set per exercise name, for rep-only rows. */
-export function bestHistoricalReps(rows: SetLogRow[]): Map<string, BestValue> {
+export function bestHistoricalReps(rows: SetLogRow[], ctx: WeightContext = DEFAULT_WEIGHT_CONTEXT): Map<string, BestValue> {
   const byName = new Map<string, BestValue>();
   for (const row of rows) {
     if (!isPerformedSet(row)) continue;
-    const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration);
+    const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration, ctx);
     if (set?.kind !== 'reps') continue;
     keepBetterValue(byName, row.exercise_name, { value: set.reps, date: row.event_date });
   }
@@ -264,10 +273,11 @@ export function computeSessionPRs(
   groups: TrackedSectionGroup[],
   history: SetLogRow[],
   cardioHistory: CardioLogRow[] = [],
+  ctx: WeightContext = DEFAULT_WEIGHT_CONTEXT,
 ): PersonalRecord[] {
-  const priorOneRM = bestHistoricalOneRM(history);
-  const priorDuration = bestHistoricalDuration(history);
-  const priorReps = bestHistoricalReps(history);
+  const priorOneRM = bestHistoricalOneRM(history, ctx);
+  const priorDuration = bestHistoricalDuration(history, ctx);
+  const priorReps = bestHistoricalReps(history, ctx);
   const priorCardio = bestHistoricalCardio(cardioHistory);
 
   const currentOneRM = new Map<string, BestSet>();
@@ -289,7 +299,7 @@ export function computeSessionPRs(
       }
       for (const set of tracked.sets) {
         if (!isPerformedSet({ is_autofilled: set.isAutofilled })) continue;
-        const classified = classifySet(set.actualWeight, set.actualReps, set.actualDuration);
+        const classified = classifySet(set.actualWeight, set.actualReps, set.actualDuration, ctx);
         if (!classified) continue;
         if (classified.kind === 'oneRM') {
           keepBetterSet(currentOneRM, name, { oneRM: classified.oneRM, weight: classified.weight, reps: classified.reps, date: '' });
@@ -486,7 +496,7 @@ export function describeRecord(pr: PersonalRecord): string {
   const prevDate = format(parseISO(pr.previousDate), 'MMM d');
   switch (pr.kind) {
     case 'oneRM':
-      return `est. 1RM ${Math.round(pr.estimatedOneRM)} (${pr.weight} × ${pr.reps}), up from ${Math.round(pr.previousOneRM)} on ${prevDate}`;
+      return `est. 1RM ${Math.round(pr.estimatedOneRM)} (${formatLb(pr.weight)} × ${pr.reps}), up from ${Math.round(pr.previousOneRM)} on ${prevDate}`;
     case 'duration':
       return `${formatSeconds(pr.seconds)}, up from ${formatSeconds(pr.previousSeconds)} on ${prevDate}`;
     case 'reps':
@@ -501,10 +511,12 @@ export function describeRecord(pr: PersonalRecord): string {
 /**
  * describeRecord in the words a person reads on screen — the workout summary and
  * block detail. "1RM" is jargon to most users (docs/onboarding/MASTER.md, "Copy
- * rules"): "est. best single lift 216 (190 × 5), up from 206 on Jun 12".
+ * rules"): "est. best single lift 216 (190 × 5), up from 206 on Jun 12". The
+ * numbers follow the athlete's unit: under kg, "98 (86 × 5)".
  */
-export function describeRecordForPeople(pr: PersonalRecord): string {
+export function describeRecordForPeople(pr: PersonalRecord, unit: WeightUnit = 'lb'): string {
   if (pr.kind !== 'oneRM') return describeRecord(pr);
   const prevDate = format(parseISO(pr.previousDate), 'MMM d');
-  return `est. best single lift ${Math.round(pr.estimatedOneRM)} (${pr.weight} × ${pr.reps}), up from ${Math.round(pr.previousOneRM)} on ${prevDate}`;
+  const n = (lb: number) => (unit === 'lb' ? formatLb(lb) : String(Math.round(lbToUnit(lb, unit) * 10) / 10));
+  return `est. best single lift ${Math.round(lbToUnit(pr.estimatedOneRM, unit))} (${n(pr.weight)} × ${pr.reps}), up from ${Math.round(lbToUnit(pr.previousOneRM, unit))} on ${prevDate}`;
 }

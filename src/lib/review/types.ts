@@ -1,5 +1,6 @@
 import type { CompletionRow, WorkoutSessionRow, SetLogRow, CardioLogRow } from '../db/types.js';
 import type { PersonalRecord } from '../tracking/records.js';
+import type { WeightContext, WeightUnit } from '../tracking/weight.js';
 import type { Period } from './isoMonth.js';
 
 // ─── Review period ────────────────────────────────────────────────────────────
@@ -46,6 +47,12 @@ export interface PeriodInputs<P extends StatsPeriod = StatsPeriod> {
   setLogs: SetLogRow[];
   /** All non-autofilled cardio logs with event_date < period end, ASC. */
   cardioLogs: CardioLogRow[];
+  /**
+   * The athlete's weight unit and body weight (profiles.weight_unit /
+   * body_weight_lb), which decide how a bare "80" or a "BW+25" row reads.
+   * Absent = pounds, no body weight — every pre-existing row keeps its meaning.
+   */
+  weight?: WeightContext;
 }
 
 export type ReviewInputs = PeriodInputs<ReviewPeriod>;
@@ -85,14 +92,21 @@ export interface CardioStats {
 
 export interface StrengthStats {
   /**
-   * Σ weight × reps over weighted sets, summed as bare numbers. By convention
-   * the app treats logged weights as pounds, so this is rendered as "… lb"
-   * (see formatWeight); a stray "84 kg" entry would contribute its bare 84.
+   * Σ weight × reps over weighted sets, in POUNDS: every weight is read by
+   * parseWeight, so "84 kg" contributes 84 × 2.20462 and a "BW+25" row its
+   * resolved load. Bodyweight sets count here (R1.1). Rendered in `unit`.
    */
   tonnage: number;
   totalSets: number;
   totalReps: number;
+  /** Heaviest absolute set, in pounds; bodyweight-loaded sets are excluded (R1.1). */
   heaviestSet: { weight: number; reps: number; exerciseName: string; date: string } | null;
+  /**
+   * The unit the athlete reads weights in when the stats were computed —
+   * the numbers above stay pounds; formatWeight converts for display. Stats
+   * stored before this field existed have none and read as pounds.
+   */
+  unit?: WeightUnit;
   /** Top 5 by set count. */
   topExercises: Array<{ exerciseName: string; sets: number }>;
 }

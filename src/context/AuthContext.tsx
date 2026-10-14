@@ -11,6 +11,7 @@ import type { ChecklistId } from '../lib/onboarding/content';
 import { publicOrigin } from '../lib/origin';
 import { parseAuthLinkError } from '../lib/auth/linkError';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
+import { weightContextFromProfile, type WeightUnit } from '../lib/tracking/weight';
 import { registerAgentState } from '../dev/agentBridge';
 import {
   AuthContext, type AnthropicKeyStatus, type AuthContextValue, type AuthStatus, type SignUpResult,
@@ -190,6 +191,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     coachModel?: string | null;
     /** HR-zone settings (phase 35): null clears a value. */
     maxHr?: number | null; thresholdHr?: number | null;
+    /** Weight entry (phase55): the unit, and the body weight in POUNDS (null clears it). */
+    weightUnit?: WeightUnit; bodyWeightLb?: number | null;
   }): Promise<boolean> => {
     if (!supabase) return false;
     try {
@@ -201,6 +204,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...(fields.coachModel !== undefined ? { coach_model: fields.coachModel } : {}),
         ...(fields.maxHr !== undefined ? { max_hr: fields.maxHr } : {}),
         ...(fields.thresholdHr !== undefined ? { threshold_hr: fields.thresholdHr } : {}),
+        ...(fields.weightUnit !== undefined ? { weight_unit: fields.weightUnit } : {}),
+        ...(fields.bodyWeightLb !== undefined ? { body_weight_lb: fields.bodyWeightLb } : {}),
       }, 'Updating profile');
       // Optimistic local apply; the row is ours alone, no reconciliation needed.
       setProfile(prev => prev && {
@@ -212,6 +217,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...(fields.coachModel !== undefined ? { coach_model: fields.coachModel } : {}),
         ...(fields.maxHr !== undefined ? { max_hr: fields.maxHr } : {}),
         ...(fields.thresholdHr !== undefined ? { threshold_hr: fields.thresholdHr } : {}),
+        ...(fields.weightUnit !== undefined ? { weight_unit: fields.weightUnit } : {}),
+        ...(fields.bodyWeightLb !== undefined ? { body_weight_lb: fields.bodyWeightLb } : {}),
       });
       return true;
     } catch {
@@ -284,6 +291,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     patchJson('/api/profile', { setup_unskip: row }, 'Saving', { quiet: true }).catch(() => {});
   }, [userId, profile]);
 
+  // Read off the profiles row (select('*')), so it is pounds / none before
+  // the row loads and before the phase55 columns reach prod.
+  const weightContext = useMemo(() => weightContextFromProfile(profile), [profile]);
+
   const refreshProfile = useCallback(async () => {
     if (session) await loadProfile(session.user.id);
   }, [session, loadProfile]);
@@ -330,6 +341,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     status,
     session,
     profile,
+    weightContext,
     anthropicKey,
     termsStatus,
     linkError: initialLinkError,
@@ -348,7 +360,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     removeAnthropicKey,
     acceptTerms,
   }), [
-    status, session, profile, anthropicKey, termsStatus, signIn, signUp, signOut, resetPassword,
+    status, session, profile, weightContext, anthropicKey, termsStatus, signIn, signUp, signOut, resetPassword,
     setNewPassword, updateProfile, dismissOnboarding, tipsSeen, markTipSeen, unskipSetupRow, refreshProfile,
     saveAnthropicKey, removeAnthropicKey, acceptTerms,
   ]);

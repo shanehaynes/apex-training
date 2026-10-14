@@ -1,6 +1,7 @@
 import type { CardioLogRow, CompletionRow, MealRow, SetLogRow, WorkoutSessionRow } from '../db/types';
 import type { Sport } from '../../types/workout';
 import { classifySet, isPerformedSet, parseQuantity } from '../tracking/records.js';
+import { DEFAULT_WEIGHT_CONTEXT, lbToUnit, type WeightContext } from '../tracking/weight.js';
 import { durationMinutesFor, minutesForBareDuration, sessionSecondsMap } from '../review/stats.js';
 import { parseGrade } from '../climbing.js';
 import { mealCalories, rowToMeal } from '../nutrition/mapping.js';
@@ -73,6 +74,12 @@ export interface AnalyticsInputs {
   aliasIndex?: AliasIndex;
   /** workout_events base id → sport/title/type (recurring occurrences resolve via their base). */
   events: Map<string, EventLite>;
+  /**
+   * The athlete's weight unit and body weight (profiles.weight_unit /
+   * body_weight_lb): how a bare "80" or a "BW+25" set reads, and the unit
+   * weight-kind series render in unless the spec picks one. Absent = pounds.
+   */
+  weight?: WeightContext;
 }
 
 export interface ComputeContext {
@@ -87,7 +94,7 @@ export interface RenderedSeries {
   key: string;
   label: string;
   unitKind: UnitKind;
-  /** Display unit: 'mi'/'km'/'m'/'ft' for length, 'min', 'lb', 'bpm', 'kcal', 'g', 'reps', or ''. */
+  /** Display unit: 'mi'/'km'/'m'/'ft' for length, 'lb'/'kg' for weight, 'min', 'bpm', 'kcal', 'g', 'reps', or ''. */
   unit: string;
   axis: 'left' | 'right';
   /** Aligned to buckets; null = no data in a bucket (avg/max/grade only — sums zero-fill). */
@@ -105,6 +112,9 @@ export interface TileData {
 
 export type TileResult = { ok: true; data: TileData } | { ok: false; problem: string };
 
+// The unit each kind is computed in. Weight is pounds inside the engine
+// (parseWeight's output); renderSeries converts weight-kind points to the
+// tile's or the profile's unit, the way length converts to displayUnit.
 const FIXED_UNIT: Partial<Record<UnitKind, string>> = {
   minutes: 'min',
   weight: 'lb',
@@ -149,6 +159,7 @@ export function computeTile(spec: ChartSpec, inputs: AnalyticsInputs, ctx: Compu
   const shared = buildShared(inputs);
   const excluded = { otherUnit: 0, unparseable: 0 };
   const series: RenderedSeries[] = [];
+  const weight = inputs.weight ?? DEFAULT_WEIGHT_CONTEXT;
 
   // Axis by unit kind: first kind left, second right; explicit axis wins.
   const kindOrder: UnitKind[] = [];
@@ -160,11 +171,11 @@ export function computeTile(spec: ChartSpec, inputs: AnalyticsInputs, ctx: Compu
     s.axis ?? (kindOrder.indexOf(MEASURES[s.measure].unitKind) === 1 ? 'right' : 'left');
 
   for (const s of spec.series) {
-    const points = extractPoints(s, inputs, shared, range, excluded);
+    const points = extractPoints(s, inputs, shared, range, excluded, weight);
     const groups = fanOut(s, points);
 
     for (const [group, groupPoints] of groups) {
-      const rendered = renderSeries(spec, s, group, groupPoints, buckets, groups.size, excluded);
+      const rendered = renderSeries(spec, s, group, groupPoints, buckets, groups.size, excluded, weight);
       rendered.axis = axisFor(s);
       series.push(rendered);
     }
@@ -215,6 +226,7 @@ function extractPoints(
   shared: SharedLookups,
   range: ResolvedRange,
   excluded: { otherUnit: number; unparseable: number },
+  weight: WeightContext,
 ): Point[] {
   const def = MEASURES[s.measure];
   const f = s.filters ?? {};
@@ -309,7 +321,7 @@ function extractPoints(
           points.push({ date: row.event_date, value: 1, group });
           continue;
         }
-        const set = classifySet(row.actual_weight, row.actual_reps, minutesForBareDuration(row.actual_duration));
+        const set = classifySet(row.actual_weight, row.actual_reps, minutesForBareDuration(row.actual_duration), weight);
         if (!set) continue;
         if (s.measure === 'rep-count') {
           if (set.kind === 'oneRM' || set.kind === 'reps') points.push({ date: row.event_date, value: set.reps, group });
@@ -467,12 +479,20 @@ function renderSeries(
   buckets: Bucket[],
   groupCount: number,
   excluded: { otherUnit: number; unparseable: number },
+  weight: WeightContext,
 ): RenderedSeries {
   const def = MEASURES[s.measure];
   const agg = s.agg ?? def.defaultAgg;
 
   let unit = FIXED_UNIT[def.unitKind] ?? '';
   let usable = points;
+
+  if (def.unitKind === 'weight') {
+    // Computed in pounds; shown in the tile's pick, else the profile's unit.
+    const shown = spec.weightUnit ?? weight.unit;
+    unit = shown;
+    if (shown !== 'lb') usable = points.map(p => ({ ...p, value: lbToUnit(p.value, shown) }));
+  }
 
   if (def.unitKind === 'length' && s.groupBy !== 'unit') {
     const resolution = resolveUnits(points.map(p => p.quantity ?? null), spec.displayUnit);

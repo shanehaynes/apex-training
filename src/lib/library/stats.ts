@@ -7,6 +7,7 @@ import {
   parseQuantity,
 } from '../tracking/records.js';
 import { formatSeconds } from '../time.js';
+import { DEFAULT_WEIGHT_CONTEXT, lbToUnit, type WeightContext, type WeightUnit } from '../tracking/weight.js';
 
 // ─── Per-exercise library stats ───────────────────────────────────────────────
 // Pure computation over one exercise's (pre-canonicalized) log history for the
@@ -43,11 +44,27 @@ export interface ExerciseStats {
 
 const EMPTY: ExerciseStats = { kind: null, kindLabel: '', pr: null, trend: [], sessions: [], totalSessions: 0 };
 
-function describeSet(row: SetLogRow): string | null {
-  const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration);
+/**
+ * How weights are read and shown. `ctx` decides what a bare "80" or "BW+25"
+ * means (the profile's unit and body weight); `displayUnit` is the unit the
+ * stats come out in — the profile's by default, 'lb' for a machine reader
+ * (the MCP tool keeps its numbers in pounds).
+ */
+export interface StatsOptions {
+  ctx?: WeightContext;
+  displayUnit?: WeightUnit;
+}
+
+/** A pound float in the display unit, at most one decimal. */
+function shownWeight(lb: number, unit: WeightUnit): number {
+  return Math.round(lbToUnit(lb, unit) * 10) / 10;
+}
+
+function describeSet(row: SetLogRow, ctx: WeightContext, unit: WeightUnit): string | null {
+  const set = classifySet(row.actual_weight, row.actual_reps, row.actual_duration, ctx);
   if (!set) return null;
   switch (set.kind) {
-    case 'oneRM':    return `${set.weight} × ${set.reps}`;
+    case 'oneRM':    return `${shownWeight(set.weight, unit)} × ${set.reps}`;
     case 'duration': return formatSeconds(set.seconds);
     case 'reps':     return `${set.reps} reps`;
   }
@@ -68,7 +85,7 @@ export function formatStatDate(date: string): string {
 }
 
 /** Stats over set-tracked history. Rows may span spellings — canonicalize first. */
-function setStats(rows: SetLogRow[]): ExerciseStats {
+function setStats(rows: SetLogRow[], ctx: WeightContext, unit: WeightUnit): ExerciseStats {
   const real = rows.filter(isPerformedSet);
 
   // Dominant kind decides the PR dimension and the trend axis; a weighted
@@ -76,7 +93,7 @@ function setStats(rows: SetLogRow[]): ExerciseStats {
   const kindCounts = new Map<StatKind, number>();
   const classified = real.map(r => ({
     row: r,
-    set: classifySet(r.actual_weight, r.actual_reps, r.actual_duration),
+    set: classifySet(r.actual_weight, r.actual_reps, r.actual_duration, ctx),
   }));
   for (const { set } of classified) {
     if (set) kindCounts.set(set.kind, (kindCounts.get(set.kind) ?? 0) + 1);
@@ -87,8 +104,9 @@ function setStats(rows: SetLogRow[]): ExerciseStats {
   const bestByDate = new Map<string, number>();
   for (const { row, set } of classified) {
     if (!set || set.kind !== kind) continue;
+    // Est. 1RM is computed in pounds and shown in the display unit.
     const value =
-      set.kind === 'oneRM' ? estimateOneRepMax(set.weight, set.reps)
+      set.kind === 'oneRM' ? lbToUnit(estimateOneRepMax(set.weight, set.reps), unit)
       : set.kind === 'duration' ? set.seconds
       : set.reps;
     if (value > (bestByDate.get(row.event_date) ?? -Infinity)) bestByDate.set(row.event_date, value);
@@ -105,7 +123,7 @@ function setStats(rows: SetLogRow[]): ExerciseStats {
   const byDate = new Map<string, string[]>();
   for (const { row, set } of classified) {
     if (!set) continue;
-    const label = describeSet(row);
+    const label = describeSet(row, ctx, unit);
     if (!label) continue;
     const list = byDate.get(row.event_date) ?? [];
     list.push(label);
@@ -178,8 +196,9 @@ function cardioStats(rows: CardioLogRow[]): ExerciseStats {
  * is either set-tracked or cardio; mixed history means it changed category —
  * the richer side is the useful one).
  */
-export function buildExerciseStats(setRows: SetLogRow[], cardioRows: CardioLogRow[]): ExerciseStats {
-  if (setRows.some(isPerformedSet)) return setStats(setRows);
+export function buildExerciseStats(setRows: SetLogRow[], cardioRows: CardioLogRow[], options: StatsOptions = {}): ExerciseStats {
+  const ctx = options.ctx ?? DEFAULT_WEIGHT_CONTEXT;
+  if (setRows.some(isPerformedSet)) return setStats(setRows, ctx, options.displayUnit ?? ctx.unit);
   if (cardioRows.some(isPerformedSet)) return cardioStats(cardioRows);
   return EMPTY;
 }

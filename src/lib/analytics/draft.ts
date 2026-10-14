@@ -18,6 +18,8 @@ import {
   type ChartSpec,
   type ChartType,
   type DisplayUnit,
+  type WeightDisplayUnit,
+  WEIGHT_DISPLAY_UNITS,
   type GroupBy,
   type MeasureId,
   type RangePreset,
@@ -70,6 +72,8 @@ export interface ChartDraft {
   preset: RangePreset;
   bucket: TimeBucket;
   displayUnit: DisplayUnit | '';
+  /** '' = the profile's unit. */
+  weightUnit: WeightDisplayUnit | '';
   series: SeriesDraft[];
 }
 
@@ -106,6 +110,7 @@ export function emptyChartDraft(): ChartDraft {
     preset: 'this-iso-month',
     bucket: 'week',
     displayUnit: '',
+    weightUnit: '',
     series: [emptySeriesDraft('s1')],
   };
 }
@@ -236,6 +241,7 @@ export function specFromDraft(draft: ChartDraft): { spec: ChartSpec } | { error:
     // A KPI is a single number; the bucket chips disable rather than error.
     bucket: draft.chartType === 'kpi' ? 'total' : draft.bucket,
     ...(draft.displayUnit ? { displayUnit: draft.displayUnit } : {}),
+    ...(draft.weightUnit ? { weightUnit: draft.weightUnit } : {}),
     series,
   };
 
@@ -254,6 +260,7 @@ export function draftFromSpec(spec: ChartSpec): ChartDraft {
     preset: spec.range.kind === 'preset' ? spec.range.preset : 'this-iso-month',
     bucket: spec.bucket,
     displayUnit: spec.displayUnit ?? '',
+    weightUnit: spec.weightUnit ?? '',
     series: spec.series.map(s => ({
       id: s.id,
       label: s.label ?? '',
@@ -312,6 +319,8 @@ export interface DraftUpdateInput {
   chart_type?: unknown;
   bucket?: unknown;
   display_unit?: unknown;
+  /** 'lb' | 'kg', or null/'' to follow the profile's unit. */
+  weight_unit?: unknown;
   date_range?: unknown;
   series?: unknown;
   remove_series?: unknown;
@@ -375,6 +384,16 @@ export function applyChartDraftUpdate(
       next.displayUnit = input.display_unit;
       changed.push('display unit');
     } else errors.push(`display_unit must be one of ${DISPLAY_UNIT_VALUES.join(', ')} (or null to clear)`);
+  }
+
+  if (input.weight_unit !== undefined) {
+    if (input.weight_unit === null || input.weight_unit === '') {
+      next.weightUnit = '';
+      changed.push('weight unit cleared');
+    } else if (oneOf(input.weight_unit, WEIGHT_DISPLAY_UNITS)) {
+      next.weightUnit = input.weight_unit;
+      changed.push('weight unit');
+    } else errors.push(`weight_unit must be one of ${WEIGHT_DISPLAY_UNITS.join(', ')} (or null to follow the profile)`);
   }
 
   if (input.date_range !== undefined) {
@@ -585,6 +604,7 @@ export function describeChartDraft(draft: ChartDraft): string {
     : draft.preset;
   lines.push(`Range: ${range}`);
   if (draft.displayUnit) lines.push(`Display unit: ${draft.displayUnit}`);
+  if (draft.weightUnit) lines.push(`Weight unit: ${draft.weightUnit}`);
   if (draft.series.length === 0) {
     lines.push('Series: none yet');
   }
