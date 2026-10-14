@@ -2,7 +2,8 @@ import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   checkSchema,
   credentials,
@@ -10,6 +11,7 @@ import {
   parseDatabaseTypes,
   fingerprint,
   ledgerGaps,
+  main,
   readLedger,
   sourceOf,
 } from '../prod-schema-check.mjs';
@@ -357,26 +359,42 @@ describe('the migration ledger', () => {
     };
     const read = await readLedger({ url, key: 'secret-key-xyz', fetch });
     expect(read.ledger).toEqual(new Map([['phase55_b', new Set(['aaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbb'])]]));
-    expect(seen[0].url).toBe(`${url}/rest/v1/migration_ledger?select=name,fingerprint`);
+    expect(seen).toHaveLength(1);
+    expect(seen[0].url).toBe(`${url}/rest/v1/migration_ledger?select=name,fingerprint&order=name.asc,fingerprint.asc&offset=0`);
     expect(seen[0].url).not.toContain('secret-key-xyz');
     expect(seen[0].headers.Prefer).toBe('count=exact');
   });
 
-  it('a max-rows-capped or uncounted read is unverified, never "unapplied"', async () => {
-    const capped = async () => page(Array.from({ length: 1000 }, (_, i) => ({ name: `m${i}`, fingerprint: 'a'.repeat(16) })), '0-999/1054');
-    expect((await readLedger({ url, key: 'k', fetch: capped })).unverified).toMatch(/read 1000 of 1054 rows/);
+  it('pages past a max-rows cap instead of calling the cut-off rows unapplied', async () => {
+    const all = Array.from({ length: 1054 }, (_, i) => ({ name: `m${String(i).padStart(4, '0')}`, fingerprint: 'a'.repeat(16) }));
+    const offsets: number[] = [];
+    const capped = async (input: string) => {
+      const offset = Number(new URL(input).searchParams.get('offset'));
+      offsets.push(offset);
+      const rows = all.slice(offset, offset + 1000);
+      return page(rows, `${offset}-${offset + rows.length - 1}/${all.length}`, 206);
+    };
+    const read = await readLedger({ url, key: 'k', fetch: capped });
+    expect(offsets).toEqual([0, 1000]);
+    expect(read.ledger?.size).toBe(1054);
+
     const uncounted = async () => page([], null);
     expect((await readLedger({ url, key: 'k', fetch: uncounted })).unverified).toMatch(/no row count/);
+    const short = async () => page([], '*/5');
+    expect((await readLedger({ url, key: 'k', fetch: short })).unverified).toMatch(/read 0 of 5 rows/);
+  });
+
+  it('a refusal is a fault; an outage is could-not-check', async () => {
+    const respond = (status: number, body: unknown) => async () => new Response(JSON.stringify(body), { status });
+    const denied = respond(403, { code: '42501', message: 'permission denied for table migration_ledger' });
+    expect((await readLedger({ url, key: 'k', fetch: denied })).error).toMatch(/403 42501 permission denied/);
+    expect((await readLedger({ url, key: 'k', fetch: respond(401, { message: 'Invalid API key' }) })).error).toMatch(/401/);
+    expect((await readLedger({ url, key: 'k', fetch: respond(503, {}) })).unverified).toMatch(/503/);
+    expect((await readLedger({ url, key: 'k', fetch: respond(429, { message: 'rate limited' }) })).unverified).toMatch(/429/);
     const offline = async () => {
       throw new TypeError('fetch failed', { cause: { code: 'ENOTFOUND' } });
     };
     expect(await readLedger({ url, key: 'k', fetch: offline })).toEqual({ unverified: 'ENOTFOUND' });
-  });
-
-  it('a project that answers but will not serve the ledger is a fault, not an outage', async () => {
-    const denied = async () =>
-      new Response(JSON.stringify({ code: '42501', message: 'permission denied for table migration_ledger' }), { status: 403 });
-    expect((await readLedger({ url, key: 'k', fetch: denied })).error).toMatch(/403 42501 permission denied/);
   });
 
   it('names what is unapplied and what was edited after it ran, in apply order', () => {
@@ -395,6 +413,78 @@ describe('the migration ledger', () => {
       { file: 'phase55_b.sql', kind: 'edited' },
       { file: 'phase57_c.sql', kind: 'unapplied' },
     ]);
+  });
+});
+
+// The whole command against HEAD's own types and migrations, with a scripted
+// PostgREST: what supervisor-report.sh, merge-babysit.sh and CI act on is the
+// exit code, so it is pinned here rather than inferred from the parts.
+describe('main: the exit code each ledger state produces', () => {
+  const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, encoding: 'utf8', maxBuffer: 64 << 20 });
+  const functions = parseDatabaseTypes(git('show', 'HEAD:src/lib/db/database.types.ts')).functions;
+  const atHead = git('ls-tree', '--name-only', 'HEAD', 'supabase/migrations/')
+    .split('\n')
+    .filter((p) => p.endsWith('.sql'))
+    .map((p) => ({ name: p.split('/').pop()!.replace(/\.sql$/, ''), fingerprint: fingerprint(git('show', `HEAD:${p}`)) }));
+  let lines: string[] = [];
+  const saved = { url: process.env.VITE_SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY };
+
+  beforeEach(() => {
+    process.env.VITE_SUPABASE_URL = 'https://fake.invalid';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'fake-key';
+    lines = [];
+    vi.spyOn(console, 'log').mockImplementation((...args) => void lines.push(args.join(' ')));
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    process.env.VITE_SUPABASE_URL = saved.url;
+    process.env.SUPABASE_SERVICE_ROLE_KEY = saved.key;
+    if (saved.url === undefined) delete process.env.VITE_SUPABASE_URL;
+    if (saved.key === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  });
+
+  /** A production with every object; `ledger` answers the full read, `probe` the limit=0 one. */
+  const production = (ledger: () => Response, probe: () => Response = () => new Response('[]')) =>
+    async (input: string) => {
+      const u = new URL(input);
+      if (u.pathname === '/rest/v1/') {
+        return new Response(JSON.stringify({ paths: Object.fromEntries(functions.map((f) => [`/rpc/${f}`, {}])) }));
+      }
+      if (u.pathname === '/rest/v1/migration_ledger') return u.searchParams.has('offset') ? ledger() : probe();
+      return new Response('[]');
+    };
+  const rows = (list: unknown[]) => () =>
+    new Response(JSON.stringify(list), { headers: { 'content-range': `0-${list.length - 1}/${list.length}` } });
+  const refused = () => new Response(JSON.stringify({ code: '42501', message: 'permission denied for table migration_ledger' }), { status: 403 });
+
+  it('0 when every migration is stamped as written, and the limits line still prints', async () => {
+    expect(await main(['--ref', 'HEAD'], { fetch: production(rows(atHead)) })).toBe(0);
+    expect(lines.join('\n')).toMatch(/✓ every migration on HEAD has its stamp/);
+    expect(lines.at(-1)).toMatch(/^not visible to this check: a stamp records/);
+  });
+
+  it('1 for an unapplied or an edited migration, and nothing after the gaps claims a pass', async () => {
+    const without = atHead.filter((r) => r.name !== 'phase42_phase32_quarantine_rls');
+    expect(await main(['--ref', 'HEAD'], { fetch: production(rows(without)) })).toBe(1);
+    expect(lines.join('\n')).toMatch(/✗ migration phase42_phase32_quarantine_rls\.sql is not in production/);
+
+    lines.length = 0;
+    const edited = atHead.map((r) => (r.name === 'phase31_concurrency' ? { ...r, fingerprint: '0'.repeat(16) } : r));
+    expect(await main(['--ref', 'HEAD'], { fetch: production(rows(edited)) })).toBe(1);
+    const at = lines.findIndex((l) => l.includes('phase31_concurrency.sql was applied as different SQL'));
+    expect(at).toBeGreaterThan(-1);
+    expect(lines.slice(at).some((l) => l.startsWith('✓'))).toBe(false);
+  });
+
+  it('1 when production refuses the ledger to the key, even when the row probe hit the refusal first', async () => {
+    expect(await main(['--ref', 'HEAD'], { fetch: production(refused, refused) })).toBe(1);
+    expect(lines.join('\n')).toMatch(/refuses the service-role key/);
+  });
+
+  it('2 when the ledger read is an outage, not drift', async () => {
+    const outage = () => new Response('{}', { status: 503 });
+    expect(await main(['--ref', 'HEAD'], { fetch: production(outage) })).toBe(2);
+    expect(lines.join('\n')).toMatch(/\? migration_ledger could not be read: 503/);
   });
 });
 

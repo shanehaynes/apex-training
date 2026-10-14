@@ -1,4 +1,5 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -12,7 +13,8 @@ import { fingerprint, parseStamp, stampFor, statements } from '../prod-schema-ch
 // migration carries a true stamp — this is what makes a missing or stale one
 // fail CI instead of reading as "never applied" in production.
 
-const DIR = fileURLToPath(new URL('../../supabase/migrations', import.meta.url));
+const REPO = fileURLToPath(new URL('../../', import.meta.url));
+const DIR = join(REPO, 'supabase/migrations');
 const LEDGER_FILE = 'phase56_migration_ledger.sql';
 const read = (file: string) => readFileSync(join(DIR, file), 'utf8');
 const files = readdirSync(DIR).filter((f) => f.endsWith('.sql'));
@@ -55,17 +57,56 @@ describe('migration ledger stamps', () => {
     const uncovered = earlier.filter((f) => !covered.has(stem(f)) && !parseStamp(statements(read(f)).at(-1) ?? ''));
     expect(uncovered, 'an old migration neither backfilled nor stamping itself').toEqual([]);
 
+    const deleted = [...covered.keys()].filter((name) => !files.includes(`${name}.sql`));
+    expect(deleted, 'production ran these; deleting the file does not undo them — write a migration that does').toEqual([]);
     const edited = [...covered]
-      .filter(([name, fp]) => files.includes(`${name}.sql`) && fingerprint(read(`${name}.sql`)) !== fp)
+      .filter(([name, fp]) => fingerprint(read(`${name}.sql`)) !== fp)
       .map(([name, fp]) => `  ${name}.sql was applied as ${fp}; it is now ${fingerprint(read(`${name}.sql`))}`);
     expect(
       edited.join('\n'),
       'production already ran these migrations as backfilled: write a new migration instead of editing an applied one '
-        + '(comments and whitespace are free; SQL is not)',
+        + '(SQL comments and whitespace between tokens are free; SQL, string literals and function bodies are not)',
+    ).toBe('');
+  });
+
+  // The backfill above only guards phase2–55, and against its own rows — which
+  // an edit could rewrite along with phase56's stamp. History is the guard
+  // that cannot be edited: every migration already on main must keep the
+  // fingerprint it had there. A migration on main is one production runs (or
+  // will), so changing it means a new migration, not a re-stamp.
+  it('no migration already on main changes its SQL or disappears', () => {
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: REPO, encoding: 'utf8', maxBuffer: 64 << 20 });
+    let base = '';
+    try {
+      base = git('merge-base', 'HEAD', 'origin/main').trim();
+    } catch { /* reported below */ }
+    expect(base, 'no origin/main to compare with: run `git fetch origin main` (CI checks out with fetch-depth: 0)').not.toBe('');
+
+    const onMain = git('ls-tree', '--name-only', base, 'supabase/migrations/').split('\n').filter((f) => f.endsWith('.sql'));
+    expect(onMain.length).toBeGreaterThan(50);
+    const changed = onMain.flatMap((path) => {
+      if (!existsSync(join(REPO, path))) return [`  ${path} was deleted`];
+      const before = fingerprint(git('show', `${base}:${path}`));
+      const now = fingerprint(readFileSync(join(REPO, path), 'utf8'));
+      return before === now ? [] : [`  ${path}: ${before} on main, ${now} here`];
+    });
+    expect(
+      changed.join('\n'),
+      'these migrations are already on main: write a new migration instead of editing or deleting one '
+        + '(SQL comments and whitespace between tokens are free)',
     ).toBe('');
   });
 
   it('a fingerprint ignores comments, whitespace and the trailing stamp, and nothing else', () => {
+    // Whitespace inside a literal is content: a CHECK regex or a default.
+    expect(fingerprint("alter table t add check (x ~ '^ +$');")).not.toBe(fingerprint("alter table t add check (x ~ '^  +$');"));
+    expect(fingerprint('do $$ begin perform 1; end $$;')).not.toBe(fingerprint('do $$ begin  perform 1; end $$;'));
+    // An E'' backslash escape must not flip quote parity and hide what follows.
+    const escaped = (verb: string) => `insert into t values (E'it\\'s'); select '--'; grant ${verb} on t to anon;`;
+    expect(fingerprint(escaped('select'))).not.toBe(fingerprint(escaped('all')));
+    // Line endings and a BOM are the editor's, not the migration's.
+    expect(fingerprint('\uFEFFalter table t\r\nadd column c int;\r\n')).toBe(fingerprint('alter table t\nadd column c int;\n'));
+
     const base = 'alter table t add column c int;\n';
     const fp = fingerprint(base);
     expect(fingerprint(`-- a comment\n${base}\n\n/* another */`)).toBe(fp);
