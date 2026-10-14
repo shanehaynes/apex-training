@@ -12,6 +12,7 @@ import { AuthContext } from '../../context/auth';
 import { knownUnitContext, withExplicitUnit } from '../../lib/tracking/weight';
 import ExercisePicker from '../modal/ExercisePicker';
 import DurationInput from './DurationInput';
+import { selectOnNextFrame } from './selectOnFocus';
 import '../../styles/climbing.css';
 import '../../styles/percent-1rm.css';
 
@@ -201,7 +202,7 @@ function SetRow({
   const focusShadow = (el: HTMLInputElement) => {
     if (!set.shadow) return;
     onCommitShadow();
-    requestAnimationFrame(() => el.select());
+    selectOnNextFrame(el);
   };
 
   // Whether the row already held reps/duration when a field took focus. A
@@ -539,8 +540,7 @@ export default function TrackerExercise({
                   onFocus={e => {
                     if (!ghost) return;
                     onCommitCardioShadow(field);
-                    const el = e.currentTarget;
-                    requestAnimationFrame(() => el.select());
+                    selectOnNextFrame(e.currentTarget);
                   }}
                   onChange={e => onCardioChange(field, e.target.value)}
                 />

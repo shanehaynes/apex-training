@@ -102,10 +102,17 @@ async function openTracker(page: Page) {
   await expect(page.locator('.tracker-exercise', { hasText: 'Bench Press' })).toBeVisible({ timeout: 15000 });
 }
 
+// A reload is a second boot of the whole app, and a boot under a loaded
+// machine (agent:check beside other sessions) has taken 13s; two of them
+// left a 30s test no room for its last debounced save. openTracker's goto
+// is the reload: a fresh document, nothing carried over but what was saved.
+const TWO_BOOTS_MS = 90_000;
+
 const row = (page: Page, n: number) => page.locator('.tracker-set:not(.tracker-set--head)').nth(n - 1);
 const warmupToggle = (page: Page, n: number) => row(page, n).locator('.tracker-set__warmup');
 
 test('a warm-up set saves, survives a reload, and adds nothing to the summary volume; the session note saves', async ({ page }) => {
+  test.setTimeout(TWO_BOOTS_MS);
   await new SessionStub().install(page);
   await openTracker(page);
   // Off by default: no RPE column until the Profile preference is on.
@@ -126,7 +133,6 @@ test('a warm-up set saves, survives a reload, and adds nothing to the summary vo
   await shot(page, 'set-metadata-warmup');
 
   // Reload: the flag comes back with the saved row.
-  await page.reload();
   await openTracker(page);
   await expect(warmupToggle(page, 1)).toHaveAttribute('aria-pressed', 'true');
   await expect(row(page, 1).locator('input.tracker-input--weight')).toHaveValue('100');
@@ -140,6 +146,9 @@ test('a warm-up set saves, survives a reload, and adds nothing to the summary vo
   const savedNote = page.waitForRequest(req =>
     isSave(req) && (req.postDataJSON() as SessionBody).sessionNote === 'Slept four hours');
   await page.getByLabel('Session notes').fill('Slept four hours');
+  // The ghost tap's deferred select() must not pull focus back to set 2.
+  await expect(page.getByLabel('Session notes')).toHaveValue('Slept four hours');
+  await expect(weight2).toHaveValue('105');
   await savedNote;
 
   // Finish (set 3 unlogged → confirm): the volume is the working set alone.
@@ -162,6 +171,7 @@ test('a warm-up set saves, survives a reload, and adds nothing to the summary vo
 });
 
 test('with the preference on, every row offers an RPE that snaps to half steps and saves', async ({ page }) => {
+  test.setTimeout(TWO_BOOTS_MS);
   await page.addInitScript(() => { try { localStorage.setItem('apex.tracker.rpe', '1'); } catch { /* private mode */ } });
   await new SessionStub().install(page);
   await openTracker(page);
@@ -191,7 +201,6 @@ test('with the preference on, every row offers an RPE that snaps to half steps a
   await rpe.fill('9');
   await rpe.press('Enter');
   await page.waitForRequest(req => isSave(req) && setLogsOf(req).some(r => r.set_number === 1 && r.rpe === 9));
-  await page.reload();
   await openTracker(page);
   await expect(row(page, 1).getByLabel('Set 1 RPE')).toHaveValue('9');
 });
