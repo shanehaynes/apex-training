@@ -1,5 +1,6 @@
 import ApexCore
 import ApexFeatures
+import ApexHealth
 import ApexUI
 import SnapshotTesting
 import SwiftUI
@@ -94,6 +95,33 @@ final class YouSnapshotTests: XCTestCase {
             SyncConfirmationSheet(proposal: preview.proposals[0], remaining: 2, onKeep: {}, onFill: {}),
             named: "sync-confirm", size: CGSize(width: 393, height: 300)
         )
+    }
+
+    /// W16 M1: the Integrations row and You → Apple Health writing, off and
+    /// refused by Health.
+    @MainActor
+    func testAppleHealth() async {
+        let suite = "apex.snapshots.health"
+        UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
+        defer { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
+        func health(_ state: HealthAuthorization, on: Bool, owner: String) -> HealthServices {
+            let preferences = HealthPreferences(owner: owner, suiteName: suite)
+            preferences.setWritesWorkouts(on)
+            return HealthServices(store: FakeHealthStore(authorization: state), preferences: preferences)
+        }
+
+        let writing = makeYouModel(YouTransport.healthy(hasKey: true), health: health(.authorized, on: true, owner: "a"))
+        await writing.start()
+        await writing.connector.load()
+        snapshot(NavigationStack { YouRootView(model: writing) }, named: "root-with-health", size: CGSize(width: 393, height: 1400))
+        let screen = try! XCTUnwrap(writing.health)
+        snapshot(NavigationStack { AppleHealthView(model: screen) }, named: "apple-health", size: CGSize(width: 393, height: 520))
+
+        let off = makeYouModel(YouTransport.healthy(), health: health(.notDetermined, on: false, owner: "b"))
+        snapshot(NavigationStack { AppleHealthView(model: off.health!) }, named: "apple-health-off", size: CGSize(width: 393, height: 520))
+
+        let denied = makeYouModel(YouTransport.healthy(), health: health(.denied, on: true, owner: "c"))
+        snapshot(NavigationStack { AppleHealthView(model: denied.health!) }, named: "apple-health-denied", size: CGSize(width: 393, height: 620))
     }
 
     @MainActor

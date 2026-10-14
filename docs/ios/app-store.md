@@ -20,7 +20,7 @@ uploaded build. Answer **"Yes, we collect data from this app"**, then:
 | Health & Fitness → Fitness | Yes | Yes | No | App Functionality (workouts, sets, meals, HR zones, a connected watch's activities) |
 | User Content → Other User Content | Yes | Yes | No | App Functionality (coach chat, goal and context text) |
 | Identifiers → User ID | Yes | Yes | No | App Functionality (the account id every row is keyed by) |
-| Health & Fitness → Health | **No** | | | The app does not read HealthKit (D-018) |
+| Health & Fitness → Health | **No** | | | From 1.1 the app *writes* finished workouts to HealthKit (W16 M1, D-056) but reads nothing from it, so nothing is collected. Flips to Yes when W16 M2 reads workouts |
 | Location | **No** | | | A watch activity's route is stored as the provider sent it; the app never asks for location |
 | Diagnostics, Usage Data, Purchases, Financial Info, Browsing, Search | **No** | | | None collected; no analytics SDK, no crash reporter |
 
@@ -150,7 +150,7 @@ Sign in with the demo account in Sign-In Information. It already has a training 
 The app works the same in every country where it is offered. It is not offered in China mainland. The optional coach depends on Anthropic's API being available in the user's country.
 
 6. REGULATED INDUSTRY / THIRD-PARTY MATERIAL
-Not applicable. Apex is a fitness log, not a medical device: it makes no diagnosis, does not read HealthKit, and contains no licensed third-party content.
+Not applicable. Apex is a fitness log, not a medical device: it makes no diagnosis and contains no licensed third-party content. From 1.1 it saves workouts the user finishes to Apple Health, only after the user turns that on under You › Apple Health; it reads nothing from HealthKit.
 ```
 
 Contact: Shane Haynes, the phone number and email in the form.

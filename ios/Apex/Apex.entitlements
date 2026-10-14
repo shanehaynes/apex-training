@@ -21,5 +21,11 @@
 		<string>applinks:apextrainingcalendar.vercel.app</string>
 		<string>webcredentials:apextrainingcalendar.vercel.app</string>
 	</array>
+	<!-- Apple Health (W16, D-056): a finished workout is saved to Health.
+	     Write-only until M2; reads add the background-delivery entitlement. -->
+	<key>com.apple.developer.healthkit</key>
+	<true/>
+	<key>com.apple.developer.healthkit.access</key>
+	<array/>
 </dict>
 </plist>

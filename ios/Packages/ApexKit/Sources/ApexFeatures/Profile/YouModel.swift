@@ -22,6 +22,8 @@ public final class YouModel {
     public let blocks: BlocksModel?
     /// The meals model the Schedule tab shares (W10).
     public var meals: MealsModel? { services.meals }
+    /// You → Apple Health (W16); nil when the services carry none.
+    public let health: HealthModel?
 
     public private(set) var profile: ProfileResponse?
     public private(set) var isLoading = false
@@ -37,6 +39,7 @@ public final class YouModel {
         self.activity = ActivityLogModel(services: services)
         self.library = services.library.map(LibraryModel.init(deps:))
         self.blocks = services.blocks.map(BlocksModel.init(deps:))
+        self.health = services.health.map(HealthModel.init(services:))
     }
 
     /// Sign-out: the sub-models' realtime subscriptions end with the session.
