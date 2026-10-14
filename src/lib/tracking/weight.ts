@@ -79,6 +79,26 @@ export function parseWeight(text: string | null | undefined, ctx: WeightContext)
   return Number.isFinite(lb) && lb > 0 ? { lb, kind: 'bodyweight' } : null;
 }
 
+/**
+ * A weight entry as it should be stored once committed: a bare positive
+ * number gets the unit it was typed in ("100" → "100 kg" under a kg profile,
+ * "185" → "185 lb" under lb), so a later unit switch — which re-declares
+ * what bare numbers mean — never reinterprets it. Everything else comes back
+ * exactly as given: text that already names a unit, BW forms, "0", a
+ * signed number, and anything parseWeight does not read as a weight. The
+ * digits are kept as typed ("62,5" → "62,5 kg", "1,200" → "1,200 lb");
+ * surrounding whitespace is dropped only when the unit is added.
+ */
+export function withExplicitUnit(text: string, ctx: WeightContext): string {
+  const match = GRAMMAR.exec(text);
+  if (!match) return text;
+  const [, bw, sign, digits, rawUnit] = match;
+  if (bw || sign || rawUnit || digits === undefined) return text;
+  const parsed = parseWeight(text, ctx);
+  if (!parsed || parsed.kind !== 'absolute' || !(parsed.lb > 0)) return text;
+  return `${digits} ${ctx.unit}`;
+}
+
 /** Pounds → the display unit (identity for lb). Never rounds. */
 export function lbToUnit(lb: number, unit: WeightUnit): number {
   return unit === 'kg' ? lb / LB_PER_KG : lb;

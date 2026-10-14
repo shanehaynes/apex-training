@@ -75,7 +75,11 @@ export function buildSessionRecap(
       const done: string[] = [];
       let skipped = 0;
       for (const set of tracked.sets) {
-        if (!isPerformedSet({ is_autofilled: set.isAutofilled })) { skipped += 1; continue; }
+        // A warm-up was done, not skipped — it is just not a performance.
+        if (!isPerformedSet({ is_autofilled: set.isAutofilled, is_warmup: set.isWarmup })) {
+          if (!set.isWarmup) skipped += 1;
+          continue;
+        }
         const line = setLine(set.actualWeight, set.actualReps, set.actualDuration);
         if (line) done.push(line);
         else if (!set.isExtra) skipped += 1;

@@ -1,3 +1,4 @@
+import { useContext } from 'react';
 import { CheckCircle2, MessageSquare, Trophy, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { WorkoutEvent } from '../../types/workout';
@@ -7,6 +8,8 @@ import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from '../../lib
 import type { CoachStatus } from '../../hooks/useWorkoutSession';
 import { useTip } from '../../hooks/useTip';
 import { useCoachReachable } from '../../hooks/useCoachReachable';
+import { AuthContext } from '../../context/auth';
+import { DEFAULT_WEIGHT_CONTEXT, lbToUnit, type WeightContext } from '../../lib/tracking/weight';
 
 interface Props {
   event: WorkoutEvent;
@@ -51,10 +54,12 @@ function performed(set: TrackedSet): boolean {
 
 /**
  * Σ weight × reps over the session's working sets — the review's tonnage
- * rule, so a warm-up set adds nothing here either. Null when no set
+ * rule, so a warm-up set adds nothing here either — read with the profile's
+ * context (a bare "80" is 80 kg to a kg lifter, "BW+25" resolves against the
+ * body weight) and given in its unit, to the whole unit. Null when no set
  * carried a weight and reps.
  */
-function sessionTonnage(groups: TrackedSectionGroup[]): number | null {
+function sessionTonnage(groups: TrackedSectionGroup[], ctx: WeightContext = DEFAULT_WEIGHT_CONTEXT): number | null {
   let total = 0;
   let any = false;
   for (const group of groups) {
@@ -62,14 +67,14 @@ function sessionTonnage(groups: TrackedSectionGroup[]): number | null {
       if (tracked.isCardio) continue;
       for (const set of tracked.sets) {
         if (!performed(set)) continue;
-        const classified = classifySet(set.actualWeight, set.actualReps, set.actualDuration);
+        const classified = classifySet(set.actualWeight, set.actualReps, set.actualDuration, ctx);
         if (classified?.kind !== 'oneRM') continue;
         total += classified.weight * classified.reps;
         any = true;
       }
     }
   }
-  return any ? Math.round(total) : null;
+  return any ? Math.round(lbToUnit(total, ctx.unit)) : null;
 }
 
 function cardioLabel(cardio: CardioActuals): string {
@@ -96,8 +101,11 @@ export default function WorkoutSummary({
   onDone,
   onAskCoach,
 }: Props) {
+  // The provider is absent only in markup tests; the app always has one,
+  // whose context is pounds until the profile loads.
+  const weightContext = useContext(AuthContext)?.weightContext ?? DEFAULT_WEIGHT_CONTEXT;
   const duration = formatDuration(durationSeconds);
-  const tonnage = sessionTonnage(groups);
+  const tonnage = sessionTonnage(groups, weightContext);
   // First sight of the summary: what the trophies mean, and why a first try
   // at a movement never earns one.
   useTip('summary-first');
@@ -121,7 +129,7 @@ export default function WorkoutSummary({
               <span
                 className="tracker-summary__meta"
                 data-testid="summary-tonnage"
-                title="Weight × reps over working sets — warm-ups and skipped sets excluded"
+                title={`Weight × reps in ${weightContext.unit} over working sets — warm-ups and skipped sets excluded`}
               >
                 Volume {tonnage.toLocaleString()}
               </span>
@@ -177,7 +185,7 @@ export default function WorkoutSummary({
               <div key={`${pr.kind}|${pr.exerciseName}`} className="tracker-summary__pr">
                 <Trophy size={14} strokeWidth={2} style={{ color: accentColor }} />
                 <span>
-                  <strong>{pr.exerciseName}</strong> — {describeRecordForPeople(pr)}
+                  <strong>{pr.exerciseName}</strong> — {describeRecordForPeople(pr, weightContext.unit)}
                 </span>
               </div>
             ))}

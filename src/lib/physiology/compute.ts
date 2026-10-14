@@ -198,7 +198,7 @@ function computeTonnage(setLogs: SetLogInput[], weekStarts: string[], inWindow: 
   // and "BW+25" against the profile), autofilled zero-fills skipped.
   const perWeek = new Map<string, number>();
   for (const row of setLogs) {
-    if (!isPerformedSet({ is_autofilled: row.isAutofilled }) || !inWindow(row.eventDate)) continue;
+    if (!isPerformedSet({ is_autofilled: row.isAutofilled, is_warmup: row.isWarmup }) || !inWindow(row.eventDate)) continue;
     const set = classifySet(row.actualWeight, row.actualReps, minutesForBareDuration(row.actualDuration), ctx);
     if (set?.kind !== 'oneRM') continue;
     const week = weekStartOf(row.eventDate);
