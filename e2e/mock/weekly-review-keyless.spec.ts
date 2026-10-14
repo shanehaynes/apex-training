@@ -18,10 +18,9 @@ const STATS = {
   prs: [{ exerciseName: 'Back Squat', kind: 'reps', date: '2026-09-07', detail: '12 reps, up from 10 on Aug 31' }],
   weightUnit: 'lb',
   physiology: {
-    load: { source: 'cardioMinutes', acute7d: 120, chronicWeeklyAvg28d: 100, ratio: 1.2 },
+    load: { source: 'cardioMinutes', acute7d: 120, chronicWeeklyAvg28d: 100, ratio: 1.2, historyDays: 35 },
     hrv: null,
     zoneMinutes: null,
-    zoneMethod: null,
     tonnageByWeek: [
       { weekStart: '2026-08-10', tonnageLb: null }, { weekStart: '2026-08-17', tonnageLb: 8000 },
       { weekStart: '2026-08-24', tonnageLb: 9000 }, { weekStart: '2026-08-31', tonnageLb: 9500 },
@@ -79,4 +78,48 @@ test('with a document the same numbers render beside it', async ({ page }) => {
   await expect(page.getByTestId('weekly-review-document').getByTestId('weekly-review-numbers')).toBeVisible();
   await expect(page.getByTestId('weekly-review-acwr')).toHaveText('1.20');
   await expect(page.getByTestId('weekly-review-key-hint')).toHaveCount(0);
+});
+
+test('saving a key in Profile while the review is open asks again and the document replaces the numbers', async ({ page }) => {
+  let hasKey = false;
+  await page.route('**/api/profile', route => {
+    const method = route.request().method();
+    if (method === 'PATCH') hasKey = true;
+    else if (method !== 'GET') return route.fallback();
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: CORS,
+      body: JSON.stringify({
+        ok: true,
+        hasAnthropicKey: hasKey,
+        anthropicKeyLast4: hasKey ? '1234' : null,
+        termsAccepted: { termsVersion: 'terms-v1', privacyVersion: 'privacy-v1', acceptedAt: '2026-08-29T00:00:00.000Z' },
+        termsCurrent: true,
+      }),
+    });
+  });
+  const posted: unknown[] = [];
+  await page.route('**/api/weekly-review', route => {
+    posted.push(route.request().postDataJSON());
+    const body = hasKey
+      ? { ...KEYLESS, document: DOCUMENT, model: { id: 'claude-opus-5-5', label: 'Opus 5.5', badge: 'claude opus 5.5' } }
+      : KEYLESS;
+    return route.fulfill({ status: 200, contentType: 'application/json', headers: CORS, body: JSON.stringify(body) });
+  });
+
+  await gotoCalendar(page);
+  await page.getByTestId('nav-weekly-review').click();
+  await expect(page.getByTestId('weekly-review-numbers-only')).toBeVisible();
+  expect(posted).toHaveLength(1);
+
+  await page.getByTestId('weekly-review-key-hint').getByRole('button', { name: 'Add key' }).click();
+  await expect(page.locator('.profile-view')).toBeVisible();
+  await page.getByLabel('Anthropic key').fill('sk-ant-test-key-1234');
+  await page.getByRole('button', { name: 'Save key' }).click();
+
+  await expect.poll(() => posted.length).toBe(2);
+  expect(posted[1]).toEqual({ today: '2026-09-07', week: '2026-09-07' });
+  await expect(page.getByTestId('weekly-review-headline')).toHaveText('A steady week.');
+  await expect(page.getByTestId('weekly-review-numbers-only')).toHaveCount(0);
 });

@@ -13,10 +13,9 @@ const STATS: WeeklyReviewStats = {
   prs: [{ exerciseName: 'Bench Press', kind: 'oneRM', date: '2026-09-23', detail: 'est. best single lift 100 (90 × 3), up from 95 on Sep 1' }],
   weightUnit: 'kg',
   physiology: {
-    load: { source: 'trainingLoad', acute7d: 200, chronicWeeklyAvg28d: 50, ratio: 4 },
+    load: { source: 'trainingLoad', acute7d: 200, chronicWeeklyAvg28d: 50, ratio: 4, historyDays: 35 },
     hrv: { mean7d: null, mean28d: 61 },
     zoneMinutes: [10, 20, 0, 0, 0],
-    zoneMethod: 'device',
     tonnageByWeek: [{ weekStart: '2026-09-14', tonnageLb: null }, { weekStart: '2026-09-21', tonnageLb: 2205 }],
   },
 };
@@ -40,16 +39,29 @@ describe('NumbersSection', () => {
   it('says so when there are no PRs and nothing was measured, and a missing baseline reads n/a', () => {
     const empty = renderToStaticMarkup(<NumbersSection stats={{
       ...STATS, prs: [],
-      physiology: { load: null, hrv: null, zoneMinutes: null, zoneMethod: null, tonnageByWeek: [] },
+      physiology: { load: null, hrv: null, zoneMinutes: null, tonnageByWeek: [] },
     }} />);
     expect(empty).toContain('No PRs this week.');
     expect(empty).toContain('No measured data in the five weeks to Sun Sep 27.');
     expect(empty).not.toContain('weekly-review-load');
 
     const noBaseline = renderToStaticMarkup(<NumbersSection stats={{
-      ...STATS, physiology: { ...STATS.physiology, load: { source: 'cardioMinutes', acute7d: 90, chronicWeeklyAvg28d: 0, ratio: null } },
+      ...STATS, physiology: { ...STATS.physiology, load: { source: 'cardioMinutes', acute7d: 90, chronicWeeklyAvg28d: 0, ratio: null, historyDays: 0 } },
     }} />);
     expect(noBaseline).toContain('n/a, no 28 d baseline');
     expect(noBaseline).toContain('cardio min');
+  });
+
+  it('a first-run ratio over under 28 days of history reads n/a, not 4.00', () => {
+    const firstRun = renderToStaticMarkup(<NumbersSection stats={{
+      ...STATS, physiology: { ...STATS.physiology, load: { source: 'trainingLoad', acute7d: 200, chronicWeeklyAvg28d: 50, ratio: 4, historyDays: 6 } },
+    }} />);
+    expect(firstRun).toContain('n/a — under 28 d of history');
+    expect(firstRun).not.toContain('4.00');
+  });
+
+  it('shows zone minutes with no method note', () => {
+    const html = renderToStaticMarkup(<NumbersSection stats={STATS} />);
+    expect(html).not.toMatch(/device zone data|average HR/);
   });
 });

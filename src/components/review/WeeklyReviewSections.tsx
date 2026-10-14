@@ -83,14 +83,11 @@ export function PhysiologySection({ physiology }: { physiology: WeeklyPhysiology
 // labels, no interpretation (src/lib/physiology defines no ratio bands, so
 // none is named here).
 
-const ZONE_METHOD_NOTE = {
-  device: 'from device zone data',
-  avgHr: 'each session counted in the zone of its average HR',
-  mixed: 'device zone data where synced, else each session in the zone of its average HR',
-} as const;
+/** Under this many days of load history the chronic average is mostly the acute week. */
+const RATIO_HISTORY_DAYS = 28;
 
 export function NumbersSection({ stats }: { stats: WeeklyReviewStats }) {
-  const { load, hrv, zoneMinutes, zoneMethod, tonnageByWeek } = stats.physiology;
+  const { load, hrv, zoneMinutes, tonnageByWeek } = stats.physiology;
   const hasPanel = load !== null || hrv !== null || zoneMinutes !== null || tonnageByWeek.length > 0;
   return (
     <section className="weekly-review__section" data-testid="weekly-review-numbers">
@@ -132,7 +129,13 @@ export function NumbersSection({ stats }: { stats: WeeklyReviewStats }) {
                 </tr>
                 <tr>
                   <th scope="row">Acute : chronic</th>
-                  <td data-testid="weekly-review-acwr">{load.ratio === null ? <span className="weekly-review__muted">n/a, no 28 d baseline</span> : load.ratio.toFixed(2)}</td>
+                  <td data-testid="weekly-review-acwr">
+                    {load.ratio === null
+                      ? <span className="weekly-review__muted">n/a, no 28 d baseline</span>
+                      : load.historyDays < RATIO_HISTORY_DAYS
+                        ? <span className="weekly-review__muted">n/a — under 28 d of history</span>
+                        : load.ratio.toFixed(2)}
+                  </td>
                 </tr>
               </>
             )}
@@ -150,7 +153,6 @@ export function NumbersSection({ stats }: { stats: WeeklyReviewStats }) {
                 <th scope="row">Zone minutes Z1–Z5</th>
                 <td data-testid="weekly-review-zones">
                   {zoneMinutes.join(' / ')}
-                  {zoneMethod && <span className="weekly-review__muted"> · {ZONE_METHOD_NOTE[zoneMethod]}</span>}
                 </td>
               </tr>
             )}

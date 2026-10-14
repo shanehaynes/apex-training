@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import handler from '../_lib/handlers/weeklyReview';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 import { getAnthropicKey } from '../_lib/anthropicKey';
+import { enforceRateLimit } from '../_lib/rateLimit';
 import { fetchWeeklyInputs, generateWeeklyDocument } from '../_lib/review/weekly';
 import { isWeeklyReviewResponse, type WeeklyReviewStats } from '../../src/lib/review/weekly';
 
@@ -29,10 +30,9 @@ const STATS: WeeklyReviewStats = {
   prs: [{ exerciseName: 'Squat', kind: 'reps', date: '2026-09-22', detail: '12 reps, up from 10 on Sep 1' }],
   weightUnit: 'lb',
   physiology: {
-    load: { source: 'trainingLoad', acute7d: 200, chronicWeeklyAvg28d: 50, ratio: 4 },
+    load: { source: 'trainingLoad', acute7d: 200, chronicWeeklyAvg28d: 50, ratio: 4, historyDays: 6 },
     hrv: { mean7d: null, mean28d: 61 },
     zoneMinutes: [10, 20, 0, 0, 0],
-    zoneMethod: 'device',
     tonnageByWeek: [{ weekStart: WEEK.start, tonnageLb: 1000 }],
   },
 };
@@ -74,8 +74,27 @@ describe('POST /api/weekly-review without and with a key', () => {
     expect(status).toBe(200);
     expect(body).toMatchObject({ document: null, model: null, stats: STATS, warnings: [] });
     expect(isWeeklyReviewResponse(body)).toBe(true);
-    expect(fetchWeeklyInputs).toHaveBeenCalledWith(expect.anything(), 'user-123', '2026-10-14', WEEK, expect.anything());
+    // No prompt is built, so none of the prompt-only reads run.
+    expect(fetchWeeklyInputs).toHaveBeenCalledWith(expect.anything(), 'user-123', '2026-10-14', WEEK, {}, { forPrompt: false });
     expect(generateWeeklyDocument).not.toHaveBeenCalled();
+  });
+
+  it('picks the throttle by key: reads without one, writes with one', async () => {
+    vi.mocked(enforceRateLimit).mockClear();
+    vi.mocked(getAnthropicKey).mockResolvedValue(null);
+    await call({ today: '2026-10-14' });
+    expect(enforceRateLimit).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), 'user-123', 'reads');
+
+    vi.mocked(getAnthropicKey).mockResolvedValue('sk-ant-test');
+    await call({ today: '2026-10-14' });
+    expect(enforceRateLimit).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), 'user-123', 'writes');
+  });
+
+  it('a throttled keyless request gathers nothing', async () => {
+    vi.mocked(getAnthropicKey).mockResolvedValue(null);
+    vi.mocked(enforceRateLimit).mockResolvedValueOnce(false);
+    await call({ today: '2026-10-14' });
+    expect(fetchWeeklyInputs).not.toHaveBeenCalled();
   });
 
   it('with a key: the document and the same stats', async () => {

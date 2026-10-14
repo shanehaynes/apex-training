@@ -12,10 +12,9 @@ const STATS: WeeklyReviewStats = {
   prs: [],
   weightUnit: 'kg',
   physiology: {
-    load: { source: 'cardioMinutes', acute7d: 90, chronicWeeklyAvg28d: 0, ratio: null },
+    load: { source: 'cardioMinutes', acute7d: 90, chronicWeeklyAvg28d: 0, ratio: null, historyDays: 5 },
     hrv: null,
     zoneMinutes: null,
-    zoneMethod: null,
     tonnageByWeek: [{ weekStart: '2026-09-21', tonnageLb: null }],
   },
 };
@@ -28,7 +27,7 @@ describe('isWeeklyReviewStats', () => {
     expect(isWeeklyReviewStats({ ...STATS, asOf: 'Sunday' })).toBe(false);
     expect(isWeeklyReviewStats({ ...STATS, weightUnit: 'stone' })).toBe(false);
     expect(isWeeklyReviewStats({ ...STATS, physiology: { ...STATS.physiology, zoneMinutes: [1, 2, 3] } })).toBe(false);
-    expect(isWeeklyReviewStats({ ...STATS, physiology: { ...STATS.physiology, load: { source: 'vibes', acute7d: 1, chronicWeeklyAvg28d: 1, ratio: 1 } } })).toBe(false);
+    expect(isWeeklyReviewStats({ ...STATS, physiology: { ...STATS.physiology, load: { source: 'vibes', acute7d: 1, chronicWeeklyAvg28d: 1, ratio: 1, historyDays: 1 } } })).toBe(false);
     expect(isWeeklyReviewStats({ ...STATS, plan: { planned: 1 } })).toBe(false);
   });
 });

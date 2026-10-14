@@ -108,6 +108,22 @@ export default function WeeklyReviewView() {
     void generate(week);
   }, [generate, week]);
 
+  // A key saved while the overlay is open (Profile sits on top of it) asks
+  // again, so the numbers-only view becomes the coach's review. Only a key
+  // known missing first counts: unknown → true is the status settling after
+  // a request that already ran with the key, and must not pay twice.
+  const keyWasMissing = useRef(needsKey);
+  useEffect(() => {
+    if (needsKey) {
+      keyWasMissing.current = true;
+      return;
+    }
+    if (anthropicKey?.hasKey !== true || !keyWasMissing.current) return;
+    keyWasMissing.current = false;
+    requestedWeek.current = week.start;
+    void generate(week);
+  }, [anthropicKey?.hasKey, needsKey, generate, week]);
+
   const ctx = useMemo(() => ({ definitions, events, meals }), [definitions, events, meals]);
 
   const document = status.kind === 'ready' ? status.response.document : null;

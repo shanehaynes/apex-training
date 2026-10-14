@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { computeWeeklyStats, fetchWeeklyInputs, physiologyAsOf } from '../_lib/review/weekly';
+import { computeWeeklyStats, fetchWeeklyInputs, loadHistoryDays, physiologyAsOf } from '../_lib/review/weekly';
 import { fetchExpandedSchedule } from '../_lib/mcp/data';
 import { fetchPeriodInputs } from '../_lib/reviewData';
 import { fetchPhysiologyInputs } from '../_lib/coach/physiology';
+import { listConfirmed } from '../_lib/coach/memory';
 import type { PeriodStats, StatsPeriod } from '../../src/lib/review/types';
 import type { PhysiologyInputs } from '../../src/lib/physiology';
 import type { WorkoutEvent } from '../../src/types/workout';
@@ -77,8 +78,9 @@ describe('fetchWeeklyInputs physiology anchor', () => {
     expect(fetchPhysiologyInputs).toHaveBeenCalledWith(admin, 'u1', '2026-09-27');
     const p = result.weeklyStats.physiology;
     expect(result.weeklyStats.asOf).toBe('2026-09-27');
-    // Sep 21–27: 100 + 100. The 28 days to Sep 27 hold only those two.
-    expect(p.load).toEqual({ source: 'trainingLoad', acute7d: 200, chronicWeeklyAvg28d: 50, ratio: 4 });
+    // Sep 21–27: 100 + 100. The 28 days to Sep 27 hold only those two, so
+    // the history behind the ratio is six days (Sep 22 → 27).
+    expect(p.load).toEqual({ source: 'trainingLoad', acute7d: 200, chronicWeeklyAvg28d: 50, ratio: 4, historyDays: 6 });
     expect(p.hrv).toEqual({ mean7d: 65, mean28d: 65 });
     expect(p.tonnageByWeek.map(w => w.weekStart)).toEqual(['2026-08-24', '2026-08-31', '2026-09-07', '2026-09-14', '2026-09-21']);
     expect(p.tonnageByWeek.at(-1)).toEqual({ weekStart: '2026-09-21', tonnageLb: 1000 });
@@ -102,7 +104,26 @@ describe('fetchWeeklyInputs physiology anchor', () => {
     expect(weeklyStats.week).toEqual(PAST);
     expect(weeklyStats.plan).toMatchObject({ planned: 2, completed: 1, minutesPlanned: 105, minutesDone: 60 });
     expect(weeklyStats.plan.misses.map(m => m.eventId)).toEqual(['wed-run']);
-    expect(weeklyStats.physiology).toEqual({ load: null, hrv: null, zoneMinutes: null, zoneMethod: null, tonnageByWeek: [] });
+    expect(weeklyStats.physiology).toEqual({ load: null, hrv: null, zoneMinutes: null, tonnageByWeek: [] });
+  });
+});
+
+describe('fetchWeeklyInputs forPrompt: false', () => {
+  it('skips the memory, block and library reads and still computes the stats', async () => {
+    vi.mocked(listConfirmed).mockClear();
+    vi.mocked(fetchExpandedSchedule).mockResolvedValueOnce({
+      occurrences: [EVENT],
+      definitions: new Map([['d1', { canonicalName: 'Bench Press' }]]) as never,
+      anchorDates: new Map(),
+    });
+    const tables: string[] = [];
+    const spyAdmin = { from: (t: string) => { tables.push(t); return (admin as { from: (t: string) => unknown }).from(t); } } as never;
+    const result = await fetchWeeklyInputs(spyAdmin, 'u1', TODAY, PAST, {}, { forPrompt: false });
+    expect(listConfirmed).not.toHaveBeenCalled();
+    expect(tables).not.toContain('training_blocks');
+    expect(result.libraryNames).toEqual([]);
+    expect(result.block).toBeNull();
+    expect(result.weeklyStats.plan.completed).toBe(1);
   });
 });
 
@@ -121,13 +142,16 @@ describe('computeWeeklyStats', () => {
       plan: { planned: 0, completed: 0, minutesPlanned: 0, minutesDone: 0, misses: [] },
       stats,
       panel: {
-        weekStarts: ['2026-08-24', '2026-08-31', '2026-09-07', '2026-09-14', '2026-09-21'],
-        today: PAST.end,
-        zoneMethod: 'avgHr',
-        zoneMinutesByWeek: [
-          { weekStart: '2026-09-14', minutes: [9, 9, 9, 9, 9] },
-          { weekStart: '2026-09-21', minutes: [10, 20, 0, 0, 0] },
-        ],
+        inputs: { today: PAST.end, activities: [], cardioLogs: [], setLogs: [], thresholdHr: null, maxHr: null },
+        summary: {
+          weekStarts: ['2026-08-24', '2026-08-31', '2026-09-07', '2026-09-14', '2026-09-21'],
+          today: PAST.end,
+          zoneMethod: 'mixed',
+          zoneMinutesByWeek: [
+            { weekStart: '2026-09-14', minutes: [9, 9, 9, 9, 9] },
+            { weekStart: '2026-09-21', minutes: [10, 20, 0, 0, 0] },
+          ],
+        },
       },
     });
     expect(result.weightUnit).toBe('kg');
@@ -136,6 +160,31 @@ describe('computeWeeklyStats', () => {
       detail: 'est. best single lift 100 (90 × 3), up from 95 on Sep 1',
     }]);
     expect(result.physiology.zoneMinutes).toEqual([10, 20, 0, 0, 0]);
-    expect(result.physiology.zoneMethod).toBe('avgHr');
+    // The panel's method spans five weeks; it is not passed off as this week's.
+    expect(result.physiology).not.toHaveProperty('zoneMethod');
+  });
+});
+
+describe('loadHistoryDays', () => {
+  const base = { today: '2026-09-27', activities: [], cardioLogs: [], setLogs: [], thresholdHr: null, maxHr: null };
+
+  it('counts from the earliest sample of the load\'s own source through asOf', () => {
+    const inputs = {
+      ...base,
+      activities: [activity('2026-09-22', 100, 60), activity('2026-08-26', 50, 60)],
+      cardioLogs: [{ eventId: 'c', eventDate: '2026-08-24', avgHeartRate: null, durationMinutes: 30 }],
+    };
+    expect(loadHistoryDays(inputs, 'trainingLoad', '2026-09-27')).toBe(33);
+    expect(loadHistoryDays(inputs, 'cardioMinutes', '2026-09-27')).toBe(35);
+    // A sample after asOf is a plan, not history.
+    expect(loadHistoryDays({ ...base, activities: [activity('2026-09-30', 9, 9)] }, 'trainingLoad', '2026-09-27')).toBe(0);
+  });
+
+  it('a first-run account with samples only in the last 7 days has under 28 d of history', async () => {
+    vi.mocked(fetchPhysiologyInputs).mockImplementation(async (_db, _u, asOf) =>
+      ({ ...base, today: asOf, activities: [activity('2026-09-22', 100, 60), activity('2026-09-25', 100, 70)] }));
+    const { weeklyStats } = await fetchWeeklyInputs(admin, 'u1', TODAY, PAST);
+    expect(weeklyStats.physiology.load?.ratio).toBe(4);
+    expect(weeklyStats.physiology.load?.historyDays).toBe(6);
   });
 });

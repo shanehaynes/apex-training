@@ -1,6 +1,6 @@
 import { addDays, format, parseISO, startOfISOWeek } from 'date-fns';
 import { isMemoryKind, type MemoryKind } from '../coach/memory.js';
-import type { HrvSummary, LoadSummary, WeekTonnage, ZoneMethod, ZoneMinutes } from '../physiology/types.js';
+import type { HrvSummary, LoadSummary, WeekTonnage, ZoneMinutes } from '../physiology/types.js';
 
 // The weekly review as a document (lane D03): the shapes the server returns
 // and the client renders, plus the pure shape guard both sides run. The
@@ -107,12 +107,18 @@ export interface WeeklyReviewStats {
   /** The athlete's display unit; every tonnage figure stays in pounds. */
   weightUnit: 'lb' | 'kg';
   physiology: {
-    /** Acute 7 d vs chronic 28 d weekly average; null without data. */
-    load: LoadSummary | null;
+    /**
+     * Acute 7 d vs chronic 28 d weekly average; null without data.
+     * `historyDays` — days from the earliest load sample through `asOf`;
+     * under 28 the ratio compares the week mostly with itself.
+     */
+    load: (LoadSummary & { historyDays: number }) | null;
     hrv: HrvSummary | null;
-    /** Z1…Z5 minutes in the reviewed week; null when no session yielded a reading. */
+    /**
+     * Z1…Z5 minutes in the reviewed week; null when no session yielded a
+     * reading. No method note: the panel's method spans five weeks, not this one.
+     */
     zoneMinutes: ZoneMinutes | null;
-    zoneMethod: ZoneMethod | null;
     /** The reviewed week and the four before it, oldest first; empty without logged sets. */
     tonnageByWeek: WeekTonnage[];
   };
@@ -232,9 +238,10 @@ export function isWeeklyReviewDocument(value: unknown): value is WeeklyReviewDoc
 const isNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isNullableNumber = (v: unknown): v is number | null => v === null || isNumber(v);
 
-function isLoad(value: unknown): value is LoadSummary {
+function isLoad(value: unknown): value is LoadSummary & { historyDays: number } {
   return isRecord(value) && (value.source === 'trainingLoad' || value.source === 'cardioMinutes')
-    && isNumber(value.acute7d) && isNumber(value.chronicWeeklyAvg28d) && isNullableNumber(value.ratio);
+    && isNumber(value.acute7d) && isNumber(value.chronicWeeklyAvg28d) && isNullableNumber(value.ratio)
+    && isCount(value.historyDays);
 }
 
 function isHrv(value: unknown): value is HrvSummary {
@@ -262,7 +269,6 @@ export function isWeeklyReviewStats(value: unknown): value is WeeklyReviewStats 
   if (p.load !== null && !isLoad(p.load)) return false;
   if (p.hrv !== null && !isHrv(p.hrv)) return false;
   if (p.zoneMinutes !== null && !isZoneMinutes(p.zoneMinutes)) return false;
-  if (p.zoneMethod !== null && p.zoneMethod !== 'device' && p.zoneMethod !== 'avgHr' && p.zoneMethod !== 'mixed') return false;
   return Array.isArray(p.tonnageByWeek)
     && p.tonnageByWeek.every(w => isRecord(w) && isIsoDate(w.weekStart) && isNullableNumber(w.tonnageLb));
 }

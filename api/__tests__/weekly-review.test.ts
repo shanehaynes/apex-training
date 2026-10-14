@@ -99,7 +99,7 @@ describe('POST /api/weekly-review', () => {
     vi.mocked(enforceRateLimit).mockResolvedValueOnce(false);
     await handler(POST({ today: '2026-09-28' }), makeRes().res);
     expect(enforceRateLimit).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), 'user-123', 'writes');
-    expect(getAnthropicKey).not.toHaveBeenCalled();
+    // The key is read before the throttle now (it picks the bucket); nothing else is.
     expect(fetchWeeklyInputs).not.toHaveBeenCalled();
   });
 
