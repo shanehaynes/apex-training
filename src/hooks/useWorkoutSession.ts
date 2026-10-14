@@ -11,6 +11,7 @@ import {
 import { sectionLabels } from '../lib/climbing';
 import type { TrackedSectionGroup, TrackedSet } from '../lib/tracking/plan';
 import { sessionScoreFromRow } from '../lib/tracking/records';
+import { clearResolvedLoads } from '../lib/tracking/percent';
 import type { PersonalRecord, SessionScore, WorkoutScoreRecord } from '../lib/tracking/records';
 import {
   cancelSession, editSessionTimes, finishSession, generateCoachSummary, loadSession, saveLogs, swapLoggedExercise,
@@ -576,7 +577,8 @@ export function useWorkoutSession(
     updateExercise(section, exerciseId, t => {
       const from = t.substitutedFrom ?? t.exercise.name;
       return {
-        ...t,
+        // A resolved "80%" was a load for the old lift's max, not this one's.
+        ...clearResolvedLoads(t),
         exercise: { ...t.exercise, name: def.canonicalName, definitionId: def.id },
         // Swapping back to the planned movement is not a substitution.
         substitutedFrom: from === def.canonicalName ? null : from,

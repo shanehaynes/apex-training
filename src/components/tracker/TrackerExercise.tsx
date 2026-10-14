@@ -13,6 +13,7 @@ import { knownUnitContext, withExplicitUnit } from '../../lib/tracking/weight';
 import ExercisePicker from '../modal/ExercisePicker';
 import DurationInput from './DurationInput';
 import '../../styles/climbing.css';
+import '../../styles/percent-1rm.css';
 
 export type { SetField };
 export type CardioField = keyof Omit<CardioActuals, 'isLogged' | 'shadow'>;
@@ -48,11 +49,17 @@ const SET_TRACKED_CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobi
 const CARDIO_CATEGORIES: ExerciseCategory[] = ['cardio'];
 
 // Side conventions are shown once with the notes, not repeated on every set.
-function plannedLabel(p: PlannedSet): string {
+// A percentage target the server resolved reads as the load first, unit and
+// all — "185 lb (80%)" — so a unit changed since the bootstrap cannot make
+// the number mean something else.
+function plannedLabel(p: PlannedSet, resolvedWeight?: string): string {
   const parts: string[] = [];
-  if (p.targetWeight) parts.push(p.targetWeight);
+  if (p.targetWeight) {
+    parts.push(resolvedWeight ? `${resolvedWeight} (${p.targetWeight.trim()})` : p.targetWeight);
+  }
   const reps = stripCountSpec(p.targetReps);
-  if (reps) parts.push(`× ${reps}`);
+  // A resolved label wraps in its column; "× 5" stays on one line.
+  if (reps) parts.push(resolvedWeight ? `×\u00a0${reps}` : `× ${reps}`);
   const duration = stripCountSpec(p.targetDuration);
   if (duration) parts.push(duration);
   return parts.length ? parts.join(' ') : '—';
@@ -75,6 +82,18 @@ const SHADOW_FIELD: Record<SetField, keyof LastSetActuals> = {
   actualReps: 'reps',
   actualDuration: 'duration',
 };
+
+/**
+ * What a ghost tap commits into a field: last session's value — except the
+ * weight of a set whose percentage target resolved, which commits today's
+ * load instead, with the unit it was resolved in ("185 lb"), so what the
+ * plan asks for is stored whatever unit the profile says by then.
+ */
+function ghostOf(set: TrackedSet, field: SetField): string {
+  if (!set.shadow) return '';
+  if (field === 'actualWeight' && set.resolvedPlannedWeight) return set.resolvedPlannedWeight;
+  return set.shadow[SHADOW_FIELD[field]];
+}
 
 // Weight alone is not a set done; reps or a duration is (R2.2).
 const COMMIT_FIELDS: SetField[] = ['actualReps', 'actualDuration'];
@@ -215,7 +234,9 @@ function SetRow({
       >
         {set.isWarmup ? 'W' : set.setNumber}
       </button>
-      <span className="tracker-set__planned">{unplanned ? '—' : set.isExtra ? 'extra' : plannedLabel(set.planned)}</span>
+      <span className={`tracker-set__planned${set.resolvedPlannedWeight && !unplanned && !set.isExtra ? ' percent-target' : ''}`}>
+        {unplanned ? '—' : set.isExtra ? 'extra' : plannedLabel(set.planned, set.resolvedPlannedWeight)}
+      </span>
       <div
         className="tracker-set__inputs"
         // React's focus/blur bubble, so the row sees every field's; the
@@ -225,8 +246,10 @@ function SetRow({
         onBlur={() => { if (!filledAtFocus.current && filled) onCommit(); }}
       >
         {fields.map(field => {
-          const ghost = set.shadow ? set.shadow[SHADOW_FIELD[field]] : '';
+          const ghost = ghostOf(set, field);
           const className = `tracker-input ${FIELD_CLASS[field]}${ghost ? ' tracker-input--shadow' : ''}`;
+          // A resolved load shows with its unit, as ghost or (nothing to commit) plain hint.
+          const hint = ghost || (field === 'actualWeight' ? set.resolvedPlannedWeight : undefined) || undefined;
           return field === 'actualDuration' ? (
             <DurationInput
               key={field}
@@ -245,7 +268,7 @@ function SetRow({
               inputMode={freeText ? 'text' : 'decimal'}
               aria-label={`Set ${set.setNumber} ${labels[field]}`}
               value={set[field]}
-              placeholder={ghost || undefined}
+              placeholder={hint}
               onFocus={e => {
                 if (field === 'actualWeight') weightAtFocus.current = e.currentTarget.value;
                 focusShadow(e.currentTarget);
@@ -563,7 +586,7 @@ export default function TrackerExercise({
               onCommitShadow={() => {
                 if (!set.shadow) return;
                 const values: Partial<Record<SetField, string>> = {};
-                for (const field of fields) values[field] = set.shadow[SHADOW_FIELD[field]];
+                for (const field of fields) values[field] = ghostOf(set, field);
                 // A ghost commit is a commit: its weight is stored with its unit
                 // (the ghost label itself stays as last time's text).
                 if (suffixWeight && values.actualWeight) values.actualWeight = suffixWeight(values.actualWeight);
