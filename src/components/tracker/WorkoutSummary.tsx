@@ -10,6 +10,8 @@ import { useTip } from '../../hooks/useTip';
 import { useCoachReachable } from '../../hooks/useCoachReachable';
 import { AuthContext } from '../../context/auth';
 import { DEFAULT_WEIGHT_CONTEXT, lbToUnit, type WeightContext } from '../../lib/tracking/weight';
+import { ascentStyleLabel } from '../../lib/climbing';
+import { parseAttempts } from '../../lib/tracking/plan';
 
 interface Props {
   event: WorkoutEvent;
@@ -47,6 +49,22 @@ function setLabel(set: TrackedSet): string {
   return parts.join(' ');
 }
 
+/** A pitch reads as climbed: "5.10a · Redpointed · 3 tries" — the grade as logged, never a weight. */
+function pitchLabel(set: TrackedSet): string {
+  if (!set.actualWeight) return '';
+  const tries = parseAttempts(set.attempts);
+  return [
+    set.actualWeight,
+    ascentStyleLabel(set.ascentStyle ?? undefined),
+    tries !== null ? `${tries} ${tries === 1 ? 'try' : 'tries'}` : undefined,
+  ].filter(Boolean).join(' · ');
+}
+
+/** The summary's key for a record: a send is per grade scale, so one name can hold two. */
+function recordKey(pr: PersonalRecord): string {
+  return pr.kind === 'send' ? `send|${pr.exerciseName}|${pr.grade}` : `${pr.kind}|${pr.exerciseName}`;
+}
+
 /** Whether a set counts: not a zero-fill, not a warm-up (isPerformedSet). */
 function performed(set: TrackedSet): boolean {
   return isPerformedSet({ is_autofilled: set.isAutofilled, is_warmup: set.isWarmup });
@@ -64,7 +82,8 @@ function sessionTonnage(groups: TrackedSectionGroup[], ctx: WeightContext = DEFA
   let any = false;
   for (const group of groups) {
     for (const tracked of group.exercises) {
-      if (tracked.isCardio) continue;
+      // A pitch's weight column is its grade: no volume in it.
+      if (tracked.isCardio || tracked.exercise.category === 'climbing') continue;
       for (const set of tracked.sets) {
         if (!performed(set)) continue;
         const classified = classifySet(set.actualWeight, set.actualReps, set.actualDuration, ctx);
@@ -182,7 +201,7 @@ export default function WorkoutSummary({
               </div>
             )}
             {prs.map(pr => (
-              <div key={`${pr.kind}|${pr.exerciseName}`} className="tracker-summary__pr">
+              <div key={recordKey(pr)} className="tracker-summary__pr">
                 <Trophy size={14} strokeWidth={2} style={{ color: accentColor }} />
                 <span>
                   <strong>{pr.exerciseName}</strong> — {describeRecordForPeople(pr, weightContext.unit)}
@@ -205,7 +224,7 @@ export default function WorkoutSummary({
                     </span>
                   ) : (
                     tracked.sets.map(set => {
-                      const label = setLabel(set);
+                      const label = tracked.exercise.category === 'climbing' ? pitchLabel(set) : setLabel(set);
                       // A warm-up is shown with what it did and a tag; only a
                       // zero-fill or an empty planned set reads as skipped.
                       const skipped = set.isAutofilled || (!label && !set.isExtra);

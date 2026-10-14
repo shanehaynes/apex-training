@@ -1,9 +1,9 @@
 import type { getSupabaseAdmin } from './supabaseAdmin.js';
 import { aliasIndexOf, fetchDefinitionRows } from './mcp/data.js';
 import { fetchAllPages } from './pagination.js';
-import type { CardioLogRow, ExerciseNoteRow, MealRow, SetLogRow, WorkoutEventRow, WorkoutSessionRow } from '../../src/lib/db/types.js';
+import type { CardioLogRow, ExerciseNoteRow, MealRow, SetLogRow, TrackedSection, WorkoutEventRow, WorkoutSessionRow } from '../../src/lib/db/types.js';
 import type { Meal } from '../../src/types/nutrition.js';
-import type { WorkoutEvent } from '../../src/types/workout.js';
+import type { Exercise, ExerciseCategory, WorkoutEvent } from '../../src/types/workout.js';
 import { rowToEvent } from '../../src/lib/schedule/mapping.js';
 import {
   canonicalizeLogNames,
@@ -18,6 +18,8 @@ import {
   buildLastPerformance,
   buildTrackerModel,
   cardioExerciseNames,
+  isAddedExerciseId,
+  loggedShapeOf,
   setExerciseNames,
   type TrackedSectionGroup,
 } from '../../src/lib/tracking/plan.js';
@@ -25,6 +27,7 @@ import {
   computeSessionPRs,
   computeWorkoutScorePR,
   describeRecord,
+  isPitchRow,
   describeWorkoutScore,
   sessionScoreFromRow,
   type PersonalRecord,
@@ -109,6 +112,8 @@ export interface TrackerHistory {
   history: SetLogRow[];
   cardioHistory: CardioLogRow[];
   scoreHistory: ScoreHistoryRow[];
+  /** definition id → category: what an exercise added mid-workout is (its rows don't say). */
+  definitionCategories: Map<string, ExerciseCategory>;
 }
 
 export function isScoredEvent(event: WorkoutEvent): boolean {
@@ -155,7 +160,9 @@ export async function loadTrackerHistory(
   event: WorkoutEvent,
   saved: SavedRows,
 ): Promise<TrackerHistory> {
-  const aliasIndex = aliasIndexOf(await fetchDefinitionRows(supabase, userId));
+  const definitionRows = await fetchDefinitionRows(supabase, userId);
+  const aliasIndex = aliasIndexOf(definitionRows);
+  const definitionCategories = new Map(definitionRows.map(r => [r.id, r.category as ExerciseCategory]));
   const setNames = setExerciseNames(event);
   const cardioNames = cardioExerciseNames(event);
 
@@ -174,7 +181,7 @@ export async function loadTrackerHistory(
         )
       : Promise.resolve([] as ScoreHistoryRow[]),
   ]);
-  return { history, cardioHistory, scoreHistory };
+  return { history, cardioHistory, scoreHistory, definitionCategories };
 }
 
 /** A PR as it travels to clients: the record plus the sentence the web renders. */
@@ -215,7 +222,7 @@ export async function buildBootstrap(
   const groups = buildTrackerModel(
     event, saved.savedSets, saved.savedCardio,
     buildLastPerformance(hist.history), buildLastCardio(hist.cardioHistory),
-    notes,
+    notes, hist.definitionCategories,
   );
   let prs: WirePersonalRecord[] = [];
   let scoreRecord: WireScoreRecord | null = null;
@@ -267,7 +274,7 @@ export async function buildFinishSummary(
     // and the review agree about every record.
     fetchWeightContext(supabase, userId),
   ]);
-  const groups = buildTrackerModel(event, saved.savedSets, saved.savedCardio);
+  const groups = buildTrackerModel(event, saved.savedSets, saved.savedCardio, undefined, undefined, [], hist.definitionCategories);
   const prs = computeSessionPRs(groups, hist.history, hist.cardioHistory, weight);
   const scoreRecord = score ? computeWorkoutScorePR(score, hist.scoreHistory) : null;
   return {
@@ -539,4 +546,83 @@ export async function applyEditTimes(
     return fail(500, 'Failed to save times');
   }
   return succeed(times);
+}
+
+// ─── Swapping a logged exercise ──────────────────────────────────────────────
+// swap-exercise relabels log rows onto another movement. It may not change
+// the rows' shape: a pitch's weight column holds its grade, so a pitch
+// relabelled as a lift would read "5.9" as 5.9 lb, and a lift relabelled as
+// a pitch would read 185 as a grade; cardio is another table altogether.
+
+const SECTION_ENTRIES: Record<TrackedSection, (e: WorkoutEvent) => Exercise[]> = {
+  warmup: e => e.warmup ?? [],
+  exercise: e => e.exercises,
+  cooldown: e => e.cooldown ?? [],
+};
+
+/** The category of what is logged under an added exercise's id, read off its rows. */
+async function addedExerciseCategory(
+  supabase: Admin,
+  userId: string,
+  eventId: string,
+  eventDate: string,
+  section: TrackedSection,
+  exerciseId: string,
+): Promise<string | null> {
+  const [sets, cardio] = await Promise.all([
+    supabase.from('workout_set_logs').select('definition_id,ascent_style,attempts')
+      .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate)
+      .eq('section', section).eq('exercise_id', exerciseId),
+    supabase.from('workout_cardio_logs').select('definition_id')
+      .eq('user_id', userId).eq('event_id', eventId).eq('event_date', eventDate)
+      .eq('section', section).eq('exercise_id', exerciseId),
+  ]);
+  const failed = [sets, cardio].find(r => r.error);
+  if (failed?.error) throw new Error(`added exercise lookup failed: ${failed.error.message}`);
+  if ((cardio.data ?? []).length) return 'cardio';
+  const rows = sets.data ?? [];
+  if (rows.some(isPitchRow)) return 'climbing';
+  const definitionId = rows.find(r => r.definition_id)?.definition_id;
+  if (!definitionId) return rows.length ? 'strength' : null;
+  const { data, error } = await supabase.from('exercise_definitions').select('category')
+    .eq('user_id', userId).eq('id', definitionId).maybeSingle();
+  if (error) throw new Error(`definition lookup failed: ${error.message}`);
+  return data?.category ?? 'strength';
+}
+
+/**
+ * Refuses (400) a swap onto a definition whose logged shape differs from the
+ * logged exercise's (loggedShapeOf). `event` is the resolved occurrence
+ * (loadResolvedOccurrence), null when it is gone. Nothing to compare — no
+ * definition named (a free-text name), or an exercise neither the plan nor
+ * its rows identify — is not refused. A definition the caller does not own is.
+ */
+export async function checkSwapShape(
+  supabase: Admin,
+  userId: string,
+  event: WorkoutEvent | null,
+  target: { eventId: string; eventDate: string; section: TrackedSection; exerciseId: string },
+  definitionId: string | null | undefined,
+): Promise<ServiceResult> {
+  if (!definitionId) return succeed(undefined);
+  const { eventId, eventDate, section, exerciseId } = target;
+
+  let fromCategory: string | null = null;
+  const planned = event ? SECTION_ENTRIES[section](event).find(e => e.id === exerciseId) : undefined;
+  if (planned) fromCategory = planned.category;
+  else if (isAddedExerciseId(exerciseId)) {
+    fromCategory = await addedExerciseCategory(supabase, userId, eventId, eventDate, section, exerciseId);
+  }
+  const from = loggedShapeOf(fromCategory);
+  if (!from) return succeed(undefined);
+
+  const { data, error } = await supabase.from('exercise_definitions').select('category')
+    .eq('user_id', userId).eq('id', definitionId).maybeSingle();
+  if (error) throw new Error(`definition lookup failed: ${error.message}`);
+  if (!data) return fail(400, 'swap-exercise names a definition that is not in your library');
+  const to = loggedShapeOf(data.category);
+  if (to !== from) {
+    return fail(400, `swap-exercise cannot change what was logged: a ${fromCategory} exercise cannot become a ${data.category} one`);
+  }
+  return succeed(undefined);
 }

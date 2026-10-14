@@ -9,7 +9,8 @@ import { notify } from '../../lib/notify';
 import { getWorkoutColor } from '../../utils/workoutColors';
 import { pauseCause, useWorkoutSession } from '../../hooks/useWorkoutSession';
 import type { TrackedSection } from '../../lib/db/types';
-import type { ExerciseCategory, ExerciseDefinition } from '../../types/workout';
+import type { ExerciseCategory, ExerciseDefinition, WorkoutEvent } from '../../types/workout';
+import { eventPitches, isOutdoorClimbing } from '../../lib/climbing';
 import TrackerExercise from './TrackerExercise';
 import ExercisePicker from '../modal/ExercisePicker';
 import WorkoutSummary from './WorkoutSummary';
@@ -49,9 +50,16 @@ function TrackerTips({ groups }: { groups: TrackedSectionGroup[] }) {
   return null;
 }
 
-// Anything that logs as sets or as one cardio row; a climbing pitch needs a
-// grade the tracker has no way to ask for.
+// Anything that logs as sets or as one cardio row — and, in a climbing
+// session, another pitch: an added pitch is one row asking for its grade,
+// style and attempts. Elsewhere a pitch has no place to go.
 const ADDABLE_CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobility', 'skill', 'cardio'];
+const ADDABLE_IN_A_CLIMB: ExerciseCategory[] = [...ADDABLE_CATEGORIES, 'climbing'];
+
+/** An outdoor climb, or any session whose plan already holds a pitch. */
+function isClimbingSession(event: WorkoutEvent): boolean {
+  return isOutdoorClimbing(event.type) || eventPitches(event.exercises).length > 0;
+}
 
 export default function TrackerView() {
   const { state, dispatch } = useCalendar();
@@ -84,6 +92,7 @@ export default function TrackerView() {
 
   const color = event ? getWorkoutColor(event.type) : null;
   if (!event || !color) return null;
+  const climbing = isClimbingSession(event);
 
   // Leaving the tracker drops its save queue, so Back waits for the save:
   // a failed flush keeps the session open with its edits still dirty (the
@@ -336,8 +345,9 @@ export default function TrackerView() {
         <ExercisePicker
           onSelect={def => { setAddingExercise(false); onAddExercise(def); }}
           onClose={() => setAddingExercise(false)}
-          restrictTo={ADDABLE_CATEGORIES}
-          createCategory="strength"
+          restrictTo={climbing ? ADDABLE_IN_A_CLIMB : ADDABLE_CATEGORIES}
+          initialCategory={climbing ? 'climbing' : undefined}
+          createCategory={climbing ? 'climbing' : 'strength'}
         />
       )}
 

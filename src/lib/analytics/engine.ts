@@ -1,6 +1,6 @@
 import type { CardioLogRow, CompletionRow, MealRow, SetLogRow, WorkoutSessionRow } from '../db/types';
 import type { Sport } from '../../types/workout';
-import { classifySet, isPerformedSet, parseQuantity } from '../tracking/records.js';
+import { classifySet, isPerformedSet, isPitchRow, parseQuantity } from '../tracking/records.js';
 import { DEFAULT_WEIGHT_CONTEXT, lbToUnit, type WeightContext } from '../tracking/weight.js';
 import { durationMinutesFor, minutesForBareDuration, sessionSecondsMap } from '../review/stats.js';
 import { parseGrade } from '../climbing.js';
@@ -280,6 +280,17 @@ function extractPoints(
   const categoryOf = (row: { definition_id?: string | null }): string =>
     (row.definition_id && inputs.categories.get(row.definition_id)) || 'uncategorized';
 
+  // A pitch is a set-log row whose definition is category 'climbing' (grade
+  // text rides in actual_weight), or one carrying pitch metadata; rows with
+  // no definition fall back to the completion's climbing event types. The
+  // set-logs measures skip exactly these, so pitches and sets partition.
+  const isPitch = (row: SetLogRow): boolean => {
+    if (isPitchRow(row)) return true;
+    const category = row.definition_id ? inputs.categories.get(row.definition_id) : undefined;
+    return category === 'climbing' ||
+      (category === undefined && isClimbingEvent(shared.eventTypeOf.get(completionKey(row.event_id, row.event_date))));
+  };
+
   const groupFor = {
     logRow: (row: SetLogRow | CardioLogRow): string => {
       switch (s.groupBy) {
@@ -316,6 +327,8 @@ function extractPoints(
     case 'set-logs': {
       for (const row of inputs.setLogs) {
         if (!isPerformedSet(row) || !keepDate(row.event_date) || !logRowPasses(row)) continue;
+        // A pitch is not a set: its weight column is a grade (pitch-logs).
+        if (isPitch(row)) continue;
         const group = groupFor.logRow(row);
         if (s.measure === 'set-count') {
           points.push({ date: row.event_date, value: 1, group });
@@ -335,15 +348,9 @@ function extractPoints(
     }
 
     case 'pitch-logs': {
-      // A pitch is a set-log row whose definition is category 'climbing'
-      // (grade text rides in actual_weight); rows without a definition fall
-      // back to the completion's climbing event types.
       for (const row of inputs.setLogs) {
         if (!isPerformedSet(row) || !keepDate(row.event_date) || !logRowPasses(row)) continue;
-        const category = row.definition_id ? inputs.categories.get(row.definition_id) : undefined;
-        const isPitch = category === 'climbing' ||
-          (category === undefined && isClimbingEvent(shared.eventTypeOf.get(completionKey(row.event_id, row.event_date))));
-        if (!isPitch) continue;
+        if (!isPitch(row)) continue;
 
         const grade = parseGrade(row.actual_weight ?? undefined);
         if (f.gradeScale && grade?.scale !== f.gradeScale) continue;

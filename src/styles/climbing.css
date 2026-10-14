@@ -1,0 +1,73 @@
+/* ─── Tracker: climbing pitches ──────────────────────────────────────────
+   A pitch row logs a grade (the weight column), how the ascent went and how
+   many goes it took. The style picker and attempts stepper sit where a set
+   row has reps; everything inherits app.css tokens and tracker classes. */
+
+/* Two selectors deep, like set-metadata.css: .tracker-input's width: 100%
+   must lose whichever stylesheet the bundle orders first. */
+.tracker-set__inputs .tracker-input--style,
+.tracker-input-label.tracker-input--style {
+  width: 118px;
+}
+
+.tracker-set__inputs .tracker-input--style {
+  padding: 0 4px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tracker-attempts {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 76px;
+  flex-shrink: 0;
+}
+
+.tracker-attempts__step {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.tracker-attempts__step:hover:not(:disabled) {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.tracker-attempts__step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.tracker-attempts__count {
+  min-width: 20px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+/* A phone has no room for grade, style and tries beside the target: the
+   controls wrap under it, still right-aligned with every other row. */
+@media (max-width: 640px) {
+  .tracker-set--pitch {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .tracker-set__inputs .tracker-input--style,
+  .tracker-input-label.tracker-input--style {
+    width: 112px;
+  }
+}
