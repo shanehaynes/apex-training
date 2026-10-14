@@ -37,6 +37,7 @@ import { rowToMeal } from '../../src/lib/nutrition/mapping.js';
 import { buildQuickCompleteLogs } from '../../src/lib/tracking/plan.js';
 import type { TablesInsert } from '../../src/lib/db/types.js';
 import { fail, succeed, type ServiceResult } from './services/result.js';
+import { fetchWeightContext } from './weightContext.js';
 
 // Server-side tracker session model (docs/ios/backend-changes.md, W3). The
 // pure builders in src/lib/tracking run here against the service-role
@@ -219,7 +220,10 @@ export async function buildBootstrap(
   let prs: WirePersonalRecord[] = [];
   let scoreRecord: WireScoreRecord | null = null;
   if (session?.finished_at) {
-    prs = describePRs(computeSessionPRs(groups, hist.history, hist.cardioHistory));
+    // The same context the review reads with, so a bare "80" is 80 kg for a
+    // kg lifter here too and the two never disagree about a record.
+    const weight = await fetchWeightContext(supabase, userId);
+    prs = describePRs(computeSessionPRs(groups, hist.history, hist.cardioHistory, weight));
     const score = sessionScoreFromRow(session);
     scoreRecord = describeScore(score ? computeWorkoutScorePR(score, hist.scoreHistory) : null);
   }
@@ -255,13 +259,16 @@ export async function buildFinishSummary(
   score: SessionScore | null,
 ): Promise<FinishSummary> {
   const saved = await loadSavedRows(supabase, userId, event.id, event.date);
-  const [hist, meals] = await Promise.all([
+  const [hist, meals, weight] = await Promise.all([
     loadTrackerHistory(supabase, userId, event, saved),
     // Fueling context is the workout's day, not the wall-clock day.
     loadMealsForDate(supabase, userId, event.date).catch(() => [] as Meal[]),
+    // How a bare "80" or a "BW+25" reads — the review's context, so Finish
+    // and the review agree about every record.
+    fetchWeightContext(supabase, userId),
   ]);
   const groups = buildTrackerModel(event, saved.savedSets, saved.savedCardio);
-  const prs = computeSessionPRs(groups, hist.history, hist.cardioHistory);
+  const prs = computeSessionPRs(groups, hist.history, hist.cardioHistory, weight);
   const scoreRecord = score ? computeWorkoutScorePR(score, hist.scoreHistory) : null;
   return {
     groups,

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useContext, useRef, useState } from 'react';
 import { Pencil, Plus, Repeat2, X } from 'lucide-react';
 import type { ExerciseCategory, ExerciseDefinition, PlannedSet } from '../../types/workout';
 import type { TrackedExercise, TrackedSet, CardioActuals, LastSetActuals } from '../../lib/tracking/plan';
@@ -7,6 +7,8 @@ import { normalizeRpeText } from '../../lib/tracking/plan';
 import type { SetMetaPatch } from '../../hooks/useWorkoutSession';
 import { countSpecNote, hasPerSideCount, stripCountSpec } from '../../lib/schedule/definitions';
 import { useSchedule } from '../../context/schedule';
+import { AuthContext } from '../../context/auth';
+import { knownUnitContext, withExplicitUnit } from '../../lib/tracking/weight';
 import ExercisePicker from '../modal/ExercisePicker';
 import DurationInput from './DurationInput';
 
@@ -87,6 +89,7 @@ function SetRow({
   freeText,
   unplanned,
   showRpe,
+  suffixWeight,
   onChange,
   onMetaChange,
   onCommitShadow,
@@ -101,6 +104,9 @@ function SetRow({
   /** Text keyboard instead of decimal — climbing grades mix digits and letters. */
   freeText?: boolean;
   showRpe?: boolean;
+  /** The weight text to store once the field commits (blur or Enter) — a
+   *  bare number gains the profile unit; absent, it stays as typed. */
+  suffixWeight?: (text: string) => string;
   onChange: (field: SetField, value: string) => void;
   onMetaChange: (patch: SetMetaPatch) => void;
   onCommitShadow: () => void;
@@ -121,6 +127,9 @@ function SetRow({
   // tap commits it, and that commit is reported by onCommitShadow's caller,
   // not by the blur that follows.
   const filledAtFocus = useRef(false);
+  // The weight text when its field took focus: leaving a field unedited is
+  // not a commit, so an older bare row is not rewritten by a tab through it.
+  const weightAtFocus = useRef<string | null>(null);
   const filled = rowFilled(set, fields);
   const shadowFills = !!set.shadow && rowFilled(
     { actualReps: set.shadow.reps, actualDuration: set.shadow.duration }, fields,
@@ -174,8 +183,19 @@ function SetRow({
               aria-label={`Set ${set.setNumber} ${labels[field]}`}
               value={set[field]}
               placeholder={ghost || undefined}
-              onFocus={e => focusShadow(e.currentTarget)}
+              onFocus={e => {
+                if (field === 'actualWeight') weightAtFocus.current = e.currentTarget.value;
+                focusShadow(e.currentTarget);
+              }}
               onChange={e => onChange(field, e.target.value)}
+              // A committed bare weight is stored with its unit, before the
+              // row's own blur reads it.
+              onBlur={field === 'actualWeight' && suffixWeight ? e => {
+                const typed = e.currentTarget.value;
+                if (typed === weightAtFocus.current) return;
+                const stored = suffixWeight(typed);
+                if (stored !== typed) onChange(field, stored);
+              } : undefined}
               // Enter is "done", as it is in DurationInput: the blur commits.
               onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
             />
@@ -234,6 +254,8 @@ export default function TrackerExercise({
   onRemove,
 }: Props) {
   const { definitions, updateDefinition } = useSchedule();
+  // Suffixing needs the unit the profile actually holds (knownUnitContext).
+  const weightContext = knownUnitContext(useContext(AuthContext)?.profile);
   const [picking, setPicking] = useState(false);
   // Shown at once; the definition write that makes them stick lands via the
   // realtime refetch, and an ad-hoc entry with no definition keeps them for
@@ -303,6 +325,10 @@ export default function TrackerExercise({
       updateDefinition({ id, fields: { logFields: next } }));
   };
   const labels: Record<SetField, string> = isClimb ? { ...FIELD_LABEL, actualWeight: 'grade' } : FIELD_LABEL;
+  // A pitch's weight column holds its grade ("5.9" would read as a weight).
+  const suffixWeight = weightContext && !isClimb
+    ? (text: string) => withExplicitUnit(text, weightContext)
+    : undefined;
   const specNote = isClimb ? undefined : countSpecNote(exercise);
 
   // Only after a swap: the reps were entered against the movement this one
@@ -457,12 +483,16 @@ export default function TrackerExercise({
               freeText={isClimb}
               unplanned={tracked.isAdded}
               showRpe={showRpe}
+              suffixWeight={suffixWeight}
               onChange={(field, value) => onSetChange(set.setNumber, field, value)}
               onMetaChange={patch => onSetMetaChange?.(set.setNumber, patch)}
               onCommitShadow={() => {
                 if (!set.shadow) return;
                 const values: Partial<Record<SetField, string>> = {};
                 for (const field of fields) values[field] = set.shadow[SHADOW_FIELD[field]];
+                // A ghost commit is a commit: its weight is stored with its unit
+                // (the ghost label itself stays as last time's text).
+                if (suffixWeight && values.actualWeight) values.actualWeight = suffixWeight(values.actualWeight);
                 onCommitSetShadow(set.setNumber, values);
                 // Tapping the ghost logs the row (R2.1) — when it logs reps or a duration.
                 if (rowFilled(values, fields)) onSetCommit?.(set.setNumber);
