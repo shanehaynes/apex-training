@@ -1,12 +1,14 @@
 import type { VercelResponse } from '@vercel/node';
+import { fail, type ServiceResult } from './services/result.js';
 
 // Which write failures are the request's fault, and which are ours.
 //
-// The native write queue retries a 5xx with backoff forever and fails a 4xx
-// permanently (ios/Packages/ApexCore/Sources/ApexCore/Cache/RetryPolicy.swift).
-// So answering 500 to a row Postgres will refuse on every attempt manufactures
-// an infinite retry loop out of a payload that can never land — the queue
-// spins, the battery drains, and the op never resolves either way. The
+// The native write queue retries a 5xx with backoff up to a ceiling (eight
+// attempts, ~20–60 minutes) and fails a 4xx permanently
+// (ios/Packages/ApexCore/Sources/ApexCore/Cache/RetryPolicy.swift). So
+// answering 500 to a row Postgres will refuse on every attempt manufactures
+// up to an hour of retries out of a payload that can never land — and the
+// queue is FIFO per session, so every later write waits behind it. The
 // inverse mistake is worse: 400 for a connection reset drops a real workout.
 //
 // SQLSTATE is the only signal that separates them reliably. PostgREST hands
@@ -44,6 +46,23 @@ export function isPermanentWriteError(error: PgErrorLike | null | undefined): bo
   if (typeof code !== 'string') return false;
   const sqlstateClass = code.slice(0, 2);
   return sqlstateClass === '23' || sqlstateClass === '22';
+}
+
+/**
+ * sendWriteFailure for a service: the same verdict as a ServiceResult, so
+ * the handler's sendFailure answers 400 `constraint-violation` or 500.
+ */
+export function writeFailure(
+  context: string,
+  error: PgErrorLike | null | undefined,
+  retryableMessage: string,
+): ServiceResult<never> {
+  if (isPermanentWriteError(error)) {
+    console.error(`${context} rejected by Postgres (${error?.code}):`, error?.message);
+    return fail(400, CONSTRAINT_VIOLATION_BODY);
+  }
+  console.error(`${context} failed:`, error?.message);
+  return fail(500, retryableMessage);
 }
 
 /**

@@ -46,6 +46,8 @@ interface AdminState {
   deletes: { table: string; filters: Record<string, unknown> }[];
   /** Scripted PostgREST failure for every write, for the status-mapping tests. */
   writeError?: { message: string; code?: string };
+  /** Scripted failure for one table's upsert only. */
+  upsertErrors?: Record<string, { message: string; code?: string }>;
 }
 
 /**
@@ -70,7 +72,7 @@ function makeAdmin(state: AdminState) {
       return {
         upsert: async (rows: Record<string, unknown>[] | Record<string, unknown>) => {
           state.upserts[table] = Array.isArray(rows) ? rows : [rows];
-          return { error: state.writeError ?? null };
+          return { error: state.upsertErrors?.[table] ?? state.writeError ?? null };
         },
         delete: () => {
           const call = { table, patch: {}, filters: {} };
@@ -523,8 +525,8 @@ describe('POST /api/workout-sessions — finish score validation', () => {
   });
 });
 
-// The native write queue retries a 5xx forever and fails a 4xx once
-// (RetryPolicy.swift). A row Postgres refuses on every attempt must therefore
+// The native write queue retries a 5xx (up to its ceiling, blocking the
+// session's later writes meanwhile) and fails a 4xx once (RetryPolicy.swift). A row Postgres refuses on every attempt must therefore
 // not come back as 500, and a connection reset must not come back as 400.
 describe('POST /api/workout-sessions — write failures carry their SQLSTATE verdict', () => {
   const save = () => makeReq({
@@ -582,5 +584,30 @@ describe('POST /api/workout-sessions — write failures carry their SQLSTATE ver
     await handler(finishReq(), transient.res);
     expect(transient.statusCode()).toBe(500);
     expect(transient.body()).toBe('Failed to finish session');
+  });
+
+  it('classifies quick-complete the same way: its session writes and its planned rows', async () => {
+    const quick = () => makeReq({
+      action: 'quick-complete', eventId: 'evt-1', eventDate: '2026-08-07', setLogs: [setLog],
+    });
+
+    state.writeError = { message: 'value too long', code: '22001' };
+    const session = makeRes();
+    await handler(quick(), session.res);
+    expect(session.statusCode()).toBe(400);
+    expect(session.body()).toBe(CONSTRAINT_VIOLATION_BODY);
+    state.writeError = undefined;
+
+    state.upsertErrors = { workout_set_logs: { message: 'null value in column "exercise_name"', code: '23502' } };
+    const permanent = makeRes();
+    await handler(quick(), permanent.res);
+    expect(permanent.statusCode()).toBe(400);
+    expect(permanent.body()).toBe(CONSTRAINT_VIOLATION_BODY);
+
+    state.upsertErrors = { workout_set_logs: { message: 'server closed the connection', code: '08006' } };
+    const transient = makeRes();
+    await handler(quick(), transient.res);
+    expect(transient.statusCode()).toBe(500);
+    expect(transient.body()).toBe('Failed to log planned work');
   });
 });
