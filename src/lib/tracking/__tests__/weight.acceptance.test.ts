@@ -833,7 +833,8 @@ describe('describeRecord — A4 weight display', () => {
     // 62.5 kg = 137.78875 lb → "138"; est 1RM 160.75 → "161".
     expect(describeRecord(recordFor('62.5 kg', '150'))).toBe('est. 1RM 161 (138 × 5), up from 150 on Sep 8');
     // The same load as a bare number under a kg context.
-    expect(describeRecord(recordFor('62.5', '150', KG))).toBe('est. 1RM 161 (138 × 5), up from 150 on Sep 8');
+    // The prior carries its unit: a bare "150" under kg would be 150 kg (R1.3).
+    expect(describeRecord(recordFor('62.5', '150 lb', KG))).toBe('est. 1RM 161 (138 × 5), up from 150 on Sep 8');
   });
 
   it('the record keeps the float; only the printed weight is rounded', () => {
