@@ -33,19 +33,47 @@ describe('NotebookButtonView', () => {
 });
 
 describe('pendingProposalCount', () => {
-  const reflection = (id: string, resolved: boolean) => ({
+  // GET /api/coach-reflections lists only status 'done' rows; whether one
+  // still waits on the athlete is resolved_at and resolution, both null.
+  const reflection = (id: string, over: { resolved_at?: string | null; resolution?: string | null } = {}) => ({
     id,
     day: '2026-10-13',
-    status: resolved ? 'accepted' : 'pending',
-    resolution: resolved ? 'accepted' : null,
-    resolved_at: resolved ? '2026-10-14T08:00:00Z' : null,
+    status: 'done',
+    contract_before: 'A',
+    contract_after: 'B',
+    resolved_at: null,
+    resolution: null,
     created_at: '2026-10-14T03:00:00Z',
+    ...over,
   });
 
-  it('counts unresolved reflections and unconfirmed memories, nothing else', () => {
-    const reflections = { reflections: [reflection('r1', false), reflection('r2', true), reflection('r3', false)] };
-    const memories = { memories: [{ id: 'm1', confirmed: false }, { id: 'm2', confirmed: true }] };
-    expect(pendingProposalCount(reflections, memories)).toBe(3);
+  it('counts only reflections with neither resolved_at nor resolution', () => {
+    const reflections = {
+      reflections: [
+        reflection('pending'),
+        reflection('resolved', { resolved_at: '2026-10-14T08:00:00Z', resolution: 'accepted' }),
+        reflection('stamped-only', { resolved_at: '2026-10-14T08:00:00Z' }),
+        reflection('resolution-only', { resolution: 'rejected' }),
+      ],
+    };
+    expect(pendingProposalCount(reflections, { memories: [] })).toBe(1);
+  });
+
+  it('counts memories the notebook shows as proposals: confirmed false or missing', () => {
+    const memories = {
+      memories: [
+        { id: 'm1', kind: 'injury', content: 'a', confirmed: false },
+        { id: 'm2', kind: 'goal', content: 'b', confirmed: true },
+        { id: 'm3', kind: 'goal', content: 'c' },
+      ],
+    };
+    expect(pendingProposalCount({ reflections: [] }, memories)).toBe(2);
+  });
+
+  it('adds the two', () => {
+    const reflections = { reflections: [reflection('r1'), reflection('r2', { resolved_at: 'x', resolution: 'accepted' })] };
+    const memories = { memories: [{ id: 'm1', kind: 'injury', content: 'a', confirmed: false }] };
+    expect(pendingProposalCount(reflections, memories)).toBe(2);
   });
 
   it('reads a payload without the lists as zero', () => {
