@@ -12,6 +12,7 @@ import {
   fingerprint,
   ledgerGaps,
   main,
+  migrationsAt,
   readLedger,
   sourceOf,
 } from '../prod-schema-check.mjs';
@@ -419,15 +420,15 @@ describe('the migration ledger', () => {
 // The whole command against HEAD's own types and migrations, with a scripted
 // PostgREST: what supervisor-report.sh, merge-babysit.sh and CI act on is the
 // exit code, so it is pinned here rather than inferred from the parts.
-// Each run reads every migration out of git (one `git show` apiece), which
-// takes a few seconds under the full suite's parallel load: hence the timeout.
-describe('main: the exit code each ledger state produces', { timeout: 60_000 }, () => {
+// Each run reads git and the types file; under the full suite's parallel load
+// that can pass vitest's 5s default, hence the timeout.
+describe('main: the exit code each ledger state produces', { timeout: 30_000 }, () => {
   const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, encoding: 'utf8', maxBuffer: 64 << 20 });
   const functions = parseDatabaseTypes(git('show', 'HEAD:src/lib/db/database.types.ts')).functions;
-  const atHead = git('ls-tree', '--name-only', 'HEAD', 'supabase/migrations/')
-    .split('\n')
-    .filter((p) => p.endsWith('.sql'))
-    .map((p) => ({ name: p.split('/').pop()!.replace(/\.sql$/, ''), fingerprint: fingerprint(git('show', `HEAD:${p}`)) }));
+  const atHead = migrationsAt('HEAD', repo).map(({ file, sql }: { file: string; sql: string }) => ({
+    name: file.replace(/\.sql$/, ''),
+    fingerprint: fingerprint(sql),
+  }));
   let lines: string[] = [];
   const saved = { url: process.env.VITE_SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY };
 

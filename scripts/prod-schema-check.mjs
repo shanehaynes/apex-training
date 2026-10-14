@@ -594,13 +594,41 @@ function git(...args) {
   });
 }
 
-/** Every migration at `ref`, in apply order (sort -V). */
-function migrationsAt(ref) {
-  return git('ls-tree', '--name-only', ref, MIGRATIONS_DIR)
+/**
+ * Every migration at `ref`, in apply order (sort -V), read in one
+ * `git cat-file --batch` rather than a `git show` per file — fifty-odd
+ * processes per run is seconds under load. `cwd` is for tests.
+ */
+export function migrationsAt(ref, cwd = root) {
+  const run = (args, input) =>
+    execFileSync('git', args, {
+      cwd,
+      input,
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
+      timeout: 60_000,
+      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+    });
+  const paths = run(['ls-tree', '--name-only', ref, MIGRATIONS_DIR])
+    .toString('utf8')
     .split('\n')
     .filter((path) => path.endsWith('.sql'))
-    .sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
-    .map((path) => ({ file: path.slice(MIGRATIONS_DIR.length), sql: git('show', `${ref}:${path}`) }));
+    .sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+  if (paths.length === 0) return [];
+  const out = run(['cat-file', '--batch'], paths.map((path) => `${ref}:${path}`).join('\n') + '\n');
+  // Each object: "<sha> blob <size>\n", <size> bytes, "\n". Sizes are bytes,
+  // so the walk is over the Buffer, not a decoded string.
+  const files = [];
+  let at = 0;
+  for (const path of paths) {
+    const eol = out.indexOf(0x0a, at);
+    const header = out.subarray(at, eol).toString('utf8');
+    const size = /^[0-9a-f]+ blob (\d+)$/.exec(header)?.[1];
+    if (size === undefined) throw new Error(`git cat-file could not read ${ref}:${path} (${header})`);
+    files.push({ file: path.slice(MIGRATIONS_DIR.length), sql: out.subarray(eol + 1, eol + 1 + Number(size)).toString('utf8') });
+    at = eol + 1 + Number(size) + 1;
+  }
+  return files;
 }
 
 // The environment first — a CI runner has secrets and no .env.local, and an

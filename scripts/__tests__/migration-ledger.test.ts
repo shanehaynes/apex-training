@@ -3,7 +3,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { fingerprint, parseStamp, stampFor, statements } from '../prod-schema-check.mjs';
+import { fingerprint, migrationsAt, parseStamp, stampFor, statements } from '../prod-schema-check.mjs';
 
 // Production records which migrations ran, as written, in
 // public.migration_ledger (phase56). Each migration stamps its name and a
@@ -82,13 +82,13 @@ describe('migration ledger stamps', () => {
     } catch { /* reported below */ }
     expect(base, 'no origin/main to compare with: run `git fetch origin main` (CI checks out with fetch-depth: 0)').not.toBe('');
 
-    const onMain = git('ls-tree', '--name-only', base, 'supabase/migrations/').split('\n').filter((f) => f.endsWith('.sql'));
+    const onMain = migrationsAt(base, REPO);
     expect(onMain.length).toBeGreaterThan(50);
-    const changed = onMain.flatMap((path) => {
-      if (!existsSync(join(REPO, path))) return [`  ${path} was deleted`];
-      const before = fingerprint(git('show', `${base}:${path}`));
-      const now = fingerprint(readFileSync(join(REPO, path), 'utf8'));
-      return before === now ? [] : [`  ${path}: ${before} on main, ${now} here`];
+    const changed = onMain.flatMap(({ file, sql }) => {
+      if (!existsSync(join(DIR, file))) return [`  ${file} was deleted`];
+      const before = fingerprint(sql);
+      const now = fingerprint(read(file));
+      return before === now ? [] : [`  ${file}: ${before} on main, ${now} here`];
     });
     expect(
       changed.join('\n'),
