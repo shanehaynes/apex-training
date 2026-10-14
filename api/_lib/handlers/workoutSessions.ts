@@ -12,6 +12,7 @@ import { enforceRateLimit } from '../rateLimit.js';
 import { applyEditTimes, applyQuickComplete, applyQuickUncomplete, buildBootstrap, buildFinishSummary, checkSwapShape, loadResolvedOccurrence } from '../trackerSession.js';
 import { sendFailure } from '../services/result.js';
 import { sendWriteFailure } from '../pgError.js';
+import { upsertByShape } from '../upsertByShape.js';
 import { endLiveActivities } from '../services/liveActivity.js';
 import { buildQuickCompleteLogs, isAddedExerciseId } from '../../../src/lib/tracking/plan.js';
 import type { CardioLogRow, SetLogRow, TablesInsert, TrackedSection, WorkoutSessionRow } from '../../../src/lib/db/types.js';
@@ -338,22 +339,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         removedAdded.set(`${key.section}|${key.exerciseId}`, key);
       }
     }
+    // By shape: rows may carry different optional columns (rpe, is_warmup…).
     if (setLogs.length) {
-      ops.push(supabase
-        .from('workout_set_logs')
-        .upsert(
-          setLogs.map(r => ({ ...r, user_id: userId, updated_at: now })) as TablesInsert<'workout_set_logs'>[],
-          { onConflict: SET_LOG_CONFLICT },
-        ));
+      ops.push(upsertByShape(
+        setLogs.map(r => ({ ...r, user_id: userId, updated_at: now })),
+        batch => supabase
+          .from('workout_set_logs')
+          .upsert(batch as TablesInsert<'workout_set_logs'>[], { onConflict: SET_LOG_CONFLICT }),
+      ));
     }
     const keptCardio = cardioLogs.filter(r => !removedAdded.has(`${r.section}|${r.exercise_id}`));
     if (keptCardio.length) {
-      ops.push(supabase
-        .from('workout_cardio_logs')
-        .upsert(
-          keptCardio.map(r => ({ ...r, user_id: userId, updated_at: now })) as TablesInsert<'workout_cardio_logs'>[],
-          { onConflict: CARDIO_CONFLICT },
-        ));
+      ops.push(upsertByShape(
+        keptCardio.map(r => ({ ...r, user_id: userId, updated_at: now })),
+        batch => supabase
+          .from('workout_cardio_logs')
+          .upsert(batch as TablesInsert<'workout_cardio_logs'>[], { onConflict: CARDIO_CONFLICT }),
+      ));
     }
     for (const n of notes) {
       if (removedAdded.has(`${n.section}|${n.exerciseId}`)) continue;
@@ -480,12 +482,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ignoreDuplicates: a set logged between the client building the
     // autofill list and this request landing is never overwritten with zeros.
     if (autofillRows.length) {
-      const { error: fillErr } = await supabase
-        .from('workout_set_logs')
-        .upsert(
-          autofillRows.map(r => ({ ...r, user_id: userId, is_autofilled: true })) as TablesInsert<'workout_set_logs'>[],
-          { onConflict: SET_LOG_CONFLICT, ignoreDuplicates: true },
-        );
+      const { error: fillErr } = await upsertByShape(
+        autofillRows.map(r => ({ ...r, user_id: userId, is_autofilled: true })),
+        batch => supabase
+          .from('workout_set_logs')
+          .upsert(batch as TablesInsert<'workout_set_logs'>[], { onConflict: SET_LOG_CONFLICT, ignoreDuplicates: true }),
+      );
       if (fillErr) {
         sendWriteFailure(res, '[api/workout-sessions] finish autofill', fillErr, 'Failed to record skipped sets');
         return;
