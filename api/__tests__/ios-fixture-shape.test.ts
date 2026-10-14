@@ -234,6 +234,28 @@ function mixedAdmin() {
   } as unknown as Record<string, Record<string, unknown>[]>);
 }
 
+// bootstrap-amrap.json: the integration suite's AMRAP Day — the other score
+// type, which a session row cannot carry alongside for-time.
+const AMRAP = 'ios-fixture-amrap';
+const AMRAP_DAY = '2026-12-15';
+
+const amrapEventRow: Tables<'workout_events'> = {
+  ...eventRow, id: AMRAP, title: 'AMRAP Day', date: AMRAP_DAY, start_time: '07:00', end_time: null,
+  estimated_duration: 20, difficulty: 4, description: 'As many rounds as possible.',
+  is_recurring: false, recurrence_rule: null,
+  template_id: 'ios-fixture-template-amrap', scoring_type: 'amrap', time_cap_minutes: 20,
+  exercises: [{ id: 'am-burpee', name: 'AMRAP Burpee', category: 'strength', sets: 1, reps: '10' }],
+};
+const amrapScore = { template_id: 'ios-fixture-template-amrap', score_type: 'amrap', score_time_seconds: null } as const;
+const amrapSession: Tables<'workout_sessions'> = {
+  ...finishedSession, ...amrapScore, event_id: AMRAP, event_date: AMRAP_DAY, total_duration_seconds: 1200,
+  score_rounds: 6, score_reps: 3,
+};
+const amrapPrior: Tables<'workout_sessions'> = {
+  ...finishedSession, ...amrapScore, event_id: 'ios-fixture-amrap-prior', event_date: '2026-12-10',
+  total_duration_seconds: 1200, score_rounds: 5, score_reps: 0,
+};
+
 describe('iOS bootstrap fixtures carry exactly the fields the server sends', () => {
   it('bootstrap.json — a finished session, re-opened', async () => {
     const logged = setLog({
@@ -260,6 +282,21 @@ describe('iOS bootstrap fixtures carry exactly the fields the server sends', () 
     expect(boot.scoreRecord?.kind).toBe('workout-score');
     expect(boot.prs.map(pr => pr.kind).sort()).toEqual(['distance', 'duration', 'elevation', 'oneRM', 'reps', 'send']);
     expectSameShape('bootstrap-full.json', boot);
+  });
+
+  it('bootstrap-amrap.json — an AMRAP score and its record', async () => {
+    const client = makeAdmin({
+      workout_events: [amrapEventRow],
+      exercise_definitions: [definition],
+      workout_sessions: [amrapPrior, {
+        ...finishedSession, event_id: 'ios-fixture-amrap-for-time', event_date: '2026-12-12',
+        template_id: 'ios-fixture-template-amrap', score_type: 'for-time', score_time_seconds: 900,
+      }],
+    } as unknown as Record<string, Record<string, unknown>[]>);
+    const event = await loadResolvedOccurrence(client, 'u1', AMRAP, AMRAP_DAY);
+    const boot = await buildBootstrap(client, 'u1', amrapSession as WorkoutSessionRow, event!);
+    expect(boot.scoreRecord).toMatchObject({ kind: 'workout-score', score: { type: 'amrap', rounds: 6, reps: 3 } });
+    expectSameShape('bootstrap-amrap.json', boot);
   });
 
   it('key paths see through nesting and arrays', () => {

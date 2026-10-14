@@ -212,6 +212,21 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertEqual(full.session?.coachSummary, "Six records in one session.")
     }
 
+    /// The AMRAP score: a session row carries one score type, so rounds and
+    /// reps need a session of their own (bootstrap-full is for-time).
+    func testAmrapBootstrapCarriesRoundsAndReps() throws {
+        let amrap = try decode(TrackerBootstrap.self, from: "bootstrap-amrap.json")
+        XCTAssertTrue(amrap.scored)
+        let session = try XCTUnwrap(amrap.session)
+        XCTAssertEqual(session.scoreRounds, 6)
+        XCTAssertEqual(session.scoreReps, 3)
+        XCTAssertNil(session.scoreTimeSeconds)
+        XCTAssertEqual(SessionScore(session: session), .amrap(rounds: 6, reps: 3))
+        XCTAssertEqual(SessionScore(session: session)?.formatted, "6 rounds + 3")
+        XCTAssertEqual(amrap.scoreRecord?.kind, "workout-score")
+        XCTAssertEqual(amrap.scoreRecord?.description, "6 rounds + 3, beating 5 rounds on Dec 10")
+    }
+
     func testFinishDecodes() throws {
         let finish = try decode(FinishResponse.self, from: "finish.json")
         XCTAssertTrue(finish.ok)
