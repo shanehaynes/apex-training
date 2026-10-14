@@ -57,7 +57,8 @@ zero new logic; add richer dedicated handlers only where a screen needs a differ
   supabase-swift's `AnyJSON`, so it lives in `ApexAuth`, not `ApexCore`); `--check` covers it.
 - `api/__tests__/integration/ios-read.integration.test.ts`: runs handlers against the local
   stack and writes `ios/Fixtures/*.json|ndjson` (`APEX_FIXTURES_WRITE=1`); by default it checks
-  the committed files, which is what CI's `full` job does. W2 added `schedule-empty.json`,
+  the committed files, which is what CI's `full` job does (`npm run fixtures:ios` regenerates;
+  `api/__tests__/ios-fixture-shape.test.ts` checks the bootstrap fixtures' field names without the DB). W2 added `schedule-empty.json`,
   `activity-streams.json` (read through the anon client under the user's JWT, so the RLS
   SELECT policy is part of the contract) and `query-get_meals.json`.
 
