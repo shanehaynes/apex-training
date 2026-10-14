@@ -63,6 +63,12 @@ public enum CountSpec {
         return notes.isEmpty ? nil : notes.joined(separator: " ")
     }
 
+    /// A set row's target column: "—" for an added exercise, "extra" for a set
+    /// beyond the plan, else the prescription with any resolved load.
+    public static func targetLabel(of set: TrackedSet, added: Bool) -> String {
+        added ? "—" : set.isExtra ? "extra" : plannedLabel(set.planned, resolvedWeight: set.resolvedPlannedWeight)
+    }
+
     /// The prescription line for a planned set (`plannedLabel`): "185lb × 5",
     /// with side conventions lifted out; "—" when nothing was planned. A
     /// percentage target the server resolved reads as the load first, unit and

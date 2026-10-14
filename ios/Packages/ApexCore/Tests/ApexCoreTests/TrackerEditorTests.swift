@@ -112,6 +112,20 @@ final class TrackerEditorTests: XCTestCase {
         XCTAssertFalse(unshadowed.commitShadow(at: key, fields: [.weight, .reps]))
     }
 
+    /// What each field shows: a committing ghost (shadow, resolved load for
+    /// weight), a non-committing hint (resolved, no shadow), or nothing.
+    func testFieldPrompts() throws {
+        let key = SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 1)
+        let both = try XCTUnwrap(handBuilt(shadowOnBench: true, resolvedOnBench: "187.5 lb").set(at: key))
+        XCTAssertEqual(TrackerEditor.prompt(of: both, field: .weight), .init(text: "187.5 lb", commits: true))
+        XCTAssertEqual(TrackerEditor.prompt(of: both, field: .reps), .init(text: "5", commits: true))
+        let hintOnly = try XCTUnwrap(handBuilt(resolvedOnBench: "187.5 lb").set(at: key))
+        XCTAssertEqual(TrackerEditor.prompt(of: hintOnly, field: .weight), .init(text: "187.5 lb", commits: false))
+        XCTAssertEqual(TrackerEditor.prompt(of: hintOnly, field: .reps), .init(text: "", commits: false))
+        let shadowOnly = try XCTUnwrap(handBuilt(shadowOnBench: true).set(at: key))
+        XCTAssertEqual(TrackerEditor.prompt(of: shadowOnly, field: .weight), .init(text: "200", commits: true))
+    }
+
     func testCommitShadowHonoursTheVisibleFieldList() throws {
         var editor = try editor()
         editor.commitShadow(at: set2, fields: [.reps])

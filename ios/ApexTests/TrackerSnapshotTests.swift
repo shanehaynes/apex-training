@@ -46,9 +46,9 @@ final class TrackerSnapshotTests: XCTestCase {
             return HTTPResponse(status: 200, headers: [:], body: data)
         }
 
-        /// bootstrap-full.json, reopened mid-session: the squat's second set
-        /// unlogged with last session's shadow, so its row shows both the
-        /// resolved label and the resolved ghost a tap would commit.
+        /// bootstrap-full.json, reopened mid-session with the squat unlogged:
+        /// set 1 has no shadow, so its resolved load is only a hint; set 2 has
+        /// last session's shadow, so the load is the ghost a tap commits.
         static func openFull() throws -> Data {
             var object = try JSONSerialization.jsonObject(with: Data(contentsOf: fixtures.appendingPathComponent("bootstrap-full.json"))) as! [String: Any]
             var session = object["session"] as! [String: Any]
@@ -60,6 +60,9 @@ final class TrackerSnapshotTests: XCTestCase {
             var exercises = groups[0]["exercises"] as! [[String: Any]]
             let squat = exercises.firstIndex { ($0["exercise"] as? [String: Any])?["id"] as? String == "mx-squat" }!
             var sets = exercises[squat]["sets"] as! [[String: Any]]
+            sets[0]["actualWeight"] = ""
+            sets[0]["actualReps"] = ""
+            sets[0]["isLogged"] = false
             sets[1]["actualWeight"] = ""
             sets[1]["actualReps"] = ""
             sets[1]["isLogged"] = false
@@ -145,8 +148,8 @@ final class TrackerSnapshotTests: XCTestCase {
         snapshot(TrackerScreen(model: model, onClose: {}).environment(\.dynamicTypeSize, .accessibility3), named: "tracker-axxxl", size: CGSize(width: 393, height: 1400))
     }
 
-    /// A percentage target resolved to today's load ("187.5 lb (80%)") —
-    /// logged on set 1, a ghost of the load on set 2 — and a pitch row.
+    /// A percentage target resolved to today's load ("187.5 lb (80%)") — a
+    /// hint on set 1, a ghost on set 2 — and a pitch row.
     @MainActor
     func testPercentTargetAndPitchRows() async {
         let (model, _) = await model(full: true)

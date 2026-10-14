@@ -304,7 +304,7 @@ struct SetRowView: View, Equatable {
                 .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
                 .foregroundStyle(ApexColor.textMuted)
                 .frame(width: 22, alignment: .leading)
-            Text(input.added ? "—" : set.isExtra ? "extra" : CountSpec.plannedLabel(set.planned, resolvedWeight: set.resolvedPlannedWeight))
+            Text(CountSpec.targetLabel(of: set, added: input.added))
                 .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
                 .italic(set.isExtra && !input.added)
                 .foregroundStyle(ApexColor.textSecondary)
@@ -340,11 +340,8 @@ struct SetRowView: View, Equatable {
     @ViewBuilder
     private func input(for field: SetField) -> some View {
         let id = FieldID.set(key, field)
-        // What a tap would commit (TrackerEditor.ghost); with no shadow, a
-        // resolved load still shows as a hint that commits nothing (the web's
-        // `hint`).
-        let committed = TrackerEditor.ghost(of: set, field: field)
-        let ghost = committed.isEmpty && field == .weight ? (set.resolvedPlannedWeight ?? "") : committed
+        let prompt = TrackerEditor.prompt(of: set, field: field)
+        let ghost = prompt.text
         if field == .duration {
             DurationField(
                 value: Binding(get: { set[.duration] }, set: { model.setValue($0, .duration, at: key) }),
@@ -360,6 +357,7 @@ struct SetRowView: View, Equatable {
             TrackerTextField(
                 text: Binding(get: { set[field] }, set: { model.setValue($0, field, at: key) }),
                 ghost: ghost,
+                hint: !prompt.commits,
                 keyboard: field == .weight && climbing ? .default : .decimalPad,
                 id: id,
                 isFocused: input.focusedField == field,
@@ -380,13 +378,17 @@ struct SetRowView: View, Equatable {
 struct TrackerTextField: View {
     @Binding var text: String
     let ghost: String
+    /// A plain placeholder rather than a ghost (`.tracker-input::placeholder`,
+    /// muted at 0.6): a tap commits nothing, so it must not look like
+    /// something that will be logged.
+    var hint = false
     let keyboard: UIKeyboardType
     let id: FieldID
     let isFocused: Bool
     var focus: FocusState<FieldID?>.Binding
 
     var body: some View {
-        TextField("", text: $text, prompt: Text(ghost.isEmpty ? " " : ghost).italic().foregroundStyle(ApexColor.textSecondary.opacity(0.9)))
+        TextField("", text: $text, prompt: Text(ghost.isEmpty ? " " : ghost).italic(!hint).foregroundStyle(hint ? ApexColor.textMuted.opacity(0.6) : ApexColor.textSecondary.opacity(0.9)))
             .font(.apex(.mono, size: TypeScale.sm, relativeTo: .callout))
             .foregroundStyle(ApexColor.textPrimary)
             .keyboardType(keyboard)

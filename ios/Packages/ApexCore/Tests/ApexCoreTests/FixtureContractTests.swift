@@ -232,6 +232,7 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertEqual(prs["distance"]?.value, 12)
         XCTAssertEqual(prs["distance"]?.unit, "mi")
         XCTAssertEqual(prs["distance"]?.previousValue, 10)
+        XCTAssertEqual(prs["elevation"]?.value, 600)
         XCTAssertEqual(prs["elevation"]?.unit, "ft")
         XCTAssertEqual(prs["send"]?.grade, "5.10b")
         XCTAssertEqual(prs["send"]?.discipline, "sport")
@@ -258,10 +259,29 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertEqual(amrap.scoreRecord?.description, "6 rounds + 3, beating 5 rounds on Dec 10")
         XCTAssertEqual(amrap.scoreRecord?.score, .amrap(rounds: 6, reps: 3))
         XCTAssertEqual(amrap.scoreRecord?.previous, .amrap(rounds: 5, reps: 0))
+        XCTAssertEqual(amrap.scoreRecord?.previousDate, "2026-12-10")
     }
 
     /// A score this build cannot read drops itself, not the response: a new
     /// score type, or a fractional number, still decodes the record's words.
+    /// Reps are typed on a decimal pad and parsed as numbers: a fractional
+    /// count in any record must not fail the response carrying it.
+    func testFractionalRepsInARecordDecode() throws {
+        var object = try JSONSerialization.jsonObject(with: try load("bootstrap-full.json")) as! [String: Any]
+        object["prs"] = (object["prs"] as! [[String: Any]]).map { pr in
+            var pr = pr
+            if pr["kind"] as? String == "reps" { pr["previousReps"] = 8.5 }
+            if pr["kind"] as? String == "oneRM" { pr["reps"] = 7.5 }
+            return pr
+        }
+        let full = try JSONDecoder().decode(TrackerBootstrap.self, from: try JSONSerialization.data(withJSONObject: object))
+        let prs = Dictionary(uniqueKeysWithValues: (full.prs ?? []).map { ($0.kind, $0) })
+        XCTAssertEqual(prs.count, 6)
+        XCTAssertEqual(prs["reps"]?.previousReps, 8.5)
+        XCTAssertEqual(prs["oneRM"]?.reps, 7.5)
+        XCTAssertFalse(full.groups.isEmpty)
+    }
+
     func testAnUnreadableScoreDropsOnlyItself() throws {
         let json = #"{"kind":"workout-score","score":{"type":"for-distance","meters":5000},"previous":{"type":"amrap","rounds":2.5},"previousDate":"2026-12-01","description":"5 km"}"#
         let record = try JSONDecoder().decode(ScoreRecord.self, from: Data(json.utf8))

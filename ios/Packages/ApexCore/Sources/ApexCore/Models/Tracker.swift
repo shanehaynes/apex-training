@@ -255,17 +255,19 @@ public struct CardioLog: Codable, Sendable, Equatable {
 public struct PersonalRecord: Codable, Sendable, Equatable {
     public let kind: String
     public let exerciseName: String
-    // oneRM
+    // oneRM. Every count is a Double: the server parses "8.5" reps as 8.5
+    // (records.ts parseLeadingNumber), and one fractional value decoded into
+    // an Int would fail the whole bootstrap or finish response.
     public let estimatedOneRM: Double?
     public let weight: Double?
-    public let reps: Int?
+    public let reps: Double?
     public let previousOneRM: Double?
     public let previousDate: String?
     // duration
     public let seconds: Double?
     public let previousSeconds: Double?
     // reps (the current count rides `reps`)
-    public let previousReps: Int?
+    public let previousReps: Double?
     // distance / elevation
     public let value: Double?
     public let unit: String?
@@ -278,9 +280,9 @@ public struct PersonalRecord: Codable, Sendable, Equatable {
     public let description: String
 
     public init(
-        kind: String, exerciseName: String, estimatedOneRM: Double? = nil, weight: Double? = nil, reps: Int? = nil,
+        kind: String, exerciseName: String, estimatedOneRM: Double? = nil, weight: Double? = nil, reps: Double? = nil,
         previousOneRM: Double? = nil, previousDate: String? = nil,
-        seconds: Double? = nil, previousSeconds: Double? = nil, previousReps: Int? = nil,
+        seconds: Double? = nil, previousSeconds: Double? = nil, previousReps: Double? = nil,
         value: Double? = nil, unit: String? = nil, previousValue: Double? = nil,
         grade: String? = nil, discipline: String? = nil, style: String? = nil, previousGrade: String? = nil,
         description: String

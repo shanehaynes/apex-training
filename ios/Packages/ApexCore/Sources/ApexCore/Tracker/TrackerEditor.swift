@@ -224,6 +224,22 @@ public struct TrackerEditor: Sendable, Equatable {
         return shadow[field]
     }
 
+    /// What a set's field shows before anything is typed: the ghost a tap
+    /// commits, or — for the weight of a resolved set with no shadow — the
+    /// load as a hint that commits nothing (the web's `hint`).
+    public struct FieldPrompt: Equatable, Sendable {
+        public let text: String
+        public let commits: Bool
+    }
+
+    public static func prompt(of set: TrackedSet, field: SetField) -> FieldPrompt {
+        let committed = ghost(of: set, field: field)
+        if committed.isEmpty, field == .weight, let resolved = set.resolvedPlannedWeight, !resolved.isEmpty {
+            return FieldPrompt(text: resolved, commits: false)
+        }
+        return FieldPrompt(text: committed, commits: !committed.isEmpty)
+    }
+
     // MARK: - Swap
 
     /// Relabel a logged exercise onto the movement actually performed. The
