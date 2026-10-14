@@ -96,7 +96,9 @@
               "isExtra": false,
               "shadow": null,
               "rpe": "",
-              "isWarmup": false
+              "isWarmup": false,
+              "ascentStyle": null,
+              "attempts": ""
             },
             {
               "setNumber": 2,
@@ -117,7 +119,9 @@
                 "duration": ""
               },
               "rpe": "",
-              "isWarmup": false
+              "isWarmup": false,
+              "ascentStyle": null,
+              "attempts": ""
             }
           ],
           "cardio": null
