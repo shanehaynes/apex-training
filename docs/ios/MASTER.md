@@ -16,7 +16,7 @@ detail lives in the linked files. If you are a Claude session picking up iOS wor
 | [testing-and-ci.md](testing-and-ci.md) | What Linux vs Mac sessions can verify, CI jobs, TestFlight, App Store gate |
 | [app-store.md](app-store.md) | App Store submission: the App Privacy answers, review notes, the demo account, screenshots |
 | [../ops-runbook.md](../ops-runbook.md) | Ops runbook: every escrowed secret and where it lives, ASC key regeneration, Apple Account recovery, DR restore pointers (#252) |
-| [workstreams/](workstreams/) | One self-contained brief per workstream (W0–W13) |
+| [workstreams/](workstreams/) | One self-contained brief per workstream (W0–W16) |
 
 ## Vision
 
@@ -60,6 +60,7 @@ timer in the Dynamic Island, and a coach you can read. Same backend, same data, 
 | App icon | New icon on the house palette | D-019 |
 | Invite hand-off | Web button + redirectTo | D-020 |
 | Offline outside the tracker | Builder save + exercise create queue; shown as waiting, never built locally | D-052 |
+| Apple Health | In scope: write, read workouts, daily metrics, body weight, meals; server, per-category opt-in | D-056 |
 
 ## Architecture in one paragraph
 
@@ -85,6 +86,7 @@ W8 analytics compute ───────────────────�
                                                           W10 library/blocks/meals (after W2)
                                                           W11 profile/integrations/account (after W1)
                                                           W13 release + polish (last) ─▶ App Store
+W16 M0 migration ─▶ M2b ─▶ M3b ─────────────────────────▶ W16 Apple Health (M1 write first, as 1.1)
 ```
 
 Gates: W0→W2, W3→W4, W5a/b→W6, W8→W9, W4→W12. Parallel: W0 ∥ W1; W3 ∥ W2; W5a/W5b/W8 ∥ W4;
@@ -112,7 +114,7 @@ re-created key means re-setting all three. Details: [testing-and-ci.md](testing-
 
 - Rest timer between sets (D-015)
 - Push notifications: `device_tokens` migration, `/api/devices`, APNs sender from the crons (D-017)
-- HealthKit workout write; Apple Watch companion (D-018)
+- Apple Watch companion (D-018; HealthKit itself moved to W16, D-056)
 - iOS sync to the server `coach_conversations` table (landed #303; D-013 update)
 - Web coach history window before send, now that threads persist (D-025 has the iOS one)
 - Index-keyed render loops in `BuilderCoachPanel`/`AnalyticsCoachPanel`; jsdom hook tests for `useChat`
@@ -150,3 +152,5 @@ re-created key means re-setting all three. Details: [testing-and-ci.md](testing-
   decided; roadmap W0–W13.
 - 2026-09-17 — W13: "Release cadence" section (90-day TestFlight expiry, the workflow and
   its three secrets).
+- 2026-10-14 — W16 Apple Health added (D-056 supersedes D-018); HealthKit write leaves the
+  backlog, the Watch companion stays in it.

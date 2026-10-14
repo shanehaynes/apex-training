@@ -171,7 +171,7 @@ timer from the date (no updates needed while running), update on finish/cancel.
 `/api/devices`, and an APNs sender called from the crons).
 
 ## D-018 · HealthKit and Apple Watch — later, out of scope
-**Status:** decided · Shane · 2026-09-02 → Backlog. Privacy answers state no Health access.
+**Status:** superseded by [D-056](#d-056--apple-health-is-in-scope-one-opt-in-per-category-on-the-provider-sync-rails-supersedes-d-018) (2026-10-13) · was: decided · Shane · 2026-09-02 → Backlog. Privacy answers state no Health access.
 
 ## D-019 · App icon — design one
 **Status:** decided · Shane · 2026-09-02
@@ -1112,3 +1112,50 @@ show now and still reach the library later.
   lane, where the sync-failed bar's Retry / Discard shows it.
 - **Reversible in the Library, not on the card.** The editor's "Always log" toggles send the whole
   column too (`[]` clears it), so the card needs no "– weight".
+
+## D-056 · Apple Health is in scope, one opt-in per category, on the provider-sync rails (supersedes D-018)
+**Status:** decided · Shane (scope, data home, order) + planning session (mechanics) · 2026-10-13
+D-018 parked HealthKit so 1.0 could ship with "no Health access" on the privacy label. With 1.0
+submitted, Shane put the whole Apple Health surface in scope: write tracker sessions as
+workouts, read workouts from Health, daily metrics (sleep, HRV, resting HR, steps, body mass) to
+the coach, body weight both ways, meals as dietary samples. Brief:
+[W16](workstreams/W16-apple-health.md).
+- **Data home: the server, per-category opt-in, off by default.** Options were on-device only
+  (the coach and the web never see Health data — contradicts D-008's server-owned analytics and
+  coach context), one switch (coarser consent than the data deserves), or a toggle per category.
+  The toggles are `categories` on an `apple` row in `provider_connections`, not columns on
+  `profiles`, so status, disconnect and purge reuse COROS's code and copy.
+- **Order: write first.** Write is iOS-only, carries no migration and a write-only Health
+  entitlement (no `NSHealthShareUsageDescription`, privacy label unchanged), so it can ship as
+  1.1 once 1.0 is approved — and merges only then, so a 1.0 rebuild never carries it. Read
+  workouts second, metrics third.
+- **Write at finish time from local state**, inside `TrackerModel.requestFinish`, not when the
+  queued `finish` lands. The model holds everything the workout needs; the write does not wait
+  on the network; an offline finish that lands after the tracker closes has no listener today.
+  `HKMetadataKeySyncIdentifier` + `SyncVersion` make a re-save replace; cancel deletes.
+  Quick-complete never writes — it has no measured times.
+- **Reads ride the COROS rails as provider `apple`.** The phone is the provider: activities
+  arrive in the request body, the HealthKit anchor is the watermark, the ledger
+  (`provider_activity_imports`) is the dedup, and matching, fill, HR streams and D-051's
+  Live Activity end come free. Apple gets its own activity-type mapper keyed on the integer
+  `HKWorkoutActivityType` because COROS's label mapper reads "Traditional Strength" as trad
+  climbing. Own-app workouts are excluded on the phone and skipped on the server; a Watch
+  workout overlapping an Apex tracker session is a duplicate, not a second workout. The match
+  window comes from the batch, not the last-sync watermark. Matches the user has not decided
+  wait on the phone (`healthPending`) so nothing is lost to a background ingest. Health ops get
+  their own queue lane so a refused batch never blocks meals and builder saves in the outbox.
+  The server enforces the categories: data for an off category is refused.
+- **HealthKit code lives in a new `ApexHealth` ApexKit product**; `HealthKit` joins the
+  ApexCore import ban in `scripts/ci-guards.sh`; mapping and payloads stay in ApexCore so
+  `swift test` on Linux proves them.
+- **Not now:** an Apple Watch companion app; GPS routes (App Privacy keeps "Location: No");
+  HR-derived training load (`computeLoad` counts COROS only until then).
+- **Privacy policy:** one version bump, after the first milestone that puts Health data on the
+  server (M2b), with text that already covers M3 and names Anthropic as the recipient of daily
+  metrics in coach context (guideline 5.1.2(i)) — users re-accept once. Shane confirms it.
+  **Prerequisite:** an iOS build that lets a signed-in user re-accept (W16 MT). Today a bump
+  makes every JWT route answer 403 `terms-acceptance-required` and the app only asks during
+  set-password, so a signed-in phone user would be locked out.
+- **Shane's approvals, 2026-10-14:** the privacy-policy bump (timing as above: after M2b, once MT
+  is adopted); enabling HealthKit on the App ID; mentioning Health in the App Store description
+  (on the 1.1 version, since 1.0 does not write to Health).
