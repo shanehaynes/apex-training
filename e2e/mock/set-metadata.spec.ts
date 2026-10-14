@@ -146,6 +146,9 @@ test('a warm-up set saves, survives a reload, and adds nothing to the summary vo
   const savedNote = page.waitForRequest(req =>
     isSave(req) && (req.postDataJSON() as SessionBody).sessionNote === 'Slept four hours');
   await page.getByLabel('Session notes').fill('Slept four hours');
+  // The ghost tap's deferred select() must not pull focus back to set 2.
+  await expect(page.getByLabel('Session notes')).toHaveValue('Slept four hours');
+  await expect(weight2).toHaveValue('105');
   await savedNote;
 
   // Finish (set 3 unlogged → confirm): the volume is the working set alone.
