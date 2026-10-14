@@ -108,7 +108,8 @@ describe.skipIf(!RUN)('workout-sessions save with mixed row shapes', () => {
   afterAll(async () => {
     if (!admin || !userId) return;
     await clear();
-    await admin.auth.admin.deleteUser(userId);
+    const { error } = await admin.auth.admin.deleteUser(userId);
+    expect(error).toBeNull();
   });
 
   it('saves a batch where one row sets is_warmup and one omits it', async () => {

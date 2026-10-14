@@ -14,6 +14,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { ProviderActivity } from '../../_lib/providers/coros/client';
 // @ts-expect-error plain-JS helper shared with the seed scripts
 import { localSupabaseEnv } from '../../../scripts/lib/localEnv.mjs';
+import acceptanceHandler from '../../_lib/handlers/termsAcceptance';
 
 const RUN = !!process.env.APEX_LOCAL_SUPABASE;
 
@@ -93,15 +94,27 @@ describe.skipIf(!RUN)('provider-sync against the local stack', () => {
     process.env.VITE_SUPABASE_URL = env.url;
     process.env.SUPABASE_SERVICE_ROLE_KEY = env.serviceKey;
 
+    admin = createClient(env.url, env.serviceKey);
+
+    // A throwaway user, not agent@apex.local: the filled run and the created
+    // ride are cardio PRs, and ios-read snapshots agent's get_prs into a
+    // fixture from a parallel worker.
+    const email = `sync-agent-${Date.now()}@apex.local`;
+    const password = 'apex-sync-password';
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email, password, email_confirm: true,
+    });
+    if (createErr || !created.user) throw new Error(`user create failed: ${createErr?.message}`);
     const res = await fetch(`${env.url}/auth/v1/token?grant_type=password`, {
       method: 'POST',
       headers: { apikey: env.anonKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'agent@apex.local', password: 'apex-agent-password' }),
+      body: JSON.stringify({ email, password }),
     });
     if (!res.ok) throw new Error(`sign-in failed: ${await res.text()}`);
-    const data = await res.json() as { access_token: string; user: { id: string } };
-    agent = { token: data.access_token, userId: data.user.id };
-    admin = createClient(env.url, env.serviceKey);
+    agent = { token: (await res.json() as { access_token: string }).access_token, userId: created.user.id };
+    const accepted = makeRes();
+    await acceptanceHandler(makeReq(undefined, agent.token), accepted.res);
+    if (accepted.captured.statusCode !== 200) throw new Error(`terms acceptance failed: ${String(accepted.captured.body)}`);
 
     // A connected COROS row. No API_KEY_ENCRYPTION_SECRET in the test env,
     // so the plaintext token round-trips through unsealed().
@@ -123,7 +136,7 @@ describe.skipIf(!RUN)('provider-sync against the local stack', () => {
   });
 
   afterAll(async () => {
-    if (!admin) return;
+    if (!admin || !agent) return;
     const uid = agent.userId;
     const createdId = 'coros-it-449022';
     await admin.from('provider_activity_imports').delete().eq('user_id', uid).in('activity_id', ['it-449021', 'it-449022']);
@@ -134,6 +147,8 @@ describe.skipIf(!RUN)('provider-sync against the local stack', () => {
     await admin.from('event_mutations_log').delete().eq('user_id', uid).eq('event_id', createdId);
     await admin.from('workout_events').delete().eq('user_id', uid).in('id', [plannedEventId, createdId]);
     await admin.from('provider_connections').delete().eq('user_id', uid).eq('provider', 'coros');
+    const { error } = await admin.auth.admin.deleteUser(uid);
+    expect(error).toBeNull();
   });
 
   it('preview proposes a fill for the planned run and a create for the ride', async () => {
