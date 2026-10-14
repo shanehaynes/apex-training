@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildBootstrap } from '../_lib/trackerSession';
+import { buildBootstrap, loadResolvedOccurrence } from '../_lib/trackerSession';
 import type { Tables } from '../../src/lib/db/database.types';
 import type { WorkoutSessionRow } from '../../src/lib/db/types';
 import type { WorkoutEvent } from '../../src/types/workout';
@@ -82,9 +82,31 @@ function expectSameShape(name: string, built: unknown) {
 const TRACKED = 'ios-fixture-weekly__2026-09-22';
 const DATE = '2026-09-22';
 
-// The event is an input here, not under test: it comes from the fixture so the
-// `event` and `groups[].exercises[].exercise` subtrees match by construction.
-const event = read('bootstrap.json').event as unknown as WorkoutEvent;
+// The base event and the library definition, as full DB rows: a new column on
+// either fails tsc here, and loadResolvedOccurrence maps them exactly as the
+// handler does, so the `event` subtree is checked too.
+const eventRow: Tables<'workout_events'> = {
+  id: 'ios-fixture-weekly', user_id: 'u1', title: 'Fixture Push Day', subtitle: null, type: 'weights', sport: null,
+  date: '2026-09-01', start_time: '17:30', end_time: '18:30', estimated_duration: 60, difficulty: 3,
+  description: 'W0 fixture', location: null, tags: ['fixture'], equipment: [], cover_image_url: null,
+  is_recurring: true, recurrence_rule: 'FREQ=WEEKLY;BYDAY=TU;UNTIL=20261027',
+  recurring_days: null, recurring_end_date: null, recurring_frequency: null,
+  warmup: [], cooldown: [], cardio_targets: null, climbing_targets: null,
+  exercises: [
+    { id: 'fx-press', name: 'fx press', definitionId: 'ios-fixture-def', category: 'strength', sets: 2, reps: '5', weight: '100 lb', restPeriod: '2 min' },
+    { id: 'fx-row', name: 'Fixture Row', category: 'cardio', duration: '20 min' },
+  ],
+  template_id: null, scoring_type: null, time_cap_minutes: null, source: null,
+  created_at: '2026-09-01T00:00:00.000Z', updated_at: '2026-09-01T00:00:00.000Z',
+};
+
+const definition: Tables<'exercise_definitions'> = {
+  id: 'ios-fixture-def', user_id: 'u1', canonical_name: 'Fixture Press', category: 'strength',
+  aliases: ['fx press'], muscle_groups: ['chest'], equipment: ['barbell'], is_unilateral: false,
+  archived_at: null, default_duration: null, default_reps: null, default_rest: null, default_sets: null,
+  default_weight: null, image_url: null, log_fields: [], technique_notes: null,
+  created_at: '2026-09-01T00:00:00.000Z', updated_at: '2026-09-01T00:00:00.000Z',
+};
 
 /** A full DB row: a new set-log column fails tsc here before it can be missed. */
 function setLog(over: Partial<Tables<'workout_set_logs'>>): Tables<'workout_set_logs'> {
@@ -116,11 +138,19 @@ const history = [
 ];
 
 function admin(saved: Tables<'workout_set_logs'>[]) {
-  return makeAdmin({
+  const client = makeAdmin({
     profiles: [{ id: 'u1', weight_unit: 'lb', body_weight_lb: null }],
-    exercise_definitions: [{ id: 'ios-fixture-def', user_id: 'u1', canonical_name: 'Fixture Press', category: 'strength', aliases: ['fx press'] }],
+    workout_events: [eventRow],
+    exercise_definitions: [definition],
     workout_set_logs: [...history, ...saved] as unknown as Record<string, unknown>[],
-  });
+  } as unknown as Record<string, Record<string, unknown>[]>);
+  return client;
+}
+
+async function occurrence(client: Admin): Promise<WorkoutEvent> {
+  const event = await loadResolvedOccurrence(client, 'u1', TRACKED, DATE);
+  expect(event).not.toBeNull();
+  return event!;
 }
 
 describe('iOS bootstrap fixtures carry exactly the fields the server sends', () => {
@@ -128,13 +158,15 @@ describe('iOS bootstrap fixtures carry exactly the fields the server sends', () 
     const logged = setLog({
       event_id: TRACKED, event_date: DATE, actual_weight: '120 lb', actual_reps: '3', updated_at: '2026-09-22T17:45:00.000Z',
     });
-    const boot = await buildBootstrap(admin([logged]), 'u1', finishedSession as WorkoutSessionRow, event);
+    const client = admin([logged]);
+    const boot = await buildBootstrap(client, 'u1', finishedSession as WorkoutSessionRow, await occurrence(client));
     expect(boot.prs.map(pr => pr.kind)).toEqual(['oneRM']);
     expectSameShape('bootstrap.json', boot);
   });
 
   it('bootstrap-peek.json — before the session starts', async () => {
-    const boot = await buildBootstrap(admin([]), 'u1', null, event);
+    const client = admin([]);
+    const boot = await buildBootstrap(client, 'u1', null, await occurrence(client));
     expectSameShape('bootstrap-peek.json', boot);
   });
 

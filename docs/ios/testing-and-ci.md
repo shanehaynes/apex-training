@@ -35,12 +35,15 @@ say so.
    Swift's decoder ignores keys it does not know, so a field the server adds never fails it. By
    default the suite **checks** the committed files byte for byte and fails on drift; `npm run
    fixtures:ios` (stack-locked reset, then `APEX_FIXTURES_WRITE=1`) regenerates them after a
-   deliberate shape change. It needs the local stack, so `agent:check` skips it and only CI's
-   `full` job runs it. The tracker's opening response — the file most often drifted (#417, #419,
+   deliberate shape change. It needs the local stack, so `agent:check` skips it; CI's `full` job
+   and `npm run agent:check:full` run it. The tracker's opening response — the file most often drifted (#417, #419,
    #422) — also has a no-DB check that `agent:check` does run:
    `api/__tests__/ios-fixture-shape.test.ts` builds `bootstrap.json` and `bootstrap-peek.json`
-   through `buildBootstrap` on a fake client and compares field names, so an added or dropped
-   field fails locally and the byte-for-byte check stays in CI.
+   through `loadResolvedOccurrence` and `buildBootstrap` on a fake client seeded with typed rows,
+   and compares field names, so a field added to or dropped from what the fixture scenario
+   reaches fails locally; the byte-for-byte check stays in CI. Subtrees neither fixture contains
+   (a non-null `scoreRecord`, PR kinds other than `oneRM`, `resolvedPlannedWeight`, climbing
+   pitches, cardio shadows) are checked by neither.
 3. **Snapshot tests** (`swift-snapshot-testing`) in `ApexFeatures`: Day view (empty, three
    events, completed), tracker set row in each state (planned / shadow / logged / autofilled /
    extra), confirmation card, KPI and line tiles, event detail sheet. iPhone 17 (iOS 26) and,
