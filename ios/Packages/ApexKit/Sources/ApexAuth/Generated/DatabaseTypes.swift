@@ -1378,6 +1378,36 @@ internal enum PublicSchema {
       case userId = "user_id"
     }
   }
+  internal struct MigrationLedgerSelect: Codable, Hashable, Sendable {
+    internal let appliedAt: String
+    internal let fingerprint: String
+    internal let name: String
+    internal enum CodingKeys: String, CodingKey {
+      case appliedAt = "applied_at"
+      case fingerprint = "fingerprint"
+      case name = "name"
+    }
+  }
+  internal struct MigrationLedgerInsert: Codable, Hashable, Sendable {
+    internal let appliedAt: String?
+    internal let fingerprint: String
+    internal let name: String
+    internal enum CodingKeys: String, CodingKey {
+      case appliedAt = "applied_at"
+      case fingerprint = "fingerprint"
+      case name = "name"
+    }
+  }
+  internal struct MigrationLedgerUpdate: Codable, Hashable, Sendable {
+    internal let appliedAt: String?
+    internal let fingerprint: String?
+    internal let name: String?
+    internal enum CodingKeys: String, CodingKey {
+      case appliedAt = "applied_at"
+      case fingerprint = "fingerprint"
+      case name = "name"
+    }
+  }
   internal struct OauthClientsSelect: Codable, Hashable, Sendable {
     internal let clientId: String
     internal let clientName: String

@@ -1,16 +1,20 @@
 import ApexActivity
 import ApexCore
+import ApexHealth
 import Foundation
 
 /// What the tracker needs from the app: the client, the read cache, the write
-/// queue, the clock and the Live Activity (W12). Built once by `AppModel` per
-/// signed-in user (the queue store is per owner) and handed to the Schedule tab.
+/// queue, the clock, the Live Activity (W12) and Apple Health (W16). Built once
+/// by `AppModel` per signed-in user (the queue store is per owner) and handed to
+/// the Schedule tab.
 public struct TrackerServices: Sendable {
     public var client: ApexClient
     public var cache: any CacheStore
     public var queue: WriteQueue
     public var clock: any ApexClock
     public var activity: any TrackerActivityPublishing
+    /// A finished session's workout in Apple Health; a cancel takes it back.
+    public var health: any HealthWorkoutPublishing
     /// The running session, for anything outside the cover that has to say so
     /// — today the Day view's card (ux-review §3.4). One per signed-in user,
     /// like the queue, because it dies with the services that hold it.
@@ -18,13 +22,15 @@ public struct TrackerServices: Sendable {
 
     public init(
         client: ApexClient, cache: any CacheStore, queue: WriteQueue, clock: any ApexClock = SystemClock(),
-        activity: any TrackerActivityPublishing = NoActivityPublisher(), live: LiveSessionStore = LiveSessionStore()
+        activity: any TrackerActivityPublishing = NoActivityPublisher(), health: any HealthWorkoutPublishing = NoHealthPublisher(),
+        live: LiveSessionStore = LiveSessionStore()
     ) {
         self.client = client
         self.cache = cache
         self.queue = queue
         self.clock = clock
         self.activity = activity
+        self.health = health
         self.live = live
     }
 }

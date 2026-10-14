@@ -26,15 +26,29 @@ say so.
    `WriteQueue` (coalescing, ordering, retry classes, cancel purge), `APIError` mapping
    (401/402/413/429 + `Retry-After`), NDJSON line parser (split chunks, partial lines, `error`
    events).
-2. **Fixture contract tests** — a vitest in the web repo
-   (`api/__tests__/fixtures/emitIosFixtures.test.ts`) runs the real handlers against the local
+2. **Fixture contract tests** — the integration suite
+   (`api/__tests__/integration/ios-read.integration.test.ts`) runs the real handlers against the local
    stack and writes canonical responses to `ios/Fixtures/`: `schedule.json`,
-   `bootstrap.json`, `bootstrap-peek.json`, `finish.json`, `chat-stream.ndjson`, `chat-stream-builder.ndjson`,
+   `bootstrap.json`, `bootstrap-peek.json`, `bootstrap-full.json`, `finish.json`, `chat-stream.ndjson`, `chat-stream-builder.ndjson`,
    `coach-summary.ndjson`, `coach-tool.json`, `coach-tool-draft.json`, `workout-draft-{create,edit,detach}.json`,
-   `analytics-compute.json`, `query-*.json`, `profile.json`. `swift test` decodes every file. The emitter runs inside the
-   integration suite (`api/__tests__/integration/ios-read.integration.test.ts`): by default it
-   **checks** the committed files and fails on drift; `APEX_FIXTURES_WRITE=1` regenerates them
-   after a deliberate shape change. CI's `full` job therefore checks them with no extra step.
+   `analytics-compute.json`, `query-*.json`, `profile.json`. `swift test` decodes every file, but
+   Swift's decoder ignores keys it does not know, so a field the server adds never fails it. By
+   default the suite **checks** the committed files byte for byte and fails on drift; `npm run
+   fixtures:ios` (stack-locked reset, then `APEX_FIXTURES_WRITE=1`) regenerates them after a
+   deliberate shape change. It needs the local stack, so `agent:check` skips it; CI's `full` job
+   and `npm run agent:check:full` run it. The tracker's opening response — the file most often drifted (#417, #419,
+   #422) — also has a no-DB check that `agent:check` does run:
+   `api/__tests__/ios-fixture-shape.test.ts` rebuilds all three bootstrap fixtures
+   through `loadResolvedOccurrence` and `buildBootstrap` on a fake client seeded with typed rows,
+   and compares field names (array elements merged, PRs per `kind`), so a field added to or
+   dropped from every element of an array fails locally; one element losing a field its siblings
+   keep is left to the byte-for-byte check in CI. `bootstrap-full.json` exists for that coverage:
+   a finished for-time session with a workout score record, every PR kind, a percentage target,
+   a pitch, an added exercise, a swap, a duration shadow, a cardio shadow and the session's
+   summary and note. Still absent from every bootstrap fixture: an AMRAP score (`score_rounds`,
+   `score_reps`). Its scenario is the
+   last test in the integration file and deletes its rows, because `get_prs` reads all of the
+   user's records and would otherwise move `query-get_prs.json`.
 3. **Snapshot tests** (`swift-snapshot-testing`) in `ApexFeatures`: Day view (empty, three
    events, completed), tracker set row in each state (planned / shadow / logged / autofilled /
    extra), confirmation card, KPI and line tiles, event detail sheet. iPhone 17 (iOS 26) and,
@@ -218,7 +232,8 @@ rule people remember.
   second one for the `ApexWidgets` extension — App Store Connect scans each binary in the
   upload on its own (ITMS-91053), and the extension links neither supabase-swift nor GRDB.
 - App Privacy answers: email (account), fitness data the user enters (linked to identity), no
-  tracking, no HealthKit.
+  tracking. HealthKit from 1.1 is write-only (W16 M1), so Health stays "not collected" until W16
+  M2 reads workouts.
 - In-app account deletion (guideline 5.1.1(v)) → `DELETE /api/profile` (W11).
 - BYO Anthropic key: the app is fully usable without it; the coach is presented as optional;
   no pricing shown. Review notes explain it and provide a demo account with a key already saved.

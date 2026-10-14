@@ -187,6 +187,31 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertEqual(events[2], .done)
     }
 
+    /// The fixture that reaches the optional bootstrap branches the other two
+    /// leave null or absent. This decodes only what the Swift models declare —
+    /// the decoder ignores the rest (per-kind PR fields, set metadata,
+    /// `resolvedPlannedWeight`); the web repo's ios-fixture-shape test owns
+    /// those field names.
+    func testFullBootstrapDecodesEveryOptionalBranch() throws {
+        let full = try decode(TrackerBootstrap.self, from: "bootstrap-full.json")
+        XCTAssertTrue(full.scored)
+        XCTAssertEqual(full.session?.scoreType, "for-time")
+        XCTAssertEqual(full.scoreRecord?.kind, "workout-score")
+        XCTAssertEqual(Set(full.prs?.map(\.kind) ?? []), ["oneRM", "duration", "reps", "distance", "elevation", "send"])
+
+        let exercises = full.groups.flatMap(\.exercises)
+        let byId = { (id: String) in exercises.first { $0.exercise.id == id } }
+        XCTAssertEqual(byId("mx-squat")?.sets.first?.planned?.targetWeight, "80%")
+        XCTAssertTrue(try XCTUnwrap(byId("added-1765000000000")).added)
+        XCTAssertEqual(byId("mx-ski")?.cardio?.shadow?.distance, "2 km")
+        XCTAssertNil(byId("mx-bike")?.cardio?.shadow)
+        XCTAssertEqual(byId("mx-pitch")?.sets.first?.actualWeight, "5.10b")
+        XCTAssertEqual(byId("mx-pullup")?.substitutedFrom, "Mixed Pull-Up")
+        XCTAssertTrue(try XCTUnwrap(byId("mx-pullup")).isOffPlan)
+        XCTAssertEqual(byId("mx-hang")?.sets.first?.shadow?.duration, "30 s")
+        XCTAssertEqual(full.session?.coachSummary, "Six records in one session.")
+    }
+
     func testFinishDecodes() throws {
         let finish = try decode(FinishResponse.self, from: "finish.json")
         XCTAssertTrue(finish.ok)

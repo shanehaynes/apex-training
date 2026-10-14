@@ -264,6 +264,16 @@ makes granting it a small decision rather than a large one:
   through the babysitter or a human, nothing else. (A review approval cannot
   be the token: `gh` acts as the repo owner, who cannot approve their own
   PRs.)
+- **A migration merges only onto a current production.** Before a PR
+  touching `supabase/migrations/` merges, the babysitter runs
+  `scripts/prod-schema-check.mjs`; unless production has every object
+  `origin/main` already expects, the PR is `HOLD`ed with the missing objects
+  and the migrations that create them. `shipit` does not waive it: the label
+  grants the PR, not a gap under it. Could-not-check holds too (fail closed).
+  A migration PR still waiting for `shipit` gets the same check, printed
+  under its HOLD, so a gap shows before the label goes on.
+  A fleet carries at most one migration PR, and a run that merged one ends by
+  printing what production must now be given.
 - **The kill switch stops everything.** `touch .claude/AUTOMERGE_OFF` in the
   primary checkout; it is checked every pass, so it also halts a loop that is
   already running.
@@ -554,10 +564,49 @@ from whatever reads the missing object. `node scripts/prod-schema-check.mjs`
 compares production against `main`'s committed types — every table, column
 and function, through read-only `limit=0` PostgREST probes with the
 service-role key from `~/.config/apex-training/prod.env` — and names the
-migration behind anything missing; `supervisor-report.sh` runs it on every sweep. Run it after pasting a
-migration. It cannot see triggers, policies, grants or the realtime
-publication, so a migration that only changes those still needs checking by
-hand.
+migration behind anything missing; `supervisor-report.sh` runs it on every sweep.
+
+**Run it before and after every production migration.** Before: every missing
+object must name the migration you are about to apply. Anything else names an
+older migration production skipped — apply that one first, in phase order,
+because a migration pasted over a gap can fail halfway or build on objects
+that are not there. (On 2026-10-14 two older migrations surfaced exactly this
+way.) After: it must exit 0. The babysitter enforces the "before" half on
+every migration PR ("Autonomous merging" below); whoever applies DDL by
+hand runs both itself.
+
+**Every migration ends with its own ledger stamp.** PostgREST cannot see
+triggers, policies, grants or the realtime publication, so the object probes
+alone would pass a migration that only changes those and was never applied.
+Production therefore records what ran: `public.migration_ledger` (phase56),
+and every migration's **last statement** stamps its file name and a
+fingerprint of its SQL there:
+
+```sql
+insert into public.migration_ledger (name, fingerprint) values ('phase57_example', '0123456789abcdef') on conflict do nothing;
+```
+
+```bash
+node scripts/prod-schema-check.mjs --stamp supabase/migrations/phase57_example.sql
+```
+
+prints the line for a file. Last, so it runs only if everything above it did;
+a paste that stops at an error leaves no stamp. The fingerprint is a hash of
+the file's statements, ignoring SQL comments and whitespace between tokens
+(not inside string literals or function and DO bodies, where both are
+content), so editing a migration production already ran shows up as edited
+rather than applied. The check names every migration on `main` that
+production has not applied as written, whatever it changes; a ledger the key
+is refused is drift (exit 1), an outage is not (exit 2).
+
+`scripts/__tests__/migration-ledger.test.ts` fails a migration without a
+current stamp (printing the line to add), and any SQL edit to, or deletion of,
+a migration already on `main` — it compares each with its copy at the
+merge-base. **A migration on `main` is changed by a new migration, never by an
+edit.** Finishing a partly applied file by hand means its missing statements,
+then its stamp. Never paste a stamp for statements that did not run: a stamp
+records that the file's last statement ran, not what a hand-edited paste
+executed, and changes made outside migrations leave no stamp to miss.
 
 Production keys live in `~/.config/apex-training/prod.env` (`chmod 600`,
 `VITE_SUPABASE_URL=` and `SUPABASE_SERVICE_ROLE_KEY=` lines), never in a

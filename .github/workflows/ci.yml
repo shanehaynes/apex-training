@@ -39,6 +39,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          # scripts/__tests__/migration-ledger.test.ts compares every migration
+          # with its copy at the merge-base with origin/main: an applied
+          # migration is changed by a new one, never by an edit.
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -328,7 +333,7 @@ jobs:
           case "$rc" in
             0) ;;
             2) echo "::notice::Production schema not checked (no credentials, or the project was unreachable). Add the VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY repository secrets if this keeps happening." ;;
-            1) echo "::error::Production's database is missing objects main's code uses — apply the migrations named above in the Supabase SQL Editor."; exit 1 ;;
+            1) echo "::error::Production's database is behind main (missing objects, or migrations not applied as written) — apply what is named above in the Supabase SQL Editor."; exit 1 ;;
             *) echo "::error::scripts/prod-schema-check.mjs exited $rc — the schema was not checked."; exit 1 ;;
           esac
 

@@ -13,9 +13,10 @@ public struct MealsDependencies: Sendable {
     public var clock: any ApexClock
     public var realtime: (any RealtimeChanges)?
     public var timeZone: TimeZone
-    /// The app's write queue once someone is signed in: the composer's saves
-    /// wait in its outbox lane (D-052) instead of needing signal. nil sends
-    /// direct — a test without one.
+    /// The app's write queue once someone is signed in: a composer save the
+    /// server could not take for want of a connection (or for its own error)
+    /// waits in its outbox lane (D-052) instead of failing. nil sends direct
+    /// only — a test without one.
     public var writeQueue: WriteQueue?
     public var onMealsChanged: @MainActor @Sendable () async -> Void
 
@@ -359,14 +360,18 @@ public final class MealsModel {
 
     /// The composer's save: create, or every column of an edit (a blanked
     /// field clears). nil = saved; a message = the refusal — the form's own
-    /// (a missing title, a bad number) or, on the direct path, the server's
-    /// (the fat split). With the queue the write waits in the outbox lane
-    /// (D-052): the sheet closes at once, the meal is listed once the server
-    /// has it, and a refusal the composer did not catch arrives as a toast.
-    /// A create's id is minted here, once, so a replay of a save whose
-    /// answer was lost is the same meal (`/api/meals` answers it as landed).
-    /// `fixing`: the refused op this save replaces — it is let go once the
-    /// new one is queued, and a refused create keeps its id.
+    /// (a missing title, a bad number) or the server's (the fat split),
+    /// returned to the open composer. Online the save goes straight to the
+    /// server: "Meal added", the month re-read. Only when the server cannot be
+    /// reached or errors (network, 5xx, 429 — `RetryPolicy.isTransient`) does
+    /// it wait in the outbox lane (D-052): the sheet closes, the meal is
+    /// listed once it lands, and a refusal that comes later through the lane
+    /// is kept for Fix. A create's id is minted here, once, and the queued op
+    /// carries the same id and body as the direct try, so a save whose answer
+    /// was lost after the insert is the same meal (`/api/meals` answers the
+    /// replay as landed). `fixing`: the refused op this save replaces — it is
+    /// let go once the new save lands or is queued, and a refused create
+    /// keeps its id.
     public func save(
         _ form: MealForm, editing: MealsQueryResult.Item?, originalDay: DayKey?, fixing: RefusedMeal? = nil
     ) async -> String? {
@@ -374,43 +379,66 @@ public final class MealsModel {
             if case .problem(let text) = form.parse() { return text }
             return nil
         }
-        if let queue = deps.writeQueue {
-            let payload: MealOpPayload
-            if let editing, let id = editing.id {
-                payload = MealOpPayload(
-                    kind: .update, id: id, title: parsed.title, day: form.day.string, originalDay: originalDay?.string,
-                    columns: form.fields(parsed: parsed)
-                )
-            } else {
-                let id = fixing?.item.id ?? MealID.mint()
-                payload = MealOpPayload(kind: .create, id: id, title: parsed.title, day: form.day.string, columns: form.row(id: id, parsed: parsed))
-            }
+        let payload: MealOpPayload
+        if let editing, let id = editing.id {
+            payload = MealOpPayload(
+                kind: .update, id: id, title: parsed.title, day: form.day.string, originalDay: originalDay?.string,
+                columns: form.fields(parsed: parsed)
+            )
+        } else {
+            let id = fixing?.item.id ?? MealID.mint()
+            payload = MealOpPayload(kind: .create, id: id, title: parsed.title, day: form.day.string, columns: form.row(id: id, parsed: parsed))
+        }
+        guard let queue = deps.writeQueue else {
             do {
-                try await queue.enqueue(.meal(payload), for: .outbox)
+                _ = try await deps.client.data(for: .tracker(.meal(payload), session: .outbox))
             } catch {
                 return Failure.message(error)
             }
-            if let fixing { await queue.discard(fixing.id, in: .outbox) }
-            pendingNotice = Self.queuedNotice
-            pendingNoticeLevel = .info
-            await reloadOutbox()
-            // Start the lane now: online it lands in a moment; offline the
-            // first try fails on the network and the lane waits for resume.
-            Task { await queue.flush(.outbox) }
-            return nil
+            return await landed(isUpdate: editing != nil, days: [form.day] + (originalDay.map { [$0] } ?? []))
+        }
+        // An earlier save of this same meal still waiting in the lane goes
+        // first: sent direct, this one could land before it and be
+        // overwritten when the older one replays.
+        let behindItself = await queue.ops(for: .outbox).contains { op in
+            guard op.isWaiting, case .meal(let waiting) = op.payload else { return false }
+            return waiting.id == payload.id
+        }
+        if !behindItself {
+            do {
+                _ = try await deps.client.data(for: .tracker(.meal(payload), session: .outbox))
+                if let fixing {
+                    await queue.discard(fixing.id, in: .outbox)
+                    await reloadOutbox()
+                }
+                return await landed(isUpdate: editing != nil, days: [form.day] + (originalDay.map { [$0] } ?? []))
+            } catch let error as APIError where RetryPolicy.isTransient(error) {
+                // No answer, or the server erred: the lane takes it from here.
+            } catch {
+                return Failure.message(error)
+            }
         }
         do {
-            if let editing, let id = editing.id {
-                _ = try await deps.client.data(for: .updateMeal(id: id, fields: form.fields(parsed: parsed), title: parsed.title))
-            } else {
-                _ = try await deps.client.data(for: .createMeal(row: form.row(id: MealID.mint(), parsed: parsed)))
-            }
+            try await queue.enqueue(.meal(payload), for: .outbox)
         } catch {
             return Failure.message(error)
         }
-        pendingNotice = editing == nil ? "Meal added" : "Meal updated"
+        if let fixing { await queue.discard(fixing.id, in: .outbox) }
+        pendingNotice = Self.queuedNotice
+        pendingNoticeLevel = .info
+        await reloadOutbox()
+        // Start the lane now: a server that just blipped takes it in a
+        // moment; offline the try fails on the network and the lane waits
+        // for resume.
+        Task { await queue.flush(.outbox) }
+        return nil
+    }
+
+    /// A save the server answered: said, its months re-read, the schedule told.
+    private func landed(isUpdate: Bool, days: [DayKey]) async -> String? {
+        pendingNotice = isUpdate ? "Meal updated" : "Meal added"
         pendingNoticeLevel = .success
-        await reload(days: [form.day] + (originalDay.map { [$0] } ?? []))
+        await reload(days: days)
         await deps.onMealsChanged()
         return nil
     }

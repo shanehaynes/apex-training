@@ -1,5 +1,6 @@
 #if DEBUG
 import ApexCore
+import ApexHealth
 import Foundation
 
 /// The in-process backend behind `-apexMockClient`: every `/api/*` route the
@@ -27,6 +28,11 @@ import Foundation
 ///                                   untouched), so the screen has enough rows
 ///                                   to scroll — the fixture workout is two
 ///                                   exercises and never does
+///   -apexMockHealth authorized      Apple Health (W16) is a fake store that has
+///                                   granted writing, with the toggle on (or
+///                                   `denied`: on but refused; `unavailable`);
+///                                   without it the fake is undecided and off.
+///                                   Fresh each launch either way.
 ///
 /// W7: the sheet's and the builder's writes (`/api/events`, `/api/event-instances`,
 /// `/api/workout-draft`, templates, definitions) are remembered and replayed
@@ -53,6 +59,29 @@ struct MockEnvironment {
             dense: CommandLine.arguments.contains("-apexMockDense")
         )
         streams = FixtureStreams()
+    }
+
+    /// `-apexMockHealth <state>`: see the flag list above. The choice lives in
+    /// its own defaults suite and is reset on every build, so one smoke run's
+    /// toggle never leaks into the next.
+    static func health(owner: String) -> HealthServices {
+        let suite = "com.shanehaynes.apextraining.mock-health"
+        UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
+        let preferences = HealthPreferences(owner: owner, suiteName: suite)
+        let store: FakeHealthStore
+        switch argument("-apexMockHealth") {
+        case "authorized":
+            store = FakeHealthStore(authorization: .authorized)
+            preferences.setWritesWorkouts(true)
+        case "denied":
+            store = FakeHealthStore(authorization: .denied)
+            preferences.setWritesWorkouts(true)
+        case "unavailable":
+            store = FakeHealthStore(authorization: .unavailable)
+        default:
+            store = FakeHealthStore()
+        }
+        return HealthServices(store: store, preferences: preferences)
     }
 
     static func argument(after value: String) -> String? {

@@ -1,4 +1,5 @@
 import ApexCore
+import ApexHealth
 import ApexFeatures
 import Foundation
 
@@ -95,10 +96,11 @@ final class YouTransport: HTTPTransport, @unchecked Sendable {
 }
 
 @MainActor
-func makeYouModel(_ transport: YouTransport, email: String? = "agent@apex.local") -> YouModel {
+func makeYouModel(_ transport: YouTransport, email: String? = "agent@apex.local", health: HealthServices? = nil) -> YouModel {
     let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: CoachTestTokens())
     return YouModel(services: YouServices(
         client: client, publicOrigin: URL(string: "https://apextrainingcalendar.vercel.app")!, email: email,
-        timeZone: TimeZone(identifier: "UTC")!, clock: TestClock(now: coachTestNow), versionLabel: "0.6.0 (312)"
+        timeZone: TimeZone(identifier: "UTC")!, clock: TestClock(now: coachTestNow), versionLabel: "0.6.0 (312)",
+        health: health
     ))
 }

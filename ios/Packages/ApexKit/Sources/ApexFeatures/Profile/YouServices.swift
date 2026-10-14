@@ -1,4 +1,5 @@
 import ApexCore
+import ApexHealth
 import Foundation
 
 /// What the You tab needs from the app (W11): the client, who is signed in,
@@ -34,6 +35,8 @@ public struct YouServices: Sendable {
     public var blocks: BlocksDependencies?
     /// The meals model the Schedule tab shares (W10); nil hides the row.
     public var meals: MealsModel?
+    /// Apple Health (W16); nil hides the row.
+    public var health: HealthServices?
 
     public init(
         client: ApexClient, publicOrigin: URL, email: String?, timeZone: TimeZone = .current,
@@ -45,7 +48,8 @@ public struct YouServices: Sendable {
         signOut: @escaping @MainActor @Sendable () -> Void = {},
         library: LibraryDependencies? = nil,
         blocks: BlocksDependencies? = nil,
-        meals: MealsModel? = nil
+        meals: MealsModel? = nil,
+        health: HealthServices? = nil
     ) {
         self.client = client
         self.publicOrigin = publicOrigin
@@ -61,6 +65,7 @@ public struct YouServices: Sendable {
         self.library = library
         self.blocks = blocks
         self.meals = meals
+        self.health = health
     }
 
     /// `<origin>/api/mcp` — what an AI app is given as its server URL.
@@ -80,7 +85,7 @@ public enum YouRoute: Hashable, Sendable {
     /// W10: meals by day.
     case meals
     case coachProfile, coachModel
-    case coros, calendarFeed, connector, connectorGuide
+    case coros, appleHealth, calendarFeed, connector, connectorGuide
     case activity, deleteAccount, about
 }
 
