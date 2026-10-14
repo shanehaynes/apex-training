@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   MAX_BASIS_REPS, clearResolvedLoads, hasPercentTargets, parsePercent, percentBasis, resolvePercentTargets, resolvePercentWeight,
-  resolvedLoadNumber,
 } from '../percent';
 import { buildTrackerModel, setToRow } from '../plan';
 import { classifySet, computeSessionPRs } from '../records';
@@ -64,11 +63,6 @@ describe('resolvePercentWeight — rounding per unit', () => {
     expect(resolvePercentWeight('80%', 231.25, KG)!.text).toBe('84 kg');
   });
 
-  it('a label reads the number of a resolved load', () => {
-    expect(resolvedLoadNumber('185 lb')).toBe('185');
-    expect(resolvedLoadNumber('82 kg')).toBe('82');
-    expect(resolvedLoadNumber('187.5 lb')).toBe('187.5');
-  });
 
   it('a load that rounds to nothing is not a target', () => {
     expect(resolvePercentWeight('1%', 100, LB)).toBeNull();

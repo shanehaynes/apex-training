@@ -1,4 +1,4 @@
-/* A resolved percentage target ("185 (80%) × 3") is longer than any other
+/* A resolved percentage target ("185 lb (80%) × 3") is longer than any other
    planned label, and every part of it is the prescription: it wraps inside
    the planned column instead of being cut off with an ellipsis. */
 .tracker-set__planned.percent-target {

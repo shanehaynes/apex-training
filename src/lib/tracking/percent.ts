@@ -57,11 +57,6 @@ export function resolvePercentWeight(
   return { lb, display, text: `${display} ${ctx.unit}` };
 }
 
-/** The number of a resolved load, for labels: "185 lb" → "185". */
-export function resolvedLoadNumber(resolved: string): string {
-  return resolved.replace(/\s*(?:lb|kg)$/, '');
-}
-
 /**
  * The estimated 1RM a percentage is taken of, per exercise name: the best
  * prior performed set (no warm-ups, no autofills, no pitches) of at most
@@ -128,7 +123,9 @@ export function resolvePercentTargets(
 /**
  * An exercise with its resolved loads dropped — for a swap onto another
  * movement, whose percentage is of a different max. The raw target shows
- * until the next bootstrap resolves it against the new lift.
+ * until the next bootstrap resolves it against the new lift. Swapping back
+ * to the planned lift does not restore its load either: it fails safe to
+ * the raw text until the next bootstrap.
  */
 export function clearResolvedLoads(tracked: TrackedExercise): TrackedExercise {
   if (!tracked.sets.some(s => s.resolvedPlannedWeight !== undefined)) return tracked;

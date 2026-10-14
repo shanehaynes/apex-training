@@ -12,7 +12,6 @@ import { AuthContext } from '../../context/auth';
 import { knownUnitContext, withExplicitUnit } from '../../lib/tracking/weight';
 import ExercisePicker from '../modal/ExercisePicker';
 import DurationInput from './DurationInput';
-import { resolvedLoadNumber } from '../../lib/tracking/percent';
 import '../../styles/climbing.css';
 import '../../styles/percent-1rm.css';
 
@@ -50,11 +49,13 @@ const SET_TRACKED_CATEGORIES: ExerciseCategory[] = ['strength', 'stretch', 'mobi
 const CARDIO_CATEGORIES: ExerciseCategory[] = ['cardio'];
 
 // Side conventions are shown once with the notes, not repeated on every set.
-// A percentage target the server resolved reads as the load first: "185 (80%)".
+// A percentage target the server resolved reads as the load first, unit and
+// all — "185 lb (80%)" — so a unit changed since the bootstrap cannot make
+// the number mean something else.
 function plannedLabel(p: PlannedSet, resolvedWeight?: string): string {
   const parts: string[] = [];
   if (p.targetWeight) {
-    parts.push(resolvedWeight ? `${resolvedLoadNumber(resolvedWeight)} (${p.targetWeight.trim()})` : p.targetWeight);
+    parts.push(resolvedWeight ? `${resolvedWeight} (${p.targetWeight.trim()})` : p.targetWeight);
   }
   const reps = stripCountSpec(p.targetReps);
   // A resolved label wraps in its column; "× 5" stays on one line.
@@ -247,9 +248,8 @@ function SetRow({
         {fields.map(field => {
           const ghost = ghostOf(set, field);
           const className = `tracker-input ${FIELD_CLASS[field]}${ghost ? ' tracker-input--shadow' : ''}`;
-          // A resolved load shows as its number, ghost or (with nothing to commit) plain hint.
-          const resolved = field === 'actualWeight' ? set.resolvedPlannedWeight : undefined;
-          const hint = (resolved ? resolvedLoadNumber(resolved) : ghost) || undefined;
+          // A resolved load shows with its unit, as ghost or (nothing to commit) plain hint.
+          const hint = ghost || (field === 'actualWeight' ? set.resolvedPlannedWeight : undefined) || undefined;
           return field === 'actualDuration' ? (
             <DurationInput
               key={field}

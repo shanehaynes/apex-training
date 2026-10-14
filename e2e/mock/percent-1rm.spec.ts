@@ -13,8 +13,8 @@ import type { WorkoutEvent } from '../../src/types/workout';
 
 // A percentage target reads as today's load: the server resolves "80%" to
 // 80% of the lift's best estimated 1RM under the profile's unit and the
-// tracker shows "185 (80%)", ghosts 185 in the weight field and commits
-// "185 lb" on the tap. A lift with no history keeps its raw "75%"; a swap
+// tracker shows "185 lb (80%)", ghosts "185 lb" in the weight field and
+// commits exactly that on the tap. A lift with no history keeps its raw "75%"; a swap
 // onto another lift drops the old lift's load. The stub below stands in for
 // the server: it builds the bootstrap with the same pure builders, over
 // history this spec fabricates, under the unit the stubbed profile holds.
@@ -117,9 +117,9 @@ test('a percentage target shows the resolved load, ghosts it, and the tap commit
   await openTracker(page);
 
   const bench2 = rowOf(page, 'Bench Press', 2);
-  await expect(rowOf(page, 'Bench Press', 1).locator('.tracker-set__planned')).toHaveText('160 (70%) × 5');
-  await expect(bench2.locator('.tracker-set__planned')).toHaveText('185 (80%) × 3');
-  await expect(bench2.locator('input.tracker-input--weight')).toHaveAttribute('placeholder', '185');
+  await expect(rowOf(page, 'Bench Press', 1).locator('.tracker-set__planned')).toHaveText('160 lb (70%) × 5');
+  await expect(bench2.locator('.tracker-set__planned')).toHaveText('185 lb (80%) × 3');
+  await expect(bench2.locator('input.tracker-input--weight')).toHaveAttribute('placeholder', '185 lb');
   // Reps still ghost last time's.
   await expect(bench2.locator('input.tracker-input--reps')).toHaveAttribute('placeholder', '3');
 
@@ -142,8 +142,8 @@ test('under a kg profile the load is kilograms on the label, the ghost and the s
   await openTracker(page);
 
   const bench2 = rowOf(page, 'Bench Press', 2);
-  await expect(bench2.locator('.tracker-set__planned')).toHaveText('80 (80%) × 3');
-  await expect(bench2.locator('input.tracker-input--weight')).toHaveAttribute('placeholder', '80');
+  await expect(bench2.locator('.tracker-set__planned')).toHaveText('80 kg (80%) × 3');
+  await expect(bench2.locator('input.tracker-input--weight')).toHaveAttribute('placeholder', '80 kg');
   const sent = await tapBenchSet2(page, '80 kg');
   expect(sent).toMatchObject({ planned_weight: '80%', actual_weight: '80 kg' });
 });
@@ -152,7 +152,11 @@ test('a unit changed after the bootstrap does not change what the resolved load 
   // Resolved as 80 kg; the client now reads bare numbers as pounds. The tap stores "80 kg", never "80 lb".
   await install(page, 'kg', benchHistory('100 kg', '90 kg'), 'lb');
   await openTracker(page);
-  await expect(rowOf(page, 'Bench Press', 2).locator('.tracker-set__planned')).toHaveText('80 (80%) × 3');
+  // The label names the load's unit, so the bar is loaded in kg whatever the profile says now.
+  const label = rowOf(page, 'Bench Press', 2).locator('.tracker-set__planned');
+  await expect(label).toHaveText('80 kg (80%) × 3');
+  await expect(label).toContainText('kg');
+  await expect(rowOf(page, 'Bench Press', 2).locator('input.tracker-input--weight')).toHaveAttribute('placeholder', '80 kg');
   const sent = await tapBenchSet2(page, '80 kg');
   expect(sent).toMatchObject({ planned_weight: '80%', actual_weight: '80 kg' });
 });
@@ -163,28 +167,31 @@ test("a swap onto another lift drops the old lift's resolved load", async ({ pag
   await openTracker(page);
 
   const bench = page.locator('.tracker-exercise', { hasText: 'Bench Press' }).first();
-  await expect(rowOf(page, 'Bench Press', 2).locator('.tracker-set__planned')).toHaveText('185 (80%) × 3');
+  await expect(rowOf(page, 'Bench Press', 2).locator('.tracker-set__planned')).toHaveText('185 lb (80%) × 3');
   await bench.locator('.tracker-exercise__swap').first().click();
   await page.locator('.exercise-picker__row', { hasText: 'Incline Bench Press' }).click();
   await expect(page.locator('.exercise-picker')).toHaveCount(0);
 
   const swapped = rowOf(page, 'Incline Bench Press', 2);
   await expect(swapped.locator('.tracker-set__planned')).toHaveText('80% × 3');
-  await expect(swapped.locator('input.tracker-input--weight')).not.toHaveAttribute('placeholder', '185');
+  // With the load dropped, the row ghosts what the existing shadow behaviour
+  // gives it: last session's set 2 of the planned lift (200 × 3) — a swap
+  // relabels the exercise and keeps its shadows. The tap commits that 200,
+  // suffixed with the profile's lb, never the bench's resolved 185 lb.
+  await expect(swapped.locator('input.tracker-input--weight')).toHaveAttribute('placeholder', '200');
   const saved = page.waitForRequest(req => isSave(req) && setLogsOf(req).some(r => r.exercise_id === 'pc-1' && r.set_number === 2));
   await swapped.locator('input.tracker-input--weight').click();
   const sent = setLogsOf(await saved).find(r => r.exercise_id === 'pc-1' && r.set_number === 2)!;
-  expect(sent.actual_weight, 'the bench load is not the incline load').not.toBe('185 lb');
-  expect(sent.actual_weight).not.toBe('185');
+  expect(sent).toMatchObject({ planned_weight: '80%', actual_weight: '200 lb', actual_reps: '3' });
 });
 
 test('at phone width the load, the percentage and the reps all show, none cut off', async ({ page }) => {
-  // The 80 px planned column used to cut "185 (80%) × 3" off with an ellipsis.
+  // The 80 px planned column used to cut "185 lb (80%) × 3" off with an ellipsis.
   await install(page, 'lb', benchHistory('230', '200'));
   await openTracker(page);
   await page.setViewportSize({ width: 375, height: 812 });
 
-  for (const [n, text] of [[1, '160 (70%) × 5'], [2, '185 (80%) × 3']] as const) {
+  for (const [n, text] of [[1, '160 lb (70%) × 5'], [2, '185 lb (80%) × 3']] as const) {
     const label = rowOf(page, 'Bench Press', n).locator('.tracker-set__planned');
     await expect(label).toHaveText(text);
     await expect(label).toBeVisible();
