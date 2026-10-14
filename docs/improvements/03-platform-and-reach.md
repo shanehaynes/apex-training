@@ -1,97 +1,162 @@
 # Improvement doc 3 — platform and reach
 
-**Date:** 2026-10-13 · **Status:** proposal · **Scope:** integrations, iOS native surface, web
-platform, account, sharing
+**Date:** 2026-10-13 · **Status:** proposal; corrected 2026-10-14 against main — §1 largely
+superseded by W16 · **Scope:** integrations, iOS native surface, web platform, account, sharing
 **Source:** a feature-gap review of the whole repo. This doc covers what sits around the product
 rather than inside it: where data comes from, where the app can live, who can get in, and whether
 anything can be shared.
 
 Most of these only matter if Apex is a product rather than one athlete's log. Each item says
-which identity it serves. Sizes as in doc 1 (S / M / L).
+which identity it serves. Sizes as in doc 1 (S / M / L). **The product rows wait on one decision
+that is Shane's: whether signup opens.** While production stays invite-only, only the rows marked
+personal, and the correctness fix in §4, earn their cost.
 
-## 1. One integration, activities only — **P1 (product) · L per provider**
+A day after it was written, W16 (Apple Health, D-056) took over most of §1, and the core-loop
+fleet shipped a weight-unit setting. Evidence was re-checked against main on 2026-10-14; changes
+are marked inline as *Corrected:*.
+
+## 1. One integration, activities only — **P1 (product) · mostly W16**
 
 **Evidence.** `SyncProvider = 'coros'` ([providers/connection.ts:17](../../api/_lib/providers/connection.ts));
-the DB check constraint allows only `coros` (phase27). Garmin, Apple and Strava are type strings
-([workout.ts:198](../../src/types/workout.ts)) and a FIT decoder. Per activity Apex takes sport,
-time, distance, elevation, HR, calories and streams
-([coros/client.ts:199](../../api/_lib/providers/coros/client.ts)); sleep, HRV, training load and
-body metrics are not parsed. Disconnect cannot revoke the grant at COROS
-([providerSync.ts:107](../../api/_lib/handlers/providerSync.ts)). Matching requires the same
-calendar day and exact type ([sync/matching.ts:38](../../src/lib/sync/matching.ts)).
+the DB check constraint allows only `coros` (phase27). Garmin and Apple exist only as values of an
+event's `source` ([workout.ts:198](../../src/types/workout.ts)); *Corrected:* Strava is not one of
+them. A FIT decoder exists for COROS. Per activity Apex takes sport, time, distance, elevation, HR,
+calories and streams ([coros/client.ts:23-42](../../api/_lib/providers/coros/client.ts)); sleep,
+HRV and training load arrive only as unparsed `summaryExtras`. Disconnect cannot revoke the grant
+at COROS ([providerSync.ts:108](../../api/_lib/handlers/providerSync.ts)). Matching requires the
+same local day and a compatible type ([sync/matching.ts:43-45](../../src/lib/sync/matching.ts)).
 
-**Fix, in value order.**
-1. **HealthKit read on iOS** (workouts, resting HR, sleep, HRV, body mass) posted through the
-   existing provider-sync shape as `provider: 'apple'`. One integration covers Apple Watch,
-   Garmin-via-Health, Whoop-via-Health and the scale. Entitlement + privacy strings + App Store
-   privacy answers change (app-store.md §1).
-2. **HealthKit write** of tracked sessions so Apex workouts close Activity rings (D-018).
-3. Parse COROS daily sleep/HRV/load into a `daily_metrics` table; physiology already wants them.
-4. Strava or Garmin direct only if HealthKit does not reach the users who ask.
-5. ±1-day matching tolerance for late-night sessions and timezone crossings.
+**Owned by W16** ([W16-apple-health.md](../ios/workstreams/W16-apple-health.md), D-056, which
+supersedes D-018), so not repeated here:
+- HealthKit read as provider `apple` on the provider-sync rails (M0, M2b, M2i).
+- HealthKit write of finished workouts (M1, merged #430). *Corrected:* it writes no energy, so it
+  does **not** close Activity rings, by design.
+- A `daily_metrics` table and sleep, HRV, resting HR, steps and body mass for the coach (M3b,
+  M3i); body weight both ways.
+- No Watch app and no GPS routes (D-056, "not now").
+
+*Corrected:* W16 ships write first, then read. This doc had the order reversed.
+
+**Fix — what W16 leaves open.**
+1. Parse COROS daily sleep, HRV and load into W16's `daily_metrics`. W16 fills it from Apple only,
+   and Apple has no training load, so `computeLoad` stays COROS-only (W16 decision 8). (M)
+2. Strava or Garmin direct, only if Health does not reach the users who ask. (L per provider)
+
+*Corrected:* the ±1-day matching tolerance is dropped. `matching.ts:9-10` refuses day fuzz on
+purpose: the local day comes from the connection's timezone, and that conversion is the source of
+truth. A late-night session that lands on the wrong day is a stale timezone, which is §4's fix.
 
 ## 2. The calendar feed is a title and a time — **P2 · S**
 
-**Evidence.** Each VEVENT carries UID, DTSTART/DTEND, SUMMARY, LOCATION, RRULE, EXDATE and
-nothing else ([calendar-feed.ts:130-209](../../api/calendar-feed.ts)). No DESCRIPTION, no VALARM,
-no completion state, floating times by design. `ics_token` is never client-writable and has no
-rotate endpoint ([profile.ts:17](../../api/_lib/handlers/profile.ts)).
+**Evidence.** Each VEVENT carries UID, DTSTAMP, DTSTART/DTEND, SUMMARY, LOCATION, RRULE, EXDATE
+and nothing else ([calendar-feed.ts:164-208](../../api/calendar-feed.ts)). There is no DESCRIPTION,
+no VALARM and no completion state, and times float by design (:48-50). `ics_token` is never
+client-writable and has no rotate endpoint ([profile.ts:15-18](../../api/_lib/handlers/profile.ts)).
 
-**Fix.** DESCRIPTION with the exercise list and a deep link; an optional VALARM offset chosen in
-Profile; `STATUS:COMPLETED` or a ✓ prefix for done occurrences; a "Rotate link" button that
-rewrites `ics_token`. All S; the feed is one file.
+**Fix, in this order.** First, a "Rotate link" button that rewrites `ics_token`. The feed URL is a
+bearer credential, and today a leaked one cannot be revoked; the next item makes leaking it cost
+more, so rotation ships first or alongside. Then a DESCRIPTION with the exercise list and a deep
+link; an optional VALARM offset chosen in Profile; and `STATUS:COMPLETED` or a ✓ prefix on done
+occurrences. Each is S, and the feed is one file.
 
 ## 3. iOS native surface — **P1 (product) · S–L**
 
-**Evidence.** No HealthKit, Watch, home-screen widget (the widget bundle holds only the Live
-Activity, [ApexWidgetsBundle.swift:21](../../ios/ApexWidgets/ApexWidgetsBundle.swift)), no
-user-facing push, no Sign in with Apple ([app-store.md:53](../ios/app-store.md)), no biometric
-lock, no Siri/App Intents, no Spotlight. Portrait, iPhone and dark only
-([project.yml](../../ios/project.yml), Info.plist). Coach threads on the phone never meet the
-web's (D-013).
+**Evidence.** No home-screen widget: the widget bundle holds only the Live Activity
+([ApexWidgetsBundle.swift:21](../../ios/ApexWidgets/ApexWidgetsBundle.swift)). There is no
+user-facing push (APNs only ends the Live Activity, D-051), no Sign in with Apple
+([app-store.md:53](../ios/app-store.md)), no biometric lock, no Siri/App Intents and no Spotlight.
+The app is portrait-only and dark-only ([Info.plist:30-36](../../ios/Apex/Info.plist)) and
+iPhone-only ([project.yml:94-96](../../ios/project.yml), D-009). Coach threads on the phone never
+meet the web's (D-013): the server table landed in #303, and iOS sync is still backlog.
+*Corrected:* "no HealthKit" no longer holds; see §1 and W16. No Watch app is a decision (D-056).
 
 **Fix, in order.**
-- Today's-workout home-screen and Lock Screen widget with a Start deep link (S–M; the schedule
-  cache is already on device).
-- Push channel (doc 2 §4; D-017).
-- App Intents: "Start today's workout", "Log a meal", "What's on today" (M); Siri and
-  Shortcuts come free.
-- Sign in with Apple — required by Apple only if a third-party login exists, so optional today,
-  but the lowest-friction invite path once signup opens (M; Supabase supports it).
-- Biometric app lock behind a toggle (S).
-- iPad layout and landscape (L; the design spec is phone-only by decision — revisit only if iPad
-  users appear).
+- A today's-workout widget for the home screen and Lock Screen, with a Start link (S–M). The
+  schedule cache is already on the device. The only tracker deep link is
+  `tracker/<id>/<date>` ([DeepLink.swift:25](../../ios/Packages/ApexCore/Sources/ApexCore/Auth/DeepLink.swift)),
+  so the widget has to resolve today's occurrence itself.
+- App Intents: "Start today's workout", "Log a meal", "What's on today" (M). Siri and Shortcuts
+  come with them.
+- Sign in with Apple (M; Supabase supports it). Apple requires it only if a third-party login
+  exists, so it is optional today, but it is the lowest-friction invite path once signup opens.
+- A biometric app lock behind a toggle (S).
 - D-013 thread sync (M).
+- iPad layout and landscape (L). The design spec is phone-only by decision (D-009); revisit only
+  if iPad users appear.
 
-## 4. Web platform — **P2 · S each**
+*Corrected:* push is not listed as a fix here. Doc 2 §4 owns the channel, and D-017 ("none for
+now") is still a live decision, so pursuing push means revisiting D-017 first.
 
-**Evidence.** No manifest or service worker (public/ has none); dark only
-([app.css:781](../../src/styles/app.css)); Monday weeks hard-coded
-([dateHelpers.ts:10](../../src/utils/dateHelpers.ts)); imperial and en-US fixed; no timezone
-setting — "today" is the browser clock ([clock.ts:17](../../src/lib/clock.ts)) and the MCP server
-uses UTC ([mcp/data.ts:248](../../api/_lib/mcp/data.ts)); Escape is the only shortcut
-([useModalChrome.ts:18](../../src/hooks/useModalChrome.ts)).
+## 4. Web platform — **P1 for timezone · P2 for the rest · S each**
 
-**Fix.** A manifest plus a cache-shell service worker so the web app installs on Android and
-desktop (S); `profiles.timezone` captured at sign-in and used by MCP and the crons (S, fixes a
-real correctness bug for travellers); `week_start` and unit preferences next to it (S); a light
-theme via the existing token layer (M, D-010 says "for now"); a handful of shortcuts — `t` today,
-`←/→` period, `n` new workout, `/` coach (S).
+**Evidence.**
+- There is no manifest or service worker; `public/` has none.
+- The web app is dark-only: there is one `:root` palette ([tokens.css:3](../../src/styles/tokens.css))
+  and no `prefers-color-scheme` anywhere. D-010 says "for now".
+- Weeks start on Monday, hard-coded in [dateHelpers.ts:10](../../src/utils/dateHelpers.ts) (and
+  also at :21, :51, :66), in `calendar/copy.ts`, `physiology/compute.ts` and `coach/prompt.ts`.
+- *Corrected:* units are no longer simply imperial. Weight is a profile setting (`weight_unit`,
+  phase55, #420/#421). Distance has no preference, only a mi/km toggle per form that defaults to
+  mi, and numbers are formatted as `'en-US'` in seven places.
+- There is no timezone setting. "Today" in the app is the browser clock
+  ([clock.ts:16-23](../../src/lib/clock.ts)), and the server has no user timezone
+  ([mcp/data.ts:250-253](../../api/_lib/mcp/data.ts)). Where that bites:
+  - **MCP**: when a client omits `today`, three tools fall back to UTC (`writeTools.ts:58`,
+    `tools/sessions.ts:49`, `tools/blocks.ts:105`).
+  - **Reflection cron** (05:00 UTC): it reflects on `yesterdayUtc`
+    ([reflection/inputs.ts:64](../../api/_lib/reflection/inputs.ts)). For anyone far from UTC,
+    that is the wrong day.
+  - **Review cron** (14:00 UTC): its 4-week periods are cut on UTC dates
+    ([review-cron.ts:149](../../api/review-cron.ts)).
+  - **Provider cron**: it falls back to `'UTC'` when a connection has no timezone
+    ([providerCron.ts:72](../../api/_lib/handlers/providerCron.ts)), and a connection's timezone
+    is refreshed only by a manual sync.
+  - Not affected: in-app chat and analytics, which require the client's `today`.
+- Escape is the only shortcut ([useModalChrome.ts:18](../../src/hooks/useModalChrome.ts)).
+
+**Fix.** The first item is a correctness bug and leads the sequencing. The rest are polish.
+- **`profiles.timezone`, captured at sign-in and refreshed when the browser's zone changes** (S +
+  migration, HELD). Use it in the MCP fallbacks, the reflection and review crons, and as the
+  provider cron's fallback.
+- A manifest plus a cache-shell service worker, so the web app installs on Android and desktop (S).
+- `week_start` and a distance unit next to `weight_unit` (S).
+- A light theme through the existing token layer (M).
+- A handful of shortcuts: `t` today, `←/→` period, `n` new workout, `/` coach (S).
 
 ## 5. Account, security and support — **P1 (product) · S–M**
 
-**Evidence.** Email + password only ([AuthContext.tsx:135](../../src/context/AuthContext.tsx));
-no MFA; password change does not ask for the current password
-([ProfileView.tsx:132](../../src/components/profile/ProfileView.tsx)); email cannot be changed;
-no self-serve signup or waitlist — production signup is off and the only door is a dashboard
-invite ([DEPLOY_MULTI_USER.md](../../DEPLOY_MULTI_USER.md)); no in-app feedback or support
-surface; the error boundary offers Reload only.
+**Evidence.**
+- Sign-in is email + password only ([AuthContext.tsx:137](../../src/context/AuthContext.tsx)).
+- There is no MFA.
+- Password change does not ask for the current password
+  ([ProfileView.tsx:159-168](../../src/components/profile/ProfileView.tsx)). The local
+  `secure_password_change` is `false` ([config.toml:237](../../supabase/config.toml)); production's
+  dashboard value is unchecked.
+- The email address cannot be changed.
+- There is no self-serve signup or waitlist. Production signup is off, and the only door is a
+  dashboard invite ([DEPLOY_MULTI_USER.md](../../DEPLOY_MULTI_USER.md)).
+- There is no in-app feedback or support surface on the web. The address
+  `support@apex-training.app` already exists and forwards to Shane, and iOS links it for invite
+  requests.
+- The error boundary offers Reload only and reports nowhere.
 
-**Fix.** Re-authenticate before password change (S); email change via Supabase's double
-confirmation (S); TOTP MFA behind a toggle (M; Supabase supports it); a request-access form that
-writes to a `waitlist` table and emails Shane (S) — the invite-only stance stays, the funnel
-becomes visible; a "Send feedback" row in Profile that posts to the existing error-report webhook
-with the last 20 console lines (S); a support@ link in the help index (S).
+**Fix.**
+- **Re-authenticate before a password change** (S). First check whether turning on Supabase's
+  `secure_password_change` covers it, which would make this a setting rather than code.
+- **Email change** through Supabase's double confirmation (S). `double_confirm_changes` is already
+  on.
+- **TOTP MFA** behind a toggle (M; Supabase supports it).
+- **A request-access form** that writes to a `waitlist` table and emails Shane (S). The invite-only
+  stance stays; the funnel becomes visible.
+- **Support link and feedback.** Add a support@ line to the help index (S, no new code paths). Then,
+  if needed, a "Send feedback" row in Profile.
+  - *Corrected:* there is no existing client-side error-report webhook to post to.
+    `api/_lib/errorReport.ts` is server-only and off unless `APEX_ERROR_WEBHOOK_URL` is set.
+  - The feedback row needs its own route (S–M).
+  - It should carry only the user's own words, the app version, the route and the user agent.
+    Console lines are out: they carry Postgres error text with row values
+    ([api.ts:62](../../src/lib/api.ts)), which would break errorReport's "nothing from the
+    request" rule.
 
 ## 6. Sharing and roles — **P2 (product) · decision, then L**
 
@@ -111,23 +176,29 @@ Pick 1 now if any; defer 2 until there is a second coach who wants it.
 
 ## 7. Export and import — **P2 · S–M**
 
-**Evidence.** Export is one raw JSON dump of 31 tables
-([account.ts:21](../../api/_lib/handlers/account.ts)); no CSV, GPX or FIT; no import of any kind.
+**Evidence.** Export is a single raw JSON download
+([account.ts:22](../../api/_lib/handlers/account.ts)): 31 user tables plus `profiles` and an
+`mcp_tokens` summary. There is no CSV, GPX or FIT export and no import of any kind.
 
 **Fix.** CSV per domain (sessions, set logs, cardio, meals) from the same query (S); a Strong /
-Hevy CSV importer mapped onto `log_workout` (M) — the single most common ask from anyone
-switching trackers.
+Hevy CSV importer mapped onto the `log_workout` write path
+([mcp/writeTools.ts](../../api/_lib/mcp/writeTools.ts)) (M) — the single most common ask from
+anyone switching trackers.
 
 ## Sequencing
 
 | Order | Item | Identity served |
 |---|---|---|
-| 1 | §4 timezone column; §5 re-auth + feedback row | personal + product, cheap |
-| 2 | §3 widget; §2 feed description + alarm | personal |
-| 3 | §1 HealthKit read | product; unlocks doc 2 §7 |
-| 4 | §5 waitlist + MFA; §7 CSV | product |
-| 5 | §1 HealthKit write; §3 App Intents; §4 PWA + light theme | product |
-| 6 | §6 share-by-link | product, only on demand |
+| 1 | §4 `profiles.timezone`; §5 support@ link and the `secure_password_change` check | personal + product; fixes a correctness bug |
+| 2 | §2 rotate link, then description + alarm; §3 widget | personal |
+| 3 | §7 CSV export; §1 COROS daily metrics into `daily_metrics` (after W16 M0) | personal |
+| 4 | §5 waitlist, MFA, email change, feedback route | product, once signup is decided |
+| 5 | §3 App Intents, Sign in with Apple; §4 PWA + light theme | product |
+| 6 | §6 share-by-link; §1 Strava/Garmin direct | product, only on demand |
 
-§1, §5 (waitlist), §6 carry migrations and are HELD; §1 and §3 touch the iOS release surface
-(entitlements, Info.plist) and are HELD too.
+*Corrected:* HealthKit read and write are no longer rows here; W16 sequences them. Doc 2 §7's need
+for resting HR and sleep is now met by W16 M3b/M3i rather than by this doc.
+
+§4 timezone, §5 waitlist and §6 carry migrations and are HELD. Any §3 item that adds an entitlement
+or Info.plist key (App Intents, Sign in with Apple, Face ID usage string) touches the iOS release
+surface and is HELD as well.
