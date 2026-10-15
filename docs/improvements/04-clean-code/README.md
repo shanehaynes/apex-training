@@ -40,15 +40,17 @@ source when this log was assembled. These want a `fix/` lane, not a refactor bac
 
 1. **Cache deletes ignore the account.** `GRDBCacheStore.delete` and `purge(fetchedBefore:)`
    (`ApexPersistence/CacheStore+GRDB.swift:106`, `:115`) filter on `kind`/`key` only; the type's own
-   doc promises per-owner scoping. → [ios-kit-app](ios-kit-app.md)
+   doc promises per-owner scoping. No wrong behaviour today — the only callers use event-UUID keys
+   or sweep stale rows — but the next caller inherits a broken contract. → [ios-kit-app](ios-kit-app.md)
 2. **The setup nudge floats over two overlays.** `OnboardingHost.tsx:23` hand-lists overlay flags and
    misses `weeklyReviewOpen` and `analyticsOpen`. → [web-components-b](web-components-b.md)
 3. **Conversation caps disagree.** `coachConversations.ts:36` says it matches `chat.ts` "exactly" but
    stores 80 messages; `chat.ts:463` accepts 160. → [api-handlers](api-handlers.md)
 4. **A failed block load spins forever.** `BlockDetail.tsx:61` `.catch(() => {})` leaves "Loading…".
    → [web-components-a](web-components-a.md)
-5. **The iOS write queue discards store failures.** `WriteQueue.swift` uses `try?` on ten store
-   writes (`:187`–`:258`); a failed `update` means an op never reaches its retry limit.
+5. **The iOS write queue discards store failures.** `WriteQueue.swift` uses `try?` on fourteen store
+   calls (e.g. `:187`–`:258`); a failed `update` means an op never reaches its retry limit, and at
+   `:222` a store that keeps failing hands the same op back, tight-looping the drain.
    → [ios-core](ios-core.md)
 6. **A failed query reads as "no history".** `library/repo.ts:23` ignores the Supabase error;
    `tracking/sessionRepo.ts:86` turns any load failure into an offline session.
@@ -56,19 +58,20 @@ source when this log was assembled. These want a `fix/` lane, not a refactor bac
 7. **`WorkoutModal` reads a stale snapshot** for colour, duration, location and five more fields
    (`event.type` at `WorkoutModal.tsx:160`) while the lines below read `live`, so edits to those
    fields do not show while the modal is open. → [web-components-b](web-components-b.md)
-8. **Two "pending reflection" rules.** `notebook.ts` `isPendingReflection` vs `contract.ts`
-   `reflectionAwaitsAthlete`, alongside a re-declared `CONTRACT_MAX`. → [web-lib-coach-review](web-lib-coach-review.md)
+8. **Re-declared coach-contract types.** `notebook.ts:32` re-declares `CONTRACT_MAX`,
+   `CoachReflection` and `ReflectionResolution` from `contract.ts`, and the copies have drifted; a
+   second, unused "pending" rule (`reflectionAwaitsAthlete`) sits beside the live one. → [web-lib-coach-review](web-lib-coach-review.md)
 
 ## Cross-cutting themes
 
 The 509 findings cluster. Fixing a theme once retires dozens of line items.
 
 - **Duplicated contracts that have already drifted (G5).** The expensive kind of duplication: two
-  copies of one rule that now disagree. Beyond the triage list: two `addIsoDays` with different
-  arithmetic (`calendar/copy.ts:71`, `template/clone.ts:48`); the drop-everything SQL in
+  copies of one rule that now disagree. Beyond the triage list: the drop-everything SQL in
   `db-reset-local.sh` vs `db-restore-drill.sh`; five `.env.local` readers that parse differently;
   `email.ts` vs `recap.ts` review facts; three iOS offline messages from three error mappers;
-  tonnage and best-1RM computed in two places each.
+  tonnage and best-1RM computed in two places each. (Duplicated but still agreeing: the two
+  `addIsoDays`, `calendar/copy.ts:71` local-zone and `template/clone.ts:48` deliberately UTC.)
 - **Boilerplate copied per call site (G5).** The handler preamble (admin client → `requireUser` →
   `enforceRateLimit`) in 38 files; `DATE_RE`/`UUID_RE`/query-param helpers re-declared per handler;
   the realtime subscription in four context providers and the mutation skeleton twelve times; five
@@ -104,8 +107,9 @@ lane log ends with "Not checked"). Reviewers were told not to flag the repo's de
 comments, the Swift port's intentional mirroring of the TS, or anything oxlint/tsc already enforce.
 Fifteen findings were independently re-checked against source while assembling this log (triage
 items 1–7, the re-declared `CONTRACT_MAX`, and the COROS, `addIsoDays`, `ScheduleModel` size,
-`Failure` location, dirty-key, `BlocksContext` and `trainingBlocks.ts` copy claims); all held.
-The two-rules half of item 8 and the reset-SQL drift were not independently confirmed. The rest are reviewer claims — re-read
+`Failure` location, dirty-key, `BlocksContext` and `trainingBlocks.ts` copy claims); all held. A `reviewer` pass then bounds-checked all 509
+anchors (all resolve) and read 46 findings against source: 42 confirmed, 4 overstated, none false
+or mis-anchored; the four were corrected in place. The rest are reviewer claims — re-read
 before acting.
 
 **Out of scope:** tests (`__tests__`, `*.test.*`, `*.spec.*`, `ios/*Tests`), generated files
