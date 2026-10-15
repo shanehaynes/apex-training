@@ -548,11 +548,18 @@ final class AppModel {
     /// user became current — set-password's acceptance POST racing the tabs'
     /// first reads, or a request in flight across Accept — and that must not
     /// put the screen back. Only a read that failed falls back to the 403's
-    /// word for it.
+    /// word for it. A current read resumes the write queue: a write sent
+    /// before Accept whose 403 lands after the resume has paused it again,
+    /// and nothing else is coming to lift that.
     func termsGateMet() async {
         guard case .signedIn = state, termsUpdate == nil, !isCheckingTerms else { return }
-        if await checkTerms() == nil, termsUpdate == nil {
+        switch await checkTerms() {
+        case true?:
+            await trackerServices?.queue.resume()
+        case nil where termsUpdate == nil:
             termsUpdate = TermsStatus(accepted: nil, current: false)
+        default:
+            break
         }
     }
 
