@@ -555,7 +555,8 @@ final class AppModel {
         guard case .signedIn = state, termsUpdate == nil, !isCheckingTerms else { return }
         switch await checkTerms() {
         case true?:
-            await trackerServices?.queue.resume()
+            // Only a paused queue: `resume()` also cuts the outbox's backoff short.
+            if let queue = trackerServices?.queue, await queue.isPaused { await queue.resume() }
         case nil where termsUpdate == nil:
             termsUpdate = TermsStatus(accepted: nil, current: false)
         default:
