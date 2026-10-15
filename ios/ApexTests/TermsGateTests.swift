@@ -15,6 +15,17 @@ final class TermsGateTests: XCTestCase {
         return model
     }
 
+    /// `waitFor` for a condition only an actor can answer.
+    @MainActor
+    private func eventually(timeout: Double = 5, _ condition: () async -> Bool) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if await condition() { return true }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        return await condition()
+    }
+
     @MainActor
     func testSignInWithStaleTermsShowsTheScreenWithTheVersions() async throws {
         let model = await signedIn(MockEnvironment(termsStale: true))
@@ -70,8 +81,10 @@ final class TermsGateTests: XCTestCase {
         let queue = try XCTUnwrap(model.trackerServices?.queue)
         let key = SessionKey(eventId: "ios-fixture-weekly__2026-09-08", eventDate: "2026-09-08")
         try await queue.enqueue(.cancel, for: key)
+        // `ensureQueue`'s own launch flush can pick the op up first; this
+        // flush then only marks a rerun and returns before the 403 is back.
         await queue.flush(key)
-        let paused = await queue.isPaused
+        let paused = await eventually { await queue.isPaused }
         XCTAssertTrue(paused, "the gate pauses the queue")
         let held = await queue.status(for: key)
         XCTAssertEqual(held.pendingOps, 1)
@@ -80,12 +93,7 @@ final class TermsGateTests: XCTestCase {
         _ = await waitFor { model.termsUpdate != nil }
         let error = await model.acceptUpdatedTerms()
         XCTAssertNil(error)
-        var landed = false
-        let deadline = Date().addingTimeInterval(5)
-        while Date() < deadline {
-            if await queue.status(for: key).pendingOps == 0 { landed = true; break }
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        let landed = await eventually { await queue.status(for: key).pendingOps == 0 }
         XCTAssertTrue(landed, "accepting resumes the queue and the write lands")
     }
 
