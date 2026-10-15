@@ -50,4 +50,23 @@ final class CountSpecTests: XCTestCase {
         XCTAssertEqual(CountSpec.plannedLabel(PlannedSet(setNumber: 4)), "—")
         XCTAssertEqual(CountSpec.plannedLabel(nil), "—")
     }
+
+    /// The web's resolved label: the load first, the percentage it came from
+    /// after, and a no-break "× 5" so the reps never wrap away from it.
+    func testPlannedLabelWithAResolvedPercentage() {
+        let planned = PlannedSet(setNumber: 1, targetWeight: "80% ", targetReps: "5")
+        XCTAssertEqual(CountSpec.plannedLabel(planned, resolvedWeight: "187.5 lb"), "187.5 lb (80%) ×\u{00a0}5")
+        // No resolution, or an empty one, reads exactly as before.
+        XCTAssertEqual(CountSpec.plannedLabel(planned, resolvedWeight: nil), "80%  × 5")
+        XCTAssertEqual(CountSpec.plannedLabel(planned, resolvedWeight: ""), "80%  × 5")
+    }
+
+    /// The set row's target column, which is what passes the resolved load on.
+    func testTargetLabel() {
+        let planned = PlannedSet(setNumber: 1, targetWeight: "80%", targetReps: "5")
+        let resolved = TrackedSet(setNumber: 1, planned: planned, resolvedPlannedWeight: "187.5 lb")
+        XCTAssertEqual(CountSpec.targetLabel(of: resolved, added: false), "187.5 lb (80%) ×\u{00a0}5")
+        XCTAssertEqual(CountSpec.targetLabel(of: resolved, added: true), "—")
+        XCTAssertEqual(CountSpec.targetLabel(of: TrackedSet(setNumber: 4, isExtra: true), added: false), "extra")
+    }
 }

@@ -65,9 +65,11 @@ public struct TrackerEditor: Sendable, Equatable {
     /// never leak into the log. Returns false when there was nothing to commit.
     @discardableResult
     public mutating func commitShadow(at key: SetKey, fields: [SetField]) -> Bool {
-        guard let (g, e, s) = locate(key), let shadow = groups[g].exercises[e].sets[s].shadow else { return false }
+        guard let (g, e, s) = locate(key) else { return false }
+        let set = groups[g].exercises[e].sets[s]
+        guard set.shadow != nil else { return false }
         for field in fields {
-            groups[g].exercises[e].sets[s][field] = shadow[field]
+            groups[g].exercises[e].sets[s][field] = Self.ghost(of: set, field: field)
         }
         groups[g].exercises[e].sets[s].shadow = nil
         dirtySets.insert(key)
@@ -212,6 +214,32 @@ public struct TrackerEditor: Sendable, Equatable {
         if groups[g].exercises.isEmpty { groups.remove(at: g) }
     }
 
+    /// What a ghost tap commits into a field (`ghostOf`): last session's
+    /// value — except the weight of a set whose percentage target resolved,
+    /// which commits today's load with the unit it was resolved in, so what
+    /// the plan asks for is stored whatever unit the profile says by then.
+    public static func ghost(of set: TrackedSet, field: SetField) -> String {
+        guard let shadow = set.shadow else { return "" }
+        if field == .weight, let resolved = set.resolvedPlannedWeight, !resolved.isEmpty { return resolved }
+        return shadow[field]
+    }
+
+    /// What a set's field shows before anything is typed: the ghost a tap
+    /// commits, or — for the weight of a resolved set with no shadow — the
+    /// load as a hint that commits nothing (the web's `hint`).
+    public struct FieldPrompt: Equatable, Sendable {
+        public let text: String
+        public let commits: Bool
+    }
+
+    public static func prompt(of set: TrackedSet, field: SetField) -> FieldPrompt {
+        let committed = ghost(of: set, field: field)
+        if committed.isEmpty, field == .weight, let resolved = set.resolvedPlannedWeight, !resolved.isEmpty {
+            return FieldPrompt(text: resolved, commits: false)
+        }
+        return FieldPrompt(text: committed, commits: !committed.isEmpty)
+    }
+
     // MARK: - Swap
 
     /// Relabel a logged exercise onto the movement actually performed. The
@@ -224,6 +252,12 @@ public struct TrackerEditor: Sendable, Equatable {
         groups[g].exercises[e].exercise.name = toName
         groups[g].exercises[e].exercise.definitionId = definitionId
         groups[g].exercises[e].substitutedFrom = from == toName ? nil : from
+        // A resolved load is a percentage of the planned lift's max, not the
+        // new movement's (`clearResolvedLoads`): the raw target shows until the
+        // next bootstrap, swapping back included.
+        for s in groups[g].exercises[e].sets.indices {
+            groups[g].exercises[e].sets[s].resolvedPlannedWeight = nil
+        }
         return true
     }
 

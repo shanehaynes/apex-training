@@ -210,6 +210,38 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(byId("mx-pullup")).isOffPlan)
         XCTAssertEqual(byId("mx-hang")?.sets.first?.shadow?.duration, "30 s")
         XCTAssertEqual(full.session?.coachSummary, "Six records in one session.")
+
+        // The set fields the save row does not send yet, decoded all the same.
+        let squat = try XCTUnwrap(byId("mx-squat")).sets
+        XCTAssertEqual(squat.map(\.resolvedPlannedWeight), ["187.5 lb", "187.5 lb"])
+        XCTAssertEqual(squat.map(\.isWarmup), [true, false])
+        XCTAssertEqual(squat.map(\.rpe), ["5", "8.5"])
+        XCTAssertNil(byId("mx-plank")?.sets.first?.resolvedPlannedWeight)
+        let pitch = try XCTUnwrap(byId("mx-pitch")?.sets.first)
+        XCTAssertEqual(pitch.ascentStyle, "flash")
+        XCTAssertEqual(pitch.attempts, "1")
+
+        // Each PR kind's own fields.
+        let prs = Dictionary(uniqueKeysWithValues: (full.prs ?? []).map { ($0.kind, $0) })
+        XCTAssertEqual(prs["oneRM"]?.weight, 210)
+        XCTAssertEqual(prs["oneRM"]?.reps, 5)
+        XCTAssertEqual(prs["duration"]?.seconds, 90)
+        XCTAssertEqual(prs["duration"]?.previousSeconds, 60)
+        XCTAssertEqual(prs["reps"]?.reps, 10)
+        XCTAssertEqual(prs["reps"]?.previousReps, 8)
+        XCTAssertEqual(prs["distance"]?.value, 12)
+        XCTAssertEqual(prs["distance"]?.unit, "mi")
+        XCTAssertEqual(prs["distance"]?.previousValue, 10)
+        XCTAssertEqual(prs["elevation"]?.value, 600)
+        XCTAssertEqual(prs["elevation"]?.unit, "ft")
+        XCTAssertEqual(prs["send"]?.grade, "5.10b")
+        XCTAssertEqual(prs["send"]?.discipline, "sport")
+        XCTAssertEqual(prs["send"]?.style, "flash")
+        XCTAssertEqual(prs["send"]?.previousGrade, "5.9")
+
+        XCTAssertEqual(full.scoreRecord?.score, .forTime(timeSeconds: 1500))
+        XCTAssertEqual(full.scoreRecord?.previous, .forTime(timeSeconds: 1800))
+        XCTAssertEqual(full.scoreRecord?.previousDate, "2026-12-01")
     }
 
     /// The AMRAP score: a session row carries one score type, so rounds and
@@ -225,6 +257,38 @@ final class FixtureContractTests: XCTestCase {
         XCTAssertEqual(SessionScore(session: session)?.formatted, "6 rounds + 3")
         XCTAssertEqual(amrap.scoreRecord?.kind, "workout-score")
         XCTAssertEqual(amrap.scoreRecord?.description, "6 rounds + 3, beating 5 rounds on Dec 10")
+        XCTAssertEqual(amrap.scoreRecord?.score, .amrap(rounds: 6, reps: 3))
+        XCTAssertEqual(amrap.scoreRecord?.previous, .amrap(rounds: 5, reps: 0))
+        XCTAssertEqual(amrap.scoreRecord?.previousDate, "2026-12-10")
+    }
+
+    /// A score this build cannot read drops itself, not the response: a new
+    /// score type, or a fractional number, still decodes the record's words.
+    /// Reps are typed on a decimal pad and parsed as numbers: a fractional
+    /// count in any record must not fail the response carrying it.
+    func testFractionalRepsInARecordDecode() throws {
+        var object = try JSONSerialization.jsonObject(with: try load("bootstrap-full.json")) as! [String: Any]
+        object["prs"] = (object["prs"] as! [[String: Any]]).map { pr in
+            var pr = pr
+            if pr["kind"] as? String == "reps" { pr["previousReps"] = 8.5 }
+            if pr["kind"] as? String == "oneRM" { pr["reps"] = 7.5 }
+            return pr
+        }
+        let full = try JSONDecoder().decode(TrackerBootstrap.self, from: try JSONSerialization.data(withJSONObject: object))
+        let prs = Dictionary(uniqueKeysWithValues: (full.prs ?? []).map { ($0.kind, $0) })
+        XCTAssertEqual(prs.count, 6)
+        XCTAssertEqual(prs["reps"]?.previousReps, 8.5)
+        XCTAssertEqual(prs["oneRM"]?.reps, 7.5)
+        XCTAssertFalse(full.groups.isEmpty)
+    }
+
+    func testAnUnreadableScoreDropsOnlyItself() throws {
+        let json = #"{"kind":"workout-score","score":{"type":"for-distance","meters":5000},"previous":{"type":"amrap","rounds":2.5},"previousDate":"2026-12-01","description":"5 km"}"#
+        let record = try JSONDecoder().decode(ScoreRecord.self, from: Data(json.utf8))
+        XCTAssertNil(record.score)
+        XCTAssertNil(record.previous)
+        XCTAssertEqual(record.kind, "workout-score")
+        XCTAssertEqual(record.description, "5 km")
     }
 
     func testFinishDecodes() throws {

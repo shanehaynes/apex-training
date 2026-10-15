@@ -22,12 +22,15 @@ final class TrackerSnapshotTests: XCTestCase {
     private final class FixtureTransport: HTTPTransport, @unchecked Sendable {
         var finished = false
         var offline = false
+        /// Serve bootstrap-full.json as an open session instead (percent targets, pitches).
+        var full = false
         func send(_ request: URLRequest) async throws -> HTTPResponse {
             if offline { throw URLError(.notConnectedToInternet) }
             let path = request.url?.path ?? ""
             let body = request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
             let name: String
             switch (path, body?["action"] as? String) {
+            case ("/api/workout-sessions", "bootstrap") where full: return HTTPResponse(status: 200, headers: [:], body: try Self.openFull())
             case ("/api/workout-sessions", "bootstrap"): name = finished ? "bootstrap.json" : "bootstrap-peek.json"
             case ("/api/workout-sessions", "finish"): name = "finish.json"
             case ("/api/coach-summary", _): name = "coach-summary.ndjson"
@@ -41,6 +44,33 @@ final class TrackerSnapshotTests: XCTestCase {
                 data = try JSONSerialization.data(withJSONObject: object)
             }
             return HTTPResponse(status: 200, headers: [:], body: data)
+        }
+
+        /// bootstrap-full.json, reopened mid-session with the squat unlogged:
+        /// set 1 has no shadow, so its resolved load is only a hint; set 2 has
+        /// last session's shadow, so the load is the ghost a tap commits.
+        static func openFull() throws -> Data {
+            var object = try JSONSerialization.jsonObject(with: Data(contentsOf: fixtures.appendingPathComponent("bootstrap-full.json"))) as! [String: Any]
+            var session = object["session"] as! [String: Any]
+            session["finished_at"] = NSNull()
+            object["session"] = session
+            object["prs"] = []
+            object["scoreRecord"] = NSNull()
+            var groups = object["groups"] as! [[String: Any]]
+            var exercises = groups[0]["exercises"] as! [[String: Any]]
+            let squat = exercises.firstIndex { ($0["exercise"] as? [String: Any])?["id"] as? String == "mx-squat" }!
+            var sets = exercises[squat]["sets"] as! [[String: Any]]
+            sets[0]["actualWeight"] = ""
+            sets[0]["actualReps"] = ""
+            sets[0]["isLogged"] = false
+            sets[1]["actualWeight"] = ""
+            sets[1]["actualReps"] = ""
+            sets[1]["isLogged"] = false
+            sets[1]["shadow"] = ["weight": "200 lb", "reps": "5", "duration": ""]
+            exercises[squat]["sets"] = sets
+            groups[0]["exercises"] = exercises
+            object["groups"] = groups
+            return try JSONSerialization.data(withJSONObject: object)
         }
     }
 
@@ -68,10 +98,11 @@ final class TrackerSnapshotTests: XCTestCase {
     }
 
     @MainActor
-    private func model(finished: Bool = false, scoring: String? = nil) async -> (TrackerModel, FixtureTransport) {
+    private func model(finished: Bool = false, scoring: String? = nil, full: Bool = false) async -> (TrackerModel, FixtureTransport) {
         ApexFonts.register()
         let transport = FixtureTransport()
         transport.finished = finished
+        transport.full = full
         let client = ApexClient(baseURL: URL(string: "http://127.0.0.1:1")!, transport: transport, tokens: Tokens())
         let clock = TestClock(now: Date(timeIntervalSince1970: 1_790_080_920))  // 12:42 on the fixture day
         let queue = WriteQueue(store: MemoryWriteQueueStore(), client: client, clock: clock)
@@ -115,6 +146,14 @@ final class TrackerSnapshotTests: XCTestCase {
     func testTrackerScreenAccessibilityXXXL() async {
         let (model, _) = await model()
         snapshot(TrackerScreen(model: model, onClose: {}).environment(\.dynamicTypeSize, .accessibility3), named: "tracker-axxxl", size: CGSize(width: 393, height: 1400))
+    }
+
+    /// A percentage target resolved to today's load ("187.5 lb (80%)") — a
+    /// hint on set 1, a ghost on set 2 — and a pitch row.
+    @MainActor
+    func testPercentTargetAndPitchRows() async {
+        let (model, _) = await model(full: true)
+        snapshot(TrackerScreen(model: model, onClose: {}), named: "tracker-percent-pitch", size: CGSize(width: 393, height: 2200))
     }
 
     @MainActor

@@ -17,7 +17,7 @@ final class TrackerEditorTests: XCTestCase {
 
     /// A hand-built model: a bench with three planned sets (185lb × 5), a
     /// stretch prescribed by duration only, a cardio run, and a climbing pitch.
-    private func handBuilt(shadowOnBench: Bool = false) -> TrackerEditor {
+    private func handBuilt(shadowOnBench: Bool = false, resolvedOnBench: String? = nil) -> TrackerEditor {
         let bench = TrackedExercise(
             section: "exercise",
             exercise: Exercise(id: "ub-1", name: "Bench Press", category: "strength", definitionId: "def-bench"),
@@ -25,7 +25,8 @@ final class TrackerEditorTests: XCTestCase {
             sets: (1...3).map {
                 TrackedSet(
                     setNumber: $0, planned: PlannedSet(setNumber: $0, targetWeight: "185lb", targetReps: "5"),
-                    shadow: shadowOnBench ? ShadowValues(weight: "200", reps: "5", duration: "") : nil
+                    shadow: shadowOnBench ? ShadowValues(weight: "200", reps: "5", duration: "") : nil,
+                    resolvedPlannedWeight: resolvedOnBench
                 )
             }
         )
@@ -91,6 +92,38 @@ final class TrackerEditorTests: XCTestCase {
         var clean = try self.editor()
         XCTAssertFalse(clean.commitShadow(at: set1, fields: [.weight, .reps]))
         XCTAssertFalse(clean.isDirty)
+    }
+
+    /// `ghostOf`: a shadowed set whose percentage target resolved commits
+    /// today's load as its weight, last session's reps as its reps.
+    func testCommitShadowTakesTheResolvedLoadForWeight() throws {
+        var editor = handBuilt(shadowOnBench: true, resolvedOnBench: "187.5 lb")
+        let key = SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 1)
+        XCTAssertEqual(TrackerEditor.ghost(of: try XCTUnwrap(editor.set(at: key)), field: .weight), "187.5 lb")
+        XCTAssertTrue(editor.commitShadow(at: key, fields: [.weight, .reps]))
+        let set = try XCTUnwrap(editor.set(at: key))
+        XCTAssertEqual(set.actualWeight, "187.5 lb")
+        XCTAssertEqual(set.actualReps, "5")
+
+        // Without a shadow there is nothing to commit, resolved load or not:
+        // the load is only a hint then.
+        var unshadowed = handBuilt(resolvedOnBench: "187.5 lb")
+        XCTAssertEqual(TrackerEditor.ghost(of: try XCTUnwrap(unshadowed.set(at: key)), field: .weight), "")
+        XCTAssertFalse(unshadowed.commitShadow(at: key, fields: [.weight, .reps]))
+    }
+
+    /// What each field shows: a committing ghost (shadow, resolved load for
+    /// weight), a non-committing hint (resolved, no shadow), or nothing.
+    func testFieldPrompts() throws {
+        let key = SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 1)
+        let both = try XCTUnwrap(handBuilt(shadowOnBench: true, resolvedOnBench: "187.5 lb").set(at: key))
+        XCTAssertEqual(TrackerEditor.prompt(of: both, field: .weight), .init(text: "187.5 lb", commits: true))
+        XCTAssertEqual(TrackerEditor.prompt(of: both, field: .reps), .init(text: "5", commits: true))
+        let hintOnly = try XCTUnwrap(handBuilt(resolvedOnBench: "187.5 lb").set(at: key))
+        XCTAssertEqual(TrackerEditor.prompt(of: hintOnly, field: .weight), .init(text: "187.5 lb", commits: false))
+        XCTAssertEqual(TrackerEditor.prompt(of: hintOnly, field: .reps), .init(text: "", commits: false))
+        let shadowOnly = try XCTUnwrap(handBuilt(shadowOnBench: true).set(at: key))
+        XCTAssertEqual(TrackerEditor.prompt(of: shadowOnly, field: .weight), .init(text: "200", commits: true))
     }
 
     func testCommitShadowHonoursTheVisibleFieldList() throws {
@@ -278,6 +311,16 @@ final class TrackerEditorTests: XCTestCase {
     }
 
     // MARK: - Swap
+
+    /// `clearResolvedLoads`: a percentage of the planned lift's max means
+    /// nothing for the movement swapped in, and swapping back does not restore it.
+    func testSwapClearsResolvedLoads() {
+        var editor = handBuilt(resolvedOnBench: "187.5 lb")
+        editor.swap(section: "exercise", exerciseId: "ub-1", toName: "Ring Dips", definitionId: "def-dips")
+        XCTAssertEqual(editor.exercise(section: "exercise", id: "ub-1")?.sets.map(\.resolvedPlannedWeight), [nil, nil, nil])
+        editor.swap(section: "exercise", exerciseId: "ub-1", toName: "Bench Press", definitionId: "def-bench")
+        XCTAssertEqual(editor.exercise(section: "exercise", id: "ub-1")?.sets.map(\.resolvedPlannedWeight), [nil, nil, nil])
+    }
 
     func testSwapRelabelsAndRemembersThePlannedMovement() {
         var editor = handBuilt()

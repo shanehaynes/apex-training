@@ -148,11 +148,25 @@ public struct TrackedSet: Codable, Sendable, Equatable {
     /// The greyed-out suggestion the web calls a shadow. It commits on tap, never
     /// on its own.
     public var shadow: ShadowValues?
+    /// A percentage target ("80%") as today's load with its unit ("187.5 lb"),
+    /// resolved by the server at bootstrap (D-008). Absent when the target is
+    /// not a percentage, the lift has no history or the profile's unit is unknown.
+    public var resolvedPlannedWeight: String?
+    /// The set metadata (phase55). Decoded so a fixture or cache carries it;
+    /// the save row does not send it yet (SetLogRow's allowlist), matching
+    /// what this client lets the user edit.
+    public var rpe: String?
+    public var isWarmup: Bool?
+    /// Climbing pitches only: how the ascent went, and the goes it took.
+    public var ascentStyle: String?
+    public var attempts: String?
 
     public init(
         setNumber: Int, planned: PlannedSet? = nil,
         actualWeight: String? = "", actualReps: String? = "", actualDuration: String? = "",
-        isLogged: Bool = false, isAutofilled: Bool = false, isExtra: Bool = false, shadow: ShadowValues? = nil
+        isLogged: Bool = false, isAutofilled: Bool = false, isExtra: Bool = false, shadow: ShadowValues? = nil,
+        resolvedPlannedWeight: String? = nil, rpe: String? = nil, isWarmup: Bool? = nil,
+        ascentStyle: String? = nil, attempts: String? = nil
     ) {
         self.setNumber = setNumber
         self.planned = planned
@@ -163,6 +177,11 @@ public struct TrackedSet: Codable, Sendable, Equatable {
         self.isAutofilled = isAutofilled
         self.isExtra = isExtra
         self.shadow = shadow
+        self.resolvedPlannedWeight = resolvedPlannedWeight
+        self.rpe = rpe
+        self.isWarmup = isWarmup
+        self.ascentStyle = ascentStyle
+        self.attempts = attempts
     }
 }
 
@@ -232,19 +251,41 @@ public struct CardioLog: Codable, Sendable, Equatable {
 }
 
 /// Detected server-side at finish time (W3) — Swift never computes a PR.
+/// One struct for every `kind` (records.ts): each kind fills its own fields.
 public struct PersonalRecord: Codable, Sendable, Equatable {
     public let kind: String
     public let exerciseName: String
+    // oneRM. Every count is a Double: the server parses "8.5" reps as 8.5
+    // (records.ts parseLeadingNumber), and one fractional value decoded into
+    // an Int would fail the whole bootstrap or finish response.
     public let estimatedOneRM: Double?
     public let weight: Double?
-    public let reps: Int?
+    public let reps: Double?
     public let previousOneRM: Double?
     public let previousDate: String?
+    // duration
+    public let seconds: Double?
+    public let previousSeconds: Double?
+    // reps (the current count rides `reps`)
+    public let previousReps: Double?
+    // distance / elevation
+    public let value: Double?
+    public let unit: String?
+    public let previousValue: Double?
+    // send
+    public let grade: String?
+    public let discipline: String?
+    public let style: String?
+    public let previousGrade: String?
     public let description: String
 
     public init(
-        kind: String, exerciseName: String, estimatedOneRM: Double? = nil, weight: Double? = nil, reps: Int? = nil,
-        previousOneRM: Double? = nil, previousDate: String? = nil, description: String
+        kind: String, exerciseName: String, estimatedOneRM: Double? = nil, weight: Double? = nil, reps: Double? = nil,
+        previousOneRM: Double? = nil, previousDate: String? = nil,
+        seconds: Double? = nil, previousSeconds: Double? = nil, previousReps: Double? = nil,
+        value: Double? = nil, unit: String? = nil, previousValue: Double? = nil,
+        grade: String? = nil, discipline: String? = nil, style: String? = nil, previousGrade: String? = nil,
+        description: String
     ) {
         self.kind = kind
         self.exerciseName = exerciseName
@@ -253,17 +294,52 @@ public struct PersonalRecord: Codable, Sendable, Equatable {
         self.reps = reps
         self.previousOneRM = previousOneRM
         self.previousDate = previousDate
+        self.seconds = seconds
+        self.previousSeconds = previousSeconds
+        self.previousReps = previousReps
+        self.value = value
+        self.unit = unit
+        self.previousValue = previousValue
+        self.grade = grade
+        self.discipline = discipline
+        self.style = style
+        self.previousGrade = previousGrade
         self.description = description
     }
 }
 
+/// The workout-level record (`WireScoreRecord`): this session's score against
+/// the template's previous best of the same type.
 public struct ScoreRecord: Codable, Sendable, Equatable {
     public let kind: String?
+    public let score: SessionScore?
+    public let previous: SessionScore?
+    public let previousDate: String?
     public let description: String?
 
-    public init(kind: String? = nil, description: String? = nil) {
+    public init(
+        kind: String? = nil, score: SessionScore? = nil, previous: SessionScore? = nil,
+        previousDate: String? = nil, description: String? = nil
+    ) {
         self.kind = kind
+        self.score = score
+        self.previous = previous
+        self.previousDate = previousDate
         self.description = description
+    }
+
+    private enum CodingKeys: String, CodingKey { case kind, score, previous, previousDate, description }
+
+    /// A score this build cannot read (a new type, a non-integer) drops that
+    /// field, never the bootstrap or finish response carrying it: SessionScore's
+    /// own decoder throws on those, and `description` already says it in words.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        kind = try c.decodeIfPresent(String.self, forKey: .kind)
+        score = try? c.decodeIfPresent(SessionScore.self, forKey: .score)
+        previous = try? c.decodeIfPresent(SessionScore.self, forKey: .previous)
+        previousDate = try c.decodeIfPresent(String.self, forKey: .previousDate)
+        description = try c.decodeIfPresent(String.self, forKey: .description)
     }
 }
 

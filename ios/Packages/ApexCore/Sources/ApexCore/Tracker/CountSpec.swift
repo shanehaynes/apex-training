@@ -63,13 +63,28 @@ public enum CountSpec {
         return notes.isEmpty ? nil : notes.joined(separator: " ")
     }
 
+    /// A set row's target column: "—" for an added exercise, "extra" for a set
+    /// beyond the plan, else the prescription with any resolved load.
+    public static func targetLabel(of set: TrackedSet, added: Bool) -> String {
+        added ? "—" : set.isExtra ? "extra" : plannedLabel(set.planned, resolvedWeight: set.resolvedPlannedWeight)
+    }
+
     /// The prescription line for a planned set (`plannedLabel`): "185lb × 5",
-    /// with side conventions lifted out; "—" when nothing was planned.
-    public static func plannedLabel(_ planned: PlannedSet?) -> String {
+    /// with side conventions lifted out; "—" when nothing was planned. A
+    /// percentage target the server resolved reads as the load first, unit and
+    /// all — "187.5 lb (80%) × 5" — so a unit changed since the bootstrap cannot
+    /// make the number mean something else.
+    public static func plannedLabel(_ planned: PlannedSet?, resolvedWeight: String? = nil) -> String {
         guard let planned else { return "—" }
+        let resolved = resolvedWeight.flatMap { $0.isEmpty ? nil : $0 }
         var parts: [String] = []
-        if let weight = planned.targetWeight, !weight.isEmpty { parts.append(weight) }
-        if let reps = stripCountSpec(planned.targetReps), !reps.isEmpty { parts.append("× \(reps)") }
+        if let weight = planned.targetWeight, !weight.isEmpty {
+            parts.append(resolved.map { "\($0) (\(weight.trimmingCharacters(in: .whitespaces)))" } ?? weight)
+        }
+        // A resolved label wraps in its column; "× 5" stays on one line.
+        if let reps = stripCountSpec(planned.targetReps), !reps.isEmpty {
+            parts.append(resolved == nil ? "× \(reps)" : "×\u{00a0}\(reps)")
+        }
         if let duration = stripCountSpec(planned.targetDuration), !duration.isEmpty { parts.append(duration) }
         return parts.isEmpty ? "—" : parts.joined(separator: " ")
     }
