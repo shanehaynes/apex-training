@@ -157,6 +157,14 @@ actor FixtureTransport: HTTPTransport {
 
     /// W9: the dashboard's writes, replayed into later tile reads.
     private var tileEdits = TileEdits()
+    /// Tests: the first request whose body contains `heldMarker`, or whose
+    /// "METHOD path" is `heldRoute`, is answered only on `releaseHeld()`. A
+    /// gated request's 403 is what the server decided when it arrived; any
+    /// other answer is decided on release.
+    private var heldMarker: String?
+    private var heldRoute: String?
+    private var heldRelease: CheckedContinuation<Void, Never>?
+    private(set) var isHolding = false
 
     struct TileEdits {
         /// Saved tiles (new or edited), in the GET shape, keyed by id.
@@ -251,8 +259,10 @@ actor FixtureTransport: HTTPTransport {
                                    // Unauthenticated: the launch's build check (G8).
                                    "GET /api/version"]
         if termsStale, !exempt.contains("\(method) \(path)") {
+            await holdIfMarked(request)
             return HTTPResponse(status: 403, headers: [:], body: Data("terms-acceptance-required".utf8))
         }
+        await holdIfMarked(request)
         do {
             switch (method, path) {
             case ("GET", "/api/terms-acceptance"):
@@ -810,6 +820,36 @@ actor FixtureTransport: HTTPTransport {
         object["tile"] = tile
         tileEdits.saved[id] = tile
         return try JSONSerialization.data(withJSONObject: object)
+    }
+
+    func hold(bodyContaining marker: String) {
+        heldMarker = marker
+    }
+
+    func hold(route: String) {
+        heldRoute = route
+    }
+
+    func releaseHeld() {
+        heldMarker = nil
+        heldRoute = nil
+        heldRelease?.resume()
+        heldRelease = nil
+    }
+
+    private func holdIfMarked(_ request: URLRequest) async {
+        let route = "\(request.httpMethod ?? "GET") \(request.url?.path ?? "")"
+        let body = request.httpBody.map { String(decoding: $0, as: UTF8.self) }
+        if let marker = heldMarker, body?.contains(marker) == true {
+            heldMarker = nil
+        } else if let heldRoute, heldRoute == route {
+            self.heldRoute = nil
+        } else {
+            return
+        }
+        isHolding = true
+        await withCheckedContinuation { heldRelease = $0 }
+        isHolding = false
     }
 
     private func ok(_ data: Data) -> HTTPResponse {
