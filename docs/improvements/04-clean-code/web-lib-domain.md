@@ -1,0 +1,128 @@
+# Clean Code review — src/lib domain modules (web-lib-domain lane)
+
+Commit 7c0fcae2. Scope: every non-test file in src/lib/{analytics,auth,blocks,builder,calendar,help,legal,library,nutrition,onboarding,physiology,profile,recurrence,schedule,sync,template,tracking}.
+
+### `src/lib/analytics/engine.ts`
+- [ ] **P1** · *Functions — do one thing / switch better as polymorphism (G30, G23)* · `src/lib/analytics/engine.ts:224` — `extractPoints` runs ~220 lines (224–443): it builds eight closures (canonicalizer, date/type/sport/title/category filters, pitch test, group resolver), then switches on `def.source` across six row sources, each with its own measure if-chain. Adding a measure means editing the middle of this function, and the filter closures can't be tested on their own. **Fix:** extract a `RowFilters` builder (filters and groupFor, built once per series), then add a `Record<MeasureSource, (s, inputs, filters, ctx) => Point[]>` table with one small extractor per source (`completionPoints`, `setLogPoints`, `pitchPoints`, `cardioPoints`, `zonePoints`, `mealPoints`).
+- [ ] **P1** · *Duplication — stat logic (G5)* · `src/lib/analytics/engine.ts:343` — Tonnage is computed as `classifySet(...minutesForBareDuration(...))` → `kind === 'oneRM'` → `set.weight * set.reps` here, and the same pipeline appears again at `src/lib/physiology/compute.ts:202-205` (and in review/stats `computeStrengthStats`, outside this lane). In the same vein, the "best est. 1RM per exercise" loop appears twice: `src/lib/tracking/records.ts:227-236` (`bestHistoricalOneRM`) and `src/lib/tracking/percent.ts:67-79` (`percentBasis`, which differs only by a reps ≤ 12 filter and a bodyweight flag). **Fix:** add `setTonnageLb(row, ctx): number | null` to records.ts and call it from engine, physiology and review. Make `percentBasis` a filtered call to `bestHistoricalOneRM` (add an optional row predicate, and add `load` to `BestSet`).
+- [ ] **P2** · *Functions — too many args, output arguments, temporal coupling (F1, F2, G31)* · `src/lib/analytics/engine.ts:511` — `renderSeries` takes 8 parameters and mutates the caller's `excluded` counter (536–537). `extractPoints` mutates it too (366, 373). `renderSeries` also returns a placeholder `axis: 'left'` that the caller must overwrite afterwards (`rendered.axis = axisFor(s)`, line 180). **Fix:** return `{ series, excluded }` from each function and sum them in `computeTile`, then pass the resolved axis in so the result is complete when it is built. Group `spec`, `buckets` and `weight` into one `RenderContext` object.
+- [ ] **P3** · *Dead code / speculative generality (G9)* · `src/lib/analytics/engine.ts:137` — `Point.weight` is documented as "no v1 measure sets it", and `aggregate`'s weighted average (607–615) reads it with a `?? 1` fallback. Nothing writes it. The name also clashes with the `weight: WeightContext` parameter one line away in `renderSeries`. **Fix:** delete the field and make `avg` a plain mean. Re-add a weighting hook, under a distinct name like `avgWeight`, when a measure needs one.
+
+### `src/lib/analytics/spec.ts`
+- [ ] **P1** · *Duplication — enumerations (G5)* · `src/lib/analytics/spec.ts:216` — The same literal value lists are maintained in several places:
+  - CHART_TYPES, BUCKETS, DISPLAY_UNITS, PRESETS, GRADE_SCALES and MEAL_TYPE_VALUES (spec.ts:216-221) are copied as `*_VALUES` in `src/lib/analytics/draft.ts:332-339`.
+  - They appear a third time as option lists in `src/lib/analytics/labels.ts:12-51`.
+  - The grade scales appear a fourth time as `SCALE_ORDER` (`src/lib/analytics/engine.ts:455`).
+  - `WORKOUT_TYPES` (spec.ts:212) repeats `TYPE_ORDER` (`src/lib/builder/draft.ts:67`) in a different order.
+  - The sports list at `src/lib/builder/draft.ts:462` repeats `SPORTS` (spec.ts:391).
+
+  A new chart type or preset needs 3–4 coordinated edits. **Fix:** labels.ts has to stay `import type`-only, so make it the single source and derive the value arrays from it in spec.ts (`CHART_TYPES.map(o => o.value)`). Export those arrays and import them in draft.ts, engine.ts and builder/draft.ts.
+- [ ] **P2** · *Names — misleading (N1)* · `src/lib/analytics/spec.ts:385` — `upgradeSpec` upgrades nothing: it casts and returns the input when `specProblem` passes, else null. A reader of `tiles.ts:34` expects a migration. **Fix:** rename it to `parseSpec` / `validSpecOrNull`, and keep "upgrade" for when a v1→v2 migration exists.
+- [ ] **P2** · *Functions — small / one level of abstraction (G30)* · `src/lib/analytics/spec.ts:247` — `specProblem` is 130 lines. It validates top-level fields, the range union, per-series fields, six filter kinds, day filters and cross-series unit kinds in one body. **Fix:** split it into `rangeProblems(r)`, `seriesProblems(s, tag)`, `filterProblems(f, def, tag)` and `axisProblems(series)`, each returning `string[]`, and concatenate the results.
+
+### `src/lib/analytics/draft.ts`
+- [ ] **P1** · *Duplication — two validators for one contract (G5)* · `src/lib/analytics/draft.ts:140` — `chartDraftProblem` re-implements most of `specProblem` (`spec.ts:247`):
+  - rolling/fixed range bounds
+  - allowed agg/groupBy
+  - group limit
+  - day-filter offset (the ±7 magic number appears three times: draft.ts:182, draft.ts:573, spec.ts:358)
+  - the max-grade scale rule
+  - the meals/sport rule and sport compatibility
+  - the unit-kind/stacked-bar checks
+
+  A rule changed in one place silently diverges in the other. **Fix:** have `specProblem` return structured problems (`{ code, seriesId?, params }`), and render them in the form's voice from a message table in draft.ts. Keep only the draft-only checks (empty measure, inclusive-date parsing) in `chartDraftProblem`. Hoist `MAX_DAY_OFFSET = 7` into spec.ts.
+- [ ] **P2** · *Functions — repeated validate/assign blocks, mutated argument (G5, F2)* · `src/lib/analytics/draft.ts:467` — `applySeriesUpdate` (125 lines) repeats the same three-line "if defined → validate → assign or push error" block for 14 fields, mutates `next.series` (push at 484/490, filter-back at 589), and removes the series on error. **Fix:** describe the fields in a table (`{ input: 'group_by', target: 'groupBy', parse: nullableOneOf(GROUP_BY_VALUES), error: … }`) and reduce over it. Build the new series aside and append it only on success, so no rollback is needed.
+
+### `src/lib/blocks/draft.ts`
+- [ ] **P1** · *Duplication — second weekly-targets parser (G5)* · `src/lib/blocks/draft.ts:179` — `parseTargets` re-implements `parseWeeklyTargets` (`src/lib/blocks/targets.ts:87`): the same key allowlist, the same non-negative scalar rule, the same `{value, unit}` quantity rule, and the unit lists `['ft','m']` / `['mi','km']` (draft.ts:218, 220) copied from `ELEVATION_UNITS`/`DISTANCE_UNITS` (targets.ts:18-19). Only the vocabulary (snake_case) and the error collection differ. **Fix:** map snake_case keys to camelCase via `TARGET_KEYS`, then call `parseWeeklyTargets`. Collect its `TargetValidationError` message, or give targets.ts a collect-all mode returning `string[]`. Export the unit lists from targets.ts.
+- [ ] **P2** · *Type lie via double cast (G16, G26)* · `src/lib/blocks/draft.ts:70` — `editFields` casts `{ phase: null, objectiveId: null }` through `as unknown as Partial<Omit<TrainingBlock,'id'>>` to make a PATCH clear columns. `src/lib/builder/draft.ts:318` does the same for `sport` (`as unknown as WorkoutEvent['sport']`). The domain type says "never null" while the value is null. **Fix:** declare PATCH types that admit `null` (`type BlockPatch = { [K in keyof BlockFields]?: BlockFields[K] | null }`) and have `blockFieldsToRow` / `eventFieldsToRow` accept them.
+- [ ] **P3** · *Duplication — a mapping written in both directions (G5)* · `src/lib/blocks/draft.ts:83` — `TARGET_KEYS` (snake→camel) and `TARGET_LABELS` (camel→snake, lines 93-100) are the same six pairs typed twice. `src/lib/tracking/fields.ts:12-21` does the same with `LOG_FIELD_TO_SET_FIELD`/`SET_FIELD_TO_LOG_FIELD`. **Fix:** declare one map and derive its inverse (`Object.fromEntries(Object.entries(m).map(([a, b]) => [b, a]))`).
+
+### `src/lib/builder/draft.ts`
+- [ ] **P1** · *Duplication — the field mapping written five times (G5)* · `src/lib/builder/draft.ts:140` — `draftFromTemplate` (140-165) and `draftFromEvent` (167-192) are near-identical 25-field literals. In the other direction, `templateInputFromDraft` (245), `createInputFromDraft` (267) and `eventFieldsFromDraft` (307) each re-spell the same ~15 field packings: tags, the warmup/cooldown empty→undefined rule, location trim, cardio/climbing targets, time cap. A new workout field needs five edits. **Fix:** add `draftFromWorkoutShape(shape: WorkoutTemplate | WorkoutEvent, date, repeat)` plus one `packCommonFields(draft)` returning the shared subset. Each of the three outputs spreads that subset and adds only its own fields (templateId, schedule, recurrence).
+- [ ] **P2** · *Inconsistency — same contract, different error policy (G11)* · `src/lib/builder/draft.ts:417` — `applyDraftUpdate` silently drops invalid fields: bad `sport` (462), `scoring_type` (466), `date` (472), `start_time`/`end_time` (473-474), out-of-range `difficulty` (478) and unknown `type` (446). The analytics reducer (`src/lib/analytics/draft.ts:353`) and the block reducer (`src/lib/blocks/draft.ts:305`) claim this same "update_workout_draft contract" and report every violation in one error. The model gets "Draft updated" for a field that was ignored. **Fix:** collect a `violations` list per field, as the other reducers do, and return `{ error }` when it is non-empty.
+
+### `src/lib/tracking/plan.ts`
+- [ ] **P1** · *Functions — too many args, nested 75-line lambda (F1, G30)* · `src/lib/tracking/plan.ts:359` — `buildTrackerModel` takes 7 positional parameters (6 defaulted, so callers pass `new Map()` placeholders to reach later ones). Its `.map` callback (380-456) does substitution detection, cardio-form building, planned-set hydration, shadow inheritance and extra-set merging inline. **Fix:** take one `TrackerInputs` object. Extract `trackCardio(section, exercise, ctx)` and `trackSets(section, exercise, ctx)` with the lookup maps built once into `ctx`.
+- [ ] **P2** · *Duplication — row and key construction (G5)* · `src/lib/tracking/plan.ts:692` — `buildQuickCompleteLogs` builds set and cardio rows field-by-field (701-733), duplicating `setToRow`/`cardioToRow` (580-632). The saved-row→`TrackedSet` mapping is also written twice (`loggedExtraSet` 256-266 vs 427-435), and so is the empty cardio form (286 vs 403-408). The section|exercise key is assembled inline six times (334, 369, 371, 373, 389, 392). **Fix:** add `plannedSetRow(event, section, exercise, planned)` / `plannedCardioRow(...)` helpers shared with `setToRow`/`cardioToRow`, plus `hydrateSet(base, row)`, `emptyCardio(shadow)` and `exerciseKey(section, id)` helpers.
+- [ ] **P3** · *Functions — duplication by predicate (G5)* · `src/lib/tracking/plan.ts:488` — `setExerciseNames` and `cardioExerciseNames` (488-507) are the same loop with the cardio test inverted. **Fix:** write one `exerciseNames(event, predicate)` and turn these two into one-liners over it.
+
+### `src/lib/tracking/sessionRepo.ts`
+- [ ] **P1** · *Error handling — swallowed failure (Ch. 7)* · `src/lib/tracking/sessionRepo.ts:86` — `loadSession` catches every bootstrap failure (network, 5xx, 401, malformed body) and returns the same in-memory "offline" model used when no backend is configured. The caller cannot tell "server unreachable" from "no backend", and a configured user silently gets a plan-only model with none of their saved rows. **Fix:** keep the `!supabase` branch, but let the failure propagate (or return a discriminated `{ kind: 'offline' | 'error', … }`) so the tracker shows a load error instead of a blank session.
+- [ ] **P2** · *Duplication + inconsistency (G5, G11)* · `src/lib/tracking/sessionRepo.ts:171` — `ownMessage` (4xx except 408/429) restates the retry policy that `isNonRetryable`/`isAuthFailure` own in `src/lib/tracking/saveQueue.ts:76-91`. The two can drift. Across the module the no-backend contract is also inconsistent: `loadSession` fabricates data, `saveLogs` resolves void, `finishSession`/`editSessionTimes` return null, `swapLoggedExercise` returns false, and `generateCoachSummary` throws. **Fix:** import `isNonRetryable` from saveQueue (or move the status classification to one module), and pick one offline convention (e.g. return `null`) for every action.
+- [ ] **P3** · *Hidden side effect in a data layer (G20)* · `src/lib/tracking/sessionRepo.ts:165` — `saveLogs` toasts (`notify`, lines 165 and 172) as well as throwing, so the transport decides UI policy (with a `quiet` flag to opt out). **Fix:** throw only, and let the save-queue hook (which already owns the Unsaved bar) decide when to toast.
+
+### `src/lib/library/repo.ts`
+- [ ] **P1** · *Error handling — ignored error result (Ch. 7)* · `src/lib/library/repo.ts:23` — `fetchLastPerformedRows` destructures only `data` from the RPC, and `fetchExerciseHistory` (50-51) reads only `.data`. A failed query becomes "no history", with no log and no throw. The library then shows "never performed" and empty stats as if true. **Fix:** check `error` and throw (or at least `console.warn`, as `blocks/repo.ts` does). Hoist the duplicated `limit(2000)` (41, 47) into a named `HISTORY_ROW_CAP`.
+
+### `src/lib/blocks/repo.ts`
+- [ ] **P2** · *Error handling — logged then swallowed (Ch. 7)* · `src/lib/blocks/repo.ts:59` — Each failed query is `console.warn`ed and replaced with `[]`. Block attainment then reports 0% against real targets on a transient failure, indistinguishable from "did nothing". **Fix:** throw when any query errors, and let the block view render its error state. Or return `{ logs, failed: string[] }` so the UI can caveat the numbers.
+
+### `src/lib/blocks/progress.ts`
+- [ ] **P2** · *Duplication — tally loop written twice (G5)* · `src/lib/blocks/progress.ts:106` — `windowActuals` (115-126) and `derivedTargets` (163-175) run the same tally: longest minutes, cardio minutes by `CARDIO_TYPES`, strength and climbing counts. One runs over completions, the other over planned events. **Fix:** extract `tallySessions(items: { type, minutes }[])` returning the four numbers, and map completions and events into that shape.
+- [ ] **P3** · *Names — encodings / mixed shape (N6)* · `src/lib/blocks/progress.ts:149` — `DerivedTargets` extends the scalar-target record with `_distanceUnits`/`_vertUnits`. The underscore prefix encodes "not a target", and the interface mixes per-week numbers with per-unit maps. **Fix:** return `{ perWeek: Record<ScalarTargetKey, number>, plannedByUnit: { distance, vert } }`.
+
+### `src/lib/tracking/records.ts`
+- [ ] **P2** · *Duplication — triplicated history and PR loops (G5)* · `src/lib/tracking/records.ts:227` — `bestHistoricalOneRM`, `bestHistoricalDuration` and `bestHistoricalReps` (227-260) are one loop differing only in the `set.kind` filter and the value picked. `computeSessionPRs` then repeats the "look up prior, skip if not better, push record" block three times (434-470). **Fix:** classify history once into `Map<kind, Map<name, Best>>`, then make one generic `newRecords(kind, current, prior, toRecord)` that the three kinds and `quantityPRs` share.
+- [ ] **P2** · *Artificial coupling / module cohesion (G13, SRP)* · `src/lib/tracking/records.ts:150` — The free-text parsers (`parseQuantity`, `parseDurationSeconds`, `parseLeadingNumber`, `canonicalDurationText`) live in the 640-line PR-detection module alongside scores and display copy. As a result analytics/engine.ts, blocks/progress.ts, library/stats.ts and tracking/plan.ts import "records" just to read "5 mi". **Fix:** move the parsers to `tracking/quantities.ts` (next to weight.ts's `parseWeight`) and re-export them from records.ts during migration. Leave records.ts with PRs, scores and their descriptions.
+
+### `src/lib/library/stats.ts`
+- [ ] **P2** · *Duplication (G5, G25)* · `src/lib/library/stats.ts:144` — `cardioStats` repeats `setStats`'s pipeline: best-by-date (154-158 vs 99-108), trend sort (159-161 vs 109-111), best reduce (162-164 vs 113-115) and recent-sessions slice with the magic `6` (174-177 vs 127-130). **Fix:** extract `trendFromBest(bestByDate)`, `bestPoint(trend)` and `recentSessions(byDate)`, and name `RECENT_SESSION_COUNT = 6`.
+- [ ] **P2** · *Duplication + inconsistency — name normalization (G5, G11)* · `src/lib/library/stats.ts:218` — The inline `trim().replace(/\s+/g,' ').toLowerCase()` copies the private `normalize` in `src/lib/schedule/definitions.ts:84`, which `normalizeTitle` in `src/lib/schedule/templates.ts:84` also copies. Meanwhile `src/lib/analytics/engine.ts:241` (`exerciseKey`) and `:252` (title set) normalize with `trim().toLowerCase()` and no whitespace collapse, so "Back  Squat" matches in the library but not in an analytics filter. **Fix:** export `normalizeName` from definitions.ts and use it everywhere. Call `canonicalNameOf` in stats.ts instead of reaching into `toCanonical` with a hand-rolled key.
+- [ ] **P2** · *Duplication — "dominant" selection (G5)* · `src/lib/library/stats.ts:96` — "Pick the key with the highest count/volume, ties alphabetical" is written four times: here (96, kind by count), at 152 (unit by count, no tie-break), in `src/lib/analytics/units.ts:80`, and in `src/lib/blocks/progress.ts:283`. The tie-break rules already differ between copies. **Fix:** write one `dominantKey(counts: Map<string, number> | Record<string, number>)` with a documented tie-break, used by all four.
+
+### `src/lib/schedule/mapping.ts`
+- [ ] **P2** · *Hidden clock read in a pure module (G31, G5)* · `src/lib/schedule/mapping.ts:165` — `buildCompletionRows` calls `new Date()` twice (176, 177), so `completed_at` and `updated_at` can differ, and the "pure converters" module reads the clock. Neighbours inject `today`/`currentDate` (`schedule/expand.ts:31`, `blocks/period.ts:68`). The two rows also repeat five identical fields (170-174 vs 180-184). **Fix:** take `now: Date` as a parameter, read it once, and spread a shared `{ event_id, event_date, event_type, event_title, duration_minutes }` base into both rows.
+
+### `src/lib/schedule/templates.ts`
+- [ ] **P2** · *Duplication — column mapping knowledge (G5)* · `src/lib/schedule/templates.ts:18` — `templateToRow`/`rowToTemplate` hand-spell ~16 camel↔snake column pairs that `EVENT_FIELDS` (`src/lib/schedule/mapping.ts:93`) maps for the same columns, even though mapping.ts states that "the camelCase ↔ snake_case knowledge exists exactly once". The same pattern appears in `src/lib/nutrition/mapping.ts:82`: `rowToFavorite` repeats `rowToMeal` field-by-field while the write direction is table-driven. **Fix:** share a per-column converter table for the workout-shape columns (title, type, sport, duration, difficulty, sections, targets, tags…) used by events and templates. Derive `rowToFavorite` from `rowToMeal` (omit date/time).
+
+### `src/lib/schedule/definitions.ts`
+- [ ] **P2** · *Duplication — same rule, two matchers (G5)* · `src/lib/schedule/definitions.ts:189` — `validateUnilateral` (match by `definitionId`) and the unilateral check inside `applyDraftUpdate` (`src/lib/builder/draft.ts:425-433`, match by name) enforce one rule with different lookups and wording. **Fix:** give definitions.ts one `unilateralViolation(entry, def): string | null`. Both callers resolve the def their own way and share the predicate and message.
+- [ ] **P3** · *Module cohesion (SRP)* · `src/lib/schedule/definitions.ts:12` — One 388-line file mixes six concerns:
+  - row mapping
+  - display resolution
+  - fuzzy "did you mean" matching (edit distance)
+  - per-side count authoring and display regexes
+  - entry construction
+  - the alias index
+
+  **Fix:** split it into `definitions/mapping.ts`, `definitions/match.ts` (normalize, alias index, near-match) and `definitions/countSpec.ts`, with an index re-export.
+
+### `src/lib/calendar/copy.ts` (and the repo's date helpers)
+- [ ] **P1** · *Duplication — date arithmetic helpers (G5, N1)* · `src/lib/calendar/copy.ts:71` — Add-a-day / week-start / ISO-format helpers are re-implemented across the lane:
+  - `addIsoDays` exists here (date-fns, local time) and again with the same name at `src/lib/template/clone.ts:48` (UTC ms math).
+  - `addDay`/`addDayInverse` at `src/lib/analytics/draft.ts:133/289` duplicate `toExclusiveEnd`/`toInclusiveEnd` at `src/lib/blocks/draft.ts:138/143`; `addDayInverse` is also a misleading name for "minus one day".
+  - The Monday-of-week helper exists three times: `weekStartIso` (copy.ts:67), `mondayOf` (blocks/draft.ts:133) and `weekStartOf` (`src/lib/physiology/compute.ts:32`).
+  - The ISO format string is a private constant or helper four times (`analytics/buckets.ts:20`, `analytics/window.ts:16`, copy.ts:16, `physiology/compute.ts:29`) plus inline in about 10 other places.
+  - `toMs`/`toIso`/`DAY_MS` are copied verbatim from `src/lib/recurrence/expand.ts:5-17` into `src/lib/template/clone.ts:35-46`.
+  - `DAY_MS` is exported unused from `src/lib/blocks/period.ts:14`, and appears again as `MS_PER_DAY` in `src/lib/analytics/spec.ts:225`.
+
+  **Fix:** create one `src/lib/dates.ts` (pure, `.js` specifiers) exporting `isoDate(d)`, `addIsoDays(iso, n)`, `isoWeekMonday(d)`, `DAY_MS`, `toUtcMs`/`fromUtcMs`, and replace the copies. Delete the dead export.
+
+### `src/lib/recurrence/validate.ts` (ISO date validation)
+- [ ] **P2** · *Duplication — weaker re-implementations of an existing validator (G5)* · `src/lib/recurrence/validate.ts:71` — `isValidIsoDate` already rejects '9999-99-99'. Yet shape-only `/^\d{4}-\d{2}-\d{2}$/` checks are re-declared at `src/lib/analytics/spec.ts:223`, `src/lib/analytics/draft.ts:131`, `src/lib/blocks/draft.ts:102`, `src/lib/blocks/validate.ts:13` and inline at `src/lib/builder/draft.ts:472/504`. The weakness is why `rangeSpanDays` needs its NaN workaround and comment (spec.ts:232-240, 279; draft.ts:153-157), and why blocks/draft.ts:128 and validate.ts:19-22 add a `parseISO` NaN check. **Fix:** move `isValidIsoDate` to the shared dates module and use it everywhere; the NaN special cases then go away.
+
+### `src/lib/physiology/compute.ts`
+- [ ] **P2** · *Magic numbers, duplicated (G25, G5)* · `src/lib/physiology/compute.ts:167` — The acute/chronic windows are literal `subDays(today, 6)` / `subDays(today, 27)` in `computeLoad` (167-168), with `/ 4` at 186. The same `6`/`27` reappear in `computeHrv` (216-217), and `weekStarts` uses `[4,3,2,1,0]` (230) and `subWeeks(…, 4)` (257). **Fix:** name `ACUTE_DAYS = 7`, `CHRONIC_WEEKS = 4` (derive `CHRONIC_DAYS`) and `WINDOW_WEEKS = 5`, and add a `lastNDaysStart(today, n)` helper used by both sections.
+
+### `src/lib/sync/matching.ts` (shared keys and domain predicates)
+- [ ] **P2** · *Duplication — event/date key and climbing-type rule (G5)* · `src/lib/sync/matching.ts:26` — The `${eventId}|${eventDate}` key is defined three times: `occurrenceKey` here, `completionKey` (`src/lib/analytics/engine.ts:142`) and `eventKey` (`src/lib/physiology/compute.ts:45`). The "climbing types" rule is re-declared five ways:
+  - `typeCompatible`'s set here (33)
+  - `isClimbingEvent` (`src/lib/analytics/engine.ts:446`)
+  - `CLIMBING_TYPES` (`src/lib/blocks/progress.ts:36`)
+  - three inline comparisons in `src/lib/builder/draft.ts` (128, 450, 454)
+
+  **Fix:** export `occurrenceKey` from `schedule/occurrence.ts` (which already owns occurrence id conventions), and export `isClimbingType(type)` from a domain module (e.g. `types/workout` helpers or `lib/climbing.ts`). Replace every copy.
+
+### `src/lib/legal/markdown.ts`
+- [ ] **P2** · *Names — misleading scope; long function (N1, G30)* · `src/lib/legal/markdown.ts:104` — `parseLegalMarkdown` and `LegalDocument` also parse the help pages (header lines 1-2, the image block "HELP PAGES ONLY"), so the names misstate the module's purpose. The function is an 85-line loop that parses tables (145-157, with an `i--` index rewind) and lists (159-183) inline. **Fix:** rename to `parseMarkdownSubset` / `MarkdownDocument`. Extract `readTable(lines, i)` and `readList(lines, i)`, each returning `{ block, nextIndex }`, so the main loop dispatches and the rewind disappears.
+
+### `src/lib/analytics/units.ts`
+- [ ] **P3** · *Duplication within a function (G5)* · `src/lib/analytics/units.ts:60` — The displayUnit branch (61-71) and the dominant-unit branch (82-91) build `kept`/`keptMask`/`excluded` with the same loop; only the per-entry transform differs. **Fix:** pick the transform first (`convertLength` vs `e.unit === dominant ? e.value : null`), then run one shared loop.
+
+### `src/lib/blocks/cadence.ts`
+- [ ] **P3** · *Duplication — half-open range predicates (G5)* · `src/lib/blocks/cadence.ts:159` — Interval overlap (`a.start < b.end && b.start < a.end`) is written here and again at `src/lib/blocks/draft.ts:349`. Date-in-range is written three times: `inRange` (`src/lib/analytics/window.ts:92`), `blockCovers` (`src/lib/blocks/period.ts:85`) and `inWindow` (`src/lib/blocks/progress.ts:98`). **Fix:** add `periodsOverlap(a, b)` and `periodContains(p, date)` next to `Period` (review/isoMonth or the shared dates module), and call them from all five sites.
+
+## Not checked
+Nothing in scope was skipped. Every non-test .ts file under the 17 listed directories was read in full, including src/lib/onboarding/tips/*.ts, src/lib/help/sources.ts and src/lib/profile/avatars.ts, which produced no findings. Cross-references outside the lane (src/lib/review/stats.ts computeStrengthStats, src/lib/time.ts, api/**) were cited only from call sites, not reviewed.
