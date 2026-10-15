@@ -40,3 +40,8 @@ export function isPast(date: Date): boolean {
 export function isPastDay(isoDate: string): boolean {
   return isoDate < format(now(), 'yyyy-MM-dd');
 }
+
+/** This browser's IANA time zone ("America/New_York"). */
+export function browserTimezone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}

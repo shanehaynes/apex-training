@@ -11,6 +11,7 @@ import { isChecklistId, isSetupSkipId, localSetupDone, setupSkipId, skippedIds }
 import { isTipId } from '../../../src/lib/onboarding/tips/index.js';
 import { contractProblem, normalizeContract } from '../../../src/lib/coach/contract.js';
 import { weightContextFromProfile } from '../../../src/lib/tracking/weight.js';
+import { isValidTimezone } from '../userTimezone.js';
 
 // Profile reads/writes, same posture as every other table: the browser
 // reads profiles via RLS (own row only) and mutates through this
@@ -37,8 +38,9 @@ const PROFILE_COLUMNS = 'display_name, avatar_key, coach_goal, coach_context, co
 // Postgres on a select, PGRST204 from PostgREST's schema cache on an update.
 // Either one means "not yet", never a server fault. tips_seen (id → ISO time
 // a tip was dismissed) came first; coach_contract and reflection_opt_in
-// (lane D01) and the weight-entry pair (phase55) ride the same pattern.
-const TRAILING_COLUMNS = ['tips_seen', 'coach_contract', 'reflection_opt_in', 'weight_unit', 'body_weight_lb'] as const;
+// (lane D01), the weight-entry pair (phase55) and the time zone (phase58)
+// ride the same pattern.
+const TRAILING_COLUMNS = ['tips_seen', 'coach_contract', 'reflection_opt_in', 'weight_unit', 'body_weight_lb', 'timezone'] as const;
 const TRAILING_COLUMN_RE = new RegExp(TRAILING_COLUMNS.join('|'));
 
 function isTrailingColumnMissing(error: { code?: string; message?: string } | null): boolean {
@@ -102,7 +104,7 @@ async function profileFields(
   }
   const trailing = (data ?? {}) as {
     tips_seen?: unknown; coach_contract?: unknown; reflection_opt_in?: unknown;
-    weight_unit?: unknown; body_weight_lb?: unknown;
+    weight_unit?: unknown; body_weight_lb?: unknown; timezone?: unknown;
   };
   const tipsSeen = tipsSeenRecord(trailing.tips_seen);
   const weight = weightContextFromProfile(trailing);
@@ -124,6 +126,9 @@ async function profileFields(
     // client shows it in weightUnit. Pounds and null until the columns exist.
     weightUnit: weight.unit,
     bodyWeightLb: weight.bodyWeightLb,
+    // The athlete's IANA zone (phase58), null until a client has written one
+    // or while the column is missing; the server computes in UTC meanwhile.
+    timezone: isValidTimezone(trailing.timezone) ? trailing.timezone : null,
     coachModel: stored,
     coachModelLabel: resolveCoachModel(stored).label,
     calendarFeedUrl: data?.ics_token ? `${publicOrigin(req)}/api/calendar-feed?token=${data.ics_token}` : null,
@@ -233,6 +238,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     reflection_opt_in?: unknown;
     weight_unit?: unknown;
     body_weight_lb?: unknown;
+    timezone?: unknown;
   } | undefined;
 
   const fields: Record<string, string | number | boolean | null | Record<string, string>> = {};
@@ -390,6 +396,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
     fields.body_weight_lb = body.body_weight_lb;
+  }
+
+  // The athlete's zone (phase58), written by the client from Intl. Validated
+  // against this runtime's Intl so every server reader can compute in it;
+  // null clears it back to UTC.
+  if (body?.timezone !== undefined) {
+    if (body.timezone !== null && !isValidTimezone(body.timezone)) {
+      res.status(400).send('timezone must be an IANA time zone name, or null');
+      return;
+    }
+    fields.timezone = body.timezone;
   }
 
   const hasKeyChange = body !== undefined && 'anthropic_api_key' in body;

@@ -11,6 +11,7 @@
   "thresholdHr": null,
   "weightUnit": "lb",
   "bodyWeightLb": null,
+  "timezone": null,
   "coachModel": null,
   "coachModelLabel": "Opus 5.5",
   "calendarFeedUrl": "http://localhost/api/calendar-feed?token=<uuid>",

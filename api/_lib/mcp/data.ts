@@ -246,8 +246,3 @@ export async function fetchLastPerformedRows(supabase: Admin, userId: string): P
   if (error) throw new Error(`last_performed_by_name fetch failed: ${error.message}`);
   return (data ?? []) as NameDateRow[];
 }
-
-/** Today's date (UTC) as YYYY-MM-DD — the server has no user timezone. */
-export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}

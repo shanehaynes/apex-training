@@ -1,7 +1,8 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { ToolInputError, type McpToolAnnotations, type McpToolDef } from './protocol.js';
 import { optionalBoolean, optionalEnum, requireDate, requireString } from './args.js';
-import { fetchDefinitionRows, todayIso } from './data.js';
+import { fetchDefinitionRows } from './data.js';
+import { userToday } from '../userTimezone.js';
 import { COACH_TOOLS } from '../../../src/lib/coach/tools.js';
 import { buildCoachToolDeps } from '../coach/toolDeps.js';
 import { applyMemoryCommand } from '../coach/memory.js';
@@ -49,14 +50,13 @@ type Admin = Parameters<McpToolDef['run']>[0];
 
 const TODAY_PROPERTY = {
   type: 'string',
-  description: "The user's local date, YYYY-MM-DD. Defaults to today in UTC. Decides whether a created workout is a plan or a retro-log.",
+  description: "The user's local date, YYYY-MM-DD. Defaults to today in the user's saved time zone (UTC when none is saved). Decides whether a created workout is a plan or a retro-log.",
 };
 
-/** Split the optional `today` off a write tool's arguments. */
-function takeToday(args: Record<string, unknown>): { today: string; input: Record<string, unknown> } {
+/** Split the optional `today` off a write tool's arguments, validated when sent. */
+function splitToday(args: Record<string, unknown>): { today: string | undefined; input: Record<string, unknown> } {
   const { today: raw, ...input } = args;
-  const today = raw === undefined || raw === null ? todayIso() : requireDate(args, 'today');
-  return { today, input };
+  return { today: raw === undefined || raw === null ? undefined : requireDate(args, 'today'), input };
 }
 
 const CLOSED = { openWorldHint: false } as const;
@@ -106,7 +106,8 @@ function coachBacked(
     access: 'write',
     annotations: { ...CLOSED, readOnlyHint: false, ...opts.annotations },
     async run(supabase, userId, args) {
-      const { today, input } = takeToday(args);
+      const { today: sent, input } = splitToday(args);
+      const today = sent ?? await userToday(supabase, userId);
       const deps = await buildCoachToolDeps(supabase, userId, today, input);
       // The executor's text states what happened or why it was refused —
       // the same sentence the in-app coach reads back after a confirmed card.
@@ -608,7 +609,7 @@ function blockTools(resource: BlockResource): McpToolDef[] {
       access: 'write',
       annotations: { ...CLOSED, title: `Create ${noun}`, readOnlyHint: false, destructiveHint: false, idempotentHint: false },
       async run(supabase, userId, args) {
-        const { input } = takeToday(args);
+        const { input } = splitToday(args);
         const { id } = unwrap(await createBlockResource(supabase, userId, resource, input, 'ai'));
         return { ok: true, id, message: `${Title} "${String(input.name)}" created [${id}].` };
       },

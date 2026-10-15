@@ -1,7 +1,8 @@
 import { parseISO } from 'date-fns';
 import { ToolInputError, type McpToolDef } from '../protocol.js';
 import { optionalBoolean, optionalEnum, requireDate, requireString } from '../args.js';
-import { fetchExpandedSchedule, todayIso } from '../data.js';
+import { fetchExpandedSchedule } from '../data.js';
+import { userToday } from '../../userTimezone.js';
 import { fetchPeriodInputs } from '../../reviewData.js';
 import type { ObjectiveRow, TrainingBlockRow } from '../../../../src/lib/db/types.js';
 import type { Objective, TrainingBlock } from '../../../../src/types/blocks.js';
@@ -15,7 +16,7 @@ import { describeRecord } from '../../../../src/lib/tracking/records.js';
 // same pre-computed values the coach prompt cites.
 //
 // W10 widened it for the phone's Blocks screens, all additive: `today` (the
-// caller's local date — the server has no user timezone, and a fixture that
+// caller's local date — the server's fallback is the user's saved zone, and a fixture that
 // read the clock would drift daily), `block_id` (progress for ANY block, not
 // only the one covering today — a detail screen for a past block has no
 // other path), `include_objectives` (the full list with ids, which the
@@ -94,7 +95,7 @@ export const getTrainingBlocksTool: McpToolDef = {
       include_progress: { type: 'boolean', description: 'Compute attainment for the current block (default true).' },
       block_id: { type: 'string', description: 'Compute attainment for this block instead, answered under "block".' },
       include_objectives: { type: 'boolean', description: 'Also list every objective with its id (default false).' },
-      today: { type: 'string', description: 'The caller\'s local date, YYYY-MM-DD. Defaults to the server\'s UTC date.' },
+      today: { type: 'string', description: 'The caller\'s local date, YYYY-MM-DD. Defaults to today in the user\'s saved time zone (UTC when none is saved).' },
     },
   },
   async run(supabase, userId, args) {
@@ -102,7 +103,7 @@ export const getTrainingBlocksTool: McpToolDef = {
     const includeProgress = optionalBoolean(args, 'include_progress', true);
     const includeObjectives = optionalBoolean(args, 'include_objectives', false);
     const blockId = args.block_id === undefined || args.block_id === null ? undefined : requireString(args, 'block_id');
-    const today = args.today === undefined || args.today === null ? todayIso() : requireDate(args, 'today');
+    const today = args.today === undefined || args.today === null ? await userToday(supabase, userId) : requireDate(args, 'today');
     const todayDate = parseISO(today);
 
     const [blocksRes, objectivesRes] = await Promise.all([

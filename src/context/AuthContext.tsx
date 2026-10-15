@@ -13,6 +13,7 @@ import { parseAuthLinkError } from '../lib/auth/linkError';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
 import { weightContextFromProfile, type WeightUnit } from '../lib/tracking/weight';
 import { registerAgentState } from '../dev/agentBridge';
+import { browserTimezone } from '../lib/clock';
 import {
   AuthContext, type AnthropicKeyStatus, type AuthContextValue, type AuthStatus, type SignUpResult,
   type TermsStatus,
@@ -294,6 +295,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Read off the profiles row (select('*')), so it is pounds / none before
   // the row loads and before the phase55 columns reach prod.
   const weightContext = useMemo(() => weightContextFromProfile(profile), [profile]);
+
+  // The athlete's time zone (phase58), for the server paths with no browser
+  // to ask — MCP calls without `today`, the nightly reflection, the provider
+  // cron. Written whenever this browser's zone differs from the stored one,
+  // so a trip updates it on the next load. Same posture as markTipSeen: only
+  // once the column is in our own read, optimistic, quiet.
+  const storedTimezone = profile && 'timezone' in profile ? profile.timezone : undefined;
+  useEffect(() => {
+    if (!supabase || status !== 'signedIn' || storedTimezone === undefined) return;
+    const zone = browserTimezone();
+    if (!zone || zone === storedTimezone) return;
+    setProfile(prev => prev && { ...prev, timezone: zone });
+    patchJson('/api/profile', { timezone: zone }, 'Saving', { quiet: true }).catch(() => {});
+  }, [status, storedTimezone]);
 
   const refreshProfile = useCallback(async () => {
     if (session) await loadProfile(session.user.id);

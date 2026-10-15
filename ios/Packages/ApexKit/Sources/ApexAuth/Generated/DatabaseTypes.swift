@@ -1665,6 +1665,7 @@ internal enum PublicSchema {
     internal let reflectionOptIn: Bool
     internal let templateCopiedAt: String?
     internal let thresholdHr: Int32?
+    internal let timezone: String?
     internal let tipsSeen: AnyJSON
     internal let updatedAt: String
     internal let weightUnit: String
@@ -1685,6 +1686,7 @@ internal enum PublicSchema {
       case reflectionOptIn = "reflection_opt_in"
       case templateCopiedAt = "template_copied_at"
       case thresholdHr = "threshold_hr"
+      case timezone = "timezone"
       case tipsSeen = "tips_seen"
       case updatedAt = "updated_at"
       case weightUnit = "weight_unit"
@@ -1707,6 +1709,7 @@ internal enum PublicSchema {
     internal let reflectionOptIn: Bool?
     internal let templateCopiedAt: String?
     internal let thresholdHr: Int32?
+    internal let timezone: String?
     internal let tipsSeen: AnyJSON?
     internal let updatedAt: String?
     internal let weightUnit: String?
@@ -1727,6 +1730,7 @@ internal enum PublicSchema {
       case reflectionOptIn = "reflection_opt_in"
       case templateCopiedAt = "template_copied_at"
       case thresholdHr = "threshold_hr"
+      case timezone = "timezone"
       case tipsSeen = "tips_seen"
       case updatedAt = "updated_at"
       case weightUnit = "weight_unit"
@@ -1749,6 +1753,7 @@ internal enum PublicSchema {
     internal let reflectionOptIn: Bool?
     internal let templateCopiedAt: String?
     internal let thresholdHr: Int32?
+    internal let timezone: String?
     internal let tipsSeen: AnyJSON?
     internal let updatedAt: String?
     internal let weightUnit: String?
@@ -1769,6 +1774,7 @@ internal enum PublicSchema {
       case reflectionOptIn = "reflection_opt_in"
       case templateCopiedAt = "template_copied_at"
       case thresholdHr = "threshold_hr"
+      case timezone = "timezone"
       case tipsSeen = "tips_seen"
       case updatedAt = "updated_at"
       case weightUnit = "weight_unit"

@@ -68,7 +68,7 @@ const PROFILE_DEFAULTS = {
   // columns are null or not there yet.
   coachContract: null, reflectionOptIn: false,
   maxHr: null, thresholdHr: null, calendarFeedUrl: null,
-  weightUnit: 'lb', bodyWeightLb: null,
+  weightUnit: 'lb', bodyWeightLb: null, timezone: null,
   // W13: a fresh account with no key — the welcome flow is due, nothing ticked.
   onboarding: {
     dismissedAt: null, applies: true, setup: { template: false, key: false, goal: false }, tipsSeen: [], skipped: [],
@@ -564,6 +564,60 @@ describe('PATCH /api/profile — HR-zone settings (phase 35)', () => {
       expect(statusCode()).toBe(400);
       expect(state.profileUpdate).toBeUndefined();
     }
+  });
+});
+
+describe('time zone (phase58)', () => {
+  it('GET returns the stored zone', async () => {
+    mockedAdmin.mockReturnValue(makeAdmin({ key: null, profile: { timezone: 'America/Los_Angeles' } }));
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('GET'), res);
+    expect(statusCode()).toBe(200);
+    expect((body() as { timezone: unknown }).timezone).toBe('America/Los_Angeles');
+  });
+
+  it('GET reads an invalid stored zone, or a missing column, as null', async () => {
+    for (const state of [
+      { key: null, profile: { timezone: 'Mars/Olympus_Mons' } },
+      { key: null, missingColumns: ['timezone'] },
+    ] satisfies AdminState[]) {
+      mockedAdmin.mockReturnValue(makeAdmin(state));
+      const { res, statusCode, body } = makeRes();
+      await handler(makeReq('GET'), res);
+      expect(statusCode()).toBe(200);
+      expect((body() as { timezone: unknown }).timezone).toBeNull();
+    }
+  });
+
+  it('PATCH stores a valid IANA zone, and null clears it', async () => {
+    for (const timezone of ['Asia/Tokyo', null]) {
+      const state: AdminState = { key: null };
+      mockedAdmin.mockReturnValue(makeAdmin(state));
+      const { res, statusCode } = makeRes();
+      await handler(makeReq('PATCH', { timezone }), res);
+      expect(statusCode()).toBe(200);
+      expect(state.profileUpdate).toMatchObject({ timezone });
+    }
+  });
+
+  it('PATCH 400s anything this runtime cannot compute in', async () => {
+    for (const timezone of ['', 'Mars/Olympus_Mons', 'x'.repeat(65), 5, true]) {
+      const state: AdminState = { key: null };
+      mockedAdmin.mockReturnValue(makeAdmin(state));
+      const { res, statusCode } = makeRes();
+      await handler(makeReq('PATCH', { timezone }), res);
+      expect(statusCode(), `timezone: ${JSON.stringify(timezone)}`).toBe(400);
+      expect(state.profileUpdate).toBeUndefined();
+    }
+  });
+
+  it('PATCH 409s column-missing before phase58 reaches this database', async () => {
+    const state: AdminState = { key: null, missingColumns: ['timezone'] };
+    mockedAdmin.mockReturnValue(makeAdmin(state));
+    const { res, statusCode, body } = makeRes();
+    await handler(makeReq('PATCH', { timezone: 'Europe/Berlin' }), res);
+    expect(statusCode()).toBe(409);
+    expect(body()).toBe('column-missing');
   });
 });
 

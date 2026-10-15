@@ -2,6 +2,7 @@ import type { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { listConfirmed, toPromptEntries } from '../coach/memory.js';
 import { fetchPhysiologyInputs } from '../coach/physiology.js';
 import { readCoachContract } from './contract.js';
+import { localDate, localDayBounds, previousDay } from '../userTimezone.js';
 import { computePhysiology, describePhysiology } from '../../../src/lib/physiology/index.js';
 import type { MemoryPromptEntry } from '../../../src/lib/coach/memory.js';
 
@@ -35,7 +36,7 @@ export interface ReflectedMessage {
 }
 
 export interface ReflectionInputs {
-  /** YYYY-MM-DD (UTC). */
+  /** YYYY-MM-DD, the athlete's local calendar day. */
   day: string;
   sessions: ReflectedSession[];
   messages: ReflectedMessage[];
@@ -60,13 +61,19 @@ export function isReflectionDay(value: unknown): value is string {
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }
 
-/** The UTC calendar day before `now` — what the nightly run reflects on. */
+/** The UTC calendar day before `now` — the run's own clock (rotation, backlog window). */
 export function yesterdayUtc(now: Date): string {
   return new Date(now.getTime() - 86_400_000).toISOString().slice(0, 10);
 }
 
-function nextDay(day: string): string {
-  return new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+/**
+ * The athlete's yesterday at `now` — what the nightly run reflects on for
+ * them. Always a day that has ended where they are: at the 05:00 UTC run a
+ * Pacific athlete is still in the evening, so their yesterday is the day
+ * before the one in progress, not the UTC yesterday they are still living.
+ */
+export function yesterdayIn(timeZone: string, now: Date): string {
+  return previousDay(localDate(timeZone, now));
 }
 
 /** True when the day holds something to reflect on; a rest day with no chat is skipped without a model call. */
@@ -145,15 +152,18 @@ async function fetchSessions(supabase: Admin, userId: string, day: string): Prom
   return [...byEvent.values()].sort((a, b) => a.eventId.localeCompare(b.eventId));
 }
 
-async function fetchMessages(supabase: Admin, userId: string, day: string): Promise<ReflectedMessage[]> {
+async function fetchMessages(supabase: Admin, userId: string, day: string, timeZone: string): Promise<ReflectedMessage[]> {
+  // Sessions are stored on their local date; chat on an instant, so the day's
+  // messages are the ones between the athlete's two local midnights.
+  const bounds = localDayBounds(day, timeZone);
   const { data, error } = await supabase
     .from('coach_messages')
     .select('role, display_text, created_at')
     .eq('user_id', userId)
     .eq('kind', 'turn')
     .not('display_text', 'is', null)
-    .gte('created_at', `${day}T00:00:00.000Z`)
-    .lt('created_at', `${nextDay(day)}T00:00:00.000Z`)
+    .gte('created_at', bounds.start)
+    .lt('created_at', bounds.end)
     .order('created_at', { ascending: true })
     .limit(MESSAGE_ROW_LIMIT);
   if (error) throw new Error(`coach_messages fetch failed: ${error.message}`);
@@ -215,11 +225,17 @@ async function contractText(supabase: Admin, userId: string): Promise<string> {
   }
 }
 
-/** Everything one reflection reads for (user, day). Throws only when the sessions or the chat cannot be read. */
-export async function fetchReflectionInputs(supabase: Admin, userId: string, day: string): Promise<ReflectionInputs> {
+/**
+ * Everything one reflection reads for (user, day), `day` being local to
+ * `timeZone` (UTC when the athlete has none saved). Throws only when the
+ * sessions or the chat cannot be read.
+ */
+export async function fetchReflectionInputs(
+  supabase: Admin, userId: string, day: string, timeZone = 'UTC',
+): Promise<ReflectionInputs> {
   const [sessions, messages, physiology, memories, pendingMemories, contract] = await Promise.all([
     fetchSessions(supabase, userId, day),
-    fetchMessages(supabase, userId, day),
+    fetchMessages(supabase, userId, day, timeZone),
     physiologyBlock(supabase, userId, day),
     confirmedMemory(supabase, userId),
     pendingMemory(supabase, userId),
