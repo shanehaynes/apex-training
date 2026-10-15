@@ -157,6 +157,11 @@ actor FixtureTransport: HTTPTransport {
 
     /// W9: the dashboard's writes, replayed into later tile reads.
     private var tileEdits = TileEdits()
+    /// Tests: a gated request whose body contains `heldMarker` is answered only on
+    /// `releaseHeld()` — with what the server decided when it arrived.
+    private var heldMarker: String?
+    private var heldRelease: CheckedContinuation<Void, Never>?
+    private(set) var isHolding = false
 
     struct TileEdits {
         /// Saved tiles (new or edited), in the GET shape, keyed by id.
@@ -251,6 +256,7 @@ actor FixtureTransport: HTTPTransport {
                                    // Unauthenticated: the launch's build check (G8).
                                    "GET /api/version"]
         if termsStale, !exempt.contains("\(method) \(path)") {
+            await holdIfMarked(request)
             return HTTPResponse(status: 403, headers: [:], body: Data("terms-acceptance-required".utf8))
         }
         do {
@@ -810,6 +816,25 @@ actor FixtureTransport: HTTPTransport {
         object["tile"] = tile
         tileEdits.saved[id] = tile
         return try JSONSerialization.data(withJSONObject: object)
+    }
+
+    func hold(bodyContaining marker: String) {
+        heldMarker = marker
+    }
+
+    func releaseHeld() {
+        heldMarker = nil
+        heldRelease?.resume()
+        heldRelease = nil
+    }
+
+    private func holdIfMarked(_ request: URLRequest) async {
+        guard let marker = heldMarker, let body = request.httpBody,
+              String(decoding: body, as: UTF8.self).contains(marker) else { return }
+        heldMarker = nil
+        isHolding = true
+        await withCheckedContinuation { heldRelease = $0 }
+        isHolding = false
     }
 
     private func ok(_ data: Data) -> HTTPResponse {
