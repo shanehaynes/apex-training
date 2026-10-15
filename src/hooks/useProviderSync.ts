@@ -4,6 +4,7 @@ import { notify } from '../lib/notify';
 import { useAuth } from '../context/auth';
 import { COROS_DISCONNECT_NOTICE } from '../lib/sync/corosRevocation';
 import { useSchedule } from '../context/schedule';
+import { browserTimezone } from '../lib/clock';
 
 // The COROS sync flow (useTemplateCopy shape, plus a confirmation queue).
 // runSync previews, queues every proposed FILL for a per-item yes/no —
@@ -43,10 +44,6 @@ interface StatusResponse {
     autoSync: boolean;
     pendingFillCount: number;
   };
-}
-
-function browserTimezone(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
 export function useProviderSync() {

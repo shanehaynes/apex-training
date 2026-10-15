@@ -29,7 +29,10 @@ export type ReflectionClient = Pick<Anthropic, 'messages'>;
 
 export interface ReflectRequest {
   userId: string;
+  /** The athlete's local calendar day. */
   day: string;
+  /** The zone `day` is local to; UTC when absent. */
+  timeZone?: string;
   /** The model id resolved for this athlete (resolveCoachModel). */
   model: string;
   client: ReflectionClient;
@@ -134,7 +137,7 @@ export async function reflectForUser(supabase: Admin, req: ReflectRequest, now =
 
   let inputs: ReflectionInputs;
   try {
-    inputs = await fetchReflectionInputs(supabase, req.userId, req.day);
+    inputs = await fetchReflectionInputs(supabase, req.userId, req.day, req.timeZone);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await failReflection(supabase, row, `inputs: ${message}`);

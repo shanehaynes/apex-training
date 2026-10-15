@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { optionalEnv } from '../env.js';
 import { requireUser } from '../auth.js';
 import { enforceRateLimit } from '../rateLimit.js';
+import { userToday } from '../userTimezone.js';
 import { addIsoDays, cloneEventRow, collectDefinitionIds, templateBlockEnd } from '../../../src/lib/template/clone.js';
 import type { ExerciseDefinitionRow, TablesInsert, WorkoutEventRow } from '../../../src/lib/db/types.js';
 
@@ -15,15 +16,20 @@ import type { ExerciseDefinitionRow, TablesInsert, WorkoutEventRow } from '../..
 // or retry can never duplicate the plan.
 
 /**
- * The block starts on the client's local "today" when it sends one. Clients
- * that send nothing (older iOS builds), or a date more than a day from the
- * server's UTC today — further than any time zone can be — get UTC today.
+ * The block starts on the client's local "today" when it sends one, as long
+ * as it is within a day of the server's UTC today — no time zone is further.
+ * Clients that send nothing (older iOS builds), or something implausible,
+ * get `fallback`: today in the athlete's saved zone, UTC when none.
  */
-export function resolveStartDate(body: unknown, todayUtc = new Date().toISOString().slice(0, 10)): string {
+export function resolveStartDate(
+  body: unknown,
+  todayUtc = new Date().toISOString().slice(0, 10),
+  fallback = todayUtc,
+): string {
   const sent = (body as { startDate?: unknown } | null)?.startDate;
-  if (typeof sent !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(sent)) return todayUtc;
+  if (typeof sent !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(sent)) return fallback;
   const allowed = [addIsoDays(todayUtc, -1), todayUtc, addIsoDays(todayUtc, 1)];
-  return allowed.includes(sent) ? sent : todayUtc;
+  return allowed.includes(sent) ? sent : fallback;
 }
 
 async function resolveSourceUserId(
@@ -121,7 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const startDate = resolveStartDate(req.body);
+  const startDate = resolveStartDate(req.body, undefined, await userToday(supabase, userId));
   const endDate = templateBlockEnd(startDate);
   const eventClones = ((sourceEvents ?? []) as WorkoutEventRow[])
     .map(row => cloneEventRow(row, `tpl-${randomUUID()}`, userId, startDate))

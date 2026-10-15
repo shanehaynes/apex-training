@@ -18,6 +18,7 @@ import type { WorkoutEvent } from '../../../src/types/workout.js';
 import type { Exercise } from '../../../src/types/workout.js';
 import { toJson } from '../../../src/lib/db/types.js';
 import { endLiveActivities } from '../services/liveActivity.js';
+import { isValidTimezone } from '../userTimezone.js';
 
 // The two-phase activity grab.
 //
@@ -63,19 +64,6 @@ export function utcToLocal(iso: string, timeZone: string): LocalInstant {
     minutes,
     display: minutesToDisplayTime(minutes),
   };
-}
-
-function isValidTimezone(tz: unknown): tz is string {
-  if (typeof tz !== 'string' || !tz) return false;
-  try {
-    // Constructing is the check: the constructor throws a RangeError for an
-    // unknown zone, and no query API accepts exactly the same names.
-    // eslint-disable-next-line no-new
-    new Intl.DateTimeFormat('en-US', { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 // ─── Unit serialization (parseQuantity-compatible, records.ts) ───────────────

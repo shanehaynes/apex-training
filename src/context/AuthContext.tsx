@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { acceptTerms as postAcceptance, ApiError, getJson, patchJson } from '../lib/api';
@@ -13,6 +13,7 @@ import { parseAuthLinkError } from '../lib/auth/linkError';
 import type { AvatarKey, ProfileRow } from '../lib/db/types';
 import { weightContextFromProfile, type WeightUnit } from '../lib/tracking/weight';
 import { registerAgentState } from '../dev/agentBridge';
+import { browserTimezone } from '../lib/clock';
 import {
   AuthContext, type AnthropicKeyStatus, type AuthContextValue, type AuthStatus, type SignUpResult,
   type TermsStatus,
@@ -294,6 +295,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Read off the profiles row (select('*')), so it is pounds / none before
   // the row loads and before the phase55 columns reach prod.
   const weightContext = useMemo(() => weightContextFromProfile(profile), [profile]);
+
+  // The athlete's time zone (phase58), for the server paths with no browser
+  // to ask — MCP calls without `today`, the nightly reflection, the provider
+  // cron. Written whenever this browser's zone differs from the stored one,
+  // so a trip updates it on the next load. Gated like markTipSeen on the
+  // column being in our own read, and quiet; unlike it, recorded locally
+  // only once the server has it. It waits for GET /api/profile to report the
+  // terms current: until then every gated route 403s, so a first-run user's
+  // zone is written the moment they accept (and an unknown status, a failed
+  // GET, simply waits for the next load).
+  const storedTimezone = profile && 'timezone' in profile ? profile.timezone : undefined;
+  const termsCurrent = termsStatus?.current === true;
+  const sendingTimezone = useRef<string | null>(null);
+  useEffect(() => {
+    if (!supabase || status !== 'signedIn' || storedTimezone === undefined || !termsCurrent) return;
+    const zone = browserTimezone();
+    if (!zone || zone === storedTimezone || sendingTimezone.current === zone) return;
+    sendingTimezone.current = zone;
+    patchJson('/api/profile', { timezone: zone }, 'Saving', { quiet: true })
+      .then(() => setProfile(prev => prev && { ...prev, timezone: zone }))
+      .catch(() => {})
+      .finally(() => { sendingTimezone.current = null; });
+  }, [status, storedTimezone, termsCurrent]);
 
   const refreshProfile = useCallback(async () => {
     if (session) await loadProfile(session.user.id);

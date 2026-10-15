@@ -3,7 +3,8 @@ import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { optionalEnv } from '../env.js';
 import { getAnthropicKey } from '../anthropicKey.js';
 import { makeAnthropicClient } from '../anthropicClient.js';
-import { fetchReflectionInputs, isReflectionDay, yesterdayUtc } from '../reflection/inputs.js';
+import { fetchReflectionInputs, isReflectionDay, yesterdayIn, yesterdayUtc } from '../reflection/inputs.js';
+import { effectiveTimezone, fetchUserTimezones } from '../userTimezone.js';
 import { REFLECTION_SYSTEM_PROMPT, renderReflectionInput } from '../reflection/prompt.js';
 import { reflectForUser, type ReflectOutcome } from '../reflection/reflect.js';
 import { resolveCoachModel } from '../../../src/lib/coach/models.js';
@@ -15,7 +16,8 @@ import { instrumentMessages, promptFingerprint } from '../coachRuns.js';
 // Authorization: Bearer $CRON_SECRET on cron invocations.
 //
 // For every athlete who opted in (profiles.reflection_opt_in) it reflects on
-// yesterday (UTC): reads the day's completed sessions, chat, physiology and
+// THEIR yesterday — the last calendar day that has ended in their saved time
+// zone (profiles.timezone, phase58; UTC when none): reads the day's completed sessions, chat, physiology and
 // memory, asks the coach model — on the athlete's own key, at the model they
 // picked — what is worth remembering and whether the coaching contract
 // should change, and writes the answers as UNCONFIRMED rows the notebook
@@ -58,6 +60,8 @@ export const BACKLOG_DAYS = 7;
 interface OptedIn {
   userId: string;
   coachModel: string | null;
+  /** The athlete's zone, UTC when none is saved. */
+  timeZone: string;
 }
 
 /** One (athlete, day) to reflect on. */
@@ -89,8 +93,12 @@ export async function listOptedIn(supabase: Admin): Promise<OptedIn[] | null> {
     if (isOptInColumnMissing(error)) return null;
     throw new Error(`profiles fetch failed: ${error.message}`);
   }
+  const ids = (data ?? []).map(p => p.id);
+  // A separate read, so a database without the timezone column still runs
+  // every opted-in athlete — on UTC days, as before phase58.
+  const zones = await fetchUserTimezones(supabase, ids);
   return (data ?? [])
-    .map(p => ({ userId: p.id, coachModel: p.coach_model ?? null }))
+    .map(p => ({ userId: p.id, coachModel: p.coach_model ?? null, timeZone: effectiveTimezone(zones.get(p.id)) }))
     .sort((a, b) => a.userId.localeCompare(b.userId));
 }
 
@@ -142,6 +150,35 @@ export async function listBacklog(supabase: Admin, users: OptedIn[], day: string
     .filter(w => w.user !== undefined);
 }
 
+/**
+ * Days tonight's pass would step over. An athlete's day comes from their
+ * wall clock at a fixed 05:00 UTC run, so when their offset moves east — US
+ * Central at spring-forward, any eastward trip — tonight's day can be two
+ * after last night's and the one between is never targeted. Such a day has
+ * no row at all, so the backlog (which retries rows) cannot bring it back.
+ * It is picked up here: no row for the day before tonight's, and a row for
+ * the day before that, i.e. a gap in an otherwise reflected run. A first
+ * night after opting in has no earlier row and is not backfilled.
+ */
+export async function listSkipped(supabase: Admin, tonight: WorkItem[]): Promise<WorkItem[]> {
+  if (tonight.length === 0) return [];
+  const days = tonight.map(w => w.day).sort();
+  const { data, error } = await supabase
+    .from('coach_reflections')
+    .select('user_id, day')
+    .in('user_id', tonight.map(w => w.user.userId))
+    .gte('day', dayMinus(days[0], 2))
+    .lt('day', days[days.length - 1]);
+  if (error) throw new Error(`coach_reflections gap fetch failed: ${error.message}`);
+  const have = new Set(((data ?? []) as Array<{ user_id: string; day: string }>).map(r => `${r.user_id}|${r.day}`));
+  return tonight.flatMap(({ user, day }) => {
+    const between = dayMinus(day, 1);
+    return !have.has(`${user.userId}|${between}`) && have.has(`${user.userId}|${dayMinus(day, 2)}`)
+      ? [{ user, day: between }]
+      : [];
+  });
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const secret = optionalEnv('CRON_SECRET');
   if (!secret || req.headers.authorization !== `Bearer ${secret}`) {
@@ -162,7 +199,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(400).send('day must be YYYY-MM-DD');
     return;
   }
+  // The run's day: the rotation's clock and the backlog's horizon. Each
+  // athlete's own day is dayFor(user) — the same unless their zone is behind
+  // UTC, when it is the day before (the one still going is not reflected on).
   const day = dayParam ?? yesterdayUtc(now);
+  const dayFor = (user: OptedIn) => dayParam ?? yesterdayIn(user.timeZone, now);
   const onlyUserId = queryString(req, 'userId');
   const dryRun = queryString(req, 'dryRun') === '1';
 
@@ -189,7 +230,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
     try {
-      const inputs = await fetchReflectionInputs(supabase, onlyUserId, day);
+      const inputs = await fetchReflectionInputs(supabase, onlyUserId, dayFor(users[0]), users[0].timeZone);
       const model = resolveCoachModel(users[0].coachModel);
       res.status(200).json({
         dryRun: true, day, model: model.id, inputs, system: REFLECTION_SYSTEM_PROMPT, user: renderReflectionInput(inputs),
@@ -201,15 +242,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const tonight = rotateForDay(users, day).map(user => ({ user, day: dayFor(user) }));
   let backlog: WorkItem[];
+  let skipped: WorkItem[];
   try {
     backlog = await listBacklog(supabase, users, day);
+    // ?day= names one day on purpose; only the scheduled run fills gaps.
+    skipped = dayParam === undefined ? await listSkipped(supabase, tonight) : [];
   } catch (err) {
     console.error('[reflection-cron] backlog listing failed:', err instanceof Error ? err.message : err);
     res.status(500).send('Failed to list the reflection backlog');
     return;
   }
-  const work: WorkItem[] = [...backlog, ...rotateForDay(users, day).map(user => ({ user, day }))];
+  // An athlete behind UTC reflects on a day the backlog window also covers;
+  // a pending or failed row for it runs once, in tonight's pass.
+  const tonightKeys = new Set(tonight.map(w => `${w.user.userId}|${w.day}`));
+  const work: WorkItem[] = [
+    ...backlog.filter(w => !tonightKeys.has(`${w.user.userId}|${w.day}`)),
+    ...skipped,
+    ...tonight,
+  ];
 
   const processed: Array<{ userId: string; day: string; action: string; memoriesProposed?: number; contractProposed?: boolean }> = [];
   const errors: Array<{ userId: string; day: string; error: string }> = [];
@@ -250,6 +302,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         outcome = await reflectForUser(supabase, {
           userId: user.userId,
           day: itemDay,
+          timeZone: user.timeZone,
           model: resolveCoachModel(user.coachModel).id,
           client: instrumented.client,
         }, now);

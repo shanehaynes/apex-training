@@ -944,6 +944,7 @@ export type Database = {
           reflection_opt_in: boolean
           template_copied_at: string | null
           threshold_hr: number | null
+          timezone: string | null
           tips_seen: Json
           updated_at: string
           weight_unit: string
@@ -965,6 +966,7 @@ export type Database = {
           reflection_opt_in?: boolean
           template_copied_at?: string | null
           threshold_hr?: number | null
+          timezone?: string | null
           tips_seen?: Json
           updated_at?: string
           weight_unit?: string
@@ -986,6 +988,7 @@ export type Database = {
           reflection_opt_in?: boolean
           template_copied_at?: string | null
           threshold_hr?: number | null
+          timezone?: string | null
           tips_seen?: Json
           updated_at?: string
           weight_unit?: string

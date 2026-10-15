@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { optionalEnv } from '../env.js';
 import { listAutoSyncConnections, NotConnectedError } from '../providers/connection.js';
 import { runAutoSync, type AutoSyncOutcome } from '../providers/sync.js';
+import { fetchUserTimezones } from '../userTimezone.js';
 
 // Nightly provider auto-sync, the cron target declared in vercel.json
 // (03:30 UTC ≈ 11:30 PM Eastern in summer). Same auth as review-cron:
@@ -51,10 +52,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const deferred = Math.max(0, connections.length - MAX_USERS_PER_RUN);
   connections = connections.slice(0, MAX_USERS_PER_RUN);
 
+  // The zone that decides an activity's local day: the connection's (stamped
+  // by every manual sync, web or phone), then the profile's (phase58, written
+  // only by the web) for a connection that never stamped one, then UTC.
+  const profileZones = await fetchUserTimezones(supabase, [...new Set(connections.map(c => c.user_id))]);
+  const zoneFor = (conn: { user_id: string; timezone: string | null }) =>
+    conn.timezone ?? profileZones.get(conn.user_id) ?? 'UTC';
+
   if (dryRun) {
     res.status(200).json({
       dryRun: true,
-      wouldSync: connections.map(c => ({ provider: c.provider, timezone: c.timezone ?? 'UTC' })),
+      wouldSync: connections.map(c => ({ provider: c.provider, timezone: zoneFor(c) })),
       deferred,
     });
     return;
@@ -69,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       continue;
     }
     try {
-      const outcome = await runAutoSync(supabase, conn.user_id, conn.provider, conn.timezone ?? 'UTC');
+      const outcome = await runAutoSync(supabase, conn.user_id, conn.provider, zoneFor(conn));
       results.push({ provider: conn.provider, outcome });
     } catch (err) {
       // Per-user isolation: one expired connection must not stop the run.

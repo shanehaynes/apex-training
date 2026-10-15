@@ -152,6 +152,21 @@ describe('get_session_summaries', () => {
     }
   });
 
+  it("defaults `end` to today in the athlete's saved zone, not the UTC date (phase58)", async () => {
+    vi.useFakeTimers();
+    // 20:00 on the 24th in Los Angeles; already the 25th in UTC.
+    vi.setSystemTime(new Date('2026-09-25T03:00:00Z'));
+    try {
+      const withZone = { ...fixtures, profiles: [{ id: USER, timezone: 'America/Los_Angeles' }] };
+      const payload = (await getSessionSummariesTool.run(makeAdmin(withZone), USER, {})) as { end: string };
+      expect(payload.end).toBe('2026-09-24');
+      const unset = (await getSessionSummariesTool.run(makeAdmin(fixtures), USER, {})) as { end: string };
+      expect(unset.end).toBe('2026-09-25');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('falls back to "Workout" when neither a completion nor the event names it', async () => {
     const payload = (await getSessionSummariesTool.run(
       makeAdmin({ workout_sessions: [session('s9', '2026-09-02', 'Untitled effort.')] }),

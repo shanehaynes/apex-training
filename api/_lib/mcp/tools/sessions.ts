@@ -1,7 +1,7 @@
 import type { McpToolDef } from '../protocol.js';
 import { ToolInputError } from '../protocol.js';
 import { optionalInt, requireDate } from '../args.js';
-import { todayIso } from '../data.js';
+import { userToday } from '../../userTimezone.js';
 import type { WorkoutSessionRow } from '../../../../src/lib/db/types.js';
 import { baseIdOf } from '../../../../src/lib/schedule/occurrence.js';
 
@@ -41,12 +41,12 @@ export const getSessionSummariesTool: McpToolDef = {
     type: 'object',
     properties: {
       start: { type: 'string', description: 'Range start, YYYY-MM-DD (inclusive). Default: 30 days before end.' },
-      end: { type: 'string', description: 'Range end, YYYY-MM-DD (inclusive). Default: today.' },
+      end: { type: 'string', description: "Range end, YYYY-MM-DD (inclusive). Default: today in the user's saved time zone." },
       limit: { type: 'integer', description: 'Sessions to return (default 20, max 50).' },
     },
   },
   async run(supabase, userId, args) {
-    const end = optionalDate(args, 'end') ?? todayIso();
+    const end = optionalDate(args, 'end') ?? await userToday(supabase, userId);
     const start = optionalDate(args, 'start') ?? shiftDays(end, -DEFAULT_WINDOW_DAYS);
     if (end < start) throw new ToolInputError('end must be on or after start.');
     const limit = optionalInt(args, 'limit', 20, 1, MAX_LIMIT);

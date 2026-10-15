@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import handler, { BACKLOG_DAYS, MAX_WORK_ITEMS_PER_RUN, rotateForDay } from '../_lib/handlers/reflectionCron';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
@@ -33,7 +33,7 @@ const mockedKey = vi.mocked(getAnthropicKey);
 const mockedReflect = vi.mocked(reflectForUser);
 const mockedInputs = vi.mocked(fetchReflectionInputs);
 
-interface ProfileRow { id: string; coach_model: string | null; reflection_opt_in: boolean }
+interface ProfileRow { id: string; coach_model: string | null; reflection_opt_in: boolean; timezone?: string | null }
 interface ReflectionRow { user_id: string; day: string; status: string }
 type Row = Record<string, unknown>;
 let profiles: ProfileRow[];
@@ -316,5 +316,88 @@ describe('reflection-cron — backlog and rotation', () => {
     const tomorrow = makeRes();
     await handler(makeReq({ day: '2026-09-21' }), tomorrow.res);
     expect(mockedReflect.mock.calls[0][1].userId).toBe(deferred[0]);
+  });
+});
+
+describe('reflection-cron — the athlete\'s own day (phase58)', () => {
+  // 05:00 UTC on Oct 15: Pacific athletes are at 22:00 on the 14th.
+  const RUN = new Date('2026-10-15T05:00:00Z');
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(RUN);
+    mockedKey.mockResolvedValue('sk-ant-any');
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('reflects on the last day that has ENDED where each athlete is, in their zone', async () => {
+    profiles = [
+      { id: 'u-east', coach_model: null, reflection_opt_in: true, timezone: 'America/New_York' },
+      { id: 'u-west', coach_model: null, reflection_opt_in: true, timezone: 'America/Los_Angeles' },
+      { id: 'u-none', coach_model: null, reflection_opt_in: true, timezone: null },
+    ];
+    const { res, body } = makeRes();
+    await handler(makeReq(), res);
+    expect(body().day).toBe('2026-10-14');
+    const calls = Object.fromEntries(mockedReflect.mock.calls.map(([, r]) => [r.userId, { day: r.day, timeZone: r.timeZone }]));
+    expect(calls).toEqual({
+      'u-east': { day: '2026-10-14', timeZone: 'America/New_York' },
+      // Still the evening of the 14th in Los Angeles: the 13th is the day that ended.
+      'u-west': { day: '2026-10-13', timeZone: 'America/Los_Angeles' },
+      'u-none': { day: '2026-10-14', timeZone: 'UTC' },
+    });
+  });
+
+  it('runs a behind-UTC athlete\'s failed row for tonight\'s day once, not again from the backlog', async () => {
+    profiles = [{ id: 'u-west', coach_model: null, reflection_opt_in: true, timezone: 'America/Los_Angeles' }];
+    reflections = [{ user_id: 'u-west', day: '2026-10-13', status: 'failed' }];
+    const { res } = makeRes();
+    await handler(makeReq(), res);
+    expect(mockedReflect.mock.calls.map(([, r]) => `${r.userId} ${r.day}`)).toEqual(['u-west 2026-10-13']);
+  });
+
+  it('catches up a day the wall clock stepped over: US Central at spring-forward', async () => {
+    // 05:00Z on Mar 8 is 23:00 CST on the 7th (target: the 6th); 05:00Z on
+    // Mar 9 is 00:00 CDT on the 9th (target: the 8th). The 7th is never
+    // tonight's day for anyone in Chicago.
+    vi.setSystemTime(new Date('2026-03-09T05:00:00Z'));
+    profiles = [{ id: 'u-chi', coach_model: null, reflection_opt_in: true, timezone: 'America/Chicago' }];
+    reflections = [{ user_id: 'u-chi', day: '2026-03-06', status: 'done' }];
+    const { res } = makeRes();
+    await handler(makeReq(), res);
+    expect(mockedReflect.mock.calls.map(([, r]) => r.day)).toEqual(['2026-03-07', '2026-03-08']);
+  });
+
+  it('does not backfill a first night, or a day an earlier run already holds', async () => {
+    vi.setSystemTime(new Date('2026-03-09T05:00:00Z'));
+    profiles = [{ id: 'u-chi', coach_model: null, reflection_opt_in: true, timezone: 'America/Chicago' }];
+    const first = makeRes();
+    await handler(makeReq(), first.res);
+    expect(mockedReflect.mock.calls.map(([, r]) => r.day)).toEqual(['2026-03-08']);
+
+    mockedReflect.mockClear();
+    reflections = [
+      { user_id: 'u-chi', day: '2026-03-06', status: 'done' },
+      { user_id: 'u-chi', day: '2026-03-07', status: 'done' },
+    ];
+    const next = makeRes();
+    await handler(makeReq(), next.res);
+    expect(mockedReflect.mock.calls.map(([, r]) => r.day)).toEqual(['2026-03-08']);
+  });
+
+  it('?day= reflects that day only, with no gap-filling', async () => {
+    vi.setSystemTime(new Date('2026-03-09T05:00:00Z'));
+    profiles = [{ id: 'u-chi', coach_model: null, reflection_opt_in: true, timezone: 'America/Chicago' }];
+    reflections = [{ user_id: 'u-chi', day: '2026-03-06', status: 'done' }];
+    const { res } = makeRes();
+    await handler(makeReq({ day: '2026-03-08' }), res);
+    expect(mockedReflect.mock.calls.map(([, r]) => r.day)).toEqual(['2026-03-08']);
+  });
+
+  it('?day= still names the day for everyone', async () => {
+    profiles = [{ id: 'u-west', coach_model: null, reflection_opt_in: true, timezone: 'America/Los_Angeles' }];
+    const { res } = makeRes();
+    await handler(makeReq({ day: '2026-10-01' }), res);
+    expect(mockedReflect.mock.calls[0][1]).toMatchObject({ day: '2026-10-01', timeZone: 'America/Los_Angeles' });
   });
 });

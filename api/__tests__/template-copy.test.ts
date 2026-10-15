@@ -191,4 +191,11 @@ describe('resolveStartDate', () => {
     expect(resolveStartDate({ startDate: 'tomorrow' }, '2026-10-12')).toBe('2026-10-12');
     expect(resolveStartDate({ startDate: '2026-07-06' }, '2026-10-12')).toBe('2026-10-12');
   });
+
+  it("falls back to the athlete's saved-zone today, but judges a sent date against UTC", () => {
+    expect(resolveStartDate({}, '2026-10-12', '2026-10-11')).toBe('2026-10-11');
+    expect(resolveStartDate({ startDate: 'tomorrow' }, '2026-10-12', '2026-10-11')).toBe('2026-10-11');
+    // Two days from a stale saved zone's today, one from UTC's: a real zone's date, kept.
+    expect(resolveStartDate({ startDate: '2026-10-13' }, '2026-10-12', '2026-10-11')).toBe('2026-10-13');
+  });
 });

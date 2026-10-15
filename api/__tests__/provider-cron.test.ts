@@ -69,6 +69,25 @@ describe('provider-cron handler', () => {
     expect(mockedRun).not.toHaveBeenCalled();
   });
 
+  it("uses the connection's zone first, the profile's (phase58) when the connection has none, then UTC", async () => {
+    mockedList.mockResolvedValue([
+      { user_id: 'u1', provider: 'coros', timezone: 'America/New_York' },
+      { user_id: 'u2', provider: 'coros', timezone: null },
+      { user_id: 'u3', provider: 'coros', timezone: null },
+    ]);
+    const profiles = [
+      { id: 'u1', timezone: 'America/Los_Angeles' },
+      { id: 'u2', timezone: 'Asia/Tokyo' },
+    ];
+    vi.mocked(getSupabaseAdmin).mockReturnValue({
+      from: () => ({ select: () => ({ in: async (_c: string, ids: string[]) => ({ data: profiles.filter(p => ids.includes(p.id)), error: null }) }) }),
+    } as never);
+    const { res, body } = makeRes();
+    await handler(makeReq({ dryRun: '1' }, 'Bearer cron-test-secret'), res);
+    expect((body() as { wouldSync: Array<{ timezone: string }> }).wouldSync.map(w => w.timezone))
+      .toEqual(['America/New_York', 'Asia/Tokyo', 'UTC']);
+  });
+
   it('syncs each connected coros user with their stored timezone, UTC fallback', async () => {
     mockedList.mockResolvedValue([
       { user_id: 'u1', provider: 'coros', timezone: 'America/New_York' },
