@@ -135,6 +135,47 @@ final class TermsGateTests: XCTestCase {
         XCTAssertNil(model.termsUpdate, "and puts no screen back")
     }
 
+    /// The sign-in check is still out when a write's 403 pauses the queue, so
+    /// that 403's notice finds a check in flight. The user accepts elsewhere
+    /// (the web) before the check comes back: it reads current, and that read
+    /// has to lift the pause the 403 left.
+    @MainActor
+    func testAWrite403DuringTheSignInCheckIsLiftedWhenTheCheckReadsCurrent() async throws {
+        let env = MockEnvironment(termsStale: true)
+        let model = AppModel(mock: env)
+        _ = await model.signIn(email: "agent@apex.local", password: "x")
+        await env.transport.hold(route: "GET /api/terms-acceptance")
+        model.ensureQueue(owner: "ios-fixture-user", email: "agent@apex.local")
+        let queue = try XCTUnwrap(model.trackerServices?.queue)
+        let client = try XCTUnwrap(model.client)
+        let key = SessionKey(eventId: "ios-fixture-weekly__2026-09-08", eventDate: "2026-09-08")
+        func settles(_ condition: () async -> Bool) async -> Bool {
+            let deadline = Date().addingTimeInterval(5)
+            while Date() < deadline {
+                if await condition() { return true }
+                try? await Task.sleep(for: .milliseconds(20))
+            }
+            return await condition()
+        }
+
+        let checking = await settles { await env.transport.isHolding }
+        XCTAssertTrue(checking, "the sign-in check is in the air")
+        try await queue.enqueue(.cancel, for: key)
+        await queue.flush(key)
+        let paused = await settles { await queue.isPaused }
+        XCTAssertTrue(paused, "the write's 403 pauses the queue")
+
+        _ = try await client.send(.termsAcceptance, as: TermsStatus.self)
+        await env.transport.releaseHeld()
+        let landed = await settles {
+            let isPaused = await queue.isPaused
+            let pending = await queue.status(for: key).pendingOps
+            return !isPaused && pending == 0
+        }
+        XCTAssertTrue(landed, "the check's current read lifts the 403's pause")
+        XCTAssertNil(model.termsUpdate)
+    }
+
     @MainActor
     func testAcceptingClearsTheScreenAndTheGate() async throws {
         let env = MockEnvironment(termsStale: true)

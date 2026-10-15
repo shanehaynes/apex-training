@@ -88,6 +88,8 @@ final class AppModel {
     private var termsWatch: Task<Void, Never>?
     /// A check is in flight: a burst of 403s (every tab's first read) asks once.
     private var isCheckingTerms = false
+    /// A 403 arrived while that check was out; it is answered when the check is back.
+    private var gateMetMidCheck = false
     /// The realtime hub ran out of rejoin attempts for some group (#223):
     /// what is on screen is only as fresh as the last refresh. Persistent on
     /// purpose — the toast announces it once, this stays until a join lands.
@@ -548,33 +550,43 @@ final class AppModel {
     /// user became current — set-password's acceptance POST racing the tabs'
     /// first reads, or a request in flight across Accept — and that must not
     /// put the screen back. Only a read that failed falls back to the 403's
-    /// word for it. A current read resumes the write queue: a write sent
-    /// before Accept whose 403 lands after the resume has paused it again,
-    /// and nothing else is coming to lift that.
+    /// word for it. A 403 that meets a check already in flight (the sign-in
+    /// one) is answered after it, not dropped: the pause it left may postdate
+    /// that check's read.
     func termsGateMet() async {
-        guard case .signedIn = state, termsUpdate == nil, !isCheckingTerms else { return }
-        switch await checkTerms() {
-        case true?:
-            // Only a paused queue: `resume()` also cuts the outbox's backoff short.
-            if let queue = trackerServices?.queue, await queue.isPaused { await queue.resume() }
-        case nil where termsUpdate == nil:
+        guard case .signedIn = state, termsUpdate == nil else { return }
+        guard !isCheckingTerms else {
+            gateMetMidCheck = true
+            return
+        }
+        if await checkTerms() == nil, termsUpdate == nil {
             termsUpdate = TermsStatus(accepted: nil, current: false)
-        default:
-            break
         }
     }
 
     /// `GET /api/terms-acceptance` is exempt from the gate, so it answers even
     /// for a blocked user. Fails quiet: offline is not a reason to block.
     /// Whether the terms are current, or nil when the read failed.
+    ///
+    /// A current read resumes a paused write queue: a write sent before the
+    /// user became current — before Accept here, or on the web — can land its
+    /// 403 after any resume, and nothing else is coming to lift that pause.
     @discardableResult
     func checkTerms() async -> Bool? {
         guard case .signedIn = state, let client else { return nil }
         isCheckingTerms = true
-        defer { isCheckingTerms = false }
-        guard let status = try? await client.send(.termsStatus, as: TermsStatus.self) else { return nil }
-        termsUpdate = status.current ? nil : status
-        return status.current
+        let status = try? await client.send(.termsStatus, as: TermsStatus.self)
+        isCheckingTerms = false
+        if let status {
+            termsUpdate = status.current ? nil : status
+            // Only a paused queue: `resume()` also cuts the outbox's backoff short.
+            if status.current, let queue = trackerServices?.queue, await queue.isPaused { await queue.resume() }
+        }
+        if gateMetMidCheck {
+            gateMetMidCheck = false
+            await termsGateMet()
+        }
+        return status?.current
     }
 
     /// Records the acceptance (the server owns which versions), then lets
@@ -636,6 +648,7 @@ final class AppModel {
         meals = nil
         onboarding = nil
         termsUpdate = nil
+        gateMetMidCheck = false
         queueOwner = nil
         await hub?.reset()
         if purgeCache {
