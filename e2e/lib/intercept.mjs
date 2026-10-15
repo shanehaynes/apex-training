@@ -109,7 +109,7 @@ function parseNameFilter(decoded) {
  * True for the console errors a mock session produces on purpose. The error
  * watchers (fixtures.ts, drive.mjs) skip exactly these.
  *
- * 1. The workout_events stub below answers 503 to force the bundled-seed
+ * 1. The workout_events stub below answers 500 to force the bundled-seed
  *    fallback, and Chromium logs every non-2xx resource load as an error.
  * 2. Realtime is a WebSocket, and context.route intercepts HTTP only — so
  *    the subscriptions in ScheduleContext/BlocksContext/MealsContext dial
@@ -341,10 +341,12 @@ export async function installIntercept(context, { anonKey = null, profile, stale
     // deterministically (Chromium logs the non-2xx load as a console error;
     // isExpectedConsoleError above lets the error watchers skip exactly it);
     // exceptions and definitions stub empty, matching offline mode (entries
-    // render their embedded snapshots).
+    // render their embedded snapshots). 500, not 503: postgrest-js retries a
+    // GET answered 503 or 520 three times with 1s/2s/4s backoff, which put
+    // seven seconds in front of the seed on every page load in the suite.
     if (url.includes('workout_events')) {
       return route.fulfill({
-        status: 503, contentType: 'application/json', headers: CORS,
+        status: 500, contentType: 'application/json', headers: CORS,
         body: JSON.stringify({ message: 'mock profile: forced bundled-seed fallback' }),
       });
     }
