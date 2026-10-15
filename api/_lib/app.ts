@@ -18,6 +18,7 @@ import mcp from './handlers/mcp.js';
 import mcpTokens from './handlers/mcpTokens.js';
 import oauthMetadata from './handlers/oauthMetadata.js';
 import oauthRegister from './handlers/oauthRegister.js';
+import signup from './handlers/signup.js';
 import oauthAuthorize from './handlers/oauthAuthorize.js';
 import oauthApprove from './handlers/oauthApprove.js';
 import oauthToken from './handlers/oauthToken.js';
@@ -154,6 +155,8 @@ app.all('/version', bridge(version));
 // Both are exempt from the terms gate in requireUser — accepting is how a
 // blocked user unblocks, and export/delete must not be held hostage to it.
 app.all('/terms-acceptance', bridge(termsAcceptance));
+// Open sign-up behind Turnstile; unauthenticated, GoTrue's /signup stays shut.
+app.all('/signup', bridge(signup));
 app.all('/live-activity-tokens', bridge(liveActivityTokens));
 app.all('/account', bridge(account));
 // Distinctive message: if /api/chat (or another standalone route) ever lands
