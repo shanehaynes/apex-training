@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { test, expect, gotoCalendar } from '../lib/fixtures';
+// @ts-expect-error plain-JS module shared with scripts/drive.mjs
 import { driverProfile } from '../lib/session.mjs';
 
 // The web writes the browser's time zone to profiles.timezone (phase58) so
