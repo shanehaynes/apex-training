@@ -136,9 +136,11 @@ GoTrue's own sign-up stays **off** (step 1.2 and `scripts/auth-redirect-check.sh
 are unchanged): Supabase's CAPTCHA setting would also gate password sign-in,
 which every shipped iOS build does without a token. Instead the tab posts to
 `/api/signup` ([handlers/signup.ts](api/_lib/handlers/signup.ts)), which
-verifies a Cloudflare Turnstile token, caps new accounts at 50 a day, creates
-the user unconfirmed through the admin API and mails the confirmation link
-over Resend from `invites@`. Leave Authentication → Attack Protection →
+verifies a Cloudflare Turnstile token and sends the address a Supabase
+*invite* over Resend from `invites@` — at most 3 per address and 50 in all
+per UTC day. It takes no password: the link lands on the set-password screen
+like any invite, so nobody can squat an address with a password of their
+own before its owner proves it. Leave Authentication → Attack Protection →
 CAPTCHA **off**.
 
 1. Cloudflare → Turnstile → **Add widget**: hostname `apex-training.app`,
@@ -146,10 +148,9 @@ CAPTCHA **off**.
 2. Vercel → Environment Variables (Production): `VITE_TURNSTILE_SITE_KEY`
    (the site key) and `TURNSTILE_SECRET_KEY` (the secret), then redeploy —
    the site key is baked into the bundle at build time.
-3. Sign up on the web with a fresh address: the confirmation mail arrives,
-   its link lands you signed in, and the terms gate asks for acceptance.
-   Before clicking it, signing in with that password must fail with
-   `email_not_confirmed` — an unconfirmed address is not an account.
+3. Create an account on the web with a fresh address: the mail arrives,
+   its link lands on the set-password screen, and the account works on the
+   web and in the iOS app.
 
 Unset both variables to close it again; the tab goes back to saying
 "invite only". The iOS app stays sign-in only until it gets its own

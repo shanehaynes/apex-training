@@ -11,7 +11,10 @@ import { TURNSTILE_SITE_KEY } from '../../lib/auth/turnstile';
 // on return visits — don't replace it with div-and-onClick.
 //
 // With VITE_TURNSTILE_SITE_KEY set, the create side carries a Turnstile
-// widget and sign-up is open (through /api/signup). Without it, accounts are
+// widget and sign-up is open (through /api/signup): it asks for an email
+// only, and the mailed link lands on the set-password screen like an invite
+// — a password chosen before the address is proven is one anybody could
+// have chosen. Without it, accounts are
 // invite-only (dashboard); the create side says so up front and the context
 // maps GoTrue's "signups not allowed" into plain words. The two
 // primary modes share the email/password fields and differ only in button
@@ -40,6 +43,7 @@ export default function LoginView() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const turnstile = useRef<TurnstileHandle>(null);
   const needsCaptcha = TURNSTILE_SITE_KEY !== undefined;
+  const asksPassword = mode === 'signIn' || (mode === 'create' && !needsCaptcha);
 
   const switchTo = (next: Mode) => {
     setMode(next);
@@ -162,8 +166,12 @@ export default function LoginView() {
           </>
         ) : (
           <form className="auth-form" onSubmit={submitHandler}>
-            {isCreate && !needsCaptcha && (
-              <p className="auth-hint">Account creation is invite only.</p>
+            {isCreate && (
+              <p className="auth-hint">
+                {needsCaptcha
+                  ? "We'll email you a link to choose your password."
+                  : 'Account creation is invite only.'}
+              </p>
             )}
 
             <label className="auth-field">
@@ -180,7 +188,7 @@ export default function LoginView() {
               />
             </label>
 
-            {mode !== 'reset' && (
+            {asksPassword && (
               <label className="auth-field">
                 <span className="auth-field__label">Password</span>
                 <input

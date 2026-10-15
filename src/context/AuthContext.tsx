@@ -142,13 +142,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = useCallback(async (email: string, password: string, captchaToken?: string): Promise<SignUpResult> => {
     if (!supabase) return { error: 'Offline mode — no auth configured' };
     if (captchaToken) {
-      // Open sign-up (api/_lib/handlers/signup.ts). Never returns a session:
-      // the account exists only once the mailed link is clicked.
+      // Open sign-up (api/_lib/handlers/signup.ts). Takes no password and
+      // never returns a session: the mailed link is an invite, and the
+      // password is set on the screen it lands on.
       try {
         const res = await fetch('/api/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password, captchaToken }),
+          body: JSON.stringify({ email, captchaToken }),
         });
         if (res.ok) return { error: null, pendingConfirmation: true };
         const body = await res.json().catch(() => null) as { error?: string } | null;

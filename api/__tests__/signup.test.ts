@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import handler, { MAX_SIGNUPS_PER_DAY } from '../_lib/handlers/signup';
+import handler, { MAILS_PER_ADDRESS, MAILS_PER_DAY } from '../_lib/handlers/signup';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 import { sendAccountEmail } from '../_lib/mailer';
 
@@ -11,26 +11,41 @@ const mockedAdmin = vi.mocked(getSupabaseAdmin);
 const mockedSend = vi.mocked(sendAccountEmail);
 
 interface State {
-  count?: number;
+  /** Today's signup_mail rows. */
+  rows?: { count: number }[];
+  /** What bump_rate_limit answers for this address. */
+  addressCount?: number;
+  bumpError?: { message: string } | null;
   linkError?: { code: string; message: string } | null;
   generateCalls: Record<string, unknown>[];
+  bumps: Record<string, unknown>[];
 }
 
 function makeAdmin(state: State) {
   return {
     from(table: string) {
-      expect(table).toBe('profiles');
+      expect(table).toBe('api_request_counts');
       const builder: Record<string, unknown> = {};
       builder.select = () => builder;
-      builder.gte = async () => ({ count: state.count ?? 0, error: null });
+      builder.eq = (col: string, val: string) => { expect([col, val]).toEqual(['bucket', 'signup_mail']); return builder; };
+      builder.gte = async () => ({ data: state.rows ?? [], error: null });
       return builder;
+    },
+    rpc: async (name: string, args: Record<string, unknown>) => {
+      expect(name).toBe('bump_rate_limit');
+      state.bumps.push(args);
+      if (state.bumpError) return { data: null, error: state.bumpError };
+      return { data: state.addressCount ?? 1, error: null };
     },
     auth: {
       admin: {
         generateLink: async (params: Record<string, unknown>) => {
           state.generateCalls.push(params);
           if (state.linkError) return { data: null, error: state.linkError };
-          return { data: { properties: { action_link: 'https://x.supabase.co/auth/v1/verify?token=t' } }, error: null };
+          return {
+            data: { user: { id: 'user-1' }, properties: { action_link: 'https://x.supabase.co/auth/v1/verify?token=t' } },
+            error: null,
+          };
         },
       },
     },
@@ -55,14 +70,14 @@ function makeRes() {
   return res as unknown as VercelResponse & { statusCode: number; payload: unknown };
 }
 
-const GOOD = { email: 'New@Example.com ', password: 'a-long-password', captchaToken: 'tok' };
+const GOOD = { email: 'New@Example.com ', captchaToken: 'tok' };
 
 let siteverify: ReturnType<typeof vi.fn>;
 let state: State;
 
 beforeEach(() => {
   process.env.TURNSTILE_SECRET_KEY = 'secret';
-  state = { generateCalls: [] };
+  state = { generateCalls: [], bumps: [] };
   mockedAdmin.mockReturnValue(makeAdmin(state));
   mockedSend.mockClear();
   siteverify = vi.fn(async () => ({ json: async () => ({ success: true }) }));
@@ -83,12 +98,16 @@ describe('/api/signup', () => {
     expect(state.generateCalls).toHaveLength(0);
   });
 
-  it('creates an unconfirmed user and mails the confirmation link', async () => {
+  it('invites the address — no password — and mails the link', async () => {
     const res = makeRes();
-    await handler(makeReq(GOOD), res);
+    await handler(makeReq({ ...GOOD, password: 'chosen-by-whoever-asked-first' }), res);
     expect(res.statusCode).toBe(200);
     expect(res.payload).toEqual({ status: 'pending' });
-    expect(state.generateCalls[0]).toMatchObject({ type: 'signup', email: 'new@example.com', password: 'a-long-password' });
+    // An invite, so nobody holds a password until the mailbox owner clicks:
+    // a password taken here would let the first caller squat the address.
+    expect(state.generateCalls[0]).toMatchObject({ type: 'invite', email: 'new@example.com' });
+    expect(state.generateCalls[0]).not.toHaveProperty('password');
+    expect(state.bumps[0]).toEqual({ p_user_id: 'user-1', p_bucket: 'signup_mail', p_window_seconds: 86400 });
     expect(mockedSend).toHaveBeenCalledOnce();
     expect(mockedSend.mock.calls[0][0].to).toBe('new@example.com');
     expect(mockedSend.mock.calls[0][0].html).toContain('verify?token=t');
@@ -119,22 +138,45 @@ describe('/api/signup', () => {
     expect(state.generateCalls).toHaveLength(0);
   });
 
-  it('validates email and password length', async () => {
+  it('validates the email before the human check', async () => {
     const res = makeRes();
     await handler(makeReq({ ...GOOD, email: 'not-an-email' }), res);
     expect(res.statusCode).toBe(400);
-    const res2 = makeRes();
-    await handler(makeReq({ ...GOOD, password: 'short' }), res2);
-    expect(res2.statusCode).toBe(400);
     expect(siteverify).not.toHaveBeenCalled();
   });
 
-  it('stops at the daily cap', async () => {
-    state.count = MAX_SIGNUPS_PER_DAY;
+  it('stops at the daily mail cap, counted across addresses', async () => {
+    state.rows = [{ count: MAILS_PER_DAY - 3 }, { count: 3 }];
     const res = makeRes();
     await handler(makeReq(GOOD), res);
     expect(res.statusCode).toBe(429);
     expect(state.generateCalls).toHaveLength(0);
+    expect(mockedSend).not.toHaveBeenCalled();
+  });
+
+  it('throttles repeat mails to one address without saying so', async () => {
+    state.addressCount = MAILS_PER_ADDRESS + 1;
+    const res = makeRes();
+    await handler(makeReq(GOOD), res);
+    expect(res.statusCode).toBe(200);
+    expect(res.payload).toEqual({ status: 'pending' });
+    expect(mockedSend).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when the mail counter cannot be bumped', async () => {
+    state.bumpError = { message: 'db down' };
+    const res = makeRes();
+    await handler(makeReq(GOOD), res);
+    expect(res.statusCode).toBe(500);
+    expect(mockedSend).not.toHaveBeenCalled();
+  });
+
+  it('bounds the siteverify wait', async () => {
+    // AbortSignal.timeout runs on Node's own timer, which fake timers do not
+    // drive; that a signal is attached is what this pins (the abort itself
+    // lands in the 'unreachable' branch above).
+    await handler(makeReq(GOOD), makeRes());
+    expect(siteverify.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
   });
 
   it('answers an existing address exactly like a new one, and mails nothing', async () => {
@@ -144,14 +186,6 @@ describe('/api/signup', () => {
     expect(res.statusCode).toBe(200);
     expect(res.payload).toEqual({ status: 'pending' });
     expect(mockedSend).not.toHaveBeenCalled();
-  });
-
-  it("passes GoTrue's weak-password message through", async () => {
-    state.linkError = { code: 'weak_password', message: 'Password is known to be weak' };
-    const res = makeRes();
-    await handler(makeReq(GOOD), res);
-    expect(res.statusCode).toBe(400);
-    expect(res.payload).toEqual({ error: 'Password is known to be weak' });
   });
 
   it('is POST only', async () => {
