@@ -42,6 +42,10 @@ export const ENV_KEYS = [
   // Resend API key (Sending access, apex-training.app only) review emails go
   // out on. Vercel project env; `.env.local` only to test mail delivery.
   'RESEND_API_KEY',
+  // Cloudflare Turnstile secret /api/signup verifies the widget's token with.
+  // Vercel project env; unset = /api/signup answers 503 and sign-up stays
+  // invite-only. Its site key is VITE_TURNSTILE_SITE_KEY (client bundle).
+  'TURNSTILE_SECRET_KEY',
   // Public OAuth client id registered with COROS (PKCE, no secret).
   // `.env.local` / Vercel project env; both COROS_* unset = "not configured".
   'COROS_CLIENT_ID',

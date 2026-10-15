@@ -35,8 +35,21 @@ function getMailer(): Transporter {
 }
 
 export async function sendReviewEmail(email: ReviewEmail): Promise<void> {
+  await sendFrom(FROM, email);
+}
+
+// Sign-up confirmations (handlers/signup.ts) go out from the same address as
+// the Supabase invites, so a new account's first mail looks like an invited
+// one's.
+const ACCOUNT_FROM = 'Apex Training <invites@apex-training.app>';
+
+export async function sendAccountEmail(email: ReviewEmail): Promise<void> {
+  await sendFrom(ACCOUNT_FROM, email);
+}
+
+async function sendFrom(from: string, email: ReviewEmail): Promise<void> {
   await getMailer().sendMail({
-    from: FROM,
+    from,
     replyTo: REPLY_TO,
     to: email.to,
     subject: email.subject,

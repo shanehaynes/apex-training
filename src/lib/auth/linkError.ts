@@ -22,8 +22,8 @@ export interface AuthLinkError {
 
 // GoTrue's own wording ("Email link is invalid or has expired") states the
 // problem but not the way out, which is the half that matters here.
-const EXPIRED_MESSAGE = 'That invite or reset link has expired, or it has already been used. '
-  + 'Ask for a fresh invite — or, if you already set a password, sign in below.';
+const EXPIRED_MESSAGE = 'That invite, confirmation or reset link has expired, or it has already been used. '
+  + 'Ask for a fresh invite or create your account again — or, if you already set a password, sign in below.';
 
 /** True for the codes that mean "the link is spent", however GoTrue spells it. */
 function isSpentLink(code: string | null, description: string | null): boolean {

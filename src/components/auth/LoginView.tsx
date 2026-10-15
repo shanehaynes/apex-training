@@ -1,15 +1,19 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useAuth } from '../../context/auth';
 import AcceptanceCheckbox from '../legal/AcceptanceCheckbox';
 import OpenInAppButton from './OpenInAppButton';
+import TurnstileWidget, { type TurnstileHandle } from './TurnstileWidget';
+import { TURNSTILE_SITE_KEY } from '../../lib/auth/turnstile';
 
 // Email + password sign-in and create-account, one card, one form. A real
 // <form> with name/autocomplete attributes is what makes iCloud Keychain /
 // Google Password Manager save the login and offer Face ID / Touch ID unlock
 // on return visits — don't replace it with div-and-onClick.
 //
-// Accounts are invite-only (dashboard); the create side says so up front and
-// the context maps GoTrue's "signups not allowed" into plain words. The two
+// With VITE_TURNSTILE_SITE_KEY set, the create side carries a Turnstile
+// widget and sign-up is open (through /api/signup). Without it, accounts are
+// invite-only (dashboard); the create side says so up front and the context
+// maps GoTrue's "signups not allowed" into plain words. The two
 // primary modes share the email/password fields and differ only in button
 // label, password autocomplete, and that one note — a segmented toggle, not
 // a second form, keeps the card from growing.
@@ -33,6 +37,9 @@ export default function LoginView() {
   const [error, setError] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstile = useRef<TurnstileHandle>(null);
+  const needsCaptcha = TURNSTILE_SITE_KEY !== undefined;
 
   const switchTo = (next: Mode) => {
     setMode(next);
@@ -60,7 +67,9 @@ export default function LoginView() {
     }
     setIsSubmitting(true);
     setError(null);
-    const result = await signUp(email, password);
+    const result = await signUp(email, password, captchaToken ?? undefined);
+    // Single-use: a failed attempt needs a fresh token for the retry.
+    turnstile.current?.reset();
     if (result.error !== null) {
       setError(result.error);
     } else if (result.pendingConfirmation) {
@@ -153,7 +162,7 @@ export default function LoginView() {
           </>
         ) : (
           <form className="auth-form" onSubmit={submitHandler}>
-            {isCreate && (
+            {isCreate && !needsCaptcha && (
               <p className="auth-hint">Account creation is invite only.</p>
             )}
 
@@ -200,12 +209,16 @@ export default function LoginView() {
               />
             )}
 
+            {isCreate && TURNSTILE_SITE_KEY && (
+              <TurnstileWidget ref={turnstile} siteKey={TURNSTILE_SITE_KEY} onToken={setCaptchaToken} />
+            )}
+
             {error && <p className="auth-error">{error}</p>}
 
             <button
               type="submit"
               className="auth-submit"
-              disabled={isSubmitting || (isCreate && !accepted)}
+              disabled={isSubmitting || (isCreate && (!accepted || (needsCaptcha && !captchaToken)))}
             >
               {submitLabel}
             </button>
