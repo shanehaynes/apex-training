@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import handler, { MAILS_PER_ADDRESS, MAILS_PER_DAY } from '../_lib/handlers/signup';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
@@ -19,6 +19,8 @@ interface State {
   linkError?: { code: string; message: string } | null;
   generateCalls: Record<string, unknown>[];
   bumps: Record<string, unknown>[];
+  /** Users GoTrue's admin search returns for the address. */
+  users?: { id: string; email: string; email_confirmed_at: string | null }[];
 }
 
 function makeAdmin(state: State) {
@@ -72,20 +74,32 @@ function makeRes() {
 
 const GOOD = { email: 'New@Example.com ', captchaToken: 'tok' };
 
-let siteverify: ReturnType<typeof vi.fn>;
+let siteverify: Mock<(url: string, init: RequestInit) => Promise<unknown>>;
+let lookups: string[];
 let state: State;
 
 beforeEach(() => {
   process.env.TURNSTILE_SECRET_KEY = 'secret';
+  process.env.VITE_SUPABASE_URL = 'https://x.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service';
   state = { generateCalls: [], bumps: [] };
+  lookups = [];
   mockedAdmin.mockReturnValue(makeAdmin(state));
   mockedSend.mockClear();
   siteverify = vi.fn(async () => ({ json: async () => ({ success: true }) }));
-  vi.stubGlobal('fetch', siteverify);
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.includes('/auth/v1/admin/users')) {
+      lookups.push(url);
+      return { ok: true, json: async () => ({ users: state.users ?? [] }) };
+    }
+    return siteverify(url, init as RequestInit);
+  }));
 });
 
 afterEach(() => {
   delete process.env.TURNSTILE_SECRET_KEY;
+  delete process.env.VITE_SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   vi.unstubAllGlobals();
 });
 
@@ -145,8 +159,17 @@ describe('/api/signup', () => {
     expect(siteverify).not.toHaveBeenCalled();
   });
 
+  it('counts an address for at most its own mail limit toward the day', async () => {
+    // 49 attempts at one address sent 3 mails; a fresh address still gets in.
+    state.rows = [{ count: 49 }];
+    const res = makeRes();
+    await handler(makeReq(GOOD), res);
+    expect(res.statusCode).toBe(200);
+    expect(mockedSend).toHaveBeenCalledOnce();
+  });
+
   it('stops at the daily mail cap, counted across addresses', async () => {
-    state.rows = [{ count: MAILS_PER_DAY - 3 }, { count: 3 }];
+    state.rows = Array.from({ length: Math.ceil(MAILS_PER_DAY / MAILS_PER_ADDRESS) }, () => ({ count: MAILS_PER_ADDRESS }));
     const res = makeRes();
     await handler(makeReq(GOOD), res);
     expect(res.statusCode).toBe(429);
@@ -154,13 +177,43 @@ describe('/api/signup', () => {
     expect(mockedSend).not.toHaveBeenCalled();
   });
 
-  it('throttles repeat mails to one address without saying so', async () => {
+  it('throttles a pending address before generate_link, so the mailed link survives', async () => {
+    state.users = [{ id: 'pending-1', email: 'new@example.com', email_confirmed_at: null }];
     state.addressCount = MAILS_PER_ADDRESS + 1;
     const res = makeRes();
     await handler(makeReq(GOOD), res);
     expect(res.statusCode).toBe(200);
     expect(res.payload).toEqual({ status: 'pending' });
+    // generate_link rotates a pending user's token: calling it here would
+    // kill the link the owner already holds.
+    expect(state.generateCalls).toHaveLength(0);
+    expect(state.bumps[0]).toMatchObject({ p_user_id: 'pending-1' });
     expect(mockedSend).not.toHaveBeenCalled();
+  });
+
+  it('re-invites a pending address under its limit', async () => {
+    state.users = [{ id: 'pending-1', email: 'new@example.com', email_confirmed_at: null }];
+    const res = makeRes();
+    await handler(makeReq(GOOD), res);
+    expect(res.statusCode).toBe(200);
+    expect(state.bumps).toHaveLength(1);
+    expect(mockedSend).toHaveBeenCalledOnce();
+  });
+
+  it('mails a confirmed account nothing and touches nothing', async () => {
+    // A substring hit on another address must not be taken for this one.
+    state.users = [
+      { id: 'other', email: 'anew@example.com', email_confirmed_at: null },
+      { id: 'mine', email: 'new@example.com', email_confirmed_at: '2026-10-01T00:00:00Z' },
+    ];
+    const res = makeRes();
+    await handler(makeReq(GOOD), res);
+    expect(res.statusCode).toBe(200);
+    expect(res.payload).toEqual({ status: 'pending' });
+    expect(state.generateCalls).toHaveLength(0);
+    expect(state.bumps).toHaveLength(0);
+    expect(mockedSend).not.toHaveBeenCalled();
+    expect(lookups[0]).toContain('filter=new%40example.com');
   });
 
   it('fails closed when the mail counter cannot be bumped', async () => {

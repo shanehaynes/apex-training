@@ -24,6 +24,12 @@ import { publicOrigin } from '../oauth/common.js';
 // day's total is read then bumped, not reserved: concurrent requests at the
 // edge can overshoot it by their number.
 //
+// The per-address check runs before generate_link, never after: for a
+// pending address generate_link rotates the invite token, so a throttled
+// request that still called it would kill the link the owner already holds.
+// That needs the user looked up first (GoTrue's admin user search); a new
+// address has no link to kill and is metered once it exists.
+//
 // The reply is the same "check your inbox" whether the address is new,
 // already invited, throttled or a confirmed account (which is mailed
 // nothing), so the body never says which addresses have accounts. The
@@ -75,12 +81,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(500).json({ error: 'Sign-up failed — try again later.' });
     return;
   }
-  const sent = (rows ?? []).reduce((sum, r) => sum + Number((r as { count: number }).count), 0);
+  // Requests past an address's limit bump its row but send nothing, so a row
+  // counts for at most MAILS_PER_ADDRESS mails.
+  const sent = (rows ?? []).reduce(
+    (sum, r) => sum + Math.min(Number((r as { count: number }).count), MAILS_PER_ADDRESS),
+    0,
+  );
   if (sent >= MAILS_PER_DAY) {
     console.error(`[signup] SIGNUP-DAILY-CAP reached (${MAILS_PER_DAY})`);
     res.status(429).json({ error: 'Sign-up is busy right now — try again tomorrow.' });
     return;
   }
+
+  const existing = await findUser(email);
+  if (existing === 'error') {
+    res.status(500).json({ error: 'Sign-up failed — try again later.' });
+    return;
+  }
+  if (existing?.confirmed) {
+    res.status(200).json({ status: 'pending' });
+    return;
+  }
+  if (existing && !(await underAddressLimit(supabase, existing.id, res))) return;
 
   const { data, error } = await supabase.auth.admin.generateLink({
     type: 'invite',
@@ -96,22 +118,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(500).json({ error: 'Sign-up failed — try again later.' });
     return;
   }
-
-  const { data: count, error: bumpErr } = await supabase.rpc('bump_rate_limit', {
-    p_user_id: data.user.id,
-    p_bucket: BUCKET,
-    p_window_seconds: DAY,
-  });
-  if (bumpErr) {
-    // Fails closed, unlike the per-user limiter: unmetered mail is the abuse.
-    console.error('[signup] bump failed:', bumpErr.message);
-    res.status(500).json({ error: 'Sign-up failed — try again later.' });
-    return;
-  }
-  if (typeof count === 'number' && count > MAILS_PER_ADDRESS) {
-    res.status(200).json({ status: 'pending' });
-    return;
-  }
+  if (!existing && !(await underAddressLimit(supabase, data.user.id, res))) return;
 
   try {
     await sendAccountEmail(confirmationEmail(email, data.properties.action_link));
@@ -121,6 +128,56 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
   res.status(200).json({ status: 'pending' });
+}
+
+type Admin = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
+
+/**
+ * Bumps the address's mail counter. False, with the reply already sent, when
+ * it is over the limit (answered as success, so the throttle is invisible)
+ * or the counter is unreachable (fails closed: unmetered mail is the abuse).
+ */
+async function underAddressLimit(supabase: Admin, userId: string, res: VercelResponse): Promise<boolean> {
+  const { data: count, error } = await supabase.rpc('bump_rate_limit', {
+    p_user_id: userId,
+    p_bucket: BUCKET,
+    p_window_seconds: DAY,
+  });
+  if (error) {
+    console.error('[signup] bump failed:', error.message);
+    res.status(500).json({ error: 'Sign-up failed — try again later.' });
+    return false;
+  }
+  if (typeof count === 'number' && count > MAILS_PER_ADDRESS) {
+    res.status(200).json({ status: 'pending' });
+    return false;
+  }
+  return true;
+}
+
+/**
+ * The auth user with exactly this email, null if there is none, 'error' if
+ * the lookup failed. GoTrue's admin list takes a `filter` substring match
+ * (what Studio's search uses; supabase-js does not expose it), so the exact
+ * match is made here.
+ */
+async function findUser(email: string): Promise<{ id: string; confirmed: boolean } | null | 'error'> {
+  const url = optionalEnv('VITE_SUPABASE_URL');
+  const key = optionalEnv('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !key) return 'error';
+  try {
+    const reply = await fetch(
+      `${url.replace(/\/$/, '')}/auth/v1/admin/users?filter=${encodeURIComponent(email)}&per_page=50`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(5000) },
+    );
+    if (!reply.ok) throw new Error(`status ${reply.status}`);
+    const body = (await reply.json()) as { users?: { id: string; email?: string; email_confirmed_at?: string | null }[] };
+    const user = (body.users ?? []).find(u => u.email?.toLowerCase() === email);
+    return user ? { id: user.id, confirmed: Boolean(user.email_confirmed_at) } : null;
+  } catch (err) {
+    console.error('[signup] user lookup failed:', err instanceof Error ? err.message : err);
+    return 'error';
+  }
 }
 
 async function turnstilePasses(secret: string, token: string, ip: string | null): Promise<boolean> {
