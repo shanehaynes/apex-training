@@ -16,16 +16,20 @@ import type { ExerciseDefinitionRow, TablesInsert, WorkoutEventRow } from '../..
 // or retry can never duplicate the plan.
 
 /**
- * The block starts on the client's local "today" when it sends one. Clients
- * that send nothing (older iOS builds), or a date more than a day from
- * `serverToday` — today in the athlete's saved zone, UTC when none — get
- * `serverToday`.
+ * The block starts on the client's local "today" when it sends one, as long
+ * as it is within a day of the server's UTC today — no time zone is further.
+ * Clients that send nothing (older iOS builds), or something implausible,
+ * get `fallback`: today in the athlete's saved zone, UTC when none.
  */
-export function resolveStartDate(body: unknown, serverToday = new Date().toISOString().slice(0, 10)): string {
+export function resolveStartDate(
+  body: unknown,
+  todayUtc = new Date().toISOString().slice(0, 10),
+  fallback = todayUtc,
+): string {
   const sent = (body as { startDate?: unknown } | null)?.startDate;
-  if (typeof sent !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(sent)) return serverToday;
-  const allowed = [addIsoDays(serverToday, -1), serverToday, addIsoDays(serverToday, 1)];
-  return allowed.includes(sent) ? sent : serverToday;
+  if (typeof sent !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(sent)) return fallback;
+  const allowed = [addIsoDays(todayUtc, -1), todayUtc, addIsoDays(todayUtc, 1)];
+  return allowed.includes(sent) ? sent : fallback;
 }
 
 async function resolveSourceUserId(
@@ -123,7 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const startDate = resolveStartDate(req.body, await userToday(supabase, userId));
+  const startDate = resolveStartDate(req.body, undefined, await userToday(supabase, userId));
   const endDate = templateBlockEnd(startDate);
   const eventClones = ((sourceEvents ?? []) as WorkoutEventRow[])
     .map(row => cloneEventRow(row, `tpl-${randomUUID()}`, userId, startDate))

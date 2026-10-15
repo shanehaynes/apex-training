@@ -52,12 +52,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const deferred = Math.max(0, connections.length - MAX_USERS_PER_RUN);
   connections = connections.slice(0, MAX_USERS_PER_RUN);
 
-  // The zone that decides an activity's local day: the profile's (phase58,
-  // refreshed on every web load) ahead of the connection's (stamped only by a
-  // manual sync, so stale after travel), then UTC.
+  // The zone that decides an activity's local day: the connection's (stamped
+  // by every manual sync, web or phone), then the profile's (phase58, written
+  // only by the web) for a connection that never stamped one, then UTC.
   const profileZones = await fetchUserTimezones(supabase, [...new Set(connections.map(c => c.user_id))]);
   const zoneFor = (conn: { user_id: string; timezone: string | null }) =>
-    profileZones.get(conn.user_id) ?? conn.timezone ?? 'UTC';
+    conn.timezone ?? profileZones.get(conn.user_id) ?? 'UTC';
 
   if (dryRun) {
     res.status(200).json({

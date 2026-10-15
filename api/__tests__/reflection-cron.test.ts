@@ -356,6 +356,44 @@ describe('reflection-cron — the athlete\'s own day (phase58)', () => {
     expect(mockedReflect.mock.calls.map(([, r]) => `${r.userId} ${r.day}`)).toEqual(['u-west 2026-10-13']);
   });
 
+  it('catches up a day the wall clock stepped over: US Central at spring-forward', async () => {
+    // 05:00Z on Mar 8 is 23:00 CST on the 7th (target: the 6th); 05:00Z on
+    // Mar 9 is 00:00 CDT on the 9th (target: the 8th). The 7th is never
+    // tonight's day for anyone in Chicago.
+    vi.setSystemTime(new Date('2026-03-09T05:00:00Z'));
+    profiles = [{ id: 'u-chi', coach_model: null, reflection_opt_in: true, timezone: 'America/Chicago' }];
+    reflections = [{ user_id: 'u-chi', day: '2026-03-06', status: 'done' }];
+    const { res } = makeRes();
+    await handler(makeReq(), res);
+    expect(mockedReflect.mock.calls.map(([, r]) => r.day)).toEqual(['2026-03-07', '2026-03-08']);
+  });
+
+  it('does not backfill a first night, or a day an earlier run already holds', async () => {
+    vi.setSystemTime(new Date('2026-03-09T05:00:00Z'));
+    profiles = [{ id: 'u-chi', coach_model: null, reflection_opt_in: true, timezone: 'America/Chicago' }];
+    const first = makeRes();
+    await handler(makeReq(), first.res);
+    expect(mockedReflect.mock.calls.map(([, r]) => r.day)).toEqual(['2026-03-08']);
+
+    mockedReflect.mockClear();
+    reflections = [
+      { user_id: 'u-chi', day: '2026-03-06', status: 'done' },
+      { user_id: 'u-chi', day: '2026-03-07', status: 'done' },
+    ];
+    const next = makeRes();
+    await handler(makeReq(), next.res);
+    expect(mockedReflect.mock.calls.map(([, r]) => r.day)).toEqual(['2026-03-08']);
+  });
+
+  it('?day= reflects that day only, with no gap-filling', async () => {
+    vi.setSystemTime(new Date('2026-03-09T05:00:00Z'));
+    profiles = [{ id: 'u-chi', coach_model: null, reflection_opt_in: true, timezone: 'America/Chicago' }];
+    reflections = [{ user_id: 'u-chi', day: '2026-03-06', status: 'done' }];
+    const { res } = makeRes();
+    await handler(makeReq({ day: '2026-03-08' }), res);
+    expect(mockedReflect.mock.calls.map(([, r]) => r.day)).toEqual(['2026-03-08']);
+  });
+
   it('?day= still names the day for everyone', async () => {
     profiles = [{ id: 'u-west', coach_model: null, reflection_opt_in: true, timezone: 'America/Los_Angeles' }];
     const { res } = makeRes();

@@ -73,7 +73,13 @@ function startOfLocalDay(day: string, timeZone: string): number {
   // Two passes settle a midnight that sits on the other side of a DST change
   // from the first guess.
   const first = midnightUtc - offsetMinutes(midnightUtc, timeZone) * 60_000;
-  return midnightUtc - offsetMinutes(first, timeZone) * 60_000;
+  let start = midnightUtc - offsetMinutes(first, timeZone) * 60_000;
+  // Where the clocks jump from 23:59 to 01:00 (Santiago, Havana) there is no
+  // local midnight, and the passes land an hour early, in the day before.
+  // The day starts at the first instant whose local date is the day: step
+  // forward in quarter hours (every real offset is a multiple) until it is.
+  for (let i = 0; i < 8 && localDate(timeZone, new Date(start)) < day; i++) start += 15 * 60_000;
+  return start;
 }
 
 /** [start, end) of `day` in `timeZone`, as ISO instants for a timestamptz range filter. */

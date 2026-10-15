@@ -329,6 +329,12 @@ describe('reflection inputs', () => {
     // And 12:00Z on the 27th is already the 28th in Kiritimati (UTC+14).
     const east = await fetchReflectionInputs(makeDb(), U, DAY, 'Pacific/Kiritimati');
     expect(east.messages).toEqual([]);
+    // The start bound too: the 28th in Los Angeles begins at 07:00Z, so the
+    // 00:00Z message (still the 27th there) is not part of it.
+    const nextLocal = await fetchReflectionInputs(makeDb(), U, '2026-09-28', 'America/Los_Angeles');
+    expect(nextLocal.messages).toEqual([]);
+    const nextUtc = await fetchReflectionInputs(makeDb(), U, '2026-09-28');
+    expect(nextUtc.messages.map(m => m.text)).toEqual(['Next day']);
   });
 
   it('a day with no completed session and no chat has nothing to reflect on', async () => {

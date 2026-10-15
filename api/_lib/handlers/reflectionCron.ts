@@ -150,6 +150,35 @@ export async function listBacklog(supabase: Admin, users: OptedIn[], day: string
     .filter(w => w.user !== undefined);
 }
 
+/**
+ * Days tonight's pass would step over. An athlete's day comes from their
+ * wall clock at a fixed 05:00 UTC run, so when their offset moves east — US
+ * Central at spring-forward, any eastward trip — tonight's day can be two
+ * after last night's and the one between is never targeted. Such a day has
+ * no row at all, so the backlog (which retries rows) cannot bring it back.
+ * It is picked up here: no row for the day before tonight's, and a row for
+ * the day before that, i.e. a gap in an otherwise reflected run. A first
+ * night after opting in has no earlier row and is not backfilled.
+ */
+export async function listSkipped(supabase: Admin, tonight: WorkItem[]): Promise<WorkItem[]> {
+  if (tonight.length === 0) return [];
+  const days = tonight.map(w => w.day).sort();
+  const { data, error } = await supabase
+    .from('coach_reflections')
+    .select('user_id, day')
+    .in('user_id', tonight.map(w => w.user.userId))
+    .gte('day', dayMinus(days[0], 2))
+    .lt('day', days[days.length - 1]);
+  if (error) throw new Error(`coach_reflections gap fetch failed: ${error.message}`);
+  const have = new Set(((data ?? []) as Array<{ user_id: string; day: string }>).map(r => `${r.user_id}|${r.day}`));
+  return tonight.flatMap(({ user, day }) => {
+    const between = dayMinus(day, 1);
+    return !have.has(`${user.userId}|${between}`) && have.has(`${user.userId}|${dayMinus(day, 2)}`)
+      ? [{ user, day: between }]
+      : [];
+  });
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const secret = optionalEnv('CRON_SECRET');
   if (!secret || req.headers.authorization !== `Bearer ${secret}`) {
@@ -213,19 +242,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const tonight = rotateForDay(users, day).map(user => ({ user, day: dayFor(user) }));
   let backlog: WorkItem[];
+  let skipped: WorkItem[];
   try {
     backlog = await listBacklog(supabase, users, day);
+    // ?day= names one day on purpose; only the scheduled run fills gaps.
+    skipped = dayParam === undefined ? await listSkipped(supabase, tonight) : [];
   } catch (err) {
     console.error('[reflection-cron] backlog listing failed:', err instanceof Error ? err.message : err);
     res.status(500).send('Failed to list the reflection backlog');
     return;
   }
-  const tonight = rotateForDay(users, day).map(user => ({ user, day: dayFor(user) }));
   // An athlete behind UTC reflects on a day the backlog window also covers;
   // a pending or failed row for it runs once, in tonight's pass.
   const tonightKeys = new Set(tonight.map(w => `${w.user.userId}|${w.day}`));
-  const work: WorkItem[] = [...backlog.filter(w => !tonightKeys.has(`${w.user.userId}|${w.day}`)), ...tonight];
+  const work: WorkItem[] = [
+    ...backlog.filter(w => !tonightKeys.has(`${w.user.userId}|${w.day}`)),
+    ...skipped,
+    ...tonight,
+  ];
 
   const processed: Array<{ userId: string; day: string; action: string; memoriesProposed?: number; contractProposed?: boolean }> = [];
   const errors: Array<{ userId: string; day: string; error: string }> = [];

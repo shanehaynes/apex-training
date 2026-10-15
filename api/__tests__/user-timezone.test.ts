@@ -70,6 +70,12 @@ describe('localDayBounds', () => {
     });
   });
 
+  it('starts at 01:00 where the clocks skip midnight itself', () => {
+    // Santiago springs forward 24:00 → 01:00 (UTC-4 → UTC-3); Havana likewise.
+    expect(localDayBounds('2026-09-06', 'America/Santiago').start).toBe('2026-09-06T04:00:00.000Z');
+    expect(localDayBounds('2026-03-08', 'America/Havana').start).toBe('2026-03-08T05:00:00.000Z');
+  });
+
   it('is 23 and 25 hours long on the DST change days', () => {
     const spring = localDayBounds('2026-03-08', 'America/New_York');
     expect(spring).toEqual({ start: '2026-03-08T05:00:00.000Z', end: '2026-03-09T04:00:00.000Z' });
