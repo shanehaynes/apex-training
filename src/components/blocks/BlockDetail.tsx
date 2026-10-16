@@ -42,15 +42,17 @@ export default function BlockDetail({
   const { id: blockId, startDate, endDateExclusive } = block;
   const loadKey = `${blockId}:${startDate}:${endDateExclusive}`;
   useEffect(() => {
-    let cancelled = false;
+    // Aborting stops the paged reads too, not just the state updates.
+    const abort = new AbortController();
     setLoadFailed(false);
-    loadBlockLogs({ startDate, endDateExclusive })
-      .then(logs => { if (!cancelled) setLoaded({ key: loadKey, logs }); })
+    loadBlockLogs({ startDate, endDateExclusive }, abort.signal)
+      .then(logs => { if (!abort.signal.aborted) setLoaded({ key: loadKey, logs }); })
       .catch(err => {
+        if (abort.signal.aborted) return;
         console.warn('[apex] block progress load failed:', err);
-        if (!cancelled) setLoadFailed(true);
+        setLoadFailed(true);
       });
-    return () => { cancelled = true; };
+    return () => abort.abort();
   }, [loadKey, startDate, endDateExclusive]);
 
   const logs = loaded?.key === loadKey ? loaded.logs : null;

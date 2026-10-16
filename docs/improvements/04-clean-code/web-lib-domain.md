@@ -58,6 +58,7 @@ Commit 7c0fcae2. Scope: every non-test file in src/lib/{analytics,auth,blocks,bu
 
 ### `src/lib/blocks/repo.ts`
 - [x] **P2** · *Error handling — logged then swallowed (Ch. 7)* · `src/lib/blocks/repo.ts:59` — Each failed query is `console.warn`ed and replaced with `[]`. Block attainment then reports 0% against real targets on a transient failure, indistinguishable from "did nothing". **Fix:** throw when any query errors, and let the block view render its error state. Or return `{ logs, failed: string[] }` so the UI can caveat the numbers. — fixed in #454 (every query throws; `BlockDetail` shows the failure)
+- [x] **P2** · *Silent truncation (Ch. 7)* · `src/lib/blocks/repo.ts:34` — `loadBlockLogs` ran four unpaged selects over the block window, so PostgREST's `max_rows` (1000) cut a long block's set logs short and attainment under-reported with nothing said. Found while paging the library (#461). — paged in #462 (shared `src/lib/db/pagination.ts`, abortable from `BlockDetail`/`ExerciseDetail`)
 
 ### `src/lib/blocks/progress.ts`
 - [ ] **P2** · *Duplication — tally loop written twice (G5)* · `src/lib/blocks/progress.ts:106` — `windowActuals` (115-126) and `derivedTargets` (163-175) run the same tally: longest minutes, cardio minutes by `CARDIO_TYPES`, strength and climbing counts. One runs over completions, the other over planned events. **Fix:** extract `tallySessions(items: { type, minutes }[])` returning the four numbers, and map completions and events into that shape.
