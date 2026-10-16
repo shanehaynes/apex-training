@@ -47,6 +47,29 @@ const refusedMessage = (n: number) => `${n} ${n === 1 ? 'edit was' : 'edits were
 export const pauseCause = (status: PausedStatus | null) =>
   status === 403 ? 'the terms changed; accept them from Profile' : 'sign in again';
 
+/**
+ * The toast for one failed autosave send, or null for none. The save queue
+ * owns this, not the transport (saveLogs only throws):
+ * - auth (401/403) pauses the queue and says what clears it;
+ * - a refusal (other 4xx) is not retried, so it shows the server's own
+ *   message once — but only for a single key, the row the user can act on
+ *   (a batch is isolated into singles by the queue), and never for a
+ *   `removed|` key, which the queue drops: nothing to edit;
+ * - anything else (5xx, 408, 429, a dead socket) is retried; only the first
+ *   failure of a streak toasts (`firstOfStreak`), the Unsaved bar after that.
+ */
+export function autosaveFailureToast(err: unknown, keys: readonly string[], firstOfStreak: boolean): string | null {
+  if (isAuthFailure(err)) {
+    return `Autosave paused — ${pauseCause((err as { status?: number }).status === 403 ? 403 : 401)}, then Retry`;
+  }
+  if (isNonRetryable(err)) {
+    return keys.length === 1 && !keys[0].startsWith('removed|')
+      ? `Autosave refused: ${(err as Error).message.slice(0, 140)}`
+      : null;
+  }
+  return firstOfStreak ? 'Autosave failed' : null;
+}
+
 // Dirty keys, as the save queue tracks them. One key per row the server
 // upserts or deletes, so a key stays dirty until the send that carried its
 // latest value resolves.
@@ -150,10 +173,8 @@ export function useWorkoutSession(
   // One send: the rows for these keys, read from the current model, in the
   // shape the server's `save` op takes. A key whose row is gone (a set
   // removed before its save landed) contributes nothing and is still
-  // cleared by the queue on success. Retries after the first failure of a
-  // streak are quiet — that failure toasted, and the bar carries the state.
-  // A refusal (4xx) is not retried, so it toasts the server's own message
-  // once here; the bar then says how many edits were refused.
+  // cleared by the queue on success. A failure's toast, if any, is
+  // autosaveFailureToast's call; the bar carries the state after that.
   //
   // While the cancel request is out nothing may leave — a save landing
   // after the delete would re-create rows — and the callers that start a
@@ -197,21 +218,12 @@ export function useWorkoutSession(
     if (!setLogs.length && !cardioLogs.length && !removedSets.length && !exerciseNotes.length && sessionNoteEdit === undefined) return;
     const keepalive = keepaliveRef.current;
     keepaliveRef.current = false;
+    const firstOfStreak = queue().state().consecutiveFailures === 0;
     try {
-      await saveLogs(eventId, eventDate, { setLogs, cardioLogs, removedSets, exerciseNotes, sessionNote: sessionNoteEdit }, {
-        keepalive,
-        quiet: queue().state().consecutiveFailures > 0,
-      });
+      await saveLogs(eventId, eventDate, { setLogs, cardioLogs, removedSets, exerciseNotes, sessionNote: sessionNoteEdit }, { keepalive });
     } catch (err) {
-      // A refused batch is isolated by the queue, so only a single-key
-      // refusal names the row the user can act on. A refused `removed|`
-      // key is dropped by the queue (ignoreRejected) and gets no toast:
-      // nothing to edit.
-      if (isAuthFailure(err)) {
-        notify(`Autosave paused — ${pauseCause((err as { status?: number }).status === 403 ? 403 : 401)}, then Retry`);
-      } else if (isNonRetryable(err) && keys.length === 1 && !keys[0].startsWith('removed|')) {
-        notify(`Autosave refused: ${(err as Error).message.slice(0, 140)}`);
-      }
+      const toast = autosaveFailureToast(err, keys, firstOfStreak);
+      if (toast) notify(toast);
       throw err;
     }
   };
