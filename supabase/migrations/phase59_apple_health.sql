@@ -22,7 +22,9 @@
 --   daily_metrics                   new, one row per (user, local date, provider)
 --   profiles.body_weight_updated_at new: when body_weight_lb was last set, so a
 --   profiles.body_weight_source     Health sample only overwrites an older value
---                                   and never a newer manual one (M3b).
+--                                   and never a newer manual one (M3b); 'user' |
+--                                   'apple'. Weights entered before this are
+--                                   stamped 'user' as of the row's updated_at.
 --
 -- ORDER: migration FIRST, code SECOND. Nothing reads any of this until M2b and
 -- M3b, except the account export, which reads daily_metrics the moment this
@@ -105,10 +107,23 @@ alter table public.profiles add column if not exists body_weight_updated_at time
 alter table public.profiles add column if not exists body_weight_source text null;
 alter table public.profiles drop constraint if exists profiles_body_weight_source_check;
 alter table public.profiles add constraint profiles_body_weight_source_check
-  check (body_weight_source is null or body_weight_source in ('manual', 'apple'));
+  check (body_weight_source is null or body_weight_source in ('user', 'apple'));
 comment on column public.profiles.body_weight_source is
-  'Who last set body_weight_lb: manual (Profile) or apple (Health, only from a newer sample); null = before phase59';
+  'Who last set body_weight_lb: user (Profile, PATCH /api/profile) or apple (Health, only from a newer sample); null = no body weight';
+
+-- A body weight entered before this migration has no instant to compare a
+-- Health sample against, and M3b writes a sample only when it is newer than
+-- body_weight_updated_at. Stamp those weights as the athlete's own, as of
+-- the row's last update — an upper bound on when the weight was typed — so a
+-- newer Health reading still lands and an older backfilled one does not.
+-- Idempotent: only rows still unstamped.
+update public.profiles
+   set body_weight_updated_at = coalesce(updated_at, now()),
+       body_weight_source = 'user'
+ where body_weight_lb is not null
+   and body_weight_updated_at is null;
 
 notify pgrst, 'reload schema';
 
-insert into public.migration_ledger (name, fingerprint) values ('phase59_apple_health', 'cc6695e96517ba56') on conflict do nothing;
+
+insert into public.migration_ledger (name, fingerprint) values ('phase59_apple_health', '90bbae06e64016b1') on conflict do nothing;
