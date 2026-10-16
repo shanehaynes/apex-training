@@ -420,7 +420,7 @@ export default function WorkoutModal() {
             <button
               className="modal-completion__btn modal-completion__btn--start"
               style={{ borderColor: color.solid }}
-              onClick={() => dispatch({ type: 'START_TRACKING', payload: event })}
+              onClick={() => dispatch({ type: 'START_TRACKING', payload: live })}
             >
               <Play size={15} strokeWidth={2} />
               {isCompleted ? 'View / Edit Workout' : 'Start Workout'}
