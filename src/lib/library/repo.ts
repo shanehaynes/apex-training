@@ -9,11 +9,25 @@ import type { NameDateRow } from './stats';
 // rather than reading as empty, so a caller never shows "no history" for
 // history it could not load.
 
-// Per-table bound on one exercise's history fetch. No reason was recorded when
-// it landed (519f5707). PostgREST's max_rows (1000 locally in
-// supabase/config.toml, and Supabase's hosted default) truncates each response
-// below it, so history past the newest 1000 rows is silently dropped.
-const HISTORY_ROW_CAP = 2000;
+// PostgREST's max_rows (1000 locally in supabase/config.toml, and Supabase's
+// hosted default) caps every response, so one select silently drops history
+// past the newest 1000 rows — and the PR card then shows a partial best as
+// all-time. History is drained page by page instead, as api/_lib/pagination.ts
+// does server-side. A page shorter than PAGE_SIZE is the last one.
+const PAGE_SIZE = 1000;
+
+async function fetchAllRows<T>(
+  label: string,
+  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await page(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(`${label} load failed: ${error.message}`);
+    rows.push(...(data ?? []));
+    if (!data || data.length < PAGE_SIZE) return rows;
+  }
+}
 
 /**
  * Most recent log date per exercise name, for the list view's last-performed
@@ -40,25 +54,34 @@ export async function fetchLastPerformedRows(): Promise<NameDateRow[]> {
 export async function fetchExerciseHistory(
   spellings: string[],
 ): Promise<{ setRows: SetLogRow[]; cardioRows: CardioLogRow[] }> {
-  if (!supabase || spellings.length === 0) return { setRows: [], cardioRows: [] };
-  const [sets, cardio] = await Promise.all([
-    supabase
-      .from('workout_set_logs')
-      .select('*')
-      .in('exercise_name', spellings)
-      .order('event_date', { ascending: false })
-      .limit(HISTORY_ROW_CAP),
-    supabase
-      .from('workout_cardio_logs')
-      .select('*')
-      .in('exercise_name', spellings)
-      .order('event_date', { ascending: false })
-      .limit(HISTORY_ROW_CAP),
+  const db = supabase;
+  if (!db || spellings.length === 0) return { setRows: [], cardioRows: [] };
+  // Ordered by each table's unique key, ascending — the server readers'
+  // order. A total order keeps a row from landing on two pages or on none,
+  // it lists a session's sets as logged (stats keeps row order within a
+  // date), and a set logged mid-drain sorts after the pages already read.
+  const [setRows, cardioRows] = await Promise.all([
+    fetchAllRows('set history', (from, to) =>
+      db
+        .from('workout_set_logs')
+        .select('*')
+        .in('exercise_name', spellings)
+        .order('event_date')
+        .order('event_id')
+        .order('section')
+        .order('exercise_id')
+        .order('set_number')
+        .range(from, to)),
+    fetchAllRows('cardio history', (from, to) =>
+      db
+        .from('workout_cardio_logs')
+        .select('*')
+        .in('exercise_name', spellings)
+        .order('event_date')
+        .order('event_id')
+        .order('section')
+        .order('exercise_id')
+        .range(from, to)),
   ]);
-  if (sets.error) throw new Error(`set history load failed: ${sets.error.message}`);
-  if (cardio.error) throw new Error(`cardio history load failed: ${cardio.error.message}`);
-  return {
-    setRows: (sets.data ?? []) as SetLogRow[],
-    cardioRows: (cardio.data ?? []) as CardioLogRow[],
-  };
+  return { setRows: setRows as SetLogRow[], cardioRows: cardioRows as CardioLogRow[] };
 }
