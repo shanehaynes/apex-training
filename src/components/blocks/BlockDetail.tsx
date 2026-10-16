@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, Sparkles, X } from 'lucide-react';
 import { useSchedule } from '../../context/schedule';
 import { useBlocks } from '../../context/blocks';
@@ -6,7 +6,7 @@ import { useAnnotations } from '../../context/annotations';
 import AnnotationChip from '../calendar/AnnotationChip';
 import { computeBlockProgress } from '../../lib/blocks/progress';
 import type { BlockProgress } from '../../lib/blocks/progress';
-import { loadBlockLogs } from '../../lib/blocks/repo';
+import { loadBlockLogs, type BlockLogs } from '../../lib/blocks/repo';
 import { blockPeriod } from '../../lib/blocks/period';
 import { describeRecordForPeople } from '../../lib/tracking/records';
 import { now } from '../../lib/clock';
@@ -33,39 +33,45 @@ export default function BlockDetail({
   const { byBlock, dismiss } = useAnnotations();
   const { weightContext } = useAuth();
   const notes = byBlock(block.id);
-  const [progress, setProgress] = useState<BlockProgress | null>(null);
+  const [loaded, setLoaded] = useState<{ key: string; logs: BlockLogs } | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
 
+  // The reads depend only on the block's window, so they key on it alone: a
+  // new `events` or `block` identity (a schedule refetch, a target edit)
+  // recomputes progress below without reading the logs again.
+  const { id: blockId, startDate, endDateExclusive } = block;
+  const loadKey = `${blockId}:${startDate}:${endDateExclusive}`;
   useEffect(() => {
     let cancelled = false;
     setLoadFailed(false);
-    const period = blockPeriod(block);
-    loadBlockLogs(block)
-      .then(logs => {
-        if (cancelled) return;
-        setProgress(
-          computeBlockProgress(
-            {
-              period,
-              ...logs,
-              block,
-              weight: weightContext,
-              // Expanded occurrences inside the window are the source of the
-              // calendar-derived fallback for any target left unauthored.
-              plannedEvents: events.filter(
-                e => e.date >= period.startDate && e.date < period.endDateExclusive,
-              ),
-            },
-            now(),
-          ),
-        );
-      })
+    loadBlockLogs({ startDate, endDateExclusive })
+      .then(logs => { if (!cancelled) setLoaded({ key: loadKey, logs }); })
       .catch(err => {
         console.warn('[apex] block progress load failed:', err);
         if (!cancelled) setLoadFailed(true);
       });
     return () => { cancelled = true; };
-  }, [block, events, weightContext]);
+  }, [loadKey, startDate, endDateExclusive]);
+
+  const logs = loaded?.key === loadKey ? loaded.logs : null;
+  const progress = useMemo<BlockProgress | null>(() => {
+    if (!logs) return null;
+    const period = blockPeriod(block);
+    return computeBlockProgress(
+      {
+        period,
+        ...logs,
+        block,
+        weight: weightContext,
+        // Expanded occurrences inside the window are the source of the
+        // calendar-derived fallback for any target left unauthored.
+        plannedEvents: events.filter(
+          e => e.date >= period.startDate && e.date < period.endDateExclusive,
+        ),
+      },
+      now(),
+    );
+  }, [logs, block, events, weightContext]);
 
   const objective = objectiveFor(block);
   const currentWeek = progress?.currentWeek ?? null;
