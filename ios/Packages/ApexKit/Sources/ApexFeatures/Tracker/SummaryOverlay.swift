@@ -167,7 +167,14 @@ struct SummaryOverlay: View {
                                             .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
                                             .foregroundStyle(ApexColor.textMuted)
                                             .frame(width: 18, alignment: .leading)
-                                        logLine(Self.setLabel(set), muted: Self.setLabel(set) == nil)
+                                        let label = tracked.exercise.category == "climbing" ? Self.pitchLabel(set) : Self.setLabel(set)
+                                        logLine(label, muted: label == nil)
+                                        // A warm-up is shown with what it did and a tag; only a
+                                        // zero-fill or an empty set reads as skipped (the web's rule).
+                                        if label != nil {
+                                            if set.isWarmup == true { tag("warm-up") }
+                                            if let rpe = set.rpe, !rpe.isEmpty { tag("RPE \(rpe)") }
+                                        }
                                     }
                                 }
                             }
@@ -195,6 +202,23 @@ struct SummaryOverlay: View {
         if !set[.reps].isEmpty { parts.append("× \(set[.reps])") }
         if !set[.duration].isEmpty { parts.append(set[.duration]) }
         return parts.isEmpty ? nil : parts.joined(separator: " ")
+    }
+
+    /// A pitch (`pitchLabel`): "5.10c · Redpointed · 2 tries"; nil with no grade.
+    static func pitchLabel(_ set: TrackedSet) -> String? {
+        guard !set.isAutofilled, !set[.weight].isEmpty else { return nil }
+        var parts = [set[.weight]]
+        if let style = SetMetadata.ascentLabel(set.ascentStyle) { parts.append(style) }
+        if let tries = SetMetadata.parseAttempts(set.attempts) { parts.append("\(tries) \(tries == 1 ? "try" : "tries")") }
+        return parts.joined(separator: " · ")
+    }
+
+    private func tag(_ text: String) -> some View {
+        Text(text)
+            .font(.apex(.mono, size: TypeScale.micro, relativeTo: .caption2))
+            .foregroundStyle(ApexColor.textSecondary)
+            .padding(.horizontal, Spacing.xs)
+            .background(ApexColor.bgSurface, in: .capsule)
     }
 
     /// "45 min · 5 mi · ↑ 800 ft · 145 bpm"; nil when nothing was logged.

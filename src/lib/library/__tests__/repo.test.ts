@@ -1,52 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SetLogRow } from '../../db/types';
+import { MAX_ROWS } from '../../db/__tests__/postgrestStub';
 
-// A stand-in for PostgREST: it sorts by the requested keys, and every select
-// is capped at max_rows (1000) no matter what the query asks for, which is
-// what production does.
-const MAX_ROWS = 1000;
-type Row = Record<string, unknown>;
-const tables: Record<string, Row[]> = {};
-const ranges: Array<[string, number, number]> = [];
-const orders: Record<string, string[]> = {};
-const failPage: { table?: string; from?: number } = {};
-
-function query(table: string) {
-  let from = 0;
-  let to = Number.POSITIVE_INFINITY;
-  const keys: Array<{ col: string; asc: boolean }> = [];
-  const q = {
-    select: () => q,
-    in: () => q,
-    order: (col: string, opts?: { ascending?: boolean }) => {
-      keys.push({ col, asc: opts?.ascending ?? true });
-      orders[table] = keys.map(k => `${k.col} ${k.asc ? 'asc' : 'desc'}`);
-      return q;
-    },
-    limit: (n: number) => { to = n - 1; return q; },
-    range: (f: number, t: number) => { from = f; to = t; ranges.push([table, f, t]); return q; },
-    then: (resolve: (r: { data: Row[] | null; error: { message: string } | null }) => void) => {
-      if (failPage.table === table && failPage.from === from) {
-        resolve({ data: null, error: { message: 'boom' } });
-        return;
-      }
-      const rows = [...(tables[table] ?? [])].sort((a, b) => {
-        for (const { col, asc } of keys) {
-          const c = String(a[col]).localeCompare(String(b[col]), undefined, { numeric: true });
-          if (c) return asc ? c : -c;
-        }
-        return 0;
-      });
-      resolve({ data: rows.slice(from, Math.min(to + 1, from + MAX_ROWS)), error: null });
-    },
-  };
-  return q;
-}
-
-vi.mock('../../supabaseClient', () => ({ supabase: { from: (table: string) => query(table) } }));
+const stub = await vi.hoisted(async () => {
+  const { createPostgrestStub } = await import('../../db/__tests__/postgrestStub');
+  return createPostgrestStub();
+});
+vi.mock('../../supabaseClient', () => ({ supabase: stub.client }));
 
 const { fetchExerciseHistory } = await import('../repo');
 const { buildExerciseStats } = await import('../stats');
+const { tables, ranges, orders, failPage, reset } = stub;
 
 function setRow(i: number, weight: number, event_date = '2026-01-01', reps = '5'): SetLogRow {
   return {
@@ -58,13 +22,7 @@ function setRow(i: number, weight: number, event_date = '2026-01-01', reps = '5'
   };
 }
 
-beforeEach(() => {
-  for (const k of Object.keys(tables)) delete tables[k];
-  for (const k of Object.keys(orders)) delete orders[k];
-  ranges.length = 0;
-  delete failPage.table;
-  delete failPage.from;
-});
+beforeEach(() => reset());
 
 describe('fetchExerciseHistory', () => {
   it('reads past max_rows, so a best on the second page is the PR', async () => {
