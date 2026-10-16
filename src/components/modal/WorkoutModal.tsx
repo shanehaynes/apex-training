@@ -73,7 +73,8 @@ export default function WorkoutModal() {
 
   // Always read live state from ScheduleContext rather than the snapshot
   // stored in CalendarContext's selectedEvent — date/time edits and
-  // completion toggles land there first.
+  // completion toggles land there first, and the snapshot is never
+  // refreshed. `event` below is used for its id only.
   const live = events.find(e => e.id === event.id) ?? event;
   const isCompleted = live.isCompleted;
 
@@ -157,7 +158,7 @@ export default function WorkoutModal() {
     notify('Failed to delete — try again');
   };
 
-  const color = getWorkoutColor(event.type);
+  const color = getWorkoutColor(live.type);
 
   // From `live`, not the snapshot — exercise edits apply optimistically to
   // ScheduleContext and must show here immediately.
@@ -217,14 +218,14 @@ export default function WorkoutModal() {
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
-          {event.coverImageUrl ? (
+          {live.coverImageUrl ? (
             <div className="modal-cover">
-              <img src={event.coverImageUrl} alt="" className="modal-cover__img" />
+              <img src={live.coverImageUrl} alt="" className="modal-cover__img" />
               <div className="modal-cover__overlay" />
               <div className="modal-cover__content">
                 <span className="modal-type-badge" style={{ background: color.solid }}>{color.label}</span>
                 {titleBlock}
-                {event.subtitle && <p className="modal-subtitle">{event.subtitle}</p>}
+                {live.subtitle && <p className="modal-subtitle">{live.subtitle}</p>}
               </div>
               <button className="modal-close modal-close--over-image" onClick={close} aria-label="Close"><X size={18} strokeWidth={1.5} /></button>
             </div>
@@ -235,7 +236,7 @@ export default function WorkoutModal() {
                 <button className="modal-close" onClick={close} aria-label="Close"><X size={18} strokeWidth={1.5} /></button>
               </div>
               {titleBlock}
-              {event.subtitle && <p className="modal-subtitle">{event.subtitle}</p>}
+              {live.subtitle && <p className="modal-subtitle">{live.subtitle}</p>}
             </div>
           )}
 
@@ -336,12 +337,12 @@ export default function WorkoutModal() {
             )}
             <span className="modal-meta-item">
               <Clock size={14} strokeWidth={1.5} />
-              {formatDuration(event.estimatedDuration)}
+              {formatDuration(live.estimatedDuration)}
             </span>
-            {event.location && (
+            {live.location && (
               <span className="modal-meta-item">
                 <MapPin size={14} strokeWidth={1.5} />
-                {event.location}
+                {live.location}
               </span>
             )}
             {live.cardioTargets?.distance && (
@@ -409,17 +410,17 @@ export default function WorkoutModal() {
               <span
                 key={i}
                 className="modal-difficulty__dot"
-                style={{ background: i < event.difficulty ? color.solid : 'var(--border-subtle)' }}
+                style={{ background: i < live.difficulty ? color.solid : 'var(--border-subtle)' }}
               />
             ))}
-            <span className="modal-difficulty__label">{DIFFICULTY_LABELS[event.difficulty]}</span>
+            <span className="modal-difficulty__label">{DIFFICULTY_LABELS[live.difficulty]}</span>
           </div>
 
           <div className="modal-completion">
             <button
               className="modal-completion__btn modal-completion__btn--start"
               style={{ borderColor: color.solid }}
-              onClick={() => dispatch({ type: 'START_TRACKING', payload: event })}
+              onClick={() => dispatch({ type: 'START_TRACKING', payload: live })}
             >
               <Play size={15} strokeWidth={2} />
               {isCompleted ? 'View / Edit Workout' : 'Start Workout'}
@@ -454,7 +455,7 @@ export default function WorkoutModal() {
 
           <div className="modal-body">
             {/* Description */}
-            <p className="modal-description">{event.description}</p>
+            <p className="modal-description">{live.description}</p>
 
             {/* Exercise sections */}
             {editingExercises ? (
@@ -491,9 +492,9 @@ export default function WorkoutModal() {
             )}
 
             {/* Tags */}
-            {event.tags.length > 0 && (
+            {live.tags.length > 0 && (
               <div className="modal-tags">
-                {event.tags.map(tag => (
+                {live.tags.map(tag => (
                   <span key={tag} className="modal-tag">{tag}</span>
                 ))}
               </div>

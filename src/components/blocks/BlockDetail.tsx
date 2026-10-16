@@ -34,9 +34,11 @@ export default function BlockDetail({
   const { weightContext } = useAuth();
   const notes = byBlock(block.id);
   const [progress, setProgress] = useState<BlockProgress | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    setLoadFailed(false);
     const period = blockPeriod(block);
     loadBlockLogs(block)
       .then(logs => {
@@ -58,7 +60,10 @@ export default function BlockDetail({
           ),
         );
       })
-      .catch(() => {});
+      .catch(err => {
+        console.warn('[apex] block progress load failed:', err);
+        if (!cancelled) setLoadFailed(true);
+      });
     return () => { cancelled = true; };
   }, [block, events, weightContext]);
 
@@ -120,7 +125,9 @@ export default function BlockDetail({
           </section>
         )}
 
-        {!progress ? (
+        {!progress && loadFailed ? (
+          <p className="block-empty" role="alert">Couldn&apos;t load this block&apos;s progress — go back and reopen it to try again.</p>
+        ) : !progress ? (
           <p className="block-empty" aria-busy="true">Loading…</p>
         ) : (
           <>

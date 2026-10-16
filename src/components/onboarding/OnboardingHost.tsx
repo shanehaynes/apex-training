@@ -1,5 +1,5 @@
 import { useAuth } from '../../context/auth';
-import { useCalendar } from '../../context/calendar';
+import { isAnyOverlayOpen, useCalendar } from '../../context/calendar';
 import WelcomeFlow from './WelcomeFlow';
 import { SetupNudge } from './GettingStarted';
 import TipHost from './TipHost';
@@ -20,11 +20,7 @@ export default function OnboardingHost() {
 
   // Every "page" in this app is a full-screen overlay, and the nudge is
   // position: fixed — without this it would float over the tracker mid-set.
-  const overlayOpen = !!(
-    state.selectedEvent || state.selectedDay || state.composerDate ||
-    state.mealComposerDate || state.trackingSession ||
-    state.libraryOpen || state.blocksOpen || state.profileOpen || state.historyOpen
-  );
+  const overlayOpen = isAnyOverlayOpen(state);
 
   // TipHost ignores overlayOpen: overlays are where the features, and so the
   // tips, are. It keeps its slot either way so a showing tip is not remounted.

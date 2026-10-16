@@ -425,7 +425,7 @@ The caller's threads for one coach surface, newest activity first, capped at 20.
 ```
 
 ### `GET /api/coach-conversations?id=<uuid>`
-One thread's messages, oldest first, capped at the same 80 `/api/chat` accepts.
+One thread's messages, oldest first, capped at the same 160 `/api/chat` accepts (`api/_lib/coach/limits.ts`).
 
 ```jsonc
 {
@@ -444,7 +444,7 @@ One thread's messages, oldest first, capped at the same 80 `/api/chat` accepts.
 ### `POST /api/coach-conversations { mode, title? }` · `{ id, messages: [] }`
 The two POSTs are told apart by the body: `messages` present is an append, absent is a create.
 An append stores the batch and bumps `updated_at`; `413 Conversation too large` once the thread
-would pass 80 messages or the batch passes 400 KB — the same caps `api/chat.ts:179` enforces,
+would pass 160 messages or the batch passes 400 KB — the same caps `api/chat.ts` enforces (`api/_lib/coach/limits.ts`),
 moved to where the growth happens. Each message is `{ role, api_content, display_text, kind }`
 and must carry at least one of `api_content` / `display_text`.
 

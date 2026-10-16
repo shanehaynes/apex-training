@@ -357,11 +357,17 @@ export async function installIntercept(context, { anonKey = null, profile, stale
     // search step settles; template-specific specs override via page.route.
     if (url.includes('workout_templates')) return json(route, []);
 
-    // Passthrough REST reads (workout_completions, workout_sessions): the
-    // fabricated session attaches its fake JWT, which the real PostgREST
-    // would reject wholesale — swap the anon key back in. Post-phase10 RLS
-    // these return 200 with zero rows, which is both deterministic and the
-    // correct state (nothing completed, no open session).
+    // Completions and sessions stub empty — nothing completed, no open
+    // session. They used to pass through to the pinned mock host, which does
+    // not resolve, and block detail now shows a failed read as an error
+    // rather than as empty progress.
+    if (url.includes('workout_completions') || url.includes('workout_sessions')) {
+      return json(route, []);
+    }
+
+    // Any other passthrough REST read: the fabricated session attaches its
+    // fake JWT, which the real PostgREST would reject wholesale — swap the
+    // anon key back in.
     if (anonKey) {
       return route.continue({ headers: { ...req.headers(), authorization: `Bearer ${anonKey}` } });
     }

@@ -5,7 +5,15 @@ import type { NameDateRow } from './stats';
 // Data access for the exercise library — reads only, on the anon client
 // (SELECT-only RLS policies), like the tracker's history fetches. Offline
 // (no Supabase) everything degrades to empty history: the library still
-// lists definitions, just without performance data.
+// lists definitions, just without performance data. A failed query throws
+// rather than reading as empty, so a caller never shows "no history" for
+// history it could not load.
+
+// Per-table bound on one exercise's history fetch. No reason was recorded when
+// it landed (519f5707). PostgREST's max_rows (1000 locally in
+// supabase/config.toml, and Supabase's hosted default) truncates each response
+// below it, so history past the newest 1000 rows is silently dropped.
+const HISTORY_ROW_CAP = 2000;
 
 /**
  * Most recent log date per exercise name, for the list view's last-performed
@@ -20,7 +28,8 @@ import type { NameDateRow } from './stats';
  */
 export async function fetchLastPerformedRows(): Promise<NameDateRow[]> {
   if (!supabase) return [];
-  const { data } = await supabase.rpc('last_performed_by_name');
+  const { data, error } = await supabase.rpc('last_performed_by_name');
+  if (error) throw new Error(`last-performed load failed: ${error.message}`);
   return (data ?? []) as NameDateRow[];
 }
 
@@ -38,14 +47,16 @@ export async function fetchExerciseHistory(
       .select('*')
       .in('exercise_name', spellings)
       .order('event_date', { ascending: false })
-      .limit(2000),
+      .limit(HISTORY_ROW_CAP),
     supabase
       .from('workout_cardio_logs')
       .select('*')
       .in('exercise_name', spellings)
       .order('event_date', { ascending: false })
-      .limit(2000),
+      .limit(HISTORY_ROW_CAP),
   ]);
+  if (sets.error) throw new Error(`set history load failed: ${sets.error.message}`);
+  if (cardio.error) throw new Error(`cardio history load failed: ${cardio.error.message}`);
   return {
     setRows: (sets.data ?? []) as SetLogRow[],
     cardioRows: (cardio.data ?? []) as CardioLogRow[],
