@@ -357,11 +357,16 @@ export async function installIntercept(context, { anonKey = null, profile, stale
     // search step settles; template-specific specs override via page.route.
     if (url.includes('workout_templates')) return json(route, []);
 
-    // Passthrough REST reads (workout_completions, workout_sessions): the
-    // fabricated session attaches its fake JWT, which the real PostgREST
-    // would reject wholesale — swap the anon key back in. Post-phase10 RLS
-    // these return 200 with zero rows, which is both deterministic and the
-    // correct state (nothing completed, no open session).
+    // Remaining REST reads (workout_completions, workout_sessions). The mock
+    // suite's pinned host does not resolve, so passing them through is a
+    // network error, which postgrest-js retries 1s/2s/4s on a GET — ~7s of
+    // isSyncing and "Loading…" per load. Answer them empty here: nothing
+    // completed, no open session.
+    if (new URL(url).origin === MOCK_SUPABASE.url) return json(route, []);
+
+    // drive.mjs against a real project: the fabricated session attaches its
+    // fake JWT, which the real PostgREST would reject wholesale — swap the
+    // anon key back in. Post-phase10 RLS these return 200 with zero rows.
     if (anonKey) {
       return route.continue({ headers: { ...req.headers(), authorization: `Bearer ${anonKey}` } });
     }
