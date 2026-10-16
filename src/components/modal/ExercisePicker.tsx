@@ -68,7 +68,8 @@ export default function ExercisePicker({ onSelect, onClose, initialCategory, res
     const index = buildAliasIndex(definitions.values());
     fetchLastPerformedRows()
       .then(rows => { if (!cancelled) setLastPerformed(lastPerformedByCanonical(rows, index.toCanonical)); })
-      .catch(() => {});
+      // The last-performed column is decoration: on a failed load it stays blank.
+      .catch(err => console.warn('[apex] last-performed load failed:', err));
     return () => { cancelled = true; };
   }, [definitions]);
 

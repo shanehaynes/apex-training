@@ -5,7 +5,9 @@ import type { NameDateRow } from './stats';
 // Data access for the exercise library — reads only, on the anon client
 // (SELECT-only RLS policies), like the tracker's history fetches. Offline
 // (no Supabase) everything degrades to empty history: the library still
-// lists definitions, just without performance data.
+// lists definitions, just without performance data. A failed query throws
+// rather than reading as empty, so a caller never shows "no history" for
+// history it could not load.
 
 /**
  * Most recent log date per exercise name, for the list view's last-performed
@@ -20,7 +22,8 @@ import type { NameDateRow } from './stats';
  */
 export async function fetchLastPerformedRows(): Promise<NameDateRow[]> {
   if (!supabase) return [];
-  const { data } = await supabase.rpc('last_performed_by_name');
+  const { data, error } = await supabase.rpc('last_performed_by_name');
+  if (error) throw new Error(`last-performed load failed: ${error.message}`);
   return (data ?? []) as NameDateRow[];
 }
 
@@ -46,6 +49,8 @@ export async function fetchExerciseHistory(
       .order('event_date', { ascending: false })
       .limit(2000),
   ]);
+  if (sets.error) throw new Error(`set history load failed: ${sets.error.message}`);
+  if (cardio.error) throw new Error(`cardio history load failed: ${cardio.error.message}`);
   return {
     setRows: (sets.data ?? []) as SetLogRow[],
     cardioRows: (cardio.data ?? []) as CardioLogRow[],

@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireUser } from '../auth.js';
 import { enforceRateLimit } from '../rateLimit.js';
 import type { Json } from '../../../src/lib/db/types.js';
+import { CONVERSATION_MAX_BYTES, CONVERSATION_MAX_MESSAGES } from '../coach/limits.js';
 
 // Server-side coach thread persistence (docs/ios/decisions.md D-013). The web
 // thread lived in React state and died with the tab; these six operations are
@@ -33,13 +34,13 @@ import type { Json } from '../../../src/lib/db/types.js';
 const LIST_LIMIT = 20;
 
 /**
- * Per-conversation caps, matching api/chat.ts:179 exactly. A thread that grew
- * past them would be stored happily and then 413 on its next turn — the cap
- * belongs where the growth happens, so a client learns at save time rather
- * than at send time. D-025's `historyWindow` is the client-side half of this.
+ * Per-conversation caps, the same constants api/chat.ts enforces. A thread
+ * that grew past them would be stored happily and then 413 on its next turn —
+ * the cap belongs where the growth happens, so a client learns at save time
+ * rather than at send time. D-025's `historyWindow` is the client-side half.
  */
-const MAX_MESSAGES = 80;
-const MAX_BATCH_BYTES = 400_000;
+const MAX_MESSAGES = CONVERSATION_MAX_MESSAGES;
+const MAX_BATCH_BYTES = CONVERSATION_MAX_BYTES;
 
 const ROLES = new Set(['user', 'assistant']);
 const KINDS = new Set(['turn', 'notice', 'stopped']);

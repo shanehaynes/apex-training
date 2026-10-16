@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import handler from '../_lib/handlers/coachConversations';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 import { enforceRateLimit } from '../_lib/rateLimit';
+import { CONVERSATION_MAX_MESSAGES } from '../_lib/coach/limits';
 
 vi.mock('../_lib/supabaseAdmin.js', () => ({ getSupabaseAdmin: vi.fn() }));
 vi.mock('../_lib/auth.js', () => ({ requireUser: vi.fn(async () => 'user-123') }));
@@ -285,9 +286,9 @@ describe('POST { id, messages } — append', () => {
     expect(callsFor('coach_messages', 'insert')).toEqual([]);
   });
 
-  it('413s once the thread would pass 80 messages', async () => {
+  it('413s once the thread would pass the shared message cap', async () => {
     results['coach_conversations:select'] = { data: { id: CONVERSATION_ID }, error: null };
-    results['coach_messages:select'] = { data: null, error: null, count: 79 };
+    results['coach_messages:select'] = { data: null, error: null, count: CONVERSATION_MAX_MESSAGES - 1 };
     const { res, statusCode } = makeRes();
     await handler(makeReq('POST', { body: { id: CONVERSATION_ID, messages: MESSAGES } }), res);
     expect(statusCode()).toBe(413);
