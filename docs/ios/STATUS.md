@@ -28,19 +28,19 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0/M2b next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
 
 ## Next up
-0. **Session volume on the iOS summary (Mac + Linux).** Goal: the summary says what the web's
-   says — "Volume 12,450" over working sets in the profile's unit — so a lifter sees the number
-   that warm-ups (D-058) and skipped sets are kept out of. Today iOS has no weight parser at all,
-   so nothing local can sum a set. Scope: (a) ApexCore `Weight.swift`, a port of
-   `src/lib/tracking/weight.ts` (`parseWeight` grammar: bare numbers in the profile unit, "kg"/
-   "lb" suffixes, "BW" and "BW+25" against the body weight, `lbToUnit`) and `classifySet` from
-   records.ts; (b) `ProfileResponse.weightUnit` / `bodyWeightLb` (already in `profile.json`)
-   handed to the tracker; (c) `sessionTonnage` over performed sets (not autofilled, not a
-   warm-up; pitches and cardio skipped), shown under the summary title. Acceptance: ApexCore
-   vectors copied from `weight.test.ts` and the tonnage cases in `WorkoutSummary.test.tsx`
-   (warm-up excluded, "BW+25" resolved, kg profile reads kg); a summary snapshot with the line.
-   Owns: `ApexCore/Tracker/Weight.swift` (new), `ApexFeatures/Tracker/SummaryOverlay.swift`, the
-   tracker's profile wiring, tests.
+0. **W16 M0 — the Apple Health migration (Linux, HELD).** Goal: the schema W16's reads and daily
+   metrics need exists in production before any code reads it — the account export reads
+   `daily_metrics` the moment it deploys. Scope (full contract: [W16 brief, M0](workstreams/W16-apple-health.md)):
+   one `phaseN_apple_health.sql` (claim N with `scripts/next-phase.sh` at PR time, end with its
+   ledger stamp) — `provider_connections.provider` CHECK widened to `('coros','apple')` plus
+   `categories jsonb not null default '{}'`; `provider_activity_imports.mode` CHECK gains
+   `'skipped'`; a service-role-only `daily_metrics` table (PK `user_id, date, provider`; sleep,
+   HRV, resting HR, steps, body mass, sources) with the phase52 RLS block verbatim; `profiles`
+   gains `body_weight_updated_at` and `body_weight_source`; `'daily_metrics'` joins
+   `USER_DATA_TABLES`. Acceptance: `migration-numbering`, `rls-coverage` and `account` tests
+   green; `db:reset-local && db:types` committed (TS and Swift) and `db-types.sh --check` clean;
+   `prod-schema-check` exit 0 after Shane applies it. Owns: the migration, `account.ts`'s table
+   list, the generated types. Then M2b (backend `apple` provider) is unblocked.
 0. **W16 M1 — write finished sessions to Apple Health (Mac).** Goal: a tracker finish writes an
    Apex-branded `HKWorkout` with the real start and end, the mapped activity type and
    `HKMetadataKeySyncIdentifier`/`SyncVersion` so a re-save replaces; cancel-after-finish deletes
@@ -138,6 +138,12 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-16 · Session volume · Mac. The summary says "Volume 705" under its title, as the web's
+  does: Σ weight × reps over working sets (no warm-ups, zero-fills, pitches or cardio) in the
+  profile's unit. ApexCore `Weight` ports `weight.ts`'s `parseWeight` grammar ("62,5 kg", "BW+25",
+  a bare number in the profile's unit) and `parseLeadingNumber`, with the web's own vectors;
+  `ProfileResponse.weightUnit`/`bodyWeightLb`; the tracker reads them from the profile the
+  Schedule tab caches, so an offline finish reads the right unit. Snapshot `summary-volume`.
 - 2026-10-16 · Tracker set metadata · Mac. The phone edits what the web's #422 tracker does
   (D-058): the set number is the warm-up toggle (a W), an RPE field per set behind You → Training's
   "Rate sets by effort" (device preference under the web's `apex.tracker.rpe` key) and a pitch's

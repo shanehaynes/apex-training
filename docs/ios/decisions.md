@@ -1207,3 +1207,5 @@ same rows (`setToRow`'s keys byte for byte: `rpe` and `is_warmup` on every row, 
   parser; iOS has no port of that parser, so the brief's "warm-up excluded from the summary
   volume" has nothing to apply to here. The summary tags warm-ups and ratings instead, and the
   port is the next brief (STATUS Next up).
+- **Update 2026-10-16:** the port landed (branch `feat/ios-session-volume`): ApexCore `Weight`
+  and the summary's "Volume" line, warm-ups excluded through `Weight.isPerformed`.
