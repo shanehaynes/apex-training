@@ -694,6 +694,102 @@ internal enum PublicSchema {
       case withTools = "with_tools"
     }
   }
+  internal struct DailyMetricsSelect: Codable, Hashable, Sendable {
+    internal let bodyMassAt: String?
+    internal let bodyMassLb: Decimal?
+    internal let date: String
+    internal let hrvSdnnMs: Decimal?
+    internal let provider: String
+    internal let restingHr: Int32?
+    internal let sleepEnd: String?
+    internal let sleepMinutes: Int32?
+    internal let sleepStages: AnyJSON?
+    internal let sleepStart: String?
+    internal let sources: AnyJSON?
+    internal let steps: Int32?
+    internal let updatedAt: String
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case bodyMassAt = "body_mass_at"
+      case bodyMassLb = "body_mass_lb"
+      case date = "date"
+      case hrvSdnnMs = "hrv_sdnn_ms"
+      case provider = "provider"
+      case restingHr = "resting_hr"
+      case sleepEnd = "sleep_end"
+      case sleepMinutes = "sleep_minutes"
+      case sleepStages = "sleep_stages"
+      case sleepStart = "sleep_start"
+      case sources = "sources"
+      case steps = "steps"
+      case updatedAt = "updated_at"
+      case userId = "user_id"
+    }
+  }
+  internal struct DailyMetricsInsert: Codable, Hashable, Sendable {
+    internal let bodyMassAt: String?
+    internal let bodyMassLb: Decimal?
+    internal let date: String
+    internal let hrvSdnnMs: Decimal?
+    internal let provider: String
+    internal let restingHr: Int32?
+    internal let sleepEnd: String?
+    internal let sleepMinutes: Int32?
+    internal let sleepStages: AnyJSON?
+    internal let sleepStart: String?
+    internal let sources: AnyJSON?
+    internal let steps: Int32?
+    internal let updatedAt: String?
+    internal let userId: UUID
+    internal enum CodingKeys: String, CodingKey {
+      case bodyMassAt = "body_mass_at"
+      case bodyMassLb = "body_mass_lb"
+      case date = "date"
+      case hrvSdnnMs = "hrv_sdnn_ms"
+      case provider = "provider"
+      case restingHr = "resting_hr"
+      case sleepEnd = "sleep_end"
+      case sleepMinutes = "sleep_minutes"
+      case sleepStages = "sleep_stages"
+      case sleepStart = "sleep_start"
+      case sources = "sources"
+      case steps = "steps"
+      case updatedAt = "updated_at"
+      case userId = "user_id"
+    }
+  }
+  internal struct DailyMetricsUpdate: Codable, Hashable, Sendable {
+    internal let bodyMassAt: String?
+    internal let bodyMassLb: Decimal?
+    internal let date: String?
+    internal let hrvSdnnMs: Decimal?
+    internal let provider: String?
+    internal let restingHr: Int32?
+    internal let sleepEnd: String?
+    internal let sleepMinutes: Int32?
+    internal let sleepStages: AnyJSON?
+    internal let sleepStart: String?
+    internal let sources: AnyJSON?
+    internal let steps: Int32?
+    internal let updatedAt: String?
+    internal let userId: UUID?
+    internal enum CodingKeys: String, CodingKey {
+      case bodyMassAt = "body_mass_at"
+      case bodyMassLb = "body_mass_lb"
+      case date = "date"
+      case hrvSdnnMs = "hrv_sdnn_ms"
+      case provider = "provider"
+      case restingHr = "resting_hr"
+      case sleepEnd = "sleep_end"
+      case sleepMinutes = "sleep_minutes"
+      case sleepStages = "sleep_stages"
+      case sleepStart = "sleep_start"
+      case sources = "sources"
+      case steps = "steps"
+      case updatedAt = "updated_at"
+      case userId = "user_id"
+    }
+  }
   internal struct DefinitionMutationsLogSelect: Codable, Hashable, Sendable {
     internal let definitionId: String
     internal let definitionName: String
@@ -1651,6 +1747,8 @@ internal enum PublicSchema {
   internal struct ProfilesSelect: Codable, Hashable, Sendable {
     internal let avatarKey: String
     internal let bodyWeightLb: Decimal?
+    internal let bodyWeightSource: String?
+    internal let bodyWeightUpdatedAt: String?
     internal let coachContext: String
     internal let coachContract: String?
     internal let coachGoal: String
@@ -1672,6 +1770,8 @@ internal enum PublicSchema {
     internal enum CodingKeys: String, CodingKey {
       case avatarKey = "avatar_key"
       case bodyWeightLb = "body_weight_lb"
+      case bodyWeightSource = "body_weight_source"
+      case bodyWeightUpdatedAt = "body_weight_updated_at"
       case coachContext = "coach_context"
       case coachContract = "coach_contract"
       case coachGoal = "coach_goal"
@@ -1695,6 +1795,8 @@ internal enum PublicSchema {
   internal struct ProfilesInsert: Codable, Hashable, Sendable {
     internal let avatarKey: String?
     internal let bodyWeightLb: Decimal?
+    internal let bodyWeightSource: String?
+    internal let bodyWeightUpdatedAt: String?
     internal let coachContext: String?
     internal let coachContract: String?
     internal let coachGoal: String?
@@ -1716,6 +1818,8 @@ internal enum PublicSchema {
     internal enum CodingKeys: String, CodingKey {
       case avatarKey = "avatar_key"
       case bodyWeightLb = "body_weight_lb"
+      case bodyWeightSource = "body_weight_source"
+      case bodyWeightUpdatedAt = "body_weight_updated_at"
       case coachContext = "coach_context"
       case coachContract = "coach_contract"
       case coachGoal = "coach_goal"
@@ -1739,6 +1843,8 @@ internal enum PublicSchema {
   internal struct ProfilesUpdate: Codable, Hashable, Sendable {
     internal let avatarKey: String?
     internal let bodyWeightLb: Decimal?
+    internal let bodyWeightSource: String?
+    internal let bodyWeightUpdatedAt: String?
     internal let coachContext: String?
     internal let coachContract: String?
     internal let coachGoal: String?
@@ -1760,6 +1866,8 @@ internal enum PublicSchema {
     internal enum CodingKeys: String, CodingKey {
       case avatarKey = "avatar_key"
       case bodyWeightLb = "body_weight_lb"
+      case bodyWeightSource = "body_weight_source"
+      case bodyWeightUpdatedAt = "body_weight_updated_at"
       case coachContext = "coach_context"
       case coachContract = "coach_contract"
       case coachGoal = "coach_goal"
@@ -1837,6 +1945,7 @@ internal enum PublicSchema {
   internal struct ProviderConnectionsSelect: Codable, Hashable, Sendable {
     internal let accessToken: String?
     internal let autoSync: Bool
+    internal let categories: AnyJSON
     internal let client: String?
     internal let connectedAt: String?
     internal let lastSyncedAt: String?
@@ -1852,6 +1961,7 @@ internal enum PublicSchema {
     internal enum CodingKeys: String, CodingKey {
       case accessToken = "access_token"
       case autoSync = "auto_sync"
+      case categories = "categories"
       case client = "client"
       case connectedAt = "connected_at"
       case lastSyncedAt = "last_synced_at"
@@ -1869,6 +1979,7 @@ internal enum PublicSchema {
   internal struct ProviderConnectionsInsert: Codable, Hashable, Sendable {
     internal let accessToken: String?
     internal let autoSync: Bool?
+    internal let categories: AnyJSON?
     internal let client: String?
     internal let connectedAt: String?
     internal let lastSyncedAt: String?
@@ -1884,6 +1995,7 @@ internal enum PublicSchema {
     internal enum CodingKeys: String, CodingKey {
       case accessToken = "access_token"
       case autoSync = "auto_sync"
+      case categories = "categories"
       case client = "client"
       case connectedAt = "connected_at"
       case lastSyncedAt = "last_synced_at"
@@ -1901,6 +2013,7 @@ internal enum PublicSchema {
   internal struct ProviderConnectionsUpdate: Codable, Hashable, Sendable {
     internal let accessToken: String?
     internal let autoSync: Bool?
+    internal let categories: AnyJSON?
     internal let client: String?
     internal let connectedAt: String?
     internal let lastSyncedAt: String?
@@ -1916,6 +2029,7 @@ internal enum PublicSchema {
     internal enum CodingKeys: String, CodingKey {
       case accessToken = "access_token"
       case autoSync = "auto_sync"
+      case categories = "categories"
       case client = "client"
       case connectedAt = "connected_at"
       case lastSyncedAt = "last_synced_at"

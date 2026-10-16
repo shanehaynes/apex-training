@@ -402,6 +402,57 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_metrics: {
+        Row: {
+          body_mass_at: string | null
+          body_mass_lb: number | null
+          date: string
+          hrv_sdnn_ms: number | null
+          provider: string
+          resting_hr: number | null
+          sleep_end: string | null
+          sleep_minutes: number | null
+          sleep_stages: Json | null
+          sleep_start: string | null
+          sources: Json | null
+          steps: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body_mass_at?: string | null
+          body_mass_lb?: number | null
+          date: string
+          hrv_sdnn_ms?: number | null
+          provider: string
+          resting_hr?: number | null
+          sleep_end?: string | null
+          sleep_minutes?: number | null
+          sleep_stages?: Json | null
+          sleep_start?: string | null
+          sources?: Json | null
+          steps?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body_mass_at?: string | null
+          body_mass_lb?: number | null
+          date?: string
+          hrv_sdnn_ms?: number | null
+          provider?: string
+          resting_hr?: number | null
+          sleep_end?: string | null
+          sleep_minutes?: number | null
+          sleep_stages?: Json | null
+          sleep_start?: string | null
+          sources?: Json | null
+          steps?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       definition_mutations_log: {
         Row: {
           definition_id: string
@@ -930,6 +981,8 @@ export type Database = {
         Row: {
           avatar_key: string
           body_weight_lb: number | null
+          body_weight_source: string | null
+          body_weight_updated_at: string | null
           coach_context: string
           coach_contract: string | null
           coach_goal: string
@@ -952,6 +1005,8 @@ export type Database = {
         Insert: {
           avatar_key?: string
           body_weight_lb?: number | null
+          body_weight_source?: string | null
+          body_weight_updated_at?: string | null
           coach_context?: string
           coach_contract?: string | null
           coach_goal?: string
@@ -974,6 +1029,8 @@ export type Database = {
         Update: {
           avatar_key?: string
           body_weight_lb?: number | null
+          body_weight_source?: string | null
+          body_weight_updated_at?: string | null
           coach_context?: string
           coach_contract?: string | null
           coach_goal?: string
@@ -1029,6 +1086,7 @@ export type Database = {
         Row: {
           access_token: string | null
           auto_sync: boolean
+          categories: Json
           client: string | null
           connected_at: string | null
           last_synced_at: string | null
@@ -1045,6 +1103,7 @@ export type Database = {
         Insert: {
           access_token?: string | null
           auto_sync?: boolean
+          categories?: Json
           client?: string | null
           connected_at?: string | null
           last_synced_at?: string | null
@@ -1061,6 +1120,7 @@ export type Database = {
         Update: {
           access_token?: string | null
           auto_sync?: boolean
+          categories?: Json
           client?: string | null
           connected_at?: string | null
           last_synced_at?: string | null
