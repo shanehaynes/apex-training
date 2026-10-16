@@ -11,6 +11,11 @@ public enum QueueEvent: Sendable, Equatable {
     /// degraded paths), it just has nothing to show.
     case finished(SessionKey, FinishResponse?)
     case failed(SessionKey, TrackerAction, String)
+    /// This device could not write the queue itself (a full disk, a locked
+    /// SQLite file) after a send. Not `failed`: the server neither refused
+    /// nor gave up on anything, so no refusal UI applies. The op stays
+    /// pending and the session is retried after a backoff.
+    case storeFailed(SessionKey)
     case paused
     case resumed
 }
@@ -184,7 +189,7 @@ public actor WriteQueue {
             if cancelledMidFlight.remove(session) != nil {
                 // Purged while this was in the air: its row is gone and its result
                 // is moot. The cancel that follows is what matters now.
-                try? await store.delete(id: op.id)
+                guard await record({ try await self.store.delete(id: op.id) }, for: op, in: session) else { return }
                 continue
             }
 
@@ -200,12 +205,12 @@ public actor WriteQueue {
                     next.attempts += 1
                     next.lastError = message
                     next.state = .failed
-                    try? await store.update(next)
+                    guard await record({ try await self.store.update(next) }, for: op, in: session) else { return }
                     emit(.failed(session, op.payload.action, message))
                     emit(.changed(session))
                     continue
                 }
-                try? await store.delete(id: op.id)
+                guard await record({ try await self.store.delete(id: op.id) }, for: op, in: session) else { return }
                 if case .finish = op.payload {
                     emit(.finished(session, try? JSONDecoder().decode(FinishResponse.self, from: data)))
                 }
@@ -219,7 +224,7 @@ public actor WriteQueue {
                     next.payload = stripped
                     next.attempts += 1
                     next.lastError = error.description
-                    try? await store.update(next)
+                    guard await record({ try await self.store.update(next) }, for: op, in: session) else { return }
                     continue
                 }
                 switch verdict(for: error, op: op, in: session) {
@@ -227,7 +232,7 @@ public actor WriteQueue {
                     var next = op
                     next.attempts += 1
                     next.lastError = error.description
-                    try? await store.update(next)
+                    guard await record({ try await self.store.update(next) }, for: op, in: session) else { return }
                     if session == .outbox, resumes != resumesBefore {
                         // The network came back while this was in the air.
                         continue
@@ -255,7 +260,7 @@ public actor WriteQueue {
                     // take: the op waits like any give-up, but the cap is no
                     // reason to offer letting it go.
                     if next.gaveUp, !RetryPolicy.isRateLimited(error) { next.giveUpCount += 1 }
-                    try? await store.update(next)
+                    guard await record({ try await self.store.update(next) }, for: op, in: session) else { return }
                     if !next.gaveUp, case .completion(let row, _) = op.payload {
                         // The plan-fill queued behind a completion the server
                         // refused would log a session for an occurrence it did
@@ -266,6 +271,28 @@ public actor WriteQueue {
                     emit(.changed(session))
                 }
             }
+        }
+    }
+
+    /// A store write the drain cannot go on without. When it fails, the op's
+    /// row still reads as it did before the send, so draining on would hand
+    /// the same op straight back: re-sent at once, and in a tight loop for as
+    /// long as the store stays broken — and a failed attempt count never
+    /// reaches `RetryPolicy.maxAttempts`. So the drain stops instead: it emits
+    /// `storeFailed`, and the session is tried again after a backoff.
+    /// An op that landed but could not be deleted is sent again on that retry,
+    /// as it always was — only now once per backoff, not in a loop.
+    private func record(
+        _ write: () async throws -> Void, for op: TrackerOp, in session: SessionKey
+    ) async -> Bool {
+        do {
+            try await write()
+            return true
+        } catch {
+            emit(.storeFailed(session))
+            emit(.changed(session))
+            scheduleRetry(session, after: policy.backoff(attempts: op.attempts + 1))
+            return false
         }
     }
 
