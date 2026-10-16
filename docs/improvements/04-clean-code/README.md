@@ -43,22 +43,22 @@ source when this log was assembled. These want a `fix/` lane, not a refactor bac
    doc promises per-owner scoping. No wrong behaviour today — the only callers use event-UUID keys
    or sweep stale rows — but the next caller inherits a broken contract. → [ios-kit-app](ios-kit-app.md)
 2. **The setup nudge floats over two overlays.** `OnboardingHost.tsx:23` hand-lists overlay flags and
-   misses `weeklyReviewOpen` and `analyticsOpen`. → [web-components-b](web-components-b.md) **Fixed in #PRNUM.**
+   misses `weeklyReviewOpen` and `analyticsOpen`. → [web-components-b](web-components-b.md) **Fixed in #454.**
 3. **Conversation caps disagree.** `coachConversations.ts:36` says it matches `chat.ts` "exactly" but
-   stores 80 messages; `chat.ts:463` accepts 160. → [api-handlers](api-handlers.md) **Fixed in #PRNUM.**
+   stores 80 messages; `chat.ts:463` accepts 160. → [api-handlers](api-handlers.md) **Fixed in #454.**
 4. **A failed block load spins forever.** `BlockDetail.tsx:61` `.catch(() => {})` leaves "Loading…".
-   → [web-components-a](web-components-a.md) **Fixed in #PRNUM.**
+   → [web-components-a](web-components-a.md) **Fixed in #454.**
 5. **The iOS write queue discards store failures.** `WriteQueue.swift` uses `try?` on fourteen store
    calls (e.g. `:187`–`:258`); a failed `update` means an op never reaches its retry limit, and at
    `:222` a store that keeps failing hands the same op back, tight-looping the drain.
    → [ios-core](ios-core.md)
 6. **A failed query reads as "no history".** `library/repo.ts:23` ignores the Supabase error;
    `tracking/sessionRepo.ts:86` turns any load failure into an offline session.
-   → [web-lib-domain](web-lib-domain.md) **Library half fixed in #PRNUM; the tracker fallback is
+   → [web-lib-domain](web-lib-domain.md) **Library half fixed in #454; the tracker fallback is
    deliberate (gym-offline logging, already toasted) and now documented — changing it is Shane's call.**
 7. **`WorkoutModal` reads a stale snapshot** for colour, duration, location and five more fields
    (`event.type` at `WorkoutModal.tsx:160`) while the lines below read `live`, so edits to those
-   fields do not show while the modal is open. → [web-components-b](web-components-b.md) **Fixed in #PRNUM.**
+   fields do not show while the modal is open. → [web-components-b](web-components-b.md) **Fixed in #454.**
 8. **Re-declared coach-contract types.** `notebook.ts:32` re-declares `CONTRACT_MAX`,
    `CoachReflection` and `ReflectionResolution` from `contract.ts`, and the copies have drifted; a
    second, unused "pending" rule (`reflectionAwaitsAthlete`) sits beside the live one. → [web-lib-coach-review](web-lib-coach-review.md)
