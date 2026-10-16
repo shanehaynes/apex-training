@@ -1187,3 +1187,19 @@ writes it on every load; the app does the same so an iOS-only athlete stops defa
   one more after a trip (also through `scenePhase(.active)`), no profile read once confirmed,
   none behind the terms gate and one after accepting. A UI smoke could
   not observe a request at all, so the brief's `-apexMockProfileTimezone` flag was not added.
+
+## D-058 · Set metadata on iOS: the web's controls, phone-shaped, and no volume line yet
+**Status:** decided · session call · 2026-10-16
+The phone edits per-set metadata (phase55) the way the web's #422 tracker does, and saves the
+same rows (`setToRow`'s keys byte for byte: `rpe` and `is_warmup` on every row, `ascent_style` and
+`attempts` only on a pitch's).
+- **Warm-up is the set number's tap target**, as on the web: the number at rest, a W once marked.
+- **RPE is a device preference**, not a profile column — the web keeps it in localStorage — under
+  the same key (`apex.tracker.rpe`) in UserDefaults, switched in You → Training. The field is in
+  the keyboard's Next order after its set's fields, and settles on leaving it (`normalizeRpeText`).
+- **A pitch's ascent goes on a second line** under the grade: a style menu and an attempts
+  stepper do not fit beside it on a phone. A boulder offers no "Followed".
+- **The summary has no volume line.** The web's "Volume" sums performed sets through its weight
+  parser; iOS has no port of that parser, so the brief's "warm-up excluded from the summary
+  volume" has nothing to apply to here. The summary tags warm-ups and ratings instead, and the
+  port is the next brief (STATUS Next up).

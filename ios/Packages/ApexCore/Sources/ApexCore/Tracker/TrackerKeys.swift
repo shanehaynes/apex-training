@@ -83,6 +83,8 @@ public enum CardioField: String, CaseIterable, Codable, Sendable {
 /// walk (`TrackerEditor.fieldOrder`) is testable without a view.
 public enum FieldID: Hashable, Sendable {
     case set(SetKey, SetField)
+    /// A set's effort rating, shown only when RPE tracking is on.
+    case rpe(SetKey)
     case cardio(CardioKey, CardioField)
 }
 

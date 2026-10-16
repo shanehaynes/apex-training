@@ -90,6 +90,70 @@ public struct TrackerEditor: Sendable, Equatable {
         return count
     }
 
+    // MARK: - Set metadata (phase55, the web's #422)
+
+    /// The leading slot's toggle: a warm-up is logged and shown like any
+    /// other set and counted in no stat (`isPerformedSet`).
+    @discardableResult
+    public mutating func setWarmup(_ on: Bool, at key: SetKey) -> Bool {
+        guard let (g, e, s) = locate(key) else { return false }
+        groups[g].exercises[e].sets[s].isWarmup = on
+        dirtySets.insert(key)
+        return true
+    }
+
+    /// The RPE field as typed; the row sends `parseRpe` of it.
+    @discardableResult
+    public mutating func setRpe(_ text: String, at key: SetKey) -> Bool {
+        guard let (g, e, s) = locate(key) else { return false }
+        groups[g].exercises[e].sets[s].rpe = text
+        dirtySets.insert(key)
+        return true
+    }
+
+    /// Leaving the RPE field settles it (`normalizeRpeText` on blur): a
+    /// rating that does not parse is cleared rather than shown and not sent.
+    @discardableResult
+    public mutating func settleRpe(at key: SetKey) -> Bool {
+        guard let set = set(at: key), let typed = set.rpe else { return false }
+        let settled = SetMetadata.normalizeRpeText(typed)
+        guard settled != typed else { return false }
+        return setRpe(settled, at: key)
+    }
+
+    /// A pitch's ascent style (`PitchControls.pickStyle`). Saying how the
+    /// pitch went says it was climbed, so an empty grade takes the planned one.
+    @discardableResult
+    public mutating func setAscentStyle(_ style: String?, at key: SetKey) -> Bool {
+        guard let (g, e, s) = locate(key) else { return false }
+        var set = groups[g].exercises[e].sets[s]
+        if style != nil, set[.weight].trimmingCharacters(in: .whitespaces).isEmpty,
+           let planned = set.planned?.targetWeight, !planned.isEmpty {
+            set[.weight] = planned
+        }
+        set.ascentStyle = style
+        groups[g].exercises[e].sets[s] = set
+        dirtySets.insert(key)
+        return true
+    }
+
+    /// The attempts stepper: up from none is one go; down from one is none.
+    @discardableResult
+    public mutating func stepAttempts(by delta: Int, at key: SetKey) -> Bool {
+        guard let (g, e, s) = locate(key) else { return false }
+        let current = SetMetadata.parseAttempts(groups[g].exercises[e].sets[s].attempts)
+        let next: String
+        if delta > 0 {
+            next = String((current ?? 0) + delta)
+        } else {
+            guard let current else { return false }
+            next = current + delta >= 1 ? String(current + delta) : ""
+        }
+        groups[g].exercises[e].sets[s].attempts = next
+        dirtySets.insert(key)
+        return true
+    }
+
     // MARK: - Cardio edits
 
     @discardableResult
@@ -378,9 +442,10 @@ public struct TrackerEditor: Sendable, Equatable {
                 set.isLogged = true
                 set.isAutofilled = row.isAutofilled
                 set.shadow = nil
+                Self.applyMetadata(of: row, to: &set)
                 groups[g].exercises[e].sets[s] = set
             } else {
-                groups[g].exercises[e].sets.append(TrackedSet(
+                var set = TrackedSet(
                     setNumber: row.setNumber,
                     planned: PlannedSet(
                         setNumber: row.setNumber, targetWeight: row.plannedWeight,
@@ -389,7 +454,9 @@ public struct TrackerEditor: Sendable, Equatable {
                     actualWeight: row.actualWeight ?? "", actualReps: row.actualReps ?? "",
                     actualDuration: row.actualDuration ?? "", isLogged: true,
                     isAutofilled: row.isAutofilled, isExtra: true
-                ))
+                )
+                Self.applyMetadata(of: row, to: &set)
+                groups[g].exercises[e].sets.append(set)
                 groups[g].exercises[e].sets.sort { $0.setNumber < $1.setNumber }
             }
         }
@@ -406,6 +473,17 @@ public struct TrackerEditor: Sendable, Equatable {
             groups[g].exercises[e].cardio?.avgHeartRate = row.avgHeartRate.map(String.init) ?? ""
             groups[g].exercises[e].cardio?.isLogged = true
             groups[g].exercises[e].cardio?.shadow = nil
+        }
+    }
+
+    /// A queued row's metadata, the way the server hydrates a saved one
+    /// (`rowMetadata` in plan.ts).
+    private static func applyMetadata(of row: SetLogRow, to set: inout TrackedSet) {
+        set.rpe = row.rpe.map { SetMetadata.normalizeRpeText(String($0)) } ?? ""
+        set.isWarmup = row.isWarmup
+        if row.isPitch {
+            set.ascentStyle = row.ascentStyle
+            set.attempts = row.attempts.map(String.init) ?? ""
         }
     }
 
@@ -453,6 +531,12 @@ public struct TrackerEditor: Sendable, Equatable {
                     row.actualReps = plannedReps || !plannedDuration ? "0" : nil
                     row.actualDuration = plannedDuration ? "0" : nil
                     row.isAutofilled = true
+                    // A skipped set is not a warm-up, whatever the row was
+                    // toggled to — nor a rated effort, nor a send (plan.ts).
+                    row.rpe = nil
+                    row.isWarmup = false
+                    row.ascentStyle = nil
+                    row.attempts = nil
                     rows.append(row)
                 }
             }
@@ -490,16 +574,22 @@ public struct TrackerEditor: Sendable, Equatable {
     }
 
     /// `setToRow`: planned targets snapshotted, empty actuals as null, the
-    /// substituted name and definition (the model already swapped them in).
+    /// substituted name and definition (the model already swapped them in),
+    /// the set's metadata — and a pitch's ascent only on a pitch's row.
     public static func setToRow(session: SessionKey, tracked: TrackedExercise, set: TrackedSet) -> SetLogRow {
-        SetLogRow(
+        let isPitch = tracked.exercise.category == "climbing"
+        return SetLogRow(
             eventId: session.eventId, eventDate: session.eventDate, section: tracked.section,
             exerciseId: tracked.exercise.id, exerciseName: tracked.exercise.name,
             definitionId: tracked.exercise.definitionId, setNumber: set.setNumber,
             plannedWeight: nonEmpty(set.planned?.targetWeight), plannedReps: nonEmpty(set.planned?.targetReps),
             plannedDuration: nonEmpty(set.planned?.targetDuration),
             actualWeight: nonEmpty(set.actualWeight), actualReps: nonEmpty(set.actualReps),
-            actualDuration: nonEmpty(set.actualDuration), isAutofilled: false
+            actualDuration: nonEmpty(set.actualDuration), isAutofilled: false,
+            rpe: SetMetadata.parseRpe(set.rpe), isWarmup: set.isWarmup ?? false,
+            isPitch: isPitch,
+            ascentStyle: isPitch ? set.ascentStyle : nil,
+            attempts: isPitch ? SetMetadata.parseAttempts(set.attempts) : nil
         )
     }
 
@@ -518,8 +608,9 @@ public struct TrackerEditor: Sendable, Equatable {
     }
 
     /// Every input on the screen in reading order, for Next/Done focus advance.
-    /// `visible` says which set fields an exercise renders (`inputFields`).
-    public func fieldOrder(visible: (TrackedExercise) -> [SetField]) -> [FieldID] {
+    /// `visible` says which set fields an exercise renders (`inputFields`);
+    /// with `rpe`, each set's rating follows its fields.
+    public func fieldOrder(rpe: Bool = false, visible: (TrackedExercise) -> [SetField]) -> [FieldID] {
         var order: [FieldID] = []
         for group in groups {
             for tracked in group.exercises {
@@ -532,6 +623,7 @@ public struct TrackerEditor: Sendable, Equatable {
                 for set in tracked.sets {
                     let setKey = SetKey(section: tracked.section, exerciseId: tracked.exercise.id, setNumber: set.setNumber)
                     order += fields.map { FieldID.set(setKey, $0) }
+                    if rpe { order.append(.rpe(setKey)) }
                 }
             }
         }

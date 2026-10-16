@@ -384,6 +384,40 @@ public final class TrackerModel {
         scheduleSave()
     }
 
+    // MARK: - Set metadata (phase55)
+
+    /// Whether set rows offer an RPE field: a device preference, under the
+    /// key the web keeps in localStorage (`RPE_PREFERENCE_KEY`), set in
+    /// You → Training.
+    public static let rpePreferenceKey = "apex.tracker.rpe"
+    public var showsRpe: Bool { UserDefaults.standard.bool(forKey: Self.rpePreferenceKey) }
+
+    public func setWarmup(_ on: Bool, at key: SetKey) {
+        guard editor.setWarmup(on, at: key) else { return }
+        scheduleSave()
+    }
+
+    public func setRpe(_ text: String, at key: SetKey) {
+        guard editor.setRpe(text, at: key) else { return }
+        scheduleSave()
+    }
+
+    /// Leaving the field settles what was typed (the web's blur).
+    public func didLeaveRpe(_ key: SetKey) {
+        guard editor.settleRpe(at: key) else { return }
+        scheduleSave()
+    }
+
+    public func setAscentStyle(_ style: String?, at key: SetKey) {
+        guard editor.setAscentStyle(style, at: key) else { return }
+        scheduleSave()
+    }
+
+    public func stepAttempts(by delta: Int, at key: SetKey) {
+        guard editor.stepAttempts(by: delta, at: key) else { return }
+        scheduleSave()
+    }
+
     /// First focus in a shadowed row commits the ghost (`focusShadow` on the
     /// web). Returns true when it did, so the field can select its text and the
     /// first keystroke replaces rather than appends.
@@ -552,7 +586,7 @@ public final class TrackerModel {
     }
 
     public func nextField(after current: FieldID) -> FieldID? {
-        let order = editor.fieldOrder { self.inputFields(for: $0) }
+        let order = editor.fieldOrder(rpe: showsRpe) { self.inputFields(for: $0) }
         guard let i = order.firstIndex(of: current), i + 1 < order.count else { return nil }
         return order[i + 1]
     }

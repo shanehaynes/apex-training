@@ -28,22 +28,19 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
 | W16 | Apple Health (write, read workouts, daily metrics, body weight, meals) | M1 (#430) + MT (#438) shipped in TestFlight 1.1.0 (561); M0/M2b next | both | D-056 supersedes D-018; M1 (write, no migration) merges after 1.0 is approved and ships as 1.1; MT (in-app terms re-acceptance) gates the privacy bump; brief [W16](workstreams/W16-apple-health.md) |
 
 ## Next up
-0. **Tracker set metadata on iOS — warm-up, RPE, ascent style and attempts (Mac).** Goal: the
-   phone edits what the web's #422 tracker edits, so a session logged on iOS carries the same
-   rows. Today ApexCore decodes `isWarmup`/`rpe`/`ascentStyle`/`attempts` but `SetLogRow` sends
-   none of them, and a warm-up set looks like a working set. Scope: (a) `SetLogRow` gains
-   `is_warmup`, `rpe` (parsed with the web's `parseRpe`: 1–10, half steps, else null) and, on a
-   pitch's row only, `ascent_style`/`attempts` (`parseAttempts`) — check the server's
-   `SET_LOG_COLUMNS` allowlist first; (b) `TrackerEditor` setters that dirty the set; (c) the
-   row: a "W" warm-up toggle, an RPE field behind the profile preference the web uses, a style
-   picker + attempts on climbing rows; (d) `collectUntouchedPlanned` sends `is_warmup: false,
-   rpe: null` like plan.ts:657, so a zero-filled set never stays a warm-up from another client.
-   Acceptance: `TrackerEditorTests` for each setter and the row encoding (byte-for-byte keys vs
-   `setToRow` in plan.ts); a warm-up set excluded from the summary volume the way
-   `isPerformedSet` does; the smoke toggles a warm-up and saves; snapshots of a warm-up row and a
-   pitch row with style. Owns: `ApexCore/Tracker/{TrackerRows,TrackerEditor}.swift`,
-   `ApexFeatures/Tracker`, its tests. Also stale: eight tracker snapshot references predate
-   #398/#408/#413/#430 — re-record them in that PR or its own.
+0. **Session volume on the iOS summary (Mac + Linux).** Goal: the summary says what the web's
+   says — "Volume 12,450" over working sets in the profile's unit — so a lifter sees the number
+   that warm-ups (D-058) and skipped sets are kept out of. Today iOS has no weight parser at all,
+   so nothing local can sum a set. Scope: (a) ApexCore `Weight.swift`, a port of
+   `src/lib/tracking/weight.ts` (`parseWeight` grammar: bare numbers in the profile unit, "kg"/
+   "lb" suffixes, "BW" and "BW+25" against the body weight, `lbToUnit`) and `classifySet` from
+   records.ts; (b) `ProfileResponse.weightUnit` / `bodyWeightLb` (already in `profile.json`)
+   handed to the tracker; (c) `sessionTonnage` over performed sets (not autofilled, not a
+   warm-up; pitches and cardio skipped), shown under the summary title. Acceptance: ApexCore
+   vectors copied from `weight.test.ts` and the tonnage cases in `WorkoutSummary.test.tsx`
+   (warm-up excluded, "BW+25" resolved, kg profile reads kg); a summary snapshot with the line.
+   Owns: `ApexCore/Tracker/Weight.swift` (new), `ApexFeatures/Tracker/SummaryOverlay.swift`, the
+   tracker's profile wiring, tests.
 0. **W16 M1 — write finished sessions to Apple Health (Mac).** Goal: a tracker finish writes an
    Apex-branded `HKWorkout` with the real start and end, the mapped activity type and
    `HKMetadataKeySyncIdentifier`/`SyncVersion` so a re-save replaces; cancel-after-finish deletes
@@ -141,6 +138,13 @@ States: `ready` · `in progress (branch)` · `in review (PR #)` · `done (PR #)`
    (`printf` the two ids back after a tidy) — both git-ignored, so never from the primary checkout.
 
 ## Recent sessions
+- 2026-10-16 · Tracker set metadata · Mac. The phone edits what the web's #422 tracker does
+  (D-058): the set number is the warm-up toggle (a W), an RPE field per set behind You → Training's
+  "Rate sets by effort" (device preference under the web's `apex.tracker.rpe` key), and a pitch's
+  ascent style and attempts on a second line. `SetLogRow` sends `rpe`/`is_warmup` on every row and
+  `ascent_style`/`attempts` on a pitch's only (`setToRow`'s keys); zero-fills reset them; a queued
+  row replays them. The summary tags warm-ups and ratings. Tracker snapshots re-recorded (the
+  stale ones included) plus `tracker-metadata`. Next up: session volume on the summary.
 - 2026-10-15 · Profile time zone · Mac. The app writes `TimeZone.current` to `profiles.timezone`
   (phase58, #449) after sign-in, on every foreground and after accepting updated terms, when it
   differs from what `GET /api/profile` reports (D-057). `ProfileResponse.timezone`,

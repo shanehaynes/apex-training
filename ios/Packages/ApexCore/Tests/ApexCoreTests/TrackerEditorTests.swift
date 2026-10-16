@@ -235,12 +235,13 @@ final class TrackerEditorTests: XCTestCase {
         XCTAssertNil(row.actualReps)
         XCTAssertFalse(row.isAutofilled)
 
-        // The wire shape: exactly the allowlisted columns, nulls explicit.
+        // The wire shape: exactly the allowlisted columns, nulls explicit —
+        // `setToRow`'s keys, the metadata on every row and no pitch columns.
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         XCTAssertEqual(
             String(decoding: try encoder.encode(row), as: UTF8.self),
-            #"{"actual_duration":null,"actual_reps":null,"actual_weight":"185","definition_id":"def-bench","event_date":"2026-07-06","event_id":"eid","exercise_id":"ub-1","exercise_name":"Bench Press","is_autofilled":false,"planned_duration":null,"planned_reps":"5","planned_weight":"185lb","section":"exercise","set_number":1}"#
+            #"{"actual_duration":null,"actual_reps":null,"actual_weight":"185","definition_id":"def-bench","event_date":"2026-07-06","event_id":"eid","exercise_id":"ub-1","exercise_name":"Bench Press","is_autofilled":false,"is_warmup":false,"planned_duration":null,"planned_reps":"5","planned_weight":"185lb","rpe":null,"section":"exercise","set_number":1}"#
         )
     }
 
@@ -461,6 +462,159 @@ final class TrackerEditorTests: XCTestCase {
         XCTAssertEqual(order[7], .cardio(CardioKey(section: "exercise", exerciseId: "run-1"), .durationMinutes))
         XCTAssertEqual(order.last, .set(SetKey(section: "exercise", exerciseId: "p-1", setNumber: 1), .weight))
         XCTAssertEqual(order.count, 1 + 6 + 4 + 1)
+    }
+
+    // MARK: - Set metadata (phase55)
+
+    private var bench1: SetKey { SetKey(section: "exercise", exerciseId: "ub-1", setNumber: 1) }
+    private var pitch1: SetKey { SetKey(section: "exercise", exerciseId: "p-1", setNumber: 1) }
+
+    private func wire(_ row: SetLogRow) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return String(decoding: try encoder.encode(row), as: UTF8.self)
+    }
+
+    func testParseRpeVectors() {
+        // plan.test.ts: 1–10, rounded to the half, anything else is no rating.
+        XCTAssertEqual(SetMetadata.parseRpe("8"), 8)
+        XCTAssertEqual(SetMetadata.parseRpe(" 7.5 "), 7.5)
+        XCTAssertEqual(SetMetadata.parseRpe("7.3"), 7.5)
+        XCTAssertEqual(SetMetadata.parseRpe("7.2"), 7)
+        XCTAssertEqual(SetMetadata.parseRpe("1"), 1)
+        XCTAssertEqual(SetMetadata.parseRpe("10"), 10)
+        for bad in ["", "  ", "0", "0.5", "10.5", "11", "-3", "hard", "inf", nil] as [String?] {
+            XCTAssertNil(SetMetadata.parseRpe(bad), "\(String(describing: bad))")
+        }
+        XCTAssertEqual(SetMetadata.normalizeRpeText("8.0"), "8")
+        XCTAssertEqual(SetMetadata.normalizeRpeText("7.3"), "7.5")
+        XCTAssertEqual(SetMetadata.normalizeRpeText("12"), "")
+    }
+
+    func testParseAttemptsVectors() {
+        XCTAssertEqual(SetMetadata.parseAttempts("3"), 3)
+        XCTAssertEqual(SetMetadata.parseAttempts(" 1 "), 1)
+        for bad in ["", "0", "-1", "2.5", "two", nil] as [String?] {
+            XCTAssertNil(SetMetadata.parseAttempts(bad), "\(String(describing: bad))")
+        }
+    }
+
+    func testBoulderingNeverFollows() {
+        XCTAssertEqual(SetMetadata.ascentStyles(for: "sport").map(\.value), ["flash", "redpoint", "follow", "attempt"])
+        XCTAssertEqual(SetMetadata.ascentStyles(for: "boulder").map(\.value), ["flash", "redpoint", "attempt"])
+    }
+
+    func testWarmupAndRpeDirtyTheSetAndRideTheRow() throws {
+        var editor = handBuilt()
+        XCTAssertTrue(editor.setWarmup(true, at: bench1))
+        XCTAssertTrue(editor.setRpe("7.3", at: bench1))
+        XCTAssertEqual(editor.dirtySets, [bench1])
+        let row = try XCTUnwrap(editor.takeSavePayload()?.setLogs.first)
+        XCTAssertTrue(row.isWarmup)
+        XCTAssertEqual(row.rpe, 7.5)
+        XCTAssertEqual(
+            try wire(row),
+            #"{"actual_duration":null,"actual_reps":null,"actual_weight":null,"definition_id":"def-bench","event_date":"2026-07-06","event_id":"eid","exercise_id":"ub-1","exercise_name":"Bench Press","is_autofilled":false,"is_warmup":true,"planned_duration":null,"planned_reps":"5","planned_weight":"185lb","rpe":7.5,"section":"exercise","set_number":1}"#
+        )
+    }
+
+    func testAnUnparseableRpeIsSentAsNoRatingAndSettlesToBlank() throws {
+        var editor = handBuilt()
+        editor.setRpe("11", at: bench1)
+        XCTAssertNil(try XCTUnwrap(editor.takeSavePayload()?.setLogs.first).rpe)
+        XCTAssertTrue(editor.settleRpe(at: bench1))
+        XCTAssertEqual(editor.set(at: bench1)?.rpe, "")
+        editor.setRpe("8.0", at: bench1)
+        editor.settleRpe(at: bench1)
+        XCTAssertEqual(editor.set(at: bench1)?.rpe, "8")
+        XCTAssertFalse(editor.settleRpe(at: bench1), "already settled")
+    }
+
+    func testAPitchRowCarriesItsAscentAndOnlyAPitchRow() throws {
+        var editor = handBuilt()
+        XCTAssertTrue(editor.setAscentStyle("redpoint", at: pitch1))
+        editor.stepAttempts(by: 1, at: pitch1)
+        editor.stepAttempts(by: 1, at: pitch1)
+        let row = try XCTUnwrap(editor.takeSavePayload()?.setLogs.first)
+        XCTAssertEqual(row.ascentStyle, "redpoint")
+        XCTAssertEqual(row.attempts, 2)
+        // Picking a style with the grade empty takes the planned grade.
+        XCTAssertEqual(row.actualWeight, "5.10c")
+        XCTAssertEqual(
+            try wire(row),
+            #"{"actual_duration":null,"actual_reps":null,"actual_weight":"5.10c","ascent_style":"redpoint","attempts":2,"definition_id":null,"event_date":"2026-07-06","event_id":"eid","exercise_id":"p-1","exercise_name":"Pitch 1","is_autofilled":false,"is_warmup":false,"planned_duration":null,"planned_reps":null,"planned_weight":"5.10c","rpe":null,"section":"exercise","set_number":1}"#
+        )
+    }
+
+    func testPickingAStyleNeverOverwritesATypedGrade() throws {
+        var editor = handBuilt()
+        editor.setValue("5.11a", .weight, at: pitch1)
+        editor.setAscentStyle("flash", at: pitch1)
+        XCTAssertEqual(editor.set(at: pitch1)?.actualWeight, "5.11a")
+        editor.setAscentStyle(nil, at: pitch1)
+        XCTAssertNil(try XCTUnwrap(editor.takeSavePayload()?.setLogs.first).ascentStyle)
+    }
+
+    func testTheAttemptsStepperCountsFromOneAndBackToNone() {
+        var editor = handBuilt()
+        XCTAssertFalse(editor.stepAttempts(by: -1, at: pitch1), "nothing to step down from")
+        editor.stepAttempts(by: 1, at: pitch1)
+        XCTAssertEqual(editor.set(at: pitch1)?.attempts, "1")
+        editor.stepAttempts(by: -1, at: pitch1)
+        XCTAssertEqual(editor.set(at: pitch1)?.attempts, "", "down from one is none")
+    }
+
+    func testAZeroFilledSetIsNeverAWarmupARatingOrASend() {
+        var editor = handBuilt()
+        editor.setWarmup(true, at: bench1)
+        editor.setRpe("9", at: bench1)
+        editor.setAscentStyle("attempt", at: pitch1)
+        editor.setValue("", .weight, at: pitch1)
+        _ = editor.takeSavePayload()
+        let rows = editor.collectUntouchedPlanned()
+        let bench = rows.first { $0.key == bench1 }
+        XCTAssertEqual(bench?.isWarmup, false)
+        XCTAssertNil(bench?.rpe)
+        let pitch = rows.first { $0.key == pitch1 }
+        XCTAssertEqual(pitch?.isPitch, true, "the zero-fill still names its pitch columns, as null")
+        XCTAssertNil(pitch?.ascentStyle)
+        XCTAssertNil(pitch?.attempts)
+    }
+
+    func testAQueuedRowReplaysItsMetadata() throws {
+        var editor = handBuilt()
+        editor.setWarmup(true, at: bench1)
+        editor.setRpe("6.5", at: bench1)
+        editor.setAscentStyle("flash", at: pitch1)
+        editor.stepAttempts(by: 1, at: pitch1)
+        let payload = try XCTUnwrap(editor.takeSavePayload())
+        // Round-trip through the queue's storage, then onto a fresh model.
+        let stored = try JSONDecoder().decode(SavePayload.self, from: JSONEncoder().encode(payload))
+        XCTAssertEqual(stored, payload)
+        var fresh = handBuilt()
+        fresh.apply(stored)
+        XCTAssertEqual(fresh.set(at: bench1)?.isWarmup, true)
+        XCTAssertEqual(fresh.set(at: bench1)?.rpe, "6.5")
+        XCTAssertEqual(fresh.set(at: pitch1)?.ascentStyle, "flash")
+        XCTAssertEqual(fresh.set(at: pitch1)?.attempts, "1")
+    }
+
+    func testARowQueuedBeforeTheMetadataStillDecodes() throws {
+        let old = #"{"event_id":"eid","event_date":"2026-07-06","section":"exercise","exercise_id":"ub-1","exercise_name":"Bench Press","definition_id":null,"set_number":1,"planned_weight":null,"planned_reps":null,"planned_duration":null,"actual_weight":"185","actual_reps":"5","actual_duration":null,"is_autofilled":false}"#
+        let row = try JSONDecoder().decode(SetLogRow.self, from: Data(old.utf8))
+        XCTAssertFalse(row.isWarmup)
+        XCTAssertNil(row.rpe)
+        XCTAssertFalse(row.isPitch)
+    }
+
+    func testFieldOrderPlacesEachRatingAfterItsSet() {
+        let editor = handBuilt()
+        let order = editor.fieldOrder(rpe: true) { TrackerEditor.inputFields(for: $0, definition: nil) }
+        XCTAssertEqual(order[1], .rpe(SetKey(section: "warmup", exerciseId: "ub-cd-1", setNumber: 1)))
+        XCTAssertEqual(order[2], .set(bench1, .weight))
+        XCTAssertEqual(order[3], .set(bench1, .reps))
+        XCTAssertEqual(order[4], .rpe(bench1))
+        XCTAssertEqual(order.count, (1 + 1) + 3 * 3 + 4 + (1 + 1))
     }
 
     // MARK: - Replay and refresh
