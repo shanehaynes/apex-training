@@ -29,13 +29,13 @@ function recordRest(page: Page) {
   return {
     read: (table: string, filter = '') =>
       [...counts.keys()].some(u => u.includes(`/rest/v1/${table}?`) && u.includes(filter)),
-    async expectClean({ maxPerUrl = 2 } = {}) {
+    async expectClean() {
       // The first retry lands 1s after its failure; give one the chance to show.
       await page.waitForTimeout(1500);
       expect(failed, 'REST reads that failed at the network level').toEqual([]);
       expect(retried, 'REST reads postgrest-js retried').toEqual([]);
-      const overfetched = [...counts].filter(([, n]) => n > maxPerUrl).map(([url, n]) => `${url} ×${n}`);
-      expect(overfetched, `REST URLs requested more than ${maxPerUrl} times`).toEqual([]);
+      const overfetched = [...counts].filter(([, n]) => n > 2).map(([url, n]) => `${url} ×${n}`);
+      expect(overfetched, 'REST URLs requested more than StrictMode\'s two mounts').toEqual([]);
     },
   };
 }
@@ -70,10 +70,7 @@ test('block detail answers its progress reads first time', async ({ page }) => {
   await page.locator('.block-row', { hasText: 'Base' }).click();
   // "Loading…" until completions and sessions settle — inside the retry ladder.
   await expect(page.getByText(/of 4 weeks complete/)).toBeVisible({ timeout: 3000 });
-  // A looser cap than StrictMode's two: BlockDetail reloads on every `events`
-  // identity change, so a third fetch is a re-render, not a retry (the retry
-  // header still catches those). Six still catches a fetch loop.
-  await rest.expectClean({ maxPerUrl: 6 });
+  await rest.expectClean();
   const blockWindow = 'event_date=gte.2026-09-07';
   expect(rest.read('workout_completions', blockWindow), 'block completions were read').toBe(true);
   expect(rest.read('workout_sessions', blockWindow), 'block sessions were read').toBe(true);
