@@ -14,6 +14,16 @@ describe('fetchAllRows abort', () => {
     expect(page).toHaveBeenCalledTimes(1);
   });
 
+  it('rejects when aborted during the last (short) page, rather than resolving with it', async () => {
+    const abort = new AbortController();
+    const page = vi.fn(async () => {
+      abort.abort();
+      return { data: [{ i: 0 }, { i: 1 }, { i: 2 }], error: null };
+    });
+    await expect(fetchAllRows('history', page, abort.signal)).rejects.toMatchObject({ name: 'AbortError' });
+    expect(page).toHaveBeenCalledTimes(1);
+  });
+
   it('asks for nothing once already aborted', async () => {
     const abort = new AbortController();
     abort.abort();
