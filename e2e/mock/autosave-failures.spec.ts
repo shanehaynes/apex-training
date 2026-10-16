@@ -7,8 +7,7 @@ import { sessionResponse } from '../lib/intercept.mjs';
 // buildSend decides which failed autosave tells the user (saveLogs only
 // throws — autosaveFailureToast is unit-tested; these pin the wiring). Each
 // case fails if its line in buildSend breaks: the streak flag, the auth
-// branch, the single-key refusal, the cancel guard. Not covered: the
-// keepalive hand-off — Playwright cannot see fetch's keepalive flag.
+// branch, the single-key refusal, the cancel guard, the keepalive hand-off.
 
 interface SessionBody { action?: string }
 type Reply = { status: number; body?: string };
@@ -63,12 +62,49 @@ async function recordToasts(page: Page) {
 const toasts = (page: Page) => page.evaluate(() => (window as unknown as { __toasts: string[] }).__toasts);
 const count = async (page: Page, prefix: string) => (await toasts(page)).filter(t => t.startsWith(prefix)).length;
 
+/** Each console error with the URL it came from (the auto fixture keeps
+ *  only the text), so a stubbed save failure can be told from any other. */
+let consoleLog: { text: string; url: string }[] = [];
+
 /** The failed saves this test stubbed are the only console errors it may
- *  leave: each one is the browser's resource error for one of `statuses`. */
+ *  leave: each is the browser's resource error for /api/workout-sessions
+ *  with one of `statuses`. */
 function expectOnlyStubbedFailures(consoleErrors: string[], statuses: number[]) {
   const stubbed = new RegExp(`^Failed to load resource: the server responded with a status of (${statuses.join('|')})\\b`);
-  expect(consoleErrors.filter(e => !stubbed.test(e)), 'console errors other than the stubbed saves').toEqual([]);
+  const excused = new Set(consoleLog
+    .filter(e => stubbed.test(e.text) && e.url.includes('/api/workout-sessions'))
+    .map(e => e.text));
+  expect(consoleErrors.filter(e => !excused.has(e)), 'console errors other than the stubbed saves').toEqual([]);
   consoleErrors.length = 0;
+}
+
+/** What each save's fetch was called with, read page-side: keepalive is a
+ *  RequestInit flag the network layer never shows. */
+async function recordSaveFetches(page: Page) {
+  await page.addInitScript(() => {
+    const sends: { keepalive: boolean; keys: number }[] = [];
+    (window as unknown as { __saves: typeof sends }).__saves = sends;
+    const real = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes('/api/workout-sessions') && typeof init?.body === 'string') {
+        const body = JSON.parse(init.body) as { action?: string; setLogs?: unknown[] };
+        if (body.action === 'save') sends.push({ keepalive: init.keepalive === true, keys: body.setLogs?.length ?? 0 });
+      }
+      return real(input, init);
+    };
+  });
+}
+const saveFetches = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __saves: { keepalive: boolean; keys: number }[] }).__saves);
+
+/** The tab goes to the background: what the hidden-tab flush listens for. */
+async function hideTab(page: Page) {
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+  });
 }
 
 interface SaveState { consecutiveFailures: number; paused: boolean; rejected: number }
@@ -90,7 +126,12 @@ async function edit(page: Page, row: number, value: string) {
   await input.fill(value);
 }
 
-test.beforeEach(async ({ page }) => { await recordToasts(page); });
+test.beforeEach(async ({ page }) => {
+  consoleLog = [];
+  page.on('console', msg => { if (msg.type() === 'error') consoleLog.push({ text: msg.text(), url: msg.location()?.url ?? '' }); });
+  await recordToasts(page);
+  await recordSaveFetches(page);
+});
 
 test('a failing streak toasts once; the next streak toasts again', async ({ page, consoleErrors }) => {
   const stub = new SaveStub();
@@ -111,6 +152,11 @@ test('a failing streak toasts once; the next streak toasts again', async ({ page
   await edit(page, 0, '8');
   await expect.poll(async () => (await saveState(page)).consecutiveFailures, { timeout: 10000 }).toBeGreaterThanOrEqual(1);
   await expect.poll(() => count(page, 'Autosave failed')).toBe(2);
+
+  // End quiet: a retry still on the ladder could log after the check below.
+  // The next backoff retry succeeds and empties the queue.
+  stub.replies = [{ status: 200 }];
+  await expect.poll(async () => (await saveState(page)).consecutiveFailures, { timeout: 10000 }).toBe(0);
   expectOnlyStubbedFailures(consoleErrors, [503]);
 });
 
@@ -142,6 +188,35 @@ test("a refused batch is silent; each isolated row shows the server's message on
   await expect.poll(async () => (await toasts(page)).filter(t => t.startsWith('Autosave'))).toEqual([
     'Autosave refused: Weight must be a number',
     'Autosave refused: Weight must be a number',
+  ]);
+  expectOnlyStubbedFailures(consoleErrors, [422]);
+});
+
+test('a hide that sends nothing leaves no keepalive behind for the next save', async ({ page }) => {
+  await new SaveStub().install(page);
+  await openTracker(page);
+
+  await hideTab(page); // nothing dirty: the flush sends nothing
+  await edit(page, 0, '7');
+  await expect.poll(() => saveFetches(page), { timeout: 10000 }).toEqual([{ keepalive: false, keys: 1 }]);
+});
+
+test('the hidden-tab flush sends with keepalive; the isolation sends it sets off do not', async ({ page, consoleErrors }) => {
+  const stub = new SaveStub();
+  stub.replies = [{ status: 422, body: 'Weight must be a number' }];
+  await stub.install(page);
+  await openTracker(page);
+
+  // Two edits, then the tab hides before the debounce: one keepalive batch,
+  // refused, which the queue isolates into two plain single-key sends.
+  await edit(page, 0, '7');
+  await edit(page, 1, '9');
+  await hideTab(page);
+  await expect.poll(async () => (await saveState(page)).rejected, { timeout: 15000 }).toBe(2);
+  expect(await saveFetches(page)).toEqual([
+    { keepalive: true, keys: 2 },
+    { keepalive: false, keys: 1 },
+    { keepalive: false, keys: 1 },
   ]);
   expectOnlyStubbedFailures(consoleErrors, [422]);
 });
