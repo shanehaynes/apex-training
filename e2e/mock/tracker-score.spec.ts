@@ -3,7 +3,7 @@ import { test, expect, gotoCalendar, shot } from '../lib/fixtures';
 import { mockSession, sessionResponse } from '../lib/intercept.mjs';
 import { rowToEvent } from '../../src/lib/schedule/mapping';
 
-// One scored (For Time) event on the frozen "today", replacing the 503→seed
+// One scored (For Time) event on the frozen "today", replacing the 500→seed
 // fallback: page.route outranks the context-level intercept.
 const MURPH_EVENT = {
   id: 'evt-murph',
