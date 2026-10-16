@@ -49,11 +49,29 @@ public enum Weight {
 
     // The web's GRAMMAR: an optional BW, an optional sign, an optional number
     // (comma or dot decimal), an optional unit that may carry a trailing
-    // period. Whole string, case-insensitive.
-    private static let grammar = try! NSRegularExpression(
-        pattern: #"^\s*(bw)?\s*([+-])?\s*(\d+(?:[.,]\d+)?)?\s*(?:(lbs?|pounds?|#|kgs?|kilos?|kilograms?)\.?)?\s*$"#,
-        options: [.caseInsensitive]
+    // period. Whole string, case-insensitive. Spelled with explicit classes
+    // rather than ICU's `\s`, `\d` and case folding, which reach past what
+    // JavaScript's do (a Kelvin sign folds to k, NEL is a space, a BOM is not):
+    // `ws` is exactly JS's `\s`, digits are ASCII, letters are ASCII pairs.
+    private static let ws = #"[\t\n\x{0B}\f\r \x{A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}]"#
+    private static let grammar: NSRegularExpression = {
+        let unit = "[lL][bB][sS]?|[pP][oO][uU][nN][dD][sS]?|#|[kK][gG][sS]?|[kK][iI][lL][oO][sS]?|[kK][iI][lL][oO][gG][rR][aA][mM][sS]?"
+        let pattern = #"\A\#(ws)*([bB][wW])?\#(ws)*([+-])?\#(ws)*([0-9]+(?:[.,][0-9]+)?)?\#(ws)*(?:(\#(unit))\.?)?\#(ws)*\z"#
+        return try! NSRegularExpression(pattern: pattern)
+    }()
+
+    /// JavaScript's `String.prototype.trim` set (`\s` plus the line terminators).
+    private static let jsWhitespace: Set<Unicode.Scalar> = Set(
+        [0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x20, 0xA0, 0x1680, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF]
+            .compactMap(Unicode.Scalar.init) + (0x2000...0x200A).compactMap(Unicode.Scalar.init)
     )
+
+    private static func jsTrim(_ text: String) -> Substring.UnicodeScalarView {
+        var scalars = Substring(text).unicodeScalars
+        while let first = scalars.first, jsWhitespace.contains(first) { scalars.removeFirst() }
+        while let last = scalars.last, jsWhitespace.contains(last) { scalars.removeLast() }
+        return scalars
+    }
 
     /// "1,200" is a thousands separator (a comma, exactly three digits,
     /// nothing after); any other comma is a decimal.
@@ -109,15 +127,17 @@ public enum Weight {
     /// `parseLeadingNumber` (records.ts): the leading "12" or "12.5" of a
     /// reps value like "12 each side".
     public static func leadingNumber(_ text: String?) -> Double? {
-        guard let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return nil }
+        guard let text else { return nil }
         var digits = ""
         var seenDot = false
-        for c in trimmed {
-            if c.isASCII, c.isNumber {
-                digits.append(c)
-            } else if c == ".", !seenDot, !digits.isEmpty {
+        // Scalar by scalar, as the web's regex reads code units: a digit that
+        // carries a combining mark is still a digit.
+        for scalar in jsTrim(text) {
+            if ("0"..."9").contains(scalar) {
+                digits.unicodeScalars.append(scalar)
+            } else if scalar == ".", !seenDot, !digits.isEmpty {
                 seenDot = true
-                digits.append(c)
+                digits.unicodeScalars.append(scalar)
             } else {
                 break
             }
@@ -152,6 +172,9 @@ public enum Weight {
                 }
             }
         }
-        return any ? Int(lbToUnit(total, ctx.unit).rounded()) : nil
+        // Weights are free text: a pasted twenty-digit entry would overflow
+        // Int and trap, so a total no Int holds is no line rather than a crash.
+        guard any else { return nil }
+        return Int(exactly: lbToUnit(total, ctx.unit).rounded())
     }
 }

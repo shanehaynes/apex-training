@@ -81,6 +81,32 @@ final class WeightTests: XCTestCase {
         XCTAssertNil(Weight.parse("BW-200", lbBW), "never zero or less")
     }
 
+    /// The rest of weight.acceptance.test.ts's bodyweight vectors.
+    func testMoreBodyweightVectors() {
+        XCTAssertEqual(lbOf("bw + 25 lbs", lbBW), 205)
+        XCTAssertEqual(lbOf("BW+0", lbBW), 180)
+        XCTAssertEqual(lbOf("BW-0", lbBW), 180)
+        XCTAssertEqual(lbOf("BW-179", lbBW), 1)
+        XCTAssertNil(Weight.parse("BW-180", lbBW))
+        XCTAssertNil(Weight.parse("BW-82kg", lbBW), "180 lb less 180.8 lb is nothing")
+        XCTAssertEqual(lbOf("BW+2,5kg", lbBW)!, 180 + 2.5 * Weight.lbPerKg, accuracy: 1e-5)
+        for malformed in ["+BW", "BW+-25", "BW #", "bwkg", "BW lb"] {
+            XCTAssertNil(Weight.parse(malformed, lbBW), malformed)
+        }
+    }
+
+    /// Where ICU and JavaScript disagree, the web's answer (taken from node).
+    func testOnlyJavaScriptsWhitespaceDigitsAndLetters() {
+        XCTAssertNil(Weight.parse("100 \u{212A}g", lb), "a Kelvin sign is not a k")
+        XCTAssertNil(Weight.parse("185 lb\u{017F}", lb), "a long s is not an s")
+        XCTAssertNil(Weight.parse("185\u{0085}", lb), "NEL is not a space")
+        XCTAssertEqual(lbOf("\u{FEFF}185", lb), 185, "a BOM is")
+        XCTAssertEqual(lbOf("185\u{00A0}lb", lb), 185)
+        XCTAssertEqual(Weight.leadingNumber("\u{FEFF}5"), 5)
+        XCTAssertEqual(Weight.leadingNumber("5\u{0301}"), 5)
+        XCTAssertNil(Weight.leadingNumber("\u{0085}5"))
+    }
+
     func testTheProfileContext() {
         XCTAssertEqual(Weight.Context(profileUnit: "kg", bodyWeightLb: 180), kgBW)
         XCTAssertEqual(Weight.Context(profileUnit: nil, bodyWeightLb: nil), lb)
@@ -129,12 +155,25 @@ final class WeightTests: XCTestCase {
             section: "exercise", exercise: Exercise(id: "dip", name: "Dip", category: "strength"),
             isCardio: false, sets: [skipped, bodyweight, noReps]
         )
+        // "5.10" parses as 5.1 lb: only the climbing exclusion keeps a grade out.
         let pitch = TrackedExercise(
             section: "exercise", exercise: Exercise(id: "p", name: "Pitch", category: "climbing"),
-            isCardio: false, sets: [TrackedSet(setNumber: 1, actualWeight: "5.10a", actualReps: "1")]
+            isCardio: false, sets: [TrackedSet(setNumber: 1, actualWeight: "5.10", actualReps: "1")]
         )
-        let groups = [TrackedSectionGroup(section: "exercise", label: "Main Work", exercises: [lift, pitch])]
+        let run = TrackedExercise(
+            section: "exercise", exercise: Exercise(id: "r", name: "Run", category: "cardio"),
+            isCardio: true, sets: [TrackedSet(setNumber: 1, actualWeight: "100", actualReps: "5")]
+        )
+        let groups = [TrackedSectionGroup(section: "exercise", label: "Main Work", exercises: [lift, pitch, run])]
         XCTAssertEqual(Weight.sessionTonnage(groups, lbBW), 205 * 8, "BW+25 resolves; the rest add nothing")
         XCTAssertNil(Weight.sessionTonnage(groups, lb), "without a body weight nothing carried both")
+    }
+
+    func testATotalNoIntHoldsIsNoLineRatherThanACrash() {
+        let absurd = TrackedExercise(
+            section: "exercise", exercise: Exercise(id: "x", name: "X", category: "strength"),
+            isCardio: false, sets: [TrackedSet(setNumber: 1, actualWeight: "10000000000000000000", actualReps: "1")]
+        )
+        XCTAssertNil(Weight.sessionTonnage([TrackedSectionGroup(section: "exercise", label: "Main Work", exercises: [absurd])], lb))
     }
 }

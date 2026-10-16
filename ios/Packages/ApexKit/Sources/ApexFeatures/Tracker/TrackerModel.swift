@@ -145,19 +145,27 @@ public final class TrackerModel {
 
     // MARK: - Lifecycle
 
-    /// Cache → render → replay the queue → flush → network → refresh what is
-    /// not ahead locally. On `.network` with a cached peek and no session, this
-    /// is the offline start: stamp now, queue `start`, and remember it.
+    /// The weight context from the profile the Schedule tab caches, re-read at
+    /// open and again before every summary — a unit changed on the web, or a
+    /// profile that landed after the tracker opened, is seen at Finish. With
+    /// nothing cached (a fresh install whose Schedule has not loaded yet) it
+    /// asks the server once; offline it keeps what it had.
     private func loadWeightContext() async {
-        guard let entry = try? await services.cache.read(kind: .profile, key: ScheduleCacheKey.profile),
-              let profile = try? JSONDecoder().decode(ProfileResponse.self, from: entry.json) else { return }
-        weightContext = profile.weightContext
+        if let entry = try? await services.cache.read(kind: .profile, key: ScheduleCacheKey.profile),
+           let profile = try? JSONDecoder().decode(ProfileResponse.self, from: entry.json) {
+            weightContext = profile.weightContext
+        } else if let profile = try? await services.client.send(.profile, as: ProfileResponse.self) {
+            weightContext = profile.weightContext
+        }
     }
 
     /// Σ weight × reps over this session's working sets, in the profile's
     /// unit — the summary's volume line (`sessionTonnage`).
     public var sessionVolume: Int? { Weight.sessionTonnage(editor.groups, weightContext) }
 
+    /// Cache → render → replay the queue → flush → network → refresh what is
+    /// not ahead locally. On `.network` with a cached peek and no session, this
+    /// is the offline start: stamp now, queue `start`, and remember it.
     public func open() async {
         isPresented = true
         await loadWeightContext()
@@ -633,6 +641,7 @@ public final class TrackerModel {
     /// calendar completion. `force` is the confirm bar's "Finish anyway".
     public func requestFinish(force: Bool = false, score: ScoreChoice = .notAsked) async {
         guard phase == .ready, !isFinished, gate != .finishing else { return }
+        await loadWeightContext()
         if !force {
             let count = editor.unloggedPlannedCount
             if count > 0 {
@@ -773,6 +782,7 @@ public final class TrackerModel {
     /// The Done badge on a finished session: the records came with the
     /// bootstrap and the summary text may have too, so no request is needed.
     public func openSavedSummary() async {
+        await loadWeightContext()
         summary = Summary(
             prs: savedPRs, scoreRecord: savedScoreRecord, score: savedScore,
             coachText: coachSummary, coachStatus: coachSummary == nil ? .loading : .ready,
