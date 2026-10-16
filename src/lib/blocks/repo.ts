@@ -26,9 +26,10 @@ const EMPTY: BlockLogs = { completions: [], sessions: [], setLogs: [], cardioLog
  * Logs covering a block's window. Offline (supabase === null) yields nothing;
  * a failed query throws, so the caller can tell "no logs" from "no answer".
  */
-export async function loadBlockLogs(block: TrainingBlock): Promise<BlockLogs> {
+export async function loadBlockLogs(
+  { startDate, endDateExclusive }: Pick<TrainingBlock, 'startDate' | 'endDateExclusive'>,
+): Promise<BlockLogs> {
   if (!supabase) return EMPTY;
-  const { startDate, endDateExclusive } = blockPeriod(block);
 
   const [completions, sessions, setLogs, cardioLogs] = await Promise.all([
     supabase
