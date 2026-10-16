@@ -70,10 +70,7 @@ test('block detail answers its progress reads first time', async ({ page }) => {
   await page.locator('.block-row', { hasText: 'Base' }).click();
   // "Loading…" until completions and sessions settle — inside the retry ladder.
   await expect(page.getByText(/of 4 weeks complete/)).toBeVisible({ timeout: 3000 });
-  // A looser cap than StrictMode's two: BlockDetail reloads on every `events`
-  // identity change, so a third fetch is a re-render, not a retry (the retry
-  // header still catches those). Six still catches a fetch loop.
-  await rest.expectClean({ maxPerUrl: 6 });
+  await rest.expectClean();
   const blockWindow = 'event_date=gte.2026-09-07';
   expect(rest.read('workout_completions', blockWindow), 'block completions were read').toBe(true);
   expect(rest.read('workout_sessions', blockWindow), 'block sessions were read').toBe(true);
