@@ -62,9 +62,19 @@ struct SummaryOverlay: View {
             Text(meta)
                 .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
                 .foregroundStyle(ApexColor.textMuted)
+            if let volume = model.sessionVolume {
+                Text("Volume \(volume.formatted(.number.grouping(.automatic).locale(Self.volumeLocale)))")
+                    .font(.apex(.mono, size: TypeScale.xs, relativeTo: .caption))
+                    .foregroundStyle(ApexColor.textMuted)
+                    .accessibilityLabel("Volume \(volume) \(model.weightContext.unit.rawValue), working sets only")
+                    .accessibilityIdentifier("tracker.summary.volume")
+            }
         }
         .padding(.trailing, 44)
     }
+
+    /// The web's `toLocaleString()` in en-US: "12,450".
+    private static let volumeLocale = Locale(identifier: "en_US")
 
     private var meta: String {
         var line = "\(model.event.title) · \(MonthNames.weekdayShort[model.event.day.weekday - 1]), \(MonthNames.short[model.event.day.month - 1]) \(model.event.day.day)"
